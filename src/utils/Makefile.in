@@ -1,0 +1,25 @@
+CC=@CC@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+AR=@AR@
+RANLIB=@RANLIB@
+LIBS=@LIBS@
+INSTALL=@INSTALL@
+
+top_srcdir=@top_srcdir@
+
+OBJS=noit_hash.o
+
+all:	libnoit_utils.a
+
+libnoit_utils.a:	$(OBJS)
+	rm -f $@
+	$(AR) cq $@ $(OBJS)
+	$(RANLIB) $@
+
+.c.o:
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+
+clean:
+	rm -f *.o libnoit_utils.a
