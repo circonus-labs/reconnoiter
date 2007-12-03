@@ -9,6 +9,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Cannot choose kqueue\n");
     exit(-1);
   }
-
+  if(eventer_init() == -1) {
+    fprintf(stderr, "Cannot init kqueue\n");
+    exit(-1);
+  }
   return 0;
 }
