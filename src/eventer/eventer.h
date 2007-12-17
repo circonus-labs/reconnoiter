@@ -42,7 +42,7 @@ typedef int (*eventer_func_t)
 
 struct _event {
   eventer_func_t      callback;
-  struct timeval     *whence;
+  struct timeval      whence;
   int                 fd;
   int                 mask;
   eventer_fd_opset_t  opset;
@@ -51,6 +51,7 @@ struct _event {
 
 API_EXPORT(eventer_t) eventer_alloc();
 API_EXPORT(void)      eventer_free(eventer_t);
+API_EXPORT(int)       eventer_timecompare(void *a, void *b);
 
 typedef struct _eventer_impl {
   const char         *name;

@@ -9,7 +9,7 @@ INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-OBJS=noit_hash.o
+OBJS=noit_hash.o noit_skiplist.o
 
 all:	libnoit_utils.a
 

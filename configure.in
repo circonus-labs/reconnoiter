@@ -12,6 +12,10 @@ AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl)
 AC_SUBST(PERL)
 
+if test "x$CC" = "xgcc" ; then
+  CFLAGS="$CFLAGS -g -Wall"
+fi
+
 # Checks for data types
 AC_CHECK_SIZEOF(char, 1)
 AC_CHECK_SIZEOF(short int, 2)

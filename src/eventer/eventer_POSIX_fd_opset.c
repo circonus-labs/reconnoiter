@@ -7,6 +7,7 @@
 #include "eventer/eventer.h"
 
 #include <sys/socket.h>
+#include <unistd.h>
 
 static int
 POSIX_accept(int fd, struct sockaddr *addr, socklen_t *len,
