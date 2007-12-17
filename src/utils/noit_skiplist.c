@@ -280,9 +280,8 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
       ni->previndex = li;
       li = ni;
     }
-  } else {
-    sl->size++;
   }
+  sl->size++;
   return ret;
 }
 int noit_skiplist_remove(noit_skiplist *sl,
@@ -294,7 +293,6 @@ int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m, noit_freefun
   noit_skiplist_node *p;
   if(!m) return 0;
   if(m->nextindex) noit_skiplisti_remove(m->nextindex->sl, m->nextindex, NULL);
-  else sl->size--;
   while(m->up) m=m->up;
   while(m) {
     p=m;
@@ -305,6 +303,7 @@ int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m, noit_freefun
     if(!m && myfree && p->data) myfree(p->data);
     free(p);
   }
+  sl->size--;
   while(sl->top && sl->top->next == NULL) {
     /* While the row is empty and we are not on the bottom row */
     p = sl->top;
