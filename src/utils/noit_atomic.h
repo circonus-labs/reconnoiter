@@ -8,7 +8,7 @@
 
 #include "noit_config.h"
 
-typedef int32_t noit_atomic_t;
+typedef int32_t noit_atomic32_t;
 typedef int64_t noit_atomic64_t;
 
 #ifdef HAVE_LIBKERN_OSATOMIC_H
@@ -29,9 +29,6 @@ typedef OSSpinLock noit_spinlock_t;
 #define noit_spinlock_trylock OSSpinLockTry
 #elif defined(__GNUC__)
 
-typedef u_int32_t noit_atomic32_t
-typedef u_int64_t noit_atomic64_t
-
 #if (SIZEOF_VOID_P == 4)
 #define noit_atomic_casptr(a,b,c) noit_atomic_cas32((a),(void *)(b),(void *)(c))
 #elif (SIZEOF_VOID_P == 8)
@@ -40,8 +37,10 @@ typedef u_int64_t noit_atomic64_t
 #error unsupported pointer width
 #endif
 
+typedef noit_atomic32_t noit_spinlock_t;
+
 static inline noit_atomic32_t
-noit_atomic_cas32(volatile noit_atomic32_t *ptr
+noit_atomic_cas32(volatile noit_atomic32_t *ptr,
                   volatile noit_atomic32_t rpl,
                   volatile noit_atomic32_t curr) {
   noit_atomic32_t prev;
@@ -55,7 +54,7 @@ noit_atomic_cas32(volatile noit_atomic32_t *ptr
 
 #ifdef __x86_64__
 static inline noit_atomic64_t
-noit_atomic_cas64(volatile noit_atomic64_t *ptr
+noit_atomic_cas64(volatile noit_atomic64_t *ptr,
                   volatile noit_atomic64_t rpl,
                   volatile noit_atomic64_t curr) {
   noit_atomic64_t prev;
@@ -68,7 +67,7 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr
 }
 #else
 static inline noit_atomic64_t
-noit_atomic_cas64(volatile noit_atomic64_t *ptr
+noit_atomic_cas64(volatile noit_atomic64_t *ptr,
                   volatile noit_atomic64_t rpl,
                   volatile noit_atomic64_t curr) {
   noit_atomic64_t prev;
@@ -85,6 +84,16 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr
   return prev;
 };
 #endif
+
+static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
+  while(noit_atomic_cas32(lock, 1, 0) != 0);
+}
+static inline void noit_spinlock_unlock(volatile noit_spinlock_t *lock) {
+  while(noit_atomic_cas32(lock, 0, 1) != 1);
+}
+static inline noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
+  return (noit_atomic_cas32(lock, 1, 0) == 0);
+}
 
 #else
 #error Please stub out the atomics section for your platform

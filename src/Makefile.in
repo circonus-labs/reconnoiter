@@ -35,16 +35,18 @@ make-subdirs:
 
 noitd:	make-subdirs $(OBJS)
 	$(CC) -o $@ $(OBJS) \
+		$(LDFLAGS) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
-		-Ljlog -ljlog
+		-Ljlog -ljlog \
+		$(LIBS)
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \
-		make -C $$dir clean ; \
+		(cd $$dir && make clean) ; \
 	done
 
 clean:	clean-subdirs
