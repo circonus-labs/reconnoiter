@@ -1,5 +1,6 @@
 AC_INIT(src/noitd.c)
 AC_CONFIG_HEADER(src/noit_config.h)
+AC_CONFIG_HEADER(src/jlog/jlog_config.h)
 
 AC_PROG_CC
 AC_C_INLINE
@@ -26,6 +27,7 @@ AC_CHECK_SIZEOF(void *, 1)
 
 AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
+AC_CHECK_LIB(pthread, pthread_create, , )
 
 AC_MSG_CHECKING([whether sem_init works])
 AC_TRY_RUN(

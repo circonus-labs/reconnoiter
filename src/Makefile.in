@@ -30,7 +30,7 @@ all:	noitd
 
 make-subdirs:
 	for dir in $(SUBS) ; do \
-		make -C $$dir ; \
+		(cd $$dir && make) ; \
 	done
 
 noitd:	make-subdirs $(OBJS)
