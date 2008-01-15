@@ -6,6 +6,7 @@
 #include "noit_defines.h"
 
 #include <unistd.h>
+#include <errno.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -27,7 +28,6 @@ noit_listener_acceptor(eventer_t e, int mask,
     struct sockaddr_in6 addr6;
   } s;
 
-  noit_log(noit_stderr, NULL, "Accepting\n");
   if(mask & EVENTER_EXCEPTION) {
     eventer_remove_fd(e->fd);
     close(e->fd);
@@ -59,6 +59,7 @@ noit_listener(char *host, unsigned short port, int type,
   int rv, fd;
   int8_t family;
   socklen_t on;
+  long reuse;
   listener_closure_t listener_closure;
   eventer_t event;
   union {
@@ -90,12 +91,21 @@ noit_listener(char *host, unsigned short port, int type,
     return -1;
   }
 
+  reuse = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                 (void*)&reuse, sizeof(reuse)) != 0) {
+
+    close(fd);
+    return -1;
+  }
+
   memset(&s, 0, sizeof(s));
   s.addr6.sin6_family = family;
   s.addr6.sin6_port = htons(port);
   memcpy(&s.addr6.sin6_addr, &a, sizeof(a));
   if(bind(fd, (struct sockaddr *)&s,
           (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6)) < 0) {
+    noit_log(noit_stderr, NULL, "bind failed: %s\b", strerror(errno));
     close(fd);
     return -1;
   }
@@ -110,6 +120,7 @@ noit_listener(char *host, unsigned short port, int type,
   listener_closure = calloc(1, sizeof(*listener_closure));
   listener_closure->family = family;
   listener_closure->port = htons(port);
+  listener_closure->dispatch_callback = handler;
   listener_closure->dispatch_closure = closure;
 
   event = eventer_alloc();

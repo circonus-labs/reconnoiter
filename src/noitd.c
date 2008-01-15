@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
@@ -10,10 +13,28 @@
 
 int stdin_handler(eventer_t e, int mask, void *closure, struct timeval *now) {
   fprintf(stderr, "in stdin_handler:\n");
-  return EVENTER_READ;
+  while(1) {
+    int len;
+    char buffer[1024];
+    len = e->opset->read(e->fd, buffer, sizeof(buffer)-1, &mask, NULL);
+    printf("read() => %d\n", len);
+    if(len < 0 && errno == EINTR) continue;
+    if(len < 0 && errno == EAGAIN) break;
+    if(len > 0) {
+      buffer[len] = '\0';
+      printf("read: '%s'\n", buffer);
+    }
+  }
+  return mask;
 }
 void stdin_sample() {
+  socklen_t salen;
   eventer_t e;
+
+  salen = 1;
+  if(ioctl(0, FIONBIO, &salen)) {
+    fprintf(stderr, "Cannot unlock stdin\n");
+  }
   e = eventer_alloc();
   e->fd = 0;
   e->mask = EVENTER_READ;

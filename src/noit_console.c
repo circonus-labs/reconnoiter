@@ -15,7 +15,6 @@ int
 noit_console_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
   int newmask = EVENTER_READ;
-  noit_log(noit_stderr, NULL, "HERE!\n");
   if(mask & EVENTER_EXCEPTION) {
     eventer_remove_fd(e->fd);
     close(e->fd);
