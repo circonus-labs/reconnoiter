@@ -13,11 +13,15 @@
 
 static noit_hash_table noit_loggers = NOIT_HASH_EMPTY;
 noit_log_stream_t noit_stderr = NULL;
+noit_log_stream_t noit_error = NULL;
+noit_log_stream_t noit_debug = NULL;
 
 void
 noit_log_init() {
   noit_hash_init(&noit_loggers);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2);
+  noit_error = noit_log_stream_new("error");
+  noit_debug = noit_log_stream_new("debug");
 }
 
 noit_log_stream_t

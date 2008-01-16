@@ -23,6 +23,8 @@ typedef struct _noit_log_stream {
 } * noit_log_stream_t;
 
 extern noit_log_stream_t noit_stderr;
+extern noit_log_stream_t noit_debug;
+extern noit_log_stream_t noit_error;
 
 API_EXPORT(void) noit_log_init();
 API_EXPORT(noit_log_stream_t) noit_log_stream_new();

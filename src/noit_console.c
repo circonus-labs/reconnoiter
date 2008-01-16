@@ -24,7 +24,7 @@ noit_console_handler(eventer_t e, int mask, void *closure,
     int len;
     char buffer[4096];
     len = e->opset->read(e->fd, buffer, sizeof(buffer)-1, &newmask, e);
-    if(len < 0) {
+    if(len <= 0) {
       eventer_remove_fd(e->fd);
       close(e->fd);
       return 0;

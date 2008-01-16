@@ -7,6 +7,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_atomic.h"
 #include "utils/noit_skiplist.h"
+#include "utils/noit_log.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -264,8 +265,9 @@ static void eventer_kqueue_impl_loop() {
                       master_kqs->__ke_vec, master_kqs->__ke_vec_used,
                       NULL, 0,
                       &__zerotime);
+      noit_log(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, master_kqs->__ke_vec_used, fd_cnt);
       if(fd_cnt < 0) {
-        fprintf(stderr, "kevent: %s\n", strerror(errno));
+        noit_log(noit_error, &__now, "kevent: %s\n", strerror(errno));
       }
       master_kqs->__ke_vec_used = 0;
       pthread_mutex_unlock(&kqs_lock);
@@ -277,9 +279,10 @@ static void eventer_kqueue_impl_loop() {
     fd_cnt = kevent(kqueue_fd, ke_vec, ke_vec_used,
                     ke_vec, ke_vec_a,
                     &__kqueue_sleeptime);
+    noit_log(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, ke_vec_used, fd_cnt);
     ke_vec_used = 0;
     if(fd_cnt < 0) {
-      fprintf(stderr, "kevent: %s\n", strerror(errno));
+      noit_log(noit_error, &__now, "kevent: %s\n", strerror(errno));
     }
     else {
       int idx;
@@ -290,6 +293,11 @@ static void eventer_kqueue_impl_loop() {
         int fd, evmask, oldmask;
 
         ke = &ke_vec[idx];
+        if(ke->flags & EV_ERROR) {
+          if(ke->data != EBADF)
+            noit_log(noit_error, &__now, "error: %s\n", strerror(ke->data));
+          continue;
+        }
         e = (eventer_t)ke->udata;
         fd = ke->ident;
         assert(e == master_fds[fd].e);
