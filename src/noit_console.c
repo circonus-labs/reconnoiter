@@ -10,6 +10,7 @@
 
 #include "utils/noit_log.h"
 #include "noit_listener.h"
+#include "noit_poller.h"
 
 int
 noit_console_handler(eventer_t e, int mask, void *closure,
