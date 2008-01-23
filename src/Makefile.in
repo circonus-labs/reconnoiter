@@ -24,7 +24,7 @@ top_srcdir=@top_srcdir@
 
 SUBS=utils jlog eventer
 
-OBJS=noitd.o noit_listener.o noit_console.o
+OBJS=noitd.o noit_listener.o noit_console.o noit_poller.o
 
 all:	noitd
 
