@@ -1,0 +1,29 @@
+.SUFFIXES: .lo .@MODULEEXT@
+
+CC=@CC@
+LD=@LD@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
+MODULELD=@MODULELD@
+MODULEEXT=@MODULEEXT@
+LDFLAGS=@LDFLAGS@
+AR=@AR@
+RANLIB=@RANLIB@
+LIBS=@LIBS@
+INSTALL=@INSTALL@
+
+top_srcdir=@top_srcdir@
+
+MODULES=ping_icmp.@MODULEEXT@
+
+all:	$(MODULES)
+
+.lo.@MODULEEXT@:
+	$(MODULELD) $(LDFLAGS) -o $@ $<
+
+.c.lo:
+	$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+
+clean:
+	rm -f *.lo *.@MODULEEXT@

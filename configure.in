@@ -1,4 +1,5 @@
 AC_INIT(src/noitd.c)
+AC_CANONICAL_HOST
 AC_CONFIG_HEADER(src/noit_config.h)
 AC_CONFIG_HEADER(src/jlog/jlog_config.h)
 
@@ -16,6 +17,29 @@ AC_SUBST(PERL)
 if test "x$CC" = "xgcc" ; then
   CFLAGS="$CFLAGS -g -Wall"
 fi
+
+case $host in
+*-*-darwin*)
+	PICFLAGS="-fpic"
+	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
+	MODULEEXT=bundle
+	;;
+*-*-solaris*)
+	PICFLAGS="-Kpic"
+	MODULELD="$CC -G"
+	MODULEEXT=so
+	;;
+*)
+	PICFLAGS="-fpic"
+	MODULELD="$CC -shared"
+	MODULEEXT=so
+	;;
+esac
+SHCFLAGS="$PICFLAGS $CFLAGS"
+AC_SUBST(MODULELD)
+AC_SUBST(MODULEEXT)
+AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
+AC_SUBST(SHCFLAGS)
 
 # Checks for data types
 AC_CHECK_SIZEOF(char, 1)
@@ -222,7 +246,8 @@ CPPFLAGS='-I$(top_srcdir)/src'
 AC_OUTPUT([
 Makefile
 src/Makefile
-src/utils/Makefile
-src/jlog/Makefile
 src/eventer/Makefile
+src/jlog/Makefile
+src/modules/Makefile
+src/utils/Makefile
 ])

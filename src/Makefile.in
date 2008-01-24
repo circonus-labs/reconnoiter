@@ -22,7 +22,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
-SUBS=utils jlog eventer
+SUBS=utils jlog eventer modules
 
 OBJS=noitd.o noit_listener.o noit_console.o noit_poller.o
 

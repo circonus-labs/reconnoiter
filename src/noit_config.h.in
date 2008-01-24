@@ -36,6 +36,8 @@
 /* define inline unless that is what the compiler already calls it. */
 #undef inline
 
+#undef MODULEEXT
+
 #undef HAVE_FCNTL_H
 #undef HAVE_SYS_TYPES_H
 #undef HAVE_DIRENT_H
