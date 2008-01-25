@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
   noit_log_stream_add_stream(noit_debug, noit_stderr);
   noit_log_stream_add_stream(noit_error, noit_stderr);
 
+  noit_conf_init();
+
   if(eventer_choose("kqueue") == -1) {
     fprintf(stderr, "Cannot choose kqueue\n");
     exit(-1);

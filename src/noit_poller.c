@@ -16,11 +16,10 @@
 #include "noit_poller.h"
 #include "eventer/eventer.h"
 
-noit_hash_table polls = NOIT_HASH_EMPTY;
+static noit_hash_table polls = NOIT_HASH_EMPTY;
 
 void
 noit_poller_init() {
-  noit_hash_init(&polls);
 }
 
 int

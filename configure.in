@@ -243,6 +243,19 @@ AC_SUBST(mansubdir)
 
 CPPFLAGS='-I$(top_srcdir)/src'
 
+AC_MSG_CHECKING([Resolving libexec path...])
+fullpath=$libexecdir
+while test "x$temppath" != "x$fullpath" ; do
+  temppath=$fullpath
+  fullpath=`eval echo ${fullpath}`
+done
+fullpath=`echo $fullpath | sed "s~NONE~$ac_default_prefix~"`
+AC_MSG_RESULT([$fullpath])
+AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}")
+MODULES_DIR=${fullpath}
+AC_SUBST(MODULES_DIR)
+
+
 AC_OUTPUT([
 Makefile
 src/Makefile
