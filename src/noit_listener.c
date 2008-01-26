@@ -16,6 +16,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "noit_listener.h"
+#include "noit_conf.h"
 
 static int
 noit_listener_acceptor(eventer_t e, int mask,
@@ -70,15 +71,25 @@ noit_listener(char *host, unsigned short port, int type,
     struct sockaddr_in addr4;
     struct sockaddr_in6 addr6;
   } s;
+  const char *event_name;
 
+  noit_log(noit_debug, NULL, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
+           host, port, type, backlog,
+           (event_name = eventer_name_for_callback(handler))?event_name:"??",
+           closure);
   family = AF_INET;
   rv = inet_pton(family, host, &a);
   if(rv != 1) {
     family = AF_INET6;
     rv = inet_pton(family, host, &a);
     if(rv != 1) {
-      noit_log(noit_stderr, NULL, "Cannot translate '%s' to IP\n", host);
-      return -1;
+      if(!strcmp(host, "*")) {
+        family = AF_INET;
+        a.addr4.s_addr = INADDR_ANY;
+      } else {
+        noit_log(noit_stderr, NULL, "Cannot translate '%s' to IP\n", host);
+        return -1;
+      }
     }
   }
 
@@ -131,4 +142,53 @@ noit_listener(char *host, unsigned short port, int type,
 
   eventer_add(event);
   return 0;
+}
+
+void
+noit_listener_init() {
+  int i, cnt = 0;
+  noit_conf_section_t *listener_configs;
+
+  listener_configs = noit_conf_get_sections(NULL, "/global/listeners/listener",
+                                            &cnt);
+  noit_log(noit_stderr, NULL, "Found %d /global/listeners/listener stanzas\n",
+           cnt);
+  for(i=0; i<cnt; i++) {
+    char address[256];
+    char type[256];
+    unsigned short port;
+    int portint;
+    int backlog;
+    eventer_func_t f;
+
+    if(!noit_conf_get_stringbuf(listener_configs[i],
+                                "type", type, sizeof(type))) {
+      noit_log(noit_stderr, NULL,
+               "No type specified in listener stanza %d\n", i+1);
+      continue;
+    }
+    f = eventer_callback_for_name(type);
+    if(!f) {
+      noit_log(noit_stderr, NULL,
+               "Cannot find handler for listener type: '%s'\n", type);
+      continue;
+    }
+    if(!noit_conf_get_int(listener_configs[i], "port", &portint))
+      portint = 0;
+    port = (unsigned short) portint;
+    if(portint == 0 || (port != portint)) {
+      noit_log(noit_stderr, NULL,
+               "Invalid port [%d] specified in stanza %d\n", port, i+1);
+      continue;
+    }
+    if(!noit_conf_get_stringbuf(listener_configs[i],
+                                "address", address, sizeof(address))) {
+      address[0] = '*';
+      address[1] = '\0';
+    }
+    if(!noit_conf_get_int(listener_configs[i], "backlog", &backlog))
+      backlog = 5;
+
+    noit_listener(address, port, SOCK_STREAM, backlog, f, NULL);
+  }
 }

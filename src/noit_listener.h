@@ -16,7 +16,9 @@ typedef struct {
   void *dispatch_closure;
 } * listener_closure_t;
 
-int
+API_EXPORT(void) noit_listener_init();
+
+API_EXPORT(int)
 noit_listener(char *host, unsigned short port, int type,
               int backlog, eventer_func_t handler, void *closure);
 

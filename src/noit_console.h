@@ -9,8 +9,10 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 
-int
-noit_console_handler(eventer_t e, int mask, void *closure,
-                     struct timeval *now);
+API_EXPORT(void) noit_console_init();
+
+API_EXPORT(int)
+  noit_console_handler(eventer_t e, int mask, void *closure,
+                       struct timeval *now);
 
 #endif

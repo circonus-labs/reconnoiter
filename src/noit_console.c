@@ -8,9 +8,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "noit_listener.h"
 #include "noit_poller.h"
+#include "noit_console.h"
+
+void
+noit_console_init() {
+  eventer_name_callback("noit_console", noit_console_handler);
+}
 
 int
 noit_console_handler(eventer_t e, int mask, void *closure,
