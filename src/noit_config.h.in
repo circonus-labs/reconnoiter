@@ -38,6 +38,7 @@
 
 #undef MODULEEXT
 #undef MODULES_DIR
+#undef ETC_DIR
 
 #undef HAVE_FCNTL_H
 #undef HAVE_SYS_TYPES_H

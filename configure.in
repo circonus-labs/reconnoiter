@@ -255,6 +255,18 @@ AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}")
 MODULES_DIR=${fullpath}
 AC_SUBST(MODULES_DIR)
 
+AC_MSG_CHECKING([Resolving sysconfdir path...])
+fullpath=$sysconfdir
+while test "x$temppath" != "x$fullpath" ; do
+  temppath=$fullpath
+  fullpath=`eval echo ${fullpath}`
+done
+fullpath=`echo $fullpath | sed "s~NONE~$ac_default_prefix~"`
+AC_MSG_RESULT([$fullpath])
+AC_DEFINE_UNQUOTED(ETC_DIR, "${fullpath}")
+ETC_DIR=${fullpath}
+AC_SUBST(ETC_DIR)
+
 
 AC_OUTPUT([
 Makefile
