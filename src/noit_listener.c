@@ -149,9 +149,9 @@ noit_listener_init() {
   int i, cnt = 0;
   noit_conf_section_t *listener_configs;
 
-  listener_configs = noit_conf_get_sections(NULL, "/global/listeners/listener",
+  listener_configs = noit_conf_get_sections(NULL, "/noit/listeners/listener",
                                             &cnt);
-  noit_log(noit_stderr, NULL, "Found %d /global/listeners/listener stanzas\n",
+  noit_log(noit_stderr, NULL, "Found %d /noit/listeners/listener stanzas\n",
            cnt);
   for(i=0; i<cnt; i++) {
     char address[256];

@@ -50,10 +50,10 @@ int main(int argc, char **argv) {
   }
 
   /* Lastly, run through all other system inits */
-  if(!noit_conf_get_stringbuf(NULL, "/global/eventer/implementation",
+  if(!noit_conf_get_stringbuf(NULL, "/noit/eventer/implementation",
                               conf_str, sizeof(conf_str))) {
     noit_log(noit_stderr, NULL, "Cannot find '%s' in configuration\n",
-             "/global/eventer/implementation");
+             "/noit/eventer/implementation");
     exit(-1);
   }
   if(eventer_choose(conf_str) == -1) {
@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
   }
   noit_console_init();
   noit_module_init();
+  noit_poller_init();
   noit_listener_init();
 
   eventer_loop();

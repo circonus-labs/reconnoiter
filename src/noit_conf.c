@@ -31,7 +31,7 @@ static struct {
    *
    * PLEASE: keep them alphabetically sorted.
    */
-  { "/global/modules/directory", MODULES_DIR },
+  { "/noit/modules/directory", MODULES_DIR },
 
   { NULL, NULL }
 };
@@ -68,13 +68,12 @@ int noit_conf_save(const char *path) {
 noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
                                     const char *path) {
   int i, cnt;
-  noit_hash_table *table;
+  noit_hash_table *table = NULL;
   xmlXPathObjectPtr pobj;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
   xmlNodePtr node;
 
-  table = calloc(1, sizeof(*table));
   current_ctxt = xpath_ctxt;
   if(current_node) {
     current_ctxt = xmlXPathNewContext(master_config);
@@ -84,6 +83,7 @@ noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
   if(!pobj) goto out;
   if(pobj->type != XPATH_NODESET) goto out;
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
+  table = calloc(1, sizeof(*table));
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
     char *value;

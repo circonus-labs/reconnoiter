@@ -22,7 +22,7 @@ int noit_module_load(const char *file, const char *name) {
   void *dlsymbol;
   noit_module_t *module;
 
-  if(!noit_conf_get_string(NULL, "/global/modules/directory", &base))
+  if(!noit_conf_get_string(NULL, "/noit/modules/directory", &base))
     base = strdup("");
 
   if(file[0] == '/')
@@ -77,7 +77,7 @@ void noit_module_init() {
   noit_conf_section_t *sections;
   int i, cnt = 0;
 
-  sections = noit_conf_get_sections(NULL, "/global/modules/module", &cnt);
+  sections = noit_conf_get_sections(NULL, "/noit/modules/module", &cnt);
   if(!sections) return;
   for(i=0; i<cnt; i++) {
     noit_hash_table *config;

@@ -64,6 +64,9 @@ typedef struct {
   void *closure;
 } * noit_check_t;
 
+API_EXPORT(void) noit_poller_init();
+API_EXPORT(void) noit_poller_load_checks();
+
 API_EXPORT(int)
   noit_poller_schedule(const char *target,
                        const char *module,
@@ -71,6 +74,7 @@ API_EXPORT(int)
                        noit_hash_table *config,
                        u_int32_t period,
                        u_int32_t timeout,
+                       uuid_t in,
                        uuid_t out);
 
 API_EXPORT(int)
