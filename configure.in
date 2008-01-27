@@ -39,7 +39,6 @@ SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
-AC_SUBST(SHCFLAGS)
 
 # Checks for data types
 AC_CHECK_SIZEOF(char, 1)
@@ -53,6 +52,16 @@ AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(uuid, uuid_generate, , )
+
+AC_MSG_CHECKING([libxml2 cflags])
+XML2CFLAGS=`xml2-config --cflags`
+CFLAGS="$CFLAGS $XML2CFLAGS"
+AC_MSG_RESULT([$XML2CFLAGS])
+
+AC_MSG_CHECKING([libxml2 libs])
+XML2LIBS=`xml2-config --libs`
+LIBS="$LIBS $XML2LIBS"
+AC_MSG_RESULT([$XML2LIBS])
 
 AC_MSG_CHECKING([whether sem_init works])
 AC_TRY_RUN(
@@ -242,6 +251,7 @@ AC_SUBST(docdir)
 AC_SUBST(mansubdir)
 
 CPPFLAGS='-I$(top_srcdir)/src'
+AC_SUBST(SHCFLAGS)
 
 AC_MSG_CHECKING([Resolving libexec path...])
 fullpath=$libexecdir
