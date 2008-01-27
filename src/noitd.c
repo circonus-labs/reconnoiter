@@ -11,6 +11,7 @@
 #include "utils/noit_log.h"
 #include "noit_listener.h"
 #include "noit_console.h"
+#include "noit_module.h"
 #include "noit_conf.h"
 
 static char *config_file = ETC_DIR "/noit.conf";
@@ -64,7 +65,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   noit_console_init();
-
+  noit_module_init();
   noit_listener_init();
 
   eventer_loop();

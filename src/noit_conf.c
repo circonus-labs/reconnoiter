@@ -65,6 +65,39 @@ int noit_conf_save(const char *path) {
   return -1;
 }
 
+noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
+                                    const char *path) {
+  int i, cnt;
+  noit_hash_table *table;
+  xmlXPathObjectPtr pobj;
+  xmlXPathContextPtr current_ctxt;
+  xmlNodePtr current_node = (xmlNodePtr)section;
+  xmlNodePtr node;
+
+  table = calloc(1, sizeof(*table));
+  current_ctxt = xpath_ctxt;
+  if(current_node) {
+    current_ctxt = xmlXPathNewContext(master_config);
+    current_ctxt->node = current_node;
+  }
+  pobj = xmlXPathEval((xmlChar *)path, current_ctxt);
+  if(!pobj) goto out;
+  if(pobj->type != XPATH_NODESET) goto out;
+  if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  for(i=0; i<cnt; i++) {
+    char *value;
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    value = (char *)xmlXPathCastNodeSetToString(pobj->nodesetval);
+    noit_hash_replace(table,
+                      strdup((char *)node->name), strlen((char *)node->name),
+                      strdup(value), free, free);
+  }
+ out:
+  if(current_ctxt && current_ctxt != xpath_ctxt)
+    xmlXPathFreeContext(current_ctxt);
+  return table;
+}
 noit_conf_section_t noit_conf_get_section(noit_conf_section_t section,
                                           const char *path) {
   noit_conf_section_t subsection = NULL;
