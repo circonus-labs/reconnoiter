@@ -60,8 +60,8 @@ typedef struct {
   char *module;
   char *name;
   noit_hash_table *config;
-  u_int32_t period;
-  u_int32_t timeout;
+  u_int32_t period;            /* period of checks in milliseconds */
+  u_int32_t timeout;           /* timeout of check in milliseconds */
   u_int32_t flags;             /* NP_KILLED, NP_RUNNING */
 
   eventer_t fire_event;
@@ -70,6 +70,7 @@ typedef struct {
     stats_t current;
     stats_t previous;
   } stats;
+  u_int32_t generation;        /* This can roll, we don't care */
   void *closure;
 } * noit_check_t;
 

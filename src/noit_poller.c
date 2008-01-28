@@ -19,6 +19,7 @@
 #include "eventer/eventer.h"
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
+static u_int32_t __config_load_generation = 0;
 struct uuid_dummy {
   uuid_t foo;
 };
@@ -46,6 +47,7 @@ void
 noit_poller_load_checks() {
   int i, cnt = 0;
   noit_conf_section_t *sec;
+  __config_load_generation++;
   sec = noit_conf_get_sections(NULL, "/noit/checks//check", &cnt);
   for(i=0; i<cnt; i++) {
     char uuid_str[37];
@@ -157,6 +159,7 @@ noit_poller_schedule(const char *target,
 
   new_check = calloc(1, sizeof(*new_check));
   if(!new_check) return -1;
+  new_check->generation = __config_load_generation;
   new_check->target_family = family;
   memcpy(&new_check->target_addr, &a, sizeof(a));
   new_check->target = strdup(target);
