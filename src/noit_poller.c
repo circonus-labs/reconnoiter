@@ -24,6 +24,24 @@ struct uuid_dummy {
 };
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
+static const char *
+__noit_check_available_string(int16_t available) {
+  switch(available) {
+    case NP_AVAILABLE:    return "available";
+    case NP_UNAVAILABLE:  return "unavailable";
+    case NP_UNKNOWN:      return "unknown";
+  }
+  return "???";
+}
+static const char *
+__noit_check_state_string(int16_t state) {
+  switch(state) {
+    case NP_GOOD:         return "good";
+    case NP_BAD:          return "bad";
+    case NP_UNKNOWN:      return "unknown";
+  }
+  return "???";
+}
 void
 noit_poller_load_checks() {
   int i, cnt = 0;
@@ -212,3 +230,31 @@ noit_poller_lookup(uuid_t in) {
   return NULL;
 }
 
+
+void
+noit_poller_set_state(noit_check_t check, stats_t *newstate) {
+  int report_change = 0;
+  if(check->stats.previous.status)
+    free(check->stats.previous.status);
+  memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
+  memcpy(&check->stats.current, newstate, sizeof(stats_t));
+  if(check->stats.current.status)
+    check->stats.current.status = strdup(check->stats.current.status);
+
+  /* check for state changes */
+  if(check->stats.current.available != 0 &&
+     check->stats.previous.available != 0 &&
+     check->stats.current.available != check->stats.previous.available)
+    report_change = 1;
+  if(check->stats.current.state != 0 &&
+     check->stats.previous.state != 0 &&
+     check->stats.current.state != check->stats.previous.state)
+    report_change = 1;
+
+  if(report_change) {
+    noit_log(noit_debug, NULL, "%s/%s -> [%s/%s]\n",
+             check->target, check->module,
+             __noit_check_available_string(check->stats.current.available),
+             __noit_check_state_string(check->stats.current.state));
+  }
+}

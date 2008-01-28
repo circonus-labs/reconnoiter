@@ -194,4 +194,14 @@ typedef unsigned long long int u_int64_t;
 #endif
 #endif
 
+#if (SIZEOF_VOID_P == 8)
+typedef u_int64_t vpsized_uint;
+typedef int64_t vpsized_int;
+#elif (SIZEOF_VOID_P == 4)
+typedef u_int32_t vpsized_uint;
+typedef int32_t vpsized_int;
+#else
+#error Unsupported size of void ptr
+#endif
+
 #endif

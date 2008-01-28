@@ -81,6 +81,9 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   struct check_info *data;
   float avail, min = MAXFLOAT, max = 0.0, avg = 0.0, cnt;
   int i, points = 0;
+  char human_buffer[256];
+  stats_t current;
+  struct timeval duration;
 
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++) {
@@ -98,7 +101,19 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   cnt = data->expected_count;
   avail = (float)points /cnt;
   avg /= (float)points;
-  noit_log(nldeb, NULL, "ping_icmp(%s) [cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f]\n", check->target, (int)cnt, 100.0*avail, min, max, avg);
+
+  snprintf(human_buffer, sizeof(human_buffer),
+           "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
+           (int)cnt, 100.0*avail, min, max, avg);
+  noit_log(nldeb, NULL, "ping_icmp(%s) [%s]\n", check->target, human_buffer);
+
+  gettimeofday(&current.whence, NULL);
+  sub_timeval(current.whence, check->last_fire_time, &duration);
+  current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  current.available = (avail > 0.0) ? NP_AVAILABLE : NP_UNAVAILABLE;
+  current.state = (avail < 1.0) ? NP_BAD : NP_GOOD;
+  current.status = human_buffer;
+  noit_poller_set_state(check, &current);
 }
 static int ping_icmp_timeout(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
@@ -107,6 +122,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   ping_icmp_log_results(pcl->self, pcl->check);
   data = (struct check_info *)pcl->check->closure;
   data->timeout_event = NULL;
+  pcl->check->flags &= ~NP_RUNNING;
   free(pcl);
   return 0;
 }
@@ -126,7 +142,6 @@ static int ping_icmp_handler(eventer_t e, int mask,
   struct ping_payload *payload;
 
   while(1) {
-    float t1, t2;
     int inlen, iphlen;
     noit_check_t check;
     struct timeval tt;
@@ -153,10 +168,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(icp->icmp_type != ICMP_ECHOREPLY) {
       continue;
     }
-    if(icp->icmp_id != (unsigned short)self) {
+    if(icp->icmp_id != (((vpsized_uint)self) & 0xffff)) {
       noit_log(nlerr, now,
                "ping_icmp not sent from this instance (%d:%d) vs. %d\n",
-               icp->icmp_id, ntohs(icp->icmp_seq), (unsigned short)self);
+               icp->icmp_id, ntohs(icp->icmp_seq),
+               (((vpsized_uint)self) & 0xffff));
       continue;
     }
     check = noit_poller_lookup(payload->checkid);
@@ -180,14 +196,15 @@ static int ping_icmp_handler(eventer_t e, int mask,
        payload->check_pack_no >= data->expected_count) continue;
 
     sub_timeval(*now, payload->whence, &tt);
-    t1 = (float)tt.tv_sec + (float)tt.tv_usec / 1000000.0;
-    data->turnaround[payload->check_pack_no] = t1;
+    data->turnaround[payload->check_pack_no] =
+      (float)tt.tv_sec + (float)tt.tv_usec / 1000000.0;
     if(ping_icmp_is_complete(self, check)) {
       ping_icmp_log_results(self, check);
       eventer_remove(data->timeout_event);
       free(data->timeout_event->closure);
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
+      check->flags &= ~NP_RUNNING;
     }
   }
   return EVENTER_READ;
@@ -312,6 +329,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t check,
   int packet_len, i;
   eventer_t newe;
 
+  check->flags |= NP_RUNNING;
   noit_log(nldeb, NULL, "ping_icmp_send(%p,%s,%d,%d)\n",
            self, check->target, interval, count);
 
@@ -353,7 +371,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t check,
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
     icp->icmp_seq = htons(ci->seq++);
-    icp->icmp_id = (unsigned short)self;
+    icp->icmp_id = (((vpsized_uint)self) & 0xffff);
 
     uuid_copy(payload->checkid, check->checkid);
     payload->check_no = ci->check_no;
