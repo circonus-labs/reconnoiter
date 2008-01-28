@@ -22,6 +22,7 @@ typedef struct _noit_module {
   int (*config)(struct _noit_module *, noit_hash_table *options);
   int (*init)(struct _noit_module *);
   int (*initiate_check)(struct _noit_module *, noit_check_t check);
+  void *opaque_handle;
 } noit_module_t;
 
 #define MODULE_MAGIC(a)          ((a)->magic)
@@ -36,5 +37,10 @@ API_EXPORT(int)
   noit_module_load(const char *file, const char *name);
 API_EXPORT(noit_module_t *)
   noit_module_lookup(const char *name);
+
+API_EXPORT(void *)
+  noit_module_get_userdata(noit_module_t *mod);
+API_EXPORT(void)
+  noit_module_set_userdata(noit_module_t *mod, void *newdata);
 
 #endif

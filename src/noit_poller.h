@@ -57,6 +57,7 @@ typedef struct {
   u_int32_t flags;             /* NP_KILLED, NP_RUNNING */
 
   eventer_t fire_event;
+  struct timeval last_fire_time;
   struct {
     stats_t in_progress;
     stats_t last;
@@ -79,5 +80,8 @@ API_EXPORT(int)
 
 API_EXPORT(int)
   noit_poller_deschedule(uuid_t in);
+
+API_EXPORT(noit_check_t)
+  noit_poller_lookup(uuid_t in);
 
 #endif

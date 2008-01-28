@@ -13,6 +13,10 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 
+struct __extended_module_data {
+  void *userdata;
+};
+
 static noit_hash_table modules = NOIT_HASH_EMPTY;
 
 int noit_module_load(const char *file, const char *name) {
@@ -55,6 +59,7 @@ int noit_module_load(const char *file, const char *name) {
 
   module = calloc(1, sizeof(*module));
   memcpy(module, dlsymbol, sizeof(*module));
+  module->opaque_handle = calloc(1, sizeof(struct __extended_module_data));
 
   if(module->onload(module)) {
     free(module);
@@ -108,7 +113,24 @@ void noit_module_init() {
                "Configure failed on %s:%s\n", module_file, module_name);
       continue;
     }
+    if(module->init(module)) {
+      noit_log(noit_stderr, NULL,
+               "Initialized failed on %s:%s\n", module_file, module_name);
+      continue;
+    }
     noit_log(noit_stderr, NULL, "Module %s:%s successfully loaded.\n",
              module_file, module_name);
   }
 }
+
+void *noit_module_get_userdata(noit_module_t *mod) {
+  struct __extended_module_data *emd;
+  emd = (struct __extended_module_data *)mod->opaque_handle;
+  return emd->userdata;
+}
+void noit_module_set_userdata(noit_module_t *mod, void *newdata) {
+  struct __extended_module_data *emd;
+  emd = (struct __extended_module_data *)mod->opaque_handle;
+  emd->userdata = newdata;
+}
+

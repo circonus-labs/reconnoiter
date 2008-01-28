@@ -15,9 +15,14 @@
 #include "utils/noit_hash.h"
 #include "noit_conf.h"
 #include "noit_poller.h"
+#include "noit_module.h"
 #include "eventer/eventer.h"
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
+struct uuid_dummy {
+  uuid_t foo;
+};
+#define UUID_SIZE sizeof(struct uuid_dummy)
 
 void
 noit_poller_load_checks() {
@@ -79,8 +84,28 @@ noit_poller_load_checks() {
 }
 
 void
+noit_poller_initiate() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  noit_check_t check;
+  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                       (void **)&check)) {
+    noit_module_t *mod;
+    mod = noit_module_lookup(check->module);
+    if(mod) {
+      mod->initiate_check(mod, check);
+    }
+    else {
+      noit_log(noit_stderr, NULL, "Cannot find module '%s'\n", check->module);
+    }
+  }
+}
+
+void
 noit_poller_init() {
   noit_poller_load_checks();
+  noit_poller_initiate();
 }
 
 int
@@ -139,7 +164,7 @@ noit_poller_schedule(const char *target,
     uuid_copy(new_check->checkid, in);
 
   assert(noit_hash_store(&polls,
-                         (char *)new_check->checkid, sizeof(new_check->checkid),
+                         (char *)new_check->checkid, UUID_SIZE,
                          new_check));
   uuid_copy(out, new_check->checkid);
   return 0;
@@ -149,7 +174,7 @@ int
 noit_poller_deschedule(uuid_t in) {
   noit_check_t checker;
   if(noit_hash_retrieve(&polls,
-                        (char *)in, sizeof(in),
+                        (char *)in, UUID_SIZE,
                         (void **)&checker) == 0) {
     return -1;
   }
@@ -162,7 +187,7 @@ noit_poller_deschedule(uuid_t in) {
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
-  noit_hash_delete(&polls, (char *)in, sizeof(in), free, free);
+  noit_hash_delete(&polls, (char *)in, UUID_SIZE, free, free);
 
   if(checker->target) free(checker->target);
   if(checker->module) free(checker->module);
@@ -175,3 +200,15 @@ noit_poller_deschedule(uuid_t in) {
   free(checker);
   return 0;
 }
+
+noit_check_t
+noit_poller_lookup(uuid_t in) {
+  noit_check_t check;
+  if(noit_hash_retrieve(&polls,
+                        (char *)in, UUID_SIZE,
+                        (void **)&check)) {
+    return check;
+  }
+  return NULL;
+}
+
