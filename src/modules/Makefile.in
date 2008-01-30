@@ -15,9 +15,15 @@ INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@
+MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@
 
 all:	$(MODULES)
+
+http.@MODULEEXT@:	http.lo
+	$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.a -lz -lssl -lcrypto
+
+http.lo:	http.c
+	$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
 
 .lo.@MODULEEXT@:
 	$(MODULELD) $(LDFLAGS) -o $@ $<

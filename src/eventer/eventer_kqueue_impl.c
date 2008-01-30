@@ -23,6 +23,7 @@ static struct {
   pthread_t executor;
   noit_spinlock_t lock;
 } *master_fds = NULL;
+static int *masks;
 
 typedef enum { EV_OWNED, EV_ALREADY_OWNED } ev_lock_state_t;
 
@@ -111,6 +112,7 @@ static int eventer_kqueue_impl_init() {
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
+  masks = calloc(maxfds, sizeof(*masks));
   timed_events = calloc(1, sizeof(*timed_events));
   noit_skiplist_init(timed_events);
   noit_skiplist_set_compare(timed_events,
@@ -125,7 +127,6 @@ static int eventer_kqueue_impl_propset(const char *key, const char *value) {
 static void eventer_kqueue_impl_add(eventer_t e) {
   assert(e->mask);
   ev_lock_state_t lockstate;
-
   /* Timed events are simple */
   if(e->mask == EVENTER_TIMER) {
     pthread_mutex_lock(&te_lock);
@@ -194,6 +195,9 @@ static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
     release_master_fd(fd, lockstate);
   }
   return eiq;
+}
+static eventer_t eventer_kqueue_impl_find_fd(int fd) {
+  return master_fds[fd].e;
 }
 static void eventer_kqueue_impl_loop() {
   int is_master_thread = 0;
@@ -286,11 +290,28 @@ static void eventer_kqueue_impl_loop() {
     }
     else {
       int idx;
+      /* loop once to clear */
       for(idx = 0; idx < fd_cnt; idx++) {
+        struct kevent *ke;
+        ke = &ke_vec[idx];
+        if(ke->flags & EV_ERROR) continue;
+        masks[ke->ident] = 0;
+      }
+      /* Loop again to aggregate */
+      for(idx = 0; idx < fd_cnt; idx++) {
+        struct kevent *ke;
+        ke = &ke_vec[idx];
+        if(ke->flags & EV_ERROR) continue;
+        if(ke->filter == EVFILT_READ) masks[ke->ident] |= EVENTER_READ;
+        if(ke->filter == EVFILT_WRITE) masks[ke->ident] |= EVENTER_WRITE;
+      }
+      /* Loop a last time to process */
+      for(idx = 0; idx < fd_cnt; idx++) {
+        const char *cbname;
         ev_lock_state_t lockstate;
         struct kevent *ke;
         eventer_t e;
-        int fd, evmask, oldmask;
+        int fd, oldmask;
 
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) {
@@ -300,16 +321,18 @@ static void eventer_kqueue_impl_loop() {
         }
         e = (eventer_t)ke->udata;
         fd = ke->ident;
+        if(!masks[fd]) continue;
         assert(e == master_fds[fd].e);
         lockstate = acquire_master_fd(fd);
         assert(lockstate == EV_OWNED);
 
-        evmask = 0;
-        if(ke->filter == EVFILT_READ) evmask = EVENTER_READ;
-        if(ke->filter == EVFILT_WRITE) evmask = EVENTER_WRITE;
         gettimeofday(&__now, NULL);
         oldmask = e->mask;
-        newmask = e->callback(e, evmask, e->closure, &__now);
+        cbname = eventer_name_for_callback(e->callback);
+        noit_log(noit_debug, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
+                 fd, masks[fd], cbname?cbname:"???", e->callback);
+        newmask = e->callback(e, masks[fd], e->closure, &__now);
+        masks[fd] = 0; /* indicates we've processed this fd */
 
         if(newmask) {
           /* toggle the read bits if needed */
@@ -348,5 +371,6 @@ struct _eventer_impl eventer_kqueue_impl = {
   eventer_kqueue_impl_remove,
   eventer_kqueue_impl_update,
   eventer_kqueue_impl_remove_fd,
+  eventer_kqueue_impl_find_fd,
   eventer_kqueue_impl_loop
 };

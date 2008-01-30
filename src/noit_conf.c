@@ -124,7 +124,7 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
                                             const char *path,
                                             int *cnt) {
   int i;
-  noit_conf_section_t *sections;
+  noit_conf_section_t *sections = NULL;
   xmlXPathObjectPtr pobj;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;

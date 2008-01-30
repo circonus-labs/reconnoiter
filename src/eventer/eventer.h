@@ -66,6 +66,7 @@ typedef struct _eventer_impl {
   void              (*remove)(eventer_t e);
   void              (*update)(eventer_t e);
   eventer_t         (*remove_fd)(int fd);
+  eventer_t         (*find_fd)(int fd);
   int               (*loop)();
 } *eventer_impl_t;
 
@@ -80,7 +81,7 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_remove        __eventer->remove
 #define eventer_update        __eventer->update
 #define eventer_remove_fd     __eventer->remove_fd
-#define eventer_attach        __eventer->attach
+#define eventer_find_fd       __eventer->find_fd
 #define eventer_loop          __eventer->loop
 
 #endif

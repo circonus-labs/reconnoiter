@@ -30,9 +30,11 @@ void eventer_free(eventer_t e) {
 static noit_hash_table __name_to_func = NOIT_HASH_EMPTY;
 static noit_hash_table __func_to_name = NOIT_HASH_EMPTY;
 int eventer_name_callback(const char *name, eventer_func_t f) {
+  void **fptr = malloc(sizeof(*fptr));
+  *fptr = (void *)f;
   noit_hash_replace(&__name_to_func, strdup(name), strlen(name), f, free, NULL);
-  noit_hash_replace(&__func_to_name, (char *)f, sizeof(f), strdup(name),
-                    NULL, free);
+  noit_hash_replace(&__func_to_name, (char *)fptr, sizeof(*fptr), strdup(name),
+                    free, free);
   return 0;
 }
 eventer_func_t eventer_callback_for_name(const char *name) {
@@ -43,7 +45,7 @@ eventer_func_t eventer_callback_for_name(const char *name) {
 }
 const char *eventer_name_for_callback(eventer_func_t f) {
   const char *name;
-  if(noit_hash_retrieve(&__func_to_name, (char *)f, sizeof(f), (void **)&name))
+  if(noit_hash_retrieve(&__func_to_name, (char *)&f, sizeof(f), (void **)&name))
     return name;
   return NULL;
 }

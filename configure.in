@@ -35,7 +35,6 @@ case $host in
 	MODULEEXT=so
 	;;
 esac
-SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
@@ -62,6 +61,17 @@ AC_MSG_CHECKING([libxml2 libs])
 XML2LIBS=`xml2-config --libs`
 LIBS="$LIBS $XML2LIBS"
 AC_MSG_RESULT([$XML2LIBS])
+
+AC_MSG_CHECKING([libserf cflags])
+SERFCFLAGS="`apr-1-config --cflags --cppflags`"
+SERFCFLAGS="$SERFCFLAGS -I`apu-1-config --includedir` -I`apr-1-config --includedir`"
+AC_SUBST(SERFCFLAGS)
+AC_MSG_RESULT([$SERFCFLAGS])
+
+AC_MSG_CHECKING([libserf libs])
+SERFLIBS="`apu-1-config --link-ld --libs` `apr-1-config --link-ld --libs`"
+AC_SUBST(SERFLIBS)
+AC_MSG_RESULT([$SERFLIBS])
 
 AC_MSG_CHECKING([whether sem_init works])
 AC_TRY_RUN(
@@ -251,6 +261,7 @@ AC_SUBST(docdir)
 AC_SUBST(mansubdir)
 
 CPPFLAGS='-I$(top_srcdir)/src'
+SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
 
 AC_MSG_CHECKING([Resolving libexec path...])

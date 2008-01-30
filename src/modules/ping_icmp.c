@@ -55,13 +55,6 @@ typedef struct  {
   int ipv6_fd;
 } ping_icmp_data_t;
 
-static int ping_icmp_onload(noit_module_t *self) {
-  nlerr = noit_log_stream_find("error/ping_icmp");
-  nldeb = noit_log_stream_find("debug/ping_icmp");
-  if(!nlerr) nlerr = noit_stderr;
-  if(!nldeb) nldeb = noit_debug;
-  return 0;
-}
 static int ping_icmp_config(noit_module_t *self, noit_hash_table *options) {
   return 0;
 }
@@ -493,6 +486,16 @@ static int in_cksum(u_short *addr, int len)
   return (answer);
 }
 
+static int ping_icmp_onload(noit_module_t *self) {
+  nlerr = noit_log_stream_find("error/ping_icmp");
+  nldeb = noit_log_stream_find("debug/ping_icmp");
+  if(!nlerr) nlerr = noit_stderr;
+  if(!nldeb) nldeb = noit_debug;
+  eventer_name_callback("ping_icmp/recur_handler", ping_icmp_recur_handler);
+  eventer_name_callback("ping_icmp/timeout", ping_icmp_timeout);
+  eventer_name_callback("ping_icmp/handler", ping_icmp_handler);
+  return 0;
+}
 noit_module_t ping_icmp = {
   NOIT_MODULE_MAGIC,
   NOIT_MODULE_ABI_VERSION,
