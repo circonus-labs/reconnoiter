@@ -60,23 +60,23 @@ noit_poller_load_checks() {
 
     if(!noit_conf_get_stringbuf(sec[i], "@uuid",
                                 uuid_str, sizeof(uuid_str))) {
-      noit_log(noit_stderr, NULL, "check %d has no uuid\n", i+1);
+      noitL(noit_stderr, "check %d has no uuid\n", i+1);
       continue;
     }
     if(uuid_parse(uuid_str, uuid)) {
-      noit_log(noit_stderr, NULL, "check uuid: '%s' is invalid\n", uuid_str);
+      noitL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
       continue;
     }
     if(!noit_conf_get_stringbuf(sec[i], "target", target, sizeof(target))) {
       if(!noit_conf_get_stringbuf(sec[i], "../target", target, sizeof(target))) {
-         noit_log(noit_stderr, NULL, "check uuid: '%s' has no target\n",
+         noitL(noit_stderr, "check uuid: '%s' has no target\n",
                   uuid_str);
          continue;
       }
     }
     if(!noit_conf_get_stringbuf(sec[i], "module", module, sizeof(module))) {
       if(!noit_conf_get_stringbuf(sec[i], "../module", module, sizeof(module))) {
-        noit_log(noit_stderr, NULL, "check uuid: '%s' has no module\n",
+        noitL(noit_stderr, "check uuid: '%s' has no module\n",
                  uuid_str);
         continue;
       }
@@ -86,24 +86,24 @@ noit_poller_load_checks() {
     }
     if(!noit_conf_get_int(sec[i], "period", &period)) {
       if(!noit_conf_get_int(sec[i], "../period", &period)) {
-        noit_log(noit_stderr, NULL, "check uuid: '%s' has no period\n", uuid_str);
+        noitL(noit_stderr, "check uuid: '%s' has no period\n", uuid_str);
         continue;
       }
     }
     if(!noit_conf_get_int(sec[i], "timeout", &timeout)) {
       if(!noit_conf_get_int(sec[i], "../timeout", &timeout)) {
-        noit_log(noit_stderr, NULL, "check uuid: '%s' has no timeout\n", uuid_str);
+        noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
         continue;
       }
     }
     if(timeout >= period) {
-      noit_log(noit_stderr, NULL, "check uuid: '%s' timeout > period\n", uuid_str);
+      noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
     options = noit_conf_get_hash(sec[i], "config/*");
     noit_poller_schedule(target, module, name, options,
                          period, timeout, uuid, out_uuid);
-    noit_log(noit_debug, NULL, "loaded uuid: %s\n", uuid_str);
+    noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
   }
 }
 
@@ -121,7 +121,7 @@ noit_poller_initiate() {
       mod->initiate_check(mod, check);
     }
     else {
-      noit_log(noit_stderr, NULL, "Cannot find module '%s'\n", check->module);
+      noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
     }
   }
 }
@@ -156,7 +156,7 @@ noit_poller_schedule(const char *target,
     family = AF_INET6;
     rv = inet_pton(family, target, &a);
     if(rv != 1) {
-      noit_log(noit_stderr, NULL, "Cannot translate '%s' to IP\n", target);
+      noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
       return -1;
     }
   }
@@ -259,9 +259,9 @@ noit_poller_set_state(noit_check_t check, stats_t *newstate) {
     report_change = 1;
 
   if(report_change) {
-    noit_log(noit_debug, NULL, "%s/%s -> [%s/%s]\n",
-             check->target, check->module,
-             __noit_check_available_string(check->stats.current.available),
-             __noit_check_state_string(check->stats.current.state));
+    noitL(noit_debug, "%s/%s -> [%s/%s]\n",
+          check->target, check->module,
+          __noit_check_available_string(check->stats.current.available),
+          __noit_check_state_string(check->stats.current.state));
   }
 }

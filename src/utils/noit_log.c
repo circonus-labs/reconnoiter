@@ -169,6 +169,7 @@ noit_log_stream_free(noit_log_stream_t ls) {
 
 void
 noit_vlog(noit_log_stream_t ls, struct timeval *now,
+          const char *file, int line,
           const char *format, va_list arg) {
   char buffer[4096];
   struct _noit_log_stream_outlet_list *node;
@@ -191,19 +192,20 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   for(node = ls->outlets; node; node = node->next) {
 #ifdef va_copy
     va_copy(copy, arg);
-    noit_vlog(node->outlet, now, format, copy);
+    noit_vlog(node->outlet, now, file, line, format, copy);
     va_end(copy);
 #else
-    noit_vlog(node->outlet, now, format, arg);
+    noit_vlog(node->outlet, now, file, line, format, arg);
 #endif
   }
 }
 
 void
-noit_log(noit_log_stream_t ls, struct timeval *now, const char *format, ...) {
+noit_log(noit_log_stream_t ls, struct timeval *now,
+         const char *file, int line, const char *format, ...) {
   va_list arg;
   va_start(arg, format);
-  noit_vlog(ls, now, format, arg);
+  noit_vlog(ls, now, file, line, format, arg);
   va_end(arg);
 }
 

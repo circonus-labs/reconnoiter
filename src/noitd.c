@@ -39,8 +39,13 @@ int main(int argc, char **argv) {
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
-  if(debug)
+  if(debug) {
     noit_log_stream_add_stream(noit_debug, noit_stderr);
+    noit_debug->enabled = 1;
+  }
+  else {
+    noit_debug->enabled = 0;
+  }
   noit_log_stream_add_stream(noit_error, noit_stderr);
 
   /* Next load the configs */
@@ -52,16 +57,16 @@ int main(int argc, char **argv) {
   /* Lastly, run through all other system inits */
   if(!noit_conf_get_stringbuf(NULL, "/noit/eventer/implementation",
                               conf_str, sizeof(conf_str))) {
-    noit_log(noit_stderr, NULL, "Cannot find '%s' in configuration\n",
-             "/noit/eventer/implementation");
+    noitL(noit_stderr, "Cannot find '%s' in configuration\n",
+          "/noit/eventer/implementation");
     exit(-1);
   }
   if(eventer_choose(conf_str) == -1) {
-    noit_log(noit_stderr, NULL, "Cannot choose eventer %s\n", conf_str);
+    noitL(noit_stderr, "Cannot choose eventer %s\n", conf_str);
     exit(-1);
   }
   if(eventer_init() == -1) {
-    noit_log(noit_stderr, NULL, "Cannot init eventer %s\n", conf_str);
+    noitL(noit_stderr, "Cannot init eventer %s\n", conf_str);
     exit(-1);
   }
   noit_console_init();

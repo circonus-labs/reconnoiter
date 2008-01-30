@@ -64,8 +64,8 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t check) {
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++)
     if(data->turnaround[i] == 0.0) {
-      noit_log(nldeb, NULL, "ping_icmp: %s %d is still outstanding.\n",
-               check->target, i);
+      noitL(nldeb, "ping_icmp: %s %d is still outstanding.\n",
+            check->target, i);
       return 0;
     }
   return 1;
@@ -98,7 +98,7 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   snprintf(human_buffer, sizeof(human_buffer),
            "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
            (int)cnt, 100.0*avail, min, max, avg);
-  noit_log(nldeb, NULL, "ping_icmp(%s) [%s]\n", check->target, human_buffer);
+  noitL(nldeb, "ping_icmp(%s) [%s]\n", check->target, human_buffer);
 
   gettimeofday(&current.whence, NULL);
   sub_timeval(current.whence, check->last_fire_time, &duration);
@@ -147,13 +147,13 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
     if(inlen < 0) {
       if(errno == EAGAIN || errno == EINTR) break;
-      noit_log(nlerr, now, "ping_icmp recvfrom: %s\n", strerror(errno));
+      noitLT(nlerr, now, "ping_icmp recvfrom: %s\n", strerror(errno));
       break;
     }
     iphlen = ip->ip_hl << 2;
     if((inlen-iphlen) != (sizeof(struct icmp)+sizeof(struct ping_payload))) {
-      noit_log(nlerr, now,
-               "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
+      noitLT(nlerr, now,
+             "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
       continue;
     }
     icp = (struct icmp *)(packet + iphlen);
@@ -162,7 +162,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       continue;
     }
     if(icp->icmp_id != (((vpsized_uint)self) & 0xffff)) {
-      noit_log(nlerr, now,
+      noitLT(nlerr, now,
                "ping_icmp not sent from this instance (%d:%d) vs. %d\n",
                icp->icmp_id, ntohs(icp->icmp_seq),
                (((vpsized_uint)self) & 0xffff));
@@ -172,8 +172,8 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(!check) {
       char uuid_str[37];
       uuid_unparse_lower(payload->checkid, uuid_str);
-      noit_log(nlerr, now,
-               "ping_icmp response for unknown check '%s'\n", uuid_str);
+      noitLT(nlerr, now,
+             "ping_icmp response for unknown check '%s'\n", uuid_str);
       continue;
     }
     data = (struct check_info *)check->closure;
@@ -212,23 +212,23 @@ static int ping_icmp_init(noit_module_t *self) {
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {
-    noit_log(nlerr, NULL, "Couldn't find 'icmp' protocol\n");
+    noitL(nlerr, "Couldn't find 'icmp' protocol\n");
     return -1;
   }
 
   data->ipv4_fd = socket(AF_INET, SOCK_RAW, proto->p_proto);
   if(data->ipv4_fd < 0) {
-    noit_log(nlerr, NULL, "ping_icmp: socket failed: %s\n",
-             strerror(errno));
+    noitL(nlerr, "ping_icmp: socket failed: %s\n",
+          strerror(errno));
   }
   else {
     on = 1;
     if(ioctl(data->ipv4_fd, FIONBIO, &on)) {
       close(data->ipv4_fd);
       data->ipv4_fd = -1;
-      noit_log(nlerr, NULL,
-               "ping_icmp: could not set socket non-blocking: %s\n",
-               strerror(errno));
+      noitL(nlerr,
+            "ping_icmp: could not set socket non-blocking: %s\n",
+            strerror(errno));
     }
   }
   if(data->ipv4_fd >= 0) {
@@ -243,16 +243,16 @@ static int ping_icmp_init(noit_module_t *self) {
 
   data->ipv6_fd = socket(AF_INET6, SOCK_RAW, proto->p_proto);
   if(data->ipv6_fd < 0) {
-    noit_log(nlerr, NULL, "ping_icmp: socket failed: %s\n",
-             strerror(errno));
+    noitL(nlerr, "ping_icmp: socket failed: %s\n",
+          strerror(errno));
   }
   else {
     on = 1;
     if(ioctl(data->ipv6_fd, FIONBIO, &on)) {
       close(data->ipv6_fd);
       data->ipv6_fd = -1;
-      noit_log(nlerr, NULL,
-               "ping_icmp: could not set socket non-blocking: %s\n",
+      noitL(nlerr,
+            "ping_icmp: could not set socket non-blocking: %s\n",
                strerror(errno));
     }
   }
@@ -278,7 +278,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   ping_icmp_data_t *data;
   int i;
 
-  noit_log(nldeb, NULL, "ping_icmp_real_send(%s)\n", pcl->check->target);
+  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target);
   data = noit_module_get_userdata(pcl->self);
   icp = (struct icmp *)pcl->payload;
   payload = (struct ping_payload *)(icp + 1);
@@ -305,7 +305,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
                (struct sockaddr *)&sin, sizeof(sin));
   }
   if(i != pcl->payload_len) {
-    noit_log(nlerr, now, "Error sending ICMP packet to %s: %s\n",
+    noitLT(nlerr, now, "Error sending ICMP packet to %s: %s\n",
              pcl->check->target, strerror(errno));
   }
   free(pcl->payload);
@@ -323,8 +323,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t check,
   eventer_t newe;
 
   check->flags |= NP_RUNNING;
-  noit_log(nldeb, NULL, "ping_icmp_send(%p,%s,%d,%d)\n",
-           self, check->target, interval, count);
+  noitL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
+        self, check->target, interval, count);
 
   /* remove a timeout if we still have one -- we should unless someone
    * has set a lower timeout than the period.

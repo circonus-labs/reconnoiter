@@ -38,21 +38,21 @@ int noit_module_load(const char *file, const char *name) {
 
   dlhandle = dlopen(module_file, RTLD_LAZY | RTLD_GLOBAL);
   if(!dlhandle) {
-    noit_log(noit_stderr, NULL, "Cannot open image '%s': %s\n",
-             module_file, dlerror());
+    noitL(noit_stderr, "Cannot open image '%s': %s\n",
+          module_file, dlerror());
     return -1;
   }
 
   dlsymbol = dlsym(dlhandle, name);
   if(!dlsymbol) {
-    noit_log(noit_stderr, NULL, "Cannot find '%s' in image '%s': %s\n",
-             name, module_file, dlerror());
+    noitL(noit_stderr, "Cannot find '%s' in image '%s': %s\n",
+          name, module_file, dlerror());
     dlclose(dlhandle);
     return -1;
   }
 
   if(noit_module_validate_magic((noit_module_t *)dlsymbol) == -1) {
-    noit_log(noit_stderr, NULL, "I can't understand module %s\n", name);
+    noitL(noit_stderr, "I can't understand module %s\n", name);
     dlclose(dlhandle);
     return -1;
   }
@@ -91,35 +91,32 @@ void noit_module_init() {
     char module_name[256];
     if(!noit_conf_get_stringbuf(sections[i], "image",
                                 module_file, sizeof(module_file))) {
-      noit_log(noit_stderr, NULL,
-               "No image defined in module stanza %d\n", i+1);
+      noitL(noit_stderr, "No image defined in module stanza %d\n", i+1);
       continue;
     }
     if(!noit_conf_get_stringbuf(sections[i], "name",
                                 module_name, sizeof(module_name))) {
-      noit_log(noit_stderr, NULL,
-               "No name defined in module stanza %d\n", i+1);
+      noitL(noit_stderr, "No name defined in module stanza %d\n", i+1);
       continue;
     }
     if(noit_module_load(module_file, module_name)) {
-      noit_log(noit_stderr, NULL,
-               "Could not load %s:%s\n", module_file, module_name);
+      noitL(noit_stderr, "Could not load %s:%s\n", module_file, module_name);
       continue;
     }
     config = noit_conf_get_hash(sections[i], "config/*");
     module = noit_module_lookup(module_name);
     if(module->config(module, config)) {
-      noit_log(noit_stderr, NULL,
-               "Configure failed on %s:%s\n", module_file, module_name);
+      noitL(noit_stderr,
+            "Configure failed on %s:%s\n", module_file, module_name);
       continue;
     }
     if(module->init(module)) {
-      noit_log(noit_stderr, NULL,
-               "Initialized failed on %s:%s\n", module_file, module_name);
+      noitL(noit_stderr,
+            "Initialized failed on %s:%s\n", module_file, module_name);
       continue;
     }
-    noit_log(noit_stderr, NULL, "Module %s:%s successfully loaded.\n",
-             module_file, module_name);
+    noitL(noit_stderr, "Module %s:%s successfully loaded.\n",
+          module_file, module_name);
   }
 }
 

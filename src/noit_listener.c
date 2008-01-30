@@ -73,10 +73,10 @@ noit_listener(char *host, unsigned short port, int type,
   } s;
   const char *event_name;
 
-  noit_log(noit_debug, NULL, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
-           host, port, type, backlog,
-           (event_name = eventer_name_for_callback(handler))?event_name:"??",
-           closure);
+  noitL(noit_debug, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
+        host, port, type, backlog,
+        (event_name = eventer_name_for_callback(handler))?event_name:"??",
+        closure);
   family = AF_INET;
   rv = inet_pton(family, host, &a);
   if(rv != 1) {
@@ -87,7 +87,7 @@ noit_listener(char *host, unsigned short port, int type,
         family = AF_INET;
         a.addr4.s_addr = INADDR_ANY;
       } else {
-        noit_log(noit_stderr, NULL, "Cannot translate '%s' to IP\n", host);
+        noitL(noit_stderr, "Cannot translate '%s' to IP\n", host);
         return -1;
       }
     }
@@ -116,7 +116,7 @@ noit_listener(char *host, unsigned short port, int type,
   memcpy(&s.addr6.sin6_addr, &a, sizeof(a));
   if(bind(fd, (struct sockaddr *)&s,
           (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6)) < 0) {
-    noit_log(noit_stderr, NULL, "bind failed: %s\b", strerror(errno));
+    noitL(noit_stderr, "bind failed: %s\b", strerror(errno));
     close(fd);
     return -1;
   }
@@ -151,8 +151,7 @@ noit_listener_init() {
 
   listener_configs = noit_conf_get_sections(NULL, "/noit/listeners/listener",
                                             &cnt);
-  noit_log(noit_stderr, NULL, "Found %d /noit/listeners/listener stanzas\n",
-           cnt);
+  noitL(noit_stderr, "Found %d /noit/listeners/listener stanzas\n", cnt);
   for(i=0; i<cnt; i++) {
     char address[256];
     char type[256];
@@ -163,22 +162,21 @@ noit_listener_init() {
 
     if(!noit_conf_get_stringbuf(listener_configs[i],
                                 "type", type, sizeof(type))) {
-      noit_log(noit_stderr, NULL,
-               "No type specified in listener stanza %d\n", i+1);
+      noitL(noit_stderr, "No type specified in listener stanza %d\n", i+1);
       continue;
     }
     f = eventer_callback_for_name(type);
     if(!f) {
-      noit_log(noit_stderr, NULL,
-               "Cannot find handler for listener type: '%s'\n", type);
+      noitL(noit_stderr,
+            "Cannot find handler for listener type: '%s'\n", type);
       continue;
     }
     if(!noit_conf_get_int(listener_configs[i], "port", &portint))
       portint = 0;
     port = (unsigned short) portint;
     if(portint == 0 || (port != portint)) {
-      noit_log(noit_stderr, NULL,
-               "Invalid port [%d] specified in stanza %d\n", port, i+1);
+      noitL(noit_stderr,
+            "Invalid port [%d] specified in stanza %d\n", port, i+1);
       continue;
     }
     if(!noit_conf_get_stringbuf(listener_configs[i],

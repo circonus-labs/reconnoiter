@@ -269,9 +269,9 @@ static void eventer_kqueue_impl_loop() {
                       master_kqs->__ke_vec, master_kqs->__ke_vec_used,
                       NULL, 0,
                       &__zerotime);
-      noit_log(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, master_kqs->__ke_vec_used, fd_cnt);
+      noitLT(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, master_kqs->__ke_vec_used, fd_cnt);
       if(fd_cnt < 0) {
-        noit_log(noit_error, &__now, "kevent: %s\n", strerror(errno));
+        noitLT(noit_error, &__now, "kevent: %s\n", strerror(errno));
       }
       master_kqs->__ke_vec_used = 0;
       pthread_mutex_unlock(&kqs_lock);
@@ -283,10 +283,10 @@ static void eventer_kqueue_impl_loop() {
     fd_cnt = kevent(kqueue_fd, ke_vec, ke_vec_used,
                     ke_vec, ke_vec_a,
                     &__kqueue_sleeptime);
-    noit_log(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, ke_vec_used, fd_cnt);
+    noitLT(noit_debug, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, ke_vec_used, fd_cnt);
     ke_vec_used = 0;
     if(fd_cnt < 0) {
-      noit_log(noit_error, &__now, "kevent: %s\n", strerror(errno));
+      noitLT(noit_error, &__now, "kevent: %s\n", strerror(errno));
     }
     else {
       int idx;
@@ -316,7 +316,7 @@ static void eventer_kqueue_impl_loop() {
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) {
           if(ke->data != EBADF)
-            noit_log(noit_error, &__now, "error: %s\n", strerror(ke->data));
+            noitLT(noit_error, &__now, "error: %s\n", strerror(ke->data));
           continue;
         }
         e = (eventer_t)ke->udata;
@@ -329,8 +329,8 @@ static void eventer_kqueue_impl_loop() {
         gettimeofday(&__now, NULL);
         oldmask = e->mask;
         cbname = eventer_name_for_callback(e->callback);
-        noit_log(noit_debug, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
-                 fd, masks[fd], cbname?cbname:"???", e->callback);
+        noitLT(noit_debug, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
+               fd, masks[fd], cbname?cbname:"???", e->callback);
         newmask = e->callback(e, masks[fd], e->closure, &__now);
         masks[fd] = 0; /* indicates we've processed this fd */
 

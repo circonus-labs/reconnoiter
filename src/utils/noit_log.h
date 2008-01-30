@@ -40,12 +40,24 @@ API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);
 API_EXPORT(void) noit_vlog(noit_log_stream_t ls, struct timeval *,
+                           const char *file, int line,
                            const char *format, va_list arg);
 API_EXPORT(void) noit_log(noit_log_stream_t ls, struct timeval *,
+                          const char *file, int line,
                           const char *format, ...)
 #ifdef __GNUC__
-  __attribute__ ((format (printf, 3, 4)))
+  __attribute__ ((format (printf, 5, 6)))
 #endif
   ;
+
+#define noitLT(ls, t, args...) \
+  if(ls && ls->enabled) noit_log(ls, t, __FILE__, __LINE__, args)
+#define noitL(ls, args...) do { \
+  if(ls && ls->enabled) { \
+    struct timeval __noitL_now; \
+    gettimeofday(&__noitL_now, NULL); \
+    noit_log(ls, &__noitL_now, __FILE__, __LINE__, args); \
+  } \
+} while(0)
 
 #endif

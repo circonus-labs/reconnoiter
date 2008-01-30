@@ -108,7 +108,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
            ci->status.code ? code : "undefined",
            ci->timed_out ? "timeout" : rt,
            ci->body.l);
-  noit_log(nldeb, NULL, "http(%s) [%s]\n", check->target, human_buffer);
+  noitL(nldeb, "http(%s) [%s]\n", check->target, human_buffer);
 
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   current.available = (ci->timed_out || !ci->status.code) ? NP_UNAVAILABLE : NP_AVAILABLE;
@@ -121,7 +121,7 @@ static int serf_complete(eventer_t e, int mask,
   serf_closure_t *ccl = (serf_closure_t *)closure;
   check_info_t *ci = (check_info_t *)ccl->check->closure;
 
-  noit_log(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
+  noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
   serf_log_results(ccl->self, ccl->check);
   if(ci->connection) {
     serf_connection_close(ci->connection);
@@ -353,8 +353,7 @@ static apr_status_t serf_eventer_add(void *user_baton,
   assert(pfd->desc_type == APR_POLL_SOCKET);
   struct __unix_apr_socket_t *hack = (struct __unix_apr_socket_t *)pfd->desc.s;
 
-  noit_log(nldeb, NULL, "serf_eventer_add() => %d\n",
-           hack->socketdes);
+  noitL(nldeb, "serf_eventer_add() => %d\n", hack->socketdes);
   e = eventer_find_fd(hack->socketdes);
   if(!e) {
     newe = e = eventer_alloc();
@@ -393,8 +392,7 @@ static apr_status_t serf_eventer_remove(void *user_baton,
   assert(pfd->desc_type == APR_POLL_SOCKET);
   struct __unix_apr_socket_t *hack = (struct __unix_apr_socket_t *)pfd->desc.s;
 
-  noit_log(nldeb, NULL, "serf_eventer_remove() => %d\n",
-           hack->socketdes);
+  noitL(nldeb, "serf_eventer_remove() => %d\n", hack->socketdes);
   e = eventer_find_fd(hack->socketdes);
   if(e) e->mask = 0;
   return 0;
@@ -412,8 +410,8 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   /* We cannot be running */
   assert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
-  noit_log(nldeb, NULL, "serf_initiate(%p,%s)\n",
-           self, check->target);
+  noitL(nldeb, "serf_initiate(%p,%s)\n",
+        self, check->target);
 
   /* remove a timeout if we still have one -- we should unless someone
    * has set a lower timeout than the period.
