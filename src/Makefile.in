@@ -29,10 +29,13 @@ OBJS=noitd.o noit_listener.o noit_console.o noit_poller.o \
 
 all:	noitd
 
-make-subdirs:
+make-subdirs:	serf/.libs/libserf-0.a
 	for dir in $(SUBS) ; do \
 		(cd $$dir && make) ; \
 	done
+
+serf/.libs/libserf-0.a:
+	(cd serf && python serfmake)
 
 noitd:	make-subdirs $(OBJS)
 	$(CC) -o $@ $(OBJS) \
