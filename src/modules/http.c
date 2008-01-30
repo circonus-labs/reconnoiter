@@ -85,12 +85,18 @@ static int serf_config(noit_module_t *self, noit_hash_table *options) {
   return 0;
 }
 static void serf_log_results(noit_module_t *self, noit_check_t check) {
+  int expect_code = 200;
+  char *code_str;
   check_info_t *ci = check->closure;
   struct timeval duration;
   stats_t current;
   char human_buffer[256];
   char code[4];
   char rt[14];
+
+  if(noit_hash_retrieve(check->config, "code", strlen("code"),
+                        (void **)&code_str))
+    expect_code = atoi(code_str);
 
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
@@ -400,6 +406,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   struct timeval when, p_int;
   apr_status_t status;
   eventer_t newe;
+  char *config_url;
 
   ci = (check_info_t *)check->closure;
   /* We cannot be running */
@@ -429,7 +436,11 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   ccl->self = self;
   ccl->check = check;
 
-  apr_uri_parse(ci->pool, "http://localhost/", &ci->url);
+  if(!noit_hash_retrieve(check->config, "url", strlen("url"),
+                        (void **)&config_url))
+    config_url = "http://localhost/";
+  apr_uri_parse(ci->pool, config_url, &ci->url);
+
   if (!ci->url.port) {
     ci->url.port = apr_uri_port_of_scheme(ci->url.scheme);
   }

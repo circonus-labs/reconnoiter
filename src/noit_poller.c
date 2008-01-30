@@ -100,7 +100,7 @@ noit_poller_load_checks() {
       noit_log(noit_stderr, NULL, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
-    options = noit_conf_get_hash(sec[i], "config");
+    options = noit_conf_get_hash(sec[i], "config/*");
     noit_poller_schedule(target, module, name, options,
                          period, timeout, uuid, out_uuid);
     noit_log(noit_debug, NULL, "loaded uuid: %s\n", uuid_str);
