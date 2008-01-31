@@ -33,7 +33,7 @@ int noit_module_load(const char *file, const char *name) {
     strlcpy(module_file, file, sizeof(module_file));
   else
     snprintf(module_file, sizeof(module_file), "%s/%s.%s",
-             base, name, MODULEEXT);
+             base, file, MODULEEXT);
   free(base);
 
   dlhandle = dlopen(module_file, RTLD_LAZY | RTLD_GLOBAL);

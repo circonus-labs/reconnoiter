@@ -11,9 +11,14 @@
 #include <assert.h>
 #include <math.h>
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
+
 #include "noit_module.h"
 #include "noit_poller.h"
 #include "utils/noit_log.h"
+#include "utils/noit_hash.h"
 
 #include <apr_uri.h>
 #include <apr_atomic.h>
@@ -21,6 +26,11 @@
 #include "serf.h"
 
 #define NOIT_HTTP_VERSION_STRING "0.1"
+
+typedef struct {
+  noit_hash_table *options;
+  void (*results)(noit_module_t *, noit_check_t);
+} serf_module_conf_t;
 
 typedef struct {
   int using_ssl;
@@ -80,19 +90,40 @@ static int serf_handler(eventer_t e, int mask, void *closure,
                         struct timeval *now);
 static int serf_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now);
+static void serf_log_results(noit_module_t *self, noit_check_t check);
+static void resmon_log_results(noit_module_t *self, noit_check_t check);
 
 static int serf_config(noit_module_t *self, noit_hash_table *options) {
+  serf_module_conf_t *conf;
+  conf = calloc(1, sizeof(*conf));
+  conf->options = options;
+  conf->results = serf_log_results;
+  noit_module_set_userdata(self, conf);
   return 0;
 }
+static int resmon_config(noit_module_t *self, noit_hash_table *options) {
+  serf_module_conf_t *conf;
+  conf = calloc(1, sizeof(*conf));
+  conf->options = options;
+  if(!conf->options) conf->options = calloc(1, sizeof(*conf->options));
+  noit_hash_store(conf->options, strdup("url"), strlen("url"),
+                  strdup("http://localhost:81/"));
+  conf->results = resmon_log_results;
+  noit_module_set_userdata(self, conf);
+  return 0;
+}
+static void generic_log_results(noit_module_t *self, noit_check_t check) {
+  serf_module_conf_t *module_conf;
+  module_conf = noit_module_get_userdata(self);
+  module_conf->results(self, check);
+}
 static void serf_log_results(noit_module_t *self, noit_check_t check) {
-  int expect_code = 200;
-  char *code_str;
   check_info_t *ci = check->closure;
   struct timeval duration;
   stats_t current;
-  char human_buffer[256];
-  char code[4];
-  char rt[14];
+  int expect_code = 200;
+  char *code_str;
+  char human_buffer[256], code[4], rt[14];
 
   if(noit_hash_retrieve(check->config, "code", strlen("code"),
                         (void **)&code_str))
@@ -116,13 +147,56 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
   current.status = human_buffer;
   noit_poller_set_state(check, &current);
 }
+static void resmon_log_results(noit_module_t *self, noit_check_t check) {
+  check_info_t *ci = check->closure;
+  struct timeval duration;
+  stats_t current;
+  int expect_code = 200;
+  int services = 0;
+  char *code_str;
+  char human_buffer[256], code[4], rt[14];
+  xmlDocPtr resmon_results = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+
+  if(ci->body.b) resmon_results = xmlParseMemory(ci->body.b, ci->body.l);
+  if(resmon_results) {
+    xmlXPathObjectPtr pobj;
+    xpath_ctxt = xmlXPathNewContext(resmon_results);
+    pobj = xmlXPathEval((xmlChar *)"/ResmonResults/ResmonResult", xpath_ctxt);
+    if(pobj)
+      if(pobj->type == XPATH_NODESET)
+        services = xmlXPathNodeSetGetLength(pobj->nodesetval);
+    xmlXPathFreeObject(pobj);
+  } else {
+    noitL(nlerr, "Error in resmon doc: %s\n", ci->body.b);
+  }
+  if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
+  if(resmon_results) xmlFreeDoc(resmon_results);
+
+  sub_timeval(ci->finish_time, check->last_fire_time, &duration);
+
+  snprintf(rt, sizeof(rt), "%.3fms",
+           (float)duration.tv_sec + (float)duration.tv_usec / 1000000.0);
+  snprintf(human_buffer, sizeof(human_buffer),
+           "services=%d,rt=%s",
+           services,
+           ci->timed_out ? "timeout" : rt);
+  noitL(nldeb, "resmon(%s) [%s]\n", check->target, human_buffer);
+
+  current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  current.available = (ci->timed_out || ci->status.code != 200) ?
+                          NP_UNAVAILABLE : NP_AVAILABLE;
+  current.state = services ? NP_GOOD : NP_BAD;
+  current.status = human_buffer;
+  noit_poller_set_state(check, &current);
+}
 static int serf_complete(eventer_t e, int mask,
                          void *closure, struct timeval *now) {
   serf_closure_t *ccl = (serf_closure_t *)closure;
   check_info_t *ci = (check_info_t *)ccl->check->closure;
 
   noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
-  serf_log_results(ccl->self, ccl->check);
+  generic_log_results(ccl->self, ccl->check);
   if(ci->connection) {
     serf_connection_close(ci->connection);
     ci->connection = NULL;
@@ -155,10 +229,11 @@ static int serf_handler(eventer_t e, int mask,
   if(mask & EVENTER_EXCEPTION) desc.rtnevents |= APR_POLLERR;
   serf_event_trigger(ci->context, sct->serf_baton, &desc);
   serf_context_prerun(ci->context);
-  if(e->mask == 0) {
-    eventer_remove_fd(e->fd);
-    eventer_free(e);
-  }
+
+  /* We're about to deschedule and free the event, drop our reference */
+  if(!e->mask)
+    ci->fd_event = NULL;
+
   return e->mask;
 }
 
@@ -211,7 +286,7 @@ static void append_buf(apr_pool_t *p, buf_t *b,
   if(b->l == 0)
     b->b = n;
   else {
-    memcpy(b->b, n, b->l);
+    memcpy(n, b->b, b->l);
     b->b = n;
   }
   memcpy(b->b + b->l, data, len);
@@ -404,8 +479,10 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   struct timeval when, p_int;
   apr_status_t status;
   eventer_t newe;
+  serf_module_conf_t *mod_config;
   char *config_url;
 
+  mod_config = noit_module_get_userdata(self);
   ci = (check_info_t *)check->closure;
   /* We cannot be running */
   assert(!(check->flags & NP_RUNNING));
@@ -436,7 +513,10 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
 
   if(!noit_hash_retrieve(check->config, "url", strlen("url"),
                         (void **)&config_url))
-    config_url = "http://localhost/";
+    if(!mod_config->options ||
+       !noit_hash_retrieve(mod_config->options, "url", strlen("url"),
+                           (void **)&config_url))
+      config_url = "http://localhost/";
   apr_uri_parse(ci->pool, config_url, &ci->url);
 
   if (!ci->url.port) {
@@ -575,6 +655,17 @@ noit_module_t http = {
   "libserf-based HTTP and HTTPS resource checker",
   serf_onload,
   serf_config,
+  serf_init,
+  serf_initiate_check
+};
+
+noit_module_t resmon = {
+  NOIT_MODULE_MAGIC,
+  NOIT_MODULE_ABI_VERSION,
+  "resmon",
+  "libserf-based resmon resource checker",
+  serf_onload,
+  resmon_config,
   serf_init,
   serf_initiate_check
 };

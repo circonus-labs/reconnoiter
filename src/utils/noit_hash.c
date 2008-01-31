@@ -205,6 +205,7 @@ int noit_hash_retrieve(noit_hash_table *h, const char *k, int klen, void **data)
   int off;
   noit_hash_bucket *b;
 
+  if(!h) return 0;
   if(h->table_size == 0) noit_hash_init(h);
   off = __hash(k, klen, h->initval) & (h->table_size-1);
   b = h->buckets[off];
