@@ -13,12 +13,14 @@
 
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_skiplist.h"
 #include "noit_conf.h"
 #include "noit_poller.h"
 #include "noit_module.h"
 #include "eventer/eventer.h"
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
+static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
 struct uuid_dummy {
   uuid_t foo;
@@ -43,6 +45,14 @@ __noit_check_state_string(int16_t state) {
   }
   return "???";
 }
+static int __check_name_compare(void *a, void *b) {
+  noit_check_t ac = a;
+  noit_check_t bc = b;
+  int rv;
+  if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
+  if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
+  return 0;
+}
 void
 noit_poller_load_checks() {
   int i, cnt = 0;
@@ -54,7 +64,7 @@ noit_poller_load_checks() {
     char target[256];
     char module[256];
     char name[256];
-    int period, timeout;
+    int period = 0, timeout = 0;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
 
@@ -118,7 +128,7 @@ noit_poller_initiate() {
     noit_module_t *mod;
     mod = noit_module_lookup(check->module);
     if(mod) {
-      mod->initiate_check(mod, check);
+      mod->initiate_check(mod, check, 0);
     }
     else {
       noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
@@ -128,6 +138,9 @@ noit_poller_initiate() {
 
 void
 noit_poller_init() {
+  noit_skiplist_init(&polls_by_name);
+  noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
+                            __check_name_compare);
   noit_poller_load_checks();
   noit_poller_initiate();
 }
@@ -191,6 +204,7 @@ noit_poller_schedule(const char *target,
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
+  noit_skiplist_insert(&polls_by_name, new_check);
   uuid_copy(out, new_check->checkid);
   return 0;
 }
@@ -236,6 +250,16 @@ noit_poller_lookup(uuid_t in) {
   }
   return NULL;
 }
+noit_check_t
+noit_poller_lookup_by_name(char *target, char *name) {
+  noit_check_t check, tmp_check;
+  tmp_check = calloc(1, sizeof(*tmp_check));
+  tmp_check->target = target;
+  tmp_check->name = name;
+  check = noit_skiplist_find(&polls_by_name, &tmp_check, NULL);
+  free(tmp_check);
+  return check;
+}
 
 
 void
@@ -258,8 +282,10 @@ noit_poller_set_state(noit_check_t check, stats_t *newstate) {
      check->stats.current.state != check->stats.previous.state)
     report_change = 1;
 
+  noitL(noit_error, "%s/%s <- [%s]\n", check->target, check->module,
+        check->stats.current.status);
   if(report_change) {
-    noitL(noit_debug, "%s/%s -> [%s/%s]\n",
+    noitL(noit_error, "%s/%s -> [%s/%s]\n",
           check->target, check->module,
           __noit_check_available_string(check->stats.current.available),
           __noit_check_state_string(check->stats.current.state));

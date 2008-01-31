@@ -312,8 +312,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   free(pcl);
   return 0;
 }
-static int ping_icmp_send(noit_module_t *self, noit_check_t check,
-                          int interval, int count) {
+static int ping_icmp_send(noit_module_t *self, noit_check_t check) {
   struct timeval when, p_int;
   struct icmp *icp;
   struct ping_payload *payload;
@@ -321,6 +320,16 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t check,
   struct check_info *ci = (struct check_info *)check->closure;
   int packet_len, i;
   eventer_t newe;
+  const char *config_val;
+
+  int interval = PING_INTERVAL;
+  int count = PING_COUNT;
+  if(noit_hash_retrieve(check->config, "interval", strlen("interval"),
+                        (void **)&config_val))
+    interval = atoi(config_val);
+  if(noit_hash_retrieve(check->config, "count", strlen("count"),
+                        (void **)&config_val))
+    count = atoi(config_val);
 
   check->flags |= NP_RUNNING;
   noitL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
@@ -435,13 +444,19 @@ static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   struct ping_closure *cl = (struct ping_closure *)closure;
   ping_icmp_schedule_next(cl->self, e, cl->check, now);
-  ping_icmp_send(cl->self, cl->check, PING_INTERVAL, PING_COUNT);
+  ping_icmp_send(cl->self, cl->check);
   free(cl);
   return 0;
 }
-static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t check) {
-  check->closure = calloc(1, sizeof(struct check_info));
-  ping_icmp_schedule_next(self, NULL, check, NULL);
+static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t check,
+                                    int once) {
+  if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
+  if(once) {
+    ping_icmp_send(self, check);
+    return 0;
+  }
+  if(!check->fire_event)
+    ping_icmp_schedule_next(self, NULL, check, NULL);
   return 0;
 }
 

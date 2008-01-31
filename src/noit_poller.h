@@ -93,6 +93,9 @@ API_EXPORT(int)
 API_EXPORT(noit_check_t)
   noit_poller_lookup(uuid_t in);
 
+API_EXPORT(noit_check_t)
+  noit_poller_lookup_by_name(char *target, char *name);
+
 API_EXPORT(void)
   noit_poller_set_state(noit_check_t check, stats_t *newstate);
 

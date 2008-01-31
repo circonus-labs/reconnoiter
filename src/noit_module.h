@@ -21,7 +21,7 @@ typedef struct _noit_module {
   int (*onload)(struct _noit_module *);
   int (*config)(struct _noit_module *, noit_hash_table *options);
   int (*init)(struct _noit_module *);
-  int (*initiate_check)(struct _noit_module *, noit_check_t check);
+  int (*initiate_check)(struct _noit_module *, noit_check_t check, int once);
   void *opaque_handle;
 } noit_module_t;
 

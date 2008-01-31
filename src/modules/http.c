@@ -75,7 +75,13 @@ typedef struct {
   struct timeval finish_time;
   eventer_t fd_event;
   eventer_t timeout_event;
-} check_info_t;
+} serf_check_info_t;
+
+typedef struct {
+  serf_check_info_t serf;
+  struct timeval xml_doc_time;
+  xmlDocPtr xml_doc;
+} resmon_check_info_t;
 
 typedef struct {
   noit_module_t *self;
@@ -118,7 +124,7 @@ static void generic_log_results(noit_module_t *self, noit_check_t check) {
   module_conf->results(self, check);
 }
 static void serf_log_results(noit_module_t *self, noit_check_t check) {
-  check_info_t *ci = check->closure;
+  serf_check_info_t *ci = check->closure;
   struct timeval duration;
   stats_t current;
   int expect_code = 200;
@@ -148,13 +154,12 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
   noit_poller_set_state(check, &current);
 }
 static void resmon_log_results(noit_module_t *self, noit_check_t check) {
-  check_info_t *ci = check->closure;
+  serf_check_info_t *ci = check->closure;
+  resmon_check_info_t *rci = check->closure;
   struct timeval duration;
   stats_t current;
-  int expect_code = 200;
   int services = 0;
-  char *code_str;
-  char human_buffer[256], code[4], rt[14];
+  char human_buffer[256], rt[14];
   xmlDocPtr resmon_results = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
@@ -171,7 +176,11 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
     noitL(nlerr, "Error in resmon doc: %s\n", ci->body.b);
   }
   if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
-  if(resmon_results) xmlFreeDoc(resmon_results);
+
+  /* Save out results for future dependent checks */ 
+  memcpy(&rci->xml_doc_time, &ci->finish_time, sizeof(ci->finish_time));
+  if(rci->xml_doc) xmlFreeDoc(rci->xml_doc);
+  rci->xml_doc = resmon_results;
 
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
@@ -193,7 +202,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
 static int serf_complete(eventer_t e, int mask,
                          void *closure, struct timeval *now) {
   serf_closure_t *ccl = (serf_closure_t *)closure;
-  check_info_t *ci = (check_info_t *)ccl->check->closure;
+  serf_check_info_t *ci = (serf_check_info_t *)ccl->check->closure;
 
   noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
   generic_log_results(ccl->self, ccl->check);
@@ -218,7 +227,7 @@ static int serf_handler(eventer_t e, int mask,
                         void *closure, struct timeval *now) {
   apr_pollfd_t desc = { 0 };
   serf_closure_t *sct = closure;
-  check_info_t *ci = sct->check->closure;
+  serf_check_info_t *ci = sct->check->closure;
 
   desc.desc_type = APR_POLL_SOCKET;
   desc.desc.s = sct->skt;
@@ -302,7 +311,7 @@ static apr_status_t handle_response(serf_request_t *request,
   apr_size_t len;
   apr_status_t status;
   handler_baton_t *ctx = handler_baton;
-  check_info_t *ci = ctx->check->closure;
+  serf_check_info_t *ci = ctx->check->closure;
 
   if(response == NULL) {
     /* We were cancelled. */
@@ -446,7 +455,7 @@ static apr_status_t serf_eventer_add(void *user_baton,
   if(pfd->reqevents & APR_POLLOUT) e->mask |= EVENTER_WRITE;
   if(pfd->reqevents & APR_POLLERR) e->mask |= EVENTER_EXCEPTION;
   if(newe) {
-    check_info_t *ci = sct->check->closure;
+    serf_check_info_t *ci = sct->check->closure;
     eventer_add(newe);
     ci->fd_event = newe;
   }
@@ -460,7 +469,7 @@ static apr_status_t serf_eventer_remove(void *user_baton,
                                         apr_pollfd_t *pfd,
                                         void *serf_baton) {
   serf_closure_t *sct = user_baton;
-  check_info_t *ci;
+  serf_check_info_t *ci;
   eventer_t e;
 
   ci = sct->check->closure;
@@ -475,7 +484,7 @@ static apr_status_t serf_eventer_remove(void *user_baton,
 
 static int serf_initiate(noit_module_t *self, noit_check_t check) {
   serf_closure_t *ccl;
-  check_info_t *ci;
+  serf_check_info_t *ci;
   struct timeval when, p_int;
   apr_status_t status;
   eventer_t newe;
@@ -483,7 +492,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   char *config_url;
 
   mod_config = noit_module_get_userdata(self);
-  ci = (check_info_t *)check->closure;
+  ci = (serf_check_info_t *)check->closure;
   /* We cannot be running */
   assert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
@@ -628,11 +637,31 @@ static int serf_recur_handler(eventer_t e, int mask, void *closure,
   free(cl);
   return 0;
 }
-static int serf_initiate_check(noit_module_t *self, noit_check_t check) {
-  check->closure = calloc(1, sizeof(check_info_t));
-  serf_schedule_next(self, NULL, check, NULL);
+static int serf_initiate_check(noit_module_t *self, noit_check_t check,
+                               int once) {
+  if(!check->closure) check->closure = calloc(1, sizeof(serf_check_info_t));
+  if(once) {
+    serf_initiate(self, check);
+    return 0;
+  }
+  /* If check->fire_event, we're already scheduled... */
+  if(!check->fire_event)
+    serf_schedule_next(self, NULL, check, NULL);
   return 0;
 }
+static int resmon_initiate_check(noit_module_t *self, noit_check_t check,
+                                 int once) {
+  /* resmon_check_info_t gives us a bit more space */
+  if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
+  if(once) {
+    serf_initiate(self, check);
+    return 0;
+  }
+  if(!check->fire_event)
+    serf_schedule_next(self, NULL, check, NULL);
+  return 0;
+}
+
 
 static int serf_onload(noit_module_t *self) {
   apr_initialize();
@@ -667,6 +696,6 @@ noit_module_t resmon = {
   serf_onload,
   resmon_config,
   serf_init,
-  serf_initiate_check
+  resmon_initiate_check
 };
 
