@@ -413,6 +413,8 @@ static int ping_icmp_schedule_next(noit_module_t *self,
   struct timeval period, earliest;
   struct ping_closure *pcl;
 
+  if(check->period == 0) return 0;
+
   /* If we have an event, we know when we intended it to fire.  This means
    * we should schedule that point + period.
    */

@@ -602,6 +602,8 @@ static int serf_schedule_next(noit_module_t *self,
   struct timeval period, earliest;
   serf_closure_t *ccl;
 
+  if(check->period == 0) return 0;
+
   /* If we have an event, we know when we intended it to fire.  This means
    * we should schedule that point + period.
    */
