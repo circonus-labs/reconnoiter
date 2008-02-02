@@ -81,33 +81,25 @@ noit_poller_load_checks() {
       noitL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
       continue;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "target", target, sizeof(target))) {
-      if(!noit_conf_get_stringbuf(sec[i], "../target", target, sizeof(target))) {
-         noitL(noit_stderr, "check uuid: '%s' has no target\n",
-                  uuid_str);
-         continue;
-      }
+    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/target", target, sizeof(target))) {
+      noitL(noit_stderr, "check uuid: '%s' has no target\n",
+            uuid_str);
+      continue;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "module", module, sizeof(module))) {
-      if(!noit_conf_get_stringbuf(sec[i], "../module", module, sizeof(module))) {
-        noitL(noit_stderr, "check uuid: '%s' has no module\n",
-              uuid_str);
-        continue;
-      }
+    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/module", module, sizeof(module))) {
+      noitL(noit_stderr, "check uuid: '%s' has no module\n",
+            uuid_str);
+      continue;
     }
     if(!noit_conf_get_stringbuf(sec[i], "name", name, sizeof(name))) {
       strcpy(name, module);
     }
-    if(!noit_conf_get_int(sec[i], "period", &period)) {
-      if(!noit_conf_get_int(sec[i], "../period", &period)) {
-        no_period = 1;
-      }
+    if(!noit_conf_get_int(sec[i], "ancestor-or-self::node()/period", &period)) {
+      no_period = 1;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "oncheck", oncheck, sizeof(oncheck))) {
-      if(!noit_conf_get_stringbuf(sec[i], "../oncheck", oncheck, sizeof(oncheck))) {
-        oncheck[0] = '\0';
-        no_oncheck = 1;
-      }
+    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/oncheck", oncheck, sizeof(oncheck))) {
+      oncheck[0] = '\0';
+      no_oncheck = 1;
     }
     if(no_period && no_oncheck) {
       noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
@@ -119,11 +111,9 @@ noit_poller_load_checks() {
             uuid_str);
       continue;
     }
-    if(!noit_conf_get_int(sec[i], "timeout", &timeout)) {
-      if(!noit_conf_get_int(sec[i], "../timeout", &timeout)) {
-        noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-        continue;
-      }
+    if(!noit_conf_get_int(sec[i], "ancestor-or-self::node()/timeout", &timeout)) {
+      noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+      continue;
     }
     if(!no_period && timeout >= period) {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);

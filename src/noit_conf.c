@@ -164,12 +164,13 @@ int _noit_conf_get_string(noit_conf_section_t section,
   }
   pobj = xmlXPathEval((xmlChar *)path, current_ctxt);
   if(pobj) {
+    xmlNodePtr node;
     switch(pobj->type) {
       case XPATH_NODESET:
         if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) return 0;
         i = xmlXPathNodeSetGetLength(pobj->nodesetval);
-        assert(i == 1);
-        *value = (char *)xmlXPathCastNodeSetToString(pobj->nodesetval);
+        node = xmlXPathNodeSetItem(pobj->nodesetval, i-1);
+        *value = (char *)xmlXPathCastNodeToString(node);
         break;
       default:
         *value = (char *)xmlXPathCastToString(pobj);
