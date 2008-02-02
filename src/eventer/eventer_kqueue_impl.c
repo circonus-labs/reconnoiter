@@ -199,7 +199,7 @@ static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
 static eventer_t eventer_kqueue_impl_find_fd(int fd) {
   return master_fds[fd].e;
 }
-static void eventer_kqueue_impl_loop() {
+static int eventer_kqueue_impl_loop() {
   int is_master_thread = 0;
   pthread_t self;
   KQUEUE_DECL;
@@ -361,6 +361,8 @@ static void eventer_kqueue_impl_loop() {
       }
     }
   }
+  /* NOTREACHED */
+  return 0;
 }
 
 struct _eventer_impl eventer_kqueue_impl = {
