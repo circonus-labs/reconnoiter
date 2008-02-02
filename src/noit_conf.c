@@ -13,6 +13,7 @@
 
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_log.h"
 
 /* tmp hash impl, replace this with something nice */
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
@@ -88,7 +89,7 @@ noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
   for(i=0; i<cnt; i++) {
     char *value;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
-    value = (char *)xmlXPathCastNodeSetToString(pobj->nodesetval);
+    value = (char *)xmlXPathCastNodeToString(node);
     noit_hash_replace(table,
                       strdup((char *)node->name), strlen((char *)node->name),
                       strdup(value), free, free);

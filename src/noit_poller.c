@@ -25,6 +25,7 @@ static u_int32_t __config_load_generation = 0;
 struct uuid_dummy {
   uuid_t foo;
 };
+
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
 static const char *
@@ -64,6 +65,9 @@ noit_poller_load_checks() {
     char target[256];
     char module[256];
     char name[256];
+    char oncheck[1024];
+    int no_period = 0;
+    int no_oncheck = 0;
     int period = 0, timeout = 0;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
@@ -87,7 +91,7 @@ noit_poller_load_checks() {
     if(!noit_conf_get_stringbuf(sec[i], "module", module, sizeof(module))) {
       if(!noit_conf_get_stringbuf(sec[i], "../module", module, sizeof(module))) {
         noitL(noit_stderr, "check uuid: '%s' has no module\n",
-                 uuid_str);
+              uuid_str);
         continue;
       }
     }
@@ -96,9 +100,24 @@ noit_poller_load_checks() {
     }
     if(!noit_conf_get_int(sec[i], "period", &period)) {
       if(!noit_conf_get_int(sec[i], "../period", &period)) {
-        noitL(noit_stderr, "check uuid: '%s' has no period\n", uuid_str);
-        continue;
+        no_period = 1;
       }
+    }
+    if(!noit_conf_get_stringbuf(sec[i], "oncheck", oncheck, sizeof(oncheck))) {
+      if(!noit_conf_get_stringbuf(sec[i], "../oncheck", oncheck, sizeof(oncheck))) {
+        oncheck[0] = '\0';
+        no_oncheck = 1;
+      }
+    }
+    if(no_period && no_oncheck) {
+      noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
+            uuid_str);
+      continue;
+    }
+    if(!(no_period || no_oncheck)) {
+      noitL(noit_stderr, "check uuid: '%s' has has on check and period.\n",
+            uuid_str);
+      continue;
     }
     if(!noit_conf_get_int(sec[i], "timeout", &timeout)) {
       if(!noit_conf_get_int(sec[i], "../timeout", &timeout)) {
@@ -106,13 +125,14 @@ noit_poller_load_checks() {
         continue;
       }
     }
-    if(timeout >= period) {
+    if(!no_period && timeout >= period) {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
     options = noit_conf_get_hash(sec[i], "config/*");
     noit_poller_schedule(target, module, name, options,
-                         period, timeout, uuid, out_uuid);
+                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         uuid, out_uuid);
     noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
   }
 }
@@ -128,20 +148,61 @@ noit_poller_initiate() {
     noit_module_t *mod;
     mod = noit_module_lookup(check->module);
     if(mod) {
-      mod->initiate_check(mod, check, 0);
+      if((check->flags & NP_DISABLED) == 0)
+        mod->initiate_check(mod, check, 0, NULL);
     }
     else {
       noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
+      check->flags |= NP_DISABLED;
     }
   }
 }
 
+void
+noit_poller_make_causal_map() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  noit_check_t check, parent;
+  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                       (void **)&check)) {
+    if(check->oncheck) {
+      /* This service is causally triggered by another service */
+      char fullcheck[1024];
+      char *name = check->oncheck;
+      char *target = NULL;
+
+      if((target = strchr(check->oncheck, '`')) != NULL) {
+        strlcpy(fullcheck, check->oncheck, target - check->oncheck);
+        name = target + 1;
+        target = fullcheck;
+      }
+      else
+       target = check->target;
+
+      parent = noit_poller_lookup_by_name(target, name);
+      if(!parent) {
+        check->flags |= NP_DISABLED;
+        noitL(noit_stderr, "Disabling check %s/%s, can't find oncheck %s/%s\n",
+              check->target, check->name, target, name);
+      }
+      else {
+        dep_list_t *dep;
+        dep = malloc(sizeof(*dep));
+        dep->check = check;
+        dep->next = parent->causal_checks;
+        parent->causal_checks = dep;
+      }
+    }
+  }
+}
 void
 noit_poller_init() {
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
   noit_poller_load_checks();
+  noit_poller_make_causal_map();
   noit_poller_initiate();
 }
 
@@ -152,6 +213,7 @@ noit_poller_schedule(const char *target,
                      noit_hash_table *config,
                      u_int32_t period,
                      u_int32_t timeout,
+                     const char *oncheck,
                      uuid_t in,
                      uuid_t out) {
   int8_t family;
@@ -181,7 +243,7 @@ noit_poller_schedule(const char *target,
   memcpy(&new_check->target_addr, &a, sizeof(a));
   new_check->target = strdup(target);
   new_check->module = strdup(module);
-  new_check->name = name?strdup(name):NULL;
+  new_check->name = name ? strdup(name): NULL;
 
   if(config != NULL) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
@@ -193,6 +255,7 @@ noit_poller_schedule(const char *target,
       noit_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
     }
   }
+  new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
   new_check->period = period;
   new_check->timeout = timeout;
   new_check->flags = 0;
@@ -256,17 +319,65 @@ noit_poller_lookup_by_name(char *target, char *name) {
   tmp_check = calloc(1, sizeof(*tmp_check));
   tmp_check->target = target;
   tmp_check->name = name;
-  check = noit_skiplist_find(&polls_by_name, &tmp_check, NULL);
+  check = noit_skiplist_find(&polls_by_name, tmp_check, NULL);
   free(tmp_check);
   return check;
 }
 
+static void
+__free_metric(void *vm) {
+  metric_t *m = vm;
+  free(m->metric_name);
+  if(m->metric_value.i) free(m->metric_value.i);
+}
 
 void
-noit_poller_set_state(noit_check_t check, stats_t *newstate) {
+__stats_add_metric(stats_t *newstate, metric_t *m) {
+  noit_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+                    m, NULL, __free_metric);
+}
+
+void
+noit_poller_set_metric_int(stats_t *newstate, char *name, int *value) {
+  metric_t *m = calloc(1, sizeof(*m));
+  m->metric_name = strdup(name);
+  m->metric_type = METRIC_INT;
+  if(value) {
+    m->metric_value.i = malloc(sizeof(*value));
+    *(m->metric_value.i) = *value;
+  }
+  __stats_add_metric(newstate, m);
+}
+
+void
+noit_poller_set_metric_float(stats_t *newstate, char *name, float *value) {
+  metric_t *m = calloc(1, sizeof(*m));
+  m->metric_name = strdup(name);
+  m->metric_type = METRIC_FLOAT;
+  if(value) {
+    m->metric_value.f = malloc(sizeof(*value));
+    *(m->metric_value.f) = *value;
+  }
+  __stats_add_metric(newstate, m);
+}
+
+void
+noit_poller_set_metric_string(stats_t *newstate, char *name, char *value) {
+  metric_t *m = calloc(1, sizeof(*m));
+  m->metric_name = strdup(name);
+  m->metric_type = METRIC_STRING;
+  m->metric_value.s = value ? strdup(value) : NULL;
+  __stats_add_metric(newstate, m);
+}
+
+void
+noit_poller_set_state(struct _noit_module *module,
+                      noit_check_t check, stats_t *newstate) {
   int report_change = 0;
+  dep_list_t *dep;
   if(check->stats.previous.status)
     free(check->stats.previous.status);
+  noit_hash_destroy(&check->stats.previous.metrics, NULL, __free_metric);
   memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
   memcpy(&check->stats.current, newstate, sizeof(stats_t));
   if(check->stats.current.status)
@@ -289,5 +400,14 @@ noit_poller_set_state(noit_check_t check, stats_t *newstate) {
           check->target, check->module,
           __noit_check_available_string(check->stats.current.available),
           __noit_check_state_string(check->stats.current.state));
+  }
+  for(dep = check->causal_checks; dep; dep = dep->next) {
+    noit_module_t *mod;
+    mod = noit_module_lookup(dep->check->module);
+    assert(mod);
+    noitL(noit_debug, "Firing %s/%s in response to %s/%s\n",
+          dep->check->target, dep->check->name,
+          check->target, check->name);
+    mod->initiate_check(mod, dep->check, 1, check);
   }
 }

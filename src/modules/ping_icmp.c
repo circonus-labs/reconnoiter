@@ -78,6 +78,8 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   stats_t current;
   struct timeval duration;
 
+  memset(&current, 0, sizeof(current));
+
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++) {
     if(data->turnaround[i] != 0) {
@@ -106,7 +108,13 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   current.available = (avail > 0.0) ? NP_AVAILABLE : NP_UNAVAILABLE;
   current.state = (avail < 1.0) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
-  noit_poller_set_state(check, &current);
+  noit_poller_set_metric_int(&current, "count", &data->expected_count);
+  avail *= 100.0;
+  noit_poller_set_metric_float(&current, "available", &avail);
+  noit_poller_set_metric_float(&current, "minimum", avail > 0.0 ? &min : NULL);
+  noit_poller_set_metric_float(&current, "maximum", avail > 0.0 ? &max : NULL);
+  noit_poller_set_metric_float(&current, "average", avail > 0.0 ? &avg : NULL);
+  noit_poller_set_state(self, check, &current);
 }
 static int ping_icmp_timeout(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
@@ -451,7 +459,7 @@ static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
   return 0;
 }
 static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t check,
-                                    int once) {
+                                    int once, noit_check_t cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
   if(once) {
     ping_icmp_send(self, check);

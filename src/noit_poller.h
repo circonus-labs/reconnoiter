@@ -42,14 +42,30 @@
 #define NP_GOOD 2                  /* stats_t.state */
 
 typedef struct {
+  char *metric_name;
+  enum { METRIC_INT, METRIC_FLOAT, METRIC_STRING } metric_type;
+  union {
+    float *f;
+    int *i;
+    char *s;
+  } metric_value;
+} metric_t;
+
+typedef struct {
   struct timeval whence;
   int16_t available;
   int16_t state;
   u_int32_t duration;
   char *status;
+  noit_hash_table metrics;
 } stats_t;
 
-typedef struct {
+typedef struct dep_list {
+  struct noit_check *check;
+  struct dep_list *next;
+} dep_list_t;
+
+typedef struct noit_check {
   uuid_t checkid;
   int8_t target_family;
   union {
@@ -60,10 +76,12 @@ typedef struct {
   char *module;
   char *name;
   noit_hash_table *config;
+  char *oncheck;               /* target`name of the check that fires us */
   u_int32_t period;            /* period of checks in milliseconds */
   u_int32_t timeout;           /* timeout of check in milliseconds */
   u_int32_t flags;             /* NP_KILLED, NP_RUNNING */
 
+  dep_list_t *causal_checks;
   eventer_t fire_event;
   struct timeval last_fire_time;
   struct {
@@ -84,6 +102,7 @@ API_EXPORT(int)
                        noit_hash_table *config,
                        u_int32_t period,
                        u_int32_t timeout,
+                       const char *oncheck,
                        uuid_t in,
                        uuid_t out);
 
@@ -96,7 +115,16 @@ API_EXPORT(noit_check_t)
 API_EXPORT(noit_check_t)
   noit_poller_lookup_by_name(char *target, char *name);
 
+struct _noit_module;
 API_EXPORT(void)
-  noit_poller_set_state(noit_check_t check, stats_t *newstate);
+  noit_poller_set_state(struct _noit_module *self, noit_check_t check,
+                        stats_t *newstate);
+
+API_EXPORT(void)
+  noit_poller_set_metric_int(stats_t *newstate, char *name, int *value);
+API_EXPORT(void)
+  noit_poller_set_metric_float(stats_t *newstate, char *name, float *value);
+API_EXPORT(void)
+  noit_poller_set_metric_string(stats_t *newstate, char *name, char *value);
 
 #endif

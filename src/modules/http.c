@@ -80,7 +80,10 @@ typedef struct {
 typedef struct {
   serf_check_info_t serf;
   struct timeval xml_doc_time;
+  char *xpathexpr;
   xmlDocPtr xml_doc;
+  char *resmod;
+  char *resserv;
 } resmon_check_info_t;
 
 typedef struct {
@@ -98,6 +101,8 @@ static int serf_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now);
 static void serf_log_results(noit_module_t *self, noit_check_t check);
 static void resmon_log_results(noit_module_t *self, noit_check_t check);
+static void resmon_part_log_results(noit_module_t *self, noit_check_t check,
+                                    noit_check_t parent);
 
 static int serf_config(noit_module_t *self, noit_hash_table *options) {
   serf_module_conf_t *conf;
@@ -131,6 +136,8 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
   char *code_str;
   char human_buffer[256], code[4], rt[14];
 
+  memset(&current, 0, sizeof(current));
+
   if(noit_hash_retrieve(check->config, "code", strlen("code"),
                         (void **)&code_str))
     expect_code = atoi(code_str);
@@ -147,11 +154,70 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
            ci->body.l);
   noitL(nldeb, "http(%s) [%s]\n", check->target, human_buffer);
 
+  memcpy(&current.whence, &ci->finish_time, sizeof(current.whence));
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   current.available = (ci->timed_out || !ci->status.code) ? NP_UNAVAILABLE : NP_AVAILABLE;
   current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
-  noit_poller_set_state(check, &current);
+  if(current.available == NP_AVAILABLE) {
+    noit_poller_set_metric_int(&current, "code", &ci->status.code);
+    noit_poller_set_metric_int(&current, "bytes", &ci->body.l);
+  }
+  else {
+    noit_poller_set_metric_int(&current, "code", NULL);
+    noit_poller_set_metric_int(&current, "bytes", NULL);
+  }
+  noit_poller_set_state(self, check, &current);
+}
+static void resmon_part_log_results_xml(noit_module_t *self,
+                                        noit_check_t check,
+                                        xmlDocPtr xml) {
+  resmon_check_info_t *rci = check->closure;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+  stats_t current;
+
+  memset(&current, 0, sizeof(current));
+  current.available = NP_UNAVAILABLE;
+  current.state = NP_BAD;
+
+  if(xml && rci->xpathexpr) {
+    current.available = NP_AVAILABLE;
+    xpath_ctxt = xmlXPathNewContext(xml);
+    if(xpath_ctxt) {
+      xmlXPathObjectPtr pobj;
+      pobj = xmlXPathEval((xmlChar *)rci->xpathexpr, xpath_ctxt);
+      if(pobj) {
+        int i, cnt;
+        cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+        for(i=0; i<cnt; i++) {
+          xmlNodePtr node;
+          char *value;
+          node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+          value = (char *)xmlXPathCastNodeToString(node);
+          if(!strcmp((char *)node->name,"last_runtime_seconds")) {
+            float duration = atof(value) * 1000;
+            current.duration = (int) duration;
+          }
+          else if(!strcmp((char *)node->name, "message")) {
+            current.status = strdup(value);
+          }
+          else if(!strcmp((char *)node->name, "state")) {
+            current.state = strcmp(value,"OK") ? NP_BAD : NP_GOOD;
+          }
+        }
+      }
+    }
+  }
+  memcpy(&current.whence, &rci->serf.finish_time, sizeof(current.whence));
+  current.status = current.status ? current.status : strdup("unknown");
+  noitL(nldeb, "resmon_part(%s/%s/%s) [%s]\n", check->target,
+        rci->resmod, rci->resserv, current.status);
+  noit_poller_set_state(self, check, &current);
+}
+static void resmon_part_log_results(noit_module_t *self, noit_check_t check,
+                                    noit_check_t parent) {
+  resmon_check_info_t *rci = parent->closure;
+  resmon_part_log_results_xml(self, check, rci->xml_doc);
 }
 static void resmon_log_results(noit_module_t *self, noit_check_t check) {
   serf_check_info_t *ci = check->closure;
@@ -162,28 +228,36 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
   char human_buffer[256], rt[14];
   xmlDocPtr resmon_results = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
+  xmlXPathObjectPtr pobj = NULL;
+
+  memset(&current, 0, sizeof(current));
 
   if(ci->body.b) resmon_results = xmlParseMemory(ci->body.b, ci->body.l);
   if(resmon_results) {
-    xmlXPathObjectPtr pobj;
     xpath_ctxt = xmlXPathNewContext(resmon_results);
     pobj = xmlXPathEval((xmlChar *)"/ResmonResults/ResmonResult", xpath_ctxt);
     if(pobj)
       if(pobj->type == XPATH_NODESET)
         services = xmlXPathNodeSetGetLength(pobj->nodesetval);
-    xmlXPathFreeObject(pobj);
   } else {
     noitL(nlerr, "Error in resmon doc: %s\n", ci->body.b);
   }
-  if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 
-  /* Save out results for future dependent checks */ 
+  /* Save our results for future dependent checks */ 
+  memcpy(&current.whence, &ci->finish_time, sizeof(current.whence));
   memcpy(&rci->xml_doc_time, &ci->finish_time, sizeof(ci->finish_time));
   if(rci->xml_doc) xmlFreeDoc(rci->xml_doc);
   rci->xml_doc = resmon_results;
 
-  sub_timeval(ci->finish_time, check->last_fire_time, &duration);
+  if(rci->xpathexpr) {
+    /* This is actually a part check... we had to do all the work as
+     * it isn't being used as a causal firing from a generic resmon check
+     */
+    resmon_part_log_results_xml(self, check, rci->xml_doc);
+    goto out;
+  }
 
+  sub_timeval(ci->finish_time, check->last_fire_time, &duration);
   snprintf(rt, sizeof(rt), "%.3fms",
            (float)duration.tv_sec + (float)duration.tv_usec / 1000000.0);
   snprintf(human_buffer, sizeof(human_buffer),
@@ -197,7 +271,55 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
                           NP_UNAVAILABLE : NP_AVAILABLE;
   current.state = services ? NP_GOOD : NP_BAD;
   current.status = human_buffer;
-  noit_poller_set_state(check, &current);
+
+  noit_poller_set_metric_int(&current, "services", &services);
+  if(services) {
+    int i;
+    for(i=0; i<services; i++) {
+      xmlNodePtr node, attrnode;
+      node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+      if(node) {
+        int a;
+        char *attrs[3] = { "last_runtime_seconds", "state", "message" };
+        char *resmod = NULL, *resserv = NULL, *value = NULL;
+        char attr[1024];
+        xmlXPathObjectPtr sobj;
+
+        xpath_ctxt->node = node;
+        sobj = xmlXPathEval((xmlChar *)"@module", xpath_ctxt);
+        resmod = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+        sobj = xmlXPathEval((xmlChar *)"@service", xpath_ctxt);
+        resserv = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+        if(!resmod && !resserv) continue;
+
+        for(a=0; a<3; a++) {
+          int intval;
+          sobj = xmlXPathEval((xmlChar *)attrs[a], xpath_ctxt);
+          attrnode = xmlXPathNodeSetItem(sobj->nodesetval, 0);
+          value = (char *)xmlXPathCastNodeToString(attrnode);
+          snprintf(attr, sizeof(attr), "%s`%s`%s",
+                   resmod, resserv, (char *)attrnode->name);
+          switch(a) {
+            case 0:
+              /* The first is integer */
+              intval = (int)(atof(value) * 1000.0);
+              noit_poller_set_metric_int(&current, attr, &intval);
+              break;
+            case 1:
+            case 2:
+              noit_poller_set_metric_string(&current, attr, (char *)value);
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  noit_poller_set_state(self, check, &current);
+
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 }
 static int serf_complete(eventer_t e, int mask,
                          void *closure, struct timeval *now) {
@@ -640,7 +762,7 @@ static int serf_recur_handler(eventer_t e, int mask, void *closure,
   return 0;
 }
 static int serf_initiate_check(noit_module_t *self, noit_check_t check,
-                               int once) {
+                               int once, noit_check_t cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(serf_check_info_t));
   if(once) {
     serf_initiate(self, check);
@@ -652,7 +774,7 @@ static int serf_initiate_check(noit_module_t *self, noit_check_t check,
   return 0;
 }
 static int resmon_initiate_check(noit_module_t *self, noit_check_t check,
-                                 int once) {
+                                 int once, noit_check_t parent) {
   /* resmon_check_info_t gives us a bit more space */
   if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
   if(once) {
@@ -663,6 +785,48 @@ static int resmon_initiate_check(noit_module_t *self, noit_check_t check,
     serf_schedule_next(self, NULL, check, NULL);
   return 0;
 }
+
+static int resmon_part_initiate_check(noit_module_t *self, noit_check_t check,
+                                      int once, noit_check_t parent) {
+  char xpathexpr[1024];
+  const char *resmod, *resserv;
+  resmon_check_info_t *rci;
+
+  if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
+  rci = check->closure;
+  if(!rci->xpathexpr) {
+    if(!noit_hash_retrieve(check->config,
+                           "resmon_module", strlen("resmon_module"),
+                           (void **)&resmod)) {
+      resmod = "DUMMY_MODULE";
+    }
+    if(!noit_hash_retrieve(check->config,
+                           "resmon_service", strlen("resmon_service"),
+                           (void **)&resserv)) {
+      resserv = "DUMMY_SERVICE";
+    }
+    snprintf(xpathexpr, sizeof(xpathexpr),
+             "//ResmonResult[@module=\"%s\" and @service=\"%s\"]/*",
+             resmod, resserv);
+    rci->xpathexpr = strdup(xpathexpr);
+    rci->resmod = strdup(resmod);
+    rci->resserv = strdup(resserv);
+  }
+
+  if(parent && !strcmp(parent->module, "resmon")) {
+    /* Content is cached in the parent */
+    resmon_part_log_results(self, check, parent);
+    return 0;
+  }
+  if(once) {
+    serf_initiate(self, check);
+    return 0;
+  }
+  if(!check->fire_event)
+    serf_schedule_next(self, NULL, check, NULL);
+  return 0;
+}
+
 
 
 static int serf_onload(noit_module_t *self) {
@@ -699,5 +863,16 @@ noit_module_t resmon = {
   resmon_config,
   serf_init,
   resmon_initiate_check
+};
+
+noit_module_t resmon_part = {
+  NOIT_MODULE_MAGIC,
+  NOIT_MODULE_ABI_VERSION,
+  "resmon_part",
+  "resmon part resource checker",
+  serf_onload,
+  resmon_config,
+  serf_init,
+  resmon_part_initiate_check
 };
 
