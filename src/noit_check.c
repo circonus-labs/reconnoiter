@@ -6,6 +6,7 @@
 #include "noit_defines.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 #include <netinet/in.h>
@@ -18,6 +19,9 @@
 #include "noit_check.h"
 #include "noit_module.h"
 #include "eventer/eventer.h"
+
+/* 60 seconds of possible stutter */
+#define MAX_INITIAL_STUTTER (60*1000)
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist polls_by_name = { 0 };
@@ -53,6 +57,27 @@ static int __check_name_compare(void *a, void *b) {
   if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
   if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
   return 0;
+}
+int
+noit_check_max_initial_stutter() {
+  return MAX_INITIAL_STUTTER;
+}
+void
+noit_check_fake_last_check(noit_check_t *check,
+                           struct timeval *lc, struct timeval *_now) {
+  struct timeval now, period;
+  double r;
+  int offset;
+
+  r = drand48();
+  offset = r * (MIN(MAX_INITIAL_STUTTER, check->period));
+  period.tv_sec = (check->period - offset) / 1000;
+  period.tv_usec = ((check->period - offset) % 1000) * 1000;
+  if(!_now) {
+    gettimeofday(&now, NULL);
+    _now = &now;
+  }
+  sub_timeval(*_now, period, lc);
 }
 void
 noit_poller_load_checks() {

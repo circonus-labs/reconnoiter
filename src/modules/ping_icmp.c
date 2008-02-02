@@ -414,10 +414,10 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   return 0;
 }
 static int ping_icmp_schedule_next(noit_module_t *self,
-                                   eventer_t e, noit_check_t *check,
+                                   struct timeval *last_check,
+                                   noit_check_t *check,
                                    struct timeval *now) {
   eventer_t newe;
-  struct timeval last_check = { 0L, 0L };
   struct timeval period, earliest;
   struct ping_closure *pcl;
 
@@ -430,12 +430,11 @@ static int ping_icmp_schedule_next(noit_module_t *self,
     memcpy(&earliest, now, sizeof(earliest));
   else
     gettimeofday(&earliest, NULL);
-  if(e) memcpy(&last_check, &e->whence, sizeof(last_check));
   period.tv_sec = check->period / 1000;
   period.tv_usec = (check->period % 1000) * 1000;
 
   newe = eventer_alloc();
-  memcpy(&newe->whence, &last_check, sizeof(last_check));
+  memcpy(&newe->whence, last_check, sizeof(*last_check));
   add_timeval(newe->whence, period, &newe->whence);
   if(compare_timeval(newe->whence, earliest) < 0)
     memcpy(&newe->whence, &earliest, sizeof(earliest));
@@ -453,7 +452,7 @@ static int ping_icmp_schedule_next(noit_module_t *self,
 static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   struct ping_closure *cl = (struct ping_closure *)closure;
-  ping_icmp_schedule_next(cl->self, e, cl->check, now);
+  ping_icmp_schedule_next(cl->self, &e->whence, cl->check, now);
   ping_icmp_send(cl->self, cl->check);
   free(cl);
   return 0;
@@ -465,8 +464,11 @@ static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
     ping_icmp_send(self, check);
     return 0;
   }
-  if(!check->fire_event)
-    ping_icmp_schedule_next(self, NULL, check, NULL);
+  if(!check->fire_event) {
+    struct timeval epoch;
+    noit_check_fake_last_check(check, &epoch, NULL);
+    ping_icmp_schedule_next(self, &epoch, check, NULL);
+  }
   return 0;
 }
 

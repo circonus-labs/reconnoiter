@@ -95,6 +95,11 @@ typedef struct noit_check {
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(void) noit_poller_load_checks();
 
+API_EXPORT(void)
+  noit_check_fake_last_check(noit_check_t *check,
+                             struct timeval *lc, struct timeval *_now);
+API_EXPORT(int) noit_check_max_initial_stutter();
+
 API_EXPORT(int)
   noit_poller_schedule(const char *target,
                        const char *module,

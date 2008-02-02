@@ -717,10 +717,9 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   return 0;
 }
 static int serf_schedule_next(noit_module_t *self,
-                              eventer_t e, noit_check_t *check,
+                              struct timeval *last_check, noit_check_t *check,
                               struct timeval *now) {
   eventer_t newe;
-  struct timeval last_check = { 0L, 0L };
   struct timeval period, earliest;
   serf_closure_t *ccl;
 
@@ -733,12 +732,11 @@ static int serf_schedule_next(noit_module_t *self,
     memcpy(&earliest, now, sizeof(earliest));
   else
     gettimeofday(&earliest, NULL);
-  if(e) memcpy(&last_check, &e->whence, sizeof(last_check));
   period.tv_sec = check->period / 1000;
   period.tv_usec = (check->period % 1000) * 1000;
 
   newe = eventer_alloc();
-  memcpy(&newe->whence, &last_check, sizeof(last_check));
+  memcpy(&newe->whence, last_check, sizeof(*last_check));
   add_timeval(newe->whence, period, &newe->whence);
   if(compare_timeval(newe->whence, earliest) < 0)
     memcpy(&newe->whence, &earliest, sizeof(earliest));
@@ -756,7 +754,7 @@ static int serf_schedule_next(noit_module_t *self,
 static int serf_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   serf_closure_t *cl = (serf_closure_t *)closure;
-  serf_schedule_next(cl->self, e, cl->check, now);
+  serf_schedule_next(cl->self, &e->whence, cl->check, now);
   serf_initiate(cl->self, cl->check);
   free(cl);
   return 0;
@@ -769,8 +767,11 @@ static int serf_initiate_check(noit_module_t *self, noit_check_t *check,
     return 0;
   }
   /* If check->fire_event, we're already scheduled... */
-  if(!check->fire_event)
-    serf_schedule_next(self, NULL, check, NULL);
+  if(!check->fire_event) {
+    struct timeval epoch = { 0L, 0L };
+    noit_check_fake_last_check(check, &epoch, NULL);
+    serf_schedule_next(self, &epoch, check, NULL);
+  }
   return 0;
 }
 static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
@@ -781,8 +782,11 @@ static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
     serf_initiate(self, check);
     return 0;
   }
-  if(!check->fire_event)
-    serf_schedule_next(self, NULL, check, NULL);
+  if(!check->fire_event) {
+    struct timeval epoch = { 0L, 0L };
+    noit_check_fake_last_check(check, &epoch, NULL);
+    serf_schedule_next(self, &epoch, check, NULL);
+  }
   return 0;
 }
 
