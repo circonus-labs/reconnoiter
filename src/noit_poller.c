@@ -119,7 +119,7 @@ noit_poller_load_checks() {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
-    options = noit_conf_get_hash(sec[i], "config/*");
+    options = noit_conf_get_hash(sec[i], "ancestor-or-self::node()/config/*");
     noit_poller_schedule(target, module, name, options,
                          period, timeout, oncheck[0] ? oncheck : NULL,
                          uuid, out_uuid);
