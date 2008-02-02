@@ -8,7 +8,7 @@
 
 #include "noit_defines.h"
 #include "utils/noit_hash.h"
-#include "noit_poller.h"
+#include "noit_check.h"
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
 #define NOIT_MODULE_ABI_VERSION   1
@@ -21,8 +21,8 @@ typedef struct _noit_module {
   int (*onload)(struct _noit_module *);
   int (*config)(struct _noit_module *, noit_hash_table *options);
   int (*init)(struct _noit_module *);
-  int (*initiate_check)(struct _noit_module *, noit_check_t check,
-                        int once, noit_check_t cause);
+  int (*initiate_check)(struct _noit_module *, noit_check_t *check,
+                        int once, noit_check_t *cause);
   void *opaque_handle;
 } noit_module_t;
 

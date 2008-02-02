@@ -11,7 +11,6 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "noit_listener.h"
-#include "noit_poller.h"
 #include "noit_console.h"
 
 void

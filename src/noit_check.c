@@ -15,7 +15,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
 #include "noit_conf.h"
-#include "noit_poller.h"
+#include "noit_check.h"
 #include "noit_module.h"
 #include "eventer/eventer.h"
 
@@ -47,8 +47,8 @@ __noit_check_state_string(int16_t state) {
   return "???";
 }
 static int __check_name_compare(void *a, void *b) {
-  noit_check_t ac = a;
-  noit_check_t bc = b;
+  noit_check_t *ac = a;
+  noit_check_t *bc = b;
   int rv;
   if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
   if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
@@ -132,7 +132,7 @@ noit_poller_initiate() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t check;
+  noit_check_t *check;
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        (void **)&check)) {
     noit_module_t *mod;
@@ -153,7 +153,7 @@ noit_poller_make_causal_map() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t check, parent;
+  noit_check_t *check, *parent;
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        (void **)&check)) {
     if(check->oncheck) {
@@ -212,7 +212,7 @@ noit_poller_schedule(const char *target,
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
-  noit_check_t new_check;
+  noit_check_t *new_check;
 
 
   family = AF_INET;
@@ -264,7 +264,7 @@ noit_poller_schedule(const char *target,
 
 int
 noit_poller_deschedule(uuid_t in) {
-  noit_check_t checker;
+  noit_check_t *checker;
   if(noit_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         (void **)&checker) == 0) {
@@ -293,9 +293,9 @@ noit_poller_deschedule(uuid_t in) {
   return 0;
 }
 
-noit_check_t
+noit_check_t *
 noit_poller_lookup(uuid_t in) {
-  noit_check_t check;
+  noit_check_t *check;
   if(noit_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         (void **)&check)) {
@@ -303,9 +303,9 @@ noit_poller_lookup(uuid_t in) {
   }
   return NULL;
 }
-noit_check_t
+noit_check_t *
 noit_poller_lookup_by_name(char *target, char *name) {
-  noit_check_t check, tmp_check;
+  noit_check_t *check, *tmp_check;
   tmp_check = calloc(1, sizeof(*tmp_check));
   tmp_check->target = target;
   tmp_check->name = name;
@@ -328,7 +328,7 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
 }
 
 void
-noit_poller_set_metric_int(stats_t *newstate, char *name, int *value) {
+noit_stats_set_metric_int(stats_t *newstate, char *name, int *value) {
   metric_t *m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = METRIC_INT;
@@ -340,7 +340,7 @@ noit_poller_set_metric_int(stats_t *newstate, char *name, int *value) {
 }
 
 void
-noit_poller_set_metric_float(stats_t *newstate, char *name, float *value) {
+noit_stats_set_metric_float(stats_t *newstate, char *name, float *value) {
   metric_t *m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = METRIC_FLOAT;
@@ -352,7 +352,7 @@ noit_poller_set_metric_float(stats_t *newstate, char *name, float *value) {
 }
 
 void
-noit_poller_set_metric_string(stats_t *newstate, char *name, char *value) {
+noit_stats_set_metric_string(stats_t *newstate, char *name, char *value) {
   metric_t *m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = METRIC_STRING;
@@ -361,8 +361,8 @@ noit_poller_set_metric_string(stats_t *newstate, char *name, char *value) {
 }
 
 void
-noit_poller_set_state(struct _noit_module *module,
-                      noit_check_t check, stats_t *newstate) {
+noit_check_set_stats(struct _noit_module *module,
+                     noit_check_t *check, stats_t *newstate) {
   int report_change = 0;
   dep_list_t *dep;
   if(check->stats.previous.status)

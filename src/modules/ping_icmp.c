@@ -17,7 +17,7 @@
 #include <math.h>
 
 #include "noit_module.h"
-#include "noit_poller.h"
+#include "noit_check.h"
 #include "utils/noit_log.h"
 
 #define PING_INTERVAL 2000 /* 2000ms = 2s */
@@ -40,7 +40,7 @@ struct ping_payload {
 };
 struct ping_closure {
   noit_module_t *self;
-  noit_check_t check;
+  noit_check_t *check;
   void *payload;
   int payload_len;
 };
@@ -58,7 +58,7 @@ typedef struct  {
 static int ping_icmp_config(noit_module_t *self, noit_hash_table *options) {
   return 0;
 }
-static int ping_icmp_is_complete(noit_module_t *self, noit_check_t check) {
+static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
   int i;
   struct check_info *data;
   data = (struct check_info *)check->closure;
@@ -70,7 +70,7 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t check) {
     }
   return 1;
 }
-static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
+static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   struct check_info *data;
   float avail, min = MAXFLOAT, max = 0.0, avg = 0.0, cnt;
   int i, points = 0;
@@ -108,13 +108,13 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t check) {
   current.available = (avail > 0.0) ? NP_AVAILABLE : NP_UNAVAILABLE;
   current.state = (avail < 1.0) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
-  noit_poller_set_metric_int(&current, "count", &data->expected_count);
+  noit_stats_set_metric_int(&current, "count", &data->expected_count);
   avail *= 100.0;
-  noit_poller_set_metric_float(&current, "available", &avail);
-  noit_poller_set_metric_float(&current, "minimum", avail > 0.0 ? &min : NULL);
-  noit_poller_set_metric_float(&current, "maximum", avail > 0.0 ? &max : NULL);
-  noit_poller_set_metric_float(&current, "average", avail > 0.0 ? &avg : NULL);
-  noit_poller_set_state(self, check, &current);
+  noit_stats_set_metric_float(&current, "available", &avail);
+  noit_stats_set_metric_float(&current, "minimum", avail > 0.0 ? &min : NULL);
+  noit_stats_set_metric_float(&current, "maximum", avail > 0.0 ? &max : NULL);
+  noit_stats_set_metric_float(&current, "average", avail > 0.0 ? &avg : NULL);
+  noit_check_set_stats(self, check, &current);
 }
 static int ping_icmp_timeout(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
@@ -144,7 +144,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
   while(1) {
     int inlen, iphlen;
-    noit_check_t check;
+    noit_check_t *check;
     struct timeval tt;
 
     from_len = sizeof(from);
@@ -320,7 +320,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   free(pcl);
   return 0;
 }
-static int ping_icmp_send(noit_module_t *self, noit_check_t check) {
+static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   struct timeval when, p_int;
   struct icmp *icp;
   struct ping_payload *payload;
@@ -414,7 +414,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t check) {
   return 0;
 }
 static int ping_icmp_schedule_next(noit_module_t *self,
-                                   eventer_t e, noit_check_t check,
+                                   eventer_t e, noit_check_t *check,
                                    struct timeval *now) {
   eventer_t newe;
   struct timeval last_check = { 0L, 0L };
@@ -458,8 +458,8 @@ static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
   free(cl);
   return 0;
 }
-static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t check,
-                                    int once, noit_check_t cause) {
+static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
+                                    int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
   if(once) {
     ping_icmp_send(self, check);

@@ -16,7 +16,7 @@
 #include <libxml/xpath.h>
 
 #include "noit_module.h"
-#include "noit_poller.h"
+#include "noit_check.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
@@ -29,7 +29,7 @@
 
 typedef struct {
   noit_hash_table *options;
-  void (*results)(noit_module_t *, noit_check_t);
+  void (*results)(noit_module_t *, noit_check_t *);
 } serf_module_conf_t;
 
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
   const char *authn;
 
   noit_module_t *self;
-  noit_check_t check;
+  noit_check_t *check;
 } handler_baton_t;
 
 typedef struct buf_t {
@@ -88,7 +88,7 @@ typedef struct {
 
 typedef struct {
   noit_module_t *self;
-  noit_check_t check;
+  noit_check_t *check;
   void *serf_baton;
   apr_socket_t *skt;
 } serf_closure_t;
@@ -99,10 +99,10 @@ static int serf_handler(eventer_t e, int mask, void *closure,
                         struct timeval *now);
 static int serf_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now);
-static void serf_log_results(noit_module_t *self, noit_check_t check);
-static void resmon_log_results(noit_module_t *self, noit_check_t check);
-static void resmon_part_log_results(noit_module_t *self, noit_check_t check,
-                                    noit_check_t parent);
+static void serf_log_results(noit_module_t *self, noit_check_t *check);
+static void resmon_log_results(noit_module_t *self, noit_check_t *check);
+static void resmon_part_log_results(noit_module_t *self, noit_check_t *check,
+                                    noit_check_t *parent);
 
 static int serf_config(noit_module_t *self, noit_hash_table *options) {
   serf_module_conf_t *conf;
@@ -123,12 +123,12 @@ static int resmon_config(noit_module_t *self, noit_hash_table *options) {
   noit_module_set_userdata(self, conf);
   return 0;
 }
-static void generic_log_results(noit_module_t *self, noit_check_t check) {
+static void generic_log_results(noit_module_t *self, noit_check_t *check) {
   serf_module_conf_t *module_conf;
   module_conf = noit_module_get_userdata(self);
   module_conf->results(self, check);
 }
-static void serf_log_results(noit_module_t *self, noit_check_t check) {
+static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   serf_check_info_t *ci = check->closure;
   struct timeval duration;
   stats_t current;
@@ -160,17 +160,17 @@ static void serf_log_results(noit_module_t *self, noit_check_t check) {
   current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
   if(current.available == NP_AVAILABLE) {
-    noit_poller_set_metric_int(&current, "code", &ci->status.code);
-    noit_poller_set_metric_int(&current, "bytes", &ci->body.l);
+    noit_stats_set_metric_int(&current, "code", &ci->status.code);
+    noit_stats_set_metric_int(&current, "bytes", &ci->body.l);
   }
   else {
-    noit_poller_set_metric_int(&current, "code", NULL);
-    noit_poller_set_metric_int(&current, "bytes", NULL);
+    noit_stats_set_metric_int(&current, "code", NULL);
+    noit_stats_set_metric_int(&current, "bytes", NULL);
   }
-  noit_poller_set_state(self, check, &current);
+  noit_check_set_stats(self, check, &current);
 }
 static void resmon_part_log_results_xml(noit_module_t *self,
-                                        noit_check_t check,
+                                        noit_check_t *check,
                                         xmlDocPtr xml) {
   resmon_check_info_t *rci = check->closure;
   xmlXPathContextPtr xpath_ctxt = NULL;
@@ -212,14 +212,14 @@ static void resmon_part_log_results_xml(noit_module_t *self,
   current.status = current.status ? current.status : strdup("unknown");
   noitL(nldeb, "resmon_part(%s/%s/%s) [%s]\n", check->target,
         rci->resmod, rci->resserv, current.status);
-  noit_poller_set_state(self, check, &current);
+  noit_check_set_stats(self, check, &current);
 }
-static void resmon_part_log_results(noit_module_t *self, noit_check_t check,
-                                    noit_check_t parent) {
+static void resmon_part_log_results(noit_module_t *self, noit_check_t *check,
+                                    noit_check_t *parent) {
   resmon_check_info_t *rci = parent->closure;
   resmon_part_log_results_xml(self, check, rci->xml_doc);
 }
-static void resmon_log_results(noit_module_t *self, noit_check_t check) {
+static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   serf_check_info_t *ci = check->closure;
   resmon_check_info_t *rci = check->closure;
   struct timeval duration;
@@ -272,7 +272,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
   current.state = services ? NP_GOOD : NP_BAD;
   current.status = human_buffer;
 
-  noit_poller_set_metric_int(&current, "services", &services);
+  noit_stats_set_metric_int(&current, "services", &services);
   if(services) {
     int i;
     for(i=0; i<services; i++) {
@@ -303,11 +303,11 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
             case 0:
               /* The first is integer */
               intval = (int)(atof(value) * 1000.0);
-              noit_poller_set_metric_int(&current, attr, &intval);
+              noit_stats_set_metric_int(&current, attr, &intval);
               break;
             case 1:
             case 2:
-              noit_poller_set_metric_string(&current, attr, (char *)value);
+              noit_stats_set_metric_string(&current, attr, (char *)value);
               break;
           }
         }
@@ -315,7 +315,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t check) {
     }
   }
 
-  noit_poller_set_state(self, check, &current);
+  noit_check_set_stats(self, check, &current);
 
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -604,7 +604,7 @@ static apr_status_t serf_eventer_remove(void *user_baton,
   return 0;
 }
 
-static int serf_initiate(noit_module_t *self, noit_check_t check) {
+static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   serf_closure_t *ccl;
   serf_check_info_t *ci;
   struct timeval when, p_int;
@@ -717,7 +717,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t check) {
   return 0;
 }
 static int serf_schedule_next(noit_module_t *self,
-                              eventer_t e, noit_check_t check,
+                              eventer_t e, noit_check_t *check,
                               struct timeval *now) {
   eventer_t newe;
   struct timeval last_check = { 0L, 0L };
@@ -761,8 +761,8 @@ static int serf_recur_handler(eventer_t e, int mask, void *closure,
   free(cl);
   return 0;
 }
-static int serf_initiate_check(noit_module_t *self, noit_check_t check,
-                               int once, noit_check_t cause) {
+static int serf_initiate_check(noit_module_t *self, noit_check_t *check,
+                               int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(serf_check_info_t));
   if(once) {
     serf_initiate(self, check);
@@ -773,8 +773,8 @@ static int serf_initiate_check(noit_module_t *self, noit_check_t check,
     serf_schedule_next(self, NULL, check, NULL);
   return 0;
 }
-static int resmon_initiate_check(noit_module_t *self, noit_check_t check,
-                                 int once, noit_check_t parent) {
+static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
+                                 int once, noit_check_t *parent) {
   /* resmon_check_info_t gives us a bit more space */
   if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
   if(once) {
@@ -786,8 +786,8 @@ static int resmon_initiate_check(noit_module_t *self, noit_check_t check,
   return 0;
 }
 
-static int resmon_part_initiate_check(noit_module_t *self, noit_check_t check,
-                                      int once, noit_check_t parent) {
+static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
+                                      int once, noit_check_t *parent) {
   char xpathexpr[1024];
   const char *resmod, *resserv;
   resmon_check_info_t *rci;

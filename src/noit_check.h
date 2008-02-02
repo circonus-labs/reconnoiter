@@ -90,7 +90,7 @@ typedef struct noit_check {
   } stats;
   u_int32_t generation;        /* This can roll, we don't care */
   void *closure;
-} * noit_check_t;
+} noit_check_t;
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(void) noit_poller_load_checks();
@@ -109,22 +109,22 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_poller_deschedule(uuid_t in);
 
-API_EXPORT(noit_check_t)
+API_EXPORT(noit_check_t *)
   noit_poller_lookup(uuid_t in);
 
-API_EXPORT(noit_check_t)
+API_EXPORT(noit_check_t *)
   noit_poller_lookup_by_name(char *target, char *name);
 
 struct _noit_module;
 API_EXPORT(void)
-  noit_poller_set_state(struct _noit_module *self, noit_check_t check,
+  noit_check_set_stats(struct _noit_module *self, noit_check_t *check,
                         stats_t *newstate);
 
 API_EXPORT(void)
-  noit_poller_set_metric_int(stats_t *newstate, char *name, int *value);
+  noit_stats_set_metric_int(stats_t *newstate, char *name, int *value);
 API_EXPORT(void)
-  noit_poller_set_metric_float(stats_t *newstate, char *name, float *value);
+  noit_stats_set_metric_float(stats_t *newstate, char *name, float *value);
 API_EXPORT(void)
-  noit_poller_set_metric_string(stats_t *newstate, char *name, char *value);
+  noit_stats_set_metric_string(stats_t *newstate, char *name, char *value);
 
 #endif
