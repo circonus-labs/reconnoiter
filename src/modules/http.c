@@ -106,7 +106,15 @@ static void resmon_part_log_results(noit_module_t *self, noit_check_t *check,
 
 static int serf_config(noit_module_t *self, noit_hash_table *options) {
   serf_module_conf_t *conf;
-  conf = calloc(1, sizeof(*conf));
+  conf = noit_module_get_userdata(self);
+  if(conf) {
+    if(conf->options) {
+      noit_hash_destroy(conf->options, free, free);
+      free(conf->options);
+    }
+  }
+  else
+    conf = calloc(1, sizeof(*conf));
   conf->options = options;
   conf->results = serf_log_results;
   noit_module_set_userdata(self, conf);
@@ -114,7 +122,15 @@ static int serf_config(noit_module_t *self, noit_hash_table *options) {
 }
 static int resmon_config(noit_module_t *self, noit_hash_table *options) {
   serf_module_conf_t *conf;
-  conf = calloc(1, sizeof(*conf));
+  conf = noit_module_get_userdata(self);
+  if(conf) {
+    if(conf->options) {
+      noit_hash_destroy(conf->options, free, free);
+      free(conf->options);
+    }
+  }
+  else
+    conf = calloc(1, sizeof(*conf));
   conf->options = options;
   if(!conf->options) conf->options = calloc(1, sizeof(*conf->options));
   noit_hash_store(conf->options, strdup("url"), strlen("url"),
@@ -160,7 +176,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
   if(current.available == NP_AVAILABLE) {
-    noit_stats_set_metric_int(&current, "code", &ci->status.code);
+    noit_stats_set_metric_string(&current, "code", ci->status.code?code:NULL);
     noit_stats_set_metric_int(&current, "bytes", &ci->body.l);
   }
   else {
@@ -687,7 +703,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
                                           ci->pool);
 
   ci->handler_ctx.method = apr_pstrdup(ci->pool, "GET");
-  ci->handler_ctx.host = apr_pstrdup(ci->pool, check->target);
+  ci->handler_ctx.host = apr_pstrdup(ci->pool, ci->url.hostname);
   ci->handler_ctx.path = ci->url.path;
   ci->handler_ctx.authn = NULL;
 
