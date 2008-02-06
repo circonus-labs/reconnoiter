@@ -25,7 +25,7 @@ top_srcdir=@top_srcdir@
 SUBS=utils jlog eventer modules
 
 OBJS=noitd.o noit_listener.o noit_console.o noit_check.o \
-	noit_module.o noit_conf.o
+	noit_module.o noit_conf.o noit_tokenizer.o
 
 all:	noitd
 
@@ -47,6 +47,9 @@ noitd:	make-subdirs $(OBJS)
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+
+noit_tokenizer.c:	noit_tokenizer.re
+	re2c -o $@ noit_tokenizer.re
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \

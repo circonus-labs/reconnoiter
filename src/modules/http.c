@@ -256,7 +256,8 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
       if(pobj->type == XPATH_NODESET)
         services = xmlXPathNodeSetGetLength(pobj->nodesetval);
   } else {
-    noitL(nlerr, "Error in resmon doc: %s\n", ci->body.b);
+    if(ci->body.l)
+      noitL(nlerr, "Error in resmon doc: %s\n", ci->body.b);
   }
 
   /* Save our results for future dependent checks */ 
