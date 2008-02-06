@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 #include <arpa/inet.h>
 
 #include "eventer/eventer.h"
@@ -27,6 +28,7 @@ noit_listener_acceptor(eventer_t e, int mask,
   union {
     struct sockaddr_in addr4;
     struct sockaddr_in6 addr6;
+    struct sockaddr_un unix;
   } s;
 
   if(mask & EVENTER_EXCEPTION) {
@@ -59,6 +61,7 @@ noit_listener(char *host, unsigned short port, int type,
               int backlog, eventer_func_t handler, void *closure) {
   int rv, fd;
   int8_t family;
+  int sockaddr_len;
   socklen_t on;
   long reuse;
   listener_closure_t listener_closure;
@@ -70,6 +73,7 @@ noit_listener(char *host, unsigned short port, int type,
   union {
     struct sockaddr_in addr4;
     struct sockaddr_in6 addr6;
+    struct sockaddr_un unix;
   } s;
   const char *event_name;
 
@@ -77,18 +81,23 @@ noit_listener(char *host, unsigned short port, int type,
         host, port, type, backlog,
         (event_name = eventer_name_for_callback(handler))?event_name:"??",
         closure);
-  family = AF_INET;
-  rv = inet_pton(family, host, &a);
-  if(rv != 1) {
-    family = AF_INET6;
+  if(host[0] == '/') {
+    family = AF_UNIX;
+  }
+  else {
+    family = AF_INET;
     rv = inet_pton(family, host, &a);
     if(rv != 1) {
-      if(!strcmp(host, "*")) {
-        family = AF_INET;
-        a.addr4.s_addr = INADDR_ANY;
-      } else {
-        noitL(noit_stderr, "Cannot translate '%s' to IP\n", host);
-        return -1;
+      family = AF_INET6;
+      rv = inet_pton(family, host, &a);
+      if(rv != 1) {
+        if(!strcmp(host, "*")) {
+          family = AF_INET;
+          a.addr4.s_addr = INADDR_ANY;
+        } else {
+          noitL(noit_stderr, "Cannot translate '%s' to IP\n", host);
+          return -1;
+        }
       }
     }
   }
@@ -111,12 +120,36 @@ noit_listener(char *host, unsigned short port, int type,
   }
 
   memset(&s, 0, sizeof(s));
-  s.addr6.sin6_family = family;
-  s.addr6.sin6_port = htons(port);
-  memcpy(&s.addr6.sin6_addr, &a, sizeof(a));
-  if(bind(fd, (struct sockaddr *)&s,
-          (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6)) < 0) {
-    noitL(noit_stderr, "bind failed: %s\b", strerror(errno));
+  if(family == AF_UNIX) {
+    struct stat sb;
+    /* unlink the path iff it is a socket */
+    if(stat(host, &sb) == -1) {
+      if(errno != ENOENT) {
+        noitL(noit_stderr, "%s: %s\n", host, strerror(errno));
+        close(fd);
+        return -1;
+      }
+    }
+    else {
+      if(sb.st_mode & S_IFSOCK)
+        unlink(host);
+      else {
+        noitL(noit_stderr, "unlink %s failed: %s\n", host, strerror(errno));
+        close(fd);
+        return -1;
+      }
+    }
+    strncpy(s.unix.sun_path, host, sizeof(s.unix.sun_path)-1);
+    sockaddr_len = sizeof(s.unix);
+  }
+  else {
+    s.addr6.sin6_family = family;
+    s.addr6.sin6_port = htons(port);
+    memcpy(&s.addr6.sin6_addr, &a, sizeof(a));
+    sockaddr_len = (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6);
+  }
+  if(bind(fd, (struct sockaddr *)&s, sockaddr_len) < 0) {
+    noitL(noit_stderr, "bind failed[%s]: %s\n", host, strerror(errno));
     close(fd);
     return -1;
   }
@@ -171,18 +204,19 @@ noit_listener_init() {
             "Cannot find handler for listener type: '%s'\n", type);
       continue;
     }
-    if(!noit_conf_get_int(listener_configs[i], "port", &portint))
-      portint = 0;
-    port = (unsigned short) portint;
-    if(portint == 0 || (port != portint)) {
-      noitL(noit_stderr,
-            "Invalid port [%d] specified in stanza %d\n", port, i+1);
-      continue;
-    }
     if(!noit_conf_get_stringbuf(listener_configs[i],
                                 "address", address, sizeof(address))) {
       address[0] = '*';
       address[1] = '\0';
+    }
+    if(!noit_conf_get_int(listener_configs[i], "port", &portint))
+      portint = 0;
+    port = (unsigned short) portint;
+    if(address[0] != '/' && (portint == 0 || (port != portint))) {
+      /* UNIX sockets don't require a port (they'll ignore it if specified */
+      noitL(noit_stderr,
+            "Invalid port [%d] specified in stanza %d\n", port, i+1);
+      continue;
     }
     if(!noit_conf_get_int(listener_configs[i], "backlog", &backlog))
       backlog = 5;
