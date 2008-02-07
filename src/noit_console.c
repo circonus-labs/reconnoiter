@@ -8,19 +8,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/ioctl.h>
+#include <util.h>
+#include <arpa/telnet.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_tokenizer.h"
-
-struct __noit_console_closure {
-  char *outbuf;
-  int   outbuf_allocd;
-  int   outbuf_len;
-  int   outbuf_completed;
-};
 
 int
 nc_printf(noit_console_closure_t ncct, const char *fmt, ...) {
@@ -76,9 +72,31 @@ nc_vprintf(noit_console_closure_t ncct, const char *fmt, va_list arg) {
   }
   return -1;
 }
+int
+nc_write(noit_console_closure_t ncct, void *buf, int len) {
+  if(!ncct->outbuf_allocd) {
+    ncct->outbuf = malloc(len);
+    if(!ncct->outbuf) return 0;
+    ncct->outbuf_allocd = len;
+  }
+  else if(ncct->outbuf_allocd < ncct->outbuf_len + len) {
+    char *newbuf;
+    newbuf = realloc(ncct->outbuf, ncct->outbuf_len + len);
+    if(!newbuf) return 0;
+    ncct->outbuf = newbuf;
+  }
+  memcpy(ncct->outbuf + ncct->outbuf_len, buf, len);
+  ncct->outbuf_len += len;
+  return len;
+}
+
 void
 noit_console_closure_free(noit_console_closure_t ncct) {
+  if(ncct->el) el_end(ncct->el);
+  if(ncct->pty_master >= 0) close(ncct->pty_master);
+  if(ncct->pty_slave >= 0) close(ncct->pty_slave);
   if(ncct->outbuf) free(ncct->outbuf);
+  if(ncct->telnet) noit_console_telnet_free(ncct->telnet);
   free(ncct);
 }
 
@@ -86,13 +104,16 @@ noit_console_closure_t
 noit_console_closure_alloc() {
   noit_console_closure_t new_ncct;
   new_ncct = calloc(1, sizeof(*new_ncct));
+  new_ncct->pty_master = -1;
+  new_ncct->pty_slave = -1;
   return new_ncct;
 }
 
 int
-noit_console_continue_sending(eventer_t e, noit_console_closure_t ncct,
+noit_console_continue_sending(noit_console_closure_t ncct,
                               int *mask) {
   int len;
+  eventer_t e = ncct->e;
   if(!ncct->outbuf_len) return 0;
   while(ncct->outbuf_len > ncct->outbuf_completed) {
     len = e->opset->write(e->fd, ncct->outbuf + ncct->outbuf_completed,
@@ -115,6 +136,8 @@ noit_console_continue_sending(eventer_t e, noit_console_closure_t ncct,
 
 void
 noit_console_init() {
+  el_multi_init();
+  signal(SIGTTOU, SIG_IGN);
   eventer_name_callback("noit_console", noit_console_handler);
 }
 
@@ -136,10 +159,12 @@ noit_console_dispatch(eventer_t e, const char *buffer,
 int
 noit_console_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
-  int newmask = EVENTER_READ;
+  int newmask = EVENTER_READ | EVENTER_EXCEPTION;
+  int keep_going;
   noit_console_closure_t ncct = closure;
 
-  if(mask & EVENTER_EXCEPTION) {
+  if(mask & EVENTER_EXCEPTION || (ncct && ncct->wants_shutdown)) {
+socket_error:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
@@ -147,28 +172,65 @@ noit_console_handler(eventer_t e, int mask, void *closure,
     return 0;
   }
 
-  if(!ncct) ncct = closure = e->closure = noit_console_closure_alloc();
+  if(!ncct) {
+    int on = 1;
+    ncct = closure = e->closure = noit_console_closure_alloc();
+    ncct->e = e;
+    if(openpty(&ncct->pty_master, &ncct->pty_slave, NULL, NULL, NULL) ||
+       ioctl(ncct->pty_master, FIONBIO, &on)) {
+      nc_printf(ncct, "Failed to open pty: %s\n", strerror(errno));
+      ncct->wants_shutdown = 1;
+    }
+    else {
+      ncct->el = el_init("noitd", ncct->pty_master, e->fd, e->fd);
+      el_set(ncct->el, EL_EDITOR, "emacs");
+      ncct->telnet = noit_console_telnet_alloc(ncct);
+    }
+  }
 
   /* If we still have data to send back to the client, this will take
    * care of that
    */
-  if(noit_console_continue_sending(e, ncct, &newmask) == -1)
-    return newmask;
+  if(noit_console_continue_sending(ncct, &newmask) == -1) {
+    if(errno != EAGAIN) goto socket_error;
+    return newmask | EVENTER_EXCEPTION;
+  }
 
-  if(mask & EVENTER_READ) {
-    int len;
-    char buffer[4096];
-    len = e->opset->read(e->fd, buffer, sizeof(buffer)-1, &newmask, e);
-    if(len <= 0) {
+  for(keep_going=1 ; keep_going ; ) {
+    int len, plen;
+    char sbuf[4096];
+    const char *buffer;
+
+    keep_going = 0;
+
+    buffer = el_gets(ncct->el, &plen);
+    if(!el_eagain(ncct->el)) keep_going++;
+
+    len = e->opset->read(e->fd, sbuf, sizeof(sbuf)-1, &newmask, e);
+    if(len == 0 || (len < 0 && errno != EAGAIN)) {
       eventer_remove_fd(e->fd);
       close(e->fd);
       return 0;
     }
-    buffer[len] = '\0';
-    printf("IN: %s", buffer);
-    noit_console_dispatch(e, buffer, ncct);
-    if(noit_console_continue_sending(e, ncct, &newmask) == -1)
-      return newmask;
+    if(len > 0) {
+      keep_going++;
+      sbuf[len] = '\0';
+      if(ncct->telnet) {
+        noit_console_telnet_telrcv(ncct, sbuf, len);
+        ptyflush(ncct);
+      }
+      else {
+        write(ncct->pty_slave, sbuf, len);
+      }
+    }
+    if(buffer) {
+      printf("IN: %s", buffer);
+      noit_console_dispatch(e, buffer, ncct);
+      if(noit_console_continue_sending(ncct, &newmask) == -1) {
+        if(errno != EAGAIN) goto socket_error;
+        return newmask | EVENTER_EXCEPTION;
+      }
+    }
   }
   return newmask | EVENTER_EXCEPTION;
 }

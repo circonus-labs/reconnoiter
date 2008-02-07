@@ -24,7 +24,8 @@ top_srcdir=@top_srcdir@
 
 SUBS=utils jlog eventer modules noitedit
 
-OBJS=noitd.o noit_listener.o noit_console.o noit_check.o \
+OBJS=noitd.o noit_listener.o noit_console.o noit_console_telnet.o \
+	noit_check.o \
 	noit_module.o noit_conf.o noit_tokenizer.o
 
 all:	noitd
@@ -43,6 +44,7 @@ noitd:	make-subdirs $(OBJS)
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
+		-Lnoitedit -lnoitedit \
 		$(LIBS)
 
 .c.o:
