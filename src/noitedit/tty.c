@@ -555,7 +555,6 @@ tty_setup(EditLine *el)
 protected int
 tty_init(EditLine *el)
 {
-
 	el->el_tty.t_mode = EX_IO;
 	el->el_tty.t_vdisable = _POSIX_VDISABLE;
 	(void) memcpy(el->el_tty.t_t, ttyperm, sizeof(ttyperm_t));

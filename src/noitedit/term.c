@@ -279,15 +279,13 @@ private void	term_init_arrow(EditLine *);
 private void	term_reset_arrow(EditLine *);
 
 
-private FILE *term_outfile = NULL;	/* XXX: How do we fix that? */
-
-
 /* term_setflags():
  *	Set the terminal capability flags
  */
 private void
 term_setflags(EditLine *el)
 {
+	el_multi_set_el(el);
 	EL_FLAGS = 0;
 	if (el->el_tty.t_tabs)
 		EL_FLAGS |= (Val(T_pt) && !Val(T_xt)) ? TERM_CAN_TAB : 0;
@@ -353,7 +351,7 @@ term_init(EditLine *el)
 	if (el->el_term.t_val == NULL)
 		return (-1);
 	(void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
-	term_outfile = el->el_outfile;
+        el_multi_set_el(el);
 	term_init_arrow(el);
 	if (term_set(el, NULL) == -1)
 		return (-1);
@@ -450,6 +448,7 @@ term_rebuffer_display(EditLine *el)
 {
 	coord_t *c = &el->el_term.t_size;
 
+	el_multi_set_el(el);
 	term_free_display(el);
 
 	c->h = Val(T_co);
@@ -530,13 +529,7 @@ protected void
 term_move_to_line(EditLine *el, int where)
 {
 	int del;
-#if _WIN32
-	if (win32_native_console()) {
-		win32_move_to_line(el, where - el->el_cursor.v);
-		el->el_cursor.v = where;/* now where is here */
-		return;
-	}
-#endif
+	el_multi_set_el(el);
 
 	if (where == el->el_cursor.v)
 		return;
@@ -593,12 +586,7 @@ protected void
 term_move_to_char(EditLine *el, int where)
 {
 	int del, i;
-#if _WIN32
-	if (win32_native_console()) {
-		win32_move_to_char(el, where);
-		return;
-	}
-#endif
+	el_multi_set_el(el);
 
 mc_again:
 	if (where == el->el_cursor.h)
@@ -686,6 +674,7 @@ mc_again:
 protected void
 term_overwrite(EditLine *el, char *cp, int n)
 {
+	el_multi_set_el(el);
 	if (n <= 0)
 		return;		/* catch bugs */
 
@@ -728,6 +717,7 @@ term_overwrite(EditLine *el, char *cp, int n)
 protected void
 term_deletechars(EditLine *el, int num)
 {
+	el_multi_set_el(el);
 	if (num <= 0)
 		return;
 
@@ -770,6 +760,7 @@ term_deletechars(EditLine *el, int num)
 protected void
 term_insertwrite(EditLine *el, char *cp, int num)
 {
+	el_multi_set_el(el);
 	if (num <= 0)
 		return;
 	if (!EL_CAN_INSERT) {
@@ -832,12 +823,7 @@ protected void
 term_clear_EOL(EditLine *el, int num)
 {
 	int i;
-#ifdef _WIN32
-	if (win32_native_console()) {
-		win32_term_clear_EOL();
-		return;
-	}
-#endif
+	el_multi_set_el(el);
 	if (EL_CAN_CEOL && GoodStr(T_ce))
 		(void) tputs(Str(T_ce), 1, term__putc);
 	else {
@@ -854,12 +840,7 @@ term_clear_EOL(EditLine *el, int num)
 protected void
 term_clear_screen(EditLine *el)
 {				/* clear the whole screen and home */
-#if _WIN32
-	if (win32_native_console()) {
-		win32_term_clear_screen();
-		return;
-	}
-#endif
+	el_multi_set_el(el);
 	if (GoodStr(T_cl))
 		/* send the clear screen code */
 		(void) tputs(Str(T_cl), Val(T_li), term__putc);
@@ -880,6 +861,7 @@ term_clear_screen(EditLine *el)
 protected void
 term_beep(EditLine *el)
 {
+	el_multi_set_el(el);
 	if (GoodStr(T_bl))
 		/* what termcap says we should use */
 		(void) tputs(Str(T_bl), 1, term__putc);
@@ -895,6 +877,7 @@ term_beep(EditLine *el)
 protected void
 term_clear_to_bottom(EditLine *el)
 {
+	el_multi_set_el(el);
 	if (GoodStr(T_cd))
 		(void) tputs(Str(T_cd), Val(T_li), term__putc);
 	else if (GoodStr(T_ce))
@@ -923,12 +906,9 @@ term_set(EditLine *el, char *term)
 	(void) sigaddset(&nset, SIGWINCH);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
 #endif
-
+	el_multi_set_el(el);
 	area = buf;
 
-#if _WIN32
-	term = win32_native_console() ? "pcansi" : "xterm";
-#else
 	if (term == NULL)
 		term = getenv("TERM");
 
@@ -937,7 +917,6 @@ term_set(EditLine *el, char *term)
 
 	if (strcmp(term, "emacs") == 0)
 		el->el_flags |= EDIT_DISABLED;
-#endif
 
 	memset(el->el_term.t_cap, 0, TC_BUFSIZE);
 
@@ -1271,8 +1250,10 @@ term_bind_arrow(EditLine *el)
 protected int
 term__putc(int c)
 {
-
-	return (fputc(c, term_outfile));
+	EditLine *el;
+	el = el_multi_get_el();
+        if(!el) return -1;
+	return (fputc(c, el->el_outfile));
 }
 
 
@@ -1282,8 +1263,10 @@ term__putc(int c)
 protected void
 term__flush(void)
 {
-
-	(void) fflush(term_outfile);
+	EditLine *el;
+	el = el_multi_get_el();
+        if(!el) return;
+	(void) fflush(el->el_outfile);
 }
 
 
@@ -1297,6 +1280,8 @@ term_telltc(EditLine *el, int argc, char **argv)
 	const struct termcapstr *t;
 	char **ts;
 	char upbuf[EL_BUFSIZ];
+
+	el_multi_set_el(el);
 
 	(void) fprintf(el->el_outfile, "\n\tYour terminal has the\n");
 	(void) fprintf(el->el_outfile, "\tfollowing characteristics:\n\n");
@@ -1339,6 +1324,7 @@ term_settc(EditLine *el, int argc, char **argv)
 	what = argv[1];
 	how = argv[2];
 
+	el_multi_set_el(el);
 	/*
          * Do the strings first
          */
@@ -1414,6 +1400,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 	char buf[TC_BUFSIZE];
 	long i;
 
+	el_multi_set_el(el);
 	area = buf;
 
 	if (argv == NULL || argv[1] == NULL)
@@ -1462,7 +1449,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 			}
 		(void) fprintf(el->el_outfile, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, el->el_tty.t_speed);
+		(void) fprintf(el->el_outfile, fmtd, (int)el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {

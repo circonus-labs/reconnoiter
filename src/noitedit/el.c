@@ -50,6 +50,9 @@ __RCSID("$NetBSD: el.c,v 1.21 2001/01/05 22:45:30 christos Exp $");
  */
 #include "sys.h"
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <sys/types.h>
 #if !_MSC_VER
 #include <sys/param.h>
@@ -57,7 +60,24 @@ __RCSID("$NetBSD: el.c,v 1.21 2001/01/05 22:45:30 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <pthread.h>
 #include "el.h"
+
+pthread_key_t tputs_hack;
+public void
+el_multi_init() {
+  pthread_key_create(&tputs_hack, NULL);
+}
+
+public void
+el_multi_set_el(EditLine *el) {
+  pthread_setspecific(tputs_hack, el);
+}
+
+public EditLine *
+el_multi_get_el() {
+  return (EditLine *)pthread_getspecific(tputs_hack);
+}
 
 /* el_init():
  *	Initialize editline and set default parameters.

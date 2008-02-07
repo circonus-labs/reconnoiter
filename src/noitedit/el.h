@@ -144,6 +144,7 @@ struct editline {
 	el_history_t	  el_history;	/* History stuff		*/
 	el_search_t	  el_search;	/* Search stuff			*/
 	el_signal_t	  el_signal;	/* Signal handling stuff	*/
+	int               el_nb_state;  /* Did we eagain?               */
 };
 
 protected int	el_editmode(EditLine *, int, char **);

@@ -78,6 +78,13 @@ typedef struct lineinfo {
 #define	CC_REFRESH_BEEP	9
 
 /*
+ * Initializatio of a multi-use environment
+ */
+void             el_multi_init();
+void             el_multi_set_el(EditLine *);
+EditLine        *el_multi_get_el();
+
+/*
  * Initialization, cleanup, and resetting
  */
 EditLine	*el_init(const char *, FILE *, FILE *, FILE *);
@@ -88,6 +95,7 @@ void		 el_end(EditLine *);
 /*
  * Get a line, a character or push a string back in the input queue
  */
+int		 el_eagain(EditLine *);
 const char	*el_gets(EditLine *, int *);
 int		 el_getc(EditLine *, char *);
 void		 el_push(EditLine *, const char *);

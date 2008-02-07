@@ -57,7 +57,10 @@ __RCSID("$NetBSD: read.c,v 1.19 2001/01/10 07:45:41 jdolecek Exp $");
 #include <stdlib.h>
 #include "el.h"
 
-#define	OKCMD	-1
+#define OKCMD     -1
+#define EAGAINCMD -2
+
+#define ISEAGAIN(el) ((el)->el_nb_state == EAGAINCMD)
 
 private int	read__fixio(int, int);
 private int	read_preread(EditLine *);
@@ -113,6 +116,7 @@ read__fixio(int fd, int e)
 		e = 0;
 #ifdef TRY_AGAIN
 #if defined(F_SETFL) && defined(O_NDELAY)
+/*
 		if ((e = fcntl(fd, F_GETFL, 0)) == -1)
 			return (-1);
 
@@ -120,9 +124,11 @@ read__fixio(int fd, int e)
 			return (-1);
 		else
 			e = 1;
+*/
 #endif /* F_SETFL && O_NDELAY */
 
 #ifdef FIONBIO
+/*
 		{
 			int zero = 0;
 
@@ -131,6 +137,7 @@ read__fixio(int fd, int e)
 			else
 				e = 1;
 		}
+*/
 #endif /* FIONBIO */
 
 #endif /* TRY_AGAIN */
@@ -205,8 +212,10 @@ el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonbloc
 	int num;
 
 	while (cmd == ED_UNASSIGNED || cmd == ED_SEQUENCE_LEAD_IN) {
-		if ((num = el_getc(el, ch)) != 1)	/* if EOF or error */
+		if ((num = el_getc(el, ch)) != 1) {	/* if EOF or error */
+			if(errno == EAGAIN) return EAGAINCMD;
 			return (num);
+		}
 		
 #ifdef	KANJI
 		if ((*ch & 0200)) {
@@ -279,8 +288,8 @@ read_char(EditLine *el, char *cp)
 
 		if (num_read)
 			break;
-
 		if (num_read == -1) {
+			if (errno == EAGAIN) return 0;
 		 	if (!tried && read__fixio(el->el_infd, errno) == 0) {
 				tried = 1;
 			} else {
@@ -446,6 +455,12 @@ public int el_gets_dispatch(EditLine *el, el_action_t cmdnum, char ch, int *num)
 	return 1;
 }
 
+public int
+el_eagain(EditLine *el)
+{
+	return ISEAGAIN(el);
+}
+
 public const char *
 el_gets(EditLine *el, int *nread)
 {
@@ -456,8 +471,13 @@ el_gets(EditLine *el, int *nread)
 	c_macro_t *ma = &el->el_chared.c_macro;
 #endif /* FIONREAD */
 
-  if (nread)
-    *nread = 0;
+	if (nread)
+		*nread = 0;
+
+	if(el_eagain(el)) {
+		el->el_nb_state = 0;
+		goto eagain_resume;
+	}
 
 	if (el->el_flags & HANDLE_SIGNALS)
 		sig_set(el);
@@ -534,6 +554,7 @@ el_gets(EditLine *el, int *nread)
 			*nread = el->el_line.cursor - el->el_line.buffer;
 		return (el->el_line.buffer);
 	}
+ eagain_resume:
 	for (num = OKCMD; num == OKCMD;) {	/* while still editing this
 						 * line */
 #ifdef DEBUG_EDIT
@@ -545,10 +566,15 @@ el_gets(EditLine *el, int *nread)
 			(void) fprintf(el->el_errfile,
 			    "Returning from el_gets %d\n", num);
 #endif /* DEBUG_READ */
+			if(num == EAGAINCMD) {
+				el->el_nb_state = EAGAINCMD;
+				return NULL;
+			}
 			break;
 		}
 		el_gets_dispatch(el, cmdnum, ch, &num);
 	}
+	el->el_nb_state = 0;
 
 				/* make sure the tty is set up correctly */
 	(void) tty_cookedmode(el);
