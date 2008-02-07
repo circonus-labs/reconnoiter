@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
@@ -48,8 +48,8 @@ __RCSID("$NetBSD: emacs.c,v 1.9 2001/01/10 07:45:41 jdolecek Exp $");
 /*
  * emacs.c: Emacs functions
  */
-#include "sys.h"
-#include "el.h"
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
 
 /* em_delete_or_list():
  *	Delete character under cursor or list completions if at end of line

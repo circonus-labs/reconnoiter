@@ -47,7 +47,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 #define	EL_MAXMACRO	10
 
@@ -130,11 +130,11 @@ typedef struct el_chared_t {
 #define	MODE_REPLACE	1
 #define	MODE_REPLACE_1	2
 
-#include "common.h"
-#include "vi.h"
-#include "emacs.h"
-#include "search.h"
-#include "fcns.h"
+#include "noitedit/common.h"
+#include "noitedit/vi.h"
+#include "noitedit/emacs.h"
+#include "noitedit/search.h"
+#include "noitedit/fcns.h"
 
 
 protected int	 cv__isword(int);

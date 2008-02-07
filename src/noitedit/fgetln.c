@@ -1,7 +1,7 @@
 #include "noit_defines.h"
 
 #include <stdio.h>
-#include "compat.h"
+#include "noitedit/compat.h"
 
 #ifndef HAVE_FGETLN
 char *fgetln(FILE *stream, size_t *len)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
@@ -48,7 +48,7 @@ __RCSID("$NetBSD: refresh.c,v 1.17 2001/04/13 00:53:11 lukem Exp $");
 /*
  * refresh.c: Lower level screen refreshing functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdio.h>
 #include <ctype.h>
 #if HAVE_UNISTD_H
@@ -56,7 +56,7 @@ __RCSID("$NetBSD: refresh.c,v 1.17 2001/04/13 00:53:11 lukem Exp $");
 #endif
 #include <string.h>
 
-#include "el.h"
+#include "noitedit/el.h"
 
 private void	re_addc(EditLine *, int);
 private void	re_update_line(EditLine *, char *, char *, int);

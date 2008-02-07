@@ -17,7 +17,7 @@
 #endif
 
 #ifndef HAVE_FGETLN
-#include "fgetln.h"
+#include "noitedit/fgetln.h"
 #endif
 
 #ifndef HAVE_ISSETUGID
@@ -25,7 +25,7 @@
 #endif
 
 #ifndef HAVE_STRLCPY
-#include "strlcpy.h"
+#include "noitedit/strlcpy.h"
 #endif
 
 #if HAVE_SYS_CDEFS_H

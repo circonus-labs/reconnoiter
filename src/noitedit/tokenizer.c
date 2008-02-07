@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
@@ -48,10 +48,10 @@ __RCSID("$NetBSD: tokenizer.c,v 1.7 2001/01/04 15:56:32 christos Exp $");
 /*
  * tokenize.c: Bourne shell like tokenizer
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <string.h>
 #include <stdlib.h>
-#include "tokenizer.h"
+#include "noitedit/tokenizer.h"
 
 typedef enum {
 	Q_none, Q_single, Q_double, Q_one, Q_doubleone

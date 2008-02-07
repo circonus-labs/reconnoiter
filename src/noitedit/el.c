@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
@@ -48,7 +48,7 @@ __RCSID("$NetBSD: el.c,v 1.21 2001/01/05 22:45:30 christos Exp $");
 /*
  * el.c: EditLine interface functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -61,7 +61,7 @@ __RCSID("$NetBSD: el.c,v 1.21 2001/01/05 22:45:30 christos Exp $");
 #include <stdlib.h>
 #include <stdarg.h>
 #include <pthread.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 pthread_key_t tputs_hack;
 public void

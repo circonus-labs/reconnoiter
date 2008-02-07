@@ -36,14 +36,14 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 /*
  * chared.c: Character editor utilities
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 
 #include <stdlib.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 /* value to leave unused in line buffer */
 #define	EL_LEAVE	2

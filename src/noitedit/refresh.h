@@ -44,7 +44,7 @@
 #ifndef _h_el_refresh
 #define	_h_el_refresh
 
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 typedef struct {
 	coord_t	r_cursor;	/* Refresh cursor position	*/

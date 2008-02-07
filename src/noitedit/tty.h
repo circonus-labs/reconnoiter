@@ -45,7 +45,7 @@
 #define	_h_el_tty
 
 #include "noit_defines.h"
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 /* Define our own since everyone gets it wrong! */
 #define	CONTROL(A)	((A) & 037)

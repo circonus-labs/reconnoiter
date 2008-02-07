@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
@@ -48,9 +48,9 @@ __RCSID("$NetBSD: tty.c,v 1.15 2001/05/17 01:02:17 christos Exp $");
 /*
  * tty.c: tty interface stuff
  */
-#include "sys.h"
-#include "el.h"
-#include "tty.h"
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
+#include "noitedit/tty.h"
 
 typedef struct ttymodes_t {
 	const char *m_name;

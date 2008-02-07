@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)prompt.c	8.1 (Berkeley) 6/4/93";
@@ -48,9 +48,9 @@ __RCSID("$NetBSD: prompt.c,v 1.8 2001/01/10 07:45:41 jdolecek Exp $");
 /*
  * prompt.c: Prompt printing functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdio.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 private char	*prompt_default(EditLine *);
 private char	*prompt_default_r(EditLine *);

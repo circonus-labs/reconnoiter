@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
@@ -49,7 +49,7 @@ __RCSID("$NetBSD: search.c,v 1.11 2001/01/23 15:55:31 jdolecek Exp $");
  * search.c: History and character search functions
  */
 #include "noit_defines.h"
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdlib.h>
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -62,7 +62,7 @@ __RCSID("$NetBSD: search.c,v 1.11 2001/01/23 15:55:31 jdolecek Exp $");
 #elif defined(REGEXP)
 #include <regexp.h>
 #endif
-#include "el.h"
+#include "noitedit/el.h"
 
 /*
  * Adjust cursor in vi mode to include the character under it

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
@@ -49,13 +49,13 @@ __RCSID("$NetBSD: read.c,v 1.19 2001/01/10 07:45:41 jdolecek Exp $");
  * read.c: Clean this junk up! This is horrible code.
  *	   Terminal read functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <errno.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <stdlib.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 #define OKCMD     -1
 #define EAGAINCMD -2

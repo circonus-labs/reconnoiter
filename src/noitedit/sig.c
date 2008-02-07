@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
@@ -50,8 +50,8 @@ __RCSID("$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $");
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "sys.h"
-#include "el.h"
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
 #include <stdlib.h>
 
 private EditLine *sel = NULL;

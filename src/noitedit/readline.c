@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 __RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
 #endif /* not lint && not SCCSID */
@@ -57,11 +57,11 @@ __RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
 #include <unistd.h>
 #endif
 #include <limits.h>
-#include "histedit.h"
-#include "readline/readline.h"
-#include "sys.h"
-#include "el.h"
-#include "fcns.h"		/* for EL_NUM_FCNS */
+#include "noitedit/histedit.h"
+#include "noitedit/readline/readline.h"
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
+#include "noitedit/fcns.h"		/* for EL_NUM_FCNS */
 
 /* for rl_complete() */
 #define	TAB		'\r'

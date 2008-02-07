@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
@@ -66,11 +66,11 @@ __RCSID("$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $");
  *      1) It is not possible to have one key that is a
  *	   substr of another.
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <string.h>
 #include <stdlib.h>
 
-#include "el.h"
+#include "noitedit/el.h"
 
 /*
  * The Nodes of the el->el_key.map.  The el->el_key.map is a linked list

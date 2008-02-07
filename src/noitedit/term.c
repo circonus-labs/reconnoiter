@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
@@ -49,7 +49,7 @@ __RCSID("$NetBSD: term.c,v 1.32 2001/01/23 15:55:31 jdolecek Exp $");
  *	   We have to declare a static variable here, since the
  *	   termcap putchar routine does not take an argument!
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
@@ -69,7 +69,7 @@ __RCSID("$NetBSD: term.c,v 1.32 2001/01/23 15:55:31 jdolecek Exp $");
 #include <sys/ioctl.h>
 #endif
 
-#include "el.h"
+#include "noitedit/el.h"
 
 /*
  * IMPORTANT NOTE: these routines are allowed to look at the current screen

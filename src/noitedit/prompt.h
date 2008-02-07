@@ -44,7 +44,7 @@
 #ifndef _h_el_prompt
 #define	_h_el_prompt
 
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 typedef char * (*el_pfunc_t)(EditLine*);
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
@@ -48,7 +48,7 @@ __RCSID("$NetBSD: history.c,v 1.17 2001/03/20 00:08:31 christos Exp $");
 /*
  * hist.c: History access functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -60,7 +60,7 @@ __RCSID("$NetBSD: history.c,v 1.17 2001/03/20 00:08:31 christos Exp $");
 
 static const char hist_cookie[] = "_HiStOrY_V2_\n";
 
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 typedef int (*history_gfun_t)(ptr_t, HistEvent *);
 typedef int (*history_efun_t)(ptr_t, HistEvent *, const char *);

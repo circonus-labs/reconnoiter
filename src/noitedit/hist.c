@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 6/4/93";
@@ -48,9 +48,9 @@ __RCSID("$NetBSD: hist.c,v 1.9 2001/05/17 01:02:17 christos Exp $");
 /*
  * hist.c: History access functions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdlib.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 /* hist_init():
  *	Initialization function.

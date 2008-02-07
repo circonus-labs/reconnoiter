@@ -108,19 +108,19 @@ typedef struct el_state_t {
 #define	el_realloc(a,b)	realloc(a, b)
 #define	el_free(a)	free(a)
 
-#include "tty.h"
-#include "prompt.h"
-#include "key.h"
-#include "el_term.h"
-#include "refresh.h"
-#include "chared.h"
-#include "common.h"
-#include "search.h"
-#include "hist.h"
-#include "map.h"
-#include "parse.h"
-#include "sig.h"
-#include "help.h"
+#include "noitedit/tty.h"
+#include "noitedit/prompt.h"
+#include "noitedit/key.h"
+#include "noitedit/el_term.h"
+#include "noitedit/refresh.h"
+#include "noitedit/chared.h"
+#include "noitedit/common.h"
+#include "noitedit/search.h"
+#include "noitedit/hist.h"
+#include "noitedit/map.h"
+#include "noitedit/parse.h"
+#include "noitedit/sig.h"
+#include "noitedit/help.h"
 
 struct editline {
 	char		 *el_prog;	/* the program name		*/

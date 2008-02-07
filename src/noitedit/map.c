@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
@@ -48,9 +48,9 @@ __RCSID("$NetBSD: map.c,v 1.14 2001/01/09 17:22:09 jdolecek Exp $");
 /*
  * map.c: Editor function definitions
  */
-#include "sys.h"
+#include "noitedit/sys.h"
 #include <stdlib.h>
-#include "el.h"
+#include "noitedit/el.h"
 
 #define	N_KEYS 256
 

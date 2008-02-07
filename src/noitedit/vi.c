@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "noitedit/compat.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
@@ -48,8 +48,8 @@ __RCSID("$NetBSD: vi.c,v 1.8 2000/09/04 22:06:33 lukem Exp $");
 /*
  * vi.c: Vi mode commands.
  */
-#include "sys.h"
-#include "el.h"
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
 
 private el_action_t	cv_action(EditLine *, int);
 private el_action_t	cv_paste(EditLine *, int);

@@ -44,7 +44,7 @@
 #ifndef _h_el_term
 #define	_h_el_term
 
-#include "histedit.h"
+#include "noitedit/histedit.h"
 
 typedef struct {		/* Symbolic function key bindings	*/
 	char		*name;	/* name of the key			*/
