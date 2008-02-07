@@ -100,6 +100,7 @@ ke_change (register int const ident,
 static int eventer_kqueue_impl_init() {
   struct rlimit rlim;
   master_thread = pthread_self();
+  signal(SIGPIPE, SIG_IGN);
   kqueue_fd = kqueue();
   if(kqueue_fd == -1) {
     return -1;
