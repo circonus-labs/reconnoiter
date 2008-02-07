@@ -1084,7 +1084,7 @@ tty_stty(EditLine *el, int argc, char **argv)
 		int len = 0, st = 0, cu;
 		for (m = ttymodes; m->m_name; m++) {
 			if (m->m_type != i) {
-				(void) fprintf(el->el_outfile, "%s%s",
+				(void) el->el_std_printf(el, "%s%s",
 				    i != -1 ? "\n" : "",
 				    el->el_tty.t_t[z][m->m_type].t_name);
 				i = m->m_type;
@@ -1101,21 +1101,21 @@ tty_stty(EditLine *el, int argc, char **argv)
 				cu = strlen(m->m_name) + (x != '\0') + 1;
 
 				if (len + cu >= el->el_term.t_size.h) {
-					(void) fprintf(el->el_outfile, "\n%*s",
+					(void) el->el_std_printf(el, "\n%*s",
 					    st, "");
 					len = st + cu;
 				} else
 					len += cu;
 
 				if (x != '\0')
-					(void) fprintf(el->el_outfile, "%c%s ",
+					(void) el->el_std_printf(el, "%c%s ",
 					    x, m->m_name);
 				else
-					(void) fprintf(el->el_outfile, "%s ",
+					(void) el->el_std_printf(el, "%s ",
 					    m->m_name);
 			}
 		}
-		(void) fprintf(el->el_outfile, "\n");
+		(void) el->el_std_printf(el, "\n");
 		return (0);
 	}
 	while (argv && (s = *argv++)) {

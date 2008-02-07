@@ -207,7 +207,7 @@ rl_initialize(void)
 		editmode = 0;
 
 	e = el_init(rl_readline_name,
-	            fileno(rl_instream), rl_outstream, fileno(stderr));
+	            fileno(rl_instream), fileno(rl_outstream), fileno(stderr));
 
 	if (!editmode)
 		el_set(e, EL_EDITMODE, 0);
@@ -1564,8 +1564,8 @@ rl_display_match_list (matches, len, max)
 	idx = 1;
 	for(; count > 0; count--) {
 		for(i=0; i < limit && matches[idx]; i++, idx++)
-			fprintf(e->el_outfile, "%-*s  ", max, matches[idx]);
-		fprintf(e->el_outfile, "\n");
+			e->el_std_printf(e, "%-*s  ", max, matches[idx]);
+		e->el_std_printf(e, "\n");
 	}
 }
 
@@ -1671,20 +1671,20 @@ rl_complete_internal(int what_to_do)
 			matches_num = i - 1;
 				
 			/* newline to get on next line from command line */
-			fprintf(e->el_outfile, "\n");
+			e->el_std_printf(e, "\n");
 
 			/*
 			 * If there are too many items, ask user for display
 			 * confirmation.
 			 */
 			if (matches_num > rl_completion_query_items) {
-				fprintf(e->el_outfile,
+				e->el_std_printf(e,
 				"Display all %d possibilities? (y or n) ",
 					matches_num);
-				fflush(e->el_outfile);
+				e->el_std_flush(e);
 				if (getc(stdin) != 'y')
 					match_display = 0;
-				fprintf(e->el_outfile, "\n");
+				e->el_std_printf(e, "\n");
 			}
 
 			if (match_display)

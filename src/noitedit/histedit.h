@@ -87,7 +87,7 @@ EditLine        *el_multi_get_el();
 /*
  * Initialization, cleanup, and resetting
  */
-EditLine	*el_init(const char *, int, FILE *, int);
+EditLine	*el_init(const char *, int, int, int);
 void		 el_reset(EditLine *);
 void		 el_end(EditLine *);
 
@@ -134,6 +134,16 @@ int		 el_get(EditLine *, int, void *);
 #define	EL_HIST		10	/* , hist_fun_t, const char *);	*/
 #define	EL_EDITMODE	11	/* , int);			*/
 #define	EL_RPROMPT	12	/* , el_pfunc_t);		*/
+
+#define EL_ERRPRINTFFN	13	/* , el_printffunc_t);		*/
+#define EL_STDPRINTFFN	14	/* , el_printffunc_t);		*/
+#define EL_STDPUTCFN	15	/* , el_putcfunc_t);		*/
+#define EL_STDFLUSHFN	16	/* , el_flushfunc_t);		*/
+#define EL_USERDATA	17	/* , void *);			*/
+
+typedef int (*el_printffunc_t)(EditLine *, const char *, ...);
+typedef int (*el_putcfunc_t)(int, EditLine *);
+typedef int (*el_flushfunc_t)(EditLine *);
 
 /*
  * Source named file or $PWD/.editrc or $HOME/.editrc

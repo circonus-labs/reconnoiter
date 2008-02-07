@@ -168,7 +168,7 @@ hist_list(EditLine *el, int argc, char **argv)
 	if (el->el_history.ref == NULL)
 		return (-1);
 	for (str = HIST_LAST(el); str != NULL; str = HIST_PREV(el))
-		(void) fprintf(el->el_outfile, "%d %s",
+		(void) el->el_std_printf(el, "%d %s",
 		    el->el_history.ev.num, str);
 	return (0);
 }

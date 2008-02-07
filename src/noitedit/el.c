@@ -83,7 +83,7 @@ el_multi_get_el() {
  *	Initialize editline and set default parameters.
  */
 public EditLine *
-el_init(const char *prog, int infd, FILE *fout, int errfd)
+el_init(const char *prog, int infd, int outfd, int errfd)
 {
 
 	EditLine *el = (EditLine *) el_malloc(sizeof(EditLine));
@@ -97,9 +97,12 @@ el_init(const char *prog, int infd, FILE *fout, int errfd)
 	memset(el, 0, sizeof(EditLine));
 
 	el->el_infd = infd;
-	el->el_outfile = fout;
+	el->el_outfd = outfd;
 	el->el_errfd = errfd;
 	el->el_err_printf = el_err_printf;
+	el->el_std_printf = el_std_printf;
+	el->el_std_putc = el_std_putc;
+	el->el_std_flush = el_std_flush;
 	el->el_prog = strdup(prog);
 
 	/*
@@ -177,6 +180,31 @@ el_set(EditLine *el, int op, ...)
 	case EL_PROMPT:
 	case EL_RPROMPT:
 		rv = prompt_set(el, va_arg(va, el_pfunc_t), op);
+		break;
+
+        case EL_ERRPRINTFFN:
+		el->el_err_printf = va_arg(va, el_printffunc_t);
+		rv = 0;
+		break;
+
+        case EL_STDPRINTFFN:
+		el->el_std_printf = va_arg(va, el_printffunc_t);
+		rv = 0;
+		break;
+
+        case EL_STDPUTCFN:
+		el->el_std_putc = va_arg(va, el_putcfunc_t);
+		rv = 0;
+		break;
+
+        case EL_STDFLUSHFN:
+		el->el_std_flush = va_arg(va, el_flushfunc_t);
+		rv = 0;
+		break;
+
+	case EL_USERDATA:
+		el->el_userdata = va_arg(va, void *);
+		rv = 0;
 		break;
 
 	case EL_TERMINAL:
@@ -289,6 +317,9 @@ el_get(EditLine *el, int op, void *ret)
 		void *vptr;
 		const char *cptr;
 		el_pfunc_t elpf;
+		el_printffunc_t eprintff;
+		el_putcfunc_t eputcf;
+		el_flushfunc_t eflushf;
 	} vret;
 
 	vret.vptr = ret;
@@ -298,6 +329,31 @@ el_get(EditLine *el, int op, void *ret)
 	case EL_PROMPT:
 	case EL_RPROMPT:
 		rv = prompt_get(el, &vret.elpf, op);
+		break;
+
+	case EL_ERRPRINTFFN:
+		*((el_printffunc_t *)ret) = el->el_err_printf;
+		rv = 0;
+		break;
+
+	case EL_STDPRINTFFN:
+		*((el_printffunc_t *)ret) = el->el_std_printf;
+		rv = 0;
+		break;
+
+	case EL_STDPUTCFN:
+		*((el_putcfunc_t *)ret) = el->el_std_putc;
+		rv = 0;
+		break;
+
+	case EL_STDFLUSHFN:
+		*((el_flushfunc_t *)ret) = el->el_std_flush;
+		rv = 0;
+		break;
+
+	case EL_USERDATA:
+		*((void **)ret) = el->el_userdata;
+		rv = 0;
 		break;
 
 	case EL_EDITOR:
@@ -518,7 +574,7 @@ el_editmode(EditLine *el, int argc, char **argv)
 }
 
 protected int
-el_err_vprintf(EditLine *el, char *fmt, va_list arg)
+el_err_vprintf(EditLine *el, const char *fmt, va_list arg)
 {
 	int len;
 	char buffer[1024];
@@ -529,7 +585,7 @@ el_err_vprintf(EditLine *el, char *fmt, va_list arg)
 }
 
 protected int
-el_err_printf(EditLine *el, char *fmt, ...)
+el_err_printf(EditLine *el, const char *fmt, ...)
 {
 	int len;
 	va_list arg;
@@ -537,4 +593,38 @@ el_err_printf(EditLine *el, char *fmt, ...)
 	len = el_err_vprintf(el, fmt, arg);
 	va_end(arg);
 	return len;
+}
+
+protected int
+el_std_vprintf(EditLine *el, const char *fmt, va_list arg)
+{
+	int len;
+	char buffer[1024];
+	len = vsnprintf(buffer, sizeof(buffer), fmt, arg);
+	if(len > sizeof(buffer)) len = sizeof(buffer);
+	len = write(el->el_outfd, buffer, len);
+	return len;
+}
+
+protected int
+el_std_printf(EditLine *el, const char *fmt, ...)
+{
+	int len;
+	va_list arg;
+	va_start(arg, fmt);
+	len = el_std_vprintf(el, fmt, arg);
+	va_end(arg);
+	return len;
+}
+
+protected int
+el_std_putc(int i, EditLine *el)
+{
+	unsigned char c = i & 0xff;
+	return write(el->el_outfd, &c, 1);
+}
+protected int
+el_std_flush(EditLine *el)
+{
+	return 0;
 }

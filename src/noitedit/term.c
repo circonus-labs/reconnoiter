@@ -1253,7 +1253,7 @@ term__putc(int c)
 	EditLine *el;
 	el = el_multi_get_el();
         if(!el) return -1;
-	return (fputc(c, el->el_outfile));
+	return (el->el_std_putc(c, el));
 }
 
 
@@ -1266,7 +1266,7 @@ term__flush(void)
 	EditLine *el;
 	el = el_multi_get_el();
         if(!el) return;
-	(void) fflush(el->el_outfile);
+	(void) el->el_std_flush(el);
 }
 
 
@@ -1283,26 +1283,26 @@ term_telltc(EditLine *el, int argc, char **argv)
 
 	el_multi_set_el(el);
 
-	(void) fprintf(el->el_outfile, "\n\tYour terminal has the\n");
-	(void) fprintf(el->el_outfile, "\tfollowing characteristics:\n\n");
-	(void) fprintf(el->el_outfile, "\tIt has %d columns and %d lines\n",
+	(void) el->el_std_printf(el, "\n\tYour terminal has the\n");
+	(void) el->el_std_printf(el, "\tfollowing characteristics:\n\n");
+	(void) el->el_std_printf(el, "\tIt has %d columns and %d lines\n",
 	    Val(T_co), Val(T_li));
-	(void) fprintf(el->el_outfile,
+	(void) el->el_std_printf(el,
 	    "\tIt has %s meta key\n", EL_HAS_META ? "a" : "no");
-	(void) fprintf(el->el_outfile,
+	(void) el->el_std_printf(el,
 	    "\tIt can%suse tabs\n", EL_CAN_TAB ? " " : "not ");
-	(void) fprintf(el->el_outfile, "\tIt %s automatic margins\n",
+	(void) el->el_std_printf(el, "\tIt %s automatic margins\n",
 	    EL_HAS_AUTO_MARGINS ? "has" : "does not have");
 	if (EL_HAS_AUTO_MARGINS)
-		(void) fprintf(el->el_outfile, "\tIt %s magic margins\n",
+		(void) el->el_std_printf(el, "\tIt %s magic margins\n",
 		    EL_HAS_MAGIC_MARGINS ? "has" : "does not have");
 
 	for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++)
-		(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n",
+		(void) el->el_std_printf(el, "\t%25s (%s) == %s\n",
 		    t->long_name,
 		    t->name, *ts && **ts ?
 		    key__decode_str(*ts, upbuf, "") : "(empty)");
-	(void) fputc('\n', el->el_outfile);
+	(void) el->el_std_putc('\n', el);
 	return (0);
 }
 
@@ -1424,17 +1424,17 @@ term_echotc(EditLine *el, int argc, char **argv)
 	if (!*argv || *argv[0] == '\0')
 		return (0);
 	if (strcmp(*argv, "tabs") == 0) {
-		(void) fprintf(el->el_outfile, fmts, EL_CAN_TAB ? "yes" : "no");
+		(void) el->el_std_printf(el, fmts, EL_CAN_TAB ? "yes" : "no");
 		return (0);
 	} else if (strcmp(*argv, "meta") == 0) {
-		(void) fprintf(el->el_outfile, fmts, Val(T_km) ? "yes" : "no");
+		(void) el->el_std_printf(el, fmts, Val(T_km) ? "yes" : "no");
 		return (0);
 	} else if (strcmp(*argv, "xn") == 0) {
-		(void) fprintf(el->el_outfile, fmts, EL_HAS_MAGIC_MARGINS ?
+		(void) el->el_std_printf(el, fmts, EL_HAS_MAGIC_MARGINS ?
 		    "yes" : "no");
 		return (0);
 	} else if (strcmp(*argv, "am") == 0) {
-		(void) fprintf(el->el_outfile, fmts, EL_HAS_AUTO_MARGINS ?
+		(void) el->el_std_printf(el, fmts, EL_HAS_AUTO_MARGINS ?
 		    "yes" : "no");
 		return (0);
 	} else if (strcmp(*argv, "baud") == 0) {
@@ -1443,20 +1443,20 @@ term_echotc(EditLine *el, int argc, char **argv)
 
 		for (i = 0; baud_rate[i].b_name != NULL; i++)
 			if (el->el_tty.t_speed == baud_rate[i].b_rate) {
-				(void) fprintf(el->el_outfile, fmts,
+				(void) el->el_std_printf(el, fmts,
 				    baud_rate[i].b_name);
 				return (0);
 			}
-		(void) fprintf(el->el_outfile, fmtd, 0);
+		(void) el->el_std_printf(el, fmtd, 0);
 #else
-		(void) fprintf(el->el_outfile, fmtd, (int)el->el_tty.t_speed);
+		(void) el->el_std_printf(el, fmtd, (int)el->el_tty.t_speed);
 #endif
 		return (0);
 	} else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
-		(void) fprintf(el->el_outfile, fmtd, Val(T_li));
+		(void) el->el_std_printf(el, fmtd, Val(T_li));
 		return (0);
 	} else if (strcmp(*argv, "cols") == 0) {
-		(void) fprintf(el->el_outfile, fmtd, Val(T_co));
+		(void) el->el_std_printf(el, fmtd, Val(T_co));
 		return (0);
 	}
 	/*

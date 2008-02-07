@@ -1136,7 +1136,7 @@ map_print_key(EditLine *el, el_action_t *map, char *in)
 		(void) key__decode_str(in, outbuf, "");
 		for (bp = el->el_map.help; bp->name != NULL; bp++)
 			if (bp->func == map[(unsigned char) *in]) {
-				(void) fprintf(el->el_outfile,
+				(void) el->el_std_printf(el,
 				    "%s\t->\t%s\n", outbuf, bp->name);
 				return;
 			}
@@ -1161,7 +1161,7 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 	lastbuf[1] = 0;
 	if (map[first] == ED_UNASSIGNED) {
 		if (first == last)
-			(void) fprintf(el->el_outfile,
+			(void) el->el_std_printf(el,
 			    "%-15s->  is undefined\n",
 			    key__decode_str(firstbuf, unparsbuf, STRQQ));
 		return;
@@ -1169,11 +1169,11 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 	for (bp = el->el_map.help; bp->name != NULL; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
-				(void) fprintf(el->el_outfile, "%-15s->  %s\n",
+				(void) el->el_std_printf(el, "%-15s->  %s\n",
 				    key__decode_str(firstbuf, unparsbuf, STRQQ),
 				    bp->name);
 			} else {
-				(void) fprintf(el->el_outfile,
+				(void) el->el_std_printf(el,
 				    "%-4s to %-7s->  %s\n",
 				    key__decode_str(firstbuf, unparsbuf, STRQQ),
 				    key__decode_str(lastbuf, extrabuf, STRQQ),
@@ -1184,16 +1184,16 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 	}
 #ifdef MAP_DEBUG
 	if (map == el->el_map.key) {
-		(void) fprintf(el->el_outfile,
+		(void) el->el_std_printf(el,
 		    "BUG!!! %s isn't bound to anything.\n",
 		    key__decode_str(firstbuf, unparsbuf, STRQQ));
-		(void) fprintf(el->el_outfile, "el->el_map.key[%d] == %d\n",
+		(void) el->el_std_printf(el, "el->el_map.key[%d] == %d\n",
 		    first, el->el_map.key[first]);
 	} else {
-		(void) fprintf(el->el_outfile,
+		(void) el->el_std_printf(el,
 		    "BUG!!! %s isn't bound to anything.\n",
 		    key__decode_str(firstbuf, unparsbuf, STRQQ));
-		(void) fprintf(el->el_outfile, "el->el_map.alt[%d] == %d\n",
+		(void) el->el_std_printf(el, "el->el_map.alt[%d] == %d\n",
 		    first, el->el_map.alt[first]);
 	}
 #endif
@@ -1209,7 +1209,7 @@ map_print_all_keys(EditLine *el)
 {
 	int prev, i;
 
-	(void) fprintf(el->el_outfile, "Standard key bindings\n");
+	(void) el->el_std_printf(el, "Standard key bindings\n");
 	prev = 0;
 	for (i = 0; i < N_KEYS; i++) {
 		if (el->el_map.key[prev] == el->el_map.key[i])
@@ -1219,7 +1219,7 @@ map_print_all_keys(EditLine *el)
 	}
 	map_print_some_keys(el, el->el_map.key, prev, i - 1);
 
-	(void) fprintf(el->el_outfile, "Alternative key bindings\n");
+	(void) el->el_std_printf(el, "Alternative key bindings\n");
 	prev = 0;
 	for (i = 0; i < N_KEYS; i++) {
 		if (el->el_map.alt[prev] == el->el_map.alt[i])
@@ -1229,9 +1229,9 @@ map_print_all_keys(EditLine *el)
 	}
 	map_print_some_keys(el, el->el_map.alt, prev, i - 1);
 
-	(void) fprintf(el->el_outfile, "Multi-character bindings\n");
+	(void) el->el_std_printf(el, "Multi-character bindings\n");
 	key_print(el, "");
-	(void) fprintf(el->el_outfile, "Arrow key bindings\n");
+	(void) el->el_std_printf(el, "Arrow key bindings\n");
 	term_print_arrow(el, "");
 }
 
@@ -1293,7 +1293,7 @@ map_bind(EditLine *el, int argc, char **argv)
 			case 'l':
 				for (bp = el->el_map.help; bp->name != NULL;
 				    bp++)
-					(void) fprintf(el->el_outfile,
+					(void) el->el_std_printf(el,
 					    "%s\n\t%s\n",
 					    bp->name, bp->description);
 				return (0);

@@ -578,20 +578,20 @@ key_kprint(EditLine *el, char *key, key_value_t *val, int ntype)
 		switch (ntype) {
 		case XK_STR:
 		case XK_EXE:
-			(void) fprintf(el->el_outfile, fmt, key,
+			(void) el->el_std_printf(el, fmt, key,
 			    key__decode_str(val->str, unparsbuf,
 				ntype == XK_STR ? "\"\"" : "[]"));
 			break;
 		case XK_CMD:
 			for (fp = el->el_map.help; fp->name; fp++)
 				if (val->cmd == fp->func) {
-					(void) fprintf(el->el_outfile, fmt,
+					(void) el->el_std_printf(el, fmt,
 					    key, fp->name);
 					break;
 				}
 #ifdef DEBUG_KEY
 			if (fp->name == NULL)
-				(void) fprintf(el->el_outfile,
+				(void) el->el_std_printf(el,
 				    "BUG! Command not found.\n");
 #endif
 
@@ -601,7 +601,7 @@ key_kprint(EditLine *el, char *key, key_value_t *val, int ntype)
 			break;
 		}
 	else
-		(void) fprintf(el->el_outfile, fmt, key, "no input");
+		(void) el->el_std_printf(el, fmt, key, "no input");
 }
 
 
