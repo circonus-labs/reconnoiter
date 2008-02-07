@@ -87,7 +87,7 @@ EditLine        *el_multi_get_el();
 /*
  * Initialization, cleanup, and resetting
  */
-EditLine	*el_init(const char *, FILE *, FILE *, FILE *);
+EditLine	*el_init(const char *, int, FILE *, int);
 void		 el_reset(EditLine *);
 void		 el_end(EditLine *);
 

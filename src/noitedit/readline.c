@@ -206,7 +206,8 @@ rl_initialize(void)
 	if (tcgetattr(fileno(rl_instream), &t) != -1 && (t.c_lflag & ECHO) == 0)
 		editmode = 0;
 
-	e = el_init(rl_readline_name, rl_instream, rl_outstream, stderr);
+	e = el_init(rl_readline_name,
+	            fileno(rl_instream), rl_outstream, fileno(stderr));
 
 	if (!editmode)
 		el_set(e, EL_EDITMODE, 0);

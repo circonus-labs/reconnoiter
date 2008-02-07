@@ -83,7 +83,7 @@ el_multi_get_el() {
  *	Initialize editline and set default parameters.
  */
 public EditLine *
-el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
+el_init(const char *prog, int infd, FILE *fout, int errfd)
 {
 
 	EditLine *el = (EditLine *) el_malloc(sizeof(EditLine));
@@ -96,9 +96,10 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 
 	memset(el, 0, sizeof(EditLine));
 
-	el->el_infd = fileno(fin);
+	el->el_infd = infd;
 	el->el_outfile = fout;
-	el->el_errfile = ferr;
+	el->el_errfd = errfd;
+	el->el_err_printf = el_err_printf;
 	el->el_prog = strdup(prog);
 
 	/*
@@ -510,8 +511,30 @@ el_editmode(EditLine *el, int argc, char **argv)
 	else if (strcmp(how, "off") == 0)
 		el->el_flags |= EDIT_DISABLED;
 	else {
-		(void) fprintf(el->el_errfile, "edit: Bad value `%s'.\n", how);
+		(void) el->el_err_printf(el, "edit: Bad value `%s'.\n", how);
 		return (-1);
 	}
 	return (0);
+}
+
+protected int
+el_err_vprintf(EditLine *el, char *fmt, va_list arg)
+{
+	int len;
+	char buffer[1024];
+	len = vsnprintf(buffer, sizeof(buffer), fmt, arg);
+	if(len > sizeof(buffer)) len = sizeof(buffer);
+	len = write(el->el_errfd, buffer, len);
+	return len;
+}
+
+protected int
+el_err_printf(EditLine *el, char *fmt, ...)
+{
+	int len;
+	va_list arg;
+	va_start(arg, fmt);
+	len = el_err_vprintf(el, fmt, arg);
+	va_end(arg);
+	return len;
 }

@@ -477,7 +477,7 @@ tty_setup(EditLine *el)
 
 	if (tty_getty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "tty_setup: tty_getty: %s\n", strerror(errno));
 #endif /* DEBUG_TTY */
 		return (-1);
@@ -526,7 +526,7 @@ tty_setup(EditLine *el)
 		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
 		if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
-			(void) fprintf(el->el_errfile,
+			(void) el->el_err_printf(el,
 			    "tty_setup: tty_setty: %s\n",
 			    strerror(errno));
 #endif /* DEBUG_TTY */
@@ -814,7 +814,7 @@ tty_rawmode(EditLine *el)
 
 	if (tty_getty(el, &el->el_tty.t_ts) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile, "tty_rawmode: tty_getty: %s\n",
+		(void) el->el_err_printf(el, "tty_rawmode: tty_getty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
 		return (-1);
@@ -944,7 +944,7 @@ tty_rawmode(EditLine *el)
 	}
 	if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile, "tty_rawmode: tty_setty: %s\n",
+		(void) el->el_err_printf(el, "tty_rawmode: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
 		return (-1);
@@ -969,7 +969,7 @@ tty_cookedmode(EditLine *el)
 
 	if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "tty_cookedmode: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
@@ -1005,7 +1005,7 @@ tty_quotemode(EditLine *el)
 
 	if (tty_setty(el, &el->el_tty.t_qu) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile, "QuoteModeOn: tty_setty: %s\n",
+		(void) el_err_printf(el, "QuoteModeOn: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
 		return (-1);
@@ -1026,7 +1026,7 @@ tty_noquotemode(EditLine *el)
 		return (0);
 	if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
-		(void) fprintf(el->el_errfile, "QuoteModeOff: tty_setty: %s\n",
+		(void) el->el_err_printf(el, "QuoteModeOff: tty_setty: %s\n",
 		    strerror(errno));
 #endif /* DEBUG_TTY */
 		return (-1);
@@ -1073,7 +1073,7 @@ tty_stty(EditLine *el, int argc, char **argv)
 			z = QU_IO;
 			break;
 		default:
-			(void) fprintf(el->el_errfile,
+			(void) el->el_err_printf(el,
 			    "%s: Unknown switch `%c'.\n",
 			    name, argv[0][1]);
 			return (-1);
@@ -1134,7 +1134,7 @@ tty_stty(EditLine *el, int argc, char **argv)
 				break;
 
 		if (!m->m_name) {
-			(void) fprintf(el->el_errfile,
+			(void) el->el_err_printf(el,
 			    "%s: Invalid argument `%s'.\n", name, d);
 			return (-1);
 		}
@@ -1172,11 +1172,11 @@ tty_printchar(EditLine *el, unsigned char *s)
 			if (m->m_type == MD_CHAR && C_SH(i) == m->m_value)
 				break;
 		if (m->m_name)
-			(void) fprintf(el->el_errfile, "%s ^%c ",
+			(void) el->el_err_printf(el, "%s ^%c ",
 			    m->m_name, s[i] + 'A' - 1);
 		if (i % 5 == 0)
-			(void) fprintf(el->el_errfile, "\n");
+			(void) el->el_err_printf(el, "\n");
 	}
-	(void) fprintf(el->el_errfile, "\n");
+	(void) el->el_err_printf(el, "\n");
 }
 #endif /* notyet */

@@ -195,12 +195,12 @@ key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
 {
 
 	if (key[0] == '\0') {
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "key_add: Null extended-key not allowed.\n");
 		return;
 	}
 	if (ntype == XK_CMD && val->cmd == ED_SEQUENCE_LEAD_IN) {
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "key_add: sequence-lead-in command not allowed\n");
 		return;
 	}
@@ -240,7 +240,7 @@ key_delete(EditLine *el, char *key)
 {
 
 	if (key[0] == '\0') {
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "key_delete: Null extended-key not allowed.\n");
 		return (-1);
 	}
@@ -267,7 +267,7 @@ key_print(EditLine *el, char *key)
 	el->el_key.buf[0] = '"';
 	if (node_lookup(el, key, el->el_key.map, 1) <= -1)
 		/* key is not bound */
-		(void) fprintf(el->el_errfile, "Unbound extended key \"%s\"\n",
+		(void) el->el_err_printf(el, "Unbound extended key \"%s\"\n",
 		    key);
 	return;
 }
@@ -345,7 +345,7 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 				el_free((ptr_t) ptr->val.str);
 			break;
 		default:
-			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n",
+			EL_ABORT((el, "Bad XK_ type %d\n",
 			    ptr->type));
 			break;
 		}
@@ -359,7 +359,7 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 			ptr->val.str = strdup(val->str);
 			break;
 		default:
-			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
+			EL_ABORT((el, "Bad XK_ type %d\n", ntype));
 			break;
 		}
 	} else {
@@ -445,7 +445,7 @@ node__put(EditLine *el, key_node_t *ptr)
 			el_free((ptr_t) ptr->val.str);
 		break;
 	default:
-		EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ptr->type));
+		EL_ABORT((el, "Bad XK_ type %d\n", ptr->type));
 		break;
 	}
 	el_free((ptr_t) ptr);
@@ -534,14 +534,14 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 	if (cnt >= KEY_BUFSIZ - 5) {	/* buffer too small */
 		el->el_key.buf[++cnt] = '"';
 		el->el_key.buf[++cnt] = '\0';
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "Some extended keys too long for internal print buffer");
-		(void) fprintf(el->el_errfile, " \"%s...\"\n", el->el_key.buf);
+		(void) el->el_err_printf(el, " \"%s...\"\n", el->el_key.buf);
 		return (0);
 	}
 	if (ptr == NULL) {
 #ifdef DEBUG_EDIT
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "node_enum: BUG!! Null ptr passed\n!");
 #endif
 		return (-1);
@@ -597,7 +597,7 @@ key_kprint(EditLine *el, char *key, key_value_t *val, int ntype)
 
 			break;
 		default:
-			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
+			EL_ABORT((el, "Bad XK_ type %d\n", ntype));
 			break;
 		}
 	else

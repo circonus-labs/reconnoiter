@@ -125,7 +125,7 @@ typedef struct el_state_t {
 struct editline {
 	char		 *el_prog;	/* the program name		*/
 	FILE		 *el_outfile;	/* Stdio stuff			*/
-	FILE		 *el_errfile;	/* Stdio stuff			*/
+	int               el_errfd;     /* Error file descriptor        */
 	int		  el_infd;	/* Input file descriptor	*/
 	int		  el_flags;	/* Various flags.		*/
 	coord_t		  el_cursor;	/* Cursor location		*/
@@ -145,12 +145,15 @@ struct editline {
 	el_search_t	  el_search;	/* Search stuff			*/
 	el_signal_t	  el_signal;	/* Signal handling stuff	*/
 	int               el_nb_state;  /* Did we eagain?               */
+	int             (*el_err_printf)(struct editline *, const char *, ...);
 };
 
 protected int	el_editmode(EditLine *, int, char **);
+protected int   el_err_printf(EditLine *el, char *fmt, ...);
+protected int   el_err_vprintf(EditLine *el, char *fmt, va_list arg);
 
 #ifdef DEBUG
-#define EL_ABORT(a)	(void) (fprintf(el->el_errfile, "%s, %d: ", \
+#define EL_ABORT(a)	(void) (el->el_err_printf(el, "%s, %d: ", \
 				__FILE__, __LINE__), fprintf a, abort())
 #else
 #define EL_ABORT(a)	abort()
