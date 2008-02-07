@@ -73,6 +73,15 @@ SERFLIBS="`apu-1-config --link-ld --libs` `apr-1-config --link-ld --libs`"
 AC_SUBST(SERFLIBS)
 AC_MSG_RESULT([$SERFLIBS])
 
+AC_TRY_LINK([],
+	[ issetugid(); ],
+	[ ac_cv_libc_defines_issetugid="yes" ],
+	[ ac_cv_libc_defines_issetugid="no" ]
+)
+if test "x$ac_cv_libc_defines_issetugid" = "xyes" ; then
+	AC_DEFINE(HAVE_ISSETUGID)
+fi
+
 AC_MSG_CHECKING([whether sem_init works])
 AC_TRY_RUN(
 	[
@@ -89,6 +98,7 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 
 AC_CHECK_LIB(rt, sem_init, , )
 AC_FUNC_STRFTIME
+AC_CHECK_FUNC(ssetugid strlcpy)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \

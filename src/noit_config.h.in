@@ -41,6 +41,7 @@
 #undef ETC_DIR
 
 #undef HAVE_FCNTL_H
+#undef HAVE_UNISTD_H
 #undef HAVE_SYS_TYPES_H
 #undef HAVE_TERM_H
 #undef HAVE_TERMIO_H
@@ -84,6 +85,9 @@
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
+
+#undef HAVE_ISSETUGID
+#undef HAVE_STRLCPY
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
