@@ -71,7 +71,19 @@ int	not42 = 1;
 #define SYNCHing ncct->telnet->_SYNCHing
 #define terminalname ncct->telnet->_terminalname
 #define flowmode ncct->telnet->_flowmode
+#define linemode ncct->telnet->_linemode
+#define uselinemode ncct->telnet->_uselinemode
+#define alwayslinemode ncct->telnet->_alwayslinemode
 #define restartany ncct->telnet->_restartany
+#define _terminit ncct->telnet->__terminit
+#define turn_on_sga ncct->telnet->_turn_on_sga
+#define useeditmode ncct->telnet->_useeditmode
+#define editmode ncct->telnet->_editmode
+#define def_slcbuf ncct->telnet->_def_slcbuf
+#define def_slclen ncct->telnet->_def_slclen
+#define slcchange ncct->telnet->_slcchange
+#define slcptr ncct->telnet->_slcptr
+#define slcbuf ncct->telnet->_slcbuf
 #define def_tspeed ncct->telnet->_def_tspeed
 #define def_rspeed ncct->telnet->_def_rspeed
 #define def_row ncct->telnet->_def_row
@@ -102,8 +114,651 @@ netflush(noit_console_closure_t ncct) {
   int unused;
   noit_console_continue_sending(ncct, &unused);
 }
+static void set_termbuf(noit_console_closure_t ncct);
+static void init_termbuf(noit_console_closure_t ncct);
+static void defer_terminit(noit_console_closure_t ncct);
+static void flowstat(noit_console_closure_t ncct);
+static int spcset(noit_console_closure_t ncct, int func, cc_t *valp, cc_t **valpp);
+static void suboption(noit_console_closure_t ncct);
+static void send_slc(noit_console_closure_t ncct);
+static void default_slc(noit_console_closure_t ncct);
+static void get_slc_defaults(noit_console_closure_t ncct);
+static void add_slc(noit_console_closure_t ncct, char func, char flag, cc_t val);
+static void start_slc(noit_console_closure_t ncct, int getit);
+static int end_slc(noit_console_closure_t ncct, unsigned char **bufp);
+static void process_slc(noit_console_closure_t ncct, unsigned char func, unsigned char flag, cc_t val);
+static void change_slc(noit_console_closure_t ncct, char func, char flag, cc_t val);
+static void check_slc(noit_console_closure_t ncct);
+static void do_opt_slc(noit_console_closure_t ncct, unsigned char *ptr, int len);
+
+#ifdef LINEMODE
 static void
-suboption(noit_console_closure_t ncct);
+send_slc(noit_console_closure_t ncct)
+{
+	int i;
+
+	/*
+	 * Send out list of triplets of special characters
+	 * to client.  We only send info on the characters
+	 * that are currently supported.
+	 */
+	for (i = 1; i <= NSLC; i++) {
+		if ((slctab[i].defset.flag & SLC_LEVELBITS) == SLC_NOSUPPORT)
+			continue;
+		add_slc(ncct, (unsigned char)i, slctab[i].current.flag,
+							slctab[i].current.val);
+	}
+
+}  /* end of send_slc */
+
+/*
+ * default_slc
+ *
+ * Set pty special characters to all the defaults.
+ */
+static void
+default_slc(noit_console_closure_t ncct)
+{
+	int i;
+
+	for (i = 1; i <= NSLC; i++) {
+		slctab[i].current.val = slctab[i].defset.val;
+		if (slctab[i].current.val == (cc_t)(_POSIX_VDISABLE))
+			slctab[i].current.flag = SLC_NOSUPPORT;
+		else
+			slctab[i].current.flag = slctab[i].defset.flag;
+		if (slctab[i].sptr) {
+			*(slctab[i].sptr) = slctab[i].defset.val;
+		}
+	}
+	slcchange = 1;
+
+}  /* end of default_slc */
+#endif	/* LINEMODE */
+
+/*
+ * get_slc_defaults
+ *
+ * Initialize the slc mapping table.
+ */
+static void
+get_slc_defaults(noit_console_closure_t ncct)
+{
+	int i;
+
+	init_termbuf(ncct);
+
+	for (i = 1; i <= NSLC; i++) {
+		slctab[i].defset.flag =
+			spcset(ncct, i, &slctab[i].defset.val, &slctab[i].sptr);
+		slctab[i].current.flag = SLC_NOSUPPORT;
+		slctab[i].current.val = 0;
+	}
+
+}  /* end of get_slc_defaults */
+
+#ifdef	LINEMODE
+/*
+ * add_slc
+ *
+ * Add an slc triplet to the slc buffer.
+ */
+static void
+add_slc(noit_console_closure_t ncct, char func, char flag, cc_t val)
+{
+
+	if ((*slcptr++ = (unsigned char)func) == 0xff)
+		*slcptr++ = 0xff;
+
+	if ((*slcptr++ = (unsigned char)flag) == 0xff)
+		*slcptr++ = 0xff;
+
+	if ((*slcptr++ = (unsigned char)val) == 0xff)
+		*slcptr++ = 0xff;
+
+}  /* end of add_slc */
+
+/*
+ * start_slc
+ *
+ * Get ready to process incoming slc's and respond to them.
+ *
+ * The parameter getit is non-zero if it is necessary to grab a copy
+ * of the terminal control structures.
+ */
+static void
+start_slc(noit_console_closure_t ncct, int getit)
+{
+
+	slcchange = 0;
+	if (getit)
+		init_termbuf(ncct);
+	(void) sprintf((char *)slcbuf, "%c%c%c%c",
+					IAC, SB, TELOPT_LINEMODE, LM_SLC);
+	slcptr = slcbuf + 4;
+
+}  /* end of start_slc */
+
+/*
+ * end_slc
+ *
+ * Finish up the slc negotiation.  If something to send, then send it.
+ */
+int
+end_slc(noit_console_closure_t ncct, unsigned char **bufp)
+{
+	int len;
+
+	/*
+	 * If a change has occured, store the new terminal control
+	 * structures back to the terminal driver.
+	 */
+	if (slcchange) {
+		set_termbuf(ncct);
+	}
+
+	/*
+	 * If the pty state has not yet been fully processed and there is a
+	 * deferred slc request from the client, then do not send any
+	 * sort of slc negotiation now.  We will respond to the client's
+	 * request very soon.
+	 */
+	if (def_slcbuf && (_terminit == 0)) {
+		return(0);
+	}
+
+	if (slcptr > (slcbuf + 4)) {
+		if (bufp) {
+			*bufp = &slcbuf[4];
+			return(slcptr - slcbuf - 4);
+		} else {
+			(void) sprintf((char *)slcptr, "%c%c", IAC, SE);
+			slcptr += 2;
+			len = slcptr - slcbuf;
+			nc_write(ncct, slcbuf, len);
+			netflush(ncct);  /* force it out immediately */
+		}
+	}
+	return (0);
+
+}  /* end of end_slc */
+
+/*
+ * process_slc
+ *
+ * Figure out what to do about the client's slc
+ */
+static void
+process_slc(noit_console_closure_t ncct, unsigned char func, unsigned char flag, cc_t val)
+{
+	int hislevel, mylevel, ack;
+
+	/*
+	 * Ensure that we know something about this function
+	 */
+	if (func > NSLC) {
+		add_slc(ncct, func, SLC_NOSUPPORT, 0);
+		return;
+	}
+
+	/*
+	 * Process the special case requests of 0 SLC_DEFAULT 0
+	 * and 0 SLC_VARIABLE 0.  Be a little forgiving here, don't
+	 * worry about whether the value is actually 0 or not.
+	 */
+	if (func == 0) {
+		if ((flag = flag & SLC_LEVELBITS) == SLC_DEFAULT) {
+			default_slc(ncct);
+			send_slc(ncct);
+		} else if (flag == SLC_VARIABLE) {
+			send_slc(ncct);
+		}
+		return;
+	}
+
+	/*
+	 * Appears to be a function that we know something about.  So
+	 * get on with it and see what we know.
+	 */
+
+	hislevel = flag & SLC_LEVELBITS;
+	mylevel = slctab[func].current.flag & SLC_LEVELBITS;
+	ack = flag & SLC_ACK;
+	/*
+	 * ignore the command if:
+	 * the function value and level are the same as what we already have;
+	 * or the level is the same and the ack bit is set
+	 */
+	if (hislevel == mylevel && (val == slctab[func].current.val || ack)) {
+		return;
+	} else if (ack) {
+		/*
+		 * If we get here, we got an ack, but the levels don't match.
+		 * This shouldn't happen.  If it does, it is probably because
+		 * we have sent two requests to set a variable without getting
+		 * a response between them, and this is the first response.
+		 * So, ignore it, and wait for the next response.
+		 */
+		return;
+	} else {
+		change_slc(ncct, func, flag, val);
+	}
+
+}  /* end of process_slc */
+
+/*
+ * change_slc
+ *
+ * Process a request to change one of our special characters.
+ * Compare client's request with what we are capable of supporting.
+ */
+static void
+change_slc(noit_console_closure_t ncct, char func, char flag, cc_t val)
+{
+	int hislevel, mylevel;
+
+	hislevel = flag & SLC_LEVELBITS;
+	mylevel = slctab[(int)func].defset.flag & SLC_LEVELBITS;
+	/*
+	 * If client is setting a function to NOSUPPORT
+	 * or DEFAULT, then we can easily and directly
+	 * accomodate the request.
+	 */
+	if (hislevel == SLC_NOSUPPORT) {
+		slctab[(int)func].current.flag = flag;
+		slctab[(int)func].current.val = (cc_t)_POSIX_VDISABLE;
+		flag |= SLC_ACK;
+		add_slc(ncct, func, flag, val);
+		return;
+	}
+	if (hislevel == SLC_DEFAULT) {
+		/*
+		 * Special case here.  If client tells us to use
+		 * the default on a function we don't support, then
+		 * return NOSUPPORT instead of what we may have as a
+		 * default level of DEFAULT.
+		 */
+		if (mylevel == SLC_DEFAULT) {
+			slctab[(int)func].current.flag = SLC_NOSUPPORT;
+		} else {
+			slctab[(int)func].current.flag = slctab[(int)func].defset.flag;
+		}
+		slctab[(int)func].current.val = slctab[(int)func].defset.val;
+		add_slc(ncct, func, slctab[(int)func].current.flag,
+						slctab[(int)func].current.val);
+		return;
+	}
+
+	/*
+	 * Client wants us to change to a new value or he
+	 * is telling us that he can't change to our value.
+	 * Some of the slc's we support and can change,
+	 * some we do support but can't change,
+	 * and others we don't support at all.
+	 * If we can change it then we have a pointer to
+	 * the place to put the new value, so change it,
+	 * otherwise, continue the negotiation.
+	 */
+	if (slctab[(int)func].sptr) {
+		/*
+		 * We can change this one.
+		 */
+		slctab[(int)func].current.val = val;
+		*(slctab[(int)func].sptr) = val;
+		slctab[(int)func].current.flag = flag;
+		flag |= SLC_ACK;
+		slcchange = 1;
+		add_slc(ncct, func, flag, val);
+	} else {
+		/*
+		* It is not possible for us to support this
+		* request as he asks.
+		*
+		* If our level is DEFAULT, then just ack whatever was
+		* sent.
+		*
+		* If he can't change and we can't change,
+		* then degenerate to NOSUPPORT.
+		*
+		* Otherwise we send our level back to him, (CANTCHANGE
+		* or NOSUPPORT) and if CANTCHANGE, send
+		* our value as well.
+		*/
+		if (mylevel == SLC_DEFAULT) {
+			slctab[(int)func].current.flag = flag;
+			slctab[(int)func].current.val = val;
+			flag |= SLC_ACK;
+		} else if (hislevel == SLC_CANTCHANGE &&
+				    mylevel == SLC_CANTCHANGE) {
+			flag &= ~SLC_LEVELBITS;
+			flag |= SLC_NOSUPPORT;
+			slctab[(int)func].current.flag = flag;
+		} else {
+			flag &= ~SLC_LEVELBITS;
+			flag |= mylevel;
+			slctab[(int)func].current.flag = flag;
+			if (mylevel == SLC_CANTCHANGE) {
+				slctab[(int)func].current.val =
+					slctab[(int)func].defset.val;
+				val = slctab[(int)func].current.val;
+			}
+		}
+		add_slc(ncct, func, flag, val);
+	}
+
+}  /* end of change_slc */
+
+#if	defined(USE_TERMIO) && (VEOF == VMIN)
+cc_t oldeofc = '\004';
+#endif
+
+/*
+ * check_slc
+ *
+ * Check the special characters in use and notify the client if any have
+ * changed.  Only those characters that are capable of being changed are
+ * likely to have changed.  If a local change occurs, kick the support level
+ * and flags up to the defaults.
+ */
+static void
+check_slc(noit_console_closure_t ncct)
+{
+	int i;
+
+	for (i = 1; i <= NSLC; i++) {
+#if	defined(USE_TERMIO) && (VEOF == VMIN)
+		/*
+		 * In a perfect world this would be a neat little
+		 * function.  But in this world, we should not notify
+		 * client of changes to the VEOF char when
+		 * ICANON is off, because it is not representing
+		 * a special character.
+		 */
+		if (i == SLC_EOF) {
+			if (!noit_console_telnet_tty_isediting(ncct))
+				continue;
+			else if (slctab[i].sptr)
+				oldeofc = *(slctab[i].sptr);
+		}
+#endif	/* defined(USE_TERMIO) && defined(SYSV_TERMIO) */
+		if (slctab[i].sptr &&
+				(*(slctab[i].sptr) != slctab[i].current.val)) {
+			slctab[i].current.val = *(slctab[i].sptr);
+			if (*(slctab[i].sptr) == (cc_t)_POSIX_VDISABLE)
+				slctab[i].current.flag = SLC_NOSUPPORT;
+			else
+				slctab[i].current.flag = slctab[i].defset.flag;
+			add_slc(ncct, (unsigned char)i, slctab[i].current.flag,
+						slctab[i].current.val);
+		}
+	}
+}  /* check_slc */
+
+/*
+ * do_opt_slc
+ *
+ * Process an slc option buffer.  Defer processing of incoming slc's
+ * until after the terminal state has been processed.  Save the first slc
+ * request that comes along, but discard all others.
+ *
+ * ptr points to the beginning of the buffer, len is the length.
+ */
+static void
+do_opt_slc(noit_console_closure_t ncct, unsigned char *ptr, int len)
+{
+	unsigned char func, flag;
+	cc_t val;
+	unsigned char *end = ptr + len;
+
+	if (_terminit) {  /* go ahead */
+		while (ptr < end) {
+			func = *ptr++;
+			if (ptr >= end) break;
+			flag = *ptr++;
+			if (ptr >= end) break;
+			val = (cc_t)*ptr++;
+
+			process_slc(ncct, func, flag, val);
+
+		}
+	} else {
+		/*
+		 * save this slc buffer if it is the first, otherwise dump
+		 * it.
+		 */
+		if (def_slcbuf == (unsigned char *)0) {
+			def_slclen = len;
+			def_slcbuf = (unsigned char *)malloc((unsigned)len);
+			if (def_slcbuf == (unsigned char *)0)
+				return;  /* too bad */
+			memmove(def_slcbuf, ptr, len);
+		}
+	}
+
+}  /* end of do_opt_slc */
+
+/*
+ * deferslc
+ *
+ * Do slc stuff that was deferred.
+ */
+static void
+deferslc(noit_console_closure_t ncct)
+{
+	if (def_slcbuf) {
+		start_slc(ncct, 1);
+		do_opt_slc(ncct, def_slcbuf, def_slclen);
+		(void) end_slc(ncct, 0);
+		free(def_slcbuf);
+		def_slcbuf = (unsigned char *)0;
+		def_slclen = 0;
+	}
+
+}  /* end of deferslc */
+#endif
+
+#ifdef	LINEMODE
+/*
+ * tty_flowmode()	Find out if flow control is enabled or disabled.
+ * tty_linemode()	Find out if linemode (external processing) is enabled.
+ * tty_setlinemod(on)	Turn on/off linemode.
+ * tty_isecho()		Find out if echoing is turned on.
+ * tty_setecho(on)	Enable/disable character echoing.
+ * tty_israw()		Find out if terminal is in RAW mode.
+ * tty_binaryin(on)	Turn on/off BINARY on input.
+ * tty_binaryout(on)	Turn on/off BINARY on output.
+ * tty_isediting()	Find out if line editing is enabled.
+ * tty_istrapsig()	Find out if signal trapping is enabled.
+ * tty_setedit(on)	Turn on/off line editing.
+ * tty_setsig(on)	Turn on/off signal trapping.
+ * tty_issofttab()	Find out if tab expansion is enabled.
+ * tty_setsofttab(on)	Turn on/off soft tab expansion.
+ * tty_islitecho()	Find out if typed control chars are echoed literally
+ * tty_setlitecho()	Turn on/off literal echo of control chars
+ * tty_tspeed(val)	Set transmit speed to val.
+ * tty_rspeed(val)	Set receive speed to val.
+ */
+
+
+int
+noit_console_telnet_tty_linemode(noit_console_closure_t ncct)
+{
+#ifndef    USE_TERMIO
+#ifdef TS_EXTPROC
+    return(termbuf.state & TS_EXTPROC);
+#else
+    return 0;
+#endif
+#else
+    return(termbuf.c_lflag & EXTPROC);
+#endif
+}
+
+void
+noit_console_telnet_tty_setlinemode(noit_console_closure_t ncct, int on)
+{
+#ifdef    TIOCEXT
+    set_termbuf(ncct);
+    (void) ioctl(pty, TIOCEXT, (char *)&on);
+    init_termbuf(ncct);
+#else    /* !TIOCEXT */
+# ifdef    EXTPROC
+    if (on)
+        termbuf.c_lflag |= EXTPROC;
+    else
+        termbuf.c_lflag &= ~EXTPROC;
+# endif
+#endif    /* TIOCEXT */
+}
+
+void
+noit_console_telnet_tty_setsig(noit_console_closure_t ncct, int on)
+{
+#ifndef	USE_TERMIO
+	if (on)
+		;
+#else
+	if (on)
+		termbuf.c_lflag |= ISIG;
+	else
+		termbuf.c_lflag &= ~ISIG;
+#endif
+}
+
+void
+noit_console_telnet_tty_setedit(noit_console_closure_t ncct, int on)
+{
+#ifndef USE_TERMIO
+    if (on)
+        termbuf.sg.sg_flags &= ~CBREAK;
+    else
+        termbuf.sg.sg_flags |= CBREAK;
+#else
+    if (on)
+        termbuf.c_lflag |= ICANON;
+    else
+        termbuf.c_lflag &= ~ICANON;
+#endif
+}
+#endif	/* LINEMODE */
+
+int
+noit_console_telnet_tty_istrapsig(noit_console_closure_t ncct)
+{
+#ifndef USE_TERMIO
+    return(!(termbuf.sg.sg_flags&RAW));
+#else
+    return(termbuf.c_lflag & ISIG);
+#endif
+}
+
+#ifdef	LINEMODE
+int
+noit_console_telnet_tty_isediting(noit_console_closure_t ncct)
+{
+#ifndef USE_TERMIO
+    return(!(termbuf.sg.sg_flags & (CBREAK|RAW)));
+#else
+    return(termbuf.c_lflag & ICANON);
+#endif
+}
+#endif
+
+int
+noit_console_telnet_tty_issofttab(noit_console_closure_t ncct)
+{
+#ifndef    USE_TERMIO
+    return (termbuf.sg.sg_flags & XTABS);
+#else
+# ifdef    OXTABS
+    return (termbuf.c_oflag & OXTABS);
+# endif
+# ifdef    TABDLY
+    return ((termbuf.c_oflag & TABDLY) == TAB3);
+# endif
+#endif
+}
+
+void
+noit_console_telnet_tty_setsofttab(noit_console_closure_t ncct, int on)
+{
+#ifndef    USE_TERMIO
+    if (on)
+        termbuf.sg.sg_flags |= XTABS;
+    else
+        termbuf.sg.sg_flags &= ~XTABS;
+#else
+    if (on) {
+# ifdef    OXTABS
+        termbuf.c_oflag |= OXTABS;
+# endif
+# ifdef    TABDLY
+        termbuf.c_oflag &= ~TABDLY;
+        termbuf.c_oflag |= TAB3;
+# endif
+    } else {
+# ifdef    OXTABS
+        termbuf.c_oflag &= ~OXTABS;
+# endif
+# ifdef    TABDLY
+        termbuf.c_oflag &= ~TABDLY;
+        termbuf.c_oflag |= TAB0;
+# endif
+    }
+#endif
+}
+
+int
+noit_console_telnet_tty_islitecho(noit_console_closure_t ncct)
+{
+#ifndef    USE_TERMIO
+    return (!(termbuf.lflags & LCTLECH));
+#else
+# ifdef    ECHOCTL
+    return (!(termbuf.c_lflag & ECHOCTL));
+# endif
+# ifdef    TCTLECH
+    return (!(termbuf.c_lflag & TCTLECH));
+# endif
+# if    !defined(ECHOCTL) && !defined(TCTLECH)
+    return (0);    /* assumes ctl chars are echoed '^x' */
+# endif
+#endif
+}
+
+void
+noit_console_telnet_tty_setlitecho(noit_console_closure_t ncct, int on)
+{
+#ifndef    USE_TERMIO
+    if (on)
+        termbuf.lflags &= ~LCTLECH;
+    else
+        termbuf.lflags |= LCTLECH;
+#else
+# ifdef    ECHOCTL
+    if (on)
+        termbuf.c_lflag &= ~ECHOCTL;
+    else
+        termbuf.c_lflag |= ECHOCTL;
+# endif
+# ifdef    TCTLECH
+    if (on)
+        termbuf.c_lflag &= ~TCTLECH;
+    else
+        termbuf.c_lflag |= TCTLECH;
+# endif
+#endif
+}
+
+int
+noit_console_telnet_tty_iscrnl(noit_console_closure_t ncct)
+{
+#ifndef	USE_TERMIO
+    return (termbuf.sg.sg_flags & CRMOD);
+#else
+    return (termbuf.c_iflag & ICRNL);
+#endif
+}
 
 void
 noit_console_telnet_tty_tspeed(noit_console_closure_t ncct, int val)
@@ -141,23 +796,92 @@ noit_console_telnet_tty_rspeed(noit_console_closure_t ncct, int val)
 int
 noit_console_telnet_tty_flowmode(noit_console_closure_t ncct)
 {
+#ifndef USE_TERMIO
+    return(((termbuf.tc.t_startc) > 0 && (termbuf.tc.t_stopc) > 0) ? 1 : 0);
+#else
     return((termbuf.c_iflag & IXON) ? 1 : 0);
+#endif
 }
 
 void
 noit_console_telnet_tty_binaryin(noit_console_closure_t ncct, int on)
 {
+#ifndef	USE_TERMIO
+    if (on)
+        termbuf.lflags |= LPASS8;
+    else
+        termbuf.lflags &= ~LPASS8;
+#else
+    if (on)
+        termbuf.c_iflag &= ~ISTRIP;
+    else
+        termbuf.c_iflag |= ISTRIP;
+#endif
+}
+
+int
+noit_console_telnet_tty_isbinaryin(noit_console_closure_t ncct)
+{
+#ifndef	USE_TERMIO
+	return(termbuf.lflags & LPASS8);
+#else
+	return(!(termbuf.c_iflag & ISTRIP));
+#endif
+}
+
+void
+noit_console_telnet_tty_binaryout(noit_console_closure_t ncct, int on)
+{
+#ifndef	USE_TERMIO
+    if (on)
+        termbuf.lflags |= LLITOUT;
+    else
+        termbuf.lflags &= ~LLITOUT;
+#else
     if (on) {
-	termbuf.c_iflag &= ~ISTRIP;
+	termbuf.c_cflag &= ~(CSIZE|PARENB);
+	termbuf.c_cflag |= CS8;
+	termbuf.c_oflag &= ~OPOST;
     } else {
-	termbuf.c_iflag |= ISTRIP;
+	termbuf.c_cflag &= ~CSIZE;
+	termbuf.c_cflag |= CS7|PARENB;
+	termbuf.c_oflag |= OPOST;
     }
+#endif
+}
+
+int
+noit_console_telnet_tty_isbinaryout(noit_console_closure_t ncct)
+{
+#ifndef	USE_TERMIO
+	return(termbuf.lflags & LLITOUT);
+#else
+	return(!(termbuf.c_oflag&OPOST));
+#endif
 }
 
 int
 noit_console_telnet_tty_restartany(noit_console_closure_t ncct)
 {
+#ifndef USE_TERMIO
+# ifdef	DECCTQ
+    return((termbuf.lflags & DECCTQ) ? 0 : 1);
+# else
+    return(-1);
+# endif
+#else
     return((termbuf.c_iflag & IXANY) ? 1 : 0);
+#endif
+}
+
+int
+noit_console_telnet_tty_isecho(noit_console_closure_t ncct)
+{
+#ifndef USE_TERMIO
+	return (termbuf.sg.sg_flags & ECHO);
+#else
+	return (termbuf.c_lflag & ECHO);
+#endif
 }
 
 void
@@ -181,21 +905,7 @@ noit_console_telnet_tty_setecho(noit_console_closure_t ncct, int on)
 #endif
 }
 
-void
-noit_console_telnet_tty_binaryout(noit_console_closure_t ncct, int on)
-{
-    if (on) {
-	termbuf.c_cflag &= ~(CSIZE|PARENB);
-	termbuf.c_cflag |= CS8;
-	termbuf.c_oflag &= ~OPOST;
-    } else {
-	termbuf.c_cflag &= ~CSIZE;
-	termbuf.c_cflag |= CS7|PARENB;
-	termbuf.c_oflag |= OPOST;
-    }
-}
-
-void
+static void
 init_termbuf(noit_console_closure_t ncct)
 {
 #ifndef	USE_TERMIO
@@ -222,7 +932,7 @@ copy_termbuf(noit_console_closure_t ncct, char *cp, size_t len)
 }
 #endif	/* defined(LINEMODE) && defined(TIOCPKT_IOCTL) */
 
-void
+static void
 set_termbuf(noit_console_closure_t ncct)
 {
 	/*
@@ -246,12 +956,289 @@ set_termbuf(noit_console_closure_t ncct)
 #endif	/* USE_TERMIO */
 }
 
+#ifdef	LINEMODE
+/*
+ * localstat
+ *
+ * This function handles all management of linemode.
+ *
+ * Linemode allows the client to do the local editing of data
+ * and send only complete lines to the server.  Linemode state is
+ * based on the state of the pty driver.  If the pty is set for
+ * external processing, then we can use linemode.  Further, if we
+ * can use real linemode, then we can look at the edit control bits
+ * in the pty to determine what editing the client should do.
+ *
+ * Linemode support uses the following state flags to keep track of
+ * current and desired linemode state.
+ *	alwayslinemode : true if -l was specified on the telnetd
+ * 	command line.  It means to have linemode on as much as
+ *	possible.
+ *
+ * 	lmodetype: signifies whether the client can
+ *	handle real linemode, or if use of kludgeomatic linemode
+ *	is preferred.  It will be set to one of the following:
+ *		REAL_LINEMODE : use linemode option
+ *		NO_KLUDGE : don't initiate kludge linemode.
+ *		KLUDGE_LINEMODE : use kludge linemode
+ *		NO_LINEMODE : client is ignorant of linemode
+ *
+ *	linemode, uselinemode : linemode is true if linemode
+ *	is currently on, uselinemode is the state that we wish
+ *	to be in.  If another function wishes to turn linemode
+ *	on or off, it sets or clears uselinemode.
+ *
+ *	editmode, useeditmode : like linemode/uselinemode, but
+ *	these contain the edit mode states (edit and trapsig).
+ *
+ * The state variables correspond to some of the state information
+ * in the pty.
+ *	linemode:
+ *		In real linemode, this corresponds to whether the pty
+ *		expects external processing of incoming data.
+ *		In kludge linemode, this more closely corresponds to the
+ *		whether normal processing is on or not.  (ICANON in
+ *		system V, or COOKED mode in BSD.)
+ *		If the -l option was specified (alwayslinemode), then
+ *		an attempt is made to force external processing on at
+ *		all times.
+ *
+ * The following heuristics are applied to determine linemode
+ * handling within the server.
+ *	1) Early on in starting up the server, an attempt is made
+ *	   to negotiate the linemode option.  If this succeeds
+ *	   then lmodetype is set to REAL_LINEMODE and all linemode
+ *	   processing occurs in the context of the linemode option.
+ *	2) If the attempt to negotiate the linemode option failed,
+ *	   and the "-k" (don't initiate kludge linemode) isn't set,
+ *	   then we try to use kludge linemode.  We test for this
+ *	   capability by sending "do Timing Mark".  If a positive
+ *	   response comes back, then we assume that the client
+ *	   understands kludge linemode (ech!) and the
+ *	   lmodetype flag is set to KLUDGE_LINEMODE.
+ *	3) Otherwise, linemode is not supported at all and
+ *	   lmodetype remains set to NO_LINEMODE (which happens
+ *	   to be 0 for convenience).
+ *	4) At any time a command arrives that implies a higher
+ *	   state of linemode support in the client, we move to that
+ *	   linemode support.
+ *
+ * A short explanation of kludge linemode is in order here.
+ *	1) The heuristic to determine support for kludge linemode
+ *	   is to send a do timing mark.  We assume that a client
+ *	   that supports timing marks also supports kludge linemode.
+ *	   A risky proposition at best.
+ *	2) Further negotiation of linemode is done by changing the
+ *	   the server's state regarding SGA.  If server will SGA,
+ *	   then linemode is off, if server won't SGA, then linemode
+ *	   is on.
+ */
+static void
+localstat(noit_console_closure_t ncct)
+{
+	int need_will_echo = 0;
+
+	/*
+	 * Check for changes to flow control if client supports it.
+	 */
+	flowstat(ncct);
+
+	/*
+	 * Check linemode on/off state
+	 */
+	uselinemode = noit_console_telnet_tty_linemode(ncct);
+
+	/*
+	 * If alwayslinemode is on, and pty is changing to turn it off, then
+	 * force linemode back on.
+	 */
+	if (alwayslinemode && linemode && !uselinemode) {
+		uselinemode = 1;
+		noit_console_telnet_tty_setlinemode(ncct, uselinemode);
+	}
+
+	if (uselinemode) {
+		/*
+		 * Check for state of BINARY options.
+		 *
+		 * We only need to do the binary dance if we are actually going
+		 * to use linemode.  As this confuses some telnet clients
+		 * that don't support linemode, and doesn't gain us
+		 * anything, we don't do it unless we're doing linemode.
+		 * -Crh (henrich@msu.edu)
+		 */
+
+		if (noit_console_telnet_tty_isbinaryin(ncct)) {
+			if (his_want_state_is_wont(TELOPT_BINARY))
+				send_do(TELOPT_BINARY, 1);
+		} else {
+			if (his_want_state_is_will(TELOPT_BINARY))
+				send_dont(TELOPT_BINARY, 1);
+		}
+
+		if (noit_console_telnet_tty_isbinaryout(ncct)) {
+			if (my_want_state_is_wont(TELOPT_BINARY))
+				send_will(TELOPT_BINARY, 1);
+		} else {
+			if (my_want_state_is_will(TELOPT_BINARY))
+				send_wont(TELOPT_BINARY, 1);
+		}
+	}
+
+
+	/*
+	 * Do echo mode handling as soon as we know what the
+	 * linemode is going to be.
+	 * If the pty has echo turned off, then tell the client that
+	 * the server will echo.  If echo is on, then the server
+	 * will echo if in character mode, but in linemode the
+	 * client should do local echoing.  The state machine will
+	 * not send anything if it is unnecessary, so don't worry
+	 * about that here.
+	 *
+	 * If we need to send the WILL ECHO (because echo is off),
+	 * then delay that until after we have changed the MODE.
+	 * This way, when the user is turning off both editing
+	 * and echo, the client will get editing turned off first.
+	 * This keeps the client from going into encryption mode
+	 * and then right back out if it is doing auto-encryption
+	 * when passwords are being typed.
+	 */
+	if (uselinemode) {
+		if (noit_console_telnet_tty_isecho(ncct))
+			send_wont(TELOPT_ECHO, 1);
+		else
+			need_will_echo = 1;
+#ifdef	KLUDGELINEMODE
+		if (lmodetype == KLUDGE_OK)
+			lmodetype = KLUDGE_LINEMODE;
+#endif
+	}
+
+	/*
+	 * If linemode is being turned off, send appropriate
+	 * command and then we're all done.
+	 */
+	 if (!uselinemode && linemode) {
+# ifdef	KLUDGELINEMODE
+		if (lmodetype == REAL_LINEMODE) {
+# endif	/* KLUDGELINEMODE */
+			send_dont(TELOPT_LINEMODE, 1);
+# ifdef	KLUDGELINEMODE
+		} else if (lmodetype == KLUDGE_LINEMODE)
+			send_will(TELOPT_SGA, 1);
+# endif	/* KLUDGELINEMODE */
+		send_will(TELOPT_ECHO, 1);
+		linemode = uselinemode;
+		goto done;
+	}
+
+# ifdef	KLUDGELINEMODE
+	/*
+	 * If using real linemode check edit modes for possible later use.
+	 * If we are in kludge linemode, do the SGA negotiation.
+	 */
+	if (lmodetype == REAL_LINEMODE) {
+# endif	/* KLUDGELINEMODE */
+		useeditmode = 0;
+		if (noit_console_telnet_tty_isediting(ncct))
+			useeditmode |= MODE_EDIT;
+		if (noit_console_telnet_tty_istrapsig(ncct))
+			useeditmode |= MODE_TRAPSIG;
+		if (noit_console_telnet_tty_issofttab(ncct))
+			useeditmode |= MODE_SOFT_TAB;
+		if (noit_console_telnet_tty_islitecho(ncct))
+			useeditmode |= MODE_LIT_ECHO;
+# ifdef	KLUDGELINEMODE
+	} else if (lmodetype == KLUDGE_LINEMODE) {
+		if (noit_console_telnet_tty_isediting(ncct) && uselinemode)
+			send_wont(TELOPT_SGA, 1);
+		else
+			send_will(TELOPT_SGA, 1);
+	}
+# endif	/* KLUDGELINEMODE */
+
+	/*
+	 * Negotiate linemode on if pty state has changed to turn it on.
+	 * Send appropriate command and send along edit mode, then all done.
+	 */
+	if (uselinemode && !linemode) {
+# ifdef	KLUDGELINEMODE
+		if (lmodetype == KLUDGE_LINEMODE) {
+			send_wont(TELOPT_SGA, 1);
+		} else if (lmodetype == REAL_LINEMODE) {
+# endif	/* KLUDGELINEMODE */
+			send_do(TELOPT_LINEMODE, 1);
+			/* send along edit modes */
+			nc_printf(ncct, "%c%c%c%c%c%c%c", IAC, SB,
+				TELOPT_LINEMODE, LM_MODE, useeditmode,
+				IAC, SE);
+			editmode = useeditmode;
+# ifdef	KLUDGELINEMODE
+		}
+# endif	/* KLUDGELINEMODE */
+		linemode = uselinemode;
+		goto done;
+	}
+
+# ifdef	KLUDGELINEMODE
+	/*
+	 * None of what follows is of any value if not using
+	 * real linemode.
+	 */
+	if (lmodetype < REAL_LINEMODE)
+		goto done;
+# endif	/* KLUDGELINEMODE */
+
+	if (linemode && his_state_is_will(TELOPT_LINEMODE)) {
+		/*
+		 * If edit mode changed, send edit mode.
+		 */
+		 if (useeditmode != editmode) {
+			/*
+			 * Send along appropriate edit mode mask.
+			 */
+			nc_printf(ncct, "%c%c%c%c%c%c%c", IAC, SB,
+				TELOPT_LINEMODE, LM_MODE, useeditmode,
+				IAC, SE);
+			editmode = useeditmode;
+		}
+
+
+		/*
+		 * Check for changes to special characters in use.
+		 */
+		start_slc(ncct, 0);
+		check_slc(ncct);
+		(void) end_slc(ncct, 0);
+	}
+
+done:
+	if (need_will_echo)
+		send_will(TELOPT_ECHO, 1);
+	/*
+	 * Some things should be deferred until after the pty state has
+	 * been set by the local process.  Do those things that have been
+	 * deferred now.  This only happens once.
+	 */
+	if (_terminit == 0) {
+		_terminit = 1;
+		defer_terminit(ncct);
+	}
+
+	netflush(ncct);
+	set_termbuf(ncct);
+	return;
+
+}  /* end of localstat */
+#endif	/* LINEMODE */
+
 /*
  * flowstat
  *
  * Check for changes to flow control
  */
-void
+static void
 flowstat(noit_console_closure_t ncct)
 {
     if (his_state_is_will(TELOPT_LFLOW)) {
@@ -293,6 +1280,122 @@ clientstat(noit_console_closure_t ncct, int code, int parm1, int parm2)
      * Process request from client. code tells what it is.
      */
     switch (code) {
+#ifdef	LINEMODE
+	case TELOPT_LINEMODE:
+		/*
+		 * Don't do anything unless client is asking us to change
+		 * modes.
+		 */
+		uselinemode = (parm1 == WILL);
+		if (uselinemode != linemode) {
+# ifdef	KLUDGELINEMODE
+			/*
+			 * If using kludge linemode, make sure that
+			 * we can do what the client asks.
+			 * We can not turn off linemode if alwayslinemode
+			 * and the ICANON bit is set.
+			 */
+			if (lmodetype == KLUDGE_LINEMODE) {
+				if (alwayslinemode && noit_console_telnet_tty_isediting(ncct)) {
+					uselinemode = 1;
+				}
+			}
+
+			/*
+			 * Quit now if we can't do it.
+			 */
+			if (uselinemode == linemode)
+				return;
+
+			/*
+			 * If using real linemode and linemode is being
+			 * turned on, send along the edit mode mask.
+			 */
+			if (lmodetype == REAL_LINEMODE && uselinemode)
+# else	/* KLUDGELINEMODE */
+			if (uselinemode)
+# endif	/* KLUDGELINEMODE */
+			{
+				useeditmode = 0;
+				if (noit_console_telnet_tty_isediting(ncct))
+					useeditmode |= MODE_EDIT;
+				if (noit_console_telnet_tty_istrapsig(ncct))
+					useeditmode |= MODE_TRAPSIG;
+				if (noit_console_telnet_tty_issofttab(ncct))
+					useeditmode |= MODE_SOFT_TAB;
+				if (noit_console_telnet_tty_islitecho(ncct))
+					useeditmode |= MODE_LIT_ECHO;
+				nc_printf(ncct, "%c%c%c%c%c%c%c", IAC,
+					SB, TELOPT_LINEMODE, LM_MODE,
+							useeditmode, IAC, SE);
+				editmode = useeditmode;
+			}
+
+
+			noit_console_telnet_tty_setlinemode(ncct, uselinemode);
+
+			linemode = uselinemode;
+
+			if (!linemode)
+				send_will(TELOPT_ECHO, 1);
+		}
+		break;
+
+	case LM_MODE:
+	    {
+		int ack, changed;
+
+		/*
+		 * Client has sent along a mode mask.  If it agrees with
+		 * what we are currently doing, ignore it; if not, it could
+		 * be viewed as a request to change.  Note that the server
+		 * will change to the modes in an ack if it is different from
+		 * what we currently have, but we will not ack the ack.
+		 */
+		 useeditmode &= MODE_MASK;
+		 ack = (useeditmode & MODE_ACK);
+		 useeditmode &= ~MODE_ACK;
+
+		 if ((changed = (useeditmode ^ editmode))) {
+			/*
+			 * This check is for a timing problem.  If the
+			 * state of the tty has changed (due to the user
+			 * application) we need to process that info
+			 * before we write in the state contained in the
+			 * ack!!!  This gets out the new MODE request,
+			 * and when the ack to that command comes back
+			 * we'll set it and be in the right mode.
+			 */
+			if (ack)
+				localstat(ncct);
+			if (changed & MODE_EDIT)
+				noit_console_telnet_tty_setedit(ncct, useeditmode & MODE_EDIT);
+
+			if (changed & MODE_TRAPSIG)
+				noit_console_telnet_tty_setsig(ncct, useeditmode & MODE_TRAPSIG);
+
+			if (changed & MODE_SOFT_TAB)
+				noit_console_telnet_tty_setsofttab(ncct, useeditmode & MODE_SOFT_TAB);
+
+			if (changed & MODE_LIT_ECHO)
+				noit_console_telnet_tty_setlitecho(ncct, useeditmode & MODE_LIT_ECHO);
+
+			set_termbuf(ncct);
+
+ 			if (!ack) {
+				nc_printf(ncct, "%c%c%c%c%c%c%c", IAC,
+					SB, TELOPT_LINEMODE, LM_MODE,
+ 					useeditmode|MODE_ACK,
+ 					IAC, SE);
+ 			}
+
+			editmode = useeditmode;
+		}
+
+		break;
+
+	    }  /* end of case LM_MODE */
+#endif	/* LINEMODE */
     case TELOPT_NAWS:
 #ifdef	TIOCSWINSZ
 	{
@@ -339,6 +1442,46 @@ clientstat(noit_console_closure_t ncct, int code, int parm1, int parm2)
     netflush(ncct);
 }
 
+#ifdef	LINEMODE
+/*
+ * defer_terminit
+ *
+ * Some things should not be done until after the login process has started
+ * and all the pty modes are set to what they are supposed to be.  This
+ * function is called when the pty state has been processed for the first time.
+ * It calls other functions that do things that were deferred in each module.
+ */
+static void
+defer_terminit(noit_console_closure_t ncct)
+{
+
+	/*
+	 * local stuff that got deferred.
+	 */
+	if (def_tspeed != -1) {
+		clientstat(ncct, TELOPT_TSPEED, def_tspeed, def_rspeed);
+		def_tspeed = def_rspeed = 0;
+	}
+
+#ifdef	TIOCSWINSZ
+	if (def_col || def_row) {
+		struct winsize ws;
+
+		memset((char *)&ws, 0, sizeof(ws));
+		ws.ws_col = def_col;
+		ws.ws_row = def_row;
+		(void) ioctl(pty, TIOCSWINSZ, (char *)&ws);
+	}
+#endif
+
+	/*
+	 * The only other module that currently defers anything.
+	 */
+	deferslc(ncct);
+
+}  /* end of defer_terminit */
+#endif
+
 /*
  * spcset(func, valp, valpp)
  *
@@ -351,7 +1494,7 @@ clientstat(noit_console_closure_t ncct, int code, int parm1, int parm2)
  */
 
 #ifndef	USE_TERMIO
-int
+static int
 spcset(noit_console_closure_t ncct, int func, cc_t *valp, cc_t **valpp)
 {
 	switch(func) {
@@ -626,7 +1769,7 @@ doeof(noit_console_closure_t ncct)
 	init_termbuf(ncct);
 
 #if	defined(LINEMODE) && defined(USE_TERMIO) && (VEOF == VMIN)
-	if (!noit_console_telnet_tty_isediting()) {
+	if (!noit_console_telnet_tty_isediting(ncct)) {
 		extern char oldeofc;
 		pty_write(ncct, &oldeofc, 1);
 		return;
@@ -639,8 +1782,11 @@ doeof(noit_console_closure_t ncct)
 
 noit_console_telnet_closure_t
 noit_console_telnet_alloc(noit_console_closure_t ncct) {
-  int i, on;
+  int on;
   noit_console_telnet_closure_t telnet, tmp;
+  static unsigned char ttytype_sbbuf[] = {
+    IAC, SB, TELOPT_TTYPE, TELQUAL_SEND, IAC, SE
+  };
   tmp = ncct->telnet;
 
   ncct->telnet = calloc(1, sizeof(*telnet));
@@ -649,12 +1795,7 @@ noit_console_telnet_alloc(noit_console_closure_t ncct) {
   subend= subbuffer;
   def_tspeed = -1;
   def_rspeed = -1;
-  for (i = 1; i <= NSLC; i++) {
-    slctab[i].defset.flag =
-      spcset(ncct, i, &slctab[i].defset.val, &slctab[i].sptr);
-    slctab[i].current.flag = SLC_NOSUPPORT;
-    slctab[i].current.val = 0;
-  }
+  get_slc_defaults(ncct);
   if (my_state_is_wont(TELOPT_SGA))
     send_will(TELOPT_SGA, 1);
   send_do(TELOPT_ECHO, 1);
@@ -669,6 +1810,14 @@ noit_console_telnet_alloc(noit_console_closure_t ncct) {
   if (my_state_is_wont(TELOPT_ECHO))
     send_will(TELOPT_ECHO, 1);
   on = 1;
+  init_termbuf(ncct);
+  localstat(ncct);
+  send_do(TELOPT_TTYPE, 1);
+  send_do(TELOPT_TSPEED, 1);
+  send_do(TELOPT_XDISPLOC, 1);
+  send_do(TELOPT_NEW_ENVIRON, 1);
+  send_do(TELOPT_OLD_ENVIRON, 1);
+  nc_write(ncct, ttytype_sbbuf, sizeof(ttytype_sbbuf));
 
   telnet = ncct->telnet;
   ncct->telnet = tmp;
@@ -753,11 +1902,16 @@ noit_console_telnet_telrcv(noit_console_closure_t ncct,
 	     * if CRMOD is set, which it normally is).
 	     */
 	    if ((c == '\r') && his_state_is_wont(TELOPT_BINARY)) {
-#ifdef ENCRYPTION
 		int nc = *netip;
+#ifdef ENCRYPTION
 		if (decrypt_input)
 		    nc = (*decrypt_input)(nc & 0xff);
 #endif
+		if (linemode && (ncc > 0) && (('\n' == nc) ||
+			 ((0 == nc) && noit_console_telnet_tty_iscrnl(ncct))) ) {
+			netip++; ncc--;
+			c = '\n';
+		} else
 		{
 #ifdef ENCRYPTION
 		    if (decrypt_input)
@@ -1092,10 +2246,35 @@ noit_console_telnet_willoption(noit_console_closure_t ncct, int option)
 		break;
 
 	    case TELOPT_TM:
-		/*
-		 * We never respond to a WILL TM, and
-		 * we leave the state WONT.
-		 */
+#if	defined(LINEMODE) && defined(KLUDGELINEMODE)
+			/*
+			 * This telnetd implementation does not really
+			 * support timing marks, it just uses them to
+			 * support the kludge linemode stuff.  If we
+			 * receive a will or wont TM in response to our
+			 * do TM request that may have been sent to
+			 * determine kludge linemode support, process
+			 * it, otherwise TM should get a negative
+			 * response back.
+			 */
+			/*
+			 * Handle the linemode kludge stuff.
+			 * If we are not currently supporting any
+			 * linemode at all, then we assume that this
+			 * is the client telling us to use kludge
+			 * linemode in response to our query.  Set the
+			 * linemode type that is to be supported, note
+			 * that the client wishes to use linemode, and
+			 * eat the will TM as though it never arrived.
+			 */
+			if (lmodetype < KLUDGE_LINEMODE) {
+				lmodetype = KLUDGE_LINEMODE;
+				clientstat(ncct, TELOPT_LINEMODE, WILL, 0);
+				send_wont(TELOPT_SGA, 1);
+			} else if (lmodetype == NO_AUTOKLUDGE) {
+				lmodetype = KLUDGE_OK;
+			}
+#endif	/* defined(LINEMODE) && defined(KLUDGELINEMODE) */
 		break;
 
 	    case TELOPT_LFLOW:
@@ -1118,6 +2297,18 @@ noit_console_telnet_willoption(noit_console_closure_t ncct, int option)
 		changeok++;
 		break;
 
+#ifdef	LINEMODE
+		case TELOPT_LINEMODE:
+# ifdef	KLUDGELINEMODE
+			/*
+			 * Note client's desire to use linemode.
+			 */
+			lmodetype = REAL_LINEMODE;
+# endif	/* KLUDGELINEMODE */
+			func = noit_console_telnet_doclientstat;
+			changeok++;
+			break;
+#endif	/* LINEMODE */
 
 #ifdef	AUTHENTICATION
 	    case TELOPT_AUTHENTICATION:
@@ -1174,6 +2365,17 @@ noit_console_telnet_willoption(noit_console_closure_t ncct, int option)
 		 */
 		break;
 
+#ifdef	LINEMODE
+		case TELOPT_LINEMODE:
+# ifdef	KLUDGELINEMODE
+			/*
+			 * Note client's desire to use linemode.
+			 */
+			lmodetype = REAL_LINEMODE;
+# endif	/* KLUDGELINEMODE */
+			func = noit_console_telnet_doclientstat;
+			break;
+#endif	/* LINEMODE */
 #ifdef	AUTHENTICATION
 	    case TELOPT_AUTHENTICATION:
 		func = auth_request;
@@ -1235,6 +2437,21 @@ noit_console_telnet_wontoption(noit_console_closure_t ncct, int option)
 		noit_console_telnet_tty_binaryin(ncct, 0);
 		set_termbuf(ncct);
 		break;
+
+#ifdef	LINEMODE
+            case TELOPT_LINEMODE:
+# ifdef	KLUDGELINEMODE
+                /*
+		 * If real linemode is supported, then client is
+		 * asking to turn linemode off.
+		 */
+		if (lmodetype != REAL_LINEMODE)
+			break;
+		lmodetype = KLUDGE_LINEMODE;
+# endif	/* KLUDGELINEMODE */
+		clientstat(ncct, TELOPT_LINEMODE, WONT, 0);
+		break;
+#endif	/* LINEMODE */
 
 	    case TELOPT_TM:
 		/*
@@ -1301,6 +2518,14 @@ noit_console_telnet_wontoption(noit_console_closure_t ncct, int option)
 	} else {
 	    switch (option) {
 	    case TELOPT_TM:
+#if	defined(LINEMODE) && defined(KLUDGELINEMODE)
+		if (lmodetype < NO_AUTOKLUDGE) {
+			lmodetype = NO_LINEMODE;
+			clientstat(TELOPT_LINEMODE, WONT, 0);
+			send_will(TELOPT_SGA, 1);
+			send_will(TELOPT_ECHO, 1);
+		}
+#endif	/* defined(LINEMODE) && defined(KLUDGELINEMODE) */
 		break;
 
 #ifdef AUTHENTICATION
@@ -1330,15 +2555,6 @@ noit_console_telnet_send_will(noit_console_closure_t ncct, int option, int init)
     nc_printf (ncct, (const char *)will, option);
 }
 
-/*
- * When we get a DONT SGA, we will try once to turn it
- * back on.  If the other side responds DONT SGA, we
- * leave it at that.  This is so that when we talk to
- * clients that understand KLUDGELINEMODE but not LINEMODE,
- * we'll keep them in char-at-a-time mode.
- */
-int turn_on_sga = 0;
-
 void
 noit_console_telnet_dooption(noit_console_closure_t ncct, int option)
 {
@@ -1356,6 +2572,13 @@ noit_console_telnet_dooption(noit_console_closure_t ncct, int option)
     if ((will_wont_resp[option] == 0) && (my_want_state_is_wont(option))) {
 	switch (option) {
 	case TELOPT_ECHO:
+#ifdef	LINEMODE
+# ifdef	KLUDGELINEMODE
+	    if (lmodetype == NO_LINEMODE)
+# else
+	    if (his_state_is_wont(TELOPT_LINEMODE))
+# endif
+#endif
 	    {
 		init_termbuf(ncct);
 		noit_console_telnet_tty_setecho(ncct, 1);
@@ -1372,7 +2595,32 @@ noit_console_telnet_dooption(noit_console_closure_t ncct, int option)
 	    break;
 
 	case TELOPT_SGA:
+#if	defined(LINEMODE) && defined(KLUDGELINEMODE)
+		/*
+		 * If kludge linemode is in use, then we must
+		 * process an incoming do SGA for linemode
+		 * purposes.
+		 */
+	    if (lmodetype == KLUDGE_LINEMODE) {
+		/*
+		 * Receipt of "do SGA" in kludge
+		 * linemode is the peer asking us to
+		 * turn off linemode.  Make note of
+		 * the request.
+		 */
+		clientstat(TELOPT_LINEMODE, WONT, 0);
+		/*
+		 * If linemode did not get turned off
+		 * then don't tell peer that we did.
+		 * Breaking here forces a wont SGA to
+		 * be returned.
+		 */
+		if (linemode)
+			break;
+	    }
+#else
 	    turn_on_sga = 0;
+#endif	/* defined(LINEMODE) && defined(KLUDGELINEMODE) */
 	    changeok++;
 	    break;
 
@@ -1468,6 +2716,14 @@ noit_console_telnet_dontoption(noit_console_closure_t ncct, int option)
 	    break;
 
 	case TELOPT_ECHO:	/* we should stop echoing */
+#ifdef	LINEMODE
+# ifdef	KLUDGELINEMODE
+	    if ((lmodetype != REAL_LINEMODE) &&
+		    (lmodetype != KLUDGE_LINEMODE))
+# else
+	    if (his_state_is_wont(TELOPT_LINEMODE))
+# endif
+#endif
 	    {
 		init_termbuf(ncct);
 		noit_console_telnet_tty_setecho(ncct, 0);
@@ -1476,6 +2732,29 @@ noit_console_telnet_dontoption(noit_console_closure_t ncct, int option)
 	break;
 
 	case TELOPT_SGA:
+#if	defined(LINEMODE) && defined(KLUDGELINEMODE)
+		/*
+		 * If kludge linemode is in use, then we
+		 * must process an incoming do SGA for
+		 * linemode purposes.
+		 */
+	    if ((lmodetype == KLUDGE_LINEMODE) ||
+		    (lmodetype == KLUDGE_OK)) {
+		/*
+		 * The client is asking us to turn
+		 * linemode on.
+		 */
+		lmodetype = KLUDGE_LINEMODE;
+		clientstat(TELOPT_LINEMODE, WILL, 0);
+		/*
+		 * If we did not turn line mode on,
+		 * then what do we say?  Will SGA?
+		 * This violates design of telnet.
+		 * Gross.  Very Gross.
+		 */
+	    }
+	    break;
+#else
 	    set_my_want_state_wont(option);
 	    if (my_state_is_will(option))
 		send_wont(option, 0);
@@ -1483,6 +2762,7 @@ noit_console_telnet_dontoption(noit_console_closure_t ncct, int option)
 	    if (turn_on_sga ^= 1)
 		send_will(option, 1);
 	    return;
+#endif	/* defined(LINEMODE) && defined(KLUDGELINEMODE) */
 
 	default:
 	    break;
@@ -1598,7 +2878,54 @@ suboption(noit_console_closure_t ncct)
 	break;
 
     }  /* end of case TELOPT_NAWS */
+#ifdef	LINEMODE
+    case TELOPT_LINEMODE: {
+	int request;
 
+	if (his_state_is_wont(TELOPT_LINEMODE))	/* Ignore if option disabled */
+		break;
+	/*
+	 * Process linemode suboptions.
+	 */
+	if (SB_EOF())
+	    break;		/* garbage was sent */
+	request = SB_GET();	/* get will/wont */
+
+	if (SB_EOF())
+	    break;		/* another garbage check */
+
+	if (request == LM_SLC) {  /* SLC is not preceeded by WILL or WONT */
+		/*
+		 * Process suboption buffer of slc's
+		 */
+		start_slc(ncct, 1);
+		do_opt_slc(ncct, subpointer, subend - subpointer);
+		(void) end_slc(ncct, 0);
+		break;
+	} else if (request == LM_MODE) {
+		if (SB_EOF())
+		    return;
+		useeditmode = SB_GET();  /* get mode flag */
+		clientstat(ncct, LM_MODE, 0, 0);
+		break;
+	}
+
+	if (SB_EOF())
+	    break;
+	switch (SB_GET()) {  /* what suboption? */
+	case LM_FORWARDMASK:
+		/*
+		 * According to spec, only server can send request for
+		 * forwardmask, and client can only return a positive response.
+		 * So don't worry about it.
+		 */
+
+	default:
+		break;
+	}
+	break;
+    }  /* end of case TELOPT_LINEMODE */
+#endif
     case TELOPT_STATUS: {
 	int mode;
 
@@ -1961,6 +3288,28 @@ noit_console_telnet_send_status(noit_console_closure_t ncct)
 	}
     }
 
+#ifdef	LINEMODE
+	if (his_want_state_is_will(TELOPT_LINEMODE)) {
+		unsigned char *cp, *cpe;
+		int len;
+
+		ADD(SB);
+		ADD(TELOPT_LINEMODE);
+		ADD(LM_MODE);
+		ADD_DATA(editmode);
+		ADD(SE);
+
+		ADD(SB);
+		ADD(TELOPT_LINEMODE);
+		ADD(LM_SLC);
+		start_slc(ncct, 0);
+		send_slc(ncct);
+		len = end_slc(ncct, &cp);
+		for (cpe = cp + len; cp < cpe; cp++)
+			ADD_DATA(*cp);
+		ADD(SE);
+	}
+#endif	/* LINEMODE */
 
     ADD(IAC);
     ADD(SE);

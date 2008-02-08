@@ -43,9 +43,12 @@
 
 #include <arpa/telnet.h>
 #include <sys/ioctl.h>
+#include <sys/ioctl_compat.h>
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
 #ifdef HAVE_TERM_H
 #include <term.h>
-#define USE_TERMIO
 #endif
 
 #define LINEMODE 1
@@ -155,8 +158,23 @@ typedef struct {
   int            _SYNCHing;
   int            _flowmode;
   int            _restartany;
+  int            __terminit;
+  int            _linemode;
+  int            _uselinemode;
+  int            _alwayslinemode;
+  int            _editmode;
+  int            _useeditmode;
+  unsigned char *_def_slcbuf;
+  int            _def_slclen;
+  int            _slcchange;	/* change to slc is requested */
+  unsigned char *_slcptr;	/* pointer into slc buffer */
+  unsigned char  _slcbuf[NSLC*6];	/* buffer for slc negotiation */
+
   int            _def_tspeed; /* This one */
   int            _def_rspeed; /* and this one, need init to -1 */
+#if	!defined(LINEMODE) || !defined(KLUDGELINEMODE)
+  int            _turn_on_sga;
+#endif
 #ifdef TIOCSWINSZ
   int            _def_row;
   int            _def_col;
