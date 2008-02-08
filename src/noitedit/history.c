@@ -620,7 +620,7 @@ history_load(History *h, const char *fname)
 			max_size = (sz + 1024) & ~1023;
 			ptr = h_realloc(ptr, max_size);
 		}
-		(void) strunvis(ptr, line);
+		(void) strlcpy(ptr, line, max_size);
 		line[sz] = c;
 		HENTER(h, &ev, ptr);
 	}
@@ -660,7 +660,8 @@ history_save(History *h, const char *fname)
 			max_size = (len + 1024) & ~1023;
 			ptr = h_realloc(ptr, max_size);
 		}
-		(void) strvis(ptr, ev.str, VIS_WHITE);
+		/* next line is better. strvis(ptr, ev.str, VIS_WHITE); */
+                (void) strlcpy(ptr, ev.str, max_size);
 		(void) fprintf(fp, "%s\n", ev.str);
 	}
 	h_free(ptr);

@@ -400,7 +400,7 @@ term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
          * New string is shorter; no need to allocate space
          */
 	if (clen <= tlen) {
-		(void) strcpy(*str, cap);	/* XXX strcpy is safe */
+		(void) strlcpy(*str, cap, tlen);
 		return;
 	}
 	/*
@@ -433,8 +433,8 @@ term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
 		    "Out of termcap string space.\n");
 		return;
 	}
-					/* XXX strcpy is safe */
-	(void) strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap);
+	(void) strlcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap,
+                       TC_BUFSIZE - el->el_term.t_loc);
 	el->el_term.t_loc += clen + 1;	/* one for \0 */
 	return;
 }
