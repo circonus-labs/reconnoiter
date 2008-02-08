@@ -18,6 +18,8 @@ typedef struct __noit_console_closure {
 
   /* nice console support */
   EditLine *el;
+  History *hist;
+
   int   pty_master;
   int   pty_slave;
 

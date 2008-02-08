@@ -93,6 +93,7 @@ nc_write(noit_console_closure_t ncct, void *buf, int len) {
 void
 noit_console_closure_free(noit_console_closure_t ncct) {
   if(ncct->el) el_end(ncct->el);
+  if(ncct->hist) history_end(ncct->hist);
   if(ncct->pty_master >= 0) close(ncct->pty_master);
   if(ncct->pty_slave >= 0) close(ncct->pty_slave);
   if(ncct->outbuf) free(ncct->outbuf);
@@ -146,12 +147,12 @@ noit_console_dispatch(eventer_t e, const char *buffer,
                       noit_console_closure_t ncct) {
   char *cmds[32];
   int i, cnt = 32;
-  nc_printf(ncct, "You said: %s", buffer);
+  nc_printf(ncct, "You said: %s\r\n", buffer);
   i = noit_tokenize(buffer, cmds, &cnt);
   if(i>cnt) nc_printf(ncct, "Command length too long.\n");
   if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
   for(i=0;i<cnt;i++) {
-    nc_printf(ncct, "[%d] '%s'\n", i, cmds[i]);
+    nc_printf(ncct, "[%d] '%s'\r\n", i, cmds[i]);
     free(cmds[i]);
   }
 }
@@ -182,8 +183,12 @@ socket_error:
       ncct->wants_shutdown = 1;
     }
     else {
+      HistEvent ev;
+      ncct->hist = history_init();
+      history(ncct->hist, &ev, H_SETSIZE, 500);
       ncct->el = el_init("noitd", ncct->pty_master, e->fd, e->fd);
       el_set(ncct->el, EL_EDITOR, "emacs");
+      el_set(ncct->el, EL_HIST, history, ncct->hist);
       ncct->telnet = noit_console_telnet_alloc(ncct);
     }
   }
@@ -207,6 +212,7 @@ socket_error:
     if(!el_eagain(ncct->el)) keep_going++;
 
     len = e->opset->read(e->fd, sbuf, sizeof(sbuf)-1, &newmask, e);
+noitL(noit_stderr, "opset->read => %d bytes\n", len);
     if(len == 0 || (len < 0 && errno != EAGAIN)) {
       eventer_remove_fd(e->fd);
       close(e->fd);
@@ -224,8 +230,17 @@ socket_error:
       }
     }
     if(buffer) {
-      printf("IN: %s", buffer);
-      noit_console_dispatch(e, buffer, ncct);
+      char *cmd_buffer;
+      HistEvent ev;
+      cmd_buffer = malloc(plen+1);
+      memcpy(cmd_buffer, buffer, plen);
+      /* chomp */
+      cmd_buffer[plen] = '\0';
+      if(cmd_buffer[plen-1] == '\n') cmd_buffer[plen-1] = '\0';
+      noitL(noit_debug, "IN: '%s'\n", cmd_buffer);
+      history(ncct->hist, &ev, H_ENTER, cmd_buffer);
+      noit_console_dispatch(e, cmd_buffer, ncct);
+      free(cmd_buffer);
       if(noit_console_continue_sending(ncct, &newmask) == -1) {
         if(errno != EAGAIN) goto socket_error;
         return newmask | EVENTER_EXCEPTION;
