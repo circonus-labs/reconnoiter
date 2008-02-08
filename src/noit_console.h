@@ -10,6 +10,7 @@
 #include "eventer/eventer.h"
 #include "noitedit/histedit.h"
 #include "noit_console_telnet.h"
+#include <stdarg.h>
 
 typedef struct __noit_console_closure {
   eventer_t e;           /* The event it is attached to.  This

@@ -408,8 +408,8 @@ term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
          */
 	if (el->el_term.t_loc + 3 < TC_BUFSIZE) {
 						/* XXX strcpy is safe */
-		(void) strcpy(*str = &el->el_term.t_buf[el->el_term.t_loc],
-		    cap);
+		(void) strlcpy(*str = &el->el_term.t_buf[el->el_term.t_loc],
+		    cap, TC_BUFSIZE - el->el_term.t_loc);
 		el->el_term.t_loc += clen + 1;	/* one for \0 */
 		return;
 	}

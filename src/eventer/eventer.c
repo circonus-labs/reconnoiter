@@ -1,3 +1,4 @@
+#define _EVENTER_C_
 #include "eventer/eventer.h"
 #include "eventer/eventer_impl.h"
 #include "eventer/eventer_POSIX_fd_opset.h"

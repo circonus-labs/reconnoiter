@@ -71,7 +71,10 @@ typedef struct _eventer_impl {
 } *eventer_impl_t;
 
 /* This is the "chosen one" */
-extern eventer_impl_t __eventer;
+#ifndef _EVENTER_C
+extern
+#endif
+eventer_impl_t __eventer;
 
 API_EXPORT(int) eventer_choose(const char *name);
 

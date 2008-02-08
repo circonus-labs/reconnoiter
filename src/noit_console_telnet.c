@@ -233,7 +233,7 @@ start_slc(noit_console_closure_t ncct, int getit)
 	slcchange = 0;
 	if (getit)
 		init_termbuf(ncct);
-	(void) sprintf((char *)slcbuf, "%c%c%c%c",
+	(void) snprintf((char *)slcbuf, 5, "%c%c%c%c",
 					IAC, SB, TELOPT_LINEMODE, LM_SLC);
 	slcptr = slcbuf + 4;
 
@@ -272,7 +272,7 @@ end_slc(noit_console_closure_t ncct, unsigned char **bufp)
 			*bufp = &slcbuf[4];
 			return(slcptr - slcbuf - 4);
 		} else {
-			(void) sprintf((char *)slcptr, "%c%c", IAC, SE);
+			(void) snprintf((char *)slcptr, 3, "%c%c", IAC, SE);
 			slcptr += 2;
 			len = slcptr - slcbuf;
 			nc_write(ncct, slcbuf, len);

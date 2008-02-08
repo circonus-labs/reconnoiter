@@ -9,7 +9,12 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+#ifdef HAVE_UTIL_H
 #include <util.h>
+#endif
 #include <arpa/telnet.h>
 
 #include "eventer/eventer.h"

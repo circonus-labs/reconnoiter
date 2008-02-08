@@ -117,7 +117,7 @@ noit_poller_load_checks() {
       continue;
     }
     if(!noit_conf_get_stringbuf(sec[i], "name", name, sizeof(name))) {
-      strcpy(name, module);
+      strlcpy(name, module, sizeof(name));
     }
     if(!noit_conf_get_int(sec[i], "ancestor-or-self::node()/period", &period)) {
       no_period = 1;
