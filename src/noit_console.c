@@ -196,7 +196,6 @@ noit_console_dispatch(eventer_t e, const char *buffer,
   char **cmds;
   int i, cnt = 32;
   cmds = alloca(32 * sizeof(*cmds));
-  nc_printf(ncct, "You said: %s\n", buffer);
   i = noit_tokenize(buffer, cmds, &cnt);
   if(i>cnt) nc_printf(ncct, "Command length too long.\n");
   else if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
@@ -261,7 +260,14 @@ socket_error:
     keep_going = 0;
 
     buffer = el_gets(ncct->el, &plen);
-    if(!el_eagain(ncct->el)) keep_going++;
+    if(!el_eagain(ncct->el)) {
+      if(!buffer) {
+        buffer = "exit";
+        plen = 4;
+        nc_write(ncct, "\n", 1);
+      }
+      keep_going++;
+    }
 
     len = e->opset->read(e->fd, sbuf, sizeof(sbuf)-1, &newmask, e);
     if(len == 0 || (len < 0 && errno != EAGAIN)) {
