@@ -23,6 +23,41 @@
 #include "noit_console.h"
 #include "noit_tokenizer.h"
 
+static void
+nc_telnet_cooker(noit_console_closure_t ncct) {
+  char *tmpbuf, *p, *n;
+  int r;
+
+  tmpbuf = ncct->outbuf;
+  if(ncct->outbuf_len == 0) return;
+
+  p = ncct->outbuf + ncct->outbuf_completed;
+  r = ncct->outbuf_len - ncct->outbuf_completed;
+  n = memchr(p, '\n', r);
+  /* No '\n'? Nothin' to do */
+  if(!n) {
+    ncct->outbuf_cooked = ncct->outbuf_len;
+    return;
+  }
+
+  /* Forget the outbuf -- it is now tmpbuf */
+  ncct->outbuf = NULL;
+  ncct->outbuf_allocd = 0;
+  ncct->outbuf_len = 0;
+  ncct->outbuf_completed = 0;
+  ncct->outbuf_cooked = 0;
+  do {
+    if(n == tmpbuf || *(n-1) != '\r') {
+      nc_write(ncct, p, n-p);   r -= n-p;
+      nc_write(ncct, "\r", 1);
+      p = n;
+    }
+    n = memchr(p+1, '\n', r-1);
+  } while(n);
+  nc_write(ncct, p, r);
+  ncct->outbuf_cooked = ncct->outbuf_len;
+  free(tmpbuf);
+}
 int
 nc_printf(noit_console_closure_t ncct, const char *fmt, ...) {
   int len;
@@ -103,6 +138,12 @@ noit_console_closure_free(noit_console_closure_t ncct) {
   if(ncct->pty_slave >= 0) close(ncct->pty_slave);
   if(ncct->outbuf) free(ncct->outbuf);
   if(ncct->telnet) noit_console_telnet_free(ncct->telnet);
+  while(ncct->state) {
+    noit_console_state_t *tmp;
+    tmp = ncct->state;
+    ncct->state = tmp->stacked;
+    noit_console_state_free(tmp);
+  }
   free(ncct);
 }
 
@@ -121,6 +162,7 @@ noit_console_continue_sending(noit_console_closure_t ncct,
   int len;
   eventer_t e = ncct->e;
   if(!ncct->outbuf_len) return 0;
+  if(ncct->output_cooker) ncct->output_cooker(ncct);
   while(ncct->outbuf_len > ncct->outbuf_completed) {
     len = e->opset->write(e->fd, ncct->outbuf + ncct->outbuf_completed,
                           ncct->outbuf_len - ncct->outbuf_completed,
@@ -135,8 +177,8 @@ noit_console_continue_sending(noit_console_closure_t ncct,
   len = ncct->outbuf_len;
   free(ncct->outbuf);
   ncct->outbuf = NULL;
-  ncct->outbuf_allocd = 0;
-  ncct->outbuf_len = ncct->outbuf_completed = 0;
+  ncct->outbuf_allocd = ncct->outbuf_len =
+    ncct->outbuf_completed = ncct->outbuf_cooked = 0;
   return len;
 }
 
@@ -150,14 +192,16 @@ noit_console_init() {
 void
 noit_console_dispatch(eventer_t e, const char *buffer,
                       noit_console_closure_t ncct) {
-  char *cmds[32];
+  char **cmds;
   int i, cnt = 32;
-  nc_printf(ncct, "You said: %s\r\n", buffer);
+  cmds = alloca(32 * sizeof(*cmds));
+  nc_printf(ncct, "You said: %s\n", buffer);
   i = noit_tokenize(buffer, cmds, &cnt);
   if(i>cnt) nc_printf(ncct, "Command length too long.\n");
-  if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
+  else if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
+  else noit_console_state_do(ncct, cnt, cmds);
   for(i=0;i<cnt;i++) {
-    nc_printf(ncct, "[%d] '%s'\r\n", i, cmds[i]);
+    nc_printf(ncct, "[%d] '%s'\n", i, cmds[i]);
     free(cmds[i]);
   }
 }
@@ -195,14 +239,17 @@ socket_error:
       el_set(ncct->el, EL_EDITOR, "emacs");
       el_set(ncct->el, EL_HIST, history, ncct->hist);
       ncct->telnet = noit_console_telnet_alloc(ncct);
+      ncct->output_cooker = nc_telnet_cooker;
+      ncct->state = noit_console_state_initial();
+      noit_console_state_init(ncct);
     }
   }
 
   /* If we still have data to send back to the client, this will take
    * care of that
    */
-  if(noit_console_continue_sending(ncct, &newmask) == -1) {
-    if(errno != EAGAIN) goto socket_error;
+  if(noit_console_continue_sending(ncct, &newmask) < 0) {
+    if(ncct->wants_shutdown || errno != EAGAIN) goto socket_error;
     return newmask | EVENTER_EXCEPTION;
   }
 
@@ -217,7 +264,6 @@ socket_error:
     if(!el_eagain(ncct->el)) keep_going++;
 
     len = e->opset->read(e->fd, sbuf, sizeof(sbuf)-1, &newmask, e);
-noitL(noit_stderr, "opset->read => %d bytes\n", len);
     if(len == 0 || (len < 0 && errno != EAGAIN)) {
       eventer_remove_fd(e->fd);
       close(e->fd);
@@ -246,11 +292,12 @@ noitL(noit_stderr, "opset->read => %d bytes\n", len);
       history(ncct->hist, &ev, H_ENTER, cmd_buffer);
       noit_console_dispatch(e, cmd_buffer, ncct);
       free(cmd_buffer);
-      if(noit_console_continue_sending(ncct, &newmask) == -1) {
-        if(errno != EAGAIN) goto socket_error;
-        return newmask | EVENTER_EXCEPTION;
-      }
     }
+    if(noit_console_continue_sending(ncct, &newmask) == -1) {
+      if(ncct->wants_shutdown || errno != EAGAIN) goto socket_error;
+      return newmask | EVENTER_EXCEPTION;
+    }
+    if(ncct->wants_shutdown) goto socket_error;
   }
   return newmask | EVENTER_EXCEPTION;
 }

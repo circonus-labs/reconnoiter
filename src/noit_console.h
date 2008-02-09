@@ -10,7 +10,28 @@
 #include "eventer/eventer.h"
 #include "noitedit/histedit.h"
 #include "noit_console_telnet.h"
+#include "utils/noit_hash.h"
 #include <stdarg.h>
+
+struct _console_state;
+struct __noit_console_closure;
+
+typedef int (*console_cmd_func_t)(struct __noit_console_closure *,
+                                  int, char **);
+typedef char *(*console_prompt_func_t)(EditLine *);
+typedef void (*state_free_func_t)(struct _console_state *);
+
+typedef struct cmd_info {
+  const char          *name;
+  console_cmd_func_t   func;
+} cmd_info_t;
+
+typedef struct _console_state {
+  console_prompt_func_t  console_prompt_function;
+  noit_hash_table        cmds;
+  struct _console_state *stacked;
+  state_free_func_t      statefree;
+} noit_console_state_t;
 
 typedef struct __noit_console_closure {
   eventer_t e;           /* The event it is attached to.  This
@@ -21,6 +42,8 @@ typedef struct __noit_console_closure {
   EditLine *el;
   History *hist;
 
+  noit_console_state_t *state;
+
   int   pty_master;
   int   pty_slave;
 
@@ -28,12 +51,13 @@ typedef struct __noit_console_closure {
   char *outbuf;
   int   outbuf_allocd;
   int   outbuf_len;
+  int   outbuf_cooked;
   int   outbuf_completed;
 
   /* This tracks telnet protocol state (if we're doing telnet) */
   noit_console_telnet_closure_t telnet;
-
-} * noit_console_closure_t;;
+  void (*output_cooker)(struct __noit_console_closure *);
+} * noit_console_closure_t;
 
 API_EXPORT(void) noit_console_init();
 
@@ -54,4 +78,23 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_console_continue_sending(noit_console_closure_t ncct,
                                 int *mask);
+
+API_EXPORT(int)
+  noit_console_state_init(noit_console_closure_t ncct);
+
+API_EXPORT(char *)
+  noit_console_state_prompt(EditLine *el);
+
+API_EXPORT(int)
+  noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv);
+
+API_EXPORT(noit_console_state_t *)
+  noit_console_state_initial();
+
+API_EXPORT(void)
+  noit_console_state_free(noit_console_state_t *st);
+
+API_EXPORT(int)
+  noit_console_state_do(noit_console_closure_t ncct, int argc, char **argv);
+
 #endif
