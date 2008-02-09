@@ -138,11 +138,11 @@ noit_console_closure_free(noit_console_closure_t ncct) {
   if(ncct->pty_slave >= 0) close(ncct->pty_slave);
   if(ncct->outbuf) free(ncct->outbuf);
   if(ncct->telnet) noit_console_telnet_free(ncct->telnet);
-  while(ncct->state) {
-    noit_console_state_t *tmp;
-    tmp = ncct->state;
-    ncct->state = tmp->stacked;
-    noit_console_state_free(tmp);
+  while(ncct->state_stack) {
+    noit_console_state_stack_t *tmp;
+    tmp = ncct->state_stack;
+    ncct->state_stack = tmp->last;
+    free(tmp);
   }
   free(ncct);
 }
@@ -151,6 +151,7 @@ noit_console_closure_t
 noit_console_closure_alloc() {
   noit_console_closure_t new_ncct;
   new_ncct = calloc(1, sizeof(*new_ncct));
+  noit_console_state_push_state(new_ncct, noit_console_state_initial());
   new_ncct->pty_master = -1;
   new_ncct->pty_slave = -1;
   return new_ncct;
@@ -240,7 +241,6 @@ socket_error:
       el_set(ncct->el, EL_HIST, history, ncct->hist);
       ncct->telnet = noit_console_telnet_alloc(ncct);
       ncct->output_cooker = nc_telnet_cooker;
-      ncct->state = noit_console_state_initial();
       noit_console_state_init(ncct);
     }
   }

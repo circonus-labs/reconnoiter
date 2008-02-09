@@ -12,6 +12,7 @@
 #include <libxml/xpath.h>
 
 #include "noit_conf.h"
+#include "noit_console.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 
@@ -37,6 +38,7 @@ static struct {
   { NULL, NULL }
 };
 
+void register_console_config_commands();
 
 void noit_conf_init() {
   int i;
@@ -47,6 +49,7 @@ void noit_conf_init() {
   }
   xmlInitParser();
   xmlXPathInit();
+  register_console_config_commands();
 }
 
 int noit_conf_load(const char *path) {
@@ -270,3 +273,38 @@ int noit_conf_set_boolean(noit_conf_section_t section,
   return noit_conf_set_string(section,path,"false");
 }
 
+
+static int
+noit_console_state_conf_terminal(noit_console_closure_t ncct,
+                                 int argc, char **argv, void *state) {
+  if(argc) {
+    nc_printf(ncct, "extra arguments not expected.\n");
+    return -1;
+  }
+  noit_console_state_push_state(ncct, state);
+  noit_console_state_init(ncct);
+  return 0;
+}
+
+static char *
+conf_t_prompt(EditLine *el) {
+  static char *tl = "noit(conf)# ";
+  return tl;
+}
+
+void register_console_config_commands() {
+  noit_console_state_t *tl, *_conf_state, *_conf_t_state;
+
+  tl = noit_console_state_initial();
+
+  _conf_t_state = calloc(1, sizeof(*_conf_t_state));
+  _conf_t_state->console_prompt_function = conf_t_prompt;
+  noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
+
+  _conf_state = calloc(1, sizeof(*_conf_state));
+  noit_console_state_add_cmd(_conf_state,
+    NCSCMD("terminal", noit_console_state_conf_terminal, _conf_t_state));
+
+  noit_console_state_add_cmd(tl,
+    NCSCMD("configure", noit_console_state_delegate, _conf_state));
+}

@@ -17,21 +17,29 @@ struct _console_state;
 struct __noit_console_closure;
 
 typedef int (*console_cmd_func_t)(struct __noit_console_closure *,
-                                  int, char **);
+                                  int, char **, void *);
 typedef char *(*console_prompt_func_t)(EditLine *);
 typedef void (*state_free_func_t)(struct _console_state *);
 
 typedef struct cmd_info {
   const char          *name;
   console_cmd_func_t   func;
+  void                *closure;
 } cmd_info_t;
+
+/* This performs a pop (exiting if at toplevel) */
+extern cmd_info_t console_command_exit;
 
 typedef struct _console_state {
   console_prompt_func_t  console_prompt_function;
   noit_hash_table        cmds;
-  struct _console_state *stacked;
   state_free_func_t      statefree;
 } noit_console_state_t;
+
+typedef struct _console_state_stack {
+  noit_console_state_t *state;
+  struct _console_state_stack *last;
+} noit_console_state_stack_t;
 
 typedef struct __noit_console_closure {
   eventer_t e;           /* The event it is attached to.  This
@@ -42,7 +50,7 @@ typedef struct __noit_console_closure {
   EditLine *el;
   History *hist;
 
-  noit_console_state_t *state;
+  noit_console_state_stack_t *state_stack;
 
   int   pty_master;
   int   pty_slave;
@@ -82,11 +90,21 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_console_state_init(noit_console_closure_t ncct);
 
-API_EXPORT(char *)
-  noit_console_state_prompt(EditLine *el);
+API_EXPORT(int)
+  noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv,
+                         void *);
 
 API_EXPORT(int)
-  noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv);
+  noit_console_state_add_cmd(noit_console_state_t *state,
+                             cmd_info_t *cmd);
+
+API_EXPORT(noit_console_state_t *)
+  noit_console_state_build(console_prompt_func_t promptf, cmd_info_t **clist,
+                           state_free_func_t sfreef);
+
+API_EXPORT(void)
+  noit_console_state_push_state(noit_console_closure_t ncct,
+                                noit_console_state_t *);
 
 API_EXPORT(noit_console_state_t *)
   noit_console_state_initial();
@@ -96,5 +114,17 @@ API_EXPORT(void)
 
 API_EXPORT(int)
   noit_console_state_do(noit_console_closure_t ncct, int argc, char **argv);
+
+API_EXPORT(int)
+  _noit_console_state_do(noit_console_closure_t ncct,
+                         noit_console_state_stack_t *stack,
+                         int argc, char **argv);
+
+API_EXPORT(int)
+  noit_console_state_delegate(noit_console_closure_t ncct,
+                              int argc, char **argv, void *closure);
+ 
+API_EXPORT(cmd_info_t *)
+  NCSCMD(const char *name, console_cmd_func_t func, void *closure);
 
 #endif
