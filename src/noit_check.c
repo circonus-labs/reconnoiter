@@ -435,14 +435,12 @@ static void
 nc_printf_check_brief(noit_console_closure_t ncct,
                       noit_check_t *check) {
   char out[512];
+  char uuid_str[41];
   snprintf(out, sizeof(out), "%s/%s", check->target, check->name);
-  nc_printf(ncct, "%30s [%c%c%c]: %s\n",
-            out, 
-            check->flags & NP_RUNNING  ? 'R' : ' ',
-            check->flags & NP_KILLED   ? 'K' : ' ',
-            check->flags & NP_DISABLED ? 'D' : ' ',
-            check->stats.current.status ?
-              check->stats.current.status : "unknown");
+  uuid_unparse_lower(check->checkid, uuid_str);
+  nc_printf(ncct, "%s %s\n", uuid_str, out);
+  if(check->stats.current.status)
+    nc_printf(ncct, "\t%s\n", check->stats.current.status);
 }
 
 static int
