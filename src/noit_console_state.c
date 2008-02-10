@@ -12,7 +12,9 @@
 #include "noit_console.h"
 #include "noit_tokenizer.h"
 
-cmd_info_t console_command_exit = { "exit", noit_console_state_pop, NULL };
+cmd_info_t console_command_exit = {
+  "exit", noit_console_state_pop, NULL, NULL
+};
 
 static char *
 noit_console_state_prompt(EditLine *el) {
@@ -22,14 +24,21 @@ noit_console_state_prompt(EditLine *el) {
 
 int
 noit_console_state_delegate(noit_console_closure_t ncct,
-                            int argc, char **argv, void *closure) {
+                            int argc, char **argv,
+                            noit_console_state_t *dstate,
+                            void *closure) {
   noit_console_state_stack_t tmps = { 0 };
 
   if(argc == 0) {
     nc_printf(ncct, "arguments expected\n");
+    /* XXX: noit_console_render_help(dstate); */
     return -1;
   }
-  tmps.state = closure;
+  if(!dstate) {
+    nc_printf(ncct, "internal error: no delegate state\n");
+    return -1;
+  }
+  tmps.state = dstate;
   return _noit_console_state_do(ncct, &tmps, argc, argv);
 }
 
@@ -48,7 +57,7 @@ _noit_console_state_do(noit_console_closure_t ncct,
     nc_printf(ncct, "No such command: '%s'\n", argv[0]);
     return -1;
   }
-  return cmd->func(ncct, argc-1, argv+1, cmd->closure);
+  return cmd->func(ncct, argc-1, argv+1, cmd->dstate, cmd->closure);
 }
 int
 noit_console_state_do(noit_console_closure_t ncct, int argc, char **argv) {
@@ -72,6 +81,15 @@ noit_console_state_add_cmd(noit_console_state_t *state,
   return noit_hash_store(&state->cmds, cmd->name, strlen(cmd->name), cmd);
 }
 
+cmd_info_t *
+noit_console_state_get_cmd(noit_console_state_t *state,
+                           const char *name) {
+  cmd_info_t *cmd = NULL;
+  if(noit_hash_retrieve(&state->cmds, name, strlen(name), (void **)&cmd))
+    return cmd;
+  return NULL;
+}
+
 noit_console_state_t *
 noit_console_state_build(console_prompt_func_t promptf, cmd_info_t **clist,
                          state_free_func_t sfreef) {
@@ -89,11 +107,12 @@ noit_console_state_build(console_prompt_func_t promptf, cmd_info_t **clist,
 }
 
 cmd_info_t *NCSCMD(const char *name, console_cmd_func_t func,
-                   void *closure) {
+                   noit_console_state_t *dstate, void *closure) {
   cmd_info_t *cmd;
   cmd = calloc(1, sizeof(*cmd));
   cmd->name = strdup(name);
   cmd->func = func;
+  cmd->dstate = dstate;
   cmd->closure = closure;
   return cmd;
 }
@@ -102,8 +121,12 @@ noit_console_state_t *
 noit_console_state_initial() {
   static noit_console_state_t *_top_level_state = NULL;
   if(!_top_level_state) {
+    static noit_console_state_t *show_state;
     _top_level_state = calloc(1, sizeof(*_top_level_state));
     noit_console_state_add_cmd(_top_level_state, &console_command_exit);
+    show_state = calloc(1, sizeof(*show_state));
+    noit_console_state_add_cmd(_top_level_state,
+      NCSCMD("show", noit_console_state_delegate, show_state, NULL));
   }
   return _top_level_state;
 }
@@ -120,7 +143,7 @@ noit_console_state_push_state(noit_console_closure_t ncct,
 
 int
 noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv,
-                       void *unused) {
+                       noit_console_state_t *dstate, void *unused) {
   noit_console_state_stack_t *current;
 
   if(argc) {

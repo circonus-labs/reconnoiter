@@ -18,6 +18,7 @@
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_module.h"
+#include "noit_console.h"
 #include "eventer/eventer.h"
 
 /* 60 seconds of possible stutter */
@@ -29,6 +30,8 @@ static u_int32_t __config_load_generation = 0;
 struct uuid_dummy {
   uuid_t foo;
 };
+
+static void register_console_check_commands();
 
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
@@ -218,6 +221,7 @@ noit_poller_init() {
                             __check_name_compare);
   noit_poller_load_checks();
   noit_poller_make_causal_map();
+  register_console_check_commands();
   noit_poller_initiate();
 }
 
@@ -426,3 +430,49 @@ noit_check_set_stats(struct _noit_module *module,
     mod->initiate_check(mod, dep->check, 1, check);
   }
 }
+
+static void
+nc_printf_check_brief(noit_console_closure_t ncct,
+                      noit_check_t *check) {
+  char out[512];
+  snprintf(out, sizeof(out), "%s/%s", check->target, check->name);
+  nc_printf(ncct, "%30s [%c%c%c]: %s\n",
+            out, 
+            check->flags & NP_RUNNING  ? 'R' : ' ',
+            check->flags & NP_KILLED   ? 'K' : ' ',
+            check->flags & NP_DISABLED ? 'D' : ' ',
+            check->stats.current.status ?
+              check->stats.current.status : "unknown");
+}
+
+static int
+noit_console_show_checks(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *dstate,
+                         void *closure) {
+  struct timeval _now;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  noit_check_t *check;
+
+  gettimeofday(&_now, NULL);
+  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                       (void **)&check)) {
+    nc_printf_check_brief(ncct, check);
+  }
+  return 0;
+}
+static void
+register_console_check_commands() {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("checks", noit_console_show_checks, NULL, NULL));
+}
+

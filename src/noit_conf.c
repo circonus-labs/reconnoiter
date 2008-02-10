@@ -38,7 +38,7 @@ static struct {
   { NULL, NULL }
 };
 
-void register_console_config_commands();
+static void register_console_config_commands();
 
 void noit_conf_init() {
   int i;
@@ -283,7 +283,8 @@ conf_t_userdata_free(void *data) {
 }
 static int
 noit_console_state_conf_terminal(noit_console_closure_t ncct,
-                                 int argc, char **argv, void *state) {
+                                 int argc, char **argv,
+                                 noit_console_state_t *state, void *closure) {
   noit_conf_t_userdata_t *info;
   if(argc) {
     nc_printf(ncct, "extra arguments not expected.\n");
@@ -321,6 +322,7 @@ conf_t_prompt(EditLine *el) {
   return info->prompt;
 }
 
+static
 void register_console_config_commands() {
   noit_console_state_t *tl, *_conf_state, *_conf_t_state;
 
@@ -332,8 +334,8 @@ void register_console_config_commands() {
 
   _conf_state = calloc(1, sizeof(*_conf_state));
   noit_console_state_add_cmd(_conf_state,
-    NCSCMD("terminal", noit_console_state_conf_terminal, _conf_t_state));
+    NCSCMD("terminal", noit_console_state_conf_terminal, _conf_t_state, NULL));
 
   noit_console_state_add_cmd(tl,
-    NCSCMD("configure", noit_console_state_delegate, _conf_state));
+    NCSCMD("configure", noit_console_state_delegate, _conf_state, NULL));
 }
