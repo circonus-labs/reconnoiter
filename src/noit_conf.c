@@ -273,14 +273,26 @@ int noit_conf_set_boolean(noit_conf_section_t section,
   return noit_conf_set_string(section,path,"false");
 }
 
-
+static void
+conf_t_userdata_free(void *data) {
+  noit_conf_t_userdata_t *info = data;
+  if(info) {
+    if(info->path) free(info->path);
+    free(info);
+  }
+}
 static int
 noit_console_state_conf_terminal(noit_console_closure_t ncct,
                                  int argc, char **argv, void *state) {
+  noit_conf_t_userdata_t *info;
   if(argc) {
     nc_printf(ncct, "extra arguments not expected.\n");
     return -1;
   }
+  info = calloc(1, sizeof(*info));
+  info->path = strdup("/");
+  noit_console_userdata_set(ncct, NOIT_CONF_T_USERDATA, info,
+                            conf_t_userdata_free);
   noit_console_state_push_state(ncct, state);
   noit_console_state_init(ncct);
   return 0;
@@ -288,8 +300,25 @@ noit_console_state_conf_terminal(noit_console_closure_t ncct,
 
 static char *
 conf_t_prompt(EditLine *el) {
+  noit_console_closure_t ncct;
+  noit_conf_t_userdata_t *info;
   static char *tl = "noit(conf)# ";
-  return tl;
+  static char *pfmt = "noit(conf:%s%s)# ";
+  int path_len, max_len;
+
+  el_get(el, EL_USERDATA, (void *)&ncct);
+  if(!ncct) return tl;
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info) return tl;
+
+  path_len = strlen(info->path);
+  max_len = strlen(pfmt) - 4 /* %s%s */ - 1 /* \0 */;
+  if(path_len > max_len)
+    snprintf(info->prompt, sizeof(info->prompt),
+             pfmt, "...", info->path + max_len - 3 /* ... */);
+  else
+    snprintf(info->prompt, sizeof(info->prompt), pfmt, "", info->path);
+  return info->prompt;
 }
 
 void register_console_config_commands() {

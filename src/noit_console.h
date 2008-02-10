@@ -20,8 +20,9 @@ typedef int (*console_cmd_func_t)(struct __noit_console_closure *,
                                   int, char **, void *);
 typedef char *(*console_prompt_func_t)(EditLine *);
 typedef void (*state_free_func_t)(struct _console_state *);
+typedef void (*state_userdata_free_func_t)(void *);
 
-typedef struct cmd_info {
+typedef struct {
   const char          *name;
   console_cmd_func_t   func;
   void                *closure;
@@ -30,14 +31,29 @@ typedef struct cmd_info {
 /* This performs a pop (exiting if at toplevel) */
 extern cmd_info_t console_command_exit;
 
+typedef struct {
+  char                      *name;
+  void                      *data;
+  state_userdata_free_func_t freefunc;
+} noit_console_userdata_t;
+
+API_EXPORT(void)
+  noit_console_userdata_set(struct __noit_console_closure *,
+                            const char *name, void *data,
+                            state_userdata_free_func_t freefunc);
+API_EXPORT(void *)
+  noit_console_userdata_get(struct __noit_console_closure *,
+                            const char *name);
+
 typedef struct _console_state {
-  console_prompt_func_t  console_prompt_function;
-  noit_hash_table        cmds;
-  state_free_func_t      statefree;
+  console_prompt_func_t      console_prompt_function;
+  noit_hash_table            cmds;
+  state_free_func_t          statefree;
 } noit_console_state_t;
 
 typedef struct _console_state_stack {
   noit_console_state_t *state;
+  void *userdata;
   struct _console_state_stack *last;
 } noit_console_state_stack_t;
 
@@ -49,6 +65,7 @@ typedef struct __noit_console_closure {
   /* nice console support */
   EditLine *el;
   History *hist;
+  noit_hash_table userdata;
 
   noit_console_state_stack_t *state_stack;
 

@@ -130,6 +130,16 @@ nc_write(noit_console_closure_t ncct, void *buf, int len) {
   return len;
 }
 
+static void
+noit_console_userdata_free(void *data) {
+  noit_console_userdata_t *userdata = data;
+  if(userdata) {
+    if(userdata->name) free(userdata->name);
+    if(userdata->freefunc)
+      userdata->freefunc(userdata->data);
+    free(userdata);
+  }
+}
 void
 noit_console_closure_free(noit_console_closure_t ncct) {
   if(ncct->el) el_end(ncct->el);
@@ -138,6 +148,7 @@ noit_console_closure_free(noit_console_closure_t ncct) {
   if(ncct->pty_slave >= 0) close(ncct->pty_slave);
   if(ncct->outbuf) free(ncct->outbuf);
   if(ncct->telnet) noit_console_telnet_free(ncct->telnet);
+  noit_hash_destroy(&ncct->userdata, NULL, noit_console_userdata_free);
   while(ncct->state_stack) {
     noit_console_state_stack_t *tmp;
     tmp = ncct->state_stack;
@@ -151,11 +162,36 @@ noit_console_closure_t
 noit_console_closure_alloc() {
   noit_console_closure_t new_ncct;
   new_ncct = calloc(1, sizeof(*new_ncct));
+  noit_hash_init(&new_ncct->userdata);
   noit_console_state_push_state(new_ncct, noit_console_state_initial());
   new_ncct->pty_master = -1;
   new_ncct->pty_slave = -1;
   return new_ncct;
 }
+
+void
+noit_console_userdata_set(struct __noit_console_closure *ncct,
+                          const char *name, void *data,
+                          state_userdata_free_func_t freefunc) {
+  noit_console_userdata_t *item;
+  item = calloc(1, sizeof(*item));
+  item->name = strdup(name);
+  item->data = data;
+  item->freefunc = freefunc;
+  noit_hash_replace(&ncct->userdata, item->name, strlen(item->name),
+                    item, free, noit_console_userdata_free);
+}
+  
+void *
+noit_console_userdata_get(struct __noit_console_closure *ncct,
+                          const char *name) {
+  noit_console_userdata_t *item;
+  if(noit_hash_retrieve(&ncct->userdata, name, strlen(name),
+                        (void **)&item))
+    return item->data;
+  return NULL;
+}
+
 
 int
 noit_console_continue_sending(noit_console_closure_t ncct,
@@ -236,6 +272,7 @@ socket_error:
       ncct->hist = history_init();
       history(ncct->hist, &ev, H_SETSIZE, 500);
       ncct->el = el_init("noitd", ncct->pty_master, e->fd, e->fd);
+      el_set(ncct->el, EL_USERDATA, ncct);
       el_set(ncct->el, EL_EDITOR, "emacs");
       el_set(ncct->el, EL_HIST, history, ncct->hist);
       ncct->telnet = noit_console_telnet_alloc(ncct);

@@ -12,6 +12,12 @@
 typedef enum { noit_true, noit_false } noit_conf_boolean;
 typedef void * noit_conf_section_t;
 
+#define NOIT_CONF_T_USERDATA "noit::state::conf_t"
+typedef struct {
+  char *path;
+  char prompt[40];
+} noit_conf_t_userdata_t;
+
 API_EXPORT(void) noit_conf_init();
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
