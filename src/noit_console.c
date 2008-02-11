@@ -236,10 +236,6 @@ noit_console_dispatch(eventer_t e, const char *buffer,
   if(i>cnt) nc_printf(ncct, "Command length too long.\n");
   else if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
   else noit_console_state_do(ncct, cnt, cmds);
-  for(i=0;i<cnt;i++) {
-    nc_printf(ncct, "[%d] '%s'\n", i, cmds[i]);
-    free(cmds[i]);
-  }
 }
 
 int

@@ -361,9 +361,9 @@ noit_console_config_show(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *state, void *closure) {
   int i, cnt, titled = 0, cliplen = 0;
-  const char *path;
+  const char *path, *basepath = NULL;
   char xpath[1024];
-  noit_conf_t_userdata_t *info;
+  noit_conf_t_userdata_t *info = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr node;
@@ -372,17 +372,21 @@ noit_console_config_show(noit_console_closure_t ncct,
     nc_printf(ncct, "too many arguments\n");
     return -1;
   }
-  if(argc == 1) {
-    path = argv[0];
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(info) path = basepath = info->path;
+  if(!info && argc == 0) {
+    nc_printf(ncct, "argument required when not in configuration mode\n");
+    return -1;
   }
-  else {
-    info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-    if(!info) {
-      nc_printf(ncct, "argument required when not in configuration mode\n");
-      return -1;
-    }
-    path = info->path;
-  }
+
+  if(argc == 1) path = argv[0];
+  if(!basepath) basepath = path;
+
+  /* { / } is a special case */
+  if(!strcmp(basepath, "/")) basepath = "";
+  if(!strcmp(path, "/")) path = "";
+
   if(!master_config) {
     nc_printf(ncct, "no config\n");
     return -1;
@@ -392,13 +396,17 @@ noit_console_config_show(noit_console_closure_t ncct,
    * in XPath { / / * } means something _entirely different than { / * }
    * Ever notice how it is hard to describe xpath in C comments?
    */
+  /* We don't want to show the root node */
   cliplen = strlen("/noit/");
-  if(!strcmp(path, "/"))
-    snprintf(xpath, sizeof(xpath), "/noit/*");
-  else {
-    if(argc == 0) cliplen = strlen("/noit/") + strlen(path);
-    snprintf(xpath, sizeof(xpath), "/noit%s/*", path);
-  }
+
+  /* If we are in configuration mode
+   * and we are without an argument or the argument is absolute,
+   * clip the current path off */
+  if(info && (argc == 0 || path[0] != '/')) cliplen += strlen(basepath);
+  if(!path[0] || path[0] == '/') /* base only, or absolute path requested */
+    snprintf(xpath, sizeof(xpath), "/noit%s/@*", path);
+  else
+    snprintf(xpath, sizeof(xpath), "/noit%s/%s/@*", basepath, path);
 
   current_ctxt = xpath_ctxt;
   pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
@@ -406,11 +414,7 @@ noit_console_config_show(noit_console_closure_t ncct,
     nc_printf(ncct, "no such object\n");
     goto bad;
   }
-  if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    nc_printf(ncct, "empty\n");
-  }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
-
   titled = 0;
   for(i=0; i<cnt; i++) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
@@ -422,7 +426,17 @@ noit_console_config_show(noit_console_closure_t ncct,
                 xmlXPathCastNodeToString(node->children));
     }
   }
+  xmlXPathFreeObject(pobj);
 
+  /* _shorten string_ turning last { / @ * } to { / * } */
+  strlcpy(xpath + strlen(xpath) - 2, "*", 2);
+nc_printf(ncct, "Looking up path '%s'\n", xpath);
+  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    nc_printf(ncct, "no such object\n");
+    goto bad;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   titled = 0;
   for(i=0; i<cnt; i++) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);

@@ -93,53 +93,57 @@ noit_poller_load_checks() {
     char target[256];
     char module[256];
     char name[256];
-    char oncheck[1024];
+    char oncheck[1024] = "";
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
 
-    if(!noit_conf_get_stringbuf(sec[i], "@uuid",
-                                uuid_str, sizeof(uuid_str))) {
+#define NEXT(...) noitL(noit_stderr, __VA_ARGS__); continue
+#define MYATTR(type,a,...) noit_conf_get_##type(sec[i], "@" #a, __VA_ARGS__)
+#define INHERIT(type,a,...) \
+  noit_conf_get_##type(sec[i], "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+
+    if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
       noitL(noit_stderr, "check %d has no uuid\n", i+1);
       continue;
     }
+
     if(uuid_parse(uuid_str, uuid)) {
       noitL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
       continue;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/target", target, sizeof(target))) {
-      noitL(noit_stderr, "check uuid: '%s' has no target\n",
-            uuid_str);
+
+    if(!INHERIT(stringbuf, target, target, sizeof(target))) {
+      noitL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
       continue;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/module", module, sizeof(module))) {
-      noitL(noit_stderr, "check uuid: '%s' has no module\n",
-            uuid_str);
+    if(!INHERIT(stringbuf, module, module, sizeof(module))) {
+      noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
       continue;
     }
-    if(!noit_conf_get_stringbuf(sec[i], "name", name, sizeof(name))) {
+
+    if(!MYATTR(stringbuf, name, name, sizeof(name)))
       strlcpy(name, module, sizeof(name));
-    }
-    if(!noit_conf_get_int(sec[i], "ancestor-or-self::node()/period", &period)) {
+
+    if(!INHERIT(int, period, &period) || period == 0)
       no_period = 1;
-    }
-    if(!noit_conf_get_stringbuf(sec[i], "ancestor-or-self::node()/oncheck", oncheck, sizeof(oncheck))) {
-      oncheck[0] = '\0';
+
+    if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
       no_oncheck = 1;
-    }
+
     if(no_period && no_oncheck) {
       noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
             uuid_str);
       continue;
     }
     if(!(no_period || no_oncheck)) {
-      noitL(noit_stderr, "check uuid: '%s' has has on check and period.\n",
+      noitL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
             uuid_str);
       continue;
     }
-    if(!noit_conf_get_int(sec[i], "ancestor-or-self::node()/timeout", &timeout)) {
+    if(!INHERIT(int, timeout, &timeout)) {
       noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
       continue;
     }
@@ -210,6 +214,8 @@ noit_poller_make_causal_map() {
         dep->check = check;
         dep->next = parent->causal_checks;
         parent->causal_checks = dep;
+        noitL(noit_debug, "Causal map %s`%s --> %s`%s\n",
+              parent->target, parent->name, check->target, check->name);
       }
     }
   }
