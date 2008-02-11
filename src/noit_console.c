@@ -113,7 +113,7 @@ nc_vprintf(noit_console_closure_t ncct, const char *fmt, va_list arg) {
   return -1;
 }
 int
-nc_write(noit_console_closure_t ncct, void *buf, int len) {
+nc_write(noit_console_closure_t ncct, const void *buf, int len) {
   if(!ncct->outbuf_allocd) {
     ncct->outbuf = malloc(len);
     if(!ncct->outbuf) return 0;

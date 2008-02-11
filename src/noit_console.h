@@ -100,7 +100,7 @@ API_EXPORT(int)
   nc_vprintf(noit_console_closure_t ncct, const char *fmt, va_list arg);
 
 API_EXPORT(int)
-  nc_write(noit_console_closure_t ncct, void *buf, int len);
+  nc_write(noit_console_closure_t ncct, const void *buf, int len);
 
 API_EXPORT(int)
   noit_console_continue_sending(noit_console_closure_t ncct,
