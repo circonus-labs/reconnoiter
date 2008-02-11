@@ -275,7 +275,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   }
 
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
-  snprintf(rt, sizeof(rt), "%.3fms",
+  snprintf(rt, sizeof(rt), "%.3fs",
            (float)duration.tv_sec + (float)duration.tv_usec / 1000000.0);
   snprintf(human_buffer, sizeof(human_buffer),
            "services=%d,rt=%s",
