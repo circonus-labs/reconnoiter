@@ -6,6 +6,9 @@
 #include "noit_defines.h"
 
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <assert.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -20,6 +23,7 @@
 /* tmp hash impl, replace this with something nice */
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
+static char master_config_file[PATH_MAX] = "";
 static xmlXPathContextPtr xpath_ctxt = NULL;
 
 static noit_hash_table _compiled_fallback = NOIT_HASH_EMPTY;
@@ -62,6 +66,7 @@ int noit_conf_load(const char *path) {
 
     master_config = new_config;
     xpath_ctxt = xmlXPathNewContext(master_config);
+    realpath(path, master_config_file);
     return 0;
   }
   return -1;
@@ -510,11 +515,82 @@ conf_t_prompt(EditLine *el) {
   return info->prompt;
 }
 
+static int
+noit_console_write_xml(void *vncct, const char *buffer, int len) {
+  noit_console_closure_t ncct = vncct;
+  return nc_write(ncct, buffer, len);
+}
+static int
+noit_console_close_xml(void *vncct) {
+  return 0;
+}
+static int
+noit_conf_write_terminal(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *state, void *closure) {
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateIO(noit_console_write_xml,
+                                noit_console_close_xml,
+                                ncct, enc);
+  xmlSaveFileTo(out, master_config, "utf8");
+  return 0;
+}
+static int
+noit_conf_write_file(noit_console_closure_t ncct,
+                     int argc, char **argv,
+                     noit_console_state_t *state, void *closure) {
+  int fd, len;
+  char master_file_tmp[PATH_MAX];
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+
+  snprintf(master_file_tmp, sizeof(master_file_tmp),
+           "%s.tmp", master_config_file);
+  unlink(master_file_tmp);
+  fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY, 0640);
+  if(fd < 0) {
+    nc_printf(ncct, "Failed to open tmp file: %s\n", strerror(errno));
+    return -1;
+  }
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateFd(fd, enc);
+  if(!out) {
+    close(fd);
+    unlink(master_file_tmp);
+    nc_printf(ncct, "internal error: OutputBufferCreate failed\n");
+    return -1;
+  }
+  len = xmlSaveFileTo(out, master_config, "utf8");
+  close(fd);
+  if(len <= 0) {
+    nc_printf(ncct, "internal error: writing to tmp file failed.\n");
+    return -1;
+  }
+  if(rename(master_file_tmp, master_config_file) != 0) {
+    nc_printf(ncct, "Failed to replace file: %s\n", strerror(errno));
+    return -1;
+  }
+  nc_printf(ncct, "%d bytes written.\n", len);
+  return 0;
+}
+
 static
 void register_console_config_commands() {
-  noit_console_state_t *tl, *_conf_state, *_conf_t_state;
+  noit_console_state_t *tl, *_conf_state, *_conf_t_state,
+                       *_write_state;
 
   tl = noit_console_state_initial();
+
+  _write_state = calloc(1, sizeof(*_write_state));
+  noit_console_state_add_cmd(_write_state,
+    NCSCMD("terminal", noit_conf_write_terminal, NULL, NULL));
+  noit_console_state_add_cmd(_write_state,
+    NCSCMD("file", noit_conf_write_file, NULL, NULL));
+  /* write mememory?  It's to a file, but I like router syntax */
+  noit_console_state_add_cmd(_write_state,
+    NCSCMD("memory", noit_conf_write_file, NULL, NULL));
 
   _conf_t_state = calloc(1, sizeof(*_conf_t_state));
   _conf_t_state->console_prompt_function = conf_t_prompt;
@@ -523,6 +599,8 @@ void register_console_config_commands() {
     NCSCMD("ls", noit_console_config_show, NULL, NULL));
   noit_console_state_add_cmd(_conf_t_state,
     NCSCMD("cd", noit_console_config_cd, NULL, NULL));
+  noit_console_state_add_cmd(_conf_t_state,
+    NCSCMD("write", noit_console_state_delegate, _write_state, NULL));
 
   _conf_state = calloc(1, sizeof(*_conf_state));
   noit_console_state_add_cmd(_conf_state,
@@ -530,4 +608,6 @@ void register_console_config_commands() {
 
   noit_console_state_add_cmd(tl,
     NCSCMD("configure", noit_console_state_delegate, _conf_state, NULL));
+  noit_console_state_add_cmd(tl,
+    NCSCMD("write", noit_console_state_delegate, _write_state, NULL));
 }
