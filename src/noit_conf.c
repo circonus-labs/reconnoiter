@@ -12,6 +12,7 @@
 #include <libxml/xpath.h>
 
 #include "noit_conf.h"
+#include "noit_check.h"
 #include "noit_console.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
@@ -359,12 +360,13 @@ static int
 noit_console_config_show(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *state, void *closure) {
-  int i, cnt, cliplen = 0;
+  int i, cnt, titled = 0, cliplen = 0;
   const char *path;
   char xpath[1024];
   noit_conf_t_userdata_t *info;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
+  xmlNodePtr node;
 
   if(argc > 1) {
     nc_printf(ncct, "too many arguments\n");
@@ -408,11 +410,64 @@ noit_console_config_show(noit_console_closure_t ncct,
     nc_printf(ncct, "empty\n");
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+
+  titled = 0;
   for(i=0; i<cnt; i++) {
-    xmlNodePtr node;
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-    nc_printf(ncct, "%s\n", xmlGetNodePath(node) + cliplen);
+    if(!strcmp((char *)node->name, "check")) continue;
+    if(node->children && node->children == xmlGetLastChild(node) &&
+      xmlNodeIsText(node->children)) {
+      if(!titled++) nc_printf(ncct, "== Section Settings ==\n");
+      nc_printf(ncct, "%s: %s\n", xmlGetNodePath(node) + cliplen,
+                xmlXPathCastNodeToString(node->children));
+    }
   }
+
+  titled = 0;
+  for(i=0; i<cnt; i++) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(!strcmp((char *)node->name, "check")) continue;
+    if(!(node->children && node->children == xmlGetLastChild(node) &&
+         xmlNodeIsText(node->children))) {
+      if(!titled++) nc_printf(ncct, "== Subsections ==\n");
+      nc_printf(ncct, "%s\n", xmlGetNodePath(node) + cliplen);
+    }
+  }
+
+  titled = 0;
+  for(i=0; i<cnt; i++) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(!strcmp((char *)node->name, "check")) {
+      int busted = 1;
+      xmlAttr *attr;
+      char *uuid_str = "undefined";;
+
+      if(!titled++) nc_printf(ncct, "== Checks ==\n");
+
+      for(attr=node->properties; attr; attr = attr->next) {
+        if(!strcmp((char *)attr->name, "uuid"))
+          uuid_str = (char *)xmlXPathCastNodeToString(attr->children);
+      }
+      if(uuid_str) {
+        uuid_t checkid;
+        nc_printf(ncct, "check[@uuid=\"%s\"] ", uuid_str);
+        if(uuid_parse(uuid_str, checkid) == 0) {
+          noit_check_t *check;
+          check = noit_poller_lookup(checkid);
+          if(check) {
+            busted = 0;
+            nc_printf(ncct, "%s`%s", check->target, check->name);
+          }
+        }
+      }
+      else
+        nc_printf(ncct, "%s ", xmlGetNodePath(node) + cliplen);
+      if(busted) nc_printf(ncct, "[check not in running system]");
+      nc_write(ncct, "\n", 1);
+    }
+  }
+  xmlXPathFreeObject(pobj);
+  return 0;
  bad:
   if(pobj) xmlXPathFreeObject(pobj);
   return -1;
@@ -453,7 +508,7 @@ void register_console_config_commands() {
   noit_console_state_add_cmd(_conf_t_state,
     NCSCMD("ls", noit_console_config_show, NULL, NULL));
   noit_console_state_add_cmd(_conf_t_state,
-    NCSCMD("section", noit_console_config_cd, NULL, NULL));
+    NCSCMD("cd", noit_console_config_cd, NULL, NULL));
 
   _conf_state = calloc(1, sizeof(*_conf_state));
   noit_console_state_add_cmd(_conf_state,
