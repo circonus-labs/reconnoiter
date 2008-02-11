@@ -201,7 +201,7 @@ noit_poller_make_causal_map() {
       parent = noit_poller_lookup_by_name(target, name);
       if(!parent) {
         check->flags |= NP_DISABLED;
-        noitL(noit_stderr, "Disabling check %s/%s, can't find oncheck %s/%s\n",
+        noitL(noit_stderr, "Disabling check %s`%s, can't find oncheck %s`%s\n",
               check->target, check->name, target, name);
       }
       else {
@@ -412,11 +412,11 @@ noit_check_set_stats(struct _noit_module *module,
      check->stats.current.state != check->stats.previous.state)
     report_change = 1;
 
-  noitL(noit_error, "%s/%s <- [%s]\n", check->target, check->module,
+  noitL(noit_error, "%s`%s <- [%s]\n", check->target, check->name,
         check->stats.current.status);
   if(report_change) {
-    noitL(noit_error, "%s/%s -> [%s/%s]\n",
-          check->target, check->module,
+    noitL(noit_error, "%s`%s -> [%s:%s]\n",
+          check->target, check->name,
           __noit_check_available_string(check->stats.current.available),
           __noit_check_state_string(check->stats.current.state));
   }
@@ -424,7 +424,7 @@ noit_check_set_stats(struct _noit_module *module,
     noit_module_t *mod;
     mod = noit_module_lookup(dep->check->module);
     assert(mod);
-    noitL(noit_debug, "Firing %s/%s in response to %s/%s\n",
+    noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
           dep->check->target, dep->check->name,
           check->target, check->name);
     mod->initiate_check(mod, dep->check, 1, check);
@@ -435,8 +435,8 @@ static void
 nc_printf_check_brief(noit_console_closure_t ncct,
                       noit_check_t *check) {
   char out[512];
-  char uuid_str[41];
-  snprintf(out, sizeof(out), "%s/%s", check->target, check->name);
+  char uuid_str[37];
+  snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
   uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
   if(check->stats.current.status)
