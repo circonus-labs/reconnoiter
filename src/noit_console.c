@@ -230,9 +230,17 @@ void
 noit_console_dispatch(eventer_t e, const char *buffer,
                       noit_console_closure_t ncct) {
   char **cmds;
+  HistEvent ev;
   int i, cnt = 32;
+
   cmds = alloca(32 * sizeof(*cmds));
   i = noit_tokenize(buffer, cmds, &cnt);
+
+  /* < 0 is an error, that's fine.  We want it in the history to "fix" */
+  /* > 0 means we had arguments, so let's put it in the history */
+  /* 0 means nothing -- and that isn't worthy of history inclusion */
+  if(i) history(ncct->hist, &ev, H_ENTER, buffer);
+
   if(i>cnt) nc_printf(ncct, "Command length too long.\n");
   else if(i<0) nc_printf(ncct, "Error at offset: %d\n", 0-i);
   else noit_console_state_do(ncct, cnt, cmds);
@@ -321,14 +329,12 @@ socket_error:
     }
     if(buffer) {
       char *cmd_buffer;
-      HistEvent ev;
       cmd_buffer = malloc(plen+1);
       memcpy(cmd_buffer, buffer, plen);
       /* chomp */
       cmd_buffer[plen] = '\0';
       if(cmd_buffer[plen-1] == '\n') cmd_buffer[plen-1] = '\0';
       noitL(noit_debug, "IN: '%s'\n", cmd_buffer);
-      history(ncct->hist, &ev, H_ENTER, cmd_buffer);
       noit_console_dispatch(e, cmd_buffer, ncct);
       free(cmd_buffer);
     }

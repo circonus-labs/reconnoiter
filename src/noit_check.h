@@ -13,6 +13,8 @@
 
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
+#include "noit_conf.h"
+#include "noit_console.h"
 
 /*
  * Checks:
@@ -92,8 +94,11 @@ typedef struct noit_check {
   void *closure;
 } noit_check_t;
 
+#define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
+
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(void) noit_poller_load_checks();
+API_EXPORT(void) noit_poller_process_checks(char *xpath);
 
 API_EXPORT(void)
   noit_check_fake_last_check(noit_check_t *check,
@@ -108,8 +113,19 @@ API_EXPORT(int)
                        u_int32_t period,
                        u_int32_t timeout,
                        const char *oncheck,
+                       noit_conf_boolean disabled,
                        uuid_t in,
                        uuid_t out);
+
+API_EXPORT(int)
+  noit_check_update(noit_check_t *new_check,
+                    const char *target,
+                    const char *name,
+                    noit_hash_table *config,
+                    u_int32_t period,
+                    u_int32_t timeout,
+                    const char *oncheck,
+                    noit_conf_boolean disabled);
 
 API_EXPORT(int)
   noit_poller_deschedule(uuid_t in);

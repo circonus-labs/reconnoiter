@@ -576,38 +576,221 @@ noit_conf_write_file(noit_console_closure_t ncct,
   return 0;
 }
 
+static struct _valid_attr_t {
+  const char *scope;
+  const char *name;
+  const char *xpath;
+  int checks_fixate;
+} valid_attrs[] = {
+  { "/checks", "name", "@name", 0 },
+  { "/checks", "target", "@target", 0 },
+  { "/checks", "period", "@period", 0 },
+  { "/checks", "timeout", "@timeout", 0 },
+  { "/checks", "oncheck", "@oncheck", 0 },
+  { "/checks", "module", "@module", 1 },
+};
+
+void
+noit_console_state_add_check_attrs(noit_console_state_t *state,
+                                   console_cmd_func_t f) {
+  int i;
+  for(i = 0;
+      i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
+      i++) {
+    noit_console_state_add_cmd(state,
+      NCSCMD(valid_attrs[i].name, f,
+             NULL, &valid_attrs[i]));
+  }
+}
+
+static int
+validate_attr_set_scope(noit_conf_t_userdata_t *info,
+                        struct _valid_attr_t *attrinfo) {
+  int len;
+  len = strlen(attrinfo->scope);
+  if(strncmp(info->path, attrinfo->scope, len) ||
+     (info->path[len] != '\0' && info->path[len] != '/')) {
+    return -1;
+  }
+  return 0;
+}
+static int
+replace_attr(noit_console_closure_t ncct,
+             noit_conf_t_userdata_t *info, struct _valid_attr_t *attrinfo,
+             const char *value) {
+  int cnt, rv = -1;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlNodePtr node;
+  char xpath[1024], *path;
+
+  path = info->path;
+  if(!strcmp(path, "/")) path = "";
+
+  if(attrinfo->checks_fixate) {
+    /* Only if checks will fixate this attribute shall we check for
+     * child <check> nodes.
+     * NOTE: this return nothing and "seems" okay if we are _in_
+     *       a <check> node.  That case is handled below.
+     */
+    snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
+    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if(pobj && pobj->type == XPATH_NODESET &&
+       !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+      nc_printf(ncct, "Cannot set '%s', it would effect live checks\n",
+                attrinfo->name);
+      goto out;
+    }
+    if(pobj) xmlXPathFreeObject(pobj);
+  }
+  snprintf(xpath, sizeof(xpath), "/noit/%s", path);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(cnt != 1) {
+    nc_printf(ncct, "Internal error: context node disappeared\n");
+    goto out;
+  }
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if(attrinfo->checks_fixate &&
+     !strcmp((const char *)node->name, "check")) {
+    /* Detect if  we are actually a <check> node and attempting to
+     * change something we shouldn't.
+     * This is the counterpart noted above.
+     */
+    nc_printf(ncct, "Cannot set '%s', it would effect live checks\n");
+    goto out;
+  }
+  xmlUnsetProp(node, (xmlChar *)attrinfo->name);
+  if(value)
+    xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
+  rv = 0;
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return rv;
+}
+static void 
+refresh_subchecks(noit_console_closure_t ncct,
+                  noit_conf_t_userdata_t *info) {
+  char *path;
+  char xpath[1024];
+ 
+  path = info->path;
+  if(!strcmp(path, "/")) path = "";
+
+  snprintf(xpath, sizeof(xpath), "/noit/%s[@uuid]", path);
+  noit_poller_process_checks(xpath);
+  snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
+  noit_poller_process_checks(xpath);
+}
+int
+noit_conf_check_set_attr(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *state, void *closure) {
+  struct _valid_attr_t *attrinfo = closure;
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info || validate_attr_set_scope(info, attrinfo)) {
+    nc_printf(ncct, "'%s' attribute only valid in %s scope\n",
+              attrinfo->name, attrinfo->scope);
+    return -1;
+  }
+
+  if(argc != 1) {
+    nc_printf(ncct, "set requires exactly one value\n");
+    return -1;
+  }
+  /* Okay, we have an attribute and it should be set/replaced on the
+   * current path.
+   */
+  if(replace_attr(ncct, info, attrinfo, argv[0])) {
+    return -1;
+  }
+
+  /* So, we updated an attribute, so we need to reload all checks
+   * that are descendent-or-self of this node.
+   */
+  refresh_subchecks(ncct, info);
+  return 0;
+}
+
+int
+noit_conf_check_unset_attr(noit_console_closure_t ncct,
+                           int argc, char **argv,
+                           noit_console_state_t *state, void *closure) {
+  struct _valid_attr_t *attrinfo = closure;
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info || validate_attr_set_scope(info, attrinfo)) {
+    nc_printf(ncct, "'%s' attribute only valid in %s scope\n",
+              attrinfo->name, attrinfo->scope);
+    return -1;
+  }
+
+  if(argc != 0) {
+    nc_printf(ncct, "no arguments allowed to this command.\n");
+    return -1;
+  }
+  /* Okay, we have an attribute and it should be set/replaced on the
+   * current path.
+   */
+  if(replace_attr(ncct, info, attrinfo, NULL)) {
+    return -1;
+  }
+
+  /* So, we updated an attribute, so we need to reload all checks
+   * that are descendent-or-self of this node.
+   */
+  refresh_subchecks(ncct, info);
+  return 0;
+}
+
+#define NEW_STATE(a) (a) = calloc(1, sizeof(*(a)))
+#define ADD_CMD(a,cmd,func,ss,c) \
+  noit_console_state_add_cmd((a), \
+    NCSCMD(cmd, func, ss, c))
+#define DELEGATE_CMD(a,cmd,ss) \
+  noit_console_state_add_cmd((a), \
+    NCSCMD(cmd, noit_console_state_delegate, ss, NULL))
+
 static
 void register_console_config_commands() {
   noit_console_state_t *tl, *_conf_state, *_conf_t_state,
-                       *_write_state;
+                       *_write_state, *_attr_state,
+                       *_unset_state, *_uattr_state;
 
   tl = noit_console_state_initial();
 
-  _write_state = calloc(1, sizeof(*_write_state));
-  noit_console_state_add_cmd(_write_state,
-    NCSCMD("terminal", noit_conf_write_terminal, NULL, NULL));
-  noit_console_state_add_cmd(_write_state,
-    NCSCMD("file", noit_conf_write_file, NULL, NULL));
-  /* write mememory?  It's to a file, but I like router syntax */
-  noit_console_state_add_cmd(_write_state,
-    NCSCMD("memory", noit_conf_write_file, NULL, NULL));
+  /* write <terimal|memory|file> */
+  NEW_STATE(_write_state);
+  ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL);
+  ADD_CMD(_write_state, "file", noit_conf_write_file, NULL, NULL);
+  /* write memory?  It's to a file, but I like router syntax */
+  ADD_CMD(_write_state, "memory", noit_conf_write_file, NULL, NULL);
 
-  _conf_t_state = calloc(1, sizeof(*_conf_t_state));
+  /* attribute <attrname> <value> */
+  NEW_STATE(_attr_state);
+  noit_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr);
+ 
+  /* no attribute <attrname> <value> */
+  NEW_STATE(_uattr_state);
+  noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
+  NEW_STATE(_unset_state);
+  DELEGATE_CMD(_unset_state, "attribute", _uattr_state);
+ 
+  NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
-  noit_console_state_add_cmd(_conf_t_state,
-    NCSCMD("ls", noit_console_config_show, NULL, NULL));
-  noit_console_state_add_cmd(_conf_t_state,
-    NCSCMD("cd", noit_console_config_cd, NULL, NULL));
-  noit_console_state_add_cmd(_conf_t_state,
-    NCSCMD("write", noit_console_state_delegate, _write_state, NULL));
+  ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL);
+  ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL);
+  DELEGATE_CMD(_conf_t_state, "write", _write_state);
+  DELEGATE_CMD(_conf_t_state, "attribute", _attr_state);
+  DELEGATE_CMD(_conf_t_state, "no", _unset_state);
 
-  _conf_state = calloc(1, sizeof(*_conf_state));
-  noit_console_state_add_cmd(_conf_state,
-    NCSCMD("terminal", noit_console_state_conf_terminal, _conf_t_state, NULL));
+  NEW_STATE(_conf_state);
+  ADD_CMD(_conf_state, "terminal", noit_console_state_conf_terminal, _conf_t_state, NULL);
 
-  noit_console_state_add_cmd(tl,
-    NCSCMD("configure", noit_console_state_delegate, _conf_state, NULL));
-  noit_console_state_add_cmd(tl,
-    NCSCMD("write", noit_console_state_delegate, _write_state, NULL));
+  ADD_CMD(tl, "configure", noit_console_state_delegate, _conf_state, NULL);
+  ADD_CMD(tl, "write", noit_console_state_delegate, _write_state, NULL);
 }

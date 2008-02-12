@@ -8,8 +8,9 @@
 
 #include "noit_defines.h"
 #include "utils/noit_hash.h"
+#include "noit_console.h"
 
-typedef enum { noit_true, noit_false } noit_conf_boolean;
+typedef enum { noit_false = 0, noit_true } noit_conf_boolean;
 typedef void * noit_conf_section_t;
 
 #define NOIT_CONF_T_USERDATA "noit::state::conf_t"
@@ -50,5 +51,10 @@ API_EXPORT(int) noit_conf_set_float(noit_conf_section_t section,
                                     const char *path, float value);
 API_EXPORT(int) noit_conf_set_boolean(noit_conf_section_t section,
                                       const char *path, noit_conf_boolean value);
+
+API_EXPORT(int)
+  noit_conf_check_set_attr(noit_console_closure_t ncct,
+                           int argc, char **argv,
+                           noit_console_state_t *state, void *closure);
 
 #endif

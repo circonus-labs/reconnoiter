@@ -83,12 +83,13 @@ noit_check_fake_last_check(noit_check_t *check,
   sub_timeval(*_now, period, lc);
 }
 void
-noit_poller_load_checks() {
+noit_poller_process_checks(char *xpath) {
   int i, cnt = 0;
   noit_conf_section_t *sec;
   __config_load_generation++;
-  sec = noit_conf_get_sections(NULL, "/noit/checks//check", &cnt);
+  sec = noit_conf_get_sections(NULL, xpath, &cnt);
   for(i=0; i<cnt; i++) {
+    noit_check_t *existing_check;
     char uuid_str[37];
     char target[256];
     char module[256];
@@ -97,6 +98,7 @@ noit_poller_load_checks() {
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
+    noit_conf_boolean disabled = noit_false;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
 
@@ -117,11 +119,11 @@ noit_poller_load_checks() {
 
     if(!INHERIT(stringbuf, target, target, sizeof(target))) {
       noitL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
-      continue;
+      disabled = noit_true;
     }
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
-      continue;
+      disabled = noit_true;
     }
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
@@ -136,27 +138,42 @@ noit_poller_load_checks() {
     if(no_period && no_oncheck) {
       noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
             uuid_str);
-      continue;
+      disabled = noit_true;
     }
     if(!(no_period || no_oncheck)) {
       noitL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
             uuid_str);
-      continue;
+      disabled = noit_true;
     }
     if(!INHERIT(int, timeout, &timeout)) {
       noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-      continue;
+      disabled = noit_true;
     }
     if(!no_period && timeout >= period) {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
     options = noit_conf_get_hash(sec[i], "ancestor-or-self::node()/config/*");
-    noit_poller_schedule(target, module, name, options,
-                         period, timeout, oncheck[0] ? oncheck : NULL,
-                         uuid, out_uuid);
-    noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
+
+    if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
+                          (void **)&existing_check)) {
+      noit_check_update(existing_check, target, name, options,
+                           period, timeout, oncheck[0] ? oncheck : NULL,
+                           disabled);
+      noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
+    }
+    else {
+      noit_poller_schedule(target, module, name, options,
+                           period, timeout, oncheck[0] ? oncheck : NULL,
+                           disabled, uuid, out_uuid);
+      noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
+    }
   }
+}
+
+void
+noit_poller_load_checks() {
+  noit_poller_process_checks("/noit/checks//check");
 }
 
 void
@@ -170,8 +187,13 @@ noit_poller_initiate() {
     noit_module_t *mod;
     mod = noit_module_lookup(check->module);
     if(mod) {
+      if(NOIT_CHECK_LIVE(check))
+        continue;
       if((check->flags & NP_DISABLED) == 0)
         mod->initiate_check(mod, check, 0, NULL);
+      else
+        noitL(noit_debug, "Skipping %s`%s, disabled.\n",
+              check->target, check->name);
     }
     else {
       noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
@@ -232,22 +254,20 @@ noit_poller_init() {
 }
 
 int
-noit_poller_schedule(const char *target,
-                     const char *module,
-                     const char *name,
-                     noit_hash_table *config,
-                     u_int32_t period,
-                     u_int32_t timeout,
-                     const char *oncheck,
-                     uuid_t in,
-                     uuid_t out) {
+noit_check_update(noit_check_t *new_check,
+                  const char *target,
+                  const char *name,
+                  noit_hash_table *config,
+                  u_int32_t period,
+                  u_int32_t timeout,
+                  const char *oncheck,
+                  noit_conf_boolean disabled) {
   int8_t family;
   int rv;
   union {
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
-  noit_check_t *new_check;
 
 
   family = AF_INET;
@@ -257,17 +277,17 @@ noit_poller_schedule(const char *target,
     rv = inet_pton(family, target, &a);
     if(rv != 1) {
       noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
-      return -1;
+      memset(&a, 0, sizeof(a));
+      disabled = noit_true;
     }
   }
 
-  new_check = calloc(1, sizeof(*new_check));
-  if(!new_check) return -1;
   new_check->generation = __config_load_generation;
   new_check->target_family = family;
   memcpy(&new_check->target_addr, &a, sizeof(a));
+  if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
-  new_check->module = strdup(module);
+  if(new_check->name) free(new_check->name);
   new_check->name = name ? strdup(name): NULL;
 
   if(config != NULL) {
@@ -275,25 +295,60 @@ noit_poller_schedule(const char *target,
     const char *k;
     int klen;
     void *data;
-    new_check->config = calloc(1, sizeof(*new_check->config));
+    if(new_check->config) noit_hash_delete_all(new_check->config, free, free);
+    else new_check->config = calloc(1, sizeof(*new_check->config));
     while(noit_hash_next(config, &iter, &k, &klen, &data)) {
       noit_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
     }
   }
+  if(new_check->oncheck) free(new_check->oncheck);
   new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
   new_check->period = period;
   new_check->timeout = timeout;
-  new_check->flags = 0;
+
+  if(disabled) new_check->flags |= NP_DISABLED;
+
+  /* This remove could fail -- no big deal */
+  noit_skiplist_remove(&polls_by_name, new_check, NULL);
+
+  /* This insert could fail.. which means we have a conflict on
+   * target`name.  That should result in the check being disabled. */
+  if(!noit_skiplist_insert(&polls_by_name, new_check)) {
+    noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+          new_check->target, new_check->name);
+    new_check->flags |= NP_DISABLED;
+  }
+  return 0;
+}
+int
+noit_poller_schedule(const char *target,
+                     const char *module,
+                     const char *name,
+                     noit_hash_table *config,
+                     u_int32_t period,
+                     u_int32_t timeout,
+                     const char *oncheck,
+                     noit_conf_boolean disabled,
+                     uuid_t in,
+                     uuid_t out) {
+  noit_check_t *new_check;
+  new_check = calloc(1, sizeof(*new_check));
+  if(!new_check) return -1;
+
+  /* The module and the UUID can never be changed */
+  new_check->module = strdup(module);
   if(uuid_is_null(in))
     uuid_generate(new_check->checkid);
   else
     uuid_copy(new_check->checkid, in);
 
+  noit_check_update(new_check, target, name, config,
+                    period, timeout, oncheck, disabled);
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
-  noit_skiplist_insert(&polls_by_name, new_check);
   uuid_copy(out, new_check->checkid);
+
   return 0;
 }
 
@@ -309,6 +364,7 @@ noit_poller_deschedule(uuid_t in) {
     checker->flags |= NP_KILLED;
     return 0;
   }
+  checker->flags |= NP_KILLED;
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
      eventer_free(checker->fire_event);
@@ -467,6 +523,7 @@ noit_console_show_checks(noit_console_closure_t ncct,
   }
   return 0;
 }
+
 static void
 register_console_check_commands() {
   noit_console_state_t *tl;
