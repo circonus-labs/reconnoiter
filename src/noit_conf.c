@@ -344,6 +344,10 @@ noit_console_config_cd(noit_console_closure_t ncct,
   }
 
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if(!strcmp((char *)node->name, "check")) {
+    err = "can't cd into a check, use 'check' instead";
+    goto bad;
+  }
   path = (char *)xmlGetNodePath(node);
   if(strncmp(path, "/noit/", strlen("/noit/")) && strcmp(path, "/noit")) {
     err = "new path outside out tree";
@@ -506,7 +510,7 @@ conf_t_prompt(EditLine *el) {
   if(!info) return tl;
 
   path_len = strlen(info->path);
-  max_len = strlen(pfmt) - 4 /* %s%s */ - 1 /* \0 */;
+  max_len = sizeof(info->prompt) - (strlen(pfmt) - 4 /* %s%s */) - 1 /* \0 */;
   if(path_len > max_len)
     snprintf(info->prompt, sizeof(info->prompt),
              pfmt, "...", info->path + max_len - 3 /* ... */);
