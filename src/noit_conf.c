@@ -307,30 +307,17 @@ noit_console_state_conf_terminal(noit_console_closure_t ncct,
   noit_console_state_init(ncct);
   return 0;
 }
-
 static int
-noit_console_config_nocheck(noit_console_closure_t ncct,
-                            int argc, char **argv,
-                            noit_console_state_t *state, void *closure) {
-  int i, cnt;
-  const char *err = "internal error";
-  char argcopy[1024], *target, *name;
-  noit_conf_t_userdata_t *info;
-  xmlXPathObjectPtr pobj = NULL;
-  char xpath[1024];
-
+noit_console_mkcheck_xpath(char *xpath, int len,
+                           noit_conf_t_userdata_t *info,
+                           const char *arg) {
   uuid_t checkid;
-  if(argc != 1) {
-    nc_printf(ncct, "requires one argument\n");
-    return -1;
-  }
+  char argcopy[1024], *target, *name;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-
-  strlcpy(argcopy, argv[0], sizeof(argcopy));
+  strlcpy(argcopy, arg, sizeof(argcopy));
   if(uuid_parse(argcopy, checkid) == 0) {
     /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
-    snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+    snprintf(xpath, len, "/noit/checks//check[@uuid=\"%s\"]",
              argcopy);
   }
   else if((name = strchr(argcopy, '`')) != NULL) {
@@ -340,18 +327,94 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
     *name++ = '\0';
     check = noit_poller_lookup_by_name(target, name);
     if(!check) {
-      nc_printf(ncct, "could not find check %s`%s\n", target, name);
       return -1;
     }
     uuid_unparse_lower(check->checkid, uuid_str);
-    snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+    snprintf(xpath, len, "/noit/checks//check[@uuid=\"%s\"]",
              uuid_str);
   }
   else {
-    char *path = strcmp(info->path, "/") ? info->path : "";
-    snprintf(xpath, sizeof(xpath), "/noit%s/%s[@uuid]", path, argv[0]);
+    char *path = (!info || !strcmp(info->path, "/")) ? "" : info->path;
+    snprintf(xpath, len, "/noit%s/%s[@uuid]", path, arg);
+  }
+  return 0;
+}
+static int
+noit_console_check(noit_console_closure_t ncct,
+                   int argc, char **argv,
+                   noit_console_state_t *state, void *closure) {
+  int i, cnt;
+  noit_conf_t_userdata_t *info;
+  char xpath[1024];
+  xmlXPathObjectPtr pobj = NULL;
+
+  if(argc > 1) {
+    nc_printf(ncct, "requires zero or one arguments\n");
+    return -1;
   }
 
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  /* We many not be in conf-t mode -- that's fine */
+  if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), info,
+                                argc ? argv[0] : ".")) {
+    nc_printf(ncct, "could not find check '%s'\n", argv[0]);
+    return -1;
+  }
+
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    nc_printf(ncct, "no checks found\n");
+    goto out;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(info && cnt != 1) {
+    nc_printf(ncct, "Ambiguous check specified\n");
+    goto out;
+  }
+  for(i=0; i<cnt; i++) {
+    uuid_t checkid;
+    xmlNodePtr node;
+    char *uuid_conf;
+
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(info) {
+      if(info->path) free(info->path);
+      info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
+    }
+    uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+      nc_printf(ncct, "%s has invalid or missing UUID!\n",
+                (char *)xmlGetNodePath(node) + strlen("/noit"));
+      continue;
+    }
+    nc_printf(ncct, "==== %s ====\n", uuid_conf);
+  }
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return 0;
+}
+static int
+noit_console_config_nocheck(noit_console_closure_t ncct,
+                            int argc, char **argv,
+                            noit_console_state_t *state, void *closure) {
+  int i, cnt;
+  const char *err = "internal error";
+  noit_conf_t_userdata_t *info;
+  xmlXPathObjectPtr pobj = NULL;
+  char xpath[1024];
+  uuid_t checkid;
+
+  if(argc != 1) {
+    nc_printf(ncct, "requires one argument\n");
+    return -1;
+  }
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), info, argv[0])) {
+    nc_printf(ncct, "could not find check '%s'\n", argv[0]);
+    return -1;
+  }
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -933,6 +996,7 @@ noit_conf_check_unset_attr(noit_console_closure_t ncct,
 
 static
 void register_console_config_commands() {
+  cmd_info_t *showcmd;
   noit_console_state_t *tl, *_conf_state, *_conf_t_state,
                        *_write_state, *_attr_state,
                        *_unset_state, *_uattr_state;
@@ -963,7 +1027,12 @@ void register_console_config_commands() {
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
   ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL);
   ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL);
+  ADD_CMD(_conf_t_state, "check", noit_console_check, NULL, NULL);
   ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, (void *)0);
+
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  ADD_CMD(showcmd->dstate, "check", noit_console_check, NULL, NULL);
+
   DELEGATE_CMD(_conf_t_state, "write", _write_state);
   DELEGATE_CMD(_conf_t_state, "attribute", _attr_state);
   DELEGATE_CMD(_conf_t_state, "no", _unset_state);

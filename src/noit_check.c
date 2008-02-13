@@ -84,7 +84,7 @@ noit_check_fake_last_check(noit_check_t *check,
 }
 void
 noit_poller_process_checks(const char *xpath) {
-  int i, cnt = 0;
+  int i, flags, cnt = 0;
   noit_conf_section_t *sec;
   __config_load_generation++;
   sec = noit_conf_get_sections(NULL, xpath, &cnt);
@@ -98,7 +98,7 @@ noit_poller_process_checks(const char *xpath) {
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
-    noit_conf_boolean disabled = noit_false;
+    noit_conf_boolean disabled = noit_false, busted = noit_false;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
 
@@ -119,11 +119,11 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(stringbuf, target, target, sizeof(target))) {
       noitL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
-      disabled = noit_true;
+      busted = noit_true;
     }
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
-      disabled = noit_true;
+      busted = noit_true;
     }
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
@@ -138,16 +138,16 @@ noit_poller_process_checks(const char *xpath) {
     if(no_period && no_oncheck) {
       noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
             uuid_str);
-      disabled = noit_true;
+      busted = noit_true;
     }
     if(!(no_period || no_oncheck)) {
       noitL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
             uuid_str);
-      disabled = noit_true;
+      busted = noit_true;
     }
     if(!INHERIT(int, timeout, &timeout)) {
       noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-      disabled = noit_true;
+      busted = noit_true;
     }
     if(!no_period && timeout >= period) {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
@@ -155,17 +155,21 @@ noit_poller_process_checks(const char *xpath) {
     }
     options = noit_conf_get_hash(sec[i], "ancestor-or-self::node()/config/*");
 
+    flags = 0;
+    if(busted) flags |= NP_UNCONFIG;
+    if(disabled) flags |= NP_DISABLED;
+
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           (void **)&existing_check)) {
       noit_check_update(existing_check, target, name, options,
                            period, timeout, oncheck[0] ? oncheck : NULL,
-                           disabled);
+                           flags);
       noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
     }
     else {
       noit_poller_schedule(target, module, name, options,
                            period, timeout, oncheck[0] ? oncheck : NULL,
-                           disabled, uuid, out_uuid);
+                           flags, uuid, out_uuid);
       noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
     }
   }
@@ -273,9 +277,10 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
-                  noit_conf_boolean disabled) {
+                  int flags) {
   int8_t family;
   int rv;
+  int mask = NP_DISABLED | NP_UNCONFIG;
   union {
     struct in_addr addr4;
     struct in6_addr addr6;
@@ -290,7 +295,7 @@ noit_check_update(noit_check_t *new_check,
     if(rv != 1) {
       noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
       memset(&a, 0, sizeof(a));
-      disabled = noit_true;
+      flags |= (NP_UNCONFIG & NP_DISABLED);
     }
   }
 
@@ -318,7 +323,8 @@ noit_check_update(noit_check_t *new_check,
   new_check->period = period;
   new_check->timeout = timeout;
 
-  if(disabled) new_check->flags |= NP_DISABLED;
+  /* Unset what could be set.. then set what should be set */
+  new_check->flags = (new_check->flags & ~mask) | flags;
 
   /* This remove could fail -- no big deal */
   noit_skiplist_remove(&polls_by_name, new_check, NULL);
@@ -340,7 +346,7 @@ noit_poller_schedule(const char *target,
                      u_int32_t period,
                      u_int32_t timeout,
                      const char *oncheck,
-                     noit_conf_boolean disabled,
+                     int flags,
                      uuid_t in,
                      uuid_t out) {
   noit_check_t *new_check;
@@ -355,7 +361,7 @@ noit_poller_schedule(const char *target,
     uuid_copy(new_check->checkid, in);
 
   noit_check_update(new_check, target, name, config,
-                    period, timeout, oncheck, disabled);
+                    period, timeout, oncheck, flags);
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));

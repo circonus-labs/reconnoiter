@@ -36,6 +36,7 @@
 #define NP_RUNNING  0x00000001
 #define NP_KILLED   0x00000002
 #define NP_DISABLED 0x00000004
+#define NP_UNCONFIG 0x00000008
 
 #define NP_UNKNOWN 0               /* stats_t.{available,state} */
 #define NP_AVAILABLE 1             /* stats_t.available */
@@ -96,6 +97,7 @@ typedef struct noit_check {
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
 #define NOIT_CHECK_DISABLED(a) ((a)->flags & NP_DISABLED)
+#define NOIT_CHECK_CONFIGURED(a) (((a)->flags & NP_UNCONFIG) == 0)
 #define NOIT_CHECK_RUNNING(a) ((a)->flags & NP_RUNNING)
 #define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
 
@@ -117,7 +119,7 @@ API_EXPORT(int)
                        u_int32_t period,
                        u_int32_t timeout,
                        const char *oncheck,
-                       noit_conf_boolean disabled,
+                       int flags,
                        uuid_t in,
                        uuid_t out);
 
@@ -129,7 +131,7 @@ API_EXPORT(int)
                     u_int32_t period,
                     u_int32_t timeout,
                     const char *oncheck,
-                    noit_conf_boolean disabled);
+                    int flags);
 
 API_EXPORT(int)
   noit_poller_deschedule(uuid_t in);
