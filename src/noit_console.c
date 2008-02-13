@@ -179,7 +179,7 @@ noit_console_userdata_set(struct __noit_console_closure *ncct,
   item->data = data;
   item->freefunc = freefunc;
   noit_hash_replace(&ncct->userdata, item->name, strlen(item->name),
-                    item, free, noit_console_userdata_free);
+                    item, NULL, noit_console_userdata_free);
 }
   
 void *
