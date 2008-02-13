@@ -338,13 +338,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   if(pobj) xmlXPathFreeObject(pobj);
   if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 }
-static int serf_complete(eventer_t e, int mask,
-                         void *closure, struct timeval *now) {
-  serf_closure_t *ccl = (serf_closure_t *)closure;
-  serf_check_info_t *ci = (serf_check_info_t *)ccl->check->closure;
-
-  noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
-  generic_log_results(ccl->self, ccl->check);
+static void serf_check_info_cleanup(serf_check_info_t *ci) {
   if(ci->connection) {
     serf_connection_close(ci->connection);
     ci->connection = NULL;
@@ -355,8 +349,19 @@ static int serf_complete(eventer_t e, int mask,
     ci->fd_event = NULL;
   }
   ci->timeout_event = NULL;
-  apr_pool_destroy(ci->pool);
+  if(ci->pool) apr_pool_destroy(ci->pool);
   memset(ci, 0, sizeof(*ci));
+}
+static int serf_complete(eventer_t e, int mask,
+                         void *closure, struct timeval *now) {
+  serf_closure_t *ccl = (serf_closure_t *)closure;
+  serf_check_info_t *ci = (serf_check_info_t *)ccl->check->closure;
+
+  noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
+  if(!NOIT_CHECK_DISABLED(ccl->check) && !NOIT_CHECK_KILLED(ccl->check)) {
+    generic_log_results(ccl->self, ccl->check);
+  }
+  serf_check_info_cleanup(ci);
   ccl->check->flags &= ~NP_RUNNING;
   free(ccl);
   return 0;
@@ -776,6 +781,20 @@ static int serf_recur_handler(eventer_t e, int mask, void *closure,
   free(cl);
   return 0;
 }
+static void serf_cleanup(noit_module_t *self, noit_check_t *check) {
+  serf_check_info_t *sci;
+  if(check->fire_event) {
+    eventer_remove(check->fire_event);
+    free(check->fire_event->closure);
+    eventer_free(check->fire_event);
+    check->fire_event = NULL;
+  }
+  sci = check->closure;
+  if(sci) {
+    serf_check_info_cleanup(sci);
+    free(sci);
+  }
+}
 static int serf_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(serf_check_info_t));
@@ -807,11 +826,31 @@ static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
+static void resmon_cleanup(noit_module_t *self, noit_check_t *check) {
+  resmon_check_info_t *rci;
+  if(check->fire_event) {
+    eventer_remove(check->fire_event);
+    free(check->fire_event->closure);
+    eventer_free(check->fire_event);
+    check->fire_event = NULL;
+  }
+  rci = check->closure;
+  if(rci) {
+    if(rci->xpathexpr) free(rci->xpathexpr);
+    if(rci->resmod) free(rci->resmod);
+    if(rci->resserv) free(rci->resserv);
+    if(rci->xml_doc) xmlFreeDoc(rci->xml_doc);
+    serf_check_info_cleanup(&rci->serf);
+    free(rci);
+  }
+}
 static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
                                       int once, noit_check_t *parent) {
   char xpathexpr[1024];
   const char *resmod, *resserv;
   resmon_check_info_t *rci;
+
+  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
 
   if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
   rci = check->closure;
@@ -872,7 +911,8 @@ noit_module_t http = {
   serf_onload,
   serf_config,
   serf_init,
-  serf_initiate_check
+  serf_initiate_check,
+  serf_cleanup
 };
 
 noit_module_t resmon = {
@@ -883,7 +923,8 @@ noit_module_t resmon = {
   serf_onload,
   resmon_config,
   serf_init,
-  resmon_initiate_check
+  resmon_initiate_check,
+  resmon_cleanup
 };
 
 noit_module_t resmon_part = {
@@ -894,6 +935,7 @@ noit_module_t resmon_part = {
   serf_onload,
   resmon_config,
   serf_init,
-  resmon_part_initiate_check
+  resmon_part_initiate_check,
+  resmon_cleanup
 };
 

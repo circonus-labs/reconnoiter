@@ -83,7 +83,7 @@ noit_check_fake_last_check(noit_check_t *check,
   sub_timeval(*_now, period, lc);
 }
 void
-noit_poller_process_checks(char *xpath) {
+noit_poller_process_checks(const char *xpath) {
   int i, cnt = 0;
   noit_conf_section_t *sec;
   __config_load_generation++;
@@ -172,11 +172,6 @@ noit_poller_process_checks(char *xpath) {
 }
 
 void
-noit_poller_load_checks() {
-  noit_poller_process_checks("/noit/checks//check");
-}
-
-void
 noit_poller_initiate() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
@@ -208,6 +203,18 @@ noit_poller_make_causal_map() {
   uuid_t key_id;
   int klen;
   noit_check_t *check, *parent;
+
+  /* Cleanup any previous causal map */
+  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                       (void **)&check)) {
+    dep_list_t *dep;
+    while((dep = check->causal_checks) != NULL) {
+      check->causal_checks = dep->next;
+      free(dep);
+    }
+  }
+
+  /* Walk all checks and add check dependencies to their parents */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        (void **)&check)) {
     if(check->oncheck) {
@@ -243,14 +250,19 @@ noit_poller_make_causal_map() {
   }
 }
 void
+noit_poller_reload(const char *xpath)
+{
+  noit_poller_process_checks(xpath ? xpath : "/noit/checks//check");
+  noit_poller_make_causal_map();
+  noit_poller_initiate();
+}
+void
 noit_poller_init() {
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
-  noit_poller_load_checks();
-  noit_poller_make_causal_map();
   register_console_check_commands();
-  noit_poller_initiate();
+  noit_poller_reload(NULL);
 }
 
 int
@@ -355,6 +367,7 @@ noit_poller_schedule(const char *target,
 int
 noit_poller_deschedule(uuid_t in) {
   noit_check_t *checker;
+  noit_module_t *mod;
   if(noit_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         (void **)&checker) == 0) {
@@ -365,12 +378,17 @@ noit_poller_deschedule(uuid_t in) {
     return 0;
   }
   checker->flags |= NP_KILLED;
+
+  noit_skiplist_remove(&polls_by_name, checker, NULL);
+  noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
+
+  mod = noit_module_lookup(checker->module);
+  mod->cleanup(mod, checker);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
-  noit_hash_delete(&polls, (char *)in, UUID_SIZE, free, free);
 
   if(checker->target) free(checker->target);
   if(checker->module) free(checker->module);

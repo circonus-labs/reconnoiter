@@ -95,10 +95,14 @@ typedef struct noit_check {
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
+#define NOIT_CHECK_DISABLED(a) ((a)->flags & NP_DISABLED)
+#define NOIT_CHECK_RUNNING(a) ((a)->flags & NP_RUNNING)
+#define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
 
 API_EXPORT(void) noit_poller_init();
-API_EXPORT(void) noit_poller_load_checks();
-API_EXPORT(void) noit_poller_process_checks(char *xpath);
+API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
+API_EXPORT(void) noit_poller_process_checks(const char *xpath);
+API_EXPORT(void) noit_poller_make_causal_map();
 
 API_EXPORT(void)
   noit_check_fake_last_check(noit_check_t *check,

@@ -123,9 +123,11 @@ static int ping_icmp_timeout(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
   struct ping_closure *pcl = (struct ping_closure *)closure;
   struct check_info *data;
-  ping_icmp_log_results(pcl->self, pcl->check);
-  data = (struct check_info *)pcl->check->closure;
-  data->timeout_event = NULL;
+  if(!NOIT_CHECK_KILLED(pcl->check) && !NOIT_CHECK_DISABLED(pcl->check)) {
+    ping_icmp_log_results(pcl->self, pcl->check);
+    data = (struct check_info *)pcl->check->closure;
+    data->timeout_event = NULL;
+  }
   pcl->check->flags &= ~NP_RUNNING;
   free(pcl);
   return 0;
@@ -323,6 +325,25 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   free(pcl);
   return 0;
 }
+static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
+  struct check_info *ci = (struct check_info *)check->closure;
+  if(check->fire_event) {
+    eventer_remove(check->fire_event);
+    free(check->fire_event->closure);
+    eventer_free(check->fire_event);
+    check->fire_event = NULL;
+  }
+  if(ci) {
+    if(ci->timeout_event) {
+      eventer_remove(ci->timeout_event);
+      free(ci->timeout_event->closure);
+      eventer_free(ci->timeout_event);
+      ci->timeout_event = NULL;
+    }
+    if(ci->turnaround) free(ci->turnaround);
+    free(ci);
+  }
+}
 static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   struct timeval when, p_int;
   struct icmp *icp;
@@ -425,6 +446,7 @@ static int ping_icmp_schedule_next(noit_module_t *self,
   struct ping_closure *pcl;
 
   if(check->period == 0) return 0;
+  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
 
   /* If we have an event, we know when we intended it to fire.  This means
    * we should schedule that point + period.
@@ -455,6 +477,7 @@ static int ping_icmp_schedule_next(noit_module_t *self,
 static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   struct ping_closure *cl = (struct ping_closure *)closure;
+  cl->check->fire_event = NULL;
   ping_icmp_schedule_next(cl->self, &e->whence, cl->check, now);
   ping_icmp_send(cl->self, cl->check);
   free(cl);
@@ -534,6 +557,7 @@ noit_module_t ping_icmp = {
   ping_icmp_onload,
   ping_icmp_config,
   ping_icmp_init,
-  ping_icmp_initiate_check
+  ping_icmp_initiate_check,
+  ping_check_cleanup
 };
 

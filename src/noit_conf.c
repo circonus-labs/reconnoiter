@@ -309,6 +309,81 @@ noit_console_state_conf_terminal(noit_console_closure_t ncct,
 }
 
 static int
+noit_console_config_nocheck(noit_console_closure_t ncct,
+                            int argc, char **argv,
+                            noit_console_state_t *state, void *closure) {
+  int i, cnt;
+  const char *err = "internal error";
+  char argcopy[1024], *target, *name;
+  noit_conf_t_userdata_t *info;
+  xmlXPathObjectPtr pobj = NULL;
+  char xpath[1024];
+
+  uuid_t checkid;
+  if(argc != 1) {
+    nc_printf(ncct, "requires one argument\n");
+    return -1;
+  }
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+
+  strlcpy(argcopy, argv[0], sizeof(argcopy));
+  if(uuid_parse(argcopy, checkid) == 0) {
+    /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
+    snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+             argcopy);
+  }
+  else if((name = strchr(argcopy, '`')) != NULL) {
+    noit_check_t *check;
+    char uuid_str[37];
+    target = argcopy;
+    *name++ = '\0';
+    check = noit_poller_lookup_by_name(target, name);
+    if(!check) {
+      nc_printf(ncct, "could not find check %s`%s\n", target, name);
+      return -1;
+    }
+    uuid_unparse_lower(check->checkid, uuid_str);
+    snprintf(xpath, sizeof(xpath), "/noit/checks//check[@uuid=\"%s\"]",
+             uuid_str);
+  }
+  else {
+    char *path = strcmp(info->path, "/") ? info->path : "";
+    snprintf(xpath, sizeof(xpath), "/noit%s/%s[@uuid]", path, argv[0]);
+  }
+
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    err = "no checks found";
+    goto bad;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  for(i=0; i<cnt; i++) {
+    xmlNodePtr node;
+    char *uuid_conf;
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+      nc_printf(ncct, "%s has invalid or missing UUID!\n",
+                (char *)xmlGetNodePath(node) + strlen("/noit"));
+    }
+    else {
+      nc_printf(ncct, "descheduling %s\n", uuid_conf);
+      noit_poller_deschedule(checkid);
+      xmlUnlinkNode(node);
+    }
+  }
+  nc_printf(ncct, "rebuilding causal map...\n");
+  noit_poller_make_causal_map();
+  if(pobj) xmlXPathFreeObject(pobj);
+  return 0;
+ bad:
+  if(pobj) xmlXPathFreeObject(pobj);
+  nc_printf(ncct, "%s\n", err);
+  return -1;
+}
+static int
 noit_console_config_section(noit_console_closure_t ncct,
                             int argc, char **argv,
                             noit_console_state_t *state, void *closure) {
@@ -603,7 +678,17 @@ conf_t_prompt(EditLine *el) {
     snprintf(info->prompt, sizeof(info->prompt), pfmt, "", info->path);
   return info->prompt;
 }
-
+static int
+noit_conf_reload(noit_console_closure_t ncct,
+                 int argc, char **argv,
+                 noit_console_state_t *state, void *closure) {
+  if(noit_conf_load(master_config_file)) {
+    nc_printf(ncct, "error loading config\n");
+    return -1;
+  }
+  noit_poller_reload(NULL);
+  return 0;
+}
 static int
 noit_console_write_xml(void *vncct, const char *buffer, int len) {
   noit_console_closure_t ncct = vncct;
@@ -766,10 +851,13 @@ refresh_subchecks(noit_console_closure_t ncct,
   path = info->path;
   if(!strcmp(path, "/")) path = "";
 
+  /* The first one is just a process_checks, the second is the reload.
+   * Reload does a lot of work and there is no need to do it twice.
+   */
   snprintf(xpath, sizeof(xpath), "/noit/%s[@uuid]", path);
   noit_poller_process_checks(xpath);
   snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
-  noit_poller_process_checks(xpath);
+  noit_poller_reload(xpath);
 }
 int
 noit_conf_check_set_attr(noit_console_closure_t ncct,
@@ -868,6 +956,7 @@ void register_console_config_commands() {
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute", _uattr_state);
   ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, (void *)1);
+  ADD_CMD(_unset_state, "check", noit_console_config_nocheck, NULL, NULL);
  
   NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
@@ -884,4 +973,5 @@ void register_console_config_commands() {
 
   ADD_CMD(tl, "configure", noit_console_state_delegate, _conf_state, NULL);
   ADD_CMD(tl, "write", noit_console_state_delegate, _write_state, NULL);
+  ADD_CMD(tl, "reload", noit_conf_reload, NULL, NULL);
 }

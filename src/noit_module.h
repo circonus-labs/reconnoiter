@@ -23,6 +23,7 @@ typedef struct _noit_module {
   int (*init)(struct _noit_module *);
   int (*initiate_check)(struct _noit_module *, noit_check_t *check,
                         int once, noit_check_t *cause);
+  void (*cleanup)(struct _noit_module *, noit_check_t *);
   void *opaque_handle;
 } noit_module_t;
 
