@@ -317,6 +317,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   noit_conf_t_userdata_t *info;
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node = NULL, newnode;
+  vpsized_int delete = (vpsized_int)closure;
 
   if(argc != 1) {
     nc_printf(ncct, "requires one argument\n");
@@ -332,20 +333,44 @@ noit_console_config_section(noit_console_closure_t ncct,
   }
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
   if(!strcmp(info->path, "/")) {
-    nc_printf(ncct, "creation of new toplevel section disallowed\n");
+    nc_printf(ncct, "manipulation of toplevel section disallowed\n");
     return -1;
+  }
+
+  if(delete) {
+    /* We cannot delete if we have checks */
+    snprintf(xpath, sizeof(xpath), "/noit%s/%s//check", info->path, argv[0]);
+    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if(!pobj || pobj->type != XPATH_NODESET ||
+       !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+      err = "cannot delete section, has checks";
+      goto bad;
+    }
+    if(pobj) xmlXPathFreeObject(pobj);
   }
 
   snprintf(xpath, sizeof(xpath), "/noit%s/%s", info->path, argv[0]);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-  if(!pobj || pobj->type != XPATH_NODESET ||
-     !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    err = "internal error: cannot detect section";
+    goto bad;
+  }
+  if(!delete && !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
     err = "cannot create section";
     goto bad;
   }
+  if(delete && xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    err = "no such section";
+    goto bad;
+  }
+  if(delete) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    xmlUnlinkNode(node);
+    return 0;
+  }
   if(pobj) xmlXPathFreeObject(pobj);
 
-  path = strcmp(path, "/") ? info->path : "";
+  path = strcmp(info->path, "/") ? info->path : "";
   snprintf(xpath, sizeof(xpath), "/noit%s", path);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
@@ -842,13 +867,14 @@ void register_console_config_commands() {
   noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute", _uattr_state);
+  ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, (void *)1);
  
   NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
   ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL);
   ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL);
-  ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, NULL);
+  ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, (void *)0);
   DELEGATE_CMD(_conf_t_state, "write", _write_state);
   DELEGATE_CMD(_conf_t_state, "attribute", _attr_state);
   DELEGATE_CMD(_conf_t_state, "no", _unset_state);
