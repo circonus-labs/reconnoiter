@@ -161,7 +161,7 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
     xmlXPathFreeContext(current_ctxt);
   return sections;
 }
-int _noit_conf_get_string(noit_conf_section_t section,
+int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
   char *str;
   int i;
@@ -182,6 +182,7 @@ int _noit_conf_get_string(noit_conf_section_t section,
         if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) return 0;
         i = xmlXPathNodeSetGetLength(pobj->nodesetval);
         node = xmlXPathNodeSetItem(pobj->nodesetval, i-1);
+        if(vnode) *vnode = node;
         *value = (char *)xmlXPathCastNodeToString(node);
         break;
       default:
@@ -203,7 +204,7 @@ int _noit_conf_get_string(noit_conf_section_t section,
 int noit_conf_get_string(noit_conf_section_t section,
                          const char *path, char **value) {
   char *str;
-  if(_noit_conf_get_string(section,path,&str)) {
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
     *value = strdup(str);
     return 1;
   }
@@ -212,7 +213,7 @@ int noit_conf_get_string(noit_conf_section_t section,
 int noit_conf_get_stringbuf(noit_conf_section_t section,
                             const char *path, char *buf, int len) {
   char *str;
-  if(_noit_conf_get_string(section,path,&str)) {
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
     strlcpy(buf, str, len);
     return 1;
   }
@@ -229,14 +230,13 @@ int noit_conf_get_int(noit_conf_section_t section,
                       const char *path, int *value) {
   char *str;
   long longval;
-  if(noit_conf_get_string(section,path,&str)) {
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
     int base = 10;
     if(str[0] == '0') {
       if(str[1] == 'x') base = 16;
       else base = 8;
     }
     longval = strtol(str, NULL, base);
-    free(str);
     *value = (int)longval;
     return 1;
   }
@@ -251,9 +251,8 @@ int noit_conf_set_int(noit_conf_section_t section,
 int noit_conf_get_float(noit_conf_section_t section,
                         const char *path, float *value) {
   char *str;
-  if(noit_conf_get_string(section,path,&str)) {
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
     *value = atof(str);
-    free(str);
     return 1;
   }
   return 0;
@@ -267,10 +266,9 @@ int noit_conf_set_float(noit_conf_section_t section,
 int noit_conf_get_boolean(noit_conf_section_t section,
                           const char *path, noit_conf_boolean *value) {
   char *str;
-  if(noit_conf_get_string(section,path,&str)) {
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
     if(!strcasecmp(str, "true")) *value = noit_true;
     else *value = noit_false;
-    free(str);
     return 1;
   }
   return 0;
@@ -339,6 +337,26 @@ noit_console_mkcheck_xpath(char *xpath, int len,
   }
   return 0;
 }
+static void
+nc_attr_show(noit_console_closure_t ncct, const char *name, xmlNodePtr cnode,
+             xmlNodePtr anode, const char *value) {
+  const char *cpath, *apath;
+  cpath = cnode ? (char *)xmlGetNodePath(cnode) : "";
+  apath = anode ? (char *)xmlGetNodePath(anode) : "";
+  nc_printf(ncct, " %s: %s", name, value ? value : "[undef]");
+  if(value && cpath && apath) {
+    int clen = strlen(cpath);
+    int plen = strlen("/noit/checks/");
+    if(!strncmp(cpath, apath, clen) && apath[clen] == '/') {
+      /* we have a match, which means it isn't inherited */
+    }
+    else {
+      nc_printf(ncct, " [inherited from %s]",
+                strlen(apath) > plen ? apath + plen : apath);
+    }
+  }
+  nc_write(ncct, "\n", 1);
+}
 static int
 noit_console_check(noit_console_closure_t ncct,
                    int argc, char **argv,
@@ -374,8 +392,9 @@ noit_console_check(noit_console_closure_t ncct,
   }
   for(i=0; i<cnt; i++) {
     uuid_t checkid;
-    xmlNodePtr node;
+    xmlNodePtr node, anode, mnode = NULL;
     char *uuid_conf;
+    char *module, *value;
 
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(info) {
@@ -389,6 +408,27 @@ noit_console_check(noit_console_closure_t ncct,
       continue;
     }
     nc_printf(ncct, "==== %s ====\n", uuid_conf);
+
+#define MYATTR(a,n,b) _noit_conf_get_string(node, &(n), "@" #a, &(b))
+#define INHERIT(a,n,b) \
+  _noit_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
+#define SHOW_ATTR(a) do { \
+  anode = NULL; \
+  value = NULL; \
+  INHERIT(a, anode, value); \
+  nc_attr_show(ncct, #a, node, anode, value); \
+} while(0)
+
+    if(!INHERIT(module, mnode, module)) module = NULL;
+    if(MYATTR(name, anode, value))
+      nc_printf(ncct, " name: %s\n", value);
+    else
+      nc_printf(ncct, " name: %s [from module]\n", module ? module : "[undef]");
+    nc_attr_show(ncct, "module", node, mnode, module);
+    SHOW_ATTR(target);
+    SHOW_ATTR(period);
+    SHOW_ATTR(timeout);
+    SHOW_ATTR(oncheck);
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -736,7 +776,7 @@ conf_t_prompt(EditLine *el) {
   max_len = sizeof(info->prompt) - (strlen(pfmt) - 4 /* %s%s */) - 1 /* \0 */;
   if(path_len > max_len)
     snprintf(info->prompt, sizeof(info->prompt),
-             pfmt, "...", info->path + max_len - 3 /* ... */);
+             pfmt, "...", info->path + path_len - max_len + 3 /* ... */);
   else
     snprintf(info->prompt, sizeof(info->prompt), pfmt, "", info->path);
   return info->prompt;
