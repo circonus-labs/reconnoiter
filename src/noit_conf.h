@@ -16,7 +16,8 @@ typedef void * noit_conf_section_t;
 #define NOIT_CONF_T_USERDATA "noit::state::conf_t"
 typedef struct {
   char *path;
-  char prompt[40];
+  uuid_t current_check;
+  char prompt[50];
 } noit_conf_t_userdata_t;
 
 API_EXPORT(void) noit_conf_init();

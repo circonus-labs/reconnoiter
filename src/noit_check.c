@@ -155,12 +155,21 @@ noit_poller_process_checks(const char *xpath) {
     }
     options = noit_conf_get_hash(sec[i], "ancestor-or-self::node()/config/*");
 
+    INHERIT(boolean, disable, &disabled);
     flags = 0;
     if(busted) flags |= NP_UNCONFIG;
     if(disabled) flags |= NP_DISABLED;
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           (void **)&existing_check)) {
+      /* Once set, we can never change it. */
+      assert(!existing_check->module || !existing_check->module[0] ||
+             !strcmp(existing_check->module, module));
+      /* Only set it if it is not yet set */
+      if(!existing_check->module || !existing_check->module[0]) {
+        if(existing_check->module) free(existing_check->module);
+        existing_check->module = strdup(module);
+      }
       noit_check_update(existing_check, target, name, options,
                            period, timeout, oncheck[0] ? oncheck : NULL,
                            flags);
@@ -202,6 +211,32 @@ noit_poller_initiate() {
 }
 
 void
+noit_poller_flush_epoch(int oldest_allowed) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  noit_check_t *check, *tofree = NULL;
+
+  /* Cleanup any previous causal map */
+  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                       (void **)&check)) {
+    /* We don't free the one we're looking at... we free it on the next
+     * pass.  This leaves out iterator in good shape.  We just need to
+     * remember to free it one last time outside the while loop, down...
+     */
+    if(tofree) {
+      noit_poller_deschedule(tofree->checkid);
+      tofree = NULL;
+    }
+    if(check->generation < oldest_allowed) {
+      tofree = check;
+    }
+  }
+  /* ... here */
+  if(tofree) noit_poller_deschedule(tofree->checkid);
+}
+
+void
 noit_poller_make_causal_map() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
@@ -218,6 +253,7 @@ noit_poller_make_causal_map() {
     }
   }
 
+  memset(&iter, 0, sizeof(iter));
   /* Walk all checks and add check dependencies to their parents */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        (void **)&check)) {
@@ -227,6 +263,7 @@ noit_poller_make_causal_map() {
       char *name = check->oncheck;
       char *target = NULL;
 
+      noitL(noit_debug, "Searching for upstream trigger on %s\n", name);
       if((target = strchr(check->oncheck, '`')) != NULL) {
         strlcpy(fullcheck, check->oncheck, target - check->oncheck);
         name = target + 1;
@@ -257,6 +294,10 @@ void
 noit_poller_reload(const char *xpath)
 {
   noit_poller_process_checks(xpath ? xpath : "/noit/checks//check");
+  if(!xpath) {
+    /* Full reload, we need to wipe old checks */
+    noit_poller_flush_epoch(__config_load_generation);
+  }
   noit_poller_make_causal_map();
   noit_poller_initiate();
 }
