@@ -14,11 +14,20 @@ struct _noit_log_stream_outlet_list {
   struct _noit_log_stream *outlet;
   struct _noit_log_stream_outlet_list *next;
 };
+
+typedef struct {
+  int (*openop)(struct _noit_log_stream *);
+  int (*reopenop)(struct _noit_log_stream *);
+  int (*writeop)(struct _noit_log_stream *, const void *, size_t);
+  int (*closeop)(struct _noit_log_stream *);
+} logops_t;
+
 typedef struct _noit_log_stream {
   char *name;
   int enabled;
-  int fd;
   char *path;
+  logops_t *ops;
+  void *op_ctx;
   struct _noit_log_stream_outlet_list *outlets;
 } * noit_log_stream_t;
 

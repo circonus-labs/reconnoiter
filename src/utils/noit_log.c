@@ -16,6 +16,50 @@ noit_log_stream_t noit_stderr = NULL;
 noit_log_stream_t noit_error = NULL;
 noit_log_stream_t noit_debug = NULL;
 
+static int
+posix_logio_open(noit_log_stream_t ls) {
+  int fd;
+  fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
+  if(fd < 0) {
+    ls->op_ctx = NULL;
+    return -1;
+  }
+  ls->op_ctx = (void *)fd;
+  return 0;
+}
+static int
+posix_logio_reopen(noit_log_stream_t ls) {
+  if(ls->path) {
+    int newfd, oldfd;
+    oldfd = (int)ls->op_ctx;
+    newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
+    if(newfd >= 0) {
+      ls->op_ctx = (void *)newfd;
+      if(oldfd >= 0) close(oldfd);
+      return 0;
+    }
+  }
+  return -1;
+}
+static int
+posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+  int fd;
+  fd = (int)ls->op_ctx;
+  return write(fd, buf, len);
+}
+static int
+posix_logio_close(noit_log_stream_t ls) {
+  int fd;
+  fd = (int)ls->op_ctx;
+  return close(fd);
+}
+static logops_t posix_logio_ops = {
+  posix_logio_open,
+  posix_logio_reopen,
+  posix_logio_write,
+  posix_logio_close,
+};
+
 void
 noit_log_init() {
   noit_hash_init(&noit_loggers);
@@ -29,7 +73,8 @@ noit_log_stream_new_on_fd(const char *name, int fd) {
   noit_log_stream_t ls;
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
-  ls->fd = fd;
+  ls->ops = &posix_logio_ops;
+  ls->op_ctx = (void *)fd;
   ls->enabled = 1;
   if(noit_hash_store(&noit_loggers, ls->name, strlen(ls->name), ls) == 0) {
     free(ls->name);
@@ -44,8 +89,8 @@ noit_log_stream_new_on_file(const char *path) {
   noit_log_stream_t ls;
   ls = calloc(1, sizeof(*ls));
   ls->path = strdup(path);
-  ls->fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
-  if(ls->fd < 0) {
+  ls->ops = &posix_logio_ops;
+  if(ls->ops->openop(ls)) {
     free(ls->path);
     free(ls);
     return NULL;
@@ -62,12 +107,12 @@ noit_log_stream_new_on_file(const char *path) {
 }
 
 noit_log_stream_t
-noit_log_stream_new(const char *name) {
+noit_log_stream_new(const char *name, logops_t *ops) {
   noit_log_stream_t ls;
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
-  ls->fd = -1;
   ls->enabled = 1;
+  ls->ops = ops ? ops : &posix_logio_ops;
   if(noit_hash_store(&noit_loggers, ls->name, strlen(ls->name), ls) == 0) {
     free(ls->name);
     free(ls);
@@ -124,15 +169,7 @@ noit_log_stream_remove_stream(noit_log_stream_t ls, const char *name) {
 
 void noit_log_stream_reopen(noit_log_stream_t ls) {
   struct _noit_log_stream_outlet_list *node;
-  if(ls->path) {
-    int newfd, oldfd;
-    oldfd = ls->fd;
-    newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
-    if(newfd >= 0) {
-      ls->fd = newfd;
-      if(oldfd >= 0) close(oldfd);
-    }
-  }
+  ls->ops->reopenop(ls);
   for(node = ls->outlets; node; node = node->next) {
     noit_log_stream_reopen(node->outlet);
   }
@@ -141,12 +178,7 @@ void noit_log_stream_reopen(noit_log_stream_t ls) {
 void
 noit_log_stream_close(noit_log_stream_t ls) {
   struct _noit_log_stream_outlet_list *node;
-  if(ls->fd >= 0) {
-    int oldfd;
-    oldfd = ls->fd;
-    ls->fd = -1;
-    close(oldfd);
-  }
+  ls->ops->closeop(ls);
   for(node = ls->outlets; node; node = node->next) {
     noit_log_stream_close(node->outlet);
   }
@@ -177,7 +209,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   va_list copy;
 #endif
 
-  if(ls->fd >= 0) {
+  if(ls->enabled) {
     int len;
 #ifdef va_copy
     va_copy(copy, arg);
@@ -186,7 +218,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
 #else
     len = vsnprintf(buffer, sizeof(buffer), format, arg);
 #endif
-    write(ls->fd, buffer, len); /* Not much one can do about errors */
+    ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
   }
 
   for(node = ls->outlets; node; node = node->next) {
