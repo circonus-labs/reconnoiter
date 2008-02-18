@@ -313,8 +313,7 @@ int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m, noit_freefun
     sl->height--;
   }
   if(!sl->top) sl->bottom = NULL;
-  assert(sl->height>=0);
-  return sl->height;
+  return 1;
 }
 int noit_skiplist_remove_compare(noit_skiplist *sli,
 		      void *data,
