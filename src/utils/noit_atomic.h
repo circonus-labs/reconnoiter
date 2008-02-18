@@ -18,12 +18,12 @@ typedef int64_t noit_atomic64_t;
  */
 #include <libkern/OSAtomic.h>
 typedef OSSpinLock noit_spinlock_t;
-#define noit_atomic_cas32 OSAtomicCompareAndSwap32
-#define noit_atomic_cas64 OSAtomicCompareAndSwap64
-#define noit_atomic_inc32 OSAtomicIncrement32
-#define noit_atomic_inc64 OSAtomicIncrement64
-#define noit_atomic_dec32 OSAtomicDecrement32
-#define noit_atomic_dec64 OSAtomicDecrement64
+#define noit_atomic_cas32(ref,new,old) OSAtomicCompareAndSwap32(old,new,ref)
+#define noit_atomic_cas64(ref,new,old) OSAtomicCompareAndSwap64(old,new,ref)
+#define noit_atomic_inc32(ref) OSAtomicIncrement32(ref)
+#define noit_atomic_inc64(ref) OSAtomicIncrement64(ref)
+#define noit_atomic_dec32(ref) OSAtomicDecrement32(ref)
+#define noit_atomic_dec64(ref) OSAtomicDecrement64(ref)
 #define noit_spinlock_lock OSSpinLockLock
 #define noit_spinlock_unlock OSSpinLockUnlock
 #define noit_spinlock_trylock OSSpinLockTry
