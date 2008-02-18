@@ -233,6 +233,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
     }
+    eventer_jobq_enqueue(jobq->backq, job);
   }
   noit_atomic_dec32(&jobq->concurrency);
   pthread_exit(NULL);
