@@ -11,7 +11,8 @@ top_srcdir=@top_srcdir@
 
 OBJS=	eventer.o eventer_impl.o \
 	eventer_kqueue_impl.o \
-	eventer_POSIX_fd_opset.o
+	eventer_POSIX_fd_opset.o \
+	eventer_jobq.o
 
 all:	libeventer.a
 

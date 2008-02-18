@@ -8,6 +8,7 @@
 #include "utils/noit_atomic.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_log.h"
+#include "eventer/eventer_impl.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -99,6 +100,11 @@ ke_change (register int const ident,
 
 static int eventer_kqueue_impl_init() {
   struct rlimit rlim;
+  int rv;
+
+  /* super init */
+  if((rv = eventer_impl_init()) != 0) return rv;
+
   master_thread = pthread_self();
   signal(SIGPIPE, SIG_IGN);
   kqueue_fd = kqueue();
@@ -123,13 +129,29 @@ static int eventer_kqueue_impl_init() {
   return 0;
 }
 static int eventer_kqueue_impl_propset(const char *key, const char *value) {
-  return -1;
+  if(eventer_impl_propset(key, value)) {
+    /* Do our kqueue local properties here */
+    return -1;
+  }
+  return 0;
 }
 static void eventer_kqueue_impl_add(eventer_t e) {
   assert(e->mask);
   ev_lock_state_t lockstate;
+
+  if(e->mask & EVENTER_ASYNCH) {
+    eventer_add_asynch(NULL, e);
+    return;
+  }
+
+  /* Recurrent delegation */
+  if(e->mask & EVENTER_RECURRENT) {
+    eventer_add_recurrent(e);
+    return;
+  }
+
   /* Timed events are simple */
-  if(e->mask == EVENTER_TIMER) {
+  if(e->mask & EVENTER_TIMER) {
     pthread_mutex_lock(&te_lock);
     noit_skiplist_insert(timed_events, e);
     pthread_mutex_unlock(&te_lock);
@@ -145,11 +167,16 @@ static void eventer_kqueue_impl_add(eventer_t e) {
     ke_change(e->fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
   release_master_fd(e->fd, lockstate);
 }
-static void eventer_kqueue_impl_remove(eventer_t e) {
+static eventer_t eventer_kqueue_impl_remove(eventer_t e) {
+  eventer_t removed = NULL;
+  if(e->mask & EVENTER_ASYNCH) {
+    abort();
+  }
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     ev_lock_state_t lockstate;
     lockstate = acquire_master_fd(e->fd);
     if(e == master_fds[e->fd].e) {
+      removed = e;
       master_fds[e->fd].e = NULL;
       if(e->mask & (EVENTER_READ | EVENTER_EXCEPTION))
         ke_change(e->fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
@@ -160,12 +187,18 @@ static void eventer_kqueue_impl_remove(eventer_t e) {
   }
   else if(e->mask & EVENTER_TIMER) {
     pthread_mutex_lock(&te_lock);
-    noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
+    if(noit_skiplist_remove_compare(timed_events, e, NULL,
+                                    noit_compare_voidptr))
+      removed = e;
     pthread_mutex_unlock(&te_lock);
+  }
+  else if(e->mask & EVENTER_RECURRENT) {
+    removed = eventer_remove_recurrent(e);
   }
   else {
     abort();
   }
+  return removed;
 }
 static void eventer_kqueue_impl_update(eventer_t e) {
   if(e->mask & EVENTER_TIMER) {
@@ -261,6 +294,9 @@ static int eventer_kqueue_impl_loop() {
       /* we exceed our configured maximum, set it down */
       memcpy(&__sleeptime, &__max_sleeptime, sizeof(__sleeptime));
     }
+
+    /* Handle recurrent events */
+    eventer_dispatch_recurrent(&__now);
 
     /* If we're the master, we need to lock the master_kqs and make mods */
     if(master_kqs->__ke_vec_used) {

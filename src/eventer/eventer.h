@@ -10,11 +10,14 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 
-#define EVENTER_READ       0x01
-#define EVENTER_WRITE      0x02
-#define EVENTER_EXCEPTION  0x04
-#define EVENTER_TIMER      0x08
-#define EVENTER_ASYNCH     0x10
+#define EVENTER_READ             0x01
+#define EVENTER_WRITE            0x02
+#define EVENTER_EXCEPTION        0x04
+#define EVENTER_TIMER            0x08
+#define EVENTER_ASYNCH_WORK      0x10
+#define EVENTER_ASYNCH_CLEANUP   0x20
+#define EVENTER_ASYNCH           (EVENTER_ASYNCH_WORK | EVENTER_ASYNCH_CLEANUP)
+#define EVENTER_RECURRENT        0x80
 
 /* All of these functions act like their POSIX couterparts with two
  * additional arguments.  The first is the mask they require o be active
@@ -64,7 +67,7 @@ typedef struct _eventer_impl {
   int               (*init)();
   int               (*propset)(const char *key, const char *value);
   void              (*add)(eventer_t e);
-  void              (*remove)(eventer_t e);
+  eventer_t         (*remove)(eventer_t e);
   void              (*update)(eventer_t e);
   eventer_t         (*remove_fd)(int fd);
   eventer_t         (*find_fd)(int fd);

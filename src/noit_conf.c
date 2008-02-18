@@ -774,7 +774,7 @@ noit_console_config_show(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *state, void *closure) {
   int i, cnt, titled = 0, cliplen = 0;
-  const char *path, *basepath = NULL;
+  const char *path = "", *basepath = NULL;
   char xpath[1024];
   noit_conf_t_userdata_t *info = NULL;
   xmlXPathObjectPtr pobj = NULL;
