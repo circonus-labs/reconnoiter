@@ -14,6 +14,7 @@
 #define EVENTER_WRITE      0x02
 #define EVENTER_EXCEPTION  0x04
 #define EVENTER_TIMER      0x08
+#define EVENTER_ASYNCH     0x10
 
 /* All of these functions act like their POSIX couterparts with two
  * additional arguments.  The first is the mask they require o be active
