@@ -45,6 +45,7 @@ static int
 posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   int fd;
   fd = (int)ls->op_ctx;
+  if(fd < 0) return -1;
   return write(fd, buf, len);
 }
 static int
@@ -113,6 +114,7 @@ noit_log_stream_new(const char *name, logops_t *ops) {
   ls->name = strdup(name);
   ls->enabled = 1;
   ls->ops = ops ? ops : &posix_logio_ops;
+  if(!ops) ls->op_ctx = (void *)-1;
   if(noit_hash_store(&noit_loggers, ls->name, strlen(ls->name), ls) == 0) {
     free(ls->name);
     free(ls);
@@ -219,16 +221,16 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
     len = vsnprintf(buffer, sizeof(buffer), format, arg);
 #endif
     ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
-  }
 
-  for(node = ls->outlets; node; node = node->next) {
-#ifdef va_copy
-    va_copy(copy, arg);
-    noit_vlog(node->outlet, now, file, line, format, copy);
-    va_end(copy);
-#else
-    noit_vlog(node->outlet, now, file, line, format, arg);
-#endif
+    for(node = ls->outlets; node; node = node->next) {
+  #ifdef va_copy
+      va_copy(copy, arg);
+      noit_vlog(node->outlet, now, file, line, format, copy);
+      va_end(copy);
+  #else
+      noit_vlog(node->outlet, now, file, line, format, arg);
+  #endif
+    }
   }
 }
 
