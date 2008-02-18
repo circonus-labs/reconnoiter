@@ -36,10 +36,10 @@ extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 
 API_EXPORT(void) noit_log_init();
-API_EXPORT(noit_log_stream_t) noit_log_stream_new();
-API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_fd(const char *name, int fd);
-API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_file(const char *path);
-API_EXPORT(noit_log_stream_t) noit_log_stream_find(const char *name);
+API_EXPORT(noit_log_stream_t) noit_log_stream_new(const char *, logops_t *);
+API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_fd(const char *, int);
+API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_file(const char *);
+API_EXPORT(noit_log_stream_t) noit_log_stream_find(const char *);
 API_EXPORT(void) noit_log_stream_add_stream(noit_log_stream_t ls,
                                             noit_log_stream_t outlet);
 API_EXPORT(noit_log_stream_t)

@@ -64,8 +64,8 @@ void
 noit_log_init() {
   noit_hash_init(&noit_loggers);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2);
-  noit_error = noit_log_stream_new("error");
-  noit_debug = noit_log_stream_new("debug");
+  noit_error = noit_log_stream_new("error", NULL);
+  noit_debug = noit_log_stream_new("debug", NULL);
 }
 
 noit_log_stream_t
