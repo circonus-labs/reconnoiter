@@ -377,6 +377,7 @@ noit_check_update(noit_check_t *new_check,
           new_check->target, new_check->name);
     new_check->flags |= NP_DISABLED;
   }
+  noit_check_log_check(new_check);
   return 0;
 }
 int
@@ -489,36 +490,46 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, __free_metric);
 }
 
-void
-noit_stats_set_metric_int(stats_t *newstate, char *name, int *value) {
-  metric_t *m = calloc(1, sizeof(*m));
-  m->metric_name = strdup(name);
-  m->metric_type = METRIC_INT;
-  if(value) {
-    m->metric_value.i = malloc(sizeof(*value));
-    *(m->metric_value.i) = *value;
+static size_t
+noit_metric_sizes(metric_type_t type, void *value) {
+  switch(type) {
+    case METRIC_INT32:
+    case METRIC_UINT32:
+      return sizeof(int32_t);
+    case METRIC_INT64:
+    case METRIC_UINT64:
+      return sizeof(int64_t);
+    case METRIC_DOUBLE:
+      return sizeof(double);
+    case METRIC_STRING:
+      return strlen((char *)value) + 1;
+    case METRIC_GUESS:
+      break;
   }
-  __stats_add_metric(newstate, m);
+  assert(type != type);
+  return 0;
 }
-
+static metric_type_t
+noit_metric_guess_type(const char *s) {
+  if(!s) return METRIC_GUESS;
+  return METRIC_STRING;
+}
 void
-noit_stats_set_metric_float(stats_t *newstate, char *name, float *value) {
-  metric_t *m = calloc(1, sizeof(*m));
+noit_stats_set_metric(stats_t *newstate, char *name, metric_type_t type,
+                      void *value) {
+  metric_t *m;
+  if(type == METRIC_GUESS) type = noit_metric_guess_type((char *)value);
+  if(type == METRIC_GUESS) return;
+
+  m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
-  m->metric_type = METRIC_FLOAT;
+  m->metric_type = type;
   if(value) {
-    m->metric_value.f = malloc(sizeof(*value));
-    *(m->metric_value.f) = *value;
+    size_t len;
+    len = noit_metric_sizes(type, value);
+    m->metric_value.vp = calloc(1, len);
+    memcpy(m->metric_value.vp, value, len);
   }
-  __stats_add_metric(newstate, m);
-}
-
-void
-noit_stats_set_metric_string(stats_t *newstate, char *name, char *value) {
-  metric_t *m = calloc(1, sizeof(*m));
-  m->metric_name = strdup(name);
-  m->metric_type = METRIC_STRING;
-  m->metric_value.s = value ? strdup(value) : NULL;
   __stats_add_metric(newstate, m);
 }
 
@@ -553,6 +564,12 @@ noit_check_set_stats(struct _noit_module *module,
           __noit_check_available_string(check->stats.current.available),
           __noit_check_state_string(check->stats.current.state));
   }
+
+  /* Write out our status */
+  noit_check_log_status(check);
+  /* Write out all metrics */
+  noit_check_log_metrics(check);
+
   for(dep = check->causal_checks; dep; dep = dep->next) {
     noit_module_t *mod;
     mod = noit_module_lookup(dep->check->module);

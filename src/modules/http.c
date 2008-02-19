@@ -54,7 +54,7 @@ typedef struct {
 
 typedef struct buf_t {
   char *b;
-  int l;
+  int32_t l;
 } buf_t;
 
 typedef struct {
@@ -176,12 +176,14 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
   if(current.available == NP_AVAILABLE) {
-    noit_stats_set_metric_string(&current, "code", ci->status.code?code:NULL);
-    noit_stats_set_metric_int(&current, "bytes", &ci->body.l);
+    noit_stats_set_metric(&current, "code",
+                          METRIC_STRING, ci->status.code?code:NULL);
+    noit_stats_set_metric(&current, "bytes",
+                          METRIC_INT32, &ci->body.l);
   }
   else {
-    noit_stats_set_metric_int(&current, "code", NULL);
-    noit_stats_set_metric_int(&current, "bytes", NULL);
+    noit_stats_set_metric(&current, "code", METRIC_STRING, NULL);
+    noit_stats_set_metric(&current, "bytes", METRIC_INT32, NULL);
   }
   noit_check_set_stats(self, check, &current);
 }
@@ -240,7 +242,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   resmon_check_info_t *rci = check->closure;
   struct timeval duration;
   stats_t current;
-  int services = 0;
+  int32_t services = 0;
   char human_buffer[256], rt[14];
   xmlDocPtr resmon_results = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
@@ -289,7 +291,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   current.state = services ? NP_GOOD : NP_BAD;
   current.status = human_buffer;
 
-  noit_stats_set_metric_int(&current, "services", &services);
+  noit_stats_set_metric(&current, "services", METRIC_INT32, &services);
   if(services) {
     int i;
     for(i=0; i<services; i++) {
@@ -310,7 +312,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
         if(!resmod && !resserv) continue;
 
         for(a=0; a<3; a++) {
-          int intval;
+          int32_t intval;
           sobj = xmlXPathEval((xmlChar *)attrs[a], xpath_ctxt);
           attrnode = xmlXPathNodeSetItem(sobj->nodesetval, 0);
           value = (char *)xmlXPathCastNodeToString(attrnode);
@@ -320,11 +322,13 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
             case 0:
               /* The first is integer */
               intval = (int)(atof(value) * 1000.0);
-              noit_stats_set_metric_int(&current, attr, &intval);
+              noit_stats_set_metric(&current, attr, METRIC_INT32, &intval);
               break;
             case 1:
+              noit_stats_set_metric(&current, attr, METRIC_STRING, value);
+              break;
             case 2:
-              noit_stats_set_metric_string(&current, attr, (char *)value);
+              noit_stats_set_metric(&current, attr, METRIC_GUESS, value);
               break;
           }
         }

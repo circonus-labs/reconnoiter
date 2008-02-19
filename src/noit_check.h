@@ -44,13 +44,27 @@
 #define NP_BAD 'B'                 /* stats_t.state */
 #define NP_GOOD 'G'                /* stats_t.state */
 
+typedef enum {
+  METRIC_GUESS = '0',
+  METRIC_INT32 = 'i',
+  METRIC_UINT32 = 'I',
+  METRIC_INT64 = 'l',
+  METRIC_UINT64 = 'L',
+  METRIC_DOUBLE = 'n',
+  METRIC_STRING = 's'
+} metric_type_t;
+
 typedef struct {
   char *metric_name;
-  enum { METRIC_INT, METRIC_FLOAT, METRIC_STRING } metric_type;
+  metric_type_t metric_type;
   union {
-    float *f;
-    int *i;
+    double *n;
+    int32_t *i;
+    u_int32_t *I;
+    int64_t *l;
+    u_int64_t *L;
     char *s;
+    void *vp; /* used for clever assignments */
   } metric_value;
 } metric_t;
 
@@ -151,10 +165,11 @@ API_EXPORT(void)
                         stats_t *newstate);
 
 API_EXPORT(void)
-  noit_stats_set_metric_int(stats_t *newstate, char *name, int *value);
-API_EXPORT(void)
-  noit_stats_set_metric_float(stats_t *newstate, char *name, float *value);
-API_EXPORT(void)
-  noit_stats_set_metric_string(stats_t *newstate, char *name, char *value);
+  noit_stats_set_metric(stats_t *, char *, metric_type_t, void *);
+
+/* These are from noit_check_log.c */
+API_EXPORT(void) noit_check_log_check(noit_check_t *check);
+API_EXPORT(void) noit_check_log_status(noit_check_t *check);
+API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 
 #endif

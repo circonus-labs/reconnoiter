@@ -26,7 +26,7 @@ SUBS=utils jlog eventer modules noitedit
 
 OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
-	noit_check.o \
+	noit_check.o noit_check_log.o \
 	noit_module.o noit_conf.o noit_tokenizer.o
 
 all:	noitd
