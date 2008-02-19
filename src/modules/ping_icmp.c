@@ -81,7 +81,7 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   stats_t current;
   struct timeval duration;
 
-  memset(&current, 0, sizeof(current));
+  noit_check_stats_clear(&current);
 
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++) {

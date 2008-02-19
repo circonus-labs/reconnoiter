@@ -152,7 +152,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   char *code_str;
   char human_buffer[256], code[4], rt[14];
 
-  memset(&current, 0, sizeof(current));
+  noit_check_stats_clear(&current);
 
   if(noit_hash_retrieve(check->config, "code", strlen("code"),
                         (void **)&code_str))
@@ -192,7 +192,7 @@ static void resmon_part_log_results_xml(noit_module_t *self,
   xmlXPathContextPtr xpath_ctxt = NULL;
   stats_t current;
 
-  memset(&current, 0, sizeof(current));
+  noit_check_stats_clear(&current);
   current.available = NP_UNAVAILABLE;
   current.state = NP_BAD;
 
@@ -246,7 +246,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
 
-  memset(&current, 0, sizeof(current));
+  noit_check_stats_clear(&current);
 
   if(ci->body.b) resmon_results = xmlParseMemory(ci->body.b, ci->body.l);
   if(resmon_results) {

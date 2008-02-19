@@ -38,11 +38,11 @@
 #define NP_DISABLED 0x00000004
 #define NP_UNCONFIG 0x00000008
 
-#define NP_UNKNOWN 0               /* stats_t.{available,state} */
-#define NP_AVAILABLE 1             /* stats_t.available */
-#define NP_UNAVAILABLE -1          /* stats_t.available */
-#define NP_BAD 1                   /* stats_t.state */
-#define NP_GOOD 2                  /* stats_t.state */
+#define NP_UNKNOWN '0'             /* stats_t.{available,state} */
+#define NP_AVAILABLE 'A'           /* stats_t.available */
+#define NP_UNAVAILABLE 'U'         /* stats_t.available */
+#define NP_BAD 'B'                 /* stats_t.state */
+#define NP_GOOD 'G'                /* stats_t.state */
 
 typedef struct {
   char *metric_name;
@@ -56,8 +56,8 @@ typedef struct {
 
 typedef struct {
   struct timeval whence;
-  int16_t available;
-  int16_t state;
+  int8_t available;
+  int8_t state;
   u_int32_t duration;
   char *status;
   noit_hash_table metrics;
@@ -141,6 +141,9 @@ API_EXPORT(noit_check_t *)
 
 API_EXPORT(noit_check_t *)
   noit_poller_lookup_by_name(char *target, char *name);
+
+API_EXPORT(void)
+  noit_check_stats_clear(stats_t *s);
 
 struct _noit_module;
 API_EXPORT(void)

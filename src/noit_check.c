@@ -470,6 +470,12 @@ noit_poller_lookup_by_name(char *target, char *name) {
   return check;
 }
 
+void
+noit_check_stats_clear(stats_t *s) {
+  memset(s, 0, sizeof(*s));
+  s->state = NP_UNKNOWN;
+  s->available = NP_UNKNOWN;
+}
 static void
 __free_metric(void *vm) {
   metric_t *m = vm;
@@ -530,12 +536,12 @@ noit_check_set_stats(struct _noit_module *module,
     check->stats.current.status = strdup(check->stats.current.status);
 
   /* check for state changes */
-  if(check->stats.current.available != 0 &&
-     check->stats.previous.available != 0 &&
+  if(check->stats.current.available != NP_UNKNOWN &&
+     check->stats.previous.available != NP_UNKNOWN &&
      check->stats.current.available != check->stats.previous.available)
     report_change = 1;
-  if(check->stats.current.state != 0 &&
-     check->stats.previous.state != 0 &&
+  if(check->stats.current.state != NP_UNKNOWN &&
+     check->stats.previous.state != NP_UNKNOWN &&
      check->stats.current.state != check->stats.previous.state)
     report_change = 1;
 
