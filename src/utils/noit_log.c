@@ -3,10 +3,13 @@
  * All rights reserved.
  */
 
+#define DEFAULT_JLOG_SUBSCRIBER "stratcond"
+
 #include "noit_defines.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
@@ -69,9 +72,30 @@ jlog_logio_open(noit_log_stream_t ls) {
   if(!ls->path) return -1;
   log = jlog_new(ls->path);
   if(!log) return -1;
+  /* Open the writer. */
   if(jlog_ctx_open_writer(log)) {
+    /* If that fails, we'll give one attempt at initiailizing it. */
+    /* But, since we attempted to open it as a writer, it is tainted. */
+    /* path: close, new, init, close, new, writer, add subscriber */
     jlog_ctx_close(log);
-    return -1;
+    log = jlog_new(ls->path);
+    if(jlog_ctx_init(log)) {
+      noitL(noit_error, "Cannot init jlog writer: %s\n",
+            jlog_ctx_err_string(log));
+      jlog_ctx_close(log);
+      return -1;
+    }
+    /* After it is initialized, we can try to reopen it as a writer. */
+    jlog_ctx_close(log);
+    log = jlog_new(ls->path);
+    if(jlog_ctx_open_writer(log)) {
+      noitL(noit_error, "Cannot open jlog writer: %s\n",
+            jlog_ctx_err_string(log));
+      jlog_ctx_close(log);
+      return -1;
+    }
+    /* The first time we open after an init, we should add the subscriber. */
+    jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
   }
   ls->op_ctx = log;
   return 0;
