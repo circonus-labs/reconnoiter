@@ -9,6 +9,7 @@
 #include "noit_defines.h"
 #include <pthread.h>
 #include <stdarg.h>
+#include "utils/noit_hash.h"
 
 struct _noit_log_stream_outlet_list {
   struct _noit_log_stream *outlet;
@@ -28,6 +29,7 @@ typedef struct _noit_log_stream {
   char *path;
   logops_t *ops;
   void *op_ctx;
+  noit_hash_table *config;
   struct _noit_log_stream_outlet_list *outlets;
 } * noit_log_stream_t;
 
@@ -36,10 +38,16 @@ extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 
 API_EXPORT(void) noit_log_init();
-API_EXPORT(noit_log_stream_t) noit_log_stream_new(const char *, logops_t *);
-API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_fd(const char *, int);
-API_EXPORT(noit_log_stream_t) noit_log_stream_new_on_file(const char *);
+API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
+API_EXPORT(noit_log_stream_t)
+  noit_log_stream_new(const char *, const char *, const char *,
+                      noit_hash_table *);
+API_EXPORT(noit_log_stream_t)
+  noit_log_stream_new_on_fd(const char *, int, noit_hash_table *);
+API_EXPORT(noit_log_stream_t)
+  noit_log_stream_new_on_file(const char *, noit_hash_table *);
 API_EXPORT(noit_log_stream_t) noit_log_stream_find(const char *);
+API_EXPORT(void) noit_log_stream_remove(const char *name);
 API_EXPORT(void) noit_log_stream_add_stream(noit_log_stream_t ls,
                                             noit_log_stream_t outlet);
 API_EXPORT(noit_log_stream_t)

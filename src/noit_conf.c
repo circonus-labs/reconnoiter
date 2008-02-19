@@ -1256,3 +1256,56 @@ void register_console_config_commands() {
   ADD_CMD(tl, "write", noit_console_state_delegate, _write_state, NULL);
   ADD_CMD(tl, "reload", noit_conf_reload, NULL, NULL);
 }
+
+void
+noit_conf_log_init() {
+  int i, cnt = 0, o, ocnt = 0;
+  noit_conf_section_t *log_configs, *outlets;
+
+  log_configs = noit_conf_get_sections(NULL, "/noit/logs/log", &cnt);
+  noitL(noit_stderr, "Found %d /noit/logs/log stanzas\n", cnt);
+  for(i=0; i<cnt; i++) {
+    noit_log_stream_t ls;
+    char name[256], type[256], path[256];
+    noit_hash_table *config;
+    noit_conf_boolean disabled;
+
+    if(!noit_conf_get_stringbuf(log_configs[i], "@name", name, sizeof(name))) {
+      noitL(noit_error, "log section %d does not have a name attribute\n", i+1);
+      exit(-1);
+    }
+    if(!noit_conf_get_stringbuf(log_configs[i], "@type", type, sizeof(type))) {
+      type[0] = '\0';
+    }
+    if(!noit_conf_get_stringbuf(log_configs[i], "@path", path, sizeof(path))) {
+      path[0] = '\0';
+    }
+    config = noit_conf_get_hash(log_configs[i], "config/*");
+    ls = noit_log_stream_new(name, type[0] ? type : NULL,
+                             path[0] ? path : NULL, config);
+    if(!ls) {
+      fprintf(stderr, "Error configuring log: %s[%s:%s]\n", name, type, path);
+      exit(-1);
+    }
+    if(noit_conf_get_boolean(log_configs[i], "@disabled", &disabled))
+      if(disabled)
+        ls->enabled = 0;
+      
+    outlets = noit_conf_get_sections(log_configs[i], "outlet", &ocnt);
+    for(o=0; o<ocnt; o++) {
+      noit_log_stream_t outlet;
+      char oname[256];
+      noit_conf_get_stringbuf(outlets[i], "@name",
+                              oname, sizeof(oname));
+      outlet = noit_log_stream_find(oname);
+      if(!outlet) {
+        fprintf(stderr, "Cannot find outlet '%s' for %s[%s:%s]\n", oname,
+              name, type, path);
+        exit(-1);
+      }
+      noit_log_stream_add_stream(ls, outlet);
+    }
+    if(outlets) free(outlets);
+  }
+  if(log_configs) free(log_configs);
+}

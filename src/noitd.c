@@ -61,13 +61,7 @@ int main(int argc, char **argv) {
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
-  if(debug) {
-    noit_log_stream_add_stream(noit_debug, noit_stderr);
-    noit_debug->enabled = 1;
-  }
-  else {
-    noit_debug->enabled = 0;
-  }
+  noit_log_stream_add_stream(noit_debug, noit_stderr);
   noit_log_stream_add_stream(noit_error, noit_stderr);
 
   /* Next load the configs */
@@ -75,6 +69,11 @@ int main(int argc, char **argv) {
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
   }
+
+  /* Reinitialize the logging system now that we have a config */
+  noit_conf_log_init();
+  if(debug)
+    noit_debug->enabled = 1;
 
   /* Lastly, run through all other system inits */
   if(!noit_conf_get_stringbuf(NULL, "/noit/eventer/implementation",
