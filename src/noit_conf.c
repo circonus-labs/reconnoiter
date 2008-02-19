@@ -1295,7 +1295,7 @@ noit_conf_log_init() {
     for(o=0; o<ocnt; o++) {
       noit_log_stream_t outlet;
       char oname[256];
-      noit_conf_get_stringbuf(outlets[i], "@name",
+      noit_conf_get_stringbuf(outlets[o], "@name",
                               oname, sizeof(oname));
       outlet = noit_log_stream_find(oname);
       if(!outlet) {
