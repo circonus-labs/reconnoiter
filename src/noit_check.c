@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <assert.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -510,21 +511,137 @@ noit_metric_sizes(metric_type_t type, void *value) {
   return 0;
 }
 static metric_type_t
-noit_metric_guess_type(const char *s) {
+noit_metric_guess_type(const char *s, void **replacement) {
+  char *copy, *cp, *trailer, *rpl;
+  int negative = 0, bigF = 0;
+  metric_type_t type = METRIC_STRING;
+
   if(!s) return METRIC_GUESS;
-  return METRIC_STRING;
+  copy = cp = strdup(s);
+
+  /* TRIM the string */
+  while(*cp && isspace(*cp)) cp++; /* ltrim */
+  s = cp; /* found a good starting point */
+  while(*cp) cp++; /* advance to \0 */
+  cp--; /* back up one */
+  while(cp > s && isspace(*cp)) *cp-- = '\0'; /* rtrim */
+
+  /* Find the first space */
+  cp = (char *)s;
+  while(*cp && !isspace(*cp)) cp++;
+  trailer = cp;
+  cp--; /* backup one */
+  if(cp > s && *cp == '%') *cp-- = '\0'; /* chop a last % is there is one */
+
+  while(*trailer && isspace(*trailer)) *trailer++; /* rtrim */
+
+  /* string was       '  -1.23e-01%  inodes used  ' */
+  /* copy is (~ = \0) '  -1.23e-01~  inodes used~~' */
+  /*                     ^           ^              */
+  /*                     s           trailer        */
+
+  /* So, the trailer must not contain numbers */
+  while(*trailer) { if(isdigit(*trailer)) goto notanumber; trailer++; }
+
+  /* And the 's' must be of the form:
+   *  0) may start with a sign [-+]?
+   *  1) [1-9][0-9]*
+   *  2) [0]?.[0-9]+
+   *  3) 0
+   *  4) [1-9][0-9]*.[0-9]+
+   *  5) all of the above ending with e[+-][0-9]+
+   */
+   rpl = (char *)s;
+   /* CASE 0 */
+   if(s[0] == '-' || s[0] == '+') {
+     if(s[0] == '-') negative = 1;
+     s++;
+   }
+
+   if(s[0] == '.') goto decimal; /* CASE 2 */
+   if(s[0] == '0') { /* CASE 2 & 3 */
+     s++;
+     if(!s[0]) goto scanint; /* CASE 3 */
+     if(s[0] == '.') goto decimal; /* CASE 2 */
+     goto notanumber;
+   }
+   if(s[0] >= '1' && s[0] <= '9') { /* CASE 1 & 4 */
+     s++;
+     while(isdigit(s[0])) s++; /* CASE 1 & 4 */
+     if(!s[0]) goto scanint; /* CASE 1 */
+     if(s[0] == '.') goto decimal; /* CASE 4 */
+     goto notanumber;
+   }
+   /* Not case 1,2,3,4 */
+   goto notanumber;
+
+  decimal:
+   s++;
+   if(!isdigit(s[0])) goto notanumber;
+   s++;
+   while(isdigit(s[0])) s++;
+   if(!s[0]) goto scandouble;
+   if(s[0] == 'e' || s[0] == 'E') goto exponent; /* CASE 5 */
+   goto notanumber;
+
+  exponent:
+   if(s[0] == 'E') bigF = 1; /* We want the caps variant */
+   s++;
+   if(s[0] != '-' && s[0] != '+') goto notanumber;
+   s++;
+   if(!isdigit(s[0])) goto notanumber;
+   s++;
+   while(isdigit(s[0])) s++;
+   if(!s[0]) goto scandouble;
+   goto notanumber;
+
+ scanint:
+   if(negative) {
+     int64_t *v;
+     v = calloc(1, sizeof(*v));
+     *v = strtoll(rpl, NULL, 10);
+     *replacement = v;
+     type = METRIC_INT64;
+     goto alldone;
+   }
+   else {
+     u_int64_t *v;
+     v = calloc(1, sizeof(*v));
+     *v = strtoull(rpl, NULL, 10);
+     *replacement = v;
+     type = METRIC_UINT64;
+     goto alldone;
+   }
+ scandouble:
+   {
+     double *v;
+     v = calloc(1, sizeof(*v));
+     *v = strtod(rpl, NULL);
+     *replacement = v;
+     type = METRIC_DOUBLE;
+     goto alldone;
+   }
+
+ alldone:
+ notanumber:
+  free(copy);
+  return type;
 }
 void
 noit_stats_set_metric(stats_t *newstate, char *name, metric_type_t type,
                       void *value) {
   metric_t *m;
-  if(type == METRIC_GUESS) type = noit_metric_guess_type((char *)value);
+  void *replacement = NULL;
+  if(type == METRIC_GUESS)
+    type = noit_metric_guess_type((char *)value, &replacement);
   if(type == METRIC_GUESS) return;
 
   m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = type;
-  if(value) {
+  if(replacement)
+    m->metric_value.vp = replacement;
+  else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
     m->metric_value.vp = calloc(1, len);
