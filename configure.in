@@ -60,6 +60,16 @@ AC_CHECK_LIB(uuid, uuid_generate, , )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
+AC_CHECK_LIB(ssl, SSL_library_init, ,
+	[
+		AC_MSG_ERROR([libssl not found, but required])
+	]
+)
+AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
+	[
+		AC_MSG_ERROR([libssl not found, but required])
+	]
+)
 
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`

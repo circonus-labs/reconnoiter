@@ -251,7 +251,8 @@ noit_console_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
   int keep_going;
-  noit_console_closure_t ncct = closure;
+  acceptor_closure_t *ac = closure;
+  noit_console_closure_t ncct = ac->service_ctx;
 
   if(mask & EVENTER_EXCEPTION || (ncct && ncct->wants_shutdown)) {
 socket_error:
@@ -259,12 +260,15 @@ socket_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     if(ncct) noit_console_closure_free(ncct);
+    free(ac);
     return 0;
   }
 
-  if(!ncct) {
+  if(!ac->service_ctx) {
+    ncct = ac->service_ctx = noit_console_closure_alloc();
+  }
+  if(!ncct->initialized) {
     int on = 1;
-    ncct = closure = e->closure = noit_console_closure_alloc();
     ncct->e = e;
     if(openpty(&ncct->pty_master, &ncct->pty_slave, NULL, NULL, NULL) ||
        ioctl(ncct->pty_master, FIONBIO, &on)) {
@@ -272,6 +276,7 @@ socket_error:
       ncct->wants_shutdown = 1;
     }
     else {
+      const char *line_protocol;
       HistEvent ev;
       ncct->hist = history_init();
       history(ncct->hist, &ev, H_SETSIZE, 500);
@@ -279,10 +284,18 @@ socket_error:
       el_set(ncct->el, EL_USERDATA, ncct);
       el_set(ncct->el, EL_EDITOR, "emacs");
       el_set(ncct->el, EL_HIST, history, ncct->hist);
-      ncct->telnet = noit_console_telnet_alloc(ncct);
-      ncct->output_cooker = nc_telnet_cooker;
+      if(!noit_hash_retrieve(ac->config,
+                             "line_protocol", strlen("line_protocol"),
+                             (void **)&line_protocol)) {
+        line_protocol = NULL;
+      }
+      if(line_protocol && !strcasecmp(line_protocol, "telnet")) {
+        ncct->telnet = noit_console_telnet_alloc(ncct);
+        ncct->output_cooker = nc_telnet_cooker;
+      }
       noit_console_state_init(ncct);
     }
+    ncct->initialized = 1;
   }
 
   /* If we still have data to send back to the client, this will take

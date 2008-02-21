@@ -272,6 +272,16 @@ void noit_hash_destroy(noit_hash_table *h, NoitHashFreeFunc keyfree, NoitHashFre
   if(h->buckets) free(h->buckets);
 }
 
+void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+  if(src == NULL || dst == NULL) return;
+  while(noit_hash_next(src, &iter, &k, &klen, &data))
+    noit_hash_store(dst, strdup(k), klen, strdup((char *)data));
+}
+
 int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,
                 const char **k, int *klen, void **data) {
   noit_hash_bucket *b;

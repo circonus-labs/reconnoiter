@@ -54,11 +54,22 @@ noitd:	make-subdirs $(OBJS)
 noit_tokenizer.c:	noit_tokenizer.re
 	re2c -o $@ noit_tokenizer.re
 
+test.key:
+	openssl genrsa -out test.key
+
+test.csr:	test.key
+	openssl req -key test.key -days 365 -new -out test.csr
+
+test.crt:	test.key test.crt
+	openssl x509 -req -in test.csr -signkey test.key -out test.crt
+
+testcerts:	test.key test.crt
+
 clean-subdirs:
 	for dir in $(SUBS) ; do \
 		(cd $$dir && make clean) ; \
 	done
 
 clean:	clean-subdirs
-	rm -f *.o noitd
+	rm -f *.o noitd test.key test.csr test.crt
 

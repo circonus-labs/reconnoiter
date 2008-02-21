@@ -60,6 +60,7 @@ typedef struct _console_state_stack {
 } noit_console_state_stack_t;
 
 typedef struct __noit_console_closure {
+  int initialized;
   eventer_t e;           /* The event it is attached to.  This
                           * is needed so it can write itself out */
   int   wants_shutdown;  /* Set this to 1 to have it die */

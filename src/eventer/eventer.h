@@ -20,7 +20,7 @@
 #define EVENTER_RECURRENT        0x80
 
 /* All of these functions act like their POSIX couterparts with two
- * additional arguments.  The first is the mask they require o be active
+ * additional arguments.  The first is the mask they require to be active
  * to make progress in the event of an EAGAIN.  The second is a closure
  * which is the event itself.
  */
@@ -41,6 +41,10 @@ typedef struct _fd_opset {
 } *eventer_fd_opset_t;
 
 typedef struct _event *eventer_t;
+
+#include "eventer/eventer_POSIX_fd_opset.h"
+#include "eventer/eventer_SSL_fd_opset.h"
+
 typedef int (*eventer_func_t)
             (eventer_t e, int mask, void *closure, struct timeval *tv);
 
@@ -50,6 +54,7 @@ struct _event {
   int                 fd;
   int                 mask;
   eventer_fd_opset_t  opset;
+  void               *opset_ctx;
   void *closure;
 };
 

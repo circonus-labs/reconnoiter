@@ -49,6 +49,7 @@ int eventer_impl_propset(const char *key, const char *value) {
 int eventer_impl_init() {
   int i;
   eventer_t e;
+  eventer_ssl_init();
   eventer_jobq_init(&__global_backq);
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;

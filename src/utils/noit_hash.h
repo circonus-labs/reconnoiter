@@ -82,6 +82,13 @@ void noit_hash_delete_all(noit_hash_table *h, NoitHashFreeFunc keyfree,
 void noit_hash_destroy(noit_hash_table *h, NoitHashFreeFunc keyfree,
                        NoitHashFreeFunc datafree);
 
+/* This is a convenience function only.  It assumes that all keys and values
+ * in the destination hash are strings and allocated with malloc() and
+ * assumes that the source contains only keys and values that can be
+ * suitably duplicated by strdup().
+ */
+void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src);
+
 /* This is an iterator and requires the hash to not be written to during the
    iteration process.
    To use:
