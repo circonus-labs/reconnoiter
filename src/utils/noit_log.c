@@ -151,7 +151,11 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   ls->op_ctx = (void *)fd;
   ls->enabled = 1;
   ls->config = config;
-  if(noit_hash_store(&noit_loggers, ls->name, strlen(ls->name), ls) == 0) {
+  /* This double strdup of ls->name is needed, look for the next one
+   * for an explanation.
+   */
+  if(noit_hash_store(&noit_loggers,
+                     strdup(ls->name), strlen(ls->name), ls) == 0) {
     free(ls->name);
     free(ls);
     return NULL;
@@ -191,16 +195,24 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
     ls = saved;
   }
   else
-    if(noit_hash_store(&noit_loggers, ls->name, strlen(ls->name), ls) == 0)
+    /* We strdup the name *again*.  We'going to kansas city shuffle the
+     * ls later (see memcpy above).  However, if don't strdup, then the
+     * noit_log_stream_free up there will sweep our key right our from
+     * under us.
+     */
+    if(noit_hash_store(&noit_loggers,
+                       strdup(ls->name), strlen(ls->name), ls) == 0)
       goto freebail;
 
   return ls;
 
  freebail:
-    free(ls->name);
-    if(ls->path) free(ls->path);
-    free(ls);
-    return NULL;
+  fprintf(stderr, "Failed to instantiate logger(%s,%s,%s)\n",
+          name, type ? type : "[null]", path ? path : "[null]");
+  free(ls->name);
+  if(ls->path) free(ls->path);
+  free(ls);
+  return NULL;
 }
 
 noit_log_stream_t

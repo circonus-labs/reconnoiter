@@ -29,7 +29,7 @@ OBJS=noitd.o noit_listener.o \
 	noit_check.o noit_check_log.o \
 	noit_module.o noit_conf.o noit_tokenizer.o
 
-all:	noitd
+all:	noitd testcerts
 
 make-subdirs:	serf/.libs/libserf-0.a
 	for dir in $(SUBS) ; do \
@@ -60,7 +60,7 @@ test.key:
 test.csr:	test.key
 	openssl req -key test.key -days 365 -new -out test.csr
 
-test.crt:	test.key test.crt
+test.crt:	test.key test.csr
 	openssl x509 -req -in test.csr -signkey test.key -out test.crt
 
 testcerts:	test.key test.crt

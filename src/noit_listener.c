@@ -44,7 +44,7 @@ noit_listener_accept_ssl(eventer_t e, int mask,
 
  socketfail:
   eventer_remove_fd(e->fd);
-  close(e->fd);
+  e->opset->close(e->fd, &mask, e);
   return 0;
 }
 
@@ -63,7 +63,7 @@ noit_listener_acceptor(eventer_t e, int mask,
   if(mask & EVENTER_EXCEPTION) {
  socketfail:
     eventer_remove_fd(e->fd);
-    close(e->fd);
+    e->opset->close(e->fd, &mask, e);
     return 0;
   }
 

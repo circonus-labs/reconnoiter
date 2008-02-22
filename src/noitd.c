@@ -76,10 +76,10 @@ int main(int argc, char **argv) {
     noit_debug->enabled = 1;
 
   /* Lastly, run through all other system inits */
-  if(!noit_conf_get_stringbuf(NULL, "/noit/eventer/implementation",
+  if(!noit_conf_get_stringbuf(NULL, "/noit/eventer/@implementation",
                               conf_str, sizeof(conf_str))) {
     noitL(noit_stderr, "Cannot find '%s' in configuration\n",
-          "/noit/eventer/implementation");
+          "/noit/eventer/@implementation");
     exit(-1);
   }
   if(eventer_choose(conf_str) == -1) {
