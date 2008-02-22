@@ -171,9 +171,18 @@ read_preread(EditLine *el)
 	(void) ioctl(el->el_infd, FIONREAD, (ioctl_t) & chrs);
 	if (chrs > 0) {
 		char buf[EL_BUFSIZ];
+		int mask;
 
-		chrs = read(el->el_infd, buf,
-		    (size_t) MIN(chrs, EL_BUFSIZ - 1));
+		if(el->el_in_e)
+			chrs = el->
+				el_in_e->
+				opset->
+				read(el->el_in_e, buf,
+				    (size_t) MIN(chrs, EL_BUFSIZ - 1),
+				    &mask, el->el_in_e);
+		else
+			chrs = read(el->el_infd, buf,
+			    (size_t) MIN(chrs, EL_BUFSIZ - 1));
 		if (chrs > 0) {
 			buf[chrs] = '\0';
 			el->el_chared.c_macro.nline = strdup(buf);
@@ -280,11 +289,15 @@ read_char(EditLine *el, char *cp)
 	int tried = 0;
 
 	do {
-#if _WIN32
-	        num_read = win32_read_console_char(cp);
-#else
-		num_read = read(el->el_infd, cp, 1);
-#endif
+		int mask;
+		if(el->el_in_e)
+			num_read = el->
+				el_in_e->
+				opset->
+				read(el->el_in_e->fd, cp, 1,
+				    &mask, el->el_in_e);
+		else
+			num_read = read(el->el_infd, cp, 1);
 
 		if (num_read)
 			break;

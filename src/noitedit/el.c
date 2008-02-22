@@ -83,7 +83,8 @@ el_multi_get_el() {
  *	Initialize editline and set default parameters.
  */
 public EditLine *
-el_init(const char *prog, int infd, int outfd, int errfd)
+el_init(const char *prog, int infd, eventer_t in_e,
+        int outfd, eventer_t out_e, int errfd, eventer_t err_e)
 {
 
 	EditLine *el = (EditLine *) el_malloc(sizeof(EditLine));
@@ -97,8 +98,11 @@ el_init(const char *prog, int infd, int outfd, int errfd)
 	memset(el, 0, sizeof(EditLine));
 
 	el->el_infd = infd;
+	el->el_in_e = in_e;
 	el->el_outfd = outfd;
+	el->el_out_e = out_e;
 	el->el_errfd = errfd;
+	el->el_err_e = err_e;
 	el->el_err_printf = el_err_printf;
 	el->el_std_printf = el_std_printf;
 	el->el_std_putc = el_std_putc;
@@ -576,12 +580,17 @@ el_editmode(EditLine *el, int argc, char **argv)
 protected int
 el_err_vprintf(EditLine *el, const char *fmt, va_list arg)
 {
-	int len;
+	int len, mask;
 	char buffer[1024];
 	len = vsnprintf(buffer, sizeof(buffer), fmt, arg);
 	if(len > sizeof(buffer)) len = sizeof(buffer);
-	len = write(el->el_errfd, buffer, len);
-	return len;
+	if(el->el_err_e)
+		return el->
+			el_err_e->
+			opset->
+			write(el->el_err_e->fd, buffer, len,
+				&mask, el->el_err_e);
+	return write(el->el_errfd, buffer, len);
 }
 
 protected int
@@ -598,12 +607,17 @@ el_err_printf(EditLine *el, const char *fmt, ...)
 protected int
 el_std_vprintf(EditLine *el, const char *fmt, va_list arg)
 {
-	int len;
+	int len, mask;
 	char buffer[1024];
 	len = vsnprintf(buffer, sizeof(buffer), fmt, arg);
 	if(len > sizeof(buffer)) len = sizeof(buffer);
-	len = write(el->el_outfd, buffer, len);
-	return len;
+	if(el->el_out_e)
+		return el->
+			el_out_e->
+			opset->
+			write(el->el_out_e->fd, buffer,
+				len, &mask, el->el_out_e);
+	return write(el->el_outfd, buffer, len);
 }
 
 protected int
@@ -620,7 +634,14 @@ el_std_printf(EditLine *el, const char *fmt, ...)
 protected int
 el_std_putc(int i, EditLine *el)
 {
+	int mask;
 	unsigned char c = i & 0xff;
+	if(el->el_out_e)
+		return el->
+			el_out_e->
+			opset->
+			write(el->el_out_e->fd, &c,
+				1, &mask, el->el_out_e);
 	return write(el->el_outfd, &c, 1);
 }
 protected int

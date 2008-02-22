@@ -280,7 +280,8 @@ socket_error:
       HistEvent ev;
       ncct->hist = history_init();
       history(ncct->hist, &ev, H_SETSIZE, 500);
-      ncct->el = el_init("noitd", ncct->pty_master, e->fd, e->fd);
+      ncct->el = el_init("noitd", ncct->pty_master, NULL,
+                         e->fd, e, e->fd, e);
       el_set(ncct->el, EL_USERDATA, ncct);
       el_set(ncct->el, EL_EDITOR, "emacs");
       el_set(ncct->el, EL_HIST, history, ncct->hist);

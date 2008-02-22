@@ -44,6 +44,8 @@
 #ifndef _HISTEDIT_H_
 #define	_HISTEDIT_H_
 
+#include "noit_defines.h"
+#include "eventer/eventer.h"
 #include <sys/types.h>
 #include <stdio.h>
 
@@ -87,7 +89,8 @@ EditLine        *el_multi_get_el();
 /*
  * Initialization, cleanup, and resetting
  */
-EditLine	*el_init(const char *, int, int, int);
+EditLine	*el_init(const char *, int, eventer_t,
+                         int, eventer_t, int, eventer_t);
 void		 el_reset(EditLine *);
 void		 el_end(EditLine *);
 

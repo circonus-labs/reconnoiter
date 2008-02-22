@@ -207,7 +207,9 @@ rl_initialize(void)
 		editmode = 0;
 
 	e = el_init(rl_readline_name,
-	            fileno(rl_instream), fileno(rl_outstream), fileno(stderr));
+	            fileno(rl_instream), NULL,
+                    fileno(rl_outstream), NULL,
+                    fileno(stderr), NULL);
 
 	if (!editmode)
 		el_set(e, EL_EDITMODE, 0);

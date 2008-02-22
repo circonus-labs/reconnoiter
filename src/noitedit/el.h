@@ -51,6 +51,7 @@
 #define	ANCHOR
 
 #include "noit_defines.h"
+#include "eventer/eventer.h"
 #include <stdio.h>
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -125,8 +126,11 @@ typedef struct el_state_t {
 struct editline {
 	char		 *el_prog;	/* the program name		*/
 	int		  el_outfd;	/* Output file descriptor	*/
+        eventer_t         el_out_e;
 	int               el_errfd;     /* Error file descriptor        */
+        eventer_t         el_err_e;
 	int		  el_infd;	/* Input file descriptor	*/
+        eventer_t         el_in_e;
 	int		  el_flags;	/* Various flags.		*/
 	coord_t		  el_cursor;	/* Cursor location		*/
 	char		**el_display;	/* Real screen image = what is there */
