@@ -318,18 +318,18 @@ eventer_SSL_connect(eventer_t e, int *mask) {
 static int
 eventer_SSL_read(int fd, void *buffer, size_t len, int *mask, void *closure) {
   int rv;
-  noitL(noit_error, "SSL_read(%d) wants %d bytes\n", fd, len);
+  noitL(noit_debug, "SSL_read(%d) wants %ld bytes\n", fd, len);
   rv = eventer_SSL_rw(SSL_OP_READ, fd, buffer, len, mask, closure);
-  noitL(noit_error, "SSL_read(%d) wanted %d bytes, got return value %d\n", fd, len, rv);
+  noitL(noit_debug, "SSL_read(%d) wanted %ld bytes, got return value %d\n", fd, len, rv);
   return rv;
 }
 static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  noitL(noit_error, "SSL_write(%d) wants %d bytes\n", fd, len);
+  noitL(noit_debug, "SSL_write(%d) wants %ld bytes\n", fd, len);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  noitL(noit_error, "SSL_write(%d) wanted %d bytes, got return value %d\n", fd, len, rv);
+  noitL(noit_debug, "SSL_write(%d) wanted %ld bytes, got return value %d\n", fd, len, rv);
   return rv;
 }
 
