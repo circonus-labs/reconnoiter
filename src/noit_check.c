@@ -198,8 +198,10 @@ noit_poller_initiate() {
     if(mod) {
       if(NOIT_CHECK_LIVE(check))
         continue;
-      if((check->flags & NP_DISABLED) == 0)
-        mod->initiate_check(mod, check, 0, NULL);
+      if((check->flags & NP_DISABLED) == 0) {
+        if(mod->initiate_check)
+          mod->initiate_check(mod, check, 0, NULL);
+      }
       else
         noitL(noit_debug, "Skipping %s`%s, disabled.\n",
               check->target, check->name);

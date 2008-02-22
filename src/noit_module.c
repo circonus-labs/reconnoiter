@@ -105,12 +105,12 @@ void noit_module_init() {
     }
     config = noit_conf_get_hash(sections[i], "ancestor-or-self::node()/config/*");
     module = noit_module_lookup(module_name);
-    if(module->config(module, config)) {
+    if(module->config && module->config(module, config)) {
       noitL(noit_stderr,
             "Configure failed on %s:%s\n", module_file, module_name);
       continue;
     }
-    if(module->init(module)) {
+    if(module->init && module->init(module)) {
       noitL(noit_stderr,
             "Initialized failed on %s:%s\n", module_file, module_name);
       continue;
