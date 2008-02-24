@@ -103,7 +103,7 @@ void noit_module_init() {
       noitL(noit_stderr, "Could not load %s:%s\n", module_file, module_name);
       continue;
     }
-    config = noit_conf_get_hash(sections[i], "ancestor-or-self::node()/config/*");
+    config = noit_conf_get_hash(sections[i], "config");
     module = noit_module_lookup(module_name);
     if(module->config && module->config(module, config)) {
       noitL(noit_stderr,

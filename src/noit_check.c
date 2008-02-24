@@ -157,7 +157,7 @@ noit_poller_process_checks(const char *xpath) {
       noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
-    options = noit_conf_get_hash(sec[i], "ancestor-or-self::node()/config/*");
+    options = noit_conf_get_hash(sec[i], "config");
 
     INHERIT(boolean, disable, &disabled);
     flags = 0;

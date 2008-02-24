@@ -293,8 +293,8 @@ noit_listener_reconfig() {
                           "ancestor-or-self::node()/@backlog", &backlog))
       backlog = 5;
 
-    sslconfig = noit_conf_get_hash(listener_configs[i], "sslconfig/*");
-    config = noit_conf_get_hash(listener_configs[i], "config/*");
+    sslconfig = noit_conf_get_hash(listener_configs[i], "sslconfig");
+    config = noit_conf_get_hash(listener_configs[i], "config");
 
     noit_listener(address, port, SOCK_STREAM, backlog,
                   sslconfig, config, f, NULL);

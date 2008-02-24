@@ -38,7 +38,7 @@ static
 int configure_eventer() {
   int rv = 0;
   noit_hash_table *table;
-  table = noit_conf_get_hash(NULL, "/noit/eventer/config/*");
+  table = noit_conf_get_hash(NULL, "/noit/eventer/config");
   if(table) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *key, *value;

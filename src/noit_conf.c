@@ -75,10 +75,10 @@ int noit_conf_save(const char *path) {
   return -1;
 }
 
-noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
-                                    const char *path) {
+void noit_conf_get_elements_into_hash(noit_conf_section_t section,
+                                      const char *path,
+                                      noit_hash_table *table) {
   int i, cnt;
-  noit_hash_table *table = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
@@ -93,7 +93,6 @@ noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
   if(!pobj) goto out;
   if(pobj->type != XPATH_NODESET) goto out;
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
-  table = calloc(1, sizeof(*table));
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
     char *value;
@@ -107,6 +106,65 @@ noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
   if(pobj) xmlXPathFreeObject(pobj);
   if(current_ctxt && current_ctxt != xpath_ctxt)
     xmlXPathFreeContext(current_ctxt);
+}
+void noit_conf_get_into_hash(noit_conf_section_t section,
+                             const char *path,
+                             noit_hash_table *table) {
+  int cnt;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr current_ctxt;
+  xmlNodePtr current_node = (xmlNodePtr)section;
+  xmlNodePtr node, parent_node;
+  char xpath_expr[1024];
+  char *inheritid;
+
+  current_ctxt = xpath_ctxt;
+  if(current_node) {
+    current_ctxt = xmlXPathNewContext(master_config);
+    current_ctxt->node = current_node;
+  }
+  if(path[0] == '/')
+    strlcpy(xpath_expr, path, sizeof(xpath_expr));
+  else
+    snprintf(xpath_expr, sizeof(xpath_expr),
+             "ancestor-or-self::node()/%s", path);
+  pobj = xmlXPathEval((xmlChar *)xpath_expr, current_ctxt);
+  if(!pobj) goto out;
+  if(pobj->type != XPATH_NODESET) goto out;
+  if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  /* These are in the order of root to leaf
+   * We want to recurse... apply:
+   *   1. our parent's config
+   *   2. our "inherit" config if it exists.
+   *   3. our config.
+   */
+  node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-1);
+  /* 1. */
+  if(cnt > 1) {
+    parent_node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-2);
+    noit_conf_get_into_hash(parent_node, (const char *)node->name, table);
+  }
+  /* 2. */
+  inheritid = (char *)xmlGetProp(node, (xmlChar *)"inherit");
+  if(inheritid) {
+    snprintf(xpath_expr, sizeof(xpath_expr), "//*[@id=\"%s\"]", inheritid);
+    noit_conf_get_into_hash(NULL, xpath_expr, table);
+  }
+  /* 3. */
+  noit_conf_get_elements_into_hash(node, "*", table);
+
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(current_ctxt && current_ctxt != xpath_ctxt)
+    xmlXPathFreeContext(current_ctxt);
+}
+noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
+                                    const char *path) {
+  noit_hash_table *table = NULL;
+
+  table = calloc(1, sizeof(*table));
+  noit_conf_get_into_hash(section, path, table);
   return table;
 }
 noit_conf_section_t noit_conf_get_section(noit_conf_section_t section,
@@ -1294,8 +1352,6 @@ noit_conf_log_init() {
       fprintf(stderr, "Error configuring log: %s[%s:%s]\n", name, type, path);
       exit(-1);
     }
-
-    noitL(noit_debug, "[%d] configuring log %s[%s:%s]\n", i, name, type, path);
 
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@disabled",
