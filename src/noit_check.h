@@ -3,8 +3,8 @@
  * All rights reserved.
  */
 
-#ifndef _NOIT_POLLER_H
-#define _NOIT_POLLER_H
+#ifndef _NOIT_CHECK_H
+#define _NOIT_CHECK_H
 
 #include "noit_defines.h"
 

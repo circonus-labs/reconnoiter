@@ -23,7 +23,7 @@
 #include "eventer/eventer.h"
 
 /* 60 seconds of possible stutter */
-#define MAX_INITIAL_STUTTER (60*1000)
+#define MAX_INITIAL_STUTTER 60
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist polls_by_name = { 0 };
@@ -64,7 +64,10 @@ static int __check_name_compare(void *a, void *b) {
 }
 int
 noit_check_max_initial_stutter() {
-  return MAX_INITIAL_STUTTER;
+  int stutter;
+  if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
+    stutter = MAX_INITIAL_STUTTER;
+  return stutter * 1000;
 }
 void
 noit_check_fake_last_check(noit_check_t *check,
