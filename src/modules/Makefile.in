@@ -15,7 +15,7 @@ INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@
+MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ snmp.@MODULEEXT@
 
 all:	$(MODULES)
 
@@ -24,6 +24,9 @@ http.@MODULEEXT@:	http.lo
 
 http.lo:	http.c
 	$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
+
+snmp.@MODULEEXT@:	snmp.lo
+	$(MODULELD) $(LDFLAGS) -o $@ snmp.lo -lnetsnmp
 
 .lo.@MODULEEXT@:
 	$(MODULELD) $(LDFLAGS) -o $@ $<
