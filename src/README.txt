@@ -40,7 +40,7 @@ of key/value pairs, the the top-most anscestor is is queried, then its
 child is queries merging values replacing conflicts and so on until
 the youngest/deepest node is reached.
 
-=== Example: ===
+==== Example ====
 
       <a foo="bar">
         <config>
@@ -74,6 +74,62 @@ When looking at the key/value set "config" we see the following values at nodes:
 This inheritance model allows for "non-repetitive" configuration
 approaches: "express yourself once and reuse."
 
+=== Explicit Inheritance ===
+
+Sometimes it is useful to define a configuration table key/value set
+for reuse, but the strict parent-child inheritance model is awkward.
+Under these circumstances, the explicit inheritance often solves the
+issue at hand.  With explicit inheritance, a configuration can inherit
+from another named node elsewhere in the configuration.
+
+The <config /> stanzas can be identified, as is typical in XML, with
+the "id" attribute: <config id="sample" />.  Additionally, any config
+may explicitly specify that it inherits from a named config by
+specifying the "inherit" attribute.
+
+Any <config />, A, which has the "inherit" attribute will first
+inherit from its most direct parent, then supplement/replace those
+key/values with the configuration whose "id" attribute matches the
+"inherit" attribute of A, and finally supplement/replace those
+key/values with key/values directly beneath A.  The entire tree is
+searched for a node whose "id" matches A's "inherit" attribute.
+
+==== Example ====
+
+  <config name="A">
+    <key1>a</key1>
+    <key2>b</key2>
+    <key3>c</key3>
+    <config name="C" inherit="bob">
+      <key1>AAA</key1>
+      <key4>DDD</key4>
+    </config>
+  </config>
+  <x>
+    <y>
+      <z>
+        <config name="B" id="bob">
+          <key2>bobB</key2>
+          <key5>bobE</key5>
+        </config>
+      </z>
+    </y>
+  </x>
+
+The config named "A" contains:
+  key1: a
+  key2: b
+  key3: c
+
+The config named "C" contains:
+  key1: AAA
+  key2: bobB
+  key3: c
+  key4: DDD
+  key5: bobE
+
+It should be noted hat all config's include the one named "B" above
+follows this same inheritance model.
 
 == Seciton <eventer>: ==
 
