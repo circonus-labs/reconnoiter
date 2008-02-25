@@ -99,9 +99,9 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
 
   noit_check_stats_clear(&current);
 
-  for(vars = pdu->variables; vars; vars = vars->next_variable) {
-    nresults++;
-  }
+  if(pdu)
+    for(vars = pdu->variables; vars; vars = vars->next_variable)
+      nresults++;
 
   gettimeofday(&current.whence, NULL);
   sub_timeval(current.whence, check->last_fire_time, &duration);
@@ -110,6 +110,10 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
   current.state = (nresults == info->noids) ? NP_GOOD : NP_BAD;
   snprintf(buff, sizeof(buff), "%d/%d gets", nresults, info->noids);
   current.status = buff;
+
+  /* We have no results over which to iterate. */
+  if(!pdu)
+    noit_check_set_stats(self, check, &current);
 
   /* manipulate the information ourselves */
   nresults = 0;
