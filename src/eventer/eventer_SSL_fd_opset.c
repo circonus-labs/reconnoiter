@@ -76,14 +76,64 @@ tmp_rsa_cb(SSL *ssl, int export, int keylen) {
 }
 
 int
-eventer_ssl_verify_dates(X509_STORE_CTX *x509ctx) {
+eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
+                         X509_STORE_CTX *x509ctx, void *closure) {
   time_t now;
   X509 *peer;
+  if(!x509ctx) return -1;
   peer = X509_STORE_CTX_get_current_cert(x509ctx);
   time(&now);
   if(X509_cmp_time(X509_get_notBefore(peer), &now) > 0) return -1;
   if(X509_cmp_time(X509_get_notAfter(peer), &now) < 0) return 1;
   return 0;
+}
+
+int
+eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
+                        X509_STORE_CTX *x509ctx, void *closure) {
+  SSL *ssl;
+  noit_hash_table *options = closure;
+  const char *opt_no_ca, *ignore_dates;
+  int v_res;
+
+  if(!x509ctx) return 0;
+
+  if(!noit_hash_retrieve(options, "optional_no_ca", strlen("optional_no_ca"),
+                         (void **)&opt_no_ca))
+    opt_no_ca = "false";
+  if(!noit_hash_retrieve(options, "ignore_dates", strlen("ignore_dates"),
+                         (void **)&ignore_dates))
+    ignore_dates = "false";
+
+  ssl = X509_STORE_CTX_get_ex_data(x509ctx,
+                                   SSL_get_ex_data_X509_STORE_CTX_idx());
+  v_res = X509_STORE_CTX_get_error(x509ctx);
+
+  if((v_res == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
+     (v_res == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN) ||
+     (v_res == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) ||
+     (v_res == X509_V_ERR_CERT_UNTRUSTED) ||
+     (v_res == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE)) {
+    if(!strcmp(opt_no_ca, "true")) ok = 1;
+    else {
+      noitL(noit_error, "SSL client cert invalid: %s\n",
+            X509_verify_cert_error_string(v_res));
+      ok = 0;
+      goto set_out;
+    }
+  }
+  v_res = eventer_ssl_verify_dates(ctx, ok, x509ctx, closure);
+  if(v_res != 0) {
+    if(!strcmp(ignore_dates, "true")) ok = 1;
+    else {
+      noitL(noit_error, "SSL client cert is %s valid.\n",
+            (v_res < 0) ? "not yet" : "no longer");
+      ok = 0;
+      goto set_out;
+    }
+  }
+ set_out:
+  return ok;
 }
 
 #define GET_SET_X509_NAME(type) \
@@ -167,7 +217,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   }
   SSL_CTX_set_tmp_rsa_callback(ctx->ssl_ctx, tmp_rsa_cb);
   SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
-  SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER|SSL_VERIFY_CLIENT_ONCE, verify_cb);
+  SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
   SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2);
 
   ctx->ssl = SSL_new(ctx->ssl_ctx);
@@ -233,7 +283,7 @@ _noallowed_eventer_SSL_accept(int fd, struct sockaddr *addr, socklen_t *len,
 
 static int 
 eventer_SSL_setup(eventer_ssl_ctx_t *ctx) {
-  X509 *peer;
+  X509 *peer = NULL;
   SSL_set_mode(ctx->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
   peer = SSL_get_peer_certificate(ctx->ssl);
 
@@ -243,8 +293,9 @@ eventer_SSL_setup(eventer_ssl_ctx_t *ctx) {
    */
   if(!peer ||
      (peer && SSL_get_verify_result(ctx->ssl) != X509_V_OK)) {
-    if(ctx->verify_cb)
-      ctx->verify_cb(ctx, 0, NULL, ctx->verify_cb_closure);
+    if(ctx->verify_cb) {
+      return ctx->verify_cb(ctx, 0, NULL, ctx->verify_cb_closure);
+    }
   }
   return 0;
 }

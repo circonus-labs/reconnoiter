@@ -246,6 +246,16 @@ noit_console_dispatch(eventer_t e, const char *buffer,
   else noit_console_state_do(ncct, cnt, cmds);
 }
 
+void
+noit_console_motd(eventer_t e, acceptor_closure_t *ac,
+                  noit_console_closure_t ncct) {
+  int ssl;
+  ssl = eventer_get_eventer_ssl_ctx(e) ? 1 : 0;
+  nc_printf(ncct, "noitd%s: %s\n",
+            ssl ? "(secure)" : "",
+            ac->remote_cn ? ac->remote_cn : "(no auth)");
+}
+
 int
 noit_console_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
@@ -260,7 +270,7 @@ socket_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     if(ncct) noit_console_closure_free(ncct);
-    free(ac);
+    if(ac) acceptor_closure_free(ac);
     return 0;
   }
 
@@ -296,6 +306,7 @@ socket_error:
       }
       noit_console_state_init(ncct);
     }
+    noit_console_motd(e, ac, ncct);
     ncct->initialized = 1;
   }
 

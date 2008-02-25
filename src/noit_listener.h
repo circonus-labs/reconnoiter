@@ -11,6 +11,8 @@
 #include "utils/noit_hash.h"
 
 typedef struct {
+  struct sockaddr remote_addr;
+  char *remote_cn;
   noit_hash_table *config;
   void *service_ctx;
 } acceptor_closure_t;
@@ -26,9 +28,12 @@ typedef struct {
 API_EXPORT(void) noit_listener_init();
 
 API_EXPORT(int)
-noit_listener(char *host, unsigned short port, int type,
-              int backlog, noit_hash_table *sslconfig,
-              noit_hash_table *config,
-              eventer_func_t handler, void *service_ctx);
+  noit_listener(char *host, unsigned short port, int type,
+                int backlog, noit_hash_table *sslconfig,
+                noit_hash_table *config,
+                eventer_func_t handler, void *service_ctx);
+
+API_EXPORT(void)
+  acceptor_closure_free(acceptor_closure_t *ac);
 
 #endif

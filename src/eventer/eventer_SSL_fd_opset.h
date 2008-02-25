@@ -60,5 +60,15 @@ API_EXPORT(void)
 API_EXPORT(int) eventer_SSL_accept(eventer_t e, int *mask);
 API_EXPORT(int) eventer_SSL_connect(eventer_t e, int *mask);
 
+API_EXPORT(int)
+  eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
+                          X509_STORE_CTX *x509ctx, void *closure);
+
+#define GET_SET_X509_NAME_PROTO(type) \
+API_EXPORT(char *) \
+  eventer_ssl_get_peer_##type(eventer_ssl_ctx_t *ctx)
+GET_SET_X509_NAME_PROTO(issuer);
+GET_SET_X509_NAME_PROTO(subject);
+
 #endif
 

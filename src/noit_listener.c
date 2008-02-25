@@ -19,30 +19,48 @@
 #include "noit_listener.h"
 #include "noit_conf.h"
 
+void
+acceptor_closure_free(acceptor_closure_t *ac) {
+  if(ac->remote_cn) free(ac->remote_cn);
+  free(ac);
+}
+
 static int
 noit_listener_accept_ssl(eventer_t e, int mask,
                          void *closure, struct timeval *tv) {
   int rv;
   listener_closure_t listener_closure = (listener_closure_t)closure;
-  eventer_ssl_ctx_t *ctx;
+  acceptor_closure_t *ac = NULL;
   if(!closure) goto socketfail;
+  ac = listener_closure->dispatch_closure;
 
   rv = eventer_SSL_accept(e, &mask);
   if(rv > 0) {
+    eventer_ssl_ctx_t *sslctx;
     e->callback = listener_closure->dispatch_callback;
     /* We must make a copy of the acceptor_closure_t for each new
      * connection.
      */
-    e->closure = malloc(sizeof(*listener_closure->dispatch_closure));
-    memcpy(e->closure, listener_closure->dispatch_closure,
-           sizeof(*listener_closure->dispatch_closure));
+    if((sslctx = eventer_get_eventer_ssl_ctx(e)) != NULL) {
+      char *cn, *end;
+      cn = eventer_ssl_get_peer_subject(sslctx);
+      if(cn && (cn = strstr(cn, "CN=")) != NULL) {
+        cn += 3;
+        end = cn;
+        while(*end && *end != '/') end++;
+        ac->remote_cn = malloc(end - cn + 1);
+        memcpy(ac->remote_cn, cn, end - cn);
+        ac->remote_cn[end-cn] = '\0';
+      }
+    }
+    e->closure = ac;
     return e->callback(e, mask, e->closure, tv);
   }
   if(errno == EAGAIN) return mask|EVENTER_EXCEPTION;
-  ctx = eventer_get_eventer_ssl_ctx(e);
-  eventer_ssl_ctx_free(ctx);
 
  socketfail:
+  if(listener_closure) free(listener_closure);
+  if(ac) acceptor_closure_free(ac);
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &mask, e);
   return 0;
@@ -54,20 +72,19 @@ noit_listener_acceptor(eventer_t e, int mask,
   int conn, newmask = EVENTER_READ;
   socklen_t salen;
   listener_closure_t listener_closure = (listener_closure_t)closure;
-  union {
-    struct sockaddr_in addr4;
-    struct sockaddr_in6 addr6;
-    struct sockaddr_un unix;
-  } s;
+  acceptor_closure_t *ac = NULL;
 
   if(mask & EVENTER_EXCEPTION) {
  socketfail:
+    if(ac) acceptor_closure_free(ac);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     return 0;
   }
 
-  conn = e->opset->accept(e->fd, (struct sockaddr *)&s, &salen, &newmask, e);
+  ac = malloc(sizeof(*ac));
+  memcpy(ac, listener_closure->dispatch_closure, sizeof(*ac));
+  conn = e->opset->accept(e->fd, &ac->remote_addr, &salen, &newmask, e);
   if(conn >= 0) {
     socklen_t on = 1;
     eventer_t newe;
@@ -78,6 +95,7 @@ noit_listener_acceptor(eventer_t e, int mask,
     newe = eventer_alloc();
     newe->fd = conn;
     newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
+
     if(listener_closure->sslconfig->size) {
       char *cert, *key, *ca, *ciphers;
       eventer_ssl_ctx_t *ctx;
@@ -97,18 +115,20 @@ noit_listener_acceptor(eventer_t e, int mask,
         eventer_free(newe);
         goto socketfail;
       }
+      eventer_ssl_ctx_set_verify(ctx, eventer_ssl_verify_cert,
+                                 listener_closure->sslconfig);
       EVENTER_ATTACH_SSL(newe, ctx);
       newe->callback = noit_listener_accept_ssl;
-      newe->closure = listener_closure;
+      newe->closure = malloc(sizeof(*listener_closure));
+      memcpy(newe->closure, listener_closure, sizeof(*listener_closure));
+      ((listener_closure_t)newe->closure)->dispatch_closure = ac;
     }
     else {
       newe->callback = listener_closure->dispatch_callback;
       /* We must make a copy of the acceptor_closure_t for each new
        * connection.
        */
-      newe->closure = malloc(sizeof(*listener_closure->dispatch_closure));
-      memcpy(newe->closure, listener_closure->dispatch_closure,
-             sizeof(*listener_closure->dispatch_closure));
+      newe->closure = ac;
     }
     eventer_add(newe);
   }
