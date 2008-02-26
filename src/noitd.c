@@ -14,6 +14,7 @@
 #include "noit_console.h"
 #include "noit_module.h"
 #include "noit_conf.h"
+#include "noit_conf_checks.h"
 
 static char *config_file = ETC_DIR "/noit.conf";
 static int debug = 0;
@@ -65,13 +66,14 @@ int main(int argc, char **argv) {
   noit_log_stream_add_stream(noit_error, noit_stderr);
 
   /* Next load the configs */
-  noit_conf_init();
+  noit_conf_init("noit");
+  noit_conf_checks_init("noit");
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
   }
 
   /* Reinitialize the logging system now that we have a config */
-  noit_conf_log_init();
+  noit_conf_log_init("noit");
   if(debug)
     noit_debug->enabled = 1;
 

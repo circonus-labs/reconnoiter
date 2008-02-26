@@ -20,7 +20,7 @@ typedef struct {
   char prompt[50];
 } noit_conf_t_userdata_t;
 
-API_EXPORT(void) noit_conf_init();
+API_EXPORT(void) noit_conf_init(const char *toplevel);
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
 
@@ -35,6 +35,7 @@ API_EXPORT(noit_hash_table *)
 
 API_EXPORT(int) noit_conf_get_string(noit_conf_section_t section,
                                      const char *path, char **value);
+
 API_EXPORT(int) noit_conf_get_stringbuf(noit_conf_section_t section,
                                         const char *path, char *value, int len);
 API_EXPORT(int) noit_conf_get_int(noit_conf_section_t section,
@@ -43,6 +44,9 @@ API_EXPORT(int) noit_conf_get_float(noit_conf_section_t section,
                                     const char *path, float *value);
 API_EXPORT(int) noit_conf_get_boolean(noit_conf_section_t section,
                                       const char *path, noit_conf_boolean *value);
+API_EXPORT(int)
+  noit_conf_get_uuid(noit_conf_section_t section,
+                     const char *path, uuid_t out);
 
 API_EXPORT(int) noit_conf_set_string(noit_conf_section_t section,
                                      const char *path, const char *value);
@@ -54,10 +58,18 @@ API_EXPORT(int) noit_conf_set_boolean(noit_conf_section_t section,
                                       const char *path, noit_conf_boolean value);
 
 API_EXPORT(int)
-  noit_conf_check_set_attr(noit_console_closure_t ncct,
+  noit_conf_reload(noit_console_closure_t ncct,
+                   int argc, char **argv,
+                   noit_console_state_t *state, void *closure);
+API_EXPORT(int)
+  noit_conf_write_terminal(noit_console_closure_t ncct,
                            int argc, char **argv,
                            noit_console_state_t *state, void *closure);
+API_EXPORT(int)
+  noit_conf_write_file(noit_console_closure_t ncct,
+                       int argc, char **argv,
+                       noit_console_state_t *state, void *closure);
 
-API_EXPORT(void) noit_conf_log_init();
+API_EXPORT(void) noit_conf_log_init(const char *toplevel);
 
 #endif
