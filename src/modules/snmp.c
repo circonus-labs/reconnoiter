@@ -397,6 +397,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
 
   check->flags |= NP_RUNNING;
   ts = _get_target_session(check->target);
+  gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
     int fds, block;
@@ -418,6 +419,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   }
   if(!ts->sess_handle) {
     /* Error */
+    /* No need to do anything, this will be handled in the else below */
   }
   ts->refcnt++; /* Increment here, decrement when this check completes */
 
