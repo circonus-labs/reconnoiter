@@ -24,12 +24,16 @@ top_srcdir=@top_srcdir@
 
 SUBS=utils jlog eventer modules noitedit
 
-OBJS=noitd.o noit_listener.o \
+NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf.o noit_conf_checks.o noit_tokenizer.o
 
-all:	noitd testcerts
+STRATCON_OBJS=stratcond.o noit_listener.o \
+	noit_console.o noit_console_state.o noit_console_telnet.o \
+	noit_conf.o noit_tokenizer.o
+
+all:	noitd stratcond testcerts
 
 make-subdirs:	serf/.libs/libserf-0.a
 	for dir in $(SUBS) ; do \
@@ -39,8 +43,17 @@ make-subdirs:	serf/.libs/libserf-0.a
 serf/.libs/libserf-0.a:
 	(cd serf && python serfmake)
 
-noitd:	make-subdirs $(OBJS)
-	$(CC) -o $@ $(OBJS) \
+noitd:	make-subdirs $(NOIT_OBJS)
+	$(CC) -o $@ $(NOIT_OBJS) \
+		$(LDFLAGS) \
+		-Leventer -leventer \
+		-Lutils -lnoit_utils \
+		-Ljlog -ljlog \
+		-Lnoitedit -lnoitedit \
+		$(LIBS)
+
+stratcond:	make-subdirs $(STRATCON_OBJS)
+	$(CC) -o $@ $(STRATCON_OBJS) \
 		$(LDFLAGS) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
@@ -54,14 +67,30 @@ noitd:	make-subdirs $(OBJS)
 noit_tokenizer.c:	noit_tokenizer.re
 	re2c -o $@ noit_tokenizer.re
 
+# This stuff if all cert stuff to make testing the daemons easier
+
+demoCA:
+	mkdir -p demoCA
+	touch demoCA/index.txt
+	test -f demoCA/serial || echo 00 > demoCA/serial
+
+test-ca.key:
+	openssl genrsa -out test-ca.key
+
+test-ca.csr:	test-ca.key
+	openssl req -key test-ca.key -days 365 -new -out test-ca.csr
+
+test-ca.crt:	test-ca.key test-ca.csr
+	openssl x509 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt
+
 test.key:
 	openssl genrsa -out test.key
 
 test.csr:	test.key
 	openssl req -key test.key -days 365 -new -out test.csr
 
-test.crt:	test.key test.csr
-	openssl x509 -req -in test.csr -signkey test.key -out test.crt
+test.crt:	demoCA test.csr test-ca.key
+	openssl ca -in test.csr -out test.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 test-strat.key:
 	openssl genrsa -out test-strat.key
@@ -69,16 +98,19 @@ test-strat.key:
 test-strat.csr:	test-strat.key
 	openssl req -key test-strat.key -days 365 -new -out test-strat.csr
 
-test-strat.crt:	test-strat.key test-strat.csr
-	openssl x509 -req -in test-strat.csr -signkey test-strat.key -out test-strat.crt
+test-strat.crt:	demoCA test-strat.csr test-ca.key
+	openssl ca -in test-strat.csr -out test-strat.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-testcerts:	test.key test.crt test-strat.key test-strat.crt
+testcerts:	test.key test.crt test-strat.key test-strat.crt test-ca.key test-ca.crt
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \
 		(cd $$dir && make clean) ; \
 	done
 
+clean-keys:
+	test.key test.csr test.crt test-strat.key test-strat.csr test-strat.crt
+
 clean:	clean-subdirs
-	rm -f *.o noitd test.key test.csr test.crt
+	rm -f *.o noitd
 
