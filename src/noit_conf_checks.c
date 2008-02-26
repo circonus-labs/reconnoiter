@@ -42,7 +42,7 @@ noit_console_mkcheck_xpath(char *xpath, int len,
                            noit_conf_t_userdata_t *info,
                            const char *arg) {
   uuid_t checkid;
-  char argcopy[1024], *target, *name;
+  char argcopy[1024], *target, *module, *name;
 
   argcopy[0] = '\0';
   if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
@@ -52,11 +52,15 @@ noit_console_mkcheck_xpath(char *xpath, int len,
     snprintf(xpath, len, "/noit/checks//check[@uuid=\"%s\"]",
              argcopy);
   }
-  else if((name = strchr(argcopy, '`')) != NULL) {
+  else if((module = strchr(argcopy, '`')) != NULL) {
     noit_check_t *check;
     char uuid_str[37];
     target = argcopy;
-    *name++ = '\0';
+    *module++ = '\0';
+    if((name = strchr(module+1, '`')) == NULL)
+      name = module;
+    else
+      name++;
     check = noit_poller_lookup_by_name(target, name);
     if(!check) {
       return -1;
@@ -132,6 +136,7 @@ noit_conf_mkcheck_under(const char *ppath, uuid_t out) {
     uuid_generate(out);
     uuid_unparse_lower(out, outstr);
     xmlSetProp(newnode, (xmlChar *)"uuid", (xmlChar *)outstr);
+    xmlSetProp(newnode, (xmlChar *)"disable", (xmlChar *)"true");
     rv = 0;
   }
  out:
@@ -635,7 +640,7 @@ noit_console_config_show(noit_console_closure_t ncct,
           check = noit_poller_lookup(checkid);
           if(check) {
             busted = 0;
-            nc_printf(ncct, "%s`%s", check->target, check->name);
+            nc_printf(ncct, "%s`%s`%s", check->target, check->module, check->name);
           }
         }
       }
