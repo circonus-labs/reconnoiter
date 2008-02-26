@@ -112,8 +112,10 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
   current.status = buff;
 
   /* We have no results over which to iterate. */
-  if(!pdu)
+  if(!pdu) {
     noit_check_set_stats(self, check, &current);
+    return;
+  }
 
   /* manipulate the information ourselves */
   nresults = 0;
