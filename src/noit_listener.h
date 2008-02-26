@@ -25,7 +25,7 @@ typedef struct {
   noit_hash_table *sslconfig;
 } * listener_closure_t;
 
-API_EXPORT(void) noit_listener_init();
+API_EXPORT(void) noit_listener_init(const char *toplevel);
 
 API_EXPORT(int)
   noit_listener(char *host, unsigned short port, int type,

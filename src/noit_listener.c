@@ -265,13 +265,15 @@ noit_listener(char *host, unsigned short port, int type,
 }
 
 void
-noit_listener_reconfig() {
+noit_listener_reconfig(const char *toplevel) {
   int i, cnt = 0;
   noit_conf_section_t *listener_configs;
+  char path[256];
 
-  listener_configs = noit_conf_get_sections(NULL, "/noit/listeners//listener",
-                                            &cnt);
-  noitL(noit_stderr, "Found %d /noit/listeners/listener stanzas\n", cnt);
+  snprintf(path, sizeof(path), "/%s/listeners//listener",
+           toplevel ? toplevel : "*");
+  listener_configs = noit_conf_get_sections(NULL, path, &cnt);
+  noitL(noit_stderr, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char address[256];
     char type[256];
@@ -321,9 +323,9 @@ noit_listener_reconfig() {
   }
 }
 void
-noit_listener_init() {
+noit_listener_init(const char *toplevel) {
   eventer_name_callback("noit_listener_acceptor", noit_listener_acceptor);
   eventer_name_callback("noit_listener_accept_ssl", noit_listener_accept_ssl);
-  noit_listener_reconfig();
+  noit_listener_reconfig(toplevel);
 }
 

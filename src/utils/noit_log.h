@@ -24,6 +24,7 @@ typedef struct {
 } logops_t;
 
 typedef struct _noit_log_stream {
+  char *type;
   char *name;
   int enabled;
   char *path;

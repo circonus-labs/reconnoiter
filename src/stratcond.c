@@ -15,7 +15,8 @@
 #include "noit_module.h"
 #include "noit_conf.h"
 
-static char *config_file = ETC_DIR "/stratcon.conf";
+#define APPNAME "stratcon"
+static char *config_file = ETC_DIR "/" APPNAME ".conf";
 static int debug = 0;
 
 void parse_clargs(int argc, char **argv) {
@@ -38,7 +39,7 @@ static
 int configure_eventer() {
   int rv = 0;
   noit_hash_table *table;
-  table = noit_conf_get_hash(NULL, "/stratcon/eventer/config");
+  table = noit_conf_get_hash(NULL, "/" APPNAME "/eventer/config");
   if(table) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *key, *value;
@@ -65,21 +66,21 @@ int main(int argc, char **argv) {
   noit_log_stream_add_stream(noit_error, noit_stderr);
 
   /* Next load the configs */
-  noit_conf_init("stratcon");
+  noit_conf_init(APPNAME);
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
   }
 
   /* Reinitialize the logging system now that we have a config */
-  noit_conf_log_init("stratcon");
+  noit_conf_log_init(APPNAME);
   if(debug)
     noit_debug->enabled = 1;
 
   /* Lastly, run through all other system inits */
-  if(!noit_conf_get_stringbuf(NULL, "/stratcon/eventer/@implementation",
+  if(!noit_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",
                               conf_str, sizeof(conf_str))) {
     noitL(noit_stderr, "Cannot find '%s' in configuration\n",
-          "/stratcon/eventer/@implementation");
+          "/" APPNAME "/eventer/@implementation");
     exit(-1);
   }
   if(eventer_choose(conf_str) == -1) {
@@ -95,7 +96,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   noit_console_init();
-  noit_listener_init();
+  noit_listener_init(APPNAME);
 
   eventer_loop();
   return 0;

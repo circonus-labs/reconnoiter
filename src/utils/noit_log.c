@@ -176,6 +176,7 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
   ls->path = path ? strdup(path) : NULL;
+  ls->type = type ? strdup(type) : NULL;
   ls->enabled = 1;
   ls->config = config;
   if(!type)
@@ -211,6 +212,7 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
           name, type ? type : "[null]", path ? path : "[null]");
   free(ls->name);
   if(ls->path) free(ls->path);
+  if(ls->type) free(ls->type);
   free(ls);
   return NULL;
 }
