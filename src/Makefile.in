@@ -70,10 +70,10 @@ noit_tokenizer.c:	noit_tokenizer.re
 
 # This stuff if all cert stuff to make testing the daemons easier
 
-demoCA:
-	mkdir -p demoCA
-	touch demoCA/index.txt
-	test -f demoCA/serial || echo 00 > demoCA/serial
+demoCA-dir:
+	@mkdir -p demoCA
+	@touch demoCA/index.txt
+	@test -f demoCA/serial || echo 00 > demoCA/serial
 
 test-ca.key:
 	openssl genrsa -out test-ca.key
@@ -90,7 +90,7 @@ test.key:
 test.csr:	test.key
 	openssl req -key test.key -days 365 -new -out test.csr
 
-test.crt:	demoCA test.csr test-ca.key
+test.crt:	test.csr test-ca.key
 	openssl ca -in test.csr -out test.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 test-strat.key:
@@ -99,10 +99,10 @@ test-strat.key:
 test-strat.csr:	test-strat.key
 	openssl req -key test-strat.key -days 365 -new -out test-strat.csr
 
-test-strat.crt:	demoCA test-strat.csr test-ca.key
+test-strat.crt:	test-strat.csr test-ca.key
 	openssl ca -in test-strat.csr -out test-strat.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-testcerts:	test.key test.crt test-strat.key test-strat.crt test-ca.key test-ca.crt
+testcerts:	demoCA-dir test.key test.crt test-strat.key test-strat.crt test-ca.key test-ca.crt
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \
