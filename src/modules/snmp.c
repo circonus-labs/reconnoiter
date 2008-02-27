@@ -242,11 +242,6 @@ static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
   struct check_info *info = closure;
   info->timedout = 1;
   remove_check(info);
-  if(info->timeoutevent) {
-    eventer_remove(info->timeoutevent);
-    eventer_free(info->timeoutevent);
-    info->timeoutevent = NULL;
-  }
   /* Log our findings */
   noit_snmp_log_results(info->self, info->check, NULL);
   info->check->flags &= ~NP_RUNNING;
