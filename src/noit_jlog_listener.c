@@ -92,30 +92,30 @@ noit_jlog_thread_main(void *e_vptr) {
       if(noit_jlog_push(e, jcl)) {
         goto alldone;
       }
-    }
-    /* Read our jlog_id accounting for possibly short reads */
-    bytes_read = 0;
-    while(bytes_read < sizeof(jlog_id)) {
-      int len;
-      if((len = e->opset->read(e->fd, inbuff + bytes_read,
-                               sizeof(jlog_id) - bytes_read,
-                               &mask, e)) <= 0)
+      /* Read our jlog_id accounting for possibly short reads */
+      bytes_read = 0;
+      while(bytes_read < sizeof(jlog_id)) {
+        int len;
+        if((len = e->opset->read(e->fd, inbuff + bytes_read,
+                                 sizeof(jlog_id) - bytes_read,
+                                 &mask, e)) <= 0)
+          goto alldone;
+        bytes_read += len;
+      }
+      memcpy(&client_chkpt, inbuff, sizeof(jlog_id));
+      /* Fix the endian */
+      client_chkpt.log = ntohl(client_chkpt.log);
+      client_chkpt.marker = ntohl(client_chkpt.marker);
+  
+      if(memcmp(&jcl->chkpt, &client_chkpt, sizeof(jlog_id))) {
+        noitL(noit_error,
+              "client %s submitted invalid checkpoint %u:%u expected %u:%u\n",
+              ac->remote_cn, client_chkpt.log, client_chkpt.marker,
+              jcl->chkpt.log, jcl->chkpt.marker);
         goto alldone;
-      bytes_read += len;
+      }
+      jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
     }
-    memcpy(&client_chkpt, inbuff, sizeof(jlog_id));
-    /* Fix the endian */
-    client_chkpt.log = ntohl(client_chkpt.log);
-    client_chkpt.marker = ntohl(client_chkpt.marker);
-
-    if(memcmp(&jcl->chkpt, &client_chkpt, sizeof(jlog_id))) {
-      noitL(noit_error,
-            "client %s submitted invalid checkpoint %u:%u expected %u:%u\n",
-            ac->remote_cn, client_chkpt.log, client_chkpt.marker,
-            jcl->chkpt.log, jcl->chkpt.marker);
-      goto alldone;
-    }
-    jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
     sleep(5);
   }
 
