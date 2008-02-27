@@ -3,7 +3,7 @@
  * All rights reserved.
  */
 
-#define DEFAULT_JLOG_SUBSCRIBER "stratcond"
+#define DEFAULT_JLOG_SUBSCRIBER "stratcon"
 
 #include "noit_defines.h"
 #include <stdio.h>
@@ -68,8 +68,15 @@ static logops_t posix_logio_ops = {
 
 static int
 jlog_logio_open(noit_log_stream_t ls) {
+  char path[PATH_MAX], *sub;
   jlog_ctx *log = NULL;
   if(!ls->path) return -1;
+  strlcpy(path, ls->path, sizeof(path));
+  sub = strstr(path, "=>");
+  if(sub) {
+    *sub = '\0';
+    sub += 2;
+  }
   log = jlog_new(ls->path);
   if(!log) return -1;
   /* Open the writer. */
@@ -95,7 +102,10 @@ jlog_logio_open(noit_log_stream_t ls) {
       return -1;
     }
     /* The first time we open after an init, we should add the subscriber. */
-    jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
+    if(sub)
+      jlog_ctx_add_subscriber(log, sub, JLOG_BEGIN);
+    else
+      jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
   }
   ls->op_ctx = log;
   return 0;
