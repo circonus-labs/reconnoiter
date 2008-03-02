@@ -281,6 +281,7 @@ noit_listener_reconfig(const char *toplevel) {
     int portint;
     int backlog;
     eventer_func_t f;
+    noit_conf_boolean ssl;
     noit_hash_table *sslconfig, *config;
 
     if(!noit_conf_get_stringbuf(listener_configs[i],
@@ -315,11 +316,15 @@ noit_listener_reconfig(const char *toplevel) {
                           "ancestor-or-self::node()/@backlog", &backlog))
       backlog = 5;
 
+    if(!noit_conf_get_boolean(listener_configs[i],
+                              "ancestor-or-self::node()/@ssl", &ssl))
+     ssl = noit_false;
+
     sslconfig = noit_conf_get_hash(listener_configs[i], "sslconfig");
     config = noit_conf_get_hash(listener_configs[i], "config");
 
     noit_listener(address, port, SOCK_STREAM, backlog,
-                  sslconfig, config, f, NULL);
+                  ssl ? sslconfig : NULL, config, f, NULL);
   }
 }
 void
