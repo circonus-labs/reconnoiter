@@ -5,8 +5,6 @@
 
 #include "noit_defines.h"
 #include "eventer/eventer.h"
-#include "eventer/eventer_impl.h"
-#include "eventer/eventer_jobq.h"
 #include "utils/noit_log.h"
 #include <pthread.h>
 #include <assert.h>

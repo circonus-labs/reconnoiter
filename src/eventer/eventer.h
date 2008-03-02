@@ -96,4 +96,15 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_find_fd       __eventer->find_fd
 #define eventer_loop          __eventer->loop
 
+extern eventer_impl_t registered_eventers[];
+
+#include "eventer/eventer_jobq.h"
+
+int eventer_impl_propset(const char *key, const char *value);
+int eventer_impl_init();
+void eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
+void eventer_dispatch_recurrent(struct timeval *now);
+eventer_t eventer_remove_recurrent(eventer_t e);
+void eventer_add_recurrent(eventer_t e);
+
 #endif

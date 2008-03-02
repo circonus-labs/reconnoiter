@@ -6,7 +6,7 @@
 #include "noit_defines.h"
 #include "utils/noit_log.h"
 #include "utils/noit_atomic.h"
-#include "eventer/eventer_jobq.h"
+#include "eventer/eventer.h"
 #include <errno.h>
 #include <setjmp.h>
 #include <assert.h>
