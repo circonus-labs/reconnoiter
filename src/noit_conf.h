@@ -10,6 +10,8 @@
 #include "utils/noit_hash.h"
 #include "noit_console.h"
 
+#include <uuid/uuid.h>
+
 typedef enum { noit_false = 0, noit_true } noit_conf_boolean;
 typedef void * noit_conf_section_t;
 
