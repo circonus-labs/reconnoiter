@@ -43,9 +43,35 @@ static struct {
   { NULL, NULL }
 };
 
+void noit_conf_xml_error_func(void *ctx, const char *format, ...) {
+  struct timeval __now;
+  noit_log_stream_t ls = ctx;
+  va_list arg;
+  if(!ls) return;
+  va_start(arg, format);
+  gettimeofday(&__now,  NULL);
+  noit_vlog(ls, &__now, __FILE__, __LINE__, format, arg);
+  va_end(arg);
+}
+void noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
+  struct timeval __now;
+  noit_log_stream_t ls = ctx;
+  if(!ls) return;
+  gettimeofday(&__now,  NULL);
+  if(err->file)
+    noit_log(ls, &__now, err->file, err->line,
+             "XML error [%d/%d] in %s on line %d %s\n",
+             err->domain, err->code, err->file, err->line, err->message);
+  else
+    noit_log(ls, &__now, err->file, err->line,
+             "XML error [%d/%d] %s\n",
+             err->domain, err->code, err->message);
+}
 void noit_conf_init(const char *toplevel) {
   int i;
   char keystr[256];
+  xmlSetGenericErrorFunc(noit_error, noit_conf_xml_error_func);
+  xmlSetStructuredErrorFunc(noit_error, noit_conf_xml_error_ext_func);
   for(i = 0; config_info[i].key != NULL; i++) {
     snprintf(keystr, sizeof(keystr), config_info[i].key, toplevel);
     noit_hash_store(&_compiled_fallback,
@@ -338,7 +364,8 @@ int noit_conf_get_boolean(noit_conf_section_t section,
                           const char *path, noit_conf_boolean *value) {
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
-    if(!strcasecmp(str, "true")) *value = noit_true;
+    if(!strcasecmp(str, "true") ||
+       !strcasecmp(str, "on")) *value = noit_true;
     else *value = noit_false;
     return 1;
   }
