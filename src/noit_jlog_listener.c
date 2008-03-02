@@ -51,11 +51,13 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
   if(Ewrite(&n_count, sizeof(n_count)) != sizeof(n_count))
     return -1;
   while(jcl->count > 0) {
-    struct { u_int32_t n_sec, n_usec, n_len; } payload;
+    struct { jlog_id chkpt; u_int32_t n_sec, n_usec, n_len; } payload;
     if(jlog_ctx_read_message(jcl->jlog, &jcl->start, &msg) == -1)
       return -1;
 
     /* Here we actually push the message */
+    payload.chkpt.log = htonl(jcl->start.log);
+    payload.chkpt.marker = htonl(jcl->start.marker);
     payload.n_sec  = htonl(msg.header->tv_sec);
     payload.n_usec = htonl(msg.header->tv_usec);
     payload.n_len  = htonl(msg.mess_len);
