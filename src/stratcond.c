@@ -14,6 +14,7 @@
 #include "noit_console.h"
 #include "noit_module.h"
 #include "noit_conf.h"
+#include "stratcon_jlog_streamer.h"
 
 #define APPNAME "stratcon"
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
   }
   noit_console_init();
   noit_listener_init(APPNAME);
+  stratcon_jlog_streamer_init(APPNAME);
 
   eventer_loop();
   return 0;
