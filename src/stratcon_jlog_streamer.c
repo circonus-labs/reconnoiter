@@ -30,6 +30,7 @@ typedef struct jlog_streamer_ctx_t {
     struct sockaddr_in remote_in;
     struct sockaddr_in6 remote_in6;
   } r;
+  socklen_t remote_len;
   char *remote_cn;
   u_int32_t current_backoff;
   int wants_shutdown;
@@ -209,8 +210,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           eventer_remove_fd(e->fd);
           completion_e = eventer_alloc();
           memcpy(completion_e, e, sizeof(*e));
+          completion_e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = WANT_CHKPT;
           stratcon_datastore_push(DS_OP_CHKPT, &ctx->r.remote, completion_e);
+          noitL(noit_debug, "Pushing batch asynch...\n");
           return 0;
         } else
           ctx->state = WANT_HEADER;
@@ -321,7 +324,8 @@ jlog_streamer_initiate_connection(jlog_streamer_ctx_t *ctx) {
   if(ioctl(fd, FIONBIO, &on)) goto reschedule;
 
   /* Initiate a connection */
-  rv = connect(fd, &ctx->r.remote, ctx->r.remote.sa_len);
+  ctx->r.remote.sa_len = ctx->remote_len;
+  rv = connect(fd, &ctx->r.remote, ctx->remote_len);
   if(rv == -1 && errno != EINPROGRESS) goto reschedule;
 
   /* Register a handler for connection completion */
@@ -375,15 +379,15 @@ initiate_jlog_streamer(const char *host, unsigned short port,
     struct sockaddr_un *s = &ctx->r.remote_un;
     s->sun_family = AF_UNIX;
     strncpy(s->sun_path, host, sizeof(s->sun_path)-1);
-    s->sun_len = sizeof(*s);
+    ctx->remote_len = sizeof(*s);
   }
   else {
     struct sockaddr_in6 *s = &ctx->r.remote_in6;
     s->sin6_family = family;
     s->sin6_port = htons(port);
     memcpy(&s->sin6_addr, &a, sizeof(a));
-    s->sin6_len = (family == AF_INET) ?
-                    sizeof(struct sockaddr_in) : sizeof(*s);
+    ctx->remote_len = (family == AF_INET) ?
+                        sizeof(struct sockaddr_in) : sizeof(*s);
   }
 
   if(ctx->sslconfig)
