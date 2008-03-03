@@ -190,11 +190,13 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
 static void resmon_part_log_results_xml(noit_module_t *self,
                                         noit_check_t *check,
                                         xmlDocPtr xml) {
+  serf_check_info_t *ci = check->closure;
   resmon_check_info_t *rci = check->closure;
   xmlXPathContextPtr xpath_ctxt = NULL;
   stats_t current;
 
   noit_check_stats_clear(&current);
+  memcpy(&current.whence, &ci->finish_time, sizeof(current.whence));
   current.available = NP_UNAVAILABLE;
   current.state = NP_BAD;
 
@@ -879,6 +881,8 @@ static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
 
   if(parent && !strcmp(parent->module, "resmon")) {
     /* Content is cached in the parent */
+    serf_check_info_t *ci = (serf_check_info_t *)rci;
+    gettimeofday(&ci->finish_time, NULL);
     resmon_part_log_results(self, check, parent);
     return 0;
   }
