@@ -100,11 +100,12 @@ extern eventer_impl_t registered_eventers[];
 
 #include "eventer/eventer_jobq.h"
 
-int eventer_impl_propset(const char *key, const char *value);
-int eventer_impl_init();
-void eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
-void eventer_dispatch_recurrent(struct timeval *now);
-eventer_t eventer_remove_recurrent(eventer_t e);
-void eventer_add_recurrent(eventer_t e);
+API_EXPORT(eventer_jobq_t *) eventer_default_backq();
+API_EXPORT(int) eventer_impl_propset(const char *key, const char *value);
+API_EXPORT(int) eventer_impl_init();
+API_EXPORT(void) eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
+API_EXPORT(void) eventer_dispatch_recurrent(struct timeval *now);
+API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
+API_EXPORT(void) eventer_add_recurrent(eventer_t e);
 
 #endif

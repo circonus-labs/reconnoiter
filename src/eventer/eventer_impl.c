@@ -44,6 +44,10 @@ int eventer_impl_propset(const char *key, const char *value) {
   return -1;
 }
 
+eventer_jobq_t *eventer_default_backq() {
+  return &__global_backq;
+}
+
 int eventer_impl_init() {
   int i;
   eventer_t e;
