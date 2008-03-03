@@ -505,7 +505,6 @@ noit_conf_log_init(const char *toplevel) {
       noit_conf_get_stringbuf(outlets[o], "@name",
                               oname, sizeof(oname));
       outlet = noit_log_stream_find(oname);
-      noitL(noit_debug, "log(%s) => log(%s)\n", name, oname);
       if(!outlet) {
         fprintf(stderr, "Cannot find outlet '%s' for %s[%s:%s]\n", oname,
               name, type, path);
