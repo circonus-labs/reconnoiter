@@ -511,7 +511,7 @@ static apr_status_t handle_response(serf_request_t *request,
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
     ci->timed_out = 0;
-    memcpy(&ci->timeout_event->whence, &ci->finish_time,
+    memcpy(&ci->finish_time, &ci->timeout_event->whence,
            sizeof(&ci->finish_time));
     eventer_add(ci->timeout_event);
   }
