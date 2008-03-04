@@ -8,19 +8,46 @@
 #include "utils/noit_log.h"
 #include "stratcon_datastore.h"
 #include "noit_conf.h"
+#include "noit_check.h"
 #include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <libpq-fe.h>
 
+static char *check_insert = NULL;
+static const char *check_insert_conf = "/stratcon/database/statements/check";
+static char *status_insert = NULL;
+static const char *status_insert_conf = "/stratcon/database/statements/status";
+static char *metric_insert_numeric = NULL;
+static const char *metric_insert_numeric_conf = "/stratcon/database/statements/metric_numeric";
+static char *metric_insert_text = NULL;
+static const char *metric_insert_text_conf = "/stratcon/database/statements/metric_text";
+
+#define GET_QUERY(a) do { \
+  if(a == NULL) \
+    if(!noit_conf_get_string(NULL, a ## _conf, &(a))) \
+      goto bad_row; \
+} while(0)
+
+#define MAX_PARAMS 8
 typedef struct ds_job_detail {
   char *data;  /* The raw string, NULL means the stream is done -- commit. */
   int problematic;
   eventer_t completion_event; /* This event should be registered if non NULL */
   struct ds_job_detail *next;
+
+  /* Postgres specific stuff */
+  int nparams;
+  char *paramValues[MAX_PARAMS];
+  int paramLengths[MAX_PARAMS];
+  int paramFormats[MAX_PARAMS];
+  int paramAllocd[MAX_PARAMS];
 } ds_job_detail;
 
 typedef struct {
   struct sockaddr *remote;
   eventer_jobq_t  *jobq;
+  /* Postgres specific stuff */
   PGconn          *dbh;
   ds_job_detail   *head;
   ds_job_detail   *tail;
@@ -71,9 +98,128 @@ typedef enum {
   DS_EXEC_TXN_FAILED = 2,
 } execute_outcome_t;
 
+static char *
+__strndup(const char *src, int len) {
+  char *dst;
+  dst = malloc(len + 1);
+  strlcpy(dst, src, len+1);
+  return dst;
+}
+#define DECLARE_PARAM_STR(str, len) do { \
+  d->paramValues[d->nparams] = __strndup(str, len); \
+  d->paramLengths[d->nparams] = len; \
+  d->paramFormats[d->nparams] = 0; \
+  d->paramAllocd[d->nparams] = 1; \
+  if(!strcmp(d->paramValues[d->nparams], "[[null]]")) { \
+    free(d->paramValues[d->nparams]); \
+    d->paramLengths[d->nparams] = 0; \
+    d->paramAllocd[d->nparams] = 0; \
+  } \
+  d->nparams++; \
+} while(0)
+
 execute_outcome_t
-stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, const char *data) {
-  
+stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
+  int i, type;
+
+  type = d->data[0];
+
+  /* Parse the log line, but only if we haven't already */
+  if(!d->nparams) {
+    struct sockaddr_in6 *rin6 = (struct sockaddr_in6 *)r;
+    char raddr[128];
+    char *scp, *ecp;
+    int fields;
+    if(inet_ntop(rin6->sin6_family, &rin6->sin6_addr,
+                 raddr, sizeof(raddr)) == NULL)
+      raddr[0] = '\0';
+ 
+    d->paramValues[0] = strdup(raddr);
+    d->paramLengths[0] = strlen(raddr);
+    d->paramFormats[0] = 0;
+    d->paramAllocd[0] = 1;
+    d->nparams = 1; 
+
+    switch(type) {
+      /* See noit_check_log.c for log description */
+      case 'C':
+      case 'M':
+        fields = 6; break;
+      case 'S':
+        fields = 7; break;
+      default:
+        goto bad_row;
+    }
+
+    scp = d->data;
+    for(i=0;i<fields-1;i++) { /* fields-1 b/c the last field is open-ended */
+      if(!*scp) goto bad_row;
+      ecp = strchr(scp, '\t');
+      if(!ecp) goto bad_row;
+      if(i > 0) /* We skip the type for now */
+        DECLARE_PARAM_STR(scp, ecp-scp);
+      scp = ecp + 1;
+    }
+    /* Now to the last field */
+    if(!*scp) ecp = scp;
+    else {
+      ecp = scp + strlen(scp); /* Puts us at the '\0' */
+      if(*(ecp-1) == '\n') ecp--; /* We back up on letter if we ended in \n */
+    }
+    DECLARE_PARAM_STR(scp, ecp-scp);
+  }
+
+#define PG_EXEC(cmd) do { \
+  PGresult *res; \
+  int rv; \
+  res = PQexecParams(cq->dbh, cmd, d->nparams, NULL, \
+                     (const char * const *)d->paramValues, \
+                     d->paramLengths, d->paramFormats, 0); \
+  rv = PQresultStatus(res); \
+  if(rv != PGRES_COMMAND_OK) { \
+    noitL(noit_error, "stratcon datasource bad row: %s\n", \
+          PQresultErrorMessage(res)); \
+    PQclear(res); \
+    goto bad_row; \
+  } \
+  PQclear(res); \
+} while(0)
+
+  /* Now execute the query */
+  switch(type) {
+    case 'C':
+      GET_QUERY(check_insert);
+      PG_EXEC(check_insert);
+      break;
+    case 'S':
+      GET_QUERY(status_insert);
+      PG_EXEC(status_insert);
+      break;
+    case 'M':
+      /* The fifth (idx: 4) bind variable is the type */
+      switch(d->paramValues[4][0]) {
+        case METRIC_INT32:
+        case METRIC_UINT32:
+        case METRIC_INT64:
+        case METRIC_UINT64:
+        case METRIC_DOUBLE:
+          GET_QUERY(metric_insert_numeric);
+          PG_EXEC(metric_insert_numeric);
+          break;
+        case METRIC_STRING:
+          GET_QUERY(metric_insert_text);
+          PG_EXEC(metric_insert_text);
+          break;
+        default:
+          goto bad_row;
+      }
+      break;
+    default:
+      /* should never get here */
+      goto bad_row;
+  }
+  return DS_EXEC_SUCCESS;
+ bad_row:
   return DS_EXEC_ROW_FAILED;
 }
 static int
@@ -94,7 +240,7 @@ stratcon_database_connect(conn_q *cq) {
   }
 
   dsn[0] = '\0';
-  t = noit_conf_get_hash(NULL, "/stratcon/noits/dbconfig");
+  t = noit_conf_get_hash(NULL, "/stratcon/database/dbconfig");
   while(noit_hash_next(t, &iter, &k, &klen, (void **)&v)) {
     if(dsn[0]) strlcat(dsn, " ", sizeof(dsn));
     strlcat(dsn, k, sizeof(dsn));
@@ -179,7 +325,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
         current = current->next;
         continue;
       } 
-      rv = stratcon_datastore_execute(cq, cq->remote, current->data);
+      rv = stratcon_datastore_execute(cq, cq->remote, current);
       switch(rv) {
         case DS_EXEC_SUCCESS:
           current = current->next;
