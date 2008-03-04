@@ -70,6 +70,16 @@ AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 		AC_MSG_ERROR([libssl not found, but required])
 	]
 )
+AC_CHECK_LIB(pq, PQconnectdb, ,
+	[
+		AC_MSG_ERROR([libpq required])
+	]
+)
+AC_TRY_LINK([#include <libpq-fe.h>],
+	[ PGconn *dbh = PQconnectdb(""); ],
+	[],
+	[ AC_MSG_ERROR([Cannot compile/link against libpq]) ]
+)
 
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`
@@ -115,7 +125,6 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 	]
 )
 
-AC_CHECK_LIB(rt, sem_init, , )
 AC_FUNC_STRFTIME
 AC_CHECK_FUNC(ssetugid strlcpy)
 
