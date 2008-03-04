@@ -15,7 +15,7 @@ INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ snmp.@MODULEEXT@
+MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ @BUILD_MODULES@
 
 all:	$(MODULES)
 

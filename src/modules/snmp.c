@@ -75,9 +75,6 @@ static void remove_check(struct check_info *c) {
                    NULL, NULL);
 }
 
-static int noit_snmp_recur_handler(eventer_t e, int mask, void *closure,
-                                   struct timeval *now);
-
 static int noit_snmp_init(noit_module_t *self) {
   register_mib_handlers();
   read_premib_configs();
@@ -448,54 +445,6 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   return 0;
 }
 
-static int noit_snmp_schedule_next(noit_module_t *self,
-                                   struct timeval *last_check,
-                                   noit_check_t *check,
-                                   struct timeval *now) {
-  eventer_t newe;
-  struct timeval period, earliest;
-  struct snmp_check_closure *scc;
-
-  if(check->period == 0) return 0;
-  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
-
-  /* If we have an event, we know when we intended it to fire.  This means
-   * we should schedule that point + period.
-   */
-  if(now)
-    memcpy(&earliest, now, sizeof(earliest));
-  else
-    gettimeofday(&earliest, NULL);
-  period.tv_sec = check->period / 1000;
-  period.tv_usec = (check->period % 1000) * 1000;
-
-  newe = eventer_alloc();
-  memcpy(&newe->whence, last_check, sizeof(*last_check));
-  add_timeval(newe->whence, period, &newe->whence);
-  if(compare_timeval(newe->whence, earliest) < 0)
-    memcpy(&newe->whence, &earliest, sizeof(earliest));
-  newe->mask = EVENTER_TIMER;
-  newe->callback = noit_snmp_recur_handler;
-  scc = calloc(1, sizeof(*scc));
-  scc->self = self;
-  scc->check = check;
-  newe->closure = scc;
-
-  eventer_add(newe);
-  check->fire_event = newe;
-  return 0;
-}
-
-static int noit_snmp_recur_handler(eventer_t e, int mask, void *closure,
-                                   struct timeval *now) {
-  struct snmp_check_closure *cl = closure;
-  cl->check->fire_event = NULL;
-  noit_snmp_schedule_next(cl->self, &e->whence, cl->check, now);
-  noit_snmp_send(cl->self, cl->check);
-  free(cl);
-  return 0;
-}
-
 static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
@@ -506,7 +455,7 @@ static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
   if(!check->fire_event) {
     struct timeval epoch;
     noit_check_fake_last_check(check, &epoch, NULL);
-    noit_snmp_schedule_next(self, &epoch, check, NULL);
+    noit_check_schedule_next(self, &epoch, check, NULL, noit_snmp_send);
   }
   return 0;
 }
@@ -519,7 +468,6 @@ static int noit_snmp_onload(noit_module_t *self) {
   nldeb = noit_log_stream_find("debug/noit_snmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
-  eventer_name_callback("noit_snmp/recur_handler", noit_snmp_recur_handler);
   eventer_name_callback("noit_snmp/check_timeout", noit_snmp_check_timeout);
   eventer_name_callback("noit_snmp/session_timeout", noit_snmp_session_timeout);
   eventer_name_callback("noit_snmp/handler", noit_snmp_handler);

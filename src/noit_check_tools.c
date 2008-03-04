@@ -6,6 +6,14 @@
 #include "noit_defines.h"
 #include "noit_check_tools.h"
 
+#include <assert.h>
+
+typedef struct {
+  noit_module_t *self;
+  noit_check_t *check;
+  dispatch_func_t dispatch;
+} recur_closure_t;
+
 int
 noit_check_interpolate(char *buff, int len, const char *fmt,
                        noit_hash_table *attrs,
@@ -52,5 +60,57 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
     fmt = copy;
   }
   return strlen(buff);
+}
+
+static int
+noit_check_recur_handler(eventer_t e, int mask, void *closure,
+                              struct timeval *now) {
+  recur_closure_t *rcl = closure;
+  rcl->check->fire_event = NULL; /* This is us, we get free post-return */
+  noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
+                           rcl->dispatch);
+  rcl->dispatch(rcl->self, rcl->check);
+  free(rcl);
+  return 0;
+}
+
+int
+noit_check_schedule_next(noit_module_t *self,
+                         struct timeval *last_check, noit_check_t *check,
+                         struct timeval *now, dispatch_func_t dispatch) {
+  eventer_t newe;
+  struct timeval period, earliest;
+  recur_closure_t *rcl;
+
+  assert(check->fire_event == NULL);
+  if(check->period == 0) return 0;
+  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
+
+  /* If we have an event, we know when we intended it to fire.  This means
+   * we should schedule that point + period.
+   */
+  if(now)
+    memcpy(&earliest, now, sizeof(earliest));
+  else
+    gettimeofday(&earliest, NULL);
+  period.tv_sec = check->period / 1000;
+  period.tv_usec = (check->period % 1000) * 1000;
+
+  newe = eventer_alloc();
+  memcpy(&newe->whence, last_check, sizeof(*last_check));
+  add_timeval(newe->whence, period, &newe->whence);
+  if(compare_timeval(newe->whence, earliest) < 0)
+    memcpy(&newe->whence, &earliest, sizeof(earliest));
+  newe->mask = EVENTER_TIMER;
+  newe->callback = noit_check_recur_handler;
+  rcl = calloc(1, sizeof(*rcl));
+  rcl->self = self;
+  rcl->check = check;
+  rcl->dispatch = dispatch;
+  newe->closure = rcl;
+
+  eventer_add(newe);
+  check->fire_event = newe;
+  return 0;
 }
 

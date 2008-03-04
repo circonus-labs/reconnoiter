@@ -17,6 +17,7 @@
 
 #include "noit_module.h"
 #include "noit_check.h"
+#include "noit_check_tools.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
@@ -97,8 +98,6 @@ static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static int serf_handler(eventer_t e, int mask, void *closure,
                         struct timeval *now);
-static int serf_recur_handler(eventer_t e, int mask, void *closure,
-                              struct timeval *now);
 static void serf_log_results(noit_module_t *self, noit_check_t *check);
 static void resmon_log_results(noit_module_t *self, noit_check_t *check);
 static void resmon_part_log_results(noit_module_t *self, noit_check_t *check,
@@ -744,49 +743,6 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   ci->timeout_event = newe;
   return 0;
 }
-static int serf_schedule_next(noit_module_t *self,
-                              struct timeval *last_check, noit_check_t *check,
-                              struct timeval *now) {
-  eventer_t newe;
-  struct timeval period, earliest;
-  serf_closure_t *ccl;
-
-  if(check->period == 0) return 0;
-
-  /* If we have an event, we know when we intended it to fire.  This means
-   * we should schedule that point + period.
-   */
-  if(now)
-    memcpy(&earliest, now, sizeof(earliest));
-  else
-    gettimeofday(&earliest, NULL);
-  period.tv_sec = check->period / 1000;
-  period.tv_usec = (check->period % 1000) * 1000;
-
-  newe = eventer_alloc();
-  memcpy(&newe->whence, last_check, sizeof(*last_check));
-  add_timeval(newe->whence, period, &newe->whence);
-  if(compare_timeval(newe->whence, earliest) < 0)
-    memcpy(&newe->whence, &earliest, sizeof(earliest));
-  newe->mask = EVENTER_TIMER;
-  newe->callback = serf_recur_handler;
-  ccl = calloc(1, sizeof(*ccl));
-  ccl->self = self;
-  ccl->check = check;
-  newe->closure = ccl;
-
-  eventer_add(newe);
-  check->fire_event = newe;
-  return 0;
-}
-static int serf_recur_handler(eventer_t e, int mask, void *closure,
-                              struct timeval *now) {
-  serf_closure_t *cl = (serf_closure_t *)closure;
-  serf_schedule_next(cl->self, &e->whence, cl->check, now);
-  serf_initiate(cl->self, cl->check);
-  free(cl);
-  return 0;
-}
 static void serf_cleanup(noit_module_t *self, noit_check_t *check) {
   serf_check_info_t *sci;
   if(check->fire_event) {
@@ -812,7 +768,7 @@ static int serf_initiate_check(noit_module_t *self, noit_check_t *check,
   if(!check->fire_event) {
     struct timeval epoch = { 0L, 0L };
     noit_check_fake_last_check(check, &epoch, NULL);
-    serf_schedule_next(self, &epoch, check, NULL);
+    noit_check_schedule_next(self, &epoch, check, NULL, serf_initiate);
   }
   return 0;
 }
@@ -827,7 +783,7 @@ static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
   if(!check->fire_event) {
     struct timeval epoch = { 0L, 0L };
     noit_check_fake_last_check(check, &epoch, NULL);
-    serf_schedule_next(self, &epoch, check, NULL);
+    noit_check_schedule_next(self, &epoch, check, NULL, serf_initiate);
   }
   return 0;
 }
@@ -891,7 +847,7 @@ static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
     return 0;
   }
   if(!check->fire_event)
-    serf_schedule_next(self, NULL, check, NULL);
+    noit_check_schedule_next(self, NULL, check, NULL, serf_initiate);
   return 0;
 }
 
@@ -908,7 +864,6 @@ static int serf_onload(noit_module_t *self) {
 
   eventer_name_callback("http/serf_handler", serf_handler);
   eventer_name_callback("http/serf_complete", serf_complete);
-  eventer_name_callback("http/serf_recur_handler", serf_recur_handler);
   return 0;
 }
 noit_module_t http = {

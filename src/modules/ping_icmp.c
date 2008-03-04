@@ -21,6 +21,7 @@
 
 #include "noit_module.h"
 #include "noit_check.h"
+#include "noit_check_tools.h"
 #include "utils/noit_log.h"
 
 #define PING_INTERVAL 2000 /* 2000ms = 2s */
@@ -49,8 +50,6 @@ struct ping_closure {
 };
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
-static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
-                                   struct timeval *now);
 static int in_cksum(u_short *addr, int len);
 
 typedef struct  {
@@ -441,52 +440,6 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
 
   return 0;
 }
-static int ping_icmp_schedule_next(noit_module_t *self,
-                                   struct timeval *last_check,
-                                   noit_check_t *check,
-                                   struct timeval *now) {
-  eventer_t newe;
-  struct timeval period, earliest;
-  struct ping_closure *pcl;
-
-  if(check->period == 0) return 0;
-  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
-
-  /* If we have an event, we know when we intended it to fire.  This means
-   * we should schedule that point + period.
-   */
-  if(now)
-    memcpy(&earliest, now, sizeof(earliest));
-  else
-    gettimeofday(&earliest, NULL);
-  period.tv_sec = check->period / 1000;
-  period.tv_usec = (check->period % 1000) * 1000;
-
-  newe = eventer_alloc();
-  memcpy(&newe->whence, last_check, sizeof(*last_check));
-  add_timeval(newe->whence, period, &newe->whence);
-  if(compare_timeval(newe->whence, earliest) < 0)
-    memcpy(&newe->whence, &earliest, sizeof(earliest));
-  newe->mask = EVENTER_TIMER;
-  newe->callback = ping_icmp_recur_handler;
-  pcl = calloc(1, sizeof(*pcl));
-  pcl->self = self;
-  pcl->check = check;
-  newe->closure = pcl;
-
-  eventer_add(newe);
-  check->fire_event = newe;
-  return 0;
-}
-static int ping_icmp_recur_handler(eventer_t e, int mask, void *closure,
-                                   struct timeval *now) {
-  struct ping_closure *cl = (struct ping_closure *)closure;
-  cl->check->fire_event = NULL;
-  ping_icmp_schedule_next(cl->self, &e->whence, cl->check, now);
-  ping_icmp_send(cl->self, cl->check);
-  free(cl);
-  return 0;
-}
 static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
@@ -497,7 +450,7 @@ static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
   if(!check->fire_event) {
     struct timeval epoch;
     noit_check_fake_last_check(check, &epoch, NULL);
-    ping_icmp_schedule_next(self, &epoch, check, NULL);
+    noit_check_schedule_next(self, &epoch, check, NULL, ping_icmp_send);
   }
   return 0;
 }
@@ -548,7 +501,6 @@ static int ping_icmp_onload(noit_module_t *self) {
   nldeb = noit_log_stream_find("debug/ping_icmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
-  eventer_name_callback("ping_icmp/recur_handler", ping_icmp_recur_handler);
   eventer_name_callback("ping_icmp/timeout", ping_icmp_timeout);
   eventer_name_callback("ping_icmp/handler", ping_icmp_handler);
   return 0;

@@ -5,6 +5,7 @@ LDFLAGS=@LDFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
+PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
 
 prefix=@prefix@
@@ -61,7 +62,7 @@ stratcond:	make-subdirs $(STRATCON_OBJS)
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
-		$(LIBS)
+		$(LIBS) $(PGLIBS)
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

@@ -70,7 +70,14 @@ AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 		AC_MSG_ERROR([libssl not found, but required])
 	]
 )
-AC_CHECK_LIB(pq, PQconnectdb, ,
+
+SAVELIBS="$LIBS"
+AC_CHECK_LIB(pq, PQconnectdb,
+	[
+		LIBS="$LIBS -lpq"
+		PGLIBS="$LIBS"
+		AC_SUBST(PGLIBS)
+	],
 	[
 		AC_MSG_ERROR([libpq required])
 	]
@@ -80,6 +87,28 @@ AC_TRY_LINK([#include <libpq-fe.h>],
 	[],
 	[ AC_MSG_ERROR([Cannot compile/link against libpq]) ]
 )
+LIBS="$SAVELIBS"
+
+########
+#
+# CHECK FOR VARIOUS MODULE CRITERIA
+# We don't track the libs themselves, as we'll just explictly link
+# against the in the makefile if we enable them to build (by adding
+# them to the BUILD_MODULES list).
+#
+########
+
+# Should we build snmp checks?
+SAVELIBS="$LIBS"
+AC_CHECK_LIB(netsnmp, snmp_sess_open,
+	[
+		BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
+	],
+	[
+		AC_MSG_ERROR([No libnetsnmp, skipping snmp module])
+	]
+)
+LIBS="$SAVELIBS"
 
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`
@@ -294,6 +323,8 @@ AC_CACHE_CHECK([for ssize_t], ac_cv_have_ssize_t, [
 if test "x$ac_cv_have_ssize_t" = "xyes" ; then
 	AC_DEFINE(HAVE_SSIZE_T)
 fi
+
+AC_SUBST(BUILD_MODULES)
 
 docdir="docs"
 mansubdir="man"
