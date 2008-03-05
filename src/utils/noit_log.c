@@ -72,12 +72,16 @@ jlog_logio_open(noit_log_stream_t ls) {
   jlog_ctx *log = NULL;
   if(!ls->path) return -1;
   strlcpy(path, ls->path, sizeof(path));
-  sub = strstr(path, "=>");
+  sub = strchr(path, '(');
   if(sub) {
-    *sub = '\0';
-    sub += 2;
+    char *esub = strchr(sub, ')');
+    if(esub) {
+      *esub = '\0';
+      *sub = '\0';
+      sub += 1;
+    }
   }
-  log = jlog_new(ls->path);
+  log = jlog_new(path);
   if(!log) return -1;
   /* Open the writer. */
   if(jlog_ctx_open_writer(log)) {
@@ -85,7 +89,7 @@ jlog_logio_open(noit_log_stream_t ls) {
     /* But, since we attempted to open it as a writer, it is tainted. */
     /* path: close, new, init, close, new, writer, add subscriber */
     jlog_ctx_close(log);
-    log = jlog_new(ls->path);
+    log = jlog_new(path);
     if(jlog_ctx_init(log)) {
       noitL(noit_error, "Cannot init jlog writer: %s\n",
             jlog_ctx_err_string(log));
@@ -94,7 +98,7 @@ jlog_logio_open(noit_log_stream_t ls) {
     }
     /* After it is initialized, we can try to reopen it as a writer. */
     jlog_ctx_close(log);
-    log = jlog_new(ls->path);
+    log = jlog_new(path);
     if(jlog_ctx_open_writer(log)) {
       noitL(noit_error, "Cannot open jlog writer: %s\n",
             jlog_ctx_err_string(log));
