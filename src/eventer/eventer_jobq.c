@@ -12,6 +12,10 @@
 #include <assert.h>
 #include <signal.h>
 
+#ifndef JOBQ_SIGNAL
+#define JOBQ_SIGNAL SIGALRM
+#endif
+
 static noit_atomic32_t threads_jobq_inited = 0;
 static pthread_key_t threads_jobq;
 static sigset_t alarm_mask;
@@ -38,19 +42,19 @@ eventer_jobq_init(eventer_jobq_t *jobq) {
     struct sigaction act;
 
     sigemptyset(&alarm_mask);
-    sigaddset(&alarm_mask, SIGALRM);
+    sigaddset(&alarm_mask, JOBQ_SIGNAL);
     act.sa_handler = eventer_jobq_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
 
-    if(sigaction(SIGALRM, &act, NULL) < 0) {
+    if(sigaction(JOBQ_SIGNAL, &act, NULL) < 0) {
       noitL(noit_error, "Cannot initialize signal handler: %s\n",
             strerror(errno));
       return -1;
     }
 
     if(pthread_key_create(&threads_jobq, NULL)) {
-      noitL(noit_error, "Cannot initialize thread-specific jmp environment: %s\n",
+      noitL(noit_error, "Cannot initialize thread-specific jobq: %s\n",
             strerror(errno));
       return -1;
     }
@@ -67,6 +71,16 @@ eventer_jobq_init(eventer_jobq_t *jobq) {
   }
   if(sem_init(&jobq->semaphore, 0, 0) != 0) {
     noitL(noit_error, "Cannot initialize semaphore: %s\n",
+          strerror(errno));
+    return -1;
+  }
+  if(pthread_key_create(&jobq->activejob, NULL)) {
+    noitL(noit_error, "Cannot initialize thread-specific activejob: %s\n",
+          strerror(errno));
+    return -1;
+  }
+  if(pthread_key_create(&jobq->threadenv, NULL)) {
+    noitL(noit_error, "Cannot initialize thread-specific sigsetjmp env: %s\n",
           strerror(errno));
     return -1;
   }
@@ -136,7 +150,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   eventer_job_t *job = closure;
   job->timeout_triggered = 1;
   job->timeout_event = NULL;
-  if(job->inflight) pthread_kill(job->executor, SIGALRM);
+  if(job->inflight) pthread_kill(job->executor, JOBQ_SIGNAL);
   return 0;
 }
 int
@@ -201,8 +215,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     }
     pthread_mutex_unlock(&job->lock);
 
-    /* Run the job, if we timeout, will be killed with an ALRM from the
-     * master thread.  We handle the alarm by longjmp'd out back here.
+    /* Run the job, if we timeout, will be killed with a JOBQ_SIGNAL from
+     * the master thread.  We handle the alarm by longjmp'd out back here.
      */
     job->executor = pthread_self();
     if(sigsetjmp(env, 1) == 0) {
