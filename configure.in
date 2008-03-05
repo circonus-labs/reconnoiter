@@ -110,6 +110,18 @@ AC_CHECK_LIB(netsnmp, snmp_sess_open,
 )
 LIBS="$SAVELIBS"
 
+# Should we build ssh2 checks?
+SAVELIBS="$LIBS"
+AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
+	[
+		BUILD_MODULES="$BUILD_MODULES ssh2.$MODULEEXT"
+	],
+	[
+		AC_MSG_ERROR([No libssh2, skipping ssh2 module])
+	]
+)
+LIBS="$SAVELIBS"
+
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`
 CFLAGS="$CFLAGS $XML2CFLAGS"
