@@ -19,6 +19,8 @@
 
 #include <libssh2.h>
 
+#define DEFAULT_SSH_PORT 22
+
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
@@ -189,6 +191,8 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
     struct sockaddr_in6 sin6;
   } sockaddr;
   socklen_t sockaddr_len;
+  unsigned short ssh_port = DEFAULT_SSH_PORT;
+  const char *port_str;
   long on;
 
   /* We cannot be running */
@@ -214,18 +218,22 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   on = 1;
   if(ioctl(fd, FIONBIO, &on)) goto fail;
 
+  if(noit_hash_retrieve(check->config, "port", strlen("port"),
+                        (void **)&port_str)) {
+    ssh_port = (unsigned short)atoi(port_str);
+  }
   memset(&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sin6.sin6_family = check->target_family;
   if(check->target_family == AF_INET) {
     memcpy(&sockaddr.sin.sin_addr,
            &check->target_addr.addr, sizeof(sockaddr.sin.sin_addr));
-    sockaddr.sin.sin_port = htons(22);
+    sockaddr.sin.sin_port = htons(ssh_port);
     sockaddr_len = sizeof(sockaddr.sin);
   }
   else {
     memcpy(&sockaddr.sin6.sin6_addr,
            &check->target_addr.addr6, sizeof(sockaddr.sin6.sin6_addr));
-    sockaddr.sin6.sin6_port = htons(22);
+    sockaddr.sin6.sin6_port = htons(ssh_port);
     sockaddr_len = sizeof(sockaddr.sin6);
   }
 
