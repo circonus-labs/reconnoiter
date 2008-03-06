@@ -150,6 +150,7 @@ socket_error:
   if(!ac->service_ctx) {
     noit_log_stream_t ls;
     const char *logname;
+    char path[PATH_MAX], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
     if(!noit_hash_retrieve(ac->config, "log", strlen("log"),
                            (void **)&logname)) {
@@ -172,7 +173,18 @@ socket_error:
       goto socket_error;
     }
 
-    jcl->jlog = jlog_new(ls->path);
+    strlcpy(path, ls->path, sizeof(path));
+    sub = strchr(path, '(');
+    if(sub) {
+      char *esub = strchr(sub, ')');
+      if(esub) {
+        *esub = '\0';
+        *sub = '\0';
+        sub += 1;
+      }
+    }
+
+    jcl->jlog = jlog_new(path);
     if(jlog_ctx_open_reader(jcl->jlog, ac->remote_cn) == -1) {
       noitL(noit_error, "jlog reader[%s] error: %s\n", ac->remote_cn,
             jlog_ctx_err_string(jcl->jlog));
