@@ -20,6 +20,10 @@ typedef int64_t noit_atomic64_t;
 typedef OSSpinLock noit_spinlock_t;
 #define noit_atomic_cas32(ref,new,old) (OSAtomicCompareAndSwap32(old,new,ref) ? old : new)
 #define noit_atomic_cas64(ref,new,old) (OSAtomicCompareAndSwap64(old,new,ref) ? old : new)
+#define noit_atomic_add32(ref,diff) OSAtomicAdd32(ref,diff)
+#define noit_atomic_add64(ref,diff) OSAtomicAdd64(ref,diff)
+#define noit_atomic_sub32(ref,diff) OSAtomicAdd32(ref,0-(diff))
+#define noit_atomic_sub64(ref,diff) OSAtomicAdd64(ref,0-(diff))
 #define noit_atomic_inc32(ref) OSAtomicIncrement32(ref)
 #define noit_atomic_inc64(ref) OSAtomicIncrement64(ref)
 #define noit_atomic_dec32(ref) OSAtomicDecrement32(ref)
@@ -91,12 +95,68 @@ static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
 static inline void noit_spinlock_unlock(volatile noit_spinlock_t *lock) {
   while(noit_atomic_cas32(lock, 0, 1) != 1);
 }
-static inline noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
+static inline int noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
   return (noit_atomic_cas32(lock, 1, 0) == 0);
 }
 
 #else
 #error Please stub out the atomics section for your platform
+#endif
+
+#ifndef noit_atomic_add32
+static inline void noit_atomic_add32(volatile noit_atomic32_t *loc,
+                                     volatile noit_atomic32_t diff) {
+  register noit_atomic32_t current;
+  do {
+    current = *(loc);
+  } while(noit_atomic_cas32(loc, current + diff, current) != current);
+}
+#endif
+
+#ifndef noit_atomic_add64
+static inline void noit_atomic_add64(volatile noit_atomic64_t *loc,
+                                     volatile noit_atomic64_t diff) {
+  register noit_atomic64_t current;
+  do {
+    current = *(loc);
+  } while(noit_atomic_cas64(loc, current + diff, current) != current);
+}
+#endif
+
+#ifndef noit_atomic_sub32
+static inline void noit_atomic_sub32(volatile noit_atomic32_t *loc,
+                                     volatile noit_atomic32_t diff) {
+  register noit_atomic32_t current;
+  do {
+    current = *(loc);
+  } while(noit_atomic_cas32(loc, current - diff, current) != current);
+}
+#endif
+
+#ifndef noit_atomic_sub64
+static inline void noit_atomic_sub64(volatile noit_atomic64_t *loc,
+                                     volatile noit_atomic64_t diff) {
+  register noit_atomic64_t current;
+  do {
+    current = *(loc);
+  } while(noit_atomic_cas64(loc, current - diff, current) != current);
+}
+#endif
+
+#ifndef noit_atomic_inc32
+#define noit_atomic_inc32(a) noit_atomic_add32(a, 1)
+#endif
+
+#ifndef noit_atomic_inc64
+#define noit_atomic_inc64(a) noit_atomic_add64(a, 1)
+#endif
+
+#ifndef noit_atomic_dec32
+#define noit_atomic_dec32(a) noit_atomic_add32(a, -1)
+#endif
+
+#ifndef noit_atomic_dec64
+#define noit_atomic_dec64(a) noit_atomic_add64(a, -1)
 #endif
 
 #endif
