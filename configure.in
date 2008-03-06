@@ -34,6 +34,8 @@ case $host in
 	LDFLAGS="$LDFLAGS -Wl,-E"
 	MODULELD="$CC -shared"
 	MODULEEXT=so
+	LDFLAGS="$LDFLAGS -L/usr/local/lib"
+	CFLAGS="$CFLAGS -I/usr/local/include -I/usr/local/include/postgresql"
 	;;
 *)
 	PICFLAGS="-fpic"
@@ -60,12 +62,12 @@ AC_CHECK_LIB(uuid, uuid_generate, , )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
-AC_CHECK_LIB(ssl, SSL_library_init, ,
+AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 	[
 		AC_MSG_ERROR([libssl not found, but required])
 	]
 )
-AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
+AC_CHECK_LIB(ssl, SSL_library_init, ,
 	[
 		AC_MSG_ERROR([libssl not found, but required])
 	]
@@ -105,7 +107,7 @@ AC_CHECK_LIB(netsnmp, snmp_sess_open,
 		BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
 	],
 	[
-		AC_MSG_ERROR([No libnetsnmp, skipping snmp module])
+		AC_MSG_WARN([No libnetsnmp, skipping snmp module])
 	]
 )
 LIBS="$SAVELIBS"
@@ -117,7 +119,7 @@ AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
 		BUILD_MODULES="$BUILD_MODULES ssh2.$MODULEEXT"
 	],
 	[
-		AC_MSG_ERROR([No libssh2, skipping ssh2 module])
+		AC_MSG_WARN([No libssh2, skipping ssh2 module])
 	]
 )
 LIBS="$SAVELIBS"
