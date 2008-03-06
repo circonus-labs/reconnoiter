@@ -39,4 +39,15 @@ static inline void add_timeval(struct timeval a, struct timeval b,
   out->tv_sec = a.tv_sec + b.tv_sec;
 }
 
+#ifndef HAVE_UUID_UNPARSE_LOWER
+/* Sigh, need to implement out own */
+#include <uuid/uuid.h>
+#include <ctype.h>
+static inline void uuid_unparse_lower(uuid_t in, char *out) {
+  int i;
+  uuid_unparse(in, out);
+  for(i=0;i<36;i++) out[i] = tolower(out[i]);
+}
+#endif
+
 #endif
