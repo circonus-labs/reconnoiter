@@ -68,13 +68,16 @@ AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(uuid, uuid_generate, , )
+# Some libraries provide an unparse_lower command
+# we use that, so if it isn't present, we'll need
+# to implement it.
 AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
 AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 	[
-		AC_MSG_ERROR([libssl not found, but required])
+		AC_MSG_ERROR([libcrypto not found, but required])
 	]
 )
 AC_CHECK_LIB(ssl, SSL_library_init, ,
