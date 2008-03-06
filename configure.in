@@ -395,4 +395,5 @@ src/jlog/Makefile
 src/modules/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
+test/Makefile
 ])

@@ -1,0 +1,67 @@
+CC=@CC@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+AR=@AR@
+RANLIB=@RANLIB@
+LIBS=@LIBS@
+PGLIBS=@PGLIBS@
+INSTALL=@INSTALL@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+libdir=@libdir@
+includedir=${prefix}/include
+libexecdir=@libexecdir@
+datarootdir = @datarootdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+docdir=${prefix}/@docdir@
+sysconfdir=@sysconfdir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+
+all:	testcerts
+clean:	clean-keys
+# This stuff if all cert stuff to make testing the daemons easier
+
+demoCA-dir:
+	@mkdir -p demoCA
+	@touch demoCA/index.txt
+	@test -f demoCA/serial || echo 00 > demoCA/serial
+
+test-ca.key:
+	openssl genrsa -out test-ca.key
+
+test-ca.csr:	test-ca.key
+	openssl req -key test-ca.key -days 365 -new -out test-ca.csr
+
+test-ca.crt:	test-ca.key test-ca.csr
+	openssl x509 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt
+
+test.key:
+	openssl genrsa -out test.key
+
+test.csr:	test.key
+	openssl req -key test.key -days 365 -new -out test.csr
+
+test.crt:	test.csr test-ca.key test-ca.crt
+	openssl ca -config demo-openssl.cnf -in test.csr -out test.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+
+test-strat.key:
+	openssl genrsa -out test-strat.key
+
+test-strat.csr:	test-strat.key
+	openssl req -key test-strat.key -days 365 -new -out test-strat.csr
+
+test-strat.crt:	test-strat.csr test-ca.key
+	openssl ca -config demo-openssl.cnf -in test-strat.csr -out test-strat.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+
+testcerts:	demoCA-dir test.key test.crt test-strat.key test-strat.crt test-ca.key test-ca.crt
+
+clean-keys:
+	rm -f *.key *.csr *.crt *.pem
+	rm -rf demoCA
+
