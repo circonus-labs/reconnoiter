@@ -183,7 +183,7 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
 }
 static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   ssh2_check_info_t *ci = check->closure;
-  struct timeval p_int;
+  struct timeval p_int, __now;
   int fd, rv;
   eventer_t e;
   union {
@@ -209,6 +209,8 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
   }
+  gettimeofday(&__now, NULL);
+  memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   /* Open a socket */
   fd = socket(check->target_family, SOCK_STREAM, 0);
@@ -254,7 +256,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   e->mask = EVENTER_TIMER;
   e->callback = ssh2_connect_timeout;
   e->closure = ci;
-  gettimeofday(&e->whence, NULL);
+  memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(e->whence, p_int, &e->whence);
