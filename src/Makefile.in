@@ -36,7 +36,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_conf.o noit_tokenizer.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o
 
-all:	noitd stratcond testcerts
+all:	noitd stratcond
 
 make-subdirs:	serf/.libs/libserf-0.a
 	for dir in $(SUBS) ; do \
