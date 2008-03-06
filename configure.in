@@ -1,4 +1,13 @@
 AC_INIT(src/noitd.c)
+
+node=`hostname | cut -f1 -d '.'`
+if test -f ".configure.$node"; then
+	echo "***********************************************************"
+        echo "* Loading node specific configure settings for $node."
+	echo "***********************************************************"
+	. ./.configure.$node
+fi
+
 AC_CANONICAL_HOST
 AC_CONFIG_HEADER(src/noit_config.h)
 AC_CONFIG_HEADER(src/jlog/jlog_config.h)
@@ -59,6 +68,7 @@ AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(uuid, uuid_generate, , )
+AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
