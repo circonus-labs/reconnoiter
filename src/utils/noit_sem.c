@@ -37,6 +37,8 @@
 
 #include "noit_defines.h"
 #include "utils/noit_sem.h"
+
+#ifdef BROKEN_SEM_INIT
 #include <pthread.h>
 #include <errno.h>
 
@@ -97,3 +99,4 @@ noit_sem_destroy(noit_sem_t *s)
   pthread_cond_destroy(&s->cond);
 }
 
+#endif
