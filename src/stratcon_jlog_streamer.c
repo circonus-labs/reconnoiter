@@ -381,13 +381,19 @@ initiate_jlog_streamer(const char *host, unsigned short port,
     strncpy(s->sun_path, host, sizeof(s->sun_path)-1);
     ctx->remote_len = sizeof(*s);
   }
+  else if(family == AF_INET) {
+    struct sockaddr_in *s = &ctx->r.remote_in;
+    s->sin_family = family;
+    s->sin_port = htons(port);
+    memcpy(&s->sin_addr, &a, sizeof(struct in_addr));
+    ctx->remote_len = sizeof(*s);
+  }
   else {
     struct sockaddr_in6 *s = &ctx->r.remote_in6;
     s->sin6_family = family;
     s->sin6_port = htons(port);
     memcpy(&s->sin6_addr, &a, sizeof(a));
-    ctx->remote_len = (family == AF_INET) ?
-                        sizeof(struct sockaddr_in) : sizeof(*s);
+    ctx->remote_len = sizeof(*s);
   }
 
   if(ctx->sslconfig)
