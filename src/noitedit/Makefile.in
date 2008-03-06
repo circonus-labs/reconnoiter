@@ -38,13 +38,13 @@ libnoitedit.a:   $(FABHEADERS) $(OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 vi.h: vi.c makelist
-	sh ./makelist -h $< > $@
+	sh ./makelist -h vi.c > $@
 
 emacs.h: emacs.c makelist
-	sh ./makelist -h $< > $@
+	sh ./makelist -h emacs.c > $@
 
 common.h: common.c makelist
-	sh ./makelist -h $< > $@
+	sh ./makelist -h common.c > $@
 
 fcns.h: vi.h emacs.h common.h makelist
 	sh ./makelist -fh vi.h emacs.h common.h > $@
