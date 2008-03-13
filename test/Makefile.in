@@ -36,30 +36,30 @@ test-ca.key:
 	openssl genrsa -out test-ca.key
 
 test-ca.csr:	test-ca.key
-	openssl req -key test-ca.key -days 365 -new -out test-ca.csr
+	openssl req -key test-ca.key -days 365 -new -out test-ca.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=Reconnoiter Test CA"
 
 test-ca.crt:	test-ca.key test-ca.csr
 	openssl x509 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt
 
-test.key:
-	openssl genrsa -out test.key
+test-noit.key:
+	openssl genrsa -out test-noit.key
 
-test.csr:	test.key
-	openssl req -key test.key -days 365 -new -out test.csr
+test-noit.csr:	test-noit.key
+	openssl req -key test-noit.key -days 365 -new -out test-noit.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=noit-test"
 
-test.crt:	test.csr test-ca.key test-ca.crt
-	openssl ca -config demo-openssl.cnf -in test.csr -out test.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+test-noit.crt:	test-noit.csr test-ca.key test-ca.crt
+	openssl ca -config demo-openssl.cnf -in test-noit.csr -out test-noit.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-test-strat.key:
-	openssl genrsa -out test-strat.key
+test-stratcon.key:
+	openssl genrsa -out test-stratcon.key
 
-test-strat.csr:	test-strat.key
-	openssl req -key test-strat.key -days 365 -new -out test-strat.csr
+test-stratcon.csr:	test-stratcon.key
+	openssl req -key test-stratcon.key -days 365 -new -out test-stratcon.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=stratcon"
 
-test-strat.crt:	test-strat.csr test-ca.key
-	openssl ca -config demo-openssl.cnf -in test-strat.csr -out test-strat.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+test-stratcon.crt:	test-stratcon.csr test-ca.key
+	openssl ca -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-testcerts:	demoCA-dir test.key test.crt test-strat.key test-strat.crt test-ca.key test-ca.crt
+testcerts:	demoCA-dir test-noit.key test-noit.crt test-stratcon.key test-stratcon.crt test-ca.key test-ca.crt
 
 clean-keys:
 	rm -f *.key *.csr *.crt *.pem
