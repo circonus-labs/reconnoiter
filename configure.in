@@ -1,6 +1,6 @@
 AC_INIT(src/noitd.c)
 
-node=`hostname | cut -f1 -d '.'`
+node=`hostname | cut -f1 -d '.' | tr '[A-Z]' '[a-z]'`
 if test -f ".configure.$node"; then
 	echo "***********************************************************"
         echo "* Loading node specific configure settings for $node."
