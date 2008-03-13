@@ -26,7 +26,7 @@
 
 /* This is the function type that must be implemented per object type
    that is used in a skiplist for comparisons to maintain order */
-typedef int (*noit_skiplist_comparator_t)(void *, void *);
+typedef int (*noit_skiplist_comparator_t)(const void *, const void *);
 typedef void (*noit_freefunc_t)(void *);
 
 struct _noit_skiplist_node;
@@ -63,33 +63,39 @@ void noit_skiplist_set_compare(noit_skiplist *sl, noit_skiplist_comparator_t,
 void noit_skiplist_add_index(noit_skiplist *sl, noit_skiplist_comparator_t,
                              noit_skiplist_comparator_t);
 noit_skiplist_node *noit_skiplist_getlist(noit_skiplist *sl);
-void *noit_skiplist_find_compare(noit_skiplist *sl, void *data,
+void *noit_skiplist_find_compare(noit_skiplist *sl, const void *data,
                                  noit_skiplist_node **iter,
 		                 noit_skiplist_comparator_t func);
-void *noit_skiplist_find(noit_skiplist *sl, void *data,
+void *noit_skiplist_find_neighbors_compare(noit_skiplist *sl, const void *data,
+                                           noit_skiplist_node **iter,
+                                           noit_skiplist_node **prev,
+                                           noit_skiplist_node **next,
+		                           noit_skiplist_comparator_t func);
+void *noit_skiplist_find(noit_skiplist *sl, const void *data,
                          noit_skiplist_node **iter);
+void *noit_skiplist_find_neighbors(noit_skiplist *sl, const void *data,
+                                   noit_skiplist_node **iter,
+                                   noit_skiplist_node **prev,
+                                   noit_skiplist_node **next);
 void *noit_skiplist_next(noit_skiplist *sl, noit_skiplist_node **);
 void *noit_skiplist_previous(noit_skiplist *sl, noit_skiplist_node **);
 
 noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
-                                                 void *data,
+                                                 const void *data,
                                                  noit_skiplist_comparator_t comp);
-noit_skiplist_node *noit_skiplist_insert(noit_skiplist *sl, void *data);
-int noit_skiplist_remove_compare(noit_skiplist *sl, void *data,
+noit_skiplist_node *noit_skiplist_insert(noit_skiplist *sl, const void *data);
+int noit_skiplist_remove_compare(noit_skiplist *sl, const void *data,
                                  noit_freefunc_t myfree,
                                  noit_skiplist_comparator_t comp);
-int noit_skiplist_remove(noit_skiplist *sl, void *data, noit_freefunc_t myfree);
+int noit_skiplist_remove(noit_skiplist *sl, const void *data,
+                         noit_freefunc_t myfree);
 int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m,
                           noit_freefunc_t myfree);
 void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree);
 
-int noit_skiplisti_find_compare(noit_skiplist *sl, void *data,
-                                noit_skiplist_node **ret,
-                                noit_skiplist_comparator_t comp);
-
 void *noit_skiplist_pop(noit_skiplist * a, noit_freefunc_t myfree);
 void *noit_skiplist_peek(noit_skiplist * a);
 
-int noit_compare_voidptr(void *, void *);
+int noit_compare_voidptr(const void *, const void *);
 
 #endif

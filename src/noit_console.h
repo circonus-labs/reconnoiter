@@ -11,6 +11,7 @@
 #include "noitedit/histedit.h"
 #include "noit_console_telnet.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_skiplist.h"
 #include <stdarg.h>
 
 struct _console_state;
@@ -49,7 +50,8 @@ API_EXPORT(void *)
 
 typedef struct _console_state {
   console_prompt_func_t      console_prompt_function;
-  noit_hash_table            cmds;
+  /*noit_hash_table            cmds; */
+  noit_skiplist              cmds;
   state_free_func_t          statefree;
 } noit_console_state_t;
 
@@ -132,6 +134,9 @@ API_EXPORT(void)
 
 API_EXPORT(noit_console_state_t *)
   noit_console_state_initial();
+
+API_EXPORT(noit_console_state_t *)
+  noit_console_state_alloc(void);
 
 API_EXPORT(void)
   noit_console_state_free(noit_console_state_t *st);

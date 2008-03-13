@@ -25,7 +25,13 @@
 #define MIN(a,b) ((a<b)?(a):(b))
 #endif
 
-int noit_compare_voidptr(void *a, void *b) {
+static int noit_skiplisti_find_compare(noit_skiplist *sl, const void *data,
+                                       noit_skiplist_node **ret,
+                                       noit_skiplist_node **prev,
+                                       noit_skiplist_node **next,
+                                       noit_skiplist_comparator_t comp);
+
+int noit_compare_voidptr(const void *a, const void *b) {
   if(a < b) return -1;
   if(a == b) return 0;
   return 1;
@@ -53,12 +59,12 @@ void noit_skiplisti_init(noit_skiplist *sl) {
   sl->index = NULL;
 }
 
-static int indexing_comp(void *a, void *b) {
+static int indexing_comp(const void *a, const void *b) {
   assert(a);
   assert(b);
   return (void *)(((noit_skiplist *)a)->compare)>(void *)(((noit_skiplist *)b)->compare);
 }
-static int indexing_compk(void *a, void *b) {
+static int indexing_compk(const void *a, const void *b) {
   assert(b);
   return a>(void *)(((noit_skiplist *)b)->compare);
 }
@@ -115,23 +121,45 @@ noit_skiplist_node *noit_skiplist_getlist(noit_skiplist *sl) {
 }
 
 void *noit_skiplist_find(noit_skiplist *sl,
-	      void *data,
-	      noit_skiplist_node **iter) {
+                         const void *data,
+                         noit_skiplist_node **iter) {
+  return noit_skiplist_find_neighbors(sl, data, iter, NULL, NULL);
+}
+void *noit_skiplist_find_neighbors(noit_skiplist *sl,
+                                   const void *data,
+                                   noit_skiplist_node **iter,
+                                   noit_skiplist_node **prev,
+                                   noit_skiplist_node **next) {
   void *ret;
   noit_skiplist_node *aiter;
   if(!sl->compare) return 0;
   if(iter)
-    ret = noit_skiplist_find_compare(sl, data, iter, sl->compare);
+    ret = noit_skiplist_find_neighbors_compare(sl, data, iter,
+                                               prev, next, sl->compare);
   else
-    ret = noit_skiplist_find_compare(sl, data, &aiter, sl->compare);
+    ret = noit_skiplist_find_neighbors_compare(sl, data, &aiter,
+                                               prev, next, sl->compare);
   return ret;
-}  
+}
+
 void *noit_skiplist_find_compare(noit_skiplist *sli,
-		      void *data,
-		      noit_skiplist_node **iter,
-		      noit_skiplist_comparator_t comp) {
+                                 const void *data,
+                                 noit_skiplist_node **iter,
+                                 noit_skiplist_comparator_t comp) {
+  return noit_skiplist_find_neighbors_compare(sli, data, iter,
+                                              NULL, NULL, comp);
+}
+void *noit_skiplist_find_neighbors_compare(noit_skiplist *sli,
+                                           const void *data,
+                                           noit_skiplist_node **iter,
+                                           noit_skiplist_node **prev,
+                                           noit_skiplist_node **next,
+                                           noit_skiplist_comparator_t comp) {
   noit_skiplist_node *m = NULL;
   noit_skiplist *sl;
+  if(iter) *iter = NULL;
+  if(prev) *prev = NULL;
+  if(next) *next = NULL;
   if(comp==sli->compare || !sli->index) {
     sl = sli;
   } else {
@@ -139,36 +167,44 @@ void *noit_skiplist_find_compare(noit_skiplist *sli,
     assert(m);
     sl= (noit_skiplist *) m->data;
   }
-  noit_skiplisti_find_compare(sl, data, iter, sl->comparek);
+  noit_skiplisti_find_compare(sl, data, iter, prev, next, sl->comparek);
   return (*iter)?((*iter)->data):(*iter);
 }
-int noit_skiplisti_find_compare(noit_skiplist *sl,
-		     void *data,
-		     noit_skiplist_node **ret,
-		     noit_skiplist_comparator_t comp) {
+static int noit_skiplisti_find_compare(noit_skiplist *sl,
+                                       const void *data,
+                                       noit_skiplist_node **ret,
+                                       noit_skiplist_node **prev,
+                                       noit_skiplist_node **next,
+                                       noit_skiplist_comparator_t comp) {
   noit_skiplist_node *m = NULL;
   int count=0;
+  if(ret) *ret = NULL;
+  if(prev) *prev = NULL;
+  if(next) *next = NULL;
   m = sl->top;
   while(m) {
-    int compared = -1;
-    if(m->next) compared=comp(data, m->next->data);
-    if(compared == 0) {
-#ifdef SL_DEBUG
-      printf("Looking -- found in %d steps\n", count);
-#endif
-      m=m->next;
-      while(m->down) m=m->down;
+    int compared;
+    compared = (m->next) ? comp(data, m->next->data) : -1;
+    if(compared == 0) { /* Found */
+      m=m->next; /* m->next is the match */
+      while(m->down) m=m->down; /* proceed to the bottom-most */
       *ret = m;
+      if(prev) *prev = m->prev;
+      if(next) *next = m->next;
       return count;
     }
-    if((m->next == NULL) || (compared<0))
-      m = m->down, count++;
+    if((m->next == NULL) || (compared<0)) {
+      if(m->down == NULL) {
+        /* This is... we're about to bail, figure out our neighbors */
+        if(prev) *prev = (m == sl->bottom) ? NULL : m;
+        if(next) *next = m->next;
+      }
+      m = m->down;
+      count++;
+    }
     else
       m = m->next, count++;
   }
-#ifdef SL_DEBUG
-  printf("Looking -- not found in %d steps\n", count);
-#endif
   *ret = NULL;
   return count;
 }
@@ -183,14 +219,14 @@ void *noit_skiplist_previous(noit_skiplist *sl, noit_skiplist_node **iter) {
   return (*iter)?((*iter)->data):NULL;
 }
 noit_skiplist_node *noit_skiplist_insert(noit_skiplist *sl,
-			       void *data) {
+                                         const void *data) {
   if(!sl->compare) return 0;
   return noit_skiplist_insert_compare(sl, data, sl->compare);
 }
 
 noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
-				       void *data,
-				       noit_skiplist_comparator_t comp) {
+                                                 const void *data,
+                                                 noit_skiplist_comparator_t comp) {
   noit_skiplist_node *m, *p, *tmp, *ret = NULL, **stack;
   int nh=1, ch, stacki;
   if(!sl->top) {
@@ -261,7 +297,7 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
     tmp->nextindex = tmp->previndex = NULL;
     tmp->down = p;
     if(p) p->up=tmp;
-    tmp->data = data;
+    tmp->data = (void *)data;
     tmp->sl = sl;
     m->next = tmp;
     /* This sets ret to the bottom-most node we are inserting */
@@ -285,7 +321,7 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
   return ret;
 }
 int noit_skiplist_remove(noit_skiplist *sl,
-	      void *data, noit_freefunc_t myfree) {
+                         const void *data, noit_freefunc_t myfree) {
   if(!sl->compare) return 0;
   return noit_skiplist_remove_compare(sl, data, myfree, sl->comparek);
 }
@@ -316,8 +352,9 @@ int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m, noit_freefun
   return 1;
 }
 int noit_skiplist_remove_compare(noit_skiplist *sli,
-		      void *data,
-		      noit_freefunc_t myfree, noit_skiplist_comparator_t comp) {
+                                 const void *data,
+                                 noit_freefunc_t myfree,
+                                 noit_skiplist_comparator_t comp) {
   noit_skiplist_node *m;
   noit_skiplist *sl;
   if(comp==sli->comparek || !sli->index) {
@@ -327,7 +364,7 @@ int noit_skiplist_remove_compare(noit_skiplist *sli,
     assert(m);
     sl= (noit_skiplist *) m->data;
   }
-  noit_skiplisti_find_compare(sl, data, &m, comp);
+  noit_skiplisti_find_compare(sl, data, &m, NULL, NULL, comp);
   if(!m) return 0;
   while(m->previndex) m=m->previndex;
   return noit_skiplisti_remove(sl, m, myfree);

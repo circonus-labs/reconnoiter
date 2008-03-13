@@ -23,8 +23,45 @@
 #include "utils/noit_log.h"
 
 static void register_console_config_commands();
+static int noit_console_config_cd(noit_console_closure_t ncct,
+                                  int argc, char **argv,
+                                  noit_console_state_t *state, void *closure);
 
+static struct _valid_attr_t {
+  const char *scope;
+  const char *name;
+  const char *xpath;
+  int checks_fixate;
+} valid_attrs[] = {
+  { "/checks", "name", "@name", 0 },
+  { "/checks", "target", "@target", 0 },
+  { "/checks", "period", "@period", 0 },
+  { "/checks", "timeout", "@timeout", 0 },
+  { "/checks", "oncheck", "@oncheck", 0 },
+  { "/checks", "disable", "@disable", 0 },
+  { "/checks", "module", "@module", 1 },
+};
+
+void
+noit_console_state_add_check_attrs(noit_console_state_t *state,
+                                   console_cmd_func_t f) {
+  int i;
+  for(i = 0;
+      i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
+      i++) {
+    noit_console_state_add_cmd(state,
+      NCSCMD(valid_attrs[i].name, f,
+             NULL, &valid_attrs[i]));
+  }
+}
+static noit_hash_table check_attrs = NOIT_HASH_EMPTY;
 void noit_conf_checks_init(const char *toplevel) {
+  int i;
+  for(i=0;i<sizeof(valid_attrs)/sizeof(*valid_attrs);i++) {
+    noit_hash_store(&check_attrs,
+                    valid_attrs[i].name, strlen(valid_attrs[i].name),
+                    &valid_attrs[i]);
+  }
   register_console_config_commands();
 }
 
@@ -114,13 +151,16 @@ refresh_subchecks(noit_console_closure_t ncct,
   noit_poller_reload(xpath);
 }
 static int
-noit_conf_mkcheck_under(const char *ppath, uuid_t out) {
-  int rv = -1;
+noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
+  int i, error = 0, rv = -1;
   const char *path;
   char xpath[1024];
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node = NULL, newnode;
+
+  /* attr val [or] no attr (sets of two) */
+  if(argc % 2) goto out;
 
   noit_conf_xml_xpath(NULL, &xpath_ctxt);
   path = strcmp(ppath, "/") ? ppath : "";
@@ -137,7 +177,29 @@ noit_conf_mkcheck_under(const char *ppath, uuid_t out) {
     uuid_unparse_lower(out, outstr);
     xmlSetProp(newnode, (xmlChar *)"uuid", (xmlChar *)outstr);
     xmlSetProp(newnode, (xmlChar *)"disable", (xmlChar *)"true");
-    rv = 0;
+
+    /* No risk of running off the end (we checked this above) */
+    for(i=0; i<argc; i+=2) {
+      struct _valid_attr_t *attrinfo;
+      char *attr = argv[i], *val = NULL;
+      if(!strcasecmp(argv[i], "no")) attr = argv[i+1];
+      else val = argv[i+1];
+      if(!noit_hash_retrieve(&check_attrs, attr, strlen(attr),
+                             (void **)&attrinfo)) {
+        error = 1;
+        break;
+      }
+      /* The fixation stuff doesn't matter here, this check is brand-new */
+      xmlUnsetProp(newnode, (xmlChar *)attrinfo->name);
+      if(val)
+        xmlSetProp(newnode, (xmlChar *)attrinfo->name, (xmlChar *)val);
+    }
+    if(error) {
+      /* Something went wrong, remove the node */
+      xmlUnlinkNode(newnode);
+    }
+    else
+      rv = 0;
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -157,19 +219,25 @@ noit_console_check(noit_console_closure_t ncct,
   xmlNodePtr node = NULL;
   noit_conf_boolean creating_new = noit_false;
 
+  if(closure) {
+    char *fake_argv[1] = { ".." };
+    noit_console_state_pop(ncct, 0, argv, NULL, NULL);
+    noit_console_config_cd(ncct, 1, fake_argv, NULL, NULL);
+  }
+
   noit_conf_xml_xpath(NULL, &xpath_ctxt);
-  if(argc > 1) {
-    nc_printf(ncct, "requires zero or one arguments\n");
+  if(argc < 1) {
+    nc_printf(ncct, "requires at least one argument\n");
     return -1;
   }
 
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  wanted = argc ? argv[0] : NULL;
+  wanted = argc == 1 ? argv[0] : NULL;
   if(!wanted) {
     /* We are creating a new node */
     uuid_t out;
     creating_new = noit_true;
-    if(noit_conf_mkcheck_under(info->path, out)) {
+    if(noit_conf_mkcheck_under(info->path, argc, argv, out)) {
       nc_printf(ncct, "Error creating new check\n");
       return -1;
     }
@@ -206,8 +274,10 @@ noit_console_check(noit_console_closure_t ncct,
     info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
     uuid_copy(info->current_check, checkid);
     if(creating_new) refresh_subchecks(ncct, info);
-    noit_console_state_push_state(ncct, state);
-    noit_console_state_init(ncct);
+    if(state) {
+      noit_console_state_push_state(ncct, state);
+      noit_console_state_init(ncct);
+    }
     goto out;
   }
  out:
@@ -427,6 +497,12 @@ noit_console_config_section(noit_console_closure_t ncct,
     goto bad;
   }
   if(!delete && !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    if(xmlXPathNodeSetGetLength(pobj->nodesetval) == 1) {
+      node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+      if(info->path) free(info->path);
+      info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
+      goto cdout;
+    }
     err = "cannot create section";
     goto bad;
   }
@@ -450,12 +526,15 @@ noit_console_config_section(noit_console_closure_t ncct,
     goto bad;
   }
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-  if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL)
+  if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL) {
+    if(info->path) free(info->path);
     info->path = strdup((char *)xmlGetNodePath(newnode) + strlen("/noit"));
+  }
   else {
     err = "failed to create section";
     goto bad;
   }
+ cdout:
   if(pobj) xmlXPathFreeObject(pobj);
   return 0;
  bad:
@@ -522,7 +601,7 @@ noit_console_config_cd(noit_console_closure_t ncct,
   return 0;
  bad:
   if(pobj) xmlXPathFreeObject(pobj);
-  nc_printf(ncct, "%s\n", err);
+  nc_printf(ncct, "%s [%s]\n", err, xpath);
   return -1;
 }
 static int
@@ -713,33 +792,6 @@ noit_conf_checks_reload(noit_console_closure_t ncct,
   noit_poller_reload(NULL);
   return 0;
 }
-static struct _valid_attr_t {
-  const char *scope;
-  const char *name;
-  const char *xpath;
-  int checks_fixate;
-} valid_attrs[] = {
-  { "/checks", "name", "@name", 0 },
-  { "/checks", "target", "@target", 0 },
-  { "/checks", "period", "@period", 0 },
-  { "/checks", "timeout", "@timeout", 0 },
-  { "/checks", "oncheck", "@oncheck", 0 },
-  { "/checks", "disable", "@disable", 0 },
-  { "/checks", "module", "@module", 1 },
-};
-
-void
-noit_console_state_add_check_attrs(noit_console_state_t *state,
-                                   console_cmd_func_t f) {
-  int i;
-  for(i = 0;
-      i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
-      i++) {
-    noit_console_state_add_cmd(state,
-      NCSCMD(valid_attrs[i].name, f,
-             NULL, &valid_attrs[i]));
-  }
-}
 
 static int
 validate_attr_set_scope(noit_conf_t_userdata_t *info,
@@ -886,7 +938,7 @@ noit_conf_check_unset_attr(noit_console_closure_t ncct,
   return 0;
 }
 
-#define NEW_STATE(a) (a) = calloc(1, sizeof(*(a)))
+#define NEW_STATE(a) (a) = noit_console_state_alloc()
 #define ADD_CMD(a,cmd,func,ss,c) \
   noit_console_state_add_cmd((a), \
     NCSCMD(cmd, func, ss, c))
@@ -929,6 +981,7 @@ void register_console_config_commands() {
   DELEGATE_CMD(_conf_t_check_state, "no", _unset_state);
   ADD_CMD(_conf_t_check_state, "status", noit_console_show_check, NULL, NULL);
   ADD_CMD(_conf_t_check_state, "exit", noit_console_config_cd, NULL, "..");
+  ADD_CMD(_conf_t_check_state, "check", noit_console_check, _conf_t_check_state, "..");
 
   NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
