@@ -75,6 +75,11 @@ AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
+AC_CHECK_LIB(pcre, pcre_compile, ,
+	[
+		AC_MSG_ERROR([libpcre not found, but required])
+	]
+)
 AC_CHECK_LIB(crypto, ERR_load_CRYPTO_strings, ,
 	[
 		AC_MSG_ERROR([libcrypto not found, but required])

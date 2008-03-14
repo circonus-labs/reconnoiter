@@ -254,7 +254,7 @@ noit_console_check(noit_console_closure_t ncct,
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    nc_printf(ncct, "no checks found\n");
+    nc_printf(ncct, "no checks found for '%s'\n", wanted);
     goto out;
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);

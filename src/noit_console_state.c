@@ -12,6 +12,10 @@
 #include "noit_console.h"
 #include "noit_tokenizer.h"
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <pcre.h>
+
 cmd_info_t console_command_exit = {
   "exit", noit_console_state_pop, NULL, NULL
 };
@@ -41,26 +45,103 @@ apply_replace(const char *src, const char *name, const char *value) {
     cp += nextpat - searchstart;                    /* advance destination */
     memcpy(cp, value, vlen);                        /* copy replacement */
     cp += vlen;                                     /* advance destination */
-    searchstart += patlen;                          /* set new searchstart */
+    searchstart = nextpat + patlen;                 /* set new searchstart */
   }
   /* Pick up the trailer (plus '\0') */
   memcpy(cp, searchstart, strlen(searchstart)+1);
   return result;
 }
+static pcre *IP_match = NULL;
+static pcre *numeric_match = NULL;
 static int
-expand_range(const char *range, char ***set) {
-  int count;
-  /* (full:)?(\d+).(\d+)\.(\d+)(?:\.(\d+))?(?:/(\d+))? */
-  /* (\d+)(?:,(\d+))?\.\.(\d+) */
-/* FIXME: TEST! */
-  *set = malloc(10 * sizeof(*set));
-  for(count=0;count<10;count++) {
-    (*set)[count] = strdup("00-test-expand");
-    snprintf((*set)[count], 3, "%02d", count);
-    (*set)[count][2] = '-';
+expand_range(const char *range, char ***set, int max_count, const char **err) {
+  int count, erroff, ovector[30], rv;
+  char buff[32]; /* submatches */
+  const char *pcre_err;
+  *err = NULL;
+  if(!IP_match) {
+    IP_match = pcre_compile("^(full:)?(\\d+\\.\\d+\\.\\d+\\.\\d+)/(\\d+)$",
+                            0, &pcre_err, &erroff, NULL);
+    if(!IP_match) {
+      *err = "IP match pattern failed to compile!";
+      noitL(noit_error, "pcre_compiled failed offset %d: %s\n", erroff, pcre_err);
+      return -1;
+    }
   }
+  if(!numeric_match) {
+    numeric_match = pcre_compile("^(\\d+)(?:,(\\d+))?\\.\\.(\\d+)$",
+                                 0, &pcre_err, &erroff, NULL);
+    if(!numeric_match) {
+      *err = "numeric match pattern failed to compile!";
+      noitL(noit_error, "pcre_compiled failed offset %d: %s\n", erroff, pcre_err);
+      return -1;
+    }
+  }
+  rv = pcre_exec(IP_match, NULL, range, strlen(range), 0, 0, ovector, 30);
+  if(rv >= 0) {
+    int mask, full = 0, i;
+    u_int32_t host_addr;
+    struct in_addr addr;
+    /* 0 is the full monty, 1 is "" or "full:", 2 is the IP, 3 is the mask */
+    pcre_copy_substring(range, ovector, rv, 1, buff, sizeof(buff));
+    full = buff[0] ? 1 : 0;
+    pcre_copy_substring(range, ovector, rv, 3, buff, sizeof(buff));
+    mask = atoi(buff);
+    if(mask == 32) full = 1; /* host implies.. the host */
+    if(mask < 0 || mask > 32) {
+      *err = "invalid netmask";
+      return 0;
+    }
+    count = 1 << (32-mask);
+    pcre_copy_substring(range, ovector, rv, 2, buff, sizeof(buff));
+    if(inet_pton(AF_INET, buff, &addr) != 1) {
+      *err = "could not parse IP address";
+      return 0;
+    }
+    host_addr = ntohl(addr.s_addr);
+    host_addr &= ~((u_int32_t)count - 1);
 
-  return count;
+    if(!full) count -= 2; /* No network or broadcast */
+    if(count > max_count || !count) return -count;
+    if(!full) host_addr++; /* Skip the network address */
+
+    *set = malloc(count * sizeof(**set));
+    for(i=0; i<count; i++)  {
+      addr.s_addr = htonl(host_addr + i);
+      inet_ntop(AF_INET, &addr, buff, sizeof(buff));
+      (*set)[i] = strdup(buff);
+    }
+    return count;
+  }
+  rv = pcre_exec(numeric_match, NULL, range, strlen(range), 0, 0, ovector, 30);
+  if(rv >= 0) {
+    int s, n, e, i;
+    pcre_copy_substring(range, ovector, rv, 1, buff, sizeof(buff));
+    s = atoi(buff);
+    pcre_copy_substring(range, ovector, rv, 3, buff, sizeof(buff));
+    e = atoi(buff);
+    pcre_copy_substring(range, ovector, rv, 2, buff, sizeof(buff));
+    if(buff[0]) n = atoi(buff);
+    else n = (s<e) ? s+1 : s-1;
+
+    /* Ensure that s < n < e */
+    if((s<e && s>n) || (s>e && s<n)) {
+      *err = "mixed up sequence";
+      return 0;
+    }
+    i = n - s; /* Our increment */
+    count = (e - s) / i + 1;
+    *set = malloc(count * sizeof(**set));
+    count = 0;
+    for(; (i>0 && s<e) || (i<0 && s>e); s += i) {
+      snprintf(buff, sizeof(buff), "%d", s);
+      (*set)[count] = strdup(buff);
+      count++;
+    }
+    return count;
+  }
+  *err = "cannot understand range";
+  return 0;
 }
 int
 noit_console_generic_apply(noit_console_closure_t ncct,
@@ -70,6 +151,7 @@ noit_console_generic_apply(noit_console_closure_t ncct,
   int i, j, count;
   char *name, *range;
   char **nargv, **expanded;
+  const char *err;
   int problems = 0;
   if(argc < 3) {
     nc_printf(ncct, "apply <name> <range> cmd ...\n");
@@ -80,9 +162,10 @@ noit_console_generic_apply(noit_console_closure_t ncct,
   argc -= 2;
   argv += 2;
 
-  count = expand_range(range, &expanded);
+  count = expand_range(range, &expanded, 256, &err);
   if(!count) {
-    nc_printf(ncct, "apply error: '%s' range produced nothing\n", range);
+    nc_printf(ncct, "apply error: '%s' range produced nothing [%s]\n",
+              range, err ? err : "unknown error");
     return -1;
   }
   if(count < 0) {
@@ -158,12 +241,13 @@ _noit_console_state_do(noit_console_closure_t ncct,
         cmd = NULL;
     }
     if(!cmd) {
-      if(ambiguous) {
-        nc_printf(ncct, "Ambiguous command: '%s'\n", argv[0]);
-        amb = next;
-        for(amb = next; amb; noit_skiplist_next(&stack->state->cmds, &amb)) {
+      if(ambiguous || !strcmp(argv[0], "?")) {
+        char *partial = ambiguous ? argv[0] : "";
+        if(ambiguous) nc_printf(ncct, "Ambiguous command: '%s'\n", argv[0]);
+        amb = ambiguous ? next : noit_skiplist_getlist(&stack->state->cmds);
+        for(; amb; noit_skiplist_next(&stack->state->cmds, &amb)) {
           cmd = amb->data;
-          if(strncasecmp(cmd->name, argv[0], strlen(argv[0])) == 0)
+          if(!strlen(partial) || strncasecmp(cmd->name, partial, strlen(partial)) == 0)
             nc_printf(ncct, "\t%s\n", cmd->name);
           else
             break;
