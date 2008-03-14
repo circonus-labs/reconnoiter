@@ -238,6 +238,21 @@ static int ping_icmp_init(noit_module_t *self) {
           strerror(errno));
   }
   else {
+    socklen_t slen = sizeof(on);
+    if(getsockopt(data->ipv4_fd, SOL_SOCKET, SO_SNDBUF, &on, &slen) == 0) {
+      while(on < (1 << 20)) {
+        on <<= 1;
+        if(setsockopt(data->ipv4_fd, SOL_SOCKET, SO_SNDBUF,
+                      &on, sizeof(on)) != 0) {
+          on >>= 1;
+          break;
+        }
+      }
+      noitL(noit_error, "ping_icmp: send buffer set to %d\n", on);
+    }
+    else
+      noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
+
     on = 1;
     if(ioctl(data->ipv4_fd, FIONBIO, &on)) {
       close(data->ipv4_fd);
