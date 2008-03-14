@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "noit_skiplist.h"
@@ -49,24 +50,17 @@ static int get_b_rand(void) {
 }
 
 void noit_skiplisti_init(noit_skiplist *sl) {
-  sl->compare = (noit_skiplist_comparator_t)NULL;
-  sl->comparek = (noit_skiplist_comparator_t)NULL;
-  sl->height=0;
-  sl->preheight=0;
-  sl->size=0;
-  sl->top = NULL;
-  sl->bottom = NULL;
-  sl->index = NULL;
+  memset(sl, 0, sizeof(*sl));
 }
 
-static int indexing_comp(const void *a, const void *b) {
-  assert(a);
-  assert(b);
-  return (void *)(((noit_skiplist *)a)->compare)>(void *)(((noit_skiplist *)b)->compare);
+static int indexing_comp(const void *av, const void *bv) {
+  const noit_skiplist *a = av;
+  const noit_skiplist *b = bv;
+  return (void *)(a->compare)>(void *)(b->compare);
 }
-static int indexing_compk(const void *a, const void *b) {
-  assert(b);
-  return a>(void *)(((noit_skiplist *)b)->compare);
+static int indexing_compk(const void *a, const void *bv) {
+  const noit_skiplist *b = bv;
+  return a>(void *)(b->compare);
 }
 
 void noit_skiplist_init(noit_skiplist *sl) {
@@ -77,8 +71,8 @@ void noit_skiplist_init(noit_skiplist *sl) {
 }
 
 void noit_skiplist_set_compare(noit_skiplist *sl,
-		    noit_skiplist_comparator_t comp,
-		    noit_skiplist_comparator_t compk) {
+                               noit_skiplist_comparator_t comp,
+                              noit_skiplist_comparator_t compk) {
   if(sl->compare && sl->comparek) {
     noit_skiplist_add_index(sl, comp, compk);
   } else {
@@ -88,8 +82,8 @@ void noit_skiplist_set_compare(noit_skiplist *sl,
 }
 
 void noit_skiplist_add_index(noit_skiplist *sl,
-		  noit_skiplist_comparator_t comp,
-		  noit_skiplist_comparator_t compk) {
+                             noit_skiplist_comparator_t comp,
+                             noit_skiplist_comparator_t compk) {
   noit_skiplist_node *m;
   noit_skiplist *ni;
   int icount=0;
@@ -231,16 +225,8 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
   int nh=1, ch, stacki;
   if(!sl->top) {
     sl->height = 1;
-    sl->topend = sl->bottomend = sl->top = sl->bottom = 
-      (noit_skiplist_node *)malloc(sizeof(noit_skiplist_node));
-    assert(sl->top);
-    sl->top->next = (noit_skiplist_node *) NULL;
-    sl->top->data = (noit_skiplist_node *) NULL;
-    sl->top->prev =(noit_skiplist_node *) NULL;
-	sl->top->up = (noit_skiplist_node *) NULL;
-    sl->top->down = (noit_skiplist_node *) NULL;
-	sl->top->nextindex=  (noit_skiplist_node *) NULL;
-    sl->top->previndex = (noit_skiplist_node *) NULL;
+    sl->top = sl->bottom = 
+      calloc(1, sizeof(noit_skiplist_node));
     sl->top->sl = sl;
   }
   if(sl->preheight) {
@@ -251,30 +237,24 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
   /* Now we have the new height at which we wish to insert our new node */
   /* Let us make sure that our tree is a least that tall (grow if necessary)*/
   for(;sl->height<nh;sl->height++) {
-    sl->top->up =
-      (noit_skiplist_node *)malloc(sizeof(noit_skiplist_node));
-    assert(sl->top->up);
+    sl->top->up = (noit_skiplist_node *)calloc(1, sizeof(noit_skiplist_node));
     sl->top->up->down = sl->top;
-    sl->top = sl->topend = sl->top->up;
-    sl->top->prev = sl->top->next = sl->top->nextindex =
-      sl->top->previndex = sl->top->up = NULL;
-    sl->top->data = NULL;
+    sl->top = sl->top->up;
     sl->top->sl = sl;
   }
   ch = sl->height;
   /* Find the node (or node after which we would insert) */
   /* Keep a stack to pop back through for insertion */
   m = sl->top;
-  stack = (noit_skiplist_node **)malloc(sizeof(noit_skiplist_node *)*(nh));
+  stack = (noit_skiplist_node **)alloca(sizeof(noit_skiplist_node *)*(nh));
   stacki=0;
   while(m) {
     int compared=-1;
     if(m->next) compared=comp(data, m->next->data);
     if(compared == 0) {
-      free(stack);
       return 0;
     }
-    if((m->next == NULL) || (compared<0)) {
+    if(compared<0) {
       if(ch<=nh) {
 	/* push on stack */
 	stack[stacki++] = m;
@@ -289,12 +269,10 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
   p = NULL;
   for(;stacki>0;stacki--) {
     m = stack[stacki-1];
-    tmp = (noit_skiplist_node *)malloc(sizeof(noit_skiplist_node));
+    tmp = calloc(1, sizeof(*tmp));
     tmp->next = m->next;
     if(m->next) m->next->prev=tmp;
     tmp->prev = m;
-    tmp->up = NULL;
-    tmp->nextindex = tmp->previndex = NULL;
     tmp->down = p;
     if(p) p->up=tmp;
     tmp->data = (void *)data;
@@ -304,7 +282,6 @@ noit_skiplist_node *noit_skiplist_insert_compare(noit_skiplist *sl,
     if(!p) ret=tmp;
     p = tmp;
   }
-  free(stack);
   if(sl->index != NULL) {
     /* this is a external insertion, we must insert into each index as well */
     noit_skiplist_node *p, *ni, *li;
@@ -344,7 +321,7 @@ int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m, noit_freefun
     /* While the row is empty and we are not on the bottom row */
     p = sl->top;
     sl->top = sl->top->down; /* Move top down one */
-    if(sl->top) sl->top->up = NULL;      /* Make it think its the top */
+    if(sl->top) sl->top->up = NULL; /* Make it think its the top */
     free(p);
     sl->height--;
   }

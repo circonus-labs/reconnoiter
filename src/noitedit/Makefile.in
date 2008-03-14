@@ -30,36 +30,46 @@ OBJS=chared.o common.o el.o emacs.o fcns.o fgetln.o \
 	term.o tokenizer.o tty.o vi.o
 
 libnoitedit.a:   $(FABHEADERS) $(OBJS)
-	rm -f $@
-	$(AR) cq $@ $(OBJS)
-	$(RANLIB) $@
+	@rm -f $@
+	@$(AR) cq $@ $(OBJS)
+	@echo "- archiving $@"
+	@$(RANLIB) $@
 
 .c.o:	vi.h emacs.h common.h fcns.h help.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@echo "- compiling $<"
 
 vi.h: vi.c makelist
-	sh ./makelist -h vi.c > $@
+	@sh ./makelist -h vi.c > $@
+	@echo "- makelist $@"
 
 emacs.h: emacs.c makelist
-	sh ./makelist -h emacs.c > $@
+	@sh ./makelist -h emacs.c > $@
+	@echo "- makelist $@"
 
 common.h: common.c makelist
-	sh ./makelist -h common.c > $@
+	@sh ./makelist -h common.c > $@
+	@echo "- makelist $@"
 
 fcns.h: vi.h emacs.h common.h makelist
-	sh ./makelist -fh vi.h emacs.h common.h > $@
+	@sh ./makelist -fh vi.h emacs.h common.h > $@
+	@echo "- makelist $@"
 
 fcns.c: fcns.h
-	sh ./makelist -fc vi.h emacs.h common.h > $@
+	@sh ./makelist -fc vi.h emacs.h common.h > $@
+	@echo "- makelist $@"
 
 help.c: vi.c emacs.c common.c makelist
-	sh ./makelist -bc vi.c emacs.c common.c > $@
+	@sh ./makelist -bc vi.c emacs.c common.c > $@
+	@echo "- makelist $@"
 
 help.h: vi.c emacs.c common.c makelist
-	sh ./makelist -bh vi.c emacs.c common.c > $@
+	@sh ./makelist -bh vi.c emacs.c common.c > $@
+	@echo "- makelist $@"
 
 editline.c: vi.c emacs.c common.c makelist
-	sh ./makelist -e vi.c emacs.c common.c > $@
+	@sh ./makelist -e vi.c emacs.c common.c > $@
+	@echo "- makelist $@"
 
 clean:
 	rm -f *.o *.a vi.h emacs.h common.h fcns.h fcns.c \

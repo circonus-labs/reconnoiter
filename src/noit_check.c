@@ -54,9 +54,9 @@ __noit_check_state_string(int16_t state) {
   }
   return "???";
 }
-static int __check_name_compare(void *a, void *b) {
-  noit_check_t *ac = a;
-  noit_check_t *bc = b;
+static int __check_name_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
   int rv;
   if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
   if((rv = strcmp(ac->name, bc->name)) != 0) return rv;

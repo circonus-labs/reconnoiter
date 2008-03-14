@@ -47,28 +47,32 @@ serf/.libs/libserf-0.a:
 	(cd serf && python serfmake)
 
 noitd:	make-subdirs $(NOIT_OBJS)
-	$(CC) -o $@ $(NOIT_OBJS) \
+	@$(CC) -o $@ $(NOIT_OBJS) \
 		$(LDFLAGS) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(LIBS)
+	@echo "- linking $@"
 
 stratcond:	make-subdirs $(STRATCON_OBJS)
-	$(CC) -o $@ $(STRATCON_OBJS) \
+	@$(CC) -o $@ $(STRATCON_OBJS) \
 		$(LDFLAGS) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(LIBS) $(PGLIBS)
+	@echo "- linking $@"
 
 .c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@echo "- compiling $<"
 
 noit_tokenizer.c:	noit_tokenizer.re
-	re2c -o $@ noit_tokenizer.re
+	@re2c -o $@ noit_tokenizer.re
+	@echo "- re2c $<"
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \

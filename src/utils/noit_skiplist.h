@@ -39,9 +39,6 @@ typedef struct _iskiplist {
   int size;
   struct _noit_skiplist_node *top;
   struct _noit_skiplist_node *bottom;
-  /* These two are needed for appending */
-  struct _noit_skiplist_node *topend;
-  struct _noit_skiplist_node *bottomend;
   struct _iskiplist *index;
 } noit_skiplist;
 

@@ -9,13 +9,13 @@ eventer_t eventer_alloc() {
   return e;
 }
 
-int eventer_timecompare(void *av, void *bv) {
+int eventer_timecompare(const void *av, const void *bv) {
   /* Herein we avoid equality.  This function is only used as a comparator
    * for a heap of timed events.  If they are equal, b is considered less
    * just to maintain an order (despite it not being stable).
    */
-  eventer_t a = (eventer_t)av;
-  eventer_t b = (eventer_t)bv;
+  const eventer_t a = (eventer_t)av;
+  const eventer_t b = (eventer_t)bv;
   if(a->whence.tv_sec < b->whence.tv_sec) return -1;
   if(a->whence.tv_sec == b->whence.tv_sec &&
      a->whence.tv_usec < b->whence.tv_usec) return -1;

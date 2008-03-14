@@ -20,22 +20,28 @@ MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ @BUILD_MODULES@
 all:	$(MODULES)
 
 http.@MODULEEXT@:	http.lo
-	$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.a -lz -lssl -lcrypto
+	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.a -lz -lssl -lcrypto
+	@echo "- linking $@"
 
 http.lo:	http.c
-	$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
+	@echo "- compiling $<"
 
 snmp.@MODULEEXT@:	snmp.lo
-	$(MODULELD) $(LDFLAGS) -o $@ snmp.lo -lnetsnmp
+	@$(MODULELD) $(LDFLAGS) -o $@ snmp.lo -lnetsnmp
+	@echo "- linking $@"
 
 ssh2.@MODULEEXT@:	ssh2.lo
-	$(MODULELD) $(LDFLAGS) -o $@ ssh2.lo -lssh2
+	@$(MODULELD) $(LDFLAGS) -o $@ ssh2.lo -lssh2
+	@echo "- linking $@"
 
 .lo.@MODULEEXT@:
-	$(MODULELD) $(LDFLAGS) -o $@ $<
+	@$(MODULELD) $(LDFLAGS) -o $@ $<
+	@echo "- linking $@"
 
 .c.lo:
-	$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
 
 clean:
 	rm -f *.lo *.@MODULEEXT@

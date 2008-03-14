@@ -14,12 +14,14 @@ OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o
 all:	libnoit_utils.a
 
 libnoit_utils.a:	$(OBJS)
-	rm -f $@
-	$(AR) cq $@ $(OBJS)
-	$(RANLIB) $@
+	@rm -f $@
+	@$(AR) cq $@ $(OBJS)
+	@echo "- archiving $@"
+	@$(RANLIB) $@
 
 .c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@echo "- compiling $<"
 
 clean:
 	rm -f *.o libnoit_utils.a

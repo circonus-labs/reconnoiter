@@ -18,12 +18,14 @@ OBJS=	eventer.o eventer_impl.o \
 all:	libeventer.a
 
 libeventer.a:	$(OBJS)
-	rm -f $@
-	$(AR) cq $@ $(OBJS)
-	$(RANLIB) $@
+	@rm -f $@
+	@$(AR) cq $@ $(OBJS)
+	@echo "- archiving $@"
+	@$(RANLIB) $@
 
 .c.o:
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@echo "- compiling $<"
 
 clean:
 	rm -f *.o libeventer.a
