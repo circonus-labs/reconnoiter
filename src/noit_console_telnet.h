@@ -64,17 +64,16 @@
 /*
  * Structures of information for each special character function.
  */
-typedef unsigned char cc_t;
 
 typedef struct {
 	unsigned char	flag;		/* the flags for this function */
-	cc_t		val;		/* the value of the special character */
+	unsigned char	val;		/* the value of the special character */
 } slcent, *Slcent;
 
 typedef struct {
 	slcent		defset;		/* the default settings */
 	slcent		current;	/* the current settings */
-	cc_t		*sptr;		/* a pointer to the char in */
+	unsigned char	*sptr;		/* a pointer to the char in */
 					/* system data structures */
 } slcfun, *Slcfun;
 
