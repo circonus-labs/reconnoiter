@@ -116,15 +116,17 @@ noit_check_schedule_next(noit_module_t *self,
 
 void
 noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
+  struct timeval __now, p_int;
   eventer_t e;
   e = eventer_alloc();
   e->fd = -1;
   e->mask = EVENTER_ASYNCH; 
+  gettimeofday(&__now, NULL);
   memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(e->whence, p_int, &e->whence);
-  e->callback = ssh2_connect_complete;
+  e->callback = callback;
   e->closure =  check->closure;
   eventer_add(e);
 }
