@@ -66,6 +66,7 @@ void __remove_until(conn_q *q, ds_job_detail *d) {
   while(q->head && q->head != d) {
     next = q->head;
     q->head = q->head->next;
+    free_params(next);
     if(next->data) free(next->data);
     free(next);
   }
@@ -112,12 +113,20 @@ __strndup(const char *src, int len) {
   d->paramAllocd[d->nparams] = 1; \
   if(!strcmp(d->paramValues[d->nparams], "[[null]]")) { \
     free(d->paramValues[d->nparams]); \
+    d->paramValues[d->nparams] = NULL; \
     d->paramLengths[d->nparams] = 0; \
     d->paramAllocd[d->nparams] = 0; \
   } \
   d->nparams++; \
 } while(0)
 
+static void
+free_params(ds_job_detail *d) {
+  int i;
+  for(i=0; i<d->nparams; i++)
+    if(d->paramAllocd[i] && d->paramValues[i])
+      free(d->paramValues[i]);
+}
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
   int i, type;
@@ -257,7 +266,7 @@ stratcon_database_connect(conn_q *cq) {
 static int
 stratcon_datastore_savepoint_op(conn_q *cq, const char *p,
                                 const char *name) {
-  int rv;
+  int rv = -1;
   PGresult *res;
   char cmd[128];
   strlcpy(cmd, p, sizeof(cmd));
