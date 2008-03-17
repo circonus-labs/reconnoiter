@@ -40,17 +40,20 @@ typedef struct {
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 
-static void ssh2_check_info_cleanup(ssh2_check_info_t *ci) {
-  if(ci->timeout_event) {
-    eventer_remove(ci->timeout_event);
-    eventer_free(ci->timeout_event);
+static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
+  ssh2_check_info_t *ci = check->closure;
+  if(ci) {
+    if(ci->timeout_event) {
+      eventer_remove(ci->timeout_event);
+      eventer_free(ci->timeout_event);
+    }
+    if(ci->session) {
+      libssh2_session_disconnect(ci->session, "Bye!");
+      libssh2_session_free(ci->session);
+    }
+    if(ci->error) free(ci->error);
+    memset(ci, 0, sizeof(*ci));
   }
-  if(ci->session) {
-    libssh2_session_disconnect(ci->session, "Bye!");
-    libssh2_session_free(ci->session);
-  }
-  if(ci->error) free(ci->error);
-  memset(ci, 0, sizeof(*ci));
 }
 static int ssh2_init(noit_module_t *self) {
   return 0;
@@ -90,7 +93,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   if(ci->state == WANT_CLOSE) {
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
-    ssh2_check_info_cleanup(ci);
+    ssh2_cleanup(ci->self, ci->check);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     check->flags &= ~NP_RUNNING;
@@ -142,7 +145,7 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
     ci->timed_out = 0;
     ci->error = strdup("ssh connection failed");
     ssh2_log_results(ci->self, ci->check);
-    ssh2_check_info_cleanup(ci);
+    ssh2_cleanup(ci->self, ci->check);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     check->flags &= ~NP_RUNNING;
@@ -175,7 +178,7 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
   ci->timeout_event = NULL; /* This is us, return 0 will free this */
   ci->error = strdup("ssh connect timeout");
   ssh2_log_results(ci->self, ci->check);
-  ssh2_check_info_cleanup(ci);
+  ssh2_cleanup(ci->self, ci->check);
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &mask, e);
   check->flags &= ~NP_RUNNING;
@@ -267,43 +270,16 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
  fail:
   if(fd >= 0) close(fd);
   ssh2_log_results(ci->self, ci->check);
-  ssh2_check_info_cleanup(ci);
+  ssh2_cleanup(ci->self, ci->check);
   check->flags &= ~NP_RUNNING;
   return -1;
 }
 
 static int ssh2_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *parent) {
-  /* ssh2_check_info_t gives us a bit more space */
-  ssh2_check_info_t *ci;
   if(!check->closure) check->closure = calloc(1, sizeof(ssh2_check_info_t));
-  ci = check->closure;
-  ci->self = self;
-  ci->check = check;
-  if(once) {
-    ssh2_initiate(self, check);
-    return 0;
-  }
-  if(!check->fire_event) {
-    struct timeval epoch = { 0L, 0L };
-    noit_check_fake_last_check(check, &epoch, NULL);
-    noit_check_schedule_next(self, &epoch, check, NULL, ssh2_initiate);
-  }
+  INITIATE_CHECK(ssh2_initiate, self, check);
   return 0;
-}
-static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
-  ssh2_check_info_t *ci;
-  if(check->fire_event) {
-    eventer_remove(check->fire_event);
-    free(check->fire_event->closure);
-    eventer_free(check->fire_event);
-    check->fire_event = NULL;
-  }
-  ci = check->closure;
-  if(ci) {
-    ssh2_check_info_cleanup(ci);
-    free(ci);
-  }
 }
 
 static int ssh2_onload(noit_module_t *self) {

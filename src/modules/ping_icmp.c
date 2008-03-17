@@ -228,13 +228,13 @@ static int ping_icmp_init(noit_module_t *self) {
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {
-    noitL(nlerr, "Couldn't find 'icmp' protocol\n");
+    noitL(noit_error, "Couldn't find 'icmp' protocol\n");
     return -1;
   }
 
   data->ipv4_fd = socket(AF_INET, SOCK_RAW, proto->p_proto);
   if(data->ipv4_fd < 0) {
-    noitL(nlerr, "ping_icmp: socket failed: %s\n",
+    noitL(noit_error, "ping_icmp: socket failed: %s\n",
           strerror(errno));
   }
   else {
@@ -257,7 +257,7 @@ static int ping_icmp_init(noit_module_t *self) {
     if(ioctl(data->ipv4_fd, FIONBIO, &on)) {
       close(data->ipv4_fd);
       data->ipv4_fd = -1;
-      noitL(nlerr,
+      noitL(noit_error,
             "ping_icmp: could not set socket non-blocking: %s\n",
             strerror(errno));
     }
@@ -274,7 +274,7 @@ static int ping_icmp_init(noit_module_t *self) {
 
   data->ipv6_fd = socket(AF_INET6, SOCK_RAW, proto->p_proto);
   if(data->ipv6_fd < 0) {
-    noitL(nlerr, "ping_icmp: socket failed: %s\n",
+    noitL(noit_error, "ping_icmp: socket failed: %s\n",
           strerror(errno));
   }
   else {
@@ -282,7 +282,7 @@ static int ping_icmp_init(noit_module_t *self) {
     if(ioctl(data->ipv6_fd, FIONBIO, &on)) {
       close(data->ipv6_fd);
       data->ipv6_fd = -1;
-      noitL(nlerr,
+      noitL(noit_error,
             "ping_icmp: could not set socket non-blocking: %s\n",
                strerror(errno));
     }
@@ -345,12 +345,6 @@ static int ping_icmp_real_send(eventer_t e, int mask,
 }
 static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
   struct check_info *ci = (struct check_info *)check->closure;
-  if(check->fire_event) {
-    eventer_remove(check->fire_event);
-    free(check->fire_event->closure);
-    eventer_free(check->fire_event);
-    check->fire_event = NULL;
-  }
   if(ci) {
     if(ci->timeout_event) {
       eventer_remove(ci->timeout_event);
@@ -359,7 +353,6 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
       ci->timeout_event = NULL;
     }
     if(ci->turnaround) free(ci->turnaround);
-    free(ci);
   }
 }
 static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
@@ -458,15 +451,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
 static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  if(once) {
-    ping_icmp_send(self, check);
-    return 0;
-  }
-  if(!check->fire_event) {
-    struct timeval epoch;
-    noit_check_fake_last_check(check, &epoch, NULL);
-    noit_check_schedule_next(self, &epoch, check, NULL, ping_icmp_send);
-  }
+  INITIATE_CHECK(ping_icmp_send, self, check);
   return 0;
 }
 

@@ -343,7 +343,9 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
   if(pobj) xmlXPathFreeObject(pobj);
   if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 }
-static void serf_check_info_cleanup(serf_check_info_t *ci) {
+static void serf_cleanup(noit_module_t *self, noit_check_t *check) {
+  serf_check_info_t *ci;
+  ci = check->closure;
   if(ci->connection) {
     serf_connection_close(ci->connection);
     ci->connection = NULL;
@@ -360,13 +362,12 @@ static void serf_check_info_cleanup(serf_check_info_t *ci) {
 static int serf_complete(eventer_t e, int mask,
                          void *closure, struct timeval *now) {
   serf_closure_t *ccl = (serf_closure_t *)closure;
-  serf_check_info_t *ci = (serf_check_info_t *)ccl->check->closure;
 
   noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
   if(!NOIT_CHECK_DISABLED(ccl->check) && !NOIT_CHECK_KILLED(ccl->check)) {
     generic_log_results(ccl->self, ccl->check);
   }
-  serf_check_info_cleanup(ci);
+  serf_cleanup(ccl->self, ccl->check);
   ccl->check->flags &= ~NP_RUNNING;
   free(ccl);
   return 0;
@@ -743,67 +744,29 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   ci->timeout_event = newe;
   return 0;
 }
-static void serf_cleanup(noit_module_t *self, noit_check_t *check) {
-  serf_check_info_t *sci;
-  if(check->fire_event) {
-    eventer_remove(check->fire_event);
-    free(check->fire_event->closure);
-    eventer_free(check->fire_event);
-    check->fire_event = NULL;
-  }
-  sci = check->closure;
-  if(sci) {
-    serf_check_info_cleanup(sci);
-    free(sci);
-  }
-}
 static int serf_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(serf_check_info_t));
-  if(once) {
-    serf_initiate(self, check);
-    return 0;
-  }
-  /* If check->fire_event, we're already scheduled... */
-  if(!check->fire_event) {
-    struct timeval epoch = { 0L, 0L };
-    noit_check_fake_last_check(check, &epoch, NULL);
-    noit_check_schedule_next(self, &epoch, check, NULL, serf_initiate);
-  }
+  INITIATE_CHECK(serf_initiate, self, check);
   return 0;
 }
 static int resmon_initiate_check(noit_module_t *self, noit_check_t *check,
                                  int once, noit_check_t *parent) {
   /* resmon_check_info_t gives us a bit more space */
   if(!check->closure) check->closure = calloc(1, sizeof(resmon_check_info_t));
-  if(once) {
-    serf_initiate(self, check);
-    return 0;
-  }
-  if(!check->fire_event) {
-    struct timeval epoch = { 0L, 0L };
-    noit_check_fake_last_check(check, &epoch, NULL);
-    noit_check_schedule_next(self, &epoch, check, NULL, serf_initiate);
-  }
+  INITIATE_CHECK(serf_initiate, self, check);
   return 0;
 }
 
 static void resmon_cleanup(noit_module_t *self, noit_check_t *check) {
   resmon_check_info_t *rci;
-  if(check->fire_event) {
-    eventer_remove(check->fire_event);
-    free(check->fire_event->closure);
-    eventer_free(check->fire_event);
-    check->fire_event = NULL;
-  }
   rci = check->closure;
   if(rci) {
     if(rci->xpathexpr) free(rci->xpathexpr);
     if(rci->resmod) free(rci->resmod);
     if(rci->resserv) free(rci->resserv);
     if(rci->xml_doc) xmlFreeDoc(rci->xml_doc);
-    serf_check_info_cleanup(&rci->serf);
-    free(rci);
+    serf_cleanup(self, check);
   }
 }
 static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
@@ -842,16 +805,9 @@ static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
     resmon_part_log_results(self, check, parent);
     return 0;
   }
-  if(once) {
-    serf_initiate(self, check);
-    return 0;
-  }
-  if(!check->fire_event)
-    noit_check_schedule_next(self, NULL, check, NULL, serf_initiate);
+  INITIATE_CHECK(serf_initiate, self, check);
   return 0;
 }
-
-
 
 static int serf_onload(noit_module_t *self) {
   apr_initialize();

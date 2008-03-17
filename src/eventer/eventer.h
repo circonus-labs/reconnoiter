@@ -7,6 +7,7 @@
 #define _EVENTER_EVENTER_H
 
 #include "noit_defines.h"
+#include "utils/noit_log.h"
 #include <sys/time.h>
 #include <sys/socket.h>
 
@@ -84,6 +85,8 @@ typedef struct _eventer_impl {
 extern
 #endif
 eventer_impl_t __eventer;
+noit_log_stream_t eventer_err;
+noit_log_stream_t eventer_deb;
 
 API_EXPORT(int) eventer_choose(const char *name);
 

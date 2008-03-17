@@ -24,5 +24,25 @@ API_EXPORT(int)
                            struct timeval *last_check, noit_check_t *check,
                            struct timeval *now, dispatch_func_t recur);
 
+API_EXPORT(void)
+  noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback);
+
+#define INITIATE_CHECK(func, self, check) do { \
+  if(once) { \
+    func(self, check); \
+  } \
+  else if(!check->fire_event) { \
+    struct timeval epoch = { 0L, 0L }; \
+    noit_check_fake_last_check(check, &epoch, NULL); \
+    noit_check_schedule_next(self, &epoch, check, NULL, func); \
+  } \
+} while(0)
+
+API_EXPORT(void)
+  noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs);
+API_EXPORT(void)
+  noit_check_release_attrs(noit_hash_table *attrs);
+
+
 #endif
 

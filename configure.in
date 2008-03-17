@@ -102,7 +102,11 @@ AC_CHECK_LIB(pq, PQconnectdb,
 		AC_MSG_ERROR([libpq required])
 	]
 )
-AC_TRY_LINK([#include <libpq-fe.h>],
+AC_TRY_LINK([
+	#include <libpq-fe.h>
+	#include <postgres.h>
+	#include <fmgr.h>
+	],
 	[ PGconn *dbh = PQconnectdb(""); ],
 	[],
 	[ AC_MSG_ERROR([Cannot compile/link against libpq]) ]

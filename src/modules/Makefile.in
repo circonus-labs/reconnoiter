@@ -11,13 +11,19 @@ LDFLAGS=@LDFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
+PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ @BUILD_MODULES@
+MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
+	@BUILD_MODULES@
 
 all:	$(MODULES)
+
+postgres.@MODULEEXT@:	postgres.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ ../serf/.libs/libserf-0.a $(PGLIBS) -lz -lssl -lcrypto
+	@echo "- linking $@"
 
 http.@MODULEEXT@:	http.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.a -lz -lssl -lcrypto

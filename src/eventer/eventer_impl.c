@@ -21,7 +21,8 @@ eventer_impl_t registered_eventers[] = {
 };
 
 eventer_impl_t __eventer = NULL;
-
+noit_log_stream_t eventer_err = NULL;
+noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
 static eventer_jobq_t __global_backq, __default_jobq;
@@ -51,6 +52,12 @@ eventer_jobq_t *eventer_default_backq() {
 int eventer_impl_init() {
   int i;
   eventer_t e;
+
+  eventer_err = noit_log_stream_find("error/eventer");
+  eventer_deb = noit_log_stream_find("debug/eventer");
+  if(!eventer_err) eventer_err = noit_stderr;
+  if(!eventer_deb) eventer_deb = noit_debug;
+
   eventer_ssl_init();
   eventer_jobq_init(&__global_backq);
   e = eventer_alloc();

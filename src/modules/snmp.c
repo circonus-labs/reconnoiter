@@ -350,6 +350,7 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   if(info->noids == 0) return 0;
 
   /* Create a hash of important check attributes */
+  noit_check_make_attrs(check, &check_attrs_hash);
 #define CA_STORE(a,b) noit_hash_store(&check_attrs_hash, a, strlen(a), b)
   CA_STORE("target", check->target);
   CA_STORE("name", check->name);
@@ -448,15 +449,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
 static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  if(once) {
-    noit_snmp_send(self, check);
-    return 0;
-  }
-  if(!check->fire_event) {
-    struct timeval epoch;
-    noit_check_fake_last_check(check, &epoch, NULL);
-    noit_check_schedule_next(self, &epoch, check, NULL, noit_snmp_send);
-  }
+  INITIATE_CHECK(noit_snmp_send, self, check);
   return 0;
 }
 
@@ -464,8 +457,8 @@ static int noit_snmp_config(noit_module_t *self, noit_hash_table *config) {
   return 0;
 }
 static int noit_snmp_onload(noit_module_t *self) {
-  nlerr = noit_log_stream_find("error/noit_snmp");
-  nldeb = noit_log_stream_find("debug/noit_snmp");
+  nlerr = noit_log_stream_find("error/snmp");
+  nldeb = noit_log_stream_find("debug/snmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_snmp/check_timeout", noit_snmp_check_timeout);

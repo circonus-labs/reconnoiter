@@ -438,13 +438,14 @@ noit_poller_deschedule(uuid_t in) {
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
 
   mod = noit_module_lookup(checker->module);
-  mod->cleanup(mod, checker);
+  if(mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
+     free(checker->fire_event->closure);
      eventer_free(checker->fire_event);
      checker->fire_event = NULL;
   }
-
+  if(checker->closure) free(checker->closure);
   if(checker->target) free(checker->target);
   if(checker->module) free(checker->module);
   if(checker->name) free(checker->name);
