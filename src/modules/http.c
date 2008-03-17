@@ -365,6 +365,7 @@ static int serf_complete(eventer_t e, int mask,
 
   noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
   if(!NOIT_CHECK_DISABLED(ccl->check) && !NOIT_CHECK_KILLED(ccl->check)) {
+    serf_check_info_t *ci = ccl->check->closure;
     memcpy(&ci->finish_time, now, sizeof(*now));
     generic_log_results(ccl->self, ccl->check);
   }
