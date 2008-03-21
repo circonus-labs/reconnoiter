@@ -38,6 +38,7 @@ typedef struct ds_job_detail {
 
   /* Postgres specific stuff */
   int nparams;
+  int metric_type;
   char *paramValues[MAX_PARAMS];
   int paramLengths[MAX_PARAMS];
   int paramFormats[MAX_PARAMS];
@@ -53,7 +54,16 @@ typedef struct {
   ds_job_detail   *tail;
 } conn_q;
 
-void __append(conn_q *q, ds_job_detail *d) {
+static void
+free_params(ds_job_detail *d) {
+  int i;
+  for(i=0; i<d->nparams; i++)
+    if(d->paramAllocd[i] && d->paramValues[i])
+      free(d->paramValues[i]);
+}
+
+static void
+__append(conn_q *q, ds_job_detail *d) {
   d->next = NULL;
   if(!q->head) q->head = q->tail = d;
   else {
@@ -61,7 +71,8 @@ void __append(conn_q *q, ds_job_detail *d) {
     q->tail = d;
   }
 }
-void __remove_until(conn_q *q, ds_job_detail *d) {
+static void
+__remove_until(conn_q *q, ds_job_detail *d) {
   ds_job_detail *next;
   while(q->head && q->head != d) {
     next = q->head;
@@ -120,16 +131,10 @@ __strndup(const char *src, int len) {
   d->nparams++; \
 } while(0)
 
-static void
-free_params(ds_job_detail *d) {
-  int i;
-  for(i=0; i<d->nparams; i++)
-    if(d->paramAllocd[i] && d->paramValues[i])
-      free(d->paramValues[i]);
-}
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
-  int i, type;
+  int type, len;
+  char *token;
 
   type = d->data[0];
 
@@ -138,44 +143,75 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
     struct sockaddr_in6 *rin6 = (struct sockaddr_in6 *)r;
     char raddr[128];
     char *scp, *ecp;
-    int fields;
     if(inet_ntop(rin6->sin6_family, &rin6->sin6_addr,
                  raddr, sizeof(raddr)) == NULL)
       raddr[0] = '\0';
  
-    d->paramValues[0] = strdup(raddr);
-    d->paramLengths[0] = strlen(raddr);
-    d->paramFormats[0] = 0;
-    d->paramAllocd[0] = 1;
-    d->nparams = 1; 
+    scp = d->data;
+#define PROCESS_NEXT_FIELD(t,l) do { \
+  if(!*scp) goto bad_row; \
+  ecp = strchr(scp, '\t'); \
+  if(!ecp) goto bad_row; \
+  token = scp; \
+  len = (ecp-scp); \
+  scp = ecp + 1; \
+} while(0)
+#define PROCESS_LAST_FIELD(t,l) do { \
+  if(!*scp) ecp = scp; \
+  else { \
+    ecp = scp + strlen(scp); /* Puts us at the '\0' */ \
+    if(*(ecp-1) == '\n') ecp--; /* We back up on letter if we ended in \n */ \
+  } \
+  t = scp; \
+  l = (ecp-scp); \
+} while(0)
 
+    PROCESS_NEXT_FIELD(token,len); /* Skip the leader, we know what we are */
     switch(type) {
       /* See noit_check_log.c for log description */
       case 'C':
+        DECLARE_PARAM_STR(raddr, strlen(raddr));
+        PROCESS_NEXT_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* timestamp */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* uuid */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* target */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* module */
+        PROCESS_LAST_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* name */
+        break;
       case 'M':
-        fields = 6; break;
+        PROCESS_NEXT_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* timestamp */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* uuid */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* name */
+        PROCESS_NEXT_FIELD(token,len);
+        d->metric_type = *token;
+        PROCESS_LAST_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* value */
+        break;
       case 'S':
-        fields = 7; break;
+        PROCESS_NEXT_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* timestamp */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* uuid */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* state */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* availability */
+        PROCESS_NEXT_FIELD(token, len);
+        DECLARE_PARAM_STR(token,len); /* duration */
+        PROCESS_LAST_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* status */
+        break;
       default:
         goto bad_row;
     }
 
-    scp = d->data;
-    for(i=0;i<fields-1;i++) { /* fields-1 b/c the last field is open-ended */
-      if(!*scp) goto bad_row;
-      ecp = strchr(scp, '\t');
-      if(!ecp) goto bad_row;
-      if(i > 0) /* We skip the type for now */
-        DECLARE_PARAM_STR(scp, ecp-scp);
-      scp = ecp + 1;
-    }
-    /* Now to the last field */
-    if(!*scp) ecp = scp;
-    else {
-      ecp = scp + strlen(scp); /* Puts us at the '\0' */
-      if(*(ecp-1) == '\n') ecp--; /* We back up on letter if we ended in \n */
-    }
-    DECLARE_PARAM_STR(scp, ecp-scp);
   }
 
 #define PG_EXEC(cmd) do { \
@@ -205,8 +241,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       PG_EXEC(status_insert);
       break;
     case 'M':
-      /* The fifth (idx: 4) bind variable is the type */
-      switch(d->paramValues[4][0]) {
+      switch(d->metric_type) {
         case METRIC_INT32:
         case METRIC_UINT32:
         case METRIC_INT64:
