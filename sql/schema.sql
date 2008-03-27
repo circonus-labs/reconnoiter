@@ -221,7 +221,7 @@ BEGIN
   END IF;
  
          
-  IF v_min_whence > v_max_rollup_5 THEN
+  IF v_min_whence >= v_max_rollup_5 THEN
   
   -- 5 MINUTES ROLLUP
   
@@ -243,7 +243,10 @@ BEGIN
   
    -- 5 MINUTES ROLLUP
 
-     PERFORM stratcon.rollup_matrix_numeric_5m_odd(v_min_whence ,v_max_rollup_5);
+DELETE FROM stratcon.rollup_matrix_numeric_5m 
+ WHERE rollup_time = date_trunc('minutes',v_min_whence);
+     
+      PERFORM stratcon.rollup_matrix_numeric_5m(v_min_whence ,v_max_rollup_5);
      
   -- HOURLY ROLLUP
    
@@ -272,12 +275,10 @@ EXCEPTION
 END
 $$ LANGUAGE plpgsql;
 
-
 --- 5 minutes rollup 
 
-
 CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_5m(v_min_whence timestamptz)
-RETURNS voidddddd
+RETURNS void
 AS $$
 DECLARE
  
@@ -295,14 +296,11 @@ BEGIN
  
        LOOP
  
-        v_sql:= 'INSERT INTO stratcon.rollup_matrix_numeric_5m'||                        
-        '(sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES '||
-        '('||rec.sid||', '||quote_literal(rec.name)||', '||quote_literal(rec.rollup_time)||', '||rec.count_rows||', '||rec.avg_value||', '||coalesce(rec.stddev_value,0)||
-        ', '||rec.min_value||', '||rec.max_value||')';
-
-
-          EXECUTE v_sql;
-
+        INSERT INTO stratcon.rollup_matrix_numeric_5m
+         (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+        
+ 
  END LOOP;
 
  
@@ -316,57 +314,6 @@ EXCEPTION
 END
 $$ LANGUAGE plpgsql;
 
-
-
-CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_5m_odd(v_min_whence timestamptz,v_max_rollup_5 timestamptz)
-RETURNS void
-AS $$
-DECLARE
- 
- rec stratcon.rollup_matrix_numeric_5m%rowtype;
- v_sql TEXT;
- 
-BEGIN
-
- DELETE FROM stratcon.rollup_matrix_numeric_5m 
- WHERE rollup_time >= date_trunc('minutes',v_min_whence);
- 
- FOR rec IN 
-                 SELECT sid , name, date_trunc('H',whence) + (round(extract('minute' from whence)/5)*5) * '1 minute'::interval as rollup_time,
-                       COUNT(1) as count_rows ,AVG(value) as avg_value,STDDEV(value) as stddev_value ,MIN(value) as min_value ,MAX(value) as max_value
-                       FROM stratcon.loading_dock_metric_numeric_s
-                       WHERE WHENCE >= date_trunc('minutes',v_min_whence) AND WHENCE <= date_trunc('minutes',v_max_rollup_5)
-                 GROUP BY rollup_time,sid,name
-  
-        LOOP
- 
-    
-         v_sql:= 'INSERT INTO stratcon.rollup_matrix_numeric_5m'||                        
-         '(sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES '||
-         '('||rec.sid||', '||quote_literal(rec.name)||', '||quote_literal(rec.rollup_time)||', '||rec.count_rows||', '||rec.avg_value||', '||coalesce(rec.stddev_value,0)||
-         ', '||rec.min_value||', '||rec.max_value||')';
- 
- 
-           EXECUTE v_sql;
- 
-  END LOOP;
- 
-
-RETURN;
-
-EXCEPTION
-    WHEN RAISE_EXCEPTION THEN
-       RAISE EXCEPTION '%', SQLERRM;
-    WHEN OTHERS THEN
-      RAISE NOTICE '%', SQLERRM;
-END
-$$ LANGUAGE plpgsql;
-
-
-
-
-
-
 --- Hourly rollup
 
 
@@ -379,18 +326,18 @@ DECLARE
  
 BEGIN
     FOR rec IN 
-                SELECT sid , name,date_trunc('hour',rollup_time) as rollup_time,SUM (count_rows) as count_rows ,AVG(avg_value) as avg_value,
-		         STDDEV(stddev_value) as stddev_value ,MIN(min_value) as min_value ,MAX(max_value) as max_value
+                SELECT sid , name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_5m
 		           WHERE date_trunc('hour',rollup_time)= date_trunc('hour',v_min_whence)
-                   GROUP BY rollup_time,sid,name
+                   GROUP BY date_trunc('hour',rollup_time),sid,name
         LOOP
-        v_sql:= 'INSERT INTO stratcon.rollup_matrix_numeric_60m'||                        
-        '(sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES '||
-        '('||rec.sid||', '||quote_literal(rec.name)||', '||quote_literal(rec.rollup_time)||', '||rec.count_rows||', '||rec.avg_value||', '||coalesce(rec.stddev_value,0)||
-        ', '||rec.min_value||', '||rec.max_value||')';
-
-          EXECUTE v_sql;
+      
+          INSERT INTO stratcon.rollup_matrix_numeric_60m
+          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          
      END LOOP;
 RETURN;
 
@@ -421,4 +368,3 @@ $$ LANGUAGE plpgsql;
  ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
 
 COMMIT;
-
