@@ -164,26 +164,24 @@ CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
     EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
 
     
-CREATE FUNCTION stratcon.loading_dock_metric_numeric_s_whence_log() RETURNS trigger
-    AS $$
+CREATE OR REPLACE FUNCTION stratcon.loading_dock_metric_numeric_s_whence_log() 
+RETURNS trigger
+AS $$
 DECLARE
 v_whence timestamptz;
 BEGIN
 IF TG_OP = 'INSERT' THEN
-    SELECT whence FROM stratcon.log_whence_s WHERE whence=NEW.whence
+    SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval
      INTO v_whence;
    IF NOT FOUND THEN
-       UPDATE stratcon.log_whence_s SET whence=NEW.whence;
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval);
    END IF;
-ELSE
-        RAISE EXCEPTION 'Non-INSERT DML operation attempted on INSERT only table';
 END IF;
 
     RETURN NULL;
 END
 $$
     LANGUAGE plpgsql;
-
 
 
 
@@ -199,7 +197,7 @@ DECLARE
 
 v_min_whence TIMESTAMPTZ;
 v_max_rollup_5 TIMESTAMPTZ;
-v_max_rollup_60 TIMESTAMPTZ;
+v_cur_time TIMESTAMPTZ;
 
 BEGIN
 
@@ -208,17 +206,12 @@ BEGIN
          
   select max(rollup_time) from  stratcon.rollup_matrix_numeric_5m 
          INTO v_max_rollup_5;         
- 
-  select max(rollup_time) from  stratcon.rollup_matrix_numeric_60m 
-         INTO v_max_rollup_60; 
+  select now()
+         INTO v_cur_time;
          
  IF v_max_rollup_5 IS NULL  THEN
    v_max_rollup_5:=timestamp '2008-01-01 00:00:00';
  END IF;
- 
- IF v_max_rollup_60 IS NULL  THEN
-    v_max_rollup_60:=timestamp '2008-01-01 00:00:00';
-  END IF;
  
          
   IF v_min_whence >= v_max_rollup_5 THEN
@@ -229,7 +222,7 @@ BEGIN
      
      -- HOURLY ROLLUP
      
-     IF  date_trunc('H',v_min_whence)!= date_trunc('H',v_max_rollup_60) THEN
+     IF  extract('minutes' from v_cur_time)>55 and extract('minutes' from v_cur_time)<59 THEN
      
        PERFORM stratcon.rollup_matrix_numeric_60m(v_min_whence);
      
@@ -368,3 +361,4 @@ $$ LANGUAGE plpgsql;
  ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
 
 COMMIT;
+
