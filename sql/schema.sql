@@ -209,6 +209,7 @@ DECLARE
  v_min_whence TIMESTAMPTZ;
  v_max_rollup_5 TIMESTAMPTZ;
  v_whence TIMESTAMPTZ;
+ rows INT;
  
 BEGIN
 
@@ -218,18 +219,19 @@ BEGIN
  SELECT MAX(rollup_time) FROM  stratcon.rollup_matrix_numeric_5m 
          INTO v_max_rollup_5;        
  
- IF v_min_whence < v_max_rollup_5 THEN
+ -- Insert Log for Hourly rollup
+   
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='1 hour'
+           INTO v_whence;
+      IF NOT FOUND THEN
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'1 hour');
+   END IF;
+   
+ IF v_min_whence <= v_max_rollup_5 THEN
 
    DELETE FROM stratcon.rollup_matrix_numeric_5m 
                 WHERE rollup_time = v_min_whence;
-  
-  ELSIF  v_min_whence = v_max_rollup_5 THEN
  
-  DELETE FROM stratcon.log_whence_s 
-        WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
-        
-    RETURN;        
-
  END IF;
 
  FOR rec IN 
@@ -241,21 +243,13 @@ BEGIN
  
        LOOP
     
+        
         INSERT INTO stratcon.rollup_matrix_numeric_5m
          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
         
    END LOOP;
 
-  -- Insert Log for Hourly rollup
-  
-  SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='1 hour'
-          INTO v_whence;
-     IF NOT FOUND THEN
-      INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'1 hour');
-   END IF;
-   
-   
   -- Delete from whence log table
   
   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
@@ -269,7 +263,6 @@ EXCEPTION
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
-
 -- 1 hourl rollup
 
 
