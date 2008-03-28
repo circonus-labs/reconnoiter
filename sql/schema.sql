@@ -79,7 +79,8 @@ CREATE TABLE stratcon.map_uuid_to_sid (
 
 CREATE TABLE stratcon.log_whence_s (
     whence timestamp with time zone NOT NULL,
-    PRIMARY KEY(whence)
+    interval varchar2(20,
+    PRIMARY KEY(whence,interval)
 );
 
 -- Schema Sequence 
@@ -92,6 +93,25 @@ CREATE SEQUENCE stratcon.seq_sid
     CACHE 1;
 
 
+
+-- GRANTS 
+
+ GRANT SELECT,INSERT ON stratcon.loading_dock_status_s TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_check  TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_status TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_check_s TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric_s TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.log_whence_s TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_5m TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.map_uuid_to_sid TO stratcon;
+ ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
+ 
+ 
 -- Function To generate SID from ID 
 
 CREATE OR REPLACE FUNCTION stratcon.generate_sid_from_id(v_in_id uuid)
@@ -158,12 +178,6 @@ $$
     
 -- Trigger on Metrix Numeric to log last inserted timestamp 
 
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_s
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-    
 CREATE OR REPLACE FUNCTION stratcon.loading_dock_metric_numeric_s_whence_log() 
 RETURNS trigger
 AS $$
@@ -171,11 +185,11 @@ DECLARE
 v_whence timestamptz;
 BEGIN
 IF TG_OP = 'INSERT' THEN
-    SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval and interval='5 minutes'
      INTO v_whence;
    IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval);
-   END IF;
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
+    END IF;
 END IF;
 
     RETURN NULL;
@@ -183,119 +197,68 @@ END
 $$
     LANGUAGE plpgsql;
 
+-- 5 minutes rollup
 
-
--- Generic rollup function (under progress)
-
-
-
-CREATE OR REPLACE FUNCTION stratcon.generic_rollup_metrix_numeric()
-RETURNS void
-AS $$
-
-DECLARE
-
-v_min_whence TIMESTAMPTZ;
-v_max_rollup_5 TIMESTAMPTZ;
-v_cur_time TIMESTAMPTZ;
-
-BEGIN
-
-  select min(whence) from stratcon.log_whence_s 
-         INTO v_min_whence;
-         
-  select max(rollup_time) from  stratcon.rollup_matrix_numeric_5m 
-         INTO v_max_rollup_5;         
-  select now()
-         INTO v_cur_time;
-         
- IF v_max_rollup_5 IS NULL  THEN
-   v_max_rollup_5:=timestamp '2008-01-01 00:00:00';
- END IF;
- 
-         
-  IF v_min_whence >= v_max_rollup_5 THEN
-  
-  -- 5 MINUTES ROLLUP
-  
-     PERFORM stratcon.rollup_matrix_numeric_5m(v_min_whence);
-     
-     -- HOURLY ROLLUP
-     
-     IF  extract('minutes' from v_cur_time)>55 and extract('minutes' from v_cur_time)<59 THEN
-     
-       PERFORM stratcon.rollup_matrix_numeric_60m(v_min_whence);
-     
-     END IF;
-  
-  -- DELETE FROM LOG TABLE
-  
-   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence;
-  
-  ELSIF v_min_whence < v_max_rollup_5 THEN
-  
-   -- 5 MINUTES ROLLUP
-
-DELETE FROM stratcon.rollup_matrix_numeric_5m 
- WHERE rollup_time = date_trunc('minutes',v_min_whence);
-     
-      PERFORM stratcon.rollup_matrix_numeric_5m(v_min_whence ,v_max_rollup_5);
-     
-  -- HOURLY ROLLUP
-   
-   DELETE FROM stratcon.rollup_matrix_numeric_60m 
-       WHERE date_trunc('hour',rollup_time) = date_trunc('hour',v_min_whence);
-       
-         PERFORM stratcon.rollup_matrix_numeric_60m(v_min_whence);
-         
-  -- DELETE FROM LOG TABLE
-
-      DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence;
-      
-  ELSE
-  
-      RETURN;
- 
-  END IF;
- 
-RETURN;
-
-EXCEPTION
-    WHEN RAISE_EXCEPTION THEN
-       RAISE EXCEPTION '%', SQLERRM;
-    WHEN OTHERS THEN
-      RAISE NOTICE '%', SQLERRM;
-END
-$$ LANGUAGE plpgsql;
-
---- 5 minutes rollup 
-
-CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_5m(v_min_whence timestamptz)
+CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_5m()
 RETURNS void
 AS $$
 DECLARE
  
  rec stratcon.rollup_matrix_numeric_5m%rowtype;
  v_sql TEXT;
+ v_min_whence TIMESTAMPTZ;
+ v_max_rollup_5 TIMESTAMPTZ;
+ v_whence TIMESTAMPTZ;
  
 BEGIN
 
+ SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='5 minutes'
+        INTO v_min_whence;
+        
+ SELECT MAX(rollup_time) FROM  stratcon.rollup_matrix_numeric_5m 
+         INTO v_max_rollup_5;        
+ 
+ IF v_min_whence < v_max_rollup_5 THEN
+
+   DELETE FROM stratcon.rollup_matrix_numeric_5m 
+                WHERE rollup_time = v_min_whence;
+  
+  ELSIF  v_min_whence = v_max_rollup_5 THEN
+ 
+  DELETE FROM stratcon.log_whence_s 
+        WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
+        
+    RETURN;        
+
+ END IF;
+
  FOR rec IN 
-                SELECT sid , name, date_trunc('H',whence) + (round(extract('minute' from whence)/5)*5) * '1 minute'::interval as rollup_time,
+                SELECT sid , name,v_min_whence as rollup_time,
                       COUNT(1) as count_rows ,AVG(value) as avg_value,STDDEV(value) as stddev_value ,MIN(value) as min_value ,MAX(value) as max_value
                       FROM stratcon.loading_dock_metric_numeric_s
-                      WHERE WHENCE < date_trunc('minutes',v_min_whence) AND WHENCE >= date_trunc('minutes',v_min_whence)-'5 minutes'::interval
+                      WHERE WHENCE <= v_min_whence AND WHENCE > v_min_whence -'5 minutes'::interval
                 GROUP BY rollup_time,sid,name
  
        LOOP
- 
+    
         INSERT INTO stratcon.rollup_matrix_numeric_5m
          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
         
- 
- END LOOP;
+   END LOOP;
 
+  -- Insert Log for Hourly rollup
+  
+  SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='1 hour'
+          INTO v_whence;
+     IF NOT FOUND THEN
+      INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'1 hour');
+   END IF;
+   
+   
+  -- Delete from whence log table
+  
+  DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
  
 RETURN;
 
@@ -307,19 +270,35 @@ EXCEPTION
 END
 $$ LANGUAGE plpgsql;
 
---- Hourly rollup
+-- 1 hourl rollup
 
 
-CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_60m(v_min_whence timestamptz)
+CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_60m()
 RETURNS void
 AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_60m%rowtype;
- v_sql TEXT;
+  v_sql TEXT;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_5 TIMESTAMPTZ;
  
 BEGIN
+
+  SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='1 hour'
+         INTO v_min_whence;
+         
+  SELECT max(date_trunc('H',rollup_time)) FROM  stratcon.rollup_matrix_numeric_60m 
+         INTO v_max_rollup_5;    
+         
+  IF v_min_whence <= v_max_rollup_5 THEN
+  
+  DELETE FROM stratcon.rollup_matrix_numeric_60m 
+       WHERE rollup_time= v_min_whence;
+
+  END IF;
+  
     FOR rec IN 
-                SELECT sid , name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                SELECT sid,name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
 		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_5m
@@ -332,6 +311,10 @@ BEGIN
           (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
           
      END LOOP;
+
+
+DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='1 hour';
+
 RETURN;
 
 EXCEPTION
@@ -343,22 +326,5 @@ END
 $$ LANGUAGE plpgsql;
 
 
--- GRANTS 
-
- GRANT SELECT,INSERT ON stratcon.loading_dock_status_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_check  TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_status TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_check_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
- GRANT SELECT,INSERT,DELETE ON stratcon.log_whence_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s TO stratcon;
- GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
- GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_5m TO stratcon;
- GRANT SELECT,INSERT ON stratcon.map_uuid_to_sid TO stratcon;
- ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
 
 COMMIT;
-
