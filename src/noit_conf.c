@@ -78,6 +78,7 @@ void noit_conf_init(const char *toplevel) {
                     strdup(keystr), strlen(keystr),
                     (void *)strdup(config_info[i].val));
   }
+  xmlKeepBlanksDefault(0);
   xmlInitParser();
   xmlXPathInit();
 }
@@ -408,7 +409,7 @@ noit_conf_write_terminal(noit_console_closure_t ncct,
   out = xmlOutputBufferCreateIO(noit_console_write_xml,
                                 noit_console_close_xml,
                                 ncct, enc);
-  xmlSaveFileTo(out, master_config, "utf8");
+  xmlSaveFormatFileTo(out, master_config, "utf8", 1);
   return 0;
 }
 int
@@ -436,7 +437,7 @@ noit_conf_write_file(noit_console_closure_t ncct,
     nc_printf(ncct, "internal error: OutputBufferCreate failed\n");
     return -1;
   }
-  len = xmlSaveFileTo(out, master_config, "utf8");
+  len = xmlSaveFormatFileTo(out, master_config, "utf8", 1);
   close(fd);
   if(len <= 0) {
     nc_printf(ncct, "internal error: writing to tmp file failed.\n");
