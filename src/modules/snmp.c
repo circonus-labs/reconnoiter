@@ -370,7 +370,6 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
       info->oids[i].oidname = strdup(oidbuff);
       info->oids[i].oidlen = MAX_OID_LEN;
       get_node(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
-      read_objid(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
       snmp_add_null_var(req, info->oids[i].oid, info->oids[i].oidlen);
       i++;
     }
