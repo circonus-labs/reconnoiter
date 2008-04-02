@@ -58,6 +58,28 @@ CREATE TABLE stratcon.rollup_matrix_numeric_60m(
    min_value numeric ,
    max_value numeric ,
    PRIMARY KEY(rollup_time,sid,name));
+   
+CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
+   sid integer not null,
+   name text not null, 
+   rollup_time6 timestamp not null, 
+   count_rows integer,
+   avg_value numeric ,
+   stddev_value numeric,
+   min_value numeric ,
+   max_value numeric ,
+   PRIMARY KEY(rollup_time6,sid,name));   
+
+CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
+   sid integer not null,
+   name text not null, 
+   rollup_time12 timestamp not null, 
+   count_rows integer,
+   avg_value numeric ,
+   stddev_value numeric,
+   min_value numeric ,
+   max_value numeric ,
+   PRIMARY KEY(rollup_time12,sid,name));      
  
 CREATE TABLE stratcon.rollup_matrix_numeric_5m (
     sid integer NOT NULL,
@@ -108,6 +130,8 @@ CREATE SEQUENCE stratcon.seq_sid
  GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_5m TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_6hours TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_12hours TO stratcon;
  GRANT SELECT,INSERT ON stratcon.map_uuid_to_sid TO stratcon;
  ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
  
@@ -263,6 +287,7 @@ EXCEPTION
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
+
 -- 1 hourl rollup
 
 
@@ -274,7 +299,7 @@ DECLARE
   v_sql TEXT;
   v_min_whence TIMESTAMPTZ;
   v_max_rollup_5 TIMESTAMPTZ;
- 
+  v_whence TIMESTAMPTZ;
 BEGIN
 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='1 hour'
@@ -282,7 +307,16 @@ BEGIN
          
   SELECT max(date_trunc('H',rollup_time)) FROM  stratcon.rollup_matrix_numeric_60m 
          INTO v_max_rollup_5;    
-         
+
+-- Insert Log for 6 Hour rollup
+   
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='6 hours'
+           INTO v_whence;
+      IF NOT FOUND THEN
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'6 hours');
+   END IF;
+   
+   
   IF v_min_whence <= v_max_rollup_5 THEN
   
   DELETE FROM stratcon.rollup_matrix_numeric_60m 
@@ -318,6 +352,137 @@ EXCEPTION
 END
 $$ LANGUAGE plpgsql;
 
+
+-- 6 hours
+
+CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_6hours()
+RETURNS void
+AS $$
+DECLARE
+  rec stratcon.rollup_matrix_numeric_6hours%rowtype;
+  v_sql TEXT;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_6 TIMESTAMPTZ;
+  v_whence TIMESTAMPTZ;
+ 
+BEGIN
+
+  SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='6 hours'
+         INTO v_min_whence;
+         
+  SELECT max(date_trunc('H',rollup_time6)) FROM  stratcon.rollup_matrix_numeric_6hours 
+         INTO v_max_rollup_6;    
+
+-- Insert Log for 12 Hours rollup
+   
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='12 hours'
+           INTO v_whence;
+      IF NOT FOUND THEN
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'12 hours');
+   END IF;
+   
+   
+  IF v_min_whence <= v_max_rollup_6 THEN
+  
+  DELETE FROM stratcon.rollup_matrix_numeric_6hours 
+       WHERE rollup_time6= v_min_whence;
+
+  END IF;
+  
+    FOR rec IN 
+                SELECT sid,name,v_min_whence as rollup_time6,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+		         MIN(min_value) as min_value ,MAX(max_value) as max_value
+		         FROM stratcon.rollup_matrix_numeric_60m
+		           WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'6 hour'::interval
+                   GROUP BY sid,name
+        LOOP
+      
+       
+          INSERT INTO stratcon.rollup_matrix_numeric_6hours
+          (sid,name,rollup_time6,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time6,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          
+     END LOOP;
+
+
+DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='6 hours';
+
+RETURN;
+
+EXCEPTION
+    WHEN RAISE_EXCEPTION THEN
+       RAISE EXCEPTION '%', SQLERRM;
+    WHEN OTHERS THEN
+      RAISE NOTICE '%', SQLERRM;
+END
+$$ LANGUAGE plpgsql;
+
+
+-- 12 hours
+
+CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_12hours()
+RETURNS void
+AS $$
+DECLARE
+  rec stratcon.rollup_matrix_numeric_12hours%rowtype;
+  v_sql TEXT;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_12 TIMESTAMPTZ;
+  v_whence TIMESTAMPTZ;
+ 
+BEGIN
+
+  SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='12 hours'
+         INTO v_min_whence;
+         
+  SELECT max(date_trunc('H',rollup_time12)) FROM  stratcon.rollup_matrix_numeric_12hours 
+         INTO v_max_rollup_12;    
+
+/*-- Insert Log for 24 Hours rollup
+   
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='24 hours'
+           INTO v_whence;
+      IF NOT FOUND THEN
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'24 hours');
+   END IF;
+   */
+   
+  IF v_min_whence <= v_max_rollup_12 THEN
+  
+  DELETE FROM stratcon.rollup_matrix_numeric_12hours 
+       WHERE rollup_time12= v_min_whence;
+
+  END IF;
+  
+    FOR rec IN 
+                SELECT sid,name,v_min_whence as rollup_time12,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+		         MIN(min_value) as min_value ,MAX(max_value) as max_value
+		         FROM stratcon.rollup_matrix_numeric_6hours
+		           WHERE rollup_time6<= v_min_whence and rollup_time6> v_min_whence-'12 hour'::interval
+                   GROUP BY sid,name
+        LOOP
+      
+       
+          INSERT INTO stratcon.rollup_matrix_numeric_12hours
+          (sid,name,rollup_time12,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time12,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          
+     END LOOP;
+
+
+DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='12 hours';
+
+RETURN;
+
+EXCEPTION
+    WHEN RAISE_EXCEPTION THEN
+       RAISE EXCEPTION '%', SQLERRM;
+    WHEN OTHERS THEN
+      RAISE NOTICE '%', SQLERRM;
+END
+$$ LANGUAGE plpgsql;
 
 
 COMMIT;
