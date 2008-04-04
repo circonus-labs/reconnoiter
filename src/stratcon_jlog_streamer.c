@@ -176,6 +176,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
  socket_error:
     jlog_streamer_schedule_reattempt(ctx, now);
     eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &mask, e);
     return 0;
   }
 
