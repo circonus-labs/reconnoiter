@@ -416,9 +416,9 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   ts->refcnt++; /* Increment here, decrement when this check completes */
 
   req = snmp_pdu_create(SNMP_MSG_GET);
-  noit_snmp_fill_req(req, check);
+  if(req) noit_snmp_fill_req(req, check);
   /* Setup out snmp requests */
-  if(ts->sess_handle &&
+  if(ts->sess_handle && req &&
      (info->reqid = snmp_sess_send(ts->sess_handle, req)) != 0) {
     struct timeval when, to;
     info->timeoutevent = eventer_alloc();
@@ -437,7 +437,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
     ts->refcnt--;
      noit_snmp_session_cleanse(ts);
     /* Error */
-    snmp_free_pdu(req);
+    if(req) snmp_free_pdu(req);
     /* Log our findings */
     noit_snmp_log_results(self, check, NULL);
     check->flags &= ~NP_RUNNING;
