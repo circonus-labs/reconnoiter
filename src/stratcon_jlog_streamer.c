@@ -149,6 +149,10 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
     ctx->bytes_expected = size; \
     if(ctx->buffer) free(ctx->buffer); \
     ctx->buffer = malloc(size + 1); \
+    if(ctx->buffer == NULL) { \
+      noitL(noit_error, "malloc(%lu) failed.\n", size + 1); \
+      goto socket_error; \
+    } \
     ctx->buffer[size] = '\0'; \
   } \
   len = __read_on_ctx(e, ctx, &mask); \
@@ -159,7 +163,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    noitL(noit_error, "SSL short read (%d/%d).  Reseting connection.\n", \
+    noitL(noit_error, "SSL short read (%d/%lu).  Reseting connection.\n", \
           len, size); \
     goto socket_error; \
   } \
@@ -207,7 +211,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         break;
 
       case WANT_BODY:
-        FULLREAD(e, ctx, ctx->header.message_len);
+        FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
         stratcon_datastore_push(DS_OP_INSERT, &ctx->r.remote, ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
