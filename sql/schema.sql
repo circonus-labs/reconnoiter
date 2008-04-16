@@ -62,7 +62,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_60m(
 CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
    sid integer not null,
    name text not null, 
-   rollup_time6 timestamp not null, 
+   rollup_time timestamp not null, 
    count_rows integer,
    avg_value numeric ,
    stddev_value numeric,
@@ -73,7 +73,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
 CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
    sid integer not null,
    name text not null, 
-   rollup_time12 timestamp not null, 
+   rollup_time timestamp not null, 
    count_rows integer,
    avg_value numeric ,
    stddev_value numeric,
@@ -326,7 +326,7 @@ BEGIN
   
     FOR rec IN 
                 SELECT sid,name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+		         stddev(stddev_value) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_5m
 		           WHERE date_trunc('hour',rollup_time)= date_trunc('hour',v_min_whence)
@@ -370,7 +370,7 @@ BEGIN
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='6 hours'
          INTO v_min_whence;
          
-  SELECT max(date_trunc('H',rollup_time6)) FROM  stratcon.rollup_matrix_numeric_6hours 
+  SELECT max(date_trunc('H',rollup_time)) FROM  stratcon.rollup_matrix_numeric_6hours 
          INTO v_max_rollup_6;    
 
 -- Insert Log for 12 Hours rollup
@@ -385,13 +385,13 @@ BEGIN
   IF v_min_whence <= v_max_rollup_6 THEN
   
   DELETE FROM stratcon.rollup_matrix_numeric_6hours 
-       WHERE rollup_time6= v_min_whence;
+       WHERE rollup_time= v_min_whence;
 
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time6,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		         STDDEV(stddev_value) as  stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_60m
 		           WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'6 hour'::interval
@@ -400,8 +400,8 @@ BEGIN
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_6hours
-          (sid,name,rollup_time6,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time6,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
           
      END LOOP;
 
@@ -436,7 +436,7 @@ BEGIN
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='12 hours'
          INTO v_min_whence;
          
-  SELECT max(date_trunc('H',rollup_time12)) FROM  stratcon.rollup_matrix_numeric_12hours 
+  SELECT max(date_trunc('H',rollup_time)) FROM  stratcon.rollup_matrix_numeric_12hours 
          INTO v_max_rollup_12;    
 
 /*-- Insert Log for 24 Hours rollup
@@ -451,23 +451,23 @@ BEGIN
   IF v_min_whence <= v_max_rollup_12 THEN
   
   DELETE FROM stratcon.rollup_matrix_numeric_12hours 
-       WHERE rollup_time12= v_min_whence;
+       WHERE rollup_time= v_min_whence;
 
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time12,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         SQRT((SUM((count_rows-1)*(POWER(stddev_value,2)+POWER(avg_value,2)))/(SUM(count_rows)-1)))-(power(SUM(avg_value*count_rows)/SUM(count_rows),2)) as stddev_value,
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		         STDDEV(stddev_value) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_6hours
-		           WHERE rollup_time6<= v_min_whence and rollup_time6> v_min_whence-'12 hour'::interval
+		           WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'12 hour'::interval
                    GROUP BY sid,name
         LOOP
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_12hours
-          (sid,name,rollup_time12,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time12,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
           
      END LOOP;
 
