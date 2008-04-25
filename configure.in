@@ -122,8 +122,13 @@ AC_CHECK_LIB(pq, PQconnectdb,
 	]
 )
 
-SERVERINC=`pg_config --includedir-server`
-CFLAGS="-I$SERVERINC"
+AC_MSG_CHECKING([libpq includes])
+PQICFLAGS=`pg_config --includedir-server`
+if test -n "$PQICFLAGS" ; then
+  CFLAGS="$CFLAGS -I$PQICFLAGS"
+fi
+AC_MSG_RESULT([$PQICFLAGS])
+
 AC_TRY_LINK([
 	#include <libpq-fe.h>
 	#include <postgres.h>

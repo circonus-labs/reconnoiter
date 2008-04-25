@@ -43,7 +43,7 @@
 
 #include <arpa/telnet.h>
 #include <sys/ioctl.h>
-#ifdef HAVE_IOCTL_COMPAT_H
+#ifdef HAVE_SYS_IOCTL_COMPAT_H
 #include <sys/ioctl_compat.h>
 #endif
 #ifdef HAVE_TERMIOS_H
