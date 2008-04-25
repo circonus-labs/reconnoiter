@@ -38,6 +38,7 @@ static struct {
    *
    * PLEASE: keep them alphabetically sorted.
    */
+  { "/%s/eventer/@implementation", DEFAULT_EVENTER },
   { "/%s/modules/@directory", MODULES_DIR },
 
   { NULL, NULL }
@@ -268,7 +269,7 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     xmlNodePtr node;
     switch(pobj->type) {
       case XPATH_NODESET:
-        if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) return 0;
+        if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto fallback;
         i = xmlXPathNodeSetGetLength(pobj->nodesetval);
         node = xmlXPathNodeSetItem(pobj->nodesetval, i-1);
         if(vnode) *vnode = node;
@@ -279,6 +280,7 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     }
     goto found;
   }
+ fallback:
   if(noit_hash_retrieve(&_compiled_fallback,
                         path, strlen(path), (void **)&str)) {
     *value = str;

@@ -38,6 +38,7 @@
 
 #undef MODULEEXT
 #undef MODULES_DIR
+#undef DEFAULT_EVENTER
 #undef ETC_DIR
 
 #undef HAVE_FCNTL_H
@@ -97,6 +98,8 @@
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
+/* Kernel epoll_create() support */
+#undef HAVE_EPOLL
 
 /* The number of bytes in a char.  */
 #undef SIZEOF_CHAR
