@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -155,7 +156,7 @@ noit_listener(char *host, unsigned short port, int type,
   union {
     struct sockaddr_in addr4;
     struct sockaddr_in6 addr6;
-    struct sockaddr_un unix;
+    struct sockaddr_un addru;
   } s;
   const char *event_name;
 
@@ -220,8 +221,8 @@ noit_listener(char *host, unsigned short port, int type,
         return -1;
       }
     }
-    strncpy(s.unix.sun_path, host, sizeof(s.unix.sun_path)-1);
-    sockaddr_len = sizeof(s.unix);
+    strncpy(s.addru.sun_path, host, sizeof(s.addru.sun_path)-1);
+    sockaddr_len = sizeof(s.addru);
   }
   else {
     s.addr6.sin6_family = family;

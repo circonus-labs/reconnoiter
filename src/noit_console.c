@@ -16,6 +16,7 @@
 #include <util.h>
 #endif
 #include <arpa/telnet.h>
+#include <signal.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"

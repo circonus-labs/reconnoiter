@@ -11,6 +11,7 @@
 #include "noit_check.h"
 #include <unistd.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 #include <arpa/inet.h>
 #include <libpq-fe.h>
 
@@ -89,18 +90,24 @@ noit_hash_table ds_conns;
 conn_q *
 __get_conn_q_for_remote(struct sockaddr *remote) {
   conn_q *cq;
-  if(noit_hash_retrieve(&ds_conns, (const char *)remote, remote->sa_len,
-                        (void **)&cq))
+  int len = 0;
+  switch(remote->sa_family) {
+    case AF_INET: len = sizeof(struct sockaddr_in); break;
+    case AF_INET6: len = sizeof(struct sockaddr_in6); break;
+    case AF_UNIX: len = SUN_LEN(((struct sockaddr_un *)remote)); break;
+    default: return NULL;
+  }
+  if(noit_hash_retrieve(&ds_conns, (const char *)remote, len, (void **)&cq))
     return cq;
   cq = calloc(1, sizeof(*cq));
-  cq->remote = malloc(remote->sa_len);
-  memcpy(cq->remote, remote, remote->sa_len);
+  cq->remote = malloc(len);
+  memcpy(cq->remote, remote, len);
   cq->jobq = calloc(1, sizeof(*cq->jobq));
   eventer_jobq_init(cq->jobq);
   cq->jobq->backq = eventer_default_backq();
   /* Add one thread */
   eventer_jobq_increase_concurrency(cq->jobq);
-  noit_hash_store(&ds_conns, (const char *)cq->remote, cq->remote->sa_len, cq);
+  noit_hash_store(&ds_conns, (const char *)cq->remote, len, cq);
   return cq;
 }
 

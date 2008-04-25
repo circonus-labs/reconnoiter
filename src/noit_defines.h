@@ -50,4 +50,8 @@ static inline void uuid_unparse_lower(uuid_t in, char *out) {
 }
 #endif
 
+#ifdef HAVE_TERMIO_H
+#define USE_TERMIO
+#endif
+
 #endif

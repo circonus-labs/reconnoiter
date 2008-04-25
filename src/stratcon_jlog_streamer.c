@@ -335,7 +335,6 @@ jlog_streamer_initiate_connection(jlog_streamer_ctx_t *ctx) {
   if(ioctl(fd, FIONBIO, &on)) goto reschedule;
 
   /* Initiate a connection */
-  ctx->r.remote.sa_len = ctx->remote_len;
   rv = connect(fd, &ctx->r.remote, ctx->remote_len);
   if(rv == -1 && errno != EINPROGRESS) goto reschedule;
 

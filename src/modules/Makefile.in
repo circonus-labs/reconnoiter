@@ -22,11 +22,11 @@ MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
 all:	$(MODULES)
 
 postgres.@MODULEEXT@:	postgres.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ ../serf/.libs/libserf-0.a $(PGLIBS) -lz -lssl -lcrypto
+	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
 http.@MODULEEXT@:	http.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.a -lz -lssl -lcrypto
+	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.o -lz -lssl -lcrypto
 	@echo "- linking $@"
 
 http.lo:	http.c

@@ -37,7 +37,9 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/ioctl.h>
+#ifdef HAVE_SYS_IOCTL_COMPAT_H
 #include <sys/ioctl_compat.h>
+#endif
 #include <arpa/telnet.h>
 #include "noit_console.h"
 #include "noit_console_telnet.h"
@@ -590,7 +592,9 @@ noit_console_telnet_tty_linemode(noit_console_closure_t ncct)
     return 0;
 #endif
 #else
+#ifdef EXTPROC
     return(termbuf.c_lflag & EXTPROC);
+#endif
 #endif
 }
 

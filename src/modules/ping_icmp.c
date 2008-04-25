@@ -18,6 +18,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <math.h>
+#ifndef MAXFLOAT
+#include <float.h>
+#define MAXFLOAT FLT_MAX
+#endif
 
 #include "noit_module.h"
 #include "noit_check.h"

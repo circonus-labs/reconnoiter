@@ -27,31 +27,50 @@ if test "x$CC" = "xgcc" ; then
   CFLAGS="$CFLAGS -g -Wall"
 fi
 
+CPPFLAGS='-I$(top_srcdir)/src'
+
 case $host in
 *-*-darwin*)
 	PICFLAGS="-fPIC"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
+	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
 	MODULEEXT=bundle
+	RLDFLAG="-Wl,--rpath="
 	;;
 *-*-solaris*)
 	PICFLAGS="-Kpic"
 	MODULELD="$CC -G"
+	SHLD="$CC -G"
 	MODULEEXT=so
+	RLDFLAG="-R"
 	;;
 *-*-openbsd*)
 	PICFLAGS="-fpic"
 	LDFLAGS="$LDFLAGS -Wl,-E"
 	MODULELD="$CC -shared"
+	SHLD="$CC -shared"
 	MODULEEXT=so
 	LDFLAGS="$LDFLAGS -L/usr/local/lib"
 	CFLAGS="$CFLAGS -I/usr/local/include -I/usr/local/include/postgresql"
+	RLDFLAG="-Wl,--rpath="
+	;;
+*-*-linux*)
+	CPPFLAGS="$CPPFLAGS -D__USE_XOPEN"
+	PICFLAGS="-fpic"
+	MODULELD="$CC -shared"
+	SHLD="$CC -shared"
+	MODULEEXT=so
+	RLDFLAG="-Wl,--rpath="
 	;;
 *)
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	MODULEEXT=so
+	RLDFLAG="-Wl,--rpath="
 	;;
 esac
+AC_SUBST(SHLD)
+AC_SUBST(RLDFLAG)
 AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
@@ -102,6 +121,9 @@ AC_CHECK_LIB(pq, PQconnectdb,
 		AC_MSG_ERROR([libpq required])
 	]
 )
+
+SERVERINC=`pg_config --includedir-server`
+CFLAGS="-I$SERVERINC"
 AC_TRY_LINK([
 	#include <libpq-fe.h>
 	#include <postgres.h>
@@ -198,7 +220,7 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
                  ctype.h unistd.h time.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
-                 util.h sys/time.h sys/mman.h)
+                 sys/ioctl_compat.h util.h sys/time.h sys/mman.h)
 
 AC_CACHE_CHECK([for kqueue support], ac_cv_have_kqueue, [
 	AC_TRY_LINK(
@@ -210,9 +232,11 @@ AC_CACHE_CHECK([for kqueue support], ac_cv_have_kqueue, [
 ])
 if test "x$ac_cv_have_kqueue" = "xyes" ; then
 	AC_DEFINE(HAVE_KQUEUE)
+	EVENTER_OBJS="$EVENTER_OBJS eventer_kqueue_impl.o"
 	have_kqueue=1
 fi
 
+AC_SUBST(EVENTER_OBJS)
 
 AC_CACHE_CHECK([for u_int type], ac_cv_have_u_int, [
 	AC_TRY_COMPILE(
@@ -367,7 +391,6 @@ mansubdir="man"
 AC_SUBST(docdir)
 AC_SUBST(mansubdir)
 
-CPPFLAGS='-I$(top_srcdir)/src'
 SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
 
@@ -401,6 +424,7 @@ Makefile
 src/Makefile
 src/eventer/Makefile
 src/jlog/Makefile
+src/jlog/perl/Makefile.PL
 src/modules/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
