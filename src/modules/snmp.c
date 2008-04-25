@@ -79,7 +79,6 @@ static int noit_snmp_init(noit_module_t *self) {
   register_mib_handlers();
   read_premib_configs();
   read_configs();
-  netsnmp_init_mib();
   init_snmp("noitd");
   return 0;
 }
