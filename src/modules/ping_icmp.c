@@ -183,7 +183,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     if(icp->icmp_id != (((vpsized_uint)self) & 0xffff)) {
       noitLT(nlerr, now,
-               "ping_icmp not sent from this instance (%d:%d) vs. %d\n",
+               "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                icp->icmp_id, ntohs(icp->icmp_seq),
                (((vpsized_uint)self) & 0xffff));
       continue;
@@ -413,7 +413,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     memcpy(&newe->whence, &when, sizeof(when));
     add_timeval(when, p_int, &when); /* Next one is a bit later */
 
-    icp = malloc(packet_len);
+    icp = calloc(1,packet_len);
     payload = (struct ping_payload *)(icp + 1);
 
     icp->icmp_type = ICMP_ECHO;

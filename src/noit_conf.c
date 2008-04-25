@@ -286,6 +286,8 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     *value = str;
     goto found;
   }
+  if(current_ctxt && current_ctxt != xpath_ctxt)
+    xmlXPathFreeContext(current_ctxt);
   return 0;
  found:
   if(current_ctxt && current_ctxt != xpath_ctxt)

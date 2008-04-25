@@ -225,6 +225,7 @@ static void resmon_part_log_results_xml(noit_module_t *self,
           }
         }
       }
+      xmlXPathFreeContext(xpath_ctxt);
     }
   }
   memcpy(&current.whence, &rci->serf.finish_time, sizeof(current.whence));

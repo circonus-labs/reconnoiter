@@ -112,7 +112,7 @@ static void eventer_epoll_impl_add(eventer_t e) {
   }
 
   /* file descriptor event */
-  _ev.events = 0;
+  memset(&_ev, 0, sizeof(_ev));
   _ev.data.fd = e->fd;
   if(e->mask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
   if(e->mask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
@@ -133,7 +133,7 @@ static eventer_t eventer_epoll_impl_remove(eventer_t e) {
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     ev_lock_state_t lockstate;
     struct epoll_event _ev;
-    _ev.events = 0;
+    memset(&_ev, 0, sizeof(_ev));
     _ev.data.fd = e->fd;
     lockstate = acquire_master_fd(e->fd);
     if(e == master_fds[e->fd].e) {
@@ -167,7 +167,7 @@ static void eventer_epoll_impl_update(eventer_t e) {
     pthread_mutex_unlock(&te_lock);
     return;
   }
-  _ev.events = 0;
+  memset(&_ev, 0, sizeof(_ev));
   _ev.data.fd = e->fd;
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     if(e->mask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
@@ -181,7 +181,7 @@ static eventer_t eventer_epoll_impl_remove_fd(int fd) {
   ev_lock_state_t lockstate;
   if(master_fds[fd].e) {
     struct epoll_event _ev;
-    _ev.events = 0;
+    memset(&_ev, 0, sizeof(_ev));
     _ev.data.fd = fd;
     lockstate = acquire_master_fd(fd);
     eiq = master_fds[fd].e;
@@ -292,7 +292,7 @@ static int eventer_epoll_impl_loop() {
 
         if(newmask) {
           struct epoll_event _ev;
-          _ev.events = 0;
+          memset(&_ev, 0, sizeof(_ev));
           _ev.data.fd = fd;
           if(newmask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
           if(newmask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
