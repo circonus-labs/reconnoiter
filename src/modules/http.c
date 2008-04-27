@@ -432,6 +432,7 @@ static serf_bucket_t* conn_setup(apr_socket_t *skt,
       c = serf_bucket_ssl_decrypt_create(c, ctx->ssl_ctx, ctx->bkt_alloc);
       if (!ctx->ssl_ctx) {
           ctx->ssl_ctx = serf_bucket_ssl_decrypt_context_get(c);
+          serf_ssl_use_default_certificates(ctx->ssl_ctx);
       }
   }
 
@@ -609,8 +610,9 @@ static apr_status_t serf_eventer_add(void *user_baton,
     newe = e = eventer_alloc();
     e->fd = hack->socketdes;
     e->callback = serf_handler;
-    e->closure = calloc(1, sizeof(serf_closure_t));
   }
+  if(!e->closure)
+    e->closure = calloc(1, sizeof(serf_closure_t));
   newsct = e->closure;
   newsct->self = sct->self;
   newsct->check = sct->check;
@@ -644,7 +646,11 @@ static apr_status_t serf_eventer_remove(void *user_baton,
 
   noitL(nldeb, "serf_eventer_remove() => %d\n", hack->socketdes);
   e = eventer_find_fd(hack->socketdes);
-  if(e) e->mask = 0;
+  if(e) {
+    free(e->closure);
+    e->closure = NULL;
+    e->mask = 0;
+  }
   return 0;
 }
 
