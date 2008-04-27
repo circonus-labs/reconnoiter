@@ -185,7 +185,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       noitLT(nlerr, now,
                "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                icp->icmp_id, ntohs(icp->icmp_seq),
-               (((vpsized_uint)self) & 0xffff));
+               (unsigned long)(((vpsized_uint)self) & 0xffff));
       continue;
     }
     check = noit_poller_lookup(payload->checkid);
