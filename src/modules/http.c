@@ -35,6 +35,8 @@ typedef struct {
 
 typedef struct {
   int using_ssl;
+  const char *ca_chain_file;
+  const char *certificate_file;
   serf_ssl_context_t *ssl_ctx;
   serf_bucket_alloc_t *bkt_alloc;
 } app_baton_t;
@@ -148,14 +150,13 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   stats_t current;
   int expect_code = 200;
-  char *code_str;
+  void *code_str; /* void * for use with hash */
   char human_buffer[256], code[4], rt[14];
 
   noit_check_stats_clear(&current);
 
-  if(noit_hash_retrieve(check->config, "code", strlen("code"),
-                        (void **)&code_str))
-    expect_code = atoi(code_str);
+  if(noit_hash_retrieve(check->config, "code", strlen("code"), &code_str))
+    expect_code = atoi((const char *)code_str);
 
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
@@ -661,7 +662,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   apr_status_t status;
   eventer_t newe;
   serf_module_conf_t *mod_config;
-  char *config_url;
+  void *config_url;
 
   mod_config = noit_module_get_userdata(self);
   ci = (serf_check_info_t *)check->closure;
@@ -692,11 +693,10 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   ccl->self = self;
   ccl->check = check;
 
-  if(!noit_hash_retrieve(check->config, "url", strlen("url"),
-                        (void **)&config_url))
+  if(!noit_hash_retrieve(check->config, "url", strlen("url"), &config_url))
     if(!mod_config->options ||
        !noit_hash_retrieve(mod_config->options, "url", strlen("url"),
-                           (void **)&config_url))
+                           &config_url))
       config_url = "http://localhost/";
   apr_uri_parse(ci->pool, config_url, &ci->url);
 
@@ -708,7 +708,14 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
   }
 
   if (strcasecmp(ci->url.scheme, "https") == 0) {
+    void *vstr;
     ci->app_ctx.using_ssl = 1;
+    if(noit_hash_retrieve(check->config, "ca_chain",
+                          strlen("ca_chain"), &vstr))
+      ci->app_ctx.ca_chain_file = apr_pstrdup(ci->pool, vstr);
+    if(noit_hash_retrieve(check->config, "certificate_file",
+                          strlen("certificate_file"), &vstr))
+      ci->app_ctx.certificate_file = apr_pstrdup(ci->pool, vstr);
   }
   else {
     ci->app_ctx.using_ssl = 0;
@@ -794,7 +801,7 @@ static void resmon_cleanup(noit_module_t *self, noit_check_t *check) {
 static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
                                       int once, noit_check_t *parent) {
   char xpathexpr[1024];
-  const char *resmod, *resserv;
+  void *resmod, *resserv;
   resmon_check_info_t *rci;
 
   if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
@@ -804,17 +811,17 @@ static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
   if(!rci->xpathexpr) {
     if(!noit_hash_retrieve(check->config,
                            "resmon_module", strlen("resmon_module"),
-                           (void **)&resmod)) {
+                           &resmod)) {
       resmod = "DUMMY_MODULE";
     }
     if(!noit_hash_retrieve(check->config,
                            "resmon_service", strlen("resmon_service"),
-                           (void **)&resserv)) {
+                           &resserv)) {
       resserv = "DUMMY_SERVICE";
     }
     snprintf(xpathexpr, sizeof(xpathexpr),
              "//ResmonResult[@module=\"%s\" and @service=\"%s\"]/*",
-             resmod, resserv);
+             (const char *)resmod, (const char *)resserv);
     rci->xpathexpr = strdup(xpathexpr);
     rci->resmod = strdup(resmod);
     rci->resserv = strdup(resserv);
