@@ -133,6 +133,7 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
     noit_hash_replace(table,
                       strdup((char *)node->name), strlen((char *)node->name),
                       strdup(value), free, free);
+    xmlFree(value);
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -254,8 +255,8 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
 int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
   char *str;
-  int i;
-  xmlXPathObjectPtr pobj;
+  int i, rv = 1;
+  xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
 
@@ -283,16 +284,15 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
  fallback:
   if(noit_hash_retrieve(&_compiled_fallback,
                         path, strlen(path), (void **)&str)) {
-    *value = str;
+    *value = (char *)xmlStrdup((xmlChar *)str);
     goto found;
   }
-  if(current_ctxt && current_ctxt != xpath_ctxt)
-    xmlXPathFreeContext(current_ctxt);
-  return 0;
+  rv = 0;
  found:
+  if(pobj) xmlXPathFreeObject(pobj);
   if(current_ctxt && current_ctxt != xpath_ctxt)
     xmlXPathFreeContext(current_ctxt);
-  return 1;
+  return rv;
 }
 int noit_conf_get_uuid(noit_conf_section_t section,
                        const char *path, uuid_t out) {
@@ -308,6 +308,7 @@ int noit_conf_get_string(noit_conf_section_t section,
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
     *value = strdup(str);
+    xmlFree(str);
     return 1;
   }
   return 0;
@@ -317,6 +318,7 @@ int noit_conf_get_stringbuf(noit_conf_section_t section,
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
     strlcpy(buf, str, len);
+    xmlFree(str);
     return 1;
   }
   return 0;
@@ -339,6 +341,7 @@ int noit_conf_get_int(noit_conf_section_t section,
       else base = 8;
     }
     longval = strtol(str, NULL, base);
+    xmlFree(str);
     *value = (int)longval;
     return 1;
   }
@@ -355,6 +358,7 @@ int noit_conf_get_float(noit_conf_section_t section,
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
     *value = atof(str);
+    xmlFree(str);
     return 1;
   }
   return 0;
@@ -372,6 +376,7 @@ int noit_conf_get_boolean(noit_conf_section_t section,
     if(!strcasecmp(str, "true") ||
        !strcasecmp(str, "on")) *value = noit_true;
     else *value = noit_false;
+    xmlFree(str);
     return 1;
   }
   return 0;

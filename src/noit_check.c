@@ -186,7 +186,11 @@ noit_poller_process_checks(const char *xpath) {
                            flags, uuid, out_uuid);
       noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
     }
+
+    noit_hash_destroy(options, free, free);
+    free(options);
   }
+  if(sec) free(sec);
 }
 
 void
@@ -490,6 +494,7 @@ __free_metric(void *vm) {
   metric_t *m = vm;
   free(m->metric_name);
   if(m->metric_value.i) free(m->metric_value.i);
+  free(m);
 }
 
 void
@@ -540,7 +545,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
   cp--; /* backup one */
   if(cp > s && *cp == '%') *cp-- = '\0'; /* chop a last % is there is one */
 
-  while(*trailer && isspace(*trailer)) *trailer++; /* rtrim */
+  while(*trailer && isspace(*trailer)) *trailer++ = '\0'; /* rtrim */
 
   /* string was       '  -1.23e-01%  inodes used  ' */
   /* copy is (~ = \0) '  -1.23e-01~  inodes used~~' */

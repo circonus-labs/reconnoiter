@@ -117,7 +117,7 @@ static int serf_config(noit_module_t *self, noit_hash_table *options) {
   conf->options = options;
   conf->results = serf_log_results;
   noit_module_set_userdata(self, conf);
-  return 0;
+  return 1;
 }
 static int resmon_config(noit_module_t *self, noit_hash_table *options) {
   serf_module_conf_t *conf;
@@ -136,7 +136,7 @@ static int resmon_config(noit_module_t *self, noit_hash_table *options) {
                   strdup("http://localhost:81/"));
   conf->results = resmon_log_results;
   noit_module_set_userdata(self, conf);
-  return 0;
+  return 1;
 }
 static void generic_log_results(noit_module_t *self, noit_check_t *check) {
   serf_module_conf_t *module_conf;
@@ -223,7 +223,9 @@ static void resmon_part_log_results_xml(noit_module_t *self,
           else if(!strcmp((char *)node->name, "state")) {
             current.state = strcmp(value,"OK") ? NP_BAD : NP_GOOD;
           }
+          xmlFree(value);
         }
+        xmlXPathFreeObject(pobj);
       }
       xmlXPathFreeContext(xpath_ctxt);
     }
@@ -233,6 +235,7 @@ static void resmon_part_log_results_xml(noit_module_t *self,
   noitL(nldeb, "resmon_part(%s/%s/%s) [%s]\n", check->target,
         rci->resmod, rci->resserv, current.status);
   noit_check_set_stats(self, check, &current);
+  free(current.status);
 }
 static void resmon_part_log_results(noit_module_t *self, noit_check_t *check,
                                     noit_check_t *parent) {
@@ -308,9 +311,15 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
 
         xpath_ctxt->node = node;
         sobj = xmlXPathEval((xmlChar *)"@module", xpath_ctxt);
-        resmod = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+        if(sobj) {
+          resmod = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+          xmlXPathFreeObject(sobj);
+        }
         sobj = xmlXPathEval((xmlChar *)"@service", xpath_ctxt);
-        resserv = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+        if(sobj) {
+          resserv = (char *)xmlXPathCastNodeSetToString(sobj->nodesetval);
+          xmlXPathFreeObject(sobj);
+        }
         if(!resmod && !resserv) continue;
 
         for(a=0; a<3; a++) {
@@ -318,6 +327,7 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
           sobj = xmlXPathEval((xmlChar *)attrs[a], xpath_ctxt);
           attrnode = xmlXPathNodeSetItem(sobj->nodesetval, 0);
           value = (char *)xmlXPathCastNodeToString(attrnode);
+          xmlXPathFreeObject(sobj);
           snprintf(attr, sizeof(attr), "%s`%s`%s",
                    resmod, resserv, (char *)attrnode->name);
           switch(a) {
@@ -333,7 +343,10 @@ static void resmon_log_results(noit_module_t *self, noit_check_t *check) {
               noit_stats_set_metric(&current, attr, METRIC_GUESS, value);
               break;
           }
+          xmlFree(value);
         }
+        if(resmod) xmlFree(resmod);
+        if(resserv) xmlFree(resserv);
       }
     }
   }

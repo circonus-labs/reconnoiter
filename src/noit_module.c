@@ -105,10 +105,21 @@ void noit_module_init() {
     }
     config = noit_conf_get_hash(sections[i], "config");
     module = noit_module_lookup(module_name);
-    if(module->config && module->config(module, config)) {
-      noitL(noit_stderr,
-            "Configure failed on %s:%s\n", module_file, module_name);
-      continue;
+    if(module->config) {
+      int rv;
+      rv = module->config(module, config);
+      if(rv == 0) {
+        /* Not an error,
+         * but the module didn't take responsibility for the config.
+         */
+        noit_hash_destroy(config, free, free);
+        free(config);
+      }
+      else if(rv < 0) {
+        noitL(noit_stderr,
+              "Configure failed on %s:%s\n", module_file, module_name);
+        continue;
+      }
     }
     if(module->init && module->init(module)) {
       noitL(noit_stderr,
@@ -118,6 +129,7 @@ void noit_module_init() {
     noitL(noit_stderr, "Module %s:%s successfully loaded.\n",
           module_file, module_name);
   }
+  free(sections);
 }
 
 void *noit_module_get_userdata(noit_module_t *mod) {

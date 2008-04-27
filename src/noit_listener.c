@@ -321,11 +321,13 @@ noit_listener_reconfig(const char *toplevel) {
                               "ancestor-or-self::node()/@ssl", &ssl))
      ssl = noit_false;
 
-    sslconfig = noit_conf_get_hash(listener_configs[i], "sslconfig");
+    sslconfig = ssl ?
+                  noit_conf_get_hash(listener_configs[i], "sslconfig") :
+                  NULL;
     config = noit_conf_get_hash(listener_configs[i], "config");
 
     noit_listener(address, port, SOCK_STREAM, backlog,
-                  ssl ? sslconfig : NULL, config, f, NULL);
+                  sslconfig, config, f, NULL);
   }
 }
 void

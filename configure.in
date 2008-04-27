@@ -55,7 +55,8 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 *-*-linux*)
-	CPPFLAGS="$CPPFLAGS -D__USE_XOPEN"
+	LDFLAGS="$LDFLAGS -Wl,-E"
+	CPPFLAGS="$CPPFLAGS"
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	SHLD="$CC -shared"
@@ -227,6 +228,21 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
                  sys/ioctl_compat.h util.h sys/time.h sys/mman.h)
 
+AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
+	AC_TRY_LINK(
+		[ #include <sys/types.h> ],
+		[ u_int a; a = epoll_create(); ],
+		[ ac_cv_have_epoll="yes" ],
+		[ ac_cv_have_epoll="no" ]
+	)
+])
+if test "x$ac_cv_have_epoll" = "xyes" ; then
+	AC_DEFINE(HAVE_EPOLL)
+	EVENTER_OBJS="$EVENTER_OBJS eventer_epoll_impl.o"
+	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "epoll")
+	have_epoll=1
+fi
+
 AC_CACHE_CHECK([for kqueue support], ac_cv_have_kqueue, [
 	AC_TRY_LINK(
 		[ #include <sys/types.h> ],
@@ -238,6 +254,7 @@ AC_CACHE_CHECK([for kqueue support], ac_cv_have_kqueue, [
 if test "x$ac_cv_have_kqueue" = "xyes" ; then
 	AC_DEFINE(HAVE_KQUEUE)
 	EVENTER_OBJS="$EVENTER_OBJS eventer_kqueue_impl.o"
+	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "kqueue")
 	have_kqueue=1
 fi
 

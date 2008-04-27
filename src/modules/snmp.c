@@ -265,7 +265,7 @@ static int noit_snmp_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
   fd_set fdset;
   int fds, block = 0;
-  struct timeval timeout;
+  struct timeval timeout = { 0, 0 };
   struct target_session *ts = closure;
   FD_ZERO(&fdset);
   FD_SET(e->fd, &fdset);
