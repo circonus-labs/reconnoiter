@@ -421,7 +421,17 @@ static void closed_connection(serf_connection_t *conn,
                               apr_status_t why,
                               apr_pool_t *pool) {
 }
-
+static apr_status_t need_client_cert(void *data,
+                                     const char **path) {
+  app_baton_t *ctx = data;
+  *path = ctx->certificate_file;
+  return APR_SUCCESS;
+}
+static apr_status_t need_server_cert(void *data,
+                                     int failures,
+                                     const serf_ssl_certificate_t *cert) {
+  return APR_SUCCESS;
+}
 static serf_bucket_t* conn_setup(apr_socket_t *skt,
                                 void *setup_baton,
                                 apr_pool_t *pool) {
@@ -430,11 +440,25 @@ static serf_bucket_t* conn_setup(apr_socket_t *skt,
 
   c = serf_bucket_socket_create(skt, ctx->bkt_alloc);
   if (ctx->using_ssl) {
-      c = serf_bucket_ssl_decrypt_create(c, ctx->ssl_ctx, ctx->bkt_alloc);
-      if (!ctx->ssl_ctx) {
-          ctx->ssl_ctx = serf_bucket_ssl_decrypt_context_get(c);
-          serf_ssl_use_default_certificates(ctx->ssl_ctx);
-      }
+    c = serf_bucket_ssl_decrypt_create(c, ctx->ssl_ctx, ctx->bkt_alloc);
+    if (!ctx->ssl_ctx) {
+      serf_ssl_certificate_t *cert;
+      ctx->ssl_ctx = serf_bucket_ssl_decrypt_context_get(c);
+
+      /* Setup CA chain */
+      if(ctx->ca_chain_file &&
+         serf_ssl_load_cert_file(&cert, ctx->ca_chain_file,
+                                 pool) != APR_SUCCESS)
+        serf_ssl_trust_cert(ctx->ssl_ctx, cert);
+      else
+        serf_ssl_use_default_certificates(ctx->ssl_ctx);
+      serf_ssl_server_cert_callback_set(ctx->ssl_ctx, need_server_cert,
+                                        ctx);
+
+      /* Setup client cert */
+      serf_ssl_client_cert_provider_set(ctx->ssl_ctx, need_client_cert,
+                                        ctx, pool);
+    }
   }
 
   return c;
@@ -709,12 +733,23 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
 
   if (strcasecmp(ci->url.scheme, "https") == 0) {
     void *vstr;
+    serf_module_conf_t *conf;
+    conf = noit_module_get_userdata(self);
+
     ci->app_ctx.using_ssl = 1;
+
     if(noit_hash_retrieve(check->config, "ca_chain",
                           strlen("ca_chain"), &vstr))
       ci->app_ctx.ca_chain_file = apr_pstrdup(ci->pool, vstr);
+    else if(noit_hash_retrieve(conf->options, "ca_chain",
+                               strlen("ca_chain"), &vstr))
+      ci->app_ctx.ca_chain_file = apr_pstrdup(ci->pool, vstr);
+
     if(noit_hash_retrieve(check->config, "certificate_file",
                           strlen("certificate_file"), &vstr))
+      ci->app_ctx.certificate_file = apr_pstrdup(ci->pool, vstr);
+    else if(noit_hash_retrieve(conf->options, "certificate_file",
+                               strlen("certificate_file"), &vstr))
       ci->app_ctx.certificate_file = apr_pstrdup(ci->pool, vstr);
   }
   else {
