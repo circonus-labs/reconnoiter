@@ -172,15 +172,21 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
 }
 static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
+  eventer_t fde;
   ssh2_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
   
   ci->timeout_event = NULL; /* This is us, return 0 will free this */
   ci->error = strdup("ssh connect timeout");
+  if(ci->synch_fd_event) {
+    fde = ci->synch_fd_event;
+    eventer_remove_fd(fde->fd);
+    fde->opset->close(fde->fd, &mask, fde);
+    eventer_free(fde);
+     ci->synch_fd_event = NULL;
+  }
   ssh2_log_results(ci->self, ci->check);
   ssh2_cleanup(ci->self, ci->check);
-  eventer_remove_fd(e->fd);
-  e->opset->close(e->fd, &mask, e);
   check->flags &= ~NP_RUNNING;
   return 0;
 }
