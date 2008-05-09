@@ -5,7 +5,7 @@ BEGIN;
 CREATE TABLE stratcon.loading_dock_check_s (
     sid integer NOT NULL,
     remote_address inet,
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     id uuid NOT NULL,
     target text NOT NULL,
     module text NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE stratcon.loading_dock_check_s (
 
 CREATE TABLE stratcon.loading_dock_status_s (
     sid integer NOT NULL,
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     state character(1) NOT NULL,
     availability character(1) NOT NULL,
     duration integer NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE stratcon.loading_dock_status_s (
 
 CREATE TABLE stratcon.loading_dock_metric_numeric_s (
     sid integer NOT NULL,
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     name text NOT NULL,
     value numeric,
     PRIMARY KEY(whence,sid,name)
@@ -33,7 +33,7 @@ CREATE TABLE stratcon.loading_dock_metric_numeric_s (
 
 CREATE TABLE stratcon.loading_dock_metric_text_s (
     sid integer NOT NULL,
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     name text NOT NULL,
     value text,
     PRIMARY KEY(whence,sid,name)
@@ -41,7 +41,7 @@ CREATE TABLE stratcon.loading_dock_metric_text_s (
 
 CREATE TABLE stratcon.loading_dock_metric_text_s_change_log (
     sid integer NOT NULL,
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     name text NOT NULL,
     value text,
     PRIMARY KEY(whence,sid,name)
@@ -84,7 +84,19 @@ CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
 CREATE TABLE stratcon.rollup_matrix_numeric_5m (
     sid integer NOT NULL,
     name text NOT NULL,
-    rollup_time timestamp with time zone NOT NULL,
+    rollup_time timestamp NOT NULL,
+    count_rows integer,
+    avg_value numeric,
+    stddev_value numeric,
+    min_value numeric,
+    max_value numeric,
+    PRIMARY KEY (rollup_time,sid,name)
+);
+
+CREATE TABLE stratcon.rollup_matrix_numeric_20m (
+    sid integer NOT NULL,
+    name text NOT NULL,
+    rollup_time timestamp NOT NULL,
     count_rows integer,
     avg_value numeric,
     stddev_value numeric,
@@ -100,9 +112,14 @@ CREATE TABLE stratcon.map_uuid_to_sid (
 );
 
 CREATE TABLE stratcon.log_whence_s (
-    whence timestamp with time zone NOT NULL,
+    whence timestamp NOT NULL,
     interval varchar2(20,
     PRIMARY KEY(whence,interval)
+);
+
+CREATE TABLE stratcon.rollup_runner (
+  rollup_table character varying(100),
+  runner character varying(22)
 );
 
 -- Schema Sequence 
@@ -130,9 +147,11 @@ CREATE SEQUENCE stratcon.seq_sid
  GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_5m TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_20m TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_6hours TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_12hours TO stratcon;
  GRANT SELECT,INSERT ON stratcon.map_uuid_to_sid TO stratcon;
+ GRANT SELECT,INSERT,UPDATE,DELETE ON stratcon.rollup_runner TO stratcon;
  ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
  
  
@@ -230,12 +249,36 @@ DECLARE
  
  rec stratcon.rollup_matrix_numeric_5m%rowtype;
  v_sql TEXT;
- v_min_whence TIMESTAMPTZ;
- v_max_rollup_5 TIMESTAMPTZ;
- v_whence TIMESTAMPTZ;
+ v_min_whence TIMESTAMP;
+ v_max_rollup_5 TIMESTAMP;
+ v_whence TIMESTAMP;
  rows INT;
+ v_nrunning INT;
+ v_self VARCHAR(22);
  
 BEGIN
+
+  SELECT COUNT(1) INTO v_nrunning
+    from stratcon.rollup_runner t, pg_stat_activity a
+   where rollup_table ='rollup_matrix_numeric_5m'
+     and runner = procpid || '.' || date_part('epoch',backend_start);
+
+  IF v_nrunning > 0 THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_5m already running';
+    RETURN ;
+  END IF;
+
+  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
+    FROM pg_stat_activity
+   WHERE procpid = pg_backend_pid();
+
+  IF v_self IS NULL THEN
+    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_5m cannot self-identify';
+  END IF;
+
+  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_5m''';
+
+  EXECUTE v_sql;
 
  SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='5 minutes'
         INTO v_min_whence;
@@ -243,12 +286,12 @@ BEGIN
  SELECT MAX(rollup_time) FROM  stratcon.rollup_matrix_numeric_5m 
          INTO v_max_rollup_5;        
  
- -- Insert Log for Hourly rollup
+ -- Insert Log for 20 minutes rollup
    
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='1 hour'
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval and interval='20 minutes'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'1 hour');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval,'20 minutes');
    END IF;
    
  IF v_min_whence <= v_max_rollup_5 THEN
@@ -278,17 +321,120 @@ BEGIN
   
   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
  
+  UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
+  
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
+       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
 
--- 1 hourl rollup
+
+-- 20 minutes rollup
+
+CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_20m()
+RETURNS void
+AS $$
+DECLARE
+ 
+ rec stratcon.rollup_matrix_numeric_20m%rowtype;
+ v_sql TEXT;
+ v_min_whence TIMESTAMP;
+ v_max_rollup_20 TIMESTAMP;
+ v_whence TIMESTAMP;
+ rows INT;
+ v_nrunning INT;
+ v_self VARCHAR(22);
+
+BEGIN
+
+  SELECT COUNT(1) INTO v_nrunning
+    from stratcon.rollup_runner t, pg_stat_activity a
+   where rollup_table ='rollup_matrix_numeric_20m'
+     and runner = procpid || '.' || date_part('epoch',backend_start);
+
+  IF v_nrunning > 0 THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_20m already running';
+    RETURN ;
+  END IF;
+
+  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
+    FROM pg_stat_activity
+   WHERE procpid = pg_backend_pid();
+
+  IF v_self IS NULL THEN
+    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_20m cannot self-identify';
+  END IF;
+
+  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_20m''';
+
+  EXECUTE v_sql;
+
+ SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='20 minutes'
+        INTO v_min_whence;
+        
+ SELECT MAX(rollup_time) FROM  stratcon.rollup_matrix_numeric_20m 
+         INTO v_max_rollup_20;        
+ 
+ -- Insert Log for Hourly rollup
+   
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='1 hour'
+           INTO v_whence;
+      IF NOT FOUND THEN
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'1 hour');
+   END IF;
+   
+ IF v_min_whence <= v_max_rollup_20 THEN
+
+   DELETE FROM stratcon.rollup_matrix_numeric_20m 
+                WHERE rollup_time = v_min_whence;
+ 
+ END IF;
+
+ FOR rec IN 
+                SELECT sid , name,v_min_whence as rollup_time,
+                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+		       stddev(stddev_value) as stddev_value,
+		       MIN(min_value) as min_value ,MAX(max_value) as max_value
+		       FROM stratcon.rollup_matrix_numeric_5m
+                      WHERE ROLLUP_TIME<= v_min_whence AND WHENCE > v_min_whence -'20 minutes'::interval
+                GROUP BY rollup_time,sid,name
+ 
+       LOOP
+    
+        
+        INSERT INTO stratcon.rollup_matrix_numeric_20m
+         (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+        
+   END LOOP;
+
+  -- Delete from whence log table
+  
+  DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='20 minutes';
+ 
+  UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
+  
+RETURN;
+
+EXCEPTION
+    WHEN RAISE_EXCEPTION THEN
+       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
+       RAISE EXCEPTION '%', SQLERRM;
+    WHEN OTHERS THEN
+      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
+      RAISE NOTICE '%', SQLERRM;
+END
+$$ LANGUAGE plpgsql;
+
+
+-- 1 hour rollup
 
 
 CREATE OR REPLACE FUNCTION stratcon.rollup_matrix_numeric_60m()
@@ -297,16 +443,41 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_60m%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMPTZ;
-  v_max_rollup_5 TIMESTAMPTZ;
-  v_whence TIMESTAMPTZ;
+  v_min_whence TIMESTAMP;
+  v_max_rollup_60 TIMESTAMP;
+  v_whence TIMESTAMP;
+  v_nrunning INT;
+  v_self VARCHAR(22);
+
 BEGIN
+
+  SELECT COUNT(1) INTO v_nrunning
+    from stratcon.rollup_runner t, pg_stat_activity a
+   where rollup_table ='rollup_matrix_numeric_60m'
+     and runner = procpid || '.' || date_part('epoch',backend_start);
+
+  IF v_nrunning > 0 THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_60m already running';
+    RETURN ;
+  END IF;
+
+  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
+    FROM pg_stat_activity
+   WHERE procpid = pg_backend_pid();
+
+  IF v_self IS NULL THEN
+    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_60m cannot self-identify';
+  END IF;
+
+  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_60m''';
+
+  EXECUTE v_sql;
 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='1 hour'
          INTO v_min_whence;
          
   SELECT max(date_trunc('H',rollup_time)) FROM  stratcon.rollup_matrix_numeric_60m 
-         INTO v_max_rollup_5;    
+         INTO v_max_rollup_60;    
 
 -- Insert Log for 6 Hour rollup
    
@@ -317,7 +488,7 @@ BEGIN
    END IF;
    
    
-  IF v_min_whence <= v_max_rollup_5 THEN
+  IF v_min_whence <= v_max_rollup_60 THEN
   
   DELETE FROM stratcon.rollup_matrix_numeric_60m 
        WHERE rollup_time= v_min_whence;
@@ -328,7 +499,7 @@ BEGIN
                 SELECT sid,name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
 		         stddev(stddev_value) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
-		         FROM stratcon.rollup_matrix_numeric_5m
+		         FROM stratcon.rollup_matrix_numeric_20m
 		           WHERE date_trunc('hour',rollup_time)= date_trunc('hour',v_min_whence)
                    GROUP BY date_trunc('hour',rollup_time),sid,name
         LOOP
@@ -342,12 +513,16 @@ BEGIN
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='1 hour';
 
+UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
+
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
+       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
@@ -361,11 +536,35 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_6hours%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMPTZ;
-  v_max_rollup_6 TIMESTAMPTZ;
-  v_whence TIMESTAMPTZ;
- 
+  v_min_whence TIMESTAMP;
+  v_max_rollup_6 TIMESTAMP;
+  v_whence TIMESTAMP;
+  v_nrunning INT;
+  v_self VARCHAR(22);
+    
 BEGIN
+
+  SELECT COUNT(1) INTO v_nrunning
+    from stratcon.rollup_runner t, pg_stat_activity a
+    where rollup_table ='rollup_matrix_numeric_6hours'
+     and runner = procpid || '.' || date_part('epoch',backend_start);
+
+  IF v_nrunning > 0 THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_6hours already running';
+    RETURN ;
+  END IF;
+
+  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
+    FROM pg_stat_activity
+     WHERE procpid = pg_backend_pid();
+
+  IF v_self IS NULL THEN
+    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_6hours cannot self-identify';
+   END IF;
+
+   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_6hours''';
+
+  EXECUTE v_sql;
 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='6 hours'
          INTO v_min_whence;
@@ -408,13 +607,17 @@ BEGIN
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='6 hours';
 
+UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours';
+
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
+       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours'; 
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      RAISE NOTICE '%', SQLERRM;
+       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours';
+       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
 
@@ -427,11 +630,36 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_12hours%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMPTZ;
-  v_max_rollup_12 TIMESTAMPTZ;
-  v_whence TIMESTAMPTZ;
+  v_min_whence TIMESTAMP;
+  v_max_rollup_12 TIMESTAMP;
+  v_whence TIMESTAMP;
+  v_nrunning INT;
+  v_self VARCHAR(22);
+ 
  
 BEGIN
+
+  SELECT COUNT(1) INTO v_nrunning
+    from stratcon.rollup_runner t, pg_stat_activity a
+    where rollup_table ='rollup_matrix_numeric_12hours'
+     and runner = procpid || '.' || date_part('epoch',backend_start);
+
+  IF v_nrunning > 0 THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_12hours already running';
+    RETURN ;
+  END IF;
+
+  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
+    FROM pg_stat_activity
+     WHERE procpid = pg_backend_pid();
+
+  IF v_self IS NULL THEN
+    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_12hours cannot self-identify';
+   END IF;
+
+   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_12hours''';
+
+  EXECUTE v_sql;
 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='12 hours'
          INTO v_min_whence;
@@ -474,12 +702,16 @@ BEGIN
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='12 hours';
 
+UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_12hours';
+
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       RAISE EXCEPTION '%', SQLERRM;
+      UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
+      RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+      UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
@@ -602,6 +834,9 @@ begin
                  ) i,
                  (   select 5*60 as isec, '5 minutes'::interval as aperiod,
                             'rollup_matrix_numeric_5m' as atablename
+                  union all
+                     select 20*60 as isec, '20 minutes'::interval as aperiod,
+                            'rollup_matrix_numeric_20m' as atablename
                   union all
                      select 60*60 as isec, '1 hour'::interval as aperiod,
                             'rollup_matrix_numeric_60m' as atablename
