@@ -23,6 +23,16 @@ CREATE TABLE stratcon.loading_dock_status_s (
     PRIMARY KEY(sid,whence)
 );
 
+CREATE TABLE stratcon.loading_dock_status_s_change_log (
+    sid integer NOT NULL,
+    whence timestamp NOT NULL,
+    state character(1) NOT NULL,
+    availability character(1) NOT NULL,
+    duration integer NOT NULL,
+    status text,
+    PRIMARY KEY(sid,whence)
+);
+
 CREATE TABLE stratcon.loading_dock_metric_numeric_s (
     sid integer NOT NULL,
     whence timestamp NOT NULL,
@@ -136,10 +146,7 @@ CREATE SEQUENCE stratcon.seq_sid
 -- GRANTS 
 
  GRANT SELECT,INSERT ON stratcon.loading_dock_status_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_check  TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_status TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text TO stratcon;
+ GRANT SELECT,INSERT ON stratcon.loading_dock_status_s_change_log TO stratcon;
  GRANT SELECT,INSERT ON stratcon.loading_dock_check_s TO stratcon;
  GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric_s TO stratcon;
  GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
@@ -183,14 +190,54 @@ SELECT sid FROM stratcon.map_uuid_to_sid WHERE id=v_in_id
 END
 $$ LANGUAGE plpgsql;
 
--- Trigger Function to change Metrix Text Changes 
+-- Trigger Function to log dock status Changes 
+
+CREATE  TRIGGER loading_dock_status_s_change_log
+    AFTER INSERT ON stratcon.loading_dock_status_s
+    FOR EACH ROW
+    EXECUTE PROCEDURE stratcon.loading_dock_status_s_change_log();
+
+
+CREATE OR REPLACE FUNCTION stratcon.loading_dock_status_s_change_log() RETURNS trigger
+    AS $$
+DECLARE
+    v_state CHAR(1);
+    v_avail CHAR(1);
+BEGIN
+
+IF TG_OP = 'INSERT' THEN
+    SELECT state,availability FROM  stratcon.loading_dock_status_s WHERE sid = NEW.sid 
+        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
+                        WHERE  SID=NEW.sid and  WHENCE <> NEW.whence )
+    INTO v_state,v_avail;
+
+    IF v_state IS DISTINCT FROM NEW.state OR v_avail IS DISTINCT FROM NEW.availability THEN
+
+        INSERT INTO stratcon.loading_dock_status_s_change_log (sid,whence,state,availability,duration,status)
+            VALUES (NEW.sid,NEW.whence,NEW.state,NEW.availability,NEW.duration,NEW.status); 
+
+    END IF;
+
+ELSE
+        RAISE EXCEPTION 'Something wrong with stratcon.loading_dock_status_s_change_log';
+END IF;
+
+    RETURN NULL;
+
+END
+$$
+    LANGUAGE plpgsql;
+
+
+-- Trigger Function to log Metrix Text Changes 
 
 CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_s
+    AFTER INSERT ON stratcon.loading_dock_metric_text_s
     FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
+    EXECUTE PROCEDURE stratcon.loading_dock_metric_text_s_change_log();
 
-CREATE FUNCTION stratcon.loading_dock_metric_text_s_change_log() RETURNS trigger
+
+CREATE OR REPLACE FUNCTION stratcon.loading_dock_metric_text_s_change_log() RETURNS trigger
     AS $$
 DECLARE
     v_oldvalue TEXT;
@@ -210,7 +257,7 @@ IF TG_OP = 'INSERT' THEN
     END IF;
 
 ELSE
-        RAISE EXCEPTION 'Non-INSERT DML operation attempted on INSERT only table';
+        RAISE EXCEPTION 'something wrong with stratcon.loading_dock_metric_text_s_change_log ';
 END IF;
 
     RETURN NULL;
