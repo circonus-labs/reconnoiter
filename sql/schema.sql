@@ -403,7 +403,7 @@ BEGIN
 		       stddev(stddev_value) as stddev_value,
 		       MIN(min_value) as min_value ,MAX(max_value) as max_value
 		       FROM stratcon.rollup_matrix_numeric_5m
-                      WHERE ROLLUP_TIME<= v_min_whence AND WHENCE > v_min_whence -'20 minutes'::interval
+                      WHERE rollup_time<= v_min_whence AND rollup_time > v_min_whence -'20 minutes'::interval
                 GROUP BY rollup_time,sid,name
  
        LOOP
