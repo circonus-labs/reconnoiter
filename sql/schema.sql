@@ -485,4 +485,238 @@ END
 $$ LANGUAGE plpgsql;
 
 
+create or replace function
+stratcon.fetch_varset(in_check uuid,
+                       in_name text,
+                       in_start_time timestamp,
+                       in_end_time timestamp,
+                       in_hopeful_nperiods int)
+returns setof stratcon.loading_dock_metric_text_s_change_log as
+$$
+declare
+  v_sid int;
+  v_target record;
+  v_start_adj timestamp;
+  v_start_text text;
+  v_next_text text;
+  v_end_adj timestamp;
+  v_change_row stratcon.loading_dock_metric_text_s_change_log%rowtype;
+begin
+  -- Map out uuid to an sid.
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
+  if not found then
+    return;
+  end if;
+
+  select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
+
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_start_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_start_adj;
+
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_end_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_end_adj;
+
+  for v_change_row in
+    select sid, 'epoch'::timestamp +
+         ((floor(extract('epoch' from whence) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval as whence,
+           name, value
+      from stratcon.loading_dock_metric_text_s_change_log
+     where sid = v_sid
+       and name = in_name
+       and whence <= v_start_adj
+  order by 'epoch'::timestamp +
+         ((floor(extract('epoch' from whence) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval desc
+     limit 1
+  loop
+    v_start_text := coalesce(v_change_row.value, '[unset]');
+  end loop;
+
+  for v_change_row in
+    select v_sid as sid, whence, in_name as name, value from
+--    (select v_start_adj::timestamp + t * v_target.period::interval as whence
+--      from generate_series(1, v_target.nperiods) t) s 
+-- left join
+    (select 'epoch'::timestamp +
+         ((floor(extract('epoch' from whence) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval as whence,
+           coalesce(value, '[unset]') as value
+      from stratcon.loading_dock_metric_text_s_change_log
+     where sid = v_sid
+       and name = in_name
+       and whence > v_start_adj
+       and whence <= v_end_adj) d
+--    using (whence)
+  order by whence asc
+  loop
+    v_next_text := v_change_row.value;
+    if v_change_row.value is not null and
+       v_start_text != v_change_row.value then
+      v_change_row.value := coalesce(v_start_text, '[unset]') || ' -> ' || coalesce(v_change_row.value, '[unset]');
+    else
+      v_change_row.value := v_start_text;
+    end if;
+    if v_next_text is not null then
+      v_start_text := v_next_text;
+    end if;
+    return next v_change_row;
+  end loop;
+
+  return;
+end
+$$ language 'plpgsql';
+
+
+create or replace function
+stratcon.choose_window(in_start_time timestamp,
+                       in_end_time timestamp,
+                       in_hopeful_nperiods int,
+                       out tablename text,
+                       out period interval,
+                       out nperiods int)
+returns setof record as
+$$
+declare
+  window record;
+begin
+  -- Figure out which table we should be looking in
+  for window in
+    select atablename, aperiod, anperiods
+    from (select aperiod, iv/isec as anperiods, atablename,
+                 abs(case when iv/isec - in_hopeful_nperiods < 0
+                          then 10 * (in_hopeful_nperiods - iv/isec)
+                          else iv/isec - in_hopeful_nperiods
+                           end) as badness
+            from (select extract('epoch' from in_end_time) -
+                         extract('epoch' from in_start_time) as iv
+                 ) i,
+                 (   select 5*60 as isec, '5 minutes'::interval as aperiod,
+                            'rollup_matrix_numeric_5m' as atablename
+                  union all
+                     select 60*60 as isec, '1 hour'::interval as aperiod,
+                            'rollup_matrix_numeric_60m' as atablename
+                  union all
+                     select 6*60*60 as isec, '6 hours'::interval as aaperiod,
+                            'rollup_matrix_numeric_6hours' as atablename
+                  union all
+                     select 12*60*60 as isec, '12 hours'::interval as aperiod,
+                            'rollup_matrix_numeric_12hours' as atablename
+                 ) ivs
+         ) b
+ order by badness asc
+  limit 1
+  loop
+    tablename := window.atablename;
+    period := window.aperiod;
+    nperiods := window.anperiods;
+    return next;
+  end loop;
+  return;
+end
+$$ language 'plpgsql';
+
+create or replace function
+stratcon.fetch_dataset(in_check uuid,
+                       in_name text,
+                       in_start_time timestamp,
+                       in_end_time timestamp,
+                       in_hopeful_nperiods int,
+                       derive boolean)
+returns setof stratcon.rollup_matrix_numeric_5m as
+$$
+declare
+  v_sql text;
+  v_sid int;
+  v_target record;
+  v_interval numeric;
+  v_start_adj timestamp;
+  v_end_adj timestamp;
+  v_l_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+  v_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+  v_r_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+begin
+
+  -- Map out uuid to an sid.
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
+  if not found then
+    return;
+  end if;
+
+  select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
+
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_start_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_start_adj;
+
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_end_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_end_adj;
+
+  if not found then
+    raise exception 'no target table';
+    return;
+  end if;
+
+  v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
+           's.rollup_time, d.count_rows, d.avg_value, ' ||
+           'd.stddev_value, d.min_value, d.max_value ' ||
+           ' from ' ||
+           '(select ' || quote_literal(v_start_adj) || '::timestamp' ||
+                  ' + t * ' || quote_literal(v_target.period) || '::interval' ||
+                       ' as rollup_time' ||
+             ' from generate_series(1,' || v_target.nperiods || ') t) s ' ||
+           'left join ' ||
+           '(select * from stratcon.' || v_target.tablename ||
+           ' where sid = ' || v_sid ||
+             ' and name = ' || quote_literal(in_name) ||
+             ' and rollup_time between ' || quote_literal(v_start_adj) || '::timestamp' ||
+                                 ' and ' || quote_literal(v_end_adj) || '::timestamp) d' ||
+           ' using(rollup_time)';
+
+  for v_rollup_row in execute v_sql loop
+    if derive is true then
+      v_r_rollup_row := v_rollup_row;
+      if v_l_rollup_row.count_rows is not null and
+         v_rollup_row.count_rows is not null then
+        v_interval := extract('epoch' from v_rollup_row.rollup_time) - extract('epoch' from v_l_rollup_row.rollup_time);
+        v_r_rollup_row.count_rows := (v_l_rollup_row.count_rows + v_rollup_row.count_rows) / 2;
+        v_r_rollup_row.avg_value :=
+          (v_rollup_row.avg_value - v_l_rollup_row.avg_value) / v_interval;
+        v_r_rollup_row.stddev_value :=
+          (v_rollup_row.stddev_value - v_l_rollup_row.stddev_value) / v_interval;
+        v_r_rollup_row.min_value :=
+          (v_rollup_row.min_value - v_l_rollup_row.min_value) / v_interval;
+        v_r_rollup_row.max_value :=
+          (v_rollup_row.max_value - v_l_rollup_row.max_value) / v_interval;
+      else
+        v_r_rollup_row.count_rows = NULL;
+        v_r_rollup_row.avg_value = NULL;
+        v_r_rollup_row.stddev_value = NULL;
+        v_r_rollup_row.min_value = NULL;
+        v_r_rollup_row.max_value = NULL;
+      end if;
+    else
+      v_r_rollup_row := v_rollup_row;
+    end if;
+    return next v_r_rollup_row;
+    v_l_rollup_row := v_rollup_row;
+  end loop;
+  return;
+end
+$$ language 'plpgsql';
+
 COMMIT;
