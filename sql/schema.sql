@@ -132,6 +132,13 @@ CREATE TABLE stratcon.rollup_runner (
   runner character varying(22)
 );
 
+CREATE TABLE stratcon.metric_name_summary (
+  sid integer NOT NULL,
+  name text NOT NULL,
+  type character varying(22),
+  active boolean default 'true',
+  PRIMARY KEY (sid,name)
+);
 -- Schema Sequence 
 
 CREATE SEQUENCE stratcon.seq_sid
@@ -159,6 +166,7 @@ CREATE SEQUENCE stratcon.seq_sid
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_12hours TO stratcon;
  GRANT SELECT,INSERT ON stratcon.map_uuid_to_sid TO stratcon;
  GRANT SELECT,INSERT,UPDATE,DELETE ON stratcon.rollup_runner TO stratcon;
+ GRANT SELECT,INSERT,UPDATE,DELETE ON stratcon.metric_name_summary TO stratcon;
  ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
  
  
@@ -241,6 +249,8 @@ CREATE OR REPLACE FUNCTION stratcon.loading_dock_metric_text_s_change_log() RETU
     AS $$
 DECLARE
     v_oldvalue TEXT;
+    v_sid integer;
+    v_name text;
 BEGIN
 
 IF TG_OP = 'INSERT' THEN
@@ -253,7 +263,12 @@ IF TG_OP = 'INSERT' THEN
 
         INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
             VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
-
+    END IF;
+    
+    SELECT sid,name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and name=NEW.name
+         INTO v_sid,v_name;
+       IF NOT FOUND THEN
+           INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.name,'text');
     END IF;
 
 ELSE
@@ -273,6 +288,8 @@ RETURNS trigger
 AS $$
 DECLARE
 v_whence timestamptz;
+v_sid integer;
+v_name text;
 BEGIN
 IF TG_OP = 'INSERT' THEN
    SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval and interval='5 minutes'
@@ -280,6 +297,13 @@ IF TG_OP = 'INSERT' THEN
    IF NOT FOUND THEN
        INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
     END IF;
+
+   SELECT sid,name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and name=NEW.name
+     INTO v_sid,v_name;
+   IF NOT FOUND THEN
+       INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.name,'numeric');
+    END IF;
+
 END IF;
 
     RETURN NULL;
