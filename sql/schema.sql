@@ -134,8 +134,8 @@ CREATE TABLE stratcon.rollup_runner (
 
 CREATE TABLE stratcon.metric_name_summary (
   sid integer NOT NULL,
-  name text NOT NULL,
-  type character varying(22),
+  metric_name text NOT NULL,
+  metric_type character varying(22),
   active boolean default 'true',
   PRIMARY KEY (sid,name)
 );
@@ -265,10 +265,10 @@ IF TG_OP = 'INSERT' THEN
             VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
     END IF;
     
-    SELECT sid,name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and name=NEW.name
+    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.metric_name
          INTO v_sid,v_name;
        IF NOT FOUND THEN
-           INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.name,'text');
+           INSERT INTO  stratcon.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.metric_name,'text');
     END IF;
 
 ELSE
@@ -298,10 +298,10 @@ IF TG_OP = 'INSERT' THEN
        INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
     END IF;
 
-   SELECT sid,name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and name=NEW.name
+   SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.metric_name
      INTO v_sid,v_name;
    IF NOT FOUND THEN
-       INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.name,'numeric');
+       INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.metric_name,'numeric');
     END IF;
 
 END IF;
@@ -552,10 +552,10 @@ BEGIN
 
 -- Insert Log for 6 Hour rollup
    
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='6 hours'
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/6)*6) * '1 hour'::interval and interval='6 hours'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'6 hours');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/6)*6) * '1 hour'::interval,'6 hours');
    END IF;
    
    
@@ -645,10 +645,10 @@ BEGIN
 
 -- Insert Log for 12 Hours rollup
    
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='12 hours'
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/12)*12) * '1 hour'::interval and interval='12 hours'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'12 hours');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/12)*12) * '1 hour'::interval,'12 hours');
    END IF;
    
    
@@ -740,10 +740,10 @@ BEGIN
 
 /*-- Insert Log for 24 Hours rollup
    
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',v_min_whence) and interval='24 hours'
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/24)*24) * '1 hour'::interval and interval='24 hours'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence),'24 hours');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/24)*24) * '1 hour'::interval,'24 hours');
    END IF;
    */
    
