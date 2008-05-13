@@ -302,6 +302,8 @@ static int eventer_epoll_impl_loop() {
           e->mask = newmask;
         }
         else {
+          /* see kqueue implementation for details on the next line */
+          if(master_fds[fd].e == e) master_fds[fd].e = NULL;
           eventer_free(e);
         }
         release_master_fd(fd, lockstate);

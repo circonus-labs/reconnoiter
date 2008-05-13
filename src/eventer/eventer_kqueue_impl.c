@@ -137,20 +137,25 @@ static int eventer_kqueue_impl_propset(const char *key, const char *value) {
 static void eventer_kqueue_impl_add(eventer_t e) {
   assert(e->mask);
   ev_lock_state_t lockstate;
+  const char *cbname;
+  cbname = eventer_name_for_callback(e->callback);
 
   if(e->mask & EVENTER_ASYNCH) {
+    noitL(eventer_deb, "debug: eventer_add asynch (%s)\n", cbname ? cbname : "???");
     eventer_add_asynch(NULL, e);
     return;
   }
 
   /* Recurrent delegation */
   if(e->mask & EVENTER_RECURRENT) {
+    noitL(eventer_deb, "debug: eventer_add recurrent (%s)\n", cbname ? cbname : "???");
     eventer_add_recurrent(e);
     return;
   }
 
   /* Timed events are simple */
   if(e->mask & EVENTER_TIMER) {
+    noitL(eventer_deb, "debug: eventer_add timed (%s)\n", cbname ? cbname : "???");
     pthread_mutex_lock(&te_lock);
     noit_skiplist_insert(timed_events, e);
     pthread_mutex_unlock(&te_lock);
@@ -158,6 +163,7 @@ static void eventer_kqueue_impl_add(eventer_t e) {
   }
 
   /* file descriptor event */
+  noitL(eventer_deb, "debug: eventer_add fd (%s,%d,0x%04x)\n", cbname ? cbname : "???", e->fd, e->mask);
   lockstate = acquire_master_fd(e->fd);
   master_fds[e->fd].e = e;
   if(e->mask & (EVENTER_READ | EVENTER_EXCEPTION))
@@ -247,6 +253,7 @@ static int eventer_kqueue_impl_loop() {
   }
   pthread_setspecific(kqueue_setup_key, kqs);
   while(1) {
+    const char *cbname;
     struct timeval __now, __sleeptime;
     struct timespec __kqueue_sleeptime;
     int fd_cnt = 0;
@@ -280,6 +287,8 @@ static int eventer_kqueue_impl_loop() {
       pthread_mutex_unlock(&te_lock);
       if(timed_event == NULL) break;
 
+      cbname = eventer_name_for_callback(timed_event->callback);
+      noitLT(eventer_deb, &__now, "debug: timed dispatch(%s)\n", cbname ? cbname : "???");
       /* Make our call */
       newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                       timed_event->closure, &__now);
@@ -343,7 +352,6 @@ static int eventer_kqueue_impl_loop() {
       }
       /* Loop a last time to process */
       for(idx = 0; idx < fd_cnt; idx++) {
-        const char *cbname;
         ev_lock_state_t lockstate;
         struct kevent *ke;
         eventer_t e;
@@ -391,6 +399,26 @@ static int eventer_kqueue_impl_loop() {
           e->mask = newmask;
         }
         else {
+          /*
+           * Long story long:
+           *  When integrating with a few external event systems, we find
+           *  it difficult to make their use of remove+add as an update
+           *  as it can be recurrent in a single handler call and you cannot
+           *  remove completely from the event system if you are going to
+           *  just update (otherwise the eventer_t in your call stack could
+           *  be stale).  What we do is perform a superficial remove, marking
+           *  the mask as 0, but not eventer_remove_fd.  Then on an add, if
+           *  we already have an event, we just update the mask (as we
+           *  have not yet returned to the eventer's loop.
+           *  This leaves us in a tricky situation when a remove is called
+           *  and the add doesn't roll in, we return 0 (mask == 0) and hit
+           *  this spot.  We have intended to remove the event, but it still
+           *  resides at master_fds[fd].e -- even after we free it.
+           *  So, in the evnet that we return 0 and the event that
+           *  master_fds[fd].e == the event we're about to free... we NULL
+           *  it out.
+           */
+          if(master_fds[fd].e == e) master_fds[fd].e = NULL;
           eventer_free(e);
         }
         release_master_fd(fd, lockstate);
