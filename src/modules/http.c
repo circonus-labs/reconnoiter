@@ -150,6 +150,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   stats_t current;
   int expect_code = 200;
+  u_int32_t duration_ms;
   void *code_str; /* void * for use with hash */
   char human_buffer[256], code[4], rt[14];
 
@@ -172,6 +173,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
 
   memcpy(&current.whence, &ci->finish_time, sizeof(current.whence));
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  duration_ms = current.duration;
   current.available = (ci->timed_out || !ci->status.code) ? NP_UNAVAILABLE : NP_AVAILABLE;
   current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
@@ -180,10 +182,13 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
                           METRIC_STRING, ci->status.code?code:NULL);
     noit_stats_set_metric(&current, "bytes",
                           METRIC_INT32, &ci->body.l);
+    noit_stats_set_metric(&current, "duration",
+                          METRIC_UINT32, &duration_ms);
   }
   else {
     noit_stats_set_metric(&current, "code", METRIC_STRING, NULL);
     noit_stats_set_metric(&current, "bytes", METRIC_INT32, NULL);
+    noit_stats_set_metric(&current, "duration", METRIC_UINT32, NULL);
   }
   noit_check_set_stats(self, check, &current);
 }
