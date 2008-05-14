@@ -88,6 +88,9 @@ class Reconnoiter_DataContainer {
   function autounit() {
     $this->__calc();
     switch($this->units) {
+      case 0.000000001: return 'n';
+      case 0.000001: return 'u';
+      case 0.001: return 'm';
       case 1000: return 'k';
       case 1000000: return 'M';
       case 1000000000: return 'G';
