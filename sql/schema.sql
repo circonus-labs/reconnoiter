@@ -80,6 +80,16 @@ CREATE TABLE stratcon.rollup_matrix_numeric_20m (
     PRIMARY KEY (rollup_time,sid,name)
 );
 
+CREATE OR REPLACE FUNCTION stratcon.date_hour(timestamptz) 
+ RETURNS timestamptz as $BODY$
+ SELECT date_trunc('hour',$1);
+ $BODY$ 
+ language 'sql' 
+ IMMUTABLE STRICT;
+
+CREATE INDEX idx_rollup_matrix_numeric_20m_rollup_time 
+              ON stratcon.rollup_matrix_numeric_20m(date_hour(rollup_time));
+
 CREATE TABLE stratcon.rollup_matrix_numeric_60m(
    sid integer not null,
    name text not null, 
@@ -561,11 +571,11 @@ BEGIN
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                SELECT sid,name,date_hour(rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_20m
-		           WHERE date_trunc('hour',rollup_time)= date_trunc('hour',v_min_whence)
-                   GROUP BY date_trunc('hour',rollup_time),sid,name
+		           WHERE date_hour(rollup_time)= v_min_whence
+                   GROUP BY date_hour(rollup_time),sid,name
         LOOP
       
           INSERT INTO stratcon.rollup_matrix_numeric_60m
