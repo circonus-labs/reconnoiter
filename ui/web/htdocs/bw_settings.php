@@ -33,6 +33,7 @@ $i = 0;
   <?php $driver->guidesXML() ?>
 </chart>
 </data>
+<decimals_separator>.</decimals_separator>
 <values>
  <y_left>
   <unit><?php print $driver->autounit() ?></unit>
