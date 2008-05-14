@@ -147,7 +147,7 @@ CREATE TABLE stratcon.metric_name_summary (
 -- Schema Sequence 
 
 CREATE SEQUENCE stratcon.seq_sid
-    START WITH 50
+    START WITH 1
     INCREMENT BY 1
     NO MAXVALUE
     NO MINVALUE
