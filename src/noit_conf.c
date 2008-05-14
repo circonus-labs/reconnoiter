@@ -176,7 +176,8 @@ void noit_conf_get_into_hash(noit_conf_section_t section,
   /* 1. */
   if(cnt > 1) {
     parent_node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-2);
-    noit_conf_get_into_hash(parent_node, (const char *)node->name, table);
+    if(parent_node != current_node)
+      noit_conf_get_into_hash(parent_node, (const char *)node->name, table);
   }
   /* 2. */
   inheritid = (char *)xmlGetProp(node, (xmlChar *)"inherit");

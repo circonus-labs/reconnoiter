@@ -486,6 +486,10 @@ noit_console_config_section(noit_console_closure_t ncct,
     nc_printf(ncct, "use 'check' to create checks\n");
     return -1;
   }
+  if(!strcmp(argv[0], "config")) {
+    nc_printf(ncct, "use 'config' to set check config options\n");
+    return -1;
+  }
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
   if(!strcmp(info->path, "/")) {
     nc_printf(ncct, "manipulation of toplevel section disallowed\n");
@@ -622,10 +626,15 @@ static int
 noit_console_config_show(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *state, void *closure) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
   int i, cnt, titled = 0, cliplen = 0;
   const char *path = "", *basepath = NULL;
   char xpath[1024];
   noit_conf_t_userdata_t *info = NULL;
+  noit_hash_table *config;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
   xmlDocPtr master_config = NULL;
@@ -692,6 +701,16 @@ noit_console_config_show(noit_console_closure_t ncct,
   }
   xmlXPathFreeObject(pobj);
 
+  /* Print out all the config settings */
+  titled = 0;
+  config = noit_conf_get_hash(node, "config");
+  while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+    if(!titled++) nc_printf(ncct, "== Section [Aggregated] Config ==\n");
+    nc_printf(ncct, "config::%s: %s\n", k, (const char *)data);
+  }
+  noit_hash_destroy(config, free, free);
+  free(config);
+
   /* _shorten string_ turning last { / @ * } to { / * } */
   strlcpy(xpath + strlen(xpath) - 2, "*", 2);
   pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
@@ -704,6 +723,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   for(i=0; i<cnt; i++) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
+    if(!strcmp((char *)xmlGetNodePath(node) + cliplen, "config")) continue;
     if(!(node->children && node->children == xmlGetLastChild(node) &&
          xmlNodeIsText(node->children))) {
       if(!titled++) nc_printf(ncct, "== Subsections ==\n");
@@ -832,27 +852,27 @@ replace_config(noit_console_closure_t ncct,
   if(!strcmp(path, "/")) path = "";
 
   noit_conf_xml_xpath(NULL, &xpath_ctxt);
-  if(1) {
-    /* Only if checks will fixate this attribute shall we check for
-     * child <check> nodes.
-     * NOTE: this return nothing and "seems" okay if we are _in_
-     *       a <check> node.  That case is handled below.
-     */
-    snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
-    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-    if(!pobj || pobj->type != XPATH_NODESET) goto out;
-    cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
-    for(i=0; i<cnt; i++) {
-      uuid_t checkid;
-      node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-      if(noit_conf_get_uuid(node, "@uuid", checkid)) {
-        noit_check_t *check;
-        check = noit_poller_lookup(checkid);
-        if(NOIT_CHECK_LIVE(check)) active++;
-      }
+
+  /* Only if checks will fixate this attribute shall we check for
+   * child <check> nodes.
+   * NOTE: this return nothing and "seems" okay if we are _in_
+   *       a <check> node.  That case is handled below.
+   */
+  snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  for(i=0; i<cnt; i++) {
+    uuid_t checkid;
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+      noit_check_t *check;
+      check = noit_poller_lookup(checkid);
+      if(NOIT_CHECK_LIVE(check)) active++;
     }
-    if(pobj) xmlXPathFreeObject(pobj);
   }
+  if(pobj) xmlXPathFreeObject(pobj);
+
   snprintf(xpath, sizeof(xpath), "/noit/%s", path);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET) goto out;
@@ -874,11 +894,13 @@ replace_config(noit_console_closure_t ncct,
       if(NOIT_CHECK_LIVE(check)) active++;
     }
   }
+#ifdef UNSAFE_RECONFIG
   if(active) {
     nc_printf(ncct, "Cannot set '%s', it would effect %d live check(s)\n",
               name, active);
     goto out;
   }
+#endif
   if(pobj) xmlXPathFreeObject(pobj);
 
   /* Here we want to remove /noit/path/config/name */
@@ -917,8 +939,7 @@ replace_config(noit_console_closure_t ncct,
 
     assert(confignode);
     /* Now we create a child */
-    xmlNewChild(xmlXPathNodeSetItem(pobj->nodesetval, 0),
-                NULL, (xmlChar *)name, (xmlChar *)value);
+    xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
     
   }
   rv = 0;
@@ -1166,6 +1187,7 @@ void register_console_config_commands() {
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
   ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL);
   ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL);
+  ADD_CMD(_conf_t_state, "config", noit_console_config_setconfig, NULL, NULL);
   ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, (void *)0);
   ADD_CMD(_conf_t_state, "check", noit_console_check, _conf_t_check_state, NULL);
 
