@@ -320,8 +320,13 @@ noit_console_show_check(noit_console_closure_t ncct,
     goto out;
   }
   for(i=0; i<cnt; i++) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *k;
+    int klen;
+    void *data;
     uuid_t checkid;
     noit_check_t *check;
+    noit_hash_table *config;
     xmlNodePtr node, anode, mnode = NULL;
     char *uuid_conf;
     char *module, *value;
@@ -356,6 +361,14 @@ noit_console_show_check(noit_console_closure_t ncct,
     SHOW_ATTR(timeout);
     SHOW_ATTR(oncheck);
     SHOW_ATTR(disable);
+    /* Print out all the config settings */
+    config = noit_conf_get_hash(node, "config");
+    while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+      nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
+    }
+    noit_hash_destroy(config, free, free);
+    free(config);
+
     check = noit_poller_lookup(checkid);
     if(!check) {
       nc_printf(ncct, " ERROR: not in running system\n");
@@ -367,6 +380,7 @@ noit_console_show_check(noit_console_closure_t ncct,
       if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
       if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
       if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
+      if(!idx) nc_printf(ncct, "idle");
       nc_write(ncct, "\n", 1);
       if(check->stats.current.status)
         nc_printf(ncct, " recently: %s\n", check->stats.current.status);
@@ -703,7 +717,7 @@ noit_console_config_show(noit_console_closure_t ncct,
     if(!strcmp((char *)node->name, "check")) {
       int busted = 1;
       xmlAttr *attr;
-      char *uuid_str = "undefined";;
+      char *uuid_str = "undefined";
 
       if(!titled++) nc_printf(ncct, "== Checks ==\n");
 
@@ -803,6 +817,114 @@ validate_attr_set_scope(noit_conf_t_userdata_t *info,
     return -1;
   }
   return 0;
+}
+static int
+replace_config(noit_console_closure_t ncct,
+               noit_conf_t_userdata_t *info, const char *name,
+               const char *value) {
+  int i, cnt, rv = -1, active = 0;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+  xmlNodePtr node, confignode;
+  char xpath[1024], *path;
+
+  path = info->path;
+  if(!strcmp(path, "/")) path = "";
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  if(1) {
+    /* Only if checks will fixate this attribute shall we check for
+     * child <check> nodes.
+     * NOTE: this return nothing and "seems" okay if we are _in_
+     *       a <check> node.  That case is handled below.
+     */
+    snprintf(xpath, sizeof(xpath), "/noit/%s//check[@uuid]", path);
+    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if(!pobj || pobj->type != XPATH_NODESET) goto out;
+    cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+    for(i=0; i<cnt; i++) {
+      uuid_t checkid;
+      node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+      if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+        noit_check_t *check;
+        check = noit_poller_lookup(checkid);
+        if(NOIT_CHECK_LIVE(check)) active++;
+      }
+    }
+    if(pobj) xmlXPathFreeObject(pobj);
+  }
+  snprintf(xpath, sizeof(xpath), "/noit/%s", path);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(cnt != 1) {
+    nc_printf(ncct, "Internal error: context node disappeared\n");
+    goto out;
+  }
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if(strcmp((const char *)node->name, "check")) {
+    uuid_t checkid;
+    /* Detect if  we are actually a <check> node and attempting to
+     * change something we shouldn't.
+     * This is the counterpart noted above.
+     */
+    if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+      noit_check_t *check;
+      check = noit_poller_lookup(checkid);
+      if(NOIT_CHECK_LIVE(check)) active++;
+    }
+  }
+  if(active) {
+    nc_printf(ncct, "Cannot set '%s', it would effect %d live check(s)\n",
+              name, active);
+    goto out;
+  }
+  if(pobj) xmlXPathFreeObject(pobj);
+
+  /* Here we want to remove /noit/path/config/name */
+  snprintf(xpath, sizeof(xpath), "/noit/%s/config/%s", path, name);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) goto out;
+  if(xmlXPathNodeSetGetLength(pobj->nodesetval) > 0) {
+    xmlNodePtr toremove;
+    toremove = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    xmlUnlinkNode(toremove);
+  }
+  /* TODO: if there are no more children of config, remove config? */
+  if(value) {
+    if(pobj) xmlXPathFreeObject(pobj);
+    /* He we create config if needed and place a child node under it */
+    snprintf(xpath, sizeof(xpath), "/noit/%s/config", path);
+    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if(!pobj || pobj->type != XPATH_NODESET) goto out;
+    if(xmlXPathNodeSetGetLength(pobj->nodesetval) == 0) {
+      if(pobj) xmlXPathFreeObject(pobj);
+      snprintf(xpath, sizeof(xpath), "/noit/%s", path);
+      pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+      if(!pobj || pobj->type != XPATH_NODESET) goto out;
+      if(xmlXPathNodeSetGetLength(pobj->nodesetval) != 1) {
+        nc_printf(ncct, "Node disappeared from under you!\n");
+        goto out;
+      }
+      confignode = xmlNewChild(xmlXPathNodeSetItem(pobj->nodesetval, 0),
+                               NULL, (xmlChar *)"config", NULL);
+      if(confignode == NULL) {
+        nc_printf(ncct, "Error creating config child node.\n");
+        goto out;
+      }
+    }
+    else confignode = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+
+    assert(confignode);
+    /* Now we create a child */
+    xmlNewChild(xmlXPathNodeSetItem(pobj->nodesetval, 0),
+                NULL, (xmlChar *)name, (xmlChar *)value);
+    
+  }
+  rv = 0;
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return rv;
 }
 static int
 replace_attr(noit_console_closure_t ncct,
@@ -938,6 +1060,59 @@ noit_conf_check_unset_attr(noit_console_closure_t ncct,
   return 0;
 }
 
+int
+noit_console_config_setconfig(noit_console_closure_t ncct,
+                                int argc, char **argv,
+                                noit_console_state_t *state, void *closure) {
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+
+  if(argc != 2) {
+    nc_printf(ncct, "two arguments required.\n");
+    return -1;
+  }
+  /* Okay, we have an child name and it should be culled from
+   * current path/config.
+   */
+  if(replace_config(ncct, info, argv[0], argv[1])) {
+    return -1;
+  }
+
+  /* So, we updated an attribute, so we need to reload all checks
+   * that are descendent-or-self of this node.
+   */
+  refresh_subchecks(ncct, info);
+  return 0;
+}
+
+int
+noit_console_config_unsetconfig(noit_console_closure_t ncct,
+                                int argc, char **argv,
+                                noit_console_state_t *state, void *closure) {
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+
+  if(argc != 1) {
+    nc_printf(ncct, "one argument required.\n");
+    return -1;
+  }
+  /* Okay, we have an child name and it should be culled from
+   * current path/config.
+   */
+  if(replace_config(ncct, info, argv[0], NULL)) {
+    return -1;
+  }
+
+  /* So, we updated an attribute, so we need to reload all checks
+   * that are descendent-or-self of this node.
+   */
+  refresh_subchecks(ncct, info);
+  return 0;
+}
+
+
 #define NEW_STATE(a) (a) = noit_console_state_alloc()
 #define ADD_CMD(a,cmd,func,ss,c) \
   noit_console_state_add_cmd((a), \
@@ -970,15 +1145,18 @@ void register_console_config_commands() {
   /* no attribute <attrname> <value> */
   NEW_STATE(_uattr_state);
   noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
+
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute", _uattr_state);
   ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, (void *)1);
+  ADD_CMD(_unset_state, "config", noit_console_config_unsetconfig, NULL, NULL);
   ADD_CMD(_unset_state, "check", noit_console_config_nocheck, NULL, NULL);
  
   NEW_STATE(_conf_t_check_state);
   _conf_t_check_state->console_prompt_function = conf_t_check_prompt;
   DELEGATE_CMD(_conf_t_check_state, "attribute", _attr_state);
   DELEGATE_CMD(_conf_t_check_state, "no", _unset_state);
+  ADD_CMD(_conf_t_check_state, "config", noit_console_config_setconfig, NULL, NULL);
   ADD_CMD(_conf_t_check_state, "status", noit_console_show_check, NULL, NULL);
   ADD_CMD(_conf_t_check_state, "exit", noit_console_config_cd, NULL, "..");
   ADD_CMD(_conf_t_check_state, "check", noit_console_check, _conf_t_check_state, "..");
