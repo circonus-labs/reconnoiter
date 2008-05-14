@@ -265,10 +265,10 @@ IF TG_OP = 'INSERT' THEN
             VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
     END IF;
     
-    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.metric_name
+    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
          INTO v_sid,v_name;
        IF NOT FOUND THEN
-           INSERT INTO  stratcon.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.metric_name,'text');
+           INSERT INTO  stratcon.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.name,'text');
     END IF;
 
 ELSE
@@ -298,10 +298,10 @@ IF TG_OP = 'INSERT' THEN
        INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
     END IF;
 
-   SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.metric_name
+   SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
      INTO v_sid,v_name;
    IF NOT FOUND THEN
-       INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.metric_name,'numeric');
+       INSERT INTO  stratcon.metric_name_summary VALUES(NEW.sid,NEW.name,'numeric');
     END IF;
 
 END IF;
@@ -960,6 +960,11 @@ begin
 
   select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
 
+  if not found then
+    raise exception 'no target table';
+    return;
+  end if;
+
   select 'epoch'::timestamp +
          ((floor(extract('epoch' from in_start_time) /
                  extract('epoch' from v_target.period)) *
@@ -971,11 +976,6 @@ begin
                  extract('epoch' from v_target.period)) *
            extract('epoch' from v_target.period)) || ' seconds') ::interval
     into v_end_adj;
-
-  if not found then
-    raise exception 'no target table';
-    return;
-  end if;
 
   v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
            's.rollup_time, d.count_rows, d.avg_value, ' ||
