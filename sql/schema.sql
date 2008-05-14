@@ -5,7 +5,7 @@ BEGIN;
 CREATE TABLE stratcon.loading_dock_check_s (
     sid integer NOT NULL,
     remote_address inet,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     id uuid NOT NULL,
     target text NOT NULL,
     module text NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE stratcon.loading_dock_check_s (
 
 CREATE TABLE stratcon.loading_dock_status_s (
     sid integer NOT NULL,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     state character(1) NOT NULL,
     availability character(1) NOT NULL,
     duration integer NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE stratcon.loading_dock_status_s (
 
 CREATE TABLE stratcon.loading_dock_status_s_change_log (
     sid integer NOT NULL,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     state character(1) NOT NULL,
     availability character(1) NOT NULL,
     duration integer NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE stratcon.loading_dock_status_s_change_log (
 
 CREATE TABLE stratcon.loading_dock_metric_text_s (
     sid integer NOT NULL,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     name text NOT NULL,
     value text,
     PRIMARY KEY(whence,sid,name)
@@ -44,7 +44,7 @@ CREATE TABLE stratcon.loading_dock_metric_text_s (
 
 CREATE TABLE stratcon.loading_dock_metric_text_s_change_log (
     sid integer NOT NULL,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     name text NOT NULL,
     value text,
     PRIMARY KEY(whence,sid,name)
@@ -52,7 +52,7 @@ CREATE TABLE stratcon.loading_dock_metric_text_s_change_log (
 
 CREATE TABLE stratcon.loading_dock_metric_numeric_s (
     sid integer NOT NULL,
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     name text NOT NULL,
     value numeric,
     PRIMARY KEY(whence,sid,name)
@@ -61,7 +61,7 @@ CREATE TABLE stratcon.loading_dock_metric_numeric_s (
 CREATE TABLE stratcon.rollup_matrix_numeric_5m (
     sid integer NOT NULL,
     name text NOT NULL,
-    rollup_time timestamp NOT NULL,
+    rollup_time timestamptz NOT NULL,
     count_rows integer,
     avg_value numeric,
     min_value numeric,
@@ -72,7 +72,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_5m (
 CREATE TABLE stratcon.rollup_matrix_numeric_20m (
     sid integer NOT NULL,
     name text NOT NULL,
-    rollup_time timestamp NOT NULL,
+    rollup_time timestamptz NOT NULL,
     count_rows integer,
     avg_value numeric,
     min_value numeric,
@@ -83,7 +83,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_20m (
 CREATE TABLE stratcon.rollup_matrix_numeric_60m(
    sid integer not null,
    name text not null, 
-   rollup_time timestamp not null, 
+   rollup_time timestamptz not null, 
    count_rows integer,
    avg_value numeric ,
    min_value numeric ,
@@ -93,7 +93,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_60m(
 CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
    sid integer not null,
    name text not null, 
-   rollup_time timestamp not null, 
+   rollup_time timestamptz not null, 
    count_rows integer,
    avg_value numeric ,
    min_value numeric ,
@@ -103,7 +103,7 @@ CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
 CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
    sid integer not null,
    name text not null, 
-   rollup_time timestamp not null, 
+   rollup_time timestamptz not null, 
    count_rows integer,
    avg_value numeric ,
    min_value numeric ,
@@ -117,7 +117,7 @@ CREATE TABLE stratcon.map_uuid_to_sid (
 );
 
 CREATE TABLE stratcon.log_whence_s (
-    whence timestamp NOT NULL,
+    whence timestamptz NOT NULL,
     interval varchar2(20,
     PRIMARY KEY(whence,interval)
 );
@@ -315,9 +315,9 @@ DECLARE
  
  rec stratcon.rollup_matrix_numeric_5m%rowtype;
  v_sql TEXT;
- v_min_whence TIMESTAMP;
- v_max_rollup_5 TIMESTAMP;
- v_whence TIMESTAMP;
+ v_min_whence TIMESTAMPTZ;
+ v_max_rollup_5 TIMESTAMPTZ;
+ v_whence TIMESTAMPTZ;
  rows INT;
  v_nrunning INT;
  v_self VARCHAR(22);
@@ -411,9 +411,9 @@ DECLARE
  
  rec stratcon.rollup_matrix_numeric_20m%rowtype;
  v_sql TEXT;
- v_min_whence TIMESTAMP;
- v_max_rollup_20 TIMESTAMP;
- v_whence TIMESTAMP;
+ v_min_whence TIMESTAMPTZ;
+ v_max_rollup_20 TIMESTAMPTZ;
+ v_whence TIMESTAMPTZ;
  rows INT;
  v_nrunning INT;
  v_self VARCHAR(22);
@@ -508,9 +508,9 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_60m%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMP;
-  v_max_rollup_60 TIMESTAMP;
-  v_whence TIMESTAMP;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_60 TIMESTAMPTZ;
+  v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
 
@@ -600,9 +600,9 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_6hours%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMP;
-  v_max_rollup_6 TIMESTAMP;
-  v_whence TIMESTAMP;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_6 TIMESTAMPTZ;
+  v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
     
@@ -693,9 +693,9 @@ AS $$
 DECLARE
   rec stratcon.rollup_matrix_numeric_12hours%rowtype;
   v_sql TEXT;
-  v_min_whence TIMESTAMP;
-  v_max_rollup_12 TIMESTAMP;
-  v_whence TIMESTAMP;
+  v_min_whence TIMESTAMPTZ;
+  v_max_rollup_12 TIMESTAMPTZ;
+  v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
  
@@ -782,18 +782,18 @@ $$ LANGUAGE plpgsql;
 create or replace function
 stratcon.fetch_varset(in_check uuid,
                        in_name text,
-                       in_start_time timestamp,
-                       in_end_time timestamp,
+                       in_start_time timestamptz,
+                       in_end_time timestamptz,
                        in_hopeful_nperiods int)
 returns setof stratcon.loading_dock_metric_text_s_change_log as
 $$
 declare
   v_sid int;
   v_target record;
-  v_start_adj timestamp;
+  v_start_adj timestamptz;
   v_start_text text;
   v_next_text text;
-  v_end_adj timestamp;
+  v_end_adj timestamptz;
   v_change_row stratcon.loading_dock_metric_text_s_change_log%rowtype;
 begin
   -- Map out uuid to an sid.
@@ -872,8 +872,8 @@ $$ language 'plpgsql';
 
 
 create or replace function
-stratcon.choose_window(in_start_time timestamp,
-                       in_end_time timestamp,
+stratcon.choose_window(in_start_time timestamptz,
+                       in_end_time timestamptz,
                        in_hopeful_nperiods int,
                        out tablename text,
                        out period interval,
@@ -925,8 +925,8 @@ $$ language 'plpgsql';
 create or replace function
 stratcon.fetch_dataset(in_check uuid,
                        in_name text,
-                       in_start_time timestamp,
-                       in_end_time timestamp,
+                       in_start_time timestamptz,
+                       in_end_time timestamptz,
                        in_hopeful_nperiods int,
                        derive boolean)
 returns setof stratcon.rollup_matrix_numeric_5m as
@@ -936,8 +936,8 @@ declare
   v_sid int;
   v_target record;
   v_interval numeric;
-  v_start_adj timestamp;
-  v_end_adj timestamp;
+  v_start_adj timestamptz;
+  v_end_adj timestamptz;
   v_l_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
   v_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
   v_r_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
