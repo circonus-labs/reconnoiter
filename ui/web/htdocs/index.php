@@ -16,7 +16,7 @@ $targets = $db->get_targets();
   <ul>
   <?php foreach($db->get_checks($target) as $name => $check) { ?>
     <li>
-      <a href="graph.php?id=<?php print $check['id'] ?>"><?php print $name ?></a><br />
+      <a href="bw_graph.php?id=<?php print $check['id'] ?>"><?php print $name ?></a><br />
       <?php  0 && thumb_flash($id) ?>
       <ul>
         <?php foreach($check['numeric'] as $n) { ?>
