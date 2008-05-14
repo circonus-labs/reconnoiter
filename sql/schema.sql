@@ -33,13 +33,6 @@ CREATE TABLE stratcon.loading_dock_status_s_change_log (
     PRIMARY KEY(sid,whence)
 );
 
-CREATE TABLE stratcon.loading_dock_metric_numeric_s (
-    sid integer NOT NULL,
-    whence timestamp NOT NULL,
-    name text NOT NULL,
-    value numeric,
-    PRIMARY KEY(whence,sid,name)
-);
 
 CREATE TABLE stratcon.loading_dock_metric_text_s (
     sid integer NOT NULL,
@@ -57,47 +50,20 @@ CREATE TABLE stratcon.loading_dock_metric_text_s_change_log (
     PRIMARY KEY(whence,sid,name)
 );
 
+CREATE TABLE stratcon.loading_dock_metric_numeric_s (
+    sid integer NOT NULL,
+    whence timestamp NOT NULL,
+    name text NOT NULL,
+    value numeric,
+    PRIMARY KEY(whence,sid,name)
+);
 
-CREATE TABLE stratcon.rollup_matrix_numeric_60m(
-   sid integer not null,
-   name text not null, 
-   rollup_time timestamp not null, 
-   count_rows integer,
-   avg_value numeric ,
-   stddev_value numeric,
-   min_value numeric ,
-   max_value numeric ,
-   PRIMARY KEY(rollup_time,sid,name));
-   
-CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
-   sid integer not null,
-   name text not null, 
-   rollup_time timestamp not null, 
-   count_rows integer,
-   avg_value numeric ,
-   stddev_value numeric,
-   min_value numeric ,
-   max_value numeric ,
-   PRIMARY KEY(rollup_time6,sid,name));   
-
-CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
-   sid integer not null,
-   name text not null, 
-   rollup_time timestamp not null, 
-   count_rows integer,
-   avg_value numeric ,
-   stddev_value numeric,
-   min_value numeric ,
-   max_value numeric ,
-   PRIMARY KEY(rollup_time12,sid,name));      
- 
 CREATE TABLE stratcon.rollup_matrix_numeric_5m (
     sid integer NOT NULL,
     name text NOT NULL,
     rollup_time timestamp NOT NULL,
     count_rows integer,
     avg_value numeric,
-    stddev_value numeric,
     min_value numeric,
     max_value numeric,
     PRIMARY KEY (rollup_time,sid,name)
@@ -109,12 +75,41 @@ CREATE TABLE stratcon.rollup_matrix_numeric_20m (
     rollup_time timestamp NOT NULL,
     count_rows integer,
     avg_value numeric,
-    stddev_value numeric,
     min_value numeric,
     max_value numeric,
     PRIMARY KEY (rollup_time,sid,name)
 );
 
+CREATE TABLE stratcon.rollup_matrix_numeric_60m(
+   sid integer not null,
+   name text not null, 
+   rollup_time timestamp not null, 
+   count_rows integer,
+   avg_value numeric ,
+   min_value numeric ,
+   max_value numeric ,
+   PRIMARY KEY(rollup_time,sid,name));
+   
+CREATE TABLE stratcon.rollup_matrix_numeric_6hours(
+   sid integer not null,
+   name text not null, 
+   rollup_time timestamp not null, 
+   count_rows integer,
+   avg_value numeric ,
+   min_value numeric ,
+   max_value numeric ,
+   PRIMARY KEY(rollup_time6,sid,name));   
+
+CREATE TABLE stratcon.rollup_matrix_numeric_12hours(
+   sid integer not null,
+   name text not null, 
+   rollup_time timestamp not null, 
+   count_rows integer,
+   avg_value numeric ,
+   min_value numeric ,
+   max_value numeric ,
+   PRIMARY KEY(rollup_time12,sid,name));      
+ 
 CREATE TABLE stratcon.map_uuid_to_sid (
     id uuid NOT NULL,
     sid integer NOT NULL,
@@ -374,7 +369,7 @@ BEGIN
 
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
-                      COUNT(1) as count_rows ,AVG(value) as avg_value,STDDEV(value) as stddev_value ,MIN(value) as min_value ,MAX(value) as max_value
+                      COUNT(1) as count_rows ,AVG(value) as avg_value,MIN(value) as min_value ,MAX(value) as max_value
                       FROM stratcon.loading_dock_metric_numeric_s
                       WHERE WHENCE <= v_min_whence AND WHENCE > v_min_whence -'5 minutes'::interval
                 GROUP BY rollup_time,sid,name
@@ -383,8 +378,8 @@ BEGIN
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_5m
-         (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+         (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
         
    END LOOP;
 
@@ -471,7 +466,6 @@ BEGIN
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
                        SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		       stddev(stddev_value) as stddev_value,
 		       MIN(min_value) as min_value ,MAX(max_value) as max_value
 		       FROM stratcon.rollup_matrix_numeric_5m
                       WHERE rollup_time<= v_min_whence AND rollup_time > v_min_whence -'20 minutes'::interval
@@ -481,8 +475,8 @@ BEGIN
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_20m
-         (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+         (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
         
    END LOOP;
 
@@ -568,7 +562,6 @@ BEGIN
   
     FOR rec IN 
                 SELECT sid,name,date_trunc('hour',rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         stddev(stddev_value) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_20m
 		           WHERE date_trunc('hour',rollup_time)= date_trunc('hour',v_min_whence)
@@ -576,8 +569,8 @@ BEGIN
         LOOP
       
           INSERT INTO stratcon.rollup_matrix_numeric_60m
-          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
           
      END LOOP;
 
@@ -661,7 +654,6 @@ BEGIN
   
     FOR rec IN 
                 SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         STDDEV(stddev_value) as  stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_60m
 		           WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'6 hour'::interval
@@ -670,8 +662,8 @@ BEGIN
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_6hours
-          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
           
      END LOOP;
 
@@ -756,7 +748,6 @@ BEGIN
   
     FOR rec IN 
                 SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-		         STDDEV(stddev_value) as stddev_value,
 		         MIN(min_value) as min_value ,MAX(max_value) as max_value
 		         FROM stratcon.rollup_matrix_numeric_6hours
 		           WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'12 hour'::interval
@@ -765,8 +756,8 @@ BEGIN
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_12hours
-          (sid,name,rollup_time,count_rows,avg_value,stddev_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.stddev_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
           
      END LOOP;
 
@@ -979,7 +970,7 @@ begin
 
   v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
            's.rollup_time, d.count_rows, d.avg_value, ' ||
-           'd.stddev_value, d.min_value, d.max_value ' ||
+           'd.min_value, d.max_value ' ||
            ' from ' ||
            '(select ' || quote_literal(v_start_adj) || '::timestamp' ||
                   ' + t * ' || quote_literal(v_target.period) || '::interval' ||
@@ -1002,8 +993,6 @@ begin
         v_r_rollup_row.count_rows := (v_l_rollup_row.count_rows + v_rollup_row.count_rows) / 2;
         v_r_rollup_row.avg_value :=
           (v_rollup_row.avg_value - v_l_rollup_row.avg_value) / v_interval;
-        v_r_rollup_row.stddev_value :=
-          (v_rollup_row.stddev_value - v_l_rollup_row.stddev_value) / v_interval;
         v_r_rollup_row.min_value :=
           (v_rollup_row.min_value - v_l_rollup_row.min_value) / v_interval;
         v_r_rollup_row.max_value :=
@@ -1011,7 +1000,6 @@ begin
       else
         v_r_rollup_row.count_rows = NULL;
         v_r_rollup_row.avg_value = NULL;
-        v_r_rollup_row.stddev_value = NULL;
         v_r_rollup_row.min_value = NULL;
         v_r_rollup_row.max_value = NULL;
       end if;
