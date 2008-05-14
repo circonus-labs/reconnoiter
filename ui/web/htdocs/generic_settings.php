@@ -15,10 +15,12 @@ if(!$end) {
 $driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 400);
 
 foreach(split(",", $_GET['metric']) as $m) {
-  preg_match('/^(n|t)-([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})-(.*)$/', $m,
+  preg_match('/^(d|n|t)-([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})-(.*)$/', $m,
              $matches);
   if($matches[1] == 'n')
     $driver->addDataSet($matches[2], $matches[3], 'false', null, array('expression' => '$this->bw($value)'));
+  else if($matches[1] == 'd')
+    $driver->addDataSet($matches[2], $matches[3], 'true', null, array('expression' => '$this->bw($value)'));
   else
     $driver->addChangeSet($matches[2], $matches[3]);
 }
