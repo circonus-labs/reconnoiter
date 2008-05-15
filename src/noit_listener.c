@@ -85,7 +85,7 @@ noit_listener_acceptor(eventer_t e, int mask,
 
   ac = malloc(sizeof(*ac));
   memcpy(ac, listener_closure->dispatch_closure, sizeof(*ac));
-  conn = e->opset->accept(e->fd, &ac->remote_addr, &salen, &newmask, e);
+  conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
   if(conn >= 0) {
     socklen_t on = 1;
     eventer_t newe;

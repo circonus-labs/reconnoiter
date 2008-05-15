@@ -10,8 +10,17 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+
 typedef struct {
-  struct sockaddr remote_addr;
+  union {
+    struct sockaddr remote_addr;
+    struct sockaddr_in remote_addr4;
+    struct sockaddr_in6 remote_addr6;
+  } remote;
   char *remote_cn;
   noit_hash_table *config;
   void *service_ctx;
