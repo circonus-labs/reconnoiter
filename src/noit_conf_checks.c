@@ -151,8 +151,31 @@ refresh_subchecks(noit_console_closure_t ncct,
   noit_poller_reload(xpath);
 }
 static int
+noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
+  int i, error = 0;
+  if(argc % 2) return -1;
+
+  for(i=0; i<argc; i+=2) {
+    struct _valid_attr_t *attrinfo;
+    char *attr = argv[i], *val = NULL;
+    if(!strcasecmp(argv[i], "no")) attr = argv[i+1];
+    else val = argv[i+1];
+    if(!noit_hash_retrieve(&check_attrs, attr, strlen(attr),
+                           (void **)&attrinfo)) {
+      error = 1;
+      break;
+    }
+    /* The fixation stuff doesn't matter here, this check is brand-new */
+    xmlUnsetProp(node, (xmlChar *)attrinfo->name);
+    if(val)
+      xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)val);
+  }
+  return error;
+}
+
+static int
 noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
-  int i, error = 0, rv = -1;
+  int rv = -1;
   const char *path;
   char xpath[1024];
   xmlXPathContextPtr xpath_ctxt = NULL;
@@ -179,22 +202,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
     xmlSetProp(newnode, (xmlChar *)"disable", (xmlChar *)"true");
 
     /* No risk of running off the end (we checked this above) */
-    for(i=0; i<argc; i+=2) {
-      struct _valid_attr_t *attrinfo;
-      char *attr = argv[i], *val = NULL;
-      if(!strcasecmp(argv[i], "no")) attr = argv[i+1];
-      else val = argv[i+1];
-      if(!noit_hash_retrieve(&check_attrs, attr, strlen(attr),
-                             (void **)&attrinfo)) {
-        error = 1;
-        break;
-      }
-      /* The fixation stuff doesn't matter here, this check is brand-new */
-      xmlUnsetProp(newnode, (xmlChar *)attrinfo->name);
-      if(val)
-        xmlSetProp(newnode, (xmlChar *)attrinfo->name, (xmlChar *)val);
-    }
-    if(error) {
+    if(noit_config_check_update_attrs(newnode, argc, argv)) {
       /* Something went wrong, remove the node */
       xmlUnlinkNode(newnode);
     }
@@ -230,14 +238,18 @@ noit_console_check(noit_console_closure_t ncct,
     nc_printf(ncct, "requires at least one argument\n");
     return -1;
   }
+  if(argc % 2 == 0) {
+    nc_printf(ncct, "wrong number of arguments\n");
+    return -1;
+  } 
 
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  wanted = argc == 1 ? argv[0] : NULL;
-  if(!wanted) {
+  wanted = strcmp(argv[0], "new") ? argv[0] : NULL;
+  if(info && !wanted) {
     /* We are creating a new node */
     uuid_t out;
     creating_new = noit_true;
-    if(noit_conf_mkcheck_under(info->path, argc, argv, out)) {
+    if(noit_conf_mkcheck_under(info->path, argc - 1, argv + 1, out)) {
       nc_printf(ncct, "Error creating new check\n");
       return -1;
     }
@@ -269,11 +281,15 @@ noit_console_check(noit_console_closure_t ncct,
               (char *)xmlGetNodePath(node) + strlen("/noit"));
     goto out;
   }
+  if(argc > 1 && !creating_new)
+    if(noit_config_check_update_attrs(node, argc - 1, argv + 1))
+      nc_printf(ncct, "Partially successful, error setting some attributes\n");
+
   if(info) {
     if(info->path) free(info->path);
     info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
     uuid_copy(info->current_check, checkid);
-    if(creating_new) refresh_subchecks(ncct, info);
+    if(argc > 1) refresh_subchecks(ncct, info);
     if(state) {
       noit_console_state_push_state(ncct, state);
       noit_console_state_init(ncct);
@@ -403,7 +419,7 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
   uuid_t checkid;
 
   noit_conf_xml_xpath(NULL, &xpath_ctxt);
-  if(argc != 1) {
+  if(argc < 1) {
     nc_printf(ncct, "requires one argument\n");
     return -1;
   }
@@ -430,10 +446,20 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
                 (char *)xmlGetNodePath(node) + strlen("/noit"));
     }
     else {
-      nc_printf(ncct, "descheduling %s\n", uuid_conf);
-      noit_poller_deschedule(checkid);
-      xmlUnlinkNode(node);
+      if(argc > 1) {
+        int j;
+        for(j=1;j<argc;j++)
+          xmlUnsetProp(node, (xmlChar *)argv[j]);
+      } else {
+        nc_printf(ncct, "descheduling %s\n", uuid_conf);
+        noit_poller_deschedule(checkid);
+        xmlUnlinkNode(node);
+      }
     }
+  }
+  if(argc > 1) {
+    noit_poller_process_checks(xpath);
+    noit_poller_reload(xpath);
   }
   nc_printf(ncct, "rebuilding causal map...\n");
   noit_poller_make_causal_map();
