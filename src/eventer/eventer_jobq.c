@@ -31,7 +31,9 @@ eventer_jobq_handler(int signo)
   assert(jobq);
   env = pthread_getspecific(jobq->threadenv);
   job = pthread_getspecific(jobq->activejob);
-  if(env && job && job->inflight) siglongjmp(*env, 1);
+  if(env && job)
+    if(noit_atomic_cas32(&job->inflight, 0, 1) == 1)
+       siglongjmp(*env, 1);
 }
 
 int
@@ -169,6 +171,7 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
     if(!newmask) eventer_free(job->fd_event);
     else eventer_add(job->fd_event);
     job->fd_event = NULL;
+    assert(job->timeout_event == NULL);
     free(job);
   }
   return EVENTER_RECURRENT;
@@ -232,16 +235,17 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
         }
       }
     }
-    if(noit_atomic_cas32(&job->inflight, 0, 1) != 1) {
-      /* We were alredy terminated?!  Wicked race.  That's fine, just means
-       * that we longjmp'd here.
-       */
-      gettimeofday(&job->finish_time, NULL);
-      if(eventer_remove(job->timeout_event)) {
-        eventer_free(job->timeout_event);
-        job->timeout_event = NULL;
-      }
+
+    job->inflight = 0;
+    /* No we know we won't have siglongjmp called on us */
+
+    gettimeofday(&job->finish_time, NULL);
+    if(job->timeout_event &&
+       eventer_remove(job->timeout_event)) {
+      eventer_free(job->timeout_event);
+      job->timeout_event = NULL;
     }
+
     if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
       /* We need to cleanup... we haven't done it yet. */
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
