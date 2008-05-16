@@ -37,7 +37,7 @@ apply_replace(const char *src, const char *name, const char *value) {
   vlen = strlen(value);
   slen = strlen(src);
   /* Worst case is just a stream of replacements. */
-  maxlen = (slen / patlen) * vlen + (slen % patlen) + 1;
+  maxlen = (slen / patlen) * vlen + (slen % patlen) + 2;
   cp = result = malloc(maxlen);
   searchstart = src;
   while((nextpat = strstr(searchstart, pat)) != NULL) {
