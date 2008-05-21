@@ -147,12 +147,21 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
 
   /* Parse the log line, but only if we haven't already */
   if(!d->nparams) {
-    struct sockaddr_in6 *rin6 = (struct sockaddr_in6 *)r;
     char raddr[128];
     char *scp, *ecp;
-    if(inet_ntop(rin6->sin6_family, &rin6->sin6_addr,
-                 raddr, sizeof(raddr)) == NULL)
-      raddr[0] = '\0';
+
+    /* setup our remote address */
+    raddr[0] = '\0';
+    switch(r->sa_family) {
+      case AF_INET:
+        inet_ntop(AF_INET, &(((struct sockaddr_in *)r)->sin_addr),
+                  raddr, sizeof(raddr));
+        break;
+      case AF_INET6:
+        inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)r)->sin6_addr),
+                  raddr, sizeof(raddr));
+        break;
+    }
  
     scp = d->data;
 #define PROCESS_NEXT_FIELD(t,l) do { \
