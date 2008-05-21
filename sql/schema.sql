@@ -331,7 +331,7 @@ DECLARE
  rows INT;
  v_nrunning INT;
  v_self VARCHAR(22);
- 
+ whenceint RECORD;
 BEGIN
 
   SELECT COUNT(1) INTO v_nrunning
@@ -355,6 +355,9 @@ BEGIN
   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_5m''';
 
   EXECUTE v_sql;
+
+FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' LOOP
+        
 
  SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='5 minutes'
         INTO v_min_whence;
@@ -397,6 +400,11 @@ BEGIN
   
   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
  
+ v_min_whence:= NULL;
+ v_max_rollup_5:= NULL;
+ 
+ END LOOP;
+ 
   UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
   
 RETURN;
@@ -427,7 +435,7 @@ DECLARE
  rows INT;
  v_nrunning INT;
  v_self VARCHAR(22);
-
+ whenceint RECORD;
 BEGIN
 
   SELECT COUNT(1) INTO v_nrunning
@@ -451,6 +459,8 @@ BEGIN
   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_20m''';
 
   EXECUTE v_sql;
+
+FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes' LOOP
 
  SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='20 minutes'
         INTO v_min_whence;
@@ -494,6 +504,11 @@ BEGIN
   
   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='20 minutes';
  
+  v_min_whence:= NULL;
+  v_max_rollup_20:= NULL;
+
+ END LOOP;
+ 
   UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
   
 RETURN;
@@ -523,7 +538,7 @@ DECLARE
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
-
+  whenceint RECORD;
 BEGIN
 
   SELECT COUNT(1) INTO v_nrunning
@@ -548,6 +563,8 @@ BEGIN
 
   EXECUTE v_sql;
 
+FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='1 hour' LOOP
+           
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='1 hour'
          INTO v_min_whence;
          
@@ -587,6 +604,11 @@ BEGIN
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='1 hour';
 
+v_min_whence := NULL;
+v_max_rollup_60 := NULL;
+
+END LOOP;
+
 UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
 
 RETURN;
@@ -615,7 +637,7 @@ DECLARE
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
-    
+  whenceint RECORD;  
 BEGIN
 
   SELECT COUNT(1) INTO v_nrunning
@@ -639,6 +661,8 @@ BEGIN
    v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_6hours''';
 
   EXECUTE v_sql;
+
+FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LOOP
 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='6 hours'
          INTO v_min_whence;
@@ -679,6 +703,10 @@ BEGIN
 
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='6 hours';
+v_min_whence := NULL;
+v_max_rollup_6 := NULL;
+
+END LOOP;
 
 UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours';
 
@@ -708,7 +736,7 @@ DECLARE
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
   v_self VARCHAR(22);
- 
+  whenceint RECORD; 
  
 BEGIN
 
@@ -734,6 +762,8 @@ BEGIN
 
   EXECUTE v_sql;
 
+ FOR whenceint IN  SELECT * FROM stratcon.log_whence_s WHERE interval='12 hours' LOOP
+ 
   SELECT min(whence) FROM stratcon.log_whence_s WHERE interval='12 hours'
          INTO v_min_whence;
          
@@ -773,6 +803,11 @@ BEGIN
 
 
 DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='12 hours';
+
+v_min_whence := NULL;
+v_max_rollup_12 := NULL;
+
+END LOOP;
 
 UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_12hours';
 
