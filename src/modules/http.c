@@ -836,6 +836,7 @@ static void resmon_cleanup(noit_module_t *self, noit_check_t *check) {
     if(rci->resserv) free(rci->resserv);
     if(rci->xml_doc) xmlFreeDoc(rci->xml_doc);
     serf_cleanup(self, check);
+    memset(rci, 0, sizeof(*rci));
   }
 }
 static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
