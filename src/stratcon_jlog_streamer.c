@@ -163,8 +163,8 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    noitL(noit_error, "SSL short read (%d/%lu).  Reseting connection.\n", \
-          len, size); \
+    noitL(noit_error, "SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
+          ctx->state, len, size); \
     goto socket_error; \
   } \
 } while(0)
