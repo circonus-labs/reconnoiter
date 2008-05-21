@@ -414,8 +414,7 @@ EXCEPTION
        UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
-      RAISE NOTICE '%', SQLERRM;
+         RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
 
@@ -518,7 +517,6 @@ EXCEPTION
        UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
@@ -618,7 +616,6 @@ EXCEPTION
        UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
@@ -717,7 +714,6 @@ EXCEPTION
        UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours'; 
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours';
        RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
@@ -818,7 +814,6 @@ EXCEPTION
       UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
       RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
       RAISE NOTICE '%', SQLERRM;
 END
 $$ LANGUAGE plpgsql;
