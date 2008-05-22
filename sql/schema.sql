@@ -158,12 +158,12 @@ CREATE SEQUENCE stratcon.seq_sid
 -- GRANTS 
 
  GRANT SELECT,INSERT ON stratcon.loading_dock_status_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_status_s_change_log TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_status_s_change_log TO stratcon;
  GRANT SELECT,INSERT ON stratcon.loading_dock_check_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_numeric_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_numeric_s TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.log_whence_s TO stratcon;
- GRANT SELECT,INSERT ON stratcon.loading_dock_metric_text_s TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_text_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_5m TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_20m TO stratcon;
