@@ -1053,4 +1053,111 @@ begin
 end
 $$ language 'plpgsql';
 
+
+-- Remove Metric based on UUID and Metric_Name
+
+CREATE OR REPLACE FUNCTION stratcon.remove_metric   (in_uuid uuid,
+                                                     in_metric_name text,
+                                                     v_debug text,
+                                                     OUT v_out text)
+RETURNS text
+AS $$
+DECLARE
+	v_del_sid INT;
+	v_del_metric_name TEXT;
+	v_del_metric_type TEXT;
+	deleted_t INT;
+	deleted_tc INT;
+	deleted_n INT;
+	deleted_5 INT;
+	deleted_20 INT;
+	deleted_60 INT;
+	deleted_6h INT;
+	deleted_12h INT;
+	deleted_sum INT;
+
+BEGIN
+	  SELECT s.sid,m.metric_name,m.metric_type 
+	    FROM
+	             stratcon.map_uuid_to_sid s,
+	             stratcon.metric_name_summary m 
+	       WHERE s.id=in_uuid
+	             and s.sid=m.sid
+	             and m.metric_name=in_metric_name
+	  INTO v_del_sid,v_del_metric_name,v_del_metric_type;
+		IF NOT FOUND THEN
+		   IF v_debug = 'DEBUG' THEN
+		     RAISE NOTICE 'Given UUID can not map to SID,Metric Name: %,%',in_uuid,in_metric_name;
+		   END IF;
+		   v_out:='Please Supply Valid UUID,Metric Name Combination :'||in_uuid||','||in_metric_name;
+		 RETURN;
+		END IF;
+IF v_debug = 'DEBUG' THEN
+        RAISE NOTICE 'Delete In Progress For: %,%,%',v_del_sid,v_del_metric_name,v_del_metric_type;
+END IF;
+
+-- Check of Text or Numeric Type
+IF v_del_metric_type ='text' THEN
+ -- Delete from Metrix Tex table 
+  DELETE FROM stratcon.loading_dock_metric_text_s WHERE sid=v_del_sid AND name=v_del_metric_name;
+     GET DIAGNOSTICS deleted_t = ROW_COUNT;
+     IF v_debug = 'DEBUG' THEN
+           RAISE NOTICE 'DELELTED ROWS FROM loading_dock_metric_text_s : %',deleted;
+     END IF;
+ -- Delete from Metrix Change Log table 
+  DELETE FROM stratcon.loading_dock_metric_text_s_change_log WHERE sid=v_del_sid AND name=v_del_metric_name;
+     GET DIAGNOSTICS deleted_tc = ROW_COUNT;
+     IF v_debug = 'DEBUG' THEN
+          RAISE NOTICE 'DELELTED ROWS FROM loading_dock_metric_text_s_change_log : %',deleted;
+     END IF;
+ ELSE
+  -- Delete from Metrix Numeric table
+   DELETE FROM stratcon.loading_dock_metric_numeric_s WHERE sid=v_del_sid AND name=v_del_metric_name;
+   GET DIAGNOSTICS deleted_n = ROW_COUNT;
+     IF v_debug = 'DEBUG' THEN
+         RAISE NOTICE 'DELELTED ROWS FROM loading_dock_metric_numeric_s : %',deleted;
+     END IF;
+  -- Delete from Rollup tables
+   DELETE FROM stratcon.rollup_matrix_numeric_5m WHERE sid=v_del_sid AND name=v_del_metric_name;
+   GET DIAGNOSTICS deleted_5 = ROW_COUNT;   
+     IF v_debug = 'DEBUG' THEN
+         RAISE NOTICE 'DELELTED ROWS FROM rollup_matrix_numeric_5m : %',deleted;
+     END IF;
+   DELETE FROM stratcon.rollup_matrix_numeric_20m WHERE sid=v_del_sid AND name=v_del_metric_name;
+      GET DIAGNOSTICS deleted_20= ROW_COUNT;      
+        IF v_debug = 'DEBUG' THEN
+            RAISE NOTICE 'DELELTED ROWS FROM rollup_matrix_numeric_20m : %',deleted;
+        END IF;
+   DELETE FROM stratcon.rollup_matrix_numeric_60m WHERE sid=v_del_sid AND name=v_del_metric_name;
+      GET DIAGNOSTICS deleted_60 = ROW_COUNT;      
+        IF v_debug = 'DEBUG' THEN
+            RAISE NOTICE 'DELELTED ROWS FROM rollup_matrix_numeric_60m : %',deleted;
+        END IF;
+   DELETE FROM stratcon.rollup_matrix_numeric_6hours WHERE sid=v_del_sid AND name=v_del_metric_name;
+      GET DIAGNOSTICS deleted_6h = ROW_COUNT;      
+        IF v_debug = 'DEBUG' THEN
+            RAISE NOTICE 'DELELTED ROWS FROM rollup_matrix_numeric_6hours : %',deleted;
+        END IF;
+   DELETE FROM stratcon.rollup_matrix_numeric_12hours WHERE sid=v_del_sid AND name=v_del_metric_name;
+      GET DIAGNOSTICS deleted_12h = ROW_COUNT;      
+        IF v_debug = 'DEBUG' THEN
+            RAISE NOTICE 'DELELTED ROWS FROM rollup_matrix_numeric_12hours : %',deleted;
+        END IF;
+END IF;
+  -- Delete from metrix summary table
+   DELETE FROM stratcon.metrix_name_summary WHERE sid=v_del_sid AND metric_name=v_del_metric_name;
+      GET DIAGNOSTICS deleted_sum= ROW_COUNT;     
+        IF v_debug = 'DEBUG' THEN
+            RAISE NOTICE 'DELELTED ROWS FROM metric_name_summary : %',deleted;
+        END IF; 
+ v_out:='Deleted Rows for Metric_Text, Metrix_Text_change_log,Metric_Numeric,Rollup_5m,Rollup_20m,Rollup_1hour,Rollup_6hours,Rollup_12hours,Metric_Summary:'||deleted_t||','||deleted_tc||','||deleted_n||','||deleted_5||','||deleted_20||','||deleted_60||','||deleted_6h||','||deleted_12h||','||deleted_sum;
+RETURN;
+   EXCEPTION
+	    WHEN RAISE_EXCEPTION THEN
+	            RAISE EXCEPTION '%', SQLERRM;
+	    WHEN OTHERS THEN
+	            RAISE NOTICE '%', SQLERRM;
+END
+$$ LANGUAGE plpgsql;
+
 COMMIT;
