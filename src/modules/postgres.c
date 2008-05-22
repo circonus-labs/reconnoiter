@@ -57,14 +57,17 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
   sub_timeval(current.whence, check->last_fire_time, &duration);
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   current.available = NP_UNAVAILABLE;
+  current.state = NP_BAD;
   if(ci->error) current.status = ci->error;
   else if(ci->timed_out) current.status = "timeout";
   else if(ci->rv == PGRES_COMMAND_OK) {
     current.available = NP_AVAILABLE;
+    current.state = NP_GOOD;
     current.status = "command ok";
   }
   else if(ci->rv == PGRES_TUPLES_OK) {
     current.available = NP_AVAILABLE;
+    current.state = NP_GOOD;
     current.status = "tuples ok";
   }
   else current.status = "internal error";
@@ -75,8 +78,9 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
     nrows = PQntuples(ci->result);
     ncols = PQnfields(ci->result);
     for (i=0; i<nrows; i++) {
-      if(j<2) continue;
-      if(!PQgetisnull(ci->result, i, 0)) continue;
+      noitL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
+      if(ncols<2) continue;
+      if(PQgetisnull(ci->result, i, 0)) continue;
       for (j=1; j<ncols; j++) {
         Oid coltype;
         int iv, *piv;
@@ -88,6 +92,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
         snprintf(mname, sizeof(mname), "%s`%s",
                  PQgetvalue(ci->result, i, 0), PQfname(ci->result, j));
         coltype = PQftype(ci->result, j);
+        noitL(nldeb, "postgres:   col %d (%s) type %d:\n", j, mname, coltype);
         switch(coltype) {
           case BOOLOID:
             if(PQgetisnull(ci->result, i, j)) piv = NULL;
@@ -118,7 +123,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
           default:
             if(PQgetisnull(ci->result, i, j)) sv = NULL;
             else sv = PQgetvalue(ci->result, i, j);
-            noit_stats_set_metric(&current, mname, METRIC_STRING, sv);
+            noit_stats_set_metric(&current, mname, METRIC_GUESS, sv);
             break;
         }
       }
@@ -160,7 +165,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
       FETCH_CONFIG_OR(dsn, "");
       noit_check_interpolate(dsn_buff, sizeof(dsn_buff), dsn,
                              &ci->attrs, check->config);
-      ci->conn = PQconnectdb(dsn);
+      ci->conn = PQconnectdb(dsn_buff);
       if(!ci->conn) AVAIL_BAIL("PQconnectdb failed");
       if(PQstatus(ci->conn) != CONNECTION_OK)
         AVAIL_BAIL(PQerrorMessage(ci->conn));
@@ -168,7 +173,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
       FETCH_CONFIG_OR(sql, "");
       noit_check_interpolate(sql_buff, sizeof(sql_buff), sql,
                              &ci->attrs, check->config);
-      ci->result = PQexec(ci->conn, sql);
+      ci->result = PQexec(ci->conn, sql_buff);
       if(!ci->result) AVAIL_BAIL("PQexec failed");
       ci->rv = PQresultStatus(ci->result);
       switch(ci->rv) {
