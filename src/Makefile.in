@@ -29,7 +29,7 @@ NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf.o noit_conf_checks.o noit_tokenizer.o \
-	noit_jlog_listener.o
+	noit_jlog_listener.o noit_filters.o
 
 STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \

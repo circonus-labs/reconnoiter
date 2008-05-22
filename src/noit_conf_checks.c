@@ -18,6 +18,7 @@
 #include "noit_conf.h"
 #include "noit_conf_private.h"
 #include "noit_check.h"
+#include "noit_filters.h"
 #include "noit_console.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
@@ -39,7 +40,12 @@ static struct _valid_attr_t {
   { "/checks", "timeout", "@timeout", 0 },
   { "/checks", "oncheck", "@oncheck", 0 },
   { "/checks", "disable", "@disable", 0 },
+  { "/checks", "filterset", "@filterset", 0 },
   { "/checks", "module", "@module", 1 },
+  { "/filtersets/filterset", "target", "@target", 1 },
+  { "/filtersets/filterset", "module", "@module", 1 },
+  { "/filtersets/filterset", "name", "@name", 1 },
+  { "/filtersets/filterset", "metric", "@metric", 1 },
 };
 
 void
@@ -376,6 +382,7 @@ noit_console_show_check(noit_console_closure_t ncct,
     SHOW_ATTR(period);
     SHOW_ATTR(timeout);
     SHOW_ATTR(oncheck);
+    SHOW_ATTR(filterset);
     SHOW_ATTR(disable);
     /* Print out all the config settings */
     config = noit_conf_get_hash(node, "config");
@@ -1071,7 +1078,10 @@ noit_conf_check_set_attr(noit_console_closure_t ncct,
   /* So, we updated an attribute, so we need to reload all checks
    * that are descendent-or-self of this node.
    */
-  refresh_subchecks(ncct, info);
+  if(!strncmp(info->path, "/checks", strlen("/checks")))
+    refresh_subchecks(ncct, info);
+  if(!strncmp(info->path, "/filtersets", strlen("/filtersets")))
+    noit_refresh_filtersets(ncct, info);
   return 0;
 }
 
@@ -1103,7 +1113,10 @@ noit_conf_check_unset_attr(noit_console_closure_t ncct,
   /* So, we updated an attribute, so we need to reload all checks
    * that are descendent-or-self of this node.
    */
-  refresh_subchecks(ncct, info);
+  if(!strncmp(info->path, "/checks", strlen("/checks")))
+    refresh_subchecks(ncct, info);
+  if(!strncmp(info->path, "/filterset", strlen("/filterest")))
+    noit_refresh_filtersets(ncct, info);
   return 0;
 }
 

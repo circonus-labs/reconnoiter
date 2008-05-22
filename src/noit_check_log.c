@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 
 #include "noit_check.h"
+#include "noit_filters.h"
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
 
@@ -68,6 +69,9 @@ noit_check_log_metrics(noit_check_t *check) {
   uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
   while(noit_hash_next(&c->metrics, &iter, &key, &klen, (void **)&m)) {
+    /* If we apply the filter set and it returns false, we don't log */
+    if(!noit_apply_filterset(check->filterset, check, m)) continue;
+
     if(!m->metric_value.s) { /* they are all null */
       noitL(metrics_log, "M\t%lu.%03lu\t%s\t%s\t%c\t[[null]]\n",
             SECPART(&c->whence), MSECPART(&c->whence), uuid_str,

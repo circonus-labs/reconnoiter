@@ -99,6 +99,7 @@ noit_poller_process_checks(const char *xpath) {
     char target[256];
     char module[256];
     char name[256];
+    char filterset[256];
     char oncheck[1024] = "";
     int no_period = 0;
     int no_oncheck = 0;
@@ -130,6 +131,9 @@ noit_poller_process_checks(const char *xpath) {
       noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
       busted = noit_true;
     }
+
+    if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
+      filterset[0] = '\0';
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
       strlcpy(name, module, sizeof(name));
@@ -175,13 +179,13 @@ noit_poller_process_checks(const char *xpath) {
         if(existing_check->module) free(existing_check->module);
         existing_check->module = strdup(module);
       }
-      noit_check_update(existing_check, target, name, options,
+      noit_check_update(existing_check, target, name, filterset, options,
                            period, timeout, oncheck[0] ? oncheck : NULL,
                            flags);
       noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
     }
     else {
-      noit_poller_schedule(target, module, name, options,
+      noit_poller_schedule(target, module, name, filterset, options,
                            period, timeout, oncheck[0] ? oncheck : NULL,
                            flags, uuid, out_uuid);
       noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
@@ -325,6 +329,7 @@ int
 noit_check_update(noit_check_t *new_check,
                   const char *target,
                   const char *name,
+                  const char *filterset,
                   noit_hash_table *config,
                   u_int32_t period,
                   u_int32_t timeout,
@@ -358,6 +363,8 @@ noit_check_update(noit_check_t *new_check,
   new_check->target = strdup(target);
   if(new_check->name) free(new_check->name);
   new_check->name = name ? strdup(name): NULL;
+  if(new_check->filterset) free(new_check->filterset);
+  new_check->filterset = filterset ? strdup(filterset): NULL;
 
   if(config != NULL) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
@@ -395,6 +402,7 @@ int
 noit_poller_schedule(const char *target,
                      const char *module,
                      const char *name,
+                     const char *filterset,
                      noit_hash_table *config,
                      u_int32_t period,
                      u_int32_t timeout,
@@ -413,7 +421,7 @@ noit_poller_schedule(const char *target,
   else
     uuid_copy(new_check->checkid, in);
 
-  noit_check_update(new_check, target, name, config,
+  noit_check_update(new_check, target, name, filterset, config,
                     period, timeout, oncheck, flags);
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,

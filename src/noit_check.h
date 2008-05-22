@@ -92,6 +92,7 @@ typedef struct noit_check {
   char *target;
   char *module;
   char *name;
+  char *filterset;
   noit_hash_table *config;
   char *oncheck;               /* target`name of the check that fires us */
   u_int32_t period;            /* period of checks in milliseconds */
@@ -129,6 +130,7 @@ API_EXPORT(int)
   noit_poller_schedule(const char *target,
                        const char *module,
                        const char *name,
+                       const char *filterset,
                        noit_hash_table *config,
                        u_int32_t period,
                        u_int32_t timeout,
@@ -141,6 +143,7 @@ API_EXPORT(int)
   noit_check_update(noit_check_t *new_check,
                     const char *target,
                     const char *name,
+                    const char *filterset,
                     noit_hash_table *config,
                     u_int32_t period,
                     u_int32_t timeout,

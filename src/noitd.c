@@ -16,6 +16,7 @@
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "noit_conf_checks.h"
+#include "noit_filters.h"
 
 #define APPNAME "noit"
 
@@ -104,6 +105,7 @@ int main(int argc, char **argv) {
   noit_jlog_listener_init();
 
   noit_module_init();
+  noit_filters_init();
   noit_poller_init();
   noit_listener_init(APPNAME);
 
