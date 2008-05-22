@@ -2,6 +2,8 @@
 <?php
 
 require_once('Reconnoiter_amLine_Driver.php');
+global $graph_settings;
+require_once('graph_settings.inc');
 
 $uuid = $_GET['id']; //'cfe2aad7-71e5-400b-8418-a6d5834a0386';
 $math = '$this->bw($value)';
@@ -14,9 +16,15 @@ if(!$end) {
   $end = strftime("%Y-%m-%d %H:%M:%S", time());
 }
 
-$driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 400);
-$driver->addDataSet($uuid, 'inoctets', true, '$value * 8', array('expression' => "0 - $math"));
-$driver->addDataSet($uuid, 'outoctets', true, '$value * 8', array('expression' => "$math"));
+$driver = new Reconnoiter_amLine_Driver($start, $end,
+                                        isset($_GET['cnt']) ? $_GET['cnt'] : 400);
+$i = 0;
+$settings = $graph_settings[$i++];
+$settings['expression'] = "0 - $math";
+$driver->addDataSet($uuid, 'inoctets', true, '$value * 8', $settings);
+$settings = $graph_settings[$i++];
+$settings['expression'] = "$math";
+$driver->addDataSet($uuid, 'outoctets', true, '$value * 8', $settings);
 $driver->addChangeSet($uuid, 'alias');
 $driver->calcPercentile(95);
 $driver->addPercentileGuide('min', 0, array('expression' => "$math"));

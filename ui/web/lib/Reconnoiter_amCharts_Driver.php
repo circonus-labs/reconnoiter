@@ -5,7 +5,7 @@ require_once 'Reconnoiter_DataContainer.php';
 class Reconnoiter_amCharts_Driver extends Reconnoiter_DataContainer {
   function graph_attrs() {
     return array(
-      'gid','title','color','fill_color','fill_alpha','color_hover',
+      'axis', 'gid','title','color','fill_color','fill_alpha','color_hover',
       'balloon_color','balloon_alpha','balloon_text_color','balloon_text',
       'bullet','bullet_size','bullet_color','visible_in_legend','selected'
     );

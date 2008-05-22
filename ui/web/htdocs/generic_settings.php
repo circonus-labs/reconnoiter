@@ -2,27 +2,33 @@
 <?php
 
 require_once('Reconnoiter_amLine_Driver.php');
+global $graph_settings;
+require_once('graph_settings.inc');
 
 $start = $_GET['start'];
 if(!$start) {
-  $start = strftime("%Y-%m-%d %H:%M:%S", time() - (7*86400));
+  $start = strftime("%Y-%m-%d %H:%M:%S-00", time() - (7*86400));
 }
 $end = $_GET['end'];
 if(!$end) {
-  $end = strftime("%Y-%m-%d %H:%M:%S", time());
+  $end = strftime("%Y-%m-%d %H:%M:%S-00", time());
 }
 
 $driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 400);
 
-foreach(split(",", $_GET['metric']) as $m) {
-  preg_match('/^(d|n|t)-([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})-(.*)$/', $m,
+$i = 0;
+foreach(split(";", $_GET['metric']) as $m) {
+  preg_match('/^(d|n|t)(l|r)(~|-)([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})-(.*)$/', $m,
              $matches);
+  $settings = $graph_settings[$i++];
+  if($matches[3] == '~') $settings['expression'] = '$this->bw($value)';
+  $settings['axis'] = ($matches[2] == 'l') ? 'left' : 'right';
   if($matches[1] == 'n')
-    $driver->addDataSet($matches[2], $matches[3], 'false', null, array('expression' => '$this->bw($value)'));
+    $driver->addDataSet($matches[4], $matches[5], 'false', null, $settings);
   else if($matches[1] == 'd')
-    $driver->addDataSet($matches[2], $matches[3], 'true', null, array('expression' => '$this->bw($value)'));
+    $driver->addDataSet($matches[4], $matches[5], 'true', null, $settings);
   else
-    $driver->addChangeSet($matches[2], $matches[3]);
+    $driver->addChangeSet($matches[4], $matches[5]);
 }
 
 $i = 0;
@@ -40,7 +46,6 @@ $i = 0;
  <y_left>
   <min><?php print ($driver->min() > 0) ? '0' : '' ?></min>
   <max><?php print ($driver->max() < 0) ? '0' : '' ?></max>
-  <unit><?php print $driver->autounit() ?></unit>
  </y_left>
 </values>
 </settings>
