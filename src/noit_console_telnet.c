@@ -1370,8 +1370,10 @@ clientstat(noit_console_closure_t ncct, int code, int parm1, int parm2)
 			 * and when the ack to that command comes back
 			 * we'll set it and be in the right mode.
 			 */
+#ifdef LINEMODE
 			if (ack)
 				localstat(ncct);
+#endif
 			if (changed & MODE_EDIT)
 				noit_console_telnet_tty_setedit(ncct, useeditmode & MODE_EDIT);
 
@@ -1815,7 +1817,9 @@ noit_console_telnet_alloc(noit_console_closure_t ncct) {
     send_will(TELOPT_ECHO, 1);
   on = 1;
   init_termbuf(ncct);
+#ifdef LINEMODE
   localstat(ncct);
+#endif
   send_do(TELOPT_TTYPE, 1);
   send_do(TELOPT_TSPEED, 1);
   send_do(TELOPT_XDISPLOC, 1);
