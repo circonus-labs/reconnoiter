@@ -53,7 +53,10 @@
 #include <term.h>
 #endif
 
+#if !defined(__linux__)
+/* At least _I_ can't get LINUMODE working on Linux */
 #define LINEMODE 1
+#endif
 
 #ifndef _POSIX_VDISABLE
 # ifdef VDISABLE

@@ -118,13 +118,15 @@ netflush(noit_console_closure_t ncct) {
 }
 static void set_termbuf(noit_console_closure_t ncct);
 static void init_termbuf(noit_console_closure_t ncct);
-static void defer_terminit(noit_console_closure_t ncct);
 static void flowstat(noit_console_closure_t ncct);
 static int spcset(noit_console_closure_t ncct, int func, cc_t *valp, cc_t **valpp);
 static void suboption(noit_console_closure_t ncct);
+static void get_slc_defaults(noit_console_closure_t ncct);
+
+#ifdef LINEMODE
+static void defer_terminit(noit_console_closure_t ncct);
 static void send_slc(noit_console_closure_t ncct);
 static void default_slc(noit_console_closure_t ncct);
-static void get_slc_defaults(noit_console_closure_t ncct);
 static void add_slc(noit_console_closure_t ncct, char func, char flag, cc_t val);
 static void start_slc(noit_console_closure_t ncct, int getit);
 static int end_slc(noit_console_closure_t ncct, unsigned char **bufp);
@@ -132,6 +134,7 @@ static void process_slc(noit_console_closure_t ncct, unsigned char func, unsigne
 static void change_slc(noit_console_closure_t ncct, char func, char flag, cc_t val);
 static void check_slc(noit_console_closure_t ncct);
 static void do_opt_slc(noit_console_closure_t ncct, unsigned char *ptr, int len);
+#endif
 
 #ifdef LINEMODE
 static void
