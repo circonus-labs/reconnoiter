@@ -234,7 +234,7 @@ noit_module_t postgres = {
   NOIT_MODULE_MAGIC,
   NOIT_MODULE_ABI_VERSION,
   "postgres",
-  "Secure Shell version 2 checker",
+  "PostgreSQL Checker",
   postgres_onload,
   NULL,
   NULL,
