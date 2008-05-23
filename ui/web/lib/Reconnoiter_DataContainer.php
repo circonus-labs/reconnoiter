@@ -65,8 +65,8 @@ class Reconnoiter_DataContainer {
     $this->__calc();
     $this->addGuide($name, $this->percentile[$p], $config);
   }
-  function min() { return $this->percentile[0]; }
-  function max() { return $this->percentile[100]; }
+  function min() { $this->__calc(); return $this->percentile[0]; }
+  function max() { $this->__calc(); return $this->percentile[100]; }
   function calcPercentile($p) {
     if($this->units) throw Exception("Already calculated percentiles");
     $this->ps_to_calc[$p] = 'true';
