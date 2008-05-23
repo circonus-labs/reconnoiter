@@ -34,7 +34,11 @@ class Reconnoiter_DB {
     $sth->execute(array($uuid,$name,$start,$end,$expected));
     $rv = array();
     while($row = $sth->fetch()) {
-      $rv[$row['whence']] = $row;
+      if(isset($rv[$row['whence']]))
+        $rv[$row['whence']]['value'] = $rv[$row['whence']]['value'] . "\n" .
+                                       $row['value'];
+      else
+        $rv[$row['whence']] = $row;
     }
     return $rv;
   }
