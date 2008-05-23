@@ -133,7 +133,7 @@ expand_range(const char *range, char ***set, int max_count, const char **err) {
     count = (e - s) / i + 1;
     *set = malloc(count * sizeof(**set));
     count = 0;
-    for(; (i>0 && s<e) || (i<0 && s>e); s += i) {
+    for(; (i>0 && s<=e) || (i<0 && s>=e); s += i) {
       snprintf(buff, sizeof(buff), "%d", s);
       (*set)[count] = strdup(buff);
       count++;
