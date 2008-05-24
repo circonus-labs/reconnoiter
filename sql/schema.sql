@@ -220,7 +220,7 @@ BEGIN
 
 IF TG_OP = 'INSERT' THEN
     SELECT state,availability FROM  stratcon.loading_dock_status_s WHERE sid = NEW.sid 
-        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
+        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_status_s_change_log 
                         WHERE  SID=NEW.sid and  WHENCE <> NEW.whence )
     INTO v_state,v_avail;
 
