@@ -671,7 +671,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
   xmlDocPtr master_config = NULL;
-  xmlNodePtr node;
+  xmlNodePtr node = NULL;
 
   noit_conf_xml_xpath(&master_config, &xpath_ctxt);
   if(argc > 1) {
@@ -735,6 +735,17 @@ noit_console_config_show(noit_console_closure_t ncct,
   xmlXPathFreeObject(pobj);
 
   /* Print out all the config settings */
+  if(!path[0] || path[0] == '/') /* base only, or absolute path requested */
+    snprintf(xpath, sizeof(xpath), "/noit%s", path);
+  else
+    snprintf(xpath, sizeof(xpath), "/noit%s/%s", basepath, path);
+  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    nc_printf(ncct, "no such object\n");
+    goto bad;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   titled = 0;
   config = noit_conf_get_hash(node, "config");
   while(noit_hash_next(config, &iter, &k, &klen, &data)) {
@@ -743,9 +754,13 @@ noit_console_config_show(noit_console_closure_t ncct,
   }
   noit_hash_destroy(config, free, free);
   free(config);
+  xmlXPathFreeObject(pobj);
 
   /* _shorten string_ turning last { / @ * } to { / * } */
-  strlcpy(xpath + strlen(xpath) - 2, "*", 2);
+  if(!path[0] || path[0] == '/') /* base only, or absolute path requested */
+    snprintf(xpath, sizeof(xpath), "/noit%s/*", path);
+  else
+    snprintf(xpath, sizeof(xpath), "/noit%s/%s/*", basepath, path);
   pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET) {
     nc_printf(ncct, "no such object\n");
