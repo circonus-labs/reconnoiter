@@ -253,28 +253,71 @@ CREATE TRIGGER loading_dock_metric_text_s_change_log
 CREATE OR REPLACE FUNCTION stratcon.loading_dock_metric_text_s_change_log() RETURNS trigger
     AS $$
 DECLARE
-    v_oldvalue TEXT;
+    v_oldvalue text;
     v_sid integer;
     v_name text;
+    v_value text;
+    v_whence timestamptz;
+    v_old_whence timestamptz;
+    v_old_name text;
+    v_old_sid integer;
+    v_old_value text;
+    v_max_whence timestamptz;
 BEGIN
 
 IF TG_OP = 'INSERT' THEN
-    SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name 
-        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
-                        WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
-    INTO v_oldvalue;
 
-    IF v_oldvalue IS DISTINCT FROM NEW.value THEN
+SELECT max(whence) FROM stratcon.loading_dock_metric_text_s WHERE whence <> NEW.whence and sid=NEW.sid and name = NEW.name 
+        INTO v_max_whence;
+ 
+ IF NEW.whence < v_max_whence THEN            
+ 
+    INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
+                 VALUES (NEW.sid,NEW.whence, NEW.name, NEW.value); 
+                 
+       SELECT  whence,name,value FROM  stratcon.loading_dock_metric_text_s_change_log WHERE whence > NEW.whence and sid=NEW.sid and name=NEW.name order by whence  limit 1 
+        INTO v_whence,v_sid,v_name,v_value;
+          IF FOUND  THEN
+            IF v_value IS  DISTINCT FROM NEW.value THEN
+               NULL;
+            ELSE
+                DELETE from  stratcon.loading_dock_metric_text_s_change_log  WHERE whence=v_whence and sid=v_sid and name=v_name;
+            END IF;
+          END IF;
+       
+         
+       SELECT whence,sid,name,value from stratcon.loading_dock_metric_text_s where whence> NEW.whence and sid=NEW.sid and name=NEW.name and value!=NEW.value order by whence limit 1
+         INTO v_whence,v_sid,v_name,v_value;
+          IF FOUND  THEN
+             SELECT  whence,sid,name,value FROM  stratcon.loading_dock_metric_text_s_change_log WHERE whence =v_whence and sid=v_sid and name=v_name and value=v_value
+                 INTO v_old_whence,v_old_sid,v_old_name,v_old_value;
+              IF FOUND THEN
+                 NULL;
+              ELSE
+                INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
+                 VALUES (v_sid,v_whence, v_name, v_value); 
+               END IF;
+        END IF;
 
-        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
-            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
-    END IF;
-    
-    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
-         INTO v_sid,v_name;
-       IF NOT FOUND THEN
-           INSERT INTO  stratcon.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.name,'text');
-    END IF;
+  ELSE
+	     SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name 
+	         AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
+	                         WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
+		     INTO v_oldvalue;
+
+		    IF v_oldvalue IS DISTINCT FROM NEW.value THEN
+		
+		        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
+		            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
+		    END IF;
+  END IF;	    
+
+
+SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
+        INTO v_sid,v_name;
+     IF NOT FOUND THEN
+          INSERT INTO  stratcon.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.name,'text');
+     END IF;
 
 ELSE
         RAISE EXCEPTION 'something wrong with stratcon.loading_dock_metric_text_s_change_log ';
