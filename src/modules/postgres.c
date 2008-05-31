@@ -225,7 +225,7 @@ static int postgres_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int postgres_onload(noit_module_t *self) {
+static int postgres_onload(noit_image_t *self) {
   nlerr = noit_log_stream_find("error/postgres");
   nldeb = noit_log_stream_find("debug/postgres");
   if(!nlerr) nlerr = noit_stderr;
@@ -236,11 +236,13 @@ static int postgres_onload(noit_module_t *self) {
 }
 
 noit_module_t postgres = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "postgres",
-  "PostgreSQL Checker",
-  postgres_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "postgres",
+    "PostgreSQL Checker",
+    postgres_onload
+  },
   NULL,
   NULL,
   postgres_initiate_check,

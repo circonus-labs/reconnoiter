@@ -288,7 +288,7 @@ static int ssh2_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int ssh2_onload(noit_module_t *self) {
+static int ssh2_onload(noit_image_t *self) {
   nlerr = noit_log_stream_find("error/ssh2");
   nldeb = noit_log_stream_find("debug/ssh2");
   if(!nlerr) nlerr = noit_stderr;
@@ -300,11 +300,13 @@ static int ssh2_onload(noit_module_t *self) {
 }
 
 noit_module_t ssh2 = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "ssh2",
-  "Secure Shell version 2 checker",
-  ssh2_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "ssh2",
+    "Secure Shell version 2 checker",
+    ssh2_onload
+  },
   ssh2_config,
   ssh2_init,
   ssh2_initiate_check,

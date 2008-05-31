@@ -879,7 +879,7 @@ static int resmon_part_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int serf_onload(noit_module_t *self) {
+static int serf_onload(noit_image_t *self) {
   apr_initialize();
   atexit(apr_terminate);
 
@@ -893,11 +893,13 @@ static int serf_onload(noit_module_t *self) {
   return 0;
 }
 noit_module_t http = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "http",
-  "libserf-based HTTP and HTTPS resource checker",
-  serf_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "http",
+    "libserf-based HTTP and HTTPS resource checker",
+    serf_onload
+  },
   serf_config,
   serf_init,
   serf_initiate_check,
@@ -905,11 +907,13 @@ noit_module_t http = {
 };
 
 noit_module_t resmon = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "resmon",
-  "libserf-based resmon resource checker",
-  serf_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "resmon",
+    "libserf-based resmon resource checker",
+    serf_onload
+  },
   resmon_config,
   serf_init,
   resmon_initiate_check,
@@ -917,11 +921,13 @@ noit_module_t resmon = {
 };
 
 noit_module_t resmon_part = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "resmon_part",
-  "resmon part resource checker",
-  serf_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "resmon_part",
+    "resmon part resource checker",
+    serf_onload
+  },
   resmon_config,
   serf_init,
   resmon_part_initiate_check,

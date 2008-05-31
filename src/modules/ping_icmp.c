@@ -500,7 +500,7 @@ static int in_cksum(u_short *addr, int len)
   return (answer);
 }
 
-static int ping_icmp_onload(noit_module_t *self) {
+static int ping_icmp_onload(noit_image_t *self) {
   nlerr = noit_log_stream_find("error/ping_icmp");
   nldeb = noit_log_stream_find("debug/ping_icmp");
   if(!nlerr) nlerr = noit_stderr;
@@ -510,11 +510,13 @@ static int ping_icmp_onload(noit_module_t *self) {
   return 0;
 }
 noit_module_t ping_icmp = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "ping_icmp",
-  "ICMP based host availability detection",
-  ping_icmp_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "ping_icmp",
+    "ICMP based host availability detection",
+    ping_icmp_onload
+  },
   ping_icmp_config,
   ping_icmp_init,
   ping_icmp_initiate_check,

@@ -207,12 +207,11 @@ noit_poller_initiate() {
                        (void **)&check)) {
     noit_module_t *mod;
     mod = noit_module_lookup(check->module);
-    if(mod) {
+    if(mod && mod->initiate_check) {
       if(NOIT_CHECK_LIVE(check))
         continue;
       if((check->flags & NP_DISABLED) == 0) {
-        if(mod->initiate_check)
-          mod->initiate_check(mod, check, 0, NULL);
+        mod->initiate_check(mod, check, 0, NULL);
       }
       else
         noitL(noit_debug, "Skipping %s`%s, disabled.\n",
@@ -714,7 +713,9 @@ noit_check_set_stats(struct _noit_module *module,
     noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
           dep->check->target, dep->check->name,
           check->target, check->name);
-    mod->initiate_check(mod, dep->check, 1, check);
+    if((dep->check->flags & NP_DISABLED) == 0)
+      if(mod->initiate_check)
+        mod->initiate_check(mod, dep->check, 1, check);
   }
 }
 

@@ -454,7 +454,7 @@ static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
 static int noit_snmp_config(noit_module_t *self, noit_hash_table *config) {
   return 0;
 }
-static int noit_snmp_onload(noit_module_t *self) {
+static int noit_snmp_onload(noit_image_t *self) {
   nlerr = noit_log_stream_find("error/snmp");
   nldeb = noit_log_stream_find("debug/snmp");
   if(!nlerr) nlerr = noit_stderr;
@@ -465,11 +465,13 @@ static int noit_snmp_onload(noit_module_t *self) {
   return 0;
 }
 noit_module_t snmp = {
-  NOIT_MODULE_MAGIC,
-  NOIT_MODULE_ABI_VERSION,
-  "snmp",
-  "SNMP collection",
-  noit_snmp_onload,
+  {
+    NOIT_MODULE_MAGIC,
+    NOIT_MODULE_ABI_VERSION,
+    "snmp",
+    "SNMP collection",
+    noit_snmp_onload
+  },
   noit_snmp_config,
   noit_snmp_init,
   noit_snmp_initiate_check,
