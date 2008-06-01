@@ -142,7 +142,7 @@ CREATE TABLE stratcon.metric_name_summary (
   metric_name text NOT NULL,
   metric_type character varying(22),
   active boolean default 'true',
-  PRIMARY KEY (sid,name)
+  PRIMARY KEY (sid,metric_name,metric_type)
 );
 -- Schema Sequence 
 
