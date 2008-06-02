@@ -23,7 +23,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
-SUBS=utils eventer modules noitedit
+SUBS=lua utils eventer modules noitedit
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \

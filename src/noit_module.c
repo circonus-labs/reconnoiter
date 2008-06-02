@@ -65,6 +65,18 @@ static int noit_module_loader_validate_magic(noit_image_t *obj) {
   return 0;
 }
 
+noit_module_t *noit_blank_module() {
+  noit_module_t *obj;
+  obj = calloc(1, sizeof(*obj));
+  obj->hdr.opaque_handle = calloc(1, sizeof(struct __extended_image_data));
+  return obj;
+}
+
+int noit_register_module(noit_module_t *mod) {
+  noit_hash_store(&modules, mod->hdr.name, strlen(mod->hdr.name), mod);
+  return 0;
+}
+
 int noit_load_image(const char *file, const char *name,
                     noit_hash_table *registry,
                     int (*validate)(noit_image_t *),

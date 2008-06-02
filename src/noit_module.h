@@ -50,6 +50,10 @@ API_EXPORT(int)
   noit_module_load(const char *file, const char *name);
 API_EXPORT(noit_module_t *)
   noit_module_lookup(const char *name);
+API_EXPORT(noit_module_t *)
+  noit_blank_module();
+API_EXPORT(int)
+  noit_register_module(noit_module_t *mod);
 
 API_EXPORT(void *)
   noit_image_get_userdata(noit_image_t *mod);

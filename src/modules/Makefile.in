@@ -17,9 +17,22 @@ INSTALL=@INSTALL@
 top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
+	lua.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)
+
+lua.@MODULEEXT@:	lua.lo lua_noit.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo ../lua/liblua.lo
+	@echo "- linking $@"
+
+lua.lo:	lua.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua.c -o $@
+	@echo "- compiling $<"
+
+lua_noit.lo:	lua_noit.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_noit.c -o $@
+	@echo "- compiling $<"
 
 postgres.@MODULEEXT@:	postgres.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ $(PGLIBS) -lz -lssl -lcrypto
