@@ -168,7 +168,7 @@ API_EXPORT(void)
                         stats_t *newstate);
 
 API_EXPORT(void)
-  noit_stats_set_metric(stats_t *, char *, metric_type_t, void *);
+  noit_stats_set_metric(stats_t *, const char *, metric_type_t, void *);
 
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);

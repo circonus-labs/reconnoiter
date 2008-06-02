@@ -647,7 +647,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
   return type;
 }
 void
-noit_stats_set_metric(stats_t *newstate, char *name, metric_type_t type,
+noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
                       void *value) {
   metric_t *m;
   void *replacement = NULL;
