@@ -33,6 +33,7 @@ typedef struct noit_lua_check_info {
   eventer_t timeout_event;
   lua_module_closure_t *lmc;
   lua_State *coro_state;
+  int coro_state_ref;
   struct timeval finish_time;
   stats_t current;
   noit_hash_table *events; /* Any eventers we need to cleanup */

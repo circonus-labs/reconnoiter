@@ -16,16 +16,14 @@
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
+static noit_hash_table noit_coros = NOIT_HASH_EMPTY;
 
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
   noit_lua_check_info_t *v = NULL;
-  lua_getglobal(L, "noit_coros");
-  lua_pushthread(L);
-  lua_gettable(L, -2);
-  if(lua_isuserdata(L, -1)) v = lua_touserdata(L, -1);
-  lua_pop(L, 1);
-  return v;
+  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v))
+    return v;
+  return NULL;
 }
 
 static void
@@ -434,9 +432,11 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       /* The person yielding had better setup an event
        * to wake up the coro...
        */
-      return 0;
+      lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+      goto done;
     default: /* Errors */
-      ci->current.status = "unknown error";
+      noitL(nlerr, "lua resume returned: %d\n", result);
+      ci->current.status = ci->timed_out ? "timeout" : "unknown error";
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
       base = lua_gettop(ci->coro_state);
@@ -452,7 +452,10 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   noit_lua_log_results(ci->self, ci->check);
   noit_lua_module_cleanup(ci->self, ci->check);
   check->flags &= ~NP_RUNNING;
-  return 0;
+
+ done:
+  lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+  return result;
 }
 static int
 noit_lua_check_timeout(eventer_t e, int mask, void *closure,
@@ -464,8 +467,14 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   ci->timed_out = 1;
   noit_lua_check_deregister_event(ci, e);
   if(ci->coro_state) {
-    lua_pushnil(ci->coro_state);
-    noit_lua_resume(ci, 1);
+    /* Our coro is still "in-flight". To fix this we will unreference
+     * it, garbage collect it and then ensure that it failes a resume
+     */
+    lua_getglobal(ci->lmc->lua_state, "noit_coros");
+    luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
+    lua_pop(ci->lmc->lua_state, 2);
+    lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+    assert(2 == noit_lua_resume(ci, 0));
   } else {
     noit_lua_log_results(ci->self, ci->check);
     noit_lua_module_cleanup(ci->self, ci->check);
@@ -505,11 +514,14 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   noit_lua_check_register_event(ci, e);
   eventer_add(e);
 
+  ci->lmc = lmc;
   lua_getglobal(L, "noit_coros");
   ci->coro_state = lua_newthread(L);
-  lua_pushlightuserdata(L, ci);
-  lua_settable(L, -3);
-  lua_pop(L, 1);
+  noit_hash_store(&noit_coros,
+                  (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                  ci);
+  ci->coro_state_ref = luaL_ref(L, -2);
+  lua_pop(L, 1); /* pops noit_coros */
 
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
