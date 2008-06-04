@@ -214,11 +214,51 @@ noit_lua_socket_read(lua_State *L) {
   if(cl->read_sofar == 0) luaL_buffinit(L, &cl->inbuff);
   cl->read_goal = 0;
   cl->read_terminator = NULL;
+  fprintf(stderr, "initiating read... (%d bytes buffered)\n", cl->read_sofar);
 
-  if(lua_isnumber(L, 1))
+  if(lua_isnumber(L, 1)) {
     cl->read_goal = lua_tointeger(L, 1);
-  else
+    fprintf(stderr, " read wants %d bytes\n", cl->read_goal);
+    if(cl->read_goal <= cl->read_sofar) {
+      const char *current_buff;
+      int base;
+      size_t len;
+     i_know_better:
+      base = lua_gettop(L);
+      /* We have enough, we can service this right here */
+      luaL_pushresult(&cl->inbuff);
+      current_buff = lua_tolstring(L, base + 1, &len);
+      assert(len == cl->read_sofar);
+      lua_pop(L, 1);
+      lua_pushlstring(L, current_buff, cl->read_goal);
+      cl->read_sofar -= cl->read_goal;
+      if(cl->read_sofar) {
+        luaL_buffinit(L, &cl->inbuff);
+        luaL_addlstring(&cl->inbuff, current_buff + cl->read_goal,
+                        cl->read_sofar);
+      }
+      return 1;
+    }
+  }
+  else {
     cl->read_terminator = lua_tostring(L, 1);
+    fprintf(stderr, " read wants up to [%s]\n", cl->read_terminator);
+    if(cl->read_sofar) {
+      const char *cp;
+      /* Ugh... inernalism */
+      cp = strnstr(cl->inbuff.buffer, cl->read_terminator, cl->read_sofar);
+      if(cp) {
+        /* Here we matched... and we _know_ that someone actually wants:
+         * strlen(cl->read_terminator) + cp - cl->inbuff.buffer bytes...
+         * give it to them.
+         */
+        cl->read_goal = strlen(cl->read_terminator) + cp - cl->inbuff.buffer;
+        cl->read_terminator = NULL;
+        assert(cl->read_goal <= cl->read_sofar);
+        goto i_know_better;
+      }
+    }
+  }
 
   e->callback = noit_lua_socket_read_complete;
   e->mask = EVENTER_READ | EVENTER_EXCEPTION;
