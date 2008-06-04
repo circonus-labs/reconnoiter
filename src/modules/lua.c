@@ -32,9 +32,8 @@ noit_event_dispose(void *ev) {
   eventer_t *value = ev;
   eventer_t e = *value;
   if(e->fd >= 0) e->opset->close(e->fd, &mask, e);
-  if(eventer_remove(e)) {
-    eventer_free(e);
-  }
+  if(e->mask && eventer_remove(e)) eventer_free(e);
+  if(!e->mask) eventer_free(e);
   free(ev);
 }
 void
@@ -43,13 +42,14 @@ noit_lua_check_register_event(noit_lua_check_info_t *ci, eventer_t e) {
   eptr = calloc(1, sizeof(*eptr));
   memcpy(eptr, &e, sizeof(*eptr));
   if(!ci->events) ci->events = calloc(1, sizeof(*ci->events));
-  noit_hash_store(ci->events, (const char *)eptr, sizeof(*eptr), eptr);
+  assert(noit_hash_store(ci->events, (const char *)eptr, sizeof(*eptr), eptr));
 }
 void
-noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e) {
-  if(ci->events)
-    noit_hash_delete(ci->events, (const char *)&e, sizeof(*e),
-                     NULL, noit_event_dispose);
+noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e,
+                                int tofree) {
+  assert(ci->events);
+  assert(noit_hash_delete(ci->events, (const char *)&e, sizeof(e),
+                          NULL, tofree ? noit_event_dispose : free));
 }
 void
 noit_lua_check_clean_events(noit_lua_check_info_t *ci) {
@@ -419,11 +419,17 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   noit_check_set_stats(self, check, &ci->current);
 }
 int
+noit_lua_yield(noit_lua_check_info_t *ci, int nargs) {
+  noitL(nldeb, "lua: %p yielding\n", ci->coro_state);
+  return lua_yield(ci->coro_state, nargs);
+}
+int
 noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   int result, base;
   noit_check_t *check;
   check = ci->check;
 
+  noitL(nldeb, "lua: %p resuming\n", ci->coro_state);
   result = lua_resume(ci->coro_state, nargs);
   switch(result) {
     case 0: /* success */
@@ -465,7 +471,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   check = ci->check;
   noitL(nldeb, "lua: %p ->check_timeout\n", ci->coro_state);
   ci->timed_out = 1;
-  noit_lua_check_deregister_event(ci, e);
+  noit_lua_check_deregister_event(ci, e, 0);
   if(ci->coro_state) {
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume

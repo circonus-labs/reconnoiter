@@ -41,8 +41,10 @@ typedef struct noit_lua_check_info {
 
 int luaopen_noit(lua_State *L);
 noit_lua_check_info_t *get_ci(lua_State *L);
+int noit_lua_yield(noit_lua_check_info_t *ci, int nargs);
 int noit_lua_resume(noit_lua_check_info_t *ci, int nargs);
 void noit_lua_check_register_event(noit_lua_check_info_t *ci, eventer_t e);
-void noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e);
+void noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e,
+                                     int tofree);
 
 #endif
