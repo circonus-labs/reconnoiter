@@ -279,6 +279,11 @@ static int eventer_epoll_impl_loop() {
 
         fd = ev->data.fd;
         e = master_fds[fd].e;
+        /* It's possible that someone removed the event and freed it
+         * before we got here.
+         */
+        if(!e) continue;
+
 
         lockstate = acquire_master_fd(fd);
         assert(lockstate == EV_OWNED);

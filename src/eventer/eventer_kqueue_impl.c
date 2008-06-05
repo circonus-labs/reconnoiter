@@ -365,8 +365,12 @@ static int eventer_kqueue_impl_loop() {
         }
         e = (eventer_t)ke->udata;
         fd = ke->ident;
+        /* If we've seen this fd, don't callback twice */
         if(!masks[fd]) continue;
-        assert(e == master_fds[fd].e);
+        /* It's possible that someone removed the event and freed it
+         * before we got here.
+         */
+        if(e != master_fds[fd].e) continue;
         lockstate = acquire_master_fd(fd);
         assert(lockstate == EV_OWNED);
 
