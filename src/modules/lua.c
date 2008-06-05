@@ -459,6 +459,10 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   noit_lua_module_cleanup(ci->self, ci->check);
   check->flags &= ~NP_RUNNING;
 
+  lua_getglobal(ci->lmc->lua_state, "noit_coros");
+  luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
+  lua_pop(ci->lmc->lua_state, 2);
+
  done:
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
   return result;

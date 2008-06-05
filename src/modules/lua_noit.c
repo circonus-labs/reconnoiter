@@ -21,17 +21,36 @@
 #include <arpa/inet.h>
 
 struct nl_slcl {
+  int send_size;
   struct timeval start;
-  luaL_Buffer inbuff;
-  int read_sofar;
-  int read_goal;
+  char *inbuff;
+  int   inbuff_allocd;
+  int   inbuff_len;
+  size_t read_sofar;
+  size_t read_goal;
   const char *read_terminator;
   const char *outbuff;
-  int write_sofar;
-  int write_goal;
+  size_t write_sofar;
+  size_t write_goal;
   eventer_t *eptr;
   lua_State *L;
 };
+
+static void
+inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
+  int newsize = 0;
+  char *newbuf;
+  if(cl->inbuff_len + l > cl->inbuff_allocd)
+    newsize = cl->inbuff_len + l;
+  if(newsize) {
+    newbuf = cl->inbuff_allocd ? realloc(cl->inbuff, newsize) : malloc(newsize);
+    assert(newbuf);
+    cl->inbuff = newbuf;
+    cl->inbuff_allocd = newsize;
+  }
+  memcpy(cl->inbuff + cl->inbuff_len, b, l);
+  cl->inbuff_len += l;
+}
 
 static int
 noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
@@ -146,18 +165,16 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
     if(cl->read_goal) {
       int remaining = cl->read_goal - cl->read_sofar;
       /* copy up to the goal into the inbuff */
-      luaL_addlstring(&cl->inbuff, buff, MIN(len, remaining));
+      inbuff_addlstring(cl, buff, MIN(len, remaining));
       cl->read_sofar += len;
       if(cl->read_sofar >= cl->read_goal) { /* We're done */
-        luaL_pushresult(&cl->inbuff);
-        cl->read_sofar -= cl->read_goal;
-        if(cl->read_sofar > 0) { /* We have to buffer this for next read */
-          luaL_buffinit(cl->L, &cl->inbuff);
-          luaL_addlstring(&cl->inbuff,
-                          buff + remaining,
-                          cl->read_sofar);
-        }
+        lua_pushlstring(cl->L, cl->inbuff, cl->read_goal);
         args = 1;
+        cl->read_sofar -= cl->read_goal;
+        if(cl->read_sofar > 0) {  /* We have to buffer this for next read */
+          cl->inbuff_len = 0;
+          inbuff_addlstring(cl, buff + remaining, cl->read_sofar);
+        }
         break;
       }
     }
@@ -166,16 +183,16 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       int remaining = len;
       cp = strnstr(buff, cl->read_terminator, len);
       if(cp) remaining = cp - buff + strlen(cl->read_terminator);
-      luaL_addlstring(&cl->inbuff, buff, MIN(len, remaining));
+      inbuff_addlstring(cl, buff, MIN(len, remaining));
       cl->read_sofar += len;
       if(cp) {
-        luaL_pushresult(&cl->inbuff);
+        lua_pushlstring(cl->L, cl->inbuff, cl->inbuff_len);
+        args = 1;
         cl->read_sofar = len - remaining;
         if(cl->read_sofar > 0) { /* We have to buffer this for next read */
-          luaL_buffinit(cl->L, &cl->inbuff);
-          luaL_addlstring(&cl->inbuff, buff + remaining, cl->read_sofar);
+          cl->inbuff_len = 0;
+          inbuff_addlstring(cl, buff + remaining, cl->read_sofar);
         }
-        args = 1;
         break;
       }
     }
@@ -184,7 +201,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
     /* We broke out, cause we read enough... */
   }
   else if(len == -1 && errno == EAGAIN) {
-    return EVENTER_READ | EVENTER_EXCEPTION;
+    return mask | EVENTER_EXCEPTION;
   }
   else {
     lua_pushnil(cl->L);
@@ -211,48 +228,37 @@ noit_lua_socket_read(lua_State *L) {
   eptr = lua_touserdata(L, lua_upvalueindex(1));
   e = *eptr;
   cl = e->closure;
-  if(cl->read_sofar == 0) luaL_buffinit(L, &cl->inbuff);
   cl->read_goal = 0;
   cl->read_terminator = NULL;
-  fprintf(stderr, "initiating read... (%d bytes buffered)\n", cl->read_sofar);
 
   if(lua_isnumber(L, 1)) {
     cl->read_goal = lua_tointeger(L, 1);
-    fprintf(stderr, " read wants %d bytes\n", cl->read_goal);
     if(cl->read_goal <= cl->read_sofar) {
-      const char *current_buff;
       int base;
-      size_t len;
      i_know_better:
       base = lua_gettop(L);
       /* We have enough, we can service this right here */
-      luaL_pushresult(&cl->inbuff);
-      current_buff = lua_tolstring(L, base + 1, &len);
-      assert(len == cl->read_sofar);
-      lua_pop(L, 1);
-      lua_pushlstring(L, current_buff, cl->read_goal);
+      lua_pushlstring(L, cl->inbuff, cl->read_goal);
       cl->read_sofar -= cl->read_goal;
       if(cl->read_sofar) {
-        luaL_buffinit(L, &cl->inbuff);
-        luaL_addlstring(&cl->inbuff, current_buff + cl->read_goal,
-                        cl->read_sofar);
+        memmove(cl->inbuff, cl->inbuff + cl->read_goal, cl->read_sofar);
+        cl->inbuff_len = cl->read_sofar;
       }
       return 1;
     }
   }
   else {
     cl->read_terminator = lua_tostring(L, 1);
-    fprintf(stderr, " read wants up to [%s]\n", cl->read_terminator);
     if(cl->read_sofar) {
       const char *cp;
       /* Ugh... inernalism */
-      cp = strnstr(cl->inbuff.buffer, cl->read_terminator, cl->read_sofar);
+      cp = strnstr(cl->inbuff, cl->read_terminator, cl->read_sofar);
       if(cp) {
         /* Here we matched... and we _know_ that someone actually wants:
          * strlen(cl->read_terminator) + cp - cl->inbuff.buffer bytes...
          * give it to them.
          */
-        cl->read_goal = strlen(cl->read_terminator) + cp - cl->inbuff.buffer;
+        cl->read_goal = strlen(cl->read_terminator) + cp - cl->inbuff;
         cl->read_terminator = NULL;
         assert(cl->read_goal <= cl->read_sofar);
         goto i_know_better;
@@ -264,6 +270,91 @@ noit_lua_socket_read(lua_State *L) {
   e->mask = EVENTER_READ | EVENTER_EXCEPTION;
   eventer_add(e);
   return noit_lua_yield(ci, 0);
+}
+static int
+noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
+                               struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  int rv;
+  int args = 0;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+
+  if(mask & EVENTER_EXCEPTION) {
+    lua_pushinteger(cl->L, -1);
+    args = 1;
+    goto alldone;
+  }
+  while((rv = e->opset->write(e->fd,
+                              cl->outbuff + cl->write_sofar,
+                              MIN(cl->send_size, cl->write_goal),
+                              &mask, e)) > 0) {
+    cl->write_sofar += rv;
+    assert(cl->write_sofar <= cl->write_goal);
+    if(cl->write_sofar == cl->write_goal) break;
+  }
+  if(rv > 0) {
+    lua_pushinteger(cl->L, cl->write_goal);
+    args = 1;
+  }
+  else if(rv == -1 && errno == EAGAIN) {
+    return mask | EVENTER_EXCEPTION;
+  }
+  else {
+    lua_pushinteger(cl->L, -1);
+    args = 1;
+    if(rv == -1) {
+      lua_pushstring(cl->L, strerror(errno));
+      args++;
+    }
+  }
+
+ alldone:
+  noit_lua_check_deregister_event(ci, e, 0);
+  *(cl->eptr) = eventer_alloc();
+  memcpy(*cl->eptr, e, sizeof(*e));
+  noit_lua_check_register_event(ci, *cl->eptr);
+  noit_lua_resume(ci, args);
+  return 0;
+}
+static int
+noit_lua_socket_write(lua_State *L) {
+  int rv, mask;
+  struct nl_slcl *cl;
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  e = *eptr;
+  cl = e->closure;
+  cl->write_sofar = 0;
+  cl->outbuff = lua_tolstring(L, 1, &cl->write_goal);
+
+  while((rv = e->opset->write(e->fd,
+                              cl->outbuff + cl->write_sofar,
+                              MIN(cl->send_size, cl->write_goal),
+                              &mask, e)) > 0) {
+    cl->write_sofar += rv;
+    assert(cl->write_sofar <= cl->write_goal);
+    if(cl->write_sofar == cl->write_goal) break;
+  }
+  if(rv > 0) {
+    lua_pushinteger(L, cl->write_goal);
+    return 1;
+  }
+  if(rv == -1 && errno == EAGAIN) {
+    e->callback = noit_lua_socket_write_complete;
+    e->mask = mask | EVENTER_EXCEPTION;
+    eventer_add(e);
+    return noit_lua_yield(ci, 0);
+  }
+  lua_pushinteger(L, -1);
+  return 1;
 }
 static int
 noit_eventer_index_func(lua_State *L) {
@@ -293,6 +384,13 @@ noit_eventer_index_func(lua_State *L) {
      if(!strcmp(k, "read")) {
        lua_pushlightuserdata(L, udata);
        lua_pushcclosure(L, noit_lua_socket_read, 1);
+       return 1;
+     }
+     break;
+    case 'w':
+     if(!strcmp(k, "write")) {
+       lua_pushlightuserdata(L, udata);
+       lua_pushcclosure(L, noit_lua_socket_write, 1);
        return 1;
      }
      break;
@@ -368,7 +466,7 @@ static int
 nl_socket_tcp(lua_State *L, int family) {
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
-  socklen_t on;
+  socklen_t on, optlen;
   int fd;
   eventer_t e;
 
@@ -389,6 +487,10 @@ nl_socket_tcp(lua_State *L, int family) {
 
   cl = calloc(1, sizeof(*cl));
   cl->L = L;
+
+  optlen = sizeof(cl->send_size);
+  if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &cl->send_size, &optlen) != 0)
+    cl->send_size = 4096;
 
   e = eventer_alloc();
   e->fd = fd;
