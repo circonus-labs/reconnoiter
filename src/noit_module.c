@@ -26,6 +26,8 @@ noit_module_loader_t __noit_image_loader = {
     "Basic binary image loader",
     NULL
   },
+  NULL,
+  NULL,
   noit_load_module_image
 };
 struct __extended_image_data {
@@ -190,6 +192,22 @@ void noit_module_init() {
       noitL(noit_stderr, "Failed to load loader %s\n", loader_name);
       continue;
     }
+    if(loader->config) {
+      int rv;
+      noit_hash_table *config;
+      config = noit_conf_get_hash(sections[i], "config");
+      rv = loader->config(loader, config);
+      if(rv == 0) {
+        noit_hash_destroy(config, free, free);
+        free(config);
+      }
+      else if(rv < 0) {
+        noitL(noit_stderr, "Failed to config loader %s\n", loader_name);
+        continue;
+      }
+    }
+    if(loader->init && loader->init(loader))
+      noitL(noit_stderr, "Failed to init loader %s\n", loader_name);
   }
   if(sections) free(sections);
 

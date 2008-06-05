@@ -11,7 +11,7 @@
 #include "noit_check.h"
 
 #define NOIT_LOADER_MAGIC         0xA7AD7104
-#define NOIT_LOADER_ABI_VERSION   2
+#define NOIT_LOADER_ABI_VERSION   3
 
 typedef struct _noit_image {
   uint32_t magic;
@@ -22,12 +22,23 @@ typedef struct _noit_image {
   void *opaque_handle;
 } noit_image_t;
 
+/* onload: is called immediately after the module is loaded and before it
+ *         is configured.
+ */
+
 typedef struct _noit_module_loader {
   noit_image_t hdr;
+  int (*config)(struct _noit_module_loader *, noit_hash_table *config);
+  int (*init)(struct _noit_module_loader *);
   struct _noit_module *(*load)(struct _noit_module_loader *loader,
                                char *module_name,
                                noit_conf_section_t section);
 } noit_module_loader_t;
+
+/* config:  is called once to configure the loader itself
+ *   init:  is called once, post config to initialize the module
+ *   load:  is called each time the loader is asked to load a module
+ */
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
 #define NOIT_MODULE_ABI_VERSION   2
@@ -40,6 +51,12 @@ typedef struct _noit_module {
                         int once, noit_check_t *cause);
   void (*cleanup)(struct _noit_module *, noit_check_t *);
 } noit_module_t;
+
+/*         config: is called to pass the config into the module.
+ *           init: is called once to initialize the module
+ * initiate_check: is called so start the module against checks
+ *        cleanup: is called if a particular check is stopped
+ */
 
 #define NOIT_IMAGE_MAGIC(a)          ((a)->magic)
 #define NOIT_IMAGE_VERSION(a)        ((a)->version)

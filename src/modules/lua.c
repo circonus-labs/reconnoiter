@@ -18,6 +18,30 @@ static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static noit_hash_table noit_coros = NOIT_HASH_EMPTY;
 
+struct loader_conf {
+  char *script_dir;
+};
+static struct loader_conf *__get_loader_conf(noit_module_loader_t *self) {
+  struct loader_conf *c;
+  c = noit_image_get_userdata(&self->hdr);
+  if(!c) {
+    c = calloc(1, sizeof(*c));
+    noit_image_set_userdata(&self->hdr, c);
+  }
+  return c;
+}
+static void
+noit_lua_loader_set_directory(noit_module_loader_t *self, char *dir) {
+  struct loader_conf *c = __get_loader_conf(self);
+  if(c->script_dir) free(c->script_dir);
+  c->script_dir = strdup(dir);
+}
+static const char *
+noit_lua_loader_get_directory(noit_module_loader_t *self) {
+  struct loader_conf *c = __get_loader_conf(self);
+  return c->script_dir;
+}
+
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
   noit_lua_check_info_t *v = NULL;
@@ -555,14 +579,15 @@ noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 static noit_module_t *
-noit_lua_load(noit_module_loader_t *loader,
-              char *module_name,
-              noit_conf_section_t section) {
+noit_lua_loader_load(noit_module_loader_t *loader,
+                     char *module_name,
+                     noit_conf_section_t section) {
   noit_module_t *m;
   lua_State *L;
   lua_module_closure_t *lmc;
   char *script;
   char *object;
+  char scriptfile[MAXPATHLEN];
   
   noitL(nldeb, "Loading lua module: %s\n", module_name);
   if(noit_conf_get_string(section, "@object", &object) == 0) {
@@ -574,6 +599,9 @@ noit_lua_load(noit_module_loader_t *loader,
     free(object);
     return NULL;
   }
+  snprintf(scriptfile, sizeof(scriptfile), "%s/%s",
+           noit_lua_loader_get_directory(loader), script);
+  free(script);
 
   m = noit_blank_module();
   m->hdr.magic = NOIT_MODULE_MAGIC;
@@ -583,7 +611,7 @@ noit_lua_load(noit_module_loader_t *loader,
   m->hdr.onload = noit_lua_module_onload;
   lmc = calloc(1, sizeof(*lmc));
   lmc->object = object;
-  lmc->script = script;
+  lmc->script = strdup(scriptfile);
 
   L = lmc->lua_state = lua_open();
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
@@ -615,6 +643,13 @@ noit_lua_load(noit_module_loader_t *loader,
 }
 
 static int
+noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
+  char *dir = ".";
+  noit_hash_retrieve(o, "directory", strlen("directory"), (void **)&dir);
+  noit_lua_loader_set_directory(self, dir);
+  return 0;
+}
+static int
 noit_lua_loader_onload(noit_image_t *self) {
   nlerr = noit_log_stream_find("error/serf");
   nldeb = noit_log_stream_find("debug/serf");
@@ -631,5 +666,7 @@ noit_module_loader_t lua = {
     "Lua check loader",
     noit_lua_loader_onload,
   },
-  noit_lua_load
+  noit_lua_loader_config,
+  NULL,
+  noit_lua_loader_load
 };
