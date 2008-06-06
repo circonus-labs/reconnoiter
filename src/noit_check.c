@@ -36,8 +36,8 @@ static void register_console_check_commands();
 
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
-static const char *
-__noit_check_available_string(int16_t available) {
+const char *
+noit_check_available_string(int16_t available) {
   switch(available) {
     case NP_AVAILABLE:    return "available";
     case NP_UNAVAILABLE:  return "unavailable";
@@ -45,8 +45,8 @@ __noit_check_available_string(int16_t available) {
   }
   return "???";
 }
-static const char *
-__noit_check_state_string(int16_t state) {
+const char *
+noit_check_state_string(int16_t state) {
   switch(state) {
     case NP_GOOD:         return "good";
     case NP_BAD:          return "bad";
@@ -697,8 +697,8 @@ noit_check_set_stats(struct _noit_module *module,
   if(report_change) {
     noitL(noit_error, "%s`%s -> [%s:%s]\n",
           check->target, check->name,
-          __noit_check_available_string(check->stats.current.available),
-          __noit_check_state_string(check->stats.current.state));
+          noit_check_available_string(check->stats.current.available),
+          noit_check_state_string(check->stats.current.state));
   }
 
   /* Write out our status */

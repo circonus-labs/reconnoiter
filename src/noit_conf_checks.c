@@ -405,8 +405,28 @@ noit_console_show_check(noit_console_closure_t ncct,
       if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
       if(!idx) nc_printf(ncct, "idle");
       nc_write(ncct, "\n", 1);
-      if(check->stats.current.status)
-        nc_printf(ncct, " recently: %s\n", check->stats.current.status);
+      if(check->stats.current.whence.tv_sec == 0) {
+        nc_printf(ncct, " last run: never\n");
+      }
+      else {
+        stats_t *c = &check->stats.current;
+        struct timeval now, diff;
+        gettimeofday(&now, NULL);
+        sub_timeval(now, c->whence, &diff);
+        nc_printf(ncct, " last run: %0.3f seconds ago\n",
+                  diff.tv_sec + (diff.tv_usec / 1000000.0));
+        nc_printf(ncct, " availability/state: %s/%s\n",
+                  noit_check_available_string(c->available),
+                  noit_check_state_string(c->state));
+        nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
+        nc_printf(ncct, " metrics:\n");
+        memset(&iter, 0, sizeof(iter));
+        while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+          char buff[256];
+          noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
+          nc_printf(ncct, "   %s\n", buff);
+        }
+      }
     }
   }
  out:
