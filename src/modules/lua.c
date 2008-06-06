@@ -55,9 +55,10 @@ noit_event_dispose(void *ev) {
   int mask;
   eventer_t *value = ev;
   eventer_t e = *value;
+  noitL(nldeb, "lua check cleanup: dropping (%p)->fd (%d)\n", e, e->fd);
   if(e->fd >= 0) e->opset->close(e->fd, &mask, e);
   if(e->mask && eventer_remove(e)) eventer_free(e);
-  if(!e->mask) eventer_free(e);
+  else if(!e->mask) eventer_free(e);
   free(ev);
 }
 void
