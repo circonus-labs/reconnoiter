@@ -336,14 +336,24 @@ RETURNS trigger
 AS $$
 DECLARE
 v_whence timestamptz;
+v_whence_5 timestamptz;
 v_sid integer;
 v_name text;
 BEGIN
 IF TG_OP = 'INSERT' THEN
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval and interval='5 minutes'
+ 
+ v_whence_5:=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval;
+ 
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=v_whence_5 and interval='5 minutes'
      INTO v_whence;
+     
    IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
+      BEGIN
+       INSERT INTO  stratcon.log_whence_s VALUES(v_whence_5,'5 minutes');
+       EXCEPTION
+        WHEN UNIQUE_VIOLATION THEN
+        -- do nothing 
+      END;
     END IF;
 
    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
@@ -353,16 +363,9 @@ IF TG_OP = 'INSERT' THEN
     END IF;
 
 END IF;
-
     RETURN NULL;
-EXCEPTION
-        WHEN RAISE_EXCEPTION THEN
-               RETURN NULL;
-        WHEN OTHERS THEN
-      		RETURN NULL;
 END
-$$
-    LANGUAGE plpgsql;
+$$    LANGUAGE plpgsql;
 
 -- 5 minutes rollup
 
