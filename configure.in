@@ -450,5 +450,6 @@ src/jlog/perl/Makefile.PL
 src/modules/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
+src/lua/Makefile
 test/Makefile
 ])
