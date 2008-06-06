@@ -10,6 +10,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
+#include "utils/noit_str.h"
 #include "eventer/eventer.h"
 #include "lua_noit.h"
 
@@ -179,9 +180,10 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       }
     }
     else if(cl->read_terminator) {
-      char *cp;
+      const char *cp;
       int remaining = len;
-      cp = strnstr(buff, cl->read_terminator, len);
+      cp = strnstrn(cl->read_terminator, strlen(cl->read_terminator),
+                    buff, len);
       if(cp) remaining = cp - buff + strlen(cl->read_terminator);
       inbuff_addlstring(cl, buff, MIN(len, remaining));
       cl->read_sofar += len;
@@ -208,6 +210,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
     args = 1;
   }
  alldone:
+  eventer_remove_fd(e->fd);
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
@@ -252,7 +255,8 @@ noit_lua_socket_read(lua_State *L) {
     if(cl->read_sofar) {
       const char *cp;
       /* Ugh... inernalism */
-      cp = strnstr(cl->inbuff, cl->read_terminator, cl->read_sofar);
+      cp = strnstrn(cl->read_terminator, strlen(cl->read_terminator),
+                    cl->inbuff, cl->read_sofar);
       if(cp) {
         /* Here we matched... and we _know_ that someone actually wants:
          * strlen(cl->read_terminator) + cp - cl->inbuff.buffer bytes...
@@ -312,6 +316,7 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
   }
 
  alldone:
+  eventer_remove_fd(e->fd);
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
@@ -494,7 +499,7 @@ nl_socket_tcp(lua_State *L, int family) {
 
   e = eventer_alloc();
   e->fd = fd;
-  e->mask = 0;
+  e->mask = EVENTER_EXCEPTION;
   e->callback = NULL;
   e->closure = cl;
   cl->eptr = noit_lua_event(L, e);
