@@ -53,6 +53,8 @@ case $host in
 	LDFLAGS="$LDFLAGS -L/usr/local/lib"
 	CFLAGS="$CFLAGS -I/usr/local/include -I/usr/local/include/postgresql"
 	RLDFLAG="-Wl,--rpath="
+	WHOLE_ARCHIVE="-Wl,--whole-archive"
+	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
 	;;
 *-*-linux*)
 	LDFLAGS="$LDFLAGS -Wl,-E"
