@@ -54,11 +54,16 @@ static void
 noit_event_dispose(void *ev) {
   int mask;
   eventer_t *value = ev;
-  eventer_t e = *value;
+  eventer_t removed, e = *value;
   noitL(nldeb, "lua check cleanup: dropping (%p)->fd (%d)\n", e, e->fd);
-  if(e->fd >= 0) e->opset->close(e->fd, &mask, e);
-  if(e->mask && eventer_remove(e)) eventer_free(e);
-  else if(!e->mask) eventer_free(e);
+  if(e->mask & (EVENTER_READ|EVENTER_WRITE|EVENTER_EXCEPTION)) {
+    noitL(nldeb, "    closing down fd %d\n", e->fd);
+    e->opset->close(e->fd, &mask, e);
+  }
+  removed = eventer_remove(e);
+  noitL(nldeb, "    remove from eventer system %s\n",
+        removed ? "succeeded" : "failed");
+  eventer_free(e);
   free(ev);
 }
 void
@@ -488,6 +493,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       /* The person yielding had better setup an event
        * to wake up the coro...
        */
+      lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
       noitL(nlerr, "lua resume returned: %d\n", result);
@@ -504,16 +510,17 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       }
       break;
   }
-  noit_lua_log_results(ci->self, ci->check);
-  noit_lua_module_cleanup(ci->self, ci->check);
-  check->flags &= ~NP_RUNNING;
-
   lua_getglobal(ci->lmc->lua_state, "noit_coros");
   luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
   lua_pop(ci->lmc->lua_state, 1);
+  lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+
+  noit_lua_log_results(ci->self, ci->check);
+  noit_lua_module_cleanup(ci->self, ci->check);
+  ci = NULL; /* we freed it... explode if someone uses it before we return */
+  check->flags &= ~NP_RUNNING;
 
  done:
-  lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
   return result;
 }
 static int
