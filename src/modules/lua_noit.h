@@ -22,8 +22,8 @@
 
 typedef struct lua_module_closure {
   char *object;
-  char *script;
   lua_State *lua_state;
+  int object_ref;
 } lua_module_closure_t;
 
 typedef struct noit_lua_check_info {

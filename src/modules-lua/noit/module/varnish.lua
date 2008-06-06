@@ -1,19 +1,26 @@
 -- This connects to a Varnish instance on the management port (8081)
 -- It issues the stats comment and translates the output into metrics
 
-varnish = {}
+module(..., package.seeall)
 
-varnish.onload = function(image)
+function onload(image)
+  print("I'm in varnish onload")
   return 0
 end
 
-varnish.init = function(module)
+function init(module)
+  print("I'm in varnish init")
   return 0
 end
 
-varnish.initiate = function(module, check)
-  e = noit.socket()
-  rv, err = e.connect(check.target, check.config.port or 8081)
+function config(module, options)
+  print("I'm in varnish config")
+  return 0
+end
+
+function initiate(module, check)
+  local e = noit.socket()
+  local rv, err = e.connect(check.target, check.config.port or 8081)
 
   e.write("stats\r\n")
   str = e.read("\n")
@@ -25,7 +32,7 @@ varnish.initiate = function(module, check)
     return
   end
 
-  status, len = string.match(str, "^(%d+)%s*(%d+)%s*$")
+  local status, len = string.match(str, "^(%d+)%s*(%d+)%s*$")
   if status then check.available() end
   -- we want status to be a number
   status = 0 + status
@@ -35,8 +42,8 @@ varnish.initiate = function(module, check)
     return
   end
 
-  rawstats = e.read(len)
-  i = 0
+  local rawstats = e.read(len)
+  local i = 0
   for v, k in string.gmatch(rawstats, "%s*(%d+)%s+([^\r\n]+)") do
     k = string.gsub(k, "^%s*", "")
     k = string.gsub(k, "%s*$", "")
@@ -47,3 +54,4 @@ varnish.initiate = function(module, check)
   check.status(string.format("%d stats", i))
   check.good()
 end
+

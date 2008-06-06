@@ -83,6 +83,22 @@ noit_lua_check_clean_events(noit_lua_check_info_t *ci) {
 }
 
 static void
+noit_lua_pushmodule(lua_State *L, const char *m) {
+  int stack_pos = LUA_GLOBALSINDEX;
+  char *copy, *part, *brkt;
+  copy = alloca(strlen(m)+1);
+  assert(copy);
+  memcpy(copy,m,strlen(m)+1);
+
+  for(part = strtok_r(copy, ".", &brkt);
+      part;
+      part = strtok_r(NULL, ".", &brkt)) {
+    lua_getfield(L, stack_pos, part);
+    if(stack_pos == -1) lua_remove(L, -2);
+    else stack_pos = -1;
+  }
+}
+static void
 noit_lua_hash_to_table(lua_State *L,
                        noit_hash_table *t) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
@@ -313,11 +329,16 @@ noit_lua_setup_check(lua_State *L,
 }
 static int
 noit_lua_module_onload(noit_image_t *i) {
+  int rv;
   lua_State *L;
   lua_module_closure_t *lmc;
+
   lmc = noit_image_get_userdata(i);
   L = lmc->lua_state;
-  if(luaL_dofile(L, lmc->script)) {
+  lua_getglobal(L, "require");
+  lua_pushstring(L, lmc->object);
+  rv = lua_pcall(L, 1, 1, 0);
+  if(rv) {
     int i;
     noitL(nlerr, "lua: %s.onload failed\n", lmc->object);
     i = lua_gettop(L);
@@ -329,10 +350,12 @@ noit_lua_module_onload(noit_image_t *i) {
         noitL(nlerr, "lua: %s\n", err);
       }
     }
+    lua_pop(L,i);
     return -1;
   }
+  lua_pop(L, lua_gettop(L));
 
-  lua_getfield(L, LUA_GLOBALSINDEX, lmc->object);
+  noit_lua_pushmodule(L, lmc->object);
   if(lua_isnil(L, -1)) {
     lua_pop(L, 1);
     noitL(nlerr, "lua: no such object %s\n", lmc->object);
@@ -365,7 +388,7 @@ noit_lua_module_onload(noit_image_t *i) {
   lmc = noit_module_get_userdata(mod); \
   L = lmc->lua_state
 #define SETUP_CALL(L, func, failure) do { \
-  lua_getfield(L, LUA_GLOBALSINDEX, lmc->object); \
+  noit_lua_pushmodule(L, lmc->object); \
   lua_getfield(L, -1, func); \
   lua_remove(L, -2); \
   if(!lua_isfunction(L, -1)) { \
@@ -374,6 +397,8 @@ noit_lua_module_onload(noit_image_t *i) {
   } \
 } while(0)
 #define RETURN_INT(L, func) do { \
+  int base = lua_gettop(L); \
+  assert(base == 1); \
   if(lua_isnumber(L, -1)) { \
     int rv; \
     rv = lua_tointeger(L, -1); \
@@ -462,7 +487,6 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       /* The person yielding had better setup an event
        * to wake up the coro...
        */
-      lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
       noitL(nlerr, "lua resume returned: %d\n", result);
@@ -485,7 +509,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
 
   lua_getglobal(ci->lmc->lua_state, "noit_coros");
   luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
-  lua_pop(ci->lmc->lua_state, 2);
+  lua_pop(ci->lmc->lua_state, 1);
 
  done:
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
@@ -506,7 +530,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
      */
     lua_getglobal(ci->lmc->lua_state, "noit_coros");
     luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
-    lua_pop(ci->lmc->lua_state, 2);
+    lua_pop(ci->lmc->lua_state, 1);
     lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
     assert(2 == noit_lua_resume(ci, 0));
   } else {
@@ -548,14 +572,15 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   noit_lua_check_register_event(ci, e);
   eventer_add(e);
 
+  noitL(nlerr, "initiate gettop => %d\n", lua_gettop(L));
   ci->lmc = lmc;
   lua_getglobal(L, "noit_coros");
   ci->coro_state = lua_newthread(L);
+  ci->coro_state_ref = luaL_ref(L, -2);
+  lua_pop(L, 1); /* pops noit_coros */
   noit_hash_store(&noit_coros,
                   (const char *)&ci->coro_state, sizeof(ci->coro_state),
                   ci);
-  ci->coro_state_ref = luaL_ref(L, -2);
-  lua_pop(L, 1); /* pops noit_coros */
 
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
@@ -585,23 +610,13 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   noit_module_t *m;
   lua_State *L;
   lua_module_closure_t *lmc;
-  char *script;
   char *object;
-  char scriptfile[MAXPATHLEN];
   
   noitL(nldeb, "Loading lua module: %s\n", module_name);
   if(noit_conf_get_string(section, "@object", &object) == 0) {
     noitL(nlerr, "Lua module %s require object attribute.\n", module_name);
     return NULL;
   }
-  if(noit_conf_get_string(section, "@script", &script) == 0) {
-    noitL(nlerr, "Lua module %s require script attribute.\n", module_name);
-    free(object);
-    return NULL;
-  }
-  snprintf(scriptfile, sizeof(scriptfile), "%s/%s",
-           noit_lua_loader_get_directory(loader), script);
-  free(script);
 
   m = noit_blank_module();
   m->hdr.magic = NOIT_MODULE_MAGIC;
@@ -611,14 +626,21 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->hdr.onload = noit_lua_module_onload;
   lmc = calloc(1, sizeof(*lmc));
   lmc->object = object;
-  lmc->script = strdup(scriptfile);
 
   L = lmc->lua_state = lua_open();
+
+
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
   luaopen_noit(L);
   lua_newtable(L);
   lua_setglobal(L, "noit_coros");
+
+  lua_getfield(L, LUA_GLOBALSINDEX, "package");
+  lua_pushfstring(L, "%s", noit_lua_loader_get_directory(loader));
+  lua_setfield(L, -2, "path");
+  lua_pop(L, 1);
+
   lua_gc(L, LUA_GCRESTART, 0);
 
   noit_image_set_userdata(&m->hdr, lmc);
@@ -626,7 +648,6 @@ noit_lua_loader_load(noit_module_loader_t *loader,
     free(m->hdr.name);
     free(m->hdr.description);
     free(lmc->object);
-    free(lmc->script);
     free(lmc);
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);
