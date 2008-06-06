@@ -95,6 +95,7 @@
 
 #undef HAVE_ISSETUGID
 #undef HAVE_STRLCPY
+#undef HAVE_STRNSTRN
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
