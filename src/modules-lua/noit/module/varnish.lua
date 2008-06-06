@@ -48,7 +48,7 @@ function initiate(module, check)
     k = string.gsub(k, "^%s*", "")
     k = string.gsub(k, "%s*$", "")
     k = string.gsub(k, "%s", "_")
-    check.metric_uint32(k,v)
+    check.metric(k,v)
     i = i + 1
   end
   check.status(string.format("%d stats", i))
