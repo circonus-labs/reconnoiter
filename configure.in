@@ -62,6 +62,8 @@ case $host in
 	SHLD="$CC -shared"
 	MODULEEXT=so
 	RLDFLAG="-Wl,--rpath="
+	WHOLE_ARCHIVE="-Wl,--whole-archive"
+	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
 	;;
 *)
 	PICFLAGS="-fpic"
@@ -74,6 +76,8 @@ AC_SUBST(SHLD)
 AC_SUBST(RLDFLAG)
 AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
+AC_SUBST(WHOLE_ARCHIVE)
+AC_SUBST(NOWHOLE_ARCHIVE)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 
 # Checks for data types
@@ -219,7 +223,7 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 )
 
 AC_FUNC_STRFTIME
-AC_CHECK_FUNC(ssetugid strlcpy)
+AC_CHECK_FUNC(ssetugid strlcpy strnstrn)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
@@ -412,7 +416,6 @@ docdir="docs"
 mansubdir="man"
 AC_SUBST(docdir)
 AC_SUBST(mansubdir)
-
 SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
 

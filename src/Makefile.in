@@ -23,6 +23,9 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
+WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
+NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
+
 SUBS=lua utils eventer modules noitedit
 
 NOIT_OBJS=noitd.o noit_listener.o \
@@ -56,20 +59,24 @@ serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
 noitd:	make-subdirs $(NOIT_OBJS)
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		$(LDFLAGS) \
+		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
+		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
 	@echo "- linking $@"
 
 stratcond:	make-subdirs $(STRATCON_OBJS)
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		$(LDFLAGS) \
+		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
+		$(NOWHOLE_ARCHIVE) \
 		$(LIBS) $(PGLIBS)
 	@echo "- linking $@"
 
