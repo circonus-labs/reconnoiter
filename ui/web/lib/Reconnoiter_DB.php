@@ -66,11 +66,12 @@ class Reconnoiter_DB {
     $sth->execute(array($target, $active));
     $rv = array();
     while($row = $sth->fetch()) {
-      if(!isset($rv[$row['check_name']])) 
-        $rv[$row['check_name']] = array ('id' => $row['id'],
-                                         'text' => array(),
-                                         'numeric' => array() );
-      $rv[$row['check_name']][$row['metric_type']][] = $row['metric_name'];
+      $label = $row['check_name']."(".$row['sid'].")";
+      if(!isset($rv[$label])) 
+        $rv[$label] = array ('id' => $row['id'],
+                             'text' => array(),
+                             'numeric' => array() );
+      $rv[$label][$row['metric_type']][] = $row['metric_name'];
     }
     return $rv;
   }
