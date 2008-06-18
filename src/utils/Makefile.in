@@ -9,7 +9,8 @@ INSTALL=@INSTALL@
 
 top_srcdir=@top_srcdir@
 
-OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o
+OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
+	@ATOMIC_OBJS@
 
 all:	libnoit_utils.a
 
@@ -18,6 +19,12 @@ libnoit_utils.a:	$(OBJS)
 	@$(AR) cq $@ $(OBJS)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
+
+noit_atomic_sol_x86_32.o:	noit_atomic_sol.s
+	as -P -o $@ noit_atomic_sol.s
+
+noit_atomic_sol_x86_64.o:	noit_atomic_sol.s
+	as -P -xarch=generic64 -o $@ noit_atomic_sol.s
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

@@ -20,6 +20,9 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#ifdef HAVE_SYS_FILIO_H
+#include <sys/filio.h>
+#endif
 
 struct nl_slcl {
   int send_size;

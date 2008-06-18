@@ -54,4 +54,14 @@ static inline void uuid_unparse_lower(uuid_t in, char *out) {
 #define USE_TERMIO
 #endif
 
+#ifndef MIN
+#define MIN(x,y)  ((x) < (y) ? (x) : (y))
+#endif
+#ifndef MAX
+#define MAX(x,y)  ((x) > (y) ? (x) : (y))
+#endif
+#ifndef SUN_LEN
+#define SUN_LEN(ptr) (sizeof(*(ptr)) - sizeof((ptr)->sun_path) + strlen((ptr)->sun_path))
+#endif
+
 #endif

@@ -31,7 +31,7 @@ static noit_hash_table __func_to_name = NOIT_HASH_EMPTY;
 int eventer_name_callback(const char *name, eventer_func_t f) {
   void **fptr = malloc(sizeof(*fptr));
   *fptr = (void *)f;
-  noit_hash_replace(&__name_to_func, strdup(name), strlen(name), f, free, NULL);
+  noit_hash_replace(&__name_to_func, strdup(name), strlen(name), (void *)f, free, NULL);
   noit_hash_replace(&__func_to_name, (char *)fptr, sizeof(*fptr), strdup(name),
                     free, free);
   return 0;

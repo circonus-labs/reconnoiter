@@ -4,6 +4,7 @@ CC=@CC@
 LD=@LD@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+PGCFLAGS=@PGCFLAGS@
 SHCFLAGS=@SHCFLAGS@
 MODULELD=@MODULELD@
 MODULEEXT=@MODULEEXT@
@@ -38,6 +39,10 @@ postgres.@MODULEEXT@:	postgres.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
+postgres.lo:	postgres.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
 http.@MODULEEXT@:	http.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.o -lz -lssl -lcrypto
 	@echo "- linking $@"
@@ -52,6 +57,10 @@ snmp.@MODULEEXT@:	snmp.lo
 
 ssh2.@MODULEEXT@:	ssh2.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ ssh2.lo -lssh2
+	@echo "- linking $@"
+
+ping_icmp.@MODULEEXT@:	ping_icmp.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
 
 .lo.@MODULEEXT@:

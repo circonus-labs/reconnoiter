@@ -40,6 +40,7 @@
 #ifdef HAVE_SYS_IOCTL_COMPAT_H
 #include <sys/ioctl_compat.h>
 #endif
+#define TELOPTS
 #include <arpa/telnet.h>
 #include "noit_console.h"
 #include "noit_console_telnet.h"

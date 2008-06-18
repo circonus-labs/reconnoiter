@@ -1,6 +1,7 @@
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
@@ -83,6 +84,10 @@ stratcond:	make-subdirs $(STRATCON_OBJS)
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS) $(PGLIBS)
 	@echo "- linking $@"
+
+stratcon_datastore.o:
+	@$(CC) $(CPPFLAGS) $(PGCFLAGS) -c $<
+	@echo "- compiling $<"
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

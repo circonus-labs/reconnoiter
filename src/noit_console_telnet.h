@@ -49,11 +49,17 @@
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #endif
+#ifdef HAVE_CURSES_H
+#include <curses.h>
+#endif
+#ifdef HAVE_TERMIO_H
+#include <termio.h>
+#endif
 #ifdef HAVE_TERM_H
 #include <term.h>
 #endif
 
-#if !defined(__linux__)
+#if !defined(__linux__) && !defined(__sun)
 /* At least _I_ can't get LINUMODE working on Linux */
 #define LINEMODE 1
 #endif

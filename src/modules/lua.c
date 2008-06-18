@@ -12,6 +12,7 @@
 #include "utils/noit_log.h"
 #include "lua_noit.h"
 
+#include <alloca.h>
 #include <assert.h>
 
 static noit_log_stream_t nlerr = NULL;
@@ -381,12 +382,10 @@ noit_lua_module_onload(noit_image_t *i) {
     rv = lua_tointeger(L, -1);
     lua_pop(L, 1);
     return rv;
-  } else {
-    lua_pop(L,1);
-    noitL(nlerr, "%s.onload must return a integer\n", lmc->object);
-    return -1;
   }
-  return 0;
+  lua_pop(L,1);
+  noitL(nlerr, "%s.onload must return a integer\n", lmc->object);
+  return -1;
 }
 #define LMC_DECL(L, mod) \
   lua_State *L; \

@@ -41,6 +41,7 @@ typedef OSSpinLock noit_spinlock_t;
 #error unsupported pointer width
 #endif
 
+
 typedef noit_atomic32_t noit_spinlock_t;
 
 static inline noit_atomic32_t
@@ -88,6 +89,25 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
   return prev;
 };
 #endif
+
+static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
+  while(noit_atomic_cas32(lock, 1, 0) != 0);
+}
+static inline void noit_spinlock_unlock(volatile noit_spinlock_t *lock) {
+  while(noit_atomic_cas32(lock, 0, 1) != 1);
+}
+static inline int noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
+  return (noit_atomic_cas32(lock, 1, 0) == 0);
+}
+
+#elif (defined(__amd64) || defined(__i386)) && (defined(__SUNPRO_C) || defined(__SUNPRO_CC))
+
+typedef noit_atomic32_t noit_spinlock_t;
+
+extern noit_atomic32_t noit_atomic_cas32(volatile noit_atomic32_t *mem,
+        volatile noit_atomic32_t newval, volatile noit_atomic32_t cmpval);
+extern noit_atomic64_t noit_atomic_cas64(volatile noit_atomic64_t *mem,
+        volatile noit_atomic64_t newval, volatile noit_atomic64_t cmpval);
 
 static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
   while(noit_atomic_cas32(lock, 1, 0) != 0);

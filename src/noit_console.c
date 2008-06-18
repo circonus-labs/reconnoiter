@@ -7,8 +7,18 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <alloca.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#ifdef HAVE_STROPTS_H
+#include <stropts.h>
+#endif
+#ifdef HAVE_SYS_STREAM_H
+#include <sys/stream.h>
+#endif
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #endif
@@ -258,6 +268,32 @@ noit_console_motd(eventer_t e, acceptor_closure_t *ac,
 }
 
 int
+allocate_pty(int *master, int *slave) {
+#ifdef HAVE_OPENPTY
+    return openpty(master, slave, NULL, NULL, NULL);
+#else
+    /* STREAMS... sigh */
+    char   *slavename;
+    extern char *ptsname();
+
+    *master = open("/dev/ptmx", O_RDWR);  /* open master */
+    if(*master < 0) return -1;
+    grantpt(*master);                     /* change permission of   slave */
+    unlockpt(*master);                    /* unlock slave */
+    slavename = ptsname(*master);         /* get name of slave */
+    *slave = open(slavename, O_RDWR);    /* open slave */
+    if(*slave < 0) {
+      close(*master);
+      *master = -1;
+      return -1;
+    }
+    ioctl(*slave, I_PUSH, "ptem");       /* push ptem */
+    ioctl(*slave, I_PUSH, "ldterm");     /* push ldterm*/
+    return 0;
+#endif
+}
+
+int
 noit_console_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
@@ -281,7 +317,7 @@ socket_error:
   if(!ncct->initialized) {
     int on = 1;
     ncct->e = e;
-    if(openpty(&ncct->pty_master, &ncct->pty_slave, NULL, NULL, NULL) ||
+    if(allocate_pty(&ncct->pty_master, &ncct->pty_slave) ||
        ioctl(ncct->pty_master, FIONBIO, &on)) {
       nc_printf(ncct, "Failed to open pty: %s\n", strerror(errno));
       ncct->wants_shutdown = 1;

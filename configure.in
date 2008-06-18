@@ -27,7 +27,7 @@ if test "x$CC" = "xgcc" ; then
   CFLAGS="$CFLAGS -g -Wall"
 fi
 
-CPPFLAGS='-I$(top_srcdir)/src'
+CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
 
 case $host in
 *-*-darwin*)
@@ -38,11 +38,21 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 *-*-solaris*)
+	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
+	if test -n "`echo $CFLAGS | grep m64`"; then
+		AC_MSG_RESULT([64])
+		ATOMIC_OBJS="noit_atomic_sol_x86_64.o"
+	else
+		AC_MSG_RESULT([32])
+		ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
+	fi
 	PICFLAGS="-Kpic"
 	MODULELD="$CC -G"
 	SHLD="$CC -G"
 	MODULEEXT=so
 	RLDFLAG="-R"
+	WHOLE_ARCHIVE="-Wl,-z -Wl,allextract"
+	NOWHOLE_ARCHIVE="-Wl,-z -Wl,defaultextract"
 	;;
 *-*-openbsd*)
 	PICFLAGS="-fpic"
@@ -80,6 +90,7 @@ AC_SUBST(MODULELD)
 AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
 AC_SUBST(NOWHOLE_ARCHIVE)
+AC_SUBST(ATOMIC_OBJS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 
 # Checks for data types
@@ -131,6 +142,7 @@ AC_CHECK_LIB(pq, PQconnectdb,
 	]
 )
 
+old_CFLAGS=$CFLAGS
 AC_MSG_CHECKING([libpq includes])
 PQICFLAGS=`pg_config --includedir`
 if test -n "$PQICFLAGS" ; then
@@ -151,7 +163,10 @@ AC_TRY_LINK([
 	[],
 	[ AC_MSG_ERROR([Cannot compile/link against libpq]) ]
 )
+PGCFLAGS=$CFLAGS
+AC_SUBST(PGCFLAGS)
 LIBS="$SAVELIBS"
+CFLAGS=$old_CFLAGS
 
 ########
 #
@@ -236,14 +251,15 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 )
 
 AC_FUNC_STRFTIME
-AC_CHECK_FUNC(ssetugid strlcpy strnstrn)
+AC_CHECK_FUNC(ssetugid strlcpy strnstrn openpty)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
                  sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
                  ctype.h unistd.h time.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
-                 sys/ioctl_compat.h util.h sys/time.h sys/mman.h)
+                 sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
+                 stropts.h sys/stream.h)
 
 AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 	AC_TRY_LINK(
@@ -273,6 +289,21 @@ if test "x$ac_cv_have_kqueue" = "xyes" ; then
 	EVENTER_OBJS="$EVENTER_OBJS eventer_kqueue_impl.o"
 	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "kqueue")
 	have_kqueue=1
+fi
+
+AC_CACHE_CHECK([for Solaris ports support], ac_cv_have_ports, [
+	AC_TRY_LINK(
+		[ #include <port.h> ],
+		[ u_int a; a = port_create(); ],
+		[ ac_cv_have_ports="yes" ],
+		[ ac_cv_have_ports="no" ]
+	)
+])
+if test "x$ac_cv_have_ports" = "xyes" ; then
+	AC_DEFINE(HAVE_PORTS)
+	EVENTER_OBJS="$EVENTER_OBJS eventer_ports_impl.o"
+	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "ports")
+	have_ports=1
 fi
 
 AC_SUBST(EVENTER_OBJS)

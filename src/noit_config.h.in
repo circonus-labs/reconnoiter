@@ -48,6 +48,9 @@
 #undef HAVE_TERMIO_H
 #undef HAVE_TERMIOS_H
 #undef HAVE_SYS_IOCTL_COMPAT_H
+#undef HAVE_SYS_FILIO_H
+#undef HAVE_STROPTS_H
+#undef HAVE_SYS_STREAM_H
 #undef HAVE_UTIL_H
 #undef HAVE_CURSES_H
 #undef HAVE_DIRENT_H
@@ -96,6 +99,7 @@
 #undef HAVE_ISSETUGID
 #undef HAVE_STRLCPY
 #undef HAVE_STRNSTRN
+#undef HAVE_OPENPTY
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
@@ -222,6 +226,10 @@ typedef u_int32_t vpsized_uint;
 typedef int32_t vpsized_int;
 #else
 #error Unsupported size of void ptr
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX MAXPATHLEN
 #endif
 
 #endif
