@@ -61,7 +61,7 @@ case $host in
 	SHLD="$CC -shared"
 	MODULEEXT=so
 	LDFLAGS="$LDFLAGS -L/usr/local/lib"
-	CFLAGS="$CFLAGS -I/usr/local/include -I/usr/local/include/postgresql"
+	CFLAGS="$CFLAGS -I/usr/local/include"
 	RLDFLAG="-Wl,--rpath="
 	WHOLE_ARCHIVE="-Wl,--whole-archive"
 	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
@@ -130,7 +130,8 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 	]
 )
 
-SAVELIBS="$LIBS"
+old_LIBS=$LIBS
+old_CFLAGS=$CFLAGS
 AC_CHECK_LIB(pq, PQconnectdb,
 	[
 		LIBS="$LIBS -lpq"
@@ -142,22 +143,14 @@ AC_CHECK_LIB(pq, PQconnectdb,
 	]
 )
 
-old_CFLAGS=$CFLAGS
 AC_MSG_CHECKING([libpq includes])
 PQICFLAGS=`pg_config --includedir`
 if test -n "$PQICFLAGS" ; then
   CFLAGS="$CFLAGS -I$PQICFLAGS"
 fi
-PQICFLAGS=`pg_config --includedir-server`
-if test -n "$PQICFLAGS" ; then
-  CFLAGS="$CFLAGS -I$PQICFLAGS"
-fi
-AC_MSG_RESULT([$PQICFLAGS])
 
 AC_TRY_LINK([
 	#include <libpq-fe.h>
-	#include <postgres.h>
-	#include <fmgr.h>
 	],
 	[ PGconn *dbh = PQconnectdb(""); ],
 	[],
@@ -165,7 +158,8 @@ AC_TRY_LINK([
 )
 PGCFLAGS=$CFLAGS
 AC_SUBST(PGCFLAGS)
-LIBS="$SAVELIBS"
+
+LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
 ########
