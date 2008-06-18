@@ -18,9 +18,29 @@
 #include "utils/noit_hash.h"
 
 #include <libpq-fe.h>
-#include <postgres.h>
-#include <fmgr.h>
-#include <catalog/pg_type.h>
+
+/* Ripped from postgres 8.3.3 */
+#ifndef BOOLOID
+#define BOOLOID                  16
+#endif
+#ifndef INT2OID
+#define INT2OID                  21
+#endif
+#ifndef INT4OID
+#define INT4OID                  23
+#endif
+#ifndef INT8OID
+#define INT8OID                  20
+#endif
+#ifndef FLOAT4OID
+#define FLOAT4OID                700
+#endif
+#ifndef FLOAT8OID
+#define FLOAT8OID                701
+#endif
+#ifndef NUMERICOID
+#define NUMERICOID               1700
+#endif
 
 typedef struct {
   noit_module_t *self;
