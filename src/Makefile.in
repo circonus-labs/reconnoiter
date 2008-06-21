@@ -85,7 +85,7 @@ stratcond:	make-subdirs $(STRATCON_OBJS)
 		$(LIBS) $(PGLIBS)
 	@echo "- linking $@"
 
-stratcon_datastore.o:
+stratcon_datastore.o:	stratcon_datastore.c
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) -c $<
 	@echo "- compiling $<"
 

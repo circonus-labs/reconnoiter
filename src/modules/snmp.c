@@ -11,14 +11,14 @@
 #include <assert.h>
 #include <math.h>
 
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
-
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;

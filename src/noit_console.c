@@ -7,7 +7,9 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>

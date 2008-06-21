@@ -245,7 +245,7 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 )
 
 AC_FUNC_STRFTIME
-AC_CHECK_FUNC(ssetugid strlcpy strnstrn openpty)
+AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
@@ -253,7 +253,7 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  ctype.h unistd.h time.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
-                 stropts.h sys/stream.h)
+                 stropts.h sys/stream.h alloca.h)
 
 AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 	AC_TRY_LINK(

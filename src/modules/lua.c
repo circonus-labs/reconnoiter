@@ -12,7 +12,9 @@
 #include "utils/noit_log.h"
 #include "lua_noit.h"
 
+#ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
 #include <assert.h>
 
 static noit_log_stream_t nlerr = NULL;
