@@ -15,6 +15,9 @@ extern struct _eventer_impl eventer_kqueue_impl;
 #ifdef HAVE_EPOLL
 extern struct _eventer_impl eventer_epoll_impl;
 #endif
+#ifdef HAVE_PORTS
+extern struct _eventer_impl eventer_ports_impl;
+#endif
 
 eventer_impl_t registered_eventers[] = {
 #ifdef HAVE_KQUEUE
@@ -22,6 +25,9 @@ eventer_impl_t registered_eventers[] = {
 #endif
 #ifdef HAVE_EPOLL
   &eventer_epoll_impl,
+#endif
+#ifdef HAVE_PORTS
+  &eventer_ports_impl,
 #endif
   NULL
 };

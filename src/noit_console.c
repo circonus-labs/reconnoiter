@@ -272,26 +272,27 @@ noit_console_motd(eventer_t e, acceptor_closure_t *ac,
 int
 allocate_pty(int *master, int *slave) {
 #ifdef HAVE_OPENPTY
-    return openpty(master, slave, NULL, NULL, NULL);
+  if(openpty(master, slave, NULL, NULL, NULL)) return -1;
+  if(ioctl(ncct->pty_master, FIONBIO, &on)) return -1;
 #else
-    /* STREAMS... sigh */
-    char   *slavename;
-    extern char *ptsname();
+  /* STREAMS... sigh */
+  char   *slavename;
+  extern char *ptsname();
 
-    *master = open("/dev/ptmx", O_RDWR);  /* open master */
-    if(*master < 0) return -1;
-    grantpt(*master);                     /* change permission of   slave */
-    unlockpt(*master);                    /* unlock slave */
-    slavename = ptsname(*master);         /* get name of slave */
-    *slave = open(slavename, O_RDWR);    /* open slave */
-    if(*slave < 0) {
-      close(*master);
-      *master = -1;
-      return -1;
-    }
-    ioctl(*slave, I_PUSH, "ptem");       /* push ptem */
-    ioctl(*slave, I_PUSH, "ldterm");     /* push ldterm*/
-    return 0;
+  *master = open("/dev/ptmx", O_RDWR);  /* open master */
+  if(*master < 0) return -1;
+  grantpt(*master);                     /* change permission of   slave */
+  unlockpt(*master);                    /* unlock slave */
+  slavename = ptsname(*master);         /* get name of slave */
+  *slave = open(slavename, O_RDWR);    /* open slave */
+  if(*slave < 0) {
+    close(*master);
+    *master = -1;
+    return -1;
+  }
+  ioctl(*slave, I_PUSH, "ptem");       /* push ptem */
+  ioctl(*slave, I_PUSH, "ldterm");     /* push ldterm*/
+  return 0;
 #endif
 }
 
@@ -319,8 +320,7 @@ socket_error:
   if(!ncct->initialized) {
     int on = 1;
     ncct->e = e;
-    if(allocate_pty(&ncct->pty_master, &ncct->pty_slave) ||
-       ioctl(ncct->pty_master, FIONBIO, &on)) {
+    if(allocate_pty(&ncct->pty_master, &ncct->pty_slave)) {
       nc_printf(ncct, "Failed to open pty: %s\n", strerror(errno));
       ncct->wants_shutdown = 1;
     }
@@ -398,7 +398,7 @@ socket_error:
       /* chomp */
       cmd_buffer[plen] = '\0';
       if(cmd_buffer[plen-1] == '\n') cmd_buffer[plen-1] = '\0';
-      noitL(noit_debug, "IN: '%s'\n", cmd_buffer);
+      noitL(noit_debug, "IN[%d]: '%s'\n", plen, cmd_buffer);
       noit_console_dispatch(e, cmd_buffer, ncct);
       free(cmd_buffer);
     }

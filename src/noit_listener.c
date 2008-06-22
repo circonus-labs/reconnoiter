@@ -85,6 +85,7 @@ noit_listener_acceptor(eventer_t e, int mask,
 
   ac = malloc(sizeof(*ac));
   memcpy(ac, listener_closure->dispatch_closure, sizeof(*ac));
+  salen = sizeof(ac->remote);
   conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
   if(conn >= 0) {
     socklen_t on = 1;
@@ -145,8 +146,7 @@ noit_listener(char *host, unsigned short port, int type,
   int rv, fd;
   int8_t family;
   int sockaddr_len;
-  socklen_t on;
-  long reuse;
+  socklen_t on, reuse;
   listener_closure_t listener_closure;
   eventer_t event;
   union {
@@ -186,11 +186,16 @@ noit_listener(char *host, unsigned short port, int type,
   }
 
   fd = socket(family, type, 0);
-  if(fd < 0) return -1;
+  if(fd < 0) {
+    noitL(noit_stderr, "Cannot create socket: %s\n", strerror(errno));
+    return -1;
+  }
 
   on = 1;
   if(ioctl(fd, FIONBIO, &on)) {
     close(fd);
+    noitL(noit_stderr, "Cannot make socket non-blocking: %s\n",
+          strerror(errno));
     return -1;
   }
 
@@ -198,6 +203,7 @@ noit_listener(char *host, unsigned short port, int type,
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                  (void*)&reuse, sizeof(reuse)) != 0) {
     close(fd);
+    noitL(noit_stderr, "Cannot set SO_REUSEADDR: %s\n", strerror(errno));
     return -1;
   }
 

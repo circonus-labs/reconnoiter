@@ -56,6 +56,9 @@ __RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 #include <limits.h>
 #include "noitedit/histedit.h"
 #include "noitedit/readline/readline.h"
