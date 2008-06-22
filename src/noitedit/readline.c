@@ -43,6 +43,7 @@ __RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 #if !_MSC_VER
 #include <dirent.h>
@@ -315,7 +316,7 @@ int ec_rl_setup_event_driven_mode(const char *prompt, ec_rl_line_consumer_func c
 	re_clear_display(e);
 	ch_reset(e);
 
-#ifdef FIONREAD_FOOO
+#ifdef FIONREAD
 	ma = &e->el_chared.c_macro;
 	if (e->el_tty.t_mode == EX_IO && ma->level < 0) {
 		long chrs = 0;
@@ -355,6 +356,7 @@ int ec_rl_finish_event_driven_mode(void)
 	term__flush();
 	if (e->el_flags & HANDLE_SIGNALS)
 		sig_clr(e);
+	return 0;
 }
 
 int ec_rl_input_is_ready_to_read(void)

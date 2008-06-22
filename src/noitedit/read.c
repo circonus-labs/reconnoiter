@@ -51,6 +51,7 @@ __RCSID("$NetBSD: read.c,v 1.19 2001/01/10 07:45:41 jdolecek Exp $");
  */
 #include "noitedit/sys.h"
 #include <errno.h>
+#include <sys/ioctl.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
