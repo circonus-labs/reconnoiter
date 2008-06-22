@@ -1687,7 +1687,8 @@ pty_write(noit_console_closure_t ncct, void *buf, int len) {
     int i;
     /* split it up */
     for(i=0; i<len; i+=sizeof(ncct->telnet->_pty_buf)) {
-      pty_write(ncct, buf + i, MIN(sizeof(ncct->telnet->_pty_buf),len-i));
+      pty_write(ncct, (unsigned char *)buf + i,
+                MIN(sizeof(ncct->telnet->_pty_buf),len-i));
     }
   }
   while(ncct->telnet->_pty_fill + len > sizeof(ncct->telnet->_pty_buf)) {

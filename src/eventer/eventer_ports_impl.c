@@ -346,7 +346,6 @@ static int eventer_ports_impl_loop() {
     }
   }
   /* NOTREACHED */
-  return 0;
 }
 
 struct _eventer_impl eventer_ports_impl = {

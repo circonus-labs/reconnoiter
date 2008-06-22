@@ -21,10 +21,12 @@ libnoit_utils.a:	$(OBJS)
 	@$(RANLIB) $@
 
 noit_atomic_sol_x86_32.o:	noit_atomic_sol.s
-	as -P -o $@ noit_atomic_sol.s
+	@as -P -o $@ noit_atomic_sol.s
+	@echo "- assembling $@"
 
 noit_atomic_sol_x86_64.o:	noit_atomic_sol.s
-	as -P -xarch=generic64 -o $@ noit_atomic_sol.s
+	@as -P -xarch=generic64 -o $@ noit_atomic_sol.s
+	@echo "- assembling $@"
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

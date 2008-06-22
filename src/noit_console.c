@@ -123,7 +123,7 @@ nc_vprintf(noit_console_closure_t ncct, const char *fmt, va_list arg) {
     ncct->outbuf = newbuf;
     ncct->outbuf_allocd = lenwanted;
   }
-  return -1;
+  /* NOTREACHED */
 }
 int
 nc_write(noit_console_closure_t ncct, const void *buf, int len) {

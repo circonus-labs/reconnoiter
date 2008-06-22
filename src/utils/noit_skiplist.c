@@ -15,15 +15,16 @@
  * ======================================================================
 */
 
+#include "noit_defines.h"
+#include "noit_skiplist.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#include <assert.h>
-
-#include "noit_skiplist.h"
 
 #ifndef MIN
 #define MIN(a,b) ((a<b)?(a):(b))
