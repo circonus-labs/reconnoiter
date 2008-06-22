@@ -177,7 +177,7 @@ read_preread(EditLine *el)
 			chrs = el->
 				el_in_e->
 				opset->
-				read(el->el_in_e, buf,
+				read(el->el_in_e->fd, buf,
 				    (size_t) MIN(chrs, EL_BUFSIZ - 1),
 				    &mask, el->el_in_e);
 		else
@@ -222,8 +222,19 @@ el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonbloc
 
 	while (cmd == ED_UNASSIGNED || cmd == ED_SEQUENCE_LEAD_IN) {
 		if ((num = el_getc(el, ch)) != 1) {	/* if EOF or error */
-			if(errno == EAGAIN) return EAGAINCMD;
-			return (num);
+			/* So solaris doesn't read -> -1 with EAGAIN when
+			 * no data is ready on the terminal.. it returns 0.
+			 * I'm likely not understanding something, but that
+			 * seems deeply flawed.  Regardless, I cannot think
+			 * of a case where we'd want to return something other
+			 * than EAGAINCMD... this seems "more correct" than
+			 * only returning it whe errno == EAGAIN
+
+				if(errno == EAGAIN) return EAGAINCMD;
+				return (num);
+
+			 */
+			return EAGAINCMD;
 		}
 		
 #ifdef	KANJI

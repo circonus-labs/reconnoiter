@@ -48,6 +48,7 @@ __RCSID("$NetBSD: tty.c,v 1.15 2001/05/17 01:02:17 christos Exp $");
 /*
  * tty.c: tty interface stuff
  */
+#include <errno.h>
 #include "noitedit/sys.h"
 #include "noitedit/el.h"
 #include "noitedit/tty.h"

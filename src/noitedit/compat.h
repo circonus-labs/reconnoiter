@@ -4,10 +4,14 @@
 #include "noit_defines.h"
 
 #ifndef __RCSID
-#define  __RCSID(x)
+#define  __RCSID(x) static const char rcsid[] = x
 #endif
 #ifndef __COPYRIGHT
 #define  __COPYRIGHT(x)
+#endif
+
+#ifdef HAVE_SYS_FILIO_H
+#include <sys/filio.h>
 #endif
 
 #ifndef HAVE_VIS_H
