@@ -66,6 +66,10 @@ __RCSID("$NetBSD: readline.c,v 1.19 2001/01/10 08:10:45 jdolecek Exp $");
 #include "noitedit/el.h"
 #include "noitedit/fcns.h"		/* for EL_NUM_FCNS */
 
+extern int el_internal_read_char(EditLine *el, char *cp);
+extern int el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonblock);
+extern int el_gets_dispatch(EditLine *el, el_action_t cmdnum, char ch, int *num);
+
 /* for rl_complete() */
 #define	TAB		'\r'
 
@@ -386,7 +390,7 @@ int ec_rl_input_is_ready_to_read(void)
 		return 0;
 	}
 
-	num = el_internal_read_getcmd(e, &cmdnum, &ch);
+	num = el_internal_read_getcmd(e, &cmdnum, &ch, 0);
 	if (num == -1) {
 		if (cmdnum == ED_UNASSIGNED)
 			return 0;

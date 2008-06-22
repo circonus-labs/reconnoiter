@@ -104,7 +104,11 @@ protected int	term_set(EditLine *, char *);
 protected int	term_settc(EditLine *, int, char **);
 protected int	term_telltc(EditLine *, int, char **);
 protected int	term_echotc(EditLine *, int, char **);
+#ifdef TPUTS_TAKES_CHAR
+protected int	term__putc(char);
+#else
 protected int	term__putc(int);
+#endif
 protected void	term__flush(void);
 
 /*

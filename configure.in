@@ -112,6 +112,7 @@ AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
 AC_CHECK_LIB(curses, clear, , )
+
 CPPFLAGS="$CPPFLAGS `pcre-config --cflags`"
 LDFLAGS="$LDFLAGS `pcre-config --libs`"
 AC_CHECK_LIB(pcre, pcre_compile, ,
@@ -254,6 +255,18 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
                  stropts.h sys/stream.h alloca.h)
+
+AC_MSG_CHECKING(for tputs() function final argument type)
+AC_EGREP_CPP([tputs.*[(][       ]*char[         ]*[)]],
+		[#if defined(HAVE_TERM_H)
+		 #include <term.h>
+		 #endif
+		 #if defined(HAVE_CURSES_H)
+		 #include <curses.h>
+		 #endif],
+		[AC_MSG_RESULT(char)
+		 AC_DEFINE(TPUTS_TAKES_CHAR)],
+		[AC_MSG_RESULT(not char)])
 
 AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 	AC_TRY_LINK(

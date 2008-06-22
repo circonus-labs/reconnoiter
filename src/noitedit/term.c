@@ -1248,7 +1248,11 @@ term_bind_arrow(EditLine *el)
  *	Add a character
  */
 protected int
+#ifdef TPUTS_TAKES_CHAR
+term__putc(char c)
+#else
 term__putc(int c)
+#endif
 {
 	EditLine *el;
 	el = el_multi_get_el();
