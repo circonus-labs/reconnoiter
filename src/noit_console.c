@@ -323,7 +323,6 @@ socket_error:
     ncct = ac->service_ctx = noit_console_closure_alloc();
   }
   if(!ncct->initialized) {
-    int on = 1;
     ncct->e = e;
     if(allocate_pty(&ncct->pty_master, &ncct->pty_slave)) {
       nc_printf(ncct, "Failed to open pty: %s\n", strerror(errno));
