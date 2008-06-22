@@ -271,9 +271,9 @@ noit_console_motd(eventer_t e, acceptor_closure_t *ac,
 
 int
 allocate_pty(int *master, int *slave) {
+  long on = 1;
 #ifdef HAVE_OPENPTY
   if(openpty(master, slave, NULL, NULL, NULL)) return -1;
-  if(ioctl(ncct->pty_master, FIONBIO, &on)) return -1;
 #else
   /* STREAMS... sigh */
   char   *slavename;
@@ -290,10 +290,15 @@ allocate_pty(int *master, int *slave) {
     *master = -1;
     return -1;
   }
-  ioctl(*slave, I_PUSH, "ptem");       /* push ptem */
-  ioctl(*slave, I_PUSH, "ldterm");     /* push ldterm*/
-  return 0;
+  /* This is a bit backwards as we using the PTY backwards.
+   * We want to make the master a tty instead of the slave... odd, I know.
+   */
+  ioctl(*master, I_PUSH, "ptem");       /* push ptem */
+  ioctl(*master, I_PUSH, "ldterm");     /* push ldterm*/
 #endif
+  if(ioctl(*master, FIONBIO, &on)) return -1;
+  noitL(noit_debug, "allocate_pty -> %d,%d\n", *master, *slave);
+  return 0;
 }
 
 int
