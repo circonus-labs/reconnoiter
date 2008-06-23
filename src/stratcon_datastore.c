@@ -118,14 +118,14 @@ typedef enum {
 } execute_outcome_t;
 
 static char *
-__strndup(const char *src, int len) {
+__noit__strndup(const char *src, int len) {
   char *dst;
   dst = malloc(len + 1);
   strlcpy(dst, src, len+1);
   return dst;
 }
 #define DECLARE_PARAM_STR(str, len) do { \
-  d->paramValues[d->nparams] = __strndup(str, len); \
+  d->paramValues[d->nparams] = __noit__strndup(str, len); \
   d->paramLengths[d->nparams] = len; \
   d->paramFormats[d->nparams] = 0; \
   d->paramAllocd[d->nparams] = 1; \
