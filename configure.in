@@ -25,6 +25,8 @@ AC_SUBST(PERL)
 
 if test "x$CC" = "xgcc" ; then
   CFLAGS="$CFLAGS -g -Wall"
+else
+  CFLAGS="$CFLAGS -g"
 fi
 
 CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
@@ -111,7 +113,7 @@ AC_CHECK_LIB(uuid, uuid_generate, , )
 AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
-AC_CHECK_LIB(curses, clear, , )
+AC_CHECK_LIB(curses, clear, , [AC_MSG_ERROR([curses not found, but required])])
 
 CPPFLAGS="$CPPFLAGS `pcre-config --cflags`"
 LDFLAGS="$LDFLAGS `pcre-config --libs`"
