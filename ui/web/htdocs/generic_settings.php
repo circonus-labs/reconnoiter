@@ -17,11 +17,15 @@ if(!$end) {
 $driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 400);
 
 $i = 0;
+$autounits = 0;
 foreach(split(";", $_GET['metric']) as $m) {
   preg_match('/^(d|n|t)(l|r)(~|-)([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})-(.*)$/', $m,
              $matches);
   $settings = $graph_settings[$i++];
-  if($matches[3] == '~') $settings['expression'] = '$this->bw($value)';
+  if($matches[3] == '~') {
+    $autounits = 1;
+    $settings['expression'] = '$this->autounits($value)';
+  }
   $settings['axis'] = ($matches[2] == 'l') ? 'left' : 'right';
   if($matches[1] == 'n')
     $driver->addDataSet($matches[4], $matches[5], 'false', null, $settings);
@@ -46,6 +50,7 @@ $i = 0;
  <y_left>
   <min><?php print ($driver->min() > 0) ? '0' : '' ?></min>
   <max><?php print ($driver->max() < 0) ? '0' : '' ?></max>
+  <unit><?php print $autounits ? $driver->autounit() : "" ?></unit>
  </y_left>
 </values>
 </settings>
