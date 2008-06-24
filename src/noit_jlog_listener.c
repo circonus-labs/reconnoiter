@@ -13,6 +13,8 @@
 
 #include <unistd.h>
 #include <sys/ioctl.h>
+#define MAX_ROWS_AT_ONCE 1000
+#define DEFAULT_SECONDS_BETWEEN_BATCHES 5
 
 void
 noit_jlog_listener_init() {
@@ -88,8 +90,18 @@ noit_jlog_thread_main(void *e_vptr) {
 
   while(1) {
     jlog_id client_chkpt;
+    int sleeptime = DEFAULT_SECONDS_BETWEEN_BATCHES;
     jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
+    if(jcl->count > MAX_ROWS_AT_ONCE) {
+      /* Artificially set down the range to make the batches a bit easier
+       * to handle on the stratcond/postgres end.
+       * However, we must have more data, so drop the sleeptime to 0
+       */
+      jcl->count = MAX_ROWS_AT_ONCE;
+      jcl->finish.marker = jcl->start.marker + jcl->count;
+      sleeptime = 0;
+    }
     if(jcl->count > 0) {
       if(noit_jlog_push(e, jcl)) {
         goto alldone;
@@ -118,7 +130,7 @@ noit_jlog_thread_main(void *e_vptr) {
       }
       jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
     }
-    sleep(5);
+    if(sleeptime) sleep(sleeptime);
   }
 
  alldone:

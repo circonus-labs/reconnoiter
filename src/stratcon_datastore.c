@@ -161,6 +161,8 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)r)->sin6_addr),
                   raddr, sizeof(raddr));
         break;
+      default:
+        noitL(noit_error, "remote address of family %d\n", r->sa_family);
     }
  
     scp = d->data;
