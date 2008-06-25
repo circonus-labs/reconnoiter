@@ -39,6 +39,32 @@ typedef struct noit_lua_check_info {
   noit_hash_table *events; /* Any eventers we need to cleanup */
 } noit_lua_check_info_t;
 
+struct nl_generic_cl {
+  void (*free)(void *);
+};
+
+struct nl_intcl {
+  void (*free)(void *);
+  noit_lua_check_info_t *ci;
+};
+
+struct nl_slcl {
+  void (*free)(void *);
+  int send_size;
+  struct timeval start;
+  char *inbuff;
+  int   inbuff_allocd;
+  int   inbuff_len;
+  size_t read_sofar;
+  size_t read_goal;
+  const char *read_terminator;
+  const char *outbuff;
+  size_t write_sofar;
+  size_t write_goal;
+  eventer_t *eptr;
+  lua_State *L;
+};
+
 int luaopen_noit(lua_State *L);
 noit_lua_check_info_t *get_ci(lua_State *L);
 int noit_lua_yield(noit_lua_check_info_t *ci, int nargs);

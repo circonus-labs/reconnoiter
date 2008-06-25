@@ -52,6 +52,10 @@ get_ci(lua_State *L) {
     return v;
   return NULL;
 }
+static void
+int_cl_free(void *vcl) {
+  free(vcl);
+}
 
 static void
 noit_event_dispose(void *ev) {
@@ -66,6 +70,11 @@ noit_event_dispose(void *ev) {
   removed = eventer_remove(e);
   noitL(nldeb, "    remove from eventer system %s\n",
         removed ? "succeeded" : "failed");
+  if(e->closure) {
+    struct nl_generic_cl *cl;
+    cl = e->closure;
+    if(cl->free) cl->free(cl);
+  }
   eventer_free(e);
   free(ev);
 }
@@ -159,6 +168,7 @@ noit_lua_set_status(lua_State *L) {
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
   ci = check->closure;
+  /* strdup here... but free later */
   ci->current.status = strdup(lua_tostring(L, 1));
   return 0;
 }
@@ -473,6 +483,7 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   duration_ms = ci->current.duration;
 
   noit_check_set_stats(self, check, &ci->current);
+  free(ci->current.status);
 }
 int
 noit_lua_yield(noit_lua_check_info_t *ci, int nargs) {
@@ -528,7 +539,8 @@ static int
 noit_lua_check_timeout(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
   noit_check_t *check;
-  noit_lua_check_info_t *ci = closure;
+  struct nl_intcl *int_cl = closure;
+  noit_lua_check_info_t *ci = int_cl->ci;
   check = ci->check;
   noitL(nldeb, "lua: %p ->check_timeout\n", ci->coro_state);
   ci->timed_out = 1;
@@ -547,11 +559,13 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     noit_lua_module_cleanup(ci->self, ci->check);
     check->flags &= ~NP_RUNNING;
   }
+  if(int_cl->free) int_cl->free(int_cl);
   return 0;
 }
 static int
 noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   LMC_DECL(L, self);
+  struct nl_intcl *int_cl;
   noit_lua_check_info_t *ci;
   struct timeval p_int, __now;
   eventer_t e;
@@ -573,7 +587,11 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   e = eventer_alloc();
   e->mask = EVENTER_TIMER;
   e->callback = noit_lua_check_timeout;
-  e->closure = ci;
+  /* We wrap this in an alloc so we can blindly free it later */
+  int_cl = calloc(1, sizeof(*int_cl));
+  int_cl->ci = ci;
+  int_cl->free = int_cl_free;
+  e->closure = int_cl;
   memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
@@ -581,7 +599,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   noit_lua_check_register_event(ci, e);
   eventer_add(e);
 
-  noitL(nlerr, "initiate gettop => %d\n", lua_gettop(L));
+  noitL(nldeb, "initiate gettop => %d\n", lua_gettop(L));
   ci->lmc = lmc;
   lua_getglobal(L, "noit_coros");
   ci->coro_state = lua_newthread(L);

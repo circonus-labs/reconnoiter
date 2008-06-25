@@ -24,22 +24,12 @@
 #include <sys/filio.h>
 #endif
 
-struct nl_slcl {
-  int send_size;
-  struct timeval start;
-  char *inbuff;
-  int   inbuff_allocd;
-  int   inbuff_len;
-  size_t read_sofar;
-  size_t read_goal;
-  const char *read_terminator;
-  const char *outbuff;
-  size_t write_sofar;
-  size_t write_goal;
-  eventer_t *eptr;
-  lua_State *L;
-};
-
+static void
+nl_extended_free(void *vcl) {
+  struct nl_slcl *cl = vcl;
+  if(cl->inbuff) free(cl->inbuff);
+  free(cl);
+}
 static void
 inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
   int newsize = 0;
@@ -454,6 +444,7 @@ nl_sleep(lua_State *L) {
 
   p_int = lua_tonumber(L, 1);
   cl = calloc(1, sizeof(*cl));
+  cl->free = nl_extended_free;
   cl->L = L;
   gettimeofday(&cl->start, NULL);
 
@@ -494,6 +485,7 @@ nl_socket_tcp(lua_State *L, int family) {
   assert(ci);
 
   cl = calloc(1, sizeof(*cl));
+  cl->free = nl_extended_free;
   cl->L = L;
 
   optlen = sizeof(cl->send_size);
