@@ -78,4 +78,7 @@ API_EXPORT(void) noit_log(noit_log_stream_t ls, struct timeval *,
   } \
 } while(0)
 
+#define SETUP_LOG(a, b) do { if(!a##_log) a##_log = noit_log_stream_find(#a); \
+                             if(!a##_log) { b; } } while(0)
+
 #endif

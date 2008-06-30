@@ -14,6 +14,8 @@
 #include "jlog/jlog.h"
 
 /* Log format is tab delimited:
+ * NOIT CONFIG (implemented in noit_conf.c):
+ *  'n' TIMESTAMP base64(gzip(xmlconfig))
  *
  * CHECK:
  *  'C' TIMESTAMP UUID TARGET MODULE NAME
@@ -28,15 +30,13 @@
 static noit_log_stream_t check_log = NULL;
 static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
-#define SETUP_LOG(a) do { if(!a##_log) a##_log = noit_log_stream_find(#a); \
-                          if(!a##_log) return; } while(0)
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
 void
 noit_check_log_check(noit_check_t *check) {
   struct timeval __now;
   char uuid_str[37];
-  SETUP_LOG(check);
+  SETUP_LOG(check, return);
 
   gettimeofday(&__now, NULL);
   uuid_unparse_lower(check->checkid, uuid_str);
@@ -48,7 +48,7 @@ void
 noit_check_log_status(noit_check_t *check) {
   char uuid_str[37];
   stats_t *c;
-  SETUP_LOG(status);
+  SETUP_LOG(status, return);
 
   uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
@@ -64,7 +64,7 @@ noit_check_log_metrics(noit_check_t *check) {
   int klen;
   metric_t *m;
   stats_t *c;
-  SETUP_LOG(metrics);
+  SETUP_LOG(metrics, return);
 
   uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
