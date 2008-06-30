@@ -134,6 +134,23 @@ CREATE TABLE stratcon.metric_name_summary (
   active boolean default 'true',
   PRIMARY KEY (sid,metric_name,metric_type)
 );
+
+CREATE TABLE stratcon.current_node_config (
+  remote_address inet not null, 
+  node_type text not null, 
+  whence timestamptz not null, 
+  config xml not null,
+  PRIMARY KEY (remote_address,node_type)
+);
+
+CREATE TABLE stratcon.current_node_config_changelog (
+  remote_address inet not null, 
+  node_type text not null, 
+  whence timestamptz not null, 
+  config xml not null,
+  PRIMARY KEY (remote_address,node_type)
+);
+
 -- Schema Sequence 
 
 CREATE SEQUENCE stratcon.seq_sid
@@ -230,6 +247,45 @@ END IF;
 END
 $$
     LANGUAGE plpgsql;
+
+
+-- Trigger Function to log node config change
+
+CREATE   TRIGGER current_node_config_changelog
+    AFTER INSERT ON stratcon.current_node_config
+    FOR EACH ROW
+    EXECUTE PROCEDURE stratcon.current_node_config_changelog();
+
+
+CREATE OR REPLACE FUNCTION stratcon.current_node_config_changelog() RETURNS trigger
+    AS $$
+DECLARE
+    v_config xml;
+    
+BEGIN
+
+IF TG_OP = 'INSERT' THEN
+    SELECT config FROM  stratcon.current_node_config WHERE remote_address = NEW.remote_address AND node_type= NEW.node_type
+        AND whence = (SELECT max(whence) FROM stratcon.current_node_config_changelog
+                        WHERE  remote_address = NEW.remote_address AND node_type= NEW.node_type and  whence <> NEW.whence )
+    INTO v_config;
+
+    IF v_config IS DISTINCT FROM NEW.config THEN
+
+        INSERT INTO stratcon.current_node_config_changelog (remote_address,node_type,whence,config)
+            VALUES (NEW.remote_address,NEW.node_type,NEW.whence,NEW.config); 
+
+    END IF;
+
+ELSE
+        RAISE EXCEPTION 'Something wrong with stratcon.current_node_config_changelog';
+END IF;
+
+    RETURN NULL;
+
+END
+$$
+    LANGUAGE plpgsql;  
 
 
 -- Trigger Function to log Metrix Text Changes 
