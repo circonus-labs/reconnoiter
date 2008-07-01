@@ -22,6 +22,17 @@ typedef struct {
   char prompt[50];
 } noit_conf_t_userdata_t;
 
+/* seconds == 0 disable config journaling watchdog */
+API_EXPORT(void) noit_conf_coalesce_changes(u_int32_t seconds);
+/* Start the watchdog */
+API_EXPORT(void) noit_conf_watch_and_journal_watchdog(int (*f)(void *), void *c);
+
+/* marks the config as changed.. if you manipulate the XML tree in any way
+ * you must call this function to "let the system know."  This is used
+ * to notice changes which are in turn flushed out.
+ */
+API_EXPORT(void) noit_conf_mark_changed();
+
 API_EXPORT(void) noit_conf_init(const char *toplevel);
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
@@ -71,6 +82,9 @@ API_EXPORT(int)
   noit_conf_write_file(noit_console_closure_t ncct,
                        int argc, char **argv,
                        noit_console_state_t *state, void *closure);
+
+API_EXPORT(int)
+  noit_conf_write_log();
 
 API_EXPORT(void) noit_conf_log_init(const char *toplevel);
 

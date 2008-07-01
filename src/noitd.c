@@ -109,6 +109,11 @@ int main(int argc, char **argv) {
   noit_poller_init();
   noit_listener_init(APPNAME);
 
+  /* Write our log out, and setup a watchdog to write it out on change. */
+  noit_conf_write_log();
+  noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
+  noit_conf_watch_and_journal_watchdog(noit_conf_write_log, NULL);
+
   eventer_loop();
   return 0;
 }

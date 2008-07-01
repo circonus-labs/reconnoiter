@@ -175,6 +175,7 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
     xmlUnsetProp(node, (xmlChar *)attrinfo->name);
     if(val)
       xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)val);
+    noit_conf_mark_changed();
   }
   return error;
 }
@@ -212,8 +213,10 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
       /* Something went wrong, remove the node */
       xmlUnlinkNode(newnode);
     }
-    else
+    else {
+      noit_conf_mark_changed();
       rv = 0;
+    }
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -482,6 +485,7 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
         noit_poller_deschedule(checkid);
         xmlUnlinkNode(node);
       }
+      noit_conf_mark_changed();
     }
   }
   if(argc > 1) {
@@ -584,6 +588,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   if(delete) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
     xmlUnlinkNode(node);
+    noit_conf_mark_changed();
     return 0;
   }
   if(pobj) xmlXPathFreeObject(pobj);
@@ -598,6 +603,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   }
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL) {
+    noit_conf_mark_changed();
     if(info->path) free(info->path);
     info->path = strdup((char *)xmlGetNodePath(newnode) + strlen("/noit"));
   }
@@ -1008,8 +1014,8 @@ replace_config(noit_console_closure_t ncct,
     assert(confignode);
     /* Now we create a child */
     xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
-    
   }
+  noit_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -1080,6 +1086,7 @@ replace_attr(noit_console_closure_t ncct,
   xmlUnsetProp(node, (xmlChar *)attrinfo->name);
   if(value)
     xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
+  noit_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);

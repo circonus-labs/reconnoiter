@@ -13,18 +13,74 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <zlib.h>
 
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_console.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
+#include "utils/noit_b64.h"
 
 /* tmp hash impl, replace this with something nice */
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
 static char master_config_file[PATH_MAX] = "";
 static xmlXPathContextPtr xpath_ctxt = NULL;
+
+/* This is used to notice config changes and journal the config out
+ * using a user-specified function.  It supports allowing multiple config
+ * changed to coalesce so you don't write out 1000 changes in a few seconds.
+ */
+static u_int32_t __config_gen = 0;
+static u_int32_t __config_coalesce = 0;
+static u_int32_t __config_coalesce_time = 0;
+void noit_conf_coalesce_changes(u_int32_t seconds) {
+  __config_coalesce_time = seconds;
+}
+void noit_conf_mark_changed() {
+  /* increment the change counter -- in case anyone cares */
+  __config_gen++;
+  /* reset the coalesce counter.  It is decremented each second and
+   * the journal function fires on a transition from 1 => 0
+   */
+  __config_coalesce = __config_coalesce_time;
+}
+struct recurrent_journaler {
+  int (*journal_config)(void *);
+  void *jc_closure;
+};
+static int
+noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
+                                   struct timeval *now) {
+  struct recurrent_journaler *rj = closure;
+  eventer_t newe;
+
+  if(__config_coalesce == 1)
+    rj->journal_config(rj->jc_closure);
+  if(__config_coalesce > 0)
+    __config_coalesce--;
+
+  /* Schedule the same event to fire a second form now */
+  newe = eventer_alloc();
+  gettimeofday(&newe->whence, NULL);
+  newe->whence.tv_sec += 1;
+  newe->mask = EVENTER_TIMER;
+  newe->callback = noit_conf_watch_config_and_journal;
+  newe->closure = closure;
+  eventer_add(newe);
+  return 0;
+}
+void
+noit_conf_watch_and_journal_watchdog(int (*f)(void *), void *c) {
+  struct recurrent_journaler *rj;
+  struct timeval __now;
+  rj = calloc(1, sizeof(*rj));
+  rj->journal_config = f;
+  rj->jc_closure = c;
+  gettimeofday(&__now, NULL);
+  noit_conf_watch_config_and_journal(NULL, EVENTER_TIMER, rj, &__now);
+}
 
 static noit_hash_table _compiled_fallback = NOIT_HASH_EMPTY;
 static struct {
@@ -94,6 +150,7 @@ int noit_conf_load(const char *path) {
     master_config = new_config;
     xpath_ctxt = xmlXPathNewContext(master_config);
     if(path != master_config_file) realpath(path, master_config_file);
+    noit_conf_mark_changed();
     return 0;
   }
   return -1;
@@ -399,6 +456,80 @@ noit_console_close_xml(void *vncct) {
   return 0;
 }
 
+struct config_line_vstr {
+  char *buff;
+  int raw_len;
+  int len;
+  int allocd;
+  enum { CONFIG_RAW = 0, CONFIG_COMPRESSED, CONFIG_B64 } encoded;
+};
+static int
+noit_config_log_write_xml(void *vstr, const char *buffer, int len) {
+  struct config_line_vstr *clv = vstr;
+  assert(clv->encoded == CONFIG_RAW);
+  if(!clv->buff) {
+    clv->allocd = 8192;
+    clv->buff = malloc(clv->allocd);
+  }
+  while(len + clv->len > clv->allocd) {
+    char *newbuff;
+    int newsize = clv->allocd;
+    newsize <<= 1;
+    newbuff = realloc(clv->buff, newsize);
+    if(!newbuff) {
+      return -1;
+    }
+    clv->allocd = newsize;
+    clv->buff = newbuff;
+  }
+  memcpy(clv->buff + clv->len, buffer, len);
+  clv->len += len;
+  return len;
+}
+static int
+noit_config_log_close_xml(void *vstr) {
+  struct config_line_vstr *clv = vstr;
+  uLong initial_dlen, dlen;
+  char *compbuff, *b64buff;
+
+  if(clv->buff == NULL) {
+    clv->encoded = CONFIG_B64;
+    return 0;
+  }
+  clv->raw_len = clv->len;
+  assert(clv->encoded == CONFIG_RAW);
+  /* Compress */
+  initial_dlen = dlen = compressBound(clv->len);
+  compbuff = malloc(initial_dlen);
+  if(!compbuff) return -1;
+  if(Z_OK != compress2((Bytef *)compbuff, &dlen,
+                       (Bytef *)clv->buff, clv->len, 9)) {
+    noitL(noit_error, "Error compressing config for transmission.\n");
+    free(compbuff);
+    return -1;
+  }
+  free(clv->buff);
+  clv->buff = compbuff;
+  clv->allocd = initial_dlen;
+  clv->len = dlen;
+  clv->encoded = CONFIG_COMPRESSED;
+  /* Encode */
+  initial_dlen = ((clv->len + 2) / 3) * 4;
+  b64buff = malloc(initial_dlen);
+  dlen = noit_b64_encode((unsigned char *)clv->buff, clv->len,
+                         b64buff, initial_dlen);
+  if(dlen == 0) {
+    free(b64buff);
+    return -1;
+  }
+  free(clv->buff);
+  clv->buff = b64buff;
+  clv->allocd = initial_dlen;
+  clv->len = dlen;
+  clv->encoded = CONFIG_B64;
+  return 0;
+}
+
 int
 noit_conf_reload(noit_console_closure_t ncct,
                  int argc, char **argv,
@@ -458,6 +589,40 @@ noit_conf_write_file(noit_console_closure_t ncct,
     return -1;
   }
   nc_printf(ncct, "%d bytes written.\n", len);
+  return 0;
+}
+int
+noit_conf_write_log() {
+  static u_int32_t last_write_gen = 0;
+  static noit_log_stream_t config_log = NULL;
+  struct timeval __now;
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+  struct config_line_vstr *clv;
+  SETUP_LOG(config, return -1);
+
+  /* We know we haven't changed */
+  if(last_write_gen == __config_gen) return 0;
+
+  gettimeofday(&__now, NULL);
+  clv = calloc(1, sizeof(*clv));
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
+                                noit_config_log_close_xml,
+                                clv, enc);
+  xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  if(clv->encoded != CONFIG_B64) {
+    noitL(noit_error, "Error logging configuration\n");
+    if(clv->buff) free(clv->buff);
+    free(clv);
+    return -1;
+  }
+  noitL(config_log, "n\t%lu.%03lu\t%d\t%.*s\n",
+        __now.tv_sec, __now.tv_usec / 1000UL, clv->raw_len,
+        clv->len, clv->buff);
+  free(clv->buff);
+  free(clv);
+  last_write_gen = __config_gen;
   return 0;
 }
 

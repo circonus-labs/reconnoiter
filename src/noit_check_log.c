@@ -15,7 +15,7 @@
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
- *  'n' TIMESTAMP base64(gzip(xmlconfig))
+ *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
  *
  * CHECK:
  *  'C' TIMESTAMP UUID TARGET MODULE NAME

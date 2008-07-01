@@ -6,6 +6,7 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
+#include "utils/noit_b64.h"
 #include "stratcon_datastore.h"
 #include "noit_conf.h"
 #include "noit_check.h"
@@ -14,6 +15,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <libpq-fe.h>
+#include <zlib.h>
 
 static char *check_insert = NULL;
 static const char *check_insert_conf = "/stratcon/database/statements/check";
@@ -23,6 +25,8 @@ static char *metric_insert_numeric = NULL;
 static const char *metric_insert_numeric_conf = "/stratcon/database/statements/metric_numeric";
 static char *metric_insert_text = NULL;
 static const char *metric_insert_text_conf = "/stratcon/database/statements/metric_text";
+static char *config_insert = NULL;
+static const char *config_insert_conf = "/stratcon/database/statements/config";
 
 #define GET_QUERY(a) do { \
   if(a == NULL) \
@@ -141,6 +145,8 @@ __noit__strndup(const char *src, int len) {
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
   int type, len;
+  char *final_buff;
+  uLong final_len, actual_final_len;;
   char *token;
 
   type = d->data[0];
@@ -187,6 +193,42 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
     PROCESS_NEXT_FIELD(token,len); /* Skip the leader, we know what we are */
     switch(type) {
       /* See noit_check_log.c for log description */
+      case 'n':
+        DECLARE_PARAM_STR(raddr, strlen(raddr));
+        DECLARE_PARAM_STR("noitd",5); /* node_type */
+        PROCESS_NEXT_FIELD(token,len);
+        DECLARE_PARAM_STR(token,len); /* timestamp */
+
+        /* This is the expected uncompressed len */
+        PROCESS_NEXT_FIELD(token,len);
+        final_len = atoi(token);
+        final_buff = malloc(final_len);
+        if(!final_buff) goto bad_row;
+  
+        /* The last token is b64 endoded and compressed.
+         * we need to decode it, declare it and then free it.
+         */
+        PROCESS_LAST_FIELD(token, len);
+        /* We can in-place decode this */
+        len = noit_b64_decode((char *)token, len,
+                              (unsigned char *)token, len);
+        if(len <= 0) {
+          noitL(noit_error, "noitd config base64 decoding error.\n");
+          goto bad_row;
+        }
+        actual_final_len = final_len;
+        if(Z_OK != uncompress((Bytef *)final_buff, &actual_final_len,
+                              (unsigned char *)token, len)) {
+          noitL(noit_error, "noitd config decompression failure.\n");
+          goto bad_row;
+        }
+        if(final_len != actual_final_len) {
+          noitL(noit_error, "noitd config decompression error.\n");
+          goto bad_row;
+        }
+        DECLARE_PARAM_STR(final_buff, final_len);
+        free(final_buff);
+        break;
       case 'C':
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         PROCESS_NEXT_FIELD(token,len);
@@ -239,9 +281,10 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
                      (const char * const *)d->paramValues, \
                      d->paramLengths, d->paramFormats, 0); \
   rv = PQresultStatus(res); \
-  if(rv != PGRES_COMMAND_OK) { \
-    noitL(noit_error, "stratcon datasource bad row: %s\n", \
-          PQresultErrorMessage(res)); \
+  if(rv != PGRES_COMMAND_OK && \
+     rv != PGRES_TUPLES_OK) { \
+    noitL(noit_error, "stratcon datasource bad row (%d): %s\n", \
+          rv, PQresultErrorMessage(res)); \
     PQclear(res); \
     goto bad_row; \
   } \
@@ -250,6 +293,10 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
 
   /* Now execute the query */
   switch(type) {
+    case 'n':
+      GET_QUERY(config_insert);
+      PG_EXEC(config_insert);
+      break;
     case 'C':
       GET_QUERY(check_insert);
       PG_EXEC(check_insert);
