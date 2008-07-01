@@ -148,7 +148,7 @@ CREATE TABLE stratcon.current_node_config_changelog (
   node_type text not null, 
   whence timestamptz not null, 
   config xml not null,
-  PRIMARY KEY (remote_address,node_type)
+  PRIMARY KEY (remote_address,node_type,whence)
 );
 
 -- Schema Sequence 
@@ -212,6 +212,35 @@ $$ LANGUAGE plpgsql;
 
 -- Trigger Function to log dock status Changes 
 
+CREATE OR REPLACE FUNCTION stratcon.update_config(
+    v_remote_address_in inet,
+    v_node_type_in text,
+    v_whence_in timestamptz,
+    v_config_in xml) RETURNS void
+AS $$
+DECLARE
+    v_config xml;
+BEGIN
+    select config into v_config from stratcon.current_node_config
+     where remote_address = v_remote_address_in
+       and node_type = v_node_type_in;
+    IF FOUND THEN
+        IF v_config::text = v_config_in::text THEN
+            RETURN;
+        END IF;
+        delete from stratcon.current_node_config
+              where _address = v_remote_address_in
+                and node_type = v_node_type_in;
+    END IF;
+    insert into stratcon.current_node_config
+                (remote_address, node_type, whence, config)
+         values (v_remote_address_in, v_node_type_in, v_whence_in, v_config_in);
+    insert into stratcon.current_node_config_changelog
+                (remote_address, node_type, whence, config)
+         values (v_remote_address_in, v_node_type_in, v_whence_in, v_config_in);
+END
+$$ LANGUAGE plpgsql;
+
 CREATE  TRIGGER loading_dock_status_s_change_log
     AFTER INSERT ON stratcon.loading_dock_status_s
     FOR EACH ROW
@@ -247,45 +276,6 @@ END IF;
 END
 $$
     LANGUAGE plpgsql;
-
-
--- Trigger Function to log node config change
-
-CREATE   TRIGGER current_node_config_changelog
-    AFTER INSERT ON stratcon.current_node_config
-    FOR EACH ROW
-    EXECUTE PROCEDURE stratcon.current_node_config_changelog();
-
-
-CREATE OR REPLACE FUNCTION stratcon.current_node_config_changelog() RETURNS trigger
-    AS $$
-DECLARE
-    v_config xml;
-    
-BEGIN
-
-IF TG_OP = 'INSERT' THEN
-    SELECT config FROM  stratcon.current_node_config WHERE remote_address = NEW.remote_address AND node_type= NEW.node_type
-        AND whence = (SELECT max(whence) FROM stratcon.current_node_config_changelog
-                        WHERE  remote_address = NEW.remote_address AND node_type= NEW.node_type and  whence <> NEW.whence )
-    INTO v_config;
-
-    IF v_config IS DISTINCT FROM NEW.config THEN
-
-        INSERT INTO stratcon.current_node_config_changelog (remote_address,node_type,whence,config)
-            VALUES (NEW.remote_address,NEW.node_type,NEW.whence,NEW.config); 
-
-    END IF;
-
-ELSE
-        RAISE EXCEPTION 'Something wrong with stratcon.current_node_config_changelog';
-END IF;
-
-    RETURN NULL;
-
-END
-$$
-    LANGUAGE plpgsql;  
 
 
 -- Trigger Function to log Metrix Text Changes 
