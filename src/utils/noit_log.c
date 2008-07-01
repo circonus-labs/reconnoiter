@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <assert.h>
 
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
@@ -314,37 +315,54 @@ noit_log_stream_free(noit_log_stream_t ls) {
   }
 }
 
+static void
+noit_log_line(noit_log_stream_t ls, char *buffer, size_t len) {
+  struct _noit_log_stream_outlet_list *node;
+  if(ls->ops)
+    ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
+  for(node = ls->outlets; node; node = node->next) {
+    noit_log_line(node->outlet, buffer, len);
+  }
+}
 void
 noit_vlog(noit_log_stream_t ls, struct timeval *now,
           const char *file, int line,
           const char *format, va_list arg) {
-  char buffer[4096];
-  struct _noit_log_stream_outlet_list *node;
+  int allocd = 0;
+  char buffer[4096], *dynbuff = NULL;
 #ifdef va_copy
   va_list copy;
 #endif
 
   if(ls->enabled) {
     int len;
-    if(ls->ops) {
 #ifdef va_copy
-      va_copy(copy, arg);
-      len = vsnprintf(buffer, sizeof(buffer), format, copy);
-      va_end(copy);
+    va_copy(copy, arg);
+    len = vsnprintf(buffer, sizeof(buffer), format, copy);
+    va_end(copy);
 #else
-      len = vsnprintf(buffer, sizeof(buffer), format, arg);
+    len = vsnprintf(buffer, sizeof(buffer), format, arg);
 #endif
-      ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
+    if(len > sizeof(buffer)) {
+      allocd = sizeof(buffer);
+      while(len > allocd) { /* guaranteed true the first time */
+        while(len > allocd) allocd <<= 2;
+        if(dynbuff) free(dynbuff);
+        dynbuff = malloc(allocd);
+        assert(dynbuff);
+#ifdef va_copy
+        va_copy(copy, arg);
+        len = vsnprintf(dynbuff, allocd, format, copy);
+        va_end(copy);
+#else
+        len = vsnprintf(dynbuff, allocd, format, arg);
+#endif
+      }
+      noit_log_line(ls, dynbuff, len);
+      free(dynbuff);
     }
-
-    for(node = ls->outlets; node; node = node->next) {
-  #ifdef va_copy
-      va_copy(copy, arg);
-      noit_vlog(node->outlet, now, file, line, format, copy);
-      va_end(copy);
-  #else
-      noit_vlog(node->outlet, now, file, line, format, arg);
-  #endif
+    else {
+      noit_log_line(ls, buffer, len);
     }
   }
 }
