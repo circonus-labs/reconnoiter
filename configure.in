@@ -103,6 +103,7 @@ AC_CHECK_SIZEOF(long int, 4)
 AC_CHECK_SIZEOF(long long int, 8)
 AC_CHECK_SIZEOF(void *, 1)
 
+AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
