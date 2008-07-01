@@ -35,19 +35,25 @@ static const char *config_insert_conf = "/stratcon/database/statements/config";
 } while(0)
 
 #define MAX_PARAMS 8
+#define POSTGRES_PARTS \
+  int nparams; \
+  int metric_type; \
+  char *paramValues[MAX_PARAMS]; \
+  int paramLengths[MAX_PARAMS]; \
+  int paramFormats[MAX_PARAMS]; \
+  int paramAllocd[MAX_PARAMS];
+
+typedef struct ds_single_detail {
+  POSTGRES_PARTS
+} ds_single_detail;
 typedef struct ds_job_detail {
+  /* Postgres specific stuff */
+  POSTGRES_PARTS
+
   char *data;  /* The raw string, NULL means the stream is done -- commit. */
   int problematic;
   eventer_t completion_event; /* This event should be registered if non NULL */
   struct ds_job_detail *next;
-
-  /* Postgres specific stuff */
-  int nparams;
-  int metric_type;
-  char *paramValues[MAX_PARAMS];
-  int paramLengths[MAX_PARAMS];
-  int paramFormats[MAX_PARAMS];
-  int paramAllocd[MAX_PARAMS];
 } ds_job_detail;
 
 typedef struct {
@@ -60,7 +66,7 @@ typedef struct {
 } conn_q;
 
 static void
-free_params(ds_job_detail *d) {
+free_params(ds_single_detail *d) {
   int i;
   for(i=0; i<d->nparams; i++)
     if(d->paramAllocd[i] && d->paramValues[i])
@@ -82,7 +88,7 @@ __remove_until(conn_q *q, ds_job_detail *d) {
   while(q->head && q->head != d) {
     next = q->head;
     q->head = q->head->next;
-    free_params(next);
+    free_params((ds_single_detail *)next);
     if(next->data) free(next->data);
     free(next);
   }
@@ -214,16 +220,19 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
                               (unsigned char *)token, len);
         if(len <= 0) {
           noitL(noit_error, "noitd config base64 decoding error.\n");
+          free(final_buff);
           goto bad_row;
         }
         actual_final_len = final_len;
         if(Z_OK != uncompress((Bytef *)final_buff, &actual_final_len,
                               (unsigned char *)token, len)) {
           noitL(noit_error, "noitd config decompression failure.\n");
+          free(final_buff);
           goto bad_row;
         }
         if(final_len != actual_final_len) {
           noitL(noit_error, "noitd config decompression error.\n");
+          free(final_buff);
           goto bad_row;
         }
         DECLARE_PARAM_STR(final_buff, final_len);
@@ -483,4 +492,35 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       eventer_add(e);
       break;
   }
+}
+
+int
+stratcon_datastore_saveconfig(void *unused) {
+  int rv = -1;
+  conn_q _cq = { 0 }, *cq = &_cq;
+  char *buff;
+  ds_single_detail _d = { 0 }, *d = &_d;
+
+  if(stratcon_database_connect(cq) == 0) {
+    char time_as_str[20];
+    size_t len;
+    buff = noit_conf_xml_in_mem(&len);
+    if(!buff) goto bad_row;
+
+    snprintf(time_as_str, sizeof(time_as_str), "%lu", time(NULL));
+    DECLARE_PARAM_STR("0.0.0.0", 7);
+    DECLARE_PARAM_STR("stratcond", 9);
+    DECLARE_PARAM_STR(time_as_str, strlen(time_as_str));
+    DECLARE_PARAM_STR(buff, len);
+    free(buff);
+
+    GET_QUERY(config_insert);
+    PG_EXEC(config_insert);
+    rv = 0;
+
+    bad_row:
+      free_params(d);
+  }
+  if(cq->dbh) PQfinish(cq->dbh);
+  return rv;
 }

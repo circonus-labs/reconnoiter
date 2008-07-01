@@ -15,6 +15,7 @@
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "stratcon_jlog_streamer.h"
+#include "stratcon_datastore.h"
 
 #define APPNAME "stratcon"
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
@@ -99,6 +100,11 @@ int main(int argc, char **argv) {
   noit_console_init();
   noit_listener_init(APPNAME);
   stratcon_jlog_streamer_init(APPNAME);
+
+  /* Write our log out, and setup a watchdog to write it out on change. */
+  stratcon_datastore_saveconfig(NULL);
+  noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
+  noit_conf_watch_and_journal_watchdog(stratcon_datastore_saveconfig, NULL);
 
   eventer_loop();
   return 0;

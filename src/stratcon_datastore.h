@@ -22,4 +22,7 @@ API_EXPORT(void)
   stratcon_datastore_push(stratcon_datastore_op_t,
                           struct sockaddr *, void *);
 
+API_EXPORT(int)
+  stratcon_datastore_saveconfig(void *unused);
+
 #endif

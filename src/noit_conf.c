@@ -461,7 +461,7 @@ struct config_line_vstr {
   int raw_len;
   int len;
   int allocd;
-  enum { CONFIG_RAW = 0, CONFIG_COMPRESSED, CONFIG_B64 } encoded;
+  enum { CONFIG_RAW = 0, CONFIG_COMPRESSED, CONFIG_B64 } target, encoded;
 };
 static int
 noit_config_log_write_xml(void *vstr, const char *buffer, int len) {
@@ -493,11 +493,13 @@ noit_config_log_close_xml(void *vstr) {
   char *compbuff, *b64buff;
 
   if(clv->buff == NULL) {
-    clv->encoded = CONFIG_B64;
+    clv->encoded = clv->target;
     return 0;
   }
   clv->raw_len = clv->len;
   assert(clv->encoded == CONFIG_RAW);
+  if(clv->encoded == clv->target) return 0;
+
   /* Compress */
   initial_dlen = dlen = compressBound(clv->len);
   compbuff = malloc(initial_dlen);
@@ -513,6 +515,8 @@ noit_config_log_close_xml(void *vstr) {
   clv->allocd = initial_dlen;
   clv->len = dlen;
   clv->encoded = CONFIG_COMPRESSED;
+  if(clv->encoded == clv->target) return 0;
+
   /* Encode */
   initial_dlen = ((clv->len + 2) / 3) * 4;
   b64buff = malloc(initial_dlen);
@@ -527,7 +531,8 @@ noit_config_log_close_xml(void *vstr) {
   clv->allocd = initial_dlen;
   clv->len = dlen;
   clv->encoded = CONFIG_B64;
-  return 0;
+  if(clv->encoded == clv->target) return 0;
+  return -1;
 }
 
 int
@@ -591,6 +596,32 @@ noit_conf_write_file(noit_console_closure_t ncct,
   nc_printf(ncct, "%d bytes written.\n", len);
   return 0;
 }
+char *
+noit_conf_xml_in_mem(size_t *len) {
+  struct config_line_vstr *clv;
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+  char *rv;
+
+  clv = calloc(1, sizeof(*clv));
+  clv->target = CONFIG_RAW;
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
+                                noit_config_log_close_xml,
+                                clv, enc);
+  xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  if(clv->encoded != CONFIG_RAW) {
+    noitL(noit_error, "Error logging configuration\n");
+    if(clv->buff) free(clv->buff);
+    free(clv);
+    return NULL;
+  }
+  rv = clv->buff;
+  *len = clv->len;
+  free(clv);
+  return rv;
+}
+
 int
 noit_conf_write_log() {
   static u_int32_t last_write_gen = 0;
@@ -606,6 +637,7 @@ noit_conf_write_log() {
 
   gettimeofday(&__now, NULL);
   clv = calloc(1, sizeof(*clv));
+  clv->target = CONFIG_B64;
   enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
   out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
                                 noit_config_log_close_xml,

@@ -83,6 +83,9 @@ API_EXPORT(int)
                        int argc, char **argv,
                        noit_console_state_t *state, void *closure);
 
+API_EXPORT(char *)
+  noit_conf_xml_in_mem(size_t *len);
+
 API_EXPORT(int)
   noit_conf_write_log();
 
