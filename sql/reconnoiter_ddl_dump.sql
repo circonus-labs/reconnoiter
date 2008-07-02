@@ -24,6 +24,34 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: current_node_config; Type: TABLE; Schema: stratcon; Owner: stratcon; Tablespace: 
+--
+
+CREATE TABLE current_node_config (
+    remote_address inet NOT NULL,
+    node_type text NOT NULL,
+    whence timestamp with time zone NOT NULL,
+    config xml NOT NULL
+);
+
+
+ALTER TABLE stratcon.current_node_config OWNER TO stratcon;
+
+--
+-- Name: current_node_config_changelog; Type: TABLE; Schema: stratcon; Owner: stratcon; Tablespace: 
+--
+
+CREATE TABLE current_node_config_changelog (
+    remote_address inet NOT NULL,
+    node_type text NOT NULL,
+    whence timestamp with time zone NOT NULL,
+    config xml NOT NULL
+);
+
+
+ALTER TABLE stratcon.current_node_config_changelog OWNER TO stratcon;
+
+--
 -- Name: loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: omniti; Tablespace: 
 --
 
@@ -161,9 +189,7 @@ CREATE TABLE rollup_matrix_numeric_12hours (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric,
-    min_value numeric,
-    max_value numeric
+    avg_value numeric
 );
 
 
@@ -178,9 +204,7 @@ CREATE TABLE rollup_matrix_numeric_20m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric,
-    min_value numeric,
-    max_value numeric
+    avg_value numeric
 );
 
 
@@ -195,9 +219,7 @@ CREATE TABLE rollup_matrix_numeric_5m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric,
-    min_value numeric,
-    max_value numeric
+    avg_value numeric
 );
 
 
@@ -212,9 +234,7 @@ CREATE TABLE rollup_matrix_numeric_60m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric,
-    min_value numeric,
-    max_value numeric
+    avg_value numeric
 );
 
 
@@ -229,9 +249,7 @@ CREATE TABLE rollup_matrix_numeric_6hours (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric,
-    min_value numeric,
-    max_value numeric
+    avg_value numeric
 );
 
 
@@ -410,8 +428,7 @@ begin
     into v_end_adj;
 
   v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
-           's.rollup_time, d.count_rows, d.avg_value, ' ||
-           'd.min_value, d.max_value ' ||
+           's.rollup_time, d.count_rows, d.avg_value ' ||
            ' from ' ||
            '(select ' || quote_literal(v_start_adj) || '::timestamp' ||
                   ' + t * ' || quote_literal(v_target.period) || '::interval' ||
@@ -434,15 +451,10 @@ begin
         v_r_rollup_row.count_rows := (v_l_rollup_row.count_rows + v_rollup_row.count_rows) / 2;
         v_r_rollup_row.avg_value :=
           (v_rollup_row.avg_value - v_l_rollup_row.avg_value) / v_interval;
-        v_r_rollup_row.min_value :=
-          (v_rollup_row.min_value - v_l_rollup_row.min_value) / v_interval;
-        v_r_rollup_row.max_value :=
-          (v_rollup_row.max_value - v_l_rollup_row.max_value) / v_interval;
       else
         v_r_rollup_row.count_rows = NULL;
         v_r_rollup_row.avg_value = NULL;
-        v_r_rollup_row.min_value = NULL;
-        v_r_rollup_row.max_value = NULL;
+        
       end if;
     else
       v_r_rollup_row := v_rollup_row;
@@ -593,14 +605,24 @@ CREATE FUNCTION loading_dock_metric_numeric_s_whence_log() RETURNS trigger
     AS $$
 DECLARE
 v_whence timestamptz;
+v_whence_5 timestamptz;
 v_sid integer;
 v_name text;
 BEGIN
 IF TG_OP = 'INSERT' THEN
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval and interval='5 minutes'
+ 
+ v_whence_5:=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval;
+ 
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=v_whence_5 and interval='5 minutes'
      INTO v_whence;
+     
    IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval,'5 minutes');
+      BEGIN
+       INSERT INTO  stratcon.log_whence_s VALUES(v_whence_5,'5 minutes');
+       EXCEPTION
+        WHEN UNIQUE_VIOLATION THEN
+        -- do nothing 
+      END;
     END IF;
 
    SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
@@ -610,7 +632,6 @@ IF TG_OP = 'INSERT' THEN
     END IF;
 
 END IF;
-
     RETURN NULL;
 END
 $$
@@ -915,8 +936,7 @@ BEGIN
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-         MIN(min_value) as min_value ,MAX(max_value) as max_value
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
          FROM stratcon.rollup_matrix_numeric_6hours
            WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'12 hour'::interval
                    GROUP BY sid,name
@@ -924,8 +944,8 @@ BEGIN
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_12hours
-          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
           
      END LOOP;
 
@@ -940,7 +960,6 @@ END LOOP;
 UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_12hours';
 
 RETURN;
-
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
       UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
@@ -1020,8 +1039,7 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
 
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
-                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-       MIN(min_value) as min_value ,MAX(max_value) as max_value
+                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
        FROM stratcon.rollup_matrix_numeric_5m
                       WHERE rollup_time<= v_min_whence AND rollup_time > v_min_whence -'20 minutes'::interval
                 GROUP BY sid,name
@@ -1030,8 +1048,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_20m
-         (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
+         (sid,name,rollup_time,count_rows,avg_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
         
    END LOOP;
 
@@ -1118,7 +1136,6 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
       IF NOT FOUND THEN
        INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval,'20 minutes');
    END IF;
-   
  IF v_min_whence <= v_max_rollup_5 THEN
 
    DELETE FROM stratcon.rollup_matrix_numeric_5m 
@@ -1128,7 +1145,7 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
 
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
-                      COUNT(1) as count_rows ,AVG(value) as avg_value,MIN(value) as min_value ,MAX(value) as max_value
+                      COUNT(1) as count_rows ,AVG(value) as avg_value
                       FROM stratcon.loading_dock_metric_numeric_s
                       WHERE WHENCE <= v_min_whence AND WHENCE > v_min_whence -'5 minutes'::interval
                 GROUP BY rollup_time,sid,name
@@ -1137,8 +1154,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_5m
-         (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
+         (sid,name,rollup_time,count_rows,avg_value) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
         
    END LOOP;
 
@@ -1232,16 +1249,15 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='1 hour' LOO
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,date_hour(rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-         MIN(min_value) as min_value ,MAX(max_value) as max_value
+                SELECT sid,name,date_hour(rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
          FROM stratcon.rollup_matrix_numeric_20m
            WHERE date_hour(rollup_time)= v_min_whence
                    GROUP BY date_hour(rollup_time),sid,name
         LOOP
       
           INSERT INTO stratcon.rollup_matrix_numeric_60m
-          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
           
      END LOOP;
 
@@ -1259,7 +1275,6 @@ RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
       RAISE NOTICE '%', SQLERRM;
@@ -1334,8 +1349,7 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LO
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-         MIN(min_value) as min_value ,MAX(max_value) as max_value
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
          FROM stratcon.rollup_matrix_numeric_60m
            WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'6 hour'::interval
                    GROUP BY sid,name
@@ -1343,8 +1357,9 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LO
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_6hours
-          (sid,name,rollup_time,count_rows,avg_value,min_value,max_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.min_value,rec.max_value);
+          (sid,name,rollup_time,count_rows,avg_value) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+          
      END LOOP;
 
 
@@ -1360,7 +1375,6 @@ RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours'; 
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
        RAISE NOTICE '%', SQLERRM;
@@ -1370,6 +1384,39 @@ $$
 
 
 ALTER FUNCTION stratcon.rollup_matrix_numeric_6hours() OWNER TO omniti;
+
+--
+-- Name: update_config(inet, text, timestamp with time zone, xml); Type: FUNCTION; Schema: stratcon; Owner: stratcon
+--
+
+CREATE FUNCTION update_config(v_remote_address_in inet, v_node_type_in text, v_whence_in timestamp with time zone, v_config_in xml) RETURNS void
+    AS $$
+DECLARE
+    v_config xml;
+BEGIN
+    select config into v_config from stratcon.current_node_config
+     where remote_address = v_remote_address_in
+       and node_type = v_node_type_in;
+    IF FOUND THEN
+        IF v_config::text = v_config_in::text THEN
+            RETURN;
+        END IF;
+        delete from stratcon.current_node_config
+              where _address = v_remote_address_in
+                and node_type = v_node_type_in;
+    END IF;
+    insert into stratcon.current_node_config
+                (remote_address, node_type, whence, config)
+         values (v_remote_address_in, v_node_type_in, v_whence_in, v_config_in);
+    insert into stratcon.current_node_config_changelog
+                (remote_address, node_type, whence, config)
+         values (v_remote_address_in, v_node_type_in, v_whence_in, v_config_in);
+END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.update_config(v_remote_address_in inet, v_node_type_in text, v_whence_in timestamp with time zone, v_config_in xml) OWNER TO stratcon;
 
 --
 -- Name: seq_sid; Type: SEQUENCE; Schema: stratcon; Owner: stratcon
@@ -1383,6 +1430,22 @@ CREATE SEQUENCE seq_sid
 
 
 ALTER TABLE stratcon.seq_sid OWNER TO stratcon;
+
+--
+-- Name: current_node_config_changelog_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: stratcon; Tablespace: 
+--
+
+ALTER TABLE ONLY current_node_config_changelog
+    ADD CONSTRAINT current_node_config_changelog_pkey PRIMARY KEY (remote_address, node_type, whence);
+
+
+--
+-- Name: current_node_config_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: stratcon; Tablespace: 
+--
+
+ALTER TABLE ONLY current_node_config
+    ADD CONSTRAINT current_node_config_pkey PRIMARY KEY (remote_address, node_type);
+
 
 --
 -- Name: loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: omniti; Tablespace: 
@@ -1463,6 +1526,8 @@ ALTER TABLE ONLY metric_name_summary
 ALTER TABLE ONLY rollup_matrix_numeric_12hours
     ADD CONSTRAINT rollup_matrix_numeric_12hours_pkey PRIMARY KEY (rollup_time, sid, name);
 
+ALTER TABLE rollup_matrix_numeric_12hours CLUSTER ON rollup_matrix_numeric_12hours_pkey;
+
 
 --
 -- Name: rollup_matrix_numeric_20m_new_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: omniti; Tablespace: 
@@ -1470,6 +1535,8 @@ ALTER TABLE ONLY rollup_matrix_numeric_12hours
 
 ALTER TABLE ONLY rollup_matrix_numeric_20m
     ADD CONSTRAINT rollup_matrix_numeric_20m_new_pkey PRIMARY KEY (rollup_time, sid, name);
+
+ALTER TABLE rollup_matrix_numeric_20m CLUSTER ON rollup_matrix_numeric_20m_new_pkey;
 
 
 --
@@ -1479,6 +1546,8 @@ ALTER TABLE ONLY rollup_matrix_numeric_20m
 ALTER TABLE ONLY rollup_matrix_numeric_5m
     ADD CONSTRAINT rollup_matrix_numeric_5m_pkey PRIMARY KEY (rollup_time, sid, name);
 
+ALTER TABLE rollup_matrix_numeric_5m CLUSTER ON rollup_matrix_numeric_5m_pkey;
+
 
 --
 -- Name: rollup_matrix_numeric_60m_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: omniti; Tablespace: 
@@ -1487,6 +1556,8 @@ ALTER TABLE ONLY rollup_matrix_numeric_5m
 ALTER TABLE ONLY rollup_matrix_numeric_60m
     ADD CONSTRAINT rollup_matrix_numeric_60m_pkey PRIMARY KEY (rollup_time, sid, name);
 
+ALTER TABLE rollup_matrix_numeric_60m CLUSTER ON rollup_matrix_numeric_60m_pkey;
+
 
 --
 -- Name: rollup_matrix_numeric_6hours_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: omniti; Tablespace: 
@@ -1494,6 +1565,8 @@ ALTER TABLE ONLY rollup_matrix_numeric_60m
 
 ALTER TABLE ONLY rollup_matrix_numeric_6hours
     ADD CONSTRAINT rollup_matrix_numeric_6hours_pkey PRIMARY KEY (rollup_time, sid, name);
+
+ALTER TABLE rollup_matrix_numeric_6hours CLUSTER ON rollup_matrix_numeric_6hours_pkey;
 
 
 --
