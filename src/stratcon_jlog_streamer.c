@@ -140,7 +140,10 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
       *newmask = mask;
       return -1;
     }
-    if(len == 0) return ctx->bytes_read;
+    /* if we get 0 inside SSL, and there was a real error, we
+     * will actually get a -1 here.
+     * if(len == 0) return ctx->bytes_read;
+     */
     ctx->bytes_read += len;
   }
   assert(ctx->bytes_read == ctx->bytes_expected);
@@ -161,6 +164,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   len = __read_on_ctx(e, ctx, &mask); \
   if(len < 0) { \
     if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
+    noitL(noit_error, "SSL read error: %s\n", strerror(errno)); \
     goto socket_error; \
   } \
   ctx->bytes_read = 0; \
@@ -181,6 +185,12 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   if(mask & EVENTER_EXCEPTION || ctx->wants_shutdown) {
  socket_error:
+    ctx->state = WANT_COUNT;
+    ctx->count = 0;
+    ctx->bytes_read = 0;
+    ctx->bytes_expected = 0;
+    if(ctx->buffer) free(ctx->buffer);
+    ctx->buffer = NULL;
     jlog_streamer_schedule_reattempt(ctx, now);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);

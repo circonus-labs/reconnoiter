@@ -318,10 +318,10 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
 
   switch(op) {
     case SSL_OP_READ:
-      if((rv = SSL_read(ctx->ssl, buffer, len)) >= 0) return rv;
+      if((rv = SSL_read(ctx->ssl, buffer, len)) > 0) return rv;
       break;
     case SSL_OP_WRITE:
-      if((rv = SSL_write(ctx->ssl, buffer, len)) >= 0) return rv;
+      if((rv = SSL_write(ctx->ssl, buffer, len)) > 0) return rv;
       break;
 
     case SSL_OP_CONNECT:
@@ -345,6 +345,8 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
   }
 
   switch(sslerror = SSL_get_error(ctx->ssl, rv)) {
+    case SSL_ERROR_NONE:
+      return 0;
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
       *mask = (sslerror == SSL_ERROR_WANT_READ) ?
@@ -352,6 +354,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       errno = EAGAIN;
       break;
     default:
+      noitL(noit_error, "SSL rw error: %d\n", sslerror);
       eventer_ssl_error();
       errno = EIO;
   }
