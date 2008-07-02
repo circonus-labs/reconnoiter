@@ -43,7 +43,18 @@ noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
   free(jcl);
 }
 
-#define Ewrite(a,b) e->opset->write(e->fd, a, b, &mask, e)
+static int
+__safe_Ewrite(eventer_t e, void *b, int l, int *mask) {
+  int w, sofar = 0;
+  while(l > sofar) {
+    w = e->opset->write(e->fd, b + sofar, l - sofar, mask, e);
+    if(w <= 0) return w;
+    sofar += w;
+  }
+  return sofar;
+}
+#define Ewrite(a,b) __safe_Ewrite(e,a,b,&mask)
+
 static int
 noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
   jlog_message msg;
@@ -53,6 +64,7 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
   if(Ewrite(&n_count, sizeof(n_count)) != sizeof(n_count))
     return -1;
   while(jcl->count > 0) {
+    int rv;
     struct { jlog_id chkpt; u_int32_t n_sec, n_usec, n_len; } payload;
     if(jlog_ctx_read_message(jcl->jlog, &jcl->start, &msg) == -1)
       return -1;
@@ -63,10 +75,16 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
     payload.n_sec  = htonl(msg.header->tv_sec);
     payload.n_usec = htonl(msg.header->tv_usec);
     payload.n_len  = htonl(msg.mess_len);
-    if(Ewrite(&payload, sizeof(payload)) != sizeof(payload))
+    if((rv = Ewrite(&payload, sizeof(payload))) != sizeof(payload)) {
+      noitL(noit_error, "Error writing jlog header over SSL %d != %d\n",
+            rv, sizeof(payload));
       return -1;
-    if(Ewrite(msg.mess, msg.mess_len) != msg.mess_len)
+    }
+    if((rv = Ewrite(msg.mess, msg.mess_len)) != msg.mess_len) {
+      noitL(noit_error, "Error writing jlog message over SSL %d != %d\n",
+            rv, msg.mess_len);
       return -1;
+    }
     /* Note what the client must checkpoint */
     jcl->chkpt = jcl->start;
 
