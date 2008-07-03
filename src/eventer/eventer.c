@@ -50,8 +50,11 @@ const char *eventer_name_for_callback(eventer_func_t f) {
 }
 
 int eventer_choose(const char *name) {
+  int i = 0;
   eventer_impl_t choice;
-  for(choice = registered_eventers[0]; choice; choice++) {
+  for(choice = registered_eventers[i];
+      choice;
+      choice = registered_eventers[++i]) {
     if(!strcmp(choice->name, name)) {
       __eventer = choice;
       return 0;
