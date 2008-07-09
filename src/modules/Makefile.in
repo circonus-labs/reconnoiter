@@ -18,7 +18,7 @@ INSTALL=@INSTALL@
 top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
-	lua.@MODULEEXT@ \
+	lua.@MODULEEXT@ dns.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)
@@ -41,6 +41,14 @@ postgres.@MODULEEXT@:	postgres.lo
 
 postgres.lo:	postgres.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
+dns.@MODULEEXT@:	dns.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ dns.lo
+	@echo "- linking $@"
+
+dns.lo:	dns.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
 http.@MODULEEXT@:	http.lo

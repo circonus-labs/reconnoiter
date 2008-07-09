@@ -102,6 +102,10 @@
 #undef HAVE_STRLCPY
 #undef HAVE_STRNSTRN
 #undef HAVE_OPENPTY
+#undef HAVE_INET_PTON
+#undef HAVE_INET_NTOP
+#undef HAVE_GETOPT
+#undef HAVE_POLL
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE

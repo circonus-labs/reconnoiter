@@ -27,7 +27,7 @@ top_srcdir=@top_srcdir@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer modules noitedit
+SUBS=lua utils eventer udns modules noitedit
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -63,6 +63,7 @@ serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
 
 noitd:	make-subdirs $(NOIT_OBJS)
 	@$(CC) -o $@ $(NOIT_OBJS) \
+		udns/libudns.o \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
@@ -75,6 +76,7 @@ noitd:	make-subdirs $(NOIT_OBJS)
 
 stratcond:	make-subdirs $(STRATCON_OBJS)
 	@$(CC) -o $@ $(STRATCON_OBJS) \
+		udns/libudns.o \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \

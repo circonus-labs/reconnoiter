@@ -249,7 +249,8 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 )
 
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty)
+AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty inet_pton inet_ntop getopt \
+               poll)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
@@ -504,6 +505,7 @@ src/Makefile
 src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL
+src/udns/Makefile
 src/modules/Makefile
 src/utils/Makefile
 src/noitedit/Makefile

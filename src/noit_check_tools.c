@@ -5,6 +5,7 @@
 
 #include "noit_defines.h"
 #include "noit_check_tools.h"
+#include "utils/noit_str.h"
 
 #include <assert.h>
 
@@ -14,7 +15,25 @@ typedef struct {
   dispatch_func_t dispatch;
 } recur_closure_t;
 
-int
+static noit_hash_table interpolation_operators = NOIT_HASH_EMPTY;
+
+static int
+interpolate_oper_copy(char *buff, int len, const char *replacement) {
+  strlcpy(buff, replacement, len);
+  return strlen(buff);
+}
+
+API_EXPORT(int)
+noit_check_interpolate_register_oper_fn(const char *name,
+                                        intperpolate_oper_fn f) {
+  noit_hash_replace(&interpolation_operators,
+                    strdup(name), strlen(name),
+                    f,
+                    free, NULL);
+  return 0;
+}
+
+API_EXPORT(int)
 noit_check_interpolate(char *buff, int len, const char *fmt,
                        noit_hash_table *attrs,
                        noit_hash_table *config) {
@@ -38,13 +57,33 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
             while(*fmte && *fmte != closer) fmte++;
             if(*fmte == closer) {
               /* We have a full key here */
-              const char *replacement;
+              const char *replacement, *oper, *nkey;
+              intperpolate_oper_fn oper_sprint;
+
+              /* keys can be of the form: :operator:key */
+              oper = key;
+              if(*oper == ':' &&
+                 (nkey = strnstrn(":", 1, oper + 1, fmte - key - 1)) != NULL) {
+                oper++;
+                /* find oper, nkey-oper */
+                if(!noit_hash_retrieve(&interpolation_operators,
+                                       oper, nkey - oper,
+                                       (void **)&oper_sprint)) {
+                  /* else oper <- copy */
+                  oper_sprint = interpolate_oper_copy;
+                }
+                nkey++;
+              }
+              else {
+                oper_sprint = interpolate_oper_copy;
+                nkey = key;
+              }
               if(!noit_hash_retrieve((closer == '}') ?  config : attrs,
-                                     key, fmte - key, (void **)&replacement))
+                                     nkey, fmte - nkey, (void **)&replacement))
                 replacement = "";
               fmt = fmte + 1; /* Format points just after the end of the key */
-              strlcpy(cp, replacement, end-cp);
-              cp += strlen(cp);
+              cp += oper_sprint(cp, end-cp, replacement);
+              *(end-1) = '\0'; /* In case the oper_sprint didn't teminate */
               replaced_something = 1;
               break;
             }
