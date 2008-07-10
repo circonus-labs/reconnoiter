@@ -101,7 +101,7 @@ static void dns_ctx_release(dns_ctx_handle_t *h) {
     return;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
-  if(noit_atomic_dec32(&h->refcnt) == 1) {
+  if(noit_atomic_dec32(&h->refcnt) == 0) {
     /* I was the last one */
     assert(noit_hash_delete(&dns_ctx_store, h->ns, strlen(h->ns),
                             NULL, dns_ctx_handle_free));
