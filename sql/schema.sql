@@ -229,7 +229,7 @@ BEGIN
             RETURN;
         END IF;
         delete from stratcon.current_node_config
-              where _address = v_remote_address_in
+              where remote_address = v_remote_address_in
                 and node_type = v_node_type_in;
     END IF;
     insert into stratcon.current_node_config
@@ -303,39 +303,6 @@ BEGIN
 
 IF TG_OP = 'INSERT' THEN
 
-SELECT max(whence) FROM stratcon.loading_dock_metric_text_s WHERE whence <> NEW.whence and sid=NEW.sid and name = NEW.name 
-        INTO v_max_whence;
- 
- IF NEW.whence < v_max_whence THEN            
- 
-    INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
-                 VALUES (NEW.sid,NEW.whence, NEW.name, NEW.value); 
-                 
-       SELECT  whence,name,value FROM  stratcon.loading_dock_metric_text_s_change_log WHERE whence > NEW.whence and sid=NEW.sid and name=NEW.name order by whence  limit 1 
-        INTO v_whence,v_sid,v_name,v_value;
-          IF FOUND  THEN
-            IF v_value IS  DISTINCT FROM NEW.value THEN
-               NULL;
-            ELSE
-                DELETE from  stratcon.loading_dock_metric_text_s_change_log  WHERE whence=v_whence and sid=v_sid and name=v_name;
-            END IF;
-          END IF;
-       
-         
-       SELECT whence,sid,name,value from stratcon.loading_dock_metric_text_s where whence> NEW.whence and sid=NEW.sid and name=NEW.name and value!=NEW.value order by whence limit 1
-         INTO v_whence,v_sid,v_name,v_value;
-          IF FOUND  THEN
-             SELECT  whence,sid,name,value FROM  stratcon.loading_dock_metric_text_s_change_log WHERE whence =v_whence and sid=v_sid and name=v_name and value=v_value
-                 INTO v_old_whence,v_old_sid,v_old_name,v_old_value;
-              IF FOUND THEN
-                 NULL;
-              ELSE
-                INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
-                 VALUES (v_sid,v_whence, v_name, v_value); 
-               END IF;
-        END IF;
-
-  ELSE
 	     SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name 
 	         AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
 	                         WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
@@ -346,7 +313,6 @@ SELECT max(whence) FROM stratcon.loading_dock_metric_text_s WHERE whence <> NEW.
 		        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
 		            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
 		    END IF;
-  END IF;	    
 
 
 SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
