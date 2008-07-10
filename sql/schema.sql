@@ -925,14 +925,29 @@ END
 $$ LANGUAGE plpgsql;
 
 
-create or replace function
-stratcon.fetch_varset(in_check uuid,
-                       in_name text,
-                       in_start_time timestamptz,
-                       in_end_time timestamptz,
-                       in_hopeful_nperiods int)
-returns setof stratcon.loading_dock_metric_text_s_change_log as
-$$
+CREATE OR REPLACE FUNCTION stratcon.fetch_varset(in_check uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer)
+  RETURNS SETOF stratcon.loading_dock_metric_text_s_change_log AS
+$BODY$
+declare
+  v_sid int;
+begin
+  -- Map out uuid to an sid.
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
+  if not found then
+    return;
+  end if;
+
+  return query select * from stratcon.fetch_varset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods);
+end
+$BODY$
+  LANGUAGE 'plpgsql' VOLATILE
+  COST 100
+  ROWS 1000;
+ALTER FUNCTION stratcon.fetch_varset(uuid, text, timestamp with time zone, timestamp with time zone, integer) OWNER TO omniti;
+
+CREATE OR REPLACE FUNCTION stratcon.fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer)
+  RETURNS SETOF stratcon.loading_dock_metric_text_s_change_log AS
+$BODY$
 declare
   v_sid int;
   v_target record;
@@ -943,10 +958,7 @@ declare
   v_change_row stratcon.loading_dock_metric_text_s_change_log%rowtype;
 begin
   -- Map out uuid to an sid.
-  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
-  if not found then
-    return;
-  end if;
+  v_sid := in_sid;
 
   select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
 
@@ -1014,8 +1026,11 @@ begin
 
   return;
 end
-$$ language 'plpgsql';
-
+$BODY$
+  LANGUAGE 'plpgsql' VOLATILE
+  COST 100
+  ROWS 1000;
+ALTER FUNCTION stratcon.fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer) OWNER TO omniti;
 
 create or replace function
 stratcon.choose_window(in_start_time timestamptz,
@@ -1068,15 +1083,28 @@ begin
 end
 $$ language 'plpgsql';
 
-create or replace function
-stratcon.fetch_dataset(in_check uuid,
-                       in_name text,
-                       in_start_time timestamptz,
-                       in_end_time timestamptz,
-                       in_hopeful_nperiods int,
-                       derive boolean)
-returns setof stratcon.rollup_matrix_numeric_5m as
-$$
+CREATE OR REPLACE FUNCTION stratcon.fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
+  RETURNS SETOF stratcon.rollup_matrix_numeric_5m AS
+$BODY$
+declare
+  v_sid int;
+begin
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
+  if not found then
+    return;
+  end if;
+
+  return query select * from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
+end
+$BODY$
+  LANGUAGE 'plpgsql' VOLATILE
+  COST 100
+  ROWS 1000;
+ALTER FUNCTION stratcon.fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean) OWNER TO omniti;
+
+CREATE OR REPLACE FUNCTION stratcon.fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
+  RETURNS SETOF stratcon.rollup_matrix_numeric_5m AS
+$BODY$
 declare
   v_sql text;
   v_sid int;
@@ -1090,10 +1118,7 @@ declare
 begin
 
   -- Map out uuid to an sid.
-  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
-  if not found then
-    return;
-  end if;
+  v_sid := in_sid;
 
   select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
 
@@ -1151,8 +1176,11 @@ begin
   end loop;
   return;
 end
-$$ language 'plpgsql';
-
+$BODY$
+  LANGUAGE 'plpgsql' VOLATILE
+  COST 100
+  ROWS 1000;
+ALTER FUNCTION stratcon.fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean) OWNER TO omniti;
 
 -- Remove Metric based on UUID and Metric_Name
 
