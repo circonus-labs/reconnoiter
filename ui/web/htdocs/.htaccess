@@ -1,0 +1,5 @@
+RewriteEngine On
+RewriteBase /reconnoiter/
+RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ ds_json.php?l1=$1&l2=$2&l3=$3&l4=$4 [PT,QSA]
+RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ ds_json.php?l1=$1&l2=$2&l3=$3&l4=$4&l5=$5 [PT,QSA]
+
