@@ -92,8 +92,14 @@ class Reconnoiter_DB {
         $copy['id'] .= "-" . $copy[$var];
       }
       $copy['cnt'] = $row['cnt'];
-      if($copy['cnt'] == 1)
+      if($copy['cnt'] == 1 &&
+         isset($row['sid']) && 
+         isset($row['metric_name'])) {
+        $copy['unique'] = true;
         $copy['metric_type'] = $row['metric_type'];
+      }
+      else
+        $copy['unique'] = false;
       $rv[] = $copy;
     }
     return $rv;

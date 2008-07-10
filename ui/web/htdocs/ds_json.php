@@ -42,12 +42,17 @@ foreach ($db->get_sources($want, $_GET) as $item){
     $jitem = array('id'          => $item['id'],
                    'text'        => $item[$want],
                    'classes'     => $want,
-                   'hasChildren' => $item['cnt'] > 1 ? true : false,
+                   'hasChildren' => $item['unique'] ? false : true,
                    'params'      => $params,
                    );
-    if($item['cnt'] == 1) {
-      $jitem['text'] = '<a href="generic_graph.php?metric=nl-' . $item['sid'] . '-' . $item['metric_name'] . '&cnt=1400">' . $item[$want] . '</a>';
-      $jitem['classes'] = 'metric numeric';
+    if($item['unique']) {
+      if($item['metric_type'] == "numeric") {
+        $jitem['text'] = '<a href="generic_graph.php?metric=nl-' . $item['sid'] . '-' . $item['metric_name'] . '&cnt=1400">' . $item[$want] . '</a>';
+        $jitem['classes'] = 'metric numeric';
+      }
+      else {
+        $jitem['classes'] = 'metric text';
+      }
     }
     $bag[] = $jitem;
 }
