@@ -13,6 +13,22 @@ CREATE TABLE stratcon.loading_dock_check_s (
     PRIMARY KEY(sid,id,whence)
 );
 
+CREATE TABLE stratcon.mv_loading_dock_check_s (
+    sid integer NOT NULL,
+    remote_address inet,
+    whence timestamptz NOT NULL,
+    id uuid NOT NULL,
+    target text NOT NULL,
+    module text NOT NULL,
+    name text NOT NULL,
+    PRIMARY KEY(sid)
+);
+
+create unique index unq_mv_loading_dock_check_s_id on mv_loading_dock_check_s(id);
+create index idx_mv_loading_dock_check_s_target on mv_loading_dock_check_s(target);
+create index idx_mv_loading_dock_check_s_module on  mv_loading_dock_check_s(module);
+create index idx_mv_loading_dock_check_s_name on mv_loading_dock_check_s(name);
+
 CREATE TABLE stratcon.loading_dock_status_s (
     sid integer NOT NULL,
     whence timestamptz NOT NULL,
@@ -210,7 +226,7 @@ SELECT sid FROM stratcon.map_uuid_to_sid WHERE id=v_in_id
 END
 $$ LANGUAGE plpgsql;
 
--- Trigger Function to log dock status Changes 
+
 
 CREATE OR REPLACE FUNCTION stratcon.update_config(
     v_remote_address_in inet,
@@ -240,6 +256,8 @@ BEGIN
          values (v_remote_address_in, v_node_type_in, v_whence_in, v_config_in);
 END
 $$ LANGUAGE plpgsql;
+
+-- Trigger Function to log dock status Changes 
 
 CREATE  TRIGGER loading_dock_status_s_change_log
     AFTER INSERT ON stratcon.loading_dock_status_s
@@ -277,7 +295,46 @@ END
 $$
     LANGUAGE plpgsql;
 
+-- Trigger Function to log dock MV 
 
+CREATE  TRIGGER mv_loading_dock_check_s
+    AFTER INSERT ON stratcon.loading_dock_check_s
+    FOR EACH ROW
+    EXECUTE PROCEDURE stratcon.mv_loading_dock_check_s();
+
+
+CREATE OR REPLACE FUNCTION stratcon.mv_loading_dock_check_s() RETURNS trigger
+    AS $$
+DECLARE
+    v_remote_address INET;
+    v_target TEXT;
+    v_module TEXT;
+    v_name TEXT;
+BEGIN
+
+IF TG_OP = 'INSERT' THEN
+    SELECT remote_address,target,module,name FROM  stratcon.mv_loading_dock_check_s WHERE sid = NEW.sid AND id=NEW.id 
+        INTO v_remote_address,v_target,v_module,v_name;
+
+    IF v_remote_address IS DISTINCT FROM NEW.remote_address OR v_target IS DISTINCT FROM NEW.target OR v_name IS DISTINCT FROM NEW.name   THEN
+        
+        DELETE from stratcon.mv_loading_dock_check_s WHERE sid = NEW.sid AND id=NEW.id;
+        
+        INSERT INTO stratcon.mv_loading_dock_check_s (sid,remote_address,whence,id,target,module,name)
+            VALUES (NEW.sid,NEW.remote_address,NEW.whence,NEW.id,NEW.target,NEW.module,NEW.name); 
+
+    END IF;
+
+ELSE
+        RAISE EXCEPTION 'Something wrong with stratcon.loading_dock_check_s_change_log';
+END IF;
+
+    RETURN NULL;
+
+END
+$$
+    LANGUAGE plpgsql;
+    
 -- Trigger Function to log Metrix Text Changes 
 
 CREATE TRIGGER loading_dock_metric_text_s_change_log
