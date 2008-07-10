@@ -124,42 +124,46 @@ static inline int noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
 #endif
 
 #ifndef noit_atomic_add32
-static inline void noit_atomic_add32(volatile noit_atomic32_t *loc,
-                                     volatile noit_atomic32_t diff) {
+static inline noit_atomic32_t noit_atomic_add32(volatile noit_atomic32_t *loc,
+                                                volatile noit_atomic32_t diff) {
   register noit_atomic32_t current;
   do {
     current = *(loc);
   } while(noit_atomic_cas32(loc, current + diff, current) != current);
+  return current + diff;
 }
 #endif
 
 #ifndef noit_atomic_add64
-static inline void noit_atomic_add64(volatile noit_atomic64_t *loc,
-                                     volatile noit_atomic64_t diff) {
+static inline noit_atomic64_t noit_atomic_add64(volatile noit_atomic64_t *loc,
+                                                volatile noit_atomic64_t diff) {
   register noit_atomic64_t current;
   do {
     current = *(loc);
   } while(noit_atomic_cas64(loc, current + diff, current) != current);
+  return current + diff;
 }
 #endif
 
 #ifndef noit_atomic_sub32
-static inline void noit_atomic_sub32(volatile noit_atomic32_t *loc,
-                                     volatile noit_atomic32_t diff) {
+static inline noit_atomic32_t noit_atomic_sub32(volatile noit_atomic32_t *loc,
+                                                volatile noit_atomic32_t diff) {
   register noit_atomic32_t current;
   do {
     current = *(loc);
   } while(noit_atomic_cas32(loc, current - diff, current) != current);
+  return current - diff;
 }
 #endif
 
 #ifndef noit_atomic_sub64
-static inline void noit_atomic_sub64(volatile noit_atomic64_t *loc,
-                                     volatile noit_atomic64_t diff) {
+static inline noit_atomic64_t noit_atomic_sub64(volatile noit_atomic64_t *loc,
+                                                volatile noit_atomic64_t diff) {
   register noit_atomic64_t current;
   do {
     current = *(loc);
   } while(noit_atomic_cas64(loc, current - diff, current) != current);
+  return current - diff;
 }
 #endif
 
