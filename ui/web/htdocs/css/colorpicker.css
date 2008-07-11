@@ -1,0 +1,58 @@
+.cp {
+	position:relative;
+	display:block;
+	height:15px;
+	white-space:ignore;
+}
+
+.cp a { text-decoration:none; }
+
+.cp input { display:block; float:left; }
+
+.cp a.cpb {
+	border:1px solid #CCC;
+	background:url(../images/btn_cp.png) right 0px  no-repeat;
+	/*margin-left:10px;*/
+	line-height:13px;
+	padding-right:10px;
+	width:18px;
+	height:13px;
+	overflow:none;
+	display:block;
+	float:left;
+	vertical-align:middle;
+}
+
+.cp a.cpb:hover {
+	border:1px solid #9baac1;
+	background:url(../images/btn_cp.png) right -17px  no-repeat;
+}
+
+.cp .ct {
+	display:block;
+	position:absolute;
+	top:0;
+	left:30px;
+	float:left;
+	width:208px;
+	height:104px;
+	/*background:url(cp_bg.gif) top left no-repeat;*/
+	background:#FFF;
+	overflow:none;
+	padding:5px;
+	border:1px solid #CCC;
+}
+
+.cp .ct a {
+	display:block;
+	float:left;
+	width:13px;
+	height:13px;
+	line-height:13px;
+	overflow:none;
+	font-size:13px;
+}
+
+.cp .ct a img {
+	border:none;
+}
