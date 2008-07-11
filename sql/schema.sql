@@ -326,7 +326,7 @@ IF TG_OP = 'INSERT' THEN
     END IF;
 
 ELSE
-        RAISE EXCEPTION 'Something wrong with stratcon.loading_dock_check_s_change_log';
+        RAISE EXCEPTION 'Something wrong with stratcon.mv_loading_dock_check_s';
 END IF;
 
     RETURN NULL;
