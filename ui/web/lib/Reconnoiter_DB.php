@@ -68,18 +68,34 @@ class Reconnoiter_DB {
     $where_sql = '';
     foreach($vars as $var) {
       if(isset($fixate[$var])) {
-        $where_sql .= " and $var = ?";
+        $where_sql .= " and c.$var = ?";
         $binds[] = $fixate[$var];
         $named_binds[$var] = $fixate[$var];
       }
     }
+    $ptr_select = '';
+    $ptr_groupby = '';
+    $ptr_join = '';
+    if($want == 'target' || $want == 'remote_address') {
+      $ptr_select = 'ciamt.value as ptr, ';
+      $ptr_groupby = ', ciamt.value';
+      $ptr_join = "
+        left join stratcon.mv_loading_dock_check_s cia
+               on (    c.$want ::inet = cia.target ::inet
+                   and cia.module='dns' and cia.name='in-addr.arpa')
+        left join stratcon.current_metric_text ciamt
+               on (cia.sid = ciamt.sid and ciamt.name='answer')";
+    }
     $sql = "
-      select $want, min(sid) as sid, min(metric_type) as metric_type, count(1) as cnt
+      select c.$want, $ptr_select
+             min(c.sid) as sid, min(metric_type) as metric_type,
+             count(1) as cnt
         from stratcon.mv_loading_dock_check_s c
         join stratcon.metric_name_summary m using (sid)
+             $ptr_join
        where active = " . ($active ? "true" : "false") . $where_sql . "
-    group by $want
-    order by $want";
+    group by c.$want $ptr_groupby
+    order by c.$want";
     $sth = $this->db->prepare($sql);
     $sth->execute($binds);
     $rv = array();
@@ -92,6 +108,7 @@ class Reconnoiter_DB {
         $copy['id'] .= "-" . $copy[$var];
       }
       $copy['cnt'] = $row['cnt'];
+      if(isset($row['ptr'])) $copy['ptr'] = $row['ptr'];
       if($copy['cnt'] == 1 &&
          isset($row['sid']) && 
          isset($row['metric_name'])) {

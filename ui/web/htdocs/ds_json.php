@@ -40,7 +40,9 @@ foreach ($db->get_sources($want, $_GET) as $item){
       if(isset($item[$var])) $params[$var] = $item[$var];
     }
     $jitem = array('id'          => $item['id'],
-                   'text'        => $item[$want],
+                   'text'        => $item['ptr'] ?
+                                      $item[$want] . "(" . $item['ptr'] . ")" :
+                                      $item[$want],
                    'classes'     => $want,
                    'hasChildren' => $item['unique'] ? false : true,
                    'params'      => $params,
