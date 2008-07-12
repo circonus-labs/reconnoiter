@@ -96,6 +96,15 @@ udns_codes.c: udns.h
 	set T type C class R rcode; \
 	echo "/* Automatically generated. */"; \
 	echo "#include \"udns.h\""; \
+	echo "const struct dns_nameval *dns_class_index(int i) {"; \
+	echo "  return &dns_classtab[i];"; \
+	echo "}"; \
+	echo "const struct dns_nameval *dns_type_index(int i) {"; \
+	echo "  return &dns_typetab[i];"; \
+	echo "}"; \
+	echo "const struct dns_nameval *dns_rcode_index(int i) {"; \
+	echo "  return &dns_rcodetab[i];"; \
+	echo "}"; \
 	while [ "$$1" ]; do \
 	 echo; \
 	 echo "const struct dns_nameval dns_$${2}tab[] = {"; \
