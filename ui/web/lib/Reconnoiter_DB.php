@@ -63,12 +63,14 @@ class Reconnoiter_DB {
   function get_sources($want, $fixate, $active = true) {
     $vars = $this->valid_source_variables();
     if(!in_array($want, $vars)) return array();
+    $tblsrc = ($want == 'metric_name') ? 'm' : 'c';
     $binds = array();
     $named_binds = array();
     $where_sql = '';
     foreach($vars as $var) {
       if(isset($fixate[$var])) {
-        $where_sql .= " and c.$var = ?";
+        $fix_tblsrc = ($var == 'metric_name') ? 'm' : 'c';
+        $where_sql .= " and $fix_tblsrc.$var = ?";
         $binds[] = $fixate[$var];
         $named_binds[$var] = $fixate[$var];
       }
@@ -81,21 +83,21 @@ class Reconnoiter_DB {
       $ptr_groupby = ', ciamt.value';
       $ptr_join = "
         left join stratcon.mv_loading_dock_check_s cia
-               on (    c.$want ::inet = cia.target ::inet
+               on (    $tblsrc.$want ::inet = cia.target ::inet
                    and cia.module='dns' and cia.name='in-addr.arpa')
         left join stratcon.current_metric_text ciamt
                on (cia.sid = ciamt.sid and ciamt.name='answer')";
     }
     $sql = "
-      select c.$want, $ptr_select
+      select $tblsrc.$want, $ptr_select
              min(c.sid) as sid, min(metric_type) as metric_type,
              count(1) as cnt
         from stratcon.mv_loading_dock_check_s c
         join stratcon.metric_name_summary m using (sid)
              $ptr_join
        where active = " . ($active ? "true" : "false") . $where_sql . "
-    group by c.$want $ptr_groupby
-    order by c.$want";
+    group by $tblsrc.$want $ptr_groupby
+    order by $tblsrc.$want";
     $sth = $this->db->prepare($sql);
     $sth->execute($binds);
     $rv = array();
