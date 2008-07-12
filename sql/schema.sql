@@ -66,6 +66,15 @@ CREATE TABLE stratcon.loading_dock_metric_text_s_change_log (
     PRIMARY KEY(whence,sid,name)
 );
 
+CREATE TABLE stratcon.current_metric_text
+(
+  sid integer NOT NULL,
+  whence timestamp with time zone NOT NULL,
+  name text NOT NULL,
+  value text,
+  PRIMARY KEY (sid, name)
+);
+
 CREATE TABLE stratcon.loading_dock_metric_numeric_s (
     sid integer NOT NULL,
     whence timestamptz NOT NULL,
@@ -185,6 +194,7 @@ CREATE SEQUENCE stratcon.seq_sid
  GRANT SELECT,INSERT ON stratcon.loading_dock_check_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_numeric_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_text_s_change_log TO stratcon;
+ GRANT SELECT,INSERT,DELETE ON stratcon.current_metric_text TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.log_whence_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.loading_dock_metric_text_s TO stratcon;
  GRANT SELECT,INSERT,DELETE ON stratcon.rollup_matrix_numeric_60m TO stratcon;
@@ -369,6 +379,10 @@ IF TG_OP = 'INSERT' THEN
 		
 		        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
 		            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
+			DELETE FROM stratcon.current_metric_text
+				WHERE sid = NEW.sid and name = NEW.name;
+			INSERT INTO stratcon.current_metric_text (sid,whence,name,value)
+				VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
 		    END IF;
 
 
