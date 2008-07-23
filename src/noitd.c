@@ -8,6 +8,9 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <signal.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"

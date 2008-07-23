@@ -258,7 +258,7 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  ctype.h unistd.h time.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  term.h termio.h termios.h curses.h sys/cdefs.h pwd.h netinet/in_systm.h \
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
-                 stropts.h sys/stream.h alloca.h)
+                 stropts.h sys/stream.h alloca.h sys/wait.h)
 
 AC_MSG_CHECKING(for tputs() function final argument type)
 AC_EGREP_CPP([tputs.*[(][       ]*char[         ]*[)]],
