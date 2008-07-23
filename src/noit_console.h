@@ -33,6 +33,8 @@ typedef struct {
 
 /* This performs a pop (exiting if at toplevel) */
 extern cmd_info_t console_command_exit;
+extern cmd_info_t console_command_shutdown;
+extern cmd_info_t console_command_restart;
 
 typedef struct {
   char                      *name;
@@ -115,6 +117,14 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv,
                          noit_console_state_t *, void *);
+
+API_EXPORT(int)
+  noit_console_shutdown(noit_console_closure_t ncct, int argc, char **argv,
+                        noit_console_state_t *, void *);
+
+API_EXPORT(int)
+  noit_console_restart(noit_console_closure_t ncct, int argc, char **argv,
+                       noit_console_state_t *, void *);
 
 API_EXPORT(int)
   noit_console_state_add_cmd(noit_console_state_t *state,

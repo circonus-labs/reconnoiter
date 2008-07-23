@@ -19,6 +19,13 @@
 cmd_info_t console_command_exit = {
   "exit", noit_console_state_pop, NULL, NULL
 };
+cmd_info_t console_command_shutdown = {
+  "shutdown", noit_console_shutdown, NULL, NULL
+};
+cmd_info_t console_command_restart = {
+  "restart", noit_console_restart, NULL, NULL
+};
+
 
 static char *
 noit_console_state_prompt(EditLine *el) {
@@ -336,6 +343,8 @@ noit_console_state_initial() {
     show_state = noit_console_state_alloc();
     noit_console_state_add_cmd(_top_level_state,
       NCSCMD("show", noit_console_state_delegate, show_state, NULL));
+    noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
+    noit_console_state_add_cmd(_top_level_state, &console_command_restart);
   }
   return _top_level_state;
 }
@@ -348,6 +357,17 @@ noit_console_state_push_state(noit_console_closure_t ncct,
   stack->last = ncct->state_stack;
   stack->state = state;
   ncct->state_stack = stack;
+}
+
+int
+noit_console_shutdown(noit_console_closure_t ncct, int argc, char **argv,
+                      noit_console_state_t *dstate, void *unused) {
+  exit(2);
+}
+int
+noit_console_restart(noit_console_closure_t ncct, int argc, char **argv,
+                     noit_console_state_t *dstate, void *unused) {
+  exit(1);
 }
 
 int
