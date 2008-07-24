@@ -88,6 +88,13 @@ class Reconnoiter_DB {
         left join stratcon.current_metric_text ciamt
                on (cia.sid = ciamt.sid and ciamt.name='answer')";
     }
+    else if($want == 'name') {
+      $ptr_select = 'caliasmt.value as ptr, ';
+      $ptr_groupby = ', caliasmt.value';
+      $ptr_join = "
+        left join stratcon.current_metric_text caliasmt
+               on (c.sid = caliasmt.sid and caliasmt.name='alias')";
+    }
     $sql = "
       select $tblsrc.$want, $ptr_select
              min(c.sid) as sid, min(metric_type) as metric_type,
