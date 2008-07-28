@@ -205,7 +205,7 @@ p {margin-bottom:1em;}
 #searchlist ul li.txt a {background:url(../images/icon-data-txt.png) 0 1px no-repeat;padding-left:15px;margin-bottom:6px;}
 
 /* browse list */
-#browselist span {display:block;}
+#browselist span {display:block; white-space: nowrap;}
 #browselist {height:600px;overflow:auto;}
 #browselist ul {list-style:none;}
 #searchlist ul li {display:block;padding:2px 0;}

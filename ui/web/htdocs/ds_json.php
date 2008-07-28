@@ -49,7 +49,7 @@ foreach ($db->get_sources($want, $_GET) as $item){
                    );
     if($item['unique']) {
       if($item['metric_type'] == "numeric") {
-        $jitem['text'] = '<a href="generic_graph.php?metric=nl-' . $item['sid'] . '-' . $item['metric_name'] . '&cnt=1400">' . $item[$want] . '</a>';
+        $jitem['text'] = '<a href="javascript:mainGraphData(\'generic_settings.php?metric=nl-' . $item['sid'] . '-' . $item['metric_name'] . '&cnt=1400\')">' . $item[$want] . '</a>';
         $jitem['classes'] = 'metric numeric';
       }
       else {
