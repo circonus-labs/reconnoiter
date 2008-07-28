@@ -19,7 +19,7 @@ $driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GE
 $i = 0;
 $autounits = 0;
 foreach(split(";", $_GET['metric']) as $m) {
-  preg_match('/^(d|n|t)(l|r)(~|-)(\d+)-(.*)$/', $m,
+  preg_match('/^(D|d|n|t)(l|r)(~|-)(\d+)-(.*)$/', $m,
              $matches);
   $settings = $graph_settings[$i++];
   if($matches[3] == '~') {
@@ -31,6 +31,10 @@ foreach(split(";", $_GET['metric']) as $m) {
     $driver->addDataSet($matches[4], $matches[5], 'false', null, $settings);
   else if($matches[1] == 'd')
     $driver->addDataSet($matches[4], $matches[5], 'true', null, $settings);
+  else if($matches[1] == 'D') {
+    $settings['expression'] = "((".$settings['expression']." > 0) ? (".$settings['expression'].") : 0)";
+    $driver->addDataSet($matches[4], $matches[5], 'true', null, $settings);
+  }
   else
     $driver->addChangeSet($matches[4], $matches[5]);
 }
