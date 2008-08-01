@@ -148,8 +148,8 @@ noit_log_init() {
   noit_register_logops("file", &posix_logio_ops);
   noit_register_logops("jlog", &jlog_logio_ops);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2, NULL);
-  noit_error = noit_log_stream_new("error", NULL, NULL, NULL);
-  noit_debug = noit_log_stream_new("debug", NULL, NULL, NULL);
+  noit_error = noit_log_stream_new("error", NULL, NULL, NULL, NULL);
+  noit_debug = noit_log_stream_new("debug", NULL, NULL, NULL, NULL);
 }
 
 void
@@ -180,12 +180,12 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
 
 noit_log_stream_t
 noit_log_stream_new_on_file(const char *path, noit_hash_table *config) {
-  return noit_log_stream_new(path, "file", path, config);
+  return noit_log_stream_new(path, "file", path, NULL, config);
 }
 
 noit_log_stream_t
 noit_log_stream_new(const char *name, const char *type, const char *path,
-                    noit_hash_table *config) {
+                    void *ctx, noit_hash_table *config) {
   noit_log_stream_t ls, saved;
   struct _noit_log_stream tmpbuf;
   ls = calloc(1, sizeof(*ls));
@@ -220,6 +220,8 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
                        strdup(ls->name), strlen(ls->name), ls) == 0)
       goto freebail;
 
+  /* This is for things that don't open on paths */
+  if(ctx) ls->op_ctx = ctx;
   return ls;
 
  freebail:

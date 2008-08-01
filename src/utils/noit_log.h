@@ -42,7 +42,7 @@ API_EXPORT(void) noit_log_init();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
 API_EXPORT(noit_log_stream_t)
   noit_log_stream_new(const char *, const char *, const char *,
-                      noit_hash_table *);
+                      void *, noit_hash_table *);
 API_EXPORT(noit_log_stream_t)
   noit_log_stream_new_on_fd(const char *, int, noit_hash_table *);
 API_EXPORT(noit_log_stream_t)

@@ -692,7 +692,7 @@ noit_conf_log_init(const char *toplevel) {
     config = noit_conf_get_hash(log_configs[i],
                                 "ancestor-or-self::node()/config/*");
     ls = noit_log_stream_new(name, type[0] ? type : NULL,
-                             path[0] ? path : NULL, config);
+                             path[0] ? path : NULL, NULL, config);
     if(!ls) {
       fprintf(stderr, "Error configuring log: %s[%s:%s]\n", name, type, path);
       exit(-1);
