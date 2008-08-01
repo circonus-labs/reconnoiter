@@ -351,9 +351,6 @@ int noit_skiplist_remove_compare(noit_skiplist *sli,
   return noit_skiplisti_remove(sl, m, myfree);
 }
 void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree) {
-  /* This must remove even the place holder nodes (bottom though top)
-     because we specify in the API that one can free the noit_skiplist after
-     making this call without memory leaks */
   noit_skiplist_node *m, *p, *u;
   m=sl->bottom;
   while(m) {
@@ -370,7 +367,15 @@ void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree) {
   sl->height = 0;
   sl->size = 0;
 }
-
+static void noit_skiplisti_destroy(void *vsl) {
+  noit_skiplist_destroy((noit_skiplist *)vsl, NULL);
+  free(vsl);
+}
+void noit_skiplist_destroy(noit_skiplist *sl, noit_freefunc_t myfree) {
+  while(noit_skiplist_pop(sl->index, noit_skiplisti_destroy) != NULL);
+  noit_skiplist_remove_all(sl, myfree);
+  free(sl);
+}
 void *noit_skiplist_pop(noit_skiplist * a, noit_freefunc_t myfree)
 {
   noit_skiplist_node *sln;

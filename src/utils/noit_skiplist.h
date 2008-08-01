@@ -88,7 +88,7 @@ int noit_skiplist_remove(noit_skiplist *sl, const void *data,
                          noit_freefunc_t myfree);
 int noit_skiplisti_remove(noit_skiplist *sl, noit_skiplist_node *m,
                           noit_freefunc_t myfree);
-void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree);
+void noit_skiplist_destroy(noit_skiplist *sl, noit_freefunc_t myfree);
 
 void *noit_skiplist_pop(noit_skiplist * a, noit_freefunc_t myfree);
 void *noit_skiplist_peek(noit_skiplist * a);
