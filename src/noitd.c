@@ -27,14 +27,18 @@
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
 
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
+static int foreground = 0;
 static int debug = 0;
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "c:d")) != EOF) {
+  while((c = getopt(argc, argv, "c:dD")) != EOF) {
     switch(c) {
       case 'c':
         config_file = strdup(optarg);
+        break;
+      case 'D':
+        foreground = 1;
         break;
       case 'd':
         debug++;
@@ -94,7 +98,6 @@ static void setup_mmap() {
 
 static int watch_over_child(int (*func)()) {
   int child_pid;
-  setup_mmap();
   while(1) {
     child_pid = fork();
     if(child_pid == -1) {
@@ -225,6 +228,14 @@ int main(int argc, char **argv) {
     noitL(noit_stderr, "Cannot configure eventer\n");
     exit(-1);
   }
+
+  setup_mmap();
+  if(foreground) return child_main();
+
+  chdir("/");
+  if(fork()) exit(0);
+  setsid();
+  if(fork()) exit(0);
 
   return watch_over_child(child_main);
 }
