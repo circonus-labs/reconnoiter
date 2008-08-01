@@ -77,7 +77,7 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
     payload.n_len  = htonl(msg.mess_len);
     if((rv = Ewrite(&payload, sizeof(payload))) != sizeof(payload)) {
       noitL(noit_error, "Error writing jlog header over SSL %d != %d\n",
-            rv, sizeof(payload));
+            rv, (int)sizeof(payload));
       return -1;
     }
     if((rv = Ewrite(msg.mess, msg.mess_len)) != msg.mess_len) {
