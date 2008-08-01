@@ -169,6 +169,7 @@ noit_lua_set_status(lua_State *L) {
   check = lua_touserdata(L, lua_upvalueindex(1));
   ci = check->closure;
   /* strdup here... but free later */
+  if(ci->current.status) free(ci->current.status);
   ci->current.status = strdup(lua_tostring(L, 1));
   return 0;
 }
@@ -509,7 +510,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       goto done;
     default: /* Errors */
       noitL(nlerr, "lua resume returned: %d\n", result);
-      ci->current.status = ci->timed_out ? "timeout" : "unknown error";
+      ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error");
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
       base = lua_gettop(ci->coro_state);
@@ -517,7 +518,10 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
         if(lua_isstring(ci->coro_state, base)) {
           const char *err;
           err = lua_tostring(ci->coro_state, base);
-          if(err) ci->current.status = (char *)err;
+          if(err) {
+            free(ci->current.status);
+            ci->current.status = (char *)err;
+          }
         }
       }
       break;
