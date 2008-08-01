@@ -48,8 +48,9 @@ noit_lua_loader_get_directory(noit_module_loader_t *self) {
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
   noit_lua_check_info_t *v = NULL;
-  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v))
+  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v)) {
     return v;
+  }
   return NULL;
 }
 static void
@@ -568,6 +569,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
 }
 static int
 noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
+  lua_State **coro_state_copy;
   LMC_DECL(L, self);
   struct nl_intcl *int_cl;
   noit_lua_check_info_t *ci;
@@ -609,9 +611,12 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   ci->coro_state = lua_newthread(L);
   ci->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
-  noit_hash_store(&noit_coros,
-                  (const char *)&ci->coro_state, sizeof(ci->coro_state),
-                  ci);
+
+  coro_state_copy = malloc(sizeof(*coro_state_copy));
+  *coro_state_copy = ci->coro_state;
+  noit_hash_replace(&noit_coros,
+                  (const char *)coro_state_copy, sizeof(*coro_state_copy),
+                  ci, free, NULL);
 
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
