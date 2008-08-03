@@ -1,0 +1,6 @@
+* * * * * /opt/pgsql831/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_matrix_numeric_5m();"
+00,10,20,30,40,50 * * * * /opt/pgsql831/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_matrix_numeric_20m();"
+01,31 * * * * /opt/pgsql831/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_matrix_numeric_60m();"
+02 00,03,06,09,12,15,18 * * * /opt/pgsql831/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_matrix_numeric_6hours();"
+03 00,06,12 * * * /opt/pgsql831/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_matrix_numeric_12hours();"
+
