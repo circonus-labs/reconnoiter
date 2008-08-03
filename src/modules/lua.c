@@ -45,12 +45,22 @@ noit_lua_loader_get_directory(noit_module_loader_t *self) {
   return c->script_dir;
 }
 
+void
+cancel_coro(noit_lua_check_info_t *ci) {
+  lua_getglobal(ci->lmc->lua_state, "noit_coros");
+  luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
+  lua_pop(ci->lmc->lua_state, 1);
+  lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+  noit_hash_delete(&noit_coros,
+                   (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                   NULL, NULL);
+}
+
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
   noit_lua_check_info_t *v = NULL;
-  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v)) {
+  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v))
     return v;
-  }
   return NULL;
 }
 static void
@@ -494,7 +504,7 @@ noit_lua_yield(noit_lua_check_info_t *ci, int nargs) {
 }
 int
 noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
-  int result, base;
+  int result = -1, base;
   noit_check_t *check;
   check = ci->check;
 
@@ -527,10 +537,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       }
       break;
   }
-  lua_getglobal(ci->lmc->lua_state, "noit_coros");
-  luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
-  lua_pop(ci->lmc->lua_state, 1);
-  lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+  cancel_coro(ci);
 
   noit_lua_log_results(ci->self, ci->check);
   noit_lua_module_cleanup(ci->self, ci->check);
@@ -554,22 +561,18 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume
      */
-    lua_getglobal(ci->lmc->lua_state, "noit_coros");
-    luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
-    lua_pop(ci->lmc->lua_state, 1);
-    lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
-    assert(2 == noit_lua_resume(ci, 0));
-  } else {
-    noit_lua_log_results(ci->self, ci->check);
-    noit_lua_module_cleanup(ci->self, ci->check);
-    check->flags &= ~NP_RUNNING;
+    cancel_coro(ci);
   }
+
+  noit_lua_log_results(ci->self, ci->check);
+  noit_lua_module_cleanup(ci->self, ci->check);
+  check->flags &= ~NP_RUNNING;
+
   if(int_cl->free) int_cl->free(int_cl);
   return 0;
 }
 static int
 noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
-  lua_State **coro_state_copy;
   LMC_DECL(L, self);
   struct nl_intcl *int_cl;
   noit_lua_check_info_t *ci;
@@ -605,18 +608,14 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   noit_lua_check_register_event(ci, e);
   eventer_add(e);
 
-  noitL(nldeb, "initiate gettop => %d\n", lua_gettop(L));
   ci->lmc = lmc;
   lua_getglobal(L, "noit_coros");
   ci->coro_state = lua_newthread(L);
   ci->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
-
-  coro_state_copy = malloc(sizeof(*coro_state_copy));
-  *coro_state_copy = ci->coro_state;
-  noit_hash_replace(&noit_coros,
-                  (const char *)coro_state_copy, sizeof(*coro_state_copy),
-                  ci, free, NULL);
+  noit_hash_store(&noit_coros,
+                  (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                  ci);
 
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
