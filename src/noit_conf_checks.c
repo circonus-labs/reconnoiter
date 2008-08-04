@@ -310,6 +310,77 @@ noit_console_check(noit_console_closure_t ncct,
   return 0;
 }
 static int
+noit_console_watch_check(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *state, void *closure) {
+  int i, cnt;
+  int adding = (int)closure;
+  int period = 0;
+  char xpath[1024];
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  if(argc < 1 || argc > 2) {
+    nc_printf(ncct, "requires one or two arguments\n");
+    return -1;
+  }
+  /* An alternate period */
+  if(argc == 2) period = atoi(argv[1]);
+
+  if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), NULL,
+                                argc ? argv[0] : NULL)) {
+    nc_printf(ncct, "ERROR: could not find check '%s'\n", argv[0]);
+    return -1;
+  }
+
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    nc_printf(ncct, "no checks found\n");
+    goto out;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  for(i=0; i<cnt; i++) {
+    uuid_t checkid;
+    noit_check_t *check;
+    xmlNodePtr node;
+    char *uuid_conf;
+
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+    if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+      nc_printf(ncct, "%s has invalid or missing UUID!\n",
+                (char *)xmlGetNodePath(node) + strlen("/noit"));
+      continue;
+    }
+    if(period == 0) {
+      check = noit_poller_lookup(checkid);
+      if(!check) continue;
+      if(adding) noit_check_transient_add_feed(check, ncct->feed_path);
+      else noit_check_transient_remove_feed(check, ncct->feed_path);
+    }
+    else {
+      if(adding) {
+        check = noit_check_watch(checkid, period);
+        /* This check must be watched from the console */
+        noit_check_transient_add_feed(check, ncct->feed_path);
+        /* Note the check */
+        noit_check_log_check(check);
+        /* kick it off, if it isn't running already */
+        if(!NOIT_CHECK_LIVE(check)) noit_check_activate(check);
+      }
+      else {
+        check = noit_check_get_watch(checkid, period);
+        if(check) noit_check_transient_remove_feed(check, ncct->feed_path);
+      }
+    }
+  }
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return 0;
+}
+static int
 noit_console_show_check(noit_console_closure_t ncct,
                         int argc, char **argv,
                         noit_console_state_t *state, void *closure) {
@@ -1225,7 +1296,7 @@ noit_console_config_unsetconfig(noit_console_closure_t ncct,
 
 static
 void register_console_config_commands() {
-  cmd_info_t *showcmd;
+  cmd_info_t *showcmd, *nocmd;
   noit_console_state_t *tl, *_conf_state, *_conf_t_state,
                        *_conf_t_check_state,
                        *_write_state, *_attr_state,
@@ -1274,6 +1345,11 @@ void register_console_config_commands() {
 
   showcmd = noit_console_state_get_cmd(tl, "show");
   ADD_CMD(showcmd->dstate, "check", noit_console_show_check, NULL, NULL);
+
+  ADD_CMD(tl, "watch", noit_console_watch_check, NULL, (void *)1);
+
+  nocmd = noit_console_state_get_cmd(tl, "no");
+  ADD_CMD(nocmd->dstate, "watch", noit_console_watch_check, NULL, (void *)0);
 
   DELEGATE_CMD(_conf_t_state, "write", _write_state);
   DELEGATE_CMD(_conf_t_state, "attribute", _attr_state);

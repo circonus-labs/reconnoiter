@@ -337,12 +337,17 @@ noit_console_state_t *
 noit_console_state_initial() {
   static noit_console_state_t *_top_level_state = NULL;
   if(!_top_level_state) {
-    static noit_console_state_t *show_state;
+    static noit_console_state_t *no_state;
     _top_level_state = noit_console_state_alloc();
     noit_console_state_add_cmd(_top_level_state, &console_command_exit);
-    show_state = noit_console_state_alloc();
     noit_console_state_add_cmd(_top_level_state,
-      NCSCMD("show", noit_console_state_delegate, show_state, NULL));
+      NCSCMD("show", noit_console_state_delegate,
+             noit_console_state_alloc(), NULL));
+    no_state = noit_console_state_alloc();
+    noit_console_state_add_cmd(_top_level_state,
+      NCSCMD("no", noit_console_state_delegate,
+             no_state, NULL));
+
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
   }

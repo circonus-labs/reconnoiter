@@ -374,7 +374,6 @@ static void noit_skiplisti_destroy(void *vsl) {
 void noit_skiplist_destroy(noit_skiplist *sl, noit_freefunc_t myfree) {
   while(noit_skiplist_pop(sl->index, noit_skiplisti_destroy) != NULL);
   noit_skiplist_remove_all(sl, myfree);
-  free(sl);
 }
 void *noit_skiplist_pop(noit_skiplist * a, noit_freefunc_t myfree)
 {

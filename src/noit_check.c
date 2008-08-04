@@ -26,6 +26,7 @@
 #define MAX_INITIAL_STUTTER 60
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
+static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
 struct uuid_dummy {
@@ -61,6 +62,15 @@ static int __check_name_compare(const void *a, const void *b) {
   if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
   if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
   return 0;
+}
+static int __watchlist_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
+  int rv;
+  if((rv = memcmp(ac->checkid, bc->checkid, sizeof(ac->checkid))) != 0) return rv;
+  if(ac->period < bc->period) return -1;
+  if(ac->period == bc->period) return 0;
+  return 1;
 }
 int
 noit_check_max_initial_stutter() {
@@ -197,6 +207,26 @@ noit_poller_process_checks(const char *xpath) {
   if(sec) free(sec);
 }
 
+int
+noit_check_activate(noit_check_t *check) {
+  noit_module_t *mod;
+  mod = noit_module_lookup(check->module);
+  if(mod && mod->initiate_check && !NOIT_CHECK_LIVE(check)) {
+    if((check->flags & NP_DISABLED) == 0) {
+      mod->initiate_check(mod, check, 0, NULL);
+      return 1;
+    }
+    else
+      noitL(noit_debug, "Skipping %s`%s, disabled.\n",
+            check->target, check->name);
+  }
+  else {
+    noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
+    check->flags |= NP_DISABLED;
+  }
+  return 0;
+}
+
 void
 noit_poller_initiate() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
@@ -205,22 +235,7 @@ noit_poller_initiate() {
   noit_check_t *check;
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        (void **)&check)) {
-    noit_module_t *mod;
-    mod = noit_module_lookup(check->module);
-    if(mod && mod->initiate_check) {
-      if(NOIT_CHECK_LIVE(check))
-        continue;
-      if((check->flags & NP_DISABLED) == 0) {
-        mod->initiate_check(mod, check, 0, NULL);
-      }
-      else
-        noitL(noit_debug, "Skipping %s`%s, disabled.\n",
-              check->target, check->name);
-    }
-    else {
-      noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
-      check->flags |= NP_DISABLED;
-    }
+    noit_check_activate(check);
   }
 }
 
@@ -320,8 +335,99 @@ noit_poller_init() {
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
+  noit_skiplist_init(&watchlist);
+  noit_skiplist_set_compare(&watchlist, __watchlist_compare,
+                            __watchlist_compare);
   register_console_check_commands();
   noit_poller_reload(NULL);
+}
+
+noit_check_t *
+noit_check_clone(uuid_t in) {
+  noit_check_t *checker, *new_check;
+  if(noit_hash_retrieve(&polls,
+                        (char *)in, UUID_SIZE,
+                        (void **)&checker) == 0) {
+    return NULL;
+  }
+  if(checker->oncheck) {
+    return NULL;
+  }
+  new_check = calloc(1, sizeof(*new_check));
+  memcpy(new_check, checker, sizeof(*new_check));
+  new_check->target = strdup(new_check->target);
+  new_check->module = strdup(new_check->module);
+  new_check->name = strdup(new_check->name);
+  new_check->filterset = strdup(new_check->filterset);
+  new_check->flags = 0;
+  new_check->fire_event = NULL;
+  memset(&new_check->last_fire_time, 0, sizeof(new_check->last_fire_time));
+  memset(&new_check->stats, 0, sizeof(new_check->stats));
+  new_check->closure = NULL;
+  new_check->config = calloc(1, sizeof(*new_check->config));
+  noit_hash_merge_as_dict(new_check->config, checker->config);
+  return new_check;
+}
+
+noit_check_t *
+noit_check_watch(uuid_t in, int period) {
+  /* First look for a copy that is being watched */
+  noit_check_t n, *f;
+
+  uuid_copy(n.checkid, in);
+  n.period = period;
+
+  f = noit_skiplist_find(&watchlist, &n, NULL);
+  if(f) return f;
+  f = noit_check_clone(in);
+  if(!f) return NULL;
+  f->period = period;
+  f->timeout = period - 1;
+  f->flags |= NP_TRANSIENT;
+  noit_skiplist_insert(&watchlist, f);
+  return f;
+}
+
+noit_check_t *
+noit_check_get_watch(uuid_t in, int period) {
+  noit_check_t n, *f;
+
+  uuid_copy(n.checkid, in);
+  n.period = period;
+
+  f = noit_skiplist_find(&watchlist, &n, NULL);
+  return f;
+}
+
+void
+noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
+  char *feedcopy;
+  if(!check->feeds) {
+    check->feeds = calloc(1, sizeof(*check->feeds));
+    noit_skiplist_init(check->feeds);
+    noit_skiplist_set_compare(check->feeds,
+                              (noit_skiplist_comparator_t)strcmp,
+                              (noit_skiplist_comparator_t)strcmp);
+  }
+  feedcopy = strdup(feed);
+  /* No error on failure -- it's already there */
+  if(noit_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
+}
+void
+noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
+  if(!check->feeds) return;
+  if(feed) noit_skiplist_remove(check->feeds, feed, free);
+  if(check->feeds->size == 0) {
+    noit_skiplist_remove(&watchlist, check, NULL);
+    noit_skiplist_destroy(check->feeds, free);
+    free(check->feeds);
+    check->feeds = NULL;
+    if(check->flags & NP_TRANSIENT) {
+      noitL(noit_debug, "check %s`%s @ %dms has no more listeners.\n",
+            check->target, check->name, check->period);
+      check->flags |= NP_KILLED;
+    }
+  }
 }
 
 int
@@ -384,15 +490,17 @@ noit_check_update(noit_check_t *new_check,
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
 
-  /* This remove could fail -- no big deal */
-  noit_skiplist_remove(&polls_by_name, new_check, NULL);
+  if(!(new_check->flags & NP_TRANSIENT)) {
+    /* This remove could fail -- no big deal */
+    noit_skiplist_remove(&polls_by_name, new_check, NULL);
 
-  /* This insert could fail.. which means we have a conflict on
-   * target`name.  That should result in the check being disabled. */
-  if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-    noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
-          new_check->target, new_check->name);
-    new_check->flags |= NP_DISABLED;
+    /* This insert could fail.. which means we have a conflict on
+     * target`name.  That should result in the check being disabled. */
+    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
+      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+            new_check->target, new_check->name);
+      new_check->flags |= NP_DISABLED;
+    }
   }
   noit_check_log_check(new_check);
   return 0;

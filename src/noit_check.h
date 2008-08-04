@@ -13,6 +13,7 @@
 
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_skiplist.h"
 #include "noit_conf.h"
 #include "noit_console.h"
 
@@ -33,10 +34,11 @@
  *   closure
  */
 
-#define NP_RUNNING  0x00000001
-#define NP_KILLED   0x00000002
-#define NP_DISABLED 0x00000004
-#define NP_UNCONFIG 0x00000008
+#define NP_RUNNING   0x00000001
+#define NP_KILLED    0x00000002
+#define NP_DISABLED  0x00000004
+#define NP_UNCONFIG  0x00000008
+#define NP_TRANSIENT 0x00000010
 
 #define NP_UNKNOWN '0'             /* stats_t.{available,state} */
 #define NP_AVAILABLE 'A'           /* stats_t.available */
@@ -97,7 +99,7 @@ typedef struct noit_check {
   char *oncheck;               /* target`name of the check that fires us */
   u_int32_t period;            /* period of checks in milliseconds */
   u_int32_t timeout;           /* timeout of check in milliseconds */
-  u_int32_t flags;             /* NP_KILLED, NP_RUNNING */
+  u_int32_t flags;             /* NP_KILLED, NP_RUNNING, NP_TRANSIENT */
 
   dep_list_t *causal_checks;
   eventer_t fire_event;
@@ -108,6 +110,8 @@ typedef struct noit_check {
   } stats;
   u_int32_t generation;        /* This can roll, we don't care */
   void *closure;
+
+  noit_skiplist *feeds;
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -151,6 +155,9 @@ API_EXPORT(int)
                     int flags);
 
 API_EXPORT(int)
+  noit_check_activate(noit_check_t *check);
+
+API_EXPORT(int)
   noit_poller_deschedule(uuid_t in);
 
 API_EXPORT(noit_check_t *)
@@ -176,6 +183,17 @@ API_EXPORT(const char *)
   noit_check_state_string(int16_t state);
 API_EXPORT(int)
   noit_stats_snprint_metric(char *b, int l, metric_t *m);
+
+API_EXPORT(noit_check_t *)
+  noit_check_clone(uuid_t in);
+API_EXPORT(noit_check_t *)
+  noit_check_watch(uuid_t in, int period);
+API_EXPORT(noit_check_t *)
+  noit_check_get_watch(uuid_t in, int period);
+API_EXPORT(void)
+  noit_check_transient_add_feed(noit_check_t *check, const char *feed);
+API_EXPORT(void)
+  noit_check_transient_remove_feed(noit_check_t *check, const char *feed);
 
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);

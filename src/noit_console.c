@@ -155,6 +155,7 @@ noit_console_userdata_free(void *data) {
 }
 void
 noit_console_closure_free(noit_console_closure_t ncct) {
+  noit_log_stream_t lf;
   if(ncct->el) el_end(ncct->el);
   if(ncct->hist) history_end(ncct->hist);
   if(ncct->pty_master >= 0) close(ncct->pty_master);
@@ -167,6 +168,11 @@ noit_console_closure_free(noit_console_closure_t ncct) {
     tmp = ncct->state_stack;
     ncct->state_stack = tmp->last;
     free(tmp);
+  }
+  lf = noit_log_stream_find(ncct->feed_path);
+  noit_log_stream_remove(ncct->feed_path);
+  if(lf) {
+    noit_log_stream_free(lf);
   }
   free(ncct);
 }
@@ -230,13 +236,6 @@ noit_console_continue_sending(noit_console_closure_t ncct,
   ncct->outbuf_allocd = ncct->outbuf_len =
     ncct->outbuf_completed = ncct->outbuf_cooked = 0;
   return len;
-}
-
-void
-noit_console_init() {
-  el_multi_init();
-  signal(SIGTTOU, SIG_IGN);
-  eventer_name_callback("noit_console", noit_console_handler);
 }
 
 void
@@ -312,10 +311,12 @@ noit_console_handler(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_EXCEPTION || (ncct && ncct->wants_shutdown)) {
 socket_error:
     /* Exceptions cause us to simply snip the connection */
+
+    /* This removes the log feed which is important to do before calling close */
     eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &newmask, e);
     if(ncct) noit_console_closure_free(ncct);
     if(ac) acceptor_closure_free(ac);
+    e->opset->close(e->fd, &newmask, e);
     return 0;
   }
 
@@ -349,6 +350,9 @@ socket_error:
       }
       noit_console_state_init(ncct);
     }
+    snprintf(ncct->feed_path, sizeof(ncct->feed_path), "console/%d", e->fd);
+    noit_log_stream_new(ncct->feed_path, "noit_console", ncct->feed_path,
+                        ncct, NULL);
     noit_console_motd(e, ac, ncct);
     ncct->initialized = 1;
   }
@@ -413,5 +417,47 @@ socket_error:
     if(ncct->wants_shutdown) goto socket_error;
   }
   return newmask | EVENTER_EXCEPTION;
+}
+
+static int
+noit_console_logio_open(noit_log_stream_t ls) {
+  return 0;
+}
+static int
+noit_console_logio_reopen(noit_log_stream_t ls) {
+  /* no op */
+  return 0;
+}
+static int
+noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+  noit_console_closure_t ncct = ls->op_ctx;
+  int rv, rlen, mask;
+  if(!ncct) return 0;
+  rlen = nc_write(ls->op_ctx, buf, len);
+  while((rv = noit_console_continue_sending(ncct, &mask)) == -1 && errno == EINTR);
+  if(rv == -1 && errno == EAGAIN) {
+    ncct->e->mask = mask | EVENTER_EXCEPTION;
+    eventer_update(ncct->e);
+  }
+  return rlen;
+}
+static int
+noit_console_logio_close(noit_log_stream_t ls) {
+  ls->op_ctx = NULL;
+  return 0;
+}
+static logops_t noit_console_logio_ops = {
+  noit_console_logio_open,
+  noit_console_logio_reopen,
+  noit_console_logio_write,
+  noit_console_logio_close,
+};
+
+void
+noit_console_init() {
+  el_multi_init();
+  signal(SIGTTOU, SIG_IGN);
+  noit_register_logops("noit_console", &noit_console_logio_ops);
+  eventer_name_callback("noit_console", noit_console_handler);
 }
 
