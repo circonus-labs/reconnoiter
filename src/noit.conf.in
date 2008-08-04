@@ -18,14 +18,14 @@
       <error>
         <outlet name="error"/>
         <log name="error/eventer"/>
-        <log name="error/ping_icmp" disabled="true"/>
-        <log name="error/serf" disabled="false"/>
-        <log name="error/snmp" disabled="true"/>
+        <log name="error/ping_icmp"/>
+        <log name="error/serf"/>
+        <log name="error/snmp"/>
       </error>
       <debug>
         <log name="debug/eventer" disabled="true"/>
         <log name="debug/ping_icmp" disabled="true"/>
-        <log name="debug/serf" disabled="false"><outlet name="error" /></log>
+        <log name="debug/serf" disabled="false"/>
         <log name="debug/snmp" disabled="true"/>
       </debug>
     </components>
@@ -39,9 +39,9 @@
       <log name="config"/>
     </feeds>
   </logs>
-  <modules directory="./modules">
+  <modules directory="%modulesdir%">
     <loader image="lua" name="lua">
-      <config><directory>./modules-lua/?.lua</directory></config>
+      <config><directory>%modulesluadir%/?.lua</directory></config>
     </loader>
     <module image="ping_icmp" name="ping_icmp"/>
     <http image="http">
@@ -56,9 +56,9 @@
   <listeners>
     <sslconfig>
       <optional_no_ca>false</optional_no_ca>
-      <certificate_file>../test/test-noit.crt</certificate_file>
-      <key_file>../test/test-noit.key</key_file>
-      <ca_chain>../test/test-ca.crt</ca_chain>
+      <certificate_file>%sysconfdir%/%PKIPREFIX%noit.crt</certificate_file>
+      <key_file>%sysconfdir%/%PKIPREFIX%noit.key</key_file>
+      <ca_chain>%sysconfdir%/%PKIPREFIX%ca.crt</ca_chain>
     </sslconfig>
     <consoles type="noit_console">
       <listener address="/tmp/noit">

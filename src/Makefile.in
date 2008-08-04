@@ -23,6 +23,7 @@ docdir=${prefix}/@docdir@
 sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
+MODULES_DIR=@MODULES_DIR@
 
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
@@ -40,7 +41,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_conf.o noit_tokenizer.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o
 
-all:	noitd stratcond
+all:	noitd stratcond noit.conf test-noit.conf
 
 make-subdirs:	serf/.libs/libserf-0.o jlog/libjlog.a
 	for dir in $(SUBS) ; do \
@@ -98,6 +99,22 @@ stratcon_datastore.o:	stratcon_datastore.c
 noit_tokenizer.c:	noit_tokenizer.re
 	@re2c -o $@ noit_tokenizer.re
 	@echo "- re2c $<"
+
+test-noit.conf:	noit.conf.in
+	sed -e "s^%sysconfdir%^.^g;" \
+		-e "s^%modulesdir%^./modules^g;" \
+		-e "s^%modulesluadir%^./modules-lua^g;" \
+		-e "s^%PKIPREFIX%^../test/test-^g;" < \
+		noit.conf.in > \
+		test-noit.conf
+
+noit.conf:	noit.conf.in
+	sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
+		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
+		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
+		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
+		noit.conf.in > \
+		noit.conf
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \

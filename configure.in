@@ -481,9 +481,9 @@ while test "x$temppath" != "x$fullpath" ; do
   fullpath=`eval echo ${fullpath}`
 done
 fullpath=`echo $fullpath | sed "s~NONE~$ac_default_prefix~"`
-AC_MSG_RESULT([$fullpath])
-AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}")
-MODULES_DIR=${fullpath}
+AC_MSG_RESULT([$fullpath/noit])
+AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}/noit")
+MODULES_DIR=${fullpath}/noit
 AC_SUBST(MODULES_DIR)
 
 AC_MSG_CHECKING([Resolving sysconfdir path...])
