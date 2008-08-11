@@ -31,7 +31,9 @@ class Reconnoiter_DB {
     return $rv;
   }
   function get_var_for_window($uuid, $name, $start, $end, $expected) {
-    $sth = $this->db->prepare("select * from stratcon.fetch_varset(?,?,?,?,?)");
+    $sth = preg_match('/^\d+$/', $uuid) ?
+      $this->db->prepare("select * from stratcon.fetch_varset(? ::int,?,?,?,?)") :
+      $this->db->prepare("select * from stratcon.fetch_varset(? ::uuid,?,?,?,?)");
     $sth->execute(array($uuid,$name,$start,$end,$expected));
     $rv = array();
     while($row = $sth->fetch()) {
@@ -163,6 +165,7 @@ class Reconnoiter_DB {
       $label = $row['check_name']."(".$row['sid'].")";
       if(!isset($rv[$label])) 
         $rv[$label] = array ('id' => $row['id'],
+                             'sid' => $row['sid'],
                              'text' => array(),
                              'numeric' => array() );
       $rv[$label][$row['metric_type']][] = $row['metric_name'];
