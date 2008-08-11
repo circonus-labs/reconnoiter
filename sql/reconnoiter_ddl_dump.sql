@@ -22,6 +22,18 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: current_metric_text; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+--
+
+CREATE TABLE current_metric_text (
+    sid integer NOT NULL,
+    whence timestamp with time zone NOT NULL,
+    name text NOT NULL,
+    value text
+);
+
+
+--
 -- Name: current_node_config; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
 --
 
@@ -308,7 +320,7 @@ begin
   -- Figure out which table we should be looking in
   for window in
     select atablename, aperiod, anperiods
-    from (select aperiod, iv/isec as anperiods, atablename,
+    from (select aperiod, round(iv/isec) ::integer as anperiods, atablename,
                  abs(case when iv/isec - in_hopeful_nperiods < 0
                           then 10 * (in_hopeful_nperiods - iv/isec)
                           else iv/isec - in_hopeful_nperiods
@@ -365,13 +377,19 @@ CREATE FUNCTION fetch_dataset(in_uuid uuid, in_name text, in_start_time timestam
     AS $$
 declare
   v_sid int;
+  v_record stratcon.rollup_matrix_numeric_5m%rowtype;
 begin
-  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_check;
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_uuid;
   if not found then
     return;
   end if;
 
-  return query select * from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
+    for v_record in  select sid, name, rollup_time, count_rows, avg_value from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
+    return next v_record; 
+    end loop;
+
+--  return query select sid, name, rollup_time, count_rows, avg_value from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
+  return;
 end
 $$
     LANGUAGE plpgsql;
@@ -661,16 +679,21 @@ BEGIN
 
 IF TG_OP = 'INSERT' THEN
 
-     SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name 
-         AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log 
-                         WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
-     INTO v_oldvalue;
+             SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name
+                 AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log
+                                 WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
+                     INTO v_oldvalue;
 
-    IF v_oldvalue IS DISTINCT FROM NEW.value THEN
+                    IF v_oldvalue IS DISTINCT FROM NEW.value THEN
 
-        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
-            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value); 
-    END IF;
+                        INSERT INTO stratcon.loading_dock_metric_text_s_change_log (sid,whence,name,value)
+                            VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
+                        DELETE FROM stratcon.current_metric_text
+                                WHERE sid = NEW.sid and name = NEW.name;
+                        INSERT INTO stratcon.current_metric_text (sid,whence,name,value)
+                                VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
+                    END IF;
+
 
 SELECT sid,metric_name FROM stratcon.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
         INTO v_sid,v_name;
@@ -1411,6 +1434,14 @@ CREATE SEQUENCE seq_sid
     NO MAXVALUE
     NO MINVALUE
     CACHE 1;
+
+
+--
+-- Name: current_metric_text_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY current_metric_text
+    ADD CONSTRAINT current_metric_text_pkey PRIMARY KEY (sid, name);
 
 
 --
