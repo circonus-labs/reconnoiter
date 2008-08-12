@@ -230,9 +230,10 @@ int main(int argc, char **argv) {
   }
 
   setup_mmap();
-  if(foreground) return child_main();
 
   chdir("/");
+  if(foreground) return child_main();
+
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);

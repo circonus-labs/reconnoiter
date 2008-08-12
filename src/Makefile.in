@@ -101,10 +101,10 @@ noit_tokenizer.c:	noit_tokenizer.re
 	@echo "- re2c $<"
 
 test-noit.conf:	noit.conf.in
-	sed -e "s^%sysconfdir%^.^g;" \
-		-e "s^%modulesdir%^./modules^g;" \
-		-e "s^%modulesluadir%^./modules-lua^g;" \
-		-e "s^%PKIPREFIX%^../test/test-^g;" < \
+	sed -e "s^%sysconfdir%^`pwd`^g;" \
+		-e "s^%modulesdir%^`pwd`/modules^g;" \
+		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
+		-e "s^%PKIPREFIX%^`pwd`/../test/test-^g;" < \
 		noit.conf.in > \
 		test-noit.conf
 
