@@ -131,7 +131,8 @@ static char *
 __noit__strndup(const char *src, int len) {
   char *dst;
   dst = malloc(len + 1);
-  strlcpy(dst, src, len+1);
+  strlcpy(dst, src, len);
+  dst[len] = '\0';
   return dst;
 }
 #define DECLARE_PARAM_STR(str, len) do { \
