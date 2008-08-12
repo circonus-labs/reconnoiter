@@ -463,11 +463,12 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
       }
     }
     if(current->completion_event) {
+      ds_job_detail *save_next;
       if(last_sp) RELEASE_SAVEPOINT("batch");
       if(stratcon_datastore_do(cq, "COMMIT")) BUSTED(cq);
       eventer_add(current->completion_event);
-      __remove_until(cq, current->next);
       current = current->next;
+      __remove_until(cq, current);
     }
   }
   return 0;
