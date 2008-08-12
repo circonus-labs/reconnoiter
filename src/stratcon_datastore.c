@@ -129,10 +129,13 @@ typedef enum {
 
 static char *
 __noit__strndup(const char *src, int len) {
+  int slen;
   char *dst;
-  dst = malloc(len + 1);
-  strlcpy(dst, src, len);
-  dst[len] = '\0';
+  for(slen = 0; slen < len; slen++)
+    if(src[slen] == '\0') break;
+  dst = malloc(slen + 1);
+  memcpy(dst, src, slen);
+  dst[slen] = '\0';
   return dst;
 }
 #define DECLARE_PARAM_STR(str, len) do { \
