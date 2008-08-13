@@ -19,6 +19,9 @@
 void
 noit_jlog_listener_init() {
   eventer_name_callback("log_transit", noit_jlog_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_JLOG_DATA_FEED,
+                                 noit_jlog_handler);
 }
 
 typedef struct {
@@ -182,9 +185,11 @@ socket_error:
     const char *logname;
     char path[PATH_MAX], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
-    if(!noit_hash_retrieve(ac->config, "log", strlen("log"),
+    if(!noit_hash_retrieve(ac->config,
+                           "log_transit_feed_name",
+                           strlen("log_transit_feed_name"),
                            (void **)&logname)) {
-      noitL(noit_error, "No 'log' specified in log_transit.\n");
+      noitL(noit_error, "No 'log_transit_feed_name' specified in log_transit.\n");
       goto socket_error;
     }
     ls = noit_log_stream_find(logname);

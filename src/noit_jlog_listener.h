@@ -9,6 +9,8 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 
+#define NOIT_JLOG_DATA_FEED 0xda7afeed
+
 API_EXPORT(void)
   noit_jlog_listener_init(void);
 

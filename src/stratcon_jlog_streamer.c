@@ -44,10 +44,11 @@ typedef struct jlog_streamer_ctx_t {
   char *buffer;         /* These guys are for doing partial reads */
 
   enum {
-    WANT_COUNT = 0,
-    WANT_HEADER = 1,
-    WANT_BODY = 2,
-    WANT_CHKPT = 3,
+    WANT_INITIATE = 0,
+    WANT_COUNT = 1,
+    WANT_HEADER = 2,
+    WANT_BODY = 3,
+    WANT_CHKPT = 4,
   } state;
   int count;            /* Number of jlog messages we need to read */
   struct {
@@ -179,13 +180,16 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
 int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
+  static u_int32_t jlog_feed_cmd = 0;
   jlog_streamer_ctx_t *ctx = closure;
   int len;
   jlog_id n_chkpt;
 
+  if(!jlog_feed_cmd) jlog_feed_cmd = htonl(NOIT_JLOG_DATA_FEED);
+
   if(mask & EVENTER_EXCEPTION || ctx->wants_shutdown) {
  socket_error:
-    ctx->state = WANT_COUNT;
+    ctx->state = WANT_INITIATE;
     ctx->count = 0;
     ctx->bytes_read = 0;
     ctx->bytes_expected = 0;
@@ -199,6 +203,20 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   while(1) {
     switch(ctx->state) {
+      case WANT_INITIATE:
+        len = e->opset->write(e->fd, &jlog_feed_cmd, sizeof(&jlog_feed_cmd),
+                              &mask, e);
+        if(len < 0) {
+          if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+          goto socket_error;
+        }
+        if(len != sizeof(jlog_feed_cmd)) {
+          noitL(noit_error, "short write on initiating stream.\n");
+          goto socket_error;
+        }
+        ctx->state = WANT_COUNT;
+        break;
+
       case WANT_COUNT:
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&ctx->count, ctx->buffer, sizeof(u_int32_t));

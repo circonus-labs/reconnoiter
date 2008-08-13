@@ -20,6 +20,8 @@
 #include "noit_listener.h"
 #include "noit_conf.h"
 
+static noit_hash_table listener_commands = NOIT_HASH_EMPTY;
+
 void
 acceptor_closure_free(acceptor_closure_t *ac) {
   if(ac->remote_cn) free(ac->remote_cn);
@@ -259,6 +261,7 @@ noit_listener(char *host, unsigned short port, int type,
   listener_closure->dispatch_closure =
     calloc(1, sizeof(*listener_closure->dispatch_closure));
   listener_closure->dispatch_closure->config = config;
+  listener_closure->dispatch_closure->dispatch = handler;
   listener_closure->dispatch_closure->service_ctx = service_ctx;
 
   event = eventer_alloc();
@@ -336,10 +339,88 @@ noit_listener_reconfig(const char *toplevel) {
                   sslconfig, config, f, NULL);
   }
 }
+int
+noit_control_dispatch(eventer_t e, int mask, void *closure,
+                      struct timeval *now) {
+  u_int32_t cmd;
+  int len;
+  noit_hash_table *delegation_table;
+  acceptor_closure_t *ac = closure;
+
+  len = e->opset->read(e->fd, &cmd, sizeof(cmd), &mask, e);
+
+  if(len == -1 && errno == EAGAIN)
+    return EVENTER_READ | EVENTER_EXCEPTION;
+
+  if(mask & EVENTER_EXCEPTION || len != sizeof(cmd)) {
+    int newmask;
+socket_error:
+    /* Exceptions cause us to simply snip the connection */
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &newmask, e);
+    if(ac) acceptor_closure_free(ac);
+    return 0;
+  }
+
+  cmd = ntohl(cmd);
+  /* Lookup cmd and dispatch */
+  if(noit_hash_retrieve(&listener_commands,
+                        (char *)&ac->dispatch, sizeof(ac->dispatch),
+                        (void **)&delegation_table)) {
+    eventer_func_t *eventer_func;
+    if(noit_hash_retrieve(delegation_table,
+                          (char *)&cmd, sizeof(cmd),
+                          (void **)&eventer_func)) {
+      e->callback = *eventer_func;
+      return e->callback(e, mask, closure, now);
+    }
+    else {
+    const char *event_name;
+      noitL(noit_error, "listener (%s %p) has no command: 0x%8x\n",
+            (event_name = eventer_name_for_callback(ac->dispatch))?event_name:"???",
+            delegation_table, cmd);
+    }
+  }
+  else {
+    const char *event_name;
+    noitL(noit_error, "No delegation table for listener (%s %p)\n",
+          (event_name = eventer_name_for_callback(ac->dispatch))?event_name:"???",
+          delegation_table);
+  }
+  goto socket_error;
+}
+void
+noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
+                               u_int32_t cmd,
+                               eventer_func_t delegate_dispatch) {
+  u_int32_t *cmd_copy;
+  eventer_func_t *handler_copy;
+  noit_hash_table *delegation_table;
+  if(!noit_hash_retrieve(&listener_commands,
+                         (char *)&listener_dispatch, sizeof(listener_dispatch),
+                         (void **)delegation_table)) {
+    delegation_table = calloc(1, sizeof(*delegation_table));
+    handler_copy = malloc(sizeof(*handler_copy));
+    *handler_copy = listener_dispatch;
+    noit_hash_store(&listener_commands,
+                    (char *)handler_copy, sizeof(*handler_copy),
+                    delegation_table);
+  }
+  cmd_copy = malloc(sizeof(*cmd_copy));
+  *cmd_copy = cmd;
+  handler_copy = malloc(sizeof(*handler_copy));
+  *handler_copy = delegate_dispatch;
+  noit_hash_replace(delegation_table,
+                    (char *)cmd_copy, sizeof(*cmd_copy),
+                    handler_copy,
+                    free, free);
+}
+
 void
 noit_listener_init(const char *toplevel) {
   eventer_name_callback("noit_listener_acceptor", noit_listener_acceptor);
   eventer_name_callback("noit_listener_accept_ssl", noit_listener_accept_ssl);
+  eventer_name_callback("control_dispatch", noit_control_dispatch);
   noit_listener_reconfig(toplevel);
 }
 

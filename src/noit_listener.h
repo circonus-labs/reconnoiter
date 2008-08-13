@@ -27,6 +27,7 @@ typedef struct {
   char *remote_cn;
   noit_hash_table *config;
   void *service_ctx;
+  eventer_func_t dispatch;
 } acceptor_closure_t;
 
 typedef struct {
@@ -47,5 +48,12 @@ API_EXPORT(int)
 
 API_EXPORT(void)
   acceptor_closure_free(acceptor_closure_t *ac);
+
+API_EXPORT(void)
+  noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
+                                 u_int32_t cmd,
+                                 eventer_func_t delegate_dispatch);
+
+int noit_control_dispatch(eventer_t, int, void *, struct timeval *);
 
 #endif
