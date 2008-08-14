@@ -20,16 +20,20 @@
 #define APPNAME "stratcon"
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
 static int debug = 0;
+static int foreground = 0;
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "c:d")) != EOF) {
+  while((c = getopt(argc, argv, "c:dD")) != EOF) {
     switch(c) {
       case 'c':
         config_file = strdup(optarg);
         break;
       case 'd':
         debug++;
+        break;
+      case 'D':
+        foreground = 1;
         break;
       default:
         break;
@@ -61,6 +65,16 @@ int main(int argc, char **argv) {
   char conf_str[1024];
 
   parse_clargs(argc, argv);
+
+  chdir("/");
+  if(!foreground) {
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+    if(fork()) exit(0);
+    setsid();
+    if(fork()) exit(0);
+  }
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
