@@ -234,6 +234,9 @@ int main(int argc, char **argv) {
   chdir("/");
   if(foreground) return child_main();
 
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
