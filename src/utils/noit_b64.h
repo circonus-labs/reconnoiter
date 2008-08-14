@@ -47,6 +47,14 @@
     noit_b64_decode decodes input until an the entire input is consumed or until an invalid base64 character is encountered.
  */
 API_EXPORT(int) noit_b64_decode(const char *, size_t, unsigned char *, size_t);
+/*! \fn int noit_b64_encode(const unsigned char *in, size_t in_sz, char *out, size_t out_sz)
+    \brief Encode a base64 encoded input buffer into the provided output buffer.
+    \param in The buffer containing the raw data.
+    \param in_sz The size (in bytes) of the raw data.
+    \param out The destination buffer to which the function will produce.
+    \param out_sz The size of the destination buffer.
+    \return The size of the encoded output.  Returns zero is out_sz is too small.
+ */
 API_EXPORT(int) noit_b64_encode(const unsigned char *, size_t, char *, size_t);
 
 #endif
