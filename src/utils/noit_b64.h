@@ -48,7 +48,7 @@
  */
 API_EXPORT(int) noit_b64_decode(const char *, size_t, unsigned char *, size_t);
 /*! \fn int noit_b64_encode(const unsigned char *in, size_t in_sz, char *out, size_t out_sz)
-    \brief Encode a base64 encoded input buffer into the provided output buffer.
+    \brief Encode raw data as base64 encoded output into the provided buffer.
     \param in The buffer containing the raw data.
     \param in_sz The size (in bytes) of the raw data.
     \param out The destination buffer to which the function will produce.
