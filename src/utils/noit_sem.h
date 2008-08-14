@@ -33,6 +33,39 @@
 #ifndef _UTILS_NOIT_SEM_H
 #define _UTILS_NOIT_SEM_H
 
+/*! \fn int noit_sem_init(noit_sem_t *s, int unused, int value)
+    \brief initializes a counting semaphore for first time use.
+    \param s the semaphore to be initialized
+    \param unused is unused (keeps API combatibility with sem_init()
+    \param value sets the initial value of the semaphore
+    \return 0 on success or -1 on failure
+ */
+/*! \fn int noit_sem_wait(noit_sem_t *s)
+    \brief decrements the value of the semaphore waiting if required.
+    \param s the semaphore on which to wait
+    \return 0 on success or -1 on failure
+ */
+/*! \fn int noit_sem_post(noit_sem_t *s)
+    \brief increments the value of the semaphore releasing any waiters.
+    \param s the semaphore on which to wait
+    \return 0 on success or -1 on failure
+ */
+/*! \fn int noit_sem_trywait(noit_sem_t *s)
+    \brief decrements the value of the semaphore if greater than 0 or fails
+    \param s the semaphore on which to wait
+    \return 0 on success or -1 on failure
+ */
+/*! \fn int noit_sem_getvalue(noit_sem_t *s, int *value)
+    \brief retrieves the current value of a semaphore, placing it in *value
+    \param s the semaphore on which to operate
+    \param value a pointer an integer that will be populated with the current value of the semaphore
+    \return 0 on success or -1 on failure
+ */
+/*! \fn int noit_sem_destroy(noit_sem_t *s)
+    \brief releases all resources related to a semaphore
+    \param s the semaphore to destroy
+    \return 0 on success or -1 on failure
+ */
 #ifdef BROKEN_SEM_INIT
 
 #include <pthread.h>
@@ -43,44 +76,11 @@ typedef struct {
   pthread_cond_t  cond;
 } noit_sem_t;
 
-/*! \fn int noit_sem_init(noit_sem_t *s, int unused, int value)
-    \brief initializes a counting semaphore for first time use.
-    \param s the semaphore to be initialized
-    \param unused is unused (keeps API combatibility with sem_init()
-    \param value sets the initial value of the semaphore
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(int)  noit_sem_init(noit_sem_t *, int, int);
-/*! \fn int noit_sem_wait(noit_sem_t *s)
-    \brief decrements the value of the semaphore waiting if required.
-    \param s the semaphore on which to wait
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(int)  noit_sem_wait(noit_sem_t *);
-/*! \fn int noit_sem_post(noit_sem_t *s)
-    \brief increments the value of the semaphore releasing any waiters.
-    \param s the semaphore on which to wait
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(void) noit_sem_post(noit_sem_t *);
-/*! \fn int noit_sem_trywait(noit_sem_t *s)
-    \brief decrements the value of the semaphore if greater than 0 or fails
-    \param s the semaphore on which to wait
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(int)  noit_sem_trywait(noit_sem_t *);
-/*! \fn int noit_sem_getvalue(noit_sem_t *s, int *value)
-    \brief retrieves the current value of a semaphore, placing it in *value
-    \param s the semaphore on which to operate
-    \param value a pointer an integer that will be populated with the current value of the semaphore
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(int)  noit_sem_getvalue(noit_sem_t *, int *);
-/*! \fn int noit_sem_destroy(noit_sem_t *s)
-    \brief releases all resources related to a semaphore
-    \param s the semaphore to destroy
-    \return 0 on success or -1 on failure
- */
 API_EXPORT(void) noit_sem_destroy(noit_sem_t *);
 
 #define sem_t noit_sem_t
