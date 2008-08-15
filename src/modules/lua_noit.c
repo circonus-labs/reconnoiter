@@ -462,6 +462,33 @@ nl_sleep(lua_State *L) {
 }
 
 static int
+nl_log(lua_State *L) {
+  int i, n;
+  const char *log_dest, *message;
+  noit_log_stream_t ls;
+
+  log_dest = lua_tostring(L, 1);
+  ls = noit_log_stream_find(log_dest);
+  if(!ls) {
+    noitL(noit_stderr, "Cannot find log stream: '%s'\n", log_dest);
+    return 0;
+  }
+
+  n = lua_gettop(L);
+  lua_pushstring(L, "string");
+  lua_gettable(L, LUA_GLOBALSINDEX);
+  lua_pushstring(L, "format");
+  lua_gettable(L, -1);
+  for(i=2;i<=n;i++)
+    lua_pushvalue(L, i);
+  lua_call(L, n-1, 1);
+  message = lua_tostring(L, -1);
+  noitL(ls, "%s", message);
+  lua_pop(L, 1); /* formatted string */
+  lua_pop(L, 1); /* "string" table */
+  return 0;
+}
+static int
 nl_socket_tcp(lua_State *L, int family) {
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
@@ -514,6 +541,7 @@ nl_socket_ipv6(lua_State *L) {
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "socket", nl_socket },
+  { "log", nl_log },
   { "socket_ipv6", nl_socket_ipv6 },
   { NULL, NULL }
 };
