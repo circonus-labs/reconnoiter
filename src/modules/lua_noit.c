@@ -185,9 +185,9 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
         args = 1;
         cl->read_sofar = len - remaining;
         if(cl->read_sofar > 0) { /* We have to buffer this for next read */
-          cl->inbuff_len = 0;
           inbuff_addlstring(cl, buff + remaining, cl->read_sofar);
         }
+        cl->read_sofar = cl->inbuff_len = 0;
         break;
       }
     }
@@ -238,8 +238,8 @@ noit_lua_socket_read(lua_State *L) {
       cl->read_sofar -= cl->read_goal;
       if(cl->read_sofar) {
         memmove(cl->inbuff, cl->inbuff + cl->read_goal, cl->read_sofar);
-        cl->inbuff_len = cl->read_sofar;
       }
+      cl->inbuff_len = cl->read_sofar;
       return 1;
     }
   }
