@@ -36,23 +36,23 @@
 #include "noit_config.h"
 #include "noit_defines.h"
 
-/*! \fn int noit_b64_decode(const char *in, size_t in_sz, unsigned char *out, size_t out_sz)
+/*! \fn int noit_b64_decode(const char *src, size_t src_len, unsigned char *dest, size_t dest_len)
     \brief Decode a base64 encoded input buffer into the provided output buffer.
-    \param in The buffer containing the encoded content.
-    \param in_sz The size (in bytes) of the encoded data.
-    \param out The destination buffer to which the function will produce.
-    \param out_sz The size of the destination buffer.
-    \return The size of the decoded output.  Returns zero is out_sz is too small.
+    \param src The buffer containing the encoded content.
+    \param src_len The size (in bytes) of the encoded data.
+    \param dest The destination buffer to which the function will produce.
+    \param dest_len The size of the destination buffer.
+    \return The size of the decoded output.  Returns zero is dest_len is too small.
     
     noit_b64_decode decodes input until an the entire input is consumed or until an invalid base64 character is encountered.
  */
 API_EXPORT(int) noit_b64_decode(const char *, size_t, unsigned char *, size_t);
-/*! \fn int noit_b64_encode(const unsigned char *in, size_t in_sz, char *out, size_t out_sz)
+/*! \fn int noit_b64_encode(const unsigned char *src, size_t src_len, char *dest, size_t dest_len)
     \brief Encode raw data as base64 encoded output into the provided buffer.
-    \param in The buffer containing the raw data.
-    \param in_sz The size (in bytes) of the raw data.
-    \param out The destination buffer to which the function will produce.
-    \param out_sz The size of the destination buffer.
+    \param src The buffer containing the raw data.
+    \param src_len The size (in bytes) of the raw data.
+    \param dest The destination buffer to which the function will produce.
+    \param dest_len The size of the destination buffer.
     \return The size of the encoded output.  Returns zero is out_sz is too small.
  */
 API_EXPORT(int) noit_b64_encode(const unsigned char *, size_t, char *, size_t);
