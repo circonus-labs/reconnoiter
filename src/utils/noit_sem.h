@@ -66,7 +66,7 @@
     \param s the semaphore to destroy
     \return 0 on success or -1 on failure
  */
-#ifdef BROKEN_SEM_INIT
+#ifndef WORKING_SEM_INIT
 
 #include <pthread.h>
 
@@ -91,7 +91,7 @@ API_EXPORT(void) noit_sem_destroy(noit_sem_t *);
 #define sem_getvalue noit_sem_getvalue
 #define sem_destroy noit_sem_destroy
 
-#else /* BROKEN_SEM_INIT */
+#else /* WORKING_SEM_INIT */
 
 #ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>

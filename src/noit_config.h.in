@@ -78,7 +78,7 @@
 #undef HAVE_U_INTXX_T
 #undef HAVE_UUID_UNPARSE_LOWER
 #define IFS_CH '/'
-#undef BROKEN_SEM_INIT
+#undef WORKING_SEM_INIT
 
 #ifdef HAVE_STRING_H
 #include <string.h>

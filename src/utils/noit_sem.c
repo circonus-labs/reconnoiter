@@ -38,7 +38,7 @@
 #include "noit_defines.h"
 #include "utils/noit_sem.h"
 
-#ifdef BROKEN_SEM_INIT
+#ifndef WORKING_SEM_INIT
 #include <pthread.h>
 #include <errno.h>
 

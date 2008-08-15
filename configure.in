@@ -240,10 +240,12 @@ AC_TRY_RUN(
 #include <semaphore.h>
 int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 	],
-	[AC_MSG_RESULT(yes)], 
+	[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(WORKING_SEM_INIT)
+	], 
 	[
 		AC_MSG_RESULT(no)
-		AC_DEFINE(BROKEN_SEM_INIT)
 		AC_MSG_WARN([****** sem_init() is broken, I'll implement one myself.])
 	]
 )
