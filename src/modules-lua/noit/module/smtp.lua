@@ -41,6 +41,8 @@ end
 
 local function mkaction(e, check)
   return function (phase, tosend, expected_code)
+    local start_time = noit.timeval.now()
+    local success = true
     if tosend then
       write_cmd(e, tosend)
     end
@@ -48,10 +50,14 @@ local function mkaction(e, check)
     if expected_code ~= actual_code then
       check.status(string.format("%d/%d %s", expected_code, actual_code, message))
       check.bad()
-      return false
+      success = false
+    else
+      check.available()
     end
-    check.available()
-    return true
+    local elapsed = noit.timeval.now() - start_time
+    local elapsed_ms = math.floor(tostring(elapsed) * 1000)
+    check.metric(phase .. "_time",  elapsed_ms)
+    return success
   end
 end
 
@@ -70,8 +76,8 @@ function initiate(module, check)
   local rcptto = string.format("RCPT TO:<%s>", check.config.to)
   local action = mkaction(e, check)
   if     action("banner", nil, 220)
-     and action("mail from", mailfrom, 250)
-     and action("rcpt to", rcptto, 250)
+     and action("mailfrom", mailfrom, 250)
+     and action("rcptto", rcptto, 250)
      and action("data", "DATA", 354)
      and action("body", "Subject: Test\r\n\r\nHello.\r\n.", 250)
      and action("quit", "QUIT", 221)

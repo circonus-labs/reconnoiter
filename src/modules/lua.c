@@ -11,6 +11,7 @@
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
 #include "lua_noit.h"
+#include "lua_noit_glue.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -642,6 +643,7 @@ static noit_module_t *
 noit_lua_loader_load(noit_module_loader_t *loader,
                      char *module_name,
                      noit_conf_section_t section) {
+  int rv;
   noit_module_t *m;
   lua_State *L;
   lua_module_closure_t *lmc;
@@ -668,6 +670,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
   luaopen_noit(L);
+
   lua_newtable(L);
   lua_setglobal(L, "noit_coros");
 
@@ -676,10 +679,25 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lua_setfield(L, -2, "path");
   lua_pop(L, 1);
 
+#define require(a) do { \
+  lua_getglobal(L, "require"); \
+  lua_pushstring(L, #a); \
+  rv = lua_pcall(L, 1, 1, 0); \
+  if(rv != 0) { \
+    noitL(noit_stderr, "Loading: %d\n", rv); \
+    goto load_failed; \
+  } \
+  lua_pop(L, 1); \
+} while(0)
+
+  require(noit.timeval);
+
   lua_gc(L, LUA_GCRESTART, 0);
 
   noit_image_set_userdata(&m->hdr, lmc);
   if(m->hdr.onload(&m->hdr) == -1) {
+   load_failed:
+    lua_close(L);
     free(m->hdr.name);
     free(m->hdr.description);
     free(lmc->object);

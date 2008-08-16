@@ -489,6 +489,14 @@ nl_log(lua_State *L) {
   return 0;
 }
 static int
+nl_gettimeofday(lua_State *L) {
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  lua_pushinteger(L, now.tv_sec);
+  lua_pushinteger(L, now.tv_usec);
+  return 2;
+}
+static int
 nl_socket_tcp(lua_State *L, int family) {
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
@@ -540,6 +548,7 @@ nl_socket_ipv6(lua_State *L) {
 
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
+  { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },
   { "log", nl_log },
   { "socket_ipv6", nl_socket_ipv6 },
