@@ -11,7 +11,6 @@
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
 #include "lua_noit.h"
-#include "lua_noit_glue.h"
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
