@@ -509,8 +509,10 @@ src/jlog/Makefile
 src/jlog/perl/Makefile.PL
 src/udns/Makefile
 src/modules/Makefile
+src/modules-lua/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
 src/lua/Makefile
+sql/Makefile
 test/Makefile
 ])

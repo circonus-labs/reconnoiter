@@ -14,6 +14,7 @@ RANLIB=@RANLIB@
 LIBS=@LIBS@
 PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
+MODULES_DIR=@MODULES_DIR@
 
 top_srcdir=@top_srcdir@
 
@@ -78,6 +79,12 @@ ping_icmp.@MODULEEXT@:	ping_icmp.lo
 .c.lo:
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+
+install:	all
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
+	for mod in $(MODULES); do \
+		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MODULES_DIR)/$$mod ; \
+	done
 
 clean:
 	rm -f *.lo *.@MODULEEXT@

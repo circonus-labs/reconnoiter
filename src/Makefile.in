@@ -116,6 +116,16 @@ noit.conf:	noit.conf.in
 		noit.conf.in > \
 		noit.conf
 
+install:	all
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
+	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
+	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
+	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
+	(cd modules && make install DESTDIR=$(DESTDIR))
+	(cd modules-lua && make install DESTDIR=$(DESTDIR))
+
 clean-subdirs:
 	for dir in $(SUBS) ; do \
 		(cd $$dir && make clean) ; \

@@ -2,6 +2,10 @@ all:
 	(cd src && make)
 	(cd test && make)
 
+install:	all
+	(cd src && make install DESTDIR=$(DESTDIR))
+	(cd sql && make install DESTDIR=$(DESTDIR))
+
 clean:
 	(cd src && make clean)
 	(cd test && make clean)
