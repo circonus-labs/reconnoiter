@@ -1,0 +1,94 @@
+<module>
+  <name>snmp</name>
+  <description>The snmp module provides SNMP polling support for reconnoiter.</description>
+  <loader>C</loader>
+  <image>snmp.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="community"
+               required="optional"
+               default="public"
+               allowed=".+">The SNMP community string providing read access.</parameter>
+    <parameter name="oid_.+"
+               required="optional"
+               allowed=".+">Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Simple snmp polling of two switchports</title>
+      <para>The following example configures SNMP checks against switchport 1 and 2
+      on the switch with the IP address 10.80.116.3.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="snmp" name="snmp"/>
+        </modules>
+        <checks>
+          <switch target="10.80.116.3">
+            <config>
+              <community>SeKr3t</community>
+              <oid_description>IF-MIB::ifName.%[name]</oid_description>
+              <oid_alias>IF-MIB::ifAlias.%[name]</oid_alias>
+              <oid_speed>IF-MIB::ifSpeed.%[name]</oid_speed>
+              <oid_adminstatus>IF-MIB::ifAdminStatus.%[name]</oid_adminstatus>
+              <oid_operstatus>IF-MIB::ifOperStatus.%[name]</oid_operstatus>
+              <oid_inoctets>IF-MIB::ifHCInOctets.%[name]</oid_inoctets>
+              <oid_outoctets>IF-MIB::ifHCOutOctets.%[name]</oid_outoctets>
+              <oid_inerrors>IF-MIB::ifInErrors.%[name]</oid_inerrors>
+              <oid_outerrors>IF-MIB::ifOutErrors.%[name]</oid_outerrors>
+              <oid_indiscards>IF-MIB::ifInDiscards.%[name]</oid_indiscards>
+              <oid_outdiscards>IF-MIB::ifOutDiscards.%[name]</oid_outdiscards>
+              <oid_inucastpkts>IF-MIB::ifHCInUcastPkts.%[name]</oid_inucastpkts>
+              <oid_outucastpkts>IF-MIB::ifHCOutUcastPkts.%[name]</oid_outucastpkts>
+              <oid_inbcastpkts>IF-MIB::ifHCInBroadcastPkts.%[name]</oid_inbcastpkts>
+              <oid_outbcastpkts>IF-MIB::ifHCOutBroadcastPkts.%[name]</oid_outbcastpkts>
+            </config>
+            <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/>
+            <check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/>
+          </switch>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+    <example>
+      <title>Example using config inheritance to show reuse</title>
+      <para>Accomplising the same goal, but by using reuse:</para>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="snmp" name="snmp"/>
+        </modules>
+        <checks>
+          <switch target="10.80.116.3" module="snmp">
+            <config inherit="SwitchPortX"/>
+              <community>SeKr3t</community>
+            </config>
+            <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/>
+            <check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/>
+          </switch>
+        </checks>
+        <config_templates>
+          <config id="SwitchPortX">
+            <oid_description>IF-MIB::ifName.%[name]</oid_description>
+            <oid_alias>IF-MIB::ifAlias.%[name]</oid_alias>
+            <oid_speed>IF-MIB::ifSpeed.%[name]</oid_speed>
+            <oid_adminstatus>IF-MIB::ifAdminStatus.%[name]</oid_adminstatus>
+            <oid_operstatus>IF-MIB::ifOperStatus.%[name]</oid_operstatus>
+            <oid_inoctets>IF-MIB::ifHCInOctets.%[name]</oid_inoctets>
+            <oid_outoctets>IF-MIB::ifHCOutOctets.%[name]</oid_outoctets>
+            <oid_inerrors>IF-MIB::ifInErrors.%[name]</oid_inerrors>
+            <oid_outerrors>IF-MIB::ifOutErrors.%[name]</oid_outerrors>
+            <oid_indiscards>IF-MIB::ifInDiscards.%[name]</oid_indiscards>
+            <oid_outdiscards>IF-MIB::ifOutDiscards.%[name]</oid_outdiscards>
+            <oid_inucastpkts>IF-MIB::ifHCInUcastPkts.%[name]</oid_inucastpkts>
+            <oid_outucastpkts>IF-MIB::ifHCOutUcastPkts.%[name]</oid_outucastpkts>
+            <oid_inbcastpkts>IF-MIB::ifHCInBroadcastPkts.%[name]</oid_inbcastpkts>
+            <oid_outbcastpkts>IF-MIB::ifHCOutBroadcastPkts.%[name]</oid_outbcastpkts>
+          </config>
+        </config_templates>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

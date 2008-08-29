@@ -15,6 +15,8 @@ LIBS=@LIBS@
 PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
 MODULES_DIR=@MODULES_DIR@
+XSLTPROC=@XSLTPROC@
+XMLLINT=@XMLLINT@
 
 top_srcdir=@top_srcdir@
 
@@ -80,6 +82,11 @@ ping_icmp.@MODULEEXT@:	ping_icmp.lo
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
+alldocs:
+	for c in *.xml ; do \
+		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - > docs/$$c ; \
+	done
+	
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
 	for mod in $(MODULES); do \

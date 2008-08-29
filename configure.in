@@ -21,6 +21,8 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl)
+AC_PATH_PROGS(XSLTPROC, xsltproc)
+AC_PATH_PROGS(XMLLINT, xmllint)
 AC_SUBST(PERL)
 
 if test "x$CC" = "xgcc" ; then
