@@ -1,0 +1,67 @@
+<module>
+  <name>dns</name>
+  <description><para>The dns module leverages libudns to allow highly concurrent DNS lookups of a variety of DNS RR types.  In the event that you name a dns check <parameter>in-addr.arpa</parameter> with an rtype of <parameter>PTR</parameter>, the result of the query may be used throughout reconnoiter as the identifying hostname of that target.</para>
+  <para>This module provides the <function>inaddrarpa</function> interpolation method which will reverse a dot-delimited IP address.  This is particularly useful for constructing in-addr.arpa queries, but also used for checking blacklists, whitelists and other IP-based DNS databases.</para>
+  </description>
+  <loader>C</loader>
+  <image>dns.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="nameserver"
+               required="optional"
+               default="%[target] or determined from underlying system"
+               allowed=".+">The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target] of the the check.</parameter>
+    <parameter name="ctype"
+               required="optional"
+               default="IN"
+               allowed="(IN|CH|HS)">The DNS class of the query. IN: Internet, CH: Chaos, HS: Hesoid.</parameter>
+    <parameter name="rtype"
+               required="optional"
+               default="A|PTR"
+               allowed="(A|AAAA|TXT|MX|SOA|CNAME|PTR|NS|MB|MD|MF|MG|MR)">The DNS resource record type of the query.  If the name of the check is in-addr.arpa, the default is PTR, otherwise it is A.</parameter>
+    <parameter name="query"
+               required="required"
+               default="%[name]|%[:inaddrarpa:target].in-addr.arpa"
+               allowed=".+">The query to send.  If the name of the check is in-addr.arpa, the reverse IP octet notation of in-addr.arpa syntax is synthesized by default.  Otherwise the default query is the name of the check itself.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Establishing PTR records for hosts.</title>
+      <para>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="dns" name="dns"/>
+        </modules>
+        <checks>
+          <config>
+            <nameserver>10.1.2.2</nameserver>
+          </config>
+          <ptr module="dns" name="in-addr.arpa">
+            <check uuid="2cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" target="10.1.2.3"/>
+            <check uuid="2dd79110-76ff-11dd-9b54-739adc274a93" target="10.1.2.4"/>
+            <check uuid="5627560a-76ff-11dd-941f-4b75679cb908" target="10.1.2.5"/>
+            <check uuid="5fdcb8de-76ff-11dd-ae16-2740afc178ae" target="10.1.2.6"/>
+          </ssh>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+    <example>
+      <title>Checking labs.omniti.com.</title>
+      <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="dns" name="dns"/>
+        </modules>
+        <checks>
+          <ns1 module="dns" target="66.225.209.4">
+            <check uuid="3cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" name="labs.omniti.com"/>
+          </ssh>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

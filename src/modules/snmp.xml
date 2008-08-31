@@ -1,6 +1,6 @@
 <module>
   <name>snmp</name>
-  <description>The snmp module provides SNMP polling support for reconnoiter.</description>
+  <description><para>The snmp module provides SNMP polling support for reconnoiter.</para></description>
   <loader>C</loader>
   <image>snmp.so</image>
   <moduleconfig />

@@ -1,6 +1,6 @@
 <module>
   <name>ssh2</name>
-  <description>The ssh2 module allows reconnoiter to connect to servers over ssh protocol 2 and test the fingerprint.</description>
+  <description><para>The ssh2 module allows reconnoiter to connect to servers over ssh protocol 2 and test the fingerprint.</para></description>
   <loader>C</loader>
   <image>ssh2.so</image>
   <moduleconfig />
