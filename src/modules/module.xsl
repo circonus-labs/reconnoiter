@@ -25,9 +25,7 @@
 <xsl:template match="/">
   <section>
     <title><xsl:value-of select="module/name"/></title>
-    <para>
-      <xsl:value-of select="module/description"/>
-    </para>
+    <xsl:copy-of disable-output-escaping="yes" select="module/description/*"/>
 
     <variablelist>
       <varlistentry><term>loader</term><listitem><para><xsl:value-of select="module/loader"/></para></listitem></varlistentry>
