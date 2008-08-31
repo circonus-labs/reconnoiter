@@ -1,0 +1,34 @@
+<module>
+  <name>ssh2</name>
+  <description>The ssh2 module allows reconnoiter to connect to servers over ssh protocol 2 and test the fingerprint.</description>
+  <loader>C</loader>
+  <image>ssh2.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="port"
+               required="optional"
+               default="22"
+               allowed="\d+">The TCP port on which the remote server's ssh service is running.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Simple ssh polling of 4 machines</title>
+      <para>The following checks ssh on 10.1.2.{3,4,5,6}</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="ssh2" name="ssh2"/>
+        </modules>
+        <checks>
+          <ssh module="ssh2">
+            <check uuid="1cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" target="10.1.2.3"/>
+            <check uuid="1dd79110-76ff-11dd-9b54-739adc274a93" target="10.1.2.4"/>
+            <check uuid="4627560a-76ff-11dd-941f-4b75679cb908" target="10.1.2.5"/>
+            <check uuid="4fdcb8de-76ff-11dd-ae16-2740afc178ae" target="10.1.2.6"/>
+          </ssh>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
