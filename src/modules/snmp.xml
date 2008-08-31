@@ -24,7 +24,7 @@
           <module image="snmp" name="snmp"/>
         </modules>
         <checks>
-          <switch target="10.80.116.3">
+          <switch target="10.80.116.3" module="snmp">
             <config>
               <community>SeKr3t</community>
               <oid_description>IF-MIB::ifName.%[name]</oid_description>
