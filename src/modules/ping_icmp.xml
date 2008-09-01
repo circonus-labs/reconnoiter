@@ -1,0 +1,36 @@
+<module>
+  <name>ping_icmp</name>
+  <description><para>The ping_icmp module provide ICMP checks against targets.  It sends a series of ICMP requests and waits for their responses tallying their turn-around time.</para>
+  </description>
+  <loader>C</loader>
+  <image>ping_icmp.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="interval"
+               required="optional"
+               default="2000"
+               allowed="\d+">The number of milliseconds between ICMP requests.</parameter>
+    <parameter name="count"
+               required="optional"
+               default="5"
+               allowed="\d+">The number of ICMP requests to send during a single check.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Ping checks against a host</title>
+      <para>Ping 4.2.2.1 once a second for ten seconds recurring every 60 seconds.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="ping_icmp" name="ping_icmp"/>
+        </modules>
+        <checks>
+          <ping module="ping_icmp" period="60000" count="10" interval="1000">
+            <check uuid="5b9fab60-77d4-11dd-99a4-97df794be4c8" target="4.2.2.1"/>
+          </ping>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
