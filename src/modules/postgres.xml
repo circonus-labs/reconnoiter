@@ -37,21 +37,5 @@
       </noit>
     ]]></programlisting>
     </example>
-    <example>
-      <title>Checking labs.omniti.com.</title>
-      <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
-      <programlisting><![CDATA[
-      <noit>
-        <modules>
-          <module image="dns" name="dns"/>
-        </modules>
-        <checks>
-          <ns1 module="dns" target="66.225.209.4">
-            <check uuid="3cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" name="labs.omniti.com"/>
-          </ssh>
-        </checks>
-      </noit>
-    ]]></programlisting>
-    </example>
   </examples>
 </module>
