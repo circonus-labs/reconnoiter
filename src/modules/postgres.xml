@@ -1,0 +1,57 @@
+<module>
+  <name>postgres</name>
+  <description><para>The postgres module allows queries to be performaed against targets as checks.  The results of the query are used as metrics.</para>
+  </description>
+  <loader>C</loader>
+  <image>postgres.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="dsn"
+               required="required"
+               allowed=".+">The connect string for PostgreSQL.  The syntax of this string is documented in your PostgreSQL documentation. See <ulink url="http://www.postgresql.org/docs/8.3/static/libpq-connect.html"><citetitle>Database Connection Control Functions</citetitle></ulink>.</parameter>
+    <parameter name="sql"
+               required="required"
+               allowed=".+">The query that will be executed.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Tracking PostgreSQL database sizes.</title>
+      <para>This will track the sizes of all databases on 10.225.209.35 and 10.225.209.56. We will connect to the postgres database as the user "noit" with password "noit." We only run this check every 5 minutes.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="postgres" name="postgres"/>
+        </modules>
+        <checks>
+          <databases>
+            <postgres  module="postgres" period="300000">
+              <config>
+                <dsn>host=%[target] dbname=%[name] user=noit password=noit</dsn>
+                <sql>select datname, pg_database_size(datname) as size, xact_commit, xact_rollback from pg_stat_database</sql>
+              </config>
+              <check uuid="8c5ca46c-77d7-11dd-ab5b-53bc659517d6" target="10.225.209.35"/>
+              <check uuid="90b8aea2-77d7-11dd-8447-0f381e6a48eb" target="10.225.209.56"/>
+            </postgres>
+          </databases>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+    <example>
+      <title>Checking labs.omniti.com.</title>
+      <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="dns" name="dns"/>
+        </modules>
+        <checks>
+          <ns1 module="dns" target="66.225.209.4">
+            <check uuid="3cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" name="labs.omniti.com"/>
+          </ssh>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
