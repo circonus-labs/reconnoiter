@@ -49,7 +49,7 @@
             <check uuid="1ecd887a-7896-11dd-b28d-0b4216877f83" name="https">
               <config><url>https://labs.omniti.com/</url></config>
             </check>
-          </ssh>
+          </labs>
         </checks>
       </noit>
     ]]></programlisting>
