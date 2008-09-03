@@ -1,0 +1,30 @@
+<module>
+  <name>lua</name>
+  <description><para>The lua module is a loader that allows the authoring of checks in Lua.</para></description>
+  <loader>C</loader>
+  <image>lua.so</image>
+  <moduleconfig>
+    <parameter name="directory"
+               required="optional"
+               default="/install/prefix/modules-lua/?.lua"
+               allowed=".+">This is the lua load path.  See the lua manual for more details on meaning and syntax.</parameter>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Loading the lua loader.</title>
+      <para>This example loads the lua VM and registers it as a module loader.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="lua" name="lua">
+            <config>
+              <directory>/some/other/path/?.lua</directory>
+            </config>
+          </module>
+        </modules>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
