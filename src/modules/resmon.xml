@@ -1,0 +1,49 @@
+<module>
+  <name>resmon</name>
+  <description><para>The resmon module performs services checks against a Resmon service.</para>
+  <para><ulink url="https://labs.omniti.com/trac/resmon"><citetitle>Resmon</citetitle></ulink> is a light-weight resource monitor that exposes health of services over HTTP in XML.</para>
+  <para>This module rides on the http module and provides a secondary phase of XML parsing on the contents that extracts Resmon status messages into metrics that can be trended.</para>
+  </description>
+  <loader>C</loader>
+  <image>http.so</image>
+  <moduleconfig>
+    <parameter name="url"
+               required="optional"
+               allowed="http://target:81/">The default URL to be used by checks that do not specify an explicit URL.</parameter>
+    <parameter name="ca_chain"
+               required="optional"
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).  This is used for SSL checks if this paramter is not set explicitly in the check config.</parameter>
+    <parameter name="certificate_file"
+               required="optional"
+               allowed=".+">A path to a file containing all the client certificate that will be presented to the remote server (for SSL checks).  This is used for SSL checks if this paramter is not set explicitly in the check config.</parameter>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="url"
+               required="required"
+               allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
+    <parameter name="ca_chain"
+               required="optional"
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
+    <parameter name="certificate_file"
+               required="optional"
+               allowed=".+">A path to a file containing all the client certificate that will be presented to the remote server (for SSL checks).</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Checking resmon services on OmniTI Labs.</title>
+      <para>This example checks the Resmon service on OmniTI Labs.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="http" name="resmon" />
+        </modules>
+        <checks>
+          <labs target="8.8.38.5" module="resmon">
+            <check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de"/>
+          </labs>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
