@@ -13,7 +13,7 @@
 		// <![CDATA[		
 		var so = new SWFObject("amcharts/amline/amline.swf", "amline", "780", "400", "8", "#FFFFFF");
 		so.addVariable("path", "amcharts/amline/");
-		so.addVariable("settings_file", escape("bw_settings.php?id=<?php print $_GET['id'] ?>&start=<?php print $_GET['start'] ?>&end=<?php print $_GET['end'] ?>&cnt=<?php print isset($_GET['cnt']) ? $_GET['cnt'] : 500 ?>"));
+		so.addVariable("settings_file", escape("bw_settings.php?id=<?php print $_GET['id'] ?>&start=<?php print $_GET['start'] ?>&end=<?php print $_GET['end'] ?>&cnt=<?php print isset($_GET['cnt']) ? $_GET['cnt'] : 500 ?>&view=<?php print $_GET['view'] ?>"));
 		so.addVariable("preloader_color", "#999999");
 		so.write("flashcontent");
 		// ]]>

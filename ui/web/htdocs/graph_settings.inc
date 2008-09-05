@@ -4,8 +4,8 @@ global $graph_settings;
 $fill = 30;
 $colors[] = '#33aa33';
 $colors[] = '#4a00dc';
-$colors[] = '#fadc00';
-$colors[] = '#3333cc';
+$colors[] = '#caac00';
+$colors[] = '#3377cc';
 $colors[] = '#00acfa';
 $colors[] = '#cc3333';
 
