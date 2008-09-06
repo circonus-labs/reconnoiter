@@ -892,12 +892,15 @@ static int serf_onload(noit_image_t *self) {
   eventer_name_callback("http/serf_complete", serf_complete);
   return 0;
 }
+
+#include "http.xmlh"
 noit_module_t http = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "http",
     "libserf-based HTTP and HTTPS resource checker",
+    http_xml_description,
     serf_onload
   },
   serf_config,
@@ -906,12 +909,14 @@ noit_module_t http = {
   serf_cleanup
 };
 
+#include "resmon.xmlh"
 noit_module_t resmon = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "resmon",
     "libserf-based resmon resource checker",
+    resmon_xml_description,
     serf_onload
   },
   resmon_config,
@@ -920,12 +925,14 @@ noit_module_t resmon = {
   resmon_cleanup
 };
 
+#include "resmon_part.xmlh"
 noit_module_t resmon_part = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "resmon_part",
     "resmon part resource checker",
+    resmon_part_xml_description,
     serf_onload
   },
   resmon_config,

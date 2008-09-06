@@ -211,6 +211,20 @@ XML2LIBS=`xml2-config --libs`
 LIBS="$LIBS $XML2LIBS"
 AC_MSG_RESULT([$XML2LIBS])
 
+AC_CHECK_FUNC(xmlParseDocument, , [AC_MSG_ERROR(*** libxml2 is required ***)])
+
+AC_MSG_CHECKING([libxslt cflags])
+XSLTCFLAGS=`xslt-config --cflags`
+CFLAGS="$CFLAGS $XSLTCFLAGS"
+AC_MSG_RESULT([$XSLTCFLAGS])
+
+AC_MSG_CHECKING([libxslt libs])
+XSLTLIBS=`xslt-config --libs`
+LIBS="$LIBS $XSLTLIBS"
+AC_MSG_RESULT([$XSLTLIBS])
+
+AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
+
 APRPREFIX="`apr-1-config --prefix`"
 AC_MSG_CHECKING([libserf cflags])
 AC_SUBST(APRPREFIX)

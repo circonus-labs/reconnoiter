@@ -8,6 +8,7 @@ RANLIB=@RANLIB@
 LIBS=@LIBS@
 PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
+XML2H=@top_srcdir@/buildtools/xml2h
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
@@ -95,6 +96,12 @@ stratcon_datastore.o:	stratcon_datastore.c
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 	@echo "- compiling $<"
+
+noit_module.o:	module-online.h
+
+module-online.h:	modules/module-online.xsl
+	@echo "- making module-online.h (StyleSheet include"
+	@$(XML2H) helpStyleXML < modules/module-online.xsl > $@
 
 noit_tokenizer.c:	noit_tokenizer.re
 	@re2c -o $@ noit_tokenizer.re

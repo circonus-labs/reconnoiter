@@ -11,11 +11,26 @@
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_tokenizer.h"
+#include "noit_module.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pcre.h>
 
+int cmd_info_comparek(const void *akv, const void *bv) {
+  char *ak = (char *)akv;
+  cmd_info_t *b = (cmd_info_t *)bv;
+  return strcasecmp(ak, b->name);
+}
+int cmd_info_compare(const void *av, const void *bv) {
+  cmd_info_t *a = (cmd_info_t *)av;
+  cmd_info_t *b = (cmd_info_t *)bv;
+  return strcasecmp(a->name, b->name);
+}
+
+cmd_info_t console_command_help = {
+  "help", noit_console_help, NULL, NULL
+};
 cmd_info_t console_command_exit = {
   "exit", noit_console_state_pop, NULL, NULL
 };
@@ -26,6 +41,16 @@ cmd_info_t console_command_restart = {
   "restart", noit_console_restart, NULL, NULL
 };
 
+void
+noit_console_add_help(const char *topic, console_cmd_func_t topic_func) {
+  noit_console_state_t *s = console_command_help.dstate;
+  if(!s) {
+    console_command_help.dstate = s = calloc(1, sizeof(*s));
+    noit_skiplist_init(&s->cmds);
+    noit_skiplist_set_compare(&s->cmds, cmd_info_compare, cmd_info_comparek);
+  }
+  noit_console_state_add_cmd(s, NCSCMD(topic, topic_func, NULL, NULL));
+}
 
 static char *
 noit_console_state_prompt(EditLine *el) {
@@ -193,6 +218,22 @@ noit_console_generic_apply(noit_console_closure_t ncct,
 }
 
 int
+noit_console_render_help(noit_console_closure_t ncct,
+                         noit_console_state_t *dstate) {
+  noit_skiplist_node *iter = NULL;
+  if(!dstate) {
+    nc_printf(ncct, "No help available.\n");
+    return -1;
+  }
+  for(iter = noit_skiplist_getlist(&dstate->cmds); iter;
+      noit_skiplist_next(&dstate->cmds,&iter)) {
+    cmd_info_t *cmd = iter->data;
+    if(strcmp(cmd->name, "help")) nc_printf(ncct, "  ==> '%s'\n", cmd->name);
+  }
+  return 0;
+}
+
+int
 noit_console_state_delegate(noit_console_closure_t ncct,
                             int argc, char **argv,
                             noit_console_state_t *dstate,
@@ -200,8 +241,8 @@ noit_console_state_delegate(noit_console_closure_t ncct,
   noit_console_state_stack_t tmps = { 0 };
 
   if(argc == 0) {
-    nc_printf(ncct, "arguments expected\n");
-    /* XXX: noit_console_render_help(dstate); */
+    noit_console_render_help(ncct, dstate);
+    nc_printf(ncct, "incomplete command.\n");
     return -1;
   }
   if(!dstate) {
@@ -220,6 +261,7 @@ _noit_console_state_do(noit_console_closure_t ncct,
   cmd_info_t *cmd;
 
   if(!argc) {
+    noit_console_render_help(ncct, stack->state);
     nc_printf(ncct, "arguments expected\n");
     return -1;
   }
@@ -265,22 +307,13 @@ _noit_console_state_do(noit_console_closure_t ncct,
       return -1;
     }
   }
+  if(ncct->state_stack->name) free(ncct->state_stack->name);
+  ncct->state_stack->name = strdup(cmd->name);
   return cmd->func(ncct, argc-1, argv+1, cmd->dstate, cmd->closure);
 }
 int
 noit_console_state_do(noit_console_closure_t ncct, int argc, char **argv) {
   return _noit_console_state_do(ncct, ncct->state_stack, argc, argv);
-}
-
-int cmd_info_comparek(const void *akv, const void *bv) {
-  char *ak = (char *)akv;
-  cmd_info_t *b = (cmd_info_t *)bv;
-  return strcasecmp(ak, b->name);
-}
-int cmd_info_compare(const void *av, const void *bv) {
-  cmd_info_t *a = (cmd_info_t *)av;
-  cmd_info_t *b = (cmd_info_t *)bv;
-  return strcasecmp(a->name, b->name);
 }
 
 noit_console_state_t *
@@ -291,6 +324,7 @@ noit_console_state_alloc(void) {
   noit_skiplist_set_compare(&s->cmds, cmd_info_compare, cmd_info_comparek);
   noit_console_state_add_cmd(s,
       NCSCMD("apply", noit_console_generic_apply, NULL, NULL));
+  noit_console_state_add_cmd(s, &console_command_help);
   return s;
 }
 
@@ -374,7 +408,40 @@ noit_console_restart(noit_console_closure_t ncct, int argc, char **argv,
                      noit_console_state_t *dstate, void *unused) {
   exit(1);
 }
+int
+noit_console_help(noit_console_closure_t ncct, int argc, char **argv,
+                  noit_console_state_t *dstate, void *unused) {
+  noit_console_state_stack_t *current;
+  current = ncct->state_stack;
 
+  if(!argc) {
+    noit_console_state_stack_t *i = current;
+    if(!current) {
+      nc_printf(ncct, "no state!\n");
+      return -1;
+    }
+    for(i=current;i;i=i->last) {
+      if(i != current)
+        nc_printf(ncct, " -> '%s'\n", i->name ? i->name : "(null)");
+    }
+    if(dstate) {
+      nc_printf(ncct, "= Topics =\n");
+      noit_console_render_help(ncct, dstate);
+    }
+    if(current->state) {
+      nc_printf(ncct, "\n= Commands =\n");
+      noit_console_render_help(ncct, current->state);
+    }
+    return 0;
+  }
+  else if(argc > 0) {
+    nc_printf(ncct, "Help for '%s':\n", argv[0]);
+    if(noit_console_state_delegate(ncct, argc, argv, dstate, NULL) == 0)
+      return 0;
+  }
+  nc_printf(ncct, "command not understood.\n");
+  return -1;
+}
 int
 noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv,
                        noit_console_state_t *dstate, void *unused) {
@@ -393,6 +460,7 @@ noit_console_state_pop(noit_console_closure_t ncct, int argc, char **argv,
   ncct->state_stack = current->last;
   current->last = NULL;
   if(current->state->statefree) current->state->statefree(current->state);
+  if(current->name) free(current->name);
   free(current);
   noit_console_state_init(ncct);
   return 0;

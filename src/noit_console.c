@@ -453,6 +453,17 @@ static logops_t noit_console_logio_ops = {
   noit_console_logio_close,
 };
 
+int
+noit_console_write_xml(void *vncct, const char *buffer, int len) {
+  noit_console_closure_t ncct = vncct;
+  return nc_write(ncct, buffer, len);
+}
+
+int
+noit_console_close_xml(void *vncct) {
+  return 0;
+}
+
 void
 noit_console_init() {
   el_multi_init();

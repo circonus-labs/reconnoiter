@@ -11,13 +11,14 @@
 #include "noit_check.h"
 
 #define NOIT_LOADER_MAGIC         0xA7AD7104
-#define NOIT_LOADER_ABI_VERSION   3
+#define NOIT_LOADER_ABI_VERSION   4
 
 typedef struct _noit_image {
   uint32_t magic;
   uint32_t version;
   char *name;
   char *description;
+  char *xml_description;
   int (*onload)(struct _noit_image *);
   void *opaque_handle;
 } noit_image_t;
@@ -41,7 +42,7 @@ typedef struct _noit_module_loader {
  */
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
-#define NOIT_MODULE_ABI_VERSION   2
+#define NOIT_MODULE_ABI_VERSION   3
 
 typedef struct _noit_module {
   noit_image_t hdr;
@@ -84,6 +85,8 @@ API_EXPORT(void *)
   noit_module_get_userdata(noit_module_t *mod);
 API_EXPORT(void)
   noit_module_set_userdata(noit_module_t *mod, void *newdata);
-
+API_EXPORT(void)
+  noit_module_print_help(noit_console_closure_t ncct,
+                         noit_module_t *module, int examples);
 
 #endif

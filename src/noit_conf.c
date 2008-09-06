@@ -446,16 +446,6 @@ int noit_conf_set_boolean(noit_conf_section_t section,
   return noit_conf_set_string(section,path,"false");
 }
 
-static int
-noit_console_write_xml(void *vncct, const char *buffer, int len) {
-  noit_console_closure_t ncct = vncct;
-  return nc_write(ncct, buffer, len);
-}
-static int
-noit_console_close_xml(void *vncct) {
-  return 0;
-}
-
 struct config_line_vstr {
   char *buff;
   int raw_len;

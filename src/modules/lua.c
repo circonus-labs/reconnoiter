@@ -143,13 +143,71 @@ noit_lua_hash_to_table(lua_State *L,
   return;
 }
 static int
+noit_lua_module_set_description(lua_State *L) {
+  noit_module_t *module;
+  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
+  module = lua_touserdata(L, lua_upvalueindex(1));
+  module->hdr.description = strdup(lua_tostring(L, 1));
+  return 0;
+}
+static int
+noit_lua_module_set_name(lua_State *L) {
+  noit_module_t *module;
+  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
+  module = lua_touserdata(L, lua_upvalueindex(1));
+  module->hdr.name = strdup(lua_tostring(L, 1));
+  return 0;
+}
+static int
+noit_lua_module_set_xml_description(lua_State *L) {
+  noit_module_t *module;
+  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
+  module = lua_touserdata(L, lua_upvalueindex(1));
+  module->hdr.xml_description = strdup(lua_tostring(L, 1));
+  return 0;
+}
+static int
 noit_module_index_func(lua_State *L) {
+  noit_module_t **udata, *module;
+  const char *k;
   int n;
   n = lua_gettop(L);    /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "noit_module_t")) {
     luaL_error(L, "metatable error, arg1 not a noit_module_t!");
   }
+  udata = lua_touserdata(L, 1);
+  module = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'd':
+      if(!strcmp(k, "description")) {
+        lua_pushlightuserdata(L, module);
+        lua_pushcclosure(L, noit_lua_module_set_description, 1);
+      }
+      else break;
+      return 1;
+    case 'n':
+      if(!strcmp(k, "name")) {
+        lua_pushlightuserdata(L, module);
+        lua_pushcclosure(L, noit_lua_module_set_name, 1);
+      }
+      else break;
+      return 1;
+    case 'x':
+      if(!strcmp(k, "xml_description")) {
+        lua_pushlightuserdata(L, module);
+        lua_pushcclosure(L, noit_lua_module_set_xml_description, 1);
+      }
+      else break;
+      return 1;
+    default:
+      break;
+  }
+  luaL_error(L, "noit_module_t no such element: %s", k);
   return 0;
 }
 static int
@@ -731,12 +789,14 @@ noit_lua_loader_onload(noit_image_t *self) {
   return 0;
 }
 
+#include "lua.xmlh"
 noit_module_loader_t lua = {
   {
     NOIT_LOADER_MAGIC,
     NOIT_LOADER_ABI_VERSION,
     "lua",
     "Lua check loader",
+    lua_xml_description,
     noit_lua_loader_onload,
   },
   noit_lua_loader_config,

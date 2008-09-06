@@ -255,12 +255,14 @@ static int postgres_onload(noit_image_t *self) {
   return 0;
 }
 
+#include "postgres.xmlh"
 noit_module_t postgres = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "postgres",
     "PostgreSQL Checker",
+    postgres_xml_description,
     postgres_onload
   },
   NULL,

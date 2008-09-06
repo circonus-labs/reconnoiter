@@ -8,6 +8,11 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
+#include <libxml/parser.h>
+#include <libxslt/xslt.h>
+#include <libxslt/xsltInternals.h>
+#include <libxslt/transform.h>
+
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
@@ -171,9 +176,108 @@ noit_load_module_image(noit_module_loader_t *loader,
   return noit_module_lookup(module_name);
 }
 
+#include "module-online.h"
+
+void noit_module_print_help(noit_console_closure_t ncct,
+                            noit_module_t *module, int examples) {
+  const char *params[3] = { NULL };
+  xmlDocPtr help = NULL, output = NULL;
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+  static xmlDocPtr helpStyleDoc = NULL;
+  static xsltStylesheetPtr helpStyle = NULL;
+  if(!helpStyle) {
+    if(!helpStyleDoc)
+      helpStyleDoc = xmlParseMemory(helpStyleXML, strlen(helpStyleXML));
+    if(!helpStyleDoc) {
+      nc_printf(ncct, "Invalid XML for style XML\n");
+      return;
+    }
+    helpStyle = xsltParseStylesheetDoc(helpStyleDoc);
+  }
+  if(!helpStyle) {
+    nc_printf(ncct, "no available stylesheet.\n");
+    return;
+  }
+  if(!module) {
+    nc_printf(ncct, "no module\n");
+    return;
+  }
+  if(!module->hdr.xml_description) {
+    nc_printf(ncct, "%s is undocumented, complain to the vendor.\n",
+              module->hdr.name);
+    return;
+  }
+  help = xmlParseMemory(module->hdr.xml_description,
+                        strlen(module->hdr.xml_description));
+  if(!help) {
+    nc_printf(ncct, "%s module has invalid XML documentation.\n",
+              module->hdr.name);
+    return;
+  }
+
+  if(examples) {
+    params[0] = "example";
+    params[1] = "'1'";
+    params[2] = NULL;
+  }
+  output = xsltApplyStylesheet(helpStyle, help, params);
+  if(!output) {
+    nc_printf(ncct, "formatting failed.\n");
+    goto out;
+  }
+
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateIO(noit_console_write_xml,
+                                noit_console_close_xml,
+                                ncct, enc);
+  xmlSaveFormatFileTo(out, output, "utf8", 1);
+
+ out:
+  if(help) xmlFreeDoc(help);
+  if(output) xmlFreeDoc(output);
+}
+
+int
+noit_module_help(noit_console_closure_t ncct,
+                 int argc, char **argv,
+                 noit_console_state_t *state, void *closure) {
+  if(argc == 0) { 
+    /* List modules */ 
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *name;
+    int klen;
+    noit_image_t *hdr;
+
+    nc_printf(ncct, "= Loaders and Modules =\n");
+    while(noit_hash_next(&loaders, &iter, (const char **)&name, &klen,
+                         (void **)&hdr)) {
+      nc_printf(ncct, "  %s\n", hdr->name);
+    }
+    memset(&iter, 0, sizeof(iter));
+    while(noit_hash_next(&modules, &iter, (const char **)&name, &klen,
+                         (void **)&hdr)) {
+      nc_printf(ncct, "  %s\n", hdr->name);
+    }
+    return 0;
+  } 
+  else if(argc == 1 || 
+          (argc == 2 && !strcmp(argv[1], "examples"))) { 
+    /* help for a specific module */ 
+    noit_module_t *mod; 
+    mod = noit_module_lookup(argv[0]); 
+    noit_module_print_help(ncct, mod, argc == 2); 
+    return 0; 
+  } 
+  nc_printf(ncct, "help module [ <modulename> [ examples ] ]\n");
+  return -1;
+}
+
 void noit_module_init() {
   noit_conf_section_t *sections;
   int i, cnt = 0;
+
+  noit_console_add_help("module", noit_module_help);
 
   /* Load our module loaders */
   sections = noit_conf_get_sections(NULL, "/noit/modules//loader", &cnt);

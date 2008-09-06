@@ -1,4 +1,4 @@
-.SUFFIXES: .lo .@MODULEEXT@
+.SUFFIXES: .lo .@MODULEEXT@ .xml .xmlh
 
 CC=@CC@
 LD=@LD@
@@ -17,6 +17,7 @@ INSTALL=@INSTALL@
 MODULES_DIR=@MODULES_DIR@
 XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
+XML2H=@top_srcdir@/buildtools/xml2h
 
 top_srcdir=@top_srcdir@
 
@@ -26,11 +27,14 @@ MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
 
 all:	$(MODULES)
 
+.xml.xmlh:
+	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
+
 lua.@MODULEEXT@:	lua.lo lua_noit.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo ../lua/liblua.lo
 	@echo "- linking $@"
 
-lua.lo:	lua.c
+lua.lo:	lua.c lua.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua.c -o $@
 	@echo "- compiling $<"
 
@@ -42,7 +46,7 @@ postgres.@MODULEEXT@:	postgres.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
-postgres.lo:	postgres.c
+postgres.lo:	postgres.c postgres.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
@@ -50,7 +54,7 @@ dns.@MODULEEXT@:	dns.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ dns.lo
 	@echo "- linking $@"
 
-dns.lo:	dns.c
+dns.lo:	dns.c dns.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
@@ -58,7 +62,7 @@ http.@MODULEEXT@:	http.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.o -lz -lssl -lcrypto
 	@echo "- linking $@"
 
-http.lo:	http.c
+http.lo:	http.c http.xmlh resmon.xmlh resmon_part.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
 	@echo "- compiling $<"
 
@@ -70,6 +74,8 @@ ssh2.@MODULEEXT@:	ssh2.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ ssh2.lo -lssh2
 	@echo "- linking $@"
 
+ssh2.lo:	ssh2.xmlh
+
 ping_icmp.@MODULEEXT@:	ping_icmp.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
@@ -77,6 +83,8 @@ ping_icmp.@MODULEEXT@:	ping_icmp.lo
 .lo.@MODULEEXT@:
 	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
+
+snmp.lo:	snmp.xmlh
 
 .c.lo:
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
@@ -94,4 +102,4 @@ install:	all
 	done
 
 clean:
-	rm -f *.lo *.@MODULEEXT@
+	rm -f *.lo *.@MODULEEXT@ *.xmlh

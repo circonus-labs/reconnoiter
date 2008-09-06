@@ -665,12 +665,14 @@ static int dns_onload(noit_image_t *self) {
   return 0;
 }
 
+#include "dns.xmlh"
 noit_module_t dns = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "dns",
     "DNS RR checker",
+    dns_xml_description,
     dns_onload
   },
   dns_config,

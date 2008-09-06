@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+
+my $name = shift;
+
+print qq^#define ${name} "^;
+
+while(<>) {
+  s/([\\"])/\\$1/g; s/\n/\\n/gs;
+  print;
+}
+
+print "\"\n";

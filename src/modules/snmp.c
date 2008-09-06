@@ -464,12 +464,15 @@ static int noit_snmp_onload(noit_image_t *self) {
   eventer_name_callback("noit_snmp/handler", noit_snmp_handler);
   return 0;
 }
+
+#include "snmp.xmlh"
 noit_module_t snmp = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "snmp",
     "SNMP collection",
+    snmp_xml_description,
     noit_snmp_onload
   },
   noit_snmp_config,

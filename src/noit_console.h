@@ -33,6 +33,7 @@ typedef struct {
 
 /* This performs a pop (exiting if at toplevel) */
 extern cmd_info_t console_command_exit;
+extern cmd_info_t console_command_help;
 extern cmd_info_t console_command_shutdown;
 extern cmd_info_t console_command_restart;
 
@@ -58,6 +59,7 @@ typedef struct _console_state {
 } noit_console_state_t;
 
 typedef struct _console_state_stack {
+  char *name;
   noit_console_state_t *state;
   void *userdata;
   struct _console_state_stack *last;
@@ -120,6 +122,10 @@ API_EXPORT(int)
                          noit_console_state_t *, void *);
 
 API_EXPORT(int)
+  noit_console_help(noit_console_closure_t ncct, int argc, char **argv,
+                    noit_console_state_t *, void *);
+
+API_EXPORT(int)
   noit_console_shutdown(noit_console_closure_t ncct, int argc, char **argv,
                         noit_console_state_t *, void *);
 
@@ -169,5 +175,14 @@ API_EXPORT(int)
 API_EXPORT(cmd_info_t *)
   NCSCMD(const char *name, console_cmd_func_t func,
          noit_console_state_t *dstate, void *closure);
+
+API_EXPORT(int)
+  noit_console_write_xml(void *vncct, const char *buffer, int len);
+
+API_EXPORT(int)
+  noit_console_close_xml(void *vncct);
+
+API_EXPORT(void)
+  noit_console_add_help(const char *topic, console_cmd_func_t topic_func);
 
 #endif
