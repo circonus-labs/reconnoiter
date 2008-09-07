@@ -36,3 +36,8 @@ install:
 	for lua in $(LUA); do \
 		$(INSTALL) -m 0644 $$lua $(DESTDIR)$(MODULES_DIR)/$$lua ; \
 	done
+
+alldocs:	../modules/docs
+	for lua in $(LUA); do \
+		$(top_srcdir)/src/lua/src/lua extract_xml.lua $$lua ../modules/docs ; \
+	done
