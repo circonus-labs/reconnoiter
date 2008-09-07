@@ -10,7 +10,7 @@ INSTALL=@INSTALL@
 top_srcdir=@top_srcdir@
 
 OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
-	noit_b64.o \
+	noit_b64.o noit_security.o \
 	@ATOMIC_OBJS@
 
 all:	libnoit_utils.a

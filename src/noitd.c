@@ -15,6 +15,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_security.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_jlog_listener.h"
@@ -27,13 +28,38 @@
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
 
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
+static const char *droptouser = NULL;
+static const char *droptogroup = NULL;
+static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 
+static void usage(const char *progname) {
+  printf("Usage for %s:\n", progname);
+#ifdef NOITD_USAGE
+  write(FILENO_STDOUT, NOITD_USAGE, sizeof(NOITD_USAGE)-1);
+#else
+  printf("\nError in usage, build problem.\n");
+#endif
+  return;
+}
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "c:dD")) != EOF) {
+  while((c = getopt(argc, argv, "hc:dDu:g:t:")) != EOF) {
     switch(c) {
+      case 'h':
+        usage(argv[0]);
+        exit(1);
+        break;
+      case 'u':
+        droptouser = strdup(optarg);
+        break;
+      case 'g':
+        droptogroup = strdup(optarg);
+        break;
+      case 't':
+        chrootpath = strdup(optarg);
+        break;
       case 'c':
         config_file = strdup(optarg);
         break;
@@ -178,6 +204,18 @@ static int child_main() {
   noit_jlog_listener_init();
 
   noit_module_init();
+
+  /* Drop privileges */
+  if(chrootpath && noit_security_chroot(chrootpath)) {
+    noitL(noit_stderr, "Failed to chroot(), exiting.\n");
+    exit(-1);
+  }
+  if(noit_security_usergroup(droptouser, droptogroup)) {
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(-1);
+  }
+
+  /* Prepare for launch... */
   noit_filters_init();
   noit_poller_init();
   noit_listener_init(APPNAME);
