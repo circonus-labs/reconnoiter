@@ -1,6 +1,6 @@
 rc = 0
 
-function extract(file, docsdir)
+function extract(file, outfile)
   local module = file:gsub('.lua$', ''):gsub('/', '.')
   local M = require(module)
   if not M or not M.onload then
@@ -9,7 +9,7 @@ function extract(file, docsdir)
   M.onload( {
     xml_description =
       function(xml)
-        local f = io.open(docsdir .. "/" .. module .. ".xml", "w+")
+        local f = io.open(outfile, "w+")
         if not f then
           rc = 2
         end
@@ -21,7 +21,7 @@ end
 
 
 if (#arg) ~= 2 then
-  print(string.format("%s <module> <docs directory>\n", (arg[0])))
+  print(string.format("%s <module> <outputfile>\n", (arg[0])))
   os.exit(1)
 end
 
