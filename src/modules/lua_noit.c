@@ -183,11 +183,12 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       if(cp) {
         lua_pushlstring(cl->L, cl->inbuff, cl->inbuff_len);
         args = 1;
+        
         cl->read_sofar = len - remaining;
+        cl->inbuff_len = 0;
         if(cl->read_sofar > 0) { /* We have to buffer this for next read */
           inbuff_addlstring(cl, buff + remaining, cl->read_sofar);
         }
-        cl->read_sofar = cl->inbuff_len = 0;
         break;
       }
     }
