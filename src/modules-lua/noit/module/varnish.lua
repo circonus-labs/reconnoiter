@@ -13,7 +13,7 @@ function onload(image)
   <moduleconfig />
   <checkconfig>
     <parameter name="port" required="optional" default="8081"
-               allowed="\\d+">Specifies the port on which the management interface can be reached.</parameter>
+               allowed="\d+">Specifies the port on which the management interface can be reached.</parameter>
   </checkconfig>
   <examples>
     <example>

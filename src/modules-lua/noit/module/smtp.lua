@@ -1,9 +1,51 @@
--- This connects to a Varnish instance on the management port (8081)
--- It issues the stats comment and translates the output into metrics
-
 module(..., package.seeall)
 
 function onload(image)
+  image.xml_description([=[
+<module>
+  <name>smtp</name>
+  <description><para>Send an email via an SMTP server.</para></description>
+  <loader>lua</loader>
+  <object>noit.module.smtp</object>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="port" required="optional" default="25"
+               allowed="\d+">Specifies the TCP port to connect to.</parameter>
+    <parameter name="ehlo" required="optional" default="noit.local"
+               allowed="\d+">Specifies the EHLO parameter.</parameter>
+    <parameter name="from" required="optional" default=""
+               allowed="\d+">Specifies the envelope sender.</parameter>
+    <parameter name="to" required="required"
+               allowed="\d+">Specifies the envelope recipient.</parameter>
+    <parameter name="payload" required="optional" default="Subject: Testing"
+               allowed="\d+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Send an email to test SMTP service.</title>
+      <para>The following example sends an email via 10.80.117.6 from test@omniti.com to devnull@omniti.com</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <loader image="lua" name="lua">
+            <config><directory>/opt/reconnoiter/libexec/modules-lua/?.lua</directory></config>
+          </loader>
+          <module loader="lua" name="smtp" object="noit.module.smtp"/>
+        </modules>
+        <checks>
+          <check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="smtp" target="10.80.117.6">
+            <config>
+              <from>test@omniti.com</from>
+              <to>devnull@omniti.com</to>
+            </config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
+]=]);
   return 0
 end
 
@@ -72,14 +114,18 @@ function initiate(module, check)
     return
   end
 
+  local ehlo = string.format("EHLO %s", check.config.ehlo or "noit.local")
   local mailfrom = string.format("MAIL FROM:<%s>", check.config.from or "")
   local rcptto = string.format("RCPT TO:<%s>", check.config.to)
+  local payload = check.config.payload or "Subject: Test\n\nHello."
+  payload = payload:gsub("\n", "\r\n")
   local action = mkaction(e, check)
   if     action("banner", nil, 220)
+     and action("ehlo", ehlo, 250)
      and action("mailfrom", mailfrom, 250)
      and action("rcptto", rcptto, 250)
      and action("data", "DATA", 354)
-     and action("body", "Subject: Test\r\n\r\nHello.\r\n.", 250)
+     and action("body", payload .. "\r\n.", 250)
      and action("quit", "QUIT", 221)
   then
     check.status("mail sent")

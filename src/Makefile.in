@@ -100,7 +100,7 @@ stratcon_datastore.o:	stratcon_datastore.c
 noit_module.o:	module-online.h
 
 module-online.h:	modules/module-online.xsl
-	@echo "- making module-online.h (StyleSheet include"
+	@echo "- making module-online.h (StyleSheet include)"
 	@$(XML2H) helpStyleXML < modules/module-online.xsl > $@
 
 noit_tokenizer.c:	noit_tokenizer.re
