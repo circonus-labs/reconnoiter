@@ -4,17 +4,47 @@
 module(..., package.seeall)
 
 function onload(image)
-  print("I'm in varnish onload")
+  image.xml_description([=[
+<module>
+  <name>varnish</name>
+  <description><para>Monitor maagement metrics of a Varnish instance.</para></description>
+  <loader>lua</loader>
+  <object>noit.module.varnish</object>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="port" required="optional" default="8081"
+               allowed="\\d+">Specifies the port on which the management interface can be reached.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Monitor two varnish instances with management on port 8081</title>
+      <para>The following example pulls are metrics available from Varnish running on 10.1.2.3 and 10.1.2.4</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <loader image="lua" name="lua">
+            <config><directory>/opt/reconnoiter/libexec/modules-lua/?.lua</directory></config>
+          </loader>
+          <module loader="lua" name="varnish" object="noit.module.varnish"/>
+        </modules>
+        <checks>
+          <check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="varnish" target="10.1.2.3" />
+          <check uuid="324c2234-7c7a-11dd-8585-cbb783f8267f" module="varnish" target="10.1.2.4" />
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
+]=]);
   return 0
 end
 
 function init(module)
-  print("I'm in varnish init")
   return 0
 end
 
 function config(module, options)
-  print("I'm in varnish config")
   return 0
 end
 
