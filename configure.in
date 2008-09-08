@@ -23,6 +23,7 @@ AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl)
 AC_PATH_PROGS(XSLTPROC, xsltproc)
 AC_PATH_PROGS(XMLLINT, xmllint)
+AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
 if test "x$CC" = "xgcc" ; then
@@ -527,6 +528,7 @@ src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL
 src/udns/Makefile
+src/man/Makefile
 src/modules/Makefile
 src/modules-lua/Makefile
 src/utils/Makefile

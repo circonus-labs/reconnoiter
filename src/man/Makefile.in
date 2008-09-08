@@ -1,0 +1,35 @@
+INSTALL=@INSTALL@
+XML2H=@top_srcdir@/buildtools/xml2h
+XSLTPROC=@XSLTPROC@
+NROFF=@NROFF@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+libdir=@libdir@
+includedir=${prefix}/include
+libexecdir=@libexecdir@
+datarootdir = @datarootdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+docdir=${prefix}/@docdir@
+sysconfdir=@sysconfdir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+
+all:	noitd.8 noitd.usage.h
+
+noitd.8:	$(top_srcdir)/docs/executable/noitd.xml
+	$(XSLTPROC) --nonet $(top_srcdir)/docs/docbook-xsl/manpages/docbook.xsl $<
+
+noitd.usage.h:	noitd.8
+	$(NROFF)  -mandoc ./noitd.8 | ../../buildtools/xml2h NOITD_USAGE > noitd.usage.h
+
+install:	all
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(mandir)
+	$(INSTALL) -m 0644 noitd.8 $(DESTDIR)$(mandir)/man8/noitd.8
+
+clean:
+	rm -f noitd.8 noitd.usage.h
+

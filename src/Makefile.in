@@ -29,7 +29,7 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer udns modules noitedit
+SUBS=lua utils eventer udns modules noitedit man
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -130,6 +130,7 @@ install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
+	(cd man && make install DESTDIR=$(DESTDIR))
 	(cd modules && make install DESTDIR=$(DESTDIR))
 	(cd modules-lua && make install DESTDIR=$(DESTDIR))
 

@@ -92,7 +92,7 @@ snmp.lo:	snmp.xmlh
 
 alldocs:
 	for c in *.xml ; do \
-		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - > docs/$$c ; \
+		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - > $(top_srcdir)/docs/config/modules/$$c ; \
 	done
 	
 install:	all

@@ -45,6 +45,6 @@ alldocs:	../modules/docs
 		test -f tmp.xml && \
 			$(XSLTPROC) ../modules/module.xsl tmp.xml | \
 			$(XMLLINT) --format - > \
-			../modules/docs/`echo $$lua | sed -e 's/\.lua/.xml/; s/\//./g'` ; \
+			$(top_srcdir)/docs/config/modules/`echo $$lua | sed -e 's/\.lua/.xml/; s/\//./g'` ; \
 		rm -f tmp.xml ; \
 	done

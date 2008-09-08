@@ -34,10 +34,11 @@ static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 
+#include "man/noitd.usage.h"
 static void usage(const char *progname) {
   printf("Usage for %s:\n", progname);
 #ifdef NOITD_USAGE
-  write(FILENO_STDOUT, NOITD_USAGE, sizeof(NOITD_USAGE)-1);
+  write(STDOUT_FILENO, NOITD_USAGE, sizeof(NOITD_USAGE)-1);
 #else
   printf("\nError in usage, build problem.\n");
 #endif
