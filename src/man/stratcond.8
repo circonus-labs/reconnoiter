@@ -1,0 +1,45 @@
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "STRATCOND" "8" "09/08/2008" "" ""
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+stratcond \- Reconnoiter data collector/aggregator.
+.SH "SYNOPSIS"
+.HP 10
+\fBstratcond\fR [\-c] [\-u\ \fIuser\fR] [\-g\ \fIgroup\fR] [\-t\ \fIpath\fR] [\-d] [\-D] [\-h]
+.SH "DESCRIPTION"
+.PP
+\fBstratcond\fR
+is the daemon that coordinates all
+\fBnoitd\fR
+daemons, processes their data feeds (configuration updates, metrics, checks and statuses) and provides that data to the backend business logic: storage services and fault detection services.
+.TP
+\fB\-u\fR
+Optionally specifies a username or uid under which to operate.
+.TP
+\fB\-g\fR
+Optionally specifies a group name or gid under which to operate.
+.TP
+\fB\-t\fR
+Optionally specifies a path to chroot(2) for operation. Measures must be taken to ensure that log files can be accessed in the chrooted environment.
+.TP
+\fB\-c\fR
+Specifies a configuration file to read. The default location of the configuration file is
+\fIstratcond.conf\fR
+in the sysconfdir specified at build time.
+.TP
+\fB\-D\fR
+Instructs
+\fBstratcond\fR
+to run in the foreground. The process remains attached to the terminal. This is primarily for debugging purposes.
+.TP
+\fB\-d\fR
+Enables the debug output facility despite configuration to the contrary.
+.TP
+\fB\-h\fR
+Displays the usage information.
