@@ -36,6 +36,7 @@ stratcond.usage.h:	stratcond.8
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(mandir)
 	$(INSTALL) -m 0644 noitd.8 $(DESTDIR)$(mandir)/$(mansubdir)8/noitd.8
+	$(INSTALL) -m 0644 stratcond.8 $(DESTDIR)$(mandir)/$(mansubdir)8/stratcond.8
 
 clean:
 	rm -f noitd.8 noitd.usage.h stratcond.8 stratcond.usage.h
