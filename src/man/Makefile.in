@@ -23,19 +23,25 @@ all:	noitd.8 noitd.usage.h \
 
 noitd.8:	$(top_srcdir)/docs/executable/noitd.xml
 	@echo " - manifying $@"
-	@$(XSLTPROC) --nonet $(top_srcdir)/docs/docbook-xsl/manpages/docbook.xsl $< > /dev/null 2>&1
+	@$(XSLTPROC) --nonet \
+		$(top_srcdir)/docs/docbook-xsl/manpages/docbook.xsl \
+		$(top_srcdir)/docs/executable/noitd.xml > /dev/null 2>&1
 
 noitd.usage.h:	noitd.8
 	@echo " - creating $@"
-	@$(NROFF)  -mandoc ./noitd.8 | ../../buildtools/xml2h NOITD_USAGE > noitd.usage.h
+	@$(NROFF)  -mandoc ./noitd.8 | \
+		$(top_srcdir)/buildtools/xml2h NOITD_USAGE > $@
 
 stratcond.8:	$(top_srcdir)/docs/executable/stratcond.xml
 	@echo " - manifying $@"
-	@$(XSLTPROC) --nonet $(top_srcdir)/docs/docbook-xsl/manpages/docbook.xsl $< > /dev/null 2>&1
+	@$(XSLTPROC) --nonet \
+		$(top_srcdir)/docs/docbook-xsl/manpages/docbook.xsl \
+		$(top_srcdir)/docs/executable/stratcond.xml > /dev/null 2>&1
 
 stratcond.usage.h:	stratcond.8
 	@echo " - creating $@"
-	@$(NROFF)  -mandoc ./stratcond.8 | ../../buildtools/xml2h STRATCOND_USAGE > stratcond.usage.h
+	@$(NROFF)  -mandoc ./stratcond.8 | \
+		$(top_srcdir)/buildtools/xml2h STRATCOND_USAGE > $@
 
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(mandir)
