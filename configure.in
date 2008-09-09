@@ -279,7 +279,9 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
                  stropts.h sys/stream.h alloca.h sys/wait.h)
 
+AC_CHECK_FUNCS(getpwnam_r)
 GETPWNAM_R_POSIX
+AC_CHECK_FUNCS(getgrnam_r)
 GETGRNAM_R_POSIX
 
 AC_MSG_CHECKING(for tputs() function final argument type)

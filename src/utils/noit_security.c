@@ -43,22 +43,30 @@ static struct passwd *
 __getpwnam_r(const char *user, struct passwd *pw,
              char *buf, size_t len) {
 #ifdef HAVE_GETPWNAM_R_POSIX
-  return getpwnam_r(user, pw, buf, len);
-#else
   struct passwd *r;
   if(0 == getpwnam_r(user, pw, buf, len, &r)) return r;
   return NULL;
+#else
+#if HAVE_GETPWNAM_R
+  return getpwnam_r(user, pw, buf, len);
+#else
+  return getpwnam(user);
+#endif
 #endif
 }
 static struct group *
 __getgrnam_r(const char *group, struct group *gr,
              char *buf, size_t len) {
 #ifdef HAVE_GETGRNAM_R_POSIX
-  return getgrnam_r(group, gr, buf, len);
-#else
   struct group *r;
   if(0 == getgrnam_r(group, gr, buf, len, &r)) return r;
   return NULL;
+#else
+#ifdef HAVE_GETGRNAM_R
+  return getgrnam_r(group, gr, buf, len);
+#else
+  return getgrnam(group);
+#endif
 #endif
 }
 
@@ -66,11 +74,21 @@ int
 noit_security_usergroup(const char *user, const char *group) {
   static long pwnam_buflen = 0;
   static long grnam_buflen = 0;
-  uid_t uid;
-  gid_t gid;
+  uid_t uid = 0;
+  gid_t gid = 0;
 
-  if(pwnam_buflen == 0) pwnam_buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
-  if(grnam_buflen == 0) grnam_buflen = sysconf(_SC_GETGR_R_SIZE_MAX);
+  if(pwnam_buflen == 0)
+#ifdef _SC_GETPW_R_SIZE_MAX
+    pwnam_buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
+#else
+    pwnam_buflen = 100; /* This shouldn't be used, so size is not important. */
+#endif
+  if(grnam_buflen == 0)
+#ifdef _SC_GETGR_R_SIZE_MAX
+    grnam_buflen = sysconf(_SC_GETGR_R_SIZE_MAX);
+#else
+    grnam_buflen = 100;
+#endif
 
   if(user) {
     if(ispositiveinteger(user)) uid = atoi(user);

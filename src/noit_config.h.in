@@ -80,6 +80,11 @@
 #define IFS_CH '/'
 #undef WORKING_SEM_INIT
 
+#undef HAVE_GETPWNAM_R
+#undef HAVE_GETPWNAM_R_POSIX
+#undef HAVE_GETGRNAM_R
+#undef HAVE_GETGRNAM_R_POSIX
+
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
