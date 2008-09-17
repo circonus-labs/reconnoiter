@@ -5,6 +5,7 @@ LD=@LD@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
 PGCFLAGS=@PGCFLAGS@
+MYCFLAGS=@MYCFLAGS@
 SHCFLAGS=@SHCFLAGS@
 MODULELD=@MODULELD@
 MODULEEXT=@MODULEEXT@
@@ -13,6 +14,7 @@ AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
 PGLIBS=@PGLIBS@
+MYLIBS=@MYLIBS@
 INSTALL=@INSTALL@
 MODULES_DIR=@MODULES_DIR@
 XSLTPROC=@XSLTPROC@
@@ -22,7 +24,7 @@ XML2H=@top_srcdir@/buildtools/xml2h
 top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
-	lua.@MODULEEXT@ dns.@MODULEEXT@ \
+	lua.@MODULEEXT@ dns.@MODULEEXT@ mysql.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)
@@ -48,6 +50,14 @@ postgres.@MODULEEXT@:	postgres.lo
 
 postgres.lo:	postgres.c postgres.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
+mysql.@MODULEEXT@:	mysql.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ mysql.lo $(MYLIBS)
+	@echo "- linking $@"
+
+mysql.lo:	mysql.c mysql.xmlh
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(MYCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
 dns.@MODULEEXT@:	dns.lo

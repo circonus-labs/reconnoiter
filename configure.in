@@ -169,6 +169,28 @@ AC_SUBST(PGCFLAGS)
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
 
+old_CFLAGS=$CFLAGS
+old_LIBS=$LIBS
+CFLAGS="$CFLAGS $MYCFLAGS"
+LIBS="$MYLIBS"
+
+AC_CHECK_FUNC(mysql_real_connect,
+        [
+                BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
+		MYCFLAGS="$CFLAGS"
+		MYLIBS="$LIBS"
+		AC_SUBST(MYCFLAGS)
+		AC_SUBST(MYLIBS)
+        ],
+        [
+                AC_MSG_WARN([No libmysqlclient, skipping mysql module])
+        ]
+)
+
+
+LIBS=$old_LIBS
+CFLAGS=$old_CFLAGS
+
 ########
 #
 # CHECK FOR VARIOUS MODULE CRITERIA
