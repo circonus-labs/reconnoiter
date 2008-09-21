@@ -73,8 +73,7 @@ class Reconnoiter_amCharts_Driver extends Reconnoiter_DataContainer {
   function guideXML($value, $config) {
     if($value != "") {
       if(isset($config['expression'])) {
-        $expr = $config['expression'];
-        eval("\$value = $expr;");
+        $value = $this->rpn_eval($value, $config['expression']);
       }
     }
     print "<start_value>$value</start_value>\n";

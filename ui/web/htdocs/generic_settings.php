@@ -24,7 +24,7 @@ foreach(split(";", $_GET['metric']) as $m) {
   $settings = $graph_settings[$i++];
   if($matches[3] == '~') {
     $autounits = 1;
-    $settings['expression'] = '$this->autounits($value)';
+    $settings['expression'] = 'auto';
   }
   $settings['axis'] = ($matches[2] == 'l') ? 'left' : 'right';
   if($matches[1] == 'n')
@@ -32,7 +32,7 @@ foreach(split(";", $_GET['metric']) as $m) {
   else if($matches[1] == 'd')
     $driver->addDataSet($matches[4], $matches[5], 'true', null, $settings);
   else if($matches[1] == 'D') {
-    $settings['expression'] = "((".$settings['expression']." > 0) ? (".$settings['expression'].") : 0)";
+    $settings['expression'] = $settings['expression'].",0,max";
     $driver->addDataSet($matches[4], $matches[5], 'true', null, $settings);
   }
   else

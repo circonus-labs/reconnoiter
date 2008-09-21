@@ -3,8 +3,9 @@
 require_once('Reconnoiter_DB.php');
 require_once('Reconnoiter_DataSet.php');
 require_once('Reconnoiter_ChangeSet.php');
+require_once('Reconnoiter_RPN.php');
 
-class Reconnoiter_DataContainer {
+class Reconnoiter_DataContainer extends Reconnoiter_RPN {
   protected $units = 0;
   protected $start;
   protected $end;

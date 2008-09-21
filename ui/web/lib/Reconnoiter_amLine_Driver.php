@@ -21,8 +21,7 @@ class Reconnoiter_amLine_Driver extends Reconnoiter_amCharts_Driver {
       $value = $set->data($ts);
       if($value != "") {
         if(isset($config['expression'])) {
-          $expr = $config['expression'];
-          eval("\$value = $expr;");
+          $value = $this->rpn_eval($value, $config['expression']);
         }
         $desc = $set->description($ts);
         if($desc) {

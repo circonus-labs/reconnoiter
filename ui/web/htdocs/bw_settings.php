@@ -19,21 +19,21 @@ if(!$end) {
 $driver = new Reconnoiter_amLine_Driver($start, $end,
                                         isset($_GET['cnt']) ? $_GET['cnt'] : 400);
 $i = 0;
-$math = '$this->bw($value)';
+$math = 'auto,2,round';
 if($view == "packets") {
   $settings = $graph_settings[$i++];
-  $settings['expression'] = "0 - $math";
-  $driver->addDataSet($uuid, 'inucastpkts', true, '$value', $settings);
+  $settings['expression'] = "$math,-1,*";
+  $driver->addDataSet($uuid, 'inucastpkts', true, null, $settings);
   $settings = $graph_settings[$i++];
   $settings['expression'] = "$math";
-  $driver->addDataSet($uuid, 'outucastpkts', true, '$value', $settings);
+  $driver->addDataSet($uuid, 'outucastpkts', true, null, $settings);
 } else {
   $settings = $graph_settings[$i++];
-  $settings['expression'] = "0 - $math";
-  $driver->addDataSet($uuid, 'inoctets', true, '$value * 8', $settings);
+  $settings['expression'] = "$math,-1,*";
+  $driver->addDataSet($uuid, 'inoctets', true, '8,*', $settings);
   $settings = $graph_settings[$i++];
   $settings['expression'] = "$math";
-  $driver->addDataSet($uuid, 'outoctets', true, '$value * 8', $settings);
+  $driver->addDataSet($uuid, 'outoctets', true, '8,*', $settings);
   $driver->addChangeSet($uuid, 'alias');
   $driver->calcPercentile(95);
   $driver->addPercentileGuide('95th', 95, array('expression' => "$math"));

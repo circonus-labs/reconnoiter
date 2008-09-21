@@ -1,6 +1,8 @@
 <?php
 
-class Reconnoiter_DataSet {
+require_once('Reconnoiter_RPN.php');
+
+class Reconnoiter_DataSet extends Reconnoiter_RPN {
   public $data;
   protected $expr;
   function __construct($uuid, $name, $derive, $expr, $start, $end, $cnt = 400) {
@@ -16,8 +18,6 @@ class Reconnoiter_DataSet {
   }
   function data($ts, $attr = 'avg_value') {
     if(!$this->expr) return $this->data[$ts][$attr];
-    $value = $this->data[$ts][$attr];
-    eval("\$value = $this->expr;");
-    return $value;
+    return $this->rpn_eval($this->data[$ts][$attr], $this->expr);
   }
 }
