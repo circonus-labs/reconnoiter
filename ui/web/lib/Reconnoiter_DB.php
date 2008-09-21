@@ -1,5 +1,7 @@
 <?php
 
+require_once('Reconnoiter_UUID.php');
+
 class Reconnoiter_DB {
   private $db;
 
@@ -16,7 +18,7 @@ class Reconnoiter_DB {
   }
   function connect() {
     $this->db = new PDO("pgsql:host=localhost;dbname=reconnoiter",
-                        "stratcon", "stratcon");
+                        "prism", "prism");
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
   }
 
@@ -194,6 +196,56 @@ class Reconnoiter_DB {
       $rv[$wanted] = $full[$idx];
     }
     return $rv;
+  }
+  function getGraphByID($id) {
+    $sth = $this->db->prepare("select *
+                                 from prism.saved_graphs
+                                where graphid=?");
+    $sth->execute(array($id));
+    $row = $sth->fetch();
+    return $row;
+  }
+  function saveGraph($graph) {
+    $id = '';
+    if($graph['id']) {
+      $id = $graph['id'];
+      unset($graph['id']);
+    }
+    $json = json_encode($graph);
+    $this->db->beginTransaction();
+    try {
+      if($id) {
+        $sth = $this->db->prepare("update prism.saved_graphs
+                                      set json=?, title=? where graphid=?");
+        $sth->execute(array($json,$graph['title'],$id));
+        if($sth->rowCount() != 1) throw(new Exception('No such graph: '.$id));
+        $sth = $this->db->prepare("delete from prism.saved_graphs_dep
+                                         where graphid = ?");
+        $sth->execute(array($id));
+      }
+      else {
+        $id = Reconnoiter_UUID::generate();
+        $sth = $this->db->prepare("insert into prism.saved_graphs
+                                               (graphid, json, title)
+                                        values (?, ?, ?)");
+        $sth->execute(array($id, $json, $graph['title']));
+      }
+      $sth = $this->db->prepare("insert into prism.saved_graphs_dep
+                                             (graphid, sid,
+                                              metric_name, metric_type)
+                                      values (?,?,?,?)");
+      foreach($graph['datapoints'] as $datapoint) {
+        $sth->execute(array($id, $datapoint['sid'],
+                            $datapoint['metric_name'],
+                            $datapoint['metric_type']));
+      }
+      $this->db->commit();
+    }
+    catch(PDOException $e) {
+      $this->db->rollback();
+      throw(new Exception('DB: ' . $e->getMessage()));
+    }
+    return $id;
   }
 }
 

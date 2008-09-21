@@ -48,8 +48,8 @@ foreach ($db->get_sources($want, $_GET) as $item){
                    'params'      => $params,
                    );
     if($item['unique']) {
+      $jitem['text'] = '<a href="javascript:graph_add_datapoint({\'sid\' : ' . $item['sid'] . ', \'metric_name\' : \'' . $item['metric_name'] . '\', \'metric_type\' : \'' . $item['metric_type'] . '\'})">' . $item[$want] . '</a>';
       if($item['metric_type'] == "numeric") {
-        $jitem['text'] = '<a href="javascript:mainGraphData(\'generic_settings.php?metric=nl-' . $item['sid'] . '-' . $item['metric_name'] . '&cnt=1400\')">' . $item[$want] . '</a>';
         $jitem['classes'] = 'metric numeric';
       }
       else {

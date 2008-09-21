@@ -14,7 +14,7 @@ if(!$end) {
   $end = strftime("%Y-%m-%d %H:%M:%S-00", time());
 }
 
-$driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 400);
+$driver = new Reconnoiter_amLine_Driver($start, $end, isset($_GET['cnt']) ? $_GET['cnt'] : 200);
 
 $i = 0;
 $autounits = 0;

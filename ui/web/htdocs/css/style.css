@@ -248,6 +248,8 @@ p {margin-bottom:1em;}
 
 /******* GRAPH CONTROLS *******/
 
+div.error { width:100%; text-align:center; }
+p.error { width:auto; display:none; padding:4px; text-align:left; color: #600; border: 1px dashed #600; }
 table#gtool {
 	width:100%;
 	border-collapse:collapse;
@@ -281,12 +283,13 @@ table#gtool tr.mathbox td div{text-align:right;padding:2px 15px;text-align:cente
 table#gtool tr.mathbox td label{font-size:10px;text-transform:uppercase;display:block;margin-top:2px;float:left;width:165px;text-align:right;color:#686e75;}
 table#gtool td.math {background:#ebeef3 url(../images/icon-math.png) top left repeat-x;text-indent:-5000em;width:14px;border-bottom: 1px solid #ebeef3;padding: 3px 0px;}
 
+input.graphAxis {display:none;}
 
-span.axison a{margin:0;padding:0;border:1px solid #9baac1;font:10px arial;display:block;float:left;width:13px;height:13px;text-align:center;vertical-align:middle;}
-span.axisoff a{margin:0;padding:0;border:1px solid #FFF;font:10px arial;display:block;float:left;width:13px;height:13px;text-align:center;vertical-align:middle;}
+span.axis {margin:0;padding:0;font:10px arial;display:block;float:left;width:13px;height:13px;text-align:center;vertical-align:middle;cursor:pointer;border:1px solid #FFF;}
+span.axison {border:1px solid #9baac1;}
 
-#delete {background:url(../images/icon-delete.png) 0 2px no-repeat;display:block;width:15px;height:15px;}
-#delete span {display:none;}
+.deletedatapoint {background:url(../images/icon-delete.png) 0 2px no-repeat;display:block;width:15px;height:15px;}
+.deletedatapoint span {display:none;}
 
 /******* date zoom and range *******/
 #datetool{/*background:yellow;*/margin:18px 0;overflow:auto;clear:both;}
