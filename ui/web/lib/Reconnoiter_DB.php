@@ -64,6 +64,20 @@ class Reconnoiter_DB {
   function valid_source_variables() {
     return array('module', 'remote_address', 'target', 'name', 'metric_name');
   }
+  function get_datapoints($searchstring, $offset, $limit) {
+    $sth = $this->db->prepare("
+      select *
+        from stratcon.mv_loading_dock_check_s c
+        join stratcon.metric_name_summary m using (sid)
+       where active = true
+    order by target, module, name, remote_address
+       limit ?
+      offset ?");
+    $sth->execute(array($limit, $offset));
+    $a = array();
+    while($row = $sth->fetch()) $a[] = $row;
+    return $a;
+  }
   function get_sources($want, $fixate, $active = true) {
     $vars = $this->valid_source_variables();
     if(!in_array($want, $vars)) return array();
@@ -216,7 +230,9 @@ class Reconnoiter_DB {
     try {
       if($id) {
         $sth = $this->db->prepare("update prism.saved_graphs
-                                      set json=?, title=? where graphid=?");
+                                      set json=?, title=?,
+                                          last_update=current_timestamp
+                                    where graphid=?");
         $sth->execute(array($json,$graph['title'],$id));
         if($sth->rowCount() != 1) throw(new Exception('No such graph: '.$id));
         $sth = $this->db->prepare("delete from prism.saved_graphs_dep
@@ -226,8 +242,9 @@ class Reconnoiter_DB {
       else {
         $id = Reconnoiter_UUID::generate();
         $sth = $this->db->prepare("insert into prism.saved_graphs
-                                               (graphid, json, title)
-                                        values (?, ?, ?)");
+                                               (graphid, json, title,
+                                                last_update)
+                                        values (?, ?, ?, current_timestamp)");
         $sth->execute(array($id, $json, $graph['title']));
       }
       $sth = $this->db->prepare("insert into prism.saved_graphs_dep

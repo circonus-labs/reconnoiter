@@ -5,4 +5,4 @@ RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ ds_json.php?l1=$1&
 RewriteRule ^json/graph/info/([^/]+)$ graph_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/store$ graph_store.php [PT,QSA]
 RewriteRule ^amcharts/graph/settings/([^/]+) graph_settings.php?id=$1 [PT,QSA]
-
+RewriteRule ^json/datapoint/search$ datapoint_search_json.php [PT,QSA]

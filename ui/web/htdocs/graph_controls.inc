@@ -21,7 +21,7 @@ function redraw_current_graph() {
     $("#flashcontent").slideUp("normal");
   }
 }
-function update_current_graph() {
+function update_current_graph(redraw) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
   //$("#payload").html(str);
@@ -36,7 +36,7 @@ function update_current_graph() {
            }
            recurse--;
            //$("#payload").html(JSON.stringify(graphinfo));
-           redraw_current_graph();
+           if(redraw) redraw_current_graph();
          }, 'json');
 }
 function graph_add_datapoint(d) {
@@ -44,7 +44,7 @@ function graph_add_datapoint(d) {
   if(d.name == undefined) { d.name = d.metric_name; }
   graphinfo.datapoints.push(d);
   gtool_add_datapoint(d);
-  update_current_graph();
+  update_current_graph(true);
 }
 function gtool_add_datapoint(d) {
   var o = $("#datapointeditor").clone();
@@ -55,12 +55,12 @@ function gtool_add_datapoint(d) {
     $(this).siblings().removeClass("axison");
     $(this).addClass("axison");
     d.axis = $(this).hasClass("axisl") ? "l" : "r";
-    update_current_graph();
+    update_current_graph(true);
   });
   if(!d.hidden){o.find('input[@name="view"]').attr("checked","checked");}
   o.find('input[@name="view"]').change(function(){
     d.hidden = !($(this).attr("checked"));
-    update_current_graph();
+    update_current_graph(true);
   }).change();
 
   o.find('.deletedatapoint').click(function(){
@@ -70,7 +70,7 @@ function gtool_add_datapoint(d) {
         break;
       }
     }
-    update_current_graph();
+    update_current_graph(true);
     refresh_graph_from_json(graphinfo);
     return false;
   });
@@ -83,38 +83,43 @@ function gtool_add_datapoint(d) {
     if(d.derive){o.find('input[@name="derive"]').attr("checked","checked");}
     o.find('input[@name="derive"]').change(function(){
       d.derive = ($(this).attr("checked"));
-      update_current_graph();
+      update_current_graph(true);
     }).change();
 
     o.find('input[@name="math1"]').val(d.math1);
     o.find('input[@name="math1"]').change(function(){
       d.math1 = $(this).val();
-      update_current_graph();
+      update_current_graph(true);
     });
     o.find('input[@name="math2"]').val(d.math2);
     o.find('input[@name="math2"]').change(function(){
       d.math2 = $(this).val();
-      update_current_graph();
+      update_current_graph(true);
     });
   }
 
-  o.find(".datatitle").html("[" + d.sid + "-" + d.metric_name + "] " + d.name);
+  o.find(".datatitle").html(d.name);
   recurse--;
   $("#gtool #dataPoints").append(o.children());
 }
 function refresh_graph_from_json(j) {
-   graphinfo = j;
-   if(graphinfo.datapoints == undefined) graphinfo.datapoints = Array();
-   $("h2#graphTitle").html(graphinfo.title);
-   $("input[@name='graphtype']:checked").removeAttr("checked");
-   $("input[@name='graphtype']")
-     .filter(function(i){return $(this).val() == graphinfo.type;})
-     .attr("checked","checked");
-   $("#dataPoints").empty();
-   for(var i=0; i<graphinfo.datapoints.length; i++) {
-     gtool_add_datapoint(graphinfo.datapoints[i]);
-   }
-   redraw_current_graph();
+  graphinfo = j;
+  if(graphinfo.datapoints == undefined) graphinfo.datapoints = Array();
+  $("h2#graphTitle").html(graphinfo.title ? graphinfo.title : 'Graph Title (click to edit)');
+  $("h2#graphTitle").editable(function(value, settings) { 
+      graphinfo.title = value;
+      update_current_graph(false);
+      return(value);
+    }, { });
+  $("input[@name='graphtype']:checked").removeAttr("checked");
+  $("input[@name='graphtype']")
+    .filter(function(i){return $(this).val() == graphinfo.type;})
+    .attr("checked","checked");
+  $("#dataPoints").empty();
+  for(var i=0; i<graphinfo.datapoints.length; i++) {
+    gtool_add_datapoint(graphinfo.datapoints[i]);
+  }
+  redraw_current_graph();
 }
 function fetch_graph_info(id) {
  $.getJSON("graph_info.php",{id: id}, refresh_graph_from_json);
@@ -150,7 +155,7 @@ $(document).ready(function(){
         });    
         $(".graphType").change(function(){
                 graphinfo.type = $(this).val();
-		update_current_graph();
+		update_current_graph(true);
         });
         $("#gtool-error").click(function(){
           $("#gtool-error").fadeOut("slow");
