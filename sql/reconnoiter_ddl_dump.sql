@@ -9,13 +9,13 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: stratcon; Type: SCHEMA; Schema: -; Owner: omniti
+-- Name: stratcon; Type: SCHEMA; Schema: -; Owner: reconnoiter
 --
 
 CREATE SCHEMA stratcon;
 
 
-ALTER SCHEMA stratcon OWNER TO omniti;
+ALTER SCHEMA stratcon OWNER TO reconnoiter;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -1748,12 +1748,12 @@ CREATE TRIGGER mv_loading_dock_check_s
 
 
 --
--- Name: stratcon; Type: ACL; Schema: -; Owner: omniti
+-- Name: stratcon; Type: ACL; Schema: -; Owner: reconnoiter
 --
 
 REVOKE ALL ON SCHEMA stratcon FROM PUBLIC;
-REVOKE ALL ON SCHEMA stratcon FROM omniti;
-GRANT ALL ON SCHEMA stratcon TO omniti;
+REVOKE ALL ON SCHEMA stratcon FROM reconnoiter;
+GRANT ALL ON SCHEMA stratcon TO reconnoiter;
 GRANT USAGE ON SCHEMA stratcon TO stratcon;
 GRANT USAGE ON SCHEMA stratcon TO prism;
 
