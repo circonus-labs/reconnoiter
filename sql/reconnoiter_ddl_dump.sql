@@ -9,19 +9,210 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: stratcon; Type: SCHEMA; Schema: -; Owner: reconnoiter
+-- Name: prism; Type: SCHEMA; Schema: -; Owner: prism
+--
+
+CREATE SCHEMA prism;
+
+
+ALTER SCHEMA prism OWNER TO prism;
+
+--
+-- Name: stratcon; Type: SCHEMA; Schema: -; Owner: stratcon
 --
 
 CREATE SCHEMA stratcon;
 
 
-ALTER SCHEMA stratcon OWNER TO reconnoiter;
+ALTER SCHEMA stratcon OWNER TO stratcon;
 
-SET search_path = stratcon, pg_catalog;
+--
+-- Name: plpgsql; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: omniti
+--
+
+CREATE PROCEDURAL LANGUAGE plpgsql;
+
+
+ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO omniti;
+
+SET search_path = prism, pg_catalog;
 
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: saved_graphs; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE saved_graphs (
+    graphid uuid NOT NULL,
+    json text NOT NULL,
+    saved boolean DEFAULT false NOT NULL,
+    title text,
+    last_update timestamp without time zone NOT NULL
+);
+
+
+ALTER TABLE prism.saved_graphs OWNER TO reconnoiter;
+
+--
+-- Name: saved_graphs_dep; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE saved_graphs_dep (
+    graphid uuid NOT NULL,
+    sid integer NOT NULL,
+    metric_name text NOT NULL,
+    metric_type character varying(22)
+);
+
+
+ALTER TABLE prism.saved_graphs_dep OWNER TO reconnoiter;
+
+SET search_path = public, pg_catalog;
+
+SET default_with_oids = true;
+
+--
+-- Name: pga_diagrams; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_diagrams (
+    diagramname character varying(64) NOT NULL,
+    diagramtables text,
+    diagramlinks text
+);
+
+
+ALTER TABLE public.pga_diagrams OWNER TO reconnoiter;
+
+--
+-- Name: pga_forms; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_forms (
+    formname character varying(64) NOT NULL,
+    formsource text
+);
+
+
+ALTER TABLE public.pga_forms OWNER TO reconnoiter;
+
+--
+-- Name: pga_graphs; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_graphs (
+    graphname character varying(64) NOT NULL,
+    graphsource text,
+    graphcode text
+);
+
+
+ALTER TABLE public.pga_graphs OWNER TO reconnoiter;
+
+--
+-- Name: pga_images; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_images (
+    imagename character varying(64) NOT NULL,
+    imagesource text
+);
+
+
+ALTER TABLE public.pga_images OWNER TO reconnoiter;
+
+--
+-- Name: pga_layout; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_layout (
+    tablename character varying(64) NOT NULL,
+    nrcols smallint,
+    colnames text,
+    colwidth text
+);
+
+
+ALTER TABLE public.pga_layout OWNER TO reconnoiter;
+
+--
+-- Name: pga_queries; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_queries (
+    queryname character varying(64) NOT NULL,
+    querytype character(1),
+    querycommand text,
+    querytables text,
+    querylinks text,
+    queryresults text,
+    querycomments text
+);
+
+
+ALTER TABLE public.pga_queries OWNER TO reconnoiter;
+
+--
+-- Name: pga_reports; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_reports (
+    reportname character varying(64) NOT NULL,
+    reportsource text,
+    reportbody text,
+    reportprocs text,
+    reportoptions text
+);
+
+
+ALTER TABLE public.pga_reports OWNER TO reconnoiter;
+
+--
+-- Name: pga_scripts; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE pga_scripts (
+    scriptname character varying(64) NOT NULL,
+    scriptsource text
+);
+
+
+ALTER TABLE public.pga_scripts OWNER TO reconnoiter;
+
+SET default_with_oids = false;
+
+--
+-- Name: varnish_huh; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE varnish_huh (
+    sid integer,
+    whence timestamp with time zone,
+    name text,
+    value numeric
+);
+
+
+ALTER TABLE public.varnish_huh OWNER TO reconnoiter;
+
+--
+-- Name: varnish_huh2; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE varnish_huh2 (
+    sid integer,
+    whence timestamp with time zone,
+    name text,
+    value numeric
+);
+
+
+ALTER TABLE public.varnish_huh2 OWNER TO reconnoiter;
+
+SET search_path = stratcon, pg_catalog;
 
 --
 -- Name: current_metric_text; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
@@ -297,6 +488,44 @@ CREATE TABLE rollup_runner (
 
 
 ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
+
+SET search_path = prism, pg_catalog;
+
+--
+-- Name: check_name_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: reconnoiter
+--
+
+CREATE FUNCTION check_name_saved_graphs() RETURNS trigger
+    AS $$
+DECLARE
+BEGIN
+    IF  NEW.saved IS true AND NEW.title IS null THEN
+    RAISE EXCEPTION 'You must name graph to save';
+    END IF;
+ RETURN NEW;
+END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION prism.check_name_saved_graphs() OWNER TO reconnoiter;
+
+SET search_path = public, pg_catalog;
+
+--
+-- Name: date_hour(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: reconnoiter
+--
+
+CREATE FUNCTION date_hour(timestamp with time zone) RETURNS timestamp with time zone
+    AS $_$
+ SELECT date_trunc('hour',$1);
+$_$
+    LANGUAGE sql IMMUTABLE STRICT;
+
+
+ALTER FUNCTION public.date_hour(timestamp with time zone) OWNER TO reconnoiter;
+
+SET search_path = stratcon, pg_catalog;
 
 --
 -- Name: choose_window(timestamp without time zone, timestamp without time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
@@ -1516,6 +1745,92 @@ CREATE SEQUENCE seq_sid
 
 ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
 
+SET search_path = prism, pg_catalog;
+
+--
+-- Name: saved_graphs_dep_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY saved_graphs_dep
+    ADD CONSTRAINT saved_graphs_dep_pkey PRIMARY KEY (graphid, sid, metric_name);
+
+
+--
+-- Name: saved_graphs_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY saved_graphs
+    ADD CONSTRAINT saved_graphs_pkey PRIMARY KEY (graphid);
+
+
+SET search_path = public, pg_catalog;
+
+--
+-- Name: pga_diagrams_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_diagrams
+    ADD CONSTRAINT pga_diagrams_pkey PRIMARY KEY (diagramname);
+
+
+--
+-- Name: pga_forms_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_forms
+    ADD CONSTRAINT pga_forms_pkey PRIMARY KEY (formname);
+
+
+--
+-- Name: pga_graphs_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_graphs
+    ADD CONSTRAINT pga_graphs_pkey PRIMARY KEY (graphname);
+
+
+--
+-- Name: pga_images_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_images
+    ADD CONSTRAINT pga_images_pkey PRIMARY KEY (imagename);
+
+
+--
+-- Name: pga_layout_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_layout
+    ADD CONSTRAINT pga_layout_pkey PRIMARY KEY (tablename);
+
+
+--
+-- Name: pga_queries_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_queries
+    ADD CONSTRAINT pga_queries_pkey PRIMARY KEY (queryname);
+
+
+--
+-- Name: pga_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_reports
+    ADD CONSTRAINT pga_reports_pkey PRIMARY KEY (reportname);
+
+
+--
+-- Name: pga_scripts_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY pga_scripts
+    ADD CONSTRAINT pga_scripts_pkey PRIMARY KEY (scriptname);
+
+
+SET search_path = stratcon, pg_catalog;
+
 --
 -- Name: current_metric_text_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
@@ -1707,6 +2022,20 @@ CREATE INDEX idx_rollup_matrix_numeric_20m_rollup_time ON rollup_matrix_numeric_
 CREATE UNIQUE INDEX unq_mv_loading_dock_check_s_id ON mv_loading_dock_check_s USING btree (id);
 
 
+SET search_path = prism, pg_catalog;
+
+--
+-- Name: check_name_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
+--
+
+CREATE TRIGGER check_name_saved_graphs
+    BEFORE INSERT OR UPDATE ON saved_graphs
+    FOR EACH ROW
+    EXECUTE PROCEDURE check_name_saved_graphs();
+
+
+SET search_path = stratcon, pg_catalog;
+
 --
 -- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
@@ -1747,16 +2076,65 @@ CREATE TRIGGER mv_loading_dock_check_s
     EXECUTE PROCEDURE mv_loading_dock_check_s();
 
 
+SET search_path = prism, pg_catalog;
+
 --
--- Name: stratcon; Type: ACL; Schema: -; Owner: reconnoiter
+-- Name: graphid_fk; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
+--
+
+ALTER TABLE ONLY saved_graphs_dep
+    ADD CONSTRAINT graphid_fk FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid);
+
+
+--
+-- Name: saved_graphs_dep_sid_fkey; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
+--
+
+ALTER TABLE ONLY saved_graphs_dep
+    ADD CONSTRAINT saved_graphs_dep_sid_fkey FOREIGN KEY (sid, metric_name, metric_type) REFERENCES stratcon.metric_name_summary(sid, metric_name, metric_type);
+
+
+--
+-- Name: public; Type: ACL; Schema: -; Owner: postgres
+--
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM postgres;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+
+--
+-- Name: stratcon; Type: ACL; Schema: -; Owner: stratcon
 --
 
 REVOKE ALL ON SCHEMA stratcon FROM PUBLIC;
-REVOKE ALL ON SCHEMA stratcon FROM reconnoiter;
-GRANT ALL ON SCHEMA stratcon TO reconnoiter;
-GRANT USAGE ON SCHEMA stratcon TO stratcon;
+REVOKE ALL ON SCHEMA stratcon FROM stratcon;
+GRANT ALL ON SCHEMA stratcon TO stratcon;
 GRANT USAGE ON SCHEMA stratcon TO prism;
 
+
+--
+-- Name: saved_graphs; Type: ACL; Schema: prism; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE saved_graphs FROM PUBLIC;
+REVOKE ALL ON TABLE saved_graphs FROM reconnoiter;
+GRANT ALL ON TABLE saved_graphs TO reconnoiter;
+GRANT ALL ON TABLE saved_graphs TO prism;
+
+
+--
+-- Name: saved_graphs_dep; Type: ACL; Schema: prism; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE saved_graphs_dep FROM PUBLIC;
+REVOKE ALL ON TABLE saved_graphs_dep FROM reconnoiter;
+GRANT ALL ON TABLE saved_graphs_dep TO reconnoiter;
+GRANT ALL ON TABLE saved_graphs_dep TO prism;
+
+
+SET search_path = stratcon, pg_catalog;
 
 --
 -- Name: current_metric_text; Type: ACL; Schema: stratcon; Owner: reconnoiter
