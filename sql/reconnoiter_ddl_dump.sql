@@ -9,11 +9,13 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: stratcon; Type: SCHEMA; Schema: -; Owner: -
+-- Name: stratcon; Type: SCHEMA; Schema: -; Owner: omniti
 --
 
 CREATE SCHEMA stratcon;
 
+
+ALTER SCHEMA stratcon OWNER TO omniti;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -22,7 +24,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: current_metric_text; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_metric_text; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE current_metric_text (
@@ -33,8 +35,10 @@ CREATE TABLE current_metric_text (
 );
 
 
+ALTER TABLE stratcon.current_metric_text OWNER TO reconnoiter;
+
 --
--- Name: current_node_config; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_node_config; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE current_node_config (
@@ -45,8 +49,10 @@ CREATE TABLE current_node_config (
 );
 
 
+ALTER TABLE stratcon.current_node_config OWNER TO reconnoiter;
+
 --
--- Name: current_node_config_changelog; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_node_config_changelog; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE current_node_config_changelog (
@@ -57,8 +63,10 @@ CREATE TABLE current_node_config_changelog (
 );
 
 
+ALTER TABLE stratcon.current_node_config_changelog OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_check_s (
@@ -72,8 +80,10 @@ CREATE TABLE loading_dock_check_s (
 );
 
 
+ALTER TABLE stratcon.loading_dock_check_s OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_metric_numeric_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_numeric_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_metric_numeric_s (
@@ -84,8 +94,10 @@ CREATE TABLE loading_dock_metric_numeric_s (
 );
 
 
+ALTER TABLE stratcon.loading_dock_metric_numeric_s OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_metric_text_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_text_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_metric_text_s (
@@ -96,8 +108,10 @@ CREATE TABLE loading_dock_metric_text_s (
 );
 
 
+ALTER TABLE stratcon.loading_dock_metric_text_s OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_metric_text_s_change_log; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_text_s_change_log; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_metric_text_s_change_log (
@@ -108,8 +122,10 @@ CREATE TABLE loading_dock_metric_text_s_change_log (
 );
 
 
+ALTER TABLE stratcon.loading_dock_metric_text_s_change_log OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_status_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_status_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_status_s (
@@ -122,8 +138,10 @@ CREATE TABLE loading_dock_status_s (
 );
 
 
+ALTER TABLE stratcon.loading_dock_status_s OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_status_s_change_log; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_status_s_change_log; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE loading_dock_status_s_change_log (
@@ -136,8 +154,10 @@ CREATE TABLE loading_dock_status_s_change_log (
 );
 
 
+ALTER TABLE stratcon.loading_dock_status_s_change_log OWNER TO reconnoiter;
+
 --
--- Name: log_whence_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: log_whence_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE log_whence_s (
@@ -146,8 +166,10 @@ CREATE TABLE log_whence_s (
 );
 
 
+ALTER TABLE stratcon.log_whence_s OWNER TO reconnoiter;
+
 --
--- Name: map_uuid_to_sid; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: map_uuid_to_sid; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE map_uuid_to_sid (
@@ -156,8 +178,10 @@ CREATE TABLE map_uuid_to_sid (
 );
 
 
+ALTER TABLE stratcon.map_uuid_to_sid OWNER TO reconnoiter;
+
 --
--- Name: metric_name_summary; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: metric_name_summary; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE metric_name_summary (
@@ -168,8 +192,10 @@ CREATE TABLE metric_name_summary (
 );
 
 
+ALTER TABLE stratcon.metric_name_summary OWNER TO reconnoiter;
+
 --
--- Name: mv_loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: mv_loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE mv_loading_dock_check_s (
@@ -183,8 +209,10 @@ CREATE TABLE mv_loading_dock_check_s (
 );
 
 
+ALTER TABLE stratcon.mv_loading_dock_check_s OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_12hours; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_12hours; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_matrix_numeric_12hours (
@@ -196,8 +224,10 @@ CREATE TABLE rollup_matrix_numeric_12hours (
 );
 
 
+ALTER TABLE stratcon.rollup_matrix_numeric_12hours OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_20m; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_20m; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_matrix_numeric_20m (
@@ -209,8 +239,10 @@ CREATE TABLE rollup_matrix_numeric_20m (
 );
 
 
+ALTER TABLE stratcon.rollup_matrix_numeric_20m OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_5m; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_5m; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_matrix_numeric_5m (
@@ -222,8 +254,10 @@ CREATE TABLE rollup_matrix_numeric_5m (
 );
 
 
+ALTER TABLE stratcon.rollup_matrix_numeric_5m OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_60m; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_60m; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_matrix_numeric_60m (
@@ -235,8 +269,10 @@ CREATE TABLE rollup_matrix_numeric_60m (
 );
 
 
+ALTER TABLE stratcon.rollup_matrix_numeric_60m OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_6hours; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_6hours; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_matrix_numeric_6hours (
@@ -248,8 +284,10 @@ CREATE TABLE rollup_matrix_numeric_6hours (
 );
 
 
+ALTER TABLE stratcon.rollup_matrix_numeric_6hours OWNER TO reconnoiter;
+
 --
--- Name: rollup_runner; Type: TABLE; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_runner; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE TABLE rollup_runner (
@@ -258,8 +296,10 @@ CREATE TABLE rollup_runner (
 );
 
 
+ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
+
 --
--- Name: choose_window(timestamp without time zone, timestamp without time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: choose_window(timestamp without time zone, timestamp without time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION choose_window(in_start_time timestamp without time zone, in_end_time timestamp without time zone, in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer) RETURNS SETOF record
@@ -308,8 +348,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.choose_window(in_start_time timestamp without time zone, in_end_time timestamp without time zone, in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer) OWNER TO reconnoiter;
+
 --
--- Name: choose_window(timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: choose_window(timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION choose_window(in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer) RETURNS SETOF record
@@ -358,8 +400,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.choose_window(in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer) OWNER TO reconnoiter;
+
 --
--- Name: date_hour(timestamp with time zone); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: date_hour(timestamp with time zone); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION date_hour(timestamp with time zone) RETURNS timestamp with time zone
@@ -369,8 +413,10 @@ $_$
     LANGUAGE sql IMMUTABLE STRICT;
 
 
+ALTER FUNCTION stratcon.date_hour(timestamp with time zone) OWNER TO reconnoiter;
+
 --
--- Name: fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) RETURNS SETOF rollup_matrix_numeric_5m
@@ -395,8 +441,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) OWNER TO reconnoiter;
+
 --
--- Name: fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) RETURNS SETOF rollup_matrix_numeric_5m
@@ -476,8 +524,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) OWNER TO reconnoiter;
+
 --
--- Name: fetch_varset(uuid, text, timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: fetch_varset(uuid, text, timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION fetch_varset(in_check uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer) RETURNS SETOF loading_dock_metric_text_s_change_log
@@ -497,8 +547,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.fetch_varset(in_check uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer) OWNER TO reconnoiter;
+
 --
--- Name: fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer) RETURNS SETOF loading_dock_metric_text_s_change_log
@@ -585,8 +637,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer) OWNER TO reconnoiter;
+
 --
--- Name: generate_sid_from_id(uuid); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: generate_sid_from_id(uuid); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION generate_sid_from_id(v_in_id uuid) RETURNS integer
@@ -617,8 +671,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.generate_sid_from_id(v_in_id uuid) OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_metric_numeric_s_whence_log(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_numeric_s_whence_log(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION loading_dock_metric_numeric_s_whence_log() RETURNS trigger
@@ -658,8 +714,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.loading_dock_metric_numeric_s_whence_log() OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_metric_text_s_change_log(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_text_s_change_log(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION loading_dock_metric_text_s_change_log() RETURNS trigger
@@ -712,8 +770,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.loading_dock_metric_text_s_change_log() OWNER TO reconnoiter;
+
 --
--- Name: loading_dock_status_s_change_log(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: loading_dock_status_s_change_log(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION loading_dock_status_s_change_log() RETURNS trigger
@@ -747,8 +807,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.loading_dock_status_s_change_log() OWNER TO reconnoiter;
+
 --
--- Name: mv_loading_dock_check_s(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: mv_loading_dock_check_s(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION mv_loading_dock_check_s() RETURNS trigger
@@ -784,8 +846,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.mv_loading_dock_check_s() OWNER TO reconnoiter;
+
 --
--- Name: remove_metric(uuid, text, text); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: remove_metric(uuid, text, text); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION remove_metric(in_uuid uuid, in_metric_name text, v_debug text, OUT v_out text) RETURNS text
@@ -890,8 +954,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.remove_metric(in_uuid uuid, in_metric_name text, v_debug text, OUT v_out text) OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_12hours(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_12hours(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION rollup_matrix_numeric_12hours() RETURNS void
@@ -990,8 +1056,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.rollup_matrix_numeric_12hours() OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_20m(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_20m(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION rollup_matrix_numeric_20m() RETURNS void
@@ -1094,8 +1162,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.rollup_matrix_numeric_20m() OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_5m(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_5m(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION rollup_matrix_numeric_5m() RETURNS void
@@ -1198,8 +1268,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.rollup_matrix_numeric_5m() OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_60m(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_60m(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION rollup_matrix_numeric_60m() RETURNS void
@@ -1296,8 +1368,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.rollup_matrix_numeric_60m() OWNER TO reconnoiter;
+
 --
--- Name: rollup_matrix_numeric_6hours(); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_6hours(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION rollup_matrix_numeric_6hours() RETURNS void
@@ -1394,8 +1468,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.rollup_matrix_numeric_6hours() OWNER TO reconnoiter;
+
 --
--- Name: update_config(inet, text, timestamp with time zone, xml); Type: FUNCTION; Schema: stratcon; Owner: -
+-- Name: update_config(inet, text, timestamp with time zone, xml); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE FUNCTION update_config(v_remote_address_in inet, v_node_type_in text, v_whence_in timestamp with time zone, v_config_in xml) RETURNS void
@@ -1425,8 +1501,10 @@ $$
     LANGUAGE plpgsql;
 
 
+ALTER FUNCTION stratcon.update_config(v_remote_address_in inet, v_node_type_in text, v_whence_in timestamp with time zone, v_config_in xml) OWNER TO reconnoiter;
+
 --
--- Name: seq_sid; Type: SEQUENCE; Schema: stratcon; Owner: -
+-- Name: seq_sid; Type: SEQUENCE; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE SEQUENCE seq_sid
@@ -1436,8 +1514,10 @@ CREATE SEQUENCE seq_sid
     CACHE 1;
 
 
+ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
+
 --
--- Name: current_metric_text_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_metric_text_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY current_metric_text
@@ -1445,7 +1525,7 @@ ALTER TABLE ONLY current_metric_text
 
 
 --
--- Name: current_node_config_changelog_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_node_config_changelog_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY current_node_config_changelog
@@ -1453,7 +1533,7 @@ ALTER TABLE ONLY current_node_config_changelog
 
 
 --
--- Name: current_node_config_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: current_node_config_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY current_node_config
@@ -1461,7 +1541,7 @@ ALTER TABLE ONLY current_node_config
 
 
 --
--- Name: loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_check_s
@@ -1469,7 +1549,7 @@ ALTER TABLE ONLY loading_dock_check_s
 
 
 --
--- Name: loading_dock_metric_numeric_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_numeric_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_metric_numeric_s
@@ -1479,7 +1559,7 @@ ALTER TABLE loading_dock_metric_numeric_s CLUSTER ON loading_dock_metric_numeric
 
 
 --
--- Name: loading_dock_metric_text_s_change_log_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_text_s_change_log_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_metric_text_s_change_log
@@ -1487,7 +1567,7 @@ ALTER TABLE ONLY loading_dock_metric_text_s_change_log
 
 
 --
--- Name: loading_dock_metric_text_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_metric_text_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_metric_text_s
@@ -1495,7 +1575,7 @@ ALTER TABLE ONLY loading_dock_metric_text_s
 
 
 --
--- Name: loading_dock_status_s_change_log_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_status_s_change_log_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_status_s_change_log
@@ -1503,7 +1583,7 @@ ALTER TABLE ONLY loading_dock_status_s_change_log
 
 
 --
--- Name: loading_dock_status_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: loading_dock_status_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY loading_dock_status_s
@@ -1511,7 +1591,7 @@ ALTER TABLE ONLY loading_dock_status_s
 
 
 --
--- Name: log_whence_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: log_whence_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY log_whence_s
@@ -1519,7 +1599,7 @@ ALTER TABLE ONLY log_whence_s
 
 
 --
--- Name: map_uuid_to_sid_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: map_uuid_to_sid_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY map_uuid_to_sid
@@ -1527,7 +1607,7 @@ ALTER TABLE ONLY map_uuid_to_sid
 
 
 --
--- Name: metric_name_summary_pk; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: metric_name_summary_pk; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY metric_name_summary
@@ -1535,7 +1615,7 @@ ALTER TABLE ONLY metric_name_summary
 
 
 --
--- Name: mv_loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: mv_loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY mv_loading_dock_check_s
@@ -1543,7 +1623,7 @@ ALTER TABLE ONLY mv_loading_dock_check_s
 
 
 --
--- Name: rollup_matrix_numeric_12hours_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_12hours_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY rollup_matrix_numeric_12hours
@@ -1553,7 +1633,7 @@ ALTER TABLE rollup_matrix_numeric_12hours CLUSTER ON rollup_matrix_numeric_12hou
 
 
 --
--- Name: rollup_matrix_numeric_20m_new_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_20m_new_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY rollup_matrix_numeric_20m
@@ -1563,7 +1643,7 @@ ALTER TABLE rollup_matrix_numeric_20m CLUSTER ON rollup_matrix_numeric_20m_new_p
 
 
 --
--- Name: rollup_matrix_numeric_5m_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_5m_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY rollup_matrix_numeric_5m
@@ -1573,7 +1653,7 @@ ALTER TABLE rollup_matrix_numeric_5m CLUSTER ON rollup_matrix_numeric_5m_pkey;
 
 
 --
--- Name: rollup_matrix_numeric_60m_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_60m_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY rollup_matrix_numeric_60m
@@ -1583,7 +1663,7 @@ ALTER TABLE rollup_matrix_numeric_60m CLUSTER ON rollup_matrix_numeric_60m_pkey;
 
 
 --
--- Name: rollup_matrix_numeric_6hours_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: rollup_matrix_numeric_6hours_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY rollup_matrix_numeric_6hours
@@ -1593,42 +1673,42 @@ ALTER TABLE rollup_matrix_numeric_6hours CLUSTER ON rollup_matrix_numeric_6hours
 
 
 --
--- Name: idx_mv_loading_dock_check_s_module; Type: INDEX; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: idx_mv_loading_dock_check_s_module; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE INDEX idx_mv_loading_dock_check_s_module ON mv_loading_dock_check_s USING btree (module);
 
 
 --
--- Name: idx_mv_loading_dock_check_s_name; Type: INDEX; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: idx_mv_loading_dock_check_s_name; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE INDEX idx_mv_loading_dock_check_s_name ON mv_loading_dock_check_s USING btree (name);
 
 
 --
--- Name: idx_mv_loading_dock_check_s_target; Type: INDEX; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: idx_mv_loading_dock_check_s_target; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE INDEX idx_mv_loading_dock_check_s_target ON mv_loading_dock_check_s USING btree (target);
 
 
 --
--- Name: idx_rollup_matrix_numeric_20m_rollup_time; Type: INDEX; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: idx_rollup_matrix_numeric_20m_rollup_time; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE INDEX idx_rollup_matrix_numeric_20m_rollup_time ON rollup_matrix_numeric_20m USING btree (date_hour(rollup_time));
 
 
 --
--- Name: unq_mv_loading_dock_check_s_id; Type: INDEX; Schema: stratcon; Owner: -; Tablespace: 
+-- Name: unq_mv_loading_dock_check_s_id; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE UNIQUE INDEX unq_mv_loading_dock_check_s_id ON mv_loading_dock_check_s USING btree (id);
 
 
 --
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
@@ -1638,7 +1718,7 @@ CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
 
 
 --
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE TRIGGER loading_dock_metric_text_s_change_log
@@ -1648,7 +1728,7 @@ CREATE TRIGGER loading_dock_metric_text_s_change_log
 
 
 --
--- Name: loading_dock_status_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: -
+-- Name: loading_dock_status_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE TRIGGER loading_dock_status_s_change_log
@@ -1658,7 +1738,7 @@ CREATE TRIGGER loading_dock_status_s_change_log
 
 
 --
--- Name: mv_loading_dock_check_s; Type: TRIGGER; Schema: stratcon; Owner: -
+-- Name: mv_loading_dock_check_s; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
 CREATE TRIGGER mv_loading_dock_check_s
@@ -1668,164 +1748,233 @@ CREATE TRIGGER mv_loading_dock_check_s
 
 
 --
--- Name: stratcon; Type: ACL; Schema: -; Owner: -
+-- Name: stratcon; Type: ACL; Schema: -; Owner: omniti
 --
 
 REVOKE ALL ON SCHEMA stratcon FROM PUBLIC;
 REVOKE ALL ON SCHEMA stratcon FROM omniti;
 GRANT ALL ON SCHEMA stratcon TO omniti;
 GRANT USAGE ON SCHEMA stratcon TO stratcon;
+GRANT USAGE ON SCHEMA stratcon TO prism;
 
 
 --
--- Name: loading_dock_check_s; Type: ACL; Schema: stratcon; Owner: -
+-- Name: current_metric_text; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE current_metric_text FROM PUBLIC;
+REVOKE ALL ON TABLE current_metric_text FROM reconnoiter;
+GRANT ALL ON TABLE current_metric_text TO reconnoiter;
+GRANT SELECT ON TABLE current_metric_text TO prism;
+GRANT SELECT,INSERT,UPDATE ON TABLE current_metric_text TO stratcon;
+
+
+--
+-- Name: current_node_config; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE current_node_config FROM PUBLIC;
+REVOKE ALL ON TABLE current_node_config FROM reconnoiter;
+GRANT ALL ON TABLE current_node_config TO reconnoiter;
+GRANT SELECT ON TABLE current_node_config TO prism;
+GRANT SELECT,INSERT,UPDATE ON TABLE current_node_config TO stratcon;
+
+
+--
+-- Name: current_node_config_changelog; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE current_node_config_changelog FROM PUBLIC;
+REVOKE ALL ON TABLE current_node_config_changelog FROM reconnoiter;
+GRANT ALL ON TABLE current_node_config_changelog TO reconnoiter;
+GRANT SELECT ON TABLE current_node_config_changelog TO prism;
+GRANT SELECT,INSERT,UPDATE ON TABLE current_node_config_changelog TO stratcon;
+
+
+--
+-- Name: loading_dock_check_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_check_s FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_check_s FROM omniti;
-GRANT ALL ON TABLE loading_dock_check_s TO omniti;
-GRANT SELECT,INSERT ON TABLE loading_dock_check_s TO stratcon;
+REVOKE ALL ON TABLE loading_dock_check_s FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_check_s TO reconnoiter;
+GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_check_s TO stratcon;
+GRANT SELECT ON TABLE loading_dock_check_s TO prism;
 
 
 --
--- Name: loading_dock_metric_numeric_s; Type: ACL; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_numeric_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM omniti;
-GRANT ALL ON TABLE loading_dock_metric_numeric_s TO omniti;
-GRANT SELECT,INSERT ON TABLE loading_dock_metric_numeric_s TO stratcon;
+REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_metric_numeric_s TO reconnoiter;
+GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_metric_numeric_s TO stratcon;
+GRANT SELECT ON TABLE loading_dock_metric_numeric_s TO prism;
 
 
 --
--- Name: loading_dock_metric_text_s; Type: ACL; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_text_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_metric_text_s FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_s FROM omniti;
-GRANT ALL ON TABLE loading_dock_metric_text_s TO omniti;
-GRANT SELECT,INSERT,DELETE ON TABLE loading_dock_metric_text_s TO stratcon;
+REVOKE ALL ON TABLE loading_dock_metric_text_s FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_metric_text_s TO reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_s TO stratcon;
+GRANT SELECT ON TABLE loading_dock_metric_text_s TO prism;
 
 
 --
--- Name: loading_dock_metric_text_s_change_log; Type: ACL; Schema: stratcon; Owner: -
+-- Name: loading_dock_metric_text_s_change_log; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM omniti;
-GRANT ALL ON TABLE loading_dock_metric_text_s_change_log TO omniti;
-GRANT SELECT,INSERT ON TABLE loading_dock_metric_text_s_change_log TO stratcon;
+REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_metric_text_s_change_log TO reconnoiter;
+GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_metric_text_s_change_log TO stratcon;
+GRANT SELECT ON TABLE loading_dock_metric_text_s_change_log TO prism;
 
 
 --
--- Name: loading_dock_status_s; Type: ACL; Schema: stratcon; Owner: -
+-- Name: loading_dock_status_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_status_s FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_status_s FROM omniti;
-GRANT ALL ON TABLE loading_dock_status_s TO omniti;
-GRANT SELECT,INSERT ON TABLE loading_dock_status_s TO stratcon;
+REVOKE ALL ON TABLE loading_dock_status_s FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_status_s TO reconnoiter;
+GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_status_s TO stratcon;
+GRANT SELECT ON TABLE loading_dock_status_s TO prism;
 
 
 --
--- Name: loading_dock_status_s_change_log; Type: ACL; Schema: stratcon; Owner: -
+-- Name: loading_dock_status_s_change_log; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE loading_dock_status_s_change_log FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_status_s_change_log FROM omniti;
-GRANT ALL ON TABLE loading_dock_status_s_change_log TO omniti;
-GRANT SELECT,INSERT,DELETE ON TABLE loading_dock_status_s_change_log TO stratcon;
+REVOKE ALL ON TABLE loading_dock_status_s_change_log FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_status_s_change_log TO reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_status_s_change_log TO stratcon;
+GRANT SELECT ON TABLE loading_dock_status_s_change_log TO prism;
 
 
 --
--- Name: log_whence_s; Type: ACL; Schema: stratcon; Owner: -
+-- Name: log_whence_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE log_whence_s FROM PUBLIC;
-REVOKE ALL ON TABLE log_whence_s FROM omniti;
-GRANT ALL ON TABLE log_whence_s TO omniti;
+REVOKE ALL ON TABLE log_whence_s FROM reconnoiter;
+GRANT ALL ON TABLE log_whence_s TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE log_whence_s TO stratcon;
+GRANT SELECT ON TABLE log_whence_s TO prism;
 
 
 --
--- Name: map_uuid_to_sid; Type: ACL; Schema: stratcon; Owner: -
+-- Name: map_uuid_to_sid; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE map_uuid_to_sid FROM PUBLIC;
-REVOKE ALL ON TABLE map_uuid_to_sid FROM omniti;
-GRANT ALL ON TABLE map_uuid_to_sid TO omniti;
-GRANT SELECT,INSERT ON TABLE map_uuid_to_sid TO stratcon;
+REVOKE ALL ON TABLE map_uuid_to_sid FROM reconnoiter;
+GRANT ALL ON TABLE map_uuid_to_sid TO reconnoiter;
+GRANT SELECT,INSERT,UPDATE ON TABLE map_uuid_to_sid TO stratcon;
+GRANT SELECT ON TABLE map_uuid_to_sid TO prism;
 
 
 --
--- Name: metric_name_summary; Type: ACL; Schema: stratcon; Owner: -
+-- Name: metric_name_summary; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE metric_name_summary FROM PUBLIC;
-REVOKE ALL ON TABLE metric_name_summary FROM omniti;
-GRANT ALL ON TABLE metric_name_summary TO omniti;
+REVOKE ALL ON TABLE metric_name_summary FROM reconnoiter;
+GRANT ALL ON TABLE metric_name_summary TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_name_summary TO stratcon;
+GRANT SELECT ON TABLE metric_name_summary TO prism;
 
 
 --
--- Name: rollup_matrix_numeric_12hours; Type: ACL; Schema: stratcon; Owner: -
+-- Name: mv_loading_dock_check_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE mv_loading_dock_check_s FROM PUBLIC;
+REVOKE ALL ON TABLE mv_loading_dock_check_s FROM reconnoiter;
+GRANT ALL ON TABLE mv_loading_dock_check_s TO reconnoiter;
+GRANT SELECT ON TABLE mv_loading_dock_check_s TO prism;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE mv_loading_dock_check_s TO stratcon;
+
+
+--
+-- Name: rollup_matrix_numeric_12hours; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_matrix_numeric_12hours FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_matrix_numeric_12hours FROM postgres;
-GRANT ALL ON TABLE rollup_matrix_numeric_12hours TO postgres;
+REVOKE ALL ON TABLE rollup_matrix_numeric_12hours FROM reconnoiter;
+GRANT ALL ON TABLE rollup_matrix_numeric_12hours TO reconnoiter;
 GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_12hours TO stratcon;
-GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_12hours TO omniti;
+GRANT SELECT ON TABLE rollup_matrix_numeric_12hours TO prism;
 
 
 --
--- Name: rollup_matrix_numeric_20m; Type: ACL; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_20m; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_matrix_numeric_20m FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_matrix_numeric_20m FROM omniti;
-GRANT ALL ON TABLE rollup_matrix_numeric_20m TO omniti;
+REVOKE ALL ON TABLE rollup_matrix_numeric_20m FROM reconnoiter;
+GRANT ALL ON TABLE rollup_matrix_numeric_20m TO reconnoiter;
 GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_20m TO stratcon;
+GRANT SELECT ON TABLE rollup_matrix_numeric_20m TO prism;
 
 
 --
--- Name: rollup_matrix_numeric_5m; Type: ACL; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_5m; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_matrix_numeric_5m FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_matrix_numeric_5m FROM omniti;
-GRANT ALL ON TABLE rollup_matrix_numeric_5m TO omniti;
+REVOKE ALL ON TABLE rollup_matrix_numeric_5m FROM reconnoiter;
+GRANT ALL ON TABLE rollup_matrix_numeric_5m TO reconnoiter;
 GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_5m TO stratcon;
+GRANT SELECT ON TABLE rollup_matrix_numeric_5m TO prism;
 
 
 --
--- Name: rollup_matrix_numeric_60m; Type: ACL; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_60m; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_matrix_numeric_60m FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_matrix_numeric_60m FROM omniti;
-GRANT ALL ON TABLE rollup_matrix_numeric_60m TO omniti;
+REVOKE ALL ON TABLE rollup_matrix_numeric_60m FROM reconnoiter;
+GRANT ALL ON TABLE rollup_matrix_numeric_60m TO reconnoiter;
 GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_60m TO stratcon;
+GRANT SELECT ON TABLE rollup_matrix_numeric_60m TO prism;
 
 
 --
--- Name: rollup_matrix_numeric_6hours; Type: ACL; Schema: stratcon; Owner: -
+-- Name: rollup_matrix_numeric_6hours; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_matrix_numeric_6hours FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_matrix_numeric_6hours FROM omniti;
-GRANT ALL ON TABLE rollup_matrix_numeric_6hours TO omniti;
+REVOKE ALL ON TABLE rollup_matrix_numeric_6hours FROM reconnoiter;
+GRANT ALL ON TABLE rollup_matrix_numeric_6hours TO reconnoiter;
 GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_6hours TO stratcon;
+GRANT SELECT ON TABLE rollup_matrix_numeric_6hours TO prism;
 
 
 --
--- Name: rollup_runner; Type: ACL; Schema: stratcon; Owner: -
+-- Name: rollup_runner; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE rollup_runner FROM PUBLIC;
-REVOKE ALL ON TABLE rollup_runner FROM omniti;
-GRANT ALL ON TABLE rollup_runner TO omniti;
+REVOKE ALL ON TABLE rollup_runner FROM reconnoiter;
+GRANT ALL ON TABLE rollup_runner TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE rollup_runner TO stratcon;
+GRANT SELECT ON TABLE rollup_runner TO prism;
+
+
+--
+-- Name: seq_sid; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON SEQUENCE seq_sid FROM PUBLIC;
+REVOKE ALL ON SEQUENCE seq_sid FROM reconnoiter;
+GRANT ALL ON SEQUENCE seq_sid TO reconnoiter;
+GRANT ALL ON SEQUENCE seq_sid TO stratcon;
 
 
 --
