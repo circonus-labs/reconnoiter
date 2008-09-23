@@ -14,6 +14,7 @@ function perform_datapoint_search(string, offset, limit) {
                   (function(ds_c) {
                       return function() {
                         graph_add_datapoint({'sid':ds_c.sid,
+                                             'name':ds_c.target + '`' + ds_c.metric_name,
                                              'metric_name':ds_c.metric_name,
                                              'metric_type':ds_c.metric_type
                                             });
@@ -40,7 +41,7 @@ $(document).ready(function(){
 <form id="datapoint-searchform">
   <fieldset>
   <legend style="display:none;">Search</legend>
-  <label for="keyword" style="display:none;">Keyword</label> <input type="text" id="searchinput" style="width:220px;" /> 
+  <label for="keyword" style="display:none;">Keyword</label> <input type="text" id="searchinput" style="width:220px;" /> <input type="submit" value="Search" />
   </fieldset>
 </form>
 </div>
