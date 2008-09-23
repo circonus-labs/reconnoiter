@@ -25,6 +25,7 @@ foreach($graph['datapoints'] as $d) {
   if($d['hidden'] == "true") $settings['hidden'] = "true";
   if($d['math1']) $settings['expression'] = $d['math1'];
   $settings['axis'] = ($d['axis'] == 'l') ? 'left' : 'right';
+  $settings['title'] = $d['name'];
   if($d['metric_type'] == 'numeric') {
     $driver->addDataSet($d['sid'], $d['metric_name'],
                         ($d['derive']=="true")?"true":"false",

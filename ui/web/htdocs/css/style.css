@@ -198,9 +198,9 @@ p {margin-bottom:1em;}
 .ac {font-size: 10px;font-weight:normal;text-transform:uppercase;color:#82787b;}
 
 /* search list */
-#searchlist {overflow:auto;}
+#searchlist {overflow:auto; white-space:nowrap;}
 #searchlist ul a {list-style:none;}
-#searchlist ul li {display:block;padding:2px 0;margin-bottom:4px;}
+#searchlist ul li {display:block;padding:0;margin-bottom:0px;}
 #searchlist ul li a {background:url(../images/icon-data.png) 0 1px no-repeat;padding-left:15px;}
 #searchlist ul li.txt a {background:url(../images/icon-data-txt.png) 0 1px no-repeat;padding-left:15px;margin-bottom:6px;}
 
@@ -208,7 +208,7 @@ p {margin-bottom:1em;}
 #browselist span {display:block; white-space: nowrap;}
 #browselist {overflow:auto;}
 #browselist ul {list-style:none;}
-#searchlist ul li {display:block;padding:2px 0;}
+#browselist ul li {display:block;padding:0;}
 #browselist ul li span {background:url(../images/icon-min-max.png) 0 3px no-repeat;padding-left:15px;}
 #browselist ul li span.numeric {background:url(../images/icon-data.png) 0 1px no-repeat;padding-left:15px;}
 #browselist ul li span.text {background:url(../images/icon-data-txt.png) 0 1px no-repeat;padding-left:15px;}
@@ -247,6 +247,8 @@ p {margin-bottom:1em;}
 #worksheetlist ul li.selected {background:#e6e4e5 /*url(../images/icon-worksheet.png) 0 3px no-repeat*/;display:block;}
 
 /******* GRAPH CONTROLS *******/
+
+span.rememberGraph {display:none;float:right;border:1px solid #ddd;padding:0 4px 0 4px;}
 
 div.error { width:100%; text-align:center; }
 p.error { width:auto; display:none; padding:4px; text-align:left; color: #600; border: 1px dashed #600; }

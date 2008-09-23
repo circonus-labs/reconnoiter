@@ -1,5 +1,13 @@
 <script>
 <!--
+var awake = {};
+function amChartInited(chart_id){
+ // Ugliest hack on the planet.
+ while(!document.getElementById(chart_id).reloadSettings) { sleep(1); }
+ awake[chart_id] = true;
+ redraw_current_graph();
+}
+
 var current_graph_id = '';
 var graphinfo;
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
@@ -9,6 +17,7 @@ function set_current_graph_id(id) {
 }
 var recurse = 0;
 function redraw_current_graph() {
+  if(!awake.maingraph) return;
   if(graphinfo.datapoints.length > 0) {
     $("#flashcontent").slideDown("normal");
     var url = "amcharts/graph/settings/" + graphinfo.id +
@@ -21,7 +30,7 @@ function redraw_current_graph() {
     $("#flashcontent").slideUp("normal");
   }
 }
-function update_current_graph(redraw) {
+function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
   //$("#payload").html(str);
@@ -30,18 +39,27 @@ function update_current_graph(redraw) {
          function(d) {
            recurse++;
            graphinfo.id = d.id;
-           if(d.error) {
-             $("#gtool-error").html(d.error);
-             $("#gtool-error").fadeIn('fast');
-           }
+           if(d.error) $("#gtool-error").html(d.error).fadeIn('fast');
+           else $("#gtool-error").fadeOut('fast');
            recurse--;
            //$("#payload").html(JSON.stringify(graphinfo));
+           if(graphinfo.id && graphinfo.saved != true) {
+             $(".rememberGraph").html('"Remember" this graph.').fadeIn('slow');
+             $(".rememberGraph").click(function() {
+               graphinfo.saved = true;
+               update_current_graph(false, function(r) {
+                 if(r.error) graphinfo.saved = false;
+                 else $(".rememberGraph").html('Remebered').fadeOut('slow');
+               });
+             });
+           }
            if(redraw) redraw_current_graph();
+           if(f) f(d);
          }, 'json');
 }
 function graph_add_datapoint(d) {
   if(d.axis == undefined) { d.axis = 'l'; }
-  if(d.name == undefined) { d.name = d.metric_name; }
+  if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
   graphinfo.datapoints.push(d);
   gtool_add_datapoint(d);
   update_current_graph(true);
@@ -99,6 +117,12 @@ function gtool_add_datapoint(d) {
   }
 
   o.find(".datatitle").html(d.name);
+  o.find(".datatitle").editable(function(value, settings) {
+      d.name = value;
+      update_current_graph(true);
+      return(value);
+    }, { });
+
   recurse--;
   $("#gtool #dataPoints").append(o.children());
 }
@@ -122,13 +146,13 @@ function refresh_graph_from_json(j) {
   redraw_current_graph();
 }
 function fetch_graph_info(id) {
- $.getJSON("graph_info.php",{id: id}, refresh_graph_from_json);
+ $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
 }
 -->
 </script>
 <!--<p><a href="">username</a> / <a href="#">worksheet</a></p>-->
+<span class="rememberGraph"></span>
 <h2 id="graphTitle"></h2>
-
 <!-- date range box -->
 <script type="text/javascript">
 $(document).ready(function(){
