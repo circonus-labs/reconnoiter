@@ -42,20 +42,6 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: metric_tags; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE metric_tags (
-    sid integer NOT NULL,
-    metric_name text NOT NULL,
-    metric_type character varying(22),
-    tags_array text[]
-);
-
-
-ALTER TABLE prism.metric_tags OWNER TO reconnoiter;
-
---
 -- Name: saved_graphs; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
 --
 
@@ -402,6 +388,20 @@ CREATE TABLE metric_name_summary (
 ALTER TABLE stratcon.metric_name_summary OWNER TO reconnoiter;
 
 --
+-- Name: metric_tags; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE metric_tags (
+    sid integer NOT NULL,
+    metric_name text NOT NULL,
+    metric_type character varying(22),
+    tags_array text[]
+);
+
+
+ALTER TABLE stratcon.metric_tags OWNER TO reconnoiter;
+
+--
 -- Name: mv_loading_dock_check_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
@@ -524,7 +524,7 @@ new_tags_array text[];
  BEGIN
      v_tags_array:= string_to_array(in_tags,'');
      SELECT sid into p_sid 
-      FROM prism.metric_tags 
+      FROM stratcon.metric_tags 
       WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;
      IF NOT FOUND THEN
           SELECT sid,metric_name,metric_type INTO v_sid, v_metric_name,v_metric_typle 
@@ -533,14 +533,14 @@ new_tags_array text[];
           IF NOT FOUND THEN
                RAISE EXCEPTION 'Metric does not exist in metric_name_summary table';
           ELSE 
-         INSERT INTO prism.metric_tags (sid,metric_name,metric_type,tags_array) values(v_sid, v_metric_name,v_metric_typle,v_tags_array);
+         INSERT INTO stratcon.metric_tags (sid,metric_name,metric_type,tags_array) values(v_sid, v_metric_name,v_metric_typle,v_tags_array);
       END IF;
      ELSE
        SELECT tags_array INTO p_tags_array 
-          FROM prism.metric_tags 
+          FROM stratcon.metric_tags 
           WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;
              new_tags_array:= array_append(p_tags_array, in_tags);
-           UPDATE  prism.metric_tags SET tags_array= new_tags_array WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;          
+           UPDATE  stratcon.metric_tags SET tags_array= new_tags_array WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;          
     END IF;
   RETURN;
 END
@@ -584,7 +584,7 @@ i int;
  BEGIN
    v_tags_array:= string_to_array(in_tags,'');
      SELECT sid,tags_array into p_sid ,p_tags_array
-      FROM prism.metric_tags 
+      FROM stratcon.metric_tags 
       WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;
      IF NOT FOUND THEN
           
@@ -597,7 +597,7 @@ i int;
           END IF;
          END LOOP;
        
-           UPDATE  prism.metric_tags SET tags_array= new_tags_array WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;          
+           UPDATE  stratcon.metric_tags SET tags_array= new_tags_array WHERE sid=in_sid AND metric_name=in_metric_name AND metric_type=in_metric_type;          
     END IF;
   RETURN;
 END
@@ -606,23 +606,6 @@ $$
 
 
 ALTER FUNCTION prism.remove_tags(in_sid integer, in_metric_name text, in_metric_type text, in_tags text) OWNER TO reconnoiter;
-
---
--- Name: trig_update_tsvector_from_metric_tags(); Type: FUNCTION; Schema: prism; Owner: reconnoiter
---
-
-CREATE FUNCTION trig_update_tsvector_from_metric_tags() RETURNS trigger
-    AS $$
-DECLARE
-BEGIN
-    UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type);
-   RETURN NEW;
-END
-$$
-    LANGUAGE plpgsql;
-
-
-ALTER FUNCTION prism.trig_update_tsvector_from_metric_tags() OWNER TO reconnoiter;
 
 SET search_path = public, pg_catalog;
 
@@ -1175,7 +1158,7 @@ BEGIN
     END IF;
 
     SELECT COALESCE(array_to_string(tags_array, ' '), ' ') INTO ref_tags
-      FROM prism.metric_tags
+      FROM stratcon.metric_tags
      WHERE sid=in_sid and metric_name=in_metric_name and metric_type=in_metric_type;
     IF NOT FOUND THEN
         ref_tags:=' ';
@@ -1887,6 +1870,24 @@ $$
 ALTER FUNCTION stratcon.trig_update_tsvector_from_metric_summary() OWNER TO reconnoiter;
 
 --
+-- Name: trig_update_tsvector_from_metric_tags(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE FUNCTION trig_update_tsvector_from_metric_tags() RETURNS trigger
+    AS $$
+DECLARE
+BEGIN
+    UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type) 
+    where sid=NEW.sid and metric_name=NEW.metric_name and metric_type = NEW.metric_type ;
+   RETURN NEW;
+END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.trig_update_tsvector_from_metric_tags() OWNER TO reconnoiter;
+
+--
 -- Name: trig_update_tsvector_from_mv_dock(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -1950,14 +1951,6 @@ CREATE SEQUENCE seq_sid
 ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
 
 SET search_path = prism, pg_catalog;
-
---
--- Name: metric_tags_pk; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY metric_tags
-    ADD CONSTRAINT metric_tags_pk UNIQUE (sid, metric_name, metric_type);
-
 
 --
 -- Name: saved_graphs_dep_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
@@ -2142,6 +2135,14 @@ ALTER TABLE ONLY metric_name_summary
 
 
 --
+-- Name: metric_tags_pk; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY metric_tags
+    ADD CONSTRAINT metric_tags_pk UNIQUE (sid, metric_name, metric_type);
+
+
+--
 -- Name: mv_loading_dock_check_s_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
@@ -2246,16 +2247,6 @@ CREATE TRIGGER check_name_saved_graphs
     EXECUTE PROCEDURE check_name_saved_graphs();
 
 
---
--- Name: trig_update_tsvector_from_metric_tags; Type: TRIGGER; Schema: prism; Owner: reconnoiter
---
-
-CREATE TRIGGER trig_update_tsvector_from_metric_tags
-    AFTER INSERT OR UPDATE ON metric_tags
-    FOR EACH ROW
-    EXECUTE PROCEDURE trig_update_tsvector_from_metric_tags();
-
-
 SET search_path = stratcon, pg_catalog;
 
 --
@@ -2309,6 +2300,16 @@ CREATE TRIGGER trig_update_tsvector_from_metric_summary
 
 
 --
+-- Name: trig_update_tsvector_from_metric_tags; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE TRIGGER trig_update_tsvector_from_metric_tags
+    AFTER INSERT OR UPDATE ON metric_tags
+    FOR EACH ROW
+    EXECUTE PROCEDURE trig_update_tsvector_from_metric_tags();
+
+
+--
 -- Name: trig_update_tsvector_from_mv_dock; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -2354,16 +2355,6 @@ REVOKE ALL ON SCHEMA stratcon FROM PUBLIC;
 REVOKE ALL ON SCHEMA stratcon FROM stratcon;
 GRANT ALL ON SCHEMA stratcon TO stratcon;
 GRANT USAGE ON SCHEMA stratcon TO prism;
-
-
---
--- Name: metric_tags; Type: ACL; Schema: prism; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE metric_tags FROM PUBLIC;
-REVOKE ALL ON TABLE metric_tags FROM reconnoiter;
-GRANT ALL ON TABLE metric_tags TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_tags TO prism;
 
 
 --
@@ -2518,6 +2509,16 @@ REVOKE ALL ON TABLE metric_name_summary FROM reconnoiter;
 GRANT ALL ON TABLE metric_name_summary TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_name_summary TO stratcon;
 GRANT SELECT,UPDATE ON TABLE metric_name_summary TO prism;
+
+
+--
+-- Name: metric_tags; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE metric_tags FROM PUBLIC;
+REVOKE ALL ON TABLE metric_tags FROM reconnoiter;
+GRANT ALL ON TABLE metric_tags TO reconnoiter;
+GRANT ALL ON TABLE metric_tags TO prism;
 
 
 --
