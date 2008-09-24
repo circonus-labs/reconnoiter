@@ -197,6 +197,10 @@ h4 {font-size:11px;font-weight:bold;}
 p {margin-bottom:1em;}
 .ac {font-size: 10px;font-weight:normal;text-transform:uppercase;color:#82787b;}
 
+#searchlist p.search-summary {margin-bottom: 0;}
+#searchlist p.paginate {text-align:right;}
+#searchlist span.searchselect {display:inline;padding:0 4px;border:1px solid #ccc;margin:0 4px;}
+
 /* search list */
 #searchlist {overflow:hidden; white-space:nowrap;}
 #searchlist ul a {list-style:none;}
@@ -230,6 +234,10 @@ p {margin-bottom:1em;}
 #browselist ul li ul li ul li ul li ul li span.text {background:url(../images/icon-data-txt.png) 60px 1px no-repeat;padding-left:75px;}
 
 /* graph list */
+#graphlist p.graph-search-summary {margin-bottom: 0;}
+#graphlist p.paginate {text-align:right;}
+#graphlist span.searchselect {display:inline;padding:0 4px;border:1px solid #ccc;margin:0 4px;}
+
 #graphlist {overflow:auto;}
 #graphlist ul {list-style:none;}
 #graphlist ul li {display:block;padding:2px 0;margin-bottom:4px;}

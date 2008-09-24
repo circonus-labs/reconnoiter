@@ -7,10 +7,32 @@ function perform_datapoint_search(string, offset, limit) {
               var summary = 'Found ' + r.count + ' data point' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
               if(r.error) summary = 'Error: ' + htmlentities(r.error);
               $("#searchlist > p.search-summary").html(summary).fadeIn('fast');
-              if(r.count > (r.limit + r.offset)) {
-                $("#searchlist > span.paginate").slideDown('fast');
+              var c = new Number(r.count);
+              var l = new Number(r.limit);
+              var o = new Number(r.offset);
+              var page = $("#searchlist > p.paginate");
+              page.html('');
+              if(c > l) {
+                if(o > 0) {
+                  var po = Math.max(o-l, 0);
+                  $('<a/>').html( (po+1) + ' - ' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.append($('<span/>').html((o+1) + '-' + (o+l)).addClass('searchselect'));
+                if(o + l < c) {
+                  var po = o + l;
+                  $('<a/>').html( (po + 1) + '-' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.slideDown('fast');
               }
-              else $("#searchlist > span.paginate").slideUp('fast');
+              else page.slideUp('fast');
               $("#searchresults > li").remove();
               for(var i=0; r.results && i<r.results.length; i++) {
                 var ds = r.results[i];
@@ -43,7 +65,6 @@ $(document).ready(function(){
 -->
 </script>
 <h4 id="searchterms"></h4>
-<p id="searchsummary"></p>
 <div id="datapoint-searchform-container" style="margin:.5em 0 2em 0;padding-bottom:1em;border-bottom: solid 1px #e6e4e5;">
 <form id="datapoint-searchform">
   <fieldset>
@@ -53,7 +74,8 @@ $(document).ready(function(){
 </form>
 </div>
 <div id="searchlist">
-  <p class="search-summary"></p>
+  <p class="search-summary"/>
+  <p class="paginate"/>
   <ul id="searchresults">
   </ul>
 </div>

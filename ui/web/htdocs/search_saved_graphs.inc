@@ -7,10 +7,32 @@ function perform_graph_search(string, offset, limit) {
               var summary = r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
               if(r.error) summary = 'Error: ' + htmlentities(r.error);
               $("#graphlist > p.graph-search-summary").html(summary).fadeIn('fast');
-              if(r.count > (r.limit + r.offset)) {
-                $("#graphlist > span.paginate").slideDown('fast');
+              var c = new Number(r.count);
+              var l = new Number(r.limit);
+              var o = new Number(r.offset);
+              var page = $("#graphlist > p.paginate");
+              page.html('');
+              if(c > l) {
+                if(o > 0) {
+                  var po = Math.max(o-l, 0);
+                  $('<a/>').html( (po+1) + ' - ' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.append($('<span/>').html((o+1) + '-' + (o+l)).addClass('searchselect'));
+                if(o + l < c) {
+                  var po = o + l;
+                  $('<a/>').html( (po + 1) + '-' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.slideDown('fast');
               }
-              else $("#graphlist > span.paginate").slideUp('fast');
+              else page.slideUp('fast');
               $("#graph-searchresults > li").remove();
               for(var i=0; r.results && i<r.results.length; i++) {
                 var g = r.results[i];
