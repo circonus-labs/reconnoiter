@@ -4,8 +4,15 @@ function perform_datapoint_search(string, offset, limit) {
   $.getJSON('json/datapoint/search',
             { 'q' : string, 'o' : offset, 'l' : limit },
             function(r) {
+              var summary = 'Found ' + r.count + ' data point' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+              if(r.error) summary = 'Error: ' + htmlentities(r.error);
+              $("#searchlist > p.search-summary").html(summary).fadeIn('fast');
+              if(r.count > (r.limit + r.offset)) {
+                $("#searchlist > span.paginate").slideDown('fast');
+              }
+              else $("#searchlist > span.paginate").slideUp('fast');
               $("#searchresults > li").remove();
-              for(var i=0; i<r.results.length; i++) {
+              for(var i=0; r.results && i<r.results.length; i++) {
                 var ds = r.results[i];
                 var a = $('<a href="#"/>');
                 var li = $('<li/>');
@@ -46,6 +53,7 @@ $(document).ready(function(){
 </form>
 </div>
 <div id="searchlist">
+  <p class="search-summary"></p>
   <ul id="searchresults">
   </ul>
 </div>

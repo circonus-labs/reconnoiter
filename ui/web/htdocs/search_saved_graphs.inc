@@ -1,45 +1,58 @@
-					<h4>640 graphs found</h4>
-					<div class="accordion2">
-						<h4>Narrow results by user</h4>
-						<div>
-							<form name="form" id="form">
-								<label for="jumpMenu">User:</label>
-								<select name="jumpMenu" id="jumpMenu" onchange="MM_jumpMenu('parent',this,0)">
-									<option>All users</option>
-									<option>theo@omniti.com</option>
-									<option>loremipsum@mail.freelotto.com</option>
-								</select>
-							</form>
-						</div>
-						<h4>Narrow results by keyword</h4>
-						<div>
-							 <form name="form3" id="form3">
-								<fieldset>
-								<label for="keyword2" style="display:none;">Keyword</label> <input type="text" id="keyword2" value="keyword" style="width:200px;" /> <input type="submit" value="Submit" /> <input type="submit" value="Clear" />
-								</fieldset>
-							</form>
-						</div>
-					</div>
-					<div style="margin:1em 0;padding:1em 0;border-top:1px solid #e6e4e5;border-bottom:2px none #e6e4e5;">
-					<form name="form" id="form">
-						<label for="jumpMenu">Sort by:</label>
-						<select name="jumpMenu" id="jumpMenu" onchange="MM_jumpMenu('parent',this,0)">
-							<option>Date New to Old</option>
-							<option>Date Old to New</option>
-							<option>User A to Z</option>
-							<option>User Z to A</option>
-						</select>
-					</form>
-					</div>
-					
-					<div id="graphlist">
-						<ul>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-							<li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
-						</ul>
-					</div>
+<script type="text/javascript">
+<!--
+function perform_graph_search(string, offset, limit) {
+  $.getJSON('json/graph/search',
+            { 'q' : string, 'o' : offset, 'l' : limit },
+            function(r) {
+              var summary = r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+              if(r.error) summary = 'Error: ' + htmlentities(r.error);
+              $("#graphlist > p.graph-search-summary").html(summary).fadeIn('fast');
+              if(r.count > (r.limit + r.offset)) {
+                $("#graphlist > span.paginate").slideDown('fast');
+              }
+              else $("#graphlist > span.paginate").slideUp('fast');
+              $("#graph-searchresults > li").remove();
+              for(var i=0; r.results && i<r.results.length; i++) {
+                var g = r.results[i];
+                var a = $('<a href="#"/>');
+                a.html('Edit').addClass('addtows');
+                a.click(
+                  (function(graphid) {
+                      return function() {
+                        set_current_graph_id(graphid);
+                        return false;
+                      }
+                   })(g.graphid)
+                );
+                var li = $('<li/>').append($('<a/>').html(g.title))
+                                   .append($('<ul/>').append($('<li/>').html(g.last_update))
+                                                     .append($('<li/>').append(a)));
+                $("#graph-searchresults").append(li);
+              }
+            });
+}
+$(document).ready(function(){
+        $("#graph-searchform").submit(function() {
+                perform_graph_search($("#graph-searchinput").val(), 0, 25);
+                return false;
+        });
+});
+-->
+</script>
+
+</script>
+<h4 id="graph-searchterms"></h4>
+<div id="graph-searchform-container" style="margin:.5em 0 2em 0;padding-bottom:1em;border-bottom: solid 1px #e6e4e5;">
+<form id="graph-searchform">
+  <fieldset>
+  <legend style="display:none;">Search</legend>
+  <label for="keyword" style="display:none;">Keyword</label> <input type="text" id="graph-searchinput" style="width:220px;" /> <input type="submit" value="Search" />
+  </fieldset>
+</form>
+</div>
+<div id="graphlist">
+  <p class="graph-search-summary"></p>
+  <ul id="graph-searchresults">
+    <li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
+  </ul>
+</div>

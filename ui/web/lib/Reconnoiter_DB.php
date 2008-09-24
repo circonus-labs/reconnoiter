@@ -61,22 +61,63 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
-  function valid_source_variables() {
+  private function valid_source_variables() {
     return array('module', 'remote_address', 'target', 'name', 'metric_name');
   }
-  function get_datapoints($searchstring, $offset, $limit) {
-    $sth = $this->db->prepare("
-      select *
-        from stratcon.mv_loading_dock_check_s c
-        join stratcon.metric_name_summary m using (sid)
-       where active = true
-    order by target, module, name, remote_address
-       limit ?
-      offset ?");
-    $sth->execute(array($limit, $offset));
+  private function tsearchize($searchstring) {
+    $searchstring = trim($searchstring);
+    $searchstring = preg_replace('/\s+/', ' ', $searchstring);
+    $searchstring = preg_replace('/\b(\'[^\']+\'|[^\s\|\'&]\S*)\s+(?![\|\)&])/',
+                                 '$1 & ', $searchstring);
+    return $searchstring;
+  }
+  protected function run_tsearch($searchstring, $countsql, $datasql, $offset, $limit) {
+    $searchstring = $this->tsearchize($searchstring);
+    $searchwhere = $searchstring ? 'ts_search_all @@ to_tsquery(?)' : 'true';
+
+    $binds = array();
+    if($searchstring) array_unshift($binds, $searchstring);
+    $sth = $this->db->prepare(sprintf($countsql,$searchwhere));
+    $sth->execute($binds);
+    $r = $sth->fetch();
+
+    array_push($binds, $limit);
+    array_push($binds, $offset);
+    $sth = $this->db->prepare(sprintf("$datasql limit ? offset ?",
+                              $searchwhere));
+    $sth->execute($binds);
     $a = array();
     while($row = $sth->fetch()) $a[] = $row;
-    return $a;
+
+    return array('query' => $searchstring, 'limit' => $limit,
+                 'offset' => $offset, count => $r['count'], 'results' => $a);
+  }
+  function get_graphs($searchstring, $offset, $limit) {
+    return $this->run_tsearch($searchstring,
+      "select count(*) as count
+         from prism.saved_graphs
+        where saved = true and %s",
+      "select graphid, title,
+              to_char(last_update, 'YYYY/mm/dd') as last_update
+         from prism.saved_graphs
+        where saved = true and %s
+     order by last_update desc",
+      $offset, $limit);
+  }
+  function get_datapoints($searchstring, $offset, $limit) {
+    return $this->run_tsearch($searchstring,
+      "select count(*) as count
+         from stratcon.mv_loading_dock_check_s c
+         join stratcon.metric_name_summary m using (sid)
+        where active = true and %s",
+      "select c.id, c.sid, c.remote_address,
+              c.target, c.whence, c.module, c.name,
+              m.metric_name, m.metric_type
+         from stratcon.mv_loading_dock_check_s c
+         join stratcon.metric_name_summary m using (sid)
+        where active = true and %s
+     order by target, module, name, remote_address",
+      $offset, $limit);
   }
   function get_sources($want, $fixate, $active = true) {
     $vars = $this->valid_source_variables();
@@ -230,10 +271,11 @@ class Reconnoiter_DB {
     try {
       if($id) {
         $sth = $this->db->prepare("update prism.saved_graphs
-                                      set json=?, title=?,
+                                      set json=?, title=?, saved=(saved or ?),
                                           last_update=current_timestamp
                                     where graphid=?");
-        $sth->execute(array($json,$graph['title'],$id));
+        $sth->execute(array($json,$graph['title'],
+                            $graph['saved']?'true':'false',$id));
         if($sth->rowCount() != 1) throw(new Exception('No such graph: '.$id));
         $sth = $this->db->prepare("delete from prism.saved_graphs_dep
                                          where graphid = ?");

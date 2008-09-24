@@ -198,7 +198,7 @@ p {margin-bottom:1em;}
 .ac {font-size: 10px;font-weight:normal;text-transform:uppercase;color:#82787b;}
 
 /* search list */
-#searchlist {overflow:auto; white-space:nowrap;}
+#searchlist {overflow:hidden; white-space:nowrap;}
 #searchlist ul a {list-style:none;}
 #searchlist ul li {display:block;padding:0;margin-bottom:0px;}
 #searchlist ul li a {background:url(../images/icon-data.png) 0 1px no-repeat;padding-left:15px;}
@@ -206,7 +206,7 @@ p {margin-bottom:1em;}
 
 /* browse list */
 #browselist span {display:block; white-space: nowrap;}
-#browselist {overflow:auto;}
+#browselist {overflow:hidden;}
 #browselist ul {list-style:none;}
 #browselist ul li {display:block;padding:0;}
 #browselist ul li span {background:url(../images/icon-min-max.png) 0 3px no-repeat;padding-left:15px;}

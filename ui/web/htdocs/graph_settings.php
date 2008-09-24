@@ -11,7 +11,7 @@ $start = $_GET['start']?$_GET['start']:(7*86400);
 if(preg_match('/^\d+$/', $start))
   $start = strftime("%Y-%m-%d %H:%M:%S", time() - $start);
 $end = $_GET['end']?$_GET['end']:strftime("%Y-%m-%d %H:%M:%S", time());
-$cnt = $_GET['cnt']?$_GET['cnt']:200;
+$cnt = $_GET['cnt']?$_GET['cnt']:100;
 
 $driver = new Reconnoiter_amLine_Driver($start, $end, $cnt);
 $db = Reconnoiter_DB::GetDB();

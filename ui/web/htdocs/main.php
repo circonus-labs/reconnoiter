@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>Reconnoiter</title>
 <link href="css/style.css" rel="stylesheet" type="text/css" />
+<script src="js/htmlentities.js"></script>
 <script src="js/json2.js"></script>
 <script src="js/jquery.min.js"></script>
 <script src="js/jquery.jeditable.pack.js"></script>

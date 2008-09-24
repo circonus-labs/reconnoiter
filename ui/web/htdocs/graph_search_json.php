@@ -5,7 +5,7 @@ require_once('Reconnoiter_DB.php');
 $db = Reconnoiter_DB::GetDB();
 
 try {
-  print json_encode($db->get_datapoints($_GET['q'], $_GET['o'], $_GET['l']));
+  print json_encode($db->get_graphs($_GET['q'], $_GET['o'], $_GET['l']));
 }
 catch(Exception $e) {
   print json_encode(array(
