@@ -83,11 +83,12 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     if($this->units == 0) $this->units = 1;
   }
   function autounits($value) {
+    $this->auto_units_on = true;
     $this->__calc();
     return $value / $this->units;
   }
   function autounit() {
-    //$this->__calc();
+    if(!$this->auto_units_on) return '';
     switch($this->units) {
       case 0.000000001: return 'n';
       case 0.000001: return 'u';
