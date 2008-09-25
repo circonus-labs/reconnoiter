@@ -2336,6 +2336,17 @@ ALTER TABLE ONLY rollup_matrix_numeric_6hours
 ALTER TABLE rollup_matrix_numeric_6hours CLUSTER ON rollup_matrix_numeric_6hours_pkey;
 
 
+SET search_path = prism, pg_catalog;
+
+--
+-- Name: idx_saved_graphs_ts_search_all; Type: INDEX; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE INDEX idx_saved_graphs_ts_search_all ON saved_graphs USING btree (ts_search_all);
+
+
+SET search_path = stratcon, pg_catalog;
+
 --
 -- Name: idx_metric_name_summary_ts_search_all; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
@@ -2540,7 +2551,7 @@ REVOKE ALL ON TABLE current_metric_text FROM PUBLIC;
 REVOKE ALL ON TABLE current_metric_text FROM reconnoiter;
 GRANT ALL ON TABLE current_metric_text TO reconnoiter;
 GRANT SELECT ON TABLE current_metric_text TO prism;
-GRANT SELECT,INSERT,UPDATE ON TABLE current_metric_text TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE current_metric_text TO stratcon;
 
 
 --
@@ -2551,7 +2562,7 @@ REVOKE ALL ON TABLE current_node_config FROM PUBLIC;
 REVOKE ALL ON TABLE current_node_config FROM reconnoiter;
 GRANT ALL ON TABLE current_node_config TO reconnoiter;
 GRANT SELECT ON TABLE current_node_config TO prism;
-GRANT SELECT,INSERT,UPDATE ON TABLE current_node_config TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE current_node_config TO stratcon;
 
 
 --
@@ -2562,7 +2573,7 @@ REVOKE ALL ON TABLE current_node_config_changelog FROM PUBLIC;
 REVOKE ALL ON TABLE current_node_config_changelog FROM reconnoiter;
 GRANT ALL ON TABLE current_node_config_changelog TO reconnoiter;
 GRANT SELECT ON TABLE current_node_config_changelog TO prism;
-GRANT SELECT,INSERT,UPDATE ON TABLE current_node_config_changelog TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE current_node_config_changelog TO stratcon;
 
 
 --
@@ -2572,7 +2583,7 @@ GRANT SELECT,INSERT,UPDATE ON TABLE current_node_config_changelog TO stratcon;
 REVOKE ALL ON TABLE loading_dock_check_s FROM PUBLIC;
 REVOKE ALL ON TABLE loading_dock_check_s FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_check_s TO reconnoiter;
-GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_check_s TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_check_s TO stratcon;
 GRANT SELECT ON TABLE loading_dock_check_s TO prism;
 
 
@@ -2583,7 +2594,7 @@ GRANT SELECT ON TABLE loading_dock_check_s TO prism;
 REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM PUBLIC;
 REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_metric_numeric_s TO reconnoiter;
-GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_metric_numeric_s TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_s TO stratcon;
 GRANT SELECT ON TABLE loading_dock_metric_numeric_s TO prism;
 
 
@@ -2605,7 +2616,7 @@ GRANT SELECT ON TABLE loading_dock_metric_text_s TO prism;
 REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM PUBLIC;
 REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_metric_text_s_change_log TO reconnoiter;
-GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_metric_text_s_change_log TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_s_change_log TO stratcon;
 GRANT SELECT ON TABLE loading_dock_metric_text_s_change_log TO prism;
 
 
@@ -2616,7 +2627,7 @@ GRANT SELECT ON TABLE loading_dock_metric_text_s_change_log TO prism;
 REVOKE ALL ON TABLE loading_dock_status_s FROM PUBLIC;
 REVOKE ALL ON TABLE loading_dock_status_s FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_status_s TO reconnoiter;
-GRANT SELECT,INSERT,UPDATE ON TABLE loading_dock_status_s TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_status_s TO stratcon;
 GRANT SELECT ON TABLE loading_dock_status_s TO prism;
 
 
@@ -2649,7 +2660,7 @@ GRANT SELECT ON TABLE log_whence_s TO prism;
 REVOKE ALL ON TABLE map_uuid_to_sid FROM PUBLIC;
 REVOKE ALL ON TABLE map_uuid_to_sid FROM reconnoiter;
 GRANT ALL ON TABLE map_uuid_to_sid TO reconnoiter;
-GRANT SELECT,INSERT,UPDATE ON TABLE map_uuid_to_sid TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE map_uuid_to_sid TO stratcon;
 GRANT SELECT ON TABLE map_uuid_to_sid TO prism;
 
 
@@ -2672,6 +2683,7 @@ REVOKE ALL ON TABLE metric_tags FROM PUBLIC;
 REVOKE ALL ON TABLE metric_tags FROM reconnoiter;
 GRANT ALL ON TABLE metric_tags TO reconnoiter;
 GRANT ALL ON TABLE metric_tags TO prism;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_tags TO stratcon;
 
 
 --
@@ -2692,7 +2704,7 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE mv_loading_dock_check_s TO stratcon;
 REVOKE ALL ON TABLE rollup_matrix_numeric_12hours FROM PUBLIC;
 REVOKE ALL ON TABLE rollup_matrix_numeric_12hours FROM reconnoiter;
 GRANT ALL ON TABLE rollup_matrix_numeric_12hours TO reconnoiter;
-GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_12hours TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE rollup_matrix_numeric_12hours TO stratcon;
 GRANT SELECT ON TABLE rollup_matrix_numeric_12hours TO prism;
 
 
@@ -2703,7 +2715,7 @@ GRANT SELECT ON TABLE rollup_matrix_numeric_12hours TO prism;
 REVOKE ALL ON TABLE rollup_matrix_numeric_20m FROM PUBLIC;
 REVOKE ALL ON TABLE rollup_matrix_numeric_20m FROM reconnoiter;
 GRANT ALL ON TABLE rollup_matrix_numeric_20m TO reconnoiter;
-GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_20m TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE rollup_matrix_numeric_20m TO stratcon;
 GRANT SELECT ON TABLE rollup_matrix_numeric_20m TO prism;
 
 
@@ -2725,7 +2737,7 @@ GRANT SELECT ON TABLE rollup_matrix_numeric_5m TO prism;
 REVOKE ALL ON TABLE rollup_matrix_numeric_60m FROM PUBLIC;
 REVOKE ALL ON TABLE rollup_matrix_numeric_60m FROM reconnoiter;
 GRANT ALL ON TABLE rollup_matrix_numeric_60m TO reconnoiter;
-GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_60m TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE rollup_matrix_numeric_60m TO stratcon;
 GRANT SELECT ON TABLE rollup_matrix_numeric_60m TO prism;
 
 
@@ -2736,7 +2748,7 @@ GRANT SELECT ON TABLE rollup_matrix_numeric_60m TO prism;
 REVOKE ALL ON TABLE rollup_matrix_numeric_6hours FROM PUBLIC;
 REVOKE ALL ON TABLE rollup_matrix_numeric_6hours FROM reconnoiter;
 GRANT ALL ON TABLE rollup_matrix_numeric_6hours TO reconnoiter;
-GRANT SELECT,INSERT,DELETE ON TABLE rollup_matrix_numeric_6hours TO stratcon;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE rollup_matrix_numeric_6hours TO stratcon;
 GRANT SELECT ON TABLE rollup_matrix_numeric_6hours TO prism;
 
 
