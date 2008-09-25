@@ -146,12 +146,19 @@ function refresh_graph_from_json(j) {
   redraw_current_graph();
 }
 function fetch_graph_info(id) {
- $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
+  $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
+  $("span.blankGraph").click(function() {
+    if(graphinfo.saved || confirm("I will forget the current graph.  Are you sure?"))
+      set_current_graph_id('');
+    return false;
+  });
 }
 -->
 </script>
 <!--<p><a href="">username</a> / <a href="#">worksheet</a></p>-->
+<p/>
 <span class="rememberGraph"></span>
+<span class="blankGraph">New Blank</span>
 <h2 id="graphTitle"></h2>
 <!-- date range box -->
 <script type="text/javascript">

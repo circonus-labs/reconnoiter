@@ -75,6 +75,5 @@ $(document).ready(function(){
 <div id="graphlist">
   <p class="graph-search-summary"></p>
   <ul id="graph-searchresults">
-    <li><a href="#">sed do eiusmod tempor incididunt ut labore</a><ul><li class="xx">theo@omniti.com</li><li>YY/MM/DD</li><li><a href="#" class="addtows" title="Add to Worksheet"><em>Add</em></a></li></ul></li>
   </ul>
 </div>

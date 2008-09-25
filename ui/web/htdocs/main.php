@@ -127,10 +127,6 @@ function MM_jumpMenu(targ,selObj,restore){ //v3.0
 				<li><a href="#">Worksheet</a></li>
 			</ul><div style="clear:both;"></div>
 		</div>
-		<!-- buttons -->
-		<div id="buttons">
-		<input name="Save" type="button" value="New Graph" /> <input name="Save" type="button" value="Save" /> <input name="Save" type="button" value="Save as" /> <input name="Save" type="button" value="Delete" /> 
-		</div>
 		<!-- graph and controls -->
 		<div id="main">
 		<?php include('graph_controls.inc') ?>

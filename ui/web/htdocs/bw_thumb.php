@@ -11,9 +11,9 @@
 
 	<script type="text/javascript">
 		// <![CDATA[		
-		var so = new SWFObject("amcharts/amline/amline.swf", "amline", "780", "400", "8", "#FFFFFF");
+		var so = new SWFObject("amcharts/amline/amline.swf", "amline", "380", "200", "8", "#FFFFFF");
 		so.addVariable("path", "amcharts/amline/");
-		so.addVariable("settings_file", escape("graph/template/bw/large/<?php print $_GET['id'] ?>?start=<?php print $_GET['start'] ?>&end=<?php print $_GET['end'] ?>&cnt=<?php print isset($_GET['cnt']) ? $_GET['cnt'] : 500 ?>&view=<?php print $_GET['view'] ?>"));
+		so.addVariable("settings_file", escape("graph/template/bw/small/<?php print $_GET['id'] ?>?start=<?php print $_GET['start'] ?>&end=<?php print $_GET['end'] ?>&cnt=<?php print isset($_GET['cnt']) ? $_GET['cnt'] : 500 ?>&view=<?php print $_GET['view'] ?>"));
 		so.addVariable("preloader_color", "#999999");
 		so.write("flashcontent");
 		// ]]>

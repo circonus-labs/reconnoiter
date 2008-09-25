@@ -256,7 +256,8 @@ p {margin-bottom:1em;}
 
 /******* GRAPH CONTROLS *******/
 
-span.rememberGraph {display:none;float:right;border:1px solid #ddd;padding:0 4px 0 4px;}
+span.rememberGraph {display:none;float:right;border:1px solid #ddd;padding:0 4px 0 4px;margin-left:4px;}
+span.blankGraph {float:right;border:1px solid #ddd;padding:0 4px 0 4px;margin-left:4px;}
 
 div.error { width:100%; text-align:center; }
 p.error { width:auto; display:none; padding:4px; text-align:left; color: #600; border: 1px dashed #600; }

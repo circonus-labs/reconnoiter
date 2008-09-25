@@ -51,7 +51,7 @@ $i = 0;
  <y_left>
   <min><?php print ($driver->min() > 0) ? '0' : '' ?></min>
   <max><?php print ($driver->max() < 0) ? '0' : '' ?></max>
-  <unit><?php print $autounits ? $driver->autounit() : "" ?></unit>
+  <unit><?php print $driver->autounit() ?></unit>
  </y_left>
 </values>
 </settings>
