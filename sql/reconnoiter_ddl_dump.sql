@@ -51,7 +51,8 @@ CREATE TABLE saved_graphs (
     saved boolean DEFAULT false NOT NULL,
     title text,
     last_update timestamp without time zone NOT NULL,
-    ts_search_all tsvector
+    ts_search_all tsvector,
+    graph_tags text[]
 );
 
 
@@ -508,6 +509,34 @@ ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
 SET search_path = prism, pg_catalog;
 
 --
+-- Name: add_graph_tags(uuid, text); Type: FUNCTION; Schema: prism; Owner: reconnoiter
+--
+
+CREATE FUNCTION add_graph_tags(in_graphid uuid, in_tags text) RETURNS void
+    AS $$
+  DECLARE
+   v_graphid uuid;
+   v_graph_tags text[];
+   new_tags_array text[];
+   BEGIN
+       SELECT graphid,graph_tags into v_graphid,v_graph_tags
+         FROM prism.saved_graphs 
+           WHERE graphid =in_graphid; 
+     IF NOT FOUND THEN
+                 RAISE EXCEPTION 'GraphID does not exist in saved graphs table.';
+            ELSE 
+             new_tags_array:= array_append(v_graph_tags, in_tags);
+            UPDATE  prism.saved_graphs SET graph_tags = new_tags_array WHERE graphid=in_graphid;          
+      END IF;
+    RETURN;
+  END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION prism.add_graph_tags(in_graphid uuid, in_tags text) OWNER TO reconnoiter;
+
+--
 -- Name: add_tags(integer, text, text, text); Type: FUNCTION; Schema: prism; Owner: reconnoiter
 --
 
@@ -570,6 +599,39 @@ $$
 ALTER FUNCTION prism.check_name_saved_graphs() OWNER TO reconnoiter;
 
 --
+-- Name: remove_graph_tags(uuid, text); Type: FUNCTION; Schema: prism; Owner: reconnoiter
+--
+
+CREATE FUNCTION remove_graph_tags(in_graphid uuid, in_tags text) RETURNS void
+    AS $$
+DECLARE
+v_graphid uuid;
+v_graph_tags text[];
+new_tags_array text[];
+i int;
+ BEGIN
+    SELECT graphid,graph_tags into v_graphid,v_graph_tags
+            FROM prism.saved_graphs 
+              WHERE graphid =in_graphid; 
+     IF NOT FOUND THEN
+                    RAISE EXCEPTION 'GraphID does not exist in saved graphs table.';
+     ELSE 
+        FOR i IN array_lower(v_graph_tags, 1)..array_upper(v_graph_tags, 1) LOOP
+           IF NOT v_graph_tags[i] =any(v_graph_tags) THEN
+              new_tags_array = array_append(new_tags_array, v_graph_tags[i]);
+           END IF;
+        END LOOP;
+        UPDATE  prism.saved_graphs SET graph_tags = new_tags_array WHERE graphid=in_graphid;           
+     END IF;
+  RETURN;
+END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION prism.remove_graph_tags(in_graphid uuid, in_tags text) OWNER TO reconnoiter;
+
+--
 -- Name: remove_tags(integer, text, text, text); Type: FUNCTION; Schema: prism; Owner: reconnoiter
 --
 
@@ -606,6 +668,59 @@ $$
 
 
 ALTER FUNCTION prism.remove_tags(in_sid integer, in_metric_name text, in_metric_type text, in_tags text) OWNER TO reconnoiter;
+
+--
+-- Name: saved_graphs_tsvector(uuid); Type: FUNCTION; Schema: prism; Owner: reconnoiter
+--
+
+CREATE FUNCTION saved_graphs_tsvector(in_graphid uuid) RETURNS tsvector
+    AS $$DECLARE
+ref_graphid uuid;
+ref_graph_tags text;
+ref_title text;
+v_ts_search_all tsvector;
+BEGIN
+   SELECT graphid,COALESCE(array_to_string(graph_tags, ' '), ' '),title into ref_graphid,ref_graph_tags,ref_title
+               FROM prism.saved_graphs 
+              WHERE graphid =in_graphid;
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+    
+    ref_title := coalesce(replace(ref_title, '.', ' '), ' ');
+    ref_graph_tags := regexp_replace(ref_graph_tags, E'[_\`/.\\134]', ' ', 'g');
+    
+    v_ts_search_all=to_tsvector(ref_title || ' ' ||ref_graph_tags);
+    
+    RETURN v_ts_search_all;
+END$$
+    LANGUAGE plpgsql STRICT;
+
+
+ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter;
+
+--
+-- Name: trig_update_tsvector_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: reconnoiter
+--
+
+CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
+    AS $$
+DECLARE
+ BEGIN
+ IF TG_OP != 'INSERT' THEN
+   IF (NEW.graphid <> OLD.graphid) THEN
+           UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid);
+   END IF;    
+ ELSE 
+    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid);
+ END IF;  
+   RETURN NEW;
+END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION prism.trig_update_tsvector_saved_graphs() OWNER TO reconnoiter;
 
 SET search_path = public, pg_catalog;
 
@@ -880,8 +995,7 @@ ALTER FUNCTION stratcon.fetch_varset(in_check uuid, in_name text, in_start_time 
 --
 
 CREATE FUNCTION fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer) RETURNS SETOF loading_dock_metric_text_s_change_log
-    AS $$
-declare
+    AS $$declare
   v_sid int;
   v_target record;
   v_start_adj timestamptz;
@@ -956,6 +1070,20 @@ begin
     end if;
     return next v_change_row;
   end loop;
+
+
+  if v_next_text is null then
+    -- No rows.
+    for v_change_row in
+      select v_sid as sid, v_start_adj as whence, in_name as name, value
+        from stratcon.loading_dock_metric_text_s_change_log
+       where sid = v_sid and name = in_name and whence <= v_start_adj
+    order by whence desc
+       limit 1
+    loop
+      return next v_change_row;
+    end loop;
+  end if;
 
   return;
 end
@@ -2260,6 +2388,16 @@ CREATE TRIGGER check_name_saved_graphs
     BEFORE INSERT OR UPDATE ON saved_graphs
     FOR EACH ROW
     EXECUTE PROCEDURE check_name_saved_graphs();
+
+
+--
+-- Name: trig_update_tsvector_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
+--
+
+CREATE TRIGGER trig_update_tsvector_saved_graphs
+    AFTER INSERT OR UPDATE ON saved_graphs
+    FOR EACH ROW
+    EXECUTE PROCEDURE trig_update_tsvector_saved_graphs();
 
 
 SET search_path = stratcon, pg_catalog;
