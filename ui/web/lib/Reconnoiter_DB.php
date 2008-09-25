@@ -61,7 +61,7 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
-  private function valid_source_variables() {
+  function valid_source_variables() {
     return array('module', 'remote_address', 'target', 'name', 'metric_name');
   }
   private function tsearchize($searchstring) {
