@@ -1148,6 +1148,7 @@ ref_target text;
 ref_tags text;
 ref_hostname text;
 ref_metric_name text;
+ref_alias text;
 v_ts_search_all tsvector;
 BEGIN
     SELECT sid,module,name,target
@@ -1169,14 +1170,21 @@ BEGIN
       JOIN stratcon.mv_loading_dock_check_s s USING(sid)
      WHERE module='dns' AND s.name='in-addr.arpa' AND target = ref_target;
 
+    SELECT mt.value INTO ref_alias
+      FROM stratcon.current_metric_text mt
+      JOIN stratcon.mv_loading_dock_check_s s USING(sid)
+     WHERE s.module='snmp' AND mt.name='alias' AND s.sid=in_sid;
+
     ref_hostname := coalesce(replace(ref_hostname, '.', ' '), ' ');
     ref_metric_name := regexp_replace(in_metric_name, E'[_\`/.\\134]', ' ', 'g');
+    ref_alias := coalesce(regexp_replace(ref_alias, E'[_\`/.\\134]', ' ', 'g'), ' ');
 
     v_ts_search_all=to_tsvector(ref_metric_name || ' ' ||
                                 ref_module || ' ' ||
                                 ref_name || ' ' ||
                                 ref_target || ' ' ||
                                 ref_hostname || ' ' ||
+                                ref_alias || ' ' ||
                                 ref_tags);
     RETURN v_ts_search_all;
 END$$
@@ -2198,6 +2206,13 @@ ALTER TABLE ONLY rollup_matrix_numeric_6hours
     ADD CONSTRAINT rollup_matrix_numeric_6hours_pkey PRIMARY KEY (rollup_time, sid, name);
 
 ALTER TABLE rollup_matrix_numeric_6hours CLUSTER ON rollup_matrix_numeric_6hours_pkey;
+
+
+--
+-- Name: idx_metric_name_summary_ts_search_all; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE INDEX idx_metric_name_summary_ts_search_all ON metric_name_summary USING btree (ts_search_all);
 
 
 --
