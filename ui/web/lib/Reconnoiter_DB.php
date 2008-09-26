@@ -73,34 +73,44 @@ class Reconnoiter_DB {
   }
   protected function run_tsearch($searchstring, $countsql, $datasql, $offset, $limit) {
     $searchstring = $this->tsearchize($searchstring);
-    $searchwhere = $searchstring ? 'ts_search_all @@ to_tsquery(?)' : 'true';
 
-    $binds = array();
-    if($searchstring) array_unshift($binds, $searchstring);
-    $sth = $this->db->prepare(sprintf($countsql,$searchwhere));
+    $binds = array($searchstring);
+    $sth = $this->db->prepare($countsql);
     $sth->execute($binds);
     $r = $sth->fetch();
 
     array_push($binds, $limit);
     array_push($binds, $offset);
-    $sth = $this->db->prepare(sprintf("$datasql limit ? offset ?",
-                              $searchwhere));
+    $sth = $this->db->prepare("$datasql limit ? offset ?");
     $sth->execute($binds);
     $a = array();
     while($row = $sth->fetch()) $a[] = $row;
-
     return array('query' => $searchstring, 'limit' => $limit,
                  'offset' => $offset, count => $r['count'], 'results' => $a);
   }
   function get_graphs($searchstring, $offset, $limit) {
     return $this->run_tsearch($searchstring,
       "select count(*) as count
-         from prism.saved_graphs
-        where saved = true and %s",
+         from prism.saved_graphs,
+              (select ? ::text as query) q
+        where saved = true and
+           ((ts_search_all @@ to_tsquery(query) or query = '')
+            or graphid in (select graphid
+                            from prism.saved_graphs_dep gd
+                            join stratcon.metric_name_summary s
+                           using (sid,metric_name,metric_type)
+                           where ts_search_all @@ to_tsquery(query)))",
       "select graphid, title,
               to_char(last_update, 'YYYY/mm/dd') as last_update
-         from prism.saved_graphs
-        where saved = true and %s
+         from prism.saved_graphs,
+              (select ? ::text as query) q
+        where saved = true and
+           ((ts_search_all @@ to_tsquery(query) or query = '')
+            or graphid in (select graphid
+                            from prism.saved_graphs_dep gd
+                            join stratcon.metric_name_summary s
+                           using (sid,metric_name,metric_type)
+                           where ts_search_all @@ to_tsquery(query)))
      order by last_update desc",
       $offset, $limit);
   }
@@ -108,14 +118,16 @@ class Reconnoiter_DB {
     return $this->run_tsearch($searchstring,
       "select count(*) as count
          from stratcon.mv_loading_dock_check_s c
-         join stratcon.metric_name_summary m using (sid)
-        where active = true and %s",
+         join stratcon.metric_name_summary m using (sid),
+              (select ? ::text as query) q
+        where active = true and (query = '' or ts_search_all @@ to_tsquery(query))",
       "select c.id, c.sid, c.remote_address,
               c.target, c.whence, c.module, c.name,
               m.metric_name, m.metric_type
          from stratcon.mv_loading_dock_check_s c
-         join stratcon.metric_name_summary m using (sid)
-        where active = true and %s
+         join stratcon.metric_name_summary m using (sid),
+              (select ? ::text as query) q
+        where active = true and (query = '' or ts_search_all @@ to_tsquery(query))
      order by target, module, name, remote_address",
       $offset, $limit);
   }
