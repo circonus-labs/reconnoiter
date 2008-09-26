@@ -708,11 +708,11 @@ CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
 DECLARE
  BEGIN
  IF TG_OP != 'INSERT' THEN
-   IF (NEW.graphid <> OLD.graphid) THEN
-           UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid);
+   IF (NEW.graph_tags <> OLD.graph_tags) THEN
+           UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
    END IF;    
  ELSE 
-    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid);
+    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
  END IF;  
    RETURN NEW;
 END
@@ -1992,10 +1992,12 @@ DECLARE
  BEGIN
  IF TG_OP != 'INSERT' THEN
    IF (NEW.metric_name <> OLD.metric_name) THEN
-           UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type);
+           UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type)
+             where sid=NEW.sid and metric_name=NEW.metric_name and metric_type = NEW.metric_type;
    END IF;    
  ELSE 
-    UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type);
+    UPDATE stratcon.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type)
+            where sid=NEW.sid and metric_name=NEW.metric_name and metric_type = NEW.metric_type;
  END IF;  
    RETURN NEW;
 END
