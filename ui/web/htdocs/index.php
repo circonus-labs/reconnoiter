@@ -7,6 +7,7 @@
 <script src="js/htmlentities.js"></script>
 <script src="js/json2.js"></script>
 <script src="js/jquery.min.js"></script>
+<script src="js/jquery.flot.js"></script>
 <script src="js/jquery.jeditable.pack.js"></script>
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>

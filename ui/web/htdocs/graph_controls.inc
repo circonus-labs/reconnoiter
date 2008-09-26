@@ -1,13 +1,5 @@
-<script>
+<script type="text/javascript">
 <!--
-var awake = {};
-function amChartInited(chart_id){
- // Ugliest hack on the planet.
- while(!document.getElementById(chart_id).reloadSettings) { sleep(1); }
- awake[chart_id] = true;
- redraw_current_graph();
-}
-
 var current_graph_id = '';
 var graphinfo;
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
@@ -16,18 +8,25 @@ function set_current_graph_id(id) {
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
+function plot_id(r) {
+      var placeholder = $("#maingraph > div.plot-area");
+      placeholder.bind("plotselected", function (event, ranges) {
+        plot = $.plot(placeholder, data,
+                    $.extend(true, {}, options, {
+                               xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to }
+                             }));
+      });
+      r.options.legend.container = $("#maingraph div.plot-legend");
+      var plot = $.plot(placeholder, r.data, r.options);
+}
 function redraw_current_graph() {
-  if(!awake.maingraph) return;
   if(graphinfo.datapoints.length > 0) {
-    $("#flashcontent").slideDown("normal");
-    var url = "amcharts/graph/settings/" + graphinfo.id +
-              "?cnt=" + displayinfo.cnt +
-              "&start=" + displayinfo.start +
-              "&end=" + displayinfo.end;
-    document.getElementById("maingraph").reloadSettings(url);
+    $("#maingraph > div.plot-area").slideDown("normal");
+    var url = "flot/graph/settings/" + graphinfo.id;
+    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, plot_id);
   }
   else {
-    $("#flashcontent").slideUp("normal");
+    $("#maingraph > div.plot-area").slideUp("normal");
   }
 }
 function update_current_graph(redraw, f) {
@@ -226,27 +225,10 @@ $(document).ready(function(){
 </div>
 
 <div>
-	<script type="text/javascript" src="http://postgres83dev.office.omniti.com/reconnoiter/js/swfobject.js"></script>
-	<script type="text/javascript">
-		function mainGraphData(settings) {
-			var mg = document.getElementById("maingraph");
-			mg.reloadSettings(settings);
-		}
-	</script>
-	<div id="flashcontent">
-		<strong>You need to upgrade your Flash Player</strong>
-	</div>
-	<script type="text/javascript">
-		// <![CDATA[		
-		var so = new SWFObject("amcharts/amline/amline.swf", "maingraph", "697", "400", "8", "#FFFFFF");
-		so.addVariable("path", "amcharts/amline/");
-		so.addVariable("settings_file", escape("blank.xml"));
-		so.addVariable("preloader_color", "#999999");
-		so.addVariable("chart_id", "maingraph");
-		so.addParam('wmode','transparent');//added for confirm box
-		so.write("flashcontent");
-		// ]]>
-	</script>
+	<div id="maingraph">
+        <div class="plot-area" style="width:780px;height:400px"></div>
+        <div class="plot-legend"></div>
+        </div>
 	<form action="#" name="form4" id="form4" style="margin:1em 0;text-align:center;">
 	<fieldset>
 	<legend style="display:none;">View</legend>

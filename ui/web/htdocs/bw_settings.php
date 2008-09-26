@@ -1,7 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <?php
 
-require_once('Reconnoiter_amLine_Driver.php');
+require_once('Reconnoiter_flot_Driver.php');
 global $graph_settings;
 require_once('graph_settings.inc');
 
@@ -16,8 +15,8 @@ if(!$end) {
   $end = strftime("%Y-%m-%d %H:%M:%S", time());
 }
 
-$driver = new Reconnoiter_amLine_Driver($start, $end,
-                                        isset($_GET['cnt']) ? $_GET['cnt'] : 400);
+$driver = new Reconnoiter_flot_Driver($start, $end,
+                                      isset($_GET['cnt']) ? $_GET['cnt'] : 400);
 $i = 0;
 $math = 'auto,2,round';
 if($view == "packets") {
@@ -44,40 +43,13 @@ if($view == "packets") {
 }
 
 $i = 0;
+
+$data = $driver->graphdata();
+$options = array(
+  'xaxis' => array ( 'mode' => 'time' ),
+  'legend' => array ( 'noColumns' => 1 ),
+  'selection' => array ( 'mode' => 'x' ),
+  'shadowSize' => 0,
+);
+print json_encode(array('data' => $data, 'options' => $options, 'title' => $driver->title()));
 ?>
-<settings>
-<type></type>
-<?php if($_GET['type'] == 'small') { ?>
-  <legend><enabled>false</enabled></legend>
-  <grid><x><enabled>false</enabled></x></grid>
-  <plot_area>
-    <margins><top>20</top><right>50</right><bottom>30</bottom><left>50</left></margins>
-  </plot_area>
-<?php } ?>
-<data>
-<chart>
-  <?php $driver->seriesXML() ?>
-  <?php $driver->graphsXML() ?>
-  <?php $driver->guidesXML() ?>
-</chart>
-</data>
-<labels>
-  <label>
-    <x>0</x>
-    <y>0</y>
-    <align>center</align>
-    <text_size><?php print ($_GET['type'] == 'small') ? 12 : 16 ?></text_size>
-    <text_color>#000000</text_color>
-    <text><![CDATA[<?php print $driver->title() ?>]]></text>
-  </label>
-</labels>
-<decimals_separator>.</decimals_separator>
-<values>
- <y_left>
-  <unit><?php print $driver->autounit() ?></unit>
- </y_left>
-<?php if($_GET['type'] == 'small') { ?>
-  <x><enabled>false</enabled></x>
-<?php } ?>
-</values>
-</settings>
