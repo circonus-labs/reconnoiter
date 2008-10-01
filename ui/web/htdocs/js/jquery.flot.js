@@ -1461,7 +1461,7 @@
                 ctx.fillStyle = obj.fillColor;
             else {
                 var c = parseColor(seriesColor);
-                c.a = typeof fill == "number" ? fill : 0.4;
+                c.a = typeof fill == "boolean" ? 0.4 : fill;
                 c.normalize();
                 ctx.fillStyle = c.toString();
             }

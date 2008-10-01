@@ -1,3 +1,6 @@
+<script type="text/javascript" src="js/eye/datepicker.js"></script>
+<script type="text/javascript" src="js/eye/eye.js"></script>
+<script type="text/javascript" src="js/eye/utils.js"></script>
 <script type="text/javascript">
 <!--
 var current_graph_id = '';
@@ -21,12 +24,12 @@ function plot_id(r) {
 }
 function redraw_current_graph() {
   if(graphinfo.datapoints.length > 0) {
-    $("#maingraph > div.plot-area").slideDown("normal");
+    $("#maingraph").slideDown("normal");
     var url = "flot/graph/settings/" + graphinfo.id;
     $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, plot_id);
   }
   else {
-    $("#maingraph > div.plot-area").slideUp("normal");
+    $("#maingraph").slideUp("normal");
   }
 }
 function update_current_graph(redraw, f) {
@@ -168,21 +171,45 @@ $(document).ready(function(){
                               '4w' : 86400*28,
                               '1y' : 86400*365,
                             };
+        var state = false;
         $(".btn-slide").click(function(){
-                $("#panel").slideToggle("fast");
+                $("#widgetCalendar").stop().animate({
+                     height: state ? 0 :
+                       $('#widgetCalendar div.datepicker').get(0).offsetHeight
+                  }, 500);
+                state = !state;
                 $(this).toggleClass("active");
                 return false;
         });
         $(".datechoice").click(function(){
-                $("#dateRange").html("YYYY/MM/DD - YYYY/MM/DD");
-                $("#panel").slideUp("slow");
+                $("#range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
+                $("#widgetCalendar").slideUp("slow");
                 $(".datechoice").removeClass("selected");
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
                 redraw_current_graph();
                 return false;
-        });    
+        });
+        $('#widgetCalendar').DatePicker({
+                flat: true,
+                format: 'Y/m/d',
+                date: [new Date(), new Date()],
+                calendars: 3,
+                mode: 'range',
+                starts: 1,
+                onChange: function(formated) {
+                        var dates;
+                        dates = formated[0].split('/');
+                        var start = new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0);
+                        dates = formated[1].split('/');
+                        var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
+                        displayinfo.start = start.toUTCString();
+                        displayinfo.end = end.toUTCString();
+                        redraw_current_graph();
+                        $('#range a.btn-slide').get(0).innerHTML = formated.join(' - ');
+                }
+        });
         $(".graphType").change(function(){
                 graphinfo.type = $(this).val();
 		update_current_graph(true);
@@ -208,10 +235,11 @@ $(document).ready(function(){
 	<div id="range">
 		<dl>
 			<dt>Date Range:</dt>
-			<dd><a href="" class="btn-slide" id="dateRange">YYYY/MM/DD - YYYY/MM/DD</a></dd>
+			<dd><a href="" class="btn-slide">YYYY/MM/DD - YYYY/MM/DD</a></dd>
 		</dl>
 	</div>
-	<div id="panel">calendar here</div>
+<br/>
+	<div id="widgetCalendar"></div>
 </div>
 			
 <!-- confirm box -->

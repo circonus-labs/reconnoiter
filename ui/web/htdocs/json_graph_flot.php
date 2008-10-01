@@ -10,7 +10,7 @@ $start = $_GET['start']?$_GET['start']:(7*86400);
 if(preg_match('/^\d+$/', $start))
   $start = strftime("%Y-%m-%d %H:%M:%S", time() - $start);
 $end = $_GET['end']?$_GET['end']:strftime("%Y-%m-%d %H:%M:%S", time());
-$cnt = $_GET['cnt']?$_GET['cnt']:100;
+$cnt = $_GET['cnt']?$_GET['cnt']:400;
 
 $driver = new Reconnoiter_flot_Driver($start, $end, $cnt);
 $db = Reconnoiter_DB::GetDB();
@@ -44,6 +44,7 @@ $options = array(
   'legend' => array ( 'noColumns' => 4, position => 'sw' ),
   'selection' => array ( 'mode' => 'x' ),
   'shadowSize' => 0,
+  'colors' => $driver->graphcolors()
 );
 print json_encode(array(
   'data' => $data,

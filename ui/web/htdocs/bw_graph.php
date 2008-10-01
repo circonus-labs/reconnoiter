@@ -42,8 +42,7 @@
   }
   $(document).ready(function () {
     $('').ajaxError(function (a,b,c) { console.log(a); console.log(b); console.log(c); });
-    //$.getJSON('bw_settings.php', {'id': '<?php print $_GET['id'] ?>', 'cnt': '<?php print $_GET['cnt'] ?>'}, function(r) { plot_id(r); } );
-    $.getJSON('flot/graph/settings/48dc5706-abc8-29d2-ef23-ce754a8ec3d9?cnt=&start=1209600&end=&cnt=&start=1209600&end=', function(r) { plot_id(r); } );
+    $.getJSON('bw_settings.php', {'id': '<?php print $_GET['id'] ?>', 'cnt': '<?php print $_GET['cnt'] ?>'}, function(r) { plot_id(r); } );
   });
   </script>
 
