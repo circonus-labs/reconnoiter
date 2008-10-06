@@ -44,6 +44,7 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     $this->sets["$uuid-$name"] =
       new Reconnoiter_DataSet($uuid, $name, $derive, $expr,
                               $this->start(), $this->end(), $this->cnt());
+    $this->sets["$uuid-$name"]->groupname($attrs['axis']);
     $this->sets_config["$uuid-$name"] = is_array($attrs) ? $attrs : array();
     if(!isset($this->master_set)) $this->master_set = $this->sets["$uuid-$name"];
   }
@@ -91,6 +92,7 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     if(!$this->auto_units_on) return '';
     switch($this->units) {
       case 0.000000001: return 'n';
+      case '1.0E-6':
       case 0.000001: return 'u';
       case 0.001: return 'm';
       case 1000: return 'k';

@@ -1,4 +1,4 @@
-		<h3>Worksheet Controls</h3>
+		<h3 id="worksheet_controls">Worksheet Controls</h3>
 		<span class="worksheet">
 			<div id="searchform" style="margin:1em 0 1em 0;padding-bottom:1em;border-bottom: solid 1px #c4c4c4;">
 			<form name="form" id="form">

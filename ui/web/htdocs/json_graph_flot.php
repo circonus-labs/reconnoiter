@@ -41,7 +41,8 @@ if($driver->max() < 0) $yaxis['max'] = 0;
 
 $options = array(
   'xaxis' => array ( 'mode' => 'time' ),
-  'legend' => array ( 'noColumns' => 4, position => 'sw' ),
+  'yaxis' => array ( 'suffix' => $driver->autounit() . '' ),
+  'legend' => array ( 'noColumns' => 6, position => 'sw' ),
   'selection' => array ( 'mode' => 'x' ),
   'shadowSize' => 0,
   'colors' => $driver->graphcolors()
@@ -50,6 +51,5 @@ print json_encode(array(
   'data' => $data,
   'options' => $options,
   'title' => $driver->title() . '',
-  'suffix' => $driver->autounit() . ''
 ));
 

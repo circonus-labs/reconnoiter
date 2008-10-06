@@ -1,4 +1,4 @@
-		<h3>Search Data</h3>
+		<h3 id="graph_controls">Graph Controls</h3>
 		<span class="search">
 			<div class="tabs">
 				<ul class="tabNavigation">

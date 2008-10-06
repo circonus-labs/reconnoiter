@@ -12,6 +12,16 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
   function defaultChangeSetAttrs($uuid, $name, $derive, $attrs) {
     return parent::defaultChangeSetAttrs($uuid, $name, $derive, $attrs);
   }
+  function graphcolors() {
+    $c = array();
+    foreach($this->sets as $name => $set) {
+      $c[] = $this->sets_config[$name]['color'];
+    }
+    foreach($this->guides as $name => $value) {
+      $c[] = $this->guides_config[$name]['color'];
+    }
+    return $c;
+  }
   function graphdata() {
     $a = array();
     $i = 0;
@@ -20,7 +30,7 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'label' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
-        'lines' => array ( 'show' => 'true', 'fill' => '0.8', 'lineWidth' => '1' )
+        'lines' => array ( 'show' => 'true', 'fill' => '0.3', 'lineWidth' => '1' )
       );
     }
     $start_ts = $a[0]['data'][0][0];

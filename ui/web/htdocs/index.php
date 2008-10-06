@@ -38,11 +38,21 @@ $(document).ready(function(){
    $(".accordion span").eq(1).slideUp();
    $(".accordion span:last").slideDown();
 
+   $("div#container div").eq(1).slideUp();
+   $("div#container div:last").slideDown();
+
    $(".accordion h3").click(function(){
        $(this).next("span").slideToggle("normal")
        .siblings("span:visible").slideUp("normal");
        $(this).toggleClass("active");
        $(this).siblings("h3").removeClass("active");
+       $(this).siblings("h3").each(function(e) {
+         $("#" + $(this).attr("id") + "_panel").slideUp("fast");
+       });
+       if($(this).hasClass("active"))
+         $("#" + $(this).attr("id") + "_panel").slideDown("fast");
+       else
+         $("#" + $(this).attr("id") + "_panel").slideUp("fast");
    });
 
 }); 
@@ -95,10 +105,6 @@ $(document).ready(function(){
 
 <!-- alert / Remove this when new script is made -->
 <script type="text/javascript">
-function disp_alert()
-{
-alert("display the correct graph")
-}
 function MM_jumpMenu(targ,selObj,restore){ //v3.0
   eval(targ+".location='"+selObj.options[selObj.selectedIndex].value+"'");
   if (restore) selObj.selectedIndex=0;
@@ -123,14 +129,10 @@ function MM_jumpMenu(targ,selObj,restore){ //v3.0
 </div><!-- end left -->
 <div id="container">
 	<div id="content">
-		<div id="tab_content">
-			<ul>
-				<li><a href="#" class="selected">Graph Panel</a></li>
-				<li><a href="#">Worksheet</a></li>
-			</ul><div style="clear:both;"></div>
-		</div>
-		<!-- graph and controls -->
-		<div id="main">
+		<div id="worksheet_controls_panel">
+		<?php include('worksheet_panel.inc') ?>
+		</div><!-- end main -->
+		<div id="graph_controls_panel">
 		<?php include('graph_controls.inc') ?>
 		</div><!-- end main -->
 	</div><!-- end content -->

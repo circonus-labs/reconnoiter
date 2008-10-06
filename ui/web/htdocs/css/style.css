@@ -42,7 +42,7 @@ width:334px;
 height:85%;
 z-index:200;
 } 
-#container{position:absolute;top:38px;left:0;overflow:auto;width:100%;z-index:100;}
+#container{position:absolute;top:38px;left:0px;padding:1em;overflow:auto;z-index:100;}
 #content {
 background:#FFF;
 margin-left:333px;
@@ -247,12 +247,33 @@ p {margin-bottom:1em;}
 #graphlist ul li ul li a.addtows {background:url(../images/icon-addws.png) 0 0px no-repeat;display:inline;}
 #graphlist ul li ul li a em{color:#82787b;padding-left:3px;}
 
+div.plot-area { height: 180px; width: 380px; }
+div.plot-area div.centered{
+  height: 180px; width: 380px;
+  display: table-cell;vertical-align:middle;text-align:center;
+}
+div.plot-area div.centered .loading {
+  background:url(../images/jquery-ajax-loader.gif) top center no-repeat;
+  height:25px;width:380px;
+}
+
+div.plot-legend table { height: 4em; }
+div.plot-legend td.legendLabel { padding: 0 0.5em; }
+
 /* worksheet list */
 #worksheetlist {height:450px;overflow:auto;}
 #worksheetlist ul a {list-style:none;}
 #worksheetlist ul li {display:block;padding:2px 0;margin-bottom:4px;}
 #worksheetlist ul li a {background:url(../images/icon-worksheet.png) 0 1px no-repeat;padding-left:15px;}
 #worksheetlist ul li.selected {background:#e6e4e5 /*url(../images/icon-worksheet.png) 0 3px no-repeat*/;display:block;}
+
+ul#worksheet-graphs {
+}
+ul#worksheet-graphs li {
+  float:left;
+  list-style:none;
+  margin:1.5em 1em 0 0;
+}
 
 /******* GRAPH CONTROLS *******/
 

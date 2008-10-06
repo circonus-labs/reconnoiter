@@ -11,25 +11,31 @@ function set_current_graph_id(id) {
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
-function plot_id(r) {
-      var placeholder = $("#maingraph > div.plot-area");
+function plot_id(r, domid) {
+      var placeholder = $(domid + " > div.plot-area");
       placeholder.bind("plotselected", function (event, ranges) {
+        alert(ranges.xaxis.from + " -> " + ranges.xaxis.to);
         plot = $.plot(placeholder, data,
                     $.extend(true, {}, options, {
                                xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to }
                              }));
       });
-      r.options.legend.container = $("#maingraph div.plot-legend");
+      r.options.legend.container = $(domid + " div.plot-legend");
+      if(!r.options.yaxis) r.options.yaxis = {};
+      if(r.options.yaxis.suffix)
+        r.options.yaxis.tickFormatter = function (val, axis) {
+          return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
+        };
       var plot = $.plot(placeholder, r.data, r.options);
 }
-function redraw_current_graph() {
+function redraw_current_graph(domid) {
   if(graphinfo.datapoints.length > 0) {
-    $("#maingraph").slideDown("normal");
+    $(domid).slideDown("normal");
     var url = "flot/graph/settings/" + graphinfo.id;
-    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, plot_id);
+    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, function (r) { plot_id(r,domid); });
   }
   else {
-    $("#maingraph").slideUp("normal");
+    $(domid).slideUp("normal");
   }
 }
 function update_current_graph(redraw, f) {
@@ -55,7 +61,7 @@ function update_current_graph(redraw, f) {
                });
              });
            }
-           if(redraw) redraw_current_graph();
+           if(redraw) redraw_current_graph("#maingraph");
            if(f) f(d);
          }, 'json');
 }
@@ -145,7 +151,7 @@ function refresh_graph_from_json(j) {
   for(var i=0; i<graphinfo.datapoints.length; i++) {
     gtool_add_datapoint(graphinfo.datapoints[i]);
   }
-  redraw_current_graph();
+  redraw_current_graph("#maingraph");
 }
 function fetch_graph_info(id) {
   $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
@@ -188,7 +194,7 @@ $(document).ready(function(){
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
-                redraw_current_graph();
+                redraw_current_graph("#maingraph");
                 return false;
         });
         $('#widgetCalendar').DatePicker({
@@ -206,7 +212,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
-                        redraw_current_graph();
+                        redraw_current_graph("#maingraph");
                         $('#range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });

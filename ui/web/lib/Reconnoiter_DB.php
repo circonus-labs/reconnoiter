@@ -100,7 +100,7 @@ class Reconnoiter_DB {
                             join stratcon.metric_name_summary s
                            using (sid,metric_name,metric_type)
                            where ts_search_all @@ to_tsquery(query)))",
-      "select graphid, title,
+      "select graphid, title, json,
               to_char(last_update, 'YYYY/mm/dd') as last_update
          from prism.saved_graphs,
               (select ? ::text as query) q
@@ -241,7 +241,7 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
-  function percentile($arr, $p, $attr = 'avg_value') {
+  function percentile($arr, $p, $groupname = 'left', $attr = 'avg_value') {
     // This sums the sets and returns the XX percentile bucket.
     if(!is_array($arr)) return array();
     if(!is_array($p)) $p = array($p);
@@ -250,6 +250,7 @@ class Reconnoiter_DB {
       $sum = 0;
       $nonnull = 0;
       foreach ($arr as $sets) {
+        if($sets->groupname() != $groupname) continue;
         $value = $sets->data($ts, $attr);
         if($value != "") $nonnull = 1;
         $sum += $value;
