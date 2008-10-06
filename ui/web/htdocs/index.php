@@ -34,12 +34,11 @@
 <!--accordion-->
 <script type="text/javascript">
 $(document).ready(function(){
-   $(".accordion h3").eq(1).addClass("active");
-   $(".accordion span").eq(1).slideUp();
-   $(".accordion span:last").slideDown();
+   $(".accordion h3:first").addClass("active");
+   $(".accordion span").slideUp();
+   $(".accordion span:first").slideDown();
 
-   $("div#container div").eq(1).slideUp();
-   $("div#container div:last").slideDown();
+   $("div#content > div:first").siblings().slideUp();
 
    $(".accordion h3").click(function(){
        $(this).next("span").slideToggle("normal")
@@ -66,24 +65,6 @@ $(document).ready(function(){
               })
         });
     </script>
-
-
-<!--accordion 2-->
-<script type="text/javascript">
-$(document).ready(function(){
-   $(".accordion2 h4").eq(1).addClass("active");
-   $(".accordion2 div").eq(1).slideUp();
-   $(".accordion2 div:last").slideDown();
-
-   $(".accordion2 h4").click(function(){
-       $(this).next("div").slideToggle("normal")
-       .siblings("div:visible").slideUp("normal");
-       $(this).toggleClass("active");
-       $(this).siblings("h4").removeClass("active");
-   });
-
-}); 
-</script>
 
 <!-- search tabs -->
 <script type="text/javascript">
@@ -133,7 +114,7 @@ function MM_jumpMenu(targ,selObj,restore){ //v3.0
 		<?php include('worksheet_panel.inc') ?>
 		</div><!-- end main -->
 		<div id="graph_controls_panel">
-		<?php include('graph_controls.inc') ?>
+		<?php include('graph_panel.inc') ?>
 		</div><!-- end main -->
 	</div><!-- end content -->
 </div><!-- end container -->

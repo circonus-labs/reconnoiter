@@ -105,6 +105,7 @@ $(document).ready(function(){
                         ws_displayinfo.start = start.toUTCString();
                         ws_displayinfo.end = end.toUTCString();
                         load_worksheet('');
+                        $(".datechoice").removeClass("selected");
                         $('#range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
@@ -132,7 +133,7 @@ $(document).ready(function(){
 			<dd><a href="" class="btn-slide">YYYY/MM/DD - YYYY/MM/DD</a></dd>
 		</dl>
 	</div>
-<br/>
+<br style="clear:both; margin-bottom:0.5em;"/>
 	<div id="widgetCalendar"></div>
 </div>
 
