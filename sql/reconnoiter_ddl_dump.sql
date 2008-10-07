@@ -428,7 +428,8 @@ CREATE TABLE rollup_matrix_numeric_12hours (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric
+    avg_value numeric,
+    counter_dev numeric
 );
 
 
@@ -443,7 +444,8 @@ CREATE TABLE rollup_matrix_numeric_20m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric
+    avg_value numeric,
+    counter_dev numeric
 );
 
 
@@ -458,7 +460,8 @@ CREATE TABLE rollup_matrix_numeric_5m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric
+    avg_value numeric,
+    counter_dev numeric
 );
 
 
@@ -473,7 +476,8 @@ CREATE TABLE rollup_matrix_numeric_60m (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric
+    avg_value numeric,
+    counter_dev numeric
 );
 
 
@@ -488,7 +492,8 @@ CREATE TABLE rollup_matrix_numeric_6hours (
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
-    avg_value numeric
+    avg_value numeric,
+    counter_dev numeric
 );
 
 
@@ -704,11 +709,10 @@ ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter
 --
 
 CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
-    AS $$
-DECLARE
+    AS $$DECLARE
  BEGIN
  IF TG_OP != 'INSERT' THEN
-   IF (NEW.graph_tags <> OLD.graph_tags) THEN
+   IF (NEW.graph_tags <> OLD.graph_tags OR NEW.title <> OLD.title) THEN
            UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
    END IF;    
  ELSE 
@@ -1473,8 +1477,7 @@ ALTER FUNCTION stratcon.remove_metric(in_uuid uuid, in_metric_name text, v_debug
 --
 
 CREATE FUNCTION rollup_matrix_numeric_12hours() RETURNS void
-    AS $$
-DECLARE
+    AS $$DECLARE
   rec stratcon.rollup_matrix_numeric_12hours%rowtype;
   v_sql TEXT;
   v_min_whence TIMESTAMPTZ;
@@ -1533,7 +1536,8 @@ BEGIN
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                       (SUM(counter_dev*count_rows)/SUM(count_rows)) as counter_dev
          FROM stratcon.rollup_matrix_numeric_6hours
            WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'12 hour'::interval
                    GROUP BY sid,name
@@ -1541,8 +1545,8 @@ BEGIN
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_12hours
-          (sid,name,rollup_time,count_rows,avg_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+          (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
           
      END LOOP;
 
@@ -1575,8 +1579,7 @@ ALTER FUNCTION stratcon.rollup_matrix_numeric_12hours() OWNER TO reconnoiter;
 --
 
 CREATE FUNCTION rollup_matrix_numeric_20m() RETURNS void
-    AS $$
-DECLARE
+    AS $$DECLARE
  
  rec stratcon.rollup_matrix_numeric_20m%rowtype;
  v_sql TEXT;
@@ -1636,7 +1639,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
 
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
-                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
+                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                       (SUM(counter_dev*count_rows)/SUM(count_rows)) as counter_dev
        FROM stratcon.rollup_matrix_numeric_5m
                       WHERE rollup_time<= v_min_whence AND rollup_time > v_min_whence -'20 minutes'::interval
                 GROUP BY sid,name
@@ -1645,8 +1649,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_20m
-         (sid,name,rollup_time,count_rows,avg_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+         (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
         
    END LOOP;
 
@@ -1681,8 +1685,7 @@ ALTER FUNCTION stratcon.rollup_matrix_numeric_20m() OWNER TO reconnoiter;
 --
 
 CREATE FUNCTION rollup_matrix_numeric_5m() RETURNS void
-    AS $$
-DECLARE
+    AS $$DECLARE
  
  rec stratcon.rollup_matrix_numeric_5m%rowtype;
  v_sql TEXT;
@@ -1740,19 +1743,27 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
  
  END IF;
 
- FOR rec IN 
-                SELECT sid , name,v_min_whence as rollup_time,
-                      COUNT(1) as count_rows ,AVG(value) as avg_value
-                      FROM stratcon.loading_dock_metric_numeric_s
-                      WHERE WHENCE <= v_min_whence AND WHENCE > v_min_whence -'5 minutes'::interval
-                GROUP BY rollup_time,sid,name
+ FOR rec IN
+
+    select n.sid, n.name, n.rollup_time, n.count_rows, n.avg_value,
+           case when n.avg_value - l.avg_value >= 0
+                then (n.avg_value - l.avg_value)/300.0
+                else null end as counter_dev
+      from (SELECT sid, name, v_min_whence as rollup_time,
+                   COUNT(1) as count_rows, avg(value) as avg_value
+              FROM stratcon.loading_dock_metric_numeric_s
+             WHERE whence <= v_min_whence AND whence > v_min_whence -'5 minutes'::interval
+          GROUP BY rollup_time,sid,name) as n
+ left join stratcon.rollup_matrix_numeric_5m as l
+        on (n.sid=l.sid and n.name=l.name and
+            n.rollup_time - '5 minute'::interval = l.rollup_time)
  
        LOOP
     
         
         INSERT INTO stratcon.rollup_matrix_numeric_5m
-         (sid,name,rollup_time,count_rows,avg_value) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+         (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES 
+         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
         
    END LOOP;
 
@@ -1787,8 +1798,7 @@ ALTER FUNCTION stratcon.rollup_matrix_numeric_5m() OWNER TO reconnoiter;
 --
 
 CREATE FUNCTION rollup_matrix_numeric_60m() RETURNS void
-    AS $$
-DECLARE
+    AS $$DECLARE
   rec stratcon.rollup_matrix_numeric_60m%rowtype;
   v_sql TEXT;
   v_min_whence TIMESTAMPTZ;
@@ -1846,15 +1856,16 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='1 hour' LOO
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,date_hour(rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
+                SELECT sid,name,date_hour(rollup_time) as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                       (SUM(counter_dev*count_rows)/SUM(count_rows)) as counter_dev
          FROM stratcon.rollup_matrix_numeric_20m
            WHERE date_hour(rollup_time)= v_min_whence
                    GROUP BY date_hour(rollup_time),sid,name
         LOOP
       
           INSERT INTO stratcon.rollup_matrix_numeric_60m
-          (sid,name,rollup_time,count_rows,avg_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+          (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
           
      END LOOP;
 
@@ -1887,8 +1898,7 @@ ALTER FUNCTION stratcon.rollup_matrix_numeric_60m() OWNER TO reconnoiter;
 --
 
 CREATE FUNCTION rollup_matrix_numeric_6hours() RETURNS void
-    AS $$
-DECLARE
+    AS $$DECLARE
   rec stratcon.rollup_matrix_numeric_6hours%rowtype;
   v_sql TEXT;
   v_min_whence TIMESTAMPTZ;
@@ -1946,7 +1956,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LO
   END IF;
   
     FOR rec IN 
-                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value
+                SELECT sid,name,v_min_whence as rollup_time,SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
+                       (SUM(counter_dev*count_rows)/SUM(count_rows)) as counter_dev
          FROM stratcon.rollup_matrix_numeric_60m
            WHERE rollup_time<= v_min_whence and rollup_time> v_min_whence-'6 hour'::interval
                    GROUP BY sid,name
@@ -1954,8 +1965,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LO
       
        
           INSERT INTO stratcon.rollup_matrix_numeric_6hours
-          (sid,name,rollup_time,count_rows,avg_value) VALUES
-          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value);
+          (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES
+          (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
           
      END LOOP;
 
