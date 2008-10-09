@@ -27,7 +27,7 @@ foreach($graph['datapoints'] as $d) {
   $settings['title'] = $d['name'];
   if($d['metric_type'] == 'numeric') {
     $driver->addDataSet($d['sid'], $d['metric_name'],
-                        ($d['derive']=="true")?"true":"false",
+                        ($d['derive']=="true")?"counter":"false",
                         $d['math2'], $settings);
   }
   else

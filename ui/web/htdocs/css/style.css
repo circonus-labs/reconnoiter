@@ -247,14 +247,24 @@ p {margin-bottom:1em;}
 #graphlist ul li ul li a.addtows {background:url(../images/icon-addws.png) 0 0px no-repeat;display:inline;}
 #graphlist ul li ul li a em{color:#82787b;padding-left:3px;}
 
-div.plot-area { height: 180px; width: 380px; }
+div.plot-area { height:180px;width:380px; }
 div.plot-area div.centered{
-  height: 180px; width: 380px;
-  display: table-cell;vertical-align:middle;text-align:center;
+  height:180px;width:380px;
+  display:table-cell;vertical-align:middle;text-align:center;
 }
 div.plot-area div.centered .loading {
   background:url(../images/jquery-ajax-loader.gif) top center no-repeat;
   height:25px;width:380px;
+}
+
+#maingraph div.plot-area { height:400px;width:780px; }
+#maingraph div.plot-area div.centered{
+  height:400;width:780px;
+  display:table-cell;vertical-align:middle;text-align:center;
+}
+#maingraph div.plot-area div.centered .loading {
+  background:url(../images/jquery-ajax-loader.gif) top center no-repeat;
+  height:25px;width:780px;
 }
 
 div.plot-legend table { height: 4em; }
@@ -324,13 +334,13 @@ span.axison {border:1px solid #9baac1;}
 .deletedatapoint span {display:none;}
 
 /******* date zoom and range *******/
-#datetool{/*background:yellow;*/margin:18px 0;overflow:auto;clear:both;}
+#ws_datetool, #graph_datetool{margin:18px 0;overflow:auto;clear:both;}
 
-#zoom {overflow:hidden;float:left;z-index:2900;}
-#zoom dl {list-style:none;}
-#zoom dl dt {padding-right:5px;font-size:10px;text-transform:uppercase;}
-#zoom dl dt, #zoom dl dd {display:inline;float:left;}
-#zoom dl dd a {
+.zoom {overflow:hidden;float:left;z-index:2900;}
+.zoom dl {list-style:none;}
+.zoom dl dt {padding-right:5px;font-size:10px;text-transform:uppercase;}
+.zoom dl dt, .zoom dl dd {display:inline;float:left;}
+.zoom dl dd a {
 padding:0px;
 color:#82787b;
 font-size:12px;
@@ -341,18 +351,18 @@ border:1px solid #cdd4e0;
 border-left:none;
 text-align:center;
 }
-#zoom dl dd a.first {
+.zoom dl dd a.first {
 border:1px solid #cdd4e0;
 }
-#zoom dl dd a:hover{background:#ebeef2;}
-#zoom dl dd a.selected{background:url(../images/bg-tab-zoom-arrow.png) top left no-repeat;padding-bottom:7px;border:none;border-top:1px solid #cdd4e0;}
-#zoom dl dd a:hover.selected{background:url(../images/bg-tab-zoom-arrow.png) top left no-repeat;}
+.zoom dl dd a:hover{background:#ebeef2;}
+.zoom dl dd a.selected{background:url(../images/bg-tab-zoom-arrow.png) top left no-repeat;padding-bottom:7px;border:none;border-top:1px solid #cdd4e0;}
+.zoom dl dd a:hover.selected{background:url(../images/bg-tab-zoom-arrow.png) top left no-repeat;}
 
-#range {overflow:hidden;float:left;margin-left:2em;}
-#range dl {list-style:none;}
-#range dl dt {padding-right:5px;font-size:10px;text-transform:uppercase;}
-#range dl dt, #range dl dd {display:inline;float:left;}
-#range dl dd a {
+.range {overflow:hidden;float:left;margin-left:2em;}
+.range dl {list-style:none;}
+.range dl dt {padding-right:5px;font-size:10px;text-transform:uppercase;}
+.range dl dt, .range dl dd {display:inline;float:left;}
+.range dl dd a {
 padding:0px;
 color:#82787b;
 font-size:12px;
@@ -363,7 +373,7 @@ padding:0 17px 0 6px;
 text-align:center;
 background:url(../images/bg-arrow-range.png) top right no-repeat;
 }
-#range dl dd a:hover, #range dl dd a:focus{/*background:url(../images/bg-arrow-range.png) 15px right no-repeat;*/border:1px solid #9baac1;}
+.range dl dd a:hover, .range dl dd a:focus{/*background:url(../images/bg-arrow-range.png) 15px right no-repeat;*/border:1px solid #9baac1;}
 
 #panel {
 display:none;

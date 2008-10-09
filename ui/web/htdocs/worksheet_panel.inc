@@ -70,18 +70,18 @@ $(document).ready(function(){
                              '1y' : 86400*365,
                            };
         var state = false;
-        $(".btn-slide").click(function(){
-                $("#widgetCalendar").stop().animate({
+        $("#ws_datetool .btn-slide").click(function(){
+                $("#ws_widgetCalendar").stop().animate({
                      height: state ? 0 :
-                       $('#widgetCalendar div.datepicker').get(0).offsetHeight
+                       $('#ws_widgetCalendar div.datepicker').get(0).offsetHeight
                   }, 500);
                 state = !state;
                 $(this).toggleClass("active");
                 return false;
         });
-        $(".datechoice").click(function(){
-                $("#range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
-                $("#widgetCalendar").slideUp("slow");
+        $("#ws_datetool .datechoice").click(function(){
+                $("#ws_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
+                $("#ws_widgetCalendar").slideUp("slow");
                 $(".datechoice").removeClass("selected");
                 ws_displayinfo.start = time_windows[$(this).html()];
                 ws_displayinfo.end = '';
@@ -89,7 +89,7 @@ $(document).ready(function(){
                 load_worksheet();
                 return false;
         });
-        $('#widgetCalendar').DatePicker({
+        $('#ws_widgetCalendar').DatePicker({
                 flat: true,
                 format: 'Y/m/d',
                 date: [new Date(), new Date()],
@@ -106,7 +106,7 @@ $(document).ready(function(){
                         ws_displayinfo.end = end.toUTCString();
                         load_worksheet('');
                         $(".datechoice").removeClass("selected");
-                        $('#range a.btn-slide').get(0).innerHTML = formated.join(' - ');
+                        $('#ws_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
         $("#gtool-error").click(function(){
@@ -116,8 +116,8 @@ $(document).ready(function(){
 });
 </script>
 
-<div id="datetool">
-	<div id="zoom">
+<div id="ws_datetool">
+	<div class="zoom">
 		<dl>
 			<dt>Zoom:</dt>
 			<dd><a href="#" class="first datechoice">2d</a></dd>
@@ -127,14 +127,14 @@ $(document).ready(function(){
 			<dd><a href="#" class="datechoice">1y</a></dd>
 		</dl>
 	</div>
-	<div id="range">
+	<div class="range">
 		<dl>
 			<dt>Date Range:</dt>
 			<dd><a href="" class="btn-slide">YYYY/MM/DD - YYYY/MM/DD</a></dd>
 		</dl>
 	</div>
 <br style="clear:both; margin-bottom:0.5em;"/>
-	<div id="widgetCalendar"></div>
+	<div id="ws_widgetCalendar" class="widgetCalendar"></div>
 </div>
 
 <div>

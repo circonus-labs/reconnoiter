@@ -24,7 +24,7 @@ class Reconnoiter_DB {
 
   function get_data_for_window($uuid, $name, $start, $end, $expected, $derive) {
     $type = preg_match('/^\d+$/', $uuid) ? '::integer' : '::uuid';
-    $sth = $this->db->prepare("select sid, name, extract(epoch from rollup_time) as rollup_time, count_rows, avg_value from stratcon.fetch_dataset(? $type,?,?,?,?,?)");
+    $sth = $this->db->prepare("select sid, name, extract(epoch from rollup_time) as rollup_time, count_rows, avg_value, counter_dev from stratcon.fetch_dataset(? $type,?,?,?,?,?)");
     $sth->execute(array($uuid,$name,$start,$end,$expected,$derive));
     $rv = array();
     while($row = $sth->fetch()) {
@@ -241,7 +241,7 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
-  function percentile($arr, $p, $groupname = 'left', $attr = 'avg_value') {
+  function percentile($arr, $p, $groupname = 'left', $attr = NULL) {
     // This sums the sets and returns the XX percentile bucket.
     if(!is_array($arr)) return array();
     if(!is_array($p)) $p = array($p);

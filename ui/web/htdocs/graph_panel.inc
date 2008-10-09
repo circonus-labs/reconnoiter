@@ -32,6 +32,7 @@ function redraw_current_graph(domid) {
   if(graphinfo.datapoints.length > 0) {
     $(domid).slideDown("normal");
     var url = "flot/graph/settings/" + graphinfo.id;
+    $(domid + " .plot-area").html('<div class="centered"><div class="loading">&nbsp;</div></div>');
     $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, function (r) { plot_id(r,domid); });
   }
   else {
@@ -178,26 +179,26 @@ $(document).ready(function(){
                               '1y' : 86400*365,
                             };
         var state = false;
-        $(".btn-slide").click(function(){
-                $("#widgetCalendar").stop().animate({
+        $("#graph_datetool .btn-slide").click(function(){
+                $("#graph_widgetCalendar").stop().animate({
                      height: state ? 0 :
-                       $('#widgetCalendar div.datepicker').get(0).offsetHeight
+                       $('#graph_widgetCalendar div.datepicker').get(0).offsetHeight
                   }, 500);
                 state = !state;
                 $(this).toggleClass("active");
                 return false;
         });
-        $(".datechoice").click(function(){
-                $("#range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
-                $("#widgetCalendar").slideUp("slow");
-                $(".datechoice").removeClass("selected");
+        $("#graph_datetool .datechoice").click(function(){
+                $("#graph_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
+                $("#graph_widgetCalendar").slideUp("slow");
+                $("#graph_datetool .datechoice").removeClass("selected");
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
                 redraw_current_graph("#maingraph");
                 return false;
         });
-        $('#widgetCalendar').DatePicker({
+        $('#graph_widgetCalendar').DatePicker({
                 flat: true,
                 format: 'Y/m/d',
                 date: [new Date(), new Date()],
@@ -213,7 +214,7 @@ $(document).ready(function(){
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
                         redraw_current_graph("#maingraph");
-                        $('#range a.btn-slide').get(0).innerHTML = formated.join(' - ');
+                        $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
         $(".graphType").change(function(){
@@ -227,8 +228,8 @@ $(document).ready(function(){
 });
 </script>
 
-<div id="datetool">
-	<div id="zoom">
+<div id="graph_datetool">
+	<div class="zoom">
 		<dl>
 			<dt>Zoom:</dt>
 			<dd><a href="#" class="first datechoice">2d</a></dd>
@@ -238,14 +239,14 @@ $(document).ready(function(){
 			<dd><a href="#" class="datechoice">1y</a></dd>
 		</dl>
 	</div>
-	<div id="range">
+	<div class="range">
 		<dl>
 			<dt>Date Range:</dt>
 			<dd><a href="" class="btn-slide">YYYY/MM/DD - YYYY/MM/DD</a></dd>
 		</dl>
 	</div>
 <br/>
-	<div id="widgetCalendar"></div>
+	<div id="graph_widgetCalendar" class="widgetCalendar"></div>
 </div>
 			
 <!-- confirm box -->
