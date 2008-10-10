@@ -104,12 +104,14 @@ function gtool_add_datapoint(d) {
 
   if(d.metric_type == 'text') {
     o.find('tr.mathbox').remove();
-    o.find('input[@name="derive"]').attr('disabled','disabled');
+    o.find('select[@name="derive"]').val('false');
   }
   else {
-    if(d.derive){o.find('input[@name="derive"]').attr("checked","checked");}
-    o.find('input[@name="derive"]').change(function(){
-      d.derive = ($(this).attr("checked"));
+    if(d.derive){
+      o.find('select[@name="derive"]').val(d.derive);
+    }
+    o.find('select[@name="derive"]').change(function(){
+      d.derive = $(this).find(":selected").val();
       update_current_graph(true);
     }).change();
 
@@ -297,7 +299,7 @@ $(document).ready(function(){
 		<td><input name="view" type="checkbox" value="1"/></td>
 		<td class="data datatitle"></td>
 		<td></td>
-		<td><input name="derive" type="checkbox" value="1"/></td>
+		<td><select name="derive"><option value="false">no</option><option value="derive">derive</option><option value="counter">counter</option></select></td>
 		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
 		<td class="math">math</td>

@@ -151,5 +151,5 @@ $(document).ready(function(){
 
 <div class="error"><p class="error" id="gtool-error"></p></div>
 
-<div id="payload">
+<div id="ws_payload">
 </div>
