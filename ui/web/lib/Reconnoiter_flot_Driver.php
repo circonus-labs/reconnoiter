@@ -26,12 +26,20 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $a = array();
     $i = 0;
     foreach($this->sets as $name => $set) {
-      $a[] = array (
+      $ds = array (
+        'reconnoiter_source_expression' => $set->expression(),
+        'reconnoiter_display_expression' => $this->sets_config[$name]['expression'],
         'label' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
-        'lines' => array ( 'show' => 'true', 'fill' => '0.3', 'lineWidth' => '1' )
       );
+      if(get_class($set) == "Reconnoiter_DataSet") {
+        $ds['lines'] = array ( 'show' => 'true', 'fill' => '0.3', 'lineWidth' => '1' );
+      }
+      if(get_class($set) == "Reconnoiter_ChangeSet") {
+        $ds['points'] = array ( 'show' => 'true', 'fill' => 'false', 'lineWidth' => 1, radius => 5 );
+      }
+      $a[] = $ds;
     }
     $start_ts = $a[0]['data'][0][0];
     $finish = end($a[0]['data']);
@@ -53,22 +61,23 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $i = 0;
     $a = array();
     $prev_value = '0';
-    foreach ($this->series() as $ts) {
-      $value = $set->data($ts);
-      if($value != "") {
-        if(isset($config['expression'])) {
-          $value = $this->rpn_eval($value, $config['expression']);
+    $timeline = (get_class($set) == "Reconnoiter_ChangeSet") ? $set->points() : $this->series();
+    foreach($timeline as $ts) {
+        $value = $set->data($ts);
+        if($value != "") {
+          if(isset($config['expression'])) {
+            $value = $this->rpn_eval($value, $config['expression']);
+          }
+          $desc = $set->description($ts);
+          if($desc) {
+            $a[] = array( $ts * 1000, "$value", $desc );
+          } else {
+            $a[] = array( $ts * 1000, "$value" );
+          }
         }
-        $desc = $set->description($ts);
-        if($desc) {
-          $a[] = array( $ts * 1000, "$value" );
-        } else {
-          $a[] = array( $ts * 1000, "$value" );
-        }
+        else $a[] = array( $ts * 1000, "" );
+        $i++;
       }
-      else $a[] = array( $ts * 1000, "" );
-      $i++;
-    }
     return $a;
   }
 

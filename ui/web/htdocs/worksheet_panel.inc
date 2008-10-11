@@ -4,23 +4,6 @@
 <script type="text/javascript">
 <!--
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
-function plot_id(r, domid) {
-      var placeholder = $(domid + " > div.plot-area");
-      placeholder.bind("plotselected", function (event, ranges) {
-        alert(ranges.xaxis.from + " -> " + ranges.xaxis.to);
-        plot = $.plot(placeholder, data,
-                    $.extend(true, {}, options, {
-                               xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to }
-                             }));
-      });
-      r.options.legend.container = $(domid + " div.plot-legend");
-      if(!r.options.yaxis) r.options.yaxis = {};
-      if(r.options.yaxis.suffix)
-        r.options.yaxis.tickFormatter = function (val, axis) {
-          return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
-        };
-      var plot = $.plot(placeholder, r.data, r.options);
-}
 function ws_redraw_graph(info, domid) {
   if(info.datapoints.length > 0) {
     var url = "flot/graph/settings/" + info.graphid;
@@ -28,7 +11,7 @@ function ws_redraw_graph(info, domid) {
     $.getJSON(url, {'cnt':ws_displayinfo.cnt,
                     'start':ws_displayinfo.start,
                     'end':ws_displayinfo.end},
-              function (r) { plot_id(r,domid); });
+              function (r) { plot_id(r,domid, function() { ws_displayinfo = displayinfo; load_worksheet(); }); });
   }
   else {
     $(domid + " .plot-area").html('<div class="centered">No data</div>');

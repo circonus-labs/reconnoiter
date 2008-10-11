@@ -34,8 +34,8 @@ class Reconnoiter_DB {
   }
   function get_var_for_window($uuid, $name, $start, $end, $expected) {
     $sth = preg_match('/^\d+$/', $uuid) ?
-      $this->db->prepare("select * from stratcon.fetch_varset(? ::int,?,?,?,?)") :
-      $this->db->prepare("select * from stratcon.fetch_varset(? ::uuid,?,?,?,?)");
+      $this->db->prepare("select sid, extract(epoch from whence) as whence, name, value from stratcon.fetch_varset(? ::int,?,?,?,?)") :
+      $this->db->prepare("select sid, extract(epoch from whence) as whence, name, value from stratcon.fetch_varset(? ::uuid,?,?,?,?)");
     $sth->execute(array($uuid,$name,$start,$end,$expected));
     $rv = array();
     while($row = $sth->fetch()) {

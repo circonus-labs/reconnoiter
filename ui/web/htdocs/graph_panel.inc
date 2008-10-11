@@ -11,14 +11,32 @@ function set_current_graph_id(id) {
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
-function plot_id(r, domid) {
+function plot_id(r, domid, redraw) {
       var placeholder = $(domid + " > div.plot-area");
       placeholder.bind("plotselected", function (event, ranges) {
-        alert(ranges.xaxis.from + " -> " + ranges.xaxis.to);
-        plot = $.plot(placeholder, data,
-                    $.extend(true, {}, options, {
-                               xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to }
-                             }));
+        var start = new Date(Math.floor(ranges.xaxis.from));
+        var end = new Date(Math.floor(ranges.xaxis.to));
+        displayinfo.start = start.toUTCString();
+        displayinfo.end = end.toUTCString();
+        if(redraw) redraw();
+      });
+      if(!r.options.grid) r.options.grid = {};
+      r.options.grid.hoverable = true;
+      $(domid + " > div.tooltip").remove();
+      placeholder.bind("plothover", function (event, pos, item) {
+        if(item) {
+          if(! $(domid + " > div.tooltip")[0])
+            $('<div class="tooltip"></div>').appendTo($(domid));
+          $(domid + " > div.tooltip")
+            .html(item.datapoint[2] ? item.datapoint[2] : item.datapoint[1])
+            .css( { top: $(domid).offset().top -
+                          placeholder.offset().top + item.pageY,
+                    left: item.pageX,
+                    position: 'absolute' });
+        }
+        else {
+          $(domid + " > div.tooltip").remove();
+        }
       });
       r.options.legend.container = $(domid + " div.plot-legend");
       if(!r.options.yaxis) r.options.yaxis = {};
@@ -33,7 +51,7 @@ function redraw_current_graph(domid) {
     $(domid).slideDown("normal");
     var url = "flot/graph/settings/" + graphinfo.id;
     $(domid + " .plot-area").html('<div class="centered"><div class="loading">&nbsp;</div></div>');
-    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, function (r) { plot_id(r,domid); });
+    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, function (r) { plot_id(r,domid, function() { redraw_current_graph("#maingraph"); }); });
   }
   else {
     $(domid).slideUp("normal");
@@ -42,7 +60,7 @@ function redraw_current_graph(domid) {
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
-  $("#payload").html(str);
+  //$("#payload").html(str);
   $.post("json/graph/store",
          {'json':str},
          function(d) {
@@ -282,6 +300,7 @@ $(document).ready(function(){
 	<div id="maingraph">
         <div class="plot-area" style="width:780px;height:400px"></div>
         <div class="plot-legend"></div>
+        <div class="plot-debug"></div>
         </div>
 	<form action="#" name="form4" id="form4" style="margin:1em 0;text-align:center;">
 	<fieldset>

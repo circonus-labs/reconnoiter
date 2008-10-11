@@ -30,6 +30,9 @@ class Reconnoiter_DataSet extends Reconnoiter_RPN {
   function description($ts) {
     return null;
   }
+  function expression() {
+    return $this->expr;
+  }
   function data($ts, $attr = NULL) {
     if(!isset($attr)) $attr = $this->default_attr;
     if(!$this->expr) return $this->data[$ts][$attr];

@@ -233,6 +233,13 @@ p {margin-bottom:1em;}
 #browselist ul li ul li ul li ul li ul li span.numeric {background:url(../images/icon-data.png) 60px 1px no-repeat;padding-left:75px;}
 #browselist ul li ul li ul li ul li ul li span.text {background:url(../images/icon-data-txt.png) 60px 1px no-repeat;padding-left:75px;}
 
+div.tooltip {
+  background: white;
+  opacity: 0.9;
+  border: 1px solid #999;
+  padding: 0 3px;
+}
+
 /* graph list */
 #graphlist p.graph-search-summary {margin-bottom: 0;}
 #graphlist p.paginate {text-align:right;}
