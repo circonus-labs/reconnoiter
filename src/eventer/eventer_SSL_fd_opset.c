@@ -38,6 +38,7 @@ static void
 _eventer_ssl_error(const char *f, int l) {
   unsigned long err;
   char buf[120]; /* ERR_error_string(3): buf must be at least 120 bytes */
+  noitL(noit_error, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
   while((err = ERR_get_error()) != 0) {
     ERR_error_string(err, buf);
     noitL(noit_error, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
