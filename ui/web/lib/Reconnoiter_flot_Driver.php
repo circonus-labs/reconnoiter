@@ -72,35 +72,4 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     return $a;
   }
 
-  function eachGuideXML() {
-    foreach($this->guides as $name => $value) {
-      print "<guide>\n";
-      $this->guideXML($value, $this->guides_config[$name]);
-      print "</guide>\n";
-    }
-  }
-  // So far, guides seems to be consistently implemented (or ignored)
-  function guideXML($value, $config) {
-    if($value != "") {
-      if(isset($config['expression'])) {
-        $value = $this->rpn_eval($value, $config['expression']);
-      }
-    }
-    print "<start_value>$value</start_value>\n";
-    if(isset($config['title'])) {
-      $expr = $config['title'];
-      eval("\$title = $expr;");
-      print "<title>$title</title>\n";
-    } else {
-      print "<title>$value</title>\n";
-    }
-    if(isset($config['color'])) {
-      $expr = $config['color'];
-      eval ("\$color = $expr;");
-      print "<color>$color</color>\n";
-    } else {
-      print "<color>#ff0000</color>\n";
-    }
-    print "<inside>true</inside>\n";
-  }
 }

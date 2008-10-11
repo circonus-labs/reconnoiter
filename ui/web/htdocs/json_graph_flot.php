@@ -17,20 +17,34 @@ $db = Reconnoiter_DB::GetDB();
 $row = $db->getGraphByID($_GET['id']);
 $graph = json_decode($row['json'], true);
 
+foreach($graph['datapoints'] as $d) {
+  if($d['metric_type'] == 'guide') {
+    $driver->calcPercentile($d['math2']);
+  }
+}
+
 $i = 0;
 $autounits = 0;
 foreach($graph['datapoints'] as $d) {
-  $settings = $graph_settings[$i++];
-  if($d['hidden'] == "true") $settings['hidden'] = "true";
-  if($d['math1']) $settings['expression'] = $d['math1'];
-  $settings['axis'] = ($d['axis'] == 'l') ? 'left' : 'right';
-  $settings['title'] = $d['name'];
-  if($d['metric_type'] == 'numeric') {
-    $driver->addDataSet($d['sid'], $d['metric_name'],
-                        $d['derive'], $d['math2'], $settings);
+  if($d['metric_type'] == 'guide') {
+    $color = isset($d['color']) ? $d['color'] : '#ff0000';
+    $driver->addPercentileGuide($d['name'], $d['math2'],
+                                array('expression' => $d['math1'],
+                                      'color' => $color));
   }
-  else
-    $driver->addChangeSet($d['sid'], $d['metric_name']);
+  else {
+    $settings = $graph_settings[$i++];
+    if($d['hidden'] == "true") $settings['hidden'] = "true";
+    if($d['math1']) $settings['expression'] = $d['math1'];
+    $settings['axis'] = ($d['axis'] == 'l') ? 'left' : 'right';
+    $settings['title'] = $d['name'];
+    if($d['metric_type'] == 'numeric') {
+      $driver->addDataSet($d['sid'], $d['metric_name'],
+                          $d['derive'], $d['math2'], $settings);
+    }
+    else
+      $driver->addChangeSet($d['sid'], $d['metric_name'], $settings);
+  }
 }
 
 $data = $driver->graphdata();

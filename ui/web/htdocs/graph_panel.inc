@@ -42,7 +42,7 @@ function redraw_current_graph(domid) {
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
-  //$("#payload").html(str);
+  $("#payload").html(str);
   $.post("json/graph/store",
          {'json':str},
          function(d) {
@@ -73,8 +73,22 @@ function graph_add_datapoint(d) {
   gtool_add_datapoint(d);
   update_current_graph(true);
 }
+function gtool_add_guide() {
+  var d = {};
+  d.metric_type = 'guide';
+  graphinfo.datapoints.push(d);
+  gtool_add_datapoint(d);
+  update_current_graph(true);
+}
+
 function gtool_add_datapoint(d) {
-  var o = $("#datapointeditor").clone();
+  var o;
+  if(d.metric_type == 'guide') {
+    o = $("#guideeditor").clone();
+  }
+  else {
+    o = $("#datapointeditor").clone();
+  }
   recurse++;
 
   o.find(d.axis == "l" ? ".axisl" : ".axisr").addClass("axison");
@@ -226,6 +240,9 @@ $(document).ready(function(){
         $("#gtool-error").click(function(){
           $("#gtool-error").fadeOut("slow");
         });
+        $("span.addGuide").click(function() {
+          gtool_add_guide();
+        });
         set_current_graph_id('');
 });
 </script>
@@ -275,6 +292,8 @@ $(document).ready(function(){
 	</form>
 	
 </div>
+<div style="float:right"><span class="addGuide">Add Guide</span></div>
+<br style="clear:right" />
 <div class="error"><p class="error" id="gtool-error"></p></div>
 <table id="gtool">
 	<tr>
@@ -294,6 +313,27 @@ $(document).ready(function(){
 <div style="display:none">
 <form id="hiddeneditor">
 	<table>
+	<tbody id="guideeditor">
+	<tr>
+		<td><input name="view" type="checkbox" value="1"/></td>
+		<td class="data datatitle"></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
+		<td class="math">math</td>
+	</tr>
+	<tr class="mathbox">
+		<td colspan="7">
+		<div>
+			<label for="math">Display Math</label> <input name="math1" type="text" value="" style="width:380px;" />
+		</div>
+		<div>
+			<label for="math">Percentile</label> <input name="math2" type="text" value="" style="width:380px;" />
+		</div>
+		</td>
+	</tr>
+	</tbody>
 	<tbody id="datapointeditor">
 	<tr>
 		<td><input name="view" type="checkbox" value="1"/></td>
@@ -307,10 +347,10 @@ $(document).ready(function(){
 	<tr class="mathbox">
 		<td colspan="7">
 		<div>
-			<label for="math">Units conversion</label> <input name="math1" type="text" value="" style="width:380px;" />
+			<label for="math">Display Math</label> <input name="math1" type="text" value="" style="width:380px;" />
 		</div>
 		<div>	
-			<label for="math">Math</label> <input name="math2" type="text" value="" style="width:380px;" />
+			<label for="math">Source Math</label> <input name="math2" type="text" value="" style="width:380px;" />
 		</div>
 		</td>
 	</tr>

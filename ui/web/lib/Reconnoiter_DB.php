@@ -307,9 +307,11 @@ class Reconnoiter_DB {
                                               metric_name, metric_type)
                                       values (?,?,?,?)");
       foreach($graph['datapoints'] as $datapoint) {
-        $sth->execute(array($id, $datapoint['sid'],
-                            $datapoint['metric_name'],
-                            $datapoint['metric_type']));
+        if($datapoints['sid']) {
+          $sth->execute(array($id, $datapoint['sid'],
+                              $datapoint['metric_name'],
+                              $datapoint['metric_type']));
+        }
       }
       $this->db->commit();
     }
