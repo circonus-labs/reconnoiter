@@ -10,6 +10,8 @@
 <script src="js/jquery.min.js"></script>
 <script src="js/jquery.flot.js"></script>
 <script src="js/jquery.jeditable.pack.js"></script>
+<script src="js/ui.core.min.js"></script>
+<script src="js/ui.sortable.min.js"></script>
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.async.js" type="text/javascript"></script>

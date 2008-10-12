@@ -22,20 +22,20 @@ function plot_id(r, domid, redraw) {
       });
       if(!r.options.grid) r.options.grid = {};
       r.options.grid.hoverable = true;
-      $(domid + " > div.tooltip").remove();
+      $("div.tooltip").remove();
       placeholder.bind("plothover", function (event, pos, item) {
         if(item) {
-          if(! $(domid + " > div.tooltip")[0])
-            $('<div class="tooltip"></div>').appendTo($(domid));
-          $(domid + " > div.tooltip")
+          if(! $("div.tooltip")[0])
+            $('<div class="tooltip"></div>').appendTo($('body'));
+          $("div.tooltip")
             .html(item.datapoint[2] ? item.datapoint[2] : item.datapoint[1])
-            .css( { top: $(domid).offset().top -
-                          placeholder.offset().top + item.pageY,
-                    left: item.pageX,
-                    position: 'absolute' });
+            .css( { top: item.pageY - 10, //- $(domid).offset().top,
+                    left: item.pageX + 5,
+                    position: 'absolute',
+                    'z-index': 1000 });
         }
         else {
-          $(domid + " > div.tooltip").remove();
+          $("div.tooltip").remove();
         }
       });
       r.options.legend.container = $(domid + " div.plot-legend");

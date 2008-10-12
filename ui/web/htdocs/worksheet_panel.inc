@@ -35,6 +35,7 @@ function process_worksheet_json(r) {
     ul.append($('<li/>').append(o));
     ws_refresh_graph_from_json(r.graphs[i], "#" + r.graphs[i].graphid);
   }
+  ul.sortable({ handle: '.graphTitle' });
 }
 function load_worksheet(id) {
   $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
