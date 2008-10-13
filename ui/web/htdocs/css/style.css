@@ -253,6 +253,9 @@ div.tooltip {
 #graphlist ul li ul li.xx{color:#82787b;font-size:10px;display:inline;padding-left:15px;border-left:none;}
 #graphlist ul li ul li a.addtows {background:url(../images/icon-addws.png) 0 0px no-repeat;display:inline;}
 #graphlist ul li ul li a em{color:#82787b;padding-left:3px;}
+#graphlist ul li ul li a.editgraph {background:url(../images/icon-addws.png) 0 0px no-repeat;display:inline;}
+#graphlist ul li ul li a.editgraph {background:url(../images/icon-editgraph.png) 0 0px no-repeat;display:inline;}
+#graphlist ul li ul li a.deletegraph {background:url(../images/icon-deletegraph.png) 0 0px no-repeat;display:inline;}
 
 div.plot-area { height:180px;width:380px; }
 div.plot-area div.centered{

@@ -37,7 +37,7 @@ function perform_graph_search(string, offset, limit) {
               for(var i=0; r.results && i<r.results.length; i++) {
                 var g = r.results[i];
                 var a = $('<a href="#"/>');
-                a.html('Edit').addClass('addtows');
+                a.html('Edit').addClass('editgraph');
                 a.click(
                   (function(graphid) {
                       return function() {
@@ -46,9 +46,27 @@ function perform_graph_search(string, offset, limit) {
                       }
                    })(g.graphid)
                 );
-                var li = $('<li/>').append($('<a/>').html(g.title))
-                                   .append($('<ul/>').append($('<li/>').html(g.last_update))
-                                                     .append($('<li/>').append(a)));
+                var li = $('<li/>');;
+                var del = $('<a href="#"/>');
+                del.html('Forget').addClass('deletegraph');
+                del.click(
+                  (function(graphid, li) {
+                      return function() {
+                        $.getJSON('json/graph/forget/' + graphid,
+                          function (r) {
+                            if(r.error) { alert(r.error); }
+                            else {
+                              perform_graph_search(string,o,l);
+                            }
+                          });
+                        return false;
+                      }
+                   })(g.graphid, li)
+                );
+                li.append($('<a/>').html(g.title))
+                  .append($('<ul/>').append($('<li/>').html(g.last_update))
+                                    .append($('<li/>').append(a)
+                                                      .append(del)));
                 $("#graph-searchresults").append(li);
               }
             });

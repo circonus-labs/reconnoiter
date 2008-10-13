@@ -5,6 +5,7 @@ RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ datapoint_browse_j
 RewriteRule ^json/worksheet/info/([^/]*)$ worksheet_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/info/([^/]*)$ graph_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/store$ graph_store.php [PT,QSA]
+RewriteRule ^json/graph/forget/([^/]*)$ graph_delete.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/search$ graph_search_json.php [PT,QSA]
 RewriteRule ^json/datapoint/search$ datapoint_search_json.php [PT,QSA]
 RewriteRule ^graph/template/bw/large/([^/]+)$ bw_settings.php?id=$1 [PT,QSA]

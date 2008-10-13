@@ -4,6 +4,7 @@
 <script type="text/javascript">
 <!--
 var current_graph_id = '';
+var debug_graph_edit = false;
 var graphinfo;
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
 function set_current_graph_id(id) {
@@ -29,7 +30,7 @@ function plot_id(r, domid, redraw) {
             $('<div class="tooltip"></div>').appendTo($('body'));
           $("div.tooltip")
             .html(item.datapoint[2] ? item.datapoint[2] : item.datapoint[1])
-            .css( { top: item.pageY - 10, //- $(domid).offset().top,
+            .css( { top: item.pageY - 10,
                     left: item.pageX + 5,
                     position: 'absolute',
                     'z-index': 1000 });
@@ -60,7 +61,7 @@ function redraw_current_graph(domid) {
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
-  //$("#payload").html(str);
+  if(debug_graph_edit) $("#payload").html(str);
   $.post("json/graph/store",
          {'json':str},
          function(d) {
@@ -68,8 +69,6 @@ function update_current_graph(redraw, f) {
            graphinfo.id = d.id;
            if(d.error) $("#gtool-error").html(d.error).fadeIn('fast');
            else $("#gtool-error").fadeOut('fast');
-           recurse--;
-           //$("#payload").html(JSON.stringify(graphinfo));
            if(graphinfo.id && graphinfo.saved != true) {
              $(".rememberGraph").html('"Remember" this graph.').fadeIn('slow');
              $(".rememberGraph").click(function() {
@@ -82,6 +81,7 @@ function update_current_graph(redraw, f) {
            }
            if(redraw) redraw_current_graph("#maingraph");
            if(f) f(d);
+           recurse--;
          }, 'json');
 }
 function graph_add_datapoint(d) {

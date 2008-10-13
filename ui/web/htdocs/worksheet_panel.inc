@@ -35,7 +35,17 @@ function process_worksheet_json(r) {
     ul.append($('<li/>').append(o));
     ws_refresh_graph_from_json(r.graphs[i], "#" + r.graphs[i].graphid);
   }
-  ul.sortable({ handle: '.graphTitle' });
+  ul.sortable({ handle: '.graphTitle',
+                scroll: true,
+                stop:
+                  function (e,ui) {
+                    var ol = new Array();
+                    ui.item.parent().find("> li > div").each(
+                      function(i) { ol.push($(this).attr("id")); }
+                    );
+                    console.log(ol);
+                  }
+              });
 }
 function load_worksheet(id) {
   $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
@@ -93,8 +103,8 @@ $(document).ready(function(){
                         $('#ws_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
-        $("#gtool-error").click(function(){
-          $("#gtool-error").fadeOut("slow");
+        $("#ws-tool-error").click(function(){
+          $("#ws-tool-error").fadeOut("slow");
         });
 	load_worksheet('<?php print $_GET['worksheetid'] ?>');
 });
@@ -133,7 +143,7 @@ $(document).ready(function(){
         </div>
 </div>
 
-<div class="error"><p class="error" id="gtool-error"></p></div>
+<div class="error"><p class="error" id="ws-tool-error"></p></div>
 
 <div id="ws_payload">
 </div>
