@@ -709,14 +709,15 @@ ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter
 --
 
 CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
-    AS $$DECLARE
+    AS $$
+DECLARE
  BEGIN
  IF TG_OP != 'INSERT' THEN
    IF (NEW.graph_tags <> OLD.graph_tags OR NEW.title <> OLD.title) THEN
            UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
    END IF;    
  ELSE 
-    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
+    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=(NEW.graphid);
  END IF;  
    RETURN NEW;
 END
@@ -865,8 +866,7 @@ ALTER FUNCTION stratcon.date_hour(timestamp with time zone) OWNER TO reconnoiter
 --
 
 CREATE FUNCTION fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) RETURNS SETOF rollup_matrix_numeric_5m
-    AS $$
-declare
+    AS $$declare
   v_sid int;
   v_record stratcon.rollup_matrix_numeric_5m%rowtype;
 begin
@@ -875,7 +875,7 @@ begin
     return;
   end if;
 
-    for v_record in  select sid, name, rollup_time, count_rows, avg_value from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
+    for v_record in  select sid, name, rollup_time, count_rows, avg_value, counter_dev from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
     return next v_record; 
     end loop;
 
@@ -893,8 +893,7 @@ ALTER FUNCTION stratcon.fetch_dataset(in_uuid uuid, in_name text, in_start_time 
 --
 
 CREATE FUNCTION fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) RETURNS SETOF rollup_matrix_numeric_5m
-    AS $$
-declare
+    AS $$declare
   v_sql text;
   v_sid int;
   v_target record;
@@ -929,7 +928,7 @@ begin
     into v_end_adj;
 
   v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
-           's.rollup_time, d.count_rows, d.avg_value ' ||
+           's.rollup_time, d.count_rows, d.avg_value, d.counter_dev ' ||
            ' from ' ||
            '(select ' || quote_literal(v_start_adj) || '::timestamp' ||
                   ' + t * ' || quote_literal(v_target.period) || '::interval' ||
@@ -1079,11 +1078,7 @@ begin
   if v_next_text is null then
     -- No rows.
     for v_change_row in
-      select v_sid as sid, v_start_adj as whence, in_name as name, value
-        from stratcon.loading_dock_metric_text_s_change_log
-       where sid = v_sid and name = in_name and whence <= v_start_adj
-    order by whence desc
-       limit 1
+      select v_sid as sid, v_start_adj as whence, in_name as name, v_start_text as value
     loop
       return next v_change_row;
     end loop;
