@@ -705,6 +705,23 @@ END$$
 ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter;
 
 --
+-- Name: trig_before_tsvector_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: postgres
+--
+
+CREATE FUNCTION trig_before_tsvector_saved_graphs() RETURNS trigger
+    AS $$
+DECLARE
+ BEGIN
+   NEW.ts_search_all:= to_tsvector(NEW.title);
+     RETURN NEW;
+ END
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION prism.trig_before_tsvector_saved_graphs() OWNER TO postgres;
+
+--
 -- Name: trig_update_tsvector_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: reconnoiter
 --
 
@@ -712,13 +729,9 @@ CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
     AS $$
 DECLARE
  BEGIN
- IF TG_OP != 'INSERT' THEN
    IF (NEW.graph_tags <> OLD.graph_tags OR NEW.title <> OLD.title) THEN
            UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
    END IF;    
- ELSE 
-    UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=(NEW.graphid);
- END IF;  
    RETURN NEW;
 END
 $$
@@ -2410,11 +2423,21 @@ CREATE TRIGGER check_name_saved_graphs
 
 
 --
+-- Name: trig_before_tsvector_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
+--
+
+CREATE TRIGGER trig_before_tsvector_saved_graphs
+    BEFORE INSERT ON saved_graphs
+    FOR EACH ROW
+    EXECUTE PROCEDURE trig_before_tsvector_saved_graphs();
+
+
+--
 -- Name: trig_update_tsvector_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
 --
 
 CREATE TRIGGER trig_update_tsvector_saved_graphs
-    AFTER INSERT OR UPDATE ON saved_graphs
+    AFTER UPDATE ON saved_graphs
     FOR EACH ROW
     EXECUTE PROCEDURE trig_update_tsvector_saved_graphs();
 
