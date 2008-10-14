@@ -54,7 +54,7 @@ body
 }
 #header h1 a
 {
-	background:#E0DED5 url(../images/logo.png) no-repeat scroll left top;
+	background:#E0DED5 url(../images/logo.png) no-repeat scroll left center;
 	height:110px;
 	left:0;
 	position:absolute;
