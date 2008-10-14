@@ -55,12 +55,12 @@ body
 #header h1 a
 {
 	background:#E0DED5 url(../images/logo.png) no-repeat scroll left center;
-	height:110px;
+	height:126px;
 	left:0;
 	position:absolute;
 	text-indent:-5000em;
 	top:0;
-	width:334px;
+	width:333px;
 	z-index:300;
 }
 #header ul
@@ -76,7 +76,7 @@ body
 }
 #header ul li
 {
-	border-right:1px solid #363942F;
+	border-right:1px solid #363942;
 	display:inline;
 	padding:0 5px;
 }
@@ -94,7 +94,7 @@ body
 	left:0;
 	padding:0;
 	position:absolute;
-	top:110px;
+	top:125px;
 	width:334px;
 	z-index:200;
 }
@@ -111,8 +111,8 @@ body
 {
 	background:#FFFFFF none repeat scroll 0 0;
 	margin-bottom:5em;
-	margin-left:321px;
-	padding:25px;;
+	margin-left:334px;
+	padding:35px 0 0 35px;
 }
 #main
 {
