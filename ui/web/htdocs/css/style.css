@@ -114,10 +114,10 @@ body
 }
 #content
 {
-	background:#FFFFFF none repeat scroll 0 0;
+	background:transparent url(../images/ctn-corner.png) no-repeat scroll 0 0;
 	margin-bottom:5em;
-	margin-left:334px;
-	padding:35px 0 0 35px;
+	margin-left:321px;
+	padding:35px 0 0 45px;
 }
 #main
 {
