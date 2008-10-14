@@ -555,9 +555,6 @@ border:1px solid #999999;
 opacity:0.9;
 padding:0 3px;
 }
-#graphlist p.graph-search-summary {
-margin-bottom:0;
-}
 #graphlist p.paginate {
 text-align:right;
 }
@@ -608,16 +605,14 @@ color:#82787B;
 padding-left:3px;
 }
 #graphlist ul li ul li a.editgraph {
-background:transparent url(../images/icon-addws.png) no-repeat scroll 0 0;
-display:inline;
-}
-#graphlist ul li ul li a.editgraph {
 background:transparent url(../images/icon-editgraph.png) no-repeat scroll 0 0;
 display:inline;
+padding-left:25px;
 }
 #graphlist ul li ul li a.deletegraph {
 background:transparent url(../images/icon-deletegraph.png) no-repeat scroll 0 0;
 display:inline;
+padding-left:25px;
 }
 div.plot-area {
 height:180px;
@@ -738,6 +733,40 @@ padding:3px 1px;
 text-align:left;
 vertical-align:middle;
 }
+
+.colorPicker { position: relative; height: 14px; }
+.colorPicker .colorSelector {
+  position: absolute;
+  border: 1px solid #aaa;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 12px;
+}
+.colorPicker .colorSelector div {
+  position: absolute;
+  background: #fff;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 10px;
+}
+.colorPicker .colorPickerHolder {
+  top: 16px;
+  left: -340px;
+  width: 356px;
+  height: 0;
+  z-index: 6000;
+  overflow: hidden;
+  position: absolute;
+}
+.colorPicker .colorPickerHolder .colorpicker {
+  background-image: url(../images/custom_background.png);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
 table#gtool th.data, table#gtool td.data {
 text-align:left;
 width:60%;
@@ -830,6 +859,7 @@ text-transform:uppercase;
 display:inline;
 float:left;
 }
+
 .zoom dl dd a {
 border-color:#CDD4E0 #CDD4E0 #CDD4E0 -moz-use-text-color;
 border-style:solid solid solid none;

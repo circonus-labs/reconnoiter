@@ -65,8 +65,8 @@ function perform_graph_search(string, offset, limit) {
                 );
                 li.append($('<a/>').html(g.title))
                   .append($('<ul/>').append($('<li/>').html(g.last_update))
-                                    .append($('<li/>').append(a)
-                                                      .append(del)));
+                                    .append($('<li/>').append(a))
+                                    .append($('<li/>').append(del)));
                 $("#graph-searchresults").append(li);
               }
             });

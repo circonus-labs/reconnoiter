@@ -34,6 +34,7 @@ foreach($graph['datapoints'] as $d) {
   }
   else {
     $settings = $graph_settings[$i++];
+    $settings['color'] = isset($d['color']) ? $d['color'] : $settings['color'];
     if($d['hidden'] == "true") $settings['hidden'] = "true";
     if($d['math1']) $settings['expression'] = $d['math1'];
     $settings['axis'] = ($d['axis'] == 'l') ? 'left' : 'right';

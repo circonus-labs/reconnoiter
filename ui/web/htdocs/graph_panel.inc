@@ -1,4 +1,5 @@
 <script type="text/javascript" src="js/eye/datepicker.js"></script>
+<script type="text/javascript" src="js/eye/colorpicker.js"></script>
 <script type="text/javascript" src="js/eye/eye.js"></script>
 <script type="text/javascript" src="js/eye/utils.js"></script>
 <script type="text/javascript">
@@ -7,6 +8,9 @@ var current_graph_id = '';
 var debug_graph_edit = false;
 var graphinfo;
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
+var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
+var color_sel = 0;
+
 function set_current_graph_id(id) {
   current_graph_id = id;
   fetch_graph_info(current_graph_id);
@@ -108,6 +112,39 @@ function gtool_add_datapoint(d) {
     o = $("#datapointeditor").clone();
   }
   recurse++;
+ 
+  if(d.color == null) {
+    d.color = color_pool[color_sel];
+    color_sel = (color_sel + 1) % color_pool.length;
+  }
+  o.find('.colorPickerHolder').ColorPicker({
+    flat: true,
+    color: '#ffffff',
+    onSubmit: (function(dpo,dp) {
+      var cs = dpo.find('.colorSelector');
+      return function(hsb, hex, rgb) {
+        dp.color = '#' + hex;
+        cs.css('border', '1px solid ' + dp.color);
+        cs.find('div').css('backgroundColor', dp.color)
+                      .css('opacity', 0.2);
+        cs.parent().find('.colorPickerHolder').stop().animate({height:0},500);
+        update_current_graph(true);
+      }
+    })(o,d)
+  });
+  o.find('.colorPickerHolder > div').css('position', 'absolute');
+  o.find('.colorSelector').css('border', '1px solid ' + d.color);
+  o.find('.colorSelector div').css('backgroundColor', d.color)
+                              .css('opacity',
+                                   (d.opacity == null) ? 0.2 : d.opacity);
+  o.find('.colorSelector').bind('click', function() {
+    var activecp = $(this).parent().find('.colorPickerHolder');
+    var h = activecp.height();
+    $("#gtool #dataPoints .colorPickerHolder").filter(function(index) {
+      return ($(this) != activecp);
+    }).stop().animate({height:0}, 0);;
+    $(this).parent().find('.colorPickerHolder').stop().animate({height: h != 0 ? 0 : 173}, 500);
+  });
 
   o.find(d.axis == "l" ? ".axisl" : ".axisr").addClass("axison");
   o.find("span.axis").click(function(){
@@ -336,7 +373,7 @@ $(document).ready(function(){
 	<tr>
 		<td><input name="view" type="checkbox" value="1"/></td>
 		<td class="data datatitle"></td>
-		<td></td>
+		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
 		<td></td>
 		<td></td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
@@ -357,7 +394,7 @@ $(document).ready(function(){
 	<tr>
 		<td><input name="view" type="checkbox" value="1"/></td>
 		<td class="data datatitle"></td>
-		<td></td>
+		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
 		<td><select name="derive"><option value="false">no</option><option value="derive">derive</option><option value="counter">counter</option></select></td>
 		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
