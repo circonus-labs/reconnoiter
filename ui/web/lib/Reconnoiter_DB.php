@@ -273,6 +273,11 @@ class Reconnoiter_DB {
     $row = $sth->fetch();
     return $row;
   }
+  function deleteGraph($id) {
+    $sth = $this->db->prepare("delete from prism.saved_graphs
+                                     where graphid=?");
+    $sth->execute(array($id));
+  }
   function saveGraph($graph) {
     $id = '';
     if($graph['id']) {

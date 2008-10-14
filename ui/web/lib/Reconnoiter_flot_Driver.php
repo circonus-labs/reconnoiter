@@ -34,7 +34,9 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
       );
       if(get_class($set) == "Reconnoiter_DataSet") {
-        $ds['lines'] = array ( 'show' => 'true', 'fill' => '0.3', 'lineWidth' => '1' );
+        $opacity = isset($this->sets_config[$name]['opacity']) ?
+                     $this->sets_config[$name]['opacity'] : '0.3';
+        $ds['lines'] = array ( 'show' => 'true', 'fill' => $opacity, 'lineWidth' => '1' , radius => 1 );
       }
       if(get_class($set) == "Reconnoiter_ChangeSet") {
         $ds['points'] = array ( 'show' => 'true', 'fill' => 'false', 'lineWidth' => 1, radius => 5 );

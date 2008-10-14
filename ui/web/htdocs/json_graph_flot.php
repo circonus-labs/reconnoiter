@@ -56,7 +56,7 @@ if($driver->max() < 0) $yaxis['max'] = 0;
 $options = array(
   'xaxis' => array ( 'mode' => 'time' ),
   'yaxis' => array ( 'suffix' => $driver->autounit() . '' ),
-  'legend' => array ( 'noColumns' => 6, position => 'sw' ),
+  'legend' => array ( 'noColumns' => 4, position => 'sw' ),
   'selection' => array ( 'mode' => 'x' ),
   'shadowSize' => 0,
   'colors' => $driver->graphcolors()

@@ -3,12 +3,17 @@
 class Reconnoiter_ChangeSet {
   public $data;
   protected $last_value;
+  protected $groupname;
 
   function __construct($uuid, $name, $start, $end, $cnt = 400) {
     $db = Reconnoiter_DB::getDB();
     $this->data = $db->get_var_for_window($uuid, $name, $start, $end, $cnt);
     $last = end($this->data);
     if($last) $this->last_value = $last['value'];
+  }
+  function groupname($gn = null) {
+    if(isset($gn)) $this->groupname = $gn;
+    return $this->groupname;
   }
   function points() {
     return array_keys($this->data);
