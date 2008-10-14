@@ -101,6 +101,8 @@ function MM_jumpMenu(targ,selObj,restore){ //v3.0
 <div id="header">
 	<h1><a href="#">Reconnoiter</a></h1>
 	<ul>
+		<li><a href="https://labs.omniti.com/docs/reconnoiter/">Documentation</a></li>
+		<li><a href="https://labs.omniti.com/trac/reconnoiter/">Support</a></li>
 		<li><a href="#">Username</a></li>
 		<li class="xx"><a href="#">Logout</a></li>
 	</ul>
