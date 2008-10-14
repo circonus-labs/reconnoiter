@@ -88,6 +88,11 @@ body
 {
 	color:#363942;
 }
+#header ul li a:hover
+{
+	color:#B32720;
+}
+
 #left
 {
 	height:85%;
