@@ -43,7 +43,7 @@ body
 }
 #header 
 {
-	background:#E0DED5;
+	background:#E0DED5 url(../images/header-grad.png) repeat-x;
 	color:white;
 	height:65px;
 	left:0;
@@ -114,7 +114,7 @@ body
 }
 #content
 {
-	background:transparent url(../images/ctn-corner.png) no-repeat scroll 0 0;
+	background:#ffffff url(../images/ctn-corner.png) no-repeat scroll 0 0;
 	margin-bottom:5em;
 	margin-left:321px;
 	padding:35px 0 0 45px;
