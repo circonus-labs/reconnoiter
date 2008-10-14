@@ -43,7 +43,7 @@ body
 }
 #header 
 {
-	background:#FFFFFF;
+	background:#E0DED5;
 	color:white;
 	height:65px;
 	left:0;
@@ -54,13 +54,13 @@ body
 }
 #header h1 a
 {
-	background:transparent url(../images/logo.png) no-repeat scroll left top;
-	height:65px;
+	background:#E0DED5 url(../images/logo.png) no-repeat scroll left top;
+	height:110px;
 	left:0;
 	position:absolute;
 	text-indent:-5000em;
 	top:0;
-	width:292px;
+	width:334px;
 	z-index:300;
 }
 #header ul
@@ -110,7 +110,6 @@ body
 #content
 {
 	background:#FFFFFF none repeat scroll 0 0;
-	border-top:1px solid #D5D3D4;
 	margin-bottom:5em;
 	margin-left:321px;
 	padding:25px;;
