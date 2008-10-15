@@ -584,6 +584,7 @@ padding:2px 0;
 }
 #graphlist ul li a {
 background:transparent url(../images/icon-graphs.png) no-repeat scroll 0 1px;
+font-size:12px;
 padding-left:25px;
 }
 #graphlist ul li ul li {
@@ -612,12 +613,14 @@ padding-left:3px;
 #graphlist ul li ul li a.editgraph {
 background:transparent url(../images/icon-editgraph.png) no-repeat scroll 0 0;
 display:inline;
+font-size:10px;
 padding-left:25px;
 }
 #graphlist ul li ul li a.deletegraph {
 background:transparent url(../images/icon-deletegraph.png) no-repeat scroll 0 0;
 display:inline;
 padding-left:25px;
+font-size:10px;
 }
 div.plot-area {
 height:180px;
