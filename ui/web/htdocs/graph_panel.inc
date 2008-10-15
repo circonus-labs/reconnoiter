@@ -4,9 +4,10 @@
 <script type="text/javascript" src="js/eye/utils.js"></script>
 <script type="text/javascript">
 <!--
+var maingraph;
 var current_graph_id = '';
 var debug_graph_edit = false;
-var graphinfo;
+var graphinfo= {};
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
 var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
 var color_sel = 0;
@@ -16,52 +17,6 @@ function set_current_graph_id(id) {
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
-function plot_id(r, domid, redraw) {
-      var placeholder = $(domid + " > div.plot-area");
-      placeholder.bind("plotselected", function (event, ranges) {
-        var start = new Date(Math.floor(ranges.xaxis.from));
-        var end = new Date(Math.floor(ranges.xaxis.to));
-        displayinfo.start = start.toUTCString();
-        displayinfo.end = end.toUTCString();
-        if(redraw) redraw();
-      });
-      if(!r.options.grid) r.options.grid = {};
-      r.options.grid.hoverable = true;
-      $("div.tooltip").remove();
-      placeholder.bind("plothover", function (event, pos, item) {
-        if(item) {
-          if(! $("div.tooltip")[0])
-            $('<div class="tooltip"></div>').appendTo($('body'));
-          $("div.tooltip")
-            .html(item.datapoint[2] ? item.datapoint[2] : item.datapoint[1])
-            .css( { top: item.pageY - 10,
-                    left: item.pageX + 5,
-                    position: 'absolute',
-                    'z-index': 1000 });
-        }
-        else {
-          $("div.tooltip").remove();
-        }
-      });
-      r.options.legend.container = $(domid + " div.plot-legend");
-      if(!r.options.yaxis) r.options.yaxis = {};
-      if(r.options.yaxis.suffix)
-        r.options.yaxis.tickFormatter = function (val, axis) {
-          return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
-        };
-      var plot = $.plot(placeholder, r.data, r.options);
-}
-function redraw_current_graph(domid) {
-  if(graphinfo.datapoints.length > 0) {
-    $(domid).slideDown("normal");
-    var url = "flot/graph/settings/" + graphinfo.id;
-    $(domid + " .plot-area").html('<div class="centered"><div class="loading">&nbsp;</div></div>');
-    $.getJSON(url, {'cnt':displayinfo.cnt, 'start':displayinfo.start, 'end':displayinfo.end}, function (r) { plot_id(r,domid, function() { redraw_current_graph("#maingraph"); }); });
-  }
-  else {
-    $(domid).slideUp("normal");
-  }
-}
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   var str = JSON.stringify(graphinfo);
@@ -83,7 +38,7 @@ function update_current_graph(redraw, f) {
                });
              });
            }
-           if(redraw) redraw_current_graph("#maingraph");
+           if(redraw && maingraph) maingraph.ReconGraphRefresh({graphid: graphinfo.id});
            if(f) f(d);
            recurse--;
          }, 'json');
@@ -223,10 +178,17 @@ function refresh_graph_from_json(j) {
   for(var i=0; i<graphinfo.datapoints.length; i++) {
     gtool_add_datapoint(graphinfo.datapoints[i]);
   }
-  redraw_current_graph("#maingraph");
+  if(maingraph) {
+    if(graphinfo.id) 
+      maingraph.ReconGraphRefresh({graphid: graphinfo.id});
+    else
+      maingraph.ReconGraphReset();
+  }
 }
 function fetch_graph_info(id) {
-  $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
+  graphinfo.id = id;
+  if(id) $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
+  else refresh_graph_from_json({});
   $("span.blankGraph").click(function() {
     if(graphinfo.saved || confirm("I will forget the current graph.  Are you sure?"))
       set_current_graph_id('');
@@ -266,7 +228,7 @@ $(document).ready(function(){
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
-                redraw_current_graph("#maingraph");
+                maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: ''});
                 return false;
         });
         $('#graph_widgetCalendar').DatePicker({
@@ -284,7 +246,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
-                        redraw_current_graph("#maingraph");
+                        maingraph.ReconGraphRefresh({graphid: graphinfo.id});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
@@ -299,6 +261,8 @@ $(document).ready(function(){
           gtool_add_guide();
         });
         set_current_graph_id('');
+        maingraph = $('<div></div>').attr("id", "maingraph").ReconGraph({graphid: graphinfo.id, width: 780, height: 400});
+        $("#maingraphHolder").append(maingraph);
 });
 </script>
 
@@ -334,10 +298,7 @@ $(document).ready(function(){
 </div>
 
 <div>
-	<div id="maingraph">
-        <div class="plot-area" style="width:780px;height:400px"></div>
-        <div class="plot-legend"></div>
-        <div class="plot-debug"></div>
+	<div id="maingraphHolder">
         </div>
 	<form action="#" name="form4" id="form4" style="margin:1em 0;text-align:center;">
 	<fieldset>

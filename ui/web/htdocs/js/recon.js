@@ -6,8 +6,8 @@
         function(options) {
           this.graphinfo = $.extend({}, displayinfo, options||{});
           if(!this.graphinfo.cnt) this.graphinfo.cnt = this.graphinfo.width / 2;
-          this.attr("id", this.graphinfo.graphid)
-              .append($('<h3>').addClass("graphTitle")
+          if(!this.attr("id")) this.attr("id", this.graphinfo.graphid);
+          this.append($('<h3>').addClass("graphTitle")
                                .html(this.graphinfo.title))
               .append($('<div></div>').addClass("plot-area")
                                       .css('width', this.width + 'px')
@@ -15,8 +15,21 @@
               .append($('<div></div>').addClass("plot-legend"));
           return this;
         },
-      refresh:
+      reset:
         function() {
+          this.graphinfo.graphid = '';
+          if(this.flot_plot) {
+            this.find("h3.graphTitle").html('');
+            this.find("div.plot-legend").html('');
+            this.flot_plot.setData({});
+            this.flot_plot.setupGrid();
+            this.flot_plot.draw();
+          }
+          return this;
+        },
+      refresh:
+        function(options) {
+          this.graphinfo = $.extend({}, this.graphinfo, options||{});
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
           this.find(".plot-area")
               .html('<div class="centered"><div class="loading">&nbsp;</div></div>');
@@ -49,7 +62,7 @@
             r.options.yaxis.tickFormatter = function (val, axis) {
               return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
             };
-          var plot = $.plot(placeholder, r.data, r.options);
+          var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
 
           var hovering;
           placeholder.bind("plothover", function (event, pos, item) {
@@ -86,6 +99,7 @@
   }();
   $.fn.extend({ ReconGraph: ReconGraph.init,
                 ReconGraphRefresh: ReconGraph.refresh,
-                ReconGraphPlot: ReconGraph.plot
+                ReconGraphPlot: ReconGraph.plot,
+                ReconGraphReset: ReconGraph.reset
               });
 })(jQuery);

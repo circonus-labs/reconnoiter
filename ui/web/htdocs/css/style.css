@@ -106,7 +106,7 @@ body
 #container
 {
 	left:0;
-	overflow:auto;
+	overflow:visible;
 	padding:1em;
 	position:absolute;	
 	top:54px;
