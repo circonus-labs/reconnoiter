@@ -36,7 +36,7 @@ html, body
 body
 {
 	background:#FFFFFF url(../images/bg-shade-divider.png) repeat-y scroll left top;
-	color:#363942;
+	color:#403131;
 	font-family:Georgia,"Times New Roman",Times,serif;
 	font-size:11px;
 	line-height:18px;
@@ -86,7 +86,7 @@ body
 }
 #header ul li a
 {
-	color:#363942;
+	color:#403131;
 }
 #header ul li a:hover
 {
@@ -420,8 +420,10 @@ ul.tabNavigation li a:focus
 }
 h2
 {
-	font-size:22px;
+	border-bottom:1px solid #C1BDB2;
+	font-size:30px;
 	font-weight:normal;
+	padding-bottom:10px;
 }
 h4
 {
