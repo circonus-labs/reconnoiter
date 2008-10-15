@@ -16,6 +16,7 @@
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.async.js" type="text/javascript"></script>
+<script src="js/recon.js" type="text/javascript"></script>
 
 <!-- color picker -->
 <link rel="stylesheet" href="css/colorpicker.css">

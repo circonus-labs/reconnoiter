@@ -4,36 +4,16 @@
 <script type="text/javascript">
 <!--
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
-function ws_redraw_graph(info, domid) {
-  if(info.datapoints.length > 0) {
-    var url = "flot/graph/settings/" + info.graphid;
-    $(domid + " .plot-area").html('<div class="centered"><div class="loading">&nbsp;</div></div>');
-    $.getJSON(url, {'cnt':ws_displayinfo.cnt,
-                    'start':ws_displayinfo.start,
-                    'end':ws_displayinfo.end},
-              function (r) { plot_id(r,domid, function() { ws_displayinfo = displayinfo; load_worksheet(); }); });
-  }
-  else {
-    $(domid + " .plot-area").html('<div class="centered">No data</div>');
-  }
-}
-function ws_refresh_graph_from_json(info, domid) {
-  if(info.datapoints == undefined) info.datapoints = Array();
-  $(domid + " h3.graphTitle").html(info.title);
-  ws_redraw_graph(info, domid);
-}
-function ws_fetch_graph_info(id, domid) {
-  $.getJSON("json/graph/info/" + id,
-            function(r) { ws_refresh_graph_from_json(r, domid); });
-}
 function process_worksheet_json(r) {
   var ul = $("ul#worksheet-graphs");
   ul.empty();
   for(var i = 0; i < r.graphs.length; i++) {
-    var o = $("#maingraph-template").clone();
-    o.attr("id", r.graphs[i].graphid);
+    r.graphs[i].start = ws_displayinfo.start;
+    r.graphs[i].end = ws_displayinfo.end;
+    r.graphs[i].cnt = ws_displayinfo.cnt;
+    var o = $('<div></div>').ReconGraph( r.graphs[i] );
     ul.append($('<li/>').append(o));
-    ws_refresh_graph_from_json(r.graphs[i], "#" + r.graphs[i].graphid);
+    o.ReconGraphRefresh();
   }
   ul.sortable({ handle: '.graphTitle',
                 scroll: true,
@@ -43,6 +23,7 @@ function process_worksheet_json(r) {
                     ui.item.parent().find("> li > div").each(
                       function(i) { ol.push($(this).attr("id")); }
                     );
+                    // Store new worksheet order here
                     console.log(ol);
                   }
               });
