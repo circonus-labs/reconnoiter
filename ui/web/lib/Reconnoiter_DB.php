@@ -4,8 +4,10 @@ require_once('Reconnoiter_UUID.php');
 
 class Reconnoiter_DB {
   private $db;
+  private $time_kludge;
 
   function __construct() {
+    $this->time_kludge = "(? ::timestamp::text || '-00')::timestamptz";
   }
   function getDB() {
     static $one;
@@ -22,9 +24,20 @@ class Reconnoiter_DB {
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
   }
 
+  // Crazy extract syntax to pull out the timestamps so that it looks like the current timezone, but in UTC
   function get_data_for_window($uuid, $name, $start, $end, $expected, $derive) {
     $type = preg_match('/^\d+$/', $uuid) ? '::integer' : '::uuid';
-    $sth = $this->db->prepare("select sid, name, extract(epoch from rollup_time) as rollup_time, count_rows, avg_value, counter_dev from stratcon.fetch_dataset(? $type,?,?,?,?,?)");
+    $sth = $this->db->prepare("
+      select sid, name, extract(epoch from
+                                (rollup_time::timestamp::text || '-00')
+                                  ::timestamptz) as rollup_time,
+             count_rows, avg_value, counter_dev
+        from stratcon.fetch_dataset(
+               ? $type,?,
+               $this->time_kludge,
+               $this->time_kludge,
+               ?,?
+             )");
     $sth->execute(array($uuid,$name,$start,$end,$expected,$derive));
     $rv = array();
     while($row = $sth->fetch()) {
@@ -33,9 +46,15 @@ class Reconnoiter_DB {
     return $rv;
   }
   function get_var_for_window($uuid, $name, $start, $end, $expected) {
-    $sth = preg_match('/^\d+$/', $uuid) ?
-      $this->db->prepare("select sid, extract(epoch from whence) as whence, name, value from stratcon.fetch_varset(? ::int,?,?,?,?)") :
-      $this->db->prepare("select sid, extract(epoch from whence) as whence, name, value from stratcon.fetch_varset(? ::uuid,?,?,?,?)");
+    $type = preg_match('/^\d+$/', $uuid) ? "::int" : "::uuid";
+    $sth = $this->db->prepare("
+      select sid, extract(epoch from
+                          (whence::timestamp::text || '-00')
+                          ::timestamptz) as whence,
+             name, value
+        from stratcon.fetch_varset(
+               ? $type,?,$this->time_kludge,$this->time_kludge,?
+             )");
     $sth->execute(array($uuid,$name,$start,$end,$expected));
     $rv = array();
     while($row = $sth->fetch()) {
