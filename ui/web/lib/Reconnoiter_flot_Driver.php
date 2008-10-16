@@ -29,10 +29,13 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
       $ds = array (
         'reconnoiter_source_expression' => $set->expression(),
         'reconnoiter_display_expression' => $this->sets_config[$name]['expression'],
-        'label' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
+        'dataname' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
       );
+      if($this->sets_config[$name]['hidden'] != "true") {
+        $ds['label'] = $ds['dataname'];
+      }
       if(get_class($set) == "Reconnoiter_DataSet") {
         $opacity = isset($this->sets_config[$name]['opacity']) ?
                      $this->sets_config[$name]['opacity'] : '0.3';

@@ -41,7 +41,8 @@
         },
       plot:
         function (r, redraw) {
-          this.find("h3.graphTitle").html(this.graphinfo.title);
+          var title = this.ReconGraphMacro(this.graphinfo.title, r.data);
+          this.find("h3.graphTitle").html(title);
           var placeholder = this.find("> div.plot-area");
           placeholder.bind("plotselected", (function (o) {
             return function (event, ranges) {
@@ -62,6 +63,7 @@
             r.options.yaxis.tickFormatter = function (val, axis) {
               return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
             };
+
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
 
           var hovering;
@@ -94,13 +96,39 @@
             $("div.tooltip").remove();
             return false;
           });
+        },
+      macro:
+        function(str, data) {
+          if(str == null) return str;
+          var newstr = str.replace(
+            /%\{[^\}]+\}/g,
+            function(match) {
+              var matches = match.match(/^%{([^:]+):?(.*)\}$/);
+              for(var i=0; i<data.length; i++) {
+                if(data[i].dataname == matches[1]) {
+                  if(matches[2] == "last_description")
+                    return data[i].data[data[i].data.length-1][2];
+                  else if(matches[2] == "last_value")
+                    return data[i].data[data[i].data.length-1][1];
+                  else if(matches[2] == "first_description")
+                    return data[i].data[0][2];
+                  else if(matches[2] == "first_value")
+                    return data[i].data[0][1];
+                  return "[unknown: "+matches[2]+"]";
+                }
+              }
+              return "[unknown: "+matches[1]+"]";
+            }
+          );
+          return newstr;
         }
     };
   }();
   $.fn.extend({ ReconGraph: ReconGraph.init,
                 ReconGraphRefresh: ReconGraph.refresh,
                 ReconGraphPlot: ReconGraph.plot,
-                ReconGraphReset: ReconGraph.reset
+                ReconGraphReset: ReconGraph.reset,
+                ReconGraphMacro: ReconGraph.macro
               });
 })(jQuery);
 
