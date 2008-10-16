@@ -72,7 +72,47 @@ CREATE TABLE saved_graphs_dep (
 
 ALTER TABLE prism.saved_graphs_dep OWNER TO reconnoiter;
 
+--
+-- Name: saved_worksheets; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE saved_worksheets (
+    sheetid uuid NOT NULL,
+    title text,
+    saved boolean DEFAULT false,
+    ts_search_all tsvector,
+    tags text[],
+    last_update timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE prism.saved_worksheets OWNER TO reconnoiter;
+
+--
+-- Name: saved_worksheets_dep; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE saved_worksheets_dep (
+    sheetid uuid NOT NULL,
+    ordering integer NOT NULL,
+    graphid uuid NOT NULL
+);
+
+
+ALTER TABLE prism.saved_worksheets_dep OWNER TO reconnoiter;
+
 SET search_path = public, pg_catalog;
+
+--
+-- Name: foo; Type: TABLE; Schema: public; Owner: omniti; Tablespace: 
+--
+
+CREATE TABLE foo (
+    a timestamp with time zone
+);
+
+
+ALTER TABLE public.foo OWNER TO omniti;
 
 SET default_with_oids = true;
 
@@ -2141,6 +2181,14 @@ ALTER TABLE ONLY saved_graphs
     ADD CONSTRAINT saved_graphs_pkey PRIMARY KEY (graphid);
 
 
+--
+-- Name: saved_worksheets_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY saved_worksheets
+    ADD CONSTRAINT saved_worksheets_pkey PRIMARY KEY (sheetid);
+
+
 SET search_path = public, pg_catalog;
 
 --
@@ -2546,6 +2594,22 @@ ALTER TABLE ONLY saved_graphs_dep
 
 ALTER TABLE ONLY saved_graphs_dep
     ADD CONSTRAINT saved_graphs_dep_sid_fkey FOREIGN KEY (sid, metric_name, metric_type) REFERENCES stratcon.metric_name_summary(sid, metric_name, metric_type);
+
+
+--
+-- Name: saved_worksheets_dep_graphid_fkey; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
+--
+
+ALTER TABLE ONLY saved_worksheets_dep
+    ADD CONSTRAINT saved_worksheets_dep_graphid_fkey FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid);
+
+
+--
+-- Name: saved_worksheets_dep_sheetid_fkey; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
+--
+
+ALTER TABLE ONLY saved_worksheets_dep
+    ADD CONSTRAINT saved_worksheets_dep_sheetid_fkey FOREIGN KEY (sheetid) REFERENCES saved_worksheets(sheetid);
 
 
 --
