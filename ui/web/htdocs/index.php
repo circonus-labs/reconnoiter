@@ -83,6 +83,17 @@ $(document).ready(function(){
 			$(this).addClass('selected');
 			return false;
 		}).filter(':first').click();
+
+		var wstabContainers = $('div.ws-tabs > div');
+		wstabContainers.hide().filter(':first').show();
+		
+		$('div.ws-tabs ul.tabNavigation a').click(function () {
+			wstabContainers.hide();
+			wstabContainers.filter(this.hash).show();
+			$('div.ws-tabs ul.tabNavigation a').removeClass('selected');
+			$(this).addClass('selected');
+			return false;
+		}).filter(':first').click();
 	});
 </script>
 

@@ -349,6 +349,19 @@ ul.tabNavigation li a:focus
 	outline-style:none;
 	outline-width:0;
 }
+#ws-first
+{
+	background:transparent none repeat scroll 0 0;
+	margin-top:1em;
+	padding:15px;
+}
+#ws-second
+{
+	background:transparent none repeat scroll 0 0;
+	margin-top:1em;
+	overflow:auto;
+	padding:15px;
+}
 #first
 {
 	background:transparent none repeat scroll 0 0;
@@ -560,34 +573,34 @@ background:white none repeat scroll 0 0;
 border:1px solid #333;
 padding:0 3px;
 }
-#graphlist p.paginate {
+.graphlist p.paginate {
 text-align:right;
 }
-#graphlist span.searchselect {
+.graphlist span.searchselect {
 border:1px solid #CCCCCC;
 display:inline;
 margin:0 4px;
 padding:0 4px;
 }
-#graphlist {
+.graphlist {
 overflow:auto;
 }
-#graphlist ul {
+.graphlist ul {
 list-style-image:none;
 list-style-position:outside;
 list-style-type:none;
 }
-#graphlist ul li {
+.graphlist ul li {
 display:block;
 margin-bottom:4px;
 padding:2px 0;
 }
-#graphlist ul li a {
+.graphlist ul li a {
 background:transparent url(../images/icon-graphs.png) no-repeat scroll 0 1px;
 font-size:12px;
 padding-left:25px;
 }
-#graphlist ul li ul li {
+.graphlist ul li ul li {
 border-left:1px solid #C0BBBD;
 color:#82787B;
 display:inline;
@@ -595,31 +608,33 @@ font-size:10px;
 margin-bottom:6px;
 padding:0 5px;
 }
-#graphlist ul li ul li.xx {
+.graphlist ul li ul li.xx {
 border-left:medium none;
 color:#82787B;
 display:inline;
 font-size:10px;
 padding-left:15px;
 }
-#graphlist ul li ul li a.addtows {
-background:transparent url(../images/icon-addws.png) no-repeat scroll 0 0;
-display:inline;
-}
-#graphlist ul li ul li a em {
+.graphlist ul li ul li a em {
 color:#82787B;
 padding-left:3px;
 }
-#graphlist ul li ul li a.editgraph {
+.graphlist ul li ul li a.addtows {
+background:transparent url(../images/icon-addws.png) no-repeat scroll 0 0;
+display:inline;
+font-size:10px;
+padding-left:20px;
+}
+.graphlist ul li ul li a.editgraph {
 background:transparent url(../images/icon-editgraph.png) no-repeat scroll 0 0;
 display:inline;
 font-size:10px;
-padding-left:25px;
+padding-left:20px;
 }
-#graphlist ul li ul li a.deletegraph {
+.graphlist ul li ul li a.deletegraph {
 background:transparent url(../images/icon-deletegraph.png) no-repeat scroll 0 0;
 display:inline;
-padding-left:25px;
+padding-left:20px;
 font-size:10px;
 }
 div.plot-area {

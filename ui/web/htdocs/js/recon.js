@@ -103,3 +103,91 @@
                 ReconGraphReset: ReconGraph.reset
               });
 })(jQuery);
+
+function perform_graph_search(domid, wsmode, string, offset, limit) {
+  $.getJSON('json/graph/search',
+            { 'q' : string, 'o' : offset, 'l' : limit },
+            function(r) {
+              var summary = r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+              if(r.error) summary = 'Error: ' + htmlentities(r.error);
+              $(domid + " > p.graph-search-summary").html(summary).fadeIn('fast');
+              var c = new Number(r.count);
+              var l = new Number(r.limit);
+              var o = new Number(r.offset);
+              var page = $(domid + " > p.paginate");
+              page.html('');
+              if(c > l) {
+                if(o > 0) {
+                  var po = Math.max(o-l, 0);
+                  $('<a/>').html( (po+1) + ' - ' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(domid,wsmode,string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.append($('<span/>').html((o+1) + '-' + (o+l)).addClass('searchselect'));
+                if(o + l < c) {
+                  var po = o + l;
+                  $('<a/>').html( (po + 1) + '-' + (po+l) )
+                           .click(function() {
+                             perform_datapoint_search(domid,wsmode,string,po,r.limit);
+                             return false;
+                           }).appendTo(page);
+                }
+                page.slideDown('fast');
+              }
+              else page.slideUp('fast');
+              $(domid + " > ul.graph-searchresults > li").remove();
+              for(var i=0; r.results && i<r.results.length; i++) {
+                var g = r.results[i];
+                var add = $('<a href="#"/>');
+                add.html('Add').addClass('addtows');
+                add.click(
+                  (function(graphid) {
+                      return function() {
+                        add_graph_to_worksheet(graphid);
+                        return false;
+                      }
+                   })(g.graphid)
+                );
+                var edit = $('<a href="#"/>');
+                edit.html('Edit').addClass('editgraph');
+                edit.click(
+                  (function(graphid) {
+                      return function() {
+                        set_current_graph_id(graphid);
+                        return false;
+                      }
+                   })(g.graphid)
+                );
+                var li = $('<li/>');
+                var del = $('<a href="#"/>');
+                del.html('Forget').addClass('deletegraph');
+                del.click(
+                  (function(graphid, li) {
+                      return function() {
+                        $.getJSON('json/graph/forget/' + graphid,
+                          function (r) {
+                            if(r.error) { alert(r.error); }
+                            else {
+                              perform_graph_search(domid,wsmode,string,o,l);
+                            }
+                          });
+                        return false;
+                      }
+                   })(g.graphid, li)
+                );
+                var ul = $('<ul/>');
+                ul.append($('<li/>').html(g.last_update));
+                if(wsmode) {
+                  ul.append($('<li/>').append(add));
+                }
+                else {
+                  ul.append($('<li/>').append(edit));
+                  ul.append($('<li/>').append(del));
+                }
+                li.append($('<a/>').html(g.title)).append(ul);
+                $(domid + " > ul.graph-searchresults").append(li);
+              }
+            });
+}

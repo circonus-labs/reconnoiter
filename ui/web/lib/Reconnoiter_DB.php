@@ -284,6 +284,60 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
+  function getWorksheetByID($id) {
+    $sth = $this->db->prepare("select *
+                                 from prism.saved_worksheets
+                                 join prism.saved_worksheets_dep
+                                using (sheetid)
+                                where sheetid=?");
+    $sth->execute(array($id));
+    $a = array();
+    while($row = $sth->fetch()) {
+      $a[] = $row;
+    }
+    return $a;
+  }
+  function saveWorksheet($ws) {
+    $id = '';
+    if($ws['id']) {
+      $id = $ws['id'];
+      unset($ws['id']);
+    }
+    $this->db->beginTransaction();
+    try {
+      if($id) {
+        $sth = $this->db->prepare("update prism.saved_worksheets
+                                      set title=?, saved=(saved or ?),
+                                          last_update=current_timestamp
+                                    where sheetid=?");
+        $sth->execute(array($ws['title'],$ws['saved'],$id));
+        if($sth->rowCount() != 1) throw(new Exception('No such worksheet: '.$id));
+        $sth = $this->db->prepare("delete from prism.saved_worksheets_dep
+                                    where sheetid=?");
+        $sth->execute(array($ws['id']));
+      }
+      else {
+        $id = Reconnoiter_UUID::generate();
+        $sth = $this->db->prepare("insert into prism.saved_worksheets
+                                               (sheetid, title,
+                                                last_update)
+                                        values (?, ?, current_timestamp)");
+        $sth->execute(array($id, $ws['title']));
+      }
+      $sth = $this->db->prepare("insert into prism.saved_worksheets_dep
+                                             (sheetid, ordering, graphid)
+                                      values (?,?,?)");
+      $ordering = 0;
+      foreach($ws['graphs'] as $graphid) {
+        $sth->execute(array($id,$ordering++,$graphid));
+      }
+      $this->db->commit();
+    }
+    catch(PDOException $e) {
+      $this->db->rollback();
+      throw(new Exception('DB: ' . $e->getMessage()));
+    }
+  }
   function getGraphByID($id) {
     $sth = $this->db->prepare("select *
                                  from prism.saved_graphs
