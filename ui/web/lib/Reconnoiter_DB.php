@@ -23,6 +23,9 @@ class Reconnoiter_DB {
                         "prism", "prism");
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
   }
+  function prepare($sql) {
+    return $this->db->prepare($sql);
+  }
 
   // Crazy extract syntax to pull out the timestamps so that it looks like the current timezone, but in UTC
   function get_data_for_window($uuid, $name, $start, $end, $expected, $derive) {
@@ -89,6 +92,21 @@ class Reconnoiter_DB {
     $searchstring = preg_replace('/\b(\'[^\']+\'|[^\s\|\'&]\S*)\s+(?![\|\)&])/',
                                  '$1 & ', $searchstring);
     return $searchstring;
+  }
+  function get_templates($templateid = '') {
+    $sql = "select * from prism.graph_templates";
+    $binds = array();
+    if($templateid) {
+      $sql = "$sql where templateid = ?";
+      $binds[] = $templateid;
+    }
+    $sth = $this->db->prepare($sql);
+    $sth->execute($binds);
+    $a = array();
+    while($row = $sth->fetch()) {
+      $a[] = $row;
+    }
+    return $a;
   }
   protected function run_tsearch($searchstring, $countsql, $datasql, $offset, $limit) {
     $searchstring = $this->tsearchize($searchstring);
