@@ -106,9 +106,12 @@
               var matches = match.match(/^%{([^:]+):?(.*)\}$/);
               for(var i=0; i<data.length; i++) {
                 if(data[i].dataname == matches[1]) {
-                  if(matches[2] == "last_description")
+                  if(matches[2] == "" ||
+                     matches[2] == "description" ||
+                     matches[2] == "last_description")
                     return data[i].data[data[i].data.length-1][2];
-                  else if(matches[2] == "last_value")
+                  else if(matches[2] == "value" ||
+                          matches[2] == "last_value")
                     return data[i].data[data[i].data.length-1][1];
                   else if(matches[2] == "first_description")
                     return data[i].data[0][2];

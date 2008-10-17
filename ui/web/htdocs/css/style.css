@@ -304,7 +304,7 @@ ul.tabNavigation li a
 	color:#82787B;
 	display:block;
 	font-size:13px;
-	padding:16px 15px 8px;
+	padding:16px 8px 8px;
 	text-decoration:none;
 }
 ul.tabNavigation li.first a
@@ -315,19 +315,24 @@ ul.tabNavigation li.first a
 ul.tabNavigation li.second a
 {
 	border-left:1px solid #D9D6D7;
-	border-right:1px solid #D9D6D7;
-	width:103px;
+	width:58px;
 }
 ul.tabNavigation li.third a
 {
+	border-left:1px solid #D9D6D7;
+	border-right:1px solid #D9D6D7;
+	width:65px;
+}
+ul.tabNavigation li.fourth a
+{
 	background:#E6E4E5 url(../images/shade-tab-third.png) repeat-y scroll right top;
-	width:89px;
+	width:92px;
 }
 ul.tabNavigation li a.selected
 {
 	background:#FFFFFF none repeat scroll 0 0;
 }
-ul.tabNavigation li.third a.selected
+ul.tabNavigation li.fourth a.selected
 {
 	background:#E6E4E5 url(../images/bg-shade-divider.png) repeat-y scroll right top;
 }
@@ -339,7 +344,7 @@ ul.tabNavigation li a:hover
 {
 	background:#F2F1F2 none repeat scroll 0 0;
 }
-ul.tabNavigation li.third a:hover
+ul.tabNavigation li.fourth a:hover
 {
 	background:#F2F1F2 url(../images/shade-tab-third-hover.png) repeat-y scroll right top;
 }
