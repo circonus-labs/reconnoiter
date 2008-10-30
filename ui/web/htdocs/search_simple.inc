@@ -14,10 +14,10 @@ function perform_datapoint_search(string, offset, limit) {
               page.html('');
               if(c > l) {
                 if(o > 0) {
-                  var po = Math.max(o-l, 0);
-                  $('<a/>').html( (po+1) + ' - ' + (po+l) )
+                  var pop = Math.max(o-l, 0);
+                  $('<a/>').html( (pop+1) + ' - ' + (pop+l) )
                            .click(function() {
-                             perform_datapoint_search(string,po,r.limit);
+                             perform_datapoint_search(string,pop,r.limit);
                              return false;
                            }).appendTo(page);
                 }
