@@ -135,90 +135,143 @@
               });
 })(jQuery);
 
-function perform_graph_search(domid, wsmode, string, offset, limit) {
-  $.getJSON('json/graph/search',
-            { 'q' : string, 'o' : offset, 'l' : limit },
+function perform_graph_search_add(params) {
+  perform_generic_search('json/graph/search', params,
+                         perform_graph_search_add,
+                         graphs_for_worksheet, graph_search_summary);
+}
+function perform_graph_search_edit(params) {
+  perform_generic_search('json/graph/search', params,
+                         perform_graph_search_edit,
+                         graphs_for_edit, graph_search_summary);
+}
+function perform_datapoint_search_add(params) {
+  perform_generic_search('json/datapoint/search', params,
+                         perform_datapoint_search_add,
+                         datapoints_for_graph, datapoint_search_summary);
+}
+function graph_search_summary(r) {
+  return r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+}
+function datapoint_search_summary(r) {
+  return 'Found ' + r.count + ' data point' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+}
+function perform_generic_search(url, params, search_func, create_item, summary_func) {
+  $.getJSON(url,
+            { 'q' : params.search, 'o' : params.offset, 'l' : params.limit },
             function(r) {
-              var summary = r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
+              var summary = summary_func(r);
               if(r.error) summary = 'Error: ' + htmlentities(r.error);
-              $(domid + " > p.graph-search-summary").html(summary).fadeIn('fast');
+              $(params.domid + " > p.search-summary").html(summary).fadeIn('fast');
               var c = new Number(r.count);
               var l = new Number(r.limit);
               var o = new Number(r.offset);
-              var page = $(domid + " > p.paginate");
+              var page = $(params.domid + " > p.paginate");
               page.html('');
               if(c > l) {
                 if(o > 0) {
                   var po = Math.max(o-l, 0);
                   $('<a/>').html( (po+1) + ' - ' + (po+l) )
                            .click(function() {
-                             perform_datapoint_search(domid,wsmode,string,po,r.limit);
+                             search_func({ 'domid': params.domid,
+                                           'search': params.search,
+                                           'offset': po,
+                                           'limit': r.limit });
                              return false;
                            }).appendTo(page);
                 }
                 page.append($('<span/>').html((o+1) + '-' + (o+l)).addClass('searchselect'));
                 if(o + l < c) {
-                  var po = o + l;
-                  $('<a/>').html( (po + 1) + '-' + (po+l) )
+                  var pop = o + l;
+                  $('<a/>').html( (pop + 1) + '-' + (pop+l) )
                            .click(function() {
-                             perform_datapoint_search(domid,wsmode,string,po,r.limit);
+                             search_func({ 'domid': params.domid,
+                                           'search': params.search,
+                                           'offset': pop,
+                                           'limit': r.limit });
                              return false;
                            }).appendTo(page);
                 }
                 page.slideDown('fast');
               }
               else page.slideUp('fast');
-              $(domid + " > ul.graph-searchresults > li").remove();
+              $(params.domid + " > ul.searchresults > li").remove();
               for(var i=0; r.results && i<r.results.length; i++) {
                 var g = r.results[i];
-                var add = $('<a href="#"/>');
-                add.html('Add').addClass('addtows');
-                add.click(
-                  (function(graphid) {
-                      return function() {
-                        add_graph_to_worksheet(graphid);
-                        return false;
-                      }
-                   })(g.graphid)
-                );
-                var edit = $('<a href="#"/>');
-                edit.html('Edit').addClass('editgraph');
-                edit.click(
-                  (function(graphid) {
-                      return function() {
-                        set_current_graph_id(graphid);
-                        return false;
-                      }
-                   })(g.graphid)
-                );
                 var li = $('<li/>');
-                var del = $('<a href="#"/>');
-                del.html('Forget').addClass('deletegraph');
-                del.click(
-                  (function(graphid, li) {
-                      return function() {
-                        $.getJSON('json/graph/forget/' + graphid,
-                          function (r) {
-                            if(r.error) { alert(r.error); }
-                            else {
-                              perform_graph_search(domid,wsmode,string,o,l);
-                            }
-                          });
-                        return false;
-                      }
-                   })(g.graphid, li)
-                );
-                var ul = $('<ul/>');
-                ul.append($('<li/>').html(g.last_update));
-                if(wsmode) {
-                  ul.append($('<li/>').append(add));
-                }
-                else {
-                  ul.append($('<li/>').append(edit));
-                  ul.append($('<li/>').append(del));
-                }
-                li.append($('<a/>').html(g.title)).append(ul);
-                $(domid + " > ul.graph-searchresults").append(li);
+                create_item(li, g, { 'domid': params.domid,
+                                     'search': params.search,
+                                     'offset': o,
+                                     'limit': l });
+                $(params.domid + " > ul.searchresults").append(li);
               }
             });
+}
+
+function graphs_for_edit(li, g, params) {
+  var edit = $('<a href="#"/>');
+  edit.html('Edit').addClass('editgraph');
+  edit.click(
+    (function(graphid) {
+        return function() {
+          set_current_graph_id(graphid);
+          return false;
+        }
+     })(g.graphid)
+  );
+  var del = $('<a href="#"/>');
+  del.html('Forget').addClass('deletegraph');
+  del.click(
+    (function(graphid, li) {
+        return function() {
+          $.getJSON('json/graph/forget/' + graphid,
+            function (r) {
+              if(r.error) { alert(r.error); }
+              else {
+                perform_graph_search(params);
+              }
+            });
+          return false;
+        }
+     })(g.graphid, li)
+  );
+  var ul = $('<ul/>');
+  ul.append($('<li/>').html(g.last_update));
+  ul.append($('<li/>').append(edit));
+  ul.append($('<li/>').append(del));
+  li.append($('<a/>').html(g.title)).append(ul);
+}
+function graphs_for_worksheet(li, g, params) {
+  var add = $('<a href="#"/>');
+  add.html('Add').addClass('addtows');
+  add.click(
+    (function(graphid) {
+        return function() {
+          add_graph_to_worksheet(graphid);
+          return false;
+        }
+     })(g.graphid)
+  );
+  var ul = $('<ul/>');
+  ul.append($('<li/>').html(g.last_update));
+  ul.append($('<li/>').append(add));
+  li.append($('<a/>').html(g.title)).append(ul);
+}
+function datapoints_for_graph(li, ds, params) {
+  var a = $('<a href="#"/>');
+  a.html(ds.target + '`' + ds.name + '`' + ds.metric_name);
+  a.click(
+    (function(ds_c) {
+        return function() {
+          graph_add_datapoint({'sid':ds_c.sid,
+                               'name':ds_c.target + '`' + ds_c.metric_name,
+                               'metric_name':ds_c.metric_name,
+                               'metric_type':ds_c.metric_type
+                              });
+          return false;
+        }
+     })(ds)
+  );
+  if(ds.metric_type == 'text') li.addClass('txt');
+  li.append(a);
 }

@@ -2,7 +2,10 @@
 <!--
 $(document).ready(function(){
         $("#ws-graph-searchform").submit(function() {
-                perform_graph_search("#ws-graphlist", true, $("#ws-graph-searchinput").val(), 0, 25);
+                perform_graph_search_add({ 'domid': '#ws-graphlist',
+                                           'search': $("#ws-graph-searchinput").val(),
+                                           'offset': 0,
+                                           'limit': 25 });
                 return false;
         });
 });
@@ -18,7 +21,7 @@ $(document).ready(function(){
 </form>
 </div>
 <div id="ws-graphlist" class="graphlist">
-  <p class="graph-search-summary"></p>
-  <ul class="graph-searchresults">
+  <p class="search-summary"></p>
+  <ul class="searchresults">
   </ul>
 </div>
