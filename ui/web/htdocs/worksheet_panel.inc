@@ -5,7 +5,9 @@
 <!--
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
 function process_worksheet_json(r) {
+  console.log(r.graphs.length);
   var ul = $("ul#worksheet-graphs");
+  $("h2.worksheetTitle").html(r.title);
   ul.empty();
   for(var i = 0; i < r.graphs.length; i++) {
     r.graphs[i].start = ws_displayinfo.start;
@@ -28,12 +30,28 @@ function process_worksheet_json(r) {
                   }
               });
 }
+function add_graph_to_worksheet(graphid) {
+  var g = { start: ws_displayinfo.start,
+            end: ws_displayinfo.end,
+            cnt: ws_displayinfo.cnt,
+            graphid: graphid };
+  var o = $('<div></div>').ReconGraph( g );
+  var ul = $("ul#worksheet-graphs");
+  ul.append($('<li/>').append(o));
+  o.ReconGraphRefresh();
+}
+function refresh_worksheet() {
+  var g = { start: ws_displayinfo.start,
+            end: ws_displayinfo.end,
+            cnt: ws_displayinfo.cnt };
+  $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
+}
 function load_worksheet(id) {
   $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
 }
 -->
 </script>
-<h2>Worksheet Title</h2>
+<h2 class="worksheetTitle">Worksheet Title</h2>
 <p/>
 <!-- date range box -->
 <script type="text/javascript">
@@ -61,7 +79,7 @@ $(document).ready(function(){
                 ws_displayinfo.start = time_windows[$(this).html()];
                 ws_displayinfo.end = '';
                 $(this).addClass("selected");
-                load_worksheet();
+                refresh_worksheet();
                 return false;
         });
         $('#ws_widgetCalendar').DatePicker({
@@ -79,7 +97,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         ws_displayinfo.start = start.toUTCString();
                         ws_displayinfo.end = end.toUTCString();
-                        load_worksheet('');
+                        refresh_worksheet();
                         $(".datechoice").removeClass("selected");
                         $('#ws_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
@@ -87,7 +105,6 @@ $(document).ready(function(){
         $("#ws-tool-error").click(function(){
           $("#ws-tool-error").fadeOut("slow");
         });
-	load_worksheet('<?php print $_GET['worksheetid'] ?>');
 });
 </script>
 

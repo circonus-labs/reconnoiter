@@ -7,16 +7,21 @@
           this.graphinfo = $.extend({}, displayinfo, options||{});
           if(!this.graphinfo.cnt) this.graphinfo.cnt = this.graphinfo.width / 2;
           if(!this.attr("id")) this.attr("id", this.graphinfo.graphid);
-          this.append($('<h3>').addClass("graphTitle")
-                               .html(this.graphinfo.title))
+          this.append($('<h3/>').addClass("graphTitle")
+                               .html(this.graphinfo.title || ''))
               .append($('<div></div>').addClass("plot-area")
                                       .css('width', this.width + 'px')
                                       .css('height', this.height + 'px'))
               .append($('<div></div>').addClass("plot-legend"));
+          this.data('__recon', this);
           return this;
         },
       reset:
         function() {
+          if(this.length > 1) {
+            this.each(function(i) { $(this).ReconGraphReset(); });
+            return this;
+          }
           this.graphinfo.graphid = '';
           if(this.flot_plot) {
             this.find("h3.graphTitle").html('');
@@ -25,11 +30,17 @@
             this.flot_plot.setupGrid();
             this.flot_plot.draw();
           }
+          this.data('__recon', this);
           return this;
         },
       refresh:
         function(options) {
-          this.graphinfo = $.extend({}, this.graphinfo, options||{});
+          if(this.length > 1) {
+            this.each(function(i) { $(this).ReconGraphRefresh(); });
+            return this;
+          }
+          var o = this.data('__recon');
+          this.graphinfo = $.extend({}, o.graphinfo, options||{});
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
           this.find(".plot-area")
               .html('<div class="centered"><div class="loading">&nbsp;</div></div>');
@@ -37,11 +48,12 @@
                           'start':this.graphinfo.start,
                           'end':this.graphinfo.end},
                     (function(o) { return function (r) { o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }})(this));
+          this.data('__recon', this);
           return this;
         },
       plot:
         function (r, redraw) {
-          var title = this.ReconGraphMacro(this.graphinfo.title, r.data);
+          var title = this.ReconGraphMacro(r.title, r.data);
           this.find("h3.graphTitle").html(title);
           var placeholder = this.find("> div.plot-area");
           placeholder.bind("plotselected", (function (o) {

@@ -64,6 +64,6 @@ $options = array(
 print json_encode(array(
   'data' => $data,
   'options' => $options,
-  'title' => $driver->title() . '',
+  'title' => $graph['title'] . '',
 ));
 
