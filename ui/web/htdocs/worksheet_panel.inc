@@ -17,18 +17,7 @@ function process_worksheet_json(r) {
     ul.append($('<li/>').append(o));
     o.ReconGraphRefresh();
   }
-  ul.sortable({ handle: '.graphTitle',
-                scroll: true,
-                stop:
-                  function (e,ui) {
-                    var ol = new Array();
-                    ui.item.parent().find("> li > div").each(
-                      function(i) { ol.push($(this).attr("id")); }
-                    );
-                    // Store new worksheet order here
-                    console.log(ol);
-                  }
-              });
+  ul.sortable("refresh");
 }
 function add_graph_to_worksheet(graphid) {
   var g = { start: ws_displayinfo.start,
@@ -39,6 +28,7 @@ function add_graph_to_worksheet(graphid) {
   var ul = $("ul#worksheet-graphs");
   ul.append($('<li/>').append(o));
   o.ReconGraphRefresh();
+  ul.sortable("refresh");
 }
 function refresh_worksheet() {
   var g = { start: ws_displayinfo.start,
@@ -105,6 +95,19 @@ $(document).ready(function(){
         $("#ws-tool-error").click(function(){
           $("#ws-tool-error").fadeOut("slow");
         });
+  var ul = $("ul#worksheet-graphs");
+  ul.sortable({ handle: '.graphTitle',
+                scroll: true,
+                stop:
+                  function (e,ui) {
+                    var ol = new Array();
+                    ui.item.parent().find("> li > div").each(
+                      function(i) { ol.push($(this).attr("id")); }
+                    );
+                    // Store new worksheet order here
+                    console.log(ol);
+                  }
+              });
 });
 </script>
 

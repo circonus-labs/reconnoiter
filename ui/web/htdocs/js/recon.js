@@ -36,7 +36,7 @@
       refresh:
         function(options) {
           if(this.length > 1) {
-            this.each(function(i) { $(this).ReconGraphRefresh(); });
+            this.each(function(i) { $(this).ReconGraphRefresh(options); });
             return this;
           }
           var o = this.data('__recon');
