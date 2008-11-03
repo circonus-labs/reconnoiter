@@ -23,6 +23,6 @@ $(document).ready(function(){
 <div id="searchlist">
   <p class="search-summary"/>
   <p class="paginate"/>
-  <ul id="searchresults">
+  <ul class="searchresults">
   </ul>
 </div>
