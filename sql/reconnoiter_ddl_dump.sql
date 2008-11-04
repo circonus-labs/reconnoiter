@@ -42,6 +42,19 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: graph_templates; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE graph_templates (
+    templateid uuid NOT NULL,
+    title text NOT NULL,
+    json text NOT NULL
+);
+
+
+ALTER TABLE prism.graph_templates OWNER TO reconnoiter;
+
+--
 -- Name: saved_graphs; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
 --
 
@@ -745,23 +758,6 @@ END$$
 ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter;
 
 --
--- Name: trig_before_tsvector_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: postgres
---
-
-CREATE FUNCTION trig_before_tsvector_saved_graphs() RETURNS trigger
-    AS $$
-DECLARE
- BEGIN
-   NEW.ts_search_all:= to_tsvector(NEW.title);
-     RETURN NEW;
- END
-$$
-    LANGUAGE plpgsql;
-
-
-ALTER FUNCTION prism.trig_before_tsvector_saved_graphs() OWNER TO postgres;
-
---
 -- Name: trig_update_tsvector_saved_graphs(); Type: FUNCTION; Schema: prism; Owner: reconnoiter
 --
 
@@ -769,9 +765,13 @@ CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
     AS $$
 DECLARE
  BEGIN
+ IF TG_OP = 'UPDATE' THEN
    IF (NEW.graph_tags <> OLD.graph_tags OR NEW.title <> OLD.title) THEN
-           UPDATE prism.saved_graphs SET ts_search_all=prism.saved_graphs_tsvector(NEW.graphid) where graphid=NEW.graphid;
+           NEW.ts_search_all=prism.saved_graphs_tsvector(NEW.graphid); 
    END IF;    
+ ELSE
+     NEW.ts_search_all = to_tsvector(NEW.title); 
+ END IF;  
    RETURN NEW;
 END
 $$
@@ -2166,6 +2166,22 @@ ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
 SET search_path = prism, pg_catalog;
 
 --
+-- Name: graph_templates_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY graph_templates
+    ADD CONSTRAINT graph_templates_pkey PRIMARY KEY (templateid);
+
+
+--
+-- Name: graph_templates_title_key; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY graph_templates
+    ADD CONSTRAINT graph_templates_title_key UNIQUE (title);
+
+
+--
 -- Name: saved_graphs_dep_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
 --
 
@@ -2179,6 +2195,14 @@ ALTER TABLE ONLY saved_graphs_dep
 
 ALTER TABLE ONLY saved_graphs
     ADD CONSTRAINT saved_graphs_pkey PRIMARY KEY (graphid);
+
+
+--
+-- Name: saved_graphs_title_key; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY saved_graphs
+    ADD CONSTRAINT saved_graphs_title_key UNIQUE (title);
 
 
 --
@@ -2487,21 +2511,11 @@ CREATE TRIGGER check_name_saved_graphs
 
 
 --
--- Name: trig_before_tsvector_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
---
-
-CREATE TRIGGER trig_before_tsvector_saved_graphs
-    BEFORE INSERT ON saved_graphs
-    FOR EACH ROW
-    EXECUTE PROCEDURE trig_before_tsvector_saved_graphs();
-
-
---
 -- Name: trig_update_tsvector_saved_graphs; Type: TRIGGER; Schema: prism; Owner: reconnoiter
 --
 
 CREATE TRIGGER trig_update_tsvector_saved_graphs
-    AFTER UPDATE ON saved_graphs
+    BEFORE INSERT OR UPDATE ON saved_graphs
     FOR EACH ROW
     EXECUTE PROCEDURE trig_update_tsvector_saved_graphs();
 
@@ -2581,11 +2595,11 @@ CREATE TRIGGER trig_update_tsvector_from_mv_dock
 SET search_path = prism, pg_catalog;
 
 --
--- Name: graphid_fk; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
+-- Name: saved_graphs_dep_graphid_fkey; Type: FK CONSTRAINT; Schema: prism; Owner: reconnoiter
 --
 
 ALTER TABLE ONLY saved_graphs_dep
-    ADD CONSTRAINT graphid_fk FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid);
+    ADD CONSTRAINT saved_graphs_dep_graphid_fkey FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid) ON DELETE CASCADE;
 
 
 --
@@ -2633,6 +2647,16 @@ GRANT USAGE ON SCHEMA stratcon TO prism;
 
 
 --
+-- Name: graph_templates; Type: ACL; Schema: prism; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE graph_templates FROM PUBLIC;
+REVOKE ALL ON TABLE graph_templates FROM reconnoiter;
+GRANT ALL ON TABLE graph_templates TO reconnoiter;
+GRANT ALL ON TABLE graph_templates TO prism;
+
+
+--
 -- Name: saved_graphs; Type: ACL; Schema: prism; Owner: reconnoiter
 --
 
@@ -2650,6 +2674,26 @@ REVOKE ALL ON TABLE saved_graphs_dep FROM PUBLIC;
 REVOKE ALL ON TABLE saved_graphs_dep FROM reconnoiter;
 GRANT ALL ON TABLE saved_graphs_dep TO reconnoiter;
 GRANT ALL ON TABLE saved_graphs_dep TO prism;
+
+
+--
+-- Name: saved_worksheets; Type: ACL; Schema: prism; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE saved_worksheets FROM PUBLIC;
+REVOKE ALL ON TABLE saved_worksheets FROM reconnoiter;
+GRANT ALL ON TABLE saved_worksheets TO reconnoiter;
+GRANT ALL ON TABLE saved_worksheets TO prism;
+
+
+--
+-- Name: saved_worksheets_dep; Type: ACL; Schema: prism; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE saved_worksheets_dep FROM PUBLIC;
+REVOKE ALL ON TABLE saved_worksheets_dep FROM reconnoiter;
+GRANT ALL ON TABLE saved_worksheets_dep TO reconnoiter;
+GRANT ALL ON TABLE saved_worksheets_dep TO prism;
 
 
 SET search_path = stratcon, pg_catalog;
