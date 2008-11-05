@@ -28,7 +28,8 @@ function update_current_graph(redraw, f) {
            graphinfo.id = d.id;
            if(d.error) $("#gtool-error").html(d.error).fadeIn('fast');
            else $("#gtool-error").fadeOut('fast');
-           if(graphinfo.id && graphinfo.saved != true) {
+           if(graphinfo.id && graphinfo.saved != true &&
+              $(".rememberGraph:visible").length == 0) {
              $(".rememberGraph").html('"Remember" this graph.').fadeIn('slow');
              $(".rememberGraph").click(function() {
                graphinfo.saved = true;

@@ -3,6 +3,8 @@ RewriteBase /reconnoiter/
 RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ datapoint_browse_json.php?l1=$1&l2=$2&l3=$3&l4=$4 [PT,QSA]
 RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ datapoint_browse_json.php?l1=$1&l2=$2&l3=$3&l4=$4&l5=$5 [PT,QSA]
 RewriteRule ^json/worksheet/info/([^/]*)$ worksheet_info.php?id=$1 [PT,QSA]
+RewriteRule ^json/worksheet/store$ worksheet_store.php [PT,QSA]
+RewriteRule ^json/worksheet/search$ worksheet_search_json.php [PT,QSA]
 RewriteRule ^json/graph/info/([^/]*)$ graph_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/store$ graph_store.php [PT,QSA]
 RewriteRule ^json/graph/forget/([^/]*)$ graph_delete.php?id=$1 [PT,QSA]

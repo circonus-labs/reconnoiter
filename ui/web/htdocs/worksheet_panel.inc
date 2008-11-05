@@ -4,16 +4,43 @@
 <script type="text/javascript">
 <!--
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
+var wsinfo = {};
+function update_current_worksheet(f) {
+  var str = JSON.stringify(wsinfo);
+  $.post("json/worksheet/store",
+         {'json':str},
+         function(d) {
+           wsinfo.id = d.id;
+           if(d.error) $("#ws-tool-error").html(d.error).fadeIn('fast');
+           else $("#ws-tool-error").fadeOut('fast');
+           if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
+              $(".rememberWorksheet:visible").length == 0) {
+             $(".rememberWorksheet").html('"Remember" this worksheet.').fadeIn('slow');
+             $(".rememberWorksheet").click(function() {
+               wsinfo.saved = true;
+               update_current_worksheet(function(r) {
+                 if(r.error) wsinfo.saved = false;
+                 else $(".rememberWorksheet").html('Remebered').fadeOut('slow');
+               });
+             });
+           }
+           if(f) f(d);
+         }, 'json');
+}
+
 function process_worksheet_json(r) {
-  console.log(r.graphs.length);
+  wsinfo.id = r.sheetid;
+  wsinfo.title = r.title;
   var ul = $("ul#worksheet-graphs");
-  $("h2.worksheetTitle").html(r.title);
+  $("h2#worksheetTitle").html(r.title);
   ul.empty();
   for(var i = 0; i < r.graphs.length; i++) {
-    r.graphs[i].start = ws_displayinfo.start;
-    r.graphs[i].end = ws_displayinfo.end;
-    r.graphs[i].cnt = ws_displayinfo.cnt;
-    var o = $('<div></div>').ReconGraph( r.graphs[i] );
+    var g = {};
+    g.graphid = r.graphs[i];
+    g.start = ws_displayinfo.start;
+    g.end = ws_displayinfo.end;
+    g.cnt = ws_displayinfo.cnt;
+    var o = $('<div></div>').ReconGraph(g);
     ul.append($('<li/>').append(o));
     o.ReconGraphRefresh();
   }
@@ -29,6 +56,10 @@ function add_graph_to_worksheet(graphid) {
   ul.append($('<li/>').append(o));
   o.ReconGraphRefresh();
   ul.sortable("refresh");
+  if(!wsinfo.graphs) wsinfo.graphs = new Array();
+alert('pushing ' + graphid);
+  wsinfo.graphs.push(graphid);
+  update_current_worksheet();
 }
 function refresh_worksheet() {
   var g = { start: ws_displayinfo.start,
@@ -41,7 +72,9 @@ function load_worksheet(id) {
 }
 -->
 </script>
-<h2 class="worksheetTitle">Worksheet Title</h2>
+<span class="rememberWorksheet"></span>
+<span class="blankWorksheet">New Blank</span>
+<h2 id="worksheetTitle">Worksheet Title</h2>
 <p/>
 <!-- date range box -->
 <script type="text/javascript">
@@ -53,6 +86,11 @@ $(document).ready(function(){
                              '1y' : 86400*365,
                            };
         var state = false;
+        $("h2#worksheetTitle").editable(function(value, settings) {
+          wsinfo.title = value;
+          update_current_worksheet();
+          return(value);
+        }, { });
         $("#ws_datetool .btn-slide").click(function(){
                 $("#ws_widgetCalendar").stop().animate({
                      height: state ? 0 :
@@ -100,12 +138,11 @@ $(document).ready(function(){
                 scroll: true,
                 stop:
                   function (e,ui) {
-                    var ol = new Array();
+                    wsinfo.graphs = new Array();
                     ui.item.parent().find("> li > div").each(
-                      function(i) { ol.push($(this).attr("id")); }
+                      function(i) { wsinfo.graphs.push($(this).attr("id")); }
                     );
-                    // Store new worksheet order here
-                    console.log(ol);
+                    update_current_worksheet();
                   }
               });
 });

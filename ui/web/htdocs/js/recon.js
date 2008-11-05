@@ -157,10 +157,18 @@ function perform_graph_search_edit(params) {
                          perform_graph_search_edit,
                          graphs_for_edit, graph_search_summary);
 }
+function perform_ws_search_edit(params) {
+  perform_generic_search('json/worksheet/search', params,
+                         perform_ws_search_edit,
+                         ws_for_edit, ws_search_summary);
+}
 function perform_datapoint_search_add(params) {
   perform_generic_search('json/datapoint/search', params,
                          perform_datapoint_search_add,
                          datapoints_for_graph, datapoint_search_summary);
+}
+function ws_search_summary(r) {
+  return r.count + ' worksheet' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
 }
 function graph_search_summary(r) {
   return r.count + ' graph' + (r.count == 1 ? '' : 's' ) + ' found for \'' + htmlentities(r.query) + '\'';
@@ -252,6 +260,22 @@ function graphs_for_edit(li, g, params) {
   ul.append($('<li/>').append(edit));
   ul.append($('<li/>').append(del));
   li.append($('<a/>').html(g.title)).append(ul);
+}
+function ws_for_edit(li, ws, params) {
+  var add = $('<a href="#"/>');
+  add.html('View').addClass('addtows');
+  add.click(
+    (function(sheetid) {
+        return function() {
+          load_worksheet(sheetid);
+          return false;
+        }
+     })(ws.sheetid)
+  );
+  var ul = $('<ul/>');
+  ul.append($('<li/>').html(ws.last_update));
+  ul.append($('<li/>').append(add));
+  li.append($('<a/>').html(ws.title)).append(ul);
 }
 function graphs_for_worksheet(li, g, params) {
   var add = $('<a href="#"/>');

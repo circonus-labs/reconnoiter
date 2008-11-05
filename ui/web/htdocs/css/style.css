@@ -679,27 +679,69 @@ height:4em;
 div.plot-legend td.legendLabel {
 padding:0 0.5em;
 }
-#worksheetlist {
+.worksheetlist {
 height:450px;
 overflow:auto;
 }
-#worksheetlist ul a {
+.worksheetlist p.paginate {
+text-align:right;
+}
+.worksheetlist span.searchselect {
+border:1px solid #CCCCCC;
+display:inline;
+margin:0 4px;
+padding:0 4px;
+}
+.worksheetlist {
+overflow:auto;
+}
+.worksheetlist ul {
 list-style-image:none;
 list-style-position:outside;
 list-style-type:none;
 }
-#worksheetlist ul li {
+.worksheetlist ul a {
+list-style-image:none;
+list-style-position:outside;
+list-style-type:none;
+}
+.worksheetlist ul li {
 display:block;
 margin-bottom:4px;
 padding:2px 0;
 }
-#worksheetlist ul li a {
+.worksheetlist ul li a {
 background:transparent url(../images/icon-worksheet.png) no-repeat scroll 0 1px;
 padding-left:15px;
 }
-#worksheetlist ul li.selected {
+.worksheetlist ul li.selected {
 background:#E6E4E5 none repeat scroll 0 0;
 display:block;
+}
+.worksheetlist ul li ul li {
+border-left:1px solid #C0BBBD;
+color:#82787B;
+display:inline;
+font-size:10px;
+margin-bottom:6px;
+padding:0 5px;
+}
+.worksheetlist ul li ul li.xx {
+border-left:medium none;
+color:#82787B;
+display:inline;
+font-size:10px;
+padding-left:15px;
+}
+.worksheetlist ul li ul li a em {
+color:#82787B;
+padding-left:3px;
+}
+.worksheetlist ul li ul li a.viewws {
+background:transparent url(../images/icon-viewws.png) no-repeat scroll 0 0;
+display:inline;
+font-size:10px;
+padding-left:20px;
 }
 ul#worksheet-graphs {
 }
@@ -709,6 +751,19 @@ list-style-image:none;
 list-style-position:outside;
 list-style-type:none;
 margin:1.5em 1em 0 0;
+}
+span.rememberWorksheet {
+border:1px solid #DDDDDD;
+display:none;
+float:right;
+margin-left:4px;
+padding:0 4px;
+}
+span.blankWorksheet {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
 }
 span.rememberGraph {
 border:1px solid #DDDDDD;

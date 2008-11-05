@@ -125,6 +125,42 @@ class Reconnoiter_DB {
     return array('query' => $searchstring, 'limit' => $limit,
                  'offset' => $offset, count => $r['count'], 'results' => $a);
   }
+  function get_worksheets($searchstring, $offset, $limit) {
+    return $this->run_tsearch($searchstring,
+      "select count(*) as count
+         from prism.saved_worksheets,
+              (select ? ::text as query) q
+        where saved = true and
+           ((ts_search_all @@ to_tsquery(query) or query = '')
+            or sheetid in (select sheetid
+                            from prism.saved_worksheets_dep wd
+                            join prism.saved_graphs g
+                           using (graphid)
+                            join prism.saved_graphs_dep gd
+                           using (graphid)
+                            join stratcon.metric_name_summary s
+                           using (sid,metric_name,metric_type)
+                           where g.ts_search_all @@ to_tsquery(query)
+                              or s.ts_search_all @@ to_tsquery(query)))",
+      "select sheetid, title,
+              to_char(last_update, 'YYYY/mm/dd') as last_update
+         from prism.saved_worksheets,
+              (select ? ::text as query) q
+        where saved = true and
+           ((ts_search_all @@ to_tsquery(query) or query = '')
+            or sheetid in (select sheetid
+                            from prism.saved_worksheets_dep wd
+                            join prism.saved_graphs g
+                           using (graphid)
+                            join prism.saved_graphs_dep gd
+                           using (graphid)
+                            join stratcon.metric_name_summary s
+                           using (sid,metric_name,metric_type)
+                           where g.ts_search_all @@ to_tsquery(query)
+                              or s.ts_search_all @@ to_tsquery(query)))
+     order by last_update desc",
+      $offset, $limit);
+  }
   function get_graphs($searchstring, $offset, $limit) {
     return $this->run_tsearch($searchstring,
       "select count(*) as count
@@ -303,15 +339,21 @@ class Reconnoiter_DB {
     return $rv;
   }
   function getWorksheetByID($id) {
-    $sth = $this->db->prepare("select *
-                                 from prism.saved_worksheets
-                                 join prism.saved_worksheets_dep
+    $sth = $this->db->prepare("select w.sheetid, w.title, wd.graphid
+                                 from prism.saved_worksheets as w
+                            left join prism.saved_worksheets_dep as wd
                                 using (sheetid)
-                                where sheetid=?");
+                                where sheetid=?
+                             order by ordering asc");
     $sth->execute(array($id));
     $a = array();
+    $row = $sth->fetch();
+    $a['sheetid'] = $row['sheetid'];
+    $a['title'] = $row['title'];
+    $a['graphs'] = array();
+    if($row && $row['graphid']) $a['graphs'][] = $row['graphid'];
     while($row = $sth->fetch()) {
-      $a[] = $row;
+      $a['graphs'][] = $row['graphid'];
     }
     return $a;
   }
@@ -332,7 +374,7 @@ class Reconnoiter_DB {
         if($sth->rowCount() != 1) throw(new Exception('No such worksheet: '.$id));
         $sth = $this->db->prepare("delete from prism.saved_worksheets_dep
                                     where sheetid=?");
-        $sth->execute(array($ws['id']));
+        $sth->execute(array($id));
       }
       else {
         $id = Reconnoiter_UUID::generate();
@@ -355,6 +397,7 @@ class Reconnoiter_DB {
       $this->db->rollback();
       throw(new Exception('DB: ' . $e->getMessage()));
     }
+    return $id;
   }
   function getGraphByID($id) {
     $sth = $this->db->prepare("select *
