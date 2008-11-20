@@ -764,14 +764,14 @@ ALTER FUNCTION prism.saved_graphs_tsvector(in_graphid uuid) OWNER TO reconnoiter
 CREATE FUNCTION trig_update_tsvector_saved_graphs() RETURNS trigger
     AS $$
 DECLARE
+ref_title text;
  BEGIN
  IF TG_OP = 'UPDATE' THEN
-   IF (NEW.graph_tags <> OLD.graph_tags OR NEW.title <> OLD.title) THEN
-           NEW.ts_search_all=prism.saved_graphs_tsvector(NEW.graphid); 
-   END IF;    
- ELSE
-     NEW.ts_search_all = to_tsvector(NEW.title); 
- END IF;  
+              NEW.ts_search_all=prism.saved_graphs_tsvector(NEW.graphid); 
+  ELSE
+      ref_title:=coalesce(replace(NEW.title, '.', ' '), ' ');
+     NEW.ts_search_all =to_tsvector(ref_title); 
+  END IF;  
    RETURN NEW;
 END
 $$
