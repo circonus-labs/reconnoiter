@@ -6,13 +6,15 @@ require_once('Reconnoiter_DB.php');
 global $graph_settings;
 require_once('graph_settings.inc');
 
+$type = $_GET['type'];
+
 $start = $_GET['start']?$_GET['start']:(7*86400);
 if(preg_match('/^\d+$/', $start))
   $start = strftime("%Y-%m-%d %H:%M:%S", time() - $start);
 $end = $_GET['end']?$_GET['end']:strftime("%Y-%m-%d %H:%M:%S", time());
 $cnt = $_GET['cnt']?$_GET['cnt']:400;
 
-$driver = new Reconnoiter_flot_Driver($start, $end, $cnt);
+$driver = new Reconnoiter_flot_Driver($start, $end, $cnt, $type);
 $db = Reconnoiter_DB::GetDB();
 $row = $db->getGraphByID($_GET['id']);
 $graph = json_decode($row['json'], true);

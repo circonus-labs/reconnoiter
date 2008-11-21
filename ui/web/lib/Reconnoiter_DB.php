@@ -19,7 +19,7 @@ class Reconnoiter_DB {
     return $one;
   }
   function connect() {
-    $this->db = new PDO("pgsql:host=localhost;dbname=reconnoiter",
+    $this->db = new PDO("pgsql:host=noit.office.omniti.com;dbname=reconnoiter",
                         "prism", "prism");
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
   }

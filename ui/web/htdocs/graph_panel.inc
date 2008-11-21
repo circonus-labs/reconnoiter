@@ -39,7 +39,7 @@ function update_current_graph(redraw, f) {
                });
              });
            }
-           if(redraw && maingraph) maingraph.ReconGraphRefresh({graphid: graphinfo.id});
+           if(redraw && maingraph) maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type});
            if(f) f(d);
            recurse--;
          }, 'json');
@@ -181,7 +181,7 @@ function refresh_graph_from_json(j) {
   }
   if(maingraph) {
     if(graphinfo.id) 
-      maingraph.ReconGraphRefresh({graphid: graphinfo.id});
+      maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type});
     else
       maingraph.ReconGraphReset();
   }
@@ -229,7 +229,7 @@ $(document).ready(function(){
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
-                maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: ''});
+                maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: '', type: graphinfo.type});
                 return false;
         });
         $('#graph_widgetCalendar').DatePicker({
@@ -247,7 +247,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
-                        maingraph.ReconGraphRefresh({graphid: graphinfo.id});
+                        maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
@@ -305,7 +305,7 @@ $(document).ready(function(){
 	<fieldset>
 	<legend style="display:none;">View</legend>
 	<label for="std_view"><input class="graphType" type="radio" name="graphtype" id="std_view" value="standard"/> Standard View</label> &nbsp;&nbsp;&nbsp;
-	<label for="stacked_view"><input class="graphType" type="radio" name="graphtype" id="stacked_view" value="stacked" /> Stacked View</label>
+	<label for="stacked_view"><input class="graphType" type="radio" name="graphtype" id="stacked_view" value="stacked" /> Stack Left Axis</label>
 	</fieldset>
 	</form>
 	

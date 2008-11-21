@@ -71,6 +71,15 @@ $(document).ready(function(){
         });
     </script>
 
+   <script type="text/javascript">
+        jQuery(document).ready(function(){
+            $("#templates").treeview({
+	      url: "json/templates/templateid/metric_name",
+	      params: {}
+              })
+        });
+    </script>
+
 <!-- search tabs -->
 <script type="text/javascript">
 	$(function () {

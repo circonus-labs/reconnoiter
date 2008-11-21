@@ -3,7 +3,6 @@
  * Released under the MIT license by IOLA, December 2007.
  *
  */
-
 (function($) {
     function Plot(target_, data_, options_) {
         // data is on the form:
@@ -93,7 +92,7 @@
                     color: "#e8cfac"
                 },
                 shadowSize: 4
-            },
+	},
         canvas = null,      // the canvas for the plot itself
         overlay = null,     // canvas for interactive stuff on top of plot
         eventHolder = null, // jQuery object that events should be bound to
@@ -1023,7 +1022,10 @@
         }
 
         function drawSeries(series) {
-            if (series.lines.show || (!series.bars.show && !series.points.show))
+
+	    //this module assumed we always want to show something, thus if nothing was set to show
+	    //it plotted lines....sometimes, we dont wanna show anything
+            if (series.lines.show) // || (!series.bars.show && !series.points.show))
                 drawSeriesLines(series);
             if (series.bars.show)
                 drawSeriesBars(series);

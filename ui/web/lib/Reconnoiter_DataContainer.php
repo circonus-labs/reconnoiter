@@ -13,19 +13,21 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
   protected $ps_to_calc;
   protected $percentile;
   protected $title;
+  protected $type;
 
   protected $master_set;
   protected $sets;
   protected $sets_config;
   protected $guides;
 
-  function __construct($start, $end, $cnt) {
+  function __construct($start, $end, $cnt, $type) {
     $this->start = $start;
     $this->end = $end;
     $this->cnt = $cnt;
     $this->sets = array();
     $this->guides = array();
     $this->ps_to_calc = array(0 => 'true', 95 => 'true', 100 => 'true');
+    $this->type = $type;
   }
   function start() { return $this->start; }
   function end() { return $this->end; }
