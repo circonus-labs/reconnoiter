@@ -186,6 +186,7 @@ static int child_main() {
    * to ensure it is current w.r.t. to this child starting */
   if(noit_conf_load(config_file) == -1) {
     noitL(noit_error, "Cannot load config: '%s'\n", config_file);
+    exit(-1);
   }
 
   /* initialize the eventer */
