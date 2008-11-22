@@ -460,5 +460,17 @@ class Reconnoiter_DB {
     }
     return $id;
   }
+
+  public function get_sid_name($sid) {
+    $sql = "select m.name from stratcon.mv_loading_dock_check_s m where m.sid = ?";
+    $binds = array();
+    if($sid) {
+      $binds[] = $sid;
+      $sth = $this->db->prepare($sql);
+      $sth->execute($binds);
+      $row = $sth->fetch();
+    }
+   return $row['name']; 
+  }
 }
 

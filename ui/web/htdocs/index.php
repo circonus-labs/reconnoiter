@@ -74,7 +74,7 @@ $(document).ready(function(){
    <script type="text/javascript">
         jQuery(document).ready(function(){
             $("#templates").treeview({
-	      url: "json/templates/templateid/metric_name",
+	      url: "json/templates/templateid/targetname/sid",
 	      params: {}
               })
         });
