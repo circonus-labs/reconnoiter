@@ -428,7 +428,7 @@ int noit_conf_set_float(noit_conf_section_t section,
   return noit_conf_set_string(section,path,buffer);
 }
 int noit_conf_get_boolean(noit_conf_section_t section,
-                          const char *path, noit_conf_boolean *value) {
+                          const char *path, noit_boolean *value) {
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
     if(!strcasecmp(str, "true") ||
@@ -440,7 +440,7 @@ int noit_conf_get_boolean(noit_conf_section_t section,
   return 0;
 }
 int noit_conf_set_boolean(noit_conf_section_t section,
-                          const char *path, noit_conf_boolean value) {
+                          const char *path, noit_boolean value) {
   if(value == noit_true)
     return noit_conf_set_string(section,path,"true");
   return noit_conf_set_string(section,path,"false");
@@ -661,7 +661,7 @@ noit_conf_log_init(const char *toplevel) {
     noit_log_stream_t ls;
     char name[256], type[256], path[256];
     noit_hash_table *config;
-    noit_conf_boolean disabled;
+    noit_boolean disabled;
 
     if(!noit_conf_get_stringbuf(log_configs[i],
                                 "ancestor-or-self::node()/@name",

@@ -141,7 +141,7 @@ noit_filters_init() {
   if(cleanup) noit_hash_destroy(cleanup, NULL, filterset_free);
 }
 
-static noit_conf_boolean
+static noit_boolean
 noit_apply_filterrule(pcre *p, pcre_extra *pe, const char *subj) {
   int rc, ovector[30];
   if(!p) return noit_true;
@@ -149,7 +149,7 @@ noit_apply_filterrule(pcre *p, pcre_extra *pe, const char *subj) {
   if(rc >= 0) return noit_true;
   return noit_false;
 }
-noit_conf_boolean
+noit_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
                      metric_t *metric) {

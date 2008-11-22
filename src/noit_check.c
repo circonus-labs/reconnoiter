@@ -114,7 +114,7 @@ noit_poller_process_checks(const char *xpath) {
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
-    noit_conf_boolean disabled = noit_false, busted = noit_false;
+    noit_boolean disabled = noit_false, busted = noit_false;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
 

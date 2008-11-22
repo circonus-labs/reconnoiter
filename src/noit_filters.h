@@ -18,7 +18,7 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_refresh_filtersets();
 
-API_EXPORT(noit_conf_boolean)
+API_EXPORT(noit_boolean)
   noit_apply_filterset(const char *filterset,
                        noit_check_t *check,
                        metric_t *metric);

@@ -12,7 +12,6 @@
 
 #include <uuid/uuid.h>
 
-typedef enum { noit_false = 0, noit_true } noit_conf_boolean;
 typedef void * noit_conf_section_t;
 
 #define NOIT_CONF_T_USERDATA "noit::state::conf_t"
@@ -56,7 +55,7 @@ API_EXPORT(int) noit_conf_get_int(noit_conf_section_t section,
 API_EXPORT(int) noit_conf_get_float(noit_conf_section_t section,
                                     const char *path, float *value);
 API_EXPORT(int) noit_conf_get_boolean(noit_conf_section_t section,
-                                      const char *path, noit_conf_boolean *value);
+                                      const char *path, noit_boolean *value);
 API_EXPORT(int)
   noit_conf_get_uuid(noit_conf_section_t section,
                      const char *path, uuid_t out);
@@ -68,7 +67,7 @@ API_EXPORT(int) noit_conf_set_int(noit_conf_section_t section,
 API_EXPORT(int) noit_conf_set_float(noit_conf_section_t section,
                                     const char *path, float value);
 API_EXPORT(int) noit_conf_set_boolean(noit_conf_section_t section,
-                                      const char *path, noit_conf_boolean value);
+                                      const char *path, noit_boolean value);
 
 API_EXPORT(int)
   noit_conf_reload(noit_console_closure_t ncct,

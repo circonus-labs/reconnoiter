@@ -234,7 +234,7 @@ noit_console_check(noit_console_closure_t ncct,
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node = NULL;
-  noit_conf_boolean creating_new = noit_false;
+  noit_boolean creating_new = noit_false;
 
   if(closure) {
     char *fake_argv[1] = { ".." };

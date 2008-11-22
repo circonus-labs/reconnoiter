@@ -291,7 +291,7 @@ noit_listener_reconfig(const char *toplevel) {
     int portint;
     int backlog;
     eventer_func_t f;
-    noit_conf_boolean ssl;
+    noit_boolean ssl;
     noit_hash_table *sslconfig, *config;
 
     if(!noit_conf_get_stringbuf(listener_configs[i],
