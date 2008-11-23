@@ -24,7 +24,7 @@ XML2H=@top_srcdir@/buildtools/xml2h
 top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
-	lua.@MODULEEXT@ dns.@MODULEEXT@ mysql.@MODULEEXT@ \
+	lua.@MODULEEXT@ dns.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)

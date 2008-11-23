@@ -187,6 +187,8 @@ AC_CHECK_FUNC(mysql_real_connect,
         ],
         [
                 AC_MSG_WARN([No libmysqlclient, skipping mysql module])
+		AC_SUBST(MYCFLAGS)
+		AC_SUBST(MYLIBS)
         ]
 )
 
