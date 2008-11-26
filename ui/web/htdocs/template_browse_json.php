@@ -10,13 +10,6 @@ $l1 = $_GET['l1'];
 $l2 = $_GET['l2'];
 $l3 = $_GET['l3'];
 
-error_log("------");
-error_log("parameters sent to template browse:");
-error_log("rootthing = ".$_REQUEST['root']);
-error_log($l1."=".$_REQUEST[$l1]);
-error_log($l2."=".$_REQUEST[$l2]);	  
-error_log($l3."=".$_REQUEST[$l3]);	  
-
 if ($_REQUEST['root'] == 'source'){
   $want = $l1;
 }
@@ -29,9 +22,6 @@ else if($_REQUEST[$l2]) {
 else {
      $want = "we are screwed";
 }
-
-error_log("want = ".$want);
-error_log("------");
 
 $templateid;
 $template;
