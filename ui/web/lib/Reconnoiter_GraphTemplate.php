@@ -18,6 +18,8 @@ class Reconnoiter_GraphTemplate {
       $this->row = $t[0];
     }
   }
+  public $num_sids;
+
   public function variables() {
     return Reconnoiter_GraphTemplate::find_variables($this->row['json']);
   }
@@ -90,10 +92,15 @@ class Reconnoiter_GraphTemplate {
     return $variable_set;
   }
   public function find_sids($json) {
+    $this->num_sids = 0;
     $sids = array();
     $vs = Reconnoiter_GraphTemplate::find_variables($json);
+    //vs will be multiD array containing variable names, their types (text/sid) and metric 
+    //names and metric types
+    
     foreach($vs as $v => $d) {
       if(isset($d['SID'])) {
+        $this->num_sids++;
         $sql = "select m.* from stratcon.mv_loading_dock_check_s as m";
         $binds = array();
         $t = 1;

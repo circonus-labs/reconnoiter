@@ -33,6 +33,14 @@ else {
 error_log("want = ".$want);
 error_log("------");
 
+$templateid;
+$template;
+
+if($_REQUEST[$l1]){
+	$templateid = $_REQUEST[$l1];
+	$template = new Reconnoiter_GraphTemplate($templateid);
+}
+
 $bag = array();
 
 if($want == 'templateid') {
@@ -53,9 +61,6 @@ if($want == 'templateid') {
 }
 
 else if($want == 'targetname') {         
-         $templateid = $_REQUEST[$l1];
-	 error_log("retreive template = $templateid");
-   	 $template = new Reconnoiter_GraphTemplate($templateid);
 
 	 $target_sid_map = array();
 
@@ -69,47 +74,76 @@ else if($want == 'targetname') {
          }
 	 
 	 foreach ($target_sid_map as $target_name => $sid_list) {
+	    $params = array();
+	    $params['thetemplate'] = $templateid;
 	    $sidlist = implode(",", $sid_list);
+	    $params['targetname'] = $sidlist;
+	    $params['num_sids'] = $template->num_sids;
 	    $jitem = array ('id' => $target_name,
 	    	     	   'text' => $target_name,
 			   'hasChildren' => true,
 			   'classes' => $want,
-			   'params' => array('targetname' => $sidlist)
+			   'params' => $params
 			   );
 	    $bag[] = $jitem;
 	 }
 }
 else if($want == 'sid') {
+     $thetemplateid = $_REQUEST['thetemplate'];
+     $num_sids = $_REQUEST['num_sids'];
+
      $sid_list = explode (",", $_REQUEST[$l2]);
-     
+     $ctext = "<form id='template-graph' name='template-graph' action=''>";     
+     $ctext.= "<select multiple='multiple' name='sid_select' size='5' id='sid_select' >";
      foreach($sid_list as $sid) {
-     $sname = $db->get_sid_name($sid);
-     error_log("got $name as the sid name");
-     $jitem = array ('id' => $sname,
-	    	     	   'text' => $sname,
+     	$sname = $db->make_name_for_template($sid);
+	$ctext.="<option value='$sid'> $sname</option><br />";
+     }
+
+     $ctext.="</select><br>Select ".$num_sids." from above.";     
+     $ctext .= "<br>Graph Title:";
+     $ctext.="<input type='text' size='15' name='graph_name' id='graph_name'><br>";
+
+     $ctext.=<<<LINK
+<a href="javascript:CreateGraphFromTemplate('$thetemplateid', '$num_sids')">
+LINK;
+
+     $ctext.=" <b>Create Graph</b></a></form>";     
+     $ctext.= <<<JS
+<script type='text/javascript'>
+
+function CreateGraphFromTemplate(templateid, num_sids){
+
+var graph_name = $("#graph_name").val();
+var sids = [];
+
+$("#sid_select :selected").each(function(i, selected){
+	 sids[i] = $(selected).text();
+});
+
+if(sids.length==num_sids){
+	var dataString = 'templateid='+templateid+'&graph_name='+graph_name+'&sids='+sids;
+
+	$.ajax({
+		type: "POST",
+	url: "template_graph.php",
+	data: dataString,
+	success: function() { }
+	});
+}
+}
+
+</script>
+JS;
+
+     $jitem = array ('id' => 'whatever',
+	    	     	   'text' => $ctext,
 			   'hasChildren' => false,
-			   'classes' => $want,
+			   'classes' => 'templatesid',
 			   'params' => array(),
 			   );
-	    $bag[] = $jitem;
-      }
-
+    $bag[] = $jitem;
 }
-			   
-
 	 
-/*
-	 $rparams = array( 'SwitchPort' => '1130', 'SwitchPort2' => '1139', 'SwitchName' => 'testingmultiplegraphs' );
-	 //error_log("rparams: ".print_r($rparams, true));
-	 $graph_json = $template->newGraph($rparams);
-	 $graph_json = stripslashes($graph_json);
-	 $graph_json = json_decode($graph_json, true);
-	$graph_id = $db->saveGraph($graph_json);
-
-	$graph_json['id'] = $graph_id;
-//        error_log("graph json: ".print_r($graph_json, true));
-	$graph_id = $db->saveGraph($graph_json);
-	//error_log("saved to graph id = $graph_id");
-*/
 
 echo json_encode($bag);

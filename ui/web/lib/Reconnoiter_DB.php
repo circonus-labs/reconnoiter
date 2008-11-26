@@ -461,8 +461,8 @@ class Reconnoiter_DB {
     return $id;
   }
 
-  public function get_sid_name($sid) {
-    $sql = "select m.name from stratcon.mv_loading_dock_check_s m where m.sid = ?";
+  public function make_name_for_template($sid) {
+    $sql = "select m.* from stratcon.mv_loading_dock_check_s m where m.sid = ?";
     $binds = array();
     if($sid) {
       $binds[] = $sid;
@@ -470,7 +470,7 @@ class Reconnoiter_DB {
       $sth->execute($binds);
       $row = $sth->fetch();
     }
-   return $row['name']; 
+   return $row['target']."`".$row['module']."`".$row['name']."`".$sid;
   }
 }
 

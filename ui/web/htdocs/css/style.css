@@ -549,6 +549,9 @@ padding-left:45px;
 background:transparent url(../images/icon-data-txt.png) no-repeat scroll 30px 1px;
 padding-left:45px;
 }
+#browselist ul li ul li ul li span.templatesid {
+padding-left:30px;
+}
 #browselist ul li ul li ul li ul li span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 45px 3px;
 padding-left:60px;
