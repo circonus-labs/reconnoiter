@@ -470,7 +470,7 @@ class Reconnoiter_DB {
       $sth->execute($binds);
       $row = $sth->fetch();
     }
-   return $row['target']."`".$row['module']."`".$row['name']."`".$sid;
+   return $row['target']."`".$row['module']."`".$row['name'];
   }
 }
 

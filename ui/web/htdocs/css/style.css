@@ -552,6 +552,20 @@ padding-left:45px;
 #browselist ul li ul li ul li span.templatesid {
 padding-left:30px;
 }
+#browselist ul li ul li ul li span.CreateGraph {
+border:1px solid #DDDDDD;
+padding-left: 0px;
+padding:0 4px;
+width:67px;
+background:transparent;
+}
+#browselist ul li ul li ul li span.CreateGraphButton{
+border:1px solid #DDDDDD;
+padding-left: 0px;
+padding:0 4px;
+width:67px;
+background:transparent;
+}
 #browselist ul li ul li ul li ul li span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 45px 3px;
 padding-left:60px;

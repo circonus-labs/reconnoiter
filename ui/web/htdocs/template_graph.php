@@ -14,13 +14,11 @@ $rparams = array('SwitchName' => $graph_name);
 
 $i = 1;
 
-foreach ($sid_list as $term){
+foreach ($sid_list as $sid){
    $sname = ($i==1) ? "SwitchPort": "SwitchPort".$i;
-   $sid = explode("`", $term); $sid = $sid[3];
    $rparams[$sname] = $sid;
    $i++;
 }
-
 $graph_json = $template->newGraph($rparams);
 
 $graph_json = stripslashes($graph_json);

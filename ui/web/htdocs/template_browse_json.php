@@ -93,12 +93,13 @@ else if($want == 'sid') {
      $ctext.="</select><br>Select ".$num_sids." from above.";     
      $ctext .= "<br>Graph Title:";
      $ctext.="<input type='text' size='15' name='graph_name' id='graph_name'><br>";
-
-     $ctext.=<<<LINK
+     $ctext.="<span class='CreateGraphButton'>";
+     $link=<<<LINK
 <a href="javascript:CreateGraphFromTemplate('$thetemplateid', '$num_sids')">
 LINK;
-
-     $ctext.=" <b>Create Graph</b></a></form>";     
+     $ctext.=$link;
+     $ctext.="<b>Create Graph</b></a></span></form>";
+     $ctext.="<span class='CreateGraph'></span>";
      $ctext.= <<<JS
 <script type='text/javascript'>
 
@@ -108,7 +109,7 @@ var graph_name = $("#graph_name").val();
 var sids = [];
 
 $("#sid_select :selected").each(function(i, selected){
-	 sids[i] = $(selected).text();
+	 sids[i] = $(selected).val();
 });
 
 if(sids.length==num_sids){
@@ -120,13 +121,18 @@ if(sids.length==num_sids){
 	data: dataString,
 	success: function() { }
 	});
+	$(".CreateGraph").html('Graph Saved').fadeIn('slow');
+	$(".CreateGraph").html('Graph Saved').fadeOut('slow');
+}
+else {
+     alert("Did not specify correct number of metrics!")
 }
 }
 
 </script>
 JS;
 
-     $jitem = array ('id' => 'whatever',
+     $jitem = array ('id' => '',
 	    	     	   'text' => $ctext,
 			   'hasChildren' => false,
 			   'classes' => 'templatesid',
