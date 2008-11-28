@@ -22,6 +22,7 @@ $(document).ready(function(){
 </div>
 <div id="ws-graphlist" class="graphlist">
   <p class="search-summary"></p>
+  <p class="paginate"></p>
   <ul class="searchresults">
   </ul>
 </div>
