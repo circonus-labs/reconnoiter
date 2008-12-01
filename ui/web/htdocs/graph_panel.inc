@@ -13,6 +13,7 @@ var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc333
 var color_sel = 0;
 
 function set_current_graph_id(id) {
+  if(id!='')  graphinfo.saved = true;
   current_graph_id = id;
   fetch_graph_info(current_graph_id);
 }
@@ -27,9 +28,10 @@ function update_current_graph(redraw, f) {
            recurse++;
            graphinfo.id = d.id;
            if(d.error) $("#gtool-error").html(d.error).fadeIn('fast');
-           else $("#gtool-error").fadeOut('fast');
+           else $("#gtool-error").fadeOut('fast');      
            if(graphinfo.id && graphinfo.saved != true &&
               $(".rememberGraph:visible").length == 0) {
+	      graphinfo.saved=false;
              $(".rememberGraph").html('"Remember" this graph.').fadeIn('slow');
              $(".rememberGraph").click(function() {
                graphinfo.saved = true;
@@ -191,8 +193,12 @@ function fetch_graph_info(id) {
   if(id) $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
   else refresh_graph_from_json({});
   $("span.blankGraph").click(function() {
-    if(graphinfo.saved || confirm("I will forget the current graph.  Are you sure?"))
-      set_current_graph_id('');
+    if(graphinfo.saved) set_current_graph_id('');
+    else if(graphinfo.saved!=undefined && graphinfo.saved==false) {
+    	 confirm("I will forget the current graph.  Are you sure?", function() {
+       	     set_current_graph_id('');
+	 });
+    }
     return false;
   });
 }
