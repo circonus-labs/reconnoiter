@@ -11,9 +11,42 @@ var graphinfo= {};
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
 var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
 var color_sel = 0;
+var locked = true;
+		
+function lock_forms() {
+	$("input[@type='text']").attr("disabled", "true");
+        $("input[@type='checkbox']").attr("disabled", "true");
+        $("input[@type='radio']").attr("disabled", "true");
+	$("select").attr("disabled", "true");
+	$("h2#graphTitle").unbind();
+	$(".datatitle").unbind();
+}
+
+function unlock_forms() {
+        $("input[@type='text']").removeAttr("disabled");
+        $("input[@type='checkbox']").removeAttr("disabled");
+        $("input[@type='radio']").removeAttr("disabled");
+        $("select").removeAttr("disabled");
+
+	$("h2#graphTitle").editable(function(value, settings) { 
+           graphinfo.title = value;
+           update_current_graph(false);
+           return(value);
+           }, { });
+
+        $(".datatitle").editable(function(value, settings) {      
+           d.name = value;
+           update_current_graph(true);
+           return(value);
+        }, { });
+} 
 
 function set_current_graph_id(id) {
-  if(id!='')  graphinfo.saved = true;
+  if(id!='')  {
+    graphinfo.saved = true;
+    locked = false;
+    unlock_forms();
+  }
   current_graph_id = id;
   fetch_graph_info(current_graph_id);
 }
@@ -47,11 +80,13 @@ function update_current_graph(redraw, f) {
          }, 'json');
 }
 function graph_add_datapoint(d) {
-  if(d.axis == undefined) { d.axis = 'l'; }
-  if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
-  graphinfo.datapoints.push(d);
-  gtool_add_datapoint(d);
-  update_current_graph(true);
+  if(!locked){	 	 
+    if(d.axis == undefined) { d.axis = 'l'; }
+    if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
+    graphinfo.datapoints.push(d);
+    gtool_add_datapoint(d);
+    update_current_graph(true);
+  }
 }
 function gtool_add_guide() {
   var d = {};
@@ -96,20 +131,24 @@ function gtool_add_datapoint(d) {
                               .css('opacity',
                                    (d.opacity == null) ? 0.2 : d.opacity);
   o.find('.colorSelector').bind('click', function() {
-    var activecp = $(this).parent().find('.colorPickerHolder');
-    var h = activecp.height();
-    $("#gtool #dataPoints .colorPickerHolder").filter(function(index) {
-      return ($(this) != activecp);
-    }).stop().animate({height:0}, 0);;
-    $(this).parent().find('.colorPickerHolder').stop().animate({height: h != 0 ? 0 : 173}, 500);
+    if(!locked){
+        var activecp = $(this).parent().find('.colorPickerHolder');
+	var h = activecp.height();
+        $("#gtool #dataPoints .colorPickerHolder").filter(function(index) {
+             return ($(this) != activecp);
+        }).stop().animate({height:0}, 0);;
+        $(this).parent().find('.colorPickerHolder').stop().animate({height: h != 0 ? 0 : 173}, 500);
+    }
   });
 
   o.find(d.axis == "l" ? ".axisl" : ".axisr").addClass("axison");
   o.find("span.axis").click(function(){
-    $(this).siblings().removeClass("axison");
-    $(this).addClass("axison");
-    d.axis = $(this).hasClass("axisl") ? "l" : "r";
-    update_current_graph(true);
+    if(!locked) {
+       $(this).siblings().removeClass("axison");
+       $(this).addClass("axison");
+       d.axis = $(this).hasClass("axisl") ? "l" : "r";
+       update_current_graph(true);
+    }
   });
   if(!d.hidden){o.find('input[@name="view"]').attr("checked","checked");}
   o.find('input[@name="view"]').change(function(){
@@ -118,14 +157,16 @@ function gtool_add_datapoint(d) {
   }).change();
 
   o.find('.deletedatapoint').click(function(){
-    for(var i=0; i<graphinfo.datapoints.length; i++) {
-      if(graphinfo.datapoints[i] == d) {
-        graphinfo.datapoints.splice(i,1);
-        break;
-      }
-    }
-    update_current_graph(true);
-    refresh_graph_from_json(graphinfo);
+    if(!locked){
+       for(var i=0; i<graphinfo.datapoints.length; i++) {
+         if(graphinfo.datapoints[i] == d) {
+           graphinfo.datapoints.splice(i,1);
+           break;
+         }
+       }
+       update_current_graph(true);
+       refresh_graph_from_json(graphinfo);
+       }
     return false;
   });
 
@@ -155,11 +196,7 @@ function gtool_add_datapoint(d) {
   }
 
   o.find(".datatitle").html(d.name);
-  o.find(".datatitle").editable(function(value, settings) {
-      d.name = value;
-      update_current_graph(true);
-      return(value);
-    }, { });
+  
 
   recurse--;
   $("#gtool #dataPoints").append(o.children());
@@ -168,11 +205,7 @@ function refresh_graph_from_json(j) {
   graphinfo = j;
   if(graphinfo.datapoints == undefined) graphinfo.datapoints = Array();
   $("h2#graphTitle").html(graphinfo.title ? graphinfo.title : 'Graph Title (click to edit)');
-  $("h2#graphTitle").editable(function(value, settings) { 
-      graphinfo.title = value;
-      update_current_graph(false);
-      return(value);
-    }, { });
+
   $("input[@name='graphtype']:checked").removeAttr("checked");
   $("input[@name='graphtype']")
     .filter(function(i){return $(this).val() == graphinfo.type;})
@@ -208,10 +241,14 @@ function fetch_graph_info(id) {
 <p/>
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
+<span class="editGraph">Edit Graph</span>
 <h2 id="graphTitle"></h2>
 <!-- date range box -->
 <script type="text/javascript">
 $(document).ready(function(){
+
+	lock_forms();
+
         var time_windows = { '2d' : 86400*2,
                               '1w' : 86400*7,
                               '2w' : 86400*14,
@@ -219,6 +256,20 @@ $(document).ready(function(){
                               '1y' : 86400*365,
                             };
         var state = false;
+
+	$(".editGraph").click(function() {		
+	        if(locked){
+		    locked = false;		    
+		    unlock_forms();
+		    $(".editGraph").html('Editing!').fadeIn('slow');
+		}
+		else if(!locked){
+		    locked = true;	
+		    lock_forms();
+                    $(".editGraph").html('Edit Graph').fadeIn('slow');
+		}
+	});
+
         $("#graph_datetool .btn-slide").click(function(){
                 $("#graph_widgetCalendar").stop().animate({
                      height: state ? 0 :
@@ -265,7 +316,9 @@ $(document).ready(function(){
           $("#gtool-error").fadeOut("slow");
         });
         $("span.addGuide").click(function() {
-          gtool_add_guide();
+	  if(!locked){
+            gtool_add_guide();
+	  }
         });
         set_current_graph_id('');
         maingraph = $('<div></div>').attr("id", "maingraph").ReconGraph({graphid: graphinfo.id, width: 780, height: 400});
@@ -339,7 +392,7 @@ $(document).ready(function(){
 	<table>
 	<tbody id="guideeditor">
 	<tr>
-		<td><input name="view" type="checkbox" value="1"/></td>
+		<td><input name="view" type="checkbox" value="1" /></td>
 		<td class="data datatitle"></td>
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
 		<td></td>
