@@ -42,6 +42,7 @@ function unlock_forms() {
 } 
 
 function set_current_graph_id(id) {
+  $(".rememberGraph").fadeOut('fast');
   if(id!='')  {
     graphinfo.saved = true;
     locked = true;
