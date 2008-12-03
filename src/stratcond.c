@@ -17,6 +17,7 @@
 #include "noit_conf.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
+#include "stratcon_realtime_http.h"
 
 #define APPNAME "stratcon"
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
@@ -141,6 +142,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   noit_console_init();
+  stratcon_realtime_http_init(APPNAME);
   noit_listener_init(APPNAME);
 
   /* Drop privileges */

@@ -39,7 +39,8 @@ NOIT_OBJS=noitd.o noit_listener.o \
 
 STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
-	noit_conf.o noit_tokenizer.o \
+	noit_conf.o noit_http.o noit_tokenizer.o \
+	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o
 
 all:	noitd stratcond noit.conf test-noit.conf
