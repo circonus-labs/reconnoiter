@@ -646,7 +646,7 @@ CREATE FUNCTION check_name_saved_graphs() RETURNS trigger
 DECLARE
 BEGIN
     IF  NEW.saved IS true AND NEW.title IS null THEN
-    RAISE EXCEPTION 'You must name graph to save';
+    RAISE EXCEPTION 'You must name graph to save.';
     END IF;
  RETURN NEW;
 END
@@ -2198,19 +2198,19 @@ ALTER TABLE ONLY saved_graphs
 
 
 --
--- Name: saved_graphs_title_key; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY saved_graphs
-    ADD CONSTRAINT saved_graphs_title_key UNIQUE (title);
-
-
---
 -- Name: saved_worksheets_pkey; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY saved_worksheets
     ADD CONSTRAINT saved_worksheets_pkey PRIMARY KEY (sheetid);
+
+
+--
+-- Name: unq_saved_graphs_title; Type: CONSTRAINT; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY saved_graphs
+    ADD CONSTRAINT unq_saved_graphs_title UNIQUE (title);
 
 
 SET search_path = public, pg_catalog;
