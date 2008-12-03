@@ -44,8 +44,14 @@ function unlock_forms() {
 function set_current_graph_id(id) {
   if(id!='')  {
     graphinfo.saved = true;
+    locked = true;
+    lock_forms();
+    $(".editGraph").html('Edit Graph').fadeIn('slow');    
+  }
+  else {        
     locked = false;
-    unlock_forms();
+    unlock_forms();    
+    $(".editGraph").html('Editing!').fadeIn('slow');
   }
   current_graph_id = id;
   fetch_graph_info(current_graph_id);
