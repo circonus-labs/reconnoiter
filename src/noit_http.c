@@ -646,8 +646,7 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
 
   _http_perform_write(ctx, &mask);
   if(ctx->conn.e) {
-    ctx->conn.e->mask = mask;
-    eventer_update(ctx->conn.e);
+    eventer_update(ctx->conn.e, mask);
   }
   return noit_true;
 }

@@ -436,8 +436,7 @@ noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   rlen = nc_write(ls->op_ctx, buf, len);
   while((rv = noit_console_continue_sending(ncct, &mask)) == -1 && errno == EINTR);
   if(rv == -1 && errno == EAGAIN) {
-    ncct->e->mask = mask | EVENTER_EXCEPTION;
-    eventer_update(ncct->e);
+    eventer_update(ncct->e, mask | EVENTER_EXCEPTION);
   }
   return rlen;
 }

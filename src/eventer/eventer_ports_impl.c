@@ -174,15 +174,17 @@ static eventer_t eventer_ports_impl_remove(eventer_t e) {
   }
   return removed;
 }
-static void eventer_ports_impl_update(eventer_t e) {
+static void eventer_ports_impl_update(eventer_t e, int mask) {
   if(e->mask & EVENTER_TIMER) {
+    assert(mask & EVENTER_TIMER);
     pthread_mutex_lock(&te_lock);
     noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
     noit_skiplist_insert(timed_events, e);
     pthread_mutex_unlock(&te_lock);
     return;
   }
-  alter_fd(e, e->mask);
+  alter_fd(e, mask);
+  e->mask = mask;
 }
 static eventer_t eventer_ports_impl_remove_fd(int fd) {
   eventer_t eiq = NULL;

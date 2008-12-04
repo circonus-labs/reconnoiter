@@ -158,9 +158,10 @@ static eventer_t eventer_epoll_impl_remove(eventer_t e) {
   }
   return removed;
 }
-static void eventer_epoll_impl_update(eventer_t e) {
+static void eventer_epoll_impl_update(eventer_t e, int mask) {
   struct epoll_event _ev;
   if(e->mask & EVENTER_TIMER) {
+    assert(e->mask & EVENTER_TIMER);
     pthread_mutex_lock(&te_lock);
     noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
     noit_skiplist_insert(timed_events, e);
@@ -169,6 +170,7 @@ static void eventer_epoll_impl_update(eventer_t e) {
   }
   memset(&_ev, 0, sizeof(_ev));
   _ev.data.fd = e->fd;
+  e->mask = mask;
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     if(e->mask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
     if(e->mask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);

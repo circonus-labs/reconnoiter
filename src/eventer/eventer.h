@@ -74,7 +74,7 @@ typedef struct _eventer_impl {
   int               (*propset)(const char *key, const char *value);
   void              (*add)(eventer_t e);
   eventer_t         (*remove)(eventer_t e);
-  void              (*update)(eventer_t e);
+  void              (*update)(eventer_t e, int newmask);
   eventer_t         (*remove_fd)(int fd);
   eventer_t         (*find_fd)(int fd);
   int               (*loop)();

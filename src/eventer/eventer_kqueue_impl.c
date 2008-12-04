@@ -205,20 +205,33 @@ static eventer_t eventer_kqueue_impl_remove(eventer_t e) {
   }
   return removed;
 }
-static void eventer_kqueue_impl_update(eventer_t e) {
+static void eventer_kqueue_impl_update(eventer_t e, int mask) {
   if(e->mask & EVENTER_TIMER) {
+    assert(mask & EVENTER_TIMER);
     pthread_mutex_lock(&te_lock);
     noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
     noit_skiplist_insert(timed_events, e);
     pthread_mutex_unlock(&te_lock);
     return;
   }
-  ke_change(e->fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
-  ke_change(e->fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
-  if(e->mask & (EVENTER_READ | EVENTER_EXCEPTION))
+  /* Disable old, if they aren't active in the new */
+  if((e->mask & (EVENTER_READ | EVENTER_EXCEPTION)) &&
+     !(mask & (EVENTER_READ | EVENTER_EXCEPTION)))
     ke_change(e->fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
-  if(e->mask & (EVENTER_WRITE))
+  if((e->mask & (EVENTER_WRITE)) &&
+     !(mask & (EVENTER_WRITE)))
     ke_change(e->fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
+
+  /* Enable new, if the weren't in the old */
+  if((mask & (EVENTER_READ | EVENTER_EXCEPTION)) &&
+     !(e->mask & (EVENTER_READ | EVENTER_EXCEPTION)))
+    ke_change(e->fd, EVFILT_READ, EV_ADD | EV_ENABLE, e);
+  if((mask & (EVENTER_WRITE)) &&
+     !(e->mask & (EVENTER_WRITE)))
+    ke_change(e->fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
+
+  /* Switch */
+  e->mask = mask;
 }
 static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
   eventer_t eiq = NULL;
