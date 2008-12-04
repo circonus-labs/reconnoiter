@@ -340,5 +340,6 @@ struct _eventer_impl eventer_epoll_impl = {
   eventer_epoll_impl_update,
   eventer_epoll_impl_remove_fd,
   eventer_epoll_impl_find_fd,
+  eventer_epoll_impl_trigger,
   eventer_epoll_impl_loop
 };
