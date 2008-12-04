@@ -251,6 +251,71 @@ static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
 static eventer_t eventer_kqueue_impl_find_fd(int fd) {
   return master_fds[fd].e;
 }
+static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
+  ev_lock_state_t lockstate;
+  struct timeval __now;
+  int oldmask, newmask;
+  const char *cbname;
+  int fd;
+
+  fd = e->fd;
+  if(e != master_fds[fd].e) return;
+  lockstate = acquire_master_fd(fd);
+  if(lockstate == EV_ALREADY_OWNED) return;
+  assert(lockstate == EV_OWNED);
+
+  gettimeofday(&__now, NULL);
+  oldmask = e->mask;
+  cbname = eventer_name_for_callback(e->callback);
+  noitLT(eventer_deb, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
+         fd, masks[fd], cbname?cbname:"???", e->callback);
+  newmask = e->callback(e, mask, e->closure, &__now);
+
+  if(newmask) {
+    /* toggle the read bits if needed */
+    if(newmask & (EVENTER_READ | EVENTER_EXCEPTION)) {
+      if(!(oldmask & (EVENTER_READ | EVENTER_EXCEPTION)))
+        ke_change(fd, EVFILT_READ, EV_ADD | EV_ENABLE, e);
+    }
+    else if(oldmask & (EVENTER_READ | EVENTER_EXCEPTION))
+      ke_change(fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
+
+    /* toggle the write bits if needed */
+    if(newmask & EVENTER_WRITE) {
+      if(!(oldmask & EVENTER_WRITE))
+        ke_change(fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
+    }
+    else if(oldmask & EVENTER_WRITE)
+        ke_change(fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
+
+    /* Set our mask */
+    e->mask = newmask;
+  }
+  else {
+    /*
+     * Long story long:
+     *  When integrating with a few external event systems, we find
+     *  it difficult to make their use of remove+add as an update
+     *  as it can be recurrent in a single handler call and you cannot
+     *  remove completely from the event system if you are going to
+     *  just update (otherwise the eventer_t in your call stack could
+     *  be stale).  What we do is perform a superficial remove, marking
+     *  the mask as 0, but not eventer_remove_fd.  Then on an add, if
+     *  we already have an event, we just update the mask (as we
+     *  have not yet returned to the eventer's loop.
+     *  This leaves us in a tricky situation when a remove is called
+     *  and the add doesn't roll in, we return 0 (mask == 0) and hit
+     *  this spot.  We have intended to remove the event, but it still
+     *  resides at master_fds[fd].e -- even after we free it.
+     *  So, in the evnet that we return 0 and the event that
+     *  master_fds[fd].e == the event we're about to free... we NULL
+     *  it out.
+     */
+    if(master_fds[fd].e == e) master_fds[fd].e = NULL;
+    eventer_free(e);
+  }
+  release_master_fd(fd, lockstate);
+}
 static int eventer_kqueue_impl_loop() {
   int is_master_thread = 0;
   pthread_t self;
@@ -365,15 +430,15 @@ static int eventer_kqueue_impl_loop() {
       }
       /* Loop a last time to process */
       for(idx = 0; idx < fd_cnt; idx++) {
-        ev_lock_state_t lockstate;
         struct kevent *ke;
         eventer_t e;
-        int fd, oldmask;
+        int fd;
 
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) {
           if(ke->data != EBADF)
-            noitLT(eventer_err, &__now, "error: %s\n", strerror(ke->data));
+            noitLT(eventer_err, &__now, "error [%d]: %s\n",
+                   (int)ke->ident, strerror(ke->data));
           continue;
         }
         e = (eventer_t)ke->udata;
@@ -383,62 +448,8 @@ static int eventer_kqueue_impl_loop() {
         /* It's possible that someone removed the event and freed it
          * before we got here.
          */
-        if(e != master_fds[fd].e) continue;
-        lockstate = acquire_master_fd(fd);
-        assert(lockstate == EV_OWNED);
-
-        gettimeofday(&__now, NULL);
-        oldmask = e->mask;
-        cbname = eventer_name_for_callback(e->callback);
-        noitLT(eventer_deb, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
-               fd, masks[fd], cbname?cbname:"???", e->callback);
-        newmask = e->callback(e, masks[fd], e->closure, &__now);
+        eventer_kqueue_impl_trigger(e, masks[fd]);
         masks[fd] = 0; /* indicates we've processed this fd */
-
-        if(newmask) {
-          /* toggle the read bits if needed */
-          if(newmask & (EVENTER_READ | EVENTER_EXCEPTION)) {
-            if(!(oldmask & (EVENTER_READ | EVENTER_EXCEPTION)))
-              ke_change(fd, EVFILT_READ, EV_ADD | EV_ENABLE, e);
-          }
-          else if(oldmask & (EVENTER_READ | EVENTER_EXCEPTION))
-            ke_change(fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
-  
-          /* toggle the write bits if needed */
-          if(newmask & EVENTER_WRITE) {
-            if(!(oldmask & EVENTER_WRITE))
-              ke_change(fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
-          }
-          else if(oldmask & EVENTER_WRITE)
-              ke_change(fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
-  
-          /* Set our mask */
-          e->mask = newmask;
-        }
-        else {
-          /*
-           * Long story long:
-           *  When integrating with a few external event systems, we find
-           *  it difficult to make their use of remove+add as an update
-           *  as it can be recurrent in a single handler call and you cannot
-           *  remove completely from the event system if you are going to
-           *  just update (otherwise the eventer_t in your call stack could
-           *  be stale).  What we do is perform a superficial remove, marking
-           *  the mask as 0, but not eventer_remove_fd.  Then on an add, if
-           *  we already have an event, we just update the mask (as we
-           *  have not yet returned to the eventer's loop.
-           *  This leaves us in a tricky situation when a remove is called
-           *  and the add doesn't roll in, we return 0 (mask == 0) and hit
-           *  this spot.  We have intended to remove the event, but it still
-           *  resides at master_fds[fd].e -- even after we free it.
-           *  So, in the evnet that we return 0 and the event that
-           *  master_fds[fd].e == the event we're about to free... we NULL
-           *  it out.
-           */
-          if(master_fds[fd].e == e) master_fds[fd].e = NULL;
-          eventer_free(e);
-        }
-        release_master_fd(fd, lockstate);
       }
     }
   }
@@ -455,5 +466,6 @@ struct _eventer_impl eventer_kqueue_impl = {
   eventer_kqueue_impl_update,
   eventer_kqueue_impl_remove_fd,
   eventer_kqueue_impl_find_fd,
+  eventer_kqueue_impl_trigger,
   eventer_kqueue_impl_loop
 };

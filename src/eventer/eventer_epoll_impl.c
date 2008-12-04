@@ -196,6 +196,44 @@ static eventer_t eventer_epoll_impl_remove_fd(int fd) {
 static eventer_t eventer_epoll_impl_find_fd(int fd) {
   return master_fds[fd].e;
 }
+
+static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
+  struct timeval __now;
+  int fd, oldmask, newmask;
+  const char *cbname;
+  ev_lock_state_t lockstate;
+
+  fd = e->fd;
+  if(e != master_fds[fd].e) return;
+  lockstate = acquire_master_fd(fd);
+  if(lockstate == EV_ALREADY_OWNED) return;
+  assert(lockstate == EV_OWNED);
+
+  gettimeofday(&__now, NULL);
+  oldmask = e->mask;
+  cbname = eventer_name_for_callback(e->callback);
+  noitLT(eventer_deb, &__now, "epoll: fire on %d/%x to %s(%p)\n",
+         fd, mask, cbname?cbname:"???", e->callback);
+  newmask = e->callback(e, mask, e->closure, &__now);
+
+  if(newmask) {
+    struct epoll_event _ev;
+    memset(&_ev, 0, sizeof(_ev));
+    _ev.data.fd = fd;
+    if(newmask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
+    if(newmask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
+    if(newmask & EVENTER_EXCEPTION) _ev.events |= (EPOLLERR|EPOLLHUP);
+    epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &_ev);
+    /* Set our mask */
+    e->mask = newmask;
+  }
+  else {
+    /* see kqueue implementation for details on the next line */
+    if(master_fds[fd].e == e) master_fds[fd].e = NULL;
+    eventer_free(e);
+  }
+  release_master_fd(fd, lockstate);
+}
 static int eventer_epoll_impl_loop() {
   int is_master_thread = 0;
   struct epoll_event *epev;
@@ -268,10 +306,8 @@ static int eventer_epoll_impl_loop() {
       /* loop once to clear */
       for(idx = 0; idx < fd_cnt; idx++) {
         struct epoll_event *ev;
-        const char *cbname;
-        ev_lock_state_t lockstate;
         eventer_t e;
-        int fd, oldmask, mask = 0;
+        int fd, mask = 0;
 
         ev = &epev[idx];
 
@@ -280,40 +316,14 @@ static int eventer_epoll_impl_loop() {
         if(ev->events & (EPOLLERR|EPOLLHUP)) mask |= EVENTER_EXCEPTION;
 
         fd = ev->data.fd;
+
         e = master_fds[fd].e;
         /* It's possible that someone removed the event and freed it
          * before we got here.
          */
         if(!e) continue;
 
-
-        lockstate = acquire_master_fd(fd);
-        assert(lockstate == EV_OWNED);
-
-        gettimeofday(&__now, NULL);
-        oldmask = e->mask;
-        cbname = eventer_name_for_callback(e->callback);
-        noitLT(eventer_deb, &__now, "epoll: fire on %d/%x to %s(%p)\n",
-               fd, mask, cbname?cbname:"???", e->callback);
-        newmask = e->callback(e, mask, e->closure, &__now);
-
-        if(newmask) {
-          struct epoll_event _ev;
-          memset(&_ev, 0, sizeof(_ev));
-          _ev.data.fd = fd;
-          if(newmask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
-          if(newmask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
-          if(newmask & EVENTER_EXCEPTION) _ev.events |= (EPOLLERR|EPOLLHUP);
-          epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &_ev);
-          /* Set our mask */
-          e->mask = newmask;
-        }
-        else {
-          /* see kqueue implementation for details on the next line */
-          if(master_fds[fd].e == e) master_fds[fd].e = NULL;
-          eventer_free(e);
-        }
-        release_master_fd(fd, lockstate);
+        eventer_epoll_impl_trigger(e, mask);
       }
     }
   }

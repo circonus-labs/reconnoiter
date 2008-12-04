@@ -201,6 +201,56 @@ static eventer_t eventer_ports_impl_remove_fd(int fd) {
 static eventer_t eventer_ports_impl_find_fd(int fd) {
   return master_fds[fd].e;
 }
+static void
+eventer_ports_impl_trigger(eventer_t e, int mask) {
+  ev_lock_state_t lockstate;
+  const char *cbname;
+  struct timeval __now;
+  int fd, oldmask, newmask;
+
+  fd = e->fd;
+  if(e != master_fds[fd].e) return;
+  lockstate = acquire_master_fd(fd);
+  if(lockstate == EV_ALREADY_OWNED) return;
+  assert(lockstate == EV_OWNED);
+
+  gettimeofday(&__now, NULL);
+  oldmask = e->mask;
+  cbname = eventer_name_for_callback(e->callback);
+  noitLT(eventer_deb, &__now, "ports: fire on %d/%x to %s(%p)\n",
+         fd, mask, cbname?cbname:"???", e->callback);
+  newmask = e->callback(e, mask, e->closure, &__now);
+
+  if(newmask) {
+    alter_fd(e, newmask);
+    /* Set our mask */
+    e->mask = newmask;
+  }
+  else {
+    /*
+     * Long story long:
+     *  When integrating with a few external event systems, we find
+     *  it difficult to make their use of remove+add as an update
+     *  as it can be recurrent in a single handler call and you cannot
+     *  remove completely from the event system if you are going to
+     *  just update (otherwise the eventer_t in your call stack could
+     *  be stale).  What we do is perform a superficial remove, marking
+     *  the mask as 0, but not eventer_remove_fd.  Then on an add, if
+     *  we already have an event, we just update the mask (as we
+     *  have not yet returned to the eventer's loop.
+     *  This leaves us in a tricky situation when a remove is called
+     *  and the add doesn't roll in, we return 0 (mask == 0) and hit
+     *  this spot.  We have intended to remove the event, but it still
+     *  resides at master_fds[fd].e -- even after we free it.
+     *  So, in the evnet that we return 0 and the event that
+     *  master_fds[fd].e == the event we're about to free... we NULL
+     *  it out.
+     */
+    if(master_fds[fd].e == e) master_fds[fd].e = NULL;
+    eventer_free(e);
+  }
+  release_master_fd(fd, lockstate);
+}
 static int eventer_ports_impl_loop() {
   int is_master_thread = 0;
   pthread_t self;
@@ -284,7 +334,6 @@ static int eventer_ports_impl_loop() {
       int idx;
       /* Loop a last time to process */
       for(idx = 0; idx < fd_cnt; idx++) {
-        ev_lock_state_t lockstate;
         port_event_t *pe;
         eventer_t e;
         int fd, oldmask, mask;
@@ -304,46 +353,7 @@ static int eventer_ports_impl_loop() {
         /* It's possible that someone removed the event and freed it
          * before we got here.
          */
-        if(e != master_fds[fd].e) continue;
-        lockstate = acquire_master_fd(fd);
-        assert(lockstate == EV_OWNED);
-
-        gettimeofday(&__now, NULL);
-        oldmask = e->mask;
-        cbname = eventer_name_for_callback(e->callback);
-        noitLT(eventer_deb, &__now, "ports: fire on %d/%x to %s(%p)\n",
-               fd, mask, cbname?cbname:"???", e->callback);
-        newmask = e->callback(e, mask, e->closure, &__now);
-
-        if(newmask) {
-          alter_fd(e, newmask);
-          /* Set our mask */
-          e->mask = newmask;
-        }
-        else {
-          /*
-           * Long story long:
-           *  When integrating with a few external event systems, we find
-           *  it difficult to make their use of remove+add as an update
-           *  as it can be recurrent in a single handler call and you cannot
-           *  remove completely from the event system if you are going to
-           *  just update (otherwise the eventer_t in your call stack could
-           *  be stale).  What we do is perform a superficial remove, marking
-           *  the mask as 0, but not eventer_remove_fd.  Then on an add, if
-           *  we already have an event, we just update the mask (as we
-           *  have not yet returned to the eventer's loop.
-           *  This leaves us in a tricky situation when a remove is called
-           *  and the add doesn't roll in, we return 0 (mask == 0) and hit
-           *  this spot.  We have intended to remove the event, but it still
-           *  resides at master_fds[fd].e -- even after we free it.
-           *  So, in the evnet that we return 0 and the event that
-           *  master_fds[fd].e == the event we're about to free... we NULL
-           *  it out.
-           */
-          if(master_fds[fd].e == e) master_fds[fd].e = NULL;
-          eventer_free(e);
-        }
-        release_master_fd(fd, lockstate);
+        eventer_ports_impl_trigger(e, mask);
       }
     }
   }
@@ -359,5 +369,6 @@ struct _eventer_impl eventer_ports_impl = {
   eventer_ports_impl_update,
   eventer_ports_impl_remove_fd,
   eventer_ports_impl_find_fd,
+  eventer_ports_impl_trigger,
   eventer_ports_impl_loop
 };

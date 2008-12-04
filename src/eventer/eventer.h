@@ -77,6 +77,7 @@ typedef struct _eventer_impl {
   void              (*update)(eventer_t e, int newmask);
   eventer_t         (*remove_fd)(int fd);
   eventer_t         (*find_fd)(int fd);
+  void              (*trigger)(eventer_t e, int mask);
   int               (*loop)();
 } *eventer_impl_t;
 
@@ -98,6 +99,7 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_remove_fd     __eventer->remove_fd
 #define eventer_find_fd       __eventer->find_fd
 #define eventer_loop          __eventer->loop
+#define eventer_trigger       __eventer->trigger
 
 extern eventer_impl_t registered_eventers[];
 
