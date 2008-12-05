@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <assert.h>
+#include <zlib.h>
 
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
@@ -18,7 +19,7 @@
     noit_hash_replace(&ctx->res.headers, \
                       strdup(a), strlen(a), strdup(b), free, free)
 static const char _hexchars[16] =
-  {'0','1','2','3','4','5','6','7','8','9','a','b','c','e','f'};
+  {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
 struct bchain *bchain_alloc(size_t size) {
   struct bchain *n;
@@ -29,6 +30,14 @@ struct bchain *bchain_alloc(size_t size) {
   n->allocd = size;
   return n;
 }
+#define RELEASE_BCHAIN(a) do { \
+  while(a) { \
+    struct bchain *__b; \
+    __b = a; \
+    a = __b->next; \
+    bchain_free(__b); \
+  } \
+} while(0)
 struct bchain *bchain_from_data(void *d, size_t size) {
   struct bchain *n;
   n = bchain_alloc(size);
@@ -133,7 +142,7 @@ _extract_header(char *l, const char **n, const char **v) {
 }
 static int
 _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
-  int len;
+  int len, tlen = 0;
   struct bchain **head, *b;
  choose_bucket:
   head = ctx->res.leader ? &ctx->res.leader : &ctx->res.output_raw;
@@ -143,12 +152,13 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   if(ctx->res.output_started == noit_false) return EVENTER_EXCEPTION;
   if(!b) {
     if(ctx->res.closed) ctx->res.complete = noit_true;
-    return EVENTER_EXCEPTION;
+    *mask = EVENTER_EXCEPTION;
+    return tlen;
   }
 
   if(ctx->res.output_raw_offset >= b->size) {
     *head = b->next;
-    free(b);
+    bchain_free(b);
     b = *head;
     if(b) b->prev = NULL;
     ctx->res.output_raw_offset = 0;
@@ -160,14 +170,18 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
                 b->buff + b->start + ctx->res.output_raw_offset,
                 b->size - ctx->res.output_raw_offset,
                 mask, ctx->conn.e);
-  if(len == -1 && errno == EAGAIN) return (*mask | EVENTER_EXCEPTION);
+  if(len == -1 && errno == EAGAIN) {
+    *mask |= EVENTER_EXCEPTION;
+    return tlen;
+  }
   if(len == -1) {
     /* socket error */
     ctx->conn.e->opset->close(ctx->conn.e->fd, mask, ctx->conn.e);
     ctx->conn.e = NULL;
-    return 0;
+    return -1;
   }
   ctx->res.output_raw_offset += len;
+  tlen += len;
   goto choose_bucket;
 }
 static noit_boolean
@@ -251,7 +265,8 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
         *((char *)next_str) = '\0';
         next_str += 2;
       }
-      if(*curr_str == '\0') break; /* our CRLFCRLF... end of req */
+      if(req->method_str && *curr_str == '\0')
+        break; /* our CRLFCRLF... end of req */
 #define FAIL do { *err = noit_true; return noit_false; } while(0)
       if(!req->method_str) { /* request line */
         req->method_str = (char *)curr_str;
@@ -265,11 +280,16 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
         req->protocol_str++;
         req->method = _method_enum(req->method_str);
         req->protocol = _protocol_enum(req->protocol_str);
+        if(req->protocol == NOIT_HTTP11) req->opts |= NOIT_HTTP_CHUNKED;
       }
       else { /* request headers */
         const char *name, *value;
         if(_extract_header(curr_str, &name, &value) == noit_false) FAIL;
         if(!name && !last_name) FAIL;
+        if(!strcmp(name ? name : last_name, "accept-encoding")) {
+          if(strstr(value, "gzip")) req->opts |= NOIT_HTTP_GZIP;
+          if(strstr(value, "deflate")) req->opts |= NOIT_HTTP_DEFLATE;
+        }
         if(name)
           noit_hash_replace(&req->headers, name, strlen(name), (void *)value,
                             NULL, NULL);
@@ -305,7 +325,7 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
 int
 noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
   struct bchain *in;
-  noit_boolean rv, err;
+  noit_boolean rv, err = noit_false;
 
   if(mask & EVENTER_EXCEPTION) {
    full_error:
@@ -354,40 +374,68 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
-
+void
+noit_http_request_release(noit_http_session_ctx *ctx) {
+  noit_hash_destroy(&ctx->req.headers, NULL, NULL);
+  RELEASE_BCHAIN(ctx->req.first_input);
+  memset(&ctx->req, 0, sizeof(ctx->req));
+}
+void
+noit_http_response_release(noit_http_session_ctx *ctx) {
+  noit_hash_destroy(&ctx->res.headers, free, free);
+  if(ctx->res.status_reason) free(ctx->res.status_reason);
+  RELEASE_BCHAIN(ctx->res.leader);
+  RELEASE_BCHAIN(ctx->res.output);
+  RELEASE_BCHAIN(ctx->res.output_raw);
+  memset(&ctx->res, 0, sizeof(ctx->res));
+}
 int
-noit_http_session_drive(eventer_t e, int mask, void *closure,
+noit_http_session_drive(eventer_t e, int origmask, void *closure,
                         struct timeval *now) {
   noit_http_session_ctx *ctx = closure;
   int rv;
+  int mask = origmask;
  next_req:
   if(ctx->req.complete != noit_true) {
-    mask = noit_http_complete_request(ctx, mask);
+    mask = noit_http_complete_request(ctx, origmask);
     if(ctx->req.complete != noit_true) return mask;
   }
-  rv = ctx->dispatcher(ctx);
+
+  /* only dispatch if the response is not complete */
+  if(ctx->res.complete == noit_false) rv = ctx->dispatcher(ctx);
+
   _http_perform_write(ctx, &mask);
   if(ctx->res.complete == noit_true &&
      ctx->conn.e &&
      ctx->conn.needs_close == noit_true) {
     ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
     ctx->conn.e = NULL;
+    goto release;
     return 0;
+  }
+  if(ctx->res.complete == noit_true) {
+    noit_http_request_release(ctx);
+    noit_http_response_release(ctx);
   }
   if(ctx->req.complete == noit_false) goto next_req;
   if(ctx->conn.e) {
     return mask;
   }
   return 0;
+ release:
+  noit_http_request_release(ctx);
+  noit_http_response_release(ctx);
+  return 0;
 }
 
 noit_http_session_ctx *
-noit_http_session_ctx_new(noit_http_dispatch_func f, eventer_t e) {
+noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e) {
   noit_http_session_ctx *ctx;
   ctx = calloc(1, sizeof(*ctx));
   ctx->req.complete = noit_false;
   ctx->conn.e = e;
   ctx->dispatcher = f;
+  ctx->dispatcher_closure = c;
   ctx->drive = noit_http_session_drive;
   return ctx;
 }
@@ -425,6 +473,10 @@ noit_http_response_option_set(noit_http_session_ctx *ctx, u_int32_t opt) {
       (NOIT_HTTP_GZIP | NOIT_HTTP_DEFLATE)) ==
         (NOIT_HTTP_GZIP | NOIT_HTTP_DEFLATE))
     return noit_false;
+
+  /* Check out "accept" set */
+  if(!(opt & ctx->req.opts)) return noit_false;
+
   ctx->res.output_options |= opt;
   if(ctx->res.output_options & NOIT_HTTP_CHUNKED)
     CTX_ADD_HEADER("Transfer-Encoding", "chunked");
@@ -539,6 +591,15 @@ _http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
   if(opts & NOIT_HTTP_GZIP) {
   }
   else if(opts & NOIT_HTTP_DEFLATE) {
+    uLongf olen;
+    olen = out->allocd - out->start;
+    if(Z_OK != compress2((Bytef *)(out->buff + out->start), &olen,
+                         (Bytef *)(in->buff + in->start), (uLong)in->size,
+                         9)) {
+      noitL(noit_error, "zlib compress2 error\n");
+      return noit_false;
+    }
+    out->size += olen;
   }
   else {
     if(in->size > out->allocd - out->start) return noit_false;
@@ -562,7 +623,10 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   while(ilen) { ilen >>= 4; hexlen++; }
   if(hexlen == 0) hexlen = 1;
 
-  out = bchain_alloc(hexlen + 4 + in->size);
+  ilen = in->size;
+  if(opts & NOIT_HTTP_GZIP) ilen = compressBound(ilen);
+  else if(opts & NOIT_HTTP_DEFLATE) ilen = compressBound(ilen);
+  out = bchain_alloc(hexlen + 4 + ilen);
   /* if we're chunked, let's give outselved hexlen + 2 prefix space */
   if(opts & NOIT_HTTP_CHUNKED) out->start = hexlen + 2;
   if(_http_encode_chain(out, in, opts) == noit_false) {
