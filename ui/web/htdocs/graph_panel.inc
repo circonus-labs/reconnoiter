@@ -14,19 +14,23 @@ var color_sel = 0;
 var locked = true;
 		
 function lock_forms() {
-	$("input[@type='text']").attr("disabled", "true");
-        $("input[@type='checkbox']").attr("disabled", "true");
-        $("input[@type='radio']").attr("disabled", "true");
-	$("select").attr("disabled", "true");
+	$("input[@name='math1']").attr("disabled", "true");
+	$("input[@name='math2']").attr("disabled", "true");
+        $("input[@name='view']").attr("disabled", "true");
+        $("input[@class='graphType']").attr("disabled", "true");
+	$("select[@name='derive']").attr("disabled", "true");
+
 	$("h2#graphTitle").unbind();
 	$(".datatitle").unbind();
 }
 
 function unlock_forms() {
-        $("input[@type='text']").removeAttr("disabled");
-        $("input[@type='checkbox']").removeAttr("disabled");
-        $("input[@type='radio']").removeAttr("disabled");
-        $("select").removeAttr("disabled");
+
+	$("input[@name='math1']").removeAttr("disabled");
+	$("input[@name='math2']").removeAttr("disabled");
+        $("input[@name='view']").removeAttr("disabled");
+        $("input[@class='graphType']").removeAttr("disabled");
+	$("select[@name='derive']").removeAttr("disabled");
 
 	$("h2#graphTitle").editable(function(value, settings) { 
            graphinfo.title = value;
@@ -236,7 +240,12 @@ function fetch_graph_info(id) {
     if(graphinfo.saved) set_current_graph_id('');
     else if(graphinfo.saved!=undefined && graphinfo.saved==false) {
     	 confirm("I will forget the current graph.  Are you sure?", function() {
-       	     set_current_graph_id('');
+             $.getJSON('json/graph/forget/' + graphinfo.id,
+	       function (r) {
+	         if(r.error) alert(r.error);
+                 else set_current_graph_id('');
+	       });
+
 	 });
     }
     return false;

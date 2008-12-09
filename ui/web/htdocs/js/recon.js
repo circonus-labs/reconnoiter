@@ -274,8 +274,8 @@ function graphs_for_edit(li, g, params) {
           $.getJSON('json/graph/forget/' + graphid,
             function (r) {
               if(r.error) { alert(r.error); }
-              else {
-                perform_graph_search(params);
+              else { 
+                perform_graph_search_edit(params);
               }
             });
           return false;
