@@ -3,8 +3,37 @@
 <script type="text/javascript" src="js/eye/utils.js"></script>
 <script type="text/javascript">
 <!--
+
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
 var wsinfo = {};
+var locked = true;
+
+function lock_wforms() {
+  $("h2#worksheetTitle").unbind();
+  $("ul#worksheet-graphs").unbind();
+}
+	 
+function unlock_wforms() {
+  $("h2#worksheetTitle").editable(function(value, settings) {
+         wsinfo.title = value;
+         update_current_worksheet();
+         return(value);
+       }, { });
+
+  var ul = $("ul#worksheet-graphs");
+  ul.sortable({ handle: '.graphTitle',
+                scroll: true,
+                stop:
+                  function (e,ui) {
+                    wsinfo.graphs = new Array();
+                    ui.item.parent().find("> li > div").each(
+                      function(i) { wsinfo.graphs.push($(this).attr("id")); }
+                    );
+                    update_current_worksheet();
+                  }
+              });
+}	    
+
 function update_current_worksheet(f) {
   var str = JSON.stringify(wsinfo);
   $.post("json/worksheet/store",
@@ -15,6 +44,7 @@ function update_current_worksheet(f) {
            else $("#ws-tool-error").fadeOut('fast');
            if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
               $(".rememberWorksheet:visible").length == 0) {
+             wsinfo.saved = false;
              $(".rememberWorksheet").html('"Remember" this worksheet.').fadeIn('slow');
              $(".rememberWorksheet").click(function() {
                wsinfo.saved = true;
@@ -47,19 +77,25 @@ function process_worksheet_json(r) {
   ul.sortable("refresh");
 }
 function add_graph_to_worksheet(graphid) {
-  var g = { start: ws_displayinfo.start,
-            end: ws_displayinfo.end,
-            cnt: ws_displayinfo.cnt,
-            graphid: graphid };
-  var o = $('<div></div>').ReconGraph( g );
-  var ul = $("ul#worksheet-graphs");
-  ul.append($('<li/>').append(o));
-  o.ReconGraphRefresh();
-  ul.sortable("refresh");
-  if(!wsinfo.graphs) wsinfo.graphs = new Array();
-alert('pushing ' + graphid);
-  wsinfo.graphs.push(graphid);
-  update_current_worksheet();
+  if(!locked){
+    var g = { start: ws_displayinfo.start,
+              end: ws_displayinfo.end,
+              cnt: ws_displayinfo.cnt,
+              graphid: graphid };
+    var o = $('<div></div>').ReconGraph( g );
+    var ul = $("ul#worksheet-graphs");
+    ul.append($('<li/>').append(o));
+    o.ReconGraphRefresh();
+    ul.sortable("refresh");
+    if(!wsinfo.graphs) {
+      wsinfo.graphs = new Array();
+      alert('no graphs in add queue');
+    }
+    alert('pushing ' + graphid);
+    wsinfo.graphs.push(graphid);
+    update_current_worksheet();
+  }
+
 }
 function refresh_worksheet() {
   var g = { start: ws_displayinfo.start,
@@ -68,12 +104,26 @@ function refresh_worksheet() {
   $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
 }
 function load_worksheet(id) {
-  $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
+  if(id==null) {
+    wsinfo.saved = false;
+    locked = false;
+    unlock_wforms();
+    $(".editWorksheet").html('Editing!').fadeIn('slow');
+    process_worksheet_json({graphs: [], title:'Worksheet Title (click to edit)', sheetid: ''});
+  }
+  else {
+    wsinfo.saved = true;
+    locked = true;
+    lock_wforms();
+    $(".editWorksheet").html('Edit Worksheet').fadeIn('slow');
+    $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
+  }
 }
 -->
 </script>
 <span class="rememberWorksheet"></span>
 <span class="blankWorksheet">New Blank</span>
+<span class="editWorksheet">Edit Worksheet</span>
 <h2 id="worksheetTitle">Worksheet Title</h2>
 <p/>
 <!-- date range box -->
@@ -86,11 +136,32 @@ $(document).ready(function(){
                              '1y' : 86400*365,
                            };
         var state = false;
-        $("h2#worksheetTitle").editable(function(value, settings) {
-          wsinfo.title = value;
-          update_current_worksheet();
-          return(value);
-        }, { });
+
+	$("h2#worksheetTitle").editable(function(value, settings) {
+         wsinfo.title = value;
+         update_current_worksheet();
+         return(value);
+       }, { });
+
+	$(".editWorksheet").click(function() {		
+	        if(locked){
+		    locked = false;		    
+		    unlock_wforms();
+		    $(".editWorksheet").html('Editing!').fadeIn('slow');
+		}
+		else if(!locked){
+		    locked = true;	
+		    lock_wforms();
+                    $(".editWorksheet").html('Edit Worksheet').fadeIn('slow');
+		}
+	});
+
+
+	$(".blankWorksheet").click(function() {
+		load_worksheet();		
+		alert("id = "+wsinfo.id);
+	});
+
         $("#ws_datetool .btn-slide").click(function(){
                 $("#ws_widgetCalendar").stop().animate({
                      height: state ? 0 :
@@ -133,18 +204,7 @@ $(document).ready(function(){
         $("#ws-tool-error").click(function(){
           $("#ws-tool-error").fadeOut("slow");
         });
-  var ul = $("ul#worksheet-graphs");
-  ul.sortable({ handle: '.graphTitle',
-                scroll: true,
-                stop:
-                  function (e,ui) {
-                    wsinfo.graphs = new Array();
-                    ui.item.parent().find("> li > div").each(
-                      function(i) { wsinfo.graphs.push($(this).attr("id")); }
-                    );
-                    update_current_worksheet();
-                  }
-              });
+
 });
 </script>
 

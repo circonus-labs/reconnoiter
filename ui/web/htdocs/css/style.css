@@ -790,6 +790,14 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
+span.editWorksheet {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
+font-weight: bold;
+color:#660000;
+}
 
 span.rememberGraph {
 border:1px solid #DDDDDD;
