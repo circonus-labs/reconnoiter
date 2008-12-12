@@ -358,6 +358,7 @@ class Reconnoiter_DB {
     return $a;
   }
   function saveWorksheet($ws) {
+
     $id = '';
     if($ws['id']) {
       $id = $ws['id'];
@@ -372,9 +373,13 @@ class Reconnoiter_DB {
                                     where sheetid=?");
         $sth->execute(array($ws['title'],$ws['saved'],$id));
         if($sth->rowCount() != 1) throw(new Exception('No such worksheet: '.$id));
-        $sth = $this->db->prepare("delete from prism.saved_worksheets_dep
+
+        if($ws['reorder']) {
+          $sth = $this->db->prepare("delete from prism.saved_worksheets_dep
                                     where sheetid=?");
-        $sth->execute(array($id));
+          $sth->execute(array($id));
+        }
+
       }
       else {
         $id = Reconnoiter_UUID::generate();
@@ -384,6 +389,7 @@ class Reconnoiter_DB {
                                         values (?, ?, current_timestamp)");
         $sth->execute(array($id, $ws['title']));
       }
+
       $sth = $this->db->prepare("insert into prism.saved_worksheets_dep
                                              (sheetid, ordering, graphid)
                                       values (?,?,?)");

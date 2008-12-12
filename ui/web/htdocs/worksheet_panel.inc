@@ -25,11 +25,13 @@ function unlock_wforms() {
                 scroll: true,
                 stop:
                   function (e,ui) {
+                    wsinfo.reorder = true;
                     wsinfo.graphs = new Array();
                     ui.item.parent().find("> li > div").each(
                       function(i) { wsinfo.graphs.push($(this).attr("id")); }
                     );
                     update_current_worksheet();
+                    wsinfo.reorder = false;
                   }
               });
 }	    
@@ -87,10 +89,7 @@ function add_graph_to_worksheet(graphid) {
     ul.append($('<li/>').append(o));
     o.ReconGraphRefresh();
     ul.sortable("refresh");
-    if(!wsinfo.graphs) {
-      wsinfo.graphs = new Array();
-      alert('no graphs in add queue');
-    }
+    wsinfo.graphs = new Array();
     alert('pushing ' + graphid);
     wsinfo.graphs.push(graphid);
     update_current_worksheet();
@@ -104,6 +103,7 @@ function refresh_worksheet() {
   $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
 }
 function load_worksheet(id) {
+    wsinfo.graphs = new Array();
   if(id==null) {
     wsinfo.saved = false;
     locked = false;
