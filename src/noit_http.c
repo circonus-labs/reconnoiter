@@ -199,7 +199,7 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
     /* cross bucket */
     if(req->current_input == req->last_input &&
        req->current_offset >= (req->last_input->start + req->last_input->size))
-      return false;
+      return noit_false;
     req->current_offset++;
     inset = req->current_offset - req->current_input->start;
     if(memcmp(req->current_input->buff + req->current_input->start,
@@ -220,7 +220,7 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
     req->current_offset = req->current_input->start;
     goto restart;
   }
-  if(!mstr) return false;
+  if(!mstr) return noit_false;
   req->current_offset = mstr - req->current_input->buff + REQ_PATSIZE;
  match:
   req->current_request_chain = req->first_input;

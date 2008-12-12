@@ -10,7 +10,7 @@
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
 #include "noit_jlog_listener.h"
-#include "noit_listener.h"c
+#include "noit_listener.h"
 #include "noit_http.h"
 
 typedef struct {
@@ -39,7 +39,7 @@ stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
   snprintf(buffer, sizeof(buffer), "<script>reconnoiter_realtime_feed(%lu,'%s','%s','%0.3f');</script>\n",
            e->whence.tv_sec * 1000 + e->whence.tv_usec / 1000, "A-UUID", "metric-name", (float)(rand() % 100000) / 1000.0);
   noit_http_response_append(ctx, buffer, strlen(buffer));
-  noit_http_response_flush(ctx, false);
+  noit_http_response_flush(ctx, noit_false);
 
   e->mask = EVENTER_TIMER;
   e->whence.tv_sec += 0;
@@ -75,7 +75,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);
     noit_http_response_header_set(ctx, "Content-Type", "text/html");
     noit_http_response_append(ctx, c, strlen(c));
-    noit_http_response_flush(ctx, false);
+    noit_http_response_flush(ctx, noit_false);
     stratcon_realtime_ticker(NULL, 0, ctx, NULL);
     rc->setup = 1;
   }
