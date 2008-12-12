@@ -24,12 +24,10 @@ static realtime_context *alloc_realtime_context() {
 int
 stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
                          struct timeval *now) {
-  int f;
   char buffer[100];
   noit_http_session_ctx *ctx = closure;
-  f = rand() % 10;
 
-  if(!f) {
+  if(0) {
     noit_http_response_end(ctx);
     memset(ctx->dispatcher_closure, 0, sizeof(realtime_context));
     if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE);
@@ -38,13 +36,14 @@ stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
 
   eventer_t e = eventer_alloc();
   gettimeofday(&e->whence, NULL);
-  snprintf(buffer, sizeof(buffer), "[%lu] Ticker...<br />\n", e->whence.tv_sec);
+  snprintf(buffer, sizeof(buffer), "<script>reconnoiter_realtime_feed(%lu,'%s','%s','%0.3f');</script>\n",
+           e->whence.tv_sec * 1000 + e->whence.tv_usec / 1000, "A-UUID", "metric-name", (float)(rand() % 100000) / 1000.0);
   noit_http_response_append(ctx, buffer, strlen(buffer));
   noit_http_response_flush(ctx, false);
 
-  fprintf(stderr, " Next tick in %d seconds\n", f);
   e->mask = EVENTER_TIMER;
-  e->whence.tv_sec += f;
+  e->whence.tv_sec += 0;
+  e->whence.tv_usec += 500;
   e->callback = stratcon_realtime_ticker;
   e->closure = closure;
   eventer_add(e);
@@ -65,7 +64,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     return 0;
   }
   if(!rc->setup) {
-    const char *c = "<html><body><div id=\"foo\">Here</div>\n";
+    const char *c = "<html><body>\n";
     noitL(noit_error, "http: %s %s %s\n",
           req->method_str, req->uri_str, req->protocol_str);
     while(noit_hash_next(&req->headers, &iter, &key, &klen, (void **)&value)) {
