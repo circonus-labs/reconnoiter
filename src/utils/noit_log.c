@@ -25,7 +25,7 @@ noit_log_stream_t noit_debug = NULL;
 static int
 posix_logio_open(noit_log_stream_t ls) {
   int fd;
-  fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
+  fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, 0664);
   if(fd < 0) {
     ls->op_ctx = NULL;
     return -1;
