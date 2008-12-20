@@ -76,7 +76,7 @@ static void
 ke_change (register int const ident,
            register int const filter,
            register int const flags,
-           register void *const udata) {
+           register eventer_t e) {
   register struct kevent *kep;
   KQUEUE_DECL;
   KQUEUE_SETUP;
@@ -93,7 +93,7 @@ ke_change (register int const ident,
   }
   kep = &ke_vec[ke_vec_used++];
 
-  EV_SET(kep, ident, filter, flags, 0, 0, udata);
+  EV_SET(kep, ident, filter, flags, 0, 0, (void *)e->fd);
   if(kqs == master_kqs) pthread_mutex_unlock(&kqs_lock);
 }
 
@@ -180,6 +180,7 @@ static eventer_t eventer_kqueue_impl_remove(eventer_t e) {
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     ev_lock_state_t lockstate;
     lockstate = acquire_master_fd(e->fd);
+    noitL(eventer_deb, "kqueue: remove(%d)\n", e->fd);
     if(e == master_fds[e->fd].e) {
       removed = e;
       master_fds[e->fd].e = NULL;
@@ -187,7 +188,8 @@ static eventer_t eventer_kqueue_impl_remove(eventer_t e) {
         ke_change(e->fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
       if(e->mask & (EVENTER_WRITE))
         ke_change(e->fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
-    }
+    } else
+      noitL(eventer_deb, "kqueue: remove(%d) failed.\n", e->fd);
     release_master_fd(e->fd, lockstate);
   }
   else if(e->mask & EVENTER_TIMER) {
@@ -214,6 +216,7 @@ static void eventer_kqueue_impl_update(eventer_t e, int mask) {
     pthread_mutex_unlock(&te_lock);
     return;
   }
+  noitL(eventer_deb, "kqueue: update(%d, %x->%x)\n", e->fd, e->mask, mask);
   /* Disable old, if they aren't active in the new */
   if((e->mask & (EVENTER_READ | EVENTER_EXCEPTION)) &&
      !(mask & (EVENTER_READ | EVENTER_EXCEPTION)))
@@ -237,6 +240,7 @@ static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
   eventer_t eiq = NULL;
   ev_lock_state_t lockstate;
   if(master_fds[fd].e) {
+    noitL(eventer_deb, "kqueue: remove_fd(%d)\n", fd);
     lockstate = acquire_master_fd(fd);
     eiq = master_fds[fd].e;
     master_fds[fd].e = NULL;
@@ -441,8 +445,9 @@ static int eventer_kqueue_impl_loop() {
                    (int)ke->ident, strerror(ke->data));
           continue;
         }
-        e = (eventer_t)ke->udata;
+        assert((int)ke->udata == ke->ident);
         fd = ke->ident;
+        e = master_fds[fd].e;
         /* If we've seen this fd, don't callback twice */
         if(!masks[fd]) continue;
         /* It's possible that someone removed the event and freed it
