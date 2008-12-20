@@ -70,7 +70,7 @@ NAMEPFX = $(NAME)-$(VERS)
 CDEFS = -DHAVE_UDNS_CONFIG_H
 AWK = awk
 
-all: static libudns.o
+all: libudns.o
 
 .SUFFIXES: .c .o .lo
 

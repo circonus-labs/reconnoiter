@@ -91,25 +91,25 @@ struct dns_query {
 
 /* working with dns_query lists */
 
-static __inline void qlist_init(struct dns_qlink *list) {
+static inline void qlist_init(struct dns_qlink *list) {
   list->next = list->prev = (struct dns_query *)list;
 }
 
-static __inline int qlist_isempty(const struct dns_qlink *list) {
+static inline int qlist_isempty(const struct dns_qlink *list) {
   return list->next == (const struct dns_query *)list ? 1 : 0;
 }
 
-static __inline struct dns_query *qlist_first(struct dns_qlink *list) {
+static inline struct dns_query *qlist_first(struct dns_qlink *list) {
   return list->next == (struct dns_query *)list ? 0 : list->next;
 }
 
-static __inline void qlist_remove(struct dns_query *q) {
+static inline void qlist_remove(struct dns_query *q) {
   q->dnsq_link.next->dnsq_link.prev = q->dnsq_link.prev;
   q->dnsq_link.prev->dnsq_link.next = q->dnsq_link.next;
 }
 
 /* insert q between prev and next */
-static __inline void
+static inline void
 qlist_insert(struct dns_query *q,
              struct dns_query *prev, struct dns_query *next) {
   q->dnsq_link.next = next;
@@ -117,22 +117,22 @@ qlist_insert(struct dns_query *q,
   prev->dnsq_link.next = next->dnsq_link.prev = q;
 }
 
-static __inline void
+static inline void
 qlist_insert_after(struct dns_query *q, struct dns_query *prev) {
   qlist_insert(q, prev, prev->dnsq_link.next);
 }
 
-static __inline void
+static inline void
 qlist_insert_before(struct dns_query *q, struct dns_query *next) {
   qlist_insert(q, next->dnsq_link.prev, next);
 }
 
-static __inline void
+static inline void
 qlist_add_tail(struct dns_query *q, struct dns_qlink *top) {
   qlist_insert_before(q, (struct dns_query *)top);
 }
 
-static __inline void
+static inline void
 qlist_add_head(struct dns_query *q, struct dns_qlink *top) {
   qlist_insert_after(q, (struct dns_query *)top);
 }
@@ -384,7 +384,7 @@ _dns_request_utm(struct dns_ctx *ctx, time_t now) {
   ctx->dnsc_utmexp = deadline;
 }
 
-static __inline void
+static inline void
 dns_request_utm(struct dns_ctx *ctx, time_t now) {
   if (ctx->dnsc_utmfn)
     _dns_request_utm(ctx, now);
