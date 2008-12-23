@@ -7,10 +7,14 @@ class Reconnoiter_DataSet extends Reconnoiter_RPN {
   protected $expr;
   protected $default_attr;
   protected $groupname;
+  protected $derive;
   function __construct($uuid, $name, $derive, $expr, $start, $end, $cnt = 400) {
     $db = Reconnoiter_DB::getDB();
     $pgd = 'false';
     $this->default_attr = 'avg_value';
+
+    $this->derive = $derive;
+
     if($derive == 'derive' || $derive == 'true') {
       $pgd = 'true';
     }
@@ -32,6 +36,9 @@ class Reconnoiter_DataSet extends Reconnoiter_RPN {
   }
   function expression() {
     return $this->expr;
+  }
+  function derive_val() {
+    return $this->derive;
   }
   function data($ts, $attr = NULL) {
     if(!isset($attr)) $attr = $this->default_attr;

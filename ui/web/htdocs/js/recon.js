@@ -24,9 +24,77 @@ function dump(arr,level) {
 	return dumped_text;
 }
 
+function rpn_eval(value, expr) {
+  s = [];
+  ops = expr.split(",");
+  s.unshift(value)
+
+  for (i = 0; i < ops.length; i++) {
+	op = ops[i];
+
+    switch(op) {
+      case 'ln':
+        s.unshift(Math.log(s.shift())); break;
+      case 'round':
+        r = s.shift();
+        l = s.shift();
+        s.unshift(Math.round(l, r));
+        break;
+      case 'floor':
+        s.unshift(Math.floor(s.shift())); break;
+      case 'ceil':
+        s.unshift(Math.ceil(s.shift())); break;
+      case 'log':
+        r = s.shift();
+        l = s.shift();
+        s.unshift(Math.log(l, r));
+        break;
+      case 'e':
+        s.unshift(Math.exp(1)); break;
+      case 'pi':
+        s.unshift(Math.pi()); break;
+      case '^':
+        r = s.shift();
+        l = s.shift();
+        s.unshift(Math.pow(l, r));
+        break;
+      case '-':
+        r = s.shift();
+        l = s.shift();
+        s.unshift(l - r);
+        break;
+      case '/':
+        r = s.shift();
+        l = s.shift();
+        s.unshift(l / r);
+        break;
+      case '.':
+        s.unshift(s[s.shift()]); break;
+      case '+':
+        s.unshift(s.shift() + s.shift()); break;
+      case '*':
+        s.unshift(s.shift() * s.shift()); break;
+      // Not implemented
+      // case 'auto':
+      //   s.unshift( $this->autounits(s.shift())); break;
+      case 'min':
+        s.unshift(min(s.shift(),s.shift())); break;
+      case 'max':
+        s.unshift(max(s.shift(),s.shift())); break;
+      default:
+        if(op.match(/^-?\d+$/)) {
+          s.unshift(op);
+        }
+    }
+  }
+  value = s.shift();
+  return value;
+}
+
 (function ($) {
   var ReconGraph = function() {
     var displayinfo = { start : 14*86400, end: '', width: 380, height: 180 };
+    var doptions, dplaceholder, ddata;
     return {
       init:
         function(options) {
@@ -59,7 +127,52 @@ function dump(arr,level) {
           this.data('__recon', this);
           return this;
         },
-      refresh:
+      clear:
+	function () {
+            for(var i=0; i<ddata.length;i++) {      	   
+                    ddata[i].data = [];
+	    }
+           this.flot_plot.setData({});       
+           this.flot_plot.setupGrid();
+           this.flot_plot.draw();                         
+           return this;
+	},
+     plotPoint:
+        function (uuid, metric_name, xdata, ydata) {
+	    tdata = [xdata, ydata.toString()];
+
+	    for(var i=0; i<ddata.length;i++) {
+		if( !ddata[i].hidden && (ddata[i].uuid_name ==  (uuid+"-"+metric_name)) ) {
+
+		    if(ddata[i].data.length>0) ddata[i].lastval = ddata[i].data[0];
+		    if(ddata[i].lastval) {
+			slope = (tdata[0] - ddata[i].lastval[0]) / (tdata[1] - ddata[i].lastval[1]); 		     
+			if(ddata[i].derive_val == 'derive') {
+			    tdata[1] = slope;
+			}
+			else if(ddata[i].derive_val == 'counter') {
+			    if(slope>=0) tdata[1] = tdata[1] - ddata[i].lastval[1];
+			    else tdata[1] = '';
+			}
+		    } //end if there was a previous value available
+		    
+		    if(tdata[1]!=''){
+			if(ddata[i].reconnoiter_source_expression) {
+			    tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression);
+			}
+			if(ddata[i].reconnoiter_display_expression) {
+			    tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression);
+			}
+			if(ddata[i].data.unshift(tdata) >70) {
+			    ddata[i].data.pop();
+			}
+		    } //end if ydata was a number
+		} //end if the uuid and metric_name match
+	    } //end for each dataset
+	    this.flot_plot = $.plot(dplaceholder, ddata, doptions);
+	    return this;
+	},
+    refresh:
         function(options) {
           if(this.length > 1) {
             this.each(function(i) { $(this).ReconGraphRefresh(options); });
@@ -102,7 +215,9 @@ function dump(arr,level) {
             r.options.yaxis.tickFormatter = function (val, axis) {
               return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
             };
-
+          doptions = r.options;
+          dplaceholder = placeholder;
+          ddata = r.data;
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
 
           var hovering;
@@ -170,7 +285,9 @@ function dump(arr,level) {
                 ReconGraphRefresh: ReconGraph.refresh,
                 ReconGraphPlot: ReconGraph.plot,
                 ReconGraphReset: ReconGraph.reset,
-                ReconGraphMacro: ReconGraph.macro
+	      ReconGraphMacro: ReconGraph.macro,
+              ReconGraphClear: ReconGraph.clear,
+              ReconGraphPlotPoint: ReconGraph.plotPoint
               });
 })(jQuery);
 

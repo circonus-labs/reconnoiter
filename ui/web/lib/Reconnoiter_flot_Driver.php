@@ -32,8 +32,9 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'dataname' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
+        'derive_val' => $set->derive_val(),
+        'uuid_name' => $name,
       );
-      
       $show_set = ($this->sets_config[$name]['hidden'] != "true") ? 1: 0;
       if($show_set) {
         $ds['label'] = $ds['dataname'];
