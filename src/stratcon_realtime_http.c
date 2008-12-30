@@ -24,7 +24,7 @@ static realtime_context *alloc_realtime_context() {
 int
 stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
                          struct timeval *now) {
-  char buffer[100];
+  char buffer[1024];
   noit_http_session_ctx *ctx = closure;
 
   if(0) {
@@ -36,14 +36,16 @@ stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
 
   eventer_t e = eventer_alloc();
   gettimeofday(&e->whence, NULL);
-  snprintf(buffer, sizeof(buffer), "<script>reconnoiter_realtime_feed(%lu,'%s','%s','%0.3f');</script>\n",
-           e->whence.tv_sec * 1000 + e->whence.tv_usec / 1000, "A-UUID", "metric-name", (float)(rand() % 100000) / 1000.0);
+
+  snprintf(buffer, sizeof(buffer), "<script>window.parent.plot_iframe_data('%lu','%s','%0.3f','%lu');</script>\n",
+           (unsigned long)1179, "allocator_requests", (float)(rand() % 100000) / 1000.0,
+           e->whence.tv_sec * 1000 + e->whence.tv_usec / 100);
   noit_http_response_append(ctx, buffer, strlen(buffer));
   noit_http_response_flush(ctx, noit_false);
 
   e->mask = EVENTER_TIMER;
   e->whence.tv_sec += 0;
-  e->whence.tv_usec += 500;
+  e->whence.tv_usec += 500000;
   e->callback = stratcon_realtime_ticker;
   e->closure = closure;
   eventer_add(e);
@@ -64,7 +66,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     return 0;
   }
   if(!rc->setup) {
-    const char *c = "<html><body>\n";
+    char c[1024];
     noitL(noit_error, "http: %s %s %s\n",
           req->method_str, req->uri_str, req->protocol_str);
     while(noit_hash_next(&req->headers, &iter, &key, &klen, (void **)&value)) {
@@ -72,10 +74,16 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     }
     noit_http_response_status_set(ctx, 200, "OK");
     noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED);
-    noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);
+/*    noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE); */
     noit_http_response_header_set(ctx, "Content-Type", "text/html");
+
+    snprintf(c, sizeof(c), "<html><head><script>document.domain='omniti.com';</script></head><body>\n");
     noit_http_response_append(ctx, c, strlen(c));
+
+    memset(c, ' ', 1024);
+    noit_http_response_append(ctx, c, sizeof(c));
     noit_http_response_flush(ctx, noit_false);
+
     stratcon_realtime_ticker(NULL, 0, ctx, NULL);
     rc->setup = 1;
   }
