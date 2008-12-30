@@ -46,20 +46,37 @@ function unlock_forms() {
         }, { }); 
 }
 
+function plot_iframe_data(uuid, metric_name, ydata, xdata) {
+maingraph.ReconGraphPlotPoint(uuid, metric_name, xdata, ydata);
+}
+
 
 function stream_data() {
-        maingraph.ReconGraphClear();
-//    while(streaming){
-        var starty = 124688.366; 
-        var startx = 1228737600000;
-        for(var i=0; i<10; i++){
-           startx+=10000000;
-           starty += 10000*i;
-	   maingraph.ReconGraphPlotPoint('412', 'average', startx, starty);
-	   maingraph.ReconGraphPlotPoint('313', 'average', startx, starty);
-	   maingraph.ReconGraphPlotPoint('1179', 'allocator_requests', startx, starty);
-        }
-  //  }
+
+/*
+maingraph.modal({
+  containerId: 'StreamingModalContainer',
+  close: 'true',
+  overlayCss: {
+    backgroundColor: '#000000',
+    cursor: 'wait'
+  },
+  containerCss: {
+   backgroundColor: '#FFFFFF',
+   left: '30%',
+   top: '10%',
+   border: '2px solid #000000',
+   padding: '5px'
+  },
+});
+
+maingraph.ReconGraphClear();
+$('#streambox').html('<iframe src="http://postgres83dev.office.omniti.com/reconnoiter/chunked.html"></iframe>');
+*/
+
+maingraph.ReconGraphClear();
+$('#streambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
+
 }
 function set_current_graph_id(id) {
   $(".rememberGraph").fadeOut('fast');
@@ -410,6 +427,7 @@ $(document).ready(function(){
 		<div class="no modalClose">No</div><div class="yes">Yes</div>
 	</div>
 </div>
+<div id="streambox" style="display:none"></div>
 
 <div>
 	<div id="maingraphHolder">

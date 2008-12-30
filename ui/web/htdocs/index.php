@@ -7,6 +7,7 @@
 <link href="css/datepicker.css" rel="stylesheet" type="text/css" />
 <link href="css/colorpicker.css" rel="stylesheet" type="text/css" />
 <link rel="icon" type="image/vnd.microsoft.icon" href="images/favicon.ico" />
+<script>document.domain='omniti.com';</script>
 <script src="js/htmlentities.js"></script>
 <script src="js/json2.js"></script>
 <script src="js/jquery.min.js"></script>
