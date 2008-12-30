@@ -651,6 +651,10 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
       ilen >>= 4;
       hexlen--;
     }
+    while(out->buff[out->start] == '0') {
+      out->start++;
+      out->size--;
+    }
   }
   return out;
 }
