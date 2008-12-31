@@ -4,9 +4,11 @@ class Reconnoiter_ChangeSet {
   public $data;
   protected $last_value;
   protected $groupname;
+  protected $derive;
 
   function __construct($uuid, $name, $start, $end, $cnt = 400) {
     $db = Reconnoiter_DB::getDB();
+    $this->derive = $derive;
     $this->data = $db->get_var_for_window($uuid, $name, $start, $end, $cnt);
     $last = end($this->data);
     if($last) $this->last_value = $last['value'];
@@ -28,5 +30,8 @@ class Reconnoiter_ChangeSet {
     return $this->last_value;
   }
   function expression() { return ''; }
+  function derive_val() {
+    return $this->derive;
+  }
 }
 
