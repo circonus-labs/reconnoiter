@@ -39,7 +39,7 @@ stratcon_realtime_ticker(eventer_t old, int mask, void *closure,
 
   snprintf(buffer, sizeof(buffer), "<script>window.parent.plot_iframe_data('%lu','%s','%0.3f','%lu');</script>\n",
            (unsigned long)1179, "allocator_requests", (float)(rand() % 100000) / 1000.0,
-           e->whence.tv_sec * 1000 + e->whence.tv_usec / 100);
+           e->whence.tv_sec * 1000 + e->whence.tv_usec / 1000);
   noit_http_response_append(ctx, buffer, strlen(buffer));
   noit_http_response_flush(ctx, noit_false);
 
