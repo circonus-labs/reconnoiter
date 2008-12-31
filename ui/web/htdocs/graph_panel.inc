@@ -53,7 +53,6 @@ maingraph.ReconGraphPlotPoint(uuid, metric_name, xdata, ydata);
 
 function stream_data() {
 
-/*
 maingraph.modal({
   containerId: 'StreamingModalContainer',
   close: 'true',
@@ -71,11 +70,8 @@ maingraph.modal({
 });
 
 maingraph.ReconGraphClear();
-$('#streambox').html('<iframe src="http://postgres83dev.office.omniti.com/reconnoiter/chunked.html"></iframe>');
-*/
-
-maingraph.ReconGraphClear();
 $('#streambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
+//$('#streambox').html('<iframe src="http://postgres83dev.office.omniti.com/reconnoiter/chunked.html"></iframe>');
 
 }
 function set_current_graph_id(id) {
@@ -375,7 +371,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
-                        maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type});
+                        maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: displayinfo.start, end: displayinfo.end, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }
         });
