@@ -398,7 +398,7 @@ noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
   noit_hash_table *delegation_table;
   if(!noit_hash_retrieve(&listener_commands,
                          (char *)&listener_dispatch, sizeof(listener_dispatch),
-                         (void **)delegation_table)) {
+                         (void **)&delegation_table)) {
     delegation_table = calloc(1, sizeof(*delegation_table));
     handler_copy = malloc(sizeof(*handler_copy));
     *handler_copy = listener_dispatch;
