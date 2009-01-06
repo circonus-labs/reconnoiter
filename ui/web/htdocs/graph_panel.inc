@@ -2,6 +2,7 @@
 <script type="text/javascript" src="js/eye/colorpicker.js"></script>
 <script type="text/javascript" src="js/eye/eye.js"></script>
 <script type="text/javascript" src="js/eye/utils.js"></script>
+<script type="text/javascript" src="js/jquery.timers.js"></script>
 <script type="text/javascript">
 <!--
 var maingraph;
@@ -12,7 +13,7 @@ var displayinfo = { start : 14*86400, cnt: '', end: '' };
 var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
 var color_sel = 0;
 var locked = true;
-var streaming = false;
+var gstreaming = false;
 		
 function lock_forms() {
 	$("input[@name='math1']").attr("disabled", "true");
@@ -46,32 +47,31 @@ function unlock_forms() {
         }, { }); 
 }
 
-function plot_iframe_data(uuid, metric_name, ydata, xdata) {
-maingraph.ReconGraphPlotPoint(uuid, metric_name, xdata, ydata);
+
+function graph_stream_data() {
+
+stream_object = maingraph;
+stream_dirty = false;
+maingraph.ReconGraphClear();
+
+sids = ""; 
+for(var i=0; i<graphinfo.datapoints.length; i++) {
+    sids+= graphinfo.datapoints[i].sid+",";
 }
 
-
-function stream_data() {
-
-maingraph.modal({
-  containerId: 'StreamingModalContainer',
-  close: 'true',
-  overlayCss: {
-    backgroundColor: '#000000',
-    cursor: 'wait'
-  },
-  containerCss: {
-   backgroundColor: '#FFFFFF',
-   left: '30%',
-   top: '10%',
-   border: '2px solid #000000',
-   padding: '5px'
-  },
+maingraph.everyTime(1000, function() {
+    if(!gstreaming) {   maingraph.stopTime();}
+    else {
+    if(stream_dirty){
+        maingraph.ReconGraphPlotPoints();     
+        stream_dirty=false;
+   }
+}
 });
+//var tstep = 0;
+//maingraph.everyTime(250, function () { tstep++; plot_iframe_data(1179, 'allocator_requests', tstep*tstep, tstep*250000);});
 
-maingraph.ReconGraphClear();
-$('#streambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
-//$('#streambox').html('<iframe src="http://postgres83dev.office.omniti.com/reconnoiter/chunked.html"></iframe>');
+$('#gstreambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
 
 }
 function set_current_graph_id(id) {
@@ -79,7 +79,7 @@ function set_current_graph_id(id) {
   if(id!='')  {
     graphinfo.saved = true;
     locked = true;
-    streaming = false;
+    gstreaming = false;
     lock_forms();
     $(".editGraph").html('Edit Graph').fadeIn('slow');    
     $(".streamData").html('Stream Data').fadeIn('slow');
@@ -95,8 +95,7 @@ function set_current_graph_id(id) {
 var recurse = 0;
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
-
-  streaming = false;
+  gstreaming = false;
   $(".streamData").html('Stream Data').fadeIn('slow');
 
   var str = JSON.stringify(graphinfo);
@@ -293,7 +292,7 @@ function fetch_graph_info(id) {
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
 <span class="editGraph">Edit Graph</span>
-<span class="streamData">Stream Data</span>
+<span class="streamData ">Stream Data</span>
 <h2 id="graphTitle"></h2>
 <!-- date range box -->
 <script type="text/javascript">
@@ -324,15 +323,17 @@ $(document).ready(function(){
 
 
         $(".streamData").click(function() {
-               if(!locked) {            
-                    if(!streaming) {
-                        streaming = true;
-	  	        stream_data();
-		        $(".streamData").html('Streaming!').fadeIn('slow');
+
+               if(!locked && graphinfo.id) {            
+                    if(!gstreaming) {
+                        gstreaming = true;
+		        $(this).html('Streaming!').fadeIn('slow');
+	  	        graph_stream_data();
                     }
-                    else if(streaming) {
-                        streaming = false;
-                        $(".streamData").html('Stream Data').fadeIn('slow');
+                    else if(gstreaming) {
+                        gstreaming = false;
+                        $('#gstreambox').html('');
+                        $(this).html('Stream Data').fadeIn('slow');
                         update_current_graph(true);
                     }
 		}
@@ -423,7 +424,7 @@ $(document).ready(function(){
 		<div class="no modalClose">No</div><div class="yes">Yes</div>
 	</div>
 </div>
-<div id="streambox" style="display:none"></div>
+<div id="gstreambox" style="display:none"></div>
 
 <div>
 	<div id="maingraphHolder">

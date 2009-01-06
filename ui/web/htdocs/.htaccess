@@ -6,6 +6,7 @@ RewriteRule ^json/templates/([^/]+)/([^/]+)/([^/]+)$ template_browse_json.php?l1
 RewriteRule ^json/worksheet/info/([^/]*)$ worksheet_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/worksheet/store$ worksheet_store.php [PT,QSA]
 RewriteRule ^json/worksheet/search$ worksheet_search_json.php [PT,QSA]
+RewriteRule ^json/worksheet/deletegraph/([^/]+)/([^/]+)$ worksheet_graph_delete.php?wid=$1&gid=$2 [PT,QSA]
 RewriteRule ^json/graph/info/([^/]*)$ graph_info.php?id=$1 [PT,QSA]
 RewriteRule ^json/graph/store$ graph_store.php [PT,QSA]
 RewriteRule ^json/graph/forget/([^/]*)$ graph_delete.php?id=$1 [PT,QSA]

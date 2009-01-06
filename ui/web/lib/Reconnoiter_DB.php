@@ -413,6 +413,11 @@ class Reconnoiter_DB {
     $row = $sth->fetch();
     return $row;
   }
+  function deleteWorksheetGraph($ws_id, $graphid) {
+    $sth = $this->db->prepare("delete from prism.saved_worksheets_dep 
+                                      where sheetid=? and graphid=?");
+    $sth->execute(array($ws_id, $graphid));
+  }
   function deleteGraph($id) {
     $sth = $this->db->prepare("delete from prism.saved_graphs
                                      where graphid=?");

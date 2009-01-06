@@ -1,3 +1,13 @@
+//global objects to use for calling plot_ifram_data from stream
+var stream_object;
+var stream_dirty;
+
+//set the global streaming object to the local ReconGraph object to use,
+// and init,update the global streaming boolean to then call this from a server
+function plot_iframe_data(uuid, metric_name, ydata, xdata) {
+  stream_object.ReconGraphAddPoint(uuid, metric_name, xdata, ydata);
+  stream_dirty = true;
+}
 
 function dump(arr,level) {
 	var dumped_text = "";
@@ -128,16 +138,18 @@ function rpn_eval(value, expr) {
           return this;
         },
       clear:
-	function () {
-            for(var i=0; i<ddata.length;i++) {      	   
+	function () {                      
+	    if(this.flot_plot) {
+		for(var i=0; i<ddata.length;i++) {      	   
                     ddata[i].data = [];
-	    }
-           this.flot_plot.setData({});       
-           this.flot_plot.setupGrid();
-           this.flot_plot.draw();                         
-           return this;
+		}		
+		this.flot_plot.setData({});       
+		this.flot_plot.setupGrid();
+		this.flot_plot.draw();                         
+	    }		
+	    return this;
 	},
-     plotPoint:
+     AddPoint:
         function (uuid, metric_name, xdata, ydata) {
 	    tdata = [xdata, ydata.toString()];
 
@@ -168,9 +180,13 @@ function rpn_eval(value, expr) {
 			}
 		    } //end if ydata was a number
 		} //end if the uuid and metric_name match
-	    } //end for each dataset
-	    this.flot_plot = $.plot(dplaceholder, ddata, doptions);
+	    } //end for each dataset	    
 	    return this;
+	},
+    PlotPoints:
+        function () {
+            this.flot_plot = $.plot(dplaceholder, ddata, doptions);
+            return this;
 	},
     refresh:
         function(options) {
@@ -219,7 +235,6 @@ function rpn_eval(value, expr) {
           dplaceholder = placeholder;
           ddata = r.data;
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
-
           var hovering;
           placeholder.bind("plothover", function (event, pos, item) {
             if(hovering) plot.unhighlight(hovering.series, hovering.datapoint);
@@ -287,7 +302,8 @@ function rpn_eval(value, expr) {
                 ReconGraphReset: ReconGraph.reset,
 	      ReconGraphMacro: ReconGraph.macro,
               ReconGraphClear: ReconGraph.clear,
-              ReconGraphPlotPoint: ReconGraph.plotPoint
+              ReconGraphAddPoint: ReconGraph.AddPoint,
+              ReconGraphPlotPoints: ReconGraph.PlotPoints
               });
 })(jQuery);
 
@@ -388,6 +404,7 @@ function graphs_for_edit(li, g, params) {
   del.click(
     (function(graphid, li) {
         return function() {
+	    confirm("I will forget the current graph.  Are you sure?", function(){
           $.getJSON('json/graph/forget/' + graphid,
             function (r) {
               if(r.error) { alert(r.error); }
@@ -395,10 +412,11 @@ function graphs_for_edit(li, g, params) {
                 perform_graph_search_edit(params);
               }
             });
+		});		
           return false;
         }
-     })(g.graphid, li)
-  );
+    })(g.graphid, li)
+	    );
   var ul = $('<ul/>');
   ul.append($('<li/>').html(g.last_update));
   ul.append($('<li/>').append(edit));

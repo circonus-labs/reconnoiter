@@ -679,6 +679,10 @@ width:380px;
 height:400px;
 width:780px;
 }
+#StreamingModalContainer div.plot-area{
+height:400px;
+width:780px;
+}
 #maingraph div.plot-area div.centered {
 display:table-cell;
 text-align:center;
@@ -782,7 +786,23 @@ float:right;
 margin-left:4px;
 padding:0 4px;
 }
+span.zoomClose {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
+font-weight: bold;
+color:#660000;
+}
 span.streamData {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
+font-weight: bold;
+color:#660000;
+}
+span.zoomStream {
 border:1px solid #DDDDDD;
 float:right;
 margin-left:4px;
@@ -806,7 +826,20 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
-
+span.deleteWorksheetGraph {
+border: 1px solid #DDDDDD;
+margin: 10px;
+float: right;
+font-weight: bold;
+color:#660000;
+}
+span.zoomGraph {
+border: 1px solid #DDDDDD;
+margin: 10px;
+float: right;
+font-weight: bold;
+color:#660000;
+}
 span.rememberGraph {
 border:1px solid #DDDDDD;
 display:none;

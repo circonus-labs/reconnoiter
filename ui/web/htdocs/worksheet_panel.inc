@@ -1,12 +1,33 @@
 <script type="text/javascript" src="js/eye/datepicker.js"></script>
 <script type="text/javascript" src="js/eye/eye.js"></script>
 <script type="text/javascript" src="js/eye/utils.js"></script>
+<script type="text/javascript" src="js/jquery.timers.js"></script>
 <script type="text/javascript">
 <!--
 
 var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
 var wsinfo = {};
 var locked = true;
+var streaming = false;
+var stream_graph;
+
+function stream_data() {
+  stream_object = stream_graph;
+  stream_dirty = false;
+  stream_graph.ReconGraphClear();
+
+//setup functionality so that every second check if we are streaming and dirty, plot if true
+  stream_graph.everyTime(1000, function() {
+    if(!streaming) {   stream_graph.stopTime();}
+    else {
+      if(stream_dirty){
+        stream_graph.ReconGraphPlotPoints();     
+        stream_dirty=false;
+      }
+    }
+  });
+  $('#streambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
+}
 
 function lock_wforms() {
   $("h2#worksheetTitle").unbind();
@@ -34,6 +55,87 @@ function unlock_wforms() {
                     wsinfo.reorder = false;
                   }
               });
+
+  $("ul#worksheet-graphs > li >div").each(
+  function(i) { 
+                    var g = { start: ws_displayinfo.start,
+                      end: ws_displayinfo.end,
+                      cnt: ws_displayinfo.cnt,
+                      graphid:  $(this).attr("id") 
+                    };
+		    
+                    $(this).prepend("<span style='display:none'; class='zoomGraph' id='Zoom-"+$(this).attr('id')+"'>Zoom</span>");
+                    $(this).prepend("<span style='display:none'; class='deleteWorksheetGraph' id='Remove-"+$(this).attr('id')+"'>Remove</span>");
+
+                    $("#Remove-"+$(this).attr('id')).click( function() {
+                      $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + g.graphid,
+                        function(r) { if(r.error) { alert(r.error); } });
+                        load_worksheet(wsinfo.id);
+                    });
+
+		    $("#Zoom-"+$(this).attr('id')).click( function() {
+
+                      stream_graph = $('<div></div>').ReconGraph({graphid: g.graphid});
+
+    		      var smod = stream_graph.modal({
+		        containerId: 'StreamingModalContainer',
+                        close: 'true',
+  			overlayCss: {
+    			backgroundColor: '#000000',
+    			cursor: 'wait'
+  			},
+  			containerCss: {
+   			backgroundColor: '#FFFFFF',
+   			left: '30%',
+   			top: '10%',
+   			border: '2px solid #000000',
+   			padding: '5px'
+  			},
+		      });
+
+		      stream_graph.ReconGraphRefresh({graphid: g.graphid});
+		      stream_graph.prepend("<span class='zoomStream'>Stream Data</span>");
+                      stream_graph.prepend("<span class='zoomClose'>x</span>");
+
+                      $(".zoomClose").click(function() {
+                        streaming = false;                        
+                        $('#streambox').html('');
+                        smod.close();
+                      });
+		      $(".zoomStream").click(function() {
+                        if(!streaming) {
+                           streaming = true;
+                           $(".zoomStream").html('Streaming!').fadeIn('slow');
+                           stream_data();
+			}
+                        else if(streaming) {
+                           streaming = false;
+                           $('#streambox').html('');
+                           $(".zoomStream").html('Stream Data').fadeIn('slow');
+                           stream_graph.ReconGraphRefresh({graphid: g.graphid});
+                        }
+                      }); //end stream click function                      
+
+                    }); //end zoom click function
+
+             	    $(this).mouseover(                  
+                       function() { 
+                         $(this).attr("style", "outline: 1px solid #DDDDDD;"); 
+                         $("#Zoom-"+$(this).attr('id')).removeAttr("style");
+                         $("#Remove-"+$(this).attr('id')).removeAttr("style");
+                    }
+                    ); 
+  }); //end for each graph in the list
+
+  $("ul#worksheet-graphs > li >div").each(
+  function(i) { $(this).mouseout( 
+                 function() { 
+                    $(this).removeAttr("style"); 
+                    $("#Zoom-"+$(this).attr('id')).attr("style", "display:none;");
+                    $("#Remove-"+$(this).attr('id')).attr("style", "display:none;");
+                 }
+); });
+
 }	    
 
 function update_current_worksheet(f) {
@@ -63,6 +165,8 @@ function update_current_worksheet(f) {
 function process_worksheet_json(r) {
   wsinfo.id = r.sheetid;
   wsinfo.title = r.title;
+  wsinfo.graphs = new Array();
+
   var ul = $("ul#worksheet-graphs");
   $("h2#worksheetTitle").html(r.title);
   ul.empty();
@@ -75,11 +179,18 @@ function process_worksheet_json(r) {
     var o = $('<div></div>').ReconGraph(g);
     ul.append($('<li/>').append(o));
     o.ReconGraphRefresh();
+    wsinfo.graphs.push(o.attr("id"));
   }
   ul.sortable("refresh");
 }
 function add_graph_to_worksheet(graphid) {
   if(!locked){
+    for(var i = 0; i < wsinfo.graphs.length; i++) {
+      if(wsinfo.graphs[i]==graphid) {
+         alert("Worksheets cannot have dusplicate graphs!");
+         return;
+      }
+    }  
     var g = { start: ws_displayinfo.start,
               end: ws_displayinfo.end,
               cnt: ws_displayinfo.cnt,
@@ -232,7 +343,8 @@ $(document).ready(function(){
 <div>
   <ul id="worksheet-graphs" />
   <br style="clear:left" />
-</div>			
+</div>	
+<div id="streambox" style="display:none"></div>	
 <div style="display:none">
 	<div id="maingraph-template">
         <h3 class="graphTitle">graph title</h3>
