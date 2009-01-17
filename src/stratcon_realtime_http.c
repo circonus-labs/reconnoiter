@@ -244,6 +244,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
+    free_realtime_recv_ctx(ctx);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     return 0;
