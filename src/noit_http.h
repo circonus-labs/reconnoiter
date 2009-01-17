@@ -9,6 +9,7 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_atomic.h"
 
 typedef enum {
   NOIT_HTTP_OTHER, NOIT_HTTP_GET, NOIT_HTTP_HEAD
@@ -83,6 +84,7 @@ struct noit_http_session_ctx;
 typedef int (*noit_http_dispatch_func) (struct noit_http_session_ctx *);
 
 typedef struct noit_http_session_ctx {
+  noit_atomic32_t ref_cnt;
   noit_http_connection conn;
   noit_http_request req;
   noit_http_response res;
@@ -93,6 +95,8 @@ typedef struct noit_http_session_ctx {
 
 API_EXPORT(noit_http_session_ctx *)
   noit_http_session_ctx_new(noit_http_dispatch_func, void *, eventer_t);
+API_EXPORT(void)
+  noit_http_session_ctx_release(noit_http_session_ctx *);
 
 API_EXPORT(int)
   noit_http_session_drive(eventer_t, int, void *, struct timeval *);

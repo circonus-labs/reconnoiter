@@ -389,6 +389,14 @@ noit_http_response_release(noit_http_session_ctx *ctx) {
   RELEASE_BCHAIN(ctx->res.output_raw);
   memset(&ctx->res, 0, sizeof(ctx->res));
 }
+void
+noit_http_ctx_session_release(noit_http_session_ctx *ctx) {
+  if(noit_atomic_dec32(&ctx->ref_cnt) == 0) {
+    noit_http_request_release(ctx);
+    noit_http_response_release(ctx);
+    free(ctx);
+  }
+}
 int
 noit_http_session_drive(eventer_t e, int origmask, void *closure,
                         struct timeval *now) {
@@ -423,8 +431,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   }
   return 0;
  release:
-  noit_http_request_release(ctx);
-  noit_http_response_release(ctx);
+  noit_http_ctx_session_release(ctx);
   return 0;
 }
 
@@ -432,6 +439,7 @@ noit_http_session_ctx *
 noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e) {
   noit_http_session_ctx *ctx;
   ctx = calloc(1, sizeof(*ctx));
+  ctx->ref_cnt = 1;
   ctx->req.complete = noit_false;
   ctx->conn.e = e;
   ctx->dispatcher = f;

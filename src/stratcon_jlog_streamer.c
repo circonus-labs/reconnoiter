@@ -11,6 +11,7 @@
 #include "jlog/jlog.h"
 #include "noit_jlog_listener.h"
 #include "stratcon_datastore.h"
+#include "stratcon_jlog_streamer.h"
 
 #include <unistd.h>
 #include <assert.h>
@@ -27,18 +28,6 @@
 noit_hash_table noits = NOIT_HASH_EMPTY;
 
 typedef struct jlog_streamer_ctx_t {
-  union {
-    struct sockaddr remote;
-    struct sockaddr_un remote_un;
-    struct sockaddr_in remote_in;
-    struct sockaddr_in6 remote_in6;
-  } r;
-  socklen_t remote_len;
-  char *remote_cn;
-  u_int32_t current_backoff;
-  int wants_shutdown;
-  noit_hash_table *config;
-  noit_hash_table *sslconfig;
   int bytes_expected;
   int bytes_read;
   char *buffer;         /* These guys are for doing partial reads */
@@ -57,11 +46,9 @@ typedef struct jlog_streamer_ctx_t {
     u_int32_t tv_usec;
     u_int32_t message_len;
   } header;
-
-  eventer_t timeout_event;
 } jlog_streamer_ctx_t;
 
-static void jlog_streamer_initiate_connection(jlog_streamer_ctx_t *ctx);
+static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
 jlog_streamer_ctx_t *
 jlog_streamer_ctx_alloc(void) {
@@ -69,17 +56,23 @@ jlog_streamer_ctx_alloc(void) {
   ctx = calloc(1, sizeof(*ctx));
   return ctx;
 }
+noit_connection_ctx_t *
+noit_connection_ctx_alloc(void) {
+  noit_connection_ctx_t *ctx;
+  ctx = calloc(1, sizeof(*ctx));
+  return ctx;
+}
 int
-jlog_streamer_reinitiate(eventer_t e, int mask, void *closure,
+noit_connection_reinitiate(eventer_t e, int mask, void *closure,
                          struct timeval *now) {
-  jlog_streamer_ctx_t *ctx = closure;
+  noit_connection_ctx_t *ctx = closure;
   ctx->timeout_event = NULL;
-  jlog_streamer_initiate_connection(closure);
+  noit_connection_initiate_connection(closure);
   return 0;
 }
 void
-jlog_streamer_schedule_reattempt(jlog_streamer_ctx_t *ctx,
-                                 struct timeval *now) {
+noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
+                                   struct timeval *now) {
   struct timeval __now, interval;
   const char *v;
   u_int32_t min_interval = 1000, max_interval = 60000;
@@ -113,20 +106,26 @@ jlog_streamer_schedule_reattempt(jlog_streamer_ctx_t *ctx,
     eventer_remove(ctx->timeout_event);
   else
     ctx->timeout_event = eventer_alloc();
-  ctx->timeout_event->callback = jlog_streamer_reinitiate;
+  ctx->timeout_event->callback = noit_connection_reinitiate;
   ctx->timeout_event->closure = ctx;
   ctx->timeout_event->mask = EVENTER_TIMER;
   add_timeval(*now, interval, &ctx->timeout_event->whence);
   eventer_add(ctx->timeout_event);
 }
 void
-jlog_streamer_ctx_free(jlog_streamer_ctx_t *ctx) {
-  if(ctx->buffer) free(ctx->buffer);
+noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
   if(ctx->remote_cn) free(ctx->remote_cn);
   if(ctx->timeout_event) {
     eventer_remove(ctx->timeout_event);
     eventer_free(ctx->timeout_event);
   }
+  ctx->consumer_free(ctx->consumer_ctx);
+  free(ctx);
+}
+void
+jlog_streamer_ctx_free(void *cl) {
+  jlog_streamer_ctx_t *ctx = cl;
+  if(ctx->buffer) free(ctx->buffer);
   free(ctx);
 }
 
@@ -181,13 +180,14 @@ int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
   static u_int32_t jlog_feed_cmd = 0;
-  jlog_streamer_ctx_t *ctx = closure;
+  noit_connection_ctx_t *nctx = closure;
+  jlog_streamer_ctx_t *ctx = nctx->consumer_ctx;
   int len;
   jlog_id n_chkpt;
 
   if(!jlog_feed_cmd) jlog_feed_cmd = htonl(NOIT_JLOG_DATA_FEED);
 
-  if(mask & EVENTER_EXCEPTION || ctx->wants_shutdown) {
+  if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
  socket_error:
     ctx->state = WANT_INITIATE;
     ctx->count = 0;
@@ -195,7 +195,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
-    jlog_streamer_schedule_reattempt(ctx, now);
+    noit_connection_schedule_reattempt(nctx, now);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     return 0;
@@ -243,7 +243,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
-        stratcon_datastore_push(DS_OP_INSERT, &ctx->r.remote, ctx->buffer);
+        stratcon_datastore_push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
         ctx->count--;
@@ -254,7 +254,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           memcpy(completion_e, e, sizeof(*e));
           completion_e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = WANT_CHKPT;
-          stratcon_datastore_push(DS_OP_CHKPT, &ctx->r.remote, completion_e);
+          stratcon_datastore_push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
           noitL(noit_debug, "Pushing batch asynch...\n");
           return 0;
         } else
@@ -286,15 +286,15 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 }
 
 int
-jlog_streamer_ssl_upgrade(eventer_t e, int mask, void *closure,
-                          struct timeval *now) {
-  jlog_streamer_ctx_t *ctx = closure;
+noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
+                            struct timeval *now) {
+  noit_connection_ctx_t *nctx = closure;
   int rv;
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv > 0) {
     eventer_ssl_ctx_t *sslctx;
-    e->callback = stratcon_jlog_recv_handler;
+    e->callback = nctx->consumer_callback;
     /* We must make a copy of the acceptor_closure_t for each new
      * connection.
      */
@@ -305,9 +305,9 @@ jlog_streamer_ssl_upgrade(eventer_t e, int mask, void *closure,
         cn += 3;
         end = cn;
         while(*end && *end != '/') end++;
-        ctx->remote_cn = malloc(end - cn + 1);
-        memcpy(ctx->remote_cn, cn, end - cn);
-        ctx->remote_cn[end-cn] = '\0';
+        nctx->remote_cn = malloc(end - cn + 1);
+        memcpy(nctx->remote_cn, cn, end - cn);
+        nctx->remote_cn[end-cn] = '\0';
       }
     }
     return e->callback(e, mask, e->closure, now);
@@ -316,13 +316,13 @@ jlog_streamer_ssl_upgrade(eventer_t e, int mask, void *closure,
 
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &mask, e);
-  jlog_streamer_schedule_reattempt(ctx, now);
+  noit_connection_schedule_reattempt(nctx, now);
   return 0;
 }
 int
-jlog_streamer_complete_connect(eventer_t e, int mask, void *closure,
-                               struct timeval *now) {
-  jlog_streamer_ctx_t *ctx = closure;
+noit_connection_complete_connect(eventer_t e, int mask, void *closure,
+                                 struct timeval *now) {
+  noit_connection_ctx_t *nctx = closure;
   char *cert, *key, *ca, *ciphers;
   eventer_ssl_ctx_t *sslctx;
 
@@ -330,12 +330,12 @@ jlog_streamer_complete_connect(eventer_t e, int mask, void *closure,
  connect_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
-    jlog_streamer_schedule_reattempt(ctx, now);
+    noit_connection_schedule_reattempt(nctx, now);
     return 0;
   }
 
 #define SSLCONFGET(var,name) do { \
-  if(!noit_hash_retrieve(ctx->sslconfig, name, strlen(name), \
+  if(!noit_hash_retrieve(nctx->sslconfig, name, strlen(name), \
                          (void **)&var)) var = NULL; } while(0)
   SSLCONFGET(cert, "certificate_file");
   SSLCONFGET(key, "key_file");
@@ -345,20 +345,20 @@ jlog_streamer_complete_connect(eventer_t e, int mask, void *closure,
   if(!sslctx) goto connect_error;
 
   eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert,
-                             ctx->sslconfig);
+                             nctx->sslconfig);
   EVENTER_ATTACH_SSL(e, sslctx);
-  e->callback = jlog_streamer_ssl_upgrade;
+  e->callback = noit_connection_ssl_upgrade;
   return e->callback(e, mask, closure, now);
 }
 static void
-jlog_streamer_initiate_connection(jlog_streamer_ctx_t *ctx) {
+noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   struct timeval __now;
   eventer_t e;
   int rv, fd = -1;
   long on;
 
   /* Open a socket */
-  fd = socket(ctx->r.remote.sa_family, SOCK_STREAM, 0);
+  fd = socket(nctx->r.remote.sa_family, SOCK_STREAM, 0);
   if(fd < 0) goto reschedule;
 
   /* Make it non-blocking */
@@ -366,29 +366,31 @@ jlog_streamer_initiate_connection(jlog_streamer_ctx_t *ctx) {
   if(ioctl(fd, FIONBIO, &on)) goto reschedule;
 
   /* Initiate a connection */
-  rv = connect(fd, &ctx->r.remote, ctx->remote_len);
+  rv = connect(fd, &nctx->r.remote, nctx->remote_len);
   if(rv == -1 && errno != EINPROGRESS) goto reschedule;
 
   /* Register a handler for connection completion */
   e = eventer_alloc();
   e->fd = fd;
   e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
-  e->callback = jlog_streamer_complete_connect;
-  e->closure = ctx;
+  e->callback = noit_connection_complete_connect;
+  e->closure = nctx;
   eventer_add(e);
   return;
 
  reschedule:
   if(fd >= 0) close(fd);
   gettimeofday(&__now, NULL);
-  jlog_streamer_schedule_reattempt(ctx, &__now);
+  noit_connection_schedule_reattempt(nctx, &__now);
   return;
 }
 
 int
-initiate_jlog_streamer(const char *host, unsigned short port,
-                       noit_hash_table *sslconfig, noit_hash_table *config) {
-  jlog_streamer_ctx_t *ctx;
+initiate_noit_connection(const char *host, unsigned short port,
+                         noit_hash_table *sslconfig, noit_hash_table *config,
+                         eventer_func_t handler, void *closure,
+                         void (*freefunc)(void *)) {
+  noit_connection_ctx_t *ctx;
 
   int8_t family;
   int rv;
@@ -413,7 +415,7 @@ initiate_jlog_streamer(const char *host, unsigned short port,
     }
   }
 
-  ctx = jlog_streamer_ctx_alloc();
+  ctx = noit_connection_ctx_alloc();
   
   memset(&ctx->r, 0, sizeof(ctx->r));
   if(family == AF_UNIX) {
@@ -448,12 +450,18 @@ initiate_jlog_streamer(const char *host, unsigned short port,
     ctx->config = calloc(1, sizeof(noit_hash_table));
   noit_hash_merge_as_dict(ctx->config, config);
 
-  jlog_streamer_initiate_connection(ctx);
+  ctx->consumer_callback = handler;
+  ctx->consumer_free = freefunc;
+  ctx->consumer_ctx = closure;
+  noit_connection_initiate_connection(ctx);
   return 0;
 }
 
 void
-stratcon_jlog_streamer_reload(const char *toplevel) {
+stratcon_streamer_connection(const char *toplevel, const char *destination,
+                             eventer_func_t handler,
+                             void *(*handler_alloc)(void), void *handler_ctx,
+                             void (*handler_free)(void *)) {
   int i, cnt = 0;
   noit_conf_section_t *noit_configs;
   char path[256];
@@ -473,6 +481,9 @@ stratcon_jlog_streamer_reload(const char *toplevel) {
       noitL(noit_error, "address attribute missing in noit %d\n", i+1);
       continue;
     }
+    /* if destination is specified, exact match it */
+    if(destination && strcmp(address, destination)) continue;
+
     if(!noit_conf_get_int(noit_configs[i],
                           "ancestor-or-self::node()/@port", &portint))
       portint = 0;
@@ -486,19 +497,29 @@ stratcon_jlog_streamer_reload(const char *toplevel) {
     sslconfig = noit_conf_get_hash(noit_configs[i], "sslconfig");
     config = noit_conf_get_hash(noit_configs[i], "config");
 
-    initiate_jlog_streamer(address, port, sslconfig, config);
+    initiate_noit_connection(address, port, sslconfig, config,
+                             handler,
+                             handler_alloc ? handler_alloc() : handler_ctx,
+                             handler_free);
   }
+}
+void
+stratcon_jlog_streamer_reload(const char *toplevel) {
+  stratcon_streamer_connection(toplevel, NULL,
+                               stratcon_jlog_recv_handler,
+                               (void *(*)())jlog_streamer_ctx_alloc, NULL,
+                               jlog_streamer_ctx_free);
 }
 
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
-  eventer_name_callback("jlog_streamer_reinitiate",
-                        jlog_streamer_reinitiate);
+  eventer_name_callback("noit_connection_reinitiate",
+                        noit_connection_reinitiate);
   eventer_name_callback("stratcon_jlog_recv_handler",
                         stratcon_jlog_recv_handler);
-  eventer_name_callback("jlog_streamer_ssl_upgrade",
-                        jlog_streamer_ssl_upgrade);
-  eventer_name_callback("jlog_streamer_complete_connect",
-                        jlog_streamer_complete_connect);
+  eventer_name_callback("noit_connection_ssl_upgrade",
+                        noit_connection_ssl_upgrade);
+  eventer_name_callback("noit_connection_complete_connect",
+                        noit_connection_complete_connect);
   stratcon_jlog_streamer_reload(toplevel);
 }

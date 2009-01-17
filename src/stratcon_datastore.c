@@ -8,6 +8,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
 #include "stratcon_datastore.h"
+#include "stratcon_realtime_http.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include <unistd.h>
@@ -17,6 +18,8 @@
 #include <libpq-fe.h>
 #include <zlib.h>
 
+static char *check_find = NULL;
+static const char *check_find_conf = "/stratcon/database/statements/findcheck";
 static char *check_insert = NULL;
 static const char *check_insert_conf = "/stratcon/database/statements/check";
 static char *status_insert = NULL;
@@ -36,6 +39,8 @@ static const char *config_insert_conf = "/stratcon/database/statements/config";
 
 #define MAX_PARAMS 8
 #define POSTGRES_PARTS \
+  PGresult *res; \
+  int rv; \
   int nparams; \
   int metric_type; \
   char *paramValues[MAX_PARAMS]; \
@@ -51,6 +56,8 @@ typedef struct ds_job_detail {
   POSTGRES_PARTS
 
   char *data;  /* The raw string, NULL means the stream is done -- commit. */
+  struct realtime_tracker *rt;
+
   int problematic;
   eventer_t completion_event; /* This event should be registered if non NULL */
   struct ds_job_detail *next;
@@ -100,12 +107,20 @@ noit_hash_table ds_conns;
 conn_q *
 __get_conn_q_for_remote(struct sockaddr *remote) {
   conn_q *cq;
+  static const char __zeros[4] = { 0 };
   int len = 0;
-  switch(remote->sa_family) {
-    case AF_INET: len = sizeof(struct sockaddr_in); break;
-    case AF_INET6: len = sizeof(struct sockaddr_in6); break;
-    case AF_UNIX: len = SUN_LEN(((struct sockaddr_un *)remote)); break;
-    default: return NULL;
+  if(remote) {
+    switch(remote->sa_family) {
+      case AF_INET: len = sizeof(struct sockaddr_in); break;
+      case AF_INET6: len = sizeof(struct sockaddr_in6); break;
+      case AF_UNIX: len = SUN_LEN(((struct sockaddr_un *)remote)); break;
+      default: return NULL;
+    }
+  }
+  else {
+    /* This is a dummy connection */
+    remote = (struct sockaddr *)__zeros;
+    len = 4;
   }
   if(noit_hash_retrieve(&ds_conns, (const char *)remote, len, (void **)&cq))
     return cq;
@@ -151,7 +166,62 @@ __noit__strndup(const char *src, int len) {
   } \
   d->nparams++; \
 } while(0)
+#define DECLARE_PARAM_INT(i) do { \
+  int buffer__len; \
+  char buffer__[32]; \
+  snprintf(buffer__, sizeof(buffer__), "%d", (i)); \
+  buffer__len = strlen(buffer__); \
+  DECLARE_PARAM_STR(buffer__, buffer__len); \
+} while(0)
 
+#define PG_GET_STR_COL(dest, row, name) do { \
+  int colnum = PQfnumber(d->res, name); \
+  dest = NULL; \
+  if (colnum >= 0) \
+    dest = PQgetisnull(d->res, row, colnum) \
+         ? NULL : PQgetvalue(d->res, row, colnum); \
+} while(0)
+
+#define PG_EXEC(cmd) do { \
+  d->res = PQexecParams(cq->dbh, cmd, d->nparams, NULL, \
+                        (const char * const *)d->paramValues, \
+                        d->paramLengths, d->paramFormats, 0); \
+  d->rv = PQresultStatus(d->res); \
+  if(d->rv != PGRES_COMMAND_OK && \
+     d->rv != PGRES_TUPLES_OK) { \
+    noitL(noit_error, "stratcon datasource bad (%d): %s\n", \
+          d->rv, PQresultErrorMessage(d->res)); \
+    PQclear(d->res); \
+    goto bad_row; \
+  } \
+} while(0)
+
+execute_outcome_t
+stratcon_datastore_find(conn_q *cq, ds_job_detail *d) {
+  char *val;
+  int row_count;
+
+  if(!d->nparams) DECLARE_PARAM_INT(d->rt->sid);
+  GET_QUERY(check_find);
+  PG_EXEC(check_find);
+  row_count = PQntuples(d->res);
+  if(row_count != 1) goto bad_row;
+
+  /* Get the check uuid */
+  PG_GET_STR_COL(val, 0, "id");
+  if(!val) goto bad_row;
+  if(uuid_parse(val, d->rt->checkid)) goto bad_row;
+
+  /* Get the remote_address (which noit owns this) */
+  PG_GET_STR_COL(val, 0, "remote_address");
+  if(!val) goto bad_row;
+  d->rt->noit = strdup(val);
+
+  PQclear(d->res);
+  return DS_EXEC_SUCCESS;
+ bad_row:
+  return DS_EXEC_ROW_FAILED;
+}
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
   int type, len;
@@ -287,36 +357,22 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
 
   }
 
-#define PG_EXEC(cmd) do { \
-  PGresult *res; \
-  int rv; \
-  res = PQexecParams(cq->dbh, cmd, d->nparams, NULL, \
-                     (const char * const *)d->paramValues, \
-                     d->paramLengths, d->paramFormats, 0); \
-  rv = PQresultStatus(res); \
-  if(rv != PGRES_COMMAND_OK && \
-     rv != PGRES_TUPLES_OK) { \
-    noitL(noit_error, "stratcon datasource bad row (%d): %s\n", \
-          rv, PQresultErrorMessage(res)); \
-    PQclear(res); \
-    goto bad_row; \
-  } \
-  PQclear(res); \
-} while(0)
-
   /* Now execute the query */
   switch(type) {
     case 'n':
       GET_QUERY(config_insert);
       PG_EXEC(config_insert);
+      PQclear(d->res);
       break;
     case 'C':
       GET_QUERY(check_insert);
       PG_EXEC(check_insert);
+      PQclear(d->res);
       break;
     case 'S':
       GET_QUERY(status_insert);
       PG_EXEC(status_insert);
+      PQclear(d->res);
       break;
     case 'M':
       switch(d->metric_type) {
@@ -327,10 +383,12 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         case METRIC_DOUBLE:
           GET_QUERY(metric_insert_numeric);
           PG_EXEC(metric_insert_numeric);
+          PQclear(d->res);
           break;
         case METRIC_STRING:
           GET_QUERY(metric_insert_text);
           PG_EXEC(metric_insert_text);
+          PQclear(d->res);
           break;
         default:
           goto bad_row;
@@ -418,6 +476,32 @@ stratcon_datastore_do(conn_q *cq, const char *cmd) {
   last_sp = NULL; \
 } while(0)
 int
+stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
+                                 struct timeval *now) {
+  conn_q *cq = closure;
+  ds_job_detail *current;
+  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+
+  if(!cq->head) return 0; 
+
+  stratcon_database_connect(cq);
+
+  current = cq->head; 
+  while(current) {
+    if(current->rt) {
+      stratcon_datastore_find(cq, current);
+      current = current->next;
+    }
+    else if(current->completion_event) {
+      eventer_add(current->completion_event);
+      current = current->next;
+      __remove_until(cq, current);
+    }
+    else current = current->next;
+  }
+  return 0;
+}
+int
 stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
                                   struct timeval *now) {
   conn_q *cq = closure;
@@ -482,16 +566,24 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
   cq = __get_conn_q_for_remote(remote);
   dsjd = calloc(1, sizeof(*dsjd));
   switch(op) {
+    case DS_OP_FIND:
+      dsjd->rt = operand;
+      __append(cq, dsjd);
+      break;
     case DS_OP_INSERT:
       dsjd->data = operand;
       __append(cq, dsjd);
       break;
+    case DS_OP_FIND_COMPLETE:
     case DS_OP_CHKPT:
       dsjd->completion_event = operand;
       __append(cq,dsjd);
       e = eventer_alloc();
       e->mask = EVENTER_ASYNCH;
-      e->callback = stratcon_datastore_asynch_execute;
+      if(op == DS_OP_FIND_COMPLETE)
+        e->callback = stratcon_datastore_asynch_lookup;
+      else if(op == DS_OP_CHKPT)
+        e->callback = stratcon_datastore_asynch_execute;
       e->closure = cq;
       eventer_add(e);
       break;
@@ -520,6 +612,7 @@ stratcon_datastore_saveconfig(void *unused) {
 
     GET_QUERY(config_insert);
     PG_EXEC(config_insert);
+    PQclear(d->res);
     rv = 0;
 
     bad_row:

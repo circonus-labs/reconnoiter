@@ -15,7 +15,9 @@
 
 typedef enum {
  DS_OP_INSERT = 1,
- DS_OP_CHKPT = 2
+ DS_OP_CHKPT = 2,
+ DS_OP_FIND = 3,
+ DS_OP_FIND_COMPLETE = 4
 } stratcon_datastore_op_t;
 
 API_EXPORT(void)
