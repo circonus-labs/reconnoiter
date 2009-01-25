@@ -33,6 +33,8 @@
 typedef struct realtime_recv_ctx_t {
   int bytes_expected;
   int bytes_read;
+  int bytes_written;
+  int body_len;
   char *buffer;         /* These guys are for doing partial reads */
 
   enum {
@@ -92,9 +94,9 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   l = (ecp-scp); \
 } while(0)
 
+  scp = buff;
   PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
   if(buff[0] == 'M') {
-    scp = buff;
     snprintf(buffer, sizeof(buffer), "<script>window.parent.plot_iframe_data('");
     if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
 
@@ -241,6 +243,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
     ctx->state = WANT_INITIATE;
     ctx->count = 0;
     ctx->bytes_read = 0;
+    ctx->bytes_written = 0;
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
@@ -251,19 +254,31 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
   }
 
 #define full_nb_write(data, wlen) do { \
-  len = e->opset->write(e->fd, data, wlen, \
-                        &mask, e); \
-  if(len < 0) { \
-    if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
+  if(!ctx->bytes_expected) { \
+    ctx->bytes_written = 0; \
+    ctx->bytes_expected = wlen; \
+  } \
+  while(ctx->bytes_written < ctx->bytes_expected) { \
+    while(-1 == (len = e->opset->write(e->fd, ((char *)data) + ctx->bytes_written, \
+                                       ctx->bytes_expected - ctx->bytes_written, \
+                                       &mask, e)) && errno == EINTR); \
+    if(len < 0) { \
+      if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
+      goto socket_error; \
+    } \
+    ctx->bytes_written += len; \
+  } \
+  if(ctx->bytes_written != ctx->bytes_expected) { \
+    noitL(noit_error, "short write on initiating stream [%d != %d].\n", \
+          ctx->bytes_written, ctx->bytes_expected); \
     goto socket_error; \
   } \
-  if(len != sizeof(livestream_cmd)) { \
-    noitL(noit_error, "short write on initiating stream.\n"); \
-    goto socket_error; \
-  } \
+  ctx->bytes_expected = 0; \
 } while(0)
 
   while(1) {
+    u_int32_t net_body_len;
+
     switch(ctx->state) {
       case WANT_INITIATE:
         full_nb_write(&livestream_cmd, sizeof(livestream_cmd));
@@ -278,17 +293,17 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         ctx->state = WANT_HEADER;
       case WANT_HEADER:
         FULLREAD(e, ctx, sizeof(u_int32_t));
-        memcpy(&ctx->bytes_expected, ctx->buffer, sizeof(u_int32_t));
-        ctx->bytes_expected = ntohl(ctx->bytes_expected);
+        memcpy(&net_body_len, ctx->buffer, sizeof(u_int32_t));
+        ctx->body_len = ntohl(net_body_len);
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = WANT_BODY;
         break;
       case WANT_BODY:
-        FULLREAD(e, ctx, ctx->bytes_expected);
+        FULLREAD(e, ctx, ctx->body_len);
         noitL(noit_error, "Read: '%s'\n", ctx->buffer);
         if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer)) goto socket_error;
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = WANT_BODY;
+        ctx->state = WANT_HEADER;
         break;
     }
   }

@@ -800,10 +800,10 @@ noit_check_set_stats(struct _noit_module *module,
      check->stats.current.state != check->stats.previous.state)
     report_change = 1;
 
-  noitL(noit_error, "%s`%s <- [%s]\n", check->target, check->name,
+  noitL(noit_debug, "%s`%s <- [%s]\n", check->target, check->name,
         check->stats.current.status);
   if(report_change) {
-    noitL(noit_error, "%s`%s -> [%s:%s]\n",
+    noitL(noit_debug, "%s`%s -> [%s:%s]\n",
           check->target, check->name,
           noit_check_available_string(check->stats.current.available),
           noit_check_state_string(check->stats.current.state));

@@ -89,6 +89,8 @@ noit_livestream_closure_t *
 noit_livestream_closure_alloc(void) {
   noit_livestream_closure_t *jcl;
   jcl = calloc(1, sizeof(*jcl));
+  pthread_mutex_init(&jcl->lqueue_lock, NULL);
+  sem_init(&jcl->lqueue_sem, 0, 0);
   return jcl;
 }
 
@@ -125,7 +127,11 @@ noit_livestream_thread_main(void *e_vptr) {
   long off = 0;
 
   /* Go into blocking mode */
-  ioctl(e->fd, FIONBIO, &off);
+  if(ioctl(e->fd, FIONBIO, &off) == -1) {
+    noitL(noit_error, "ioctl failed setting livestream to blocking: [%d] [%s]\n",
+          errno, strerror(errno));
+    goto alldone;
+  }
 
   while(1) {
     u_int32_t netlen;

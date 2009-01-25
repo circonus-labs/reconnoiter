@@ -511,7 +511,7 @@ noit_http_response_append(noit_http_session_ctx *ctx,
      !(ctx->res.output_options & (NOIT_HTTP_CLOSE | NOIT_HTTP_CHUNKED)))
     return noit_false;
   if(!ctx->res.output)
-    ctx->res.output = bchain_alloc(DEFAULT_BCHAINSIZE);
+    assert(ctx->res.output = bchain_alloc(DEFAULT_BCHAINSIZE));
   o = ctx->res.output;
   while(o->next) o = o->next;
   while(l > 0) {
