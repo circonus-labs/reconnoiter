@@ -34,6 +34,7 @@ define noit_hash_showstr
 end
 
 handle SIGPIPE nostop
+handle SIGPIPE noprint
 handle SIG32 nostop
 
 # vim:ts=2:sw=2:et:
