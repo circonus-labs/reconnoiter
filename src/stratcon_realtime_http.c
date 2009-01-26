@@ -167,8 +167,10 @@ stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
     char *interval;
 
     interval = strchr(interest, '@');
-    if(!interval) return 0;
-    *interval++ = '\0';
+    if(!interval)
+      interval = "5000";
+    else
+      *interval++ = '\0';
     node = calloc(1, sizeof(*node));
     node->rc = rc;
     node->sid = atoi(interest);
