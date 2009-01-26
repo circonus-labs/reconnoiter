@@ -187,7 +187,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
 static noit_boolean
 noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
   int start;
-  const char *mstr, *last_name;
+  const char *mstr, *last_name = NULL;
   struct bchain *b;
 
   if(!req->current_input) req->current_input = req->first_input;
@@ -724,7 +724,8 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
   if(ctx->conn.e) {
     eventer_update(ctx->conn.e, mask);
   }
-  return noit_true;
+  /* If the write fails completely, the event will be closed, freed and NULL */
+  return ctx->conn.e ? noit_true : noit_false;
 }
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {

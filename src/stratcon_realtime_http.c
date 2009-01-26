@@ -76,6 +76,12 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   char *scp, *ecp, *token;
   int len;
 
+#define BAIL_HTTP_WRITE do { \
+  noitL(noit_error, "javascript emit failed: %s:%s:%d\n", \
+        __FILE__, __FUNCTION__, __LINE__); \
+  return -1; \
+} while(0)
+
 #define PROCESS_NEXT_FIELD(t,l) do { \
   if(!*scp) goto bad_row; \
   ecp = strchr(scp, '\t'); \
@@ -98,43 +104,43 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
   if(buff[0] == 'M') {
     snprintf(buffer, sizeof(buffer), "<script>window.parent.plot_iframe_data('");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
+    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
 
     /* Time */
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) return -1;
+    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
 
     snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
+    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
 
     /* UUID */
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) return -1;
+    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
 
     snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
+    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
 
     /* name */
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) return -1;
+    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
 
     snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
+    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
 
     PROCESS_NEXT_FIELD(token,len); /* skip type */
     PROCESS_LAST_FIELD(token,len); /* value */
-    if(noit_http_response_append(ctx, token, len) == noit_false) return -1;
+    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
 
     snprintf(buffer, sizeof(buffer), "');</script>\n");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) return -1;
+    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
 
-    if(noit_http_response_flush(ctx, noit_false) == noit_false) return -1;
+    if(noit_http_response_flush(ctx, noit_false) == noit_false) BAIL_HTTP_WRITE;
   }
 
   return 0;
 
  bad_row:
-  return -1;
+  BAIL_HTTP_WRITE;
   if(0) {
     noit_http_response_end(ctx);
     memset(ctx->dispatcher_closure, 0, sizeof(realtime_context));
