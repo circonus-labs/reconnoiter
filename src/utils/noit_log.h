@@ -57,12 +57,12 @@ API_EXPORT(noit_log_stream_t)
 API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);
-API_EXPORT(void) noit_vlog(noit_log_stream_t ls, struct timeval *,
-                           const char *file, int line,
-                           const char *format, va_list arg);
-API_EXPORT(void) noit_log(noit_log_stream_t ls, struct timeval *,
+API_EXPORT(int) noit_vlog(noit_log_stream_t ls, struct timeval *,
                           const char *file, int line,
-                          const char *format, ...)
+                          const char *format, va_list arg);
+API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
+                         const char *file, int line,
+                         const char *format, ...)
 #ifdef __GNUC__
   __attribute__ ((format (printf, 5, 6)))
 #endif

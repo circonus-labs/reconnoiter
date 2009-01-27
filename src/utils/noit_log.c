@@ -317,20 +317,24 @@ noit_log_stream_free(noit_log_stream_t ls) {
   }
 }
 
-static void
+static int
 noit_log_line(noit_log_stream_t ls, char *buffer, size_t len) {
+  int rv = 0;
   struct _noit_log_stream_outlet_list *node;
   if(ls->ops)
-    ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
+    rv = ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
   for(node = ls->outlets; node; node = node->next) {
-    noit_log_line(node->outlet, buffer, len);
+    int srv = 0;
+    srv = noit_log_line(node->outlet, buffer, len);
+    if(srv) rv = srv;
   }
+  return rv;
 }
-void
+int
 noit_vlog(noit_log_stream_t ls, struct timeval *now,
           const char *file, int line,
           const char *format, va_list arg) {
-  int allocd = 0;
+  int rv = 0, allocd = 0;
   char buffer[4096], *dynbuff = NULL;
 #ifdef va_copy
   va_list copy;
@@ -360,21 +364,26 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
         len = vsnprintf(dynbuff, allocd, format, arg);
 #endif
       }
-      noit_log_line(ls, dynbuff, len);
+      rv = noit_log_line(ls, dynbuff, len);
       free(dynbuff);
     }
     else {
-      noit_log_line(ls, buffer, len);
+      rv = noit_log_line(ls, buffer, len);
     }
+    if(rv == len) return 0;
+    return -1;
   }
+  return 0;
 }
 
-void
+int
 noit_log(noit_log_stream_t ls, struct timeval *now,
          const char *file, int line, const char *format, ...) {
+  int rv;
   va_list arg;
   va_start(arg, format);
-  noit_vlog(ls, now, file, line, format, arg);
+  rv = noit_vlog(ls, now, file, line, format, arg);
   va_end(arg);
+  return rv;
 }
 
