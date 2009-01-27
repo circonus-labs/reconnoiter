@@ -382,7 +382,7 @@ noit_check_watch(uuid_t in, int period) {
   f = noit_check_clone(in);
   if(!f) return NULL;
   f->period = period;
-  f->timeout = period - 1;
+  f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
   noit_skiplist_insert(&watchlist, f);
   return f;
@@ -412,11 +412,17 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   feedcopy = strdup(feed);
   /* No error on failure -- it's already there */
   if(noit_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
+  noitL(noit_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
+        check->target, check->name, check->period, check->feeds->size, feed);
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   if(!check->feeds) return;
-  if(feed) noit_skiplist_remove(check->feeds, feed, free);
+  if(feed) {
+    noitL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
+          check->target, check->name, check->period, check->feeds->size, feed);
+    noit_skiplist_remove(check->feeds, feed, free);
+  }
   if(check->feeds->size == 0) {
     noit_skiplist_remove(&watchlist, check, NULL);
     noit_skiplist_destroy(check->feeds, free);
