@@ -16,6 +16,8 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
+static noit_atomic32_t ls_counter = 0;
+
 struct log_entry {
   int len;
   char *buff;
@@ -36,55 +38,6 @@ typedef struct {
   int wants_shutdown;
 } noit_livestream_closure_t;
 
-static int
-noit_livestream_logio_open(noit_log_stream_t ls) {
-  return 0;
-}
-static int
-noit_livestream_logio_reopen(noit_log_stream_t ls) {
-  /* no op */
-  return 0;
-}
-static int
-noit_livestream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
-  noit_livestream_closure_t *jcl = ls->op_ctx;
-  struct log_entry *le;
-  if(!jcl) return 0;
-
-  le = calloc(1, sizeof(*le));
-  le->len = len;
-  le->buff = malloc(len);
-  memcpy(le->buff, buf, len);
-  le->next = NULL;
-  pthread_mutex_lock(&jcl->lqueue_lock);
-  if(!jcl->lqueue_end) jcl->lqueue = le;
-  else jcl->lqueue_end->next = le;
-  jcl->lqueue_end = le;
-  pthread_mutex_unlock(&jcl->lqueue_lock);
-  sem_post(&jcl->lqueue_sem);
-  return len;
-}
-static int
-noit_livestream_logio_close(noit_log_stream_t ls) {
-  ls->op_ctx = NULL;
-  return 0;
-}
-static logops_t noit_livestream_logio_ops = {
-  noit_livestream_logio_open,
-  noit_livestream_logio_reopen,
-  noit_livestream_logio_write,
-  noit_livestream_logio_close,
-};
-
-void
-noit_livestream_listener_init() {
-  noit_register_logops("noit_livestream", &noit_livestream_logio_ops);
-  eventer_name_callback("livestream_transit", noit_livestream_handler);
-  noit_control_dispatch_delegate(noit_control_dispatch,
-                                 NOIT_LIVESTREAM_DATA_FEED,
-                                 noit_livestream_handler);
-}
-
 noit_livestream_closure_t *
 noit_livestream_closure_alloc(void) {
   noit_livestream_closure_t *jcl;
@@ -104,6 +57,62 @@ noit_livestream_closure_free(noit_livestream_closure_t *jcl) {
     free(tofree);
   }
   free(jcl);
+}
+
+static int
+noit_livestream_logio_open(noit_log_stream_t ls) {
+  return 0;
+}
+static int
+noit_livestream_logio_reopen(noit_log_stream_t ls) {
+  /* no op */
+  return 0;
+}
+static int
+noit_livestream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+  noit_livestream_closure_t *jcl = ls->op_ctx;
+  struct log_entry *le;
+  if(!jcl) return 0;
+
+  if(jcl->wants_shutdown) {
+    /* This has been terminated by the client, _fail here_ */
+    return 0;
+  }
+
+  le = calloc(1, sizeof(*le));
+  le->len = len;
+  le->buff = malloc(len);
+  memcpy(le->buff, buf, len);
+  le->next = NULL;
+  pthread_mutex_lock(&jcl->lqueue_lock);
+  if(!jcl->lqueue_end) jcl->lqueue = le;
+  else jcl->lqueue_end->next = le;
+  jcl->lqueue_end = le;
+  pthread_mutex_unlock(&jcl->lqueue_lock);
+  sem_post(&jcl->lqueue_sem);
+  return len;
+}
+static int
+noit_livestream_logio_close(noit_log_stream_t ls) {
+  noit_livestream_closure_t *jcl = ls->op_ctx;
+  if(jcl) noit_livestream_closure_free(jcl);
+  ls->op_ctx = NULL;
+  return 0;
+}
+static logops_t noit_livestream_logio_ops = {
+  noit_livestream_logio_open,
+  noit_livestream_logio_reopen,
+  noit_livestream_logio_write,
+  noit_livestream_logio_close,
+};
+
+void
+noit_livestream_listener_init() {
+  noit_register_logops("noit_livestream", &noit_livestream_logio_ops);
+  eventer_name_callback("livestream_transit", noit_livestream_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_LIVESTREAM_DATA_FEED,
+                                 noit_livestream_handler);
 }
 
 static int
@@ -218,7 +227,7 @@ socket_error:
     }
 
     jcl->feed = malloc(32);
-    snprintf(jcl->feed, 32, "livestream/%d", e->fd);
+    snprintf(jcl->feed, 32, "livestream/%d", noit_atomic_inc32(&ls_counter));
     noit_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
                         jcl, NULL);
 
@@ -239,6 +248,8 @@ socket_error:
     return 0;
   }
 
+  noit_check_transient_remove_feed(jcl->check, jcl->feed);
+  noit_livestream_closure_free(jcl);
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
