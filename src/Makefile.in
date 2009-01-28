@@ -60,7 +60,7 @@ serf/.libs/libserf-0.a:
 		env \
 		CFLAGS="$(CFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" \
-		python serfmake --with-apr=@APRPREFIX@)
+		python serfmake build --with-apr=@APRPREFIX@)
 
 serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
 	ld -r -o serf/.libs/libserf-0.o \
