@@ -80,10 +80,8 @@ maingraph.everyTime(1000, function() {
    }
 }
 });
-//var tstep = 0;
-//maingraph.everyTime(250, function () { tstep++; plot_iframe_data((tstep*250000).toString(), '1179', 'allocator_requests',  '5000');});
 
-console.log("sids = ", sids);
+//console.log("sids requestd from noit server = ", sids);
 
 $('#gstreambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
 

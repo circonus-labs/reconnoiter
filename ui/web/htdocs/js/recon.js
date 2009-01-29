@@ -1,7 +1,6 @@
 //global objects to use for calling plot_ifram_data from stream
 var stream_object;
 var stream_dirty;
-var debug_count = 0;
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
@@ -156,7 +155,7 @@ function rpn_eval(value, expr) {
      AddPoint:
         function (xdata, uuid, metric_name, ydata) {
 
-            debug_count++;
+	    //note that lastval[0] and the xdata need to be converted from seconds to milliseconds for flot
 
 	    tdata = [xdata, ydata.toString()];
 
@@ -164,12 +163,13 @@ function rpn_eval(value, expr) {
 		if( (ddata[i].uuid ==  uuid) 
 		    && (ddata[i].metric_name == metric_name)
 		    && !ddata[i].hidden ) {
-		    //    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
+
+//		    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
+
+		    if((xdata*1000)>doptions.max_time) { doptions.max_time = xdata*1000; }
+		    if( !doptions.min_time || ((xdata*1000)<doptions.min_time)) { doptions.min_time = xdata*1000;}
 
                     if(ddata[i].metric_type == 'numeric') {
-
-            if((xdata*1000)>doptions.max_time) { doptions.max_time = xdata*1000; }
-            if( !doptions.min_time || ((xdata*1000)<doptions.min_time)) { doptions.min_time = xdata*1000;}
 
 			if(ddata[i].lastval) {
 			    slope = (tdata[1] - ddata[i].lastval[1]) / (tdata[0] - ddata[i].lastval[0]); 		     
@@ -206,28 +206,30 @@ function rpn_eval(value, expr) {
 		    
                     //if we have a text data type
                     else { 
-			/*
+
                         tdata[0]*=1000; //convert from seconds to milliseconds for flot
 			tdata.push(tdata[1]);
                         tdata[1] = "0"; 
 			
                         //if we had a previous value stored, only push data to plot when the value changes
-                        //or if our earliest value's timestamp would fall below of any numeric minimum timestamp
-                        if(ddata[i].lastval) {
-			    if( (ddata[i].lastval[1] != tdata[2]) || ((ddata[i].lastval[0]*1000)<doptions.min_time) ) {
-                                ddata[i].data.push(tdata);
+                        if(ddata[i].lastval) {				    
+			    if( ddata[i].lastval[1] != tdata[2] ) {
+				ddata[i].data.push(tdata);
 				if ((tdata[0] - ddata[i].data[0][0]) > doptions.time_window) {
 				    ddata[i].data.shift();
 				}
 			    }
+                            else { //if there was no change in the value clear the metric so it doesnt display
+				ddata[i].data = []; 
+			    }
 			}
-                        //if we are adding a text point for the first time
+                        //otherwise we are adding a text point for the first time
 			else { 
 			    ddata[i].data.push(tdata);
 			}
-			*/
+			
 		    }//end if text metric type
-		    
+
 		    ddata[i].lastval = [xdata, ydata];
 		    
 		} //end if the uuid and metric_name match
@@ -237,19 +239,16 @@ function rpn_eval(value, expr) {
 	},
     PlotPoints:
         function () {
-	    
-	    //            console.log("min data = ",doptions.min_time," max data=",doptions.max_time);
 
-            if( (doptions.max_time >= doptions.min_time + doptions.time_window)) {
-		doptions.xaxis.min = doptions.xaxis.max = null;
+	    if( (doptions.max_time >= doptions.min_time + doptions.time_window)) {
+		doptions.xaxis.min = doptions.max_time - doptions.time_window;
+		doptions.xaxis.max = doptions.max_time;
 	    }
 	    else {
-		//		doptions.xaxis.min = doptions.min_time;
+	     	doptions.xaxis.min = doptions.min_time;
 		doptions.xaxis.max = doptions.min_time + doptions.time_window;
 	    }
 
-	    //            console.log("xmin = ",doptions.xaxis.min," xmax = ",doptions.xaxis.max);
-	    
             this.flot_plot = $.plot(dplaceholder, ddata, doptions);
             return this;
 	},

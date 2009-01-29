@@ -11,13 +11,14 @@ var locked = true;
 var streaming = false;
 var stream_graph;
 
-function stream_data() {
+function stream_data(graph_id) {
 
   polltime = 5000;
-  timewindow = 6000000;
+  timewindow = 50000;
   stream_object = stream_graph;
   stream_dirty = false;
   stream_graph.ReconGraphPrepareStream(timewindow, polltime);
+
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
   stream_graph.everyTime(1000, function() {
@@ -29,7 +30,26 @@ function stream_data() {
       }
     }
   });
-  $('#streambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
+
+  $.getJSON("json/graph/info/" + graph_id, 
+    function(g) {
+
+      sids = ""; 
+      var sidneed = new Object();
+
+      for(var i=0; i<g.datapoints.length; i++) {
+        if(g.datapoints[i].sid) {
+          sidneed[g.datapoints[i].sid] = polltime;
+        }
+      }
+      for(var sid in sidneed) {
+        sids+= "/"+sid+"@"+sidneed[sid];
+      }
+
+       //console.log("sids requestd from noit server = ", sids);
+       $('#streambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
+   });
+
 }
 
 function lock_wforms() {
@@ -77,7 +97,7 @@ function unlock_wforms() {
                     });
 
 		    $("#Zoom-"+$(this).attr('id')).click( function() {
-
+                       
                       stream_graph = $('<div></div>').ReconGraph({graphid: g.graphid});
 
     		      var smod = stream_graph.modal({
@@ -105,12 +125,12 @@ function unlock_wforms() {
                         $('#streambox').html('');
                         smod.close();
                       });
-/*
+
 		      $(".zoomStream").click(function() {
                         if(!streaming) {
                            streaming = true;
                            $(".zoomStream").html('Streaming!').fadeIn('slow');
-                           stream_data();
+                           stream_data(g.graphid);
 			}
                         else if(streaming) {
                            streaming = false;
@@ -120,7 +140,7 @@ function unlock_wforms() {
                         }
 
                       }); //end stream click function                      
-*/
+
                     }); //end zoom click function
 
              	    $(this).mouseover(                  
