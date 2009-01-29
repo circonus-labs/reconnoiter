@@ -12,9 +12,12 @@ var streaming = false;
 var stream_graph;
 
 function stream_data() {
+
+  polltime = 5000;
+  timewindow = 6000000;
   stream_object = stream_graph;
   stream_dirty = false;
-  stream_graph.ReconGraphClear();
+  stream_graph.ReconGraphPrepareStream(timewindow, polltime);
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
   stream_graph.everyTime(1000, function() {
@@ -102,6 +105,7 @@ function unlock_wforms() {
                         $('#streambox').html('');
                         smod.close();
                       });
+/*
 		      $(".zoomStream").click(function() {
                         if(!streaming) {
                            streaming = true;
@@ -114,8 +118,9 @@ function unlock_wforms() {
                            $(".zoomStream").html('Stream Data').fadeIn('slow');
                            stream_graph.ReconGraphRefresh({graphid: g.graphid});
                         }
-                      }); //end stream click function                      
 
+                      }); //end stream click function                      
+*/
                     }); //end zoom click function
 
              	    $(this).mouseover(                  

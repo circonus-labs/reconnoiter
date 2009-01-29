@@ -5,6 +5,7 @@ class Reconnoiter_ChangeSet {
   protected $last_value;
   protected $groupname;
   protected $derive;
+  protected $uuid;
 
   function __construct($uuid, $name, $start, $end, $cnt = 400) {
     $db = Reconnoiter_DB::getDB();
@@ -12,6 +13,7 @@ class Reconnoiter_ChangeSet {
     $this->data = $db->get_var_for_window($uuid, $name, $start, $end, $cnt);
     $last = end($this->data);
     if($last) $this->last_value = $last['value'];
+    $this->uuid = $db->get_uuid_by_sid($uuid);
   }
   function groupname($gn = null) {
     if(isset($gn)) $this->groupname = $gn;
@@ -32,6 +34,9 @@ class Reconnoiter_ChangeSet {
   function expression() { return ''; }
   function derive_val() {
     return $this->derive;
+  }
+  function uuid_val() {
+    return $this->uuid;
   }
 }
 

@@ -26,6 +26,7 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $a = array();
     $i = 0;
     foreach($this->sets as $name => $set) {
+      $m_name = explode("-", $name);      
       $ds = array (
         'reconnoiter_source_expression' => $set->expression(),
         'reconnoiter_display_expression' => $this->sets_config[$name]['expression'],
@@ -33,7 +34,10 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
         'derive_val' => $set->derive_val(),
-        'uuid_name' => $name,
+        'uuid' => $set->uuid_val(),
+        'metric_name' => $m_name[1],
+        'metric_type' => (get_class($set) == "Reconnoiter_DataSet") ? 'numeric' : 'text',
+        'hidden' => ($this->sets_config[$name]['hidden'] == "true") ? 1: 0,
       );
       $show_set = ($this->sets_config[$name]['hidden'] != "true") ? 1: 0;
       if($show_set) {

@@ -405,6 +405,13 @@ class Reconnoiter_DB {
     }
     return $id;
   }
+  function get_uuid_by_sid($sid) {
+    $sth = $this->db->prepare("select * from stratcon.map_uuid_to_sid
+                                           where sid=?");
+    $sth->execute(array($sid));
+    $row = $sth->fetch();
+    return $row['id'];
+  }
   function getGraphByID($id) {
     $sth = $this->db->prepare("select *
                                  from prism.saved_graphs
@@ -418,6 +425,8 @@ class Reconnoiter_DB {
                                       where sheetid=? and graphid=?");
     $sth->execute(array($ws_id, $graphid));
   }
+
+//TODO this should delete from saved_graphs_dep too
   function deleteGraph($id) {
     $sth = $this->db->prepare("delete from prism.saved_graphs
                                      where graphid=?");
@@ -457,7 +466,7 @@ class Reconnoiter_DB {
                                               metric_name, metric_type)
                                       values (?,?,?,?)");
       foreach($graph['datapoints'] as $datapoint) {
-        if($datapoints['sid']) {
+        if($datapoint['sid']) {
           $sth->execute(array($id, $datapoint['sid'],
                               $datapoint['metric_name'],
                               $datapoint['metric_type']));

@@ -50,17 +50,29 @@ function unlock_forms() {
 
 function graph_stream_data() {
 
+polltime = 5000;
+time_width = 50000;
 stream_object = maingraph;
 stream_dirty = false;
-maingraph.ReconGraphClear();
+maingraph.ReconGraphPrepareStream(time_width, polltime);
+
 
 sids = ""; 
+var sidneed = new Object();
 for(var i=0; i<graphinfo.datapoints.length; i++) {
-    sids+= graphinfo.datapoints[i].sid+",";
+    if(graphinfo.datapoints[i].sid) {
+      sidneed[graphinfo.datapoints[i].sid] = polltime;
+    }
+}
+for(var sid in sidneed) {
+    sids+= "/"+sid+"@"+sidneed[sid];
 }
 
 maingraph.everyTime(1000, function() {
-    if(!gstreaming) {   maingraph.stopTime();}
+    if(!gstreaming) {   
+       $('#gstreambox').html('');
+       maingraph.stopTime();
+    }
     else {
     if(stream_dirty){
         maingraph.ReconGraphPlotPoints();     
@@ -69,9 +81,11 @@ maingraph.everyTime(1000, function() {
 }
 });
 //var tstep = 0;
-//maingraph.everyTime(250, function () { tstep++; plot_iframe_data(1179, 'allocator_requests', tstep*tstep, tstep*250000);});
+//maingraph.everyTime(250, function () { tstep++; plot_iframe_data((tstep*250000).toString(), '1179', 'allocator_requests',  '5000');});
 
-$('#gstreambox').html('<iframe src="http://bob.office.omniti.com/data"></iframe>');
+console.log("sids = ", sids);
+
+$('#gstreambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
 
 }
 function set_current_graph_id(id) {
@@ -318,6 +332,12 @@ $(document).ready(function(){
 		    locked = true;	
 		    lock_forms();
                     $(".editGraph").html('Edit Graph').fadeIn('slow');
+                    if(gstreaming) { 
+                      gstreaming = false;
+                      $('#gstreambox').html('');
+                      $(this).html('Stream Data').fadeIn('slow');
+                      update_current_graph(true); 
+		      }
 		}
 	});
 

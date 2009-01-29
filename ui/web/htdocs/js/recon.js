@@ -1,11 +1,12 @@
 //global objects to use for calling plot_ifram_data from stream
 var stream_object;
 var stream_dirty;
+var debug_count = 0;
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
-function plot_iframe_data(uuid, metric_name, ydata, xdata) {
-  stream_object.ReconGraphAddPoint(uuid, metric_name, xdata, ydata);
+function plot_iframe_data(xdata, uuid, metric_name, ydata) {
+    stream_object.ReconGraphAddPoint(xdata, uuid, metric_name, ydata);
   stream_dirty = true;
 }
 
@@ -137,10 +138,13 @@ function rpn_eval(value, expr) {
           this.data('__recon', this);
           return this;
         },
-      clear:
-	function () {                      
+      PrepareStream:
+	function (time_window, time_interval) {                      
 	    if(this.flot_plot) {
-		for(var i=0; i<ddata.length;i++) {      	   
+                doptions.time_window = time_window;
+                doptions.time_interval = time_interval;
+                doptions.max_time = 0;
+		for(var i=0; i<ddata.length;i++) {  
                     ddata[i].data = [];
 		}		
 		this.flot_plot.setData({});       
@@ -150,41 +154,102 @@ function rpn_eval(value, expr) {
 	    return this;
 	},
      AddPoint:
-        function (uuid, metric_name, xdata, ydata) {
+        function (xdata, uuid, metric_name, ydata) {
+
+            debug_count++;
+
 	    tdata = [xdata, ydata.toString()];
 
 	    for(var i=0; i<ddata.length;i++) {
-		if( !ddata[i].hidden && (ddata[i].uuid_name ==  (uuid+"-"+metric_name)) ) {
+		if( (ddata[i].uuid ==  uuid) 
+		    && (ddata[i].metric_name == metric_name)
+		    && !ddata[i].hidden ) {
+		    //    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
 
-		    if(ddata[i].data.length>0) ddata[i].lastval = ddata[i].data[0];
-		    if(ddata[i].lastval) {
-			slope = (tdata[0] - ddata[i].lastval[0]) / (tdata[1] - ddata[i].lastval[1]); 		     
-			if(ddata[i].derive_val == 'derive') {
-			    tdata[1] = slope;
+                    if(ddata[i].metric_type == 'numeric') {
+
+            if((xdata*1000)>doptions.max_time) { doptions.max_time = xdata*1000; }
+            if( !doptions.min_time || ((xdata*1000)<doptions.min_time)) { doptions.min_time = xdata*1000;}
+
+			if(ddata[i].lastval) {
+			    slope = (tdata[1] - ddata[i].lastval[1]) / (tdata[0] - ddata[i].lastval[0]); 		     
+			    if(ddata[i].derive_val == 'derive') {
+				tdata[1] = slope;
+			    }
+			    else if(ddata[i].derive_val == 'counter') {
+				if(slope>=0) tdata[1] = slope; 
+				else tdata[1] = '';
+			    }
+			}//end if there was a last value available    
+                        //if this is the first live datapoint, set slope and count to null
+			else if( (ddata[i].derive_val == 'derive') || (ddata[i].derive_val == 'counter') )
+			    {
+				tdata[1]='';
+			    }			    
+			if(tdata[1]!=''){
+			    if(ddata[i].reconnoiter_source_expression) {
+				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression);
 			}
-			else if(ddata[i].derive_val == 'counter') {
-			    if(slope>=0) tdata[1] = tdata[1] - ddata[i].lastval[1];
-			    else tdata[1] = '';
+			    if(ddata[i].reconnoiter_display_expression) {
+				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression);
+			    }
+			} //end if ydata was a number
+			
+			tdata[0]*=1000; //convert from seconds to milliseconds for flot
+			ddata[i].data.push(tdata);
+			if(ddata[i].lastval) {
+			    if ((tdata[0] - ddata[i].data[0][0]) > doptions.time_window) {
+				ddata[i].data.shift();
+			    }
 			}
-		    } //end if there was a previous value available
+		    }//end if metric was numeric
 		    
-		    if(tdata[1]!=''){
-			if(ddata[i].reconnoiter_source_expression) {
-			    tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression);
+                    //if we have a text data type
+                    else { 
+			/*
+                        tdata[0]*=1000; //convert from seconds to milliseconds for flot
+			tdata.push(tdata[1]);
+                        tdata[1] = "0"; 
+			
+                        //if we had a previous value stored, only push data to plot when the value changes
+                        //or if our earliest value's timestamp would fall below of any numeric minimum timestamp
+                        if(ddata[i].lastval) {
+			    if( (ddata[i].lastval[1] != tdata[2]) || ((ddata[i].lastval[0]*1000)<doptions.min_time) ) {
+                                ddata[i].data.push(tdata);
+				if ((tdata[0] - ddata[i].data[0][0]) > doptions.time_window) {
+				    ddata[i].data.shift();
+				}
+			    }
 			}
-			if(ddata[i].reconnoiter_display_expression) {
-			    tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression);
+                        //if we are adding a text point for the first time
+			else { 
+			    ddata[i].data.push(tdata);
 			}
-			if(ddata[i].data.unshift(tdata) >70) {
-			    ddata[i].data.pop();
-			}
-		    } //end if ydata was a number
+			*/
+		    }//end if text metric type
+		    
+		    ddata[i].lastval = [xdata, ydata];
+		    
 		} //end if the uuid and metric_name match
 	    } //end for each dataset	    
+	    
 	    return this;
 	},
     PlotPoints:
         function () {
+	    
+	    //            console.log("min data = ",doptions.min_time," max data=",doptions.max_time);
+
+            if( (doptions.max_time >= doptions.min_time + doptions.time_window)) {
+		doptions.xaxis.min = doptions.xaxis.max = null;
+	    }
+	    else {
+		//		doptions.xaxis.min = doptions.min_time;
+		doptions.xaxis.max = doptions.min_time + doptions.time_window;
+	    }
+
+	    //            console.log("xmin = ",doptions.xaxis.min," xmax = ",doptions.xaxis.max);
+	    
             this.flot_plot = $.plot(dplaceholder, ddata, doptions);
             return this;
 	},
@@ -233,7 +298,7 @@ function rpn_eval(value, expr) {
             };
           doptions = r.options;
           dplaceholder = placeholder;
-          ddata = r.data;
+          ddata = r.data;          
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
           var hovering;
           placeholder.bind("plothover", function (event, pos, item) {
@@ -301,7 +366,7 @@ function rpn_eval(value, expr) {
                 ReconGraphPlot: ReconGraph.plot,
                 ReconGraphReset: ReconGraph.reset,
 	      ReconGraphMacro: ReconGraph.macro,
-              ReconGraphClear: ReconGraph.clear,
+              ReconGraphPrepareStream: ReconGraph.PrepareStream,
               ReconGraphAddPoint: ReconGraph.AddPoint,
               ReconGraphPlotPoints: ReconGraph.PlotPoints
               });
