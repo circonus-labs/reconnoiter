@@ -6,7 +6,11 @@ var stream_dirty;
 // and init,update the global streaming boolean to then call this from a server
 function plot_iframe_data(xdata, uuid, metric_name, ydata) {
     stream_object.ReconGraphAddPoint(xdata, uuid, metric_name, ydata);
-  stream_dirty = true;
+    stream_dirty = true;
+}
+
+function log_iframe_message(message) {
+    $(".stream-log").html(message).fadeIn('slow');
 }
 
 function dump(arr,level) {

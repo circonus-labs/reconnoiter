@@ -94,12 +94,17 @@ function set_current_graph_id(id) {
     gstreaming = false;
     lock_forms();
     $(".editGraph").html('Edit Graph').fadeIn('slow');    
+    $('#gstreambox').html('');
     $(".streamData").html('Stream Data').fadeIn('slow');
+    $(".stream-log").attr("style", "display:none;");
   }
   else {        
     locked = false;
     unlock_forms();    
     $(".editGraph").html('Editing!').fadeIn('slow');
+    $('#gstreambox').html('');
+    $(".streamData").html('Stream Data').fadeIn('slow');
+    $(".stream-log").attr("style", "display:none;");
   }
   current_graph_id = id;
   fetch_graph_info(current_graph_id);
@@ -108,7 +113,9 @@ var recurse = 0;
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   gstreaming = false;
+  $('#gstreambox').html('');
   $(".streamData").html('Stream Data').fadeIn('slow');
+  $(".stream-log").attr("style", "display:none;");
 
   var str = JSON.stringify(graphinfo);
   if(debug_graph_edit) $("#payload").html(str);
@@ -333,7 +340,8 @@ $(document).ready(function(){
                     if(gstreaming) { 
                       gstreaming = false;
                       $('#gstreambox').html('');
-                      $(this).html('Stream Data').fadeIn('slow');
+                      $(".streamData").html('Stream Data').fadeIn('slow');
+                      $(".stream-log").attr("style", "display:none;");
                       update_current_graph(true); 
 		      }
 		}
@@ -346,12 +354,14 @@ $(document).ready(function(){
                     if(!gstreaming) {
                         gstreaming = true;
 		        $(this).html('Streaming!').fadeIn('slow');
+                        $(".stream-log").removeAttr("style").html("stream log_");
 	  	        graph_stream_data();
                     }
                     else if(gstreaming) {
                         gstreaming = false;
                         $('#gstreambox').html('');
                         $(this).html('Stream Data').fadeIn('slow');
+                        $(".stream-log").attr("style", "display:none;");
                         update_current_graph(true);
                     }
 		}
@@ -447,6 +457,7 @@ $(document).ready(function(){
 <div>
 	<div id="maingraphHolder">
         </div>
+        <div class='stream-log' style='display:none'></div>
 	<form action="#" name="form4" id="form4" style="margin:1em 0;text-align:center;">
 	<fieldset>
 	<legend style="display:none;">View</legend>

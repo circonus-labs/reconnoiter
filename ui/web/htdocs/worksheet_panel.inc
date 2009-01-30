@@ -22,7 +22,11 @@ function stream_data(graph_id) {
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
   stream_graph.everyTime(1000, function() {
-    if(!streaming) {   stream_graph.stopTime();}
+    if(!streaming) {   
+     $('#streambox').html('');
+     $(".stream-log").attr("style", "display:none;");
+     stream_graph.stopTime();
+    }
     else {
       if(stream_dirty){
         stream_graph.ReconGraphPlotPoints();     
@@ -119,7 +123,7 @@ function unlock_wforms() {
 		      stream_graph.ReconGraphRefresh({graphid: g.graphid});
 		      stream_graph.prepend("<span class='zoomStream'>Stream Data</span>");
                       stream_graph.prepend("<span class='zoomClose'>x</span>");
-
+                      stream_graph.append("<div class='stream-log' style='display:none'></div>");
                       $(".zoomClose").click(function() {
                         streaming = false;                        
                         $('#streambox').html('');
@@ -130,12 +134,14 @@ function unlock_wforms() {
                         if(!streaming) {
                            streaming = true;
                            $(".zoomStream").html('Streaming!').fadeIn('slow');
+                           $(".stream-log").removeAttr("style").html("stream log_");
                            stream_data(g.graphid);
 			}
                         else if(streaming) {
                            streaming = false;
                            $('#streambox').html('');
                            $(".zoomStream").html('Stream Data').fadeIn('slow');
+                           $(".stream-log").attr("style", "display:none;");
                            stream_graph.ReconGraphRefresh({graphid: g.graphid});
                         }
 
