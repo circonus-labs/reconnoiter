@@ -386,7 +386,8 @@ static int serf_complete(eventer_t e, int mask,
   noitLT(nldeb, now, "serf_complete(%s)\n", ccl->check->target);
   if(!NOIT_CHECK_DISABLED(ccl->check) && !NOIT_CHECK_KILLED(ccl->check)) {
     serf_check_info_t *ci = ccl->check->closure;
-    memcpy(&ci->finish_time, now, sizeof(*now));
+    if(ci->finish_time.tv_sec == 0 && ci->finish_time.tv_usec == 0)
+      memcpy(&ci->finish_time, now, sizeof(*now));
     generic_log_results(ccl->self, ccl->check);
   }
   serf_cleanup(ccl->self, ccl->check);
@@ -555,11 +556,13 @@ static apr_status_t handle_response(serf_request_t *request,
   }
  finish:
   gettimeofday(&ci->finish_time, NULL);
+  noitL(nldeb, "serf finished request (%s) [%d.%06d]\n", ctx->check->target,
+        ci->finish_time.tv_sec, ci->finish_time.tv_usec);
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
     ci->timed_out = 0;
     memcpy(&ci->timeout_event->whence, &ci->finish_time,
-           sizeof(&ci->finish_time));
+           sizeof(ci->finish_time));
     eventer_add(ci->timeout_event);
   }
   return APR_EOF;
@@ -717,6 +720,7 @@ static int serf_initiate(noit_module_t *self, noit_check_t *check) {
 
   gettimeofday(&when, NULL);
   memcpy(&check->last_fire_time, &when, sizeof(when));
+  ci->finish_time.tv_sec = ci->finish_time.tv_usec = 0L;
 
   ccl = apr_pcalloc(ci->pool, sizeof(*ccl));
   ccl->self = self;
