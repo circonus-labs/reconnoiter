@@ -84,11 +84,13 @@ noit_check_fake_last_check(noit_check_t *check,
                            struct timeval *lc, struct timeval *_now) {
   struct timeval now, period;
   double r;
-  int offset, max;
+  int offset = 0, max;
 
-  r = drand48();
-  max = noit_check_max_initial_stutter();
-  offset = r * (MIN(max, check->period));
+  if(!(check->flags & NP_TRANSIENT)) {
+    r = drand48();
+    max = noit_check_max_initial_stutter();
+    offset = r * (MIN(max, check->period));
+  }
   period.tv_sec = (check->period - offset) / 1000;
   period.tv_usec = ((check->period - offset) % 1000) * 1000;
   if(!_now) {
