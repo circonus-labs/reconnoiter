@@ -26,7 +26,8 @@ typedef struct {
 typedef struct _noit_log_stream {
   char *type;
   char *name;
-  int enabled;
+  int enabled:1;
+  int debug:1;
   char *path;
   logops_t *ops;
   void *op_ctx;

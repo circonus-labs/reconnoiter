@@ -662,6 +662,7 @@ noit_conf_log_init(const char *toplevel) {
     char name[256], type[256], path[256];
     noit_hash_table *config;
     noit_boolean disabled;
+    noit_boolean debug;
 
     if(!noit_conf_get_stringbuf(log_configs[i],
                                 "ancestor-or-self::node()/@name",
@@ -692,6 +693,11 @@ noit_conf_log_init(const char *toplevel) {
                              "ancestor-or-self::node()/@disabled",
                              &disabled) && disabled)
       ls->enabled = 0;
+      
+    if(noit_conf_get_boolean(log_configs[i],
+                             "ancestor-or-self::node()/@debug",
+                             &debug) && debug)
+      ls->debug = 1;
       
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);

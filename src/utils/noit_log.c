@@ -336,12 +336,23 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
           const char *format, va_list arg) {
   int rv = 0, allocd = 0;
   char buffer[4096], *dynbuff = NULL;
+  char fbuf[1024];
 #ifdef va_copy
   va_list copy;
 #endif
 
   if(ls->enabled) {
     int len;
+    if(ls->debug) {
+      struct tm _tm, *tm = &_tm;
+      char tbuf[32];
+      time_t s = (time_t)now->tv_sec;
+      tm = localtime_r(&s, &_tm);
+      strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", tm);
+      snprintf(fbuf, sizeof(fbuf), "[%s.%06d %s:%d] %s",
+               tbuf, now->tv_usec, file, line, format);
+      format = fbuf;
+    }
 #ifdef va_copy
     va_copy(copy, arg);
     len = vsnprintf(buffer, sizeof(buffer), format, copy);
