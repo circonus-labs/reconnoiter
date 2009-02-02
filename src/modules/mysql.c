@@ -284,7 +284,7 @@ static int mysql_onload(noit_image_t *self) {
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 
-  eventer_name_callback("http/mysql_drive_session", mysql_drive_session);
+  eventer_name_callback("mysql/mysql_drive_session", mysql_drive_session);
   return 0;
 }
 
