@@ -248,4 +248,7 @@ typedef int32_t vpsized_int;
 
 typedef enum { noit_false = 0, noit_true } noit_boolean;
 
+#define NOIT_HEADURL "$HeadURL$"
+#undef NOIT_SVNVERSION
+
 #endif
