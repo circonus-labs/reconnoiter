@@ -80,6 +80,7 @@
     </listener>
   </listeners>
   <checks max_initial_stutter="30000" filterset="default">
+    <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="10.80.117.90" period="5000" timeout="4000"/>
     <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="10.80.116.4" period="15000" timeout="14000"/>
     <dc1 timeout="5000" period="60000">
       <icmp module="ping_icmp">
