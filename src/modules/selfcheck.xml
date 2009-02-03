@@ -21,7 +21,7 @@
           <module image="selfcheck" name="selfcheck"/>
         </modules>
         <checks>
-          <check uuid="6e65ffdc-f174-11dd-86fe-b7da9645ce7c" target="10.225.209.90"/>
+          <check uuid="6e65ffdc-f174-11dd-86fe-b7da9645ce7c" target="10.225.209.90" period="5000" timeout="4000"/>
         </checks>
       </noit>
     ]]></programlisting>
