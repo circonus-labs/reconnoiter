@@ -1,0 +1,30 @@
+<module>
+  <name>selfcheck</name>
+  <description><para>The selfcheck module performs a self assessment on the host noitd instance.</para>
+  </description>
+  <loader>C</loader>
+  <image>selfcheck.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="feedname"
+               required="required"
+               allowed=".+"
+               default="feed">The name of the feed that will be sized.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Testing the local noitd instance.</title>
+      <para>We self check the noitd instance every 5 seconds.  Here, the target doesn't mean anything in particular as the check is entirely internal.  The target should match the local noitd's IP address from the perspective of stratcond.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="selfcheck" name="selfcheck"/>
+        </modules>
+        <checks>
+          <check uuid="6e65ffdc-f174-11dd-86fe-b7da9645ce7c" target="10.225.209.90"/>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

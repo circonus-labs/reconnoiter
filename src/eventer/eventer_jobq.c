@@ -19,6 +19,8 @@
 static noit_atomic32_t threads_jobq_inited = 0;
 static pthread_key_t threads_jobq;
 static sigset_t alarm_mask;
+static noit_hash_table all_queues = NOIT_HASH_EMPTY;
+pthread_mutex_t all_queues_lock;
 
 static void
 eventer_jobq_handler(int signo)
@@ -37,7 +39,7 @@ eventer_jobq_handler(int signo)
 }
 
 int
-eventer_jobq_init(eventer_jobq_t *jobq) {
+eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name) {
   pthread_mutexattr_t mutexattr;
 
   if(noit_atomic_cas32(&threads_jobq_inited, 1, 0) == 0) {
@@ -60,9 +62,15 @@ eventer_jobq_init(eventer_jobq_t *jobq) {
             strerror(errno));
       return -1;
     }
+    if(pthread_mutex_init(&all_queues_lock, NULL)) {
+      noitL(noit_error, "Cannot initialize all_queues mutex: %s\n",
+            strerror(errno));
+      return -1;
+    }
   }
 
   memset(jobq, 0, sizeof(*jobq));
+  jobq->queue_name = strdup(queue_name);
   if(pthread_mutexattr_init(&mutexattr) != 0) {
     noitL(noit_error, "Cannot initialize lock attributes\n");
     return -1;
@@ -86,6 +94,14 @@ eventer_jobq_init(eventer_jobq_t *jobq) {
           strerror(errno));
     return -1;
   }
+  pthread_mutex_lock(&all_queues_lock);
+  if(noit_hash_store(&all_queues, jobq->queue_name, strlen(jobq->queue_name),
+                     jobq) == 0) {
+    noitL(noit_error, "Duplicate queue name!\n");
+    pthread_mutex_unlock(&all_queues_lock);
+    return -1;
+  }
+  pthread_mutex_unlock(&all_queues_lock);
   return 0;
 }
 
@@ -267,4 +283,16 @@ void eventer_jobq_decrease_concurrency(eventer_jobq_t *jobq) {
   job = calloc(1, sizeof(*job));
   eventer_jobq_enqueue(jobq, job);
 }
+void eventer_jobq_process_each(void (*func)(eventer_jobq_t *, void *),
+                               void *closure) {
+  const char *key;
+  int klen;
+  eventer_jobq_t *jobq;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
 
+  pthread_mutex_lock(&all_queues_lock);
+  while(noit_hash_next(&all_queues, &iter, &key, &klen, (void **)&jobq)) {
+    func(jobq, closure);
+  }
+  pthread_mutex_unlock(&all_queues_lock);
+}

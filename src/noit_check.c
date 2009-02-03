@@ -344,6 +344,16 @@ noit_poller_init() {
   noit_poller_reload(NULL);
 }
 
+int
+noit_poller_check_count() {
+  return polls_by_name.size;
+};
+
+int
+noit_poller_transient_check_count() {
+  return watchlist.size;
+};
+
 noit_check_t *
 noit_check_clone(uuid_t in) {
   noit_check_t *checker, *new_check;

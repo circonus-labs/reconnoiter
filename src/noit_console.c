@@ -450,6 +450,7 @@ static logops_t noit_console_logio_ops = {
   noit_console_logio_reopen,
   noit_console_logio_write,
   noit_console_logio_close,
+  NULL
 };
 
 int

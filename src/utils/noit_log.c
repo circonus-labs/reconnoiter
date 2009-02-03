@@ -60,11 +60,22 @@ posix_logio_close(noit_log_stream_t ls) {
   fd = (int)ls->op_ctx;
   return close(fd);
 }
+static size_t
+posix_logio_size(noit_log_stream_t ls) {
+  int fd;
+  struct stat sb;
+  fd = (int)ls->op_ctx;
+  if(fstat(fd, &sb) == 0) {
+    return (size_t)sb.st_size;
+  }
+  return -1;
+}
 static logops_t posix_logio_ops = {
   posix_logio_open,
   posix_logio_reopen,
   posix_logio_write,
   posix_logio_close,
+  posix_logio_size
 };
 
 static int
@@ -134,11 +145,17 @@ jlog_logio_close(noit_log_stream_t ls) {
   }
   return 0;
 }
+static size_t
+jlog_logio_size(noit_log_stream_t ls) {
+  if(!ls->op_ctx) return -1;
+  return jlog_raw_size((jlog_ctx *)ls->op_ctx);
+}
 static logops_t jlog_logio_ops = {
   jlog_logio_open,
   jlog_logio_reopen,
   jlog_logio_write,
   jlog_logio_close,
+  jlog_logio_size
 };
 
 void
@@ -296,6 +313,12 @@ void noit_log_stream_reopen(noit_log_stream_t ls) {
 void
 noit_log_stream_close(noit_log_stream_t ls) {
   if(ls->ops) ls->ops->closeop(ls);
+}
+
+size_t
+noit_log_stream_size(noit_log_stream_t ls) {
+  if(ls->ops && ls->ops->sizeop) return ls->ops->sizeop(ls);
+  return -1;
 }
 
 void

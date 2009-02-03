@@ -24,13 +24,15 @@ XML2H=@top_srcdir@/buildtools/xml2h
 top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
-	lua.@MODULEEXT@ dns.@MODULEEXT@ \
+	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)
 
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
+
+selfcheck.lo:	selfcheck.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo ../lua/liblua.lo

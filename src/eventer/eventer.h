@@ -112,5 +112,6 @@ API_EXPORT(void) eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
 API_EXPORT(void) eventer_dispatch_recurrent(struct timeval *now);
 API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
+API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
 
 #endif

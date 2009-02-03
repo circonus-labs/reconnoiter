@@ -34,6 +34,7 @@ typedef struct _eventer_job_t {
 } eventer_job_t;
 
 typedef struct _eventer_jobq_t {
+  const char             *queue_name;
   pthread_mutex_t         lock;
   sem_t                   semaphore;
   noit_atomic32_t         concurrency;
@@ -44,7 +45,7 @@ typedef struct _eventer_jobq_t {
   struct _eventer_jobq_t *backq;
 } eventer_jobq_t;
 
-int eventer_jobq_init(eventer_jobq_t *jobq);
+int eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name);
 void eventer_jobq_enqueue(eventer_jobq_t *jobq, eventer_job_t *job);
 eventer_job_t *eventer_jobq_dequeue(eventer_jobq_t *jobq);
 eventer_job_t *eventer_jobq_dequeue_nowait(eventer_jobq_t *jobq);
@@ -56,5 +57,6 @@ int eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
 void eventer_jobq_increase_concurrency(eventer_jobq_t *jobq);
 void eventer_jobq_decrease_concurrency(eventer_jobq_t *jobq);
 void *eventer_jobq_consumer(eventer_jobq_t *jobq);
+void eventer_jobq_process_each(void (*func)(eventer_jobq_t *, void *), void *);
 
 #endif

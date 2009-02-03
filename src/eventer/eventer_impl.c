@@ -9,6 +9,8 @@
 #include <pthread.h>
 #include <assert.h>
 
+static struct timeval *eventer_impl_epoch = NULL;
+
 #ifdef HAVE_KQUEUE
 extern struct _eventer_impl eventer_kqueue_impl;
 #endif
@@ -61,9 +63,18 @@ eventer_jobq_t *eventer_default_backq() {
   return &__global_backq;
 }
 
+int eventer_get_epoch(struct timeval *epoch) {
+  if(!eventer_impl_epoch) return -1;
+  memcpy(epoch, eventer_impl_epoch, sizeof(*epoch));
+  return 0;
+}
+
 int eventer_impl_init() {
   int i;
   eventer_t e;
+
+  eventer_impl_epoch = malloc(sizeof(struct timeval));
+  gettimeofday(eventer_impl_epoch, NULL);
 
   eventer_err = noit_log_stream_find("error/eventer");
   eventer_deb = noit_log_stream_find("debug/eventer");
@@ -71,7 +82,7 @@ int eventer_impl_init() {
   if(!eventer_deb) eventer_deb = noit_debug;
 
   eventer_ssl_init();
-  eventer_jobq_init(&__global_backq);
+  eventer_jobq_init(&__global_backq, "default_back_queue");
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
   e->closure = &__global_backq;
@@ -80,7 +91,7 @@ int eventer_impl_init() {
   /* We call directly here as we may not be completely initialized */
   eventer_add_recurrent(e);
 
-  eventer_jobq_init(&__default_jobq);
+  eventer_jobq_init(&__default_jobq, "default_queue");
   __default_jobq.backq = &__global_backq;
   for(i=0; i<__default_queue_threads; i++)
     eventer_jobq_increase_concurrency(&__default_jobq);

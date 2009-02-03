@@ -73,4 +73,23 @@ static inline void uuid_unparse_lower(uuid_t in, char *out) {
 /* udns checks for IPv6, noit doesn't work without it */
 #define HAVE_IPv6
 
+static inline int noit_build_version(char *buff, int len) {
+  const char *v = NOIT_HEADURL;
+  const char *start, *end, *ns;
+  if(NULL != (start = strstr(v, "reconnoiter/"))) {
+    start += strlen("reconnoiter/");
+    if(NULL != (end = strstr(start, "/src"))) {
+      ns = strchr(start, '/'); /* necessarily non-NULL */
+      ns++;
+      if(!strncmp(start, "trunk/", 6))
+        return snprintf(buff, len, "trunk.%s", NOIT_SVNVERSION);
+      if(!strncmp(start, "branches/", 9))
+        return snprintf(buff, len, "b_%.*s.%s", end - ns, ns, NOIT_SVNVERSION);
+      if(!strncmp(start, "tags/", 5))
+        return snprintf(buff, len, "%.*s.%s", end - ns, ns, NOIT_SVNVERSION);
+    }
+  }
+  return snprintf(buff, len, "unknown.%s", NOIT_SVNVERSION);
+}
+
 #endif

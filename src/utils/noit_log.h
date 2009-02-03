@@ -21,6 +21,7 @@ typedef struct {
   int (*reopenop)(struct _noit_log_stream *);
   int (*writeop)(struct _noit_log_stream *, const void *, size_t);
   int (*closeop)(struct _noit_log_stream *);
+  size_t (*sizeop)(struct _noit_log_stream *);
 } logops_t;
 
 typedef struct _noit_log_stream {
@@ -57,6 +58,7 @@ API_EXPORT(noit_log_stream_t)
                                                const char *name);
 API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
+API_EXPORT(size_t) noit_log_stream_size(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);
 API_EXPORT(int) noit_vlog(noit_log_stream_t ls, struct timeval *,
                           const char *file, int line,
