@@ -107,19 +107,32 @@ noit_hash_table ds_conns;
 conn_q *
 __get_conn_q_for_remote(struct sockaddr *remote) {
   conn_q *cq;
+  char queue_name[128] = "datastore_";
   static const char __zeros[4] = { 0 };
   int len = 0;
   if(remote) {
     switch(remote->sa_family) {
-      case AF_INET: len = sizeof(struct sockaddr_in); break;
-      case AF_INET6: len = sizeof(struct sockaddr_in6); break;
-      case AF_UNIX: len = SUN_LEN(((struct sockaddr_un *)remote)); break;
+      case AF_INET:
+        len = sizeof(struct sockaddr_in);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
+                  queue_name + strlen("datastore_"), len);
+        break;
+      case AF_INET6:
+       len = sizeof(struct sockaddr_in6);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
+                  queue_name + strlen("datastore_"), len);
+       break;
+      case AF_UNIX:
+        len = SUN_LEN(((struct sockaddr_un *)remote));
+        snprintf(queue_name, sizeof(queue_name), "datastore_%s", ((struct sockaddr_un *)remote)->sun_path);
+        break;
       default: return NULL;
     }
   }
   else {
     /* This is a dummy connection */
     remote = (struct sockaddr *)__zeros;
+    snprintf(queue_name, sizeof(queue_name), "datastore_default");
     len = 4;
   }
   if(noit_hash_retrieve(&ds_conns, (const char *)remote, len, (void **)&cq))
@@ -128,7 +141,7 @@ __get_conn_q_for_remote(struct sockaddr *remote) {
   cq->remote = malloc(len);
   memcpy(cq->remote, remote, len);
   cq->jobq = calloc(1, sizeof(*cq->jobq));
-  eventer_jobq_init(cq->jobq);
+  eventer_jobq_init(cq->jobq, queue_name);
   cq->jobq->backq = eventer_default_backq();
   /* Add one thread */
   eventer_jobq_increase_concurrency(cq->jobq);
@@ -603,7 +616,7 @@ stratcon_datastore_saveconfig(void *unused) {
     buff = noit_conf_xml_in_mem(&len);
     if(!buff) goto bad_row;
 
-    snprintf(time_as_str, sizeof(time_as_str), "%lu", time(NULL));
+    snprintf(time_as_str, sizeof(time_as_str), "%lu", (long unsigned int)time(NULL));
     DECLARE_PARAM_STR("0.0.0.0", 7);
     DECLARE_PARAM_STR("stratcond", 9);
     DECLARE_PARAM_STR(time_as_str, strlen(time_as_str));
