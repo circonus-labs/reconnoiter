@@ -1,3 +1,5 @@
+//global object to handle ajaz request queuing, currently only for ReconGraphRefresh
+var ajaxManager;
 //global objects to use for calling plot_ifram_data from stream
 var stream_object;
 var stream_dirty;
@@ -112,6 +114,7 @@ function rpn_eval(value, expr) {
     return {
       init:
         function(options) {
+          ajaxManager =  $.manageAjax({manageType: 'abortOld', maxReq: 0});
           this.graphinfo = $.extend({}, displayinfo, options||{});
           if(!this.graphinfo.cnt) this.graphinfo.cnt = this.graphinfo.width / 2;
           if(!this.attr("id")) this.attr("id", this.graphinfo.graphid);
@@ -267,11 +270,23 @@ function rpn_eval(value, expr) {
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
           this.find(".plot-area")
               .html('<div class="centered"><div class="loading">&nbsp;</div></div>');
-          $.getJSON(url, {'cnt':this.graphinfo.cnt,
+	  
+          data = {'cnt':this.graphinfo.cnt,
                           'start':this.graphinfo.start,
                           'end':this.graphinfo.end,
- 		          'type':this.graphinfo.type},
-                    (function(o) { return function (r) { o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }})(this));
+	               'type':this.graphinfo.type};
+	
+          ajaxManager.add({ url: url,
+	    data: data,
+            success: (function(o) { return function (r) { r = eval('('+r+')'); o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }}) (this)
+	    });
+
+           /*
+           $.getJSON(url, 
+                           data,
+		     (function(o) { return function (r) { o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }})  (this) );
+           */
+
           this.data('__recon', this);
           return this;
         },
