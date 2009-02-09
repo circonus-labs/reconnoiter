@@ -59,6 +59,7 @@ function stream_data(graph_id) {
 function lock_wforms() {
   $("h2#worksheetTitle").unbind();
   $("ul#worksheet-graphs").unbind();
+  $("ul#worksheet-graphs > li >div").each(function(i) { $(this).unbind();});
 }
 	 
 function unlock_wforms() {
@@ -97,7 +98,7 @@ function unlock_wforms() {
                     $("#Remove-"+$(this).attr('id')).click( function() {
                       $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + g.graphid,
                         function(r) { if(r.error) { alert(r.error); } });
-                        load_worksheet(wsinfo.id);
+                        $("#"+g.graphid).remove();
                     });
 
 		    $("#Zoom-"+$(this).attr('id')).click( function() {
@@ -216,7 +217,7 @@ function process_worksheet_json(r) {
 }
 function add_graph_to_worksheet(graphid) {
   if(!locked){
-    for(var i = 0; i < wsinfo.graphs.length; i++) {
+    for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
       if(wsinfo.graphs[i]==graphid) {
          alert("Worksheets cannot have dusplicate graphs!");
          return;
@@ -235,6 +236,7 @@ function add_graph_to_worksheet(graphid) {
     alert('pushing ' + graphid);
     wsinfo.graphs.push(graphid);
     update_current_worksheet();
+    unlock_wforms();
   }
 
 }
@@ -265,7 +267,7 @@ function load_worksheet(id) {
 </script>
 <span class="rememberWorksheet"></span>
 <span class="blankWorksheet">New Blank</span>
-<span class="editWorksheet">Edit Worksheet</span>
+<span class="editWorksheet">Editing!</span>
 <h2 id="worksheetTitle">Worksheet Title</h2>
 <p/>
 <!-- date range box -->
