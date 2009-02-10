@@ -59,7 +59,7 @@ function unlock_forms() {
            }, { });
 
         $(".datatitle").editable(function(value, settings) {      
-           d.name = value;
+           graphinfo.datapoints[$(".datatitle").index(this)].name = value;
            update_current_graph(true);
            return(value);
         }, { }); 
