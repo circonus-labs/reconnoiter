@@ -15,7 +15,24 @@ var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc333
 var color_sel = 0;
 var locked = true;
 var gstreaming = false;
-		
+
+function is_locked(warning) {		
+  if(locked) {
+    lock_warning = $("<div class='header'>Locked!</div><p class='message'>"+warning+"</p><p class='closeModal'>Close</p>").modal({
+		        containerId: 'lock-warning-modal',
+                        close: 'true',
+  			overlayCss: {
+    			backgroundColor: '#000000',
+    			cursor: 'wait'
+  			},
+		      });
+
+    $('#lock-warning-modal').click(function() { lock_warning.close();} );    
+    return locked;
+  }
+  return locked;
+}
+
 function lock_forms() {
 	$("input[@name='math1']").attr("disabled", "true");
 	$("input[@name='math2']").attr("disabled", "true");
@@ -145,7 +162,7 @@ function update_current_graph(redraw, f) {
          }, 'json');
 }
 function graph_add_datapoint(d) {
-  if(!locked){	 	 
+  if(!is_locked("Click 'Edit Graph' to unlock.")){
     if(d.axis == undefined) { d.axis = 'l'; }
     if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
     graphinfo.datapoints.push(d);
@@ -311,8 +328,9 @@ function fetch_graph_info(id) {
 <p/>
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
-<span class="editGraph">Edit Graph</span>
 <span class="streamData ">Stream Data</span>
+<span class="editGraph">Edit Graph</span>
+
 <h2 id="graphTitle"></h2>
 <!-- date range box -->
 <script type="text/javascript">
@@ -351,7 +369,7 @@ $(document).ready(function(){
 
         $(".streamData").click(function() {
 
-               if(!locked && graphinfo.id) {            
+               if(!is_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {            
                     if(!gstreaming) {
                         gstreaming = true;
 		        $(this).html('Streaming!').fadeIn('slow');

@@ -12,6 +12,23 @@ var locked = true;
 var streaming = false;
 var stream_graph;
 
+function is_locked(warning) {		
+  if(locked) {
+    lock_warning = $("<div class='header'>Locked!</div><p class='message'>"+warning+"</p><p class='closeModal'>Close</p>").modal({
+		        containerId: 'lock-warning-modal',
+                        close: 'true',
+  			overlayCss: {
+    			backgroundColor: '#000000',
+    			cursor: 'wait'
+  			},
+		      });
+
+    $('#lock-warning-modal').click(function() { lock_warning.close();} );    
+    return locked;
+  }
+  return locked;
+}
+
 function stream_data(graph_id) {
 
   polltime = 5000;
@@ -217,7 +234,7 @@ function process_worksheet_json(r) {
   ul.sortable("refresh");
 }
 function add_graph_to_worksheet(graphid) {
-  if(!locked){
+  if(!is_locked("Click 'Edit Worksheet' to unlock.")){
     for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
       if(wsinfo.graphs[i]==graphid) {
          alert("Worksheets cannot have dusplicate graphs!");
