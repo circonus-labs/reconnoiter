@@ -495,6 +495,7 @@ function graphs_for_edit(li, g, params) {
                 perform_graph_search_edit(params);
               }
             });
+	  if(current_graph_id==graphid) {set_current_graph_id('');}
 		});		
           return false;
         }

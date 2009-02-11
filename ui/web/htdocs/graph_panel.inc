@@ -132,7 +132,8 @@ function update_current_graph(redraw, f) {
          {'json':str},
          function(d) {
            recurse++;
-           graphinfo.id = d.id;
+           graphinfo.id = current_graph_id = d.id;
+           
            if(d.error) $("#gtool-error").html(d.error).fadeIn('fast');
            else $("#gtool-error").fadeOut('fast');      
            if(graphinfo.id && graphinfo.saved != true &&
