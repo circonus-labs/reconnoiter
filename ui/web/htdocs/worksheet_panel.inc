@@ -12,19 +12,14 @@ var locked = true;
 var streaming = false;
 var stream_graph;
 
-function is_locked(warning) {		
+function ws_locked(warning) {		
   if(locked) {
-    lock_warning = $("<div class='header'>Locked!</div><p class='message'>"+warning+"</p><p class='closeModal'>Close</p>").modal({
-		        containerId: 'lock-warning-modal',
-                        close: 'true',
-  			overlayCss: {
-    			backgroundColor: '#000000',
-    			cursor: 'wait'
-  			},
-		      });
-
-    $('#lock-warning-modal').click(function() { lock_warning.close();} );    
+    modal_warning("Worksheet Locked!", warning);
     return locked;
+  }
+  else if($(".rememberWorksheet:visible").length != 0) {
+    modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
+    return true;
   }
   return locked;
 }
@@ -92,13 +87,13 @@ function unlock_wforms() {
                 scroll: true,
                 stop:
                   function (e,ui) {
-                    wsinfo.reorder = true;
                     wsinfo.graphs = new Array();
                     ui.item.parent().find("> li > div").each(
-                      function(i) { wsinfo.graphs.push($(this).attr("id")); }
+                      function(i) { 
+                        wsinfo.graphs.push($(this).attr("id")); 
+                      }
                     );
                     update_current_worksheet();
-                    wsinfo.reorder = false;
                   }
               });
 
@@ -115,7 +110,7 @@ function unlock_wforms() {
 
                     $("#Remove-"+$(this).attr('id')).click( function() {
                       $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + g.graphid,
-                        function(r) { if(r.error) { alert(r.error); } });
+                        function(r) { if(r.error) { $("#ws-tool-error").html(r.error).fadeIn('fast');  } });
                         $("#"+g.graphid).remove();
                     });
 
@@ -200,11 +195,16 @@ function update_current_worksheet(f) {
               $(".rememberWorksheet:visible").length == 0) {
              wsinfo.saved = false;
              $(".rememberWorksheet").html('"Remember" this worksheet.').fadeIn('slow');
+             lock_wforms();
+             modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
              $(".rememberWorksheet").click(function() {
                wsinfo.saved = true;
                update_current_worksheet(function(r) {
                  if(r.error) wsinfo.saved = false;
-                 else $(".rememberWorksheet").html('Remebered').fadeOut('slow');
+                 else {
+                    $(".rememberWorksheet").html('Remebered').fadeOut('slow');
+                    unlock_wforms();
+                 }
                });
              });
            }
@@ -234,10 +234,10 @@ function process_worksheet_json(r) {
   ul.sortable("refresh");
 }
 function add_graph_to_worksheet(graphid) {
-  if(!is_locked("Click 'Edit Worksheet' to unlock.")){
+  if(!ws_locked("Click 'Edit Worksheet' to unlock.")){
     for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
       if(wsinfo.graphs[i]==graphid) {
-         alert("Worksheets cannot have dusplicate graphs!");
+         modal_warning("", "Worksheets cannot have dusplicate graphs!");
          return;
       }
     }  
@@ -250,8 +250,7 @@ function add_graph_to_worksheet(graphid) {
     ul.append($('<li/>').append(o));
     o.ReconGraphRefresh();
     ul.sortable("refresh");
-    wsinfo.graphs = new Array();
-    alert('pushing ' + graphid);
+    if(!wsinfo.graphs) {wsinfo.graphs = new Array();}
     wsinfo.graphs.push(graphid);
     update_current_worksheet();
     unlock_wforms();
@@ -265,7 +264,6 @@ function refresh_worksheet() {
   $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
 }
 function load_worksheet(id) {
-    wsinfo.graphs = new Array();
   if(id==null) {
     wsinfo.saved = false;
     locked = false;
@@ -321,7 +319,6 @@ $(document).ready(function(){
 
 	$(".blankWorksheet").click(function() {
 		load_worksheet();		
-		alert("id = "+wsinfo.id);
 	});
 
         $("#ws_datetool .btn-slide").click(function(){

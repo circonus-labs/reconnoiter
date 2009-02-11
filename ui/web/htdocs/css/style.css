@@ -1104,8 +1104,7 @@ color:#363942;
 a:focus, a:hover, a:active {
 color:#B32720;
 }
-#lock-warning-modal {
-height:140px;
+#warning-modal {
 width:420px; 
 left:40%; 
 top:30%; 
@@ -1115,7 +1114,7 @@ text-align:center;
 background:#fff; 
 border:2px solid #fff;
 }
-#lock-warning-modal .header {
+#warning-modal .header {
 height:30px;
 width:100%;
 background:#e6e4e5;
@@ -1124,14 +1123,14 @@ font-size:20px;
 font-weight:bold; 
 line-height:30px;
 }
-#lock-warning-modal .message {
+#warning-modal .message {
 text-align:center; 
 margin:0; 
 padding:12px 10px; 
 font-size:18px;
 }
-#lock-warning-modal .closeModal {
-margin:40px; 
-font-size:18px;
+#warning-modal .closeModal {
+margin:10px; 
+font-size:12px;
 }
 

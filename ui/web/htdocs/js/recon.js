@@ -490,7 +490,7 @@ function graphs_for_edit(li, g, params) {
 	    confirm("I will forget the current graph.  Are you sure?", function(){
           $.getJSON('json/graph/forget/' + graphid,
             function (r) {
-              if(r.error) { alert(r.error); }
+			if(r.error) { modal_warning("Database Error!", r.error); }
               else { 
                 perform_graph_search_edit(params);
               }

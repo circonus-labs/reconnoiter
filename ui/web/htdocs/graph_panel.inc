@@ -16,18 +16,9 @@ var color_sel = 0;
 var locked = true;
 var gstreaming = false;
 
-function is_locked(warning) {		
+function graph_locked(warning) {		
   if(locked) {
-    lock_warning = $("<div class='header'>Locked!</div><p class='message'>"+warning+"</p><p class='closeModal'>Close</p>").modal({
-		        containerId: 'lock-warning-modal',
-                        close: 'true',
-  			overlayCss: {
-    			backgroundColor: '#000000',
-    			cursor: 'wait'
-  			},
-		      });
-
-    $('#lock-warning-modal').click(function() { lock_warning.close();} );    
+    modal_warning("Graph Locked!", warning);
     return locked;
   }
   return locked;
@@ -151,7 +142,10 @@ function update_current_graph(redraw, f) {
              $(".rememberGraph").click(function() {
                graphinfo.saved = true;
                update_current_graph(false, function(r) {
-                 if(r.error) graphinfo.saved = false;
+                 if(r.error) { 
+                   graphinfo.saved = false;
+                    $("#gtool-error").html(r.error).fadeIn('fast');
+                 }
                  else $(".rememberGraph").html('Remebered').fadeOut('slow');
                });
              });
@@ -162,7 +156,7 @@ function update_current_graph(redraw, f) {
          }, 'json');
 }
 function graph_add_datapoint(d) {
-  if(!is_locked("Click 'Edit Graph' to unlock.")){
+  if(!graph_locked("Click 'Edit Graph' to unlock.")){
     if(d.axis == undefined) { d.axis = 'l'; }
     if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
     graphinfo.datapoints.push(d);
@@ -313,7 +307,9 @@ function fetch_graph_info(id) {
     	 confirm("I will forget the current graph.  Are you sure?", function() {
              $.getJSON('json/graph/forget/' + graphinfo.id,
 	       function (r) {
-	         if(r.error) alert(r.error);
+	         if(r.error) {
+                   $("#gtool-error").html(r.error).fadeIn('fast');
+                 }
                  else set_current_graph_id('');
 	       });
 
@@ -369,7 +365,7 @@ $(document).ready(function(){
 
         $(".streamData").click(function() {
 
-               if(!is_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {            
+               if(!graph_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {            
                     if(!gstreaming) {
                         gstreaming = true;
 		        $(this).html('Streaming!').fadeIn('slow');
