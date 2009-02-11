@@ -612,12 +612,17 @@ list-style-image:none;
 list-style-position:outside;
 list-style-type:none;
 }
+.ws-add-graph-title {
+list-style-image:none;
+list-style-position:outside;
+list-style-type:none;
+}
 .graphlist ul li {
 display:block;
 margin-bottom:4px;
 padding:2px 0;
 }
-.graphlist ul li a {
+.graphlist-title {
 background:transparent url(../images/icon-graphs.png) no-repeat scroll 0 1px;
 font-size:12px;
 padding-left:25px;
@@ -731,7 +736,7 @@ display:block;
 margin-bottom:4px;
 padding:2px 0;
 }
-.worksheetlist ul li a {
+.worksheetlist-title {
 background:transparent url(../images/icon-worksheet.png) no-repeat scroll 0 1px;
 padding-left:15px;
 }

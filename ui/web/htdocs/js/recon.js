@@ -505,7 +505,7 @@ function graphs_for_edit(li, g, params) {
   ul.append($('<li/>').html(g.last_update));
   ul.append($('<li/>').append(edit));
   ul.append($('<li/>').append(del));
-  li.append($('<a/>').html(g.title)).append(ul);
+  li.append($('<div class="graphlist-title"/>').html(g.title)).append(ul);
 }
 function ws_for_edit(li, ws, params) {
   var add = $('<a href="#"/>');
@@ -521,7 +521,7 @@ function ws_for_edit(li, ws, params) {
   var ul = $('<ul/>');
   ul.append($('<li/>').html(ws.last_update));
   ul.append($('<li/>').append(add));
-  li.append($('<a/>').html(ws.title)).append(ul);
+  li.append($('<div class="worksheetlist-title"/>').html(ws.title)).append(ul);
 }
 function graphs_for_worksheet(li, g, params) {
   var add = $('<a href="#"/>');
@@ -537,7 +537,7 @@ function graphs_for_worksheet(li, g, params) {
   var ul = $('<ul/>');
   ul.append($('<li/>').html(g.last_update));
   ul.append($('<li/>').append(add));
-  li.append($('<a/>').html(g.title)).append(ul);
+  li.append($('<div class="ws-add-graph-title"/>').html(g.title)).append(ul);
 }
 function datapoints_for_graph(li, ds, params) {
   var a = $('<a href="#"/>');
