@@ -831,19 +831,44 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
-span.deleteWorksheetGraph {
+.ws-toolbar {
+position: relative;
+margin: 0;
+padding-right: 10px;
+}
+.ws-toolbar .deleteWorksheetGraph {
+display:none;
+}
+
+.ws-toolbar-edit {
+position: relative;
+margin: 0;
+padding-right: 10px;
+}
+.ws-toolbar-edit .zoomGraph {
+display: none;
+}
+.deleteWorksheetGraph {
 border: 1px solid #DDDDDD;
-margin: 10px;
-float: right;
+margin: 0em 0em 0 0;
 font-weight: bold;
 color:#660000;
 }
-span.zoomGraph {
+.zoomGraph {
 border: 1px solid #DDDDDD;
-margin: 10px;
-float: right;
+margin: 0;
 font-weight: bold;
 color:#660000;
+}
+ul#worksheet-graphs li.zoomGraph {
+ margin: 0;
+ position: absolute;
+ right: 10px;
+}
+ul#worksheet-graphs li.deleteWorksheetGraph {
+ margin: 0em 0em 0 0;
+ position: absolute;
+ right: 10px;
 }
 span.rememberGraph {
 border:1px solid #DDDDDD;
