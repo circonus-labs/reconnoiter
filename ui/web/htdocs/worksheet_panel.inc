@@ -72,16 +72,17 @@ function stream_data(graph_id) {
 function make_ws_graph(g) {
     var o = $('<div></div>').ReconGraph(g);
 
-    zb = $("<li class='zoomGraph' id='Zoom-"+g.graphid+"'>Zoom</li>");
+    zb = $("<li class='zoomGraph' id='Zoom-"+g.graphid+"'><img src='images/zoom_icon.png'></li>");
     zb.click(function() { zoom_modal(g.graphid); });
-    rb = $("<li class='deleteWorksheetGraph' id='Remove-"+g.graphid+"'>Remove</li>");
+    mb = $("<li class='moveGraph' id='Move-"+g.graphid+"'><img src='images/drag_icon.png'></li>");    
+    rb = $("<li class='deleteWorksheetGraph' id='Remove-"+g.graphid+"'><img src='images/remove_icon.png'></li>");
     rb.click( function() {
                   $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + g.graphid,
                      function(r) { if(r.error) { $("#ws-tool-error").html(r.error).fadeIn('fast');  } });
                   $("#"+g.graphid).remove();
                });
 
-    var ws_tbar = $('<div class="ws-toolbar"></div>').append("<ul/>").append(zb).append(rb);
+    var ws_tbar = $('<div class="ws-toolbar"></div>').append("<ul/>").append(zb).append(mb).append(rb);
 
     ws_tbar.attr("style", "display:none;");
 
@@ -158,7 +159,7 @@ function unlock_wforms() {
        }, { });
 
   var ul = $("ul#worksheet-graphs");
-  ul.sortable({ handle: '.graphTitle',
+  ul.sortable({ handle: '.moveGraph',
                 scroll: true,
                 stop:
                   function (e,ui) {

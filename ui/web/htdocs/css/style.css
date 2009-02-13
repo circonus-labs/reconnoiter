@@ -839,7 +839,9 @@ padding-right: 10px;
 .ws-toolbar .deleteWorksheetGraph {
 display:none;
 }
-
+.ws-toolbar .moveGraph {
+display:none;
+}
 .ws-toolbar-edit {
 position: relative;
 margin: 0;
@@ -849,16 +851,13 @@ padding-right: 10px;
 display: none;
 }
 .deleteWorksheetGraph {
-border: 1px solid #DDDDDD;
-margin: 0em 0em 0 0;
-font-weight: bold;
-color:#660000;
+margin: 0;
 }
 .zoomGraph {
-border: 1px solid #DDDDDD;
 margin: 0;
-font-weight: bold;
-color:#660000;
+}
+.moveGraph {
+margin: 0;
 }
 ul#worksheet-graphs li.zoomGraph {
  margin: 0;
@@ -866,9 +865,14 @@ ul#worksheet-graphs li.zoomGraph {
  right: 10px;
 }
 ul#worksheet-graphs li.deleteWorksheetGraph {
- margin: 0em 0em 0 0;
+ margin: 0;
  position: absolute;
  right: 10px;
+}
+ul#worksheet-graphs li.moveGraph {
+ margin: 0;
+ position: absolute;
+ right: 30px;
 }
 span.rememberGraph {
 border:1px solid #DDDDDD;
