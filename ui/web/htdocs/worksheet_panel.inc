@@ -233,7 +233,7 @@ function add_graph_to_worksheet(graphid) {
   if(!ws_locked("Click 'Edit Worksheet' to unlock.")){
     for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
       if(wsinfo.graphs[i]==graphid) {
-         modal_warning("", "Worksheets cannot have dusplicate graphs!");
+         modal_warning("", "Worksheets cannot have duplicate graphs!");
          return;
       }
     }  
