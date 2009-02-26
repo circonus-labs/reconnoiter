@@ -11,6 +11,15 @@ var wsinfo = {};
 var locked = true;
 var streaming = false;
 var stream_graph;
+var time_windows = { '6h' : 3600*6,
+                                '12h' : 3600*12,
+                             '1d' : 86400*1,
+                             '2d' : 86400*2,
+                             '1w' : 86400*7,
+                             '2w' : 86400*14,
+                             '4w' : 86400*28,
+                             '1y' : 86400*365,
+                           };
 
 function ws_locked(warning) {		
   if(locked) {
@@ -119,8 +128,28 @@ function zoom_modal (id) {
       },
   });
   stream_graph.ReconGraphRefresh({graphid: id});
-  stream_graph.prepend("<span class='zoomStream'>Stream Data</span>");
-  stream_graph.prepend("<span class='zoomClose'>x</span>");
+
+
+ var dtool =  $("<div id='mini_ws_datetool'>");
+dtool.append('<div class="zoom"> \
+		<dl> \
+			<dt>Zoom:</dt> \
+                        <dd><a href="#" class="first datechoice">1d</a></dd> \
+			<dd><a href="#" class="datechoice">2d</a></dd> \
+			<dd><a href="#" class="datechoice">1w</a></dd> \
+			<dd><a href="#" class="selected datechoice">2w</a></dd> \
+			<dd><a href="#" class="datechoice">4w</a></dd> \
+			<dd><a href="#" class="datechoice">1y</a></dd> \
+		</dl>\
+	</div>\
+</div>');
+
+  var mheader = $("<div id='stream-modal-header'>").append(dtool);
+  mheader.append("<span class='zoomClose'>x</span>");
+  mheader.append("<span class='zoomStream'>Stream Data</span><br>");
+
+  stream_graph.prepend(mheader);
+
   stream_graph.append("<div class='stream-log' style='display:none'></div>");
   $(".zoomClose").click(function() {
      streaming = false;                        
@@ -143,6 +172,14 @@ function zoom_modal (id) {
          stream_graph.ReconGraphRefresh({graphid: id});
     }
  }); //end stream click function                      
+
+$("#mini_ws_datetool .datechoice").click(function(){
+	$(".datechoice").removeClass("selected");
+	$(this).addClass("selected");
+	stream_graph.ReconGraphRefresh({graphid: id, start: time_windows[$(this).html()], end: ''});
+	return false;
+});
+
 }//end zoom_modal
 
 function lock_wforms() {
@@ -287,12 +324,6 @@ function load_worksheet(id) {
 <!-- date range box -->
 <script type="text/javascript">
 $(document).ready(function(){
-        var time_windows = { '2d' : 86400*2,
-                             '1w' : 86400*7,
-                             '2w' : 86400*14,
-                             '4w' : 86400*28,
-                             '1y' : 86400*365,
-                           };
         var state = false;
 
 	$("h2#worksheetTitle").editable(function(value, settings) {
@@ -369,7 +400,10 @@ $(document).ready(function(){
 	<div class="zoom">
 		<dl>
 			<dt>Zoom:</dt>
-			<dd><a href="#" class="first datechoice">2d</a></dd>
+			<dd><a href="#" class="first datechoice">6h</a></dd>
+			<dd><a href="#" class="datechoice">12h</a></dd>
+			<dd><a href="#" class="datechoice">1d</a></dd>
+			<dd><a href="#" class="datechoice">2d</a></dd>
 			<dd><a href="#" class="datechoice">1w</a></dd>
 			<dd><a href="#" class="selected datechoice">2w</a></dd>
 			<dd><a href="#" class="datechoice">4w</a></dd>
@@ -393,7 +427,6 @@ $(document).ready(function(){
 <div id="streambox" style="display:none"></div>	
 <div style="display:none">
 	<div id="maingraph-template">
-        <h3 class="graphTitle">graph title</h3>
         <div class="plot-area" style="width:380px;height:180px"></div>
         <div class="plot-legend">legend</div>
         </div>

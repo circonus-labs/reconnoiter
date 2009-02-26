@@ -688,6 +688,10 @@ width:780px;
 height:400px;
 width:780px;
 }
+#StreamingModalContainer .graphTitle{
+position:relative; 
+left: 50px;
+}
 #maingraph div.plot-area div.centered {
 display:table-cell;
 text-align:center;
