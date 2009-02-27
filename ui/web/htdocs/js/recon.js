@@ -488,14 +488,29 @@ function graphs_for_edit(li, g, params) {
     (function(graphid, li) {
         return function() {
 	    confirm("I will forget the current graph.  Are you sure?", function(){
-          $.getJSON('json/graph/forget/' + graphid,
-            function (r) {
-			if(r.error) { modal_warning("Database Error!", r.error); }
-              else { 
-                perform_graph_search_edit(params);
-              }
-            });
-	  if(current_graph_id==graphid) {set_current_graph_id('');}
+		    $.getJSON('json/graph/forget/' + graphid + '/0',
+			      function (r) {
+				  if(r.refed) {
+				      var msg = "This graph is used in worksheet(s):<p>";
+				      for(var wg in r.refed){ msg += "<br>"+r.refed[wg];}
+				      msg+="<p> Forgetting it will remove it from these worksheets as well. <p>Are you sure you want to forget it?";
+				      confirm(msg,
+					      function() {
+						  $.getJSON('json/graph/forget/' + graphid + '/1',
+							    function(r) {
+								if(r.error) { modal_warning("Database Error!", r.error); }
+								else { perform_graph_search_edit(params);}
+							    });
+					      });
+				  }
+				  else {
+				      if(r.error) { modal_warning("Database Error!", r.error); }
+				      else { 
+					  perform_graph_search_edit(params);
+				      }
+				  }
+			      });
+		    if(current_graph_id==graphid) {set_current_graph_id('');}
 		});		
           return false;
         }

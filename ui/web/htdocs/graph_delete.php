@@ -4,10 +4,19 @@ require_once('Reconnoiter_DB.php');
 
 $db = Reconnoiter_DB::getDB();
 
-try {
-  $db->deleteGraph($_GET['id']);
-  print json_encode(array());
+$force = $_GET['force'];
+$wsheets = $db->getWorksheetsByGraph($_GET['id']);
+
+if($wsheets && !$force) {
+  print json_encode(array('refed' => $wsheets));
 }
-catch(Exception $e) {
-  print json_encode(array('error' => $e->getMessage()));
+
+else if($force || !$wsheets) {
+  try {
+    $db->deleteGraph($_GET['id']);
+    print json_encode(array());
+  }
+  catch(Exception $e) {
+    print json_encode(array('error' => $e->getMessage()));
+  }
 }

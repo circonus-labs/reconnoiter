@@ -422,8 +422,22 @@ class Reconnoiter_DB {
                                       where sheetid=? and graphid=?");
     $sth->execute(array($ws_id, $graphid));
   }
+  function getWorksheetsByGraph($graphid){
 
-//TODO this should delete from saved_graphs_dep too
+    $sth = $this->db->prepare("select title from
+    	 (select sheetid from prism.saved_worksheets_dep 
+	where prism.saved_worksheets_dep.graphid=?) as rel_swd
+	natural join prism.saved_worksheets");
+
+    $sth->execute(array($graphid));
+    
+    $rv = array();
+    while($row = $sth->fetch()) {
+      $rv[] = $row['title'];
+    }
+    return $rv;
+}
+//this will also delete from saved_graphs_dep by cascade, so better call getWorksheetsByGraph to check first
   function deleteGraph($id) {
     $sth = $this->db->prepare("delete from prism.saved_graphs
                                      where graphid=?");

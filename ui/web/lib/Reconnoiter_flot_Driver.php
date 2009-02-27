@@ -70,7 +70,6 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
 		if($left_count>1) {
                     for ($point = 0; $point < count($a[$index]['data']); $point++){
 	                if( ($a[$bottom]['data'][$point][1] != "") && ($a[$index]['data'][$point][1] != "")) {	
-			    error_log("adding value".$a[$bottom]['data'][$point][1]);
 		            $tmp = $a[$index]['data'][$point][1] +  $a[$bottom]['data'][$point][1];
                             $a[$index]['data'][$point][1] = "$tmp";
   	                }                
