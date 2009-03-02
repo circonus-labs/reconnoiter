@@ -492,16 +492,39 @@ class Reconnoiter_DB {
     return $id;
   }
 
-  public function make_name_for_template($sid) {
-    $sql = "select m.* from stratcon.mv_loading_dock_check_s m where m.sid = ?";
+  public function make_names_for_template($sid_list) {
+
     $binds = array();
-    if($sid) {
-      $binds[] = $sid;
-      $sth = $this->db->prepare($sql);
-      $sth->execute($binds);
-      $row = $sth->fetch();
+
+    $sql = "select m.* from stratcon.mv_loading_dock_check_s m where m.sid in (";
+    for ($i =0 ; $i<count($sid_list);$i++){
+      $binds[] = $sid_list[$i];
+      $sql.= ($i == count($sid_list)-1) ? "?)" : "?,";
     }
-   return $row['target']."`".$row['module']."`".$row['name'];
+    $sth = $this->db->prepare($sql);
+    $sth->execute($binds);
+
+    $data = array();
+    while($row = $sth->fetch()) {
+      $data[] = $row;
+    }
+
+    foreach ($data as $key => $rw) {
+      $target[$key] = $rw['target'];
+      $module[$key] = $rw['module'];
+      $name[$key] = $rw['name'];
+      $sid[$key] = $rw['sid'];
+    }
+    array_multisort($target, SORT_ASC, $module, SORT_ASC,$name, SORT_ASC, $data);
+
+    $rvlist = array();
+    foreach($data as $row) {
+      error_log(" sid: ".$row['sid']." : ".$row['target']."`".$row['module']."`".$row['name']);
+      $rvlist[] = array( 'sid' => $row['sid'],
+      		'option' => $row['target']."`".$row['module']."`".$row['name']);
+    }
+    return $rvlist;
   }
+
 }
 

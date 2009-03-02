@@ -85,11 +85,11 @@ else if($want == 'sid') {
      $sid_list = explode (",", $_REQUEST[$l2]);
      $ctext = "<form id='template-graph' name='template-graph' action=''>";     
      $ctext.= "<select multiple='multiple' name='sid_select' size='5' id='sid_select' >";
-     foreach($sid_list as $sid) {
-     	$sname = $db->make_name_for_template($sid);
-	$ctext.="<option value='$sid'> $sname</option><br />";
-     }
+     $snames = $db->make_names_for_template($sid_list);
 
+     foreach ($snames as $tuple) {
+        $ctext.="<option value='".$tuple['sid']."'> ".$tuple['option']."</option><br />";
+     }
      $ctext.="</select><br>Select ".$num_sids." from above.";     
      $ctext .= "<br>Graph Title:";
      $ctext.="<input type='text' size='15' name='graph_name' id='graph_name'><br>";
@@ -125,7 +125,7 @@ if(sids.length==num_sids){
 	$(".CreateGraph").html('Graph Saved').fadeOut('slow');
 }
 else {
-     alert("Did not specify correct number of metrics!")
+     modal_warning("Graph creation error", "You did not select the correct number of metrics!");
 }
 }
 
