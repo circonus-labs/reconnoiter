@@ -35,8 +35,8 @@ function ws_locked(warning) {
 
 function stream_data(graph_id) {
 
-  polltime = 5000;
-  timewindow = 50000;
+  polltime = 1000;
+  timewindow = 300000;
   stream_object = stream_graph;
   stream_dirty = false;
   stream_graph.ReconGraphPrepareStream(timewindow, polltime);
@@ -82,13 +82,16 @@ function make_ws_graph(g) {
     var o = $('<div></div>').ReconGraph(g);
 
     zb = $("<li class='zoomGraph' id='Zoom-"+g.graphid+"'><img src='images/zoom_icon.png'></li>");
-    zb.click(function() { zoom_modal(g.graphid); });
+    zb.attr("graphid", g.graphid);
+    zb.attr("graphtype", g.type);
+    zb.click(function() { zoom_modal($(this).attr("graphid"), $(this).attr("graphtype")); });
     mb = $("<li class='moveGraph' id='Move-"+g.graphid+"'><img src='images/drag_icon.png'></li>");    
     rb = $("<li class='deleteWorksheetGraph' id='Remove-"+g.graphid+"'><img src='images/remove_icon.png'></li>");
+    rb.attr("graphid", g.graphid);
     rb.click( function() {
-                  $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + g.graphid,
+                  $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + $(this).attr("graphid"),
                      function(r) { if(r.error) { $("#ws-tool-error").html(r.error).fadeIn('fast');  } });
-                  $("#"+g.graphid).remove();
+                  $("#"+$(this).attr("graphid")).remove();
                });
 
     var ws_tbar = $('<div class="ws-toolbar"></div>').append("<ul/>").append(zb).append(mb).append(rb);
@@ -110,8 +113,8 @@ function make_ws_graph(g) {
     return o;
 }
 
-function zoom_modal (id) {
-  stream_graph = $('<div></div>').ReconGraph({graphid: id});
+function zoom_modal (id, gtype) {
+  stream_graph = $('<div></div>').ReconGraph({graphid: id, type: gtype});
   var smod = stream_graph.modal({
       containerId: 'StreamingModalContainer',
       close: 'true',
@@ -241,7 +244,7 @@ function update_current_worksheet(f) {
            if(f) f(d);
          }, 'json');
 }
-
+  
 function process_worksheet_json(r) {
   wsinfo.id = r.sheetid;
   wsinfo.title = r.title;
@@ -257,11 +260,16 @@ function process_worksheet_json(r) {
     g.end = ws_displayinfo.end;
     g.cnt = ws_displayinfo.cnt;
 
-    var o = make_ws_graph(g);
+    $.getJSON("json/graph/info/" + g.graphid, 
+    	function (j) {
+	    g.type = j.type;
+	    g.graphid = j.id;
+	    var o = make_ws_graph(g);
+            ul.append($('<li/>').append(o));
+            o.ReconGraphRefresh();
+            wsinfo.graphs.push(g.graphid);
+	 });
 
-    ul.append($('<li/>').append(o));
-    o.ReconGraphRefresh();
-    wsinfo.graphs.push(g.graphid);
   }
   ul.sortable("refresh");
 }
@@ -279,16 +287,20 @@ function add_graph_to_worksheet(graphid) {
               cnt: ws_displayinfo.cnt,
               graphid: graphid };
 
-    var o = make_ws_graph(g);
-
-    var ul = $("ul#worksheet-graphs");
-    ul.append($('<li/>').append(o));
-    o.ReconGraphRefresh();
-    ul.sortable("refresh");
-    if(!wsinfo.graphs) {wsinfo.graphs = new Array();}
-    wsinfo.graphs.push(graphid);
-    update_current_worksheet();
-    unlock_wforms();
+     $.getJSON("json/graph/info/" + g.graphid, 
+    	function (j) {
+	    g.type = j.type;
+	    g.graphid = j.id;
+	    var o = make_ws_graph(g);
+	    var ul = $("ul#worksheet-graphs");
+    	    ul.append($('<li/>').append(o));
+    	    o.ReconGraphRefresh();
+    	    ul.sortable("refresh");
+    	    if(!wsinfo.graphs) {wsinfo.graphs = new Array();}
+    	    wsinfo.graphs.push(graphid);
+    	    update_current_worksheet();
+    	    unlock_wforms();
+	});
   }
 
 }
