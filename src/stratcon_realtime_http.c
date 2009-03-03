@@ -308,7 +308,6 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         break;
       case WANT_BODY:
         FULLREAD(e, ctx, ctx->body_len);
-        noitL(noit_error, "Read: '%s'\n", ctx->buffer);
         if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer)) goto socket_error;
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = WANT_HEADER;
@@ -376,7 +375,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     }
     noit_http_response_status_set(ctx, 200, "OK");
     noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED);
-    noit_http_response_option_set(ctx, NOIT_HTTP_GZIP);
+    /*noit_http_response_option_set(ctx, NOIT_HTTP_GZIP);*/
     /*noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);*/
     noit_http_response_header_set(ctx, "Content-Type", "text/html");
 
