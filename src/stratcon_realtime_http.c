@@ -376,6 +376,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     }
     noit_http_response_status_set(ctx, 200, "OK");
     noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED);
+    noit_http_response_option_set(ctx, NOIT_HTTP_GZIP);
     /*noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);*/
     noit_http_response_header_set(ctx, "Content-Type", "text/html");
 

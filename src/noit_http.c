@@ -593,10 +593,46 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   CTX_LEADER_APPEND("\r\n", 2);
   return len;
 }
+/* memgzip */
+static int memgzip2(Bytef *dest, uLongf *destLen,
+                    const Bytef *source, uLong sourceLen, int level) {
+    z_stream stream;
+    int err;
+
+    memset(&stream, 0, sizeof(stream));
+    stream.next_in = (Bytef*)source;
+    stream.avail_in = (uInt)sourceLen;
+    stream.next_out = dest;
+    stream.avail_out = (uInt)*destLen;
+    if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
+
+    err = deflateInit2(&stream, level, Z_DEFLATED, 15+16, 8,
+                       Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) return err;
+
+    err = deflate(&stream, Z_FINISH);
+    if (err != Z_STREAM_END) {
+        deflateEnd(&stream);
+        return err == Z_OK ? Z_BUF_ERROR : err;
+    }
+    *destLen = stream.total_out;
+
+    err = deflateEnd(&stream);
+    return err;
+}
 static noit_boolean
 _http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
   /* implement gzip and deflate! */
   if(opts & NOIT_HTTP_GZIP) {
+    uLongf olen;
+    olen = out->allocd - out->start;
+    if(Z_OK != memgzip2((Bytef *)(out->buff + out->start), &olen,
+                        (Bytef *)(in->buff + in->start), (uLong)in->size,
+                        9)) {
+      noitL(noit_error, "zlib compress2 error\n");
+      return noit_false;
+    }
+    out->size += olen;
   }
   else if(opts & NOIT_HTTP_DEFLATE) {
     uLongf olen;
@@ -632,7 +668,7 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   if(hexlen == 0) hexlen = 1;
 
   ilen = in->size;
-  if(opts & NOIT_HTTP_GZIP) ilen = compressBound(ilen);
+  if(opts & NOIT_HTTP_GZIP) ilen = deflateBound(NULL, ilen);
   else if(opts & NOIT_HTTP_DEFLATE) ilen = compressBound(ilen);
   out = bchain_alloc(hexlen + 4 + ilen);
   /* if we're chunked, let's give outselved hexlen + 2 prefix space */
