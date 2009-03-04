@@ -1,5 +1,3 @@
-//global object to handle ajaz request queuing, currently only for ReconGraphRefresh
-var ajaxManager;
 //global objects to use for calling plot_ifram_data from stream
 var stream_object;
 var stream_dirty;
@@ -111,10 +109,10 @@ function rpn_eval(value, expr) {
   var ReconGraph = function() {
     var displayinfo = { start : 14*86400, end: '', width: 380, height: 180 };
     var doptions, dplaceholder, ddata;
+
     return {
       init:
         function(options) {
-          ajaxManager =  $.manageAjax({manageType: 'abortOld', maxReq: 0});
           this.graphinfo = $.extend({}, displayinfo, options||{});
           if(!this.graphinfo.cnt) this.graphinfo.cnt = this.graphinfo.width / 2;
           if(!this.attr("id")) this.attr("id", this.graphinfo.graphid);
@@ -276,16 +274,10 @@ function rpn_eval(value, expr) {
                           'end':this.graphinfo.end,
 	               'type':this.graphinfo.type};
 	
-          ajaxManager.add({ url: url,
+	  $.ajaxq (this.graphinfo.graphid, { url: url,
 	    data: data,
             success: (function(o) { return function (r) { r = eval('('+r+')'); o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }}) (this)
-	    });
-
-           /*
-           $.getJSON(url, 
-                           data,
-		     (function(o) { return function (r) { o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }})  (this) );
-           */
+		      });
 
           this.data('__recon', this);
           return this;
@@ -317,6 +309,7 @@ function rpn_eval(value, expr) {
           doptions = r.options;
           dplaceholder = placeholder;
           ddata = r.data;          
+
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
           var hovering;
           placeholder.bind("plothover", function (event, pos, item) {
@@ -540,6 +533,7 @@ function ws_for_edit(li, ws, params) {
 }
 function graphs_for_worksheet(li, g, params) {
   var add = $('<a href="#"/>');
+  var qview = $('<a href="#"/>');
   add.html('Add').addClass('addtows');
   add.click(
     (function(graphid) {
@@ -549,9 +543,16 @@ function graphs_for_worksheet(li, g, params) {
         }
      })(g.graphid)
   );
+  qview.html('Quick View').addClass('quickviewgraph');
+  qview.click(
+    (function(graphid, gtype) {
+      return function() { zoom_modal(graphid, gtype); return false; }
+    })(g.graphid, 'standard')
+  );
   var ul = $('<ul/>');
   ul.append($('<li/>').html(g.last_update));
   ul.append($('<li/>').append(add));
+  ul.append($('<li/>').append(qview));
   li.append($('<div class="ws-add-graph-title"/>').html(g.title)).append(ul);
 }
 function datapoints_for_graph(li, ds, params) {

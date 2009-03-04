@@ -3,7 +3,7 @@
 <script type="text/javascript" src="js/eye/eye.js"></script>
 <script type="text/javascript" src="js/eye/utils.js"></script>
 <script type="text/javascript" src="js/jquery.timers.js"></script>
-<script type="text/javascript" src="js/jquery.ajaxmanager.js" ></script>
+<script type="text/javascript" src="js/jquery.ajaxq-0.0.1.js" ></script>
 <script type="text/javascript">
 <!--
 var maingraph;
