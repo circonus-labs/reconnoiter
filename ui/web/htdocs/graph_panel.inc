@@ -272,8 +272,13 @@ function gtool_add_datapoint(d) {
     });
   }
 
+  d.mouse_title = ( (d.target!=undefined) ? d.target+"`": '') +
+  		    	( (d.module!=undefined) ? d.module+"`": '') +
+			( (d.orig_name!=undefined)? d.orig_name+"`": '') +
+			( (d.metric_name!=undefined)? "`"+d.metric_name: '');
+
   o.find(".datatitle").html(d.name);
-  
+  o.find(".datatitle").attr("title", d.mouse_title);
 
   recurse--;
   $("#gtool #dataPoints").append(o.children());

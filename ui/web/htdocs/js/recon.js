@@ -564,7 +564,10 @@ function datapoints_for_graph(li, ds, params) {
           graph_add_datapoint({'sid':ds_c.sid,
                                'name':ds_c.target + '`' + ds_c.metric_name,
                                'metric_name':ds_c.metric_name,
-                               'metric_type':ds_c.metric_type
+		               'metric_type':ds_c.metric_type,
+		               'module': ds_c.module,
+               		       'target': ds_c.target,
+                               'orig_name': ds_c.name
                               });
           return false;
         }

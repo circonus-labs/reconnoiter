@@ -239,6 +239,9 @@ class Reconnoiter_DB {
         left join stratcon.current_metric_text caliasmt
                on (c.sid = caliasmt.sid and caliasmt.name='alias')";
     }
+    else if($want == 'metric_name') {
+      $ptr_select = "min(c.module) as module, ";
+    }
     $sql = "
       select $tblsrc.$want, $ptr_select
              min(c.sid) as sid, min(metric_type) as metric_type,
@@ -251,6 +254,7 @@ class Reconnoiter_DB {
     order by $tblsrc.$want";
     $sth = $this->db->prepare($sql);
     $sth->execute($binds);
+
     $rv = array();
     while($row = $sth->fetch()) {
       $copy = $named_binds;
@@ -261,6 +265,7 @@ class Reconnoiter_DB {
         $copy['id'] .= "-" . $copy[$var];
       }
       $copy['cnt'] = $row['cnt'];
+      if(isset($row['module'])) $copy['module'] = $row['module'];
       if(isset($row['ptr'])) $copy['ptr'] = $row['ptr'];
       if($copy['cnt'] == 1 &&
          isset($row['sid']) && 
@@ -519,7 +524,6 @@ class Reconnoiter_DB {
 
     $rvlist = array();
     foreach($data as $row) {
-      error_log(" sid: ".$row['sid']." : ".$row['target']."`".$row['module']."`".$row['name']);
       $rvlist[] = array( 'sid' => $row['sid'],
       		'option' => $row['target']."`".$row['module']."`".$row['name']);
     }
