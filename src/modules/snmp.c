@@ -350,10 +350,6 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
 
   /* Create a hash of important check attributes */
   noit_check_make_attrs(check, &check_attrs_hash);
-#define CA_STORE(a,b) noit_hash_store(&check_attrs_hash, a, strlen(a), b)
-  CA_STORE("target", check->target);
-  CA_STORE("name", check->name);
-  CA_STORE("module", check->module);
 
   /* Fill out the new set of required oids */
   info->oids = calloc(info->noids, sizeof(*info->oids));
