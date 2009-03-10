@@ -1,0 +1,46 @@
+<module>
+  <name>external</name>
+  <description><para>The external module performs checks via external processes like more traditional monitoring systems.  While this approach is far less efficient and does not scale well on a single system, it provides easier transition from existing monitoring systems.  Checks should exit normally with an exit status of 0 for success, 1 or 2 for failure and 3 for unknown.  Exiting with a status of 3 is highly discouraged.  The standard output is provided as the status of the check.</para></description>
+  <loader>C</loader>
+  <image>external.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="command"
+               required="required"
+               allowed=".+">The path to the command to be executed.  This is the first argument to the execve system call.</parameter>
+    <parameter name="arg0"
+               required="optional"
+               allowed=".+">The program name.  If not specified, it is derived from the command argument. Normal interpolation rules apply.</parameter>
+    <parameter name="arg\d+"
+               required="optional"
+               allowed=".+">The arguments to the program.  The external module will start with arg1 and increment collecting arguments until argN is not found.  Normal interpolation rules apply.</parameter>
+    <parameter name="env_\S+"
+               required="optional"
+               allowed=".+">These parameters allow the setting of environment variables for the command execution.  The text following env_ is the key and the parameter value is the value of the environment variable to be set via execve.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Checking a service via the /path/to/check_foo command.</title>
+      <para>The hypothetical check_foo command takes a target host with the -H parameter, runs a check and returns its health via exit code and stdout. We set the environment variable QUUX to the value BAZ.  The check is against host 10.10.2.2.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="external" name="external"/>
+        </modules>
+        <checks>
+          <check uuid="1e8edc38-0d88-11de-93ee-af2195eab5d5"
+                 module="external" name="foo" target="10.10.2.2">
+            <config>
+              <command>/path/to/check_foo</command>
+              <arg1>-H</arg1>
+              <arg2>%[target]</arg2>
+              <env_QUUX>BAZ</env_QUUX>
+            </config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>
