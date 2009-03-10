@@ -40,7 +40,8 @@
                     tickSize: null, // number or [number, "unit"]
                     minTickSize: null, // number or [number, "unit"]
                     monthNames: null, // list of names of months
-                    timeformat: null // format string to use
+                    timeformat: null, // format string to use
+		    localtime: null //display data in local time instead of UTC default
                 },
                 yaxis: {
                     autoscaleMargin: 0.02
@@ -433,17 +434,16 @@
                         monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     for (var i = 0; i < fmt.length; ++i) {
                         var c = fmt.charAt(i);
-                        
                         if (escape) {
                             switch (c) {
-                            case 'h': c = "" + d.getUTCHours(); break;
-                            case 'H': c = leftPad(d.getUTCHours()); break;
-                            case 'M': c = leftPad(d.getUTCMinutes()); break;
-                            case 'S': c = leftPad(d.getUTCSeconds()); break;
-                            case 'd': c = "" + d.getUTCDate(); break;
-                            case 'm': c = "" + (d.getUTCMonth() + 1); break;
-                            case 'y': c = "" + d.getUTCFullYear(); break;
-                            case 'b': c = "" + monthNames[d.getUTCMonth()]; break;
+                            case 'h': c = "" + ((axisOptions.localtime) ? d.getHours() : d.getUTCHours()); break;
+                            case 'H': c = leftPad( ((axisOptions.localtime) ? d.getHours() : d.getUTCHours()) ); break;
+                            case 'M': c = leftPad( ((axisOptions.localtime) ? d.getMinutes() : d.getUTCMinutes()) ); break;
+                            case 'S': c = leftPad( ((axisOptions.localtime) ? d.getSeconds() : d.getUTCSeconds()) ); break;
+                            case 'd': c = "" + ( (axisOptions.localtime) ? d.getDate() : d.getUTCDate() ); break;
+                            case 'm': c = "" + ( (axisOptions.localtime) ? d.getMonth() +1 : d.getUTCMonth() +1 ); break;
+                            case 'y': c = "" +  ( (axisOptions.localtime) ? d.getFullYear() : d.getUTCFullYear() ); break;
+                            case 'b': c = "" + monthNames[ ( (axisOptions.localtime) ? d.getMonth() : d.getUTCMonth() ) ]; break;
                             }
                             r.push(c);
                             escape = false;
@@ -526,7 +526,7 @@
                     var ticks = [],
                         tickSize = axis.tickSize[0], unit = axis.tickSize[1],
                         d = new Date(axis.min);
-                    
+
                     var step = tickSize * timeUnitSize[unit];
 
                     if (unit == "second")

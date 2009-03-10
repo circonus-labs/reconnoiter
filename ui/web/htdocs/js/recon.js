@@ -306,6 +306,7 @@ function rpn_eval(value, expr) {
             r.options.yaxis.tickFormatter = function (val, axis) {
               return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
             };
+	  r.options.xaxis.localtime = true;
           doptions = r.options;
           dplaceholder = placeholder;
           ddata = r.data;          

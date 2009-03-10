@@ -22,6 +22,9 @@ class Reconnoiter_DB {
     $this->db = new PDO("pgsql:host=noit.office.omniti.com;dbname=reconnoiter",
                         "prism", "prism");
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
+    $sth = $this->db->prepare("set timezone to 'UTC'");
+    $sth->execute();
+    
   }
   function prepare($sql) {
     return $this->db->prepare($sql);
@@ -30,17 +33,12 @@ class Reconnoiter_DB {
   // Crazy extract syntax to pull out the timestamps so that it looks like the current timezone, but in UTC
   function get_data_for_window($uuid, $name, $start, $end, $expected, $derive) {
     $type = preg_match('/^\d+$/', $uuid) ? '::integer' : '::uuid';
-    $sth = $this->db->prepare("
-      select sid, name, extract(epoch from
-                                (rollup_time::timestamp::text || '-00')
-                                  ::timestamptz) as rollup_time,
+    $dsql = "select sid, name, extract(epoch from
+                                rollup_time) as rollup_time,
              count_rows, avg_value, counter_dev
         from stratcon.fetch_dataset(
-               ? $type,?,
-               $this->time_kludge,
-               $this->time_kludge,
-               ?,?
-             )");
+               ? $type,?,?,?,?,?)";
+    $sth = $this->db->prepare($dsql);
     $sth->execute(array($uuid,$name,$start,$end,$expected,$derive));
     $rv = array();
     while($row = $sth->fetch()) {
@@ -51,13 +49,10 @@ class Reconnoiter_DB {
   function get_var_for_window($uuid, $name, $start, $end, $expected) {
     $type = preg_match('/^\d+$/', $uuid) ? "::int" : "::uuid";
     $sth = $this->db->prepare("
-      select sid, extract(epoch from
-                          (whence::timestamp::text || '-00')
-                          ::timestamptz) as whence,
+      select sid, extract(epoch from whence) as whence,
              name, value
         from stratcon.fetch_varset(
-               ? $type,?,$this->time_kludge,$this->time_kludge,?
-             )");
+               ? $type,?,?,?,?)");
     $sth->execute(array($uuid,$name,$start,$end,$expected));
     $rv = array();
     while($row = $sth->fetch()) {
