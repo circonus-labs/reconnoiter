@@ -24,6 +24,9 @@
     <parameter name="env_\S+"
                required="optional"
                allowed=".+">These parameters allow the setting of environment variables for the command execution.  The text following env_ is the key and the parameter value is the value of the environment variable to be set via execve.</parameter>
+    <parameter name="output_extract"
+               required="optional"
+               allowed=".+">This is a regular expression that is globally applied to the stdout of the command.  Each match is turned into a metric. It is a requirement to used named capturing in the regular expression where "key" is the named match of the metric name and "value" is the named match for the matric value.  A sample for extracting performance data from Nagios commands would be: <![CDATA[(?<key>\S+)=(?<value>[^;\s]+)(?=[;\s])]]></parameter>
   </checkconfig>
   <examples>
     <example>

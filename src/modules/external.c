@@ -19,11 +19,7 @@
 #ifdef HAVE_NETINET_IN_SYSTM_H
 #include <netinet/in_systm.h>
 #endif
-#include <math.h>
-#ifndef MAXFLOAT
-#include <float.h>
-#define MAXFLOAT FLT_MAX
-#endif
+#include <pcre.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -46,6 +42,7 @@ struct check_info {
   int timedout;
   char *output;
   char *error;
+  pcre *matcher;
   eventer_t timeout_event;
 };
 
@@ -122,15 +119,40 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     current.available = NP_AVAILABLE;
     current.state = (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD;
   }
+
+  /* Hack the output into metrics */
+  if(ci->output && ci->matcher) {
+    int rc, len, startoffset = 0;
+    int ovector[30];
+    len = strlen(ci->output);
+    noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
+    while((rc = pcre_exec(ci->matcher, NULL, ci->output, len, startoffset, 0,
+                          ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
+      char metric[128];
+      char value[128];
+      startoffset = ovector[1];
+      noitL(data->nldeb, "matched at offset %d\n", rc);
+      if(pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+                                   "key", metric, sizeof(metric)) > 0 &&
+         pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+                                   "value", value, sizeof(value)) > 0) {
+        /* We're able to extract something... */
+        noit_stats_set_metric(&current, metric, METRIC_GUESS, value);
+      }
+      noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
+    }
+    noitL(data->nldeb, "match failed.... %d\n", rc);
+  }
+
   current.status = ci->output;
   noit_check_set_stats(self, check, &current);
 
   /* If we didn't exit normally, or we core, or we have stderr to report...
    * provide a full report.
    */
-  if(WTERMSIG(ci->exit_code) != SIGQUIT ||
+  if((WTERMSIG(ci->exit_code) != SIGQUIT && WTERMSIG(ci->exit_code) != 0) ||
      WCOREDUMP(ci->exit_code) ||
-     ci->error) {
+     (ci->error && *ci->error)) {
     char uuid_str[37];
     uuid_unparse_lower(check->checkid, uuid_str);
     noitL(data->nlerr, "external/%s: (sig:%d%s) [%s]\n", uuid_str,
@@ -163,6 +185,7 @@ static void check_info_clean(struct check_info *ci) {
     if(ci->envs[i]) free(ci->envs[i]);
   if(ci->envlens) free(ci->envlens);
   if(ci->envs) free(ci->envs);
+  if(ci->matcher) pcre_free(ci->matcher);
   memset(ci, 0, sizeof(*ci));
 }
 static int external_handler(eventer_t e, int mask,
@@ -426,6 +449,19 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   /* Setup all our check bits */
   ci->check_no = noit_atomic_inc64(&data->check_no_seq);
   ci->check = check;
+  /* We might want to extract metrics */
+  if(noit_hash_retrieve(check->config,
+                        "output_extract", strlen("output_extract"),
+                        (void **)&value) != 0) {
+    const char *error;
+    int erroffset;
+    ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
+    if(!ci->matcher) {
+      noitL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
+            value, erroffset, error);
+    }
+  }
+
   noit_check_make_attrs(check, &check_attrs_hash);
 
   /* Count the args */
