@@ -4,6 +4,12 @@
   <loader>C</loader>
   <image>external.so</image>
   <moduleconfig>
+    <parameter name="user"
+               required="optional"
+               allowed=".+">The user under which the external checks should be executed.</parameter>
+    <parameter name="group"
+               required="optional"
+               allowed=".+">The group under which the external checks should be executed.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="command"

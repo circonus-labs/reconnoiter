@@ -25,6 +25,7 @@ typedef struct {
   eventer_jobq_t *jobq;
   noit_atomic64_t check_no_seq;
   noit_hash_table external_checks;
+  noit_hash_table *options;
 
   struct external_response *cr;
 } external_data_t;

@@ -29,6 +29,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
+#include "utils/noit_security.h"
 #include "external_proc.h"
 
 struct check_info {
@@ -76,8 +77,22 @@ typedef struct external_closure {
  */
 
 static int external_config(noit_module_t *self, noit_hash_table *options) {
-  return 0;
+  external_data_t *data;
+  data = noit_module_get_userdata(self);
+  if(data) {
+    if(data->options) {
+      noit_hash_destroy(data->options, free, free);
+      free(data->options);
+    }
+  }
+  else
+    data = calloc(1, sizeof(*data));
+  data->options = options;
+  if(!data->options) data->options = calloc(1, sizeof(*data->options));
+  noit_module_set_userdata(self, data);
+  return 1;
 }
+
 static void external_log_results(noit_module_t *self, noit_check_t *check) {
   external_data_t *data;
   struct check_info *ci;
@@ -277,7 +292,8 @@ static int external_handler(eventer_t e, int mask,
 static int external_init(noit_module_t *self) {
   external_data_t *data;
 
-  data = malloc(sizeof(*data));
+  data = noit_module_get_userdata(self);
+  if(!data) data = malloc(sizeof(*data));
   data->nlerr = noit_log_stream_find("error/external");
   data->nldeb = noit_log_stream_find("debug/external");
 
@@ -325,6 +341,12 @@ static int external_init(noit_module_t *self) {
     eventer_add(newe);
   }
   else {
+    const char *user = NULL, *group = NULL;
+    if(data->options) {
+      noit_hash_retrieve(data->options, "user", 4, (void **)&user);
+      noit_hash_retrieve(data->options, "group", 4, (void **)&group);
+    }
+    noit_security_usergroup(user, group);
     exit(external_child(data));
   }
   noit_module_set_userdata(self, data);
