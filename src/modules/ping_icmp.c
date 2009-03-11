@@ -512,12 +512,14 @@ static int ping_icmp_onload(noit_image_t *self) {
   eventer_name_callback("ping_icmp/handler", ping_icmp_handler);
   return 0;
 }
+#include "ping_icmp.xmlh"
 noit_module_t ping_icmp = {
   {
     NOIT_MODULE_MAGIC,
     NOIT_MODULE_ABI_VERSION,
     "ping_icmp",
     "ICMP based host availability detection",
+    ping_icmp_xml_description,
     ping_icmp_onload
   },
   ping_icmp_config,

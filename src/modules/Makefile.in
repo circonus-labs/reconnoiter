@@ -89,6 +89,8 @@ ssh2.@MODULEEXT@:	ssh2.lo
 
 ssh2.lo:	ssh2.xmlh
 
+ping_icmp.lo:	ping_icmp.xmlh
+
 ping_icmp.@MODULEEXT@:	ping_icmp.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
