@@ -135,6 +135,7 @@ struct editline {
 	coord_t		  el_cursor;	/* Cursor location		*/
 	char		**el_display;	/* Real screen image = what is there */
 	char		**el_vdisplay;	/* Virtual screen image = what we see */
+        key_node_t       *el_keystate;  /* last char keystate progression */
 	el_line_t	  el_line;	/* The current line information	*/
 	el_state_t	  el_state;	/* Current editor state		*/
 	el_term_t	  el_term;	/* Terminal dependent stuff	*/

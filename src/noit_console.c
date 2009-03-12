@@ -336,9 +336,14 @@ socket_error:
       history(ncct->hist, &ev, H_SETSIZE, 500);
       ncct->el = el_init("noitd", ncct->pty_master, NULL,
                          e->fd, e, e->fd, e);
-      el_set(ncct->el, EL_USERDATA, ncct);
-      el_set(ncct->el, EL_EDITOR, "emacs");
-      el_set(ncct->el, EL_HIST, history, ncct->hist);
+      if(el_set(ncct->el, EL_USERDATA, ncct)) {
+        noitL(noit_error, "Cannot set userdata on noitedit session\n");
+        goto socket_error;
+      }
+      if(el_set(ncct->el, EL_EDITOR, "emacs")) 
+        noitL(noit_error, "Cannot set emacs mode on console\n");
+      if(el_set(ncct->el, EL_HIST, history, ncct->hist))
+        noitL(noit_error, "Cannot set history on console\n");
       if(!noit_hash_retrieve(ac->config,
                              "line_protocol", strlen("line_protocol"),
                              (void **)&line_protocol)) {

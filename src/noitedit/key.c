@@ -69,6 +69,7 @@ __RCSID("$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $");
 #include "noitedit/sys.h"
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "noitedit/el.h"
 
@@ -179,8 +180,11 @@ key_reset(EditLine *el)
 protected int
 key_get(EditLine *el, char *ch, key_value_t *val)
 {
-
-	return (node_trav(el, el->el_key.map, ch, val));
+#ifdef DEBUG_KEY
+	(void) el->el_err_printf(el, "key_get (%p) [%02x]\r\n",
+                                 el->el_keystate, *ch);
+#endif
+	return (node_trav(el, el->el_keystate ? el->el_keystate : el->el_key.map, ch, val));
 }
 
 
@@ -196,12 +200,12 @@ key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
 
 	if (key[0] == '\0') {
 		(void) el->el_err_printf(el,
-		    "key_add: Null extended-key not allowed.\n");
+		    "key_add: Null extended-key not allowed.\r\n");
 		return;
 	}
 	if (ntype == XK_CMD && val->cmd == ED_SEQUENCE_LEAD_IN) {
 		(void) el->el_err_printf(el,
-		    "key_add: sequence-lead-in command not allowed\n");
+		    "key_add: sequence-lead-in command not allowed\r\n");
 		return;
 	}
 	if (el->el_key.map == NULL)
@@ -241,7 +245,7 @@ key_delete(EditLine *el, char *key)
 
 	if (key[0] == '\0') {
 		(void) el->el_err_printf(el,
-		    "key_delete: Null extended-key not allowed.\n");
+		    "key_delete: Null extended-key not allowed.\r\n");
 		return (-1);
 	}
 	if (el->el_key.map == NULL)
@@ -267,7 +271,7 @@ key_print(EditLine *el, char *key)
 	el->el_key.buf[0] = '"';
 	if (node_lookup(el, key, el->el_key.map, 1) <= -1)
 		/* key is not bound */
-		(void) el->el_err_printf(el, "Unbound extended key \"%s\"\n",
+		(void) el->el_err_printf(el, "Unbound extended key \"%s\"\r\n",
 		    key);
 	return;
 }
@@ -280,12 +284,17 @@ key_print(EditLine *el, char *key)
 private int
 node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
 {
-
+	el->el_keystate = NULL;
 	if (ptr->ch == *ch) {
 		/* match found */
 		if (ptr->next) {
 			/* key not complete so get next char */
 			if (el_getc(el, ch) != 1) {	/* if EOF or error */
+                                if(errno == EAGAIN) {
+					el->el_keystate = ptr;
+					val->cmd = ED_UNASSIGNED;
+					return (XK_CMD);
+				}
 				val->cmd = ED_END_OF_FILE;
 				return (XK_CMD);
 				/* PWP: Pretend we just read an end-of-file */
@@ -536,13 +545,13 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 		el->el_key.buf[++cnt] = '\0';
 		(void) el->el_err_printf(el,
 		    "Some extended keys too long for internal print buffer");
-		(void) el->el_err_printf(el, " \"%s...\"\n", el->el_key.buf);
+		(void) el->el_err_printf(el, " \"%s...\"\r\n", el->el_key.buf);
 		return (0);
 	}
 	if (ptr == NULL) {
 #ifdef DEBUG_EDIT
 		(void) el->el_err_printf(el,
-		    "node_enum: BUG!! Null ptr passed\n!");
+		    "node_enum: BUG!! Null ptr passed\r\n!");
 #endif
 		return (-1);
 	}

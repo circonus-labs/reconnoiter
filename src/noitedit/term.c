@@ -312,16 +312,16 @@ term_setflags(EditLine *el)
 #ifdef DEBUG_SCREEN
 	if (!EL_CAN_UP) {
 		(void) el->el_err_printf(el,
-		    "WARNING: Your terminal cannot move up.\n");
+		    "WARNING: Your terminal cannot move up.\r\n");
 		(void) el->el_err_printf(el,
-		    "Editing may be odd for long lines.\n");
+		    "Editing may be odd for long lines.\r\n");
 	}
 	if (!EL_CAN_CEOL)
-		(void) el->el_err_printf(el, "no clear EOL capability.\n");
+		(void) el->el_err_printf(el, "no clear EOL capability.\r\n");
 	if (!EL_CAN_DELETE)
-		(void) el->el_err_printf(el, "no delete char capability.\n");
+		(void) el->el_err_printf(el, "no delete char capability.\r\n");
 	if (!EL_CAN_INSERT)
-		(void) el->el_err_printf(el, "no insert char capability.\n");
+		(void) el->el_err_printf(el, "no insert char capability.\r\n");
 #endif /* DEBUG_SCREEN */
 }
 
@@ -430,7 +430,7 @@ term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
 	el->el_term.t_loc = tlen;
 	if (el->el_term.t_loc + 3 >= TC_BUFSIZE) {
 		(void) el->el_err_printf(el,
-		    "Out of termcap string space.\n");
+		    "Out of termcap string space.\r\n");
 		return;
 	}
 	(void) strlcpy(*str = &el->el_term.t_buf[el->el_term.t_loc], cap,
@@ -723,7 +723,7 @@ term_deletechars(EditLine *el, int num)
 
 	if (!EL_CAN_DELETE) {
 #ifdef DEBUG_EDIT
-		(void) el->el_err_printf(el, "   ERROR: cannot delete   \n");
+		(void) el->el_err_printf(el, "   ERROR: cannot delete   \r\n");
 #endif /* DEBUG_EDIT */
 		return;
 	}
@@ -765,7 +765,7 @@ term_insertwrite(EditLine *el, char *cp, int num)
 		return;
 	if (!EL_CAN_INSERT) {
 #ifdef DEBUG_EDIT
-		(void) el->el_err_printf(el, "   ERROR: cannot insert   \n");
+		(void) el->el_err_printf(el, "   ERROR: cannot insert   \r\n");
 #endif /* DEBUG_EDIT */
 		return;
 	}
@@ -925,12 +925,12 @@ term_set(EditLine *el, char *term)
 	if (i <= 0) {
 		if (i == -1)
 			(void) el->el_err_printf(el,
-			    "Cannot read termcap database;\n");
+			    "Cannot read termcap database;\r\n");
 		else if (i == 0)
 			(void) el->el_err_printf(el,
-			    "No entry for terminal type \"%s\";\n", term);
+			    "No entry for terminal type \"%s\";\r\n", term);
 		(void) el->el_err_printf(el,
-		    "using dumb terminal settings.\n");
+		    "using dumb terminal settings.\r\n");
 		Val(T_co) = 80;	/* do a dumb terminal */
 		Val(T_pt) = Val(T_km) = Val(T_li) = 0;
 		Val(T_xt) = Val(T_MT);
@@ -1357,7 +1357,7 @@ term_settc(EditLine *el, int argc, char **argv)
 				el->el_term.t_val[tv - tval] = 0;
 			else {
 				(void) el->el_err_printf(el,
-				    "settc: Bad value `%s'.\n", how);
+				    "settc: Bad value `%s'.\r\n", how);
 				return (-1);
 			}
 			term_setflags(el);
@@ -1371,7 +1371,7 @@ term_settc(EditLine *el, int argc, char **argv)
 			i = strtol(how, &ep, 10);
 			if (*ep != '\0') {
 				(void) el->el_err_printf(el,
-				    "settc: Bad value `%s'.\n", how);
+				    "settc: Bad value `%s'.\r\n", how);
 				return (-1);
 			}
 			el->el_term.t_val[tv - tval] = (int) i;
@@ -1477,7 +1477,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) el->el_err_printf(el,
-			    "echotc: Termcap parameter `%s' not found.\n",
+			    "echotc: Termcap parameter `%s' not found.\r\n",
 			    *argv);
 		return (-1);
 	}
@@ -1508,7 +1508,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 				 */
 				if (verbose)
 					(void) el->el_err_printf(el,
-				"echotc: Warning: unknown termcap %% `%c'.\n",
+				"echotc: Warning: unknown termcap %% `%c'.\r\n",
 					    *cap);
 				/* This is bad, but I won't complain */
 				break;
@@ -1520,7 +1520,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (*argv && *argv[0]) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Warning: Extra argument `%s'.\n",
+				    "echotc: Warning: Extra argument `%s'.\r\n",
 				    *argv);
 			return (-1);
 		}
@@ -1531,7 +1531,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (!*argv || *argv[0] == '\0') {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Warning: Missing argument.\n");
+				    "echotc: Warning: Missing argument.\r\n");
 			return (-1);
 		}
 		arg_cols = 0;
@@ -1539,7 +1539,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (*ep != '\0' || i < 0) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Bad value `%s' for rows.\n",
+				    "echotc: Bad value `%s' for rows.\r\n",
 				    *argv);
 			return (-1);
 		}
@@ -1548,7 +1548,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (*argv && *argv[0]) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Warning: Extra argument `%s'.\n",
+				    "echotc: Warning: Extra argument `%s'.\r\n",
 				    *argv);
 			return (-1);
 		}
@@ -1558,7 +1558,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		/* This is wrong, but I will ignore it... */
 		if (verbose)
 			(void) el->el_err_printf(el,
-			 "echotc: Warning: Too many required arguments (%d).\n",
+			 "echotc: Warning: Too many required arguments (%d).\r\n",
 			    arg_need);
 		/* FALLTHROUGH */
 	case 2:
@@ -1573,7 +1573,7 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (*ep != '\0' || i < 0) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Bad value `%s' for cols.\n",
+				    "echotc: Bad value `%s' for cols.\r\n",
 				    *argv);
 			return (-1);
 		}
@@ -1582,14 +1582,14 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (!*argv || *argv[0] == '\0') {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Warning: Missing argument.\n");
+				    "echotc: Warning: Missing argument.\r\n");
 			return (-1);
 		}
 		i = strtol(*argv, &ep, 10);
 		if (*ep != '\0' || i < 0) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Bad value `%s' for rows.\n",
+				    "echotc: Bad value `%s' for rows.\r\n",
 				    *argv);
 			return (-1);
 		}
@@ -1597,14 +1597,14 @@ term_echotc(EditLine *el, int argc, char **argv)
 		if (*ep != '\0') {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Bad value `%s'.\n", *argv);
+				    "echotc: Bad value `%s'.\r\n", *argv);
 			return (-1);
 		}
 		argv++;
 		if (*argv && *argv[0]) {
 			if (!silent)
 				(void) el->el_err_printf(el,
-				    "echotc: Warning: Extra argument `%s'.\n",
+				    "echotc: Warning: Extra argument `%s'.\r\n",
 				    *argv);
 			return (-1);
 		}

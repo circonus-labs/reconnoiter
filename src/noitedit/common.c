@@ -160,8 +160,8 @@ ed_delete_next_char(EditLine *el, int c)
 {
 #ifdef notdef			/* XXX */
 #define	EL	el->el_line
-	(void) fprintf(el->el_errlfile,
-	    "\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\n",
+	(void) el->el_err_printf(el,
+	    "\r\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\r\n",
 	    EL.buffer, EL.buffer, EL.cursor, EL.cursor, EL.lastchar,
 	    EL.lastchar, EL.limit, EL.limit);
 #endif
@@ -735,7 +735,7 @@ ed_search_prev_history(EditLine *el, int c)
 	*el->el_line.lastchar = '\0';	/* just in case */
 	if (el->el_history.eventno < 0) {
 #ifdef DEBUG_EDIT
-		(void) fprintf(el->el_errfile,
+		(void) el->el_err_printf(el,
 		    "e_prev_search_hist(): eventno < 0;\n");
 #endif
 		el->el_history.eventno = 0;
@@ -761,7 +761,7 @@ ed_search_prev_history(EditLine *el, int c)
 
 	while (hp != NULL) {
 #ifdef SDEBUG
-		(void) fprintf(el->el_errfile, "Comparing with \"%s\"\n", hp);
+		(void) el->el_err_printf(el, "Comparing with \"%s\"\n", hp);
 #endif
 		if ((strncmp(hp, el->el_line.buffer, (size_t)
 			    (el->el_line.lastchar - el->el_line.buffer)) ||
@@ -775,7 +775,7 @@ ed_search_prev_history(EditLine *el, int c)
 	}
 
 	if (!found) {
-#ifdef SDEBUG
+#ifdef SDEBUG}
 		(void) fprintf(el->el_errfile, "not found\n");
 #endif
 		return (CC_ERROR);
