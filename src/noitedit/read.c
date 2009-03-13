@@ -251,7 +251,7 @@ el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonbloc
 			*ch |= 0200;
 		}
 		cmd = el->el_map.current[(unsigned char) *ch];
-		if (cmd == ED_SEQUENCE_LEAD_IN) {
+		if (cmd == ED_SEQUENCE_LEAD_IN || el->el_keystate) {
 			key_value_t val;
 			switch (key_get(el, ch, &val)) {
 			case XK_CMD:

@@ -70,6 +70,7 @@ __RCSID("$NetBSD: key.c,v 1.12 2001/05/17 01:02:17 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "noitedit/el.h"
 
@@ -181,8 +182,8 @@ protected int
 key_get(EditLine *el, char *ch, key_value_t *val)
 {
 #ifdef DEBUG_KEY
-	(void) el->el_err_printf(el, "key_get (%p) [%02x]\r\n",
-                                 el->el_keystate, *ch);
+	(void) el->el_err_printf(el, "key_get (%p [%02x]) [%02x]\r\n",
+                                 el->el_keystate, el->el_keystate ? el->el_keystate->ch : 0, *ch);
 #endif
 	return (node_trav(el, el->el_keystate ? el->el_keystate : el->el_key.map, ch, val));
 }
@@ -284,7 +285,11 @@ key_print(EditLine *el, char *key)
 private int
 node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
 {
-	el->el_keystate = NULL;
+	int meta = 0;
+	if(el->el_keystate && (unsigned char)el->el_keystate->ch == 0x1b) {
+		/* A previous character exists and it is 0x1b (ESC) */
+		meta = 1;
+	}
 	if (ptr->ch == *ch) {
 		/* match found */
 		if (ptr->next) {
@@ -299,11 +304,13 @@ node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
 				return (XK_CMD);
 				/* PWP: Pretend we just read an end-of-file */
 			}
+			el->el_keystate = NULL;
 			return (node_trav(el, ptr->next, ch, val));
 		} else {
 			*val = ptr->val;
 			if (ptr->type != XK_CMD)
 				*ch = '\0';
+			el->el_keystate = NULL;
 			return (ptr->type);
 		}
 	} else {
@@ -314,6 +321,12 @@ node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
 		} else {
 			/* no next sibling -- mismatch */
 			val->str = NULL;
+			el->el_keystate = NULL;
+			if(meta && el->el_map.type == MAP_EMACS) {
+				*ch |= 0200;
+				val->cmd = el->el_map.emacs[(unsigned char) *ch];
+				return XK_CMD;
+			}
 			return (XK_STR);
 		}
 	}
