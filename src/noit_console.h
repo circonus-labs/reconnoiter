@@ -15,11 +15,17 @@
 #include <stdarg.h>
 
 struct _console_state;
+struct _console_state_stack;
 struct __noit_console_closure;
 
 typedef int (*console_cmd_func_t)(struct __noit_console_closure *,
                                   int, char **,
                                   struct _console_state *, void *);
+typedef char * (*console_opt_func_t)(struct __noit_console_closure *,
+                                     struct _console_state_stack *stack,
+                                     struct _console_state *state,
+                                     int argc, char **argv,
+                                     int idx);
 typedef char *(*console_prompt_func_t)(EditLine *);
 typedef void (*state_free_func_t)(struct _console_state *);
 typedef void (*state_userdata_free_func_t)(void *);
@@ -27,6 +33,7 @@ typedef void (*state_userdata_free_func_t)(void *);
 typedef struct {
   const char            *name;
   console_cmd_func_t     func;
+  console_opt_func_t     autocomplete;
   struct _console_state *dstate;
   void                  *closure;
 } cmd_info_t;
@@ -76,6 +83,10 @@ typedef struct __noit_console_closure {
   EditLine *el;
   History *hist;
   noit_hash_table userdata;
+  /* This is console completion magic */
+  int noit_edit_complete_cmdnum;
+  int rl_point;
+  int rl_end;
 
   noit_console_state_stack_t *state_stack;
 
@@ -173,7 +184,7 @@ API_EXPORT(int)
                               void *closure);
  
 API_EXPORT(cmd_info_t *)
-  NCSCMD(const char *name, console_cmd_func_t func,
+  NCSCMD(const char *name, console_cmd_func_t func, console_opt_func_t ac,
          noit_console_state_t *dstate, void *closure);
 
 API_EXPORT(int)
@@ -183,6 +194,17 @@ API_EXPORT(int)
   noit_console_close_xml(void *vncct);
 
 API_EXPORT(void)
-  noit_console_add_help(const char *topic, console_cmd_func_t topic_func);
+  noit_console_add_help(const char *topic, console_cmd_func_t topic_func,
+                        console_opt_func_t autocomplete);
+
+API_EXPORT(unsigned char)
+  noit_edit_complete(EditLine *el, int invoking_key);
+
+API_EXPORT(char *)
+  noit_console_opt_delegate(noit_console_closure_t ncct,
+                            noit_console_state_stack_t *stack,
+                            noit_console_state_t *state,
+                            int argc, char **argv,
+                            int idx);
 
 #endif

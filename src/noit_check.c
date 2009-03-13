@@ -886,6 +886,6 @@ register_console_check_commands() {
   assert(showcmd && showcmd->dstate);
 
   noit_console_state_add_cmd(showcmd->dstate,
-    NCSCMD("checks", noit_console_show_checks, NULL, NULL));
+    NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));
 }
 

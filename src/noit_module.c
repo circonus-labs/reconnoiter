@@ -238,6 +238,41 @@ void noit_module_print_help(noit_console_closure_t ncct,
   if(output) xmlFreeDoc(output);
 }
 
+char *
+noit_module_options(noit_console_closure_t ncct,
+                    noit_console_state_stack_t *stack,
+                    noit_console_state_t *state,
+                    int argc, char **argv, int idx) {
+  if(argc == 1) {
+    /* List modules */ 
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *name;
+    int klen, i = 0;
+    noit_image_t *hdr;
+
+    while(noit_hash_next(&loaders, &iter, (const char **)&name, &klen,
+                         (void **)&hdr)) {
+      if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(hdr->name);
+        i++;
+      }
+    }
+    memset(&iter, 0, sizeof(iter));
+    while(noit_hash_next(&modules, &iter, (const char **)&name, &klen,
+                         (void **)&hdr)) {
+      if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(hdr->name);
+        i++;
+      }
+    }
+    return NULL;
+  }
+  if(argc == 2) {
+    if(!strncmp("examples", argv[1], strlen(argv[1])))
+      if(idx == 0) return strdup("examples");
+  }
+  return NULL;
+}
 int
 noit_module_help(noit_console_closure_t ncct,
                  int argc, char **argv,
@@ -277,7 +312,7 @@ void noit_module_init() {
   noit_conf_section_t *sections;
   int i, cnt = 0;
 
-  noit_console_add_help("module", noit_module_help);
+  noit_console_add_help("module", noit_module_help, noit_module_options);
 
   /* Load our module loaders */
   sections = noit_conf_get_sections(NULL, "/noit/modules//loader", &cnt);

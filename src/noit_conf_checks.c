@@ -56,7 +56,7 @@ noit_console_state_add_check_attrs(noit_console_state_t *state,
       i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
       i++) {
     noit_console_state_add_cmd(state,
-      NCSCMD(valid_attrs[i].name, f,
+      NCSCMD(valid_attrs[i].name, f, NULL,
              NULL, &valid_attrs[i]));
   }
 }
@@ -1287,12 +1287,12 @@ noit_console_config_unsetconfig(noit_console_closure_t ncct,
 
 
 #define NEW_STATE(a) (a) = noit_console_state_alloc()
-#define ADD_CMD(a,cmd,func,ss,c) \
+#define ADD_CMD(a,cmd,func,ac,ss,c) \
   noit_console_state_add_cmd((a), \
-    NCSCMD(cmd, func, ss, c))
-#define DELEGATE_CMD(a,cmd,ss) \
+    NCSCMD(cmd, func, ac, ss, c))
+#define DELEGATE_CMD(a,cmd,ac,ss) \
   noit_console_state_add_cmd((a), \
-    NCSCMD(cmd, noit_console_state_delegate, ss, NULL))
+    NCSCMD(cmd, noit_console_state_delegate, ac, ss, NULL))
 
 static
 void register_console_config_commands() {
@@ -1306,10 +1306,10 @@ void register_console_config_commands() {
 
   /* write <terimal|memory|file> */
   NEW_STATE(_write_state);
-  ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL);
-  ADD_CMD(_write_state, "file", noit_conf_write_file, NULL, NULL);
+  ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL, NULL);
+  ADD_CMD(_write_state, "file", noit_conf_write_file, NULL, NULL, NULL);
   /* write memory?  It's to a file, but I like router syntax */
-  ADD_CMD(_write_state, "memory", noit_conf_write_file, NULL, NULL);
+  ADD_CMD(_write_state, "memory", noit_conf_write_file, NULL, NULL, NULL);
 
   /* attribute <attrname> <value> */
   NEW_STATE(_attr_state);
@@ -1320,46 +1320,46 @@ void register_console_config_commands() {
   noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
 
   NEW_STATE(_unset_state);
-  DELEGATE_CMD(_unset_state, "attribute", _uattr_state);
-  ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, (void *)1);
-  ADD_CMD(_unset_state, "config", noit_console_config_unsetconfig, NULL, NULL);
-  ADD_CMD(_unset_state, "check", noit_console_config_nocheck, NULL, NULL);
+  DELEGATE_CMD(_unset_state, "attribute", noit_console_opt_delegate, _uattr_state);
+  ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, NULL, (void *)1);
+  ADD_CMD(_unset_state, "config", noit_console_config_unsetconfig, NULL, NULL, NULL);
+  ADD_CMD(_unset_state, "check", noit_console_config_nocheck, NULL, NULL, NULL);
  
   NEW_STATE(_conf_t_check_state);
   _conf_t_check_state->console_prompt_function = conf_t_check_prompt;
-  DELEGATE_CMD(_conf_t_check_state, "attribute", _attr_state);
-  DELEGATE_CMD(_conf_t_check_state, "no", _unset_state);
-  ADD_CMD(_conf_t_check_state, "config", noit_console_config_setconfig, NULL, NULL);
-  ADD_CMD(_conf_t_check_state, "status", noit_console_show_check, NULL, NULL);
-  ADD_CMD(_conf_t_check_state, "exit", noit_console_config_cd, NULL, "..");
-  ADD_CMD(_conf_t_check_state, "check", noit_console_check, _conf_t_check_state, "..");
+  DELEGATE_CMD(_conf_t_check_state, "attribute", noit_console_opt_delegate, _attr_state);
+  DELEGATE_CMD(_conf_t_check_state, "no", noit_console_opt_delegate, _unset_state);
+  ADD_CMD(_conf_t_check_state, "config", noit_console_config_setconfig, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_check_state, "status", noit_console_show_check, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_check_state, "exit", noit_console_config_cd, NULL, NULL, "..");
+  ADD_CMD(_conf_t_check_state, "check", noit_console_check, NULL, _conf_t_check_state, "..");
 
   NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
-  ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL);
-  ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL);
-  ADD_CMD(_conf_t_state, "config", noit_console_config_setconfig, NULL, NULL);
-  ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, (void *)0);
-  ADD_CMD(_conf_t_state, "check", noit_console_check, _conf_t_check_state, NULL);
+  ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "config", noit_console_config_setconfig, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, NULL, (void *)0);
+  ADD_CMD(_conf_t_state, "check", noit_console_check, NULL, _conf_t_check_state, NULL);
 
   showcmd = noit_console_state_get_cmd(tl, "show");
-  ADD_CMD(showcmd->dstate, "check", noit_console_show_check, NULL, NULL);
+  ADD_CMD(showcmd->dstate, "check", noit_console_show_check, NULL, NULL, NULL);
 
-  ADD_CMD(tl, "watch", noit_console_watch_check, NULL, (void *)1);
+  ADD_CMD(tl, "watch", noit_console_watch_check, NULL, NULL, (void *)1);
 
   nocmd = noit_console_state_get_cmd(tl, "no");
-  ADD_CMD(nocmd->dstate, "watch", noit_console_watch_check, NULL, (void *)0);
+  ADD_CMD(nocmd->dstate, "watch", noit_console_watch_check, NULL, NULL, (void *)0);
 
-  DELEGATE_CMD(_conf_t_state, "write", _write_state);
-  DELEGATE_CMD(_conf_t_state, "attribute", _attr_state);
-  DELEGATE_CMD(_conf_t_state, "no", _unset_state);
+  DELEGATE_CMD(_conf_t_state, "write", noit_console_opt_delegate, _write_state);
+  DELEGATE_CMD(_conf_t_state, "attribute", noit_console_opt_delegate, _attr_state);
+  DELEGATE_CMD(_conf_t_state, "no", noit_console_opt_delegate, _unset_state);
 
   NEW_STATE(_conf_state);
-  ADD_CMD(_conf_state, "terminal", noit_console_state_conf_terminal, _conf_t_state, NULL);
+  ADD_CMD(_conf_state, "terminal", noit_console_state_conf_terminal, NULL, _conf_t_state, NULL);
 
-  ADD_CMD(tl, "configure", noit_console_state_delegate, _conf_state, NULL);
-  ADD_CMD(tl, "write", noit_console_state_delegate, _write_state, NULL);
-  ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL);
+  ADD_CMD(tl, "configure", noit_console_state_delegate, noit_console_opt_delegate, _conf_state, NULL);
+  ADD_CMD(tl, "write", noit_console_state_delegate, noit_console_opt_delegate, _write_state, NULL);
+  ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL, NULL);
 }
 

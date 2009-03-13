@@ -117,6 +117,7 @@ typedef struct el_chared_t {
 #define	isglob(a)	(strchr("*[]?", (a)) != NULL)
 #define	isword(a)	(isprint(a))
 
+#undef NOP
 #define	NOP		0x00
 #undef DELETE
 #define	DELETE		0x01

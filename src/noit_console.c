@@ -36,6 +36,11 @@
 #include "noit_console.h"
 #include "noit_tokenizer.h"
 
+#include "noitedit/sys.h"
+#include "noitedit/el.h"
+#include "noitedit/fcns.h"
+#include "noitedit/map.h"
+
 static void
 nc_telnet_cooker(noit_console_closure_t ncct) {
   char *tmpbuf, *p, *n;
@@ -330,8 +335,10 @@ socket_error:
       ncct->wants_shutdown = 1;
     }
     else {
+      int i;
       const char *line_protocol;
       HistEvent ev;
+
       ncct->hist = history_init();
       history(ncct->hist, &ev, H_SETSIZE, 500);
       ncct->el = el_init("noitd", ncct->pty_master, NULL,
@@ -344,6 +351,16 @@ socket_error:
         noitL(noit_error, "Cannot set emacs mode on console\n");
       if(el_set(ncct->el, EL_HIST, history, ncct->hist))
         noitL(noit_error, "Cannot set history on console\n");
+      el_set(ncct->el, EL_ADDFN, "noit_complete",
+             "auto completion functions for noit", noit_edit_complete);
+      el_set(ncct->el, EL_BIND, "^I", "noit_complete", NULL);
+      for(i=EL_NUM_FCNS; i < ncct->el->el_map.nfunc; i++) {
+        if(ncct->el->el_map.func[i] == noit_edit_complete) {
+          ncct->noit_edit_complete_cmdnum = i;
+          break;
+        }
+      }
+
       if(!noit_hash_retrieve(ac->config,
                              "line_protocol", strlen("line_protocol"),
                              (void **)&line_protocol)) {
