@@ -202,4 +202,15 @@ API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 
+API_EXPORT(char *)
+  noit_console_check_opts(noit_console_closure_t ncct,
+                          noit_console_state_stack_t *stack,
+                          noit_console_state_t *dstate,
+                          int argc, char **argv, int idx);
+API_EXPORT(char *)
+  noit_console_conf_check_opts(noit_console_closure_t ncct,
+                               noit_console_state_stack_t *stack,
+                               noit_console_state_t *dstate,
+                               int argc, char **argv, int idx);
+
 #endif

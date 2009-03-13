@@ -857,6 +857,80 @@ nc_printf_check_brief(noit_console_closure_t ncct,
     nc_printf(ncct, "\t%s\n", check->stats.current.status);
 }
 
+char *
+noit_console_conf_check_opts(noit_console_closure_t ncct,
+                             noit_console_state_stack_t *stack,
+                             noit_console_state_t *dstate,
+                             int argc, char **argv, int idx) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen, i = 0;
+  noit_check_t *check;
+
+  if(argc == 1) {
+    if(!strncmp("new", argv[0], strlen(argv[0]))) {
+      if(idx == i) return strdup("new");
+      i++;
+    }
+    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                         (void **)&check)) {
+      char out[512];
+      char uuid_str[37];
+      snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
+      uuid_unparse_lower(check->checkid, uuid_str);
+      if(!strncmp(out, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(out);
+        i++;
+      }
+      if(!strncmp(uuid_str, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(uuid_str);
+        i++;
+      }
+    }
+  }
+  if(argc == 2) {
+    cmd_info_t *cmd;
+    if(!strcmp("new", argv[0])) return NULL;
+    cmd = noit_skiplist_find(&dstate->cmds, "attribute", NULL);
+    if(!cmd) return NULL;
+    return noit_console_opt_delegate(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
+  }
+  return NULL;
+}
+
+char *
+noit_console_check_opts(noit_console_closure_t ncct,
+                        noit_console_state_stack_t *stack,
+                        noit_console_state_t *dstate,
+                        int argc, char **argv, int idx) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen, i = 0;
+  noit_check_t *check;
+
+  if(argc == 1) {
+    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                         (void **)&check)) {
+      char out[512];
+      char uuid_str[37];
+      snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
+      uuid_unparse_lower(check->checkid, uuid_str);
+      if(!strncmp(out, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(out);
+        i++;
+      }
+      if(!strncmp(uuid_str, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(uuid_str);
+        i++;
+      }
+    }
+  }
+  if(argc == 2) {
+    return noit_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
+  }
+  return NULL;
+}
+
 static int
 noit_console_show_checks(noit_console_closure_t ncct,
                          int argc, char **argv,

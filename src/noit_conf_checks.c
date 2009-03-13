@@ -222,6 +222,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
   if(pobj) xmlXPathFreeObject(pobj);
   return rv;
 }
+
 static int
 noit_console_check(noit_console_closure_t ncct,
                    int argc, char **argv,
@@ -1320,46 +1321,71 @@ void register_console_config_commands() {
   noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
 
   NEW_STATE(_unset_state);
-  DELEGATE_CMD(_unset_state, "attribute", noit_console_opt_delegate, _uattr_state);
-  ADD_CMD(_unset_state, "section", noit_console_config_section, NULL, NULL, (void *)1);
-  ADD_CMD(_unset_state, "config", noit_console_config_unsetconfig, NULL, NULL, NULL);
-  ADD_CMD(_unset_state, "check", noit_console_config_nocheck, NULL, NULL, NULL);
+  DELEGATE_CMD(_unset_state, "attribute",
+               noit_console_opt_delegate, _uattr_state);
+  ADD_CMD(_unset_state, "section",
+          noit_console_config_section, NULL, NULL, (void *)1);
+  ADD_CMD(_unset_state, "config",
+          noit_console_config_unsetconfig, NULL, NULL, NULL);
+  ADD_CMD(_unset_state, "check",
+          noit_console_config_nocheck, NULL, NULL, NULL);
  
   NEW_STATE(_conf_t_check_state);
   _conf_t_check_state->console_prompt_function = conf_t_check_prompt;
-  DELEGATE_CMD(_conf_t_check_state, "attribute", noit_console_opt_delegate, _attr_state);
-  DELEGATE_CMD(_conf_t_check_state, "no", noit_console_opt_delegate, _unset_state);
-  ADD_CMD(_conf_t_check_state, "config", noit_console_config_setconfig, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_check_state, "status", noit_console_show_check, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_check_state, "exit", noit_console_config_cd, NULL, NULL, "..");
-  ADD_CMD(_conf_t_check_state, "check", noit_console_check, NULL, _conf_t_check_state, "..");
+  DELEGATE_CMD(_conf_t_check_state, "attribute",
+               noit_console_opt_delegate, _attr_state);
+  DELEGATE_CMD(_conf_t_check_state, "no",
+               noit_console_opt_delegate, _unset_state);
+  ADD_CMD(_conf_t_check_state, "config",
+          noit_console_config_setconfig, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_check_state, "status",
+          noit_console_show_check, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_check_state, "exit",
+          noit_console_config_cd, NULL, NULL, "..");
+  ADD_CMD(_conf_t_check_state, "check",
+          noit_console_check, noit_console_conf_check_opts,
+          _conf_t_check_state, "..");
 
   NEW_STATE(_conf_t_state); 
   _conf_t_state->console_prompt_function = conf_t_prompt;
   noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
   ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL, NULL);
   ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_state, "config", noit_console_config_setconfig, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_state, "section", noit_console_config_section, NULL, NULL, (void *)0);
-  ADD_CMD(_conf_t_state, "check", noit_console_check, NULL, _conf_t_check_state, NULL);
+  ADD_CMD(_conf_t_state, "config",
+          noit_console_config_setconfig, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "section",
+          noit_console_config_section, NULL, NULL, (void *)0);
+  ADD_CMD(_conf_t_state, "check",
+          noit_console_check, noit_console_conf_check_opts,
+          _conf_t_check_state, NULL);
 
   showcmd = noit_console_state_get_cmd(tl, "show");
-  ADD_CMD(showcmd->dstate, "check", noit_console_show_check, NULL, NULL, NULL);
+  ADD_CMD(showcmd->dstate, "check",
+          noit_console_show_check, noit_console_check_opts, NULL, NULL);
 
-  ADD_CMD(tl, "watch", noit_console_watch_check, NULL, NULL, (void *)1);
+  ADD_CMD(tl, "watch",
+          noit_console_watch_check, noit_console_check_opts, NULL, (void *)1);
 
   nocmd = noit_console_state_get_cmd(tl, "no");
-  ADD_CMD(nocmd->dstate, "watch", noit_console_watch_check, NULL, NULL, (void *)0);
+  ADD_CMD(nocmd->dstate, "watch",
+          noit_console_watch_check, noit_console_check_opts, NULL, (void *)0);
 
-  DELEGATE_CMD(_conf_t_state, "write", noit_console_opt_delegate, _write_state);
-  DELEGATE_CMD(_conf_t_state, "attribute", noit_console_opt_delegate, _attr_state);
+  DELEGATE_CMD(_conf_t_state, "write",
+               noit_console_opt_delegate, _write_state);
+  DELEGATE_CMD(_conf_t_state, "attribute",
+               noit_console_opt_delegate, _attr_state);
   DELEGATE_CMD(_conf_t_state, "no", noit_console_opt_delegate, _unset_state);
 
   NEW_STATE(_conf_state);
-  ADD_CMD(_conf_state, "terminal", noit_console_state_conf_terminal, NULL, _conf_t_state, NULL);
+  ADD_CMD(_conf_state, "terminal",
+          noit_console_state_conf_terminal, NULL, _conf_t_state, NULL);
 
-  ADD_CMD(tl, "configure", noit_console_state_delegate, noit_console_opt_delegate, _conf_state, NULL);
-  ADD_CMD(tl, "write", noit_console_state_delegate, noit_console_opt_delegate, _write_state, NULL);
+  ADD_CMD(tl, "configure",
+          noit_console_state_delegate, noit_console_opt_delegate,
+          _conf_state, NULL);
+  ADD_CMD(tl, "write",
+          noit_console_state_delegate, noit_console_opt_delegate,
+          _write_state, NULL);
   ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL, NULL);
 }
 

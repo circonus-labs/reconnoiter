@@ -25,7 +25,7 @@ noit_console_opt_delegate(noit_console_closure_t ncct,
                           int argc, char **argv,
                           int idx) {
   int i;
-  noit_skiplist_node *next;
+  noit_skiplist_node *next, *curr;
   cmd_info_t *cmd;
 
   if(state == NULL) return NULL;
@@ -40,23 +40,25 @@ noit_console_opt_delegate(noit_console_closure_t ncct,
   }
 
   cmd = noit_skiplist_find_neighbors(&state->cmds, argv[0],
-                                     NULL, NULL, &next);
+                                     NULL, &curr, &next);
   if(cmd) {
-    if(argc == 1) {
-      if(idx == 0) return strdup(cmd->name);
-      return NULL;
+    if(argc != 1) {
+      if(!cmd->autocomplete) return NULL;
+      return cmd->autocomplete(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
     }
-    if(!cmd->autocomplete) return NULL;
-    return cmd->autocomplete(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
+    next = curr;
+    goto multiples;
   }
 
+ multiples:
   if(!next) return NULL;
   i = 0;
   while(next) {
     cmd = next->data;
-    if(strncasecmp(cmd->name, argv[0], strlen(argv[0])) == 0)
+    if(strncasecmp(cmd->name, argv[0], strlen(argv[0])) == 0) {
       if(idx == i) return strdup(cmd->name);
-    i++;
+      i++;
+    }
     noit_skiplist_next(&state->cmds, &next);
   }
   return NULL;
@@ -177,7 +179,7 @@ noit_edit_display_match_list (EditLine *el, char **matches, int len, int max)
 
 unsigned char
 noit_edit_complete(EditLine *el, int invoking_key) {
-  static const char *rl_basic_word_break_characters = " \t\n\"\\'`@$><=;|&{(";
+  static const char *rl_basic_word_break_characters = " \t\n\"\\'@$><=;|&{(";
   static const char *rl_special_prefixes = NULL;
   static const int   rl_completion_append_character = ' ';
   noit_console_closure_t ncct;
