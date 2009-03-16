@@ -11,6 +11,9 @@
 #include <sys/mman.h>
 #include <poll.h>
 #include <errno.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #include "utils/noit_skiplist.h"
 #include "utils/noit_log.h"
