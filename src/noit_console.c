@@ -65,11 +65,10 @@ nc_telnet_cooker(noit_console_closure_t ncct) {
   ncct->outbuf_completed = 0;
   ncct->outbuf_cooked = 0;
   do {
-    if(n == tmpbuf || *(n-1) != '\r') {
-      nc_write(ncct, p, n-p);   r -= n-p;
+    nc_write(ncct, p, n-p);   r -= n-p;
+    if(n == tmpbuf || *(n-1) != '\r')
       nc_write(ncct, "\r", 1);
-      p = n;
-    }
+    p = n;
     n = memchr(p+1, '\n', r-1);
   } while(n);
   nc_write(ncct, p, r);
