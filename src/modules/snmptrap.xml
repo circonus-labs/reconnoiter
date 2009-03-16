@@ -1,6 +1,6 @@
 <module>
   <name>snmptrap</name>
-  <description><para>The snmptrap module provides SNMP trap daemon support for reconnoiter.</para></description>
+  <description><para>The snmptrap module provides SNMP trap daemon support for reconnoiter.  Reconnoiter comes with a <command>snmptrap</command>-based helper utility called <command>noittrap</command> aimed to assist with the complexities of forming valid SNMP traps to this module.</para></description>
   <loader>C</loader>
   <image>snmp.so</image>
   <moduleconfig>

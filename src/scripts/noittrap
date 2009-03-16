@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+
+use Getopt::Long;
+my $community = 'public';
+my $version = '2c';
+my $status;
+my $available;
+my $state;
+my $duration;
+
+GetOptions("c=s", \$community,
+           "v=s", \$version,
+           "m=s", \$status,
+           "a=s", \$available,
+           "s=s", \$state,
+           "d=i", \$duration);
+
+sub usage {
+  print STDERR "$0 [flags] [args]
+
+  This program is a wrapper around the snmptrap command from Net-SNMP.
+  It aids in constructing the (somewhat complex) incantation required to
+  affect a trap against a specific check with all of the meta information
+  set.  Multiple (zero or more) metrics may be set via a single invocation.
+
+FLAGS:
+	-c <community>
+	[-v <version>]    # default 2c
+	[-s <G|B>]        # sets check state to Good/Bad
+	[-a <A|U>]        # sets check availability to Available/Unavailable
+	[-m <status>]     # sets check status message
+	[-d <#ms>]        # number of milliseconds the check took to complete
+
+ARGS:
+	<targetnoitd> <uuid> [<metric> <type> <value>]*
+
+	<type>:	s -> string
+		x -> hex string
+		i -> integer
+		u -> unsigned integer
+		t -> timeticks
+		U -> unsigned 64bit integer
+		I -> 64bit integer
+		F -> floating point number
+		D -> double
+";
+}
+if(@ARGV < 2) {
+  usage();
+  exit -1;
+}
+my $host = shift;
+my $check = shift;
+if(@ARGV % 3) {
+  usage();
+  exit -1;
+}
+
+my @check_oid = qw/1 3 6 1 4 1 32863 1 1 1/;
+my @metric_oid = qw/1 3 6 1 4 1 32863 1 1 2/;
+my @status_oid = qw/1 3 6 1 4 1 32863 1 1 3/;
+my @state_oid = (@status_oid, 1);
+my @available_oid = (@status_oid, 2);
+my @duration_oid = (@status_oid, 3);
+my @mesg_oid = (@status_oid, 4);
+
+my $hp = qr/[0-9a-fA-F]{4}/;
+if($check =~ /^($hp)($hp)-($hp)-($hp)-($hp)-($hp)($hp)($hp)$/) {
+  push @check_oid, hex($1);
+  push @check_oid, hex($2);
+  push @check_oid, hex($3);
+  push @check_oid, hex($4);
+  push @check_oid, hex($5);
+  push @check_oid, hex($6);
+  push @check_oid, hex($7);
+  push @check_oid, hex($8);
+}
+else {
+  die "Invalid check: $check\n";
+}
+
+
+my @cmd = qw/snmptrap/;
+push @cmd, ('-c', $community);
+push @cmd, ('-v', $version);
+push @cmd, $host;
+push @cmd, "0";
+push @cmd, join('.', @check_oid);
+if($state) {
+  push @cmd, join('.', @state_oid);
+  push @cmd, "object";
+  push @cmd, join('.', (@state_oid, ($state eq 'G') ? 1 : 2));
+}
+if($available) {
+  push @cmd, join('.', @available_oid);
+  push @cmd, "object";
+  push @cmd, join('.', (@available_oid, ($available eq 'A') ? 1 : 2));
+}
+if($available) {
+  push @cmd, join('.', @available_oid);
+  push @cmd, "object";
+  push @cmd, join('.', (@available_oid, ($available eq 'A') ? 1 : 2));
+}
+if($duration) {
+  push @cmd, (join('.', @duration_oid), "unsigned", $duration);
+}
+if($status) {
+  push @cmd, (join('.', @mesg_oid), "string", $status);
+}
+while(@ARGV) {
+  my $metric = shift;
+  my @moid = @metric_oid;
+  push @moid, length($metric);
+  foreach (split //, $metric) {
+    push @moid, ord($_);
+  }
+  push @cmd, join('.', @moid);
+  push @cmd, shift; #type
+  push @cmd, shift; #value
+}
+
+exec { "snmptrap" } @cmd;

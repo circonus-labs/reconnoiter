@@ -129,6 +129,8 @@ noit.conf:	noit.conf.in
 		noit.conf
 
 install:	all
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
