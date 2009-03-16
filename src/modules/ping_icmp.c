@@ -175,7 +175,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
     iphlen = ip->ip_hl << 2;
     if((inlen-iphlen) != (sizeof(struct icmp)+sizeof(struct ping_payload))) {
-      noitLT(nlerr, now,
+      noitLT(nldeb, now,
              "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
       continue;
     }
