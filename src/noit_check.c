@@ -212,8 +212,9 @@ noit_poller_process_checks(const char *xpath) {
 int
 noit_check_activate(noit_check_t *check) {
   noit_module_t *mod;
+  if(NOIT_CHECK_LIVE(check)) return 0;
   mod = noit_module_lookup(check->module);
-  if(mod && mod->initiate_check && !NOIT_CHECK_LIVE(check)) {
+  if(mod && mod->initiate_check) {
     if((check->flags & NP_DISABLED) == 0) {
       mod->initiate_check(mod, check, 0, NULL);
       return 1;
@@ -223,8 +224,10 @@ noit_check_activate(noit_check_t *check) {
             check->target, check->name);
   }
   else {
-    noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
-    check->flags |= NP_DISABLED;
+    if(!mod) {
+      noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
+      check->flags |= NP_DISABLED;
+    }
   }
   return 0;
 }
@@ -565,11 +568,11 @@ noit_poller_deschedule(uuid_t in) {
                         (void **)&checker) == 0) {
     return -1;
   }
+  checker->flags |= (NP_DISABLED|NP_KILLED);
+
   if(checker->flags & NP_RUNNING) {
-    checker->flags |= NP_KILLED;
     return 0;
   }
-  checker->flags |= NP_KILLED;
 
   noit_skiplist_remove(&polls_by_name, checker, NULL);
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
