@@ -1014,7 +1014,7 @@ replace_config(noit_console_closure_t ncct,
     if(noit_conf_get_uuid(node, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
-      if(NOIT_CHECK_LIVE(check)) active++;
+      if(check && NOIT_CHECK_LIVE(check)) active++;
     }
   }
   if(pobj) xmlXPathFreeObject(pobj);
@@ -1123,7 +1123,7 @@ replace_attr(noit_console_closure_t ncct,
       if(noit_conf_get_uuid(node, "@uuid", checkid)) {
         noit_check_t *check;
         check = noit_poller_lookup(checkid);
-        if(NOIT_CHECK_LIVE(check)) active++;
+        if(check && NOIT_CHECK_LIVE(check)) active++;
       }
     }
     if(pobj) xmlXPathFreeObject(pobj);
@@ -1147,7 +1147,7 @@ replace_attr(noit_console_closure_t ncct,
     if(noit_conf_get_uuid(node, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
-      if(NOIT_CHECK_LIVE(check)) active++;
+      if(check && NOIT_CHECK_LIVE(check)) active++;
     }
   }
   if(active) {
