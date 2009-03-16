@@ -44,6 +44,7 @@ struct check_info {
 };
 struct ping_payload {
   uuid_t checkid;
+  u_int32_t generation;    
   struct timeval whence;
   int    check_no;
   int    check_pack_no;
@@ -153,7 +154,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
    struct sockaddr_in6 in6;
   } from;
   unsigned int from_len;
-  struct ip *ip = (struct ip *)packet;;
+  struct ip *ip = (struct ip *)packet;
   struct icmp *icp;
   struct ping_payload *payload;
 
@@ -192,11 +193,17 @@ static int ping_icmp_handler(eventer_t e, int mask,
       continue;
     }
     check = noit_poller_lookup(payload->checkid);
+    /* make sure this check is from this generation! */
     if(!check) {
       char uuid_str[37];
       uuid_unparse_lower(payload->checkid, uuid_str);
       noitLT(nlerr, now,
              "ping_icmp response for unknown check '%s'\n", uuid_str);
+      continue;
+    }
+    if(check->generation != payload->generation) {
+      noitLT(nldeb, now,
+             "ping_icmp response in generation gap\n");
       continue;
     }
     data = (struct check_info *)check->closure;
@@ -426,6 +433,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     icp->icmp_id = (((vpsized_uint)self) & 0xffff);
 
     uuid_copy(payload->checkid, check->checkid);
+    payload->generation = check->generation;
     payload->check_no = ci->check_no;
     payload->check_pack_no = i;
     payload->check_pack_cnt = count;
