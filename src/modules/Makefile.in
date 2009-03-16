@@ -105,7 +105,7 @@ external.@MODULEEXT@:	external.lo external_proc.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
 
-snmp.lo:	snmp.xmlh
+snmp.lo:	snmp.xmlh snmptrap.xmlh
 
 .c.lo:
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@

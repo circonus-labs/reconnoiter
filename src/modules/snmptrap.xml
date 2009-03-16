@@ -1,0 +1,44 @@
+<module>
+  <name>snmptrap</name>
+  <description><para>The snmptrap module provides SNMP trap daemon support for reconnoiter.</para></description>
+  <loader>C</loader>
+  <image>snmp.so</image>
+  <moduleconfig>
+    <parameter name="community"
+               required="required"
+               allowed=".+">The SNMP community string providing trap access.</parameter>
+    <parameter name="snmptrapd_port"
+               required="optional"
+               defailt="162"
+               allowed="\d+">The port on which traps are accepted.</parameter>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="community"
+               required="optional"
+               allowed=".+">The SNMP community string providing trap access (overrides modules config).</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Simple passive checking.</title>
+      <para>The following example configures a check prepared to accept traps from
+      host 10.1.1.1.  Traps must be performed with the community name 's3cr3t'. Note that
+      because this check is passive, the timeout and period mean nothing to reconnoiter.
+      Though these values may be used by an upstream provider for fault detection.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="snmp" name="snmptrap">
+            <config>
+              <community>s3cr3t</community>
+            </config>
+          </module>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="snmptrap" name="magic"
+                 period="60000" timeout="30000"/>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

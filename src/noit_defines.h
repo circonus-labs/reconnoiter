@@ -39,6 +39,8 @@ static inline void add_timeval(struct timeval a, struct timeval b,
   out->tv_sec = a.tv_sec + b.tv_sec;
 }
 
+#undef UUID_STR_LEN
+#define UUID_STR_LEN 36
 #ifndef HAVE_UUID_UNPARSE_LOWER
 /* Sigh, need to implement out own */
 #include <uuid/uuid.h>
