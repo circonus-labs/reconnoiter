@@ -96,4 +96,6 @@ static inline int noit_build_version(char *buff, int len) {
   return snprintf(buff, len, "unknown.%s", NOIT_SVNVERSION);
 }
 
+#include "noitedit/strlcpy.h"
+
 #endif
