@@ -253,9 +253,9 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
 
 noit_log_stream_t
 noit_log_stream_find(const char *name) {
-  noit_log_stream_t ls;
-  if(noit_hash_retrieve(&noit_loggers, name, strlen(name), (void **)&ls)) {
-    return ls;
+  void *vls;
+  if(noit_hash_retrieve(&noit_loggers, name, strlen(name), &vls)) {
+    return (noit_log_stream_t)vls;
   }
   return NULL;
 }
@@ -373,7 +373,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       tm = localtime_r(&s, &_tm);
       strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", tm);
       snprintf(fbuf, sizeof(fbuf), "[%s.%06d %s:%d] %s",
-               tbuf, now->tv_usec, file, line, format);
+               tbuf, (int)now->tv_usec, file, line, format);
       format = fbuf;
     }
 #ifdef va_copy

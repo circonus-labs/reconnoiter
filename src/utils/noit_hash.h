@@ -75,6 +75,7 @@ int noit_hash_store(noit_hash_table *h, const char *k, int klen, void *data);
 int noit_hash_replace(noit_hash_table *h, const char *k, int klen, void *data,
                       NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree);
 int noit_hash_retrieve(noit_hash_table *h, const char *k, int klen, void **data);
+int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char **data);
 int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
                      NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree);
 void noit_hash_delete_all(noit_hash_table *h, NoitHashFreeFunc keyfree,

@@ -219,6 +219,13 @@ int noit_hash_retrieve(noit_hash_table *h, const char *k, int klen, void **data)
   }
   return 0;
 }
+int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char **dstr) {
+  int rv;
+  void *vptr = NULL;
+  rv = noit_hash_retrieve(h,k,klen,&vptr);
+  *dstr = vptr;
+  return rv;
+}
 int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
                   NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
   int off;
