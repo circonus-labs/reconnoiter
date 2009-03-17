@@ -185,10 +185,10 @@ socket_error:
     const char *logname;
     char path[PATH_MAX], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
-    if(!noit_hash_retrieve(ac->config,
+    if(!noit_hash_retr_str(ac->config,
                            "log_transit_feed_name",
                            strlen("log_transit_feed_name"),
-                           (void **)&logname)) {
+                           &logname)) {
       noitL(noit_error, "No 'log_transit_feed_name' specified in log_transit.\n");
       goto socket_error;
     }

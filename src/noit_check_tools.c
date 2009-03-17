@@ -64,22 +64,25 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
               oper = key;
               if(*oper == ':' &&
                  (nkey = strnstrn(":", 1, oper + 1, fmte - key - 1)) != NULL) {
+                void *voper;
                 oper++;
                 /* find oper, nkey-oper */
                 if(!noit_hash_retrieve(&interpolation_operators,
                                        oper, nkey - oper,
-                                       (void **)&oper_sprint)) {
+                                       &voper)) {
                   /* else oper <- copy */
                   oper_sprint = interpolate_oper_copy;
                 }
+                else
+                  oper_sprint = voper;
                 nkey++;
               }
               else {
                 oper_sprint = interpolate_oper_copy;
                 nkey = key;
               }
-              if(!noit_hash_retrieve((closer == '}') ?  config : attrs,
-                                     nkey, fmte - nkey, (void **)&replacement))
+              if(!noit_hash_retr_str((closer == '}') ?  config : attrs,
+                                     nkey, fmte - nkey, &replacement))
                 replacement = "";
               fmt = fmte + 1; /* Format points just after the end of the key */
               cp += oper_sprint(cp, end-cp, replacement);

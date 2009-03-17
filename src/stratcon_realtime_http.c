@@ -370,7 +370,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
 
     noitL(noit_error, "http: %s %s %s\n",
           req->method_str, req->uri_str, req->protocol_str);
-    while(noit_hash_next(&req->headers, &iter, &key, &klen, (void **)&value)) {
+    while(noit_hash_next_str(&req->headers, &iter, &key, &klen, &value)) {
       noitL(noit_error, "http: [%s: %s]\n", key, value);
     }
     noit_http_response_status_set(ctx, 200, "OK");

@@ -86,7 +86,7 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
-  if(!noit_hash_retrieve(check->config, #key, strlen(#key), (void **)&key)) \
+  if(!noit_hash_retr_str(check->config, #key, strlen(#key), &key)) \
     key = str; \
 } while(0)
 

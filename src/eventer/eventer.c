@@ -37,14 +37,14 @@ int eventer_name_callback(const char *name, eventer_func_t f) {
   return 0;
 }
 eventer_func_t eventer_callback_for_name(const char *name) {
-  eventer_func_t f;
-  if(noit_hash_retrieve(&__name_to_func, name, strlen(name), (void **)&f))
-    return f;
+  void *vf;
+  if(noit_hash_retrieve(&__name_to_func, name, strlen(name), &vf))
+    return (eventer_func_t)vf;
   return (eventer_func_t)NULL;
 }
 const char *eventer_name_for_callback(eventer_func_t f) {
   const char *name;
-  if(noit_hash_retrieve(&__func_to_name, (char *)&f, sizeof(f), (void **)&name))
+  if(noit_hash_retr_str(&__func_to_name, (char *)&f, sizeof(f), &name))
     return name;
   return NULL;
 }

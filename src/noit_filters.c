@@ -156,11 +156,11 @@ noit_apply_filterset(const char *filterset,
   /* We pass in filterset here just in case someone wants to apply
    * a filterset other than check->filterset.. You never know.
    */
-  filterset_t *fs;
+  void *vfs;
   if(!filtersets || !filterset) return noit_true;
 
-  if(noit_hash_retrieve(filtersets, filterset, strlen(filterset),
-                        (void **)&fs)) {
+  if(noit_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
+    filterset_t *fs = (filterset_t *)vfs;
     filterrule_t *r;
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname, r->rname##_e, value)
     for(r = fs->rules; r; r = r->next) {

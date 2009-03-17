@@ -201,7 +201,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   } sockaddr;
   socklen_t sockaddr_len;
   unsigned short ssh_port = DEFAULT_SSH_PORT;
-  const char *port_str;
+  const char *port_str = NULL;
   long on;
 
   /* We cannot be running */
@@ -229,8 +229,8 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   on = 1;
   if(ioctl(fd, FIONBIO, &on)) goto fail;
 
-  if(noit_hash_retrieve(check->config, "port", strlen("port"),
-                        (void **)&port_str)) {
+  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+                        &port_str)) {
     ssh_port = (unsigned short)atoi(port_str);
   }
   memset(&sockaddr, 0, sizeof(sockaddr));

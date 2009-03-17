@@ -34,7 +34,7 @@ static struct loader_conf *__get_loader_conf(noit_module_loader_t *self) {
   return c;
 }
 static void
-noit_lua_loader_set_directory(noit_module_loader_t *self, char *dir) {
+noit_lua_loader_set_directory(noit_module_loader_t *self, const char *dir) {
   struct loader_conf *c = __get_loader_conf(self);
   if(c->script_dir) free(c->script_dir);
   c->script_dir = strdup(dir);
@@ -58,9 +58,9 @@ cancel_coro(noit_lua_check_info_t *ci) {
 
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
-  noit_lua_check_info_t *v = NULL;
-  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), (void **)&v))
-    return v;
+  void *v = NULL;
+  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v))
+    return (noit_lua_check_info_t *)v;
   return NULL;
 }
 static void
@@ -135,7 +135,7 @@ noit_lua_hash_to_table(lua_State *L,
   int klen;
   lua_createtable(L, 0, t ? t->size : 0);
   if(t) {
-    while(noit_hash_next(t, &iter, &key, &klen, (void **)&value)) {
+    while(noit_hash_next_str(t, &iter, &key, &klen, &value)) {
       lua_pushlstring(L, value, strlen(value));
       lua_setfield(L, -2, key);
     }
@@ -775,8 +775,8 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 
 static int
 noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
-  char *dir = ".";
-  noit_hash_retrieve(o, "directory", strlen("directory"), (void **)&dir);
+  const char *dir = ".";
+  noit_hash_retr_str(o, "directory", strlen("directory"), &dir);
   noit_lua_loader_set_directory(self, dir);
   return 0;
 }

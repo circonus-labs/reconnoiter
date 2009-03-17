@@ -76,16 +76,16 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
   struct timeval __now, interval;
   const char *v;
   u_int32_t min_interval = 1000, max_interval = 60000;
-  if(noit_hash_retrieve(ctx->config,
+  if(noit_hash_retr_str(ctx->config,
                         "reconnect_initial_interval",
                         strlen("reconnect_initial_interval"),
-                        (void **)&v)) {
+                        &v)) {
     min_interval = MAX(atoi(v), 100); /* .1 second minimum */
   }
-  if(noit_hash_retrieve(ctx->config,
+  if(noit_hash_retr_str(ctx->config,
                         "reconnect_maximum_interval",
                         strlen("reconnect_maximum_interval"),
-                        (void **)&v)) {
+                        &v)) {
     max_interval = MIN(atoi(v), 3600*1000); /* 1 hour maximum */
   }
   if(ctx->current_backoff == 0) ctx->current_backoff = min_interval;
@@ -156,7 +156,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
     if(ctx->buffer) free(ctx->buffer); \
     ctx->buffer = malloc(size + 1); \
     if(ctx->buffer == NULL) { \
-      noitL(noit_error, "malloc(%lu) failed.\n", size + 1); \
+      noitL(noit_error, "malloc(%lu) failed.\n", (long unsigned int)size + 1); \
       goto socket_error; \
     } \
     ctx->buffer[size] = '\0'; \
@@ -171,7 +171,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   ctx->bytes_expected = 0; \
   if(len != size) { \
     noitL(noit_error, "SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
-          ctx->state, len, size); \
+          ctx->state, len, (long unsigned int)size); \
     goto socket_error; \
   } \
 } while(0)
@@ -323,7 +323,7 @@ int
 noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
-  char *cert, *key, *ca, *ciphers;
+  const char *cert, *key, *ca, *ciphers;
   eventer_ssl_ctx_t *sslctx;
 
   if(mask & EVENTER_EXCEPTION) {
@@ -335,8 +335,8 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
   }
 
 #define SSLCONFGET(var,name) do { \
-  if(!noit_hash_retrieve(nctx->sslconfig, name, strlen(name), \
-                         (void **)&var)) var = NULL; } while(0)
+  if(!noit_hash_retr_str(nctx->sslconfig, name, strlen(name), \
+                         &var)) var = NULL; } while(0)
   SSLCONFGET(cert, "certificate_file");
   SSLCONFGET(key, "key_file");
   SSLCONFGET(ca, "ca_chain");

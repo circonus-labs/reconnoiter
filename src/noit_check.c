@@ -106,7 +106,7 @@ noit_poller_process_checks(const char *xpath) {
   __config_load_generation++;
   sec = noit_conf_get_sections(NULL, xpath, &cnt);
   for(i=0; i<cnt; i++) {
-    noit_check_t *existing_check;
+    void *vcheck;
     char uuid_str[37];
     char target[256];
     char module[256];
@@ -182,7 +182,8 @@ noit_poller_process_checks(const char *xpath) {
     if(disabled) flags |= NP_DISABLED;
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
-                          (void **)&existing_check)) {
+                          &vcheck)) {
+      noit_check_t *existing_check = (noit_check_t *)vcheck;
       /* Once set, we can never change it. */
       assert(!existing_check->module || !existing_check->module[0] ||
              !strcmp(existing_check->module, module));
@@ -237,10 +238,10 @@ noit_poller_initiate() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t *check;
+  void *vcheck;
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       (void **)&check)) {
-    noit_check_activate(check);
+                       &vcheck)) {
+    noit_check_activate((noit_check_t *)vcheck);
   }
 }
 
@@ -249,11 +250,13 @@ noit_poller_flush_epoch(int oldest_allowed) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t *check, *tofree = NULL;
+  noit_check_t *tofree = NULL;
+  void *vcheck;
 
   /* Cleanup any previous causal map */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       (void **)&check)) {
+                       &vcheck)) {
+    noit_check_t *check = (noit_check_t *)vcheck;
     /* We don't free the one we're looking at... we free it on the next
      * pass.  This leaves out iterator in good shape.  We just need to
      * remember to free it one last time outside the while loop, down...
@@ -275,11 +278,12 @@ noit_poller_make_causal_map() {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t *check, *parent;
+  void *vcheck;
 
   /* Cleanup any previous causal map */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       (void **)&check)) {
+                       &vcheck)) {
+    noit_check_t *check = (noit_check_t *)vcheck;
     dep_list_t *dep;
     while((dep = check->causal_checks) != NULL) {
       check->causal_checks = dep->next;
@@ -290,7 +294,8 @@ noit_poller_make_causal_map() {
   memset(&iter, 0, sizeof(iter));
   /* Walk all checks and add check dependencies to their parents */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       (void **)&check)) {
+                       &vcheck)) {
+    noit_check_t *check = (noit_check_t *)vcheck, *parent;
     if(check->oncheck) {
       /* This service is causally triggered by another service */
       char fullcheck[1024];
@@ -360,11 +365,13 @@ noit_poller_transient_check_count() {
 noit_check_t *
 noit_check_clone(uuid_t in) {
   noit_check_t *checker, *new_check;
+  void *vcheck;
   if(noit_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
-                        (void **)&checker) == 0) {
+                        &vcheck) == 0) {
     return NULL;
   }
+  checker = (noit_check_t *)vcheck;
   if(checker->oncheck) {
     return NULL;
   }
@@ -561,13 +568,15 @@ noit_poller_schedule(const char *target,
 
 int
 noit_poller_deschedule(uuid_t in) {
+  void *vcheck;
   noit_check_t *checker;
   noit_module_t *mod;
   if(noit_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
-                        (void **)&checker) == 0) {
+                        &vcheck) == 0) {
     return -1;
   }
+  checker = (noit_check_t *)vcheck;
   checker->flags |= (NP_DISABLED|NP_KILLED);
 
   if(checker->flags & NP_RUNNING) {
@@ -600,12 +609,9 @@ noit_poller_deschedule(uuid_t in) {
 
 noit_check_t *
 noit_poller_lookup(uuid_t in) {
-  noit_check_t *check;
-  if(noit_hash_retrieve(&polls,
-                        (char *)in, UUID_SIZE,
-                        (void **)&check)) {
-    return check;
-  }
+  void *vcheck;
+  if(noit_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
+    return (noit_check_t *)vcheck;
   return NULL;
 }
 noit_check_t *
@@ -868,7 +874,7 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i = 0;
-  noit_check_t *check;
+  void *vcheck;
 
   if(argc == 1) {
     if(!strncmp("new", argv[0], strlen(argv[0]))) {
@@ -876,7 +882,8 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
       i++;
     }
     while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                         (void **)&check)) {
+                         &vcheck)) {
+      noit_check_t *check = (noit_check_t *)vcheck;
       char out[512];
       char uuid_str[37];
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
@@ -909,13 +916,14 @@ noit_console_check_opts(noit_console_closure_t ncct,
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i = 0;
-  noit_check_t *check;
 
   if(argc == 1) {
+    void *vcheck;
     while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                         (void **)&check)) {
+                         &vcheck)) {
       char out[512];
       char uuid_str[37];
+      noit_check_t *check = (noit_check_t *)vcheck;
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
       uuid_unparse_lower(check->checkid, uuid_str);
       if(!strncmp(out, argv[0], strlen(argv[0]))) {
@@ -939,16 +947,14 @@ noit_console_show_checks(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *dstate,
                          void *closure) {
-  struct timeval _now;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
-  noit_check_t *check;
+  void *vcheck;
 
-  gettimeofday(&_now, NULL);
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       (void **)&check)) {
-    nc_printf_check_brief(ncct, check);
+                       &vcheck)) {
+    nc_printf_check_brief(ncct, (noit_check_t *)vcheck);
   }
   return 0;
 }

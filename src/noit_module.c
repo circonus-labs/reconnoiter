@@ -43,20 +43,18 @@ static noit_hash_table loaders = NOIT_HASH_EMPTY;
 static noit_hash_table modules = NOIT_HASH_EMPTY;
 
 noit_module_loader_t * noit_loader_lookup(const char *name) {
-  noit_module_loader_t *loader;
+  void *vloader;
 
-  if(noit_hash_retrieve(&loaders, name, strlen(name), (void **)&loader)) {
-    return loader;
-  }
+  if(noit_hash_retrieve(&loaders, name, strlen(name), &vloader))
+    return (noit_module_loader_t *)vloader;
   return NULL;
 }
 
 noit_module_t * noit_module_lookup(const char *name) {
-  noit_module_t *module;
+  void *vmodule;
 
-  if(noit_hash_retrieve(&modules, name, strlen(name), (void **)&module)) {
-    return module;
-  }
+  if(noit_hash_retrieve(&modules, name, strlen(name), &vmodule))
+    return (noit_module_t *)vmodule;
   return NULL;
 }
 
@@ -248,10 +246,11 @@ noit_module_options(noit_console_closure_t ncct,
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *name;
     int klen, i = 0;
-    noit_image_t *hdr;
+    void *vhdr;
 
     while(noit_hash_next(&loaders, &iter, (const char **)&name, &klen,
-                         (void **)&hdr)) {
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;
       if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
         if(idx == i) return strdup(hdr->name);
         i++;
@@ -259,7 +258,8 @@ noit_module_options(noit_console_closure_t ncct,
     }
     memset(&iter, 0, sizeof(iter));
     while(noit_hash_next(&modules, &iter, (const char **)&name, &klen,
-                         (void **)&hdr)) {
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;
       if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
         if(idx == i) return strdup(hdr->name);
         i++;
@@ -282,16 +282,18 @@ noit_module_help(noit_console_closure_t ncct,
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *name;
     int klen;
-    noit_image_t *hdr;
+    void *vhdr;
 
     nc_printf(ncct, "= Loaders and Modules =\n");
     while(noit_hash_next(&loaders, &iter, (const char **)&name, &klen,
-                         (void **)&hdr)) {
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;;
       nc_printf(ncct, "  %s\n", hdr->name);
     }
     memset(&iter, 0, sizeof(iter));
     while(noit_hash_next(&modules, &iter, (const char **)&name, &klen,
-                         (void **)&hdr)) {
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;;
       nc_printf(ncct, "  %s\n", hdr->name);
     }
     return 0;

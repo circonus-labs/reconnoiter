@@ -308,6 +308,15 @@ int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,
   return 1;
 }
 
+int noit_hash_next_str(noit_hash_table *h, noit_hash_iter *iter,
+                       const char **k, int *klen, const char **dstr) {
+  void *data = NULL;
+  int rv;
+  rv = noit_hash_next(h,iter,k,klen,&data);
+  *dstr = data;
+  return rv;
+}
+
 int noit_hash_firstkey(noit_hash_table *h, const char **k, int *klen) {
   int i;
   for(i=0;i<h->table_size;i++) {

@@ -75,7 +75,7 @@ int noit_hash_store(noit_hash_table *h, const char *k, int klen, void *data);
 int noit_hash_replace(noit_hash_table *h, const char *k, int klen, void *data,
                       NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree);
 int noit_hash_retrieve(noit_hash_table *h, const char *k, int klen, void **data);
-int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char **data);
+int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char **dstr);
 int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
                      NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree);
 void noit_hash_delete_all(noit_hash_table *h, NoitHashFreeFunc keyfree,
@@ -105,6 +105,8 @@ void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src);
 */
 int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,
                    const char **k, int *klen, void **data);
+int noit_hash_next_str(noit_hash_table *h, noit_hash_iter *iter,
+                       const char **k, int *klen, const char **dstr);
 int noit_hash_firstkey(noit_hash_table *h, const char **k, int *klen);
 int noit_hash_nextkey(noit_hash_table *h, const char **k, int *klen, const char *lk, int lklen);
 

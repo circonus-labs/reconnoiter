@@ -312,7 +312,7 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
 }
 int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
-  char *str;
+  const char *str;
   int i, rv = 1;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
@@ -340,8 +340,8 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     goto found;
   }
  fallback:
-  if(noit_hash_retrieve(&_compiled_fallback,
-                        path, strlen(path), (void **)&str)) {
+  if(noit_hash_retr_str(&_compiled_fallback,
+                        path, strlen(path), &str)) {
     *value = (char *)xmlStrdup((xmlChar *)str);
     goto found;
   }

@@ -201,6 +201,7 @@ static int external_handler(eventer_t e, int mask,
     int inlen, expectlen;
     noit_check_t *check;
     struct check_info *ci;
+    void *vci;
 
     if(!data->cr) {
       struct external_response r;
@@ -277,8 +278,9 @@ static int external_handler(eventer_t e, int mask,
     if(noit_hash_retrieve(&data->external_checks,
                           (const char *)&data->cr->check_no,
                           sizeof(data->cr->check_no),
-                          (void **)&ci) == 0)
-      ci = NULL;
+                          &vci) == 0)
+      vci = NULL;
+    ci = (struct check_info *)vci;
 
     /* We've seen it, it ain't coming again...
      * remove it, we'll free it ourselves */
@@ -369,8 +371,8 @@ static int external_init(noit_module_t *self) {
   else {
     const char *user = NULL, *group = NULL;
     if(data->options) {
-      noit_hash_retrieve(data->options, "user", 4, (void **)&user);
-      noit_hash_retrieve(data->options, "group", 4, (void **)&group);
+      noit_hash_retr_str(data->options, "user", 4, &user);
+      noit_hash_retr_str(data->options, "group", 4, &group);
     }
     noit_security_usergroup(user, group);
     exit(external_child(data));
@@ -453,9 +455,9 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   ci->check_no = noit_atomic_inc64(&data->check_no_seq);
   ci->check = check;
   /* We might want to extract metrics */
-  if(noit_hash_retrieve(check->config,
+  if(noit_hash_retr_str(check->config,
                         "output_extract", strlen("output_extract"),
-                        (void **)&value) != 0) {
+                        &value) != 0) {
     const char *error;
     int erroffset;
     ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
@@ -472,8 +474,8 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   while(1) {
     char argname[10];
     snprintf(argname, sizeof(argname), "arg%d", i);
-    if(noit_hash_retrieve(check->config, argname, strlen(argname),
-                          (void **)&value) == 0) break;
+    if(noit_hash_retr_str(check->config, argname, strlen(argname),
+                          &value) == 0) break;
     i++;
   }
   ci->argcnt = i + 1; /* path, arg0, (i-1 more args) */
@@ -481,8 +483,8 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   ci->args = calloc(ci->argcnt, sizeof(*ci->args));
 
   /* Make the command */
-  if(noit_hash_retrieve(check->config, "command", strlen("command"),
-                        (void **)&value) == 0) {
+  if(noit_hash_retr_str(check->config, "command", strlen("command"),
+                        &value) == 0) {
     value = "/bin/true";
   }
   ci->args[0] = strdup(value);
@@ -492,8 +494,8 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   while(1) {
     char argname[10];
     snprintf(argname, sizeof(argname), "arg%d", i);
-    if(noit_hash_retrieve(check->config, argname, strlen(argname),
-                          (void **)&value) == 0) {
+    if(noit_hash_retr_str(check->config, argname, strlen(argname),
+                          &value) == 0) {
       if(i == 0) {
         /* if we don't have arg0, make it last element of path */
         char *cp = ci->args[0] + strlen(ci->args[0]);
@@ -512,14 +514,14 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
   /* Make the environment */
   memset(&iter, 0, sizeof(iter));
   ci->envcnt = 0;
-  while(noit_hash_next(check->config, &iter, &name, &klen, (void **)&value))
+  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value))
     if(!strncasecmp(name, "env_", 4))
       ci->envcnt++;
   memset(&iter, 0, sizeof(iter));
   ci->envlens = calloc(ci->envcnt, sizeof(*ci->envlens));
   ci->envs = calloc(ci->envcnt, sizeof(*ci->envs));
   ci->envcnt = 0;
-  while(noit_hash_next(check->config, &iter, &name, &klen, (void **)&value))
+  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value))
     if(!strncasecmp(name, "env_", 4)) {
       snprintf(interp_fmt, sizeof(interp_fmt), "%s=%s", name+4, value);
       noit_check_interpolate(interp_buff, sizeof(interp_buff), interp_fmt,

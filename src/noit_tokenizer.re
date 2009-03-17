@@ -1,3 +1,4 @@
+#include "noit_defines.h"
 #include <stdlib.h>
 #include <string.h>
 

@@ -57,6 +57,7 @@
 #undef HAVE_CURSES_H
 #undef HAVE_DIRENT_H
 #undef HAVE_PWD_H
+#undef HAVE_PTY_H
 #undef HAVE_ERRNO_H
 #undef HAVE_STRING_H
 #undef HAVE_STDLIB_H

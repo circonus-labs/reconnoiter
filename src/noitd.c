@@ -86,7 +86,7 @@ int configure_eventer() {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *key, *value;
     int klen;
-    while(noit_hash_next(table, &iter, &key, &klen, (void **)&value)) {
+    while(noit_hash_next_str(table, &iter, &key, &klen, &value)) {
       int subrv;
       if((subrv = eventer_propset(key, value)) != 0)
         rv = subrv;

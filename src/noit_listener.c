@@ -101,15 +101,15 @@ noit_listener_acceptor(eventer_t e, int mask,
     newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
 
     if(listener_closure->sslconfig->size) {
-      char *cert, *key, *ca, *ciphers;
+      const char *cert, *key, *ca, *ciphers;
       eventer_ssl_ctx_t *ctx;
       /* We have an SSL configuration.  While our socket accept is
        * complete, we now have to SSL_accept, which could require
        * several reads and writes and needs its own event callback.
        */
 #define SSLCONFGET(var,name) do { \
-  if(!noit_hash_retrieve(listener_closure->sslconfig, name, strlen(name), \
-                         (void **)&var)) var = NULL; } while(0)
+  if(!noit_hash_retr_str(listener_closure->sslconfig, name, strlen(name), \
+                         &var)) var = NULL; } while(0)
       SSLCONFGET(cert, "certificate_file");
       SSLCONFGET(key, "key_file");
       SSLCONFGET(ca, "ca_chain");
@@ -344,7 +344,8 @@ noit_control_dispatch(eventer_t e, int mask, void *closure,
                       struct timeval *now) {
   u_int32_t cmd;
   int len;
-  noit_hash_table *delegation_table;
+  void *vdelegation_table;
+  noit_hash_table *delegation_table = NULL;
   acceptor_closure_t *ac = closure;
 
   len = e->opset->read(e->fd, &cmd, sizeof(cmd), &mask, e);
@@ -366,12 +367,12 @@ socket_error:
   /* Lookup cmd and dispatch */
   if(noit_hash_retrieve(&listener_commands,
                         (char *)&ac->dispatch, sizeof(ac->dispatch),
-                        (void **)&delegation_table)) {
-    eventer_func_t *eventer_func;
+                        (void **)&vdelegation_table)) {
+    void *vfunc;
+    delegation_table = (noit_hash_table *)vdelegation_table;
     if(noit_hash_retrieve(delegation_table,
-                          (char *)&cmd, sizeof(cmd),
-                          (void **)&eventer_func)) {
-      e->callback = *eventer_func;
+                          (char *)&cmd, sizeof(cmd), &vfunc)) {
+      e->callback = *((eventer_func_t *)vfunc);
       return e->callback(e, mask, closure, now);
     }
     else {
@@ -395,10 +396,11 @@ noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
                                eventer_func_t delegate_dispatch) {
   u_int32_t *cmd_copy;
   eventer_func_t *handler_copy;
+  void *vdelegation_table;
   noit_hash_table *delegation_table;
   if(!noit_hash_retrieve(&listener_commands,
                          (char *)&listener_dispatch, sizeof(listener_dispatch),
-                         (void **)&delegation_table)) {
+                         &vdelegation_table)) {
     delegation_table = calloc(1, sizeof(*delegation_table));
     handler_copy = malloc(sizeof(*handler_copy));
     *handler_copy = listener_dispatch;
@@ -406,6 +408,9 @@ noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
                     (char *)handler_copy, sizeof(*handler_copy),
                     delegation_table);
   }
+  else
+    delegation_table = (noit_hash_table *)vdelegation_table;
+
   cmd_copy = malloc(sizeof(*cmd_copy));
   *cmd_copy = cmd;
   handler_copy = malloc(sizeof(*handler_copy));

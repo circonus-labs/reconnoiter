@@ -47,6 +47,7 @@ static void dns_ctx_handle_free(void *vh) {
   dns_free(h->ctx);
 }
 static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
+  void *vh;
   dns_ctx_handle_t *h = NULL;
   pthread_mutex_lock(&dns_ctx_store_lock);
   if(ns == NULL && default_ctx_handle != NULL) {
@@ -56,7 +57,8 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     goto bail;
   }
   if(ns &&
-     noit_hash_retrieve(&dns_ctx_store, ns, strlen(ns), (void **)&h)) {
+     noit_hash_retrieve(&dns_ctx_store, ns, strlen(ns), &vh)) {
+    h = (dns_ctx_handle_t *)vh;
     noit_atomic_inc32(&h->refcnt);
   }
   else {
@@ -129,10 +131,10 @@ typedef struct dns_check_info {
 } dns_check_info_t;
 
 static int __isactive_ci(struct dns_check_info *ci) {
-  struct dns_check_info *u;
+  void *u;
   int exists = 0;
   pthread_mutex_lock(&active_events_lock);
-  if(noit_hash_retrieve(&active_events, (void *)&ci, sizeof(ci), (void **)&u))
+  if(noit_hash_retrieve(&active_events, (void *)&ci, sizeof(ci), &u))
     exists = 1;
   pthread_mutex_unlock(&active_events_lock);
   return exists;
@@ -497,6 +499,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
 }
 
 static int dns_check_send(noit_module_t *self, noit_check_t *check) {
+  void *vnv_pair = NULL;
   struct dns_nameval *nv_pair;
   eventer_t newe;
   struct timeval p_int, now;
@@ -533,8 +536,8 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
     query = "%[name]";
   }
 #define CONFIG_OVERRIDE(a) \
-  if(noit_hash_retrieve(check->config, #a, strlen(#a), \
-                        (void **)&config_val) && \
+  if(noit_hash_retr_str(check->config, #a, strlen(#a), \
+                        &config_val) && \
      strlen(config_val) > 0) \
     a = config_val
   CONFIG_OVERRIDE(ctype);
@@ -585,19 +588,22 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
 
   /* Lookup out class */
   if(!noit_hash_retrieve(&dns_ctypes, ctype, strlen(ctype),
-                         (void **)&nv_pair)) {
+                         &vnv_pair)) {
     ci->error = strdup("bad class");
   }
-  else
+  else {
+    nv_pair = (struct dns_nameval *)vnv_pair;
     ci->query_ctype = nv_pair->val;
-
+  }
   /* Lookup out rr type */
   if(!noit_hash_retrieve(&dns_rtypes, rtype, strlen(rtype),
-                         (void **)&nv_pair)) {
+                         &vnv_pair)) {
     ci->error = strdup("bad rr type");
   }
-  else
+  else {
+    nv_pair = (struct dns_nameval *)vnv_pair;
     ci->query_rtype = nv_pair->val;
+  }
 
   if(!ci->error) {
     /* Submit the query */

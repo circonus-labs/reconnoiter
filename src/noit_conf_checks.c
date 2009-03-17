@@ -162,15 +162,17 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
   if(argc % 2) return -1;
 
   for(i=0; i<argc; i+=2) {
+    void *vattrinfo;
     struct _valid_attr_t *attrinfo;
     char *attr = argv[i], *val = NULL;
     if(!strcasecmp(argv[i], "no")) attr = argv[i+1];
     else val = argv[i+1];
     if(!noit_hash_retrieve(&check_attrs, attr, strlen(attr),
-                           (void **)&attrinfo)) {
+                           &vattrinfo)) {
       error = 1;
       break;
     }
+    attrinfo = vattrinfo;
     /* The fixation stuff doesn't matter here, this check is brand-new */
     xmlUnsetProp(node, (xmlChar *)attrinfo->name);
     if(val)

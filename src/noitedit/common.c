@@ -775,7 +775,7 @@ ed_search_prev_history(EditLine *el, int c)
 	}
 
 	if (!found) {
-#ifdef SDEBUG}
+#ifdef SDEBUG
 		(void) fprintf(el->el_errfile, "not found\n");
 #endif
 		return (CC_ERROR);

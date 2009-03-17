@@ -381,11 +381,11 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
 
   int interval = PING_INTERVAL;
   int count = PING_COUNT;
-  if(noit_hash_retrieve(check->config, "interval", strlen("interval"),
-                        (void **)&config_val))
+  if(noit_hash_retr_str(check->config, "interval", strlen("interval"),
+                        &config_val))
     interval = atoi(config_val);
-  if(noit_hash_retrieve(check->config, "count", strlen("count"),
-                        (void **)&config_val))
+  if(noit_hash_retr_str(check->config, "count", strlen("count"),
+                        &config_val))
     count = atoi(config_val);
 
   check->flags |= NP_RUNNING;

@@ -112,13 +112,14 @@ _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *key;
   int klen;
-  metric_t *m;
   stats_t *c;
+  void *vm;
 
   uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
-  while(noit_hash_next(&c->metrics, &iter, &key, &klen, (void **)&m)) {
+  while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
+    metric_t *m = (metric_t *)vm;
     if(!noit_apply_filterset(check->filterset, check, m)) continue;
     if(!ls->enabled) continue;
 

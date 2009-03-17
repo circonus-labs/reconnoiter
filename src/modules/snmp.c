@@ -134,10 +134,9 @@ static void add_check(struct check_info *c) {
   noit_hash_store(&active_checks, (char *)&c->reqid, sizeof(c->reqid), c);
 }
 static struct check_info *get_check(int reqid) {
-  struct check_info *c;
-  if(noit_hash_retrieve(&active_checks, (char *)&reqid, sizeof(reqid),
-                        (void **)&c))
-    return c;
+  void *vc;
+  if(noit_hash_retrieve(&active_checks, (char *)&reqid, sizeof(reqid), &vc))
+    return (struct check_info *)vc;
   return NULL;
 }
 static void remove_check(struct check_info *c) {
@@ -147,11 +146,12 @@ static void remove_check(struct check_info *c) {
 
 struct target_session *
 _get_target_session(noit_module_t *self, char *target) {
+  void *vts;
   struct target_session *ts;
   snmp_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(!noit_hash_retrieve(&conf->target_sessions,
-                         target, strlen(target), (void **)&ts)) {
+                         target, strlen(target), &vts)) {
     ts = calloc(1, sizeof(*ts));
     ts->self = self;
     ts->fd = -1;
@@ -159,8 +159,9 @@ _get_target_session(noit_module_t *self, char *target) {
     ts->in_table = 1;
     noit_hash_store(&conf->target_sessions,
                     strdup(target), strlen(target), ts);
+    vts = ts;
   }
-  return ts;
+  return (struct target_session *)vts;
 }
 
 /* Handling of results */
@@ -686,10 +687,10 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
     noitL(nlerr, "trap received for non-existent check '%s'\n", uuid_str);
     goto cleanup;
   }
-  if(!noit_hash_retrieve(check->config, "community", strlen("community"),
-                         (void **)&community) &&
-     !noit_hash_retrieve(conf->options, "community", strlen("community"),
-                         (void **)&community)) {
+  if(!noit_hash_retr_str(check->config, "community", strlen("community"),
+                         &community) &&
+     !noit_hash_retr_str(conf->options, "community", strlen("community"),
+                         &community)) {
     noitL(nlerr, "No community defined for check, dropping trap\n");
     goto cleanup;
   }
@@ -746,8 +747,8 @@ static void noit_snmp_sess_open(struct target_session *ts,
   snmp_sess_init(&sess);
   sess.version = SNMP_VERSION_2c;
   sess.peername = check->target;
-  if(!noit_hash_retrieve(check->config, "community", strlen("community"),
-                         (void **)&community)) {
+  if(!noit_hash_retr_str(check->config, "community", strlen("community"),
+                         &community)) {
     community = "public";
   }
   sess.community = (unsigned char *)community;
@@ -776,7 +777,7 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   info->oids = NULL;
 
   /* Figure our how many. */
-  while(noit_hash_next(check->config, &iter, &name, &klen, (void **)&value)) {
+  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
       info->noids++;
     }
@@ -791,7 +792,7 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   info->oids = calloc(info->noids, sizeof(*info->oids));
   memset(&iter, 0, sizeof(iter));
   i = 0;
-  while(noit_hash_next(check->config, &iter, &name, &klen, (void **)&value)) {
+  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
       char oidbuff[128];
       name += 4;

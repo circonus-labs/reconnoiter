@@ -287,12 +287,12 @@ void eventer_jobq_process_each(void (*func)(eventer_jobq_t *, void *),
                                void *closure) {
   const char *key;
   int klen;
-  eventer_jobq_t *jobq;
+  void *vjobq;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
 
   pthread_mutex_lock(&all_queues_lock);
-  while(noit_hash_next(&all_queues, &iter, &key, &klen, (void **)&jobq)) {
-    func(jobq, closure);
+  while(noit_hash_next(&all_queues, &iter, &key, &klen, &vjobq)) {
+    func((eventer_jobq_t *)vjobq, closure);
   }
   pthread_mutex_unlock(&all_queues_lock);
 }

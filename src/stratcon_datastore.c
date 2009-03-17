@@ -106,6 +106,7 @@ noit_hash_table ds_conns;
 
 conn_q *
 __get_conn_q_for_remote(struct sockaddr *remote) {
+  void *vcq;
   conn_q *cq;
   char queue_name[128] = "datastore_";
   static const char __zeros[4] = { 0 };
@@ -135,8 +136,8 @@ __get_conn_q_for_remote(struct sockaddr *remote) {
     snprintf(queue_name, sizeof(queue_name), "datastore_default");
     len = 4;
   }
-  if(noit_hash_retrieve(&ds_conns, (const char *)remote, len, (void **)&cq))
-    return cq;
+  if(noit_hash_retrieve(&ds_conns, (const char *)remote, len, &vcq))
+    return vcq;
   cq = calloc(1, sizeof(*cq));
   cq->remote = malloc(len);
   memcpy(cq->remote, remote, len);
@@ -434,7 +435,7 @@ stratcon_database_connect(conn_q *cq) {
 
   dsn[0] = '\0';
   t = noit_conf_get_hash(NULL, "/stratcon/database/dbconfig");
-  while(noit_hash_next(t, &iter, &k, &klen, (void **)&v)) {
+  while(noit_hash_next_str(t, &iter, &k, &klen, &v)) {
     if(dsn[0]) strlcat(dsn, " ", sizeof(dsn));
     strlcat(dsn, k, sizeof(dsn));
     strlcat(dsn, "=", sizeof(dsn));

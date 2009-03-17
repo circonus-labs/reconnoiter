@@ -297,8 +297,8 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
           struct bchain *b;
           const char *prefix = NULL;
           int l1, l2;
-          noit_hash_retrieve(&req->headers, last_name, strlen(last_name),
-                             (void **)&prefix);
+          noit_hash_retr_str(&req->headers, last_name, strlen(last_name),
+                             &prefix);
           if(!prefix) FAIL;
           l1 = strlen(prefix);
           l2 = strlen(value);
@@ -582,8 +582,8 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   memcpy(b->buff + b->start + b->size, s, slen); \
   b->size += slen; \
 } while(0)
-  while(noit_hash_next(&ctx->res.headers, &iter,
-                       &key, &klen, (void **)&value)) {
+  while(noit_hash_next_str(&ctx->res.headers, &iter,
+                           &key, &klen, &value)) {
     int vlen = strlen(value);
     CTX_LEADER_APPEND(key, klen);
     CTX_LEADER_APPEND(": ", 2);

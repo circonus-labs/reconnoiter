@@ -24,6 +24,9 @@
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #endif
+#ifdef HAVE_PTY_H
+#include <pty.h>
+#endif
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif
@@ -208,10 +211,10 @@ noit_console_userdata_set(struct __noit_console_closure *ncct,
 void *
 noit_console_userdata_get(struct __noit_console_closure *ncct,
                           const char *name) {
-  noit_console_userdata_t *item;
+  void *vitem;
   if(noit_hash_retrieve(&ncct->userdata, name, strlen(name),
-                        (void **)&item))
-    return item->data;
+                        &vitem))
+    return ((noit_console_userdata_t *)vitem)->data;
   return NULL;
 }
 
@@ -360,9 +363,9 @@ socket_error:
         }
       }
 
-      if(!noit_hash_retrieve(ac->config,
+      if(!noit_hash_retr_str(ac->config,
                              "line_protocol", strlen("line_protocol"),
-                             (void **)&line_protocol)) {
+                             &line_protocol)) {
         line_protocol = NULL;
       }
       if(line_protocol && !strcasecmp(line_protocol, "telnet")) {

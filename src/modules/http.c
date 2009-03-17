@@ -556,8 +556,8 @@ static apr_status_t handle_response(serf_request_t *request,
   }
  finish:
   gettimeofday(&ci->finish_time, NULL);
-  noitL(nldeb, "serf finished request (%s) [%d.%06d]\n", ctx->check->target,
-        ci->finish_time.tv_sec, ci->finish_time.tv_usec);
+  noitL(nldeb, "serf finished request (%s) [%ld.%06d]\n", ctx->check->target,
+        (long int)ci->finish_time.tv_sec, (int)ci->finish_time.tv_usec);
   if(ci->timeout_event) {
     eventer_remove(ci->timeout_event);
     ci->timed_out = 0;

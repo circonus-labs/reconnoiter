@@ -99,11 +99,11 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
 
   if(!x509ctx) return 0;
 
-  if(!noit_hash_retrieve(options, "optional_no_ca", strlen("optional_no_ca"),
-                         (void **)&opt_no_ca))
+  if(!noit_hash_retr_str(options, "optional_no_ca", strlen("optional_no_ca"),
+                         &opt_no_ca))
     opt_no_ca = "false";
-  if(!noit_hash_retrieve(options, "ignore_dates", strlen("ignore_dates"),
-                         (void **)&ignore_dates))
+  if(!noit_hash_retr_str(options, "ignore_dates", strlen("ignore_dates"),
+                         &ignore_dates))
     ignore_dates = "false";
 
   ssl = X509_STORE_CTX_get_ex_data(x509ctx,
@@ -373,18 +373,18 @@ eventer_SSL_connect(eventer_t e, int *mask) {
 static int
 eventer_SSL_read(int fd, void *buffer, size_t len, int *mask, void *closure) {
   int rv;
-  noitL(noit_debug, "SSL_read(%d) wants %ld bytes\n", fd, len);
+  noitL(noit_debug, "SSL_read(%d) wants %ld bytes\n", fd, (long int)len);
   rv = eventer_SSL_rw(SSL_OP_READ, fd, buffer, len, mask, closure);
-  noitL(noit_debug, "SSL_read(%d) wanted %ld bytes, got return value %d\n", fd, len, rv);
+  noitL(noit_debug, "SSL_read(%d) wanted %ld bytes, got return value %d\n", fd, (long int)len, rv);
   return rv;
 }
 static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  noitL(noit_debug, "SSL_write(%d) wants %ld bytes\n", fd, len);
+  noitL(noit_debug, "SSL_write(%d) wants %ld bytes\n", fd, (long int)len);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  noitL(noit_debug, "SSL_write(%d) wanted %ld bytes, got return value %d\n", fd, len, rv);
+  noitL(noit_debug, "SSL_write(%d) wanted %ld bytes, got return value %d\n", fd, (long int)len, rv);
   return rv;
 }
 
