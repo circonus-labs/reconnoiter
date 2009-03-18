@@ -1616,8 +1616,18 @@
                     checkbar = series[i].bars.show,
                     checkpoint = !(series[i].bars.show && !(series[i].lines.show || series[i].points.show)),
                     barLeft = series[i].bars.align == "left" ? 0 : -series[i].bars.barWidth/2,
-                    barRight = barLeft + series[i].bars.barWidth;
-                for (var j = 0; j < data.length; ++j) {
+                    barRight = barLeft + series[i].bars.barWidth,
+                    bj = binary_search(data, mx, data.length, 0),
+                    j_start, j_end;
+                if(options.grid.hoverXOnly) {
+                    j_start = bj.index;
+                    j_end = bj.index + 1;
+                    if(!bj.found) j_end++;
+                } else {
+                    j_start = 0;
+                    j_end = data.length;
+                }
+                for (var j = j_start; j < j_end; ++j) {
                     if (data[j] == null)
                         continue;
 
