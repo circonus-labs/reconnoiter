@@ -314,6 +314,7 @@
                         continue;
                     
                     var x = data[j][0], y = data[j][1];
+                    if(series[i].dataManip) y = series[i].dataManip(y);
 
                     // convert to number
                     if (x != null && !isNaN(x = +x)) {
@@ -1074,13 +1075,14 @@
         }
         
         function drawSeriesLines(series) {
-            function plotLine(data, offset, axisx, axisy) {
+            function plotLine(data, offset, axisx, axisy, dataManip) {
                 var prev, cur = null, drawx = null, drawy = null;
                 
                 ctx.beginPath();
                 for (var i = 0; i < data.length; ++i) {
                     prev = cur;
-                    cur = data[i];
+                    cur = [data[i][0], data[i][1]];
+                    if(dataManip) cur[1] = dataManip(cur[1]);
 
                     if (prev == null || cur == null)
                         continue;
@@ -1155,7 +1157,7 @@
                 ctx.stroke();
             }
 
-            function plotLineArea(data, axisx, axisy) {
+            function plotLineArea(data, axisx, axisy, dataManip) {
                 var prev, cur = null;
                 
                 var bottom = Math.min(Math.max(0, axisy.min), axisy.max);
@@ -1165,7 +1167,8 @@
                 
                 for (var i = 0; i < data.length; ++i) {
                     prev = cur;
-                    cur = data[i];
+                    cur = [data[i][0], data[i][1]];
+                    if(dataManip) cur[1] = dataManip(cur[1]);
 
                     if (areaOpen && prev != null && cur == null) {
                         // close area
@@ -1305,29 +1308,30 @@
                 // draw shadow in two steps
                 ctx.lineWidth = sw / 2;
                 ctx.strokeStyle = "rgba(0,0,0,0.1)";
-                plotLine(series.data, lw/2 + sw/2 + ctx.lineWidth/2, series.xaxis, series.yaxis);
+                plotLine(series.data, lw/2 + sw/2 + ctx.lineWidth/2, series.xaxis, series.yaxis, series.dataManip);
 
                 ctx.lineWidth = sw / 2;
                 ctx.strokeStyle = "rgba(0,0,0,0.2)";
-                plotLine(series.data, lw/2 + ctx.lineWidth/2, series.xaxis, series.yaxis);
+                plotLine(series.data, lw/2 + ctx.lineWidth/2, series.xaxis, series.yaxis, series.dataManip);
             }
 
             ctx.lineWidth = lw;
             ctx.strokeStyle = series.color;
             setFillStyle(series.lines, series.color);
             if (series.lines.fill)
-                plotLineArea(series.data, series.xaxis, series.yaxis);
-            plotLine(series.data, 0, series.xaxis, series.yaxis);
+                plotLineArea(series.data, series.xaxis, series.yaxis, series.dataManip);
+            plotLine(series.data, 0, series.xaxis, series.yaxis, series.dataManip);
             ctx.restore();
         }
 
         function drawSeriesPoints(series) {
-            function plotPoints(data, radius, fill, axisx, axisy) {
+            function plotPoints(data, radius, fill, axisx, axisy, dataManip) {
                 for (var i = 0; i < data.length; ++i) {
                     if (data[i] == null)
                         continue;
                     
                     var x = data[i][0], y = data[i][1];
+                    if(dataManip) y = dataManip(y);
                     if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                         continue;
                     
@@ -1339,12 +1343,13 @@
                 }
             }
 
-            function plotPointShadows(data, offset, radius, axisx, axisy) {
+            function plotPointShadows(data, offset, radius, axisx, axisy, dataManip) {
                 for (var i = 0; i < data.length; ++i) {
                     if (data[i] == null)
                         continue;
                     
                     var x = data[i][0], y = data[i][1];
+                    if(dataManip) y = dataManip(y);
                     if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                         continue;
                     ctx.beginPath();
@@ -1363,19 +1368,21 @@
                 ctx.lineWidth = sw / 2;
                 ctx.strokeStyle = "rgba(0,0,0,0.1)";
                 plotPointShadows(series.data, sw/2 + ctx.lineWidth/2,
-                                 series.points.radius, series.xaxis, series.yaxis);
+                                 series.points.radius, series.xaxis, series.yaxis,
+                                 series.dataManip);
 
                 ctx.lineWidth = sw / 2;
                 ctx.strokeStyle = "rgba(0,0,0,0.2)";
                 plotPointShadows(series.data, ctx.lineWidth/2,
-                                 series.points.radius, series.xaxis, series.yaxis);
+                                 series.points.radius, series.xaxis, series.yaxis,
+                                 series.dataManip);
             }
 
             ctx.lineWidth = series.points.lineWidth;
             ctx.strokeStyle = series.color;
             setFillStyle(series.points, series.color);
             plotPoints(series.data, series.points.radius, series.points.fill,
-                       series.xaxis, series.yaxis);
+                       series.xaxis, series.yaxis, series.dataManip);
             ctx.restore();
         }
 
@@ -1458,11 +1465,13 @@
         }
         
         function drawSeriesBars(series) {
-            function plotBars(data, barLeft, barRight, offset, fill, axisx, axisy) {
+            function plotBars(data, barLeft, barRight, offset, fill, axisx, axisy, dataManip) {
                 for (var i = 0; i < data.length; i++) {
                     if (data[i] == null)
                         continue;
-                    drawBar(data[i][0], data[i][1], barLeft, barRight, offset, fill, axisx, axisy, ctx);
+                    var y = data[i][1];
+                    if(dataManip) y = dataManip(y);
+                    drawBar(data[i][0], y, barLeft, barRight, offset, fill, axisx, axisy, ctx);
                 }
             }
 
@@ -1490,7 +1499,7 @@
             ctx.strokeStyle = series.color;
             setFillStyle(series.bars, series.color);
             var barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
-            plotBars(series.data, barLeft, barLeft + series.bars.barWidth, 0, series.bars.fill, series.xaxis, series.yaxis);
+            plotBars(series.data, barLeft, barLeft + series.bars.barWidth, 0, series.bars.fill, series.xaxis, series.yaxis, series.dataManip);
             ctx.restore();
         }
 
@@ -1632,6 +1641,7 @@
                         continue;
 
                     var x = data[j][0], y = data[j][1];
+                    if(series[i].dataManip) y = series[i].dataManip(y);
   
                     if (checkbar) {
                         // For a bar graph, the cursor must be inside the bar

@@ -38,7 +38,12 @@ function dump(arr,level) {
 	return dumped_text;
 }
 
-function rpn_eval(value, expr) {
+function rpn_magic(expr) {
+  return function(value) {
+    return rpn_eval(value, expr, {});
+  };
+}
+function rpn_eval(value, expr, meta) {
   s = [];
   ops = expr.split(",");
   s.unshift(value)
@@ -88,9 +93,24 @@ function rpn_eval(value, expr) {
         s.unshift(s.shift() + s.shift()); break;
       case '*':
         s.unshift(s.shift() * s.shift()); break;
-      // Not implemented
-      // case 'auto':
-      //   s.unshift( $this->autounits(s.shift())); break;
+      case 'auto':
+        var units = 1;
+        if(meta && meta.max) {
+          units = Math.pow(1000,Math.floor(Math.log(meta.max)/Math.log(1000)))
+          if(units == 0) units = 1;
+        }
+        switch(units) {
+          case 0.000000001: meta.suffix = 'n'; break;
+          case 0.000001: meta.suffix = 'u'; break;
+          case 0.001: meta.suffix = 'm'; break;
+          case 1000: meta.suffix = 'k'; break;
+          case 1000000: meta.suffix = 'M'; break;
+          case 1000000000: meta.suffix = 'G'; break;
+          case 1000000000000: meta.suffix = 'T'; break;
+          default: meta.suffic = null; break;
+        }
+        s.unshift( s.shift() / units );
+        break;
       case 'min':
         s.unshift(min(s.shift(),s.shift())); break;
       case 'max':
@@ -101,8 +121,8 @@ function rpn_eval(value, expr) {
         }
     }
   }
-  value = s.shift();
-  return value;
+  var newvalue = s.shift();
+  return newvalue;
 }
 
 (function ($) {
@@ -193,10 +213,10 @@ function rpn_eval(value, expr) {
 			    }			    
 			if(tdata[1]!=''){
 			    if(ddata[i].reconnoiter_source_expression) {
-				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression);
+				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression, {});
 			}
 			    if(ddata[i].reconnoiter_display_expression) {
-				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression);
+				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression, {});
 			    }
 			} //end if ydata was a number
 			
@@ -296,6 +316,7 @@ function rpn_eval(value, expr) {
               if(redraw) redraw();
             };
           })(this));
+
           if(!r.options.grid) r.options.grid = {};
           r.options.grid.hoverable = true;
           $("div.tooltip").remove();
@@ -304,14 +325,29 @@ function rpn_eval(value, expr) {
           r.options.grid.mouseActiveRadius = 4;
           r.options.grid.hoverXOnly = true;
           if(!r.options.yaxis) r.options.yaxis = {};
-          if(r.options.yaxis.suffix)
-            r.options.yaxis.tickFormatter = function (val, axis) {
-              return val.toFixed(axis.tickDecimals) + r.options.yaxis.suffix;
-            };
+          r.options.yaxis.tickFormatter = function (val, axis) {
+            for(var i=0; i<ddata.length; i++) {
+              if(ddata[i].yaxis == 1 &&
+                 ddata[i].reconnoiter_display_expression) {
+                var meta = { max: Math.max(Math.abs(axis.datamax),
+                                           Math.abs(axis.datamin))
+                           },
+                    pval = rpn_eval(val, ddata[i].reconnoiter_display_expression, meta);
+                return pval.toFixed(axis.tickDecimals) +
+                       ((meta.suffix != null) ? meta.suffix : '');
+              }
+            } 
+            return val.toFixed(axis.tickDecimals);
+          };
 	  r.options.xaxis.localtime = true;
+
           doptions = r.options;
           dplaceholder = placeholder;
           ddata = r.data;          
+          for(var i=0; i<r.data.length; i++) {
+            if(r.data[i].reconnoiter_display_expression)
+              r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
+          }
 
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
           var hoverings = [];
