@@ -301,6 +301,8 @@ function rpn_eval(value, expr) {
           $("div.tooltip").remove();
           r.options.legend.container = this.find("div.plot-legend");
           r.options.grid.autoHighlight = false;
+          r.options.grid.mouseActiveRadius = 4;
+          r.options.grid.hoverXOnly = true;
           if(!r.options.yaxis) r.options.yaxis = {};
           if(r.options.yaxis.suffix)
             r.options.yaxis.tickFormatter = function (val, axis) {

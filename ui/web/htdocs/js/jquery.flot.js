@@ -86,7 +86,8 @@
                     clickable: false,
                     hoverable: false,
                     autoHighlight: true, // highlight in case mouse is near
-                    mouseActiveRadius: 10 // how far the mouse can be away to activate an item
+                    mouseActiveRadius: 10, // how far the mouse can be away to activate an item
+		    hoverXOnly: false
                 },
                 selection: {
                     mode: null, // one of null, "x", "y" or "xy"
@@ -1634,7 +1635,10 @@
                     if (checkpoint) {
                         // For points and lines, the cursor must be within a
                         // certain distance to the data point
- 
+
+			// if the hoverxonly option is true, y doesn't matter
+ 			if(options.grid.hoverXOnly) my = y;
+
                         // check bounding box first
                         if ((x - mx > maxx || x - mx < -maxx) ||
                             (y - my > maxy || y - my < -maxy))
@@ -1644,7 +1648,9 @@
                         // data units, because the scale of the axes may be different
                         var dx = Math.abs(axisx.p2c(x) - mouseX),
                             dy = Math.abs(axisy.p2c(y) - mouseY),
-                            dist = dx * dx + dy * dy;
+                            dist;
+			dist = dx * dx;
+			if(!options.grid.hoverXOnly) dist += dy * dy;
                         if (dist < lowestDistance) {
                             lowestDistance = dist;
                             foundPoint = true;
@@ -1854,7 +1860,7 @@
                 return;
             
             var pointRadius = series.points.radius + series.points.lineWidth / 2;
-            octx.lineWidth = pointRadius;
+            octx.lineWidth = series.points.lineWidth + 1;
             octx.strokeStyle = parseColor(series.color).scale(1, 1, 1, 0.5).toString();
             var radius = 1.5 * pointRadius;
             octx.beginPath();
