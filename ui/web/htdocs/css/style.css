@@ -593,6 +593,10 @@ padding-left:75px;
 div.tooltip {
 background:white none repeat scroll 0 0;
 border:1px solid #333;
+padding:0;
+}
+div.tooltip div {
+border:0;
 padding:0 3px;
 }
 .graphlist p.paginate {

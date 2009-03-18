@@ -129,10 +129,49 @@
         function setData(d) {
             series = parseData(d);
 
+	    //	    interpolateData(series);
+
             fillInSeriesOptions();
             processData();
         }
-        
+
+	function interpolateData(series){
+
+	    for (var i = 1; i < series.length; i++) {
+                var data = series[i].data;
+		var bdata = series[i-1].data;
+		console.log(bdata.length);
+		console.log(data.length);
+		for (var j = 0; j < bdata.length; j++) {
+
+		    match = binary_search(data, bdata[j][0], bdata.length, 0);
+		    // if(match.index>=0) console.log("found ", bdata[j][0]-3, " at ",match.index,"! see: ",data[match.index][0]);
+		    //		    if( tindex != -1) data[tindex][1] += bdata[j][1];
+		    //		    interpolate
+		    //		    else data.splice(i_top.below +1, 0, interpolate(data[i_top.below], data[i_top.below+1], bdata[j][0]));
+		}
+	    }
+        }
+        //returns the index the item was found at, or the index below it that is closest, or -1 if it is lower than anything else
+	function binary_search(a, v, high, low) {
+
+	    if(high <= low) { var r = { found: false, index: low-1}; return r;}
+
+	    middle = parseInt(((high-low)/2)) + low;
+
+            if(middle>=a.length) console.log("high = ", high," low = ",low);
+
+	    if(a[middle][0] > v) return binary_search(a, v, middle-1, low);
+	    else if(a[middle][0] < v) return binary_search(a, v, high, middle+1);
+	    else { var r =  { found: true, index: middle}; return r;}
+	}
+
+	function interpolate(p1, p2, t) {
+	    dx = p2[0] - p1[0]; dy = p2[1] - p1[1];
+	    return (dy/dx)*(t-p1[0]) + p1[1];
+	}
+	
+
         function parseData(d) {
             var res = [];
             for (var i = 0; i < d.length; ++i) {
@@ -1551,8 +1590,8 @@
         
         // Returns the data item the mouse is over, or null if none is found
         function findNearbyItem(mouseX, mouseY) {
+            var items = []
             var maxDistance = options.grid.mouseActiveRadius,
-                lowestDistance = maxDistance * maxDistance + 1,
                 item = null, foundPoint = false;
 
             function result(i, j) {
@@ -1566,6 +1605,7 @@
                 var data = series[i].data,
                     axisx = series[i].xaxis,
                     axisy = series[i].yaxis,
+                    lowestDistance = maxDistance * maxDistance + 1,
                 
                     // precompute some stuff to make the loop faster
                     mx = axisx.c2p(mouseX),
@@ -1612,9 +1652,11 @@
                         }
                     }
                 }
+                if(item) items.push(item);
+                item = null;
             }
 
-            return item;
+            return items;
         }
 
         function onMouseMove(ev) {
@@ -1692,12 +1734,12 @@
             if (axes.y2axis.used)
                 pos.y2 = axes.y2axis.c2p(canvasY);
 
-            var item = findNearbyItem(canvasX, canvasY);
+            var items = findNearbyItem(canvasX, canvasY);
 
-            if (item) {
+            for(var i=0; i<items.length; i++) {
                 // fill in mouse pos for any listeners out there
-                item.pageX = parseInt(item.series.xaxis.p2c(item.datapoint[0]) + offset.left + plotOffset.left);
-                item.pageY = parseInt(item.series.yaxis.p2c(item.datapoint[1]) + offset.top + plotOffset.top);
+                items[i].pageX = parseInt(items[i].series.xaxis.p2c(items[i].datapoint[0]) + offset.left + plotOffset.left);
+                items[i].pageY = parseInt(items[i].series.yaxis.p2c(items[i].datapoint[1]) + offset.top + plotOffset.top);
 
                     
             }
@@ -1705,16 +1747,20 @@
             if (options.grid.autoHighlight) {
                 for (var i = 0; i < highlights.length; ++i) {
                     var h = highlights[i];
-                    if (h.auto &&
-                        !(item && h.series == item.series && h.point == item.datapoint))
-                        unhighlight(h.series, h.point);
+                    if (h.auto) {
+                        var found = 0;
+                        for(var j = 0; j < items.length; j++)
+                            if(items[j] && h.series == items[j].series && h.point == items[j].datapoint)
+                                found++;
+                        if(found == 0) unhighlight(h.series, h.point);
+                    }
                 }
                 
-                if (item)
-                    highlight(item.series, item.datapoint, true);
+                for(var i = 0; i < items.length; i++)
+                    highlight(items[i].series, items[i].datapoint, true);
             }
             
-            target.trigger(eventname, [ pos, item ]);
+            target.trigger(eventname, [ pos, items ]);
         }
 
         function triggerRedrawOverlay() {

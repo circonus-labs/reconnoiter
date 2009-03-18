@@ -312,31 +312,38 @@ function rpn_eval(value, expr) {
           ddata = r.data;          
 
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
-          var hovering;
-          placeholder.bind("plothover", function (event, pos, item) {
-            if(hovering) plot.unhighlight(hovering.series, hovering.datapoint);
-            if(item && (item.datapoint[1] != "" || item.datapoint[2] != null)) {
+          var hoverings = [];
+          placeholder.bind("plothover", function (event, pos, items) {
+            for(var h=0; h<hoverings.length; h++)
+              plot.unhighlight(hoverings[h].series, hoverings[h].datapoint);
+            hoverings = [];
+            if(items && items.length) {
               // Emulate opacity on white
-              var soft = 'rgb(' +
-                         (item.series.color.match(/\((.+)\)/))[1]
-                                           .split(',')
-                                           .map(function(a) {
-                                             return Math.round(255-(255-a)*0.1);
-                                           })
-                                           .join(',') +
-                         ')';
               if(! $("div.tooltip")[0])
                 $('<div class="tooltip"></div>').appendTo($('body'));
               $("div.tooltip")
-                .html((item.datapoint[2] ? item.datapoint[2] : item.datapoint[1]) + " (" + item.series.label + ")")
-                .css( { top: item.pageY - 15,
-                        left: item.pageX + 10,
-                        border: '1px solid ' + item.series.color,
-                        backgroundColor: soft,
+                .css( { top: items[0].pageY - 15,
+                        left: items[0].pageX + 10,
                         position: 'absolute',
-                        'z-index': 4000 });
-              hovering = item;
-              plot.highlight(item.series, item.datapoint);
+                        'z-index': 4000 })
+                .html('');
+              for(var i = 0; i < items.length; i++) {
+                var soft =
+                  'rgb(' +
+                  (items[i].series.color.match(/\((.+)\)/))[1]
+                                        .split(',')
+                                        .map(function(a) {
+                                           return Math.round(255-(255-a)*0.1);
+                                        })
+                                        .join(',') +
+                  ')';
+                var tt = $('<div><div/>')
+                  .html((items[i].datapoint[2] ? items[i].datapoint[2] : items[i].datapoint[1]) + " (" + items[i].series.label + ")")
+                  .css( { backgroundColor: soft });
+                tt.appendTo($("div.tooltip"));
+                hoverings.push(items[i]);
+                plot.highlight(items[i].series, items[i].datapoint);
+              }
               return true;
             }
             $("div.tooltip").remove();
