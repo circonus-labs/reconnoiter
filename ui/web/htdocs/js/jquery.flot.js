@@ -1764,10 +1764,11 @@
 
             for(var i=0; i<items.length; i++) {
                 // fill in mouse pos for any listeners out there
+                var y = items[i].datapoint[1];
+                if(items[i].series.dataManip)
+                    y = items[i].series.dataManip(y);
                 items[i].pageX = parseInt(items[i].series.xaxis.p2c(items[i].datapoint[0]) + offset.left + plotOffset.left);
-                items[i].pageY = parseInt(items[i].series.yaxis.p2c(items[i].datapoint[1]) + offset.top + plotOffset.top);
-
-                    
+                items[i].pageY = parseInt(items[i].series.yaxis.p2c(y) + offset.top + plotOffset.top);
             }
 
             if (options.grid.autoHighlight) {
@@ -1875,7 +1876,7 @@
         function drawPointHighlight(series, point) {
             var x = point[0], y = point[1],
                 axisx = series.xaxis, axisy = series.yaxis;
-            
+            if(series.dataManip) y = series.dataManip(y);
             if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                 return;
             
@@ -1889,12 +1890,14 @@
         }
 
         function drawBarHighlight(series, point) {
+            var y = point[1];
+            if(series.dataManip) y = series.dataManip(y);
             octx.lineJoin = "round";
             octx.lineWidth = series.bars.lineWidth;
             octx.strokeStyle = parseColor(series.color).scale(1, 1, 1, 0.5).toString();
             octx.fillStyle = parseColor(series.color).scale(1, 1, 1, 0.5).toString();
             var barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
-            drawBar(point[0], point[1], barLeft, barLeft + series.bars.barWidth,
+            drawBar(point[0], y, barLeft, barLeft + series.bars.barWidth,
                     0, true, series.xaxis, series.yaxis, octx);
         }
         
