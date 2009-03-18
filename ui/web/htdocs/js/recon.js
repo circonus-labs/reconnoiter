@@ -334,7 +334,7 @@ function rpn_eval(value, expr) {
                         border: '1px solid ' + item.series.color,
                         backgroundColor: soft,
                         position: 'absolute',
-                        'z-index': 1000 });
+                        'z-index': 4000 });
               hovering = item;
               plot.highlight(item.series, item.datapoint);
               return true;
