@@ -450,14 +450,23 @@
         function prepareTickGeneration(axis, axisOptions) {
             // estimate number of ticks
             var noTicks;
+            var dataManip = null;
             if (typeof axisOptions.ticks == "number" && axisOptions.ticks > 0)
                 noTicks = axisOptions.ticks;
             else if (axis == axes.xaxis || axis == axes.x2axis)
                 noTicks = canvasWidth / 100;
             else
                 noTicks = canvasHeight / 60;
-            
-            var delta = (axis.max - axis.min) / noTicks;
+
+            for(var i=0; i<series.length; i++) {
+              if(series[i].yaxis == axes.yaxis &&
+                 series[i].dataManip) {
+                dataManip = series[i].dataManip;
+                break;
+              }
+            }
+            var delta = (axis.max - axis.min);
+            delta /= noTicks;
             var size, generator, unit, formatter, i, magn, norm;
 
             if (axisOptions.mode == "time") {
@@ -659,15 +668,33 @@
                 };
             }
             else {
+                var manip_delta = delta;
+                if(axis == axes.yaxis && dataManip) {
+                    var abs_max = Math.max(Math.abs(axis.max), Math.abs(axis.min));
+                    var dmo = { _max: abs_max };
+                    manip_delta *= noTicks;
+                    manip_delta = Math.abs(dataManip(manip_delta, dmo));
+                    manip_delta /= noTicks;
+                }
                 // pretty rounding of base-10 numbers
                 var maxDec = axisOptions.tickDecimals;
                 var dec = -Math.floor(Math.log(delta) / Math.LN10);
+                var manip_dec = -Math.floor(Math.log(manip_delta) / Math.LN10);
+
                 if (maxDec != null && dec > maxDec)
                     dec = maxDec;
+                if (maxDec != null && manip_dec > maxDec)
+                    manip_dec = maxDec;
                 
                 magn = Math.pow(10, -dec);
                 norm = delta / magn; // norm is between 1.0 and 10.0
                 
+                // for manip_dec, we only care about the case that changes dec
+		var manip_norm = manip_delta / Math.pow(10, -manip_dec);
+                if(manip_norm < 3 && manip_norm > 2.25 &&
+                   (maxDec == null || manip_dec + 1 <= maxDec))
+                    ++manip_dec;
+
                 if (norm < 1.5)
                     size = 1;
                 else if (norm < 3) {
@@ -691,7 +718,7 @@
                 if (axisOptions.tickSize != null)
                     size = axisOptions.tickSize;
                 
-                axis.tickDecimals = Math.max(0, (maxDec != null) ? maxDec : dec);
+                axis.tickDecimals = Math.max(0, (maxDec != null) ? maxDec : manip_dec);
                 
                 generator = function (axis) {
                     var ticks = [];

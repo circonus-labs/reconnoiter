@@ -39,17 +39,23 @@ function dump(arr,level) {
 }
 
 function rpn_magic(expr) {
-  return function(value) {
-    return rpn_eval(value, expr, {});
+  return function(value, o) {
+    return rpn_eval(value, expr, (o != null) ? o : {});
   };
 }
 function rpn_eval(value, expr, meta) {
-  s = [];
-  ops = expr.split(",");
+  var s = [];
+  var ops = expr.split(",");
   s.unshift(value)
+  for (var i = 0; i < ops.length; i++) {
+    var opname = ops[i];
+    if(meta && meta[opname])
+      for(var j = 0; j < meta[opname].length; j++)
+        ops.splice(i, (j==0) ? 1 : 0, meta[opname][j]);
+  }
 
-  for (i = 0; i < ops.length; i++) {
-	op = ops[i];
+  for (var i = 0; i < ops.length; i++) {
+    op = ops[i];
 
     switch(op) {
       case 'ln':
@@ -87,6 +93,8 @@ function rpn_eval(value, expr, meta) {
         l = s.shift();
         s.unshift(l / r);
         break;
+      case '~':
+        s.shift(); break;
       case '.':
         s.unshift(s[s.shift()]); break;
       case '+':
@@ -95,8 +103,8 @@ function rpn_eval(value, expr, meta) {
         s.unshift(s.shift() * s.shift()); break;
       case 'auto':
         var units = 1;
-        if(meta && meta.max) {
-          units = Math.pow(1000,Math.floor(Math.log(meta.max)/Math.log(1000)))
+        if(meta && meta._max) {
+          units = Math.pow(1000,Math.floor(Math.log(meta._max)/Math.log(1000)))
           if(units == 0) units = 1;
         }
         switch(units) {
@@ -215,9 +223,6 @@ function rpn_eval(value, expr, meta) {
 			    if(ddata[i].reconnoiter_source_expression) {
 				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression, {});
 			}
-			    if(ddata[i].reconnoiter_display_expression) {
-				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_display_expression, {});
-			    }
 			} //end if ydata was a number
 			
 			tdata[0]*=1000; //convert from seconds to milliseconds for flot
@@ -329,10 +334,14 @@ function rpn_eval(value, expr, meta) {
             for(var i=0; i<ddata.length; i++) {
               if(ddata[i].yaxis == 1 &&
                  ddata[i].reconnoiter_display_expression) {
-                var meta = { max: Math.max(Math.abs(axis.datamax),
-                                           Math.abs(axis.datamin))
+                var meta = { _max: Math.max(Math.abs(axis.datamax),
+                                            Math.abs(axis.datamin)),
+                             // for delta calc, we don't want to
+                             // lose precision
+                             floor: ['.'], ciel: ['.'], round: ['~','.']
                            },
                     pval = rpn_eval(val, ddata[i].reconnoiter_display_expression, meta);
+console.log(pval);
                 return pval.toFixed(axis.tickDecimals) +
                        ((meta.suffix != null) ? meta.suffix : '');
               }
