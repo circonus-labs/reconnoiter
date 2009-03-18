@@ -329,6 +329,8 @@ function rpn_eval(value, expr, meta) {
           r.options.grid.autoHighlight = false;
           r.options.grid.mouseActiveRadius = 4;
           r.options.grid.hoverXOnly = true;
+          if(!r.options.points) r.options.points = {};
+          r.options.points.radius = 2;
           if(!r.options.yaxis) r.options.yaxis = {};
           r.options.yaxis.tickFormatter = function (val, axis) {
             for(var i=0; i<ddata.length; i++) {
