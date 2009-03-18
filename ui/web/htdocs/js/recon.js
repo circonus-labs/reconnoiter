@@ -341,7 +341,12 @@ function rpn_eval(value, expr, meta) {
                              floor: ['.'], ciel: ['.'], round: ['~','.']
                            },
                     pval = rpn_eval(val, ddata[i].reconnoiter_display_expression, meta);
-console.log(pval);
+                if((val > 0 && pval < 0) ||
+                   (val < 0 && pval > 0)) {
+                  // Sign inversion means we're being clever and using
+                  // the negative axis as a positive one.
+                  pval = Math.abs(pval);
+                }
                 return pval.toFixed(axis.tickDecimals) +
                        ((meta.suffix != null) ? meta.suffix : '');
               }
