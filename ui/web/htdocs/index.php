@@ -18,6 +18,17 @@
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.async.js" type="text/javascript"></script>
+<script src="js/eye/datepicker.js" type="text/javascript"></script>
+<script src="js/eye/eye.js" type="text/javascript"></script>
+<script src="js/eye/utils.js" type="text/javascript"></script>
+<script src="js/jquery.timers.js" type="text/javascript"></script>
+<script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
+<script src="js/eye/datepicker.js" type="text/javascript"></script>
+<script src="js/eye/colorpicker.js" type="text/javascript"></script>
+<script src="js/eye/eye.js" type="text/javascript"></script>
+<script src="js/eye/utils.js" type="text/javascript"></script>
+<script src="js/jquery.timers.js" type="text/javascript"></script>
+<script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
 
 <!-- color picker -->
@@ -37,78 +48,6 @@
 <link type='text/css' href='css/confirm_ie.css' rel='stylesheet' media='screen' />
 <![endif]-->
 
-<!--accordion-->
-<script type="text/javascript">
-$(document).ready(function(){
-   $(".accordion h3:first").addClass("active");
-   $(".accordion span").slideUp();
-   $(".accordion span:first").slideDown();
-
-   $("div#content > div:first").siblings().slideUp();
-
-   $(".accordion h3").click(function(){
-       $(this).next("span").slideToggle("normal")
-       .siblings("span:visible").slideUp("normal");
-       $(this).toggleClass("active");
-       $(this).siblings("h3").removeClass("active");
-       $(this).siblings("h3").each(function(e) {
-         $("#" + $(this).attr("id") + "_panel").slideUp("fast");
-       });
-       if($(this).hasClass("active"))
-         $("#" + $(this).attr("id") + "_panel").slideDown("fast");
-       else
-         $("#" + $(this).attr("id") + "_panel").slideUp("fast");
-   });
-
-}); 
-</script>
-
-   <script type="text/javascript">
-        jQuery(document).ready(function(){
-            $("#targets").treeview({
-              url: "json/ds/remote_address/target/name/metric_name",
-              params: {} // will become hash, indexed by id, of url params
-              })
-        });
-    </script>
-
-   <script type="text/javascript">
-        jQuery(document).ready(function(){
-            $("#templates").treeview({
-	      url: "json/templates/templateid/targetname/sid",
-	      params: {}
-              })
-        });
-    </script>
-
-<!-- search tabs -->
-<script type="text/javascript">
-	$(function () {
-		var tabContainers = $('div.tabs > div');
-		tabContainers.hide().filter(':first').show();
-		
-		$('div.tabs ul.tabNavigation a').click(function () {
-			tabContainers.hide();
-			tabContainers.filter(this.hash).show();
-			$('div.tabs ul.tabNavigation a').removeClass('selected');
-			$(this).addClass('selected');
-			return false;
-		}).filter(':first').click();
-
-		var wstabContainers = $('div.ws-tabs > div');
-		wstabContainers.hide().filter(':first').show();
-		
-		$('div.ws-tabs ul.tabNavigation a').click(function () {
-			wstabContainers.hide();
-			wstabContainers.filter(this.hash).show();
-			$('div.ws-tabs ul.tabNavigation a').removeClass('selected');
-			$(this).addClass('selected');
-			return false;
-		}).filter(':first').click();
-	});
-</script>
-
-<!-- math box -->
 </head>
 
 <body>
@@ -137,5 +76,6 @@ $(document).ready(function(){
 		</div><!-- end main -->
 	</div><!-- end content -->
 </div><!-- end container -->
+<script src="js/reconui.js" type="text/javascript"></script>
 </body>
 </html>
