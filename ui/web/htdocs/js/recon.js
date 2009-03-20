@@ -374,6 +374,7 @@ function rpn_eval(value, expr, meta) {
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
           var hoverings = [];
           placeholder.bind("plothover", function (event, pos, items) {
+            var opacity = 0.7;
             for(var h=0; h<hoverings.length; h++)
               plot.unhighlight(hoverings[h].series, hoverings[h].datapoint);
             hoverings = [];
@@ -399,7 +400,7 @@ function rpn_eval(value, expr, meta) {
                 if(items[i].pageY < topitem.pageY) topitem = items[i];
                 var rgb = (items[i].series.color.match(/\((.+)\)/))[1].split(',');
                 rgb = rgb.map(function(a) { return Math.round(255-(255-a)*1); });
-                var soft = 'rgba(' + rgb.join(',') + ',0.8)';
+                var soft = 'rgba(' + rgb.join(',') + ',' + opacity + ')';
                 var val = items[i].datapoint[1];
                 if(items[i].series.dataManip) {
                   var meta = { _max: val };
@@ -408,12 +409,12 @@ function rpn_eval(value, expr, meta) {
                 }
 
                 // I want Y of YUV... for text color selection
-                // if Y [0,255], if high (>128) I want black, else white
+                // if Y [0,255], if high (>255 * (1-opacity)) I want black, else white
 
                 var Y = 0.299 * rgb[0] + 0.587 * rgb[1]  + 0.114 * rgb[2];
                 var ttp = $('<div class="tip"><div/>')
                   .html((items[i].datapoint[2] ? items[i].datapoint[2] : val) + " (" + items[i].series.label + ")")
-                  .css( { color: ( Y > 128 ? 'black' : 'white' ), backgroundColor: soft });
+                  .css( { color: ( Y > ((1-opacity) * 255) ? 'black' : 'white' ), backgroundColor: soft });
                 ttp.appendTo(ttw);
                 hoverings.push(items[i]);
                 plot.highlight(items[i].series, items[i].datapoint);
