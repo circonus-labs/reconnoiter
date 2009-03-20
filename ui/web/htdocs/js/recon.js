@@ -652,6 +652,20 @@ function datapoints_for_graph(li, ds, params) {
   li.append(a);
 }
 
+function time_window_to_seconds(w) {
+  var p = w.match(/^(\d+)(M|h|d|w|m|y)$/);
+  if(!p) return 86400*2;
+  switch(p[2]) {
+    case 'M': return p[1] * 60;
+    case 'h': return p[1] * 3600;
+    case 'd': return p[1] * 86400;
+    case 'w': return p[1] * 86400 * 7;
+    case 'm': return p[1] * 86400 * 30;
+    case 'y': return p[1] * 86400 * 365;
+  }
+  return 86400*2;
+}
+
 ///////////////////////////
 // Worksheet manipulation
 //////////////////////////
@@ -662,15 +676,6 @@ var worksheet = (function($) {
   var locked = true;
   var streaming = false;
   var stream_graph;
-  var time_windows = { '6h' : 3600*6,
-                       '12h' : 3600*12,
-                       '1d' : 86400*1,
-                       '2d' : 86400*2,
-                       '1w' : 86400*7,
-                       '2w' : 86400*14,
-                       '4w' : 86400*28,
-                       '1y' : 86400*365,
-                     };
 
   function ws_locked(warning) {
     if(locked) {
@@ -829,7 +834,7 @@ var worksheet = (function($) {
     $("#mini_ws_datetool .datechoice").click(function(){
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
-      stream_graph.ReconGraphRefresh({graphid: id, start: time_windows[$(this).html()], end: ''});
+      stream_graph.ReconGraphRefresh({graphid: id, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
     });
   }
@@ -954,6 +959,11 @@ var worksheet = (function($) {
         });
     }
   }
+  function display_info(start,end,cnt) {
+    ws_displayinfo.start = start;
+    ws_displayinfo.end = end;
+    if(cnt) ws_displayinfo.cnt = cnt;
+  }
   function refresh_worksheet() {
     var g = { start: ws_displayinfo.start,
               end: ws_displayinfo.end,
@@ -978,6 +988,7 @@ var worksheet = (function($) {
   }
   return {
     load: load_worksheet,
+    display_info: display_info,
     refresh: refresh_worksheet,
     add_graph: add_graph_to_worksheet,
     update: update_current_worksheet,

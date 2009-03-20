@@ -104,10 +104,10 @@ $(document).ready(function(){
   $("#ws_datetool .datechoice").click(function(){
     $("#ws_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
     $("#ws_widgetCalendar").slideUp("slow");
-    $(".datechoice").removeClass("selected");
-    ws_displayinfo.start = time_windows[$(this).html()];
-    ws_displayinfo.end = '';
+    $("#ws_datetool .datechoice").removeClass("selected");
     $(this).addClass("selected");
+    worksheet.display_info(time_window_to_seconds($(this).html()), '');
+    //time_windows[$(this).html()], '');
     worksheet.refresh();
     return false;
   });
@@ -124,10 +124,9 @@ $(document).ready(function(){
       var start = new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0);
       dates = formated[1].split('/');
       var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
-      ws_displayinfo.start = start.toUTCString();
-      ws_displayinfo.end = end.toUTCString();
+      worksheet.display_info(start.toUTCString(), end.toUTCString());
       worksheet.refresh();
-      $(".datechoice").removeClass("selected");
+      $("#ws_datetool .datechoice").removeClass("selected");
       $('#ws_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
     }
   });
