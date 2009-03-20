@@ -85,12 +85,10 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $finish = end($a[0]['data']);
     $finish_ts = $finish[0];
     foreach($this->guides as $name => $value) {
-      if(isset($this->guides_config[$name]['expression'])) {
-        $value = $this->rpn_eval($value, $this->guides_config[$name]['expression']);
-      }
       $a[] = array (
         'label' => $name,
         'data' => array(array($start_ts, "$value"), array($finish_ts, "$value")),
+        'reconnoiter_display_expression' => $this->guides_config[$name]['expression'],
         'yaxis' => 1,
         'lines' => array ( 'color' => '3', 'show' => true, 'fill' => false, 'lineWidth' => '1' )
       );
@@ -108,9 +106,6 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     foreach($timeline as $ts) {
         $value = $set->data($ts);
         if($value != "") {
-          if(isset($config['expression'])) {
-            $value = $this->rpn_eval($value, $config['expression']);
-          }
           $desc = $set->description($ts);
           if($desc) {
             $a[] = array( $ts * 1000, "$value", $desc );	
