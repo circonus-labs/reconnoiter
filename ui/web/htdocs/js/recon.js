@@ -138,6 +138,32 @@ function rpn_eval(value, expr, meta) {
     var displayinfo = { start : 14*86400, end: '', width: 380, height: 180 };
     var doptions, dplaceholder, ddata;
 
+    function ytickformatter (ddata, axisidx) {
+      return function(val,axis) {
+        for(var i=0; i<ddata.length; i++) {
+          if(ddata[i].yaxis == axisidx &&
+             ddata[i].reconnoiter_display_expression) {
+            var meta = { _max: Math.max(Math.abs(axis.datamax),
+                                        Math.abs(axis.datamin)),
+                         // for delta calc, we don't want to
+                         // lose precision
+                         floor: ['.'], ciel: ['.'], round: ['~','.']
+                       },
+                pval = rpn_eval(val, ddata[i].reconnoiter_display_expression, meta);
+            if((val > 0 && pval < 0) ||
+               (val < 0 && pval > 0)) {
+              // Sign inversion means we're being clever and using
+              // the negative axis as a positive one.
+              pval = Math.abs(pval);
+            }
+            return pval.toFixed(axis.tickDecimals) +
+                   ((meta.suffix != null) ? meta.suffix : '');
+          }
+        } 
+        return val.toFixed(axis.tickDecimals);
+      }
+    }
+
     return {
       init:
         function(options) {
@@ -321,6 +347,13 @@ function rpn_eval(value, expr, meta) {
               if(redraw) redraw();
             };
           })(this));
+          dplaceholder = placeholder;
+
+          for(var i=0; i<r.data.length; i++) {
+            if(r.data[i].reconnoiter_display_expression)
+              r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
+          }
+          ddata = r.data;          
 
           if(!r.options.grid) r.options.grid = {};
           r.options.grid.hoverable = true;
@@ -332,38 +365,11 @@ function rpn_eval(value, expr, meta) {
           if(!r.options.points) r.options.points = {};
           r.options.points.radius = 2;
           if(!r.options.yaxis) r.options.yaxis = {};
-          r.options.yaxis.tickFormatter = function (val, axis) {
-            for(var i=0; i<ddata.length; i++) {
-              if(ddata[i].yaxis == 1 &&
-                 ddata[i].reconnoiter_display_expression) {
-                var meta = { _max: Math.max(Math.abs(axis.datamax),
-                                            Math.abs(axis.datamin)),
-                             // for delta calc, we don't want to
-                             // lose precision
-                             floor: ['.'], ciel: ['.'], round: ['~','.']
-                           },
-                    pval = rpn_eval(val, ddata[i].reconnoiter_display_expression, meta);
-                if((val > 0 && pval < 0) ||
-                   (val < 0 && pval > 0)) {
-                  // Sign inversion means we're being clever and using
-                  // the negative axis as a positive one.
-                  pval = Math.abs(pval);
-                }
-                return pval.toFixed(axis.tickDecimals) +
-                       ((meta.suffix != null) ? meta.suffix : '');
-              }
-            } 
-            return val.toFixed(axis.tickDecimals);
-          };
+          r.options.yaxis.tickFormatter = ytickformatter(ddata, 1);
+          if(!r.options.y2axis) r.options.y2axis = {};
+          r.options.y2axis.tickFormatter = ytickformatter(ddata, 2);
 	  r.options.xaxis.localtime = true;
-
           doptions = r.options;
-          dplaceholder = placeholder;
-          ddata = r.data;          
-          for(var i=0; i<r.data.length; i++) {
-            if(r.data[i].reconnoiter_display_expression)
-              r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
-          }
 
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
           var hoverings = [];
