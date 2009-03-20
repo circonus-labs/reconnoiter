@@ -1,0 +1,43 @@
+= Building Reconnoiter =
+
+== FreeBSD ==
+
+[https://labs.omniti.com/lists/reconnoiter-users/2009-March/000028.html Original Message]
+
+{{{
+#!/bin/sh
+# portmaster -g /usr/ports/misc/e2fsprogs-libuuid
+# portmaster -g /usr/ports/devel/pcre
+# portmaster -g /usr/ports/databases/postgresql-libpqxx
+# portmaster -g /usr/ports/net-mgmt/net-snmp
+# portmaster -g /usr/ports/devel/re2c
+# portmaster -g /usr/ports/security/libssh2
+# portmaster -g /usr/ports/textproc/libxml2
+# portmaster -g /usr/ports/textproc/libxslt
+# portmaster -g /usr/ports/www/apache22
+# portmaster -g /usr/ports/lang/php5
+# cd /usr/local/src
+# svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
+# cd reconnoiter
+# aclocal
+# autoconf
+# ./configure LDFLAGS="-L/usr/local/lib"
+# make
+}}}
+
+== Linux (Debian) ==
+
+[https://labs.omniti.com/lists/reconnoiter-users/2009-March/000027.html Original Message]
+
+{{{
+#!/bin/sh
+# apt-get install autoconf build-essential \
+		zlib1g-dev uuid-dev libpcre3-dev libssl-dev libpq-dev \
+		libxslt-dev libapr1-dev libaprutil1-dev xsltproc \
+		libncurses5-dev python
+# svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
+# cd reconnoiter
+# autoconf
+# ./configure
+# make
+}}}
