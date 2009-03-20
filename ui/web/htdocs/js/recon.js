@@ -392,24 +392,24 @@ function rpn_eval(value, expr, meta) {
                         'z-index': 4000 })
                 .html('');
               for(var i = 0; i < items.length; i++) {
-                var soft =
-                  'rgb(' +
-                  (items[i].series.color.match(/\((.+)\)/))[1]
-                                        .split(',')
-                                        .map(function(a) {
-                                           return Math.round(255-(255-a)*0.1);
-                                        })
-                                        .join(',') +
-                  ')';
+                var rgb = (items[i].series.color.match(/\((.+)\)/))[1].split(',');
+                // blend it with white emulating 80% opacity
+                rgb = rgb.map(function(a) { return Math.round(255-(255-a)*0.8); });
+                var soft = 'rgb(' + rgb.join(',') + ')';
                 var val = items[i].datapoint[1];
                 if(items[i].series.dataManip) {
                   var meta = { _max: val };
                   val = items[i].series.dataManip(val, meta);
                   if(meta.suffix) val = val + meta.suffix;
                 }
+
+                // I want Y of YUV... for text color selection
+                // if Y [0,255], if high (>128) I want black, else white
+
+                var Y = 0.299 * rgb[0] + 0.587 * rgb[1]  + 0.114 * rgb[2];
                 var tt = $('<div><div/>')
                   .html((items[i].datapoint[2] ? items[i].datapoint[2] : val) + " (" + items[i].series.label + ")")
-                  .css( { backgroundColor: soft });
+                  .css( { color: ( Y > 128 ? 'black' : 'white' ), backgroundColor: soft });
                 tt.appendTo($("div.tooltip"));
                 hoverings.push(items[i]);
                 plot.highlight(items[i].series, items[i].datapoint);
