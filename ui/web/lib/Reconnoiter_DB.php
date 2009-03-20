@@ -39,7 +39,8 @@ class Reconnoiter_DB {
         from stratcon.fetch_dataset(
                ? $type,?,?,?,?,?)";
     $sth = $this->db->prepare($dsql);
-    $sth->execute(array($uuid,$name,$start,$end,$expected,$derive));
+    $args = array($uuid,$name,$start,$end,$expected,$derive);
+    $sth->execute($args);
     $rv = array();
     while($row = $sth->fetch()) {
       $rv[$row['rollup_time']] = $row;
