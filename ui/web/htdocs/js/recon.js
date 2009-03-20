@@ -596,7 +596,7 @@ function ws_for_edit(li, ws, params) {
   add.click(
     (function(sheetid) {
         return function() {
-          load_worksheet(sheetid);
+          worksheet.load(sheetid);
           return false;
         }
      })(ws.sheetid)
@@ -613,7 +613,7 @@ function graphs_for_worksheet(li, g, params) {
   add.click(
     (function(graphid) {
         return function() {
-          add_graph_to_worksheet(graphid);
+          worksheet.add_graph(graphid);
           return false;
         }
      })(g.graphid)
@@ -621,7 +621,7 @@ function graphs_for_worksheet(li, g, params) {
   qview.html('Quick View').addClass('quickviewgraph');
   qview.click(
     (function(graphid, gtype) {
-      return function() { zoom_modal(graphid, gtype); return false; }
+      return function() { worksheet.zoom(graphid, gtype); return false; }
     })(g.graphid, 'standard')
   );
   var ul = $('<ul/>');
@@ -656,92 +656,93 @@ function datapoints_for_graph(li, ds, params) {
 // Worksheet manipulation
 //////////////////////////
 
-var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
-var wsinfo = {};
-var locked = true;
-var streaming = false;
-var stream_graph;
-var time_windows = { '6h' : 3600*6,
-                                '12h' : 3600*12,
-                             '1d' : 86400*1,
-                             '2d' : 86400*2,
-                             '1w' : 86400*7,
-                             '2w' : 86400*14,
-                             '4w' : 86400*28,
-                             '1y' : 86400*365,
-                           };
+var worksheet = (function($) {
+  var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
+  var wsinfo = {};
+  var locked = true;
+  var streaming = false;
+  var stream_graph;
+  var time_windows = { '6h' : 3600*6,
+                       '12h' : 3600*12,
+                       '1d' : 86400*1,
+                       '2d' : 86400*2,
+                       '1w' : 86400*7,
+                       '2w' : 86400*14,
+                       '4w' : 86400*28,
+                       '1y' : 86400*365,
+                     };
 
-function ws_locked(warning) {
-  if(locked) {
-    modal_warning("Worksheet Locked!", warning);
+  function ws_locked(warning) {
+    if(locked) {
+      modal_warning("Worksheet Locked!", warning);
+      return locked;
+    }
+    else if($(".rememberWorksheet:visible").length != 0) {
+      modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
+      return true;
+    }
     return locked;
   }
-  else if($(".rememberWorksheet:visible").length != 0) {
-    modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
-    return true;
-  }
-  return locked;
-}
 
-function stream_data(graph_id) {
+  function stream_data(graph_id) {
 
-  polltime = 1000;
-  timewindow = 300000;
-  stream_object = stream_graph;
-  stream_dirty = false;
-  stream_graph.ReconGraphPrepareStream(timewindow, polltime);
+    polltime = 1000;
+    timewindow = 300000;
+    stream_object = stream_graph;
+    stream_dirty = false;
+    stream_graph.ReconGraphPrepareStream(timewindow, polltime);
 
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
-  stream_graph.everyTime(1000, function() {
-    if(!streaming) {
-     $('#streambox').html('');
-     $(".stream-log").attr("style", "display:none;");
-     stream_graph.stopTime();
-    }
-    else {
-      if(stream_dirty){
-        stream_graph.ReconGraphPlotPoints();
-        stream_dirty=false;
+    stream_graph.everyTime(1000, function() {
+      if(!streaming) {
+       $('#streambox').html('');
+       $(".stream-log").attr("style", "display:none;");
+       stream_graph.stopTime();
       }
-    }
-  });
-
-  $.getJSON("json/graph/info/" + graph_id,
-    function(g) {
-
-      sids = "";
-      var sidneed = new Object();
-
-      for(var i=0; i<g.datapoints.length; i++) {
-        if(g.datapoints[i].sid) {
-          sidneed[g.datapoints[i].sid] = polltime;
+      else {
+        if(stream_dirty){
+          stream_graph.ReconGraphPlotPoints();
+          stream_dirty=false;
         }
       }
-      for(var sid in sidneed) {
-        sids+= "/"+sid+"@"+sidneed[sid];
-      }
+    });
 
-       //console.log("sids requestd from noit server = ", sids);
-       $('#streambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
-   });
-}
+    $.getJSON("json/graph/info/" + graph_id,
+      function(g) {
 
-function make_ws_graph(g) {
+        sids = "";
+        var sidneed = new Object();
+
+        for(var i=0; i<g.datapoints.length; i++) {
+          if(g.datapoints[i].sid) {
+            sidneed[g.datapoints[i].sid] = polltime;
+          }
+        }
+        for(var sid in sidneed) {
+          sids+= "/"+sid+"@"+sidneed[sid];
+        }
+
+         //console.log("sids requestd from noit server = ", sids);
+         $('#streambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
+     });
+  }
+
+  function make_ws_graph(g) {
     var o = $('<div></div>').ReconGraph(g);
 
     zb = $("<li class='zoomGraph' id='Zoom-"+g.graphid+"'><img src='images/zoom_icon.png'></li>");
     zb.attr("graphid", g.graphid);
     zb.attr("graphtype", g.type);
-    zb.click(function() { zoom_modal($(this).attr("graphid"), $(this).attr("graphtype")); });
+    zb.click(function() { worksheet.zoom($(this).attr("graphid"), $(this).attr("graphtype")); });
     mb = $("<li class='moveGraph' id='Move-"+g.graphid+"'><img src='images/drag_icon.png'></li>");
     rb = $("<li class='deleteWorksheetGraph' id='Remove-"+g.graphid+"'><img src='images/remove_icon.png'></li>");
     rb.attr("graphid", g.graphid);
     rb.click( function() {
-                  $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + $(this).attr("graphid"),
-                     function(r) { if(r.error) { $("#ws-tool-error").html(r.error).fadeIn('fast');  } });
-                  $("#"+$(this).attr("graphid")).remove();
-               });
+      $.getJSON('json/worksheet/deletegraph/' + wsinfo.id + '/' + $(this).attr("graphid"),
+        function(r) { if(r.error) { $("#ws-tool-error").html(r.error).fadeIn('fast');  } });
+      $("#"+$(this).attr("graphid")).remove();
+    });
 
     var ws_tbar = $('<div class="ws-toolbar"></div>').append("<ul/>").append(zb).append(mb).append(rb);
 
@@ -760,11 +761,11 @@ function make_ws_graph(g) {
               });
 
     return o;
-}
+  }
 
-function zoom_modal (id, gtype) {
-  stream_graph = $('<div></div>').ReconGraph({graphid: id, type: gtype});
-  var smod = stream_graph.modal({
+  function zoom_modal (id, gtype) {
+    stream_graph = $('<div></div>').ReconGraph({graphid: id, type: gtype});
+    var smod = stream_graph.modal({
       containerId: 'StreamingModalContainer',
       close: 'true',
       overlayCss: {
@@ -778,12 +779,12 @@ function zoom_modal (id, gtype) {
         border: '2px solid #000000',
         padding: '5px'
       },
-  });
-  stream_graph.ReconGraphRefresh({graphid: id});
+    });
+    stream_graph.ReconGraphRefresh({graphid: id});
 
 
- var dtool =  $("<div id='mini_ws_datetool'>");
-dtool.append('<div class="zoom"> \
+    var dtool =  $("<div id='mini_ws_datetool'>");
+    dtool.append('<div class="zoom"> \
                 <dl> \
                         <dt>Zoom:</dt> \
                         <dd><a href="#" class="first datechoice">1d</a></dd> \
@@ -793,123 +794,124 @@ dtool.append('<div class="zoom"> \
                         <dd><a href="#" class="datechoice">4w</a></dd> \
                         <dd><a href="#" class="datechoice">1y</a></dd> \
                 </dl>\
-        </div>\
-</div>');
+                 </div>\
+                  </div>');
 
-  var mheader = $("<div id='stream-modal-header'>").append(dtool);
-  mheader.append("<span class='zoomClose'>x</span>");
-  mheader.append("<span class='zoomStream'>Stream Data</span><br>");
+    var mheader = $("<div id='stream-modal-header'>").append(dtool);
+    mheader.append("<span class='zoomClose'>x</span>");
+    mheader.append("<span class='zoomStream'>Stream Data</span><br>");
 
-  stream_graph.prepend(mheader);
+    stream_graph.prepend(mheader);
 
-  stream_graph.append("<div class='stream-log' style='display:none'></div>");
-  $(".zoomClose").click(function() {
-     streaming = false;
-     $('#streambox').html('');
-     smod.close();
-  });
+    stream_graph.append("<div class='stream-log' style='display:none'></div>");
+    $(".zoomClose").click(function() {
+      streaming = false;
+      $('#streambox').html('');
+      smod.close();
+    });
 
-  $(".zoomStream").click(function() {
-     if(!streaming) {
-         streaming = true;
-         $(".zoomStream").html('Streaming!').fadeIn('slow');
-         $(".stream-log").removeAttr("style").html("stream log_");
-         stream_data(id);
-     }
-     else if(streaming) {
-         streaming = false;
-         $('#streambox').html('');
-         $(".zoomStream").html('Stream Data').fadeIn('slow');
-         $(".stream-log").attr("style", "display:none;");
-         stream_graph.ReconGraphRefresh({graphid: id});
-    }
- }); //end stream click function
+    $(".zoomStream").click(function() {
+      if(!streaming) {
+        streaming = true;
+        $(".zoomStream").html('Streaming!').fadeIn('slow');
+        $(".stream-log").removeAttr("style").html("stream log_");
+        stream_data(id);
+      }
+      else if(streaming) {
+        streaming = false;
+        $('#streambox').html('');
+        $(".zoomStream").html('Stream Data').fadeIn('slow');
+        $(".stream-log").attr("style", "display:none;");
+        stream_graph.ReconGraphRefresh({graphid: id});
+      }
+    }); //end stream click function
 
-$("#mini_ws_datetool .datechoice").click(function(){
-        $(".datechoice").removeClass("selected");
-        $(this).addClass("selected");
-        stream_graph.ReconGraphRefresh({graphid: id, start: time_windows[$(this).html()], end: ''});
-        return false;
-});
+    $("#mini_ws_datetool .datechoice").click(function(){
+      $(".datechoice").removeClass("selected");
+      $(this).addClass("selected");
+      stream_graph.ReconGraphRefresh({graphid: id, start: time_windows[$(this).html()], end: ''});
+      return false;
+    });
+  }
 
-}//end zoom_modal
+  function lock_wforms() {
+    locked = true;
+    $("h2#worksheetTitle").unbind();
+    $("ul#worksheet-graphs").unbind();
+    $(".ws-toolbar-edit").attr("class","ws-toolbar");
+  }
 
-function lock_wforms() {
-  $("h2#worksheetTitle").unbind();
-  $("ul#worksheet-graphs").unbind();
-  $(".ws-toolbar-edit").attr("class","ws-toolbar");
-}
+  function unlock_wforms() {
+    locked = false;
+    $("h2#worksheetTitle").editable(function(value, settings) {
+      wsinfo.title = value;
+      update_current_worksheet();
+      return(value);
+    }, { });
 
-function unlock_wforms() {
-  $("h2#worksheetTitle").editable(function(value, settings) {
-         wsinfo.title = value;
-         update_current_worksheet();
-         return(value);
-       }, { });
+    var ul = $("ul#worksheet-graphs");
+    ul.sortable({ handle: '.moveGraph',
+                  scroll: true,
+                  stop:
+                    function (e,ui) {
+                      wsinfo.graphs = new Array();
+                      ui.item.parent().find("> li > div").each(
+                        function(i) {
+                          wsinfo.graphs.push($(this).attr("id"));
+                        }
+                      );
+                      update_current_worksheet();
+                    }
+                });
 
-  var ul = $("ul#worksheet-graphs");
-  ul.sortable({ handle: '.moveGraph',
-                scroll: true,
-                stop:
-                  function (e,ui) {
-                    wsinfo.graphs = new Array();
-                    ui.item.parent().find("> li > div").each(
-                      function(i) {
-                        wsinfo.graphs.push($(this).attr("id"));
-                      }
-                    );
-                    update_current_worksheet();
-                  }
-              });
+    $(".ws-toolbar").attr("class","ws-toolbar-edit");
+  }
 
-  $(".ws-toolbar").attr("class","ws-toolbar-edit");
-}//end unlock_wforms
-
-function update_current_worksheet(f) {
-  var str = JSON.stringify(wsinfo);
-  $.post("json/worksheet/store",
-         {'json':str},
-         function(d) {
-           wsinfo.id = d.id;
-           if(d.error) $("#ws-tool-error").html(d.error).fadeIn('fast');
-           else $("#ws-tool-error").fadeOut('fast');
-           if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
-              $(".rememberWorksheet:visible").length == 0) {
-             wsinfo.saved = false;
-             $(".rememberWorksheet").html('"Remember" this worksheet.').fadeIn('slow');
-             lock_wforms();
-             modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
-             $(".rememberWorksheet").click(function() {
-               wsinfo.saved = true;
-               update_current_worksheet(function(r) {
-                 if(r.error) wsinfo.saved = false;
-                 else {
-                    $(".rememberWorksheet").html('Remebered').fadeOut('slow');
-                    unlock_wforms();
-                 }
+  function update_current_worksheet(f) {
+    var str = JSON.stringify(wsinfo);
+    $.post("json/worksheet/store",
+           {'json':str},
+           function(d) {
+             wsinfo.id = d.id;
+             if(d.error) $("#ws-tool-error").html(d.error).fadeIn('fast');
+             else $("#ws-tool-error").fadeOut('fast');
+             if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
+                $(".rememberWorksheet:visible").length == 0) {
+               wsinfo.saved = false;
+               $(".rememberWorksheet").html('"Remember" this worksheet.').fadeIn('slow');
+               lock_wforms();
+               modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
+               $(".rememberWorksheet").click(function() {
+                 wsinfo.saved = true;
+                 update_current_worksheet(function(r) {
+                   if(r.error) wsinfo.saved = false;
+                   else {
+                      $(".rememberWorksheet").html('Remebered').fadeOut('slow');
+                      unlock_wforms();
+                   }
+                 });
                });
-             });
-           }
-           if(f) f(d);
-         }, 'json');
-}
+             }
+             if(f) f(d);
+           }, 'json');
+  }
 
-function process_worksheet_json(r) {
-  wsinfo.id = r.sheetid;
-  wsinfo.title = r.title;
-  wsinfo.graphs = new Array();
+  function process_worksheet_json(r) {
+    wsinfo.id = r.sheetid;
+    wsinfo.title = r.title;
+    wsinfo.graphs = new Array();
 
-  var ul = $("ul#worksheet-graphs");
-  $("h2#worksheetTitle").html(r.title);
-  ul.empty();
-  for(var i = 0; i < r.graphs.length; i++) {
-    var g = {};
-    g.graphid = r.graphs[i];
-    g.start = ws_displayinfo.start;
-    g.end = ws_displayinfo.end;
-    g.cnt = ws_displayinfo.cnt;
+    var ul = $("ul#worksheet-graphs");
+    $("h2#worksheetTitle").html(r.title);
+    ul.empty();
+    for(var i = 0; i < r.graphs.length; i++) {
+      var g = {};
+      g.graphid = r.graphs[i];
+      g.start = ws_displayinfo.start;
+      g.end = ws_displayinfo.end;
+      g.cnt = ws_displayinfo.cnt;
 
-    $.getJSON("json/graph/info/" + g.graphid,
+      $.getJSON("json/graph/info/" + g.graphid,
         function (j) {
             g.type = j.type;
             g.graphid = j.id;
@@ -919,59 +921,70 @@ function process_worksheet_json(r) {
             wsinfo.graphs.push(g.graphid);
          });
 
-  }
-  ul.sortable("refresh");
-}
-
-function add_graph_to_worksheet(graphid) {
-  if(!ws_locked("Click 'Edit Worksheet' to unlock.")){
-    for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
-      if(wsinfo.graphs[i]==graphid) {
-         modal_warning("", "Worksheets cannot have duplicate graphs!");
-         return;
-      }
     }
+    ul.sortable("refresh");
+  }
+
+  function add_graph_to_worksheet(graphid) {
+    if(!ws_locked("Click 'Edit Worksheet' to unlock.")){
+      for(var i = 0; wsinfo.graphs && (i < wsinfo.graphs.length); i++) {
+        if(wsinfo.graphs[i]==graphid) {
+          modal_warning("", "Worksheets cannot have duplicate graphs!");
+          return;
+        }
+      }
+      var g = { start: ws_displayinfo.start,
+                end: ws_displayinfo.end,
+                cnt: ws_displayinfo.cnt,
+                graphid: graphid };
+
+      $.getJSON("json/graph/info/" + g.graphid,
+        function (j) {
+          g.type = j.type;
+          g.graphid = j.id;
+          var o = make_ws_graph(g);
+          var ul = $("ul#worksheet-graphs");
+          ul.append($('<li/>').append(o));
+          o.ReconGraphRefresh();
+          ul.sortable("refresh");
+          if(!wsinfo.graphs) {wsinfo.graphs = new Array();}
+          wsinfo.graphs.push(graphid);
+          update_current_worksheet();
+          unlock_wforms();
+        });
+    }
+  }
+  function refresh_worksheet() {
     var g = { start: ws_displayinfo.start,
               end: ws_displayinfo.end,
-              cnt: ws_displayinfo.cnt,
-              graphid: graphid };
-
-     $.getJSON("json/graph/info/" + g.graphid,
-        function (j) {
-            g.type = j.type;
-            g.graphid = j.id;
-            var o = make_ws_graph(g);
-            var ul = $("ul#worksheet-graphs");
-            ul.append($('<li/>').append(o));
-            o.ReconGraphRefresh();
-            ul.sortable("refresh");
-            if(!wsinfo.graphs) {wsinfo.graphs = new Array();}
-            wsinfo.graphs.push(graphid);
-            update_current_worksheet();
-            unlock_wforms();
-        });
+              cnt: ws_displayinfo.cnt };
+    $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
   }
-
-}
-function refresh_worksheet() {
-  var g = { start: ws_displayinfo.start,
-            end: ws_displayinfo.end,
-            cnt: ws_displayinfo.cnt };
-  $("ul#worksheet-graphs > li > div").ReconGraphRefresh(g);
-}
-function load_worksheet(id) {
-  if(id==null) {
-    wsinfo.saved = false;
-    locked = false;
-    unlock_wforms();
-    $(".editWorksheet").html('Editing!').fadeIn('slow');
-    process_worksheet_json({graphs: [], title:'Worksheet Title (click to edit)', sheetid: ''});
+  function load_worksheet(id) {
+    if(id==null) {
+      wsinfo.saved = false;
+      locked = false;
+      unlock_wforms();
+      $(".editWorksheet").html('Editing!').fadeIn('slow');
+      process_worksheet_json({graphs: [], title:'Worksheet Title (click to edit)', sheetid: ''});
+    }
+    else {
+      wsinfo.saved = true;
+      locked = true;
+      lock_wforms();
+      $(".editWorksheet").html('Edit Worksheet').fadeIn('slow');
+      $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
+    }
   }
-  else {
-    wsinfo.saved = true;
-    locked = true;
-    lock_wforms();
-    $(".editWorksheet").html('Edit Worksheet').fadeIn('slow');
-    $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
-  }
-}
+  return {
+    load: load_worksheet,
+    refresh: refresh_worksheet,
+    add_graph: add_graph_to_worksheet,
+    update: update_current_worksheet,
+    lock: lock_wforms,
+    unlock: unlock_wforms,
+    zoom: zoom_modal,
+    stream: stream_data,
+    islocked: function () { return locked; }
+  };
+})(jQuery);

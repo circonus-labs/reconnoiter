@@ -72,26 +72,24 @@ $(document).ready(function(){
 
   $("h2#worksheetTitle").editable(function(value, settings) {
     wsinfo.title = value;
-    update_current_worksheet();
+    worksheet.update();
     return(value);
   }, { });
 
   $(".editWorksheet").click(function() {
-    if(locked){
-      locked = false;
-      unlock_wforms();
+    if(worksheet.islocked()){
+      worksheet.unlock();
       $(".editWorksheet").html('Editing!').fadeIn('slow');
     }
-    else if(!locked){
-      locked = true;
-      lock_wforms();
+    else {
+      worksheet.lock();
       $(".editWorksheet").html('Edit Worksheet').fadeIn('slow');
     }
   });
 
 
   $(".blankWorksheet").click(function() {
-    load_worksheet();
+    worksheet.load();
   });
 
   $("#ws_datetool .btn-slide").click(function(){
@@ -110,7 +108,7 @@ $(document).ready(function(){
     ws_displayinfo.start = time_windows[$(this).html()];
     ws_displayinfo.end = '';
     $(this).addClass("selected");
-    refresh_worksheet();
+    worksheet.refresh();
     return false;
   });
   $('#ws_widgetCalendar').DatePicker({
@@ -128,7 +126,7 @@ $(document).ready(function(){
       var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
       ws_displayinfo.start = start.toUTCString();
       ws_displayinfo.end = end.toUTCString();
-      refresh_worksheet();
+      worksheet.refresh();
       $(".datechoice").removeClass("selected");
       $('#ws_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
     }
