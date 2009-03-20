@@ -591,13 +591,54 @@ background:transparent url(../images/icon-data-txt.png) no-repeat scroll 60px 1p
 padding-left:75px;
 }
 div.tooltip {
-background:white none repeat scroll 0 0;
-border:1px solid #333;
-padding:0;
+    padding:10px;
 }
-div.tooltip div {
-border:0;
-padding:0 3px;
+div.tooltip .wrap{
+    position:relative;
+    border:1px solid #000;
+}
+div.tooltip .tip {
+    padding: 0 4px 0 4px;
+}
+div.tooltip .point-up,
+div.tooltip .point-right,
+div.tooltip .point-down,
+div.tooltip .point-left{
+    position:absolute;
+    background:url(../images/tooltip-diamond.gif) no-repeat 50% 0;
+}
+ 
+div.tooltip .point-up{
+    top:-10px;
+    left:50%;
+    height:10px;
+    width:40px;
+    margin-left:-20px;
+    background-position:25% 0;
+}
+div.tooltip .point-right{
+    top:50%;
+    right:-10px;
+    height:40px;
+    width:10px;
+    margin-top:-20px;
+    background-position:100% 50%;
+}
+div.tooltip .point-down{
+    bottom:-10px;
+    left:50%;
+    height:10px;
+    width:40px;
+    margin-left:-20px;
+    background-position:50% 100%;
+}
+div.tooltip .point-left{
+    top:50%;
+    left:-10px;
+    height:40px;
+    width:10px;
+    margin-top:-20px;
+    background-position:0 50%;
 }
 .graphlist p.paginate {
 text-align:right;

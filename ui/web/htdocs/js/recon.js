@@ -380,22 +380,26 @@ function rpn_eval(value, expr, meta) {
             if(items && items.length) {
               // Emulate opacity on white
               if(! $("div.tooltip")[0]) {
-                $('<div class="tooltip"></div>').appendTo($('body'));
-                $("div.tooltip")
+                $('<div class="tooltip"><div class="wrap"></div></div>').appendTo($('body'));
+                $("div.tooltip .wrap")
                   .hover(function() {},
                          function() { $("div.tooltip").remove(); });
               }
-              $("div.tooltip")
-                .css( { top: items[0].pageY - 15,
-                        left: items[0].pageX + 10,
+              var tt = $("div.tooltip");
+              tt.css( { width: 'auto',
                         position: 'absolute',
-                        'z-index': 4000 })
-                .html('');
+                        'z-index': 4000 });
+              var ttw = $("div.tooltip .wrap");
+              ttw.empty();
+              ttw.append('<div class="point-down"></div>');
+
+              items.sort(function(a,b) { return a.pageY - b.pageY; });
+              var topitem = items[0];
               for(var i = 0; i < items.length; i++) {
+                if(items[i].pageY < topitem.pageY) topitem = items[i];
                 var rgb = (items[i].series.color.match(/\((.+)\)/))[1].split(',');
-                // blend it with white emulating 80% opacity
-                rgb = rgb.map(function(a) { return Math.round(255-(255-a)*0.8); });
-                var soft = 'rgb(' + rgb.join(',') + ')';
+                rgb = rgb.map(function(a) { return Math.round(255-(255-a)*1); });
+                var soft = 'rgba(' + rgb.join(',') + ',0.8)';
                 var val = items[i].datapoint[1];
                 if(items[i].series.dataManip) {
                   var meta = { _max: val };
@@ -407,13 +411,18 @@ function rpn_eval(value, expr, meta) {
                 // if Y [0,255], if high (>128) I want black, else white
 
                 var Y = 0.299 * rgb[0] + 0.587 * rgb[1]  + 0.114 * rgb[2];
-                var tt = $('<div><div/>')
+                var ttp = $('<div class="tip"><div/>')
                   .html((items[i].datapoint[2] ? items[i].datapoint[2] : val) + " (" + items[i].series.label + ")")
                   .css( { color: ( Y > 128 ? 'black' : 'white' ), backgroundColor: soft });
-                tt.appendTo($("div.tooltip"));
+                ttp.appendTo(ttw);
                 hoverings.push(items[i]);
                 plot.highlight(items[i].series, items[i].datapoint);
               }
+              tt.css( { width: tt.width() + 10 } );
+              tt.css( { overflow: 'hidden',
+                        top: topitem.pageY - tt.height() - 25,
+                        left: topitem.pageX - Math.floor(tt.width()/2) - 10,
+                        display: 'block' } );
               return true;
             }
             $("div.tooltip").remove();
