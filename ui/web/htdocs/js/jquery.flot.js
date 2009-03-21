@@ -112,6 +112,7 @@
         this.draw = draw;
         this.clearSelection = clearSelection;
         this.setSelection = setSelection;
+        this.getEventHolder = function() { return eventHolder; };
         this.getCanvas = function() { return canvas; };
         this.getPlotOffset = function() { return plotOffset; };
         this.getData = function() { return series; };

@@ -382,9 +382,8 @@ function rpn_eval(value, expr, meta) {
               // Emulate opacity on white
               if(! $("div.tooltip")[0]) {
                 $('<div class="tooltip"><div class="wrap"></div></div>').appendTo($('body'));
-                $("div.tooltip .wrap")
-                  .hover(function() {},
-                         function() { $("div.tooltip").remove(); });
+                $("div.tooltip .wrap").bind('mousemove',
+                  function() { plot.getEventHolder().trigger('mousemove'); });
               }
               var tt = $("div.tooltip");
               tt.css( { width: 'auto',
