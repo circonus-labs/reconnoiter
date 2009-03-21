@@ -2460,7 +2460,7 @@ SET search_path = stratcon, pg_catalog;
 -- Name: idx_metric_name_summary_ts_search_all; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE INDEX idx_metric_name_summary_ts_search_all ON metric_name_summary USING btree (ts_search_all);
+CREATE INDEX idx_metric_name_summary_ts_search_all ON metric_name_summary USING gin (ts_search_all);
 
 
 --
