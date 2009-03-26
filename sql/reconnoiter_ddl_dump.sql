@@ -9,6 +9,24 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
+-- Name: iep; Type: SCHEMA; Schema: -; Owner: iepuser
+--
+
+CREATE SCHEMA iep;
+
+
+ALTER SCHEMA iep OWNER TO iepuser;
+
+--
+-- Name: otools; Type: SCHEMA; Schema: -; Owner: postgres
+--
+
+CREATE SCHEMA otools;
+
+
+ALTER SCHEMA otools OWNER TO postgres;
+
+--
 -- Name: prism; Type: SCHEMA; Schema: -; Owner: prism
 --
 
@@ -35,11 +53,48 @@ CREATE PROCEDURAL LANGUAGE plpgsql;
 
 ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO omniti;
 
-SET search_path = prism, pg_catalog;
+SET search_path = iep, pg_catalog;
 
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: results; Type: TABLE; Schema: iep; Owner: iepuser; Tablespace: 
+--
+
+CREATE TABLE results (
+    uuid character varying NOT NULL,
+    value double precision NOT NULL,
+    start character varying,
+    name character varying NOT NULL,
+    type character varying,
+    "time" character varying NOT NULL
+);
+
+
+ALTER TABLE iep.results OWNER TO iepuser;
+
+SET search_path = otools, pg_catalog;
+
+--
+-- Name: table_growth; Type: TABLE; Schema: otools; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE table_growth (
+    table_owner text NOT NULL,
+    schema_name text NOT NULL,
+    table_name text NOT NULL,
+    actual_size numeric NOT NULL,
+    growth_size numeric NOT NULL,
+    sum_flag smallint NOT NULL,
+    capture_time date NOT NULL
+);
+
+
+ALTER TABLE otools.table_growth OWNER TO postgres;
+
+SET search_path = prism, pg_catalog;
 
 --
 -- Name: graph_templates; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
@@ -126,6 +181,39 @@ CREATE TABLE foo (
 
 
 ALTER TABLE public.foo OWNER TO omniti;
+
+--
+-- Name: gah; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE gah (
+    sid integer,
+    name text,
+    rollup_time timestamp with time zone,
+    count_rows integer,
+    avg_value numeric,
+    counter_dev numeric
+);
+
+
+ALTER TABLE public.gah OWNER TO postgres;
+
+--
+-- Name: meh; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE meh (
+    sid integer NOT NULL,
+    name text NOT NULL,
+    rollup_time timestamp with time zone NOT NULL,
+    count_rows integer,
+    avg_value numeric,
+    counter_dev numeric,
+    CONSTRAINT meh_rollup_time_check CHECK (((date_part('hour'::text, timezone('UTC'::text, rollup_time)) = ANY (ARRAY[(0)::double precision, (6)::double precision, (12)::double precision, (18)::double precision])) AND (date_part('minute'::text, timezone('utc'::text, rollup_time)) = (0)::double precision)))
+);
+
+
+ALTER TABLE public.meh OWNER TO postgres;
 
 SET default_with_oids = true;
 
@@ -267,6 +355,20 @@ CREATE TABLE varnish_huh2 (
 
 ALTER TABLE public.varnish_huh2 OWNER TO reconnoiter;
 
+--
+-- Name: x; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE x (
+    sid integer,
+    whence timestamp with time zone,
+    name text,
+    value numeric
+);
+
+
+ALTER TABLE public.x OWNER TO postgres;
+
 SET search_path = stratcon, pg_catalog;
 
 --
@@ -341,6 +443,20 @@ CREATE TABLE loading_dock_metric_numeric_s (
 
 
 ALTER TABLE stratcon.loading_dock_metric_numeric_s OWNER TO reconnoiter;
+
+--
+-- Name: loading_dock_metric_numeric_s_old; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE loading_dock_metric_numeric_s_old (
+    sid integer NOT NULL,
+    whence timestamp with time zone NOT NULL,
+    name text NOT NULL,
+    value numeric
+);
+
+
+ALTER TABLE stratcon.loading_dock_metric_numeric_s_old OWNER TO reconnoiter;
 
 --
 -- Name: loading_dock_metric_text_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
@@ -482,7 +598,8 @@ CREATE TABLE rollup_matrix_numeric_12hours (
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
     avg_value numeric,
-    counter_dev numeric
+    counter_dev numeric,
+    CONSTRAINT rollup_matrix_numeric_12hours_rollup_time_check CHECK (((date_part('hour'::text, timezone('UTC'::text, rollup_time)) = ANY (ARRAY[(0)::double precision, (12)::double precision])) AND (date_part('minute'::text, timezone('utc'::text, rollup_time)) = (0)::double precision)))
 );
 
 
@@ -546,7 +663,8 @@ CREATE TABLE rollup_matrix_numeric_6hours (
     rollup_time timestamp with time zone NOT NULL,
     count_rows integer,
     avg_value numeric,
-    counter_dev numeric
+    counter_dev numeric,
+    CONSTRAINT rollup_matrix_numeric_6hours_rollup_time_check CHECK (((date_part('hour'::text, timezone('UTC'::text, rollup_time)) = ANY (ARRAY[(0)::double precision, (6)::double precision, (12)::double precision, (18)::double precision])) AND (date_part('minute'::text, timezone('utc'::text, rollup_time)) = (0)::double precision)))
 );
 
 
@@ -563,6 +681,115 @@ CREATE TABLE rollup_runner (
 
 
 ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
+
+--
+-- Name: test6; Type: TABLE; Schema: stratcon; Owner: postgres; Tablespace: 
+--
+
+CREATE TABLE test6 (
+    rollup_time timestamp without time zone,
+    duration character varying(10)
+);
+
+
+ALTER TABLE stratcon.test6 OWNER TO postgres;
+
+SET search_path = otools, pg_catalog;
+
+--
+-- Name: collect_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
+--
+
+CREATE FUNCTION collect_table_growth() RETURNS void
+    AS $$
+    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time) 
+    select pg_get_userbyid(c.relowner) AS table_owner, n.nspname AS schema_name, c.relname AS table_name, pg_total_relation_size(c.oid), 0, 0, current_date 
+    from pg_class c JOIN pg_namespace n ON (c.relnamespace=n.oid) where relkind = 'r' and reltuples > 10000;
+$$
+    LANGUAGE sql;
+
+
+ALTER FUNCTION otools.collect_table_growth() OWNER TO postgres;
+
+--
+-- Name: quote_nullable(numeric); Type: FUNCTION; Schema: otools; Owner: postgres
+--
+
+CREATE FUNCTION quote_nullable(numeric) RETURNS text
+    AS $_$
+SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE $1::text END;
+$_$
+    LANGUAGE sql;
+
+
+ALTER FUNCTION otools.quote_nullable(numeric) OWNER TO postgres;
+
+--
+-- Name: quote_nullable(text); Type: FUNCTION; Schema: otools; Owner: postgres
+--
+
+CREATE FUNCTION quote_nullable(text) RETURNS text
+    AS $_$
+SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
+$_$
+    LANGUAGE sql;
+
+
+ALTER FUNCTION otools.quote_nullable(text) OWNER TO postgres;
+
+--
+-- Name: quote_nullable(timestamp with time zone); Type: FUNCTION; Schema: otools; Owner: postgres
+--
+
+CREATE FUNCTION quote_nullable(timestamp with time zone) RETURNS text
+    AS $_$
+SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
+$_$
+    LANGUAGE sql;
+
+
+ALTER FUNCTION otools.quote_nullable(timestamp with time zone) OWNER TO postgres;
+
+--
+-- Name: summarize_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
+--
+
+CREATE FUNCTION summarize_table_growth() RETURNS void
+    AS $$
+declare
+    v_sql text;
+begin
+
+-- Daily summarization
+IF to_char(current_date,'dd') <> '01' THEN
+    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
+    select a.table_owner, a.schema_name, a.table_name, a.actual_size, a.actual_size-coalesce(b.actual_size,0) AS table_growth, 1, a.capture_time
+    from otools.table_growth a 
+        left join otools.table_growth b 
+            on (a.table_owner=b.table_owner and a.table_name=b.table_name and a.schema_name=b.schema_name and b.capture_time = current_date -1) 
+    where 
+        a.sum_flag=0 and a.capture_time = current_date;
+    -- now remove older rows
+    delete from otools.table_growth where sum_flag = 0;
+END IF;
+
+-- Monthly summarization
+IF to_char(current_date,'dd') = '01' THEN
+    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
+    select a.table_owner, a.schema_name, a.table_name, max(actual_size), sum(growth_size), 2, (current_date - '1 month'::interval) 
+    from otools.table_growth a 
+    where sum_flag=1 and capture_time between (current_date - '1 month'::interval) and current_date 
+    group by table_owner, schema_name, table_name;
+    -- now remove older rows
+    delete from otools.table_growth where sum_flag = 1;
+END IF;
+
+end 
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION otools.summarize_table_growth() OWNER TO postgres;
 
 SET search_path = prism, pg_catalog;
 
@@ -913,6 +1140,21 @@ $_$
 
 
 ALTER FUNCTION stratcon.date_hour(timestamp with time zone) OWNER TO reconnoiter;
+
+--
+-- Name: director_loading_dock_metric_numeric_s(); Type: FUNCTION; Schema: stratcon; Owner: postgres
+--
+
+CREATE FUNCTION director_loading_dock_metric_numeric_s() RETURNS trigger
+    AS $$
+begin
+return new;
+end
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.director_loading_dock_metric_numeric_s() OWNER TO postgres;
 
 --
 -- Name: fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
@@ -1905,10 +2147,10 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='1 hour' LOO
 
 -- Insert Log for 6 Hour rollup
    
-   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/6)*6) * '1 hour'::interval and interval='6 hours'
+   SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence::timestamptz at time zone 'utc') + (floor(extract('hour' from v_min_whence::timestamptz at time zone 'utc')/6)*6) * '1 hour'::interval and interval='6 hours'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/6)*6) * '1 hour'::interval,'6 hours');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence::timestamptz at time zone 'utc') + (floor(extract('hour' from v_min_whence::timestamptz at time zone 'utc')/6)*6) * '1 hour'::interval,'6 hours');
    END IF;
    
    
@@ -2008,7 +2250,7 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LO
    SELECT whence FROM stratcon.log_whence_s WHERE whence=date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/12)*12) * '1 hour'::interval and interval='12 hours'
            INTO v_whence;
       IF NOT FOUND THEN
-       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence) + (floor(extract('hour' from v_min_whence)/12)*12) * '1 hour'::interval,'12 hours');
+       INSERT INTO  stratcon.log_whence_s VALUES(date_trunc('day', v_min_whence::timestamptz at time zone 'utc') + (floor(extract('hour' from v_min_whence::timestamptz at time zone 'utc')/12)*12) * '1 hour'::interval ,'12 hours');
    END IF;
    
    
@@ -2056,6 +2298,141 @@ $$
 
 
 ALTER FUNCTION stratcon.rollup_matrix_numeric_6hours() OWNER TO reconnoiter;
+
+--
+-- Name: snapshot_maker(text, text); Type: FUNCTION; Schema: stratcon; Owner: postgres
+--
+
+CREATE FUNCTION snapshot_maker(v_parent text, v_pattern text) RETURNS void
+    AS $_$
+DECLARE
+    v_interval text;
+    v_segment text;
+    v_name text;
+    v_match text;
+
+    v_checker_sql text;
+BEGIN
+    IF v_pattern = 'daily' then 
+        v_interval := '1 days';  
+        v_segment := 'day';  
+        v_name := 'YYYY_MMDD'; 
+        v_match := '_p[0-9]{4}_[0-9]{4}$';    
+    ELSEIF v_pattern = 'weekly' then 
+        v_interval = '7 days';  
+        v_segment = 'week';  
+        v_name = 'YYYY_MMDD'; 
+        v_match = '_p[0-9]{4}_[0-9]{4}$';   
+    ELSEIF v_pattern = 'monthly' then 
+        v_interval = '1 month'; 
+        v_segment = 'month';
+        v_name = 'YYYY_MM';
+        v_match = '_p[0-9]{4}_[0-9]{2}$'; 
+    END IF; 
+
+    v_checker_sql := 'SELECT * FROM 
+        (SELECT '|| quote_literal(v_parent) || ' ||''_p''|| to_char( date_trunc('||quote_literal(v_segment)||', now() + (n * '||quote_literal(v_interval)||'::interval)), '||quote_literal(v_name)||') as part,
+                date_trunc('||quote_literal(v_segment)||', now() + (n * '||quote_literal(v_interval)||'::interval)) ::timestamp without time zone as lower_bound,
+                date_trunc('||quote_literal(v_segment)||', now() + ((n+1) * '||quote_literal(v_interval)||'::interval)) ::timestamp without time zone as upper_bound
+           FROM generate_series(-3,3) n) a
+        WHERE part not in (SELECT tablename from pg_tables WHERE tablename ~ ''^'||v_parent||v_match||''')';
+
+    RAISE NOTICE '%', v_checker_sql;
+
+END
+$_$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.snapshot_maker(v_parent text, v_pattern text) OWNER TO postgres;
+
+--
+-- Name: test_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean); Type: FUNCTION; Schema: stratcon; Owner: omnidba
+--
+
+CREATE FUNCTION test_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) RETURNS SETOF rollup_matrix_numeric_5m
+    AS $$declare
+  v_sql text;
+  v_sid int;
+  v_target record;
+  v_interval numeric;
+  v_start_adj timestamptz;
+  v_end_adj timestamptz;
+  v_l_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+  v_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+  v_r_rollup_row stratcon.rollup_matrix_numeric_5m%rowtype;
+begin
+
+  -- Map out uuid to an sid.
+  v_sid := in_sid;
+
+  select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
+
+  if not found then
+    raise exception 'no target table';
+    return;
+  end if;
+
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_start_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_start_adj;
+
+ RAISE NOTICE 'start_adj: %',v_start_adj;
+ 
+  select 'epoch'::timestamp +
+         ((floor(extract('epoch' from in_end_time) /
+                 extract('epoch' from v_target.period)) *
+           extract('epoch' from v_target.period)) || ' seconds') ::interval
+    into v_end_adj;
+
+RAISE NOTICE 'end_adj: %',v_end_adj;
+
+  v_sql := 'select ' || v_sid || ' as sid, ' || quote_literal(in_name) || ' as name, ' ||
+           's.rollup_time, d.count_rows, d.avg_value, d.counter_dev ' ||
+           ' from ' ||
+           '(select ' || quote_literal(v_start_adj) || '::timestamp' ||
+                  ' + t * ' || quote_literal(v_target.period) || '::interval' ||
+                       ' as rollup_time' ||
+             ' from generate_series(1,' || v_target.nperiods || ') t) s ' ||
+           'left join ' ||
+           '(select * from stratcon.' || v_target.tablename ||
+           ' where sid = ' || v_sid ||
+             ' and name = ' || quote_literal(in_name) ||
+             ' and rollup_time between ' || quote_literal(v_start_adj) || '::timestamp' ||
+                                 ' and ' || quote_literal(v_end_adj) || '::timestamp) d' ||
+           ' using(rollup_time)';
+
+RAISE NOTICE 'v_sql: %',v_sql;
+
+  for v_rollup_row in execute v_sql loop
+    if derive is true then
+      v_r_rollup_row := v_rollup_row;
+      if v_l_rollup_row.count_rows is not null and
+         v_rollup_row.count_rows is not null then
+        v_interval := extract('epoch' from v_rollup_row.rollup_time) - extract('epoch' from v_l_rollup_row.rollup_time);
+        v_r_rollup_row.count_rows := (v_l_rollup_row.count_rows + v_rollup_row.count_rows) / 2;
+        v_r_rollup_row.avg_value :=
+          (v_rollup_row.avg_value - v_l_rollup_row.avg_value) / v_interval;
+      else
+        v_r_rollup_row.count_rows = NULL;
+        v_r_rollup_row.avg_value = NULL;
+        
+      end if;
+    else
+      v_r_rollup_row := v_rollup_row;
+    end if;
+    return next v_r_rollup_row;
+    v_l_rollup_row := v_rollup_row;
+  end loop;
+  return;
+end
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.test_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean) OWNER TO omnidba;
 
 --
 -- Name: trig_update_tsvector_from_metric_summary(); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
@@ -2162,6 +2539,16 @@ CREATE SEQUENCE seq_sid
 
 
 ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
+
+SET search_path = iep, pg_catalog;
+
+--
+-- Name: pkeyresults; Type: CONSTRAINT; Schema: iep; Owner: iepuser; Tablespace: 
+--
+
+ALTER TABLE ONLY results
+    ADD CONSTRAINT pkeyresults PRIMARY KEY (uuid, "time", value, name);
+
 
 SET search_path = prism, pg_catalog;
 
@@ -2320,7 +2707,15 @@ ALTER TABLE ONLY loading_dock_check_s
 ALTER TABLE ONLY loading_dock_metric_numeric_s
     ADD CONSTRAINT loading_dock_metric_numeric_s_pkey PRIMARY KEY (whence, sid, name);
 
-ALTER TABLE loading_dock_metric_numeric_s CLUSTER ON loading_dock_metric_numeric_s_pkey;
+
+--
+-- Name: loading_dock_metric_numeric_s_pkey_old; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY loading_dock_metric_numeric_s_old
+    ADD CONSTRAINT loading_dock_metric_numeric_s_pkey_old PRIMARY KEY (whence, sid, name);
+
+ALTER TABLE loading_dock_metric_numeric_s_old CLUSTER ON loading_dock_metric_numeric_s_pkey_old;
 
 
 --
@@ -2454,6 +2849,13 @@ SET search_path = prism, pg_catalog;
 CREATE INDEX idx_saved_graphs_ts_search_all ON saved_graphs USING btree (ts_search_all);
 
 
+--
+-- Name: saved_graphs_dep_sid_name_type; Type: INDEX; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE INDEX saved_graphs_dep_sid_name_type ON saved_graphs_dep USING btree (sid, metric_name, metric_type);
+
+
 SET search_path = stratcon, pg_catalog;
 
 --
@@ -2521,6 +2923,16 @@ CREATE TRIGGER trig_update_tsvector_saved_graphs
 
 
 SET search_path = stratcon, pg_catalog;
+
+--
+-- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
+    AFTER INSERT ON loading_dock_metric_numeric_s_old
+    FOR EACH ROW
+    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
+
 
 --
 -- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
@@ -2615,7 +3027,7 @@ ALTER TABLE ONLY saved_graphs_dep
 --
 
 ALTER TABLE ONLY saved_worksheets_dep
-    ADD CONSTRAINT saved_worksheets_dep_graphid_fkey FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid);
+    ADD CONSTRAINT saved_worksheets_dep_graphid_fkey FOREIGN KEY (graphid) REFERENCES saved_graphs(graphid) ON DELETE CASCADE;
 
 
 --
@@ -2624,6 +3036,16 @@ ALTER TABLE ONLY saved_worksheets_dep
 
 ALTER TABLE ONLY saved_worksheets_dep
     ADD CONSTRAINT saved_worksheets_dep_sheetid_fkey FOREIGN KEY (sheetid) REFERENCES saved_worksheets(sheetid);
+
+
+--
+-- Name: prism; Type: ACL; Schema: -; Owner: prism
+--
+
+REVOKE ALL ON SCHEMA prism FROM PUBLIC;
+REVOKE ALL ON SCHEMA prism FROM prism;
+GRANT ALL ON SCHEMA prism TO prism;
+GRANT ALL ON SCHEMA prism TO stratcon;
 
 
 --
@@ -2751,6 +3173,17 @@ REVOKE ALL ON TABLE loading_dock_metric_numeric_s FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_metric_numeric_s TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_s TO stratcon;
 GRANT SELECT ON TABLE loading_dock_metric_numeric_s TO prism;
+
+
+--
+-- Name: loading_dock_metric_numeric_s_old; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE loading_dock_metric_numeric_s_old FROM PUBLIC;
+REVOKE ALL ON TABLE loading_dock_metric_numeric_s_old FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_metric_numeric_s_old TO reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_s_old TO stratcon;
+GRANT SELECT ON TABLE loading_dock_metric_numeric_s_old TO prism;
 
 
 --
