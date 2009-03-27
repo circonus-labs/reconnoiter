@@ -10,8 +10,8 @@ $type = $_GET['type'];
 
 $start = $_GET['start']?$_GET['start']:(7*86400);
 if(preg_match('/^\d+$/', $start))
-  $start = strftime("%Y-%m-%d %H:%M:%S", time() - $start);
-$end = $_GET['end']?$_GET['end']:strftime("%Y-%m-%d %H:%M:%S", time());
+  $start = gmstrftime("%Y-%m-%d %H:%M:%S", time() - $start);
+$end = $_GET['end']?$_GET['end']:gmstrftime("%Y-%m-%d %H:%M:%S", time());
 $cnt = $_GET['cnt']?$_GET['cnt']:400;
 
 $driver = new Reconnoiter_flot_Driver($start, $end, $cnt, $type);
