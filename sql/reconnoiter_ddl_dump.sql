@@ -182,39 +182,6 @@ CREATE TABLE foo (
 
 ALTER TABLE public.foo OWNER TO omniti;
 
---
--- Name: gah; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE gah (
-    sid integer,
-    name text,
-    rollup_time timestamp with time zone,
-    count_rows integer,
-    avg_value numeric,
-    counter_dev numeric
-);
-
-
-ALTER TABLE public.gah OWNER TO postgres;
-
---
--- Name: meh; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE meh (
-    sid integer NOT NULL,
-    name text NOT NULL,
-    rollup_time timestamp with time zone NOT NULL,
-    count_rows integer,
-    avg_value numeric,
-    counter_dev numeric,
-    CONSTRAINT meh_rollup_time_check CHECK (((date_part('hour'::text, timezone('UTC'::text, rollup_time)) = ANY (ARRAY[(0)::double precision, (6)::double precision, (12)::double precision, (18)::double precision])) AND (date_part('minute'::text, timezone('utc'::text, rollup_time)) = (0)::double precision)))
-);
-
-
-ALTER TABLE public.meh OWNER TO postgres;
-
 SET default_with_oids = true;
 
 --
@@ -1945,8 +1912,8 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
 
  FOR rec IN 
                 SELECT sid , name,v_min_whence as rollup_time,
-                       SUM(count_rows) as count_rows ,(SUM(avg_value*count_rows)/SUM(count_rows)) as avg_value,
-                       (SUM(counter_dev*count_rows)/SUM(count_rows)) as counter_dev
+                       SUM(1) as count_rows ,(SUM(avg_value*1)/SUM(1)) as avg_value,
+                       (SUM(counter_dev*1)/SUM(1)) as counter_dev
        FROM stratcon.rollup_matrix_numeric_5m
                       WHERE rollup_time<= v_min_whence AND rollup_time > v_min_whence -'20 minutes'::interval
                 GROUP BY sid,name
@@ -2049,30 +2016,9 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
  
  END IF;
 
- FOR rec IN
-
-    select n.sid, n.name, n.rollup_time, n.count_rows, n.avg_value,
-           case when n.avg_value - l.avg_value >= 0
-                then (n.avg_value - l.avg_value)/300.0
-                else null end as counter_dev
-      from (SELECT sid, name, v_min_whence as rollup_time,
-                   COUNT(1) as count_rows, avg(value) as avg_value
-              FROM stratcon.loading_dock_metric_numeric_s
-             WHERE whence <= v_min_whence AND whence > v_min_whence -'5 minutes'::interval
-          GROUP BY rollup_time,sid,name) as n
- left join stratcon.rollup_matrix_numeric_5m as l
-        on (n.sid=l.sid and n.name=l.name and
-            n.rollup_time - '5 minute'::interval = l.rollup_time)
+    INSERT INTO stratcon.rollup_matrix_numeric_5m
+    SELECT * FROM stratcon.window_robust_derive(v_min_whence);
  
-       LOOP
-    
-        
-        INSERT INTO stratcon.rollup_matrix_numeric_5m
-         (sid,name,rollup_time,count_rows,avg_value,counter_dev) VALUES 
-         (rec.sid,rec.name,rec.rollup_time,rec.count_rows,rec.avg_value,rec.counter_dev);
-        
-   END LOOP;
-
   -- Delete from whence log table
   
   DELETE FROM stratcon.log_whence_s WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
@@ -2526,6 +2472,81 @@ $$
 
 
 ALTER FUNCTION stratcon.update_config(v_remote_address_in inet, v_node_type_in text, v_whence_in timestamp with time zone, v_config_in xml) OWNER TO reconnoiter;
+
+--
+-- Name: window_robust_derive(timestamp with time zone); Type: FUNCTION; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE FUNCTION window_robust_derive(in_start_time timestamp with time zone) RETURNS SETOF rollup_matrix_numeric_5m
+    AS $$
+declare
+  rec stratcon.rollup_matrix_numeric_5m%rowtype;
+  r record;
+  rise numeric;
+  last_row_whence timestamp;
+  last_value numeric;
+  run numeric;
+begin
+
+   rec.sid := null;
+   rec.name := null;
+   rise := 0;
+   run := 0;
+   rec.rollup_time = in_start_time;
+   for r in SELECT sid, name, whence,
+                   (whence > in_start_time - '5 minutes'::interval) as in_window,
+                   value
+              FROM stratcon.loading_dock_metric_numeric_s
+             WHERE whence <= in_start_time
+               AND whence > in_start_time - ('5 minutes'::interval * 2)
+          order BY sid,name,whence
+  loop
+  if (rec.sid is not null and rec.name is not null) and
+     (rec.sid <> r.sid or rec.name <> r.name) then
+     if rec.count_rows > 0 then
+       rec.avg_value := rec.avg_value / rec.count_rows;
+       if run is not null and run > 0 then
+         rec.counter_dev := rise/run;
+       end if;
+       return next rec;
+     end if;
+     rec.avg_value := 0;
+     rec.count_rows := 0;
+     rec.counter_dev := null;
+     rise := 0;
+     run := 0;
+     last_value := null;
+     last_row_whence := null;
+  end if;
+  rec.sid := r.sid;
+  rec.name := r.name;
+  if r.in_window then
+    if r.value is not null then
+      rec.count_rows := rec.count_rows + 1;
+      rec.avg_value := rec.avg_value + coalesce(r.value,0);
+      if     last_row_whence is not null
+         and last_value is not null
+         and last_value <= r.value then
+        rise := rise + (r.value - last_value);
+        run := run + ((extract(epoch from r.whence) +
+                       (extract(milliseconds from r.whence)::integer % 1000)/1000.0) -
+                      (extract(epoch from last_row_whence) +
+                       (extract(milliseconds from last_row_whence)::integer % 1000)/1000.0));
+      end if;
+    end if;
+  end if;
+  if r.value is not null then
+    last_row_whence := r.whence;
+    last_value := r.value;
+  end if;
+end loop;
+return;
+end;
+$$
+    LANGUAGE plpgsql;
+
+
+ALTER FUNCTION stratcon.window_robust_derive(in_start_time timestamp with time zone) OWNER TO reconnoiter;
 
 --
 -- Name: seq_sid; Type: SEQUENCE; Schema: stratcon; Owner: reconnoiter
