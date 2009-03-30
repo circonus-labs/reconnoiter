@@ -29,6 +29,7 @@ typedef struct _noit_log_stream {
   char *name;
   int enabled:1;
   int debug:1;
+  int mode;
   char *path;
   logops_t *ops;
   void *op_ctx;

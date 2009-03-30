@@ -25,7 +25,8 @@ noit_log_stream_t noit_debug = NULL;
 static int
 posix_logio_open(noit_log_stream_t ls) {
   int fd;
-  fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, 0664);
+  ls->mode = 0664;
+  fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
   if(fd < 0) {
     ls->op_ctx = NULL;
     return -1;
@@ -38,7 +39,7 @@ posix_logio_reopen(noit_log_stream_t ls) {
   if(ls->path) {
     int newfd, oldfd;
     oldfd = (int)ls->op_ctx;
-    newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND);
+    newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
     if(newfd >= 0) {
       ls->op_ctx = (void *)newfd;
       if(oldfd >= 0) close(oldfd);
