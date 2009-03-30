@@ -110,7 +110,7 @@ module-online.h:	modules/module-online.xsl
 
 noit_tokenizer.c:	noit_tokenizer.re
 	@re2c -o $@ noit_tokenizer.re
-	@echo "- re2c $<"
+	@echo "- re2c noit_tokenizer.re"
 
 test-noit.conf:	noit.conf.in
 	sed -e "s^%sysconfdir%^`pwd`^g;" \
