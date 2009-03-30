@@ -203,7 +203,7 @@ static int child_main() {
   eventer_add_recurrent(e);
 
   /* Initialize all of our listeners */
-  noit_console_init();
+  noit_console_init(APPNAME);
   noit_jlog_listener_init();
   noit_livestream_listener_init();
 

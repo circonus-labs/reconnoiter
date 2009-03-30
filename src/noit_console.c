@@ -489,7 +489,12 @@ noit_console_close_xml(void *vncct) {
 }
 
 void
-noit_console_init() {
+noit_console_init(const char *progname) {
+  if(progname) {
+    char buff[32];
+    snprintf(buff, sizeof(buff), "%s# ", progname);
+    noit_console_set_default_prompt(buff);
+  }
   el_multi_init();
   signal(SIGTTOU, SIG_IGN);
   noit_register_logops("noit_console", &noit_console_logio_ops);

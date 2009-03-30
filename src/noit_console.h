@@ -105,7 +105,9 @@ typedef struct __noit_console_closure {
   void (*output_cooker)(struct __noit_console_closure *);
 } * noit_console_closure_t;
 
-API_EXPORT(void) noit_console_init();
+API_EXPORT(void) noit_console_init(const char *);
+
+API_EXPORT(void) noit_console_set_default_prompt(const char *);
 
 API_EXPORT(int)
   noit_console_handler(eventer_t e, int mask, void *closure,

@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
     noitL(noit_stderr, "Cannot init eventer %s\n", conf_str);
     exit(-1);
   }
-  noit_console_init();
+  noit_console_init(APPNAME);
   stratcon_realtime_http_init(APPNAME);
   noit_listener_init(APPNAME);
 

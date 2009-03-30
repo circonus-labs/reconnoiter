@@ -53,9 +53,18 @@ noit_console_add_help(const char *topic, console_cmd_func_t topic_func,
   noit_console_state_add_cmd(s, NCSCMD(topic, topic_func, ac, NULL, NULL));
 }
 
+static char *default_prompt = NULL;
+
+void
+noit_console_set_default_prompt(const char *prompt) {
+  char *tofree = default_prompt;
+  default_prompt = strdup(prompt);
+  if(tofree) free(tofree);
+}
 static char *
 noit_console_state_prompt(EditLine *el) {
   static char *tl = "noit# ";
+  if(default_prompt) return default_prompt;
   return tl;
 }
 
