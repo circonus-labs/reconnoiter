@@ -263,7 +263,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
         break;
       case SNMP_NOSUCHOBJECT:
       case SNMP_NOSUCHINSTANCE:
-        SETM(METRIC_GUESS, NULL);
+        SETM(METRIC_STRING, NULL);
         break;
       default:
         snprint_variable(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
