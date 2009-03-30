@@ -34,7 +34,7 @@
 # apt-get install autoconf build-essential \
 		zlib1g-dev uuid-dev libpcre3-dev libssl-dev libpq-dev \
 		libxslt-dev libapr1-dev libaprutil1-dev xsltproc \
-		libncurses5-dev python
+		libncurses5-dev python libssh2-1-dev libsnmp-dev
 # svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
 # cd reconnoiter
 # autoconf

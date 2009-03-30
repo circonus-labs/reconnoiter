@@ -43,6 +43,7 @@
     <loader image="lua" name="lua">
       <config><directory>%modulesluadir%/?.lua</directory></config>
     </loader>
+    <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
     <http image="http">
       <module name="resmon"/>
