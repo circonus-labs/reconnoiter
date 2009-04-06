@@ -10,6 +10,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <math.h>
+#ifdef HAVE_SYS_FILIO_H
+#include <sys/filio.h>
+#endif
 
 #include "noit_module.h"
 #include "noit_check.h"
