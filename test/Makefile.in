@@ -48,7 +48,7 @@ test-noit.csr:	test-noit.key
 	openssl req -key test-noit.key -days 365 -new -out test-noit.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=noit-test"
 
 test-noit.crt:	test-noit.csr test-ca.key test-ca.crt
-	openssl ca -config demo-openssl.cnf -in test-noit.csr -out test-noit.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+	openssl ca -batch -config demo-openssl.cnf -in test-noit.csr -out test-noit.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 test-stratcon.key:
 	openssl genrsa -out test-stratcon.key
@@ -57,7 +57,7 @@ test-stratcon.csr:	test-stratcon.key
 	openssl req -key test-stratcon.key -days 365 -new -out test-stratcon.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=stratcon"
 
 test-stratcon.crt:	test-stratcon.csr test-ca.key
-	openssl ca -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+	openssl ca -batch -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 testcerts:	demoCA-dir test-noit.key test-noit.crt test-stratcon.key test-stratcon.crt test-ca.key test-ca.crt
 
