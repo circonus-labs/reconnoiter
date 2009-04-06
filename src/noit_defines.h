@@ -3,6 +3,10 @@
 
 #include "noit_config.h"
 
+#ifndef __FUNCTION__
+#define __FUNCTION__ __func__
+#endif
+
 #define API_EXPORT(type) extern type
 
 static inline int compare_timeval(struct timeval a, struct timeval b) {
