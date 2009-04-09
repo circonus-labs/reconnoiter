@@ -120,7 +120,8 @@ CREATE TABLE saved_graphs (
     title text,
     last_update timestamp without time zone NOT NULL,
     ts_search_all tsvector,
-    graph_tags text[]
+    graph_tags text[],
+    genesis text
 );
 
 
@@ -2875,6 +2876,13 @@ CREATE INDEX idx_saved_graphs_ts_search_all ON saved_graphs USING btree (ts_sear
 --
 
 CREATE INDEX saved_graphs_dep_sid_name_type ON saved_graphs_dep USING btree (sid, metric_name, metric_type);
+
+
+--
+-- Name: unq_saved_graphs_genesis; Type: INDEX; Schema: prism; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE INDEX unq_saved_graphs_genesis ON saved_graphs USING btree (genesis);
 
 
 SET search_path = stratcon, pg_catalog;
