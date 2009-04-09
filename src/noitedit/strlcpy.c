@@ -22,7 +22,7 @@ size_t strlcat(char *dst, const char *src, size_t size)
 	
 	if(sz >= 0) {
 		strncat(dst, src, sz);
-		dst[sz] = '\0';
+		dst[dl+sz] = '\0';
 	}
 
 	return dl+strlen(src);
