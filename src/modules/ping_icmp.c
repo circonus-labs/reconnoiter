@@ -262,7 +262,7 @@ static int ping_icmp_init(noit_module_t *self) {
           break;
         }
       }
-      noitL(noit_error, "ping_icmp: send buffer set to %d\n", on);
+      noitL(noit_debug, "ping_icmp: send buffer set to %d\n", on);
     }
     else
       noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
