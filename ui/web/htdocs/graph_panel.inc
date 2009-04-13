@@ -274,6 +274,12 @@ function gtool_add_datapoint(d) {
   o.find(".datatitle").html(d.name);
   o.find(".datatitle").attr("title", d.mouse_title);
 
+  o.find(".datatitle").editable(function(value, settings) {
+    graphinfo.datapoints[$(".datatitle").index(this)].name = value;
+    update_current_graph(true);
+    return(value);
+  }, { });
+
   recurse--;
   $("#gtool #dataPoints").append(o.children());
 }
@@ -315,6 +321,7 @@ function fetch_graph_info(id) {
 
 	 });
     }
+
     return false;
   });
 }
