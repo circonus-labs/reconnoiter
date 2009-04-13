@@ -20,6 +20,7 @@
 #include "noit_console.h"
 #include "noit_jlog_listener.h"
 #include "noit_livestream_listener.h"
+#include "noit_capabilities_listener.h"
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "noit_conf_checks.h"
@@ -204,6 +205,7 @@ static int child_main() {
 
   /* Initialize all of our listeners */
   noit_console_init(APPNAME);
+  noit_capabilities_listener_init();
   noit_jlog_listener_init();
   noit_livestream_listener_init();
 
