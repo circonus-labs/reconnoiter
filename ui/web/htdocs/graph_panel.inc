@@ -309,23 +309,6 @@ function fetch_graph_info(id) {
   graphinfo.id = id;
   if(id) $.getJSON("json/graph/info/" + id, refresh_graph_from_json);
   else refresh_graph_from_json({});
-  $("span.blankGraph").click(function() {
-    if(graphinfo.saved) set_current_graph_id('');
-    else if(graphinfo.saved!=undefined && graphinfo.saved==false) {
-    	 confirm("I will forget the current graph.  Are you sure?", function() {
-             $.getJSON('json/graph/forget/' + graphinfo.id,
-	       function (r) {
-	         if(r.error) {
-                   $("#gtool-error").html(r.error).fadeIn('fast');
-                 }
-                 else set_current_graph_id('');
-	       });
-
-	 });
-    }
-
-    return false;
-  });
 }
 -->
 </script>
@@ -440,6 +423,21 @@ $(document).ready(function(){
             gtool_add_guide();
 	  }
         });
+
+        $("span.blankGraph").click(function() {
+          // current graph is saved, so just give a new one.
+          if(graphinfo.saved) set_current_graph_id('');
+
+          // otherwise make sure the user wants to move on, and if so, give a new graph and orphan the unsaved one.
+          else if(graphinfo.saved!=undefined && graphinfo.saved==false) {
+            confirm("I will forget the current graph.  Are you sure?", function() {
+              set_current_graph_id('');
+	    });
+          }
+
+          return false;
+        });
+
         set_current_graph_id('');
         maingraph = $('<div></div>').attr("id", "maingraph").ReconGraph({graphid: graphinfo.id, width: 780, height: 400});
         $("#maingraphHolder").append(maingraph);
