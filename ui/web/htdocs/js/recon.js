@@ -310,6 +310,7 @@ function rpn_eval(value, expr, meta) {
 	},
     refresh:
         function(options) {
+
           if(this.length > 1) {
             this.each(function(i) { $(this).ReconGraphRefresh(options); });
             return this;
@@ -327,7 +328,7 @@ function rpn_eval(value, expr, meta) {
 	
 	  $.ajaxq (this.graphinfo.graphid, { url: url,
 	    data: data,
-            success: (function(o) { return function (r) { r = eval('('+r+')'); o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }}) (this)
+		      success: (function(o) { return function (r) { r = eval('('+r+')'); o.ReconGraphPlot(r, function() { o.ReconGraphRefresh(); }) }}) (this)
 		      });
 
           this.data('__recon', this);
@@ -369,6 +370,9 @@ function rpn_eval(value, expr, meta) {
           if(!r.options.y2axis) r.options.y2axis = {};
           r.options.y2axis.tickFormatter = ytickformatter(ddata, 2);
 	  r.options.xaxis.localtime = true;
+
+	  r.options.stackSets = this.graphinfo.stacks;
+
           doptions = r.options;
 
           var plot = this.flot_plot = $.plot(placeholder, r.data, r.options);
@@ -784,7 +788,10 @@ var worksheet = (function($) {
   }
 
   function zoom_modal (id, gtype) {
-    stream_graph = $('<div></div>').ReconGraph({graphid: id, type: gtype});
+
+  if(id) $.getJSON("json/graph/info/" + id, function (ginfo) {
+
+    stream_graph = $('<div></div>').ReconGraph({graphid: ginfo.id, type: ginfo.type});
     var smod = stream_graph.modal({
       containerId: 'StreamingModalContainer',
       close: 'true',
@@ -800,7 +807,7 @@ var worksheet = (function($) {
         padding: '5px'
       },
     });
-    stream_graph.ReconGraphRefresh({graphid: id});
+    stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
 
 
     var dtool =  $("<div id='mini_ws_datetool'>");
@@ -835,24 +842,26 @@ var worksheet = (function($) {
         streaming = true;
         $(".zoomStream").html('Streaming!').fadeIn('slow');
         $(".stream-log").removeAttr("style").html("stream log_");
-        stream_data(id);
+        stream_data(ginfo.id);
       }
       else if(streaming) {
         streaming = false;
         $('#streambox').html('');
         $(".zoomStream").html('Stream Data').fadeIn('slow');
         $(".stream-log").attr("style", "display:none;");
-        stream_graph.ReconGraphRefresh({graphid: id});
+        stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
       }
     }); //end stream click function
 
     $("#mini_ws_datetool .datechoice").click(function(){
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
-      stream_graph.ReconGraphRefresh({graphid: id, start: time_window_to_seconds($(this).html()), end: ''});
+      stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
     });
-  }
+  });
+  } //end zoom_modal
+	  
 
   function lock_wforms() {
     locked = true;
@@ -935,6 +944,7 @@ var worksheet = (function($) {
         function (j) {
             g.type = j.type;
             g.graphid = j.id;
+	    g.stacks = j.stacks;
             var o = make_ws_graph(g);
             ul.append($('<li/>').append(o));
             o.ReconGraphRefresh();
@@ -962,6 +972,7 @@ var worksheet = (function($) {
         function (j) {
           g.type = j.type;
           g.graphid = j.id;
+          g.stacks = j.stacks;
           var o = make_ws_graph(g);
           var ul = $("ul#worksheet-graphs");
           ul.append($('<li/>').append(o));

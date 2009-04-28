@@ -880,6 +880,16 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
+span.editStacks {
+padding-left:10px;
+float:right;
+color:#660000;
+}
+span.graphStacks {
+float:left;
+border:1px solid #DDDDDD;
+color:#660000;
+}
 .ws-toolbar {
 position: relative;
 margin: 0;

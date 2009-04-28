@@ -24,6 +24,7 @@ function lock_forms() {
         $("input[@name='view']").attr("disabled", "true");
         $("input[@class='graphType']").attr("disabled", "true");
 	$("select[@name='derive']").attr("disabled", "true");
+	$("select[@class='av_stacks']").attr("disabled", "true");
 
 	$("h2#graphTitle").unbind();
 	$(".datatitle").unbind();
@@ -34,8 +35,9 @@ function unlock_forms() {
 	$("input[@name='math1']").removeAttr("disabled");
 	$("input[@name='math2']").removeAttr("disabled");
         $("input[@name='view']").removeAttr("disabled");
-        $("input[@class='graphType']").removeAttr("disabled");
+//        $("input[@class='graphType']").removeAttr("disabled");
 	$("select[@name='derive']").removeAttr("disabled");
+	$("select[@class='av_stacks']").removeAttr("disabled");
 
 	$("h2#graphTitle").editable(function(value, settings) { 
            graphinfo.title = value;
@@ -150,6 +152,7 @@ function update_current_graph(redraw, f) {
            recurse--;
          }, 'json');
 }
+
 function graph_add_datapoint(d) {
   if(!graph_locked("Click 'Edit Graph' to unlock.")){
     if(d.axis == undefined) { d.axis = 'l'; }
@@ -221,17 +224,41 @@ function gtool_add_datapoint(d) {
        update_current_graph(true);
     }
   });
+
   if(!d.hidden){o.find('input[@name="view"]').attr("checked","checked");}
   o.find('input[@name="view"]').change(function(){
     d.hidden = !($(this).attr("checked"));
     update_current_graph(true);
   }).change();
 
+  o.find('select[@id="datastack"]').change(function(){
+      var si = find_in_stacks($(".av_stacks").index(this));
+       if(si != -1) graphinfo.stacks[si.i].splice(si.j, 1);
+
+       if(graphinfo.stacks[ $(this).val() ]) {
+         graphinfo.stacks[ $(this).val()].push($(".av_stacks").index(this));
+	 graphinfo.stacks[ $(this).val()].sort(function(a,b){return a - b});
+       } 
+       update_current_graph(true);
+
+      $(".graphStacks").empty();
+
+      for(var i=0; i<graphinfo.stacks.length; i++) {
+        $(".graphStacks").append('<br>Stack '+i+': ');
+        for(var j=0; j<graphinfo.stacks[i].length; j++){
+            $(".graphStacks").append(graphinfo.datapoints[graphinfo.stacks[i][j]].name + ",");
+        }
+      }
+    }).change();
+
+
   o.find('.deletedatapoint').click(function(){
     if(!locked){
        for(var i=0; i<graphinfo.datapoints.length; i++) {
          if(graphinfo.datapoints[i] == d) {
            graphinfo.datapoints.splice(i,1);
+	   var si = find_in_stacks(i);
+	   if(si != -1) graphinfo.stacks[si.i].splice(si.j, 1);
            break;
          }
        }
@@ -285,8 +312,21 @@ function gtool_add_datapoint(d) {
   recurse--;
   $("#gtool #dataPoints").append(o.children());
 }
+
+function find_in_stacks(dnum) {
+  for(var i=0; i<graphinfo.stacks.length; i++) {
+      for(var j=0; j<graphinfo.stacks[i].length; j++) {
+         if(graphinfo.stacks[i][j] == dnum) {            
+            var r = { i: i, j: j}; return r;
+	 }        
+      }
+  }
+  return -1;
+}
+
 function refresh_graph_from_json(j) {
   graphinfo = j;
+  if(graphinfo.stacks == undefined) graphinfo.stacks = Array();
   if(graphinfo.datapoints == undefined) graphinfo.datapoints = Array();
   $("h2#graphTitle").html(graphinfo.title ? graphinfo.title : 'Graph Title (click to edit)');
 
@@ -295,12 +335,31 @@ function refresh_graph_from_json(j) {
     .filter(function(i){return $(this).val() == graphinfo.type;})
     .attr("checked","checked");
   $("#dataPoints").empty();
+
   for(var i=0; i<graphinfo.datapoints.length; i++) {
     gtool_add_datapoint(graphinfo.datapoints[i]);
   }
+
+  $(".graphStacks").empty();
+  $('.av_stacks').find('option').remove().end().append('<option value="-1">select </option>')
+
+  for(var i=0; i<graphinfo.stacks.length; i++) {
+    $(".graphStacks").append('<br>Stack '+i+': ');	
+    $('.av_stacks').append('<option value="'+i+'">Stack '+i+'</option>');
+
+    for(var j=0; j<graphinfo.stacks[i].length; j++){
+        $(".graphStacks").append(graphinfo.datapoints[graphinfo.stacks[i][j]].name + ",");
+    }
+  }
+
+  $('select[@id="datastack"]').each( function()  {    
+    var si = find_in_stacks($(".av_stacks").index(this));
+    if(si != -1) $(this).val(si.i);
+  });
+
   if(maingraph) {
     if(graphinfo.id) 
-      maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type});
+      maingraph.ReconGraphRefresh({graphid: graphinfo.id, type: graphinfo.type, stacks: graphinfo.stacks});
     else
       maingraph.ReconGraphReset();
   }
@@ -354,9 +413,17 @@ $(document).ready(function(){
 		}
 	});
 
-
+	$(".editStacks").click(function() {
+	       if(!graph_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {           	       
+     	         graphinfo.stacks.push([]);
+		 var ns = graphinfo.stacks.length - 1;
+	         $(".graphStacks").append('<p>Stack '+ns+'</p>');
+		 $('.av_stacks').append('<option value="'+ns+'">Stack '+ns+'</option>');
+  		 update_current_graph(true);
+	       }
+       });       					
+	
         $(".streamData").click(function() {
-
                if(!graph_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {            
                     if(!gstreaming) {
                         gstreaming = true;
@@ -418,7 +485,7 @@ $(document).ready(function(){
         $("#gtool-error").click(function(){
           $("#gtool-error").fadeOut("slow");
         });
-        $("span.addGuide").click(function() {
+        $(".addGuide").click(function() {
 	  if(!locked){
             gtool_add_guide();
 	  }
@@ -489,6 +556,8 @@ $(document).ready(function(){
 	</form>
 	
 </div>
+<span class="graphStacks"></span>
+<div><span class="editStacks">Add Stack Set</span></div>
 <div style="float:right"><span class="addGuide">Add Guide</span></div>
 <br style="clear:right" />
 <div class="error"><p class="error" id="gtool-error"></p></div>
@@ -497,6 +566,7 @@ $(document).ready(function(){
 		<th></th>
 		
 		<th class="data">Data Points</th>
+		<th>Stacking</th>
 		<th>Color</th>
 		<th>Derivative</th>
 		<th>Axis</th>
@@ -511,7 +581,7 @@ $(document).ready(function(){
 <form id="hiddeneditor">
 	<table>
 	<tbody id="guideeditor">
-	<tr>
+	<tr>	        
 		<td><input name="view" type="checkbox" value="1" /></td>
 		<td class="data datatitle"></td>
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
@@ -535,6 +605,7 @@ $(document).ready(function(){
 	<tr>
 		<td><input name="view" type="checkbox" value="1"/></td>
 		<td class="data datatitle"></td>
+		<td><select id="datastack" class="av_stacks"><option value='na'>select</option></select></td>
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
 		<td><select name="derive"><option value="false">no</option><option value="derive">derive</option><option value="counter">counter</option></select></td>
 		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>

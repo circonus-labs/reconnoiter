@@ -9,7 +9,8 @@
         //   [ series1, series2 ... ]
         // where series is either just the data as [ [x1, y1], [x2, y2], ... ]
         // or { data: [ [x1, y1], [x2, y2], ... ], label: "some label" }
-        
+        var orig_series;
+
         var series = [],
             options = {
             // the color theme used for graphs
@@ -119,7 +120,7 @@
         this.getAxes = function() { return axes; };
         this.highlight = highlight;
         this.unhighlight = unhighlight;
-        
+       
         // initialize
         parseOptions(options_);
         setData(data_);
@@ -129,52 +130,114 @@
 
 
         function setData(d) {
+	    orig_series = copyData(d);
+
             series = parseData(d);
-
-	    //	    interpolateData(series);
-
+		    
             fillInSeriesOptions();
-            processData();
+
+	    for (var i = 0; i < series.length; i++) {
+		    var daindex = findLowerInStacks(i);
+		    if(daindex>-1)  stackData(i, daindex);
+	    }
+	    processData();
         }
 
-	function interpolateData(series){
+	//finds the intersection of two line segments, given two points from each.  intersection may be beyond points given
+	function findIntersect(p1,p2,p3,p4){
+	    rx = ( (p1.x*p2.y - p1.y*p2.x)*(p3.x-p4.x) - (p1.x-p2.x)*(p3.x*p4.y-p3.y*p4.x) ) /
+		( (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x) );
 
-	    for (var i = 1; i < series.length; i++) {
-                var data = series[i].data;
-		var bdata = series[i-1].data;
-		console.log(bdata.length);
-		console.log(data.length);
-		for (var j = 0; j < bdata.length; j++) {
+	    ry = ( (p1.x*p2.y-p1.y*p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x*p4.y-p3.y*p4.x) ) /
+ 		( (p1.x-p2.x)*(p3.y-p4.y) - (p1.y-p2.y)*(p3.x-p4.x) );
 
-		    match = binary_search(data, bdata[j][0], bdata.length, 0);
-		    // if(match.index>=0) console.log("found ", bdata[j][0]-3, " at ",match.index,"! see: ",data[match.index][0]);
-		    //		    if( tindex != -1) data[tindex][1] += bdata[j][1];
-		    //		    interpolate
-		    //		    else data.splice(i_top.below +1, 0, interpolate(data[i_top.below], data[i_top.below+1], bdata[j][0]));
+	    var r = { x: rx, y: ry};
+	    return r;
+
+	}
+	function stackData(i, below_index){
+
+	    //if we get a bad index, or if the current series or the one below it are hidden, dont stack
+	    if(!series[i] || !series[below_index] || !series[i].lines.show || !series[below_index].lines.show) return;
+
+	    var bdata = series[below_index].data;
+	    
+	    for (var j = 0; j < series[i].data.length; j++) {
+		if(series[i].data[j][1] && bdata[j][1]){
+		    match = binary_search(bdata, series[i].data[j][0], bdata.length-1, 0);			
+		    
+		    //if the dataset below this one has an exact timestamp match, stack the top dataset by adding it to the one above
+		    if(match.found) { 		
+			series[i].data[j][1] = parseFloat(series[i].data[j][1]) + parseFloat(bdata[match.index][1])+'';
+		    }
+		    else if(match.index >=0 && match.index<bdata.length) {
+			// otherwise stack using the interpolated value from below			
+			var lerp_val;
+			if(series[i].data[j][0]<bdata[match.index][0]) {
+			    if(match.index>0) lerp_val = interpolate(bdata[match.index-1], bdata[match.index], series[i].data[j][0]);
+			    else lerp_val = bdata[0][1];
+			}
+			else if(series[i].data[j][0]>bdata[match.index][0]) {
+			    if( (match.index+1) < bdata.length) lerp_val = interpolate(bdata[match.index], bdata[match.index+1], series[i].data[j][0]);
+			    else lerp_val = bdata[bdata.length-1][1];
+			}			    
+			series[i].data[j][1] = parseFloat(series[i].data[j][1]) + parseFloat(lerp_val) +'';
+		    }//end if interpolating
+		}
+	    }//end for each datapoint in current series
+	}
+
+        //returns the index the value v was found at, or the index below it that is closest, or -1 if it is lower than anything else
+	function binary_search(a, v, high, low) {
+	    if(high < low) { 
+		if(high==-1) {var r = { found: false, index: low}; return r;}
+		else if(low ==a.length) {var r = { found: false, index: high}; return r;}
+		else {
+		    if(Math.abs(a[high][0]-v) < Math.abs(a[low][0]-v)){ var r = { found: false, index: high}; return r;}
+		    else {var r = { found: false, index: low}; return r;}
 		}
 	    }
-        }
-        //returns the index the item was found at, or the index below it that is closest, or -1 if it is lower than anything else
-	function binary_search(a, v, high, low) {
-
-	    if(high <= low) { var r = { found: false, index: low-1}; return r;}
-
-	    middle = parseInt(((high-low)/2)) + low;
-
-            if(middle>=a.length) console.log("high = ", high," low = ",low);
-
+	    middle = parseInt(((high-low)/2))+ low;
+	    if(middle>=a.length) { 
+	    } //bad index, somehow
 	    if(a[middle][0] > v) return binary_search(a, v, middle-1, low);
 	    else if(a[middle][0] < v) return binary_search(a, v, high, middle+1);
 	    else { var r =  { found: true, index: middle}; return r;}
 	}
 
+	//this will lerp to the y value at x=t using points p1 and p2
 	function interpolate(p1, p2, t) {
 	    dx = p2[0] - p1[0]; dy = p2[1] - p1[1];
 	    return (dy/dx)*(t-p1[0]) + p1[1];
 	}
-	
 
-        function parseData(d) {
+	
+	//this will copy data only, ignoring other series variables
+        function copyData(d) {  
+	    var res = [];
+
+	    for (var i = 0; i < d.length; ++i) {
+		var s = {data: []};
+		if(d[i].data) {
+		    for (var j=0; j<d[i].data.length; j++) {
+			s.data[j] = d[i].data[j].slice();
+		    }
+		    for (var v in d[i]) {
+                        if(!s[v]) s[v] = d[i][v];
+		    }
+		}
+		else {		    
+		    for (var j=0; j<d[i].length; j++) {
+			s.data[j] = d[i][j].slice();
+		    }
+		}
+		res.push(s);
+	    }
+	    return res;
+	}
+
+	//this creates a new refernce to data
+	function parseData(d) {
             var res = [];
             for (var i = 0; i < d.length; ++i) {
                 var s;
@@ -185,13 +248,13 @@
                 }
                 else {
                     s = { data: d[i] };
-                }
+                }		
                 res.push(s);
             }
-
+	    
             return res;
         }
-        
+
         function parseOptions(o) {
             $.extend(true, options, o);
 
@@ -887,11 +950,37 @@
             axes.x2axis.scale = plotWidth / (axes.x2axis.max - axes.x2axis.min);
             axes.y2axis.scale = plotHeight / (axes.y2axis.max - axes.y2axis.min);
         }
-        
+
+	function findLowerInStacks (i) {
+	    
+	    var daindex = -1;
+	    if(options.stackSets){
+		for (var j=0; j<options.stackSets.length; j++) {
+		    for (var k =1; k < options.stackSets[j].length; k++){
+			if (options.stackSets[j][k] == i){
+			    for (var m=(k-1); m>=0; m--) {
+				daindex = options.stackSets[j][m];
+				if( series[daindex].lines.show ) {
+				    return daindex;
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	    return -1;
+	}
+	
         function draw() {
             drawGrid();
+	    
+	    var b_series = null;
+
             for (var i = 0; i < series.length; i++) {
-                drawSeries(series[i]);
+		    var daindex = findLowerInStacks(i);
+		    if(daindex>-1)  b_series = series[daindex];	    		
+
+                drawSeries(series[i], b_series);
             }
         }
 
@@ -1090,19 +1179,19 @@
             target.append(html);
         }
 
-        function drawSeries(series) {
+        function drawSeries(series, b_series) {
 
 	    //this module assumed we always want to show something, thus if nothing was set to show
 	    //it plotted lines....sometimes, we dont wanna show anything
             if (series.lines.show) // || (!series.bars.show && !series.points.show))
-                drawSeriesLines(series);
+                drawSeriesLines(series, b_series);
             if (series.bars.show)
                 drawSeriesBars(series);
             if (series.points.show)
                 drawSeriesPoints(series);
         }
         
-        function drawSeriesLines(series) {
+        function drawSeriesLines(series, b_series) {
             function plotLine(data, offset, axisx, axisy, dataManip) {
                 var prev, cur = null, drawx = null, drawy = null;
                 
@@ -1185,20 +1274,36 @@
                 ctx.stroke();
             }
 
-            function plotLineArea(data, axisx, axisy, dataManip) {
+            function plotLineArea(data, axisx, axisy, dataManip, b_series) {
+
                 var prev, cur = null;
-                
+		var bprev, bcur = null;
+
+		//zero negative ymin, then find minimum of that and ymax for bottom
                 var bottom = Math.min(Math.max(0, axisy.min), axisy.max);
                 var top, lastX = 0;
 
                 var areaOpen = false;
-                
+                var pcount = 0;
+		var last_by = (b_series  ? (b_series.data[b_series.data.length-1][1] ? b_series.data[b_series.data.length-1][1] : bottom) : bottom);
+		var first_by = (b_series ? (b_series.data[0][1] ? b_series.data[0][1] : bottom) : bottom);
+
                 for (var i = 0; i < data.length; ++i) {
                     prev = cur;
                     cur = [data[i][0], data[i][1]];
+		    if(b_series){
+			bprev = bcur;
+			bcur = [parseFloat(b_series.data[i][0]), parseFloat(b_series.data[i][1])];
+		    }
+		    else {
+			bprev = axisy.min;
+			bcur = axisy.min;
+		    }
+		    
                     if(dataManip) cur[1] = dataManip(cur[1]);
 
-                    if (areaOpen && prev != null && cur == null) {
+		    //close only if not stacked
+                    if (areaOpen && prev != null && cur == null && !b_series) {
                         // close area
                         ctx.lineTo(axisx.p2c(lastX), axisy.p2c(bottom));
                         ctx.fill();
@@ -1211,6 +1316,9 @@
                         
                     var x1 = prev[0], y1 = prev[1],
                         x2 = cur[0], y2 = cur[1];
+		    var bx1 = bprev[0], by1 = bprev[1],
+			bx2 = bcur[0], by2 = bcur[1];
+
 
                     // clip x values
                     
@@ -1245,7 +1353,7 @@
                     if (!areaOpen) {
                         // open area
                         ctx.beginPath();
-                        ctx.moveTo(axisx.p2c(x1), axisy.p2c(bottom));
+			ctx.moveTo(axisx.p2c(x1), axisy.p2c(first_by));			
                         areaOpen = true;
                     }
                     
@@ -1255,6 +1363,8 @@
                         ctx.lineTo(axisx.p2c(x2), axisy.p2c(axisy.max));
                         continue;
                     }
+		    //if both points are below the ymin, clip the area by drawing only to ymin for both points
+		    //this should not be triggered for a stacked series
                     else if (y1 <= axisy.min && y2 <= axisy.min) {
                         ctx.lineTo(axisx.p2c(x1), axisy.p2c(axisy.min));
                         ctx.lineTo(axisx.p2c(x2), axisy.p2c(axisy.min));
@@ -1269,10 +1379,12 @@
                     // and clip the y values, without shortcutting
                     
                     // clip with ymin
+		    //this should not be triggered for a stacked series
                     if (y1 <= y2 && y1 < axisy.min && y2 >= axisy.min) {
                         x1 = (axisy.min - y1) / (y2 - y1) * (x2 - x1) + x1;
                         y1 = axisy.min;
                     }
+		    //this should not be triggered for a stacked series
                     else if (y2 <= y1 && y2 < axisy.min && y1 >= axisy.min) {
                         x2 = (axisy.min - y1) / (y2 - y1) * (x2 - x1) + x1;
                         y2 = axisy.min;
@@ -1291,6 +1403,8 @@
 
                     // if the x value was changed we got a rectangle
                     // to fill
+		    //this should not be triggered for a stacked series
+
                     if (x1 != x1old) {
                         if (y1 <= axisy.min)
                             top = axisy.min;
@@ -1302,10 +1416,11 @@
                     }
                     
                     // fill the triangles
-                    ctx.lineTo(axisx.p2c(x1), axisy.p2c(y1));
+                    ctx.lineTo(axisx.p2c(x1), axisy.p2c(y1)); 
                     ctx.lineTo(axisx.p2c(x2), axisy.p2c(y2));
 
                     // fill the other rectangle if it's there
+		    //this should not be triggered for a stacked series
                     if (x2 != x2old) {
                         if (y2 <= axisy.min)
                             top = axisy.min;
@@ -1319,11 +1434,22 @@
                     lastX = Math.max(x2, x2old);
                 }
 
-                if (areaOpen) {
-                    ctx.lineTo(axisx.p2c(lastX), axisy.p2c(bottom));
-                    ctx.fill();
-                }
-            }
+		if(areaOpen){
+		    if (!b_series) {
+			ctx.lineTo(axisx.p2c(lastX), axisy.p2c(bottom));
+			ctx.fill();
+		    }
+		    else {
+			ctx.lineTo(axisx.p2c(lastX), axisy.p2c(last_by));
+			for (var i = b_series.data.length -1 ; i>=0 ; i--) {
+			    ctx.lineTo(axisx.p2c(b_series.data[i][0]), axisy.p2c(b_series.data[i][1]));
+			}
+			ctx.fill();
+			ctx.closePath();
+		    }//end if dealing with closing a stacked series
+		}
+
+            } //end plotLineArea
             
             ctx.save();
             ctx.translate(plotOffset.left, plotOffset.top);
@@ -1347,7 +1473,7 @@
             ctx.strokeStyle = series.color;
             setFillStyle(series.lines, series.color);
             if (series.lines.fill)
-                plotLineArea(series.data, series.xaxis, series.yaxis, series.dataManip);
+                plotLineArea(series.data, series.xaxis, series.yaxis, series.dataManip, b_series);
             plotLine(series.data, 0, series.xaxis, series.yaxis, series.dataManip);
             ctx.restore();
         }
@@ -1628,6 +1754,7 @@
         
         // Returns the data item the mouse is over, or null if none is found
         function findNearbyItem(mouseX, mouseY) {
+	    
             var items = []
             var maxDistance = options.grid.mouseActiveRadius,
                 item = null, foundPoint = false;
@@ -1654,7 +1781,7 @@
                     checkpoint = !(series[i].bars.show && !(series[i].lines.show || series[i].points.show)),
                     barLeft = series[i].bars.align == "left" ? 0 : -series[i].bars.barWidth/2,
                     barRight = barLeft + series[i].bars.barWidth,
-                    bj = binary_search(data, mx, data.length, 0),
+                    bj = binary_search(data, mx, data.length-1, 0),
                     j_start, j_end;
                 if(options.grid.hoverXOnly) {
                     j_start = bj.index;

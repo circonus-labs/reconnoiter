@@ -62,7 +62,7 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     //hack for stacking...will ignore datasets and datapoints that are not set or not on the left axis, so
     //each dataset needs to have each point set for this stacking to work
     //non numeric metric are given the value 0 above, so that if stacked, they show up on the plot-line itself
-    if($this->type == "stacked") {
+/*    if($this->type == "stacked") {
         $left_count = 0; $bottom = -1; $index=0;
         foreach($this->sets as $name => $set) {	
             if($this->sets_config[$name]['axis'] == 'left'){
@@ -80,7 +80,7 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
 	    $index++;
         }
     }//end if stacking
-
+*/
     $start_ts = $a[0]['data'][0][0];
     $finish = end($a[0]['data']);
     $finish_ts = $finish[0];
