@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #define MAX_ROWS_AT_ONCE 1000
-#define DEFAULT_SECONDS_BETWEEN_BATCHES 5
+#define DEFAULT_SECONDS_BETWEEN_BATCHES 1
 
 void
 noit_jlog_listener_init() {
