@@ -102,14 +102,22 @@ cleanup_shutdown:
       xmlAddChild(cmds, cnode);
       while(noit_hash_next(sc, &sc_iter, &sc_k, &sc_klen, &sc_data)) {
         xmlNodePtr scnode;
+        char *name_copy, *version = NULL;
         eventer_func_t *f = (eventer_func_t *)sc_data;
 
         snprintf(hexcode, sizeof(hexcode), "0x%08x", *((u_int32_t *)sc_k));
         name = eventer_name_for_callback(*f);
+        name_copy = strdup(name ? name : "[[unknown]]");
+        version = strchr(name_copy, '/');
+        if(version) *version++ = '\0';
+
         scnode = xmlNewNode(NULL, (xmlChar *)"command");
-        xmlSetProp(scnode, (xmlChar *)"name", name ? (xmlChar *)name : NULL);
+        xmlSetProp(scnode, (xmlChar *)"name", (xmlChar *)name_copy);
+        if(version)
+          xmlSetProp(scnode, (xmlChar *)"version", (xmlChar *)version);
         xmlSetProp(scnode, (xmlChar *)"code", (xmlChar *)hexcode);
         xmlAddChild(cnode, scnode);
+        free(name_copy);
       }
     }
 
