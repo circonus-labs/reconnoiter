@@ -18,7 +18,7 @@
 
 void
 noit_jlog_listener_init() {
-  eventer_name_callback("log_transit", noit_jlog_handler);
+  eventer_name_callback("log_transit/1.0", noit_jlog_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
                                  noit_jlog_handler);

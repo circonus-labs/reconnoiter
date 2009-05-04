@@ -21,6 +21,10 @@
 #include "noit_conf.h"
 
 static noit_hash_table listener_commands = NOIT_HASH_EMPTY;
+noit_hash_table *
+noit_listener_commands() {
+  return &listener_commands;
+}
 
 void
 acceptor_closure_free(acceptor_closure_t *ac) {

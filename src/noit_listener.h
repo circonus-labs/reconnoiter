@@ -54,6 +54,10 @@ API_EXPORT(void)
                                  u_int32_t cmd,
                                  eventer_func_t delegate_dispatch);
 
-int noit_control_dispatch(eventer_t, int, void *, struct timeval *);
+API_EXPORT(int)
+  noit_control_dispatch(eventer_t, int, void *, struct timeval *);
+
+API_EXPORT(noit_hash_table *)
+  noit_listener_commands();
 
 #endif

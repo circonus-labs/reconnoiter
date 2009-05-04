@@ -17,6 +17,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
+#include <libxml/xmlsave.h>
 #include <libxml/tree.h>
 
 typedef struct noit_capsvc_closure {
@@ -27,7 +28,7 @@ typedef struct noit_capsvc_closure {
 
 void
 noit_capabilities_listener_init() {
-  eventer_name_callback("capabilities_transit", noit_capabilities_handler);
+  eventer_name_callback("capabilities_transit/1.0", noit_capabilities_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CAPABILITIES_SERVICE,
                                  noit_capabilities_handler);
@@ -56,10 +57,16 @@ cleanup_shutdown:
 
   if(!ac->service_ctx) {
     char vbuff[128];
+    noit_hash_table *lc;
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *k;
+    int klen;
+    void *data;
+
     xmlDocPtr xmldoc;
-    xmlNodePtr head;
-    xmlOutputBufferPtr out;
+    xmlNodePtr root, cmds;
     xmlBufferPtr xmlbuffer;
+    xmlSaveCtxtPtr savectx;
 
     cl = ac->service_ctx = calloc(1, sizeof(*cl));
     /* fill out capabilities */
@@ -67,16 +74,50 @@ cleanup_shutdown:
 
     /* Create an XML Document */
     xmldoc = xmlNewDoc((xmlChar *)"1.0");
-    head = xmlNewDocNode(xmldoc, NULL, (xmlChar *)"noitd_capabilities", NULL);
+    root = xmlNewDocNode(xmldoc, NULL, (xmlChar *)"noitd_capabilities", NULL);
+    xmlDocSetRootElement(xmldoc, root);
 
     /* Fill in the document */
-    xmlNewTextChild(head, NULL, (xmlChar *)"version", (xmlChar *)vbuff);
+    xmlNewTextChild(root, NULL, (xmlChar *)"version", (xmlChar *)vbuff);
+
+    cmds = xmlNewNode(NULL, (xmlChar *)"services");
+    xmlAddChild(root, cmds);
+    lc = noit_listener_commands();
+    while(noit_hash_next(lc, &iter, &k, &klen, &data)) {
+      xmlNodePtr cnode;
+      char hexcode[10];
+      const char *name;
+      eventer_func_t *f = (eventer_func_t *)k;
+      noit_hash_table *sc = (noit_hash_table *)data;
+      noit_hash_iter sc_iter = NOIT_HASH_ITER_ZERO;
+      const char *sc_k;
+      int sc_klen;
+      void *sc_data;
+
+      name = eventer_name_for_callback(*f);
+      cnode = xmlNewNode(NULL, (xmlChar *)"service");
+      xmlSetProp(cnode, (xmlChar *)"name", name ? (xmlChar *)name : NULL);
+      if(*f == ac->dispatch)
+        xmlSetProp(cnode, (xmlChar *)"connected", (xmlChar *)"true");
+      xmlAddChild(cmds, cnode);
+      while(noit_hash_next(sc, &sc_iter, &sc_k, &sc_klen, &sc_data)) {
+        xmlNodePtr scnode;
+        eventer_func_t *f = (eventer_func_t *)sc_data;
+
+        snprintf(hexcode, sizeof(hexcode), "0x%08x", *((u_int32_t *)sc_k));
+        name = eventer_name_for_callback(*f);
+        scnode = xmlNewNode(NULL, (xmlChar *)"command");
+        xmlSetProp(scnode, (xmlChar *)"name", name ? (xmlChar *)name : NULL);
+        xmlSetProp(scnode, (xmlChar *)"code", (xmlChar *)hexcode);
+        xmlAddChild(cnode, scnode);
+      }
+    }
 
     /* Write it out to a buffer and copy it for writing */
     xmlbuffer = xmlBufferCreate();
-    out = xmlOutputBufferCreateBuffer(xmlbuffer, NULL);
-    xmlOutputBufferFlush(out);
-    xmlOutputBufferClose(out);
+    savectx = xmlSaveToBuffer(xmlbuffer, "utf8", 1);
+    xmlSaveDoc(savectx, xmldoc);
+    xmlSaveClose(savectx);
     cl->buff = strdup((const char *)xmlBufferContent(xmlbuffer));
     cl->towrite = xmlBufferLength(xmlbuffer);
 

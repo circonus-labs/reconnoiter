@@ -110,7 +110,7 @@ static logops_t noit_livestream_logio_ops = {
 void
 noit_livestream_listener_init() {
   noit_register_logops("noit_livestream", &noit_livestream_logio_ops);
-  eventer_name_callback("livestream_transit", noit_livestream_handler);
+  eventer_name_callback("livestream_transit/1.0", noit_livestream_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_LIVESTREAM_DATA_FEED,
                                  noit_livestream_handler);
