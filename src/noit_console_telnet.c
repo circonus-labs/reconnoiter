@@ -1671,8 +1671,13 @@ spcset(noit_console_closure_t ncct, int func, cc_t *valp, cc_t **valpp)
 
 void
 ptyflush(noit_console_closure_t ncct) {
+  int written;
   if(ncct->telnet->_pty_fill == 0) return;
-  write(ncct->pty_slave, ncct->telnet->_pty_buf, ncct->telnet->_pty_fill);
+  written = write(ncct->pty_slave, ncct->telnet->_pty_buf,
+                  ncct->telnet->_pty_fill);
+  if(written != ncct->telnet->_pty_fill) {
+    /* We can't do anything useful here... just cope. */
+  }
   ncct->telnet->_pty_fill = 0;
 }
 

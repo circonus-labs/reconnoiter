@@ -1,5 +1,6 @@
 #include "noit_defines.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -40,7 +41,9 @@ static int debug = 0;
 static void usage(const char *progname) {
   printf("Usage for %s:\n", progname);
 #ifdef NOITD_USAGE
-  write(STDOUT_FILENO, NOITD_USAGE, sizeof(NOITD_USAGE)-1);
+  assert(write(STDOUT_FILENO,
+               NOITD_USAGE,
+               sizeof(NOITD_USAGE)-1) == sizeof(NOITD_USAGE)-1);
 #else
   printf("\nError in usage, build problem.\n");
 #endif
@@ -275,7 +278,10 @@ int main(int argc, char **argv) {
 
   setup_mmap();
 
-  chdir("/");
+  if(chdir("/") != 0) {
+    noitL(noit_stderr, "Failed chdir(\"/\"): %s\n", strerror(errno));
+    exit(-1);
+  }
   if(foreground) return child_main();
 
   close(STDIN_FILENO);

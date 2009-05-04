@@ -216,7 +216,10 @@ int external_child(external_data_t *data) {
   nldeb = data->nldeb;
 
   /* switch to / */
-  chdir("/");
+  if(chdir("/") != 0) {
+    noitL(noit_error, "Failed chdir(\"/\"): %s\n", strerror(errno));
+    return -1;
+  }
 
   signal(SIGCHLD, external_sigchld);
   noit_skiplist_init(&active_procs);

@@ -5,6 +5,7 @@
 
 #include "noit_defines.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
 #ifdef HAVE_ALLOCA_H
@@ -420,7 +421,10 @@ socket_error:
         ptyflush(ncct);
       }
       else {
-        write(ncct->pty_slave, sbuf, len);
+        int written;
+        written = write(ncct->pty_slave, sbuf, len);
+        if(written <= 0) goto socket_error;
+        assert(written == len);
       }
     }
     if(buffer) {

@@ -149,7 +149,9 @@ int noit_conf_load(const char *path) {
 
     master_config = new_config;
     xpath_ctxt = xmlXPathNewContext(master_config);
-    if(path != master_config_file) realpath(path, master_config_file);
+    if(path != master_config_file)
+      if(realpath(path, master_config_file) != 0)
+        noitL(noit_error, "realpath failed: %s\n", strerror(errno));
     noit_conf_mark_changed();
     return 0;
   }

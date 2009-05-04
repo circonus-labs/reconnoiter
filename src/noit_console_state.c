@@ -192,7 +192,7 @@ noit_console_generic_apply(noit_console_closure_t ncct,
                            void *closure) {
   int i, j, count;
   char *name, *range;
-  char **nargv, **expanded;
+  char **nargv, **expanded = NULL;
   const char *err;
   int problems = 0;
   if(argc < 3) {

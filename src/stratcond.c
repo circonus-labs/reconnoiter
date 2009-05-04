@@ -1,5 +1,6 @@
 #include "noit_defines.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,7 +33,9 @@ static int debug = 0;
 static void usage(const char *progname) {
   printf("Usage for %s:\n", progname);
 #ifdef STRATCOND_USAGE
-  write(STDOUT_FILENO, STRATCOND_USAGE, sizeof(STRATCOND_USAGE)-1);
+  assert(write(STDOUT_FILENO,
+              STRATCOND_USAGE,
+              sizeof(STRATCOND_USAGE)-1) == sizeof(STRATCOND_USAGE)-1);
 #else
   printf("\nError in usage, build problem.\n");
 #endif
@@ -96,7 +99,10 @@ int main(int argc, char **argv) {
 
   parse_clargs(argc, argv);
 
-  chdir("/");
+  if(chdir("/") != 0) {
+    fprintf(stderr, "cannot chdir(\"/\"): %s\n", strerror(errno));
+    exit(2);
+  }
   if(!foreground) {
     close(STDIN_FILENO);
     close(STDOUT_FILENO);

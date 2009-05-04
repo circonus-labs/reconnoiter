@@ -308,7 +308,7 @@ AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty inet_pton inet_ntop getopt \
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
                  sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
-                 ctype.h unistd.h time.h sys/stat.h sys/event.h libkern/OSAtomic.h \
+                 ctype.h unistd.h time.h pty.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  term.h termio.h termios.h curses.h sys/cdefs.h grp.h netinet/in_systm.h \
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
                  stropts.h sys/stream.h alloca.h sys/wait.h)
