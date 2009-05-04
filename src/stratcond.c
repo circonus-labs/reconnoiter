@@ -17,6 +17,7 @@
 #include "noit_conf.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
+#include "stratcon_iep.h"
 #include "stratcon_realtime_http.h"
 
 #define APPNAME "stratcon"
@@ -155,6 +156,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
+  stratcon_iep_init();
   stratcon_jlog_streamer_init(APPNAME);
 
   /* Write our log out, and setup a watchdog to write it out on change. */
