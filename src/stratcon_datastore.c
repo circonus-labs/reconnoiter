@@ -31,6 +31,11 @@ static const char *metric_insert_text_conf = "/stratcon/database/statements/metr
 static char *config_insert = NULL;
 static const char *config_insert_conf = "/stratcon/database/statements/config";
 
+static struct datastore_onlooker_list {
+  void (*dispatch)(stratcon_datastore_op_t, struct sockaddr *, void *);
+  struct datastore_onlooker_list *next;
+} *onlookers = NULL;
+
 #define GET_QUERY(a) do { \
   if(a == NULL) \
     if(!noit_conf_get_string(NULL, a ## _conf, &(a))) \
@@ -576,6 +581,10 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
   conn_q *cq;
   eventer_t e;
   ds_job_detail *dsjd;
+  struct datastore_onlooker_list *nnode;
+
+  for(nnode = onlookers; nnode; nnode = nnode->next)
+    nnode->dispatch(op,remote,operand);
 
   cq = __get_conn_q_for_remote(remote);
   dsjd = calloc(1, sizeof(*dsjd));
@@ -634,4 +643,15 @@ stratcon_datastore_saveconfig(void *unused) {
   }
   if(cq->dbh) PQfinish(cq->dbh);
   return rv;
+}
+
+void
+stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
+                                               struct sockaddr *, void *)) {
+  struct datastore_onlooker_list *nnode;
+  nnode = calloc(1, sizeof(*nnode));
+  nnode->dispatch = f;
+  nnode->next = onlookers;
+  while(noit_atomic_casptr((void **)&onlookers, nnode, nnode->next) != nnode->next)
+    nnode->next = onlookers;
 }
