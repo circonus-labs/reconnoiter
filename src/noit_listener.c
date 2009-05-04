@@ -80,9 +80,8 @@ noit_listener_acceptor(eventer_t e, int mask,
   if(mask & EVENTER_EXCEPTION) {
  socketfail:
     if(ac) acceptor_closure_free(ac);
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &mask, e);
-    return 0;
+    /* We don't shut down the socket, it's out listener! */
+    return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   }
 
   ac = malloc(sizeof(*ac));
@@ -116,6 +115,7 @@ noit_listener_acceptor(eventer_t e, int mask,
       SSLCONFGET(ciphers, "ciphers");
       ctx = eventer_ssl_ctx_new(SSL_SERVER, cert, key, ca, ciphers);
       if(!ctx) {
+        newe->opset->close(newe->fd, &newmask, e);
         eventer_free(newe);
         goto socketfail;
       }
