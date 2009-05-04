@@ -1,0 +1,91 @@
+<stratcon>
+  <eventer/>
+
+  <logs>
+    <console_output>
+      <outlet name="stderr"/>
+      <log name="error"/>
+      <log name="debug"/>
+      <log name="error/eventer" disabled="true"/>
+      <log name="debug/eventer" disabled="true"/>
+    </console_output>
+  </logs>
+
+  <noits>
+    <config>
+      <!--
+        If we have a connection failure, attempt to reconnect
+        immediately.  Upon failure wait 1000ms (1s) and
+        exponentially backoff up to 900000ms (900s or 15m)
+      -->
+      <reconnect_initial_interval>1000</reconnect_initial_interval>
+      <reconnect_maximum_interval>15000</reconnect_maximum_interval>
+    </config>
+    <sslconfig>
+      <key_file>%sysconfdir%/%PKIPREFIX%stratcon.key</key_file>
+      <certificate_file>%sysconfdir%/%PKIPREFIX%stratcon.crt</certificate_file>
+      <ca_chain>%sysconfdir%/%PKIPREFIX%ca.crt</ca_chain>
+    </sslconfig>
+    <noit address="127.0.0.1" port="34332" />
+  </noits>
+
+  <database>
+    <dbconfig>
+      <host>noit.office.omniti.com</host>
+      <dbname>reconnoiter</dbname>
+      <user>stratcon</user>
+      <password>stratcon</password>
+    </dbconfig>
+    <statements>
+      <findcheck><![CDATA[
+        SELECT remote_address, id
+          FROM stratcon.mv_loading_dock_check_s
+         WHERE sid = $1
+      ]]></findcheck>
+      <check><![CDATA[
+        INSERT INTO stratcon.loading_dock_check_s
+                    (remote_address, whence, sid, id, target, module, name)
+             VALUES ($1, 'epoch'::timestamptz + ($2 || ' seconds')::interval,
+                     stratcon.generate_sid_from_id($3), $3, $4, $5, $6)
+      ]]></check>
+      <status><![CDATA[
+        INSERT INTO stratcon.loading_dock_status_s
+                    ( whence,sid, state, availability,
+                     duration, status)
+             VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                     stratcon.generate_sid_from_id($2), $3, $4, $5, $6)
+      ]]></status>
+      <metric_numeric><![CDATA[
+        INSERT INTO stratcon.loading_dock_metric_numeric_s
+                    (whence, sid, name, value)
+             VALUES ( 'epoch'::timestamptz + ($1 || ' seconds')::interval,
+                     stratcon.generate_sid_from_id($2), $3, $4)
+      ]]></metric_numeric>
+      <metric_text><![CDATA[
+        INSERT INTO stratcon.loading_dock_metric_text_s
+                    ( whence, sid, name,value)
+             VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                     stratcon.generate_sid_from_id($2), $3, $4)
+      ]]></metric_text>
+      <config><![CDATA[
+        SELECT stratcon.update_config
+               ($1, $2, 
+                'epoch'::timestamptz + ($3 || ' seconds')::interval,
+                $4 )
+      ]]></config>
+    </statements>
+  </database>
+
+  <listeners>
+  <consoles type="noit_console">
+    <listener address="/tmp/stratcon">
+      <config><line_protocol>telnet</line_protocol></config>
+    </listener>
+  </consoles>
+  <realtime type="stratcon_realtime_http">
+    <listener address="*" port="80">
+    </listener>
+  </realtime>
+  </listeners>
+
+</stratcon>

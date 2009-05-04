@@ -46,9 +46,10 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console_complete.o \
 	noit_conf.o noit_http.o noit_tokenizer.o \
 	stratcon_realtime_http.o \
-	stratcon_jlog_streamer.o stratcon_datastore.o
+	stratcon_jlog_streamer.o stratcon_datastore.o \
+	stratcon_iep.o
 
-all:	noitd stratcond noit.conf test-noit.conf
+all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
 
 make-subdirs:	serf/.libs/libserf-0.o jlog/libjlog.a
 	for dir in $(SUBS) ; do \
@@ -117,7 +118,7 @@ test-noit.conf:	noit.conf.in
 	sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
-		-e "s^%PKIPREFIX%^`pwd`/../test/test-^g;" < \
+		-e "s^%PKIPREFIX%^../test/test-^g;" < \
 		noit.conf.in > \
 		test-noit.conf
 
@@ -128,6 +129,22 @@ noit.conf:	noit.conf.in
 		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
 		noit.conf.in > \
 		noit.conf
+
+test-stratcon.conf:	stratcon.conf.in
+	sed -e "s^%sysconfdir%^`pwd`^g;" \
+		-e "s^%modulesdir%^`pwd`/modules^g;" \
+		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
+		-e "s^%PKIPREFIX%^../test/test-^g;" < \
+		stratcon.conf.in > \
+		test-stratcon.conf
+
+stratcon.conf:	stratcon.conf.in
+	sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
+		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
+		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
+		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
+		stratcon.conf.in > \
+		stratcon.conf
 
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
