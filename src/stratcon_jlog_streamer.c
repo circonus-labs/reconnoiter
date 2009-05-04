@@ -75,7 +75,7 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
                                    struct timeval *now) {
   struct timeval __now, interval;
   const char *v;
-  u_int32_t min_interval = 1000, max_interval = 60000;
+  u_int32_t min_interval = 1000, max_interval = 8000;
   if(noit_hash_retr_str(ctx->config,
                         "reconnect_initial_interval",
                         strlen("reconnect_initial_interval"),
@@ -188,6 +188,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   if(!jlog_feed_cmd) jlog_feed_cmd = htonl(NOIT_JLOG_DATA_FEED);
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
+    if(write(e->fd, e, 0) == -1)
+      noitL(noit_error, "socket error: %s\n", strerror(errno));
  socket_error:
     ctx->state = WANT_INITIATE;
     ctx->count = 0;
@@ -314,6 +316,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   }
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
 
+  noitL(noit_error, "jlog streamer SSL upgrade failed.\n");
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &mask, e);
   noit_connection_schedule_reattempt(nctx, now);
@@ -327,6 +330,8 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
   eventer_ssl_ctx_t *sslctx;
 
   if(mask & EVENTER_EXCEPTION) {
+    if(write(e->fd, e, 0) == -1)
+      noitL(noit_error, "socket error: %s\n", strerror(errno));
  connect_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);

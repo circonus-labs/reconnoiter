@@ -75,21 +75,26 @@ static int
 stratcon_iep_submitter(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
   struct iep_batch *batch = closure;
+  /* We only play when it is an asynch event */
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+
+  if(mask & EVENTER_ASYNCH_CLEANUP) {
+    /* free all the memory associated with the batch */
+    while(batch->head) {
+      struct noit_line_list *l;
+      l = batch->head;
+      batch->head = l->next;
+      free(l->line);
+      free(l);
+    }
+    free(batch);
+    return 0;
+  }
 
   /* pull from batch and submit */
   noitL(noit_error, "Firing stratcon_iep_submitter on a batch of %d events\n",
         batch->batch_size);
 
-  /* free all the memory associated with the batch */
-  while(batch->head) {
-    struct noit_line_list *l;
-    l = batch->head;
-    batch->head = l->next;
-    free(l->line);
-    free(l);
-  }
-  free(batch);
   return 0;
 }
 
