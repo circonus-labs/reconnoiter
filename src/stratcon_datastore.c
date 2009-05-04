@@ -526,7 +526,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
   conn_q *cq = closure;
   ds_job_detail *current, *last_sp;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
-
+  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
   if(!cq->head) return 0; 
 
  full_monty:
@@ -608,7 +608,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       else if(op == DS_OP_CHKPT)
         e->callback = stratcon_datastore_asynch_execute;
       e->closure = cq;
-      eventer_add(e);
+      eventer_add_asynch(cq->jobq, e);
       break;
   }
 }

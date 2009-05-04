@@ -11,7 +11,7 @@
 #include "noit_conf.h"
 #include "noit_check.h"
 
-#define SWEEP_DELAY { 0L, 10000L } /* 10ms */
+#define SWEEP_DELAY { 0L, 100000L } /* 100ms */
 eventer_jobq_t iep_jobq;
 
 struct noit_line_list {
@@ -118,7 +118,7 @@ stratcon_iep_batch_sweep(eventer_t e, int mask, void *closure,
   newe->callback = stratcon_iep_submitter;
   newe->closure = nbatch;
 
-  eventer_add(newe);
+  eventer_add_asynch(&iep_jobq, newe);
   return 0;
 }
 
