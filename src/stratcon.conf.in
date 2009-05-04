@@ -31,10 +31,10 @@
 
   <database>
     <dbconfig>
-      <host>noit.office.omniti.com</host>
+      <host>localhost</host>
       <dbname>reconnoiter</dbname>
       <user>stratcon</user>
-      <password>stratcon</password>
+      <password>unguessable</password>
     </dbconfig>
     <statements>
       <findcheck><![CDATA[
