@@ -143,7 +143,7 @@ __eventer_jobq_dequeue(eventer_jobq_t *jobq, int should_wait) {
   }
   pthread_mutex_unlock(&jobq->lock);
 
-  job->next = NULL; /* To reduce any confusion */
+  if(job) job->next = NULL; /* To reduce any confusion */
   return job;
 }
 
@@ -168,6 +168,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   eventer_job_t *job = closure;
   job->timeout_triggered = 1;
   job->timeout_event = NULL;
+  noitL(eventer_deb, "%p jobq -> timeout job [%p]\n", pthread_self(), job);
   if(job->inflight) pthread_kill(job->executor, JOBQ_SIGNAL);
   return 0;
 }
@@ -216,6 +217,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       break;
     }
     pthread_setspecific(jobq->activejob, job);
+    noitL(eventer_deb, "%p jobq[%s] -> running job [%p]\n", pthread_self(), jobq->queue_name, job);
 
     /* Mark our commencement */
     gettimeofday(&job->start_time, NULL);
@@ -226,14 +228,16 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       /* This happens if the timeout occurred before we even had the change
        * to pull the job off the queue.  We must be in bad shape here.
        */
+      noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p]\n", pthread_self(), jobq->queue_name, job);
       gettimeofday(&job->finish_time, NULL); /* We're done */
       pthread_mutex_unlock(&job->lock);
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
       eventer_jobq_enqueue(jobq->backq, job);
+      continue;
     }
     pthread_mutex_unlock(&job->lock);
-
+    
     /* Run the job, if we timeout, will be killed with a JOBQ_SIGNAL from
      * the master thread.  We handle the alarm by longjmp'd out back here.
      */
@@ -246,6 +250,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
        */
       if(noit_atomic_cas32(&job->inflight, 1, 0) == 0) {
         if(!job->timeout_triggered) {
+          noitL(eventer_deb, "%p jobq[%s] -> executing [%p]\n", pthread_self(), jobq->queue_name, job);
           job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_WORK,
                                   job->fd_event->closure, &job->start_time);
         }
@@ -253,17 +258,19 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     }
 
     job->inflight = 0;
+    noitL(eventer_deb, "%p jobq[%s] -> finished [%p]\n", pthread_self(), jobq->queue_name, job);
     /* No we know we won't have siglongjmp called on us */
 
     gettimeofday(&job->finish_time, NULL);
     if(job->timeout_event &&
        eventer_remove(job->timeout_event)) {
       eventer_free(job->timeout_event);
-      job->timeout_event = NULL;
     }
+    job->timeout_event = NULL;
 
     if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
       /* We need to cleanup... we haven't done it yet. */
+      noitL(eventer_deb, "%p jobq[%s] -> cleanup [%p]\n", pthread_self(), jobq->queue_name, job);
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
     }
