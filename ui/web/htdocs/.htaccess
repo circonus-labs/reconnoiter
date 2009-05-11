@@ -1,5 +1,5 @@
 RewriteEngine On
-RewriteBase /reconnoiter/
+#RewriteBase /reconnoiter/
 RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ datapoint_browse_json.php?l1=$1&l2=$2&l3=$3&l4=$4 [PT,QSA]
 RewriteRule ^json/ds/([^/]+)/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ datapoint_browse_json.php?l1=$1&l2=$2&l3=$3&l4=$4&l5=$5 [PT,QSA]
 RewriteRule ^json/templates/([^/]+)/([^/]+)/([^/]+)$ template_browse_json.php?l1=$1&l2=$2&l3=$3 [PT,QSA]
