@@ -80,6 +80,28 @@ static logops_t posix_logio_ops = {
 };
 
 static int
+jlog_logio_reopen(noit_log_stream_t ls) {
+  char **subs;
+  int i;
+  /* reopening only has the effect of removing temporary subscriptions */
+  /* (they start with ~ in our hair-brained model */
+
+  if(jlog_ctx_list_subscribers(ls->op_ctx, &subs) == -1) {
+    noitL(noit_error, "Cannot list subscribers: %s\n",
+          jlog_ctx_err_string(ls->op_ctx));
+    return 0;
+  }
+
+  for(i=0;subs[i];i++)
+    if(subs[i][0] == '~')
+      if(jlog_ctx_remove_subscriber(ls->op_ctx, subs[i]) == -1)
+        noitL(noit_error, "Cannot remove subscriber '%s': %s\n",
+              subs[i], jlog_ctx_err_string(ls->op_ctx));
+
+  jlog_ctx_list_subscribers_dispose(ls->op_ctx, subs);
+  return 0;
+}
+static int
 jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub;
   jlog_ctx *log = NULL;
@@ -125,10 +147,8 @@ jlog_logio_open(noit_log_stream_t ls) {
       jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
   }
   ls->op_ctx = log;
-  return 0;
-}
-static int
-jlog_logio_reopen(noit_log_stream_t ls) {
+  /* We do this to clean things up */
+  jlog_logio_reopen(ls);
   return 0;
 }
 static int

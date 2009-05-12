@@ -29,6 +29,16 @@
     <noit address="127.0.0.1" port="34332" />
   </noits>
 
+  <iep disable="false"> <!-- false the default -->
+    <start directory="%iepdbdir%"
+           command="%iepbindir%/run-iep.sh" />
+    <queries>
+      <query id="ce6bf8d2-3dd7-11de-a45c-a7df160cba9e" topic="status">
+        select * from NoitStatus
+      </query>
+    </queries>
+  </iep>
+
   <database>
     <dbconfig>
       <host>localhost</host>

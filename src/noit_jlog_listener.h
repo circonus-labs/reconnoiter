@@ -10,6 +10,7 @@
 #include "eventer/eventer.h"
 
 #define NOIT_JLOG_DATA_FEED 0xda7afeed
+#define NOIT_JLOG_DATA_TEMP_FEED 0x7e66feed
 
 API_EXPORT(void)
   noit_jlog_listener_init(void);

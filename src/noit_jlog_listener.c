@@ -14,7 +14,9 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #define MAX_ROWS_AT_ONCE 1000
-#define DEFAULT_SECONDS_BETWEEN_BATCHES 1
+#define DEFAULT_SECONDS_BETWEEN_BATCHES 10
+
+static noit_atomic32_t tmpfeedcounter = 0;
 
 void
 noit_jlog_listener_init() {
@@ -22,10 +24,14 @@ noit_jlog_listener_init() {
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
                                  noit_jlog_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_JLOG_DATA_TEMP_FEED,
+                                 noit_jlog_handler);
 }
 
 typedef struct {
   jlog_ctx *jlog;
+  char *subscriber;
   jlog_id chkpt;
   jlog_id start;
   jlog_id finish;
@@ -42,7 +48,14 @@ noit_jlog_closure_alloc(void) {
 
 void
 noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
-  if(jcl->jlog) jlog_ctx_close(jcl->jlog);
+  if(jcl->jlog) {
+    if(jcl->subscriber) {
+      if(jcl->subscriber[0] == '~')
+        jlog_ctx_remove_subscriber(jcl->jlog, jcl->subscriber);
+      free(jcl->subscriber);
+    }
+    jlog_ctx_close(jcl->jlog);
+  }
   free(jcl);
 }
 
@@ -111,7 +124,8 @@ noit_jlog_thread_main(void *e_vptr) {
 
   while(1) {
     jlog_id client_chkpt;
-    int sleeptime = DEFAULT_SECONDS_BETWEEN_BATCHES;
+    int sleeptime = (ac->cmd == NOIT_JLOG_DATA_TEMP_FEED) ?
+                      1 : DEFAULT_SECONDS_BETWEEN_BATCHES;
     jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
     if(jcl->count > MAX_ROWS_AT_ONCE) {
@@ -183,7 +197,7 @@ socket_error:
   if(!ac->service_ctx) {
     noit_log_stream_t ls;
     const char *logname;
-    char path[PATH_MAX], *sub;
+    char path[PATH_MAX], subscriber[32], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
     if(!noit_hash_retr_str(ac->config,
                            "log_transit_feed_name",
@@ -203,10 +217,18 @@ socket_error:
             logname);
       goto socket_error;
     }
-    if(!ac->remote_cn) {
-      noitL(noit_error, "jlog transit started to unidentified party.\n");
-      goto socket_error;
+    if(ac->cmd == NOIT_JLOG_DATA_FEED) {
+      if(!ac->remote_cn) {
+        noitL(noit_error, "jlog transit started to unidentified party.\n");
+        goto socket_error;
+      }
+      strlcpy(subscriber, ac->remote_cn, sizeof(subscriber));
     }
+    else {
+      snprintf(subscriber, sizeof(subscriber),
+               "~%07d", noit_atomic_inc32(&tmpfeedcounter));
+    }
+    jcl->subscriber = strdup(subscriber);
 
     strlcpy(path, ls->path, sizeof(path));
     sub = strchr(path, '(');
@@ -220,8 +242,12 @@ socket_error:
     }
 
     jcl->jlog = jlog_new(path);
-    if(jlog_ctx_open_reader(jcl->jlog, ac->remote_cn) == -1) {
-      noitL(noit_error, "jlog reader[%s] error: %s\n", ac->remote_cn,
+    if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
+      if(jlog_ctx_add_subscriber(jcl->jlog, jcl->subscriber, JLOG_END) == -1)
+        noitL(noit_error, "jlog reader[%s] error: %s\n", jcl->subscriber,
+              jlog_ctx_err_string(jcl->jlog));
+    if(jlog_ctx_open_reader(jcl->jlog, jcl->subscriber) == -1) {
+      noitL(noit_error, "jlog reader[%s] error: %s\n", jcl->subscriber,
             jlog_ctx_err_string(jcl->jlog));
       goto socket_error;
     }

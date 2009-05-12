@@ -429,6 +429,15 @@ stratcon_database_connect(conn_q *cq) {
   int klen;
   noit_hash_table *t;
 
+  dsn[0] = '\0';
+  t = noit_conf_get_hash(NULL, "/stratcon/database/dbconfig");
+  while(noit_hash_next_str(t, &iter, &k, &klen, &v)) {
+    if(dsn[0]) strlcat(dsn, " ", sizeof(dsn));
+    strlcat(dsn, k, sizeof(dsn));
+    strlcat(dsn, "=", sizeof(dsn));
+    strlcat(dsn, v, sizeof(dsn));
+  }
+
   if(cq->dbh) {
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
     PQreset(cq->dbh);
@@ -438,14 +447,6 @@ stratcon_database_connect(conn_q *cq) {
     return -1;
   }
 
-  dsn[0] = '\0';
-  t = noit_conf_get_hash(NULL, "/stratcon/database/dbconfig");
-  while(noit_hash_next_str(t, &iter, &k, &klen, &v)) {
-    if(dsn[0]) strlcat(dsn, " ", sizeof(dsn));
-    strlcat(dsn, k, sizeof(dsn));
-    strlcat(dsn, "=", sizeof(dsn));
-    strlcat(dsn, v, sizeof(dsn));
-  }
   cq->dbh = PQconnectdb(dsn);
   if(!cq->dbh) return -1;
   if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
@@ -523,6 +524,7 @@ stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
 int
 stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
                                   struct timeval *now) {
+  int i;
   conn_q *cq = closure;
   ds_job_detail *current, *last_sp;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
@@ -531,9 +533,12 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
 
  full_monty:
   /* Make sure we have a connection */
+  i = 1;
   while(stratcon_database_connect(cq)) {
     noitL(noit_error, "Error connecting to database\n");
-    sleep(1);
+    sleep(i);
+    i *= 2;
+    i = MIN(i, 16);
   }
 
   current = cq->head; 

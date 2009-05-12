@@ -1,0 +1,27 @@
+#!/bin/sh
+
+JAVA=@JAVA@
+JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
+	esper-3.0.0.jar log4j-1.2.15.jar \
+	spring-beans-2.5.5.jar spring-context-2.5.5.jar"
+
+DIRS=". lib @prefix@/java"
+CP=
+
+for jar in $JARS
+do
+	found=
+	for dir in $DIRS
+	do
+		if [ -r "$dir/$jar" ]; then
+			found="$dir/$jar"
+			CP="$CP:$found"
+			break
+		fi
+	done
+	if [ -z "$found" ]; then
+		echo "Cannot find $jar" 2>1
+		exit
+	fi
+done
+exec $JAVA -cp $CP com.omniti.reconnoiter.IEPEngine

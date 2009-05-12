@@ -38,10 +38,10 @@ static void
 _eventer_ssl_error(const char *f, int l) {
   unsigned long err;
   char buf[120]; /* ERR_error_string(3): buf must be at least 120 bytes */
-  noitL(noit_error, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
+  noitL(eventer_err, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
   while((err = ERR_get_error()) != 0) {
     ERR_error_string(err, buf);
-    noitL(noit_error, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
+    noitL(eventer_err, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
   }
 }
 
@@ -67,7 +67,7 @@ tmp_rsa_cb(SSL *ssl, int export, int keylen) {
     BIO *out = BIO_new_file(tmpkeyfile, "r");
     if(!out ||
        !PEM_write_bio_RSAPrivateKey(out, tmpkey, NULL, NULL, 0, 0, NULL)) {
-      noitL(noit_error, "Could not save temporary RSA key to %s\n", tmpkeyfile);
+      noitL(eventer_err, "Could not save temporary RSA key to %s\n", tmpkeyfile);
     } else {
       tmpkeyfile_time = time(NULL);
     }
@@ -117,7 +117,7 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
      (v_res == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE)) {
     if(!strcmp(opt_no_ca, "true")) ok = 1;
     else {
-      noitL(noit_error, "SSL client cert invalid: %s\n",
+      noitL(eventer_err, "SSL client cert invalid: %s\n",
             X509_verify_cert_error_string(v_res));
       ok = 0;
       goto set_out;
@@ -127,7 +127,7 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
   if(v_res != 0) {
     if(!strcmp(ignore_dates, "true")) ok = 1;
     else {
-      noitL(noit_error, "SSL client cert is %s valid.\n",
+      noitL(eventer_err, "SSL client cert is %s valid.\n",
             (v_res < 0) ? "not yet" : "no longer");
       ok = 0;
       goto set_out;
@@ -355,7 +355,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       errno = EAGAIN;
       break;
     default:
-      noitL(noit_error, "SSL rw error: %d\n", sslerror);
+      noitL(eventer_err, "SSL rw error: %d\n", sslerror);
       eventer_ssl_error();
       errno = EIO;
   }
@@ -373,18 +373,14 @@ eventer_SSL_connect(eventer_t e, int *mask) {
 static int
 eventer_SSL_read(int fd, void *buffer, size_t len, int *mask, void *closure) {
   int rv;
-  noitL(noit_debug, "SSL_read(%d) wants %ld bytes\n", fd, (long int)len);
   rv = eventer_SSL_rw(SSL_OP_READ, fd, buffer, len, mask, closure);
-  noitL(noit_debug, "SSL_read(%d) wanted %ld bytes, got return value %d\n", fd, (long int)len, rv);
   return rv;
 }
 static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  noitL(noit_debug, "SSL_write(%d) wants %ld bytes\n", fd, (long int)len);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  noitL(noit_debug, "SSL_write(%d) wanted %ld bytes, got return value %d\n", fd, (long int)len, rv);
   return rv;
 }
 

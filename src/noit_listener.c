@@ -367,7 +367,7 @@ socket_error:
     return 0;
   }
 
-  cmd = ntohl(cmd);
+  ac->cmd = ntohl(cmd);
   /* Lookup cmd and dispatch */
   if(noit_hash_retrieve(&listener_commands,
                         (char *)&ac->dispatch, sizeof(ac->dispatch),
@@ -375,7 +375,7 @@ socket_error:
     void *vfunc;
     delegation_table = (noit_hash_table *)vdelegation_table;
     if(noit_hash_retrieve(delegation_table,
-                          (char *)&cmd, sizeof(cmd), &vfunc)) {
+                          (char *)&ac->cmd, sizeof(ac->cmd), &vfunc)) {
       e->callback = *((eventer_func_t *)vfunc);
       return e->callback(e, mask, closure, now);
     }

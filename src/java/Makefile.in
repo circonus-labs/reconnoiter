@@ -1,0 +1,59 @@
+.SUFFIXES: .re .c
+
+JAVA=@JAVA@
+JAVAC=@JAVAC@
+JAR=@JAR@
+INSTALL=@INSTALL@
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+libdir=@libdir@
+javalibdir=@prefix@/java
+includedir=${prefix}/include
+libexecdir=@libexecdir@
+datarootdir = @datarootdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+docdir=${prefix}/@docdir@
+sysconfdir=@sysconfdir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+
+JAVA=com/omniti/reconnoiter/AMQBrokerSingleton.java \
+	com/omniti/reconnoiter/AMQListener.java \
+	com/omniti/reconnoiter/AMQOutput.java \
+	com/omniti/reconnoiter/event/NoitEvent.java \
+	com/omniti/reconnoiter/event/StatusEvent.java \
+	com/omniti/reconnoiter/event/StratconQuery.java \
+	com/omniti/reconnoiter/event/StratconQueryStop.java \
+	com/omniti/reconnoiter/IEPEngine.java \
+	com/omniti/reconnoiter/StratconMessage.java
+
+SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.0.0.jar \
+	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar
+
+all:	reconnoiter.jar
+	@chmod 755 run-iep.sh
+
+reconnoiter.jar:	$(JAVA)
+	@echo "- compiling files"
+	@$(JAVAC) -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
+	@echo "- creating jar"
+	@$(JAR) cvf $@ `find com -name \*.class`
+
+install:	all
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
+	for jar in $(SUPPORT) ; do \
+		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
+	done
+	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
+
+clean:
+	find com -name \*.class -exec rm {} \;
+	rm -f reconnoiter.jar
+	rm -f run-iep.sh
+

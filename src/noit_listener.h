@@ -28,6 +28,7 @@ typedef struct {
   noit_hash_table *config;
   void *service_ctx;
   eventer_func_t dispatch;
+  u_int32_t cmd;
 } acceptor_closure_t;
 
 typedef struct {

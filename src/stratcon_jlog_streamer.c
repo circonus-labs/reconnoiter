@@ -8,7 +8,6 @@
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
-#include "jlog/jlog.h"
 #include "noit_jlog_listener.h"
 #include "stratcon_datastore.h"
 #include "stratcon_jlog_streamer.h"
@@ -27,31 +26,18 @@
 
 noit_hash_table noits = NOIT_HASH_EMPTY;
 
-typedef struct jlog_streamer_ctx_t {
-  int bytes_expected;
-  int bytes_read;
-  char *buffer;         /* These guys are for doing partial reads */
-
-  enum {
-    WANT_INITIATE = 0,
-    WANT_COUNT = 1,
-    WANT_HEADER = 2,
-    WANT_BODY = 3,
-    WANT_CHKPT = 4,
-  } state;
-  int count;            /* Number of jlog messages we need to read */
-  struct {
-    jlog_id   chkpt;
-    u_int32_t tv_sec;
-    u_int32_t tv_usec;
-    u_int32_t message_len;
-  } header;
-} jlog_streamer_ctx_t;
-
 static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
 jlog_streamer_ctx_t *
-jlog_streamer_ctx_alloc(void) {
+stratcon_jlog_streamer_datastore_ctx_alloc(void) {
+  jlog_streamer_ctx_t *ctx;
+  ctx = stratcon_jlog_streamer_ctx_alloc();
+  ctx->jlog_feed_cmd = htonl(NOIT_JLOG_DATA_FEED);
+  ctx->push = stratcon_datastore_push;
+  return ctx;
+}
+jlog_streamer_ctx_t *
+stratcon_jlog_streamer_ctx_alloc(void) {
   jlog_streamer_ctx_t *ctx;
   ctx = calloc(1, sizeof(*ctx));
   return ctx;
@@ -179,13 +165,10 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
 int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
-  static u_int32_t jlog_feed_cmd = 0;
   noit_connection_ctx_t *nctx = closure;
   jlog_streamer_ctx_t *ctx = nctx->consumer_ctx;
   int len;
   jlog_id n_chkpt;
-
-  if(!jlog_feed_cmd) jlog_feed_cmd = htonl(NOIT_JLOG_DATA_FEED);
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
     if(write(e->fd, e, 0) == -1)
@@ -206,13 +189,14 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   while(1) {
     switch(ctx->state) {
       case WANT_INITIATE:
-        len = e->opset->write(e->fd, &jlog_feed_cmd, sizeof(&jlog_feed_cmd),
+        len = e->opset->write(e->fd, &ctx->jlog_feed_cmd,
+                              sizeof(&ctx->jlog_feed_cmd),
                               &mask, e);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
           goto socket_error;
         }
-        if(len != sizeof(jlog_feed_cmd)) {
+        if(len != sizeof(ctx->jlog_feed_cmd)) {
           noitL(noit_error, "short write on initiating stream.\n");
           goto socket_error;
         }
@@ -245,7 +229,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
-        stratcon_datastore_push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
+        ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
         ctx->count--;
@@ -256,7 +240,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           memcpy(completion_e, e, sizeof(*e));
           completion_e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = WANT_CHKPT;
-          stratcon_datastore_push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
+          ctx->push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
           noitL(noit_debug, "Pushing batch asynch...\n");
           return 0;
         } else
@@ -512,7 +496,8 @@ void
 stratcon_jlog_streamer_reload(const char *toplevel) {
   stratcon_streamer_connection(toplevel, NULL,
                                stratcon_jlog_recv_handler,
-                               (void *(*)())jlog_streamer_ctx_alloc, NULL,
+                               (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
+                               NULL,
                                jlog_streamer_ctx_free);
 }
 

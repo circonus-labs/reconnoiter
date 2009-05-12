@@ -225,11 +225,18 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     /* Safely check and handle if we've timed out while in queue */
     pthread_mutex_lock(&job->lock);
     if(job->timeout_triggered) {
+      struct timeval diff, diff2;
       /* This happens if the timeout occurred before we even had the change
        * to pull the job off the queue.  We must be in bad shape here.
        */
       noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p]\n", pthread_self(), jobq->queue_name, job);
       gettimeofday(&job->finish_time, NULL); /* We're done */
+      sub_timeval(job->finish_time, job->fd_event->whence, &diff);
+      sub_timeval(job->finish_time, job->create_time, &diff2);
+      noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p] -%0.6f (%0.6f)\n",
+            pthread_self(), jobq->queue_name, job,
+            (float)diff.tv_sec + (float)diff.tv_usec/1000000.0,
+            (float)diff2.tv_sec + (float)diff2.tv_usec/1000000.0);
       pthread_mutex_unlock(&job->lock);
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);

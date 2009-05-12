@@ -10,6 +10,7 @@
 #include <assert.h>
 
 static struct timeval *eventer_impl_epoch = NULL;
+static int EVENTER_DEBUGGING = 0;
 
 #ifdef HAVE_KQUEUE
 extern struct _eventer_impl eventer_kqueue_impl;
@@ -56,6 +57,13 @@ int eventer_impl_propset(const char *key, const char *value) {
     }
     return 0;
   }
+  else if(!strcasecmp(key, "debugging")) {
+    if(strcmp(value, "0")) {
+      EVENTER_DEBUGGING = 1;
+      noitL(noit_error, "Enabling debugging from property\n");
+    }
+    return 0;
+  }
   return -1;
 }
 
@@ -72,7 +80,20 @@ int eventer_get_epoch(struct timeval *epoch) {
 int eventer_impl_init() {
   int i;
   eventer_t e;
+  char *evdeb;
 
+  evdeb = getenv("EVENTER_DEBUGGING");
+  if(evdeb) {
+    if(strcmp(evdeb, "0")) {
+      /* Set to anything but "0" turns debugging on */
+      EVENTER_DEBUGGING = 1;
+      noitL(noit_error, "Disabling eventer debugging from environment\n");
+    }
+    else {
+      EVENTER_DEBUGGING = 1;
+      noitL(noit_error, "Enabling eventer debugging from environment\n");
+    }
+  }
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
 
@@ -103,7 +124,9 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   job = calloc(1, sizeof(*job));
   job->fd_event = e;
   gettimeofday(&job->create_time, NULL);
-  if(e->whence.tv_sec) {
+  /* If we're debugging the eventer, these cross thread timeouts will
+   * make it impossible for us to slowly trace an asynch job. */
+  if(!EVENTER_DEBUGGING && e->whence.tv_sec) {
     job->timeout_event = eventer_alloc();
     memcpy(&job->timeout_event->whence, &e->whence, sizeof(e->whence));
     job->timeout_event->mask = EVENTER_TIMER;
