@@ -38,11 +38,11 @@ typedef struct realtime_recv_ctx_t {
   char *buffer;         /* These guys are for doing partial reads */
 
   enum {
-    WANT_INITIATE = 0,
-    WANT_SEND_INTERVAL = 1,
-    WANT_SEND_UUID = 2,
-    WANT_HEADER = 3,
-    WANT_BODY = 4,
+    REALTIME_HTTP_WANT_INITIATE = 0,
+    REALTIME_HTTP_WANT_SEND_INTERVAL = 1,
+    REALTIME_HTTP_WANT_SEND_UUID = 2,
+    REALTIME_HTTP_WANT_HEADER = 3,
+    REALTIME_HTTP_WANT_BODY = 4,
   } state;
   int count;            /* Number of jlog messages we need to read */
   noit_http_session_ctx *ctx;
@@ -248,7 +248,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
  socket_error:
-    ctx->state = WANT_INITIATE;
+    ctx->state = REALTIME_HTTP_WANT_INITIATE;
     ctx->count = 0;
     ctx->bytes_read = 0;
     ctx->bytes_written = 0;
@@ -288,29 +288,29 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
     u_int32_t net_body_len;
 
     switch(ctx->state) {
-      case WANT_INITIATE:
+      case REALTIME_HTTP_WANT_INITIATE:
         full_nb_write(&livestream_cmd, sizeof(livestream_cmd));
-        ctx->state = WANT_SEND_INTERVAL;
-      case WANT_SEND_INTERVAL:
+        ctx->state = REALTIME_HTTP_WANT_SEND_INTERVAL;
+      case REALTIME_HTTP_WANT_SEND_INTERVAL:
         nint = htonl(ctx->rt->interval);
         full_nb_write(&nint, sizeof(nint));
-        ctx->state = WANT_SEND_UUID;
-      case WANT_SEND_UUID:
+        ctx->state = REALTIME_HTTP_WANT_SEND_UUID;
+      case REALTIME_HTTP_WANT_SEND_UUID:
         uuid_unparse_lower(ctx->rt->checkid, uuid_str);
         full_nb_write(uuid_str, 36);
-        ctx->state = WANT_HEADER;
-      case WANT_HEADER:
+        ctx->state = REALTIME_HTTP_WANT_HEADER;
+      case REALTIME_HTTP_WANT_HEADER:
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&net_body_len, ctx->buffer, sizeof(u_int32_t));
         ctx->body_len = ntohl(net_body_len);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = WANT_BODY;
+        ctx->state = REALTIME_HTTP_WANT_BODY;
         break;
-      case WANT_BODY:
+      case REALTIME_HTTP_WANT_BODY:
         FULLREAD(e, ctx, ctx->body_len);
         if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer)) goto socket_error;
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = WANT_HEADER;
+        ctx->state = REALTIME_HTTP_WANT_HEADER;
         break;
     }
   }

@@ -40,11 +40,11 @@ typedef struct jlog_streamer_ctx_t {
   char *buffer;         /* These guys are for doing partial reads */
 
   enum {
-    WANT_INITIATE = 0,
-    WANT_COUNT = 1,
-    WANT_HEADER = 2,
-    WANT_BODY = 3,
-    WANT_CHKPT = 4,
+    JLOG_STREAMER_WANT_INITIATE = 0,
+    JLOG_STREAMER_WANT_COUNT = 1,
+    JLOG_STREAMER_WANT_HEADER = 2,
+    JLOG_STREAMER_WANT_BODY = 3,
+    JLOG_STREAMER_WANT_CHKPT = 4,
   } state;
   int count;            /* Number of jlog messages we need to read */
   struct {

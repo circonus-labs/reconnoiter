@@ -174,7 +174,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     if(write(e->fd, e, 0) == -1)
       noitL(noit_error, "socket error: %s\n", strerror(errno));
  socket_error:
-    ctx->state = WANT_INITIATE;
+    ctx->state = JLOG_STREAMER_WANT_INITIATE;
     ctx->count = 0;
     ctx->bytes_read = 0;
     ctx->bytes_expected = 0;
@@ -188,7 +188,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   while(1) {
     switch(ctx->state) {
-      case WANT_INITIATE:
+      case JLOG_STREAMER_WANT_INITIATE:
         len = e->opset->write(e->fd, &ctx->jlog_feed_cmd,
                               sizeof(&ctx->jlog_feed_cmd),
                               &mask, e);
@@ -200,20 +200,20 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           noitL(noit_error, "short write on initiating stream.\n");
           goto socket_error;
         }
-        ctx->state = WANT_COUNT;
+        ctx->state = JLOG_STREAMER_WANT_COUNT;
         break;
 
-      case WANT_COUNT:
+      case JLOG_STREAMER_WANT_COUNT:
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&ctx->count, ctx->buffer, sizeof(u_int32_t));
         ctx->count = ntohl(ctx->count);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = WANT_HEADER;
+        ctx->state = JLOG_STREAMER_WANT_HEADER;
         break;
 
-      case WANT_HEADER:
+      case JLOG_STREAMER_WANT_HEADER:
         if(ctx->count == 0) {
-          ctx->state = WANT_COUNT;
+          ctx->state = JLOG_STREAMER_WANT_COUNT;
           break;
         }
         FULLREAD(e, ctx, sizeof(ctx->header));
@@ -224,10 +224,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->header.tv_usec = ntohl(ctx->header.tv_usec);
         ctx->header.message_len = ntohl(ctx->header.message_len);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = WANT_BODY;
+        ctx->state = JLOG_STREAMER_WANT_BODY;
         break;
 
-      case WANT_BODY:
+      case JLOG_STREAMER_WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
         ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
@@ -239,15 +239,15 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           completion_e = eventer_alloc();
           memcpy(completion_e, e, sizeof(*e));
           completion_e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
-          ctx->state = WANT_CHKPT;
+          ctx->state = JLOG_STREAMER_WANT_CHKPT;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
           noitL(noit_debug, "Pushing batch asynch...\n");
           return 0;
         } else
-          ctx->state = WANT_HEADER;
+          ctx->state = JLOG_STREAMER_WANT_HEADER;
         break;
 
-      case WANT_CHKPT:
+      case JLOG_STREAMER_WANT_CHKPT:
         noitL(noit_debug, "Pushing checkpoint: [%u/%u]\n",
               ctx->header.chkpt.log, ctx->header.chkpt.marker);
         n_chkpt.log = htonl(ctx->header.chkpt.log);
@@ -264,7 +264,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           noitL(noit_error, "short write on checkpointing stream.\n");
           goto socket_error;
         }
-        ctx->state = WANT_COUNT;
+        ctx->state = JLOG_STREAMER_WANT_COUNT;
         break;
     }
   }
