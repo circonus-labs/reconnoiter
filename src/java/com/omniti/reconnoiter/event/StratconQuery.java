@@ -35,9 +35,6 @@ public class StratconQuery extends StratconMessage {
     }
     if(name == null) name = "default";
     if(uuid == null) uuid = UUID.randomUUID();
-System.err.println("In StratconQuery Constructor Name: " + name);
-System.err.println("In StratconQuery Constructor id: " + uuid);
-System.err.println("In StratconQuery Constructor expression: " + expression);
   }
   public UUID getUUID() {
     return uuid;

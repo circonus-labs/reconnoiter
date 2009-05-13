@@ -31,4 +31,8 @@ API_EXPORT(void)
 API_EXPORT(int)
   stratcon_datastore_saveconfig(void *unused);
 
+/* Private'ish... called from IEP to populate IEP */
+API_EXPORT(void)
+  stratcon_datastore_iep_check_preload();
+
 #endif

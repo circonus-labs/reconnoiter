@@ -39,7 +39,8 @@ public class StratconMessage {
       // We have events
       if(tag.equals("NoitStatus") ||
          tag.equals("NoitMetricNumeric") ||
-         tag.equals("NoitMetricText"))
+         tag.equals("NoitMetricText") ||
+         tag.equals("NoitCheck"))
         return new NoitEvent(document);
       // and requests
       else if(tag.equals("StratconQuery"))

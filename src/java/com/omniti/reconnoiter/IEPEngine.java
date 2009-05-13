@@ -4,7 +4,9 @@ import java.lang.System;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import com.omniti.reconnoiter.AMQListener;
+import com.omniti.reconnoiter.event.NoitEvent;
 import com.espertech.esper.client.*;
+import com.espertech.esper.client.soda.*;
 
 import org.apache.log4j.BasicConfigurator;
 
@@ -13,8 +15,12 @@ class IEPEngine {
     BasicConfigurator.configure();
 
     Configuration config = new Configuration();
-    config.addEventTypeAutoName("com.omniti.reconnoiter.event");
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
+    config.addEventTypeAutoName("com.omniti.reconnoiter.event");
+    NoitEvent.registerTypes(epService);
+
+    epService.getEPAdministrator().createEPL("create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck");
+    epService.getEPAdministrator().createEPL("insert into CheckDetails select * from NoitCheck");
 
     AMQListener l = new AMQListener(epService);
 

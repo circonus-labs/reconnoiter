@@ -45,18 +45,20 @@ public class AMQOutput implements UpdateListener {
       }
     }
     public void update(EventBean[] newEvents, EventBean[] oldEvents) {
-      EventBean event = newEvents[0];
-
-      JSONEventRenderer jsonRenderer = epService.getEPRuntime().
-                                                 getEventRenderer().
-                                                 getJSONRenderer(statement.getEventType());
-      String output = jsonRenderer.render("MyEvent", event);
-      try {
-        TextMessage message = session.createTextMessage(output);
-        producer.send(message);
-      }  catch(JMSException e) {
-        System.err.println(e);
+      for(int i = 0; i < newEvents.length; i++) {
+        EventBean event = newEvents[i];
+  
+        JSONEventRenderer jsonRenderer = epService.getEPRuntime().
+                                                   getEventRenderer().
+                                                   getJSONRenderer(statement.getEventType());
+        String output = jsonRenderer.render("MyEvent", event);
+        try {
+          TextMessage message = session.createTextMessage(output);
+          producer.send(message);
+        }  catch(JMSException e) {
+          System.err.println(e);
+        }
+        System.err.println(output);
       }
-      System.err.println(output);
     }
 }

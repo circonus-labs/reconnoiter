@@ -9,6 +9,7 @@
 #include "utils/noit_b64.h"
 #include "stratcon_datastore.h"
 #include "stratcon_realtime_http.h"
+#include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include <unistd.h>
@@ -18,6 +19,8 @@
 #include <libpq-fe.h>
 #include <zlib.h>
 
+static char *check_loadall = NULL;
+static const char *check_loadall_conf = "/stratcon/database/statements/allchecks";
 static char *check_find = NULL;
 static const char *check_find_conf = "/stratcon/database/statements/findcheck";
 static char *check_insert = NULL;
@@ -76,6 +79,8 @@ typedef struct {
   ds_job_detail   *head;
   ds_job_detail   *tail;
 } conn_q;
+
+static int stratcon_database_connect(conn_q *cq);
 
 static void
 free_params(ds_single_detail *d) {
@@ -215,6 +220,51 @@ __noit__strndup(const char *src, int len) {
   } \
 } while(0)
 
+static int
+stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
+                                    struct timeval *now) {
+  conn_q *cq = closure;
+  ds_job_detail *d;
+  int i, row_count = 0, good = 0;
+  char buff[1024];
+
+  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
+
+  stratcon_database_connect(cq);
+  d = calloc(1, sizeof(*d));
+  GET_QUERY(check_loadall);
+  PG_EXEC(check_loadall);
+  row_count = PQntuples(d->res);
+  
+  for(i=0; i<row_count; i++) {
+    char *remote, *id, *target, *module, *name;
+    PG_GET_STR_COL(remote, i, "remote_address");
+    PG_GET_STR_COL(id, i, "id");
+    PG_GET_STR_COL(target, i, "target");
+    PG_GET_STR_COL(module, i, "module");
+    PG_GET_STR_COL(name, i, "name");
+    snprintf(buff, sizeof(buff), "C\t0.000\t%s\t%s\t%s\t%s\n", id, target, module, name);
+    stratcon_iep_line_processor(DS_OP_INSERT, NULL, buff);
+    good++;
+  }
+  noitL(noit_error, "Staged %d/%d remembered checks into IEP\n", good, row_count);
+ bad_row:
+  PQclear(d->res);
+  return 0;
+}
+void
+stratcon_datastore_iep_check_preload() {
+  eventer_t e;
+  conn_q *cq;
+  cq = __get_conn_q_for_remote(NULL);
+
+  e = eventer_alloc();
+  e->mask = EVENTER_ASYNCH;
+  e->callback = stratcon_datastore_asynch_drive_iep;
+  e->closure = cq;
+  eventer_add_asynch(cq->jobq, e);
+}
 execute_outcome_t
 stratcon_datastore_find(conn_q *cq, ds_job_detail *d) {
   char *val;
@@ -499,7 +549,7 @@ int
 stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   conn_q *cq = closure;
-  ds_job_detail *current;
+  ds_job_detail *current, *next;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
 
   if(!cq->head) return 0; 
@@ -509,12 +559,14 @@ stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
   current = cq->head; 
   while(current) {
     if(current->rt) {
+      next = current->next;
       stratcon_datastore_find(cq, current);
-      current = current->next;
+      current = next;
     }
     else if(current->completion_event) {
+      next = current->next;
       eventer_add(current->completion_event);
-      current = current->next;
+      current = next;
       __remove_until(cq, current);
     }
     else current = current->next;
@@ -657,6 +709,6 @@ stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
   nnode = calloc(1, sizeof(*nnode));
   nnode->dispatch = f;
   nnode->next = onlookers;
-  while(noit_atomic_casptr((void **)&onlookers, nnode, nnode->next) != (vpsized_int)nnode->next)
+  while(noit_atomic_casptr((void **)&onlookers, nnode, nnode->next) != (void *)nnode->next)
     nnode->next = onlookers;
 }

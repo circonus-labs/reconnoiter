@@ -25,7 +25,6 @@ JAVA=com/omniti/reconnoiter/AMQBrokerSingleton.java \
 	com/omniti/reconnoiter/AMQListener.java \
 	com/omniti/reconnoiter/AMQOutput.java \
 	com/omniti/reconnoiter/event/NoitEvent.java \
-	com/omniti/reconnoiter/event/StatusEvent.java \
 	com/omniti/reconnoiter/event/StratconQuery.java \
 	com/omniti/reconnoiter/event/StratconQueryStop.java \
 	com/omniti/reconnoiter/IEPEngine.java \

@@ -47,6 +47,10 @@
       <password>unguessable</password>
     </dbconfig>
     <statements>
+      <allchecks><![CDATA[
+        SELECT remote_address, id, target, module, name
+          FROM stratcon.mv_loading_dock_check_s
+      ]]></allchecks>
       <findcheck><![CDATA[
         SELECT remote_address, id
           FROM stratcon.mv_loading_dock_check_s

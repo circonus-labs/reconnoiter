@@ -10,6 +10,7 @@
 #include "noit_jlog_listener.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
+#include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 
@@ -40,14 +41,12 @@ pthread_key_t iep_connection;
 
 struct iep_job_closure {
   char *line;       /* This is a copy and gets trashed during processing */
+  char *remote;
   xmlDocPtr doc;
   char *doc_str;
   apr_pool_t *pool;
 };
 
-static void
-stratcon_iep_datastore_onlooker(stratcon_datastore_op_t op,
-                                struct sockaddr *remote, void *operand);
 static void
 start_iep_daemon();
 
@@ -78,13 +77,14 @@ bust_to_parts(char *in, char **p, int len) {
 
 
 static xmlDocPtr
-stratcon_iep_doc_from_status(char *data) {
+stratcon_iep_doc_from_status(char *data, char *remote) {
   xmlDocPtr doc;
   char *parts[7];
   if(bust_to_parts(data, parts, 7) != 7) return NULL;
   /* 'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE */
   NEWDOC(doc, "NoitStatus",
          {
+           ADDCHILD("remote", remote);
            ADDCHILD("id", parts[2]);
            ADDCHILD("state", parts[3]);
            ADDCHILD("availability", parts[4]);
@@ -95,7 +95,25 @@ stratcon_iep_doc_from_status(char *data) {
 }
 
 static xmlDocPtr
-stratcon_iep_doc_from_metric(char *data) {
+stratcon_iep_doc_from_check(char *data, char *remote) {
+  xmlDocPtr doc;
+  char *parts[6];
+  if(bust_to_parts(data, parts, 6) != 6) return NULL;
+  /* 'C' TIMESTAMP UUID TARGET MODULE NAME */
+  NEWDOC(doc, "NoitCheck",
+         {
+           ADDCHILD("remote", remote);
+           ADDCHILD("id", parts[2]);
+           ADDCHILD("target", parts[3]);
+           ADDCHILD("module", parts[4]);
+           ADDCHILD("name", parts[5]);
+         });
+noitL(noit_error,"Submitting check %s\n", parts[2]);
+  return doc;
+}
+
+static xmlDocPtr
+stratcon_iep_doc_from_metric(char *data, char *remote) {
   xmlDocPtr doc;
   char *parts[6];
   const char *rootname = "NoitMetricNumeric";
@@ -109,6 +127,7 @@ stratcon_iep_doc_from_metric(char *data) {
   }
   NEWDOC(doc, rootname,
          {
+           ADDCHILD("remote", remote);
            ADDCHILD("id", parts[2]);
            ADDCHILD("name", parts[3]);
            ADDCHILD(valuename, parts[5]);
@@ -117,7 +136,7 @@ stratcon_iep_doc_from_metric(char *data) {
 }
 
 static xmlDocPtr
-stratcon_iep_doc_from_query(char *data) {
+stratcon_iep_doc_from_query(char *data, char *remote) {
   xmlDocPtr doc;
   char *parts[4];
   if(bust_to_parts(data, parts, 4) != 4) return NULL;
@@ -133,7 +152,7 @@ stratcon_iep_doc_from_query(char *data) {
 }
 
 static xmlDocPtr
-stratcon_iep_doc_from_querystop(char *data) {
+stratcon_iep_doc_from_querystop(char *data, char *remote) {
   xmlDocPtr doc;
   char *parts[2];
   if(bust_to_parts(data, parts, 2) != 2) return NULL;
@@ -147,13 +166,14 @@ stratcon_iep_doc_from_querystop(char *data) {
 }
 
 static xmlDocPtr
-stratcon_iep_doc_from_line(char *data) {
+stratcon_iep_doc_from_line(char *data, char *remote) {
   if(data) {
     switch(*data) {
-      case 'S': return stratcon_iep_doc_from_status(data);
-      case 'M': return stratcon_iep_doc_from_metric(data);
-      case 'Q': return stratcon_iep_doc_from_query(data);
-      case 'q': return stratcon_iep_doc_from_querystop(data);
+      case 'C': return stratcon_iep_doc_from_check(data, remote);
+      case 'S': return stratcon_iep_doc_from_status(data, remote);
+      case 'M': return stratcon_iep_doc_from_metric(data, remote);
+      case 'Q': return stratcon_iep_doc_from_query(data, remote);
+      case 'q': return stratcon_iep_doc_from_querystop(data, remote);
     }
   }
   return NULL;
@@ -214,7 +234,7 @@ void stratcon_iep_submit_queries() {
       if(*query == '\n') *query = ' ';
       query++;
     }
-    stratcon_iep_datastore_onlooker(DS_OP_INSERT, NULL, line);
+    stratcon_iep_line_processor(DS_OP_INSERT, NULL, line);
     free(line);
   }
 }
@@ -301,6 +321,7 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
       noitL(noit_error, "Response: %s, %s\n", frame->command, frame->body);
      }
 #endif
+     stratcon_datastore_iep_check_preload();
      stratcon_iep_submit_queries();
   }
 
@@ -319,6 +340,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     /* free all the memory associated with the batch */
     if(job) {
       if(job->line) free(job->line);
+      if(job->remote) free(job->remote);
       if(job->doc_str) free(job->doc_str);
       if(job->doc) xmlFreeDoc(job->doc);
       if(job->pool) apr_pool_destroy(job->pool);
@@ -331,7 +353,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     noitL(noit_debug, "Skipping old event %f second old.\n", age);
     return 0;
   }
-  job->doc = stratcon_iep_doc_from_line(job->line);
+  job->doc = stratcon_iep_doc_from_line(job->line, job->remote);
   if(job->doc) {
     job->doc_str = stratcon__xml_doc_to_str(job->doc);
     if(job->doc_str) {
@@ -391,9 +413,11 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   return 0;
 }
 
-static void
-stratcon_iep_datastore_onlooker(stratcon_datastore_op_t op,
-                                struct sockaddr *remote, void *operand) {
+void
+stratcon_iep_line_processor(stratcon_datastore_op_t op,
+                            struct sockaddr *remote, void *operand) {
+  int len;
+  char remote_str[128];
   struct iep_job_closure *jc;
   eventer_t newe;
   struct timeval __now, iep_timeout = { 20L, 0L };
@@ -405,6 +429,26 @@ stratcon_iep_datastore_onlooker(stratcon_datastore_op_t op,
   }
   if(op != DS_OP_INSERT) return;
 
+  snprintf(remote_str, sizeof(remote_str), "%s", "0.0.0.0");
+  if(remote) {
+    switch(remote->sa_family) {
+      case AF_INET:
+        len = sizeof(struct sockaddr_in);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
+                  remote_str, len);
+        break;
+      case AF_INET6:
+       len = sizeof(struct sockaddr_in6);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
+                  remote_str, len);
+       break;
+      case AF_UNIX:
+        len = SUN_LEN(((struct sockaddr_un *)remote));
+        snprintf(remote_str, sizeof(remote_str), "%s", ((struct sockaddr_un *)remote)->sun_path);
+        break;
+    }
+  }
+
   /* process operand and push onto queue */
   gettimeofday(&__now, NULL);
   newe = eventer_alloc();
@@ -413,6 +457,7 @@ stratcon_iep_datastore_onlooker(stratcon_datastore_op_t op,
   newe->callback = stratcon_iep_submitter;
   jc = calloc(1, sizeof(*jc));
   jc->line = strdup(operand);
+  jc->remote = strdup(remote_str);
   newe->closure = jc;
 
   eventer_add_asynch(&iep_jobq, newe);
@@ -434,7 +479,7 @@ stratcon_jlog_streamer_iep_ctx_alloc(void) {
   jlog_streamer_ctx_t *ctx;
   ctx = stratcon_jlog_streamer_ctx_alloc();
   ctx->jlog_feed_cmd = htonl(NOIT_JLOG_DATA_TEMP_FEED);
-  ctx->push = stratcon_iep_datastore_onlooker;
+  ctx->push = stratcon_iep_line_processor;
   return ctx;
 }
 

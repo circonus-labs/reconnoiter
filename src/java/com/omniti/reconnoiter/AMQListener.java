@@ -35,7 +35,6 @@ public class AMQListener implements Runnable {
     public AMQListener(EPServiceProvider epService) {
       this.queries = new ConcurrentHashMap<UUID,StratconQuery>();
       this.epService = epService;
-      NoitEvent.registerTypes(epService);
       try {
         // we just need it started up
         AMQBrokerSingleton.getBroker();
