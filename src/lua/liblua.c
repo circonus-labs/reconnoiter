@@ -1,5 +1,6 @@
 /*
 * all.c -- Lua core, libraries and interpreter in a single file
+** See Copyright Notice in lua.h
 */
 
 #define luaall_c

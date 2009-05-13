@@ -2,6 +2,7 @@
 * min.c -- a minimal Lua interpreter
 * loads stdin only with minimal error handling.
 * no interaction, and no standard library, only a "print" function.
+** See Copyright Notice in lua.h
 */
 
 #include <stdio.h>

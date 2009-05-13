@@ -10,6 +10,7 @@
 *
 * If you also want to avoid the dump module (ldump.o), define NODUMP.
 * #define NODUMP
+** See Copyright Notice in lua.h
 */
 
 #define LUA_CORE
