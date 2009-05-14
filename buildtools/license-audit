@@ -1,7 +1,18 @@
 #!/usr/bin/perl
 
+use Getopt::Long;
 use File::Find;
 use strict;
+
+my $include_re = undef;
+my $exclude_re = undef;
+
+GetOptions("i=s" => \$include_re,
+           "x=s" => \$exclude_re);
+die "-i or -x, not both\n", if(defined($include_re) && defined($exclude_re));
+$exclude_re = qr/$exclude_re/ if defined($exclude_re);
+$include_re ||= 'unknown' unless defined($exclude_re);
+$include_re = qr/$include_re/ if defined($include_re);
 
 my %licenses = (
   'perl' => normalize(q%
@@ -219,7 +230,10 @@ sub liccheck {
   my $fname = $File::Find::name;
   if($fname =~ /\.(?:c|h|java|cpp|hpp|C|s|lua)$/) {
     my $license = detect_license($fname);
-    print "$fname -> ($license)\n";
+    if(($include_re && $license =~ $include_re) ||
+       ($exclude_re && $license !~ $exclude_re)) {
+      print "$fname -> ($license)\n";
+    }
   }
   return 1;
 }
