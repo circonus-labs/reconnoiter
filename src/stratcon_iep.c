@@ -40,6 +40,7 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
+#include "noit_xml.h"
 
 #include <unistd.h>
 #include <sys/fcntl.h>
@@ -266,20 +267,6 @@ void stratcon_iep_submit_queries() {
   }
 }
 
-static char *
-stratcon__xml_doc_to_str(xmlDocPtr doc) {
-  char *rv;
-  xmlSaveCtxtPtr savectx;
-  xmlBufferPtr xmlbuffer;
-  xmlbuffer = xmlBufferCreate();
-  savectx = xmlSaveToBuffer(xmlbuffer, "utf8", 1);
-  xmlSaveDoc(savectx, doc);
-  xmlSaveClose(savectx);
-  rv = strdup((const char *)xmlBufferContent(xmlbuffer));
-  xmlBufferFree(xmlbuffer);
-  return rv;
-}
-
 static
 struct iep_thread_driver *stratcon_iep_get_connection() {
   apr_status_t rc;
@@ -382,7 +369,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   }
   job->doc = stratcon_iep_doc_from_line(job->line, job->remote);
   if(job->doc) {
-    job->doc_str = stratcon__xml_doc_to_str(job->doc);
+    job->doc_str = noit_xmlSaveToBuffer(job->doc);
     if(job->doc_str) {
       /* Submit */
       struct iep_thread_driver *driver;

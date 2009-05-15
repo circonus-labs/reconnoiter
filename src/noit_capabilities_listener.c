@@ -39,6 +39,7 @@
 #include "noit_capabilities_listener.h"
 #include "noit_module.h"
 #include "noit_check.h"
+#include "noit_xml.h"
 
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -92,8 +93,6 @@ cleanup_shutdown:
 
     xmlDocPtr xmldoc;
     xmlNodePtr root, cmds;
-    xmlBufferPtr xmlbuffer;
-    xmlSaveCtxtPtr savectx;
 
     cl = ac->service_ctx = calloc(1, sizeof(*cl));
     /* fill out capabilities */
@@ -149,15 +148,10 @@ cleanup_shutdown:
     }
 
     /* Write it out to a buffer and copy it for writing */
-    xmlbuffer = xmlBufferCreate();
-    savectx = xmlSaveToBuffer(xmlbuffer, "utf8", 1);
-    xmlSaveDoc(savectx, xmldoc);
-    xmlSaveClose(savectx);
-    cl->buff = strdup((const char *)xmlBufferContent(xmlbuffer));
-    cl->towrite = xmlBufferLength(xmlbuffer);
+    cl->buff = noit_xmlSaveToBuffer(xmldoc);
+    cl->towrite = strlen(cl->buff);
 
     /* Clean up after ourselves */
-    xmlBufferFree(xmlbuffer);
     xmlFreeDoc(xmldoc);
   }
 
