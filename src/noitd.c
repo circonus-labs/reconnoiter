@@ -175,6 +175,7 @@ static int watch_over_child(int (*func)()) {
     }
     else {
       int sig = -1, exit_val = -1;
+      signal(SIGHUP, SIG_IGN);
       while(1) {
         unsigned long ltt;
         int status, rv;
@@ -211,8 +212,22 @@ static int watch_over_child(int (*func)()) {
   }
 }
 
+static int __reload_needed = 0;
+static void request_conf_reload(int sig) {
+  if(sig == SIGHUP) {
+    __reload_needed = 1;
+  }
+}
 static int watchdog_tick(eventer_t e, int mask, void *unused, struct timeval *now) {
   it_ticks();
+  if(__reload_needed) {
+    noitL(noit_error, "SIGHUP received, performing reload\n");
+    if(noit_conf_load(config_file) == -1) {
+      noitL(noit_error, "Cannot load config: '%s'\n", config_file);
+      exit(-1);
+    }
+    __reload_needed = 0;
+  }
   return 0;
 }
 static int child_main() {
@@ -224,6 +239,8 @@ static int child_main() {
     noitL(noit_error, "Cannot load config: '%s'\n", config_file);
     exit(-1);
   }
+
+  signal(SIGHUP, request_conf_reload);
 
   /* initialize the eventer */
   if(eventer_init() == -1) {
