@@ -217,7 +217,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
         len = e->opset->write(e->fd, &ctx->jlog_feed_cmd,
-                              sizeof(&ctx->jlog_feed_cmd),
+                              sizeof(ctx->jlog_feed_cmd),
                               &mask, e);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
