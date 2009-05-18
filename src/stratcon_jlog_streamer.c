@@ -224,7 +224,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           goto socket_error;
         }
         if(len != sizeof(ctx->jlog_feed_cmd)) {
-          noitL(noit_error, "short write on initiating stream.\n");
+          noitL(noit_error, "short write [%d/%d] on initiating stream.\n", 
+                (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
         }
         ctx->state = JLOG_STREAMER_WANT_COUNT;
