@@ -48,6 +48,7 @@ typedef struct noit_connection_ctx_t {
     struct sockaddr_in6 remote_in6;
   } r;
   socklen_t remote_len;
+  char *remote_str;
   char *remote_cn;
   u_int32_t current_backoff;
   int wants_shutdown;

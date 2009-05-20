@@ -128,6 +128,7 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
 void
 noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
   if(ctx->remote_cn) free(ctx->remote_cn);
+  if(ctx->remote_str) free(ctx->remote_str);
   if(ctx->timeout_event) {
     eventer_remove(ctx->timeout_event);
     eventer_free(ctx->timeout_event);
@@ -177,14 +178,14 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   len = __read_on_ctx(e, ctx, &mask); \
   if(len < 0) { \
     if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
-    noitL(noit_error, "SSL read error: %s\n", strerror(errno)); \
+    noitL(noit_error, "[%s] SSL read error: %s\n", nctx->remote_str, strerror(errno)); \
     goto socket_error; \
   } \
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    noitL(noit_error, "SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
-          ctx->state, len, (long unsigned int)size); \
+    noitL(noit_error, "[%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
+          nctx->remote_str, ctx->state, len, (long unsigned int)size); \
     goto socket_error; \
   } \
 } while(0)
@@ -257,7 +258,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
-        ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
+        if(ctx->header.message_len > 0)
+          ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
         ctx->count--;
@@ -433,6 +435,9 @@ initiate_noit_connection(const char *host, unsigned short port,
   }
 
   ctx = noit_connection_ctx_alloc();
+  ctx->remote_str = calloc(1, strlen(host) + 7);
+  snprintf(ctx->remote_str, strlen(host) + 7,
+           "%s:%d", host, port);
   
   memset(&ctx->r, 0, sizeof(ctx->r));
   if(family == AF_UNIX) {
@@ -514,6 +519,7 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
     sslconfig = noit_conf_get_hash(noit_configs[i], "sslconfig");
     config = noit_conf_get_hash(noit_configs[i], "config");
 
+noitL(noit_error, "initiating to %s\n", address);
     initiate_noit_connection(address, port, sslconfig, config,
                              handler,
                              handler_alloc ? handler_alloc() : handler_ctx,

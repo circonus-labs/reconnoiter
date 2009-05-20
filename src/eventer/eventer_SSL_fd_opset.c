@@ -343,19 +343,24 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
   eventer_t e = closure;
   eventer_ssl_ctx_t *ctx = e->opset_ctx;
   int (*sslop)(SSL *) = NULL;
+  const char *opstr = "none";
 
   switch(op) {
     case SSL_OP_READ:
+      opstr = "read";
       if((rv = SSL_read(ctx->ssl, buffer, len)) > 0) return rv;
       break;
     case SSL_OP_WRITE:
+      opstr = "write";
       if((rv = SSL_write(ctx->ssl, buffer, len)) > 0) return rv;
       break;
 
     case SSL_OP_CONNECT:
+      opstr = "connect";
       if(!sslop) sslop = SSL_connect;
       /* fall through */
     case SSL_OP_ACCEPT:
+      opstr = "accept";
       /* only set if we didn't fall through */
       if(!sslop) sslop = SSL_accept;
    
@@ -382,7 +387,8 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       errno = EAGAIN;
       break;
     default:
-      noitL(eventer_err, "SSL rw error: %d\n", sslerror);
+      noitL(eventer_err, "SSL[%s of %d] rw error: %d\n", opstr,
+            (int)len, sslerror);
       eventer_ssl_error();
       errno = EIO;
   }
