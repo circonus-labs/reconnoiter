@@ -26,7 +26,7 @@
       <certificate_file>%sysconfdir%/%PKIPREFIX%stratcon.crt</certificate_file>
       <ca_chain>%sysconfdir%/%PKIPREFIX%ca.crt</ca_chain>
     </sslconfig>
-    <noit address="127.0.0.1" port="34332" />
+    <noit address="127.0.0.1" port="43191" />
   </noits>
 
   <iep disable="false"> <!-- false the default -->
