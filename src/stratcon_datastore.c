@@ -629,7 +629,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
       if(!last_sp) SAVEPOINT("batch");
  
       if(current->problematic) {
-        noitL(noit_error, "Failed noit line: %s", current->data);
+        noitL(noit_error, "[%s] Failed noit line: %s", cq->jobq->queue_name, current->data);
         RELEASE_SAVEPOINT("batch");
         current = current->next;
         continue;
