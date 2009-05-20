@@ -48,6 +48,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_security.h"
+#include "utils/noit_watchdog.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_jlog_listener.h"
@@ -132,94 +133,13 @@ int configure_eventer() {
   return rv;
 }
 
-/* Watchdog stuff */
-static int *lifeline = NULL;
-static unsigned long last_tick_time() {
-  static struct timeval lastchange = { 0, 0 };
-  static int lastcheck = 0;
-  struct timeval now, diff;
-
-  gettimeofday(&now, NULL);
-  if(lastcheck != *lifeline) {
-    lastcheck = *lifeline;
-    memcpy(&lastchange, &now, sizeof(lastchange));
-  }
-  sub_timeval(now, lastchange, &diff);
-  return (unsigned long)diff.tv_sec;
-}
-static void it_ticks() {
-  (*lifeline)++;
-}
-static void setup_mmap() {
-  lifeline = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE,
-                  MAP_SHARED|MAP_ANON, -1, 0);
-  if(lifeline == (void *)-1) {
-    noitL(noit_error, "Failed to mmap anon for watchdog\n");
-    exit(-1);
-  }
-}
-
-static int watch_over_child(int (*func)()) {
-  int child_pid;
-  while(1) {
-    child_pid = fork();
-    if(child_pid == -1) {
-      noitL(noit_error, "fork failed: %s\n", strerror(errno));
-      exit(-1);
-    }
-    if(child_pid == 0) {
-      /* This sets up things so we start alive */
-      it_ticks();
-      /* run the program */
-      exit(func());
-    }
-    else {
-      int sig = -1, exit_val = -1;
-      signal(SIGHUP, SIG_IGN);
-      while(1) {
-        unsigned long ltt;
-        int status, rv;
-        sleep(1); /* Just check child status every second */
-        rv = waitpid(child_pid, &status, WNOHANG);
-        if(rv == 0) {
-          /* Nothing */
-        }
-        else if (rv == child_pid) {
-          /* We died!... we need to relaunch, unless the status was a requested exit (2) */
-          sig = WTERMSIG(status);
-          exit_val = WEXITSTATUS(status);
-          if(sig == SIGINT || sig == SIGQUIT ||
-             (sig == 0 && (exit_val == 2 || exit_val < 0))) {
-            noitL(noit_error, "noitd shutdown acknowledged.\n");
-            exit(0);
-          }
-          break;
-        }
-        else {
-          noitL(noit_error, "Unexpected return from waitpid: %d\n", rv);
-          exit(-1);
-        }
-        /* Now check out timeout */
-        if((ltt = last_tick_time()) > CHILD_WATCHDOG_TIMEOUT) {
-          noitL(noit_error,
-                "Watchdog timeout (%lu s)... terminating child\n",
-                ltt);
-          kill(child_pid, SIGKILL);
-        }
-      }
-      noitL(noit_error, "noitd child died [%d/%d], restarting.\n", exit_val, sig);
-    }
-  }
-}
-
 static int __reload_needed = 0;
 static void request_conf_reload(int sig) {
   if(sig == SIGHUP) {
     __reload_needed = 1;
   }
 }
-static int watchdog_tick(eventer_t e, int mask, void *unused, struct timeval *now) {
-  it_ticks();
+static int noitice_hup(eventer_t e, int mask, void *unused, struct timeval *now) {
   if(__reload_needed) {
     noitL(noit_error, "SIGHUP received, performing reload\n");
     if(noit_conf_load(config_file) == -1) {
@@ -248,10 +168,12 @@ static int child_main() {
     exit(-1);
   }
 
-  /* Setup our hearbeat */
+  /* Setup our heartbeat */
+  noit_watchdog_child_eventer_heartbeat();
+
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
-  e->callback = watchdog_tick;
+  e->callback = noitice_hup;
   eventer_add_recurrent(e);
 
   /* Initialize all of our listeners */
@@ -324,7 +246,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  setup_mmap();
+  noit_watchdog_prefork_init();
 
   if(chdir("/") != 0) {
     noitL(noit_stderr, "Failed chdir(\"/\"): %s\n", strerror(errno));
@@ -339,5 +261,6 @@ int main(int argc, char **argv) {
   setsid();
   if(fork()) exit(0);
 
-  return watch_over_child(child_main);
+  signal(SIGHUP, SIG_IGN);
+  return noit_watchdog_start_child("noitd", child_main, 0);
 }

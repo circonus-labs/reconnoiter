@@ -44,6 +44,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_security.h"
+#include "utils/noit_watchdog.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_module.h"
@@ -126,23 +127,8 @@ int configure_eventer() {
   return rv;
 }
 
-int main(int argc, char **argv) {
+static int child_main() {
   char conf_str[1024];
-
-  parse_clargs(argc, argv);
-
-  if(chdir("/") != 0) {
-    fprintf(stderr, "cannot chdir(\"/\"): %s\n", strerror(errno));
-    exit(2);
-  }
-  if(!foreground) {
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-    if(fork()) exit(0);
-    setsid();
-    if(fork()) exit(0);
-  }
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -180,6 +166,9 @@ int main(int argc, char **argv) {
     noitL(noit_stderr, "Cannot init eventer %s\n", conf_str);
     exit(-1);
   }
+
+  noit_watchdog_child_eventer_heartbeat();
+
   noit_console_init(APPNAME);
   stratcon_realtime_http_init(APPNAME);
   noit_listener_init(APPNAME);
@@ -204,4 +193,26 @@ int main(int argc, char **argv) {
 
   eventer_loop();
   return 0;
+}
+
+int main(int argc, char **argv) {
+  parse_clargs(argc, argv);
+
+  if(chdir("/") != 0) {
+    fprintf(stderr, "cannot chdir(\"/\"): %s\n", strerror(errno));
+    exit(2);
+  }
+
+  noit_watchdog_prefork_init();
+
+  if(foreground) exit(child_main());
+
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
+  if(fork()) exit(0);
+  setsid();
+  if(fork()) exit(0);
+
+  return noit_watchdog_start_child("stratcond", child_main, 0);
 }
