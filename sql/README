@@ -1,0 +1,3 @@
+== Snap the schema off a live machine ==
+
+pg_dump -s -n stratcon -n prism -U postgres reconnoiter  > reconnoiter_ddl_dump.sql

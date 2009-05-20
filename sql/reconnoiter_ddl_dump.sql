@@ -9,24 +9,6 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: iep; Type: SCHEMA; Schema: -; Owner: iepuser
---
-
-CREATE SCHEMA iep;
-
-
-ALTER SCHEMA iep OWNER TO iepuser;
-
---
--- Name: otools; Type: SCHEMA; Schema: -; Owner: postgres
---
-
-CREATE SCHEMA otools;
-
-
-ALTER SCHEMA otools OWNER TO postgres;
-
---
 -- Name: prism; Type: SCHEMA; Schema: -; Owner: prism
 --
 
@@ -44,57 +26,11 @@ CREATE SCHEMA stratcon;
 
 ALTER SCHEMA stratcon OWNER TO stratcon;
 
---
--- Name: plpgsql; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: omniti
---
-
-CREATE PROCEDURAL LANGUAGE plpgsql;
-
-
-ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO omniti;
-
-SET search_path = iep, pg_catalog;
+SET search_path = prism, pg_catalog;
 
 SET default_tablespace = '';
 
 SET default_with_oids = false;
-
---
--- Name: results; Type: TABLE; Schema: iep; Owner: iepuser; Tablespace: 
---
-
-CREATE TABLE results (
-    uuid character varying NOT NULL,
-    value double precision NOT NULL,
-    start character varying,
-    name character varying NOT NULL,
-    type character varying,
-    "time" character varying NOT NULL
-);
-
-
-ALTER TABLE iep.results OWNER TO iepuser;
-
-SET search_path = otools, pg_catalog;
-
---
--- Name: table_growth; Type: TABLE; Schema: otools; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE table_growth (
-    table_owner text NOT NULL,
-    schema_name text NOT NULL,
-    table_name text NOT NULL,
-    actual_size numeric NOT NULL,
-    growth_size numeric NOT NULL,
-    sum_flag smallint NOT NULL,
-    capture_time date NOT NULL
-);
-
-
-ALTER TABLE otools.table_growth OWNER TO postgres;
-
-SET search_path = prism, pg_catalog;
 
 --
 -- Name: graph_templates; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
@@ -169,173 +105,6 @@ CREATE TABLE saved_worksheets_dep (
 
 
 ALTER TABLE prism.saved_worksheets_dep OWNER TO reconnoiter;
-
-SET search_path = public, pg_catalog;
-
---
--- Name: foo; Type: TABLE; Schema: public; Owner: omniti; Tablespace: 
---
-
-CREATE TABLE foo (
-    a timestamp with time zone
-);
-
-
-ALTER TABLE public.foo OWNER TO omniti;
-
-SET default_with_oids = true;
-
---
--- Name: pga_diagrams; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_diagrams (
-    diagramname character varying(64) NOT NULL,
-    diagramtables text,
-    diagramlinks text
-);
-
-
-ALTER TABLE public.pga_diagrams OWNER TO reconnoiter;
-
---
--- Name: pga_forms; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_forms (
-    formname character varying(64) NOT NULL,
-    formsource text
-);
-
-
-ALTER TABLE public.pga_forms OWNER TO reconnoiter;
-
---
--- Name: pga_graphs; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_graphs (
-    graphname character varying(64) NOT NULL,
-    graphsource text,
-    graphcode text
-);
-
-
-ALTER TABLE public.pga_graphs OWNER TO reconnoiter;
-
---
--- Name: pga_images; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_images (
-    imagename character varying(64) NOT NULL,
-    imagesource text
-);
-
-
-ALTER TABLE public.pga_images OWNER TO reconnoiter;
-
---
--- Name: pga_layout; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_layout (
-    tablename character varying(64) NOT NULL,
-    nrcols smallint,
-    colnames text,
-    colwidth text
-);
-
-
-ALTER TABLE public.pga_layout OWNER TO reconnoiter;
-
---
--- Name: pga_queries; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_queries (
-    queryname character varying(64) NOT NULL,
-    querytype character(1),
-    querycommand text,
-    querytables text,
-    querylinks text,
-    queryresults text,
-    querycomments text
-);
-
-
-ALTER TABLE public.pga_queries OWNER TO reconnoiter;
-
---
--- Name: pga_reports; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_reports (
-    reportname character varying(64) NOT NULL,
-    reportsource text,
-    reportbody text,
-    reportprocs text,
-    reportoptions text
-);
-
-
-ALTER TABLE public.pga_reports OWNER TO reconnoiter;
-
---
--- Name: pga_scripts; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_scripts (
-    scriptname character varying(64) NOT NULL,
-    scriptsource text
-);
-
-
-ALTER TABLE public.pga_scripts OWNER TO reconnoiter;
-
-SET default_with_oids = false;
-
---
--- Name: varnish_huh; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE varnish_huh (
-    sid integer,
-    whence timestamp with time zone,
-    name text,
-    value numeric
-);
-
-
-ALTER TABLE public.varnish_huh OWNER TO reconnoiter;
-
---
--- Name: varnish_huh2; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE varnish_huh2 (
-    sid integer,
-    whence timestamp with time zone,
-    name text,
-    value numeric
-);
-
-
-ALTER TABLE public.varnish_huh2 OWNER TO reconnoiter;
-
---
--- Name: x; Type: TABLE; Schema: public; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE x (
-    sid integer,
-    whence timestamp with time zone,
-    name text,
-    value numeric
-);
-
-
-ALTER TABLE public.x OWNER TO postgres;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -650,115 +419,6 @@ CREATE TABLE rollup_runner (
 
 ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
 
---
--- Name: test6; Type: TABLE; Schema: stratcon; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE test6 (
-    rollup_time timestamp without time zone,
-    duration character varying(10)
-);
-
-
-ALTER TABLE stratcon.test6 OWNER TO postgres;
-
-SET search_path = otools, pg_catalog;
-
---
--- Name: collect_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION collect_table_growth() RETURNS void
-    AS $$
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time) 
-    select pg_get_userbyid(c.relowner) AS table_owner, n.nspname AS schema_name, c.relname AS table_name, pg_total_relation_size(c.oid), 0, 0, current_date 
-    from pg_class c JOIN pg_namespace n ON (c.relnamespace=n.oid) where relkind = 'r' and reltuples > 10000;
-$$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.collect_table_growth() OWNER TO postgres;
-
---
--- Name: quote_nullable(numeric); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(numeric) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE $1::text END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(numeric) OWNER TO postgres;
-
---
--- Name: quote_nullable(text); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(text) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(text) OWNER TO postgres;
-
---
--- Name: quote_nullable(timestamp with time zone); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(timestamp with time zone) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(timestamp with time zone) OWNER TO postgres;
-
---
--- Name: summarize_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION summarize_table_growth() RETURNS void
-    AS $$
-declare
-    v_sql text;
-begin
-
--- Daily summarization
-IF to_char(current_date,'dd') <> '01' THEN
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
-    select a.table_owner, a.schema_name, a.table_name, a.actual_size, a.actual_size-coalesce(b.actual_size,0) AS table_growth, 1, a.capture_time
-    from otools.table_growth a 
-        left join otools.table_growth b 
-            on (a.table_owner=b.table_owner and a.table_name=b.table_name and a.schema_name=b.schema_name and b.capture_time = current_date -1) 
-    where 
-        a.sum_flag=0 and a.capture_time = current_date;
-    -- now remove older rows
-    delete from otools.table_growth where sum_flag = 0;
-END IF;
-
--- Monthly summarization
-IF to_char(current_date,'dd') = '01' THEN
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
-    select a.table_owner, a.schema_name, a.table_name, max(actual_size), sum(growth_size), 2, (current_date - '1 month'::interval) 
-    from otools.table_growth a 
-    where sum_flag=1 and capture_time between (current_date - '1 month'::interval) and current_date 
-    group by table_owner, schema_name, table_name;
-    -- now remove older rows
-    delete from otools.table_growth where sum_flag = 1;
-END IF;
-
-end 
-$$
-    LANGUAGE plpgsql;
-
-
-ALTER FUNCTION otools.summarize_table_growth() OWNER TO postgres;
-
 SET search_path = prism, pg_catalog;
 
 --
@@ -974,21 +634,6 @@ $$
 
 
 ALTER FUNCTION prism.trig_update_tsvector_saved_graphs() OWNER TO reconnoiter;
-
-SET search_path = public, pg_catalog;
-
---
--- Name: date_hour(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: reconnoiter
---
-
-CREATE FUNCTION date_hour(timestamp with time zone) RETURNS timestamp with time zone
-    AS $_$
- SELECT date_trunc('hour',$1);
-$_$
-    LANGUAGE sql IMMUTABLE STRICT;
-
-
-ALTER FUNCTION public.date_hour(timestamp with time zone) OWNER TO reconnoiter;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -2562,16 +2207,6 @@ CREATE SEQUENCE seq_sid
 
 ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
 
-SET search_path = iep, pg_catalog;
-
---
--- Name: pkeyresults; Type: CONSTRAINT; Schema: iep; Owner: iepuser; Tablespace: 
---
-
-ALTER TABLE ONLY results
-    ADD CONSTRAINT pkeyresults PRIMARY KEY (uuid, "time", value, name);
-
-
 SET search_path = prism, pg_catalog;
 
 --
@@ -2620,72 +2255,6 @@ ALTER TABLE ONLY saved_worksheets
 
 ALTER TABLE ONLY saved_graphs
     ADD CONSTRAINT unq_saved_graphs_title UNIQUE (title);
-
-
-SET search_path = public, pg_catalog;
-
---
--- Name: pga_diagrams_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_diagrams
-    ADD CONSTRAINT pga_diagrams_pkey PRIMARY KEY (diagramname);
-
-
---
--- Name: pga_forms_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_forms
-    ADD CONSTRAINT pga_forms_pkey PRIMARY KEY (formname);
-
-
---
--- Name: pga_graphs_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_graphs
-    ADD CONSTRAINT pga_graphs_pkey PRIMARY KEY (graphname);
-
-
---
--- Name: pga_images_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_images
-    ADD CONSTRAINT pga_images_pkey PRIMARY KEY (imagename);
-
-
---
--- Name: pga_layout_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_layout
-    ADD CONSTRAINT pga_layout_pkey PRIMARY KEY (tablename);
-
-
---
--- Name: pga_queries_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_queries
-    ADD CONSTRAINT pga_queries_pkey PRIMARY KEY (queryname);
-
-
---
--- Name: pga_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_reports
-    ADD CONSTRAINT pga_reports_pkey PRIMARY KEY (reportname);
-
-
---
--- Name: pga_scripts_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_scripts
-    ADD CONSTRAINT pga_scripts_pkey PRIMARY KEY (scriptname);
 
 
 SET search_path = stratcon, pg_catalog;
@@ -3075,16 +2644,6 @@ REVOKE ALL ON SCHEMA prism FROM PUBLIC;
 REVOKE ALL ON SCHEMA prism FROM prism;
 GRANT ALL ON SCHEMA prism TO prism;
 GRANT ALL ON SCHEMA prism TO stratcon;
-
-
---
--- Name: public; Type: ACL; Schema: -; Owner: postgres
---
-
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-REVOKE ALL ON SCHEMA public FROM postgres;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
 --
