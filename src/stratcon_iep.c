@@ -365,6 +365,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     }
     return 0;
   }
+  if(!job->line || job->line[0] == '\0') return 0;
 
   if((age = stratcon_iep_age_from_line(job->line, *now)) > 60) {
     noitL(noit_debug, "Skipping old event %f second old.\n", age);
