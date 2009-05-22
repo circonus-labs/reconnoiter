@@ -266,8 +266,8 @@ void stratcon_iep_submit_queries() {
       query++;
     }
     stratcon_iep_line_processor(DS_OP_INSERT, NULL, line);
-    free(line);
   }
+  free(query_configs);
 }
 
 static
@@ -474,7 +474,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   add_timeval(__now, iep_timeout, &newe->whence);
   newe->callback = stratcon_iep_submitter;
   jc = calloc(1, sizeof(*jc));
-  jc->line = strdup(operand);
+  jc->line = operand;
   jc->remote = strdup(remote_str);
   newe->closure = jc;
 

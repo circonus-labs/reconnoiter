@@ -519,12 +519,17 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
     sslconfig = noit_conf_get_hash(noit_configs[i], "sslconfig");
     config = noit_conf_get_hash(noit_configs[i], "config");
 
-noitL(noit_error, "initiating to %s\n", address);
+    noitL(noit_error, "initiating to %s\n", address);
     initiate_noit_connection(address, port, sslconfig, config,
                              handler,
                              handler_alloc ? handler_alloc() : handler_ctx,
                              handler_free);
+    noit_hash_destroy(sslconfig,free,free);
+    free(sslconfig);
+    noit_hash_destroy(config,free,free);
+    free(config);
   }
+  free(noit_configs);
 }
 void
 stratcon_jlog_streamer_reload(const char *toplevel) {

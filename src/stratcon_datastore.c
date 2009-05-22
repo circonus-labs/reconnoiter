@@ -278,6 +278,7 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
   noitL(noit_error, "Staged %d/%d remembered checks into IEP\n", good, row_count);
  bad_row:
   PQclear(d->res);
+  free(d);
   return 0;
 }
 void
@@ -514,6 +515,8 @@ stratcon_database_connect(conn_q *cq) {
     strlcat(dsn, "=", sizeof(dsn));
     strlcat(dsn, v, sizeof(dsn));
   }
+  noit_hash_destroy(t, free, free);
+  free(t);
 
   if(cq->dbh) {
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;

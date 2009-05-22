@@ -366,9 +366,17 @@ noit_listener_reconfig(const char *toplevel) {
                   NULL;
     config = noit_conf_get_hash(listener_configs[i], "config");
 
-    noit_listener(address, port, SOCK_STREAM, backlog,
-                  sslconfig, config, f, NULL);
+    if(noit_listener(address, port, SOCK_STREAM, backlog,
+                     sslconfig, config, f, NULL) != 0) {
+      if(sslconfig) {
+        noit_hash_destroy(sslconfig,free,free);
+        free(sslconfig);
+      }
+      noit_hash_destroy(config,free,free);
+      free(config);
+    }
   }
+  free(listener_configs);
 }
 int
 noit_control_dispatch(eventer_t e, int mask, void *closure,
