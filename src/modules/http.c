@@ -202,7 +202,7 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   duration_ms = current.duration;
   current.available = (ci->timed_out || !ci->status.code) ? NP_UNAVAILABLE : NP_AVAILABLE;
-  current.state = (ci->status.code != 200) ? NP_BAD : NP_GOOD;
+  current.state = (ci->status.code != expect_code) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
   if(current.available == NP_AVAILABLE) {
     noit_stats_set_metric(&current, "code",
