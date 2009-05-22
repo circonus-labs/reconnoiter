@@ -100,7 +100,7 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
   struct check_info *data;
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++)
-    if(data->turnaround[i] == 0.0) {
+    if(data->turnaround[i] < 0.0) {
       noitL(nldeb, "ping_icmp: %s %d is still outstanding.\n",
             check->target, i);
       return 0;
@@ -119,7 +119,7 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
 
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++) {
-    if(data->turnaround[i] != 0) {
+    if(data->turnaround[i] >= 0.0) {
       points++;
       avg += data->turnaround[i];
       if(data->turnaround[i] > max) max = data->turnaround[i];
@@ -440,10 +440,13 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   /* Prep holding spots for return info */
   ci->expected_count = count;
   if(ci->turnaround) free(ci->turnaround);
-  ci->turnaround = calloc(count, sizeof(*ci->turnaround));
+  ci->turnaround = malloc(count * sizeof(*ci->turnaround));
 
   ++ci->check_no;
   for(i=0; i<count; i++) {
+    /* Negative means we've not received a response */
+    ci->turnaround[i] = -1.0;
+
     newe = eventer_alloc();
     newe->callback = ping_icmp_real_send;
     newe->mask = EVENTER_TIMER;
