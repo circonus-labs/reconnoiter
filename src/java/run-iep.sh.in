@@ -3,7 +3,8 @@
 JAVA=@JAVA@
 JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
 	esper-3.0.0.jar log4j-1.2.15.jar \
-	spring-beans-2.5.5.jar spring-context-2.5.5.jar"
+	spring-beans-2.5.5.jar spring-context-2.5.5.jar \
+	cglib-nodep-2.2.jar"
 
 DIRS=". lib @prefix@/java"
 CP=

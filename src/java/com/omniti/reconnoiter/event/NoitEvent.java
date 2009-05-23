@@ -46,7 +46,7 @@ public class NoitEvent extends StratconMessage {
     cfg.setRootElementName("NoitStatus");
     epService.getEPAdministrator().getConfiguration()
              .addEventType("NoitStatus", cfg);
-
+/*
     cfg = new ConfigurationEventTypeXMLDOM();
     cfg.addXPathProperty("uuid", "/NoitMetricNumeric/id", XPathConstants.STRING);
     cfg.addXPathProperty("name", "/NoitMetricNumeric/name", XPathConstants.STRING);
@@ -55,7 +55,7 @@ public class NoitEvent extends StratconMessage {
     cfg.setRootElementName("NoitMetricNumeric");
     epService.getEPAdministrator().getConfiguration()
              .addEventType("NoitMetricNumeric", cfg);
-
+*/
     cfg = new ConfigurationEventTypeXMLDOM();
     cfg.addXPathProperty("uuid", "/NoitMetricText/id", XPathConstants.STRING);
     cfg.addXPathProperty("name", "/NoitMetricText/name", XPathConstants.STRING);

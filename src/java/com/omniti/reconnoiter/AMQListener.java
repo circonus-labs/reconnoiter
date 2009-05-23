@@ -10,9 +10,7 @@ package com.omniti.reconnoiter;
 
 import com.omniti.reconnoiter.AMQBrokerSingleton;
 import com.omniti.reconnoiter.StratconMessage;
-import com.omniti.reconnoiter.event.StratconQuery;
-import com.omniti.reconnoiter.event.StratconQueryStop;
-import com.omniti.reconnoiter.event.NoitEvent;
+import com.omniti.reconnoiter.event.*;
 import java.lang.System;
 import java.lang.Runnable;
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -97,6 +95,9 @@ public class AMQListener implements Runnable {
             }
             else if(m instanceof NoitEvent) {
               epService.getEPRuntime().sendEvent(((NoitEvent) m).getDocument());
+            }
+            else if(m instanceof NoitMetricNumeric) {
+              epService.getEPRuntime().sendEvent((NoitMetricNumeric) m);
             }
           } catch(Exception ie) {
             System.err.println(ie);

@@ -25,13 +25,15 @@ JAVA=com/omniti/reconnoiter/AMQBrokerSingleton.java \
 	com/omniti/reconnoiter/AMQListener.java \
 	com/omniti/reconnoiter/AMQOutput.java \
 	com/omniti/reconnoiter/event/NoitEvent.java \
+	com/omniti/reconnoiter/event/NoitMetricNumeric.java \
 	com/omniti/reconnoiter/event/StratconQuery.java \
 	com/omniti/reconnoiter/event/StratconQueryStop.java \
 	com/omniti/reconnoiter/IEPEngine.java \
 	com/omniti/reconnoiter/StratconMessage.java
 
 SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.0.0.jar \
-	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar
+	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar \
+	lib/cglib-nodep-2.2.jar
 
 all:	reconnoiter.jar
 	@chmod 755 run-iep.sh

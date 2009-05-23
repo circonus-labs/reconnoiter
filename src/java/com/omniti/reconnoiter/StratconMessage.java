@@ -16,7 +16,9 @@ import org.xml.sax.SAXException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Text;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import com.omniti.reconnoiter.event.*;
 
@@ -46,10 +48,15 @@ public class StratconMessage {
       String tag = e.getTagName();
       // We have events
       if(tag.equals("NoitStatus") ||
-         tag.equals("NoitMetricNumeric") ||
          tag.equals("NoitMetricText") ||
          tag.equals("NoitCheck"))
         return new NoitEvent(document);
+      else if(tag.equals("NoitMetricNumeric")) {
+        // Numerics have a value that can be in scientific notation.
+        // This document gets passed places that do Xpath 1.0 queries
+        // which don't understand scientific notation... we have to hack it.
+        return new NoitMetricNumeric(document);
+      }
       // and requests
       else if(tag.equals("StratconQuery"))
         return new StratconQuery(document);
@@ -57,6 +64,7 @@ public class StratconMessage {
         return new StratconQueryStop(document);
     }
     catch(Exception e) {
+      System.err.println("makeMessage: " + e);
     }
     return null;
   }
