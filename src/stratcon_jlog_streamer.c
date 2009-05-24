@@ -260,6 +260,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
         if(ctx->header.message_len > 0)
           ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
+        else if(ctx->buffer)
+          free(ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
         ctx->count--;
