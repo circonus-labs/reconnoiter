@@ -47,6 +47,9 @@ public class StratconQuery extends StratconMessage {
   public UUID getUUID() {
     return uuid;
   }
+  public EPStatement getStatement() {
+    return statement;
+  }
   public String getExpression() {
     return expression;
   }

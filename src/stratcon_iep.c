@@ -58,6 +58,7 @@
 #endif
 
 eventer_jobq_t iep_jobq;
+static noit_log_stream_t noit_iep = NULL;
 
 struct iep_thread_driver {
 #ifdef OPENWIRE
@@ -139,7 +140,6 @@ stratcon_iep_doc_from_check(char *data, char *remote) {
            ADDCHILD("module", parts[4]);
            ADDCHILD("name", parts[5]);
          });
-noitL(noit_error,"Submitting check %s\n", parts[2]);
   return doc;
 }
 
@@ -240,18 +240,18 @@ void stratcon_iep_submit_queries() {
     if(!noit_conf_get_stringbuf(query_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
-      noitL(noit_error, "No uuid specified in query\n");
+      noitL(noit_iep, "No uuid specified in query\n");
       continue;
     }
     if(!noit_conf_get_stringbuf(query_configs[i],
                                 "ancestor-or-self::node()/@topic",
                                 topic, sizeof(topic))) {
-      noitL(noit_error, "No topic specified in query\n");
+      noitL(noit_iep, "No topic specified in query\n");
       continue;
     }
     if(!noit_conf_get_string(query_configs[i], "self::node()",
                              &query)) {
-      noitL(noit_error, "No contents specified in query\n");
+      noitL(noit_iep, "No contents specified in query\n");
       continue;
     }
     line_len = 4 /* 3 tabs + \0 */ +
@@ -335,7 +335,6 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
         stomp_disconnect(&driver->connection);
         return NULL;
       }
-      noitL(noit_error, "Response: %s, %s\n", frame->command, frame->body);
      }
 #endif
      stratcon_datastore_iep_check_preload();
@@ -426,7 +425,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     }
   }
   else {
-    noitL(noit_error, "no iep handler for: '%s'\n", job->line);
+    noitL(noit_iep, "no iep handler for: '%s'\n", job->line);
   }
   return 0;
 }
@@ -549,7 +548,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     if(len <= 0) goto read_error;
     assert(len < sizeof(buff));
     buff[len] = '\0';
-    noitL(noit_error, "IEP: %s", buff);
+    noitL(noit_iep, "%s", buff);
   }
 }
 
@@ -640,6 +639,9 @@ stratcon_iep_init() {
     noitL(noit_error, "IEP system is disabled!\n");
     return;
   }
+
+  noit_iep = noit_log_stream_find("error/iep");
+  if(!noit_iep) noit_iep = noit_error;
 
   start_iep_daemon();
 

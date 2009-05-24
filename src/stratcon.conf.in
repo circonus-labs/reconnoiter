@@ -6,6 +6,7 @@
       <outlet name="stderr"/>
       <log name="error"/>
       <log name="debug"/>
+      <log name="error/iep"/>
       <log name="error/eventer" disabled="true"/>
       <log name="debug/eventer" disabled="true"/>
     </console_output>

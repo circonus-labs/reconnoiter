@@ -78,7 +78,7 @@ public class AMQListener implements Runnable {
               if(queries.containsKey(sq.getUUID())) throw (new Exception("Duplicate Query"));
 
               EPStatement statement = epService.getEPAdministrator().createEPL(sq.getExpression());
-              AMQOutput o = new AMQOutput(epService, statement, sq.getName());
+              AMQOutput o = new AMQOutput(epService, sq);
 
               statement.addListener(o);
               sq.setStatement(statement);

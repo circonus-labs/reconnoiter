@@ -65,6 +65,7 @@ public class StratconMessage {
     }
     catch(Exception e) {
       System.err.println("makeMessage: " + e);
+      e.printStackTrace();
     }
     return null;
   }

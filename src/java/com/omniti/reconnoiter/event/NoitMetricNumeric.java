@@ -19,8 +19,8 @@ import org.w3c.dom.Text;
 public class NoitMetricNumeric extends StratconMessage {
     private String uuid;
     private String name;
-    private double value;
-    private String remote;
+    private Double value;
+    private String noit;
 
     protected String get_string(Element e, String tag) throws NoitMetricNumericException {
       NodeList vals = e.getElementsByTagName(tag);
@@ -52,13 +52,13 @@ public class NoitMetricNumeric extends StratconMessage {
       uuid = get_string(e,"id");
       name = get_string(e,"name");
       value = get_double(e, "value");
-      remote = get_string(e,"remote");
+      noit = get_string(e,"remote");
     }
 
     public String getuuid() { return uuid; }
     public String getname() { return name; }
-    public double getvalue() { return value; }
-    public String getremote() { return remote; }
+    public Double getvalue() { return value; }
+    public String getnoit() { return noit; }
 
     private class NoitMetricNumericException extends Exception {
       public NoitMetricNumericException(String s) {

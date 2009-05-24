@@ -9,6 +9,7 @@
 package com.omniti.reconnoiter;
 
 import com.omniti.reconnoiter.AMQBrokerSingleton;
+import com.omniti.reconnoiter.event.StratconQuery;
 import java.lang.System;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import javax.jms.Connection;
@@ -32,19 +33,21 @@ public class AMQOutput implements UpdateListener {
     private Session session;
     private Destination destination;
     private MessageProducer producer;
+    private StratconQuery sq;
 
-    public AMQOutput(EPServiceProvider epService, EPStatement statement, String name) {
+    public AMQOutput(EPServiceProvider epService, StratconQuery sq) {
       try {
         // we just need it started up
         AMQBrokerSingleton.getBroker();
         this.epService = epService;
-        this.statement = statement;
+        this.sq = sq;
+        this.statement = sq.getStatement();
 
         connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61616");
         connection = connectionFactory.createConnection();
         connection.start();
         session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        destination = session.createTopic("noit.alerts." + name);
+        destination = session.createTopic("noit.alerts." + sq.getName());
 
         producer = session.createProducer(destination);
         producer.setDeliveryMode(DeliveryMode.PERSISTENT);
@@ -53,13 +56,14 @@ public class AMQOutput implements UpdateListener {
       }
     }
     public void update(EventBean[] newEvents, EventBean[] oldEvents) {
+      System.err.println("AMQOutput -> dispatch");
       for(int i = 0; i < newEvents.length; i++) {
         EventBean event = newEvents[i];
-  
+
         JSONEventRenderer jsonRenderer = epService.getEPRuntime().
                                                    getEventRenderer().
-                                                   getJSONRenderer(statement.getEventType());
-        String output = jsonRenderer.render("MyEvent", event);
+                                                   getJSONRenderer(sq.getStatement().getEventType());
+        String output = jsonRenderer.render(sq.getName(), event);
         try {
           TextMessage message = session.createTextMessage(output);
           producer.send(message);
