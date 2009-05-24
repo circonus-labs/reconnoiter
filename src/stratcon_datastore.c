@@ -272,7 +272,9 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
     PG_GET_STR_COL(module, i, "module");
     PG_GET_STR_COL(name, i, "name");
     snprintf(buff, sizeof(buff), "C\t0.000\t%s\t%s\t%s\t%s\n", id, target, module, name);
-    stratcon_iep_line_processor(DS_OP_INSERT, NULL, buff);
+
+    /* stratcon_iep_line_processor takes an allocated operand and frees it */
+    stratcon_iep_line_processor(DS_OP_INSERT, NULL, strdup(buff));
     good++;
   }
   noitL(noit_error, "Staged %d/%d remembered checks into IEP\n", good, row_count);
