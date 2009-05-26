@@ -268,8 +268,8 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
     int rv;
     int8_t family;
     struct sockaddr *sin;
-    struct sockaddr_in sin4 = { sin_family: AF_INET };
-    struct sockaddr_in6 sin6 = { sin6_family: AF_INET6 };
+    struct sockaddr_in sin4 = { .sin_family = AF_INET };
+    struct sockaddr_in6 sin6 = { .sin6_family = AF_INET6 };
     char *remote, *id, *target, *module, *name;
     PG_GET_STR_COL(remote, i, "remote_address");
     PG_GET_STR_COL(id, i, "id");
