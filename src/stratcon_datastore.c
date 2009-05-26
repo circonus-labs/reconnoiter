@@ -265,6 +265,11 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
   row_count = PQntuples(d->res);
   
   for(i=0; i<row_count; i++) {
+    int rv;
+    int8_t family;
+    struct sockaddr *sin;
+    struct sockaddr_in sin4 = { sin_family: AF_INET };
+    struct sockaddr_in6 sin6 = { sin6_family: AF_INET6 };
     char *remote, *id, *target, *module, *name;
     PG_GET_STR_COL(remote, i, "remote_address");
     PG_GET_STR_COL(id, i, "id");
@@ -273,8 +278,21 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
     PG_GET_STR_COL(name, i, "name");
     snprintf(buff, sizeof(buff), "C\t0.000\t%s\t%s\t%s\t%s\n", id, target, module, name);
 
+    family = AF_INET;
+    sin = (struct sockaddr *)&sin4;
+    rv = inet_pton(family, remote, &sin4.sin_addr);
+    if(rv != 1) {
+      family = AF_INET6;
+      sin = (struct sockaddr *)&sin6;
+      rv = inet_pton(family, remote, &sin6.sin6_addr);
+      if(rv != 1) {
+        noitL(noit_stderr, "Cannot translate '%s' to IP\n", remote);
+        sin = NULL;
+      }
+    }
+
     /* stratcon_iep_line_processor takes an allocated operand and frees it */
-    stratcon_iep_line_processor(DS_OP_INSERT, NULL, strdup(buff));
+    stratcon_iep_line_processor(DS_OP_INSERT, sin, strdup(buff));
     good++;
   }
   noitL(noit_error, "Staged %d/%d remembered checks into IEP\n", good, row_count);
