@@ -306,6 +306,7 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
     if(stomp_connect(&driver->connection, hostname, port,
                      driver->pool)!= APR_SUCCESS) {
       noitL(noit_error, "MQ connection failed\n");
+      stomp_disconnect(&driver->connection);
       return NULL;
     }
 
