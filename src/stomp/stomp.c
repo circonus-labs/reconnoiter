@@ -35,7 +35,7 @@ APR_DECLARE(apr_status_t) stomp_connect(stomp_connection **connection_ref, const
 	//
 	// Allocate the connection and a memory pool for the connection.
 	//
-	connection = apr_pcalloc(pool, sizeof(connection));
+	connection = apr_pcalloc(pool, sizeof(*connection));
 	if( connection == NULL )
 		return APR_ENOMEM;
    
