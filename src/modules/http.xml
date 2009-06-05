@@ -1,6 +1,6 @@
 <module>
   <name>http</name>
-  <description><para>The http module performs GET requests over either HTTP or HTTPS and checks the return code.</para>
+  <description><para>The http module performs GET requests over either HTTP or HTTPS and checks the return code and optionally the body.</para>
   </description>
   <loader>C</loader>
   <image>http.so</image>
@@ -27,8 +27,11 @@
                allowed=".+">A path to a file containing all the client certificate that will be presented to the remote server (for SSL checks).</parameter>
     <parameter name="code"
                required="optional"
-               default="200"
-               allowed="[1-5][0-9][0-9]">The HTTP code that is expected.  If the code received matches this code, the check is marked as "good," if it does not match, it is marked as "bad."</parameter>
+               default="^200$"
+               allowed=".+">The HTTP code that is expected.  If the code received does not match this regular expression, the check is marked as "bad."</parameter>
+    <parameter name="body"
+               required="optional"
+               allowed=".+">This regular expression is matched against the body of the response.  If a match is not found, the check will be marked as "bad."</parameter>
   </checkconfig>
   <examples>
     <example>

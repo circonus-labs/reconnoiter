@@ -38,6 +38,8 @@
 #include <assert.h>
 #include <math.h>
 
+#include <pcre.h>
+
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
@@ -176,33 +178,70 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
   serf_check_info_t *ci = check->closure;
   struct timeval duration;
   stats_t current;
-  int expect_code = 200;
+  pcre *expect_code = NULL, *body_match = NULL;
   u_int32_t duration_ms;
-  void *code_str; /* void * for use with hash */
-  char human_buffer[256], code[4], rt[14];
+  void *code_str, *body_str; /* void * for use with hash */
+  char human_buffer[256], code[4], rt[14], bmatch[30];
+  const char *error;
+  int body_matched = 1;
+  int erroffset;
+  int ovector[30];
 
   noit_check_stats_clear(&current);
 
-  if(noit_hash_retrieve(check->config, "code", strlen("code"), &code_str))
-    expect_code = atoi((const char *)code_str);
+  if(!noit_hash_retrieve(check->config, "code", strlen("code"), &code_str)) {
+    code_str = "^200$";
+  }
+  expect_code = pcre_compile((const char *)code_str, 0,
+                             &error, &erroffset, NULL);
+  if(!expect_code)
+    noitL(nlerr, "http code match /%s/ failed @ %d: %s\n", (char *)code_str,
+          erroffset, error);
+          
+  if(noit_hash_retrieve(check->config, "body", strlen("body"), &body_str)) {
+    body_match = pcre_compile((const char *)body_str, 0,
+                              &error, &erroffset, NULL);
+    if(!body_match)
+      noitL(nlerr, "http body match /%s/ failed @ %d: %s\n",
+            (char *)body_str, erroffset, error);
+  }
 
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
   snprintf(code, sizeof(code), "%3d", ci->status.code);
   snprintf(rt, sizeof(rt), "%.3fs",
            (float)duration.tv_sec + (float)duration.tv_usec / 1000000.0);
+
+  bmatch[0] = '\0';
+  if(body_match) {
+    if(pcre_exec(body_match, NULL, ci->body.b, ci->body.l, 0, 0,
+                 ovector, sizeof(ovector)/sizeof(*ovector)) <= 0) {
+      body_matched = 0;
+    }
+    snprintf(bmatch, sizeof(bmatch),
+             ",body=%s", body_matched ? "matched" : "failed");
+  }
+
   snprintf(human_buffer, sizeof(human_buffer),
-           "code=%s,rt=%s,bytes=%d",
+           "code=%s,rt=%s,bytes=%d%s",
            ci->status.code ? code : "undefined",
            ci->timed_out ? "timeout" : rt,
-           ci->body.l);
+           ci->body.l, bmatch);
   noitL(nldeb, "http(%s) [%s]\n", check->target, human_buffer);
 
   memcpy(&current.whence, &ci->finish_time, sizeof(current.whence));
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   duration_ms = current.duration;
   current.available = (ci->timed_out || !ci->status.code) ? NP_UNAVAILABLE : NP_AVAILABLE;
-  current.state = (ci->status.code != expect_code) ? NP_BAD : NP_GOOD;
+
+  if(body_matched == 0) current.state = NP_BAD;
+  else if(expect_code &&
+          pcre_exec(expect_code, NULL, code, strlen(code), 0, 0,
+                    ovector, sizeof(ovector)/sizeof(*ovector)) > 0)
+    current.state = NP_GOOD;
+  else
+    current.state = NP_BAD;
+
   current.status = human_buffer;
   if(current.available == NP_AVAILABLE) {
     noit_stats_set_metric(&current, "code",
@@ -218,6 +257,8 @@ static void serf_log_results(noit_module_t *self, noit_check_t *check) {
     noit_stats_set_metric(&current, "duration", METRIC_UINT32, NULL);
   }
   noit_check_set_stats(self, check, &current);
+  if(expect_code) pcre_free(expect_code);
+  if(body_match) pcre_free(body_match);
 }
 static void resmon_part_log_results_xml(noit_module_t *self,
                                         noit_check_t *check,
