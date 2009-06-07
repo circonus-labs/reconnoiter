@@ -184,6 +184,11 @@ int noit_conf_load(const char *path) {
   }
   return -1;
 }
+
+char *noit_conf_config_filename() {
+  return strdup(master_config_file);
+}
+
 int noit_conf_xml_xpath(xmlDocPtr *mc, xmlXPathContextPtr *xp) {
   if(mc) *mc = master_config;
   if(xp) *xp = xpath_ctxt;

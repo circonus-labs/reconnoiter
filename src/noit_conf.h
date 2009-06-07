@@ -62,6 +62,7 @@ API_EXPORT(void) noit_conf_mark_changed();
 API_EXPORT(void) noit_conf_init(const char *toplevel);
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
+API_EXPORT(char *) noit_conf_config_filename();
 
 API_EXPORT(noit_conf_section_t)
   noit_conf_get_section(noit_conf_section_t section, const char *path);

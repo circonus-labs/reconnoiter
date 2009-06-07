@@ -581,8 +581,10 @@ start_iep_daemon() {
     goto bail;
   }
   if(info->child == 0) {
-    char *argv[2] = { "run-iep", NULL };
+    char *argv[3] = { "run-iep", NULL, NULL };
     int stdout_fileno;
+
+    argv[1] = noit_conf_config_filename();
 
     if(chdir(info->directory) != 0) {
       noitL(noit_error, "Starting IEP daemon, chdir failed: %s\n",

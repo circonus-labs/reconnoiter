@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import com.omniti.reconnoiter.AMQListener;
 import com.omniti.reconnoiter.event.NoitEvent;
 import com.omniti.reconnoiter.event.NoitMetricNumeric;
+import com.omniti.reconnoiter.StratconConfig;
 import com.espertech.esper.client.*;
 import com.espertech.esper.client.soda.*;
 
@@ -22,8 +23,14 @@ import org.apache.log4j.BasicConfigurator;
 class IEPEngine {
   static public void main(String[] args) {
     BasicConfigurator.configure();
+    if(args.length != 1) {
+      System.err.println("Requires exactly one argument");
+      return;
+    }
+    StratconConfig sconf = new StratconConfig(args[0]);
 
     Configuration config = new Configuration();
+    config.addDatabaseReference("recondb", sconf.getDBConfig());
     config.addEventTypeAutoName("com.omniti.reconnoiter.event");
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
     NoitEvent.registerTypes(epService);
