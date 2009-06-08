@@ -51,6 +51,18 @@ if($want == 'templateid') {
 }
 
 else if($want == 'targetname') {         
+     $sidvars = array();
+     $textvars = array();
+
+     $vs = $template->variables();
+     foreach($vs as $v => $d) {
+       if(isset($d['SID'])) {
+         $sidvars[] = $v;          	  
+        }
+	else if(isset($d['TEXT'])) {
+	  $textvars[] = $v;
+	}
+      }
 
 	 $target_sid_map = array();
 
@@ -62,59 +74,96 @@ else if($want == 'targetname') {
 		       $target_sid_map[$match[target]][] = $match[sid];
 	    }
          }
-	 
-	 foreach ($target_sid_map as $target_name => $sid_list) {
-	    $params = array();
-	    $params['thetemplate'] = $templateid;
-	    $sidlist = implode(",", $sid_list);
-	    $params['targetname'] = $sidlist;
-	    $params['num_sids'] = $template->num_sids;
-	    $jitem = array ('id' => $target_name,
+	 foreach ($sidvars as $sv) {
+        	 $sidtext = "<span class='sidvarspan'>$sv</span>";
+		 $jitem = array ('id' => 'sidvar',
+	    	     	   'text' => $sidtext,
+			   'hasChildren' => false,
+			   'classes' => 'sidvar',
+			   'params' => array(),
+			   );
+	         $bag[] = $jitem;
+                 
+	 	 foreach ($target_sid_map as $target_name => $sid_list) {
+	 	    $params = array();
+	            $params['thetemplate'] = $templateid;
+        	    $sidlist = implode(",", $sid_list);
+        	    $params['targetname'] = $sidlist;
+        	    $params['num_sids'] = $template->num_sids;
+		    $params['thetarget'] = $target_name;
+		    $params['sidvarlist'] = implode(",", $sidvars);
+		    $params['textvarlist'] = implode(",", $textvars);
+
+        	    $jitem = array ('id' => $target_name,
 	    	     	   'text' => $target_name,
 			   'hasChildren' => true,
-			   'classes' => $want,
+			   'classes' => $sv,	
 			   'params' => $params
 			   );
-	    $bag[] = $jitem;
-	 }
-}
-else if($want == 'sid') {
-     $thetemplateid = $_REQUEST['thetemplate'];
-     $num_sids = $_REQUEST['num_sids'];
+        	    $bag[] = $jitem;
+        	 }
+         }
 
-     $sid_list = explode (",", $_REQUEST[$l2]);
-     $ctext = "<form id='template-graph' name='template-graph' action=''>";     
-     $ctext.= "<select multiple='multiple' name='sid_select' size='5' id='sid_select' >";
-     $snames = $db->make_names_for_template($sid_list);
+	 foreach($textvars as $tv) {
+	   $params = array();
+	   $ctext = "<br>".$tv.":";
+	   $ctext.="<input type='text' size='15' name='".$tv."' id='textvar'><br>";
+	   $jitem = array ('id' => '',
+	    	     	   'text' => $ctext,
+			   'hasChildren' => false,
+			   'classes' => $tv,
+			   'params' => array(),
+			   );
+	   $bag[] = $jitem;
+         }
 
-     foreach ($snames as $tuple) {
-        $ctext.="<option value='".$tuple['sid']."'> ".$tuple['option']."</option><br />";
-     }
-     $ctext.="</select><br>Select ".$num_sids." from above.";     
-     $ctext .= "<br>Graph Title:";
-     $ctext.="<input type='text' size='15' name='graph_name' id='graph_name'><br>";
-     $ctext.="<span class='CreateGraphButton'>";
+     $ctext ="<span class='CreateGraphButton'>";
      $link=<<<LINK
-<a href="javascript:CreateGraphFromTemplate('$thetemplateid', '$num_sids')">
+<a href="javascript:CreateGraphFromTemplate('$templateid')">
 LINK;
      $ctext.=$link;
-     $ctext.="<b>Create Graph</b></a></span></form>";
+     $ctext.="<b>Create Graph</b></a></span>";
      $ctext.="<span class='CreateGraph'></span>";
      $ctext.= <<<JS
 <script type='text/javascript'>
 
-function CreateGraphFromTemplate(templateid, num_sids){
+function CreateGraphFromTemplate(templateid){
 
-var graph_name = $("#graph_name").val();
 var sids = [];
+var textvals = "";
+var sidvals = "";
 
-$("#sid_select :selected").each(function(i, selected){
-	 sids[i] = $(selected).val();
+textvars = [];
+sidvars =[];
+
+$("#textvar").each ( function (i) {
+        textvals+=  "&"+$(this).attr('name')+"="+$(this).val();
+	textvars[i] = $(this).attr('name');
 });
 
-if(sids.length==num_sids){
-	var dataString = 'templateid='+templateid+'&graph_name='+graph_name+'&sids='+sids;
 
+$(".sidvar").each(function(i) {
+    sidvars[i] = $(this).text();
+});
+
+var sidvar_sid_map = Array();
+//this code to determine the sidvar is kind of hacky...
+$(".sid_select :selected").each(function(i, selected) {
+	 target_id = $(selected).attr("class");
+	 sidvarclass = $(selected).parents(".collapsable:eq(0)").find("span").attr("class");
+	 if(sidvar_sid_map[sidvarclass] == undefined) sidvar_sid_map[sidvarclass] = Array();
+	 sids[i] = $(selected).val();
+	 sidvar_sid_map[sidvarclass].push($(selected).val());
+});
+
+for (i=0; i<sidvars.length; i++){
+	sidvals+="&"+sidvars[i]+"="+sidvar_sid_map[sidvars[i]].join(",");
+}
+
+//if we have selected atleast one sid
+if(sids.length > 0){
+	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;
+	console.log("the datastring = ", dataString);
 	$.ajax({
 		type: "POST",
 	url: "template_graph.php",
@@ -125,12 +174,37 @@ if(sids.length==num_sids){
 	$(".CreateGraph").html('Graph Saved').fadeOut('slow');
 }
 else {
-     modal_warning("Graph creation error", "You did not select the correct number of metrics!");
+     modal_warning("Graph creation error", "You need to select atleast one sid!");
 }
 }
 
 </script>
 JS;
+$jitem = array ('id' => '',
+	    	     	   'text' => $ctext,
+			   'hasChildren' => false,
+			   'classes' => $tv,
+			   'params' => array(),
+			   );
+$bag[] = $jitem;
+
+
+}
+
+else if($want == 'sid') {
+     $thetemplateid = $_REQUEST['thetemplate'];
+     $num_sids = $_REQUEST['num_sids'];
+    
+     $sid_list = explode (",", $_REQUEST[$l2]);
+     $thetarget =  $_REQUEST['thetarget'];
+     
+     $ctext = "<select multiple='multiple' name='sid_select' size='5' id='sid_select' class='sid_select'>";
+     $snames = $db->make_names_for_template($sid_list);
+     
+     $i=0;
+     foreach ($snames as $tuple) {
+        $ctext.="<option value='".$tuple['sid']."' class='".$thetarget."'> ".$tuple['option']."</option><br />";
+     }
 
      $jitem = array ('id' => '',
 	    	     	   'text' => $ctext,

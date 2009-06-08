@@ -590,6 +590,11 @@ padding-left:75px;
 background:transparent url(../images/icon-data-txt.png) no-repeat scroll 60px 1px;
 padding-left:75px;
 }
+
+ul li .sidvarspan {
+background: none;
+}
+
 div.tooltip {
     padding:10px;
 }
