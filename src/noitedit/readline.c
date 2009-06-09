@@ -496,7 +496,7 @@ _rl_compat_sub(const char *str, const char *what, const char *with,
 			}
 			(void) strncpy(&result[len], temp, i);
 			len += i;
-			(void) strcpy(&result[len], with);	/* safe */
+			(void) memcpy(&result[len], with, with_len+1);
 			len += with_len;
 			temp = new + what_len;
 		} else {
@@ -505,7 +505,7 @@ _rl_compat_sub(const char *str, const char *what, const char *with,
 				size += add + 1;
 				result = realloc(result, size);
 			}
-			(void) strcpy(&result[len], temp);	/* safe */
+			(void) memcpy(&result[len], temp, add+1);
 			len += add;
 			temp = NULL;
 		}
@@ -708,7 +708,7 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 					}
 					if (*cmd == '&') {
 						/* safe */
-						(void) strcpy(&with[len], from);
+						(void) memcpy(&with[len], from, from_len+1);
 						len += from_len;
 						continue;
 					}
@@ -760,13 +760,13 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 			*(temp + 1) = '\0';
 		if (t_on && (i == 1 || t_on > 1) &&
 		    (temp = strrchr(arr[i], '/')))
-			(void) strcpy(arr[i], temp + 1);
+			(void) memcpy(arr[i], temp + 1, strlen(temp+1)+1);
 		if (r_on && (i == 1 || r_on > 1) &&
 		    (temp = strrchr(arr[i], '.')))
 			*temp = '\0';
 		if (e_on && (i == 1 || e_on > 1) &&
 		    (temp = strrchr(arr[i], '.')))
-			(void) strcpy(arr[i], temp);
+			(void) memcpy(arr[i], temp, strlen(temp)+1);
 	}
 
 	cmdsize = 1, cmdlen = 0;
@@ -779,7 +779,7 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 			cmdsize += arr_len + 1;
 			tempcmd = realloc(tempcmd, cmdsize);
 		}
-		(void) strcpy(&tempcmd[cmdlen], arr[i]);	/* safe */
+		(void) memcpy(&tempcmd[cmdlen], arr[i], arr_len+1);
 		cmdlen += arr_len;
 		tempcmd[cmdlen++] = ' ';	/* add a space */
 	}
@@ -817,7 +817,7 @@ history_expand(char *str, char **output)
 		temp[0] = temp[1] = history_expansion_char;
 		temp[2] = ':';
 		temp[3] = 's';
-		(void) strcpy(temp + 4, str);
+		(void) memcpy(temp + 4, str, strlen(str)+1);
 		str = temp;
 	}
 #define	ADD_STRING(what, len) 						\
@@ -841,7 +841,7 @@ loop:
 		for (; str[j]; j++) {
 			if (str[j] == '\\' &&
 			    str[j + 1] == history_expansion_char) {
-				(void) strcpy(&str[j], &str[j + 1]);
+				(void) memcpy(&str[j], &str[j + 1], strlen(&str[j + 1])+1);
 				continue;
 			}
 			if (!loop_again) {
@@ -1365,7 +1365,7 @@ filename_completion_function(const char *text, int state)
 		if (temp) {
 			temp++;
 			filename = realloc(filename, strlen(temp) + 1);
-			(void) strcpy(filename, temp);
+			(void) memcpy(filename, temp, strlen(temp) + 1);
 			len = temp - text;	/* including last slash */
 			dirname = realloc(dirname, len + 1);
 			(void) strncpy(dirname, text, len);
@@ -1379,7 +1379,7 @@ filename_completion_function(const char *text, int state)
 		if (dirname && *dirname == '~') {
 			temp = tilde_expand(dirname);
 			dirname = realloc(dirname, strlen(temp) + 1);
-			(void) strcpy(dirname, temp);	/* safe */
+			(void) memcpy(dirname, temp, strlen(temp) + 1);
 			free(temp);	/* no longer needed */
 		}
 		/* will be used in cycle */
@@ -1421,7 +1421,7 @@ filename_completion_function(const char *text, int state)
 
 		/* test, if it's directory */
 		if (stat(temp, &stbuf) == 0 && S_ISDIR(stbuf.st_mode))
-			strcat(temp, "/");	/* safe */
+			memcpy(temp + strlen(temp), "/", 2);
 	} else
 		temp = NULL;
 
