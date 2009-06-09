@@ -63,17 +63,9 @@ else if($want == 'targetname') {
 	  $textvars[] = $v;
 	}
       }
+	 
+	 $valid_sids = $template->sids();
 
-	 $target_sid_map = array();
-
-	 foreach ($template->sids() as $item) {	
-	    foreach ($item as $match) {
-	    	    if(!isset($target_sid_map[$match[target]])) {
-		    	$target_sid_map[$match[target]] = array();
-		    }
-		       $target_sid_map[$match[target]][] = $match[sid];
-	    }
-         }
 	 foreach ($sidvars as $sv) {
         	 $sidtext = "<span class='sidvarspan'>$sv</span>";
 		 $jitem = array ('id' => 'sidvar',
@@ -83,7 +75,16 @@ else if($want == 'targetname') {
 			   'params' => array(),
 			   );
 	         $bag[] = $jitem;
-                 
+
+		 $target_sid_map = array();
+
+		 foreach ($valid_sids[$sv] as $match) {
+  	    	   if(!isset($target_sid_map[$match[target]])) {
+	    	     $target_sid_map[$match[target]] = array();
+	           }
+	           $target_sid_map[$match[target]][] = $match[sid];
+                 }
+
 	 	 foreach ($target_sid_map as $target_name => $sid_list) {
 	 	    $params = array();
 	            $params['thetemplate'] = $templateid;
@@ -136,19 +137,20 @@ var sidvals = "";
 textvars = [];
 sidvars =[];
 
-$("#textvar").each ( function (i) {
+var template_e = $("#"+templateid);
+
+template_e.find("#textvar").each ( function (i) {
         textvals+=  "&"+$(this).attr('name')+"="+$(this).val();
 	textvars[i] = $(this).attr('name');
 });
 
-
-$(".sidvar").each(function(i) {
+template_e.find(".sidvar").each(function(i) {
     sidvars[i] = $(this).text();
 });
 
 var sidvar_sid_map = Array();
 //this code to determine the sidvar is kind of hacky...
-$(".sid_select :selected").each(function(i, selected) {
+template_e.find(".sid_select :selected").each(function(i, selected) {
 	 target_id = $(selected).attr("class");
 	 sidvarclass = $(selected).parents(".collapsable:eq(0)").find("span").attr("class");
 	 if(sidvar_sid_map[sidvarclass] == undefined) sidvar_sid_map[sidvarclass] = Array();
@@ -163,7 +165,6 @@ for (i=0; i<sidvars.length; i++){
 //if we have selected atleast one sid
 if(sids.length > 0){
 	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;
-	console.log("the datastring = ", dataString);
 	$.ajax({
 		type: "POST",
 	url: "template_graph.php",
