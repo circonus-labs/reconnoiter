@@ -1326,8 +1326,10 @@ tilde_expand(char *txt)
 	/* first slash */
 	txt += len;
 
-	temp = malloc(strlen(pass->pw_dir) + 1 + strlen(txt) + 1);
-	(void) sprintf(temp, "%s/%s", pass->pw_dir, txt);
+	/* Reuse len to use snprintf */
+	len = strlen(pass->pw_dir) + 1 + strlen(txt) + 1;
+	temp = malloc(len);
+	(void) snprintf(temp, len, "%s/%s", pass->pw_dir, txt);
 
 	return (temp);
 #endif
@@ -1414,7 +1416,7 @@ filename_completion_function(const char *text, int state)
 #endif
 		    ((dirname) ? strlen(dirname) : 0) + 1 + 1;
 		temp = malloc(len);
-		(void) sprintf(temp, "%s%s",
+		(void) snprintf(temp, len, "%s%s",
 		    dirname ? dirname : "", entry->d_name);	/* safe */
 
 		/* test, if it's directory */
