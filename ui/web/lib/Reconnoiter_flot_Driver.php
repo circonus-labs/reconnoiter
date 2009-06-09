@@ -113,7 +113,6 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
             $a[] = array( $ts * 1000, "$value" );
           }
         }
-        else $a[] = array( $ts * 1000, "" );	
         $i++;
       }
     return $a;
