@@ -529,6 +529,18 @@ padding-left:15px;
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 15px 3px;
 padding-left:30px;
 }
+#browselist ul li ul li span.sidvar {
+background:none;
+padding-left:0;
+}
+#browselist ul li ul li span.sidvar span.sidvarspan{
+background:none;
+padding-left:15px;
+}
+#browselist ul li ul li#textvar span{
+background:none;
+padding-left:15px;
+}
 #browselist ul li ul li span.numeric {
 background:transparent url(../images/icon-data.png) no-repeat scroll 15px 1px;
 padding-left:30px;
@@ -551,6 +563,10 @@ padding-left:45px;
 }
 #browselist ul li ul li ul li span.templatesid {
 padding-left:30px;
+}
+#browselist ul li ul li#graphcreatebutton span{
+background:none;
+padding-left:8px;
 }
 #browselist ul li ul li ul li span.CreateGraph {
 border:1px solid #DDDDDD;

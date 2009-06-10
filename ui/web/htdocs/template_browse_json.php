@@ -107,9 +107,9 @@ else if($want == 'targetname') {
 
 	 foreach($textvars as $tv) {
 	   $params = array();
-	   $ctext = "<br>".$tv.":";
-	   $ctext.="<input type='text' size='15' name='".$tv."' id='textvar'><br>";
-	   $jitem = array ('id' => '',
+	   $ctext = $tv.":";
+	   $ctext.="<input type='text' size='15' name='".$tv."' id='textvar'>";
+	   $jitem = array ('id' => 'textvar',
 	    	     	   'text' => $ctext,
 			   'hasChildren' => false,
 			   'classes' => $tv,
@@ -137,11 +137,21 @@ var sidvals = "";
 textvars = [];
 sidvars =[];
 
+//if we have selected atleast one sid for each SID placeholder
+//and set values for TEXT placeholder, make the graphs
+var have_req_txtvals = false;
+var have_req_sidvals = false;
+
+
 var template_e = $("#"+templateid);
 
-template_e.find("#textvar").each ( function (i) {
-        textvals+=  "&"+$(this).attr('name')+"="+$(this).val();
-	textvars[i] = $(this).attr('name');
+template_e.find("input[@id='textvar']").each ( function (i) {
+        textvars[i] = $(this).attr('name');
+	if($(this).val() != '') {
+	  have_req_txtvals = true;
+          textvals+=  "&"+$(this).attr('name')+"="+$(this).val();
+        }
+	else have_req_txtvals = false;
 });
 
 template_e.find(".sidvar").each(function(i) {
@@ -163,12 +173,17 @@ sidvars.sort();
 textvars.sort();
 
 for (i=0; i<sidvars.length; i++){
-        sidvar_sid_map[sidvars[i]].sort();
-	sidvals+="&"+sidvars[i]+"="+sidvar_sid_map[sidvars[i]].join(",");
+  if(sidvar_sid_map[sidvars[i]]) {
+    sidvar_sid_map[sidvars[i]].sort();
+    have_req_sidvals=true;
+    sidvals+="&"+sidvars[i]+"="+sidvar_sid_map[sidvars[i]].join(",");
+  }
+  else {
+    have_req_sidvals=false;
+  }
 }
 
-//if we have selected atleast one sid
-if(sids.length > 0){	 
+if(have_req_txtvals && have_req_sidvals){
 	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;
 	$.ajax({
 		type: "POST",
@@ -176,20 +191,20 @@ if(sids.length > 0){
 	data: dataString,
 	success: function() { }
 	});
-	$(".CreateGraph").html('Graph Saved').fadeIn('slow');
-	$(".CreateGraph").html('Graph Saved').fadeOut('slow');
+	template_e.find(".CreateGraph").html('Graph Saved').fadeIn('slow');
+	template_e.find(".CreateGraph").html('Graph Saved').fadeOut('slow');
 }
 else {
-     modal_warning("Graph creation error", "You need to select atleast one sid!");
+     modal_warning("Graph creation error", "You need to select atleast one value for each SID placeholder ("+sidvars.join(",")+"), and each TEXT place holder ("+textvars.join(",")+")!");
 }
 }
 
 </script>
 JS;
-$jitem = array ('id' => '',
+$jitem = array ('id' => 'graphcreatebutton',
 	    	     	   'text' => $ctext,
 			   'hasChildren' => false,
-			   'classes' => $tv,
+			   'classes' => '',
 			   'params' => array(),
 			   );
 $bag[] = $jitem;
