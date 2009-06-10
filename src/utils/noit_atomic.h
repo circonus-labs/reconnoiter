@@ -62,9 +62,9 @@ typedef OSSpinLock noit_spinlock_t;
 #elif defined(__GNUC__)
 
 #if (SIZEOF_VOID_P == 4)
-#define noit_atomic_casptr(a,b,c) noit_atomic_cas32((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c))
+#define noit_atomic_casptr(a,b,c) ((void *)noit_atomic_cas32((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c)))
 #elif (SIZEOF_VOID_P == 8)
-#define noit_atomic_casptr(a,b,c) noit_atomic_cas64((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c))
+#define noit_atomic_casptr(a,b,c) ((void *)noit_atomic_cas64((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c)))
 #else
 #error unsupported pointer width
 #endif
