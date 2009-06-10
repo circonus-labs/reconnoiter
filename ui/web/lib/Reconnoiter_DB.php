@@ -418,6 +418,14 @@ class Reconnoiter_DB {
     $row = $sth->fetch();
     return $row;
   }
+  function getGraphByGenesis($genesis) {
+    $sth = $this->db->prepare("select *
+                                 from prism.saved_graphs
+                                where genesis=?");
+    $sth->execute(array($genesis));
+    $row = $sth->fetch();
+    return $row;
+  }
   function deleteWorksheetGraph($ws_id, $graphid) {
     $sth = $this->db->prepare("delete from prism.saved_worksheets_dep 
                                       where sheetid=? and graphid=?");
@@ -469,9 +477,9 @@ class Reconnoiter_DB {
         $id = Reconnoiter_UUID::generate();
         $sth = $this->db->prepare("insert into prism.saved_graphs
                                                (graphid, json, title,
-                                                last_update)
-                                        values (?, ?, ?, current_timestamp)");
-        $sth->execute(array($id, $json, $graph['title']));
+                                                last_update, genesis)
+                                        values (?, ?, ?, current_timestamp, ?)");
+        $sth->execute(array($id, $json, $graph['title'], $graph['genesis']));
       }
       $sth = $this->db->prepare("insert into prism.saved_graphs_dep
                                              (graphid, sid,

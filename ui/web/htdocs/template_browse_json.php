@@ -154,16 +154,21 @@ template_e.find(".sid_select :selected").each(function(i, selected) {
 	 target_id = $(selected).attr("class");
 	 sidvarclass = $(selected).parents(".collapsable:eq(0)").find("span").attr("class");
 	 if(sidvar_sid_map[sidvarclass] == undefined) sidvar_sid_map[sidvarclass] = Array();
-	 sids[i] = $(selected).val();
-	 sidvar_sid_map[sidvarclass].push($(selected).val());
+	 sval = parseInt($(selected).val());
+	 sids[i] = sval;
+	 sidvar_sid_map[sidvarclass].push(sval);
 });
 
+sidvars.sort();
+textvars.sort();
+
 for (i=0; i<sidvars.length; i++){
+        sidvar_sid_map[sidvars[i]].sort();
 	sidvals+="&"+sidvars[i]+"="+sidvar_sid_map[sidvars[i]].join(",");
 }
 
 //if we have selected atleast one sid
-if(sids.length > 0){
+if(sids.length > 0){	 
 	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;
 	$.ajax({
 		type: "POST",

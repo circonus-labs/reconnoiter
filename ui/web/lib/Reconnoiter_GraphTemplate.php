@@ -26,7 +26,7 @@ class Reconnoiter_GraphTemplate {
   public function sids() {
     return Reconnoiter_GraphTemplate::find_sids($this->row['json']);
   }
-  public function newGraph($params) {
+  public function getNewGraphJSON($params) {
     $v = $this->variables();
     global $__rgt_replace_set;
     $__rgt_replace_set = array();
