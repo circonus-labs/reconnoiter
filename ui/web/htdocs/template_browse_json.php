@@ -184,13 +184,37 @@ for (i=0; i<sidvars.length; i++){
 }
 
 if(have_req_txtvals && have_req_sidvals){
-	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;
+	var dataString = 'templateid='+templateid+'&textvars='+textvars.join(',')+'&sidvars='+sidvars.join(',')+textvals+sidvals;		
 	$.ajax({
 		type: "POST",
 	url: "template_graph.php",
-	data: dataString,
-	success: function() { }
-	});
+	data: dataString+"&update=0",
+	success: function(d) { 
+	  graphs = eval('(' + d + ')');
+	   if(graphs.length>0) {	  
+             gtitles = "";
+	     for(i=0; i<graphs.length; i++){
+	       gtitles+="\\n"+graphs[i].title
+             }
+	     confirm("Found existing graphs made from this template:<p><textarea rows='10' disabled style='border:none;'>"+gtitles+"</textarea><p> continue and update these?",
+	       function () {
+	      	  $.ajax({
+		         type: "POST",
+	                 url: "template_graph.php",
+ 	                 data: dataString+"&update=1",
+ 	                 success: function() { }
+  	          });
+              });
+          }
+          else {
+                  $.ajax({
+		         type: "POST",
+	                 url: "template_graph.php",
+ 	                 data: dataString+"&update=1",
+ 	                 success: function() { }
+  	          });
+         }
+       }});
 	template_e.find(".CreateGraph").html('Graph Saved').fadeIn('slow');
 	template_e.find(".CreateGraph").html('Graph Saved').fadeOut('slow');
 }

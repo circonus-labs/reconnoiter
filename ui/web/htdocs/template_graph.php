@@ -3,6 +3,7 @@ require_once 'Reconnoiter_DB.php';
 require_once 'Reconnoiter_GraphTemplate.php';
 
 $templateid = $_POST['templateid'];
+$update = $_POST['update'];
 
 $sid_vars = explode(",", $_POST['sidvars']);
 $text_vars = explode(",", $_POST['textvars']);
@@ -21,6 +22,8 @@ foreach ($sid_vars as $sv) {
   $var_vals[] = explode(",", $_POST[$sv]);
 }
 
+$graphs_to_update = array();
+
 //this number is used so we dont end up trying to create multiple graphs with the same title		
 $graph_num = 1;
 
@@ -28,8 +31,10 @@ $graph_num = 1;
 //then, it will create graphs for each of these combinations, updating a graph if one already exists with the same genesis
 //a graph's genesis is composed of its templateid, its text vars and their values, and its sid vars and their values, and
 //should be unique among saved_graphs   
-function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num)
+function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num, $update)
     {
+        global $graphs_to_update;
+
 	$genesis = $genesis_base;
         if ($i >= count($var_vals)){	    
 	    $vals_combo = explode(",", $combo);
@@ -48,25 +53,32 @@ function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base,
 
 	    $grow = $db->getGraphByGenesis($genesis);
 	    if($grow['graphid']) {
-               $graph_json['id'] = $grow['graphid'];
-	       $graph_id = $db->saveGraph($graph_json);
+	       if($update) {
+	         $graph_json['id'] = $grow['graphid'];
+	         $graph_id = $db->saveGraph($graph_json);
+               }
+	       $graphs_to_update[] = array( 'graphid' => $grow['graphid'],
+	        		     	    	          'title' => $grow['title'],);
 	       return;
 	    }
-	    $graph_id = $db->saveGraph($graph_json);
-	    $graph_json['id'] = $graph_id;
-	    $graph_id = $db->saveGraph($graph_json);
+	    if($update) {
+	      $graph_id = $db->saveGraph($graph_json);
+	      $graph_json['id'] = $graph_id;
+	      $graph_id = $db->saveGraph($graph_json);
+            }
 	    return;
 	}
         else
         {
             foreach ($var_vals[$i] as $vval){
 	        $graph_num++;
-	        createGraphsFromCombos(($combo) ? "$combo,$vval" : $vval, $var_vals, $i + 1, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num);
+	        createGraphsFromCombos(($combo) ? "$combo,$vval" : $vval, $var_vals, $i + 1, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num, $update);
            }
         }
     }
 
-createGraphsFromCombos('', $var_vals, 0, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num);
+createGraphsFromCombos('', $var_vals, 0, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num, $update);
 
+print json_encode($graphs_to_update);
 ?>
 
