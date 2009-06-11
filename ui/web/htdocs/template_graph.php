@@ -13,9 +13,9 @@ $var_vals = array();
 
 $genesis_base = "templateid=".$templateid;
 
+
 foreach ($text_vars as $tv) {
   $rparams[$tv] = $_POST[$tv];
-  $genesis_base.=$tv."=".$_POST[$tv];
 }
 
 foreach ($sid_vars as $sv) {
@@ -29,8 +29,7 @@ $graph_num = 1;
 
 //this function will create each combination of values for each SID placeholder, against the TEXT placeholders set
 //then, it will create graphs for each of these combinations, updating a graph if one already exists with the same genesis
-//a graph's genesis is composed of its templateid, its text vars and their values, and its sid vars and their values, and
-//should be unique among saved_graphs   
+//a graph's genesis is composed of its templateid and its sid vars and their values, and should be unique among saved_graphs   
 function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num, $update)
     {
         global $graphs_to_update;

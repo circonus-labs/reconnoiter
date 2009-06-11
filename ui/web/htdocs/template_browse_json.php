@@ -196,7 +196,7 @@ if(have_req_txtvals && have_req_sidvals){
 	     for(i=0; i<graphs.length; i++){
 	       gtitles+="\\n"+graphs[i].title
              }
-	     confirm("Found existing graphs made from this template:<p><textarea rows='10' disabled style='border:none;'>"+gtitles+"</textarea><p> continue and update these?",
+	     confirm("Found existing graphs made from this template:<p><textarea rows='10' disabled style='width: 100%; border:none;'>"+gtitles+"</textarea><p> continue and update these?",
 	       function () {
 	      	  $.ajax({
 		         type: "POST",
