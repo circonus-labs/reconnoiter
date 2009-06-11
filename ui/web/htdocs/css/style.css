@@ -750,6 +750,15 @@ width:380px;
 height:400px;
 width:780px;
 }
+#drawing_board {
+margin:0 auto;
+height:400px;
+width:780px;
+}
+#drawing_board div.plot-area {
+height:400px;
+width:780px;
+}
 #StreamingModalContainer div.plot-area{
 height:400px;
 width:780px;

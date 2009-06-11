@@ -52,6 +52,9 @@ function unlock_forms() {
         }, { }); 
 }
 
+function update_permalink(id, start, end, gran){
+ $("#gpermalink a").attr("href", "drawing_board.php?otype=graph&id="+id+"&start="+start+"&end="+end+"&gran="+gran);
+}
 
 function graph_stream_data() {
 
@@ -112,6 +115,7 @@ function set_current_graph_id(id) {
     $(".stream-log").attr("style", "display:none;");
   }
   current_graph_id = id;
+  update_permalink(current_graph_id, "", "", "");
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
@@ -323,7 +327,7 @@ function find_in_stacks(dnum) {
   }
   return -1;
 }
-
+//this function works on the maingraph dom element, which is used througout in graph editing
 function refresh_graph_from_json(j) {
   graphinfo = j;
   if(graphinfo.stacks == undefined) graphinfo.stacks = Array();
@@ -377,6 +381,7 @@ function fetch_graph_info(id) {
 <span class="blankGraph">New Blank</span>
 <span class="streamData ">Stream Data</span>
 <span class="editGraph">Edit Graph</span>
+<span class="permalink" id="gpermalink"><a href="">Link</a></span>
 
 <h2 id="graphTitle"></h2>
 <!-- date range box -->
@@ -453,9 +458,13 @@ $(document).ready(function(){
                 $("#graph_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
                 $("#graph_widgetCalendar").slideUp("slow");
                 $("#graph_datetool .datechoice").removeClass("selected");
+
+		//start here will be in seconds
                 displayinfo.start = time_windows[$(this).html()];
                 displayinfo.end = '';
                 $(this).addClass("selected");
+		var cdate = new Date();
+		update_permalink(graphinfo.id, parseInt(cdate.getTime() - displayinfo.start*1000), "", "");
                 maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: '', type: graphinfo.type});
                 return false;
         });
@@ -474,6 +483,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
+			update_permalink(graphinfo.id, parseInt(start.getTime()), parseInt(end.getTime()), "");
                         maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: displayinfo.start, end: displayinfo.end, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }

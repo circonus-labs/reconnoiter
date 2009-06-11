@@ -1,0 +1,92 @@
+<?php
+$otype = $_GET['otype'];
+$id = $_GET['id'];
+$start = $_GET['start'];
+$end = $_GET['end'];
+$gran = $_GET['gran'];
+?>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Reconnoiter Viewer</title>
+<link href="css/style.css" rel="stylesheet" type="text/css" />
+<link href="css/datepicker.css" rel="stylesheet" type="text/css" />
+<link href="css/colorpicker.css" rel="stylesheet" type="text/css" />
+<link rel="icon" type="image/vnd.microsoft.icon" href="images/favicon.ico" />
+<script>document.domain='omniti.com';</script>
+<script src="js/htmlentities.js"></script>
+<script src="js/json2.js"></script>
+<script src="js/jquery.min.js"></script>
+<script src="js/jquery.flot.js"></script>
+<script src="js/jquery.jeditable.pack.js"></script>
+<script src="js/ui.core.min.js"></script>
+<script src="js/ui.sortable.min.js"></script>
+<script src="js/jquery.cookie.js" type="text/javascript"></script>
+<script src="js/jquery.treeview.js" type="text/javascript"></script>
+<script src="js/jquery.treeview.async.js" type="text/javascript"></script>
+<script src="js/eye/datepicker.js" type="text/javascript"></script>
+<script src="js/eye/eye.js" type="text/javascript"></script>
+<script src="js/eye/utils.js" type="text/javascript"></script>
+<script src="js/jquery.timers.js" type="text/javascript"></script>
+<script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
+<script src="js/eye/datepicker.js" type="text/javascript"></script>
+<script src="js/eye/colorpicker.js" type="text/javascript"></script>
+<script src="js/eye/eye.js" type="text/javascript"></script>
+<script src="js/eye/utils.js" type="text/javascript"></script>
+<script src="js/jquery.timers.js" type="text/javascript"></script>
+<script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
+<script src="js/recon.js" type="text/javascript"></script>
+
+<!-- color picker -->
+<link rel="stylesheet" href="css/colorpicker.css">
+<script type="text/javascript" src="js/colorpicker.js"></script>
+
+<!-- Import jQuery and SimpleModal source files -->
+
+<script src='js/jquery.simplemodal.js' type='text/javascript'></script>
+
+<!-- Confirm JS and CSS files -->
+<script src='js/confirm.js' type='text/javascript'></script>
+<link type='text/css' href='css/confirm.css' rel='stylesheet' media='screen' />
+
+<!-- IE 6 hacks -->
+<!--[if lt IE 7]>
+<link type='text/css' href='css/confirm_ie.css' rel='stylesheet' media='screen' />
+<![endif]-->
+
+</head>
+
+<body style="background:none;">
+
+<div id="streambox" style="display:none"></div>	
+<div id="drawing_board"></div>
+
+<script type="text/javascript">
+
+var otype = <?php echo "\"$otype\"";?>;
+var id = <?php echo "\"$id\"";?>;
+
+var start = <?php echo "\"$start\"";?>;
+if(start) {
+	  start = new Date(parseInt(start));
+	  start = start.toUTCString();
+}
+else start=time_window_to_seconds('2w');
+
+var end = <?php echo "\"$end\"";?>;
+if(end) {
+	end = new Date(parseInt(end));
+	end = end.toUTCString();
+}
+else end = "";
+
+var gran = <?php echo "\"$gran\"";?>;
+
+worksheet.zoom_inpage('drawing_board', id, start, end);
+
+</script>
+
+</body>
+</html>

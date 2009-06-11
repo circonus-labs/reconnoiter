@@ -1,4 +1,7 @@
 //global objects to use for calling plot_ifram_data from stream
+//in addition to setting these to a div object and a initial value for the dirty bit, 
+//you will also need to have a hidden div tag to use to insert the remote javascript
+// calls in an iframe, for example streambox for worksheets
 var stream_object;
 var stream_dirty;
 
@@ -315,12 +318,13 @@ function rpn_eval(value, expr, meta) {
             this.each(function(i) { $(this).ReconGraphRefresh(options); });
             return this;
           }
+	  
           var o = this.data('__recon');
           this.graphinfo = $.extend({}, o.graphinfo, options||{});
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
           this.find(".plot-area")
               .html('<div class="centered"><div class="loading">&nbsp;</div></div>');
-	  
+
           data = {'cnt':this.graphinfo.cnt,
                           'start':this.graphinfo.start,
                           'end':this.graphinfo.end,
@@ -730,7 +734,7 @@ var worksheet = (function($) {
           stream_dirty=false;
         }
       }
-    });
+	});
 
     $.getJSON("json/graph/info/" + graph_id,
       function(g) {
@@ -787,6 +791,59 @@ var worksheet = (function($) {
     return o;
   }
 
+  function zoom_inpage(divid, id, start, end) {
+
+$.getJSON("json/graph/info/" + id, function (ginfo) {
+              var streaming = false;
+	      plot_graph = $('#'+divid);
+	      stream_graph = plot_graph;
+	      plot_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
+	      plot_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
+
+var dtool =  $("<div id='mini_ws_datetool'>");
+    dtool.append('<div class="zoom"> \
+                <dl> \
+                        <dt>Zoom:</dt> \
+                        <dd><a href="#" class="first datechoice">1d</a></dd> \
+                        <dd><a href="#" class="datechoice">2d</a></dd> \
+                        <dd><a href="#" class="datechoice">1w</a></dd> \
+                        <dd><a href="#" class="datechoice">2w</a></dd> \
+                        <dd><a href="#" class="datechoice">4w</a></dd> \
+                        <dd><a href="#" class="datechoice">1y</a></dd> \
+                </dl>\
+                 </div>\
+                  </div>');
+
+var mheader = $("<div id='stream-header'>").append(dtool);
+    mheader.append("<span class='zoomStream'>Stream Data</span><br>");
+    plot_graph.prepend(mheader);
+    plot_graph.append("<div class='stream-log' style='display:none'></div>");
+    $(".zoomStream").click(function() {
+      if(!streaming) {
+        streaming = true;
+        $(".zoomStream").html('Streaming!').fadeIn('slow');
+        $(".stream-log").removeAttr("style").html("stream log_");
+        stream_data(ginfo.id);
+      }
+      else if(streaming) {
+        streaming = false;
+        $('#streambox').html('');
+        $(".zoomStream").html('Stream Data').fadeIn('slow');
+        $(".stream-log").attr("style", "display:none;");
+        plot_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
+      }
+    }); //end stream click function
+
+$("#mini_ws_datetool .datechoice").click(function(){
+      $(".datechoice").removeClass("selected");
+      $(this).addClass("selected");
+      plot_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
+      return false;
+    });
+
+    });//end json call
+
+  }
   function zoom_modal (id, gtype) {
 
   if(id) $.getJSON("json/graph/info/" + id, function (ginfo) {
@@ -1021,6 +1078,7 @@ var worksheet = (function($) {
     lock: lock_wforms,
     unlock: unlock_wforms,
     zoom: zoom_modal,
+    zoom_inpage: zoom_inpage,
     stream: stream_data,
     islocked: function () { return locked; }
   };
