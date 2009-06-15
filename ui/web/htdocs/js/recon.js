@@ -159,6 +159,10 @@ function rpn_eval(value, expr, meta) {
               // the negative axis as a positive one.
               pval = Math.abs(pval);
             }
+            if(axis.tickDecimals == Infinity) {
+              return pval.toFixed(2) +
+                     ((meta.suffix != null) ? meta.suffix : '');
+            }
             return pval.toFixed(axis.tickDecimals) +
                    ((meta.suffix != null) ? meta.suffix : '');
           }
@@ -320,6 +324,7 @@ function rpn_eval(value, expr, meta) {
           }
 	  
           var o = this.data('__recon');
+          if(o == null) return this;
           this.graphinfo = $.extend({}, o.graphinfo, options||{});
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
           this.find(".plot-area")
@@ -791,14 +796,62 @@ var worksheet = (function($) {
     return o;
   }
 
-  function zoom_inpage(divid, id, start, end) {
+  function render_ws_inpage(divid, id, start, end) {
+
+      plot_board = $('#'+divid);
+
+	plot_board.append('<h2 id="worksheetTitle">Worksheet Title</h2>\
+                 <p/>\
+                <div id="ws_datetool">\
+                 <div class="zoom">\
+		<dl>\
+			<dt>Zoom:</dt>\
+			<dd><a href="#" class="first datechoice">6h</a></dd>\
+			<dd><a href="#" class="datechoice">12h</a></dd>\
+			<dd><a href="#" class="datechoice">1d</a></dd>\
+			<dd><a href="#" class="datechoice">2d</a></dd>\
+			<dd><a href="#" class="datechoice">1w</a></dd>\
+			<dd><a href="#" class="selected datechoice">2w</a></dd>\
+			<dd><a href="#" class="datechoice">4w</a></dd>\
+			<dd><a href="#" class="datechoice">1y</a></dd>\
+		</dl>\
+	       </div>\
+	       <div class="range">\
+		<dl>\
+			<dt>Date Range:</dt>\
+			<dd><a href="" class="btn-slide">YYYY/MM/DD - YYYY/MM/DD</a></dd>\
+		</dl>\
+	</div>\
+        <br style="clear:both; margin-bottom:0.5em;"/>\
+	<div id="ws_widgetCalendar" class="widgetCalendar"></div>');
+
+      plot_board.append('<div>\
+      <ul id="worksheet-graphs" />\
+      <br style="clear:left" />\
+      </div>	\
+	<div id="streambox" style="display:none"></div>	\
+          <div style="display:none">\
+	 <div id="maingraph-template">\
+         <div class="plot-area" style="width:380px;height:180px"></div>\
+         <div class="plot-legend">legend</div>\
+        </div>\
+       </div>\
+       <div class="error"><p class="error" id="ws-tool-error"></p></div>\
+       <div id="ws_payload">\
+       </div>');
+      locked = true;
+      lock_wforms();
+      $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
+  }
+
+  function render_graph_inpage(divid, id, start, end) {
 
 $.getJSON("json/graph/info/" + id, function (ginfo) {
               var streaming = false;
-	      plot_graph = $('#'+divid);
-	      stream_graph = plot_graph;
-	      plot_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
-	      plot_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
+	      plot_board = $('#'+divid);
+	      stream_graph = plot_board;
+	      plot_board.ReconGraph({graphid: ginfo.id, type: ginfo.type});
+	      plot_board.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
 
 var dtool =  $("<div id='mini_ws_datetool'>");
     dtool.append('<div class="zoom"> \
@@ -816,8 +869,8 @@ var dtool =  $("<div id='mini_ws_datetool'>");
 
 var mheader = $("<div id='stream-header'>").append(dtool);
     mheader.append("<span class='zoomStream'>Stream Data</span><br>");
-    plot_graph.prepend(mheader);
-    plot_graph.append("<div class='stream-log' style='display:none'></div>");
+    plot_board.prepend(mheader);
+    plot_board.append("<div class='stream-log' style='display:none'></div>");
     $(".zoomStream").click(function() {
       if(!streaming) {
         streaming = true;
@@ -830,14 +883,14 @@ var mheader = $("<div id='stream-header'>").append(dtool);
         $('#streambox').html('');
         $(".zoomStream").html('Stream Data').fadeIn('slow');
         $(".stream-log").attr("style", "display:none;");
-        plot_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
+        plot_board.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
       }
     }); //end stream click function
 
 $("#mini_ws_datetool .datechoice").click(function(){
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
-      plot_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
+      plot_board.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
     });
 
@@ -953,12 +1006,17 @@ $("#mini_ws_datetool .datechoice").click(function(){
     $(".ws-toolbar").attr("class","ws-toolbar-edit");
   }
 
+  function update_worksheet_permalink(id) {
+      $('#wpermalink a').attr('href', "drawing_board.php?otype=wsheet&id="+id);
+  }
+
   function update_current_worksheet(f) {
     var str = JSON.stringify(wsinfo);
     $.post("json/worksheet/store",
            {'json':str},
            function(d) {
              wsinfo.id = d.id;
+	     update_worksheet_permalink(wsinfo.id);
              if(d.error) $("#ws-tool-error").html(d.error).fadeIn('fast');
              else $("#ws-tool-error").fadeOut('fast');
              if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
@@ -1078,7 +1136,8 @@ $("#mini_ws_datetool .datechoice").click(function(){
     lock: lock_wforms,
     unlock: unlock_wforms,
     zoom: zoom_modal,
-    zoom_inpage: zoom_inpage,
+    render_graph_inpage: render_graph_inpage,
+    render_ws_inpage: render_ws_inpage,
     stream: stream_data,
     islocked: function () { return locked; }
   };
