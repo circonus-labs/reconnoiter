@@ -797,12 +797,14 @@ var worksheet = (function($) {
   }
 
   function render_ws_inpage(divid, id, start, end) {
+      ws_displayinfo.start = start;
+      ws_displayinfo.end = end;
 
       plot_board = $('#'+divid);
 
 	plot_board.append('<h2 id="worksheetTitle">Worksheet Title</h2>\
                  <p/>\
-                <div id="ws_datetool">\
+                 <div id="ws_datetool">\
                  <div class="zoom">\
 		<dl>\
 			<dt>Zoom:</dt>\
@@ -839,9 +841,13 @@ var worksheet = (function($) {
        <div class="error"><p class="error" id="ws-tool-error"></p></div>\
        <div id="ws_payload">\
        </div>');
+      $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
       locked = true;
       lock_wforms();
-      $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
+      //user can try to edit the worksheet title, but we dont save it...
+      $("h2#worksheetTitle").editable(function(value, settings) {
+	      return;
+      }, { });      
   }
 
   function render_graph_inpage(divid, id, start, end) {
@@ -1006,9 +1012,34 @@ $("#mini_ws_datetool .datechoice").click(function(){
     $(".ws-toolbar").attr("class","ws-toolbar-edit");
   }
 
-  function update_worksheet_permalink(id) {
-      $('#wpermalink a').attr('href', "drawing_board.php?otype=wsheet&id="+id);
-  }
+
+  //this is a bad function, because we have to account for start/end being UTC strings or integers, and to do so outside
+  //would require changes to the where we keep worksheet ui code
+  function update_worksheet_permalink(id, start, end, gran){
+        if(start != ""){
+		  if(parseInt(start) == start) {
+		      var cdate = new Date();
+		      start = parseInt(cdate.getTime() - ws_displayinfo.start*1000);
+		  }
+		  else {
+		      start = new Date(start);
+		      start = parseInt(start.getTime());
+		  }
+	}     
+	if(end!="") {
+	     if(parseInt(end) == end) {
+		 end = parseInt(end);
+	     }
+	     else {
+		 end = new Date(end);
+		 end = parseInt(end.getTime());
+	     }
+	 }      
+      if($('#wpermalink a')){	      
+	  $('#wpermalink a').attr('href', "drawing_board.php?otype=wsheet&id="+id+"&start="+start+"&end="+end+"&gran="+gran);
+      }
+  }  
+  
 
   function update_current_worksheet(f) {
     var str = JSON.stringify(wsinfo);
@@ -1016,7 +1047,6 @@ $("#mini_ws_datetool .datechoice").click(function(){
            {'json':str},
            function(d) {
              wsinfo.id = d.id;
-	     update_worksheet_permalink(wsinfo.id);
              if(d.error) $("#ws-tool-error").html(d.error).fadeIn('fast');
              else $("#ws-tool-error").fadeOut('fast');
              if(wsinfo.id && wsinfo.title && wsinfo.saved != true &&
@@ -1043,6 +1073,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
   function process_worksheet_json(r) {
     wsinfo.id = r.sheetid;
     wsinfo.title = r.title;
+    ws_displayinfo.title = r.title;
     wsinfo.graphs = new Array();
 
     var ul = $("ul#worksheet-graphs");
@@ -1065,9 +1096,9 @@ $("#mini_ws_datetool .datechoice").click(function(){
             o.ReconGraphRefresh();
             wsinfo.graphs.push(g.graphid);
          });
-
-    }
-    ul.sortable("refresh");
+      }
+      update_worksheet_permalink(wsinfo.id, "", "", "");
+      ul.sortable("refresh");
   }
 
   function add_graph_to_worksheet(graphid) {
@@ -1104,6 +1135,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
     ws_displayinfo.start = start;
     ws_displayinfo.end = end;
     if(cnt) ws_displayinfo.cnt = cnt;
+    update_worksheet_permalink(wsinfo.id, ws_displayinfo.start, ws_displayinfo.end, "");
   }
   function refresh_worksheet() {
     var g = { start: ws_displayinfo.start,
@@ -1141,4 +1173,4 @@ $("#mini_ws_datetool .datechoice").click(function(){
     stream: stream_data,
     islocked: function () { return locked; }
   };
-})(jQuery);
+  })(jQuery);

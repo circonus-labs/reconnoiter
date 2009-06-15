@@ -38,6 +38,7 @@ $gran = $_GET['gran'];
 <script src="js/jquery.timers.js" type="text/javascript"></script>
 <script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
+<script src="js/reconui.js" type="text/javascript"></script>
 
 <!-- color picker -->
 <link rel="stylesheet" href="css/colorpicker.css">
@@ -68,24 +69,33 @@ $gran = $_GET['gran'];
 var otype = <?php echo "\"$otype\"";?>;
 var id = <?php echo "\"$id\"";?>;
 
-var start = <?php echo "\"$start\"";?>;
-if(start) {
-	  start = new Date(parseInt(start));
+if(id) {
+       var start = <?php echo "\"$start\"";?>;
+       if(start==parseInt(start)) {
+       	  start = new Date(parseInt(start));
 	  start = start.toUTCString();
+       }
+       else start=time_window_to_seconds('2w');
+
+       var end = <?php echo "\"$end\"";?>;
+       if(end == parseInt(end)) {
+	  end = new Date(parseInt(end));
+	  end = end.toUTCString();
+       }
+       else end = "";
+
+       if(otype == 'graph') {
+	  var gran = <?php echo "\"$gran\"";?>;
+	  $('#drawing_board').width('780px');
+	  $('#drawing_board').height('400px');
+	  worksheet.render_graph_inpage('drawing_board', id, start, end);
+       }
+       else if(otype == 'wsheet') {
+     	  $('#drawing_board').width('1200px');
+	  $('#drawing_board').height('800px');
+	  worksheet.render_ws_inpage('drawing_board', id, start, end);
+       }
 }
-else start=time_window_to_seconds('2w');
-
-var end = <?php echo "\"$end\"";?>;
-if(end) {
-	end = new Date(parseInt(end));
-	end = end.toUTCString();
-}
-else end = "";
-
-var gran = <?php echo "\"$gran\"";?>;
-
-worksheet.zoom_inpage('drawing_board', id, start, end);
-
 </script>
 
 </body>

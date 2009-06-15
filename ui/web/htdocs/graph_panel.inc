@@ -52,7 +52,7 @@ function unlock_forms() {
         }, { }); 
 }
 
-function update_permalink(id, start, end, gran){
+function update_graph_permalink(id, start, end, gran){
  $("#gpermalink a").attr("href", "drawing_board.php?otype=graph&id="+id+"&start="+start+"&end="+end+"&gran="+gran);
 }
 
@@ -115,7 +115,7 @@ function set_current_graph_id(id) {
     $(".stream-log").attr("style", "display:none;");
   }
   current_graph_id = id;
-  update_permalink(current_graph_id, "", "", "");
+  update_graph_permalink(current_graph_id, "", "", "");
   fetch_graph_info(current_graph_id);
 }
 var recurse = 0;
@@ -464,7 +464,7 @@ $(document).ready(function(){
                 displayinfo.end = '';
                 $(this).addClass("selected");
 		var cdate = new Date();
-		update_permalink(graphinfo.id, parseInt(cdate.getTime() - displayinfo.start*1000), "", "");
+		update_graph_permalink(graphinfo.id, parseInt(cdate.getTime() - displayinfo.start*1000), "", "");
                 maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: '', type: graphinfo.type});
                 return false;
         });
@@ -483,7 +483,7 @@ $(document).ready(function(){
                         var end = new Date((new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0)).getTime() + 86400000);
                         displayinfo.start = start.toUTCString();
                         displayinfo.end = end.toUTCString();
-			update_permalink(graphinfo.id, parseInt(start.getTime()), parseInt(end.getTime()), "");
+			update_graph_permalink(graphinfo.id, parseInt(start.getTime()), parseInt(end.getTime()), "");
                         maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: displayinfo.start, end: displayinfo.end, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
                 }

@@ -750,14 +750,36 @@ width:380px;
 height:400px;
 width:780px;
 }
+.permalink {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
+font-weight: bold;
+color:#660000;
+}
 #drawing_board {
-margin:0 auto;
-height:400px;
-width:780px;
+margin-left: auto;
+margin-right: auto;
 }
 #drawing_board div.plot-area {
 height:400px;
 width:780px;
+}
+#drawing_board ul#worksheet-graphs div.plot-area {
+height:180px;
+width:380px;
+}
+#drawing_board h2#worksheetTitle {
+margin: 10px;
+border: none;
+text-align: center;
+}
+#drawing_board div#ws_datetool {
+margin: 0 auto;
+width: 650px;
+margin-left: auto;
+maring-right: auto;
 }
 #StreamingModalContainer div.plot-area{
 height:400px;

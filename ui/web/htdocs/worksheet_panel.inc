@@ -1,6 +1,7 @@
 <span class="rememberWorksheet"></span>
 <span class="blankWorksheet">New Blank</span>
 <span class="editWorksheet">Editing!</span>
+<span class="permalink" id="wpermalink"><a href="">Link</a></span>
 <h2 id="worksheetTitle">Worksheet Title</h2>
 <p/>
 
@@ -32,7 +33,7 @@
   <ul id="worksheet-graphs" />
   <br style="clear:left" />
 </div>	
-<div id="streambox" style="display:none"></div>	
+	<div id="streambox" style="display:none"></div>	
 <div style="display:none">
 	<div id="maingraph-template">
         <div class="plot-area" style="width:380px;height:180px"></div>
