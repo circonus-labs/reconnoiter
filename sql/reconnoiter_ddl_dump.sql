@@ -9,15 +9,6 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: otools; Type: SCHEMA; Schema: -; Owner: postgres
---
-
-CREATE SCHEMA otools;
-
-
-ALTER SCHEMA otools OWNER TO postgres;
-
---
 -- Name: prism; Type: SCHEMA; Schema: -; Owner: prism
 --
 
@@ -35,39 +26,11 @@ CREATE SCHEMA stratcon;
 
 ALTER SCHEMA stratcon OWNER TO stratcon;
 
---
--- Name: plpgsql; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: omniti
---
-
-CREATE PROCEDURAL LANGUAGE plpgsql;
-
-
-ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO omniti;
-
-SET search_path = otools, pg_catalog;
+SET search_path = prism, pg_catalog;
 
 SET default_tablespace = '';
 
 SET default_with_oids = false;
-
---
--- Name: table_growth; Type: TABLE; Schema: otools; Owner: postgres; Tablespace: 
---
-
-CREATE TABLE table_growth (
-    table_owner text NOT NULL,
-    schema_name text NOT NULL,
-    table_name text NOT NULL,
-    actual_size numeric NOT NULL,
-    growth_size numeric NOT NULL,
-    sum_flag smallint NOT NULL,
-    capture_time date NOT NULL
-);
-
-
-ALTER TABLE otools.table_growth OWNER TO postgres;
-
-SET search_path = prism, pg_catalog;
 
 --
 -- Name: graph_templates; Type: TABLE; Schema: prism; Owner: reconnoiter; Tablespace: 
@@ -142,131 +105,6 @@ CREATE TABLE saved_worksheets_dep (
 
 
 ALTER TABLE prism.saved_worksheets_dep OWNER TO reconnoiter;
-
-SET search_path = public, pg_catalog;
-
-SET default_with_oids = true;
-
---
--- Name: pga_diagrams; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_diagrams (
-    diagramname character varying(64) NOT NULL,
-    diagramtables text,
-    diagramlinks text
-);
-
-
-ALTER TABLE public.pga_diagrams OWNER TO reconnoiter;
-
---
--- Name: pga_forms; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_forms (
-    formname character varying(64) NOT NULL,
-    formsource text
-);
-
-
-ALTER TABLE public.pga_forms OWNER TO reconnoiter;
-
---
--- Name: pga_graphs; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_graphs (
-    graphname character varying(64) NOT NULL,
-    graphsource text,
-    graphcode text
-);
-
-
-ALTER TABLE public.pga_graphs OWNER TO reconnoiter;
-
---
--- Name: pga_images; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_images (
-    imagename character varying(64) NOT NULL,
-    imagesource text
-);
-
-
-ALTER TABLE public.pga_images OWNER TO reconnoiter;
-
---
--- Name: pga_layout; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_layout (
-    tablename character varying(64) NOT NULL,
-    nrcols smallint,
-    colnames text,
-    colwidth text
-);
-
-
-ALTER TABLE public.pga_layout OWNER TO reconnoiter;
-
---
--- Name: pga_queries; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_queries (
-    queryname character varying(64) NOT NULL,
-    querytype character(1),
-    querycommand text,
-    querytables text,
-    querylinks text,
-    queryresults text,
-    querycomments text
-);
-
-
-ALTER TABLE public.pga_queries OWNER TO reconnoiter;
-
---
--- Name: pga_reports; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_reports (
-    reportname character varying(64) NOT NULL,
-    reportsource text,
-    reportbody text,
-    reportprocs text,
-    reportoptions text
-);
-
-
-ALTER TABLE public.pga_reports OWNER TO reconnoiter;
-
---
--- Name: pga_scripts; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE pga_scripts (
-    scriptname character varying(64) NOT NULL,
-    scriptsource text
-);
-
-
-ALTER TABLE public.pga_scripts OWNER TO reconnoiter;
-
-SET default_with_oids = false;
-
---
--- Name: v_recent_part; Type: TABLE; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE v_recent_part (
-    date date
-);
-
-
-ALTER TABLE public.v_recent_part OWNER TO reconnoiter;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -356,94 +194,6 @@ CREATE TABLE loading_dock_metric_numeric_archive (
 ALTER TABLE stratcon.loading_dock_metric_numeric_archive OWNER TO reconnoiter;
 
 --
--- Name: loading_dock_metric_numeric_archive_200812; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200812 (CONSTRAINT check_loading_dock_metric_numeric_archive_200812 CHECK (((whence >= '2008-11-30 19:00:00-05'::timestamp with time zone) AND (whence < '2008-12-31 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200812 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200901; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200901 (CONSTRAINT check_loading_dock_metric_numeric_archive_200901 CHECK (((whence >= '2008-12-31 19:00:00-05'::timestamp with time zone) AND (whence < '2009-01-31 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200901 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200902; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200902 (CONSTRAINT check_loading_dock_metric_numeric_archive_200902 CHECK (((whence >= '2009-01-31 19:00:00-05'::timestamp with time zone) AND (whence < '2009-02-28 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200902 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200903; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200903 (CONSTRAINT check_loading_dock_metric_numeric_archive_200903 CHECK (((whence >= '2009-02-28 19:00:00-05'::timestamp with time zone) AND (whence < '2009-03-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200903 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200904; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200904 (CONSTRAINT check_loading_dock_metric_numeric_archive_200904 CHECK (((whence >= '2009-03-31 20:00:00-04'::timestamp with time zone) AND (whence < '2009-04-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200904 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200905; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200905 (CONSTRAINT check_loading_dock_metric_numeric_archive_200905 CHECK (((whence >= '2009-04-30 20:00:00-04'::timestamp with time zone) AND (whence < '2009-05-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200905 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200906; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200906 (CONSTRAINT check_loading_dock_metric_numeric_archive_200906 CHECK (((whence >= '2009-05-31 20:00:00-04'::timestamp with time zone) AND (whence < '2009-06-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200906 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_numeric_archive_200907; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_numeric_archive_200907 (CONSTRAINT check_loading_dock_metric_numeric_archive_200907 CHECK (((whence >= '2009-06-30 20:00:00-04'::timestamp with time zone) AND (whence < '2009-07-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_numeric_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_numeric_archive_200907 OWNER TO reconnoiter;
-
---
 -- Name: loading_dock_metric_numeric_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
@@ -487,160 +237,6 @@ CREATE TABLE loading_dock_metric_text_archive (
 ALTER TABLE stratcon.loading_dock_metric_text_archive OWNER TO reconnoiter;
 
 --
--- Name: loading_dock_metric_text_archive_200806; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200806 (CONSTRAINT check_loading_dock_metric_text_archive_200806 CHECK (((whence >= '2008-05-31 20:00:00-04'::timestamp with time zone) AND (whence < '2008-06-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200806 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200807; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200807 (CONSTRAINT check_loading_dock_metric_text_archive_200807 CHECK (((whence >= '2008-06-30 20:00:00-04'::timestamp with time zone) AND (whence < '2008-07-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200807 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200808; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200808 (CONSTRAINT check_loading_dock_metric_text_archive_200808 CHECK (((whence >= '2008-07-31 20:00:00-04'::timestamp with time zone) AND (whence < '2008-08-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200808 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200809; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200809 (CONSTRAINT check_loading_dock_metric_text_archive_200809 CHECK (((whence >= '2008-08-31 20:00:00-04'::timestamp with time zone) AND (whence < '2008-09-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200809 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200810; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200810 (CONSTRAINT check_loading_dock_metric_text_archive_200810 CHECK (((whence >= '2008-09-30 20:00:00-04'::timestamp with time zone) AND (whence < '2008-10-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200810 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200811; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200811 (CONSTRAINT check_loading_dock_metric_text_archive_200811 CHECK (((whence >= '2008-10-31 20:00:00-04'::timestamp with time zone) AND (whence < '2008-11-30 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200811 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200812; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200812 (CONSTRAINT check_loading_dock_metric_text_archive_200812 CHECK (((whence >= '2008-11-30 19:00:00-05'::timestamp with time zone) AND (whence < '2008-12-31 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200812 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200901; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200901 (CONSTRAINT check_loading_dock_metric_text_archive_200901 CHECK (((whence >= '2008-12-31 19:00:00-05'::timestamp with time zone) AND (whence < '2009-01-31 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200901 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200902; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200902 (CONSTRAINT check_loading_dock_metric_text_archive_200902 CHECK (((whence >= '2009-01-31 19:00:00-05'::timestamp with time zone) AND (whence < '2009-02-28 19:00:00-05'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200902 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200903; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200903 (CONSTRAINT check_loading_dock_metric_text_archive_200903 CHECK (((whence >= '2009-02-28 19:00:00-05'::timestamp with time zone) AND (whence < '2009-03-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200903 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200904; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200904 (CONSTRAINT check_loading_dock_metric_text_archive_200904 CHECK (((whence >= '2009-03-31 20:00:00-04'::timestamp with time zone) AND (whence < '2009-04-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200904 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200905; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200905 (CONSTRAINT check_loading_dock_metric_text_archive_200905 CHECK (((whence >= '2009-04-30 20:00:00-04'::timestamp with time zone) AND (whence < '2009-05-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200905 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200906; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200906 (CONSTRAINT check_loading_dock_metric_text_archive_200906 CHECK (((whence >= '2009-05-31 20:00:00-04'::timestamp with time zone) AND (whence < '2009-06-30 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200906 OWNER TO reconnoiter;
-
---
--- Name: loading_dock_metric_text_archive_200907; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE TABLE loading_dock_metric_text_archive_200907 (CONSTRAINT check_loading_dock_metric_text_archive_200907 CHECK (((whence >= '2009-06-30 20:00:00-04'::timestamp with time zone) AND (whence < '2009-07-31 20:00:00-04'::timestamp with time zone)))
-)
-INHERITS (loading_dock_metric_text_archive);
-
-
-ALTER TABLE stratcon.loading_dock_metric_text_archive_200907 OWNER TO reconnoiter;
-
---
 -- Name: loading_dock_metric_text_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
@@ -670,10 +266,10 @@ CREATE TABLE loading_dock_metric_text_s_change_log (
 ALTER TABLE stratcon.loading_dock_metric_text_s_change_log OWNER TO reconnoiter;
 
 --
--- Name: loading_dock_status_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+-- Name: loading_dock_status_archive; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE TABLE loading_dock_status_s (
+CREATE TABLE loading_dock_status_archive (
     sid integer NOT NULL,
     whence timestamp with time zone NOT NULL,
     state character(1) NOT NULL,
@@ -681,6 +277,23 @@ CREATE TABLE loading_dock_status_s (
     duration integer NOT NULL,
     status text
 );
+
+
+ALTER TABLE stratcon.loading_dock_status_archive OWNER TO reconnoiter;
+
+--
+-- Name: loading_dock_status_s; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+CREATE TABLE loading_dock_status_s (
+    sid integer,
+    whence timestamp with time zone,
+    state character(1),
+    availability character(1),
+    duration integer,
+    status text
+)
+INHERITS (loading_dock_status_archive);
 
 
 ALTER TABLE stratcon.loading_dock_status_s OWNER TO reconnoiter;
@@ -864,102 +477,17 @@ CREATE TABLE rollup_runner (
 
 ALTER TABLE stratcon.rollup_runner OWNER TO reconnoiter;
 
-SET search_path = otools, pg_catalog;
-
 --
--- Name: collect_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
+-- Name: tasklocks; Type: TABLE; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE FUNCTION collect_table_growth() RETURNS void
-    AS $$
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time) 
-    select pg_get_userbyid(c.relowner) AS table_owner, n.nspname AS schema_name, c.relname AS table_name, pg_total_relation_size(c.oid), 0, 0, current_date 
-    from pg_class c JOIN pg_namespace n ON (c.relnamespace=n.oid) where relkind = 'r' and reltuples > 10000;
-$$
-    LANGUAGE sql;
+CREATE TABLE tasklocks (
+    id integer NOT NULL,
+    name text NOT NULL
+);
 
 
-ALTER FUNCTION otools.collect_table_growth() OWNER TO postgres;
-
---
--- Name: quote_nullable(numeric); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(numeric) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE $1::text END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(numeric) OWNER TO postgres;
-
---
--- Name: quote_nullable(text); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(text) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(text) OWNER TO postgres;
-
---
--- Name: quote_nullable(timestamp with time zone); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION quote_nullable(timestamp with time zone) RETURNS text
-    AS $_$
-SELECT CASE WHEN $1 IS NULL THEN 'NULL' ELSE quote_literal($1) END;
-$_$
-    LANGUAGE sql;
-
-
-ALTER FUNCTION otools.quote_nullable(timestamp with time zone) OWNER TO postgres;
-
---
--- Name: summarize_table_growth(); Type: FUNCTION; Schema: otools; Owner: postgres
---
-
-CREATE FUNCTION summarize_table_growth() RETURNS void
-    AS $$
-declare
-    v_sql text;
-begin
-
--- Daily summarization
-IF to_char(current_date,'dd') <> '01' THEN
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
-    select a.table_owner, a.schema_name, a.table_name, a.actual_size, a.actual_size-coalesce(b.actual_size,0) AS table_growth, 1, a.capture_time
-    from otools.table_growth a 
-        left join otools.table_growth b 
-            on (a.table_owner=b.table_owner and a.table_name=b.table_name and a.schema_name=b.schema_name and b.capture_time = current_date -1) 
-    where 
-        a.sum_flag=0 and a.capture_time = current_date;
-    -- now remove older rows
-    delete from otools.table_growth where sum_flag = 0;
-END IF;
-
--- Monthly summarization
-IF to_char(current_date,'dd') = '01' THEN
-    insert into otools.table_growth (table_owner, schema_name, table_name, actual_size, growth_size, sum_flag, capture_time)
-    select a.table_owner, a.schema_name, a.table_name, max(actual_size), sum(growth_size), 2, (current_date - '1 month'::interval) 
-    from otools.table_growth a 
-    where sum_flag=1 and capture_time between (current_date - '1 month'::interval) and current_date 
-    group by table_owner, schema_name, table_name;
-    -- now remove older rows
-    delete from otools.table_growth where sum_flag = 1;
-END IF;
-
-end 
-$$
-    LANGUAGE plpgsql;
-
-
-ALTER FUNCTION otools.summarize_table_growth() OWNER TO postgres;
+ALTER TABLE stratcon.tasklocks OWNER TO reconnoiter;
 
 SET search_path = prism, pg_catalog;
 
@@ -1248,21 +776,6 @@ $$
 
 
 ALTER FUNCTION prism.trig_update_tsvector_saved_graphs() OWNER TO reconnoiter;
-
-SET search_path = public, pg_catalog;
-
---
--- Name: date_hour(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: reconnoiter
---
-
-CREATE FUNCTION date_hour(timestamp with time zone) RETURNS timestamp with time zone
-    AS $_$
- SELECT date_trunc('hour',$1);
-$_$
-    LANGUAGE sql IMMUTABLE STRICT;
-
-
-ALTER FUNCTION public.date_hour(timestamp with time zone) OWNER TO reconnoiter;
 
 SET search_path = stratcon, pg_catalog;
 
@@ -1883,7 +1396,7 @@ BEGIN
 
 IF TG_OP = 'INSERT' THEN
 
-             SELECT value FROM  stratcon.loading_dock_metric_text_s WHERE sid = NEW.sid AND name = NEW.name
+             SELECT value FROM  stratcon.loading_dock_metric_text_s_change_log WHERE sid = NEW.sid AND name = NEW.name
                  AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_metric_text_s_change_log
                                  WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
                      INTO v_oldvalue;
@@ -1927,18 +1440,20 @@ CREATE FUNCTION loading_dock_status_s_change_log() RETURNS trigger
 DECLARE
     v_state CHAR(1);
     v_avail CHAR(1);
+    v_whence timestamp with time zone;
 BEGIN
 
 IF TG_OP = 'INSERT' THEN
-    SELECT state,availability FROM  stratcon.loading_dock_status_s WHERE sid = NEW.sid 
-        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_status_s_change_log 
+    SELECT state,availability,whence FROM  stratcon.loading_dock_status_s_change_log WHERE sid = NEW.sid
+        AND WHENCE = (SELECT max(whence) FROM stratcon.loading_dock_status_s_change_log
                         WHERE  SID=NEW.sid and  WHENCE <> NEW.whence )
-    INTO v_state,v_avail;
+    INTO v_state,v_avail,v_whence;
 
-    IF v_state IS DISTINCT FROM NEW.state OR v_avail IS DISTINCT FROM NEW.availability THEN
+    IF NEW.whence > v_whence AND 
+       (v_state IS DISTINCT FROM NEW.state OR v_avail IS DISTINCT FROM NEW.availability) THEN
 
         INSERT INTO stratcon.loading_dock_status_s_change_log (sid,whence,state,availability,duration,status)
-            VALUES (NEW.sid,NEW.whence,NEW.state,NEW.availability,NEW.duration,NEW.status); 
+            VALUES (NEW.sid,NEW.whence,NEW.state,NEW.availability,NEW.duration,NEW.status);
 
     END IF;
 
@@ -2213,32 +1728,24 @@ CREATE FUNCTION rollup_matrix_numeric_12hours() RETURNS void
   v_max_rollup_12 TIMESTAMPTZ;
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
-  v_self VARCHAR(22);
+  v_taskid int;
+  v_locked boolean;
   whenceint RECORD; 
  
 BEGIN
 
-  SELECT COUNT(1) INTO v_nrunning
-    from stratcon.rollup_runner t, pg_stat_activity a
-    where rollup_table ='rollup_matrix_numeric_12hours'
-     and runner = procpid || '.' || date_part('epoch',backend_start);
-
-  IF v_nrunning > 0 THEN
-    RAISE NOTICE 'stratcon.rollup_matrix_numeric_12hours already running';
-    RETURN ;
+  SELECT id into v_taskid from stratcon.tasklocks where name = 'rollup_matrix_numeric_12h';
+  IF v_taskid IS NULL THEN
+    INSERT INTO stratcon.tasklocks (id, name) VALUES (DEFAULT, 'rollup_matrix_numeric_12h')
+      RETURNING id into v_taskid;
   END IF;
 
-  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
-    FROM pg_stat_activity
-     WHERE procpid = pg_backend_pid();
+  select pg_try_advisory_lock(43191, v_taskid) into v_locked;
 
-  IF v_self IS NULL THEN
-    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_12hours cannot self-identify';
-   END IF;
-
-   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_12hours''';
-
-  EXECUTE v_sql;
+  IF v_locked = false THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_12h already running';
+    RETURN ;
+  END IF;
 
  FOR whenceint IN  SELECT * FROM stratcon.log_whence_s WHERE interval='12 hours' LOOP
  
@@ -2287,14 +1794,15 @@ v_max_rollup_12 := NULL;
 
 END LOOP;
 
-UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_12hours';
+perform pg_advisory_unlock(43191, v_taskid);
 
 RETURN;
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-      UPDATE stratcon.rollup_runner set runner = '' where rollup_table = 'rollup_matrix_numeric_12hours';
+      perform pg_advisory_unlock(43191, v_taskid);
       RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+      perform pg_advisory_unlock(43191, v_taskid);
       RAISE NOTICE '%', SQLERRM;
 END
 $$
@@ -2317,31 +1825,23 @@ CREATE FUNCTION rollup_matrix_numeric_20m() RETURNS void
  v_whence TIMESTAMPTZ;
  rows INT;
  v_nrunning INT;
- v_self VARCHAR(22);
  whenceint RECORD;
+ v_taskid int;
+ v_locked boolean;
 BEGIN
 
-  SELECT COUNT(1) INTO v_nrunning
-    from stratcon.rollup_runner t, pg_stat_activity a
-   where rollup_table ='rollup_matrix_numeric_20m'
-     and runner = procpid || '.' || date_part('epoch',backend_start);
+  SELECT id into v_taskid from stratcon.tasklocks where name = 'rollup_matrix_numeric_20m';
+  IF v_taskid IS NULL THEN
+    INSERT INTO stratcon.tasklocks (id, name) VALUES (DEFAULT, 'rollup_matrix_numeric_20m')
+      RETURNING id into v_taskid;
+  END IF;
 
-  IF v_nrunning > 0 THEN
+  select pg_try_advisory_lock(43191, v_taskid) into v_locked;
+
+  IF v_locked = false THEN
     RAISE NOTICE 'stratcon.rollup_matrix_numeric_20m already running';
     RETURN ;
   END IF;
-
-  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
-    FROM pg_stat_activity
-   WHERE procpid = pg_backend_pid();
-
-  IF v_self IS NULL THEN
-    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_20m cannot self-identify';
-  END IF;
-
-  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_20m''';
-
-  EXECUTE v_sql;
 
 FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes' LOOP
 
@@ -2391,17 +1891,18 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='20 minutes'
   v_max_rollup_20:= NULL;
 
  END LOOP;
- 
-  UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
+
+  perform pg_advisory_unlock(43191, v_taskid);
   
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_20m';
+       perform pg_advisory_unlock(43191, v_taskid);
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      RAISE NOTICE '%', SQLERRM;
+       perform pg_advisory_unlock(43191, v_taskid);
+        RAISE NOTICE '%', SQLERRM;
 END
 $$
     LANGUAGE plpgsql;
@@ -2423,33 +1924,25 @@ CREATE FUNCTION rollup_matrix_numeric_5m() RETURNS void
  v_whence TIMESTAMPTZ;
  rows INT;
  v_nrunning INT;
- v_self VARCHAR(22);
+ v_taskid int;
+ v_locked boolean;
  whenceint RECORD;
 BEGIN
 
-  SELECT COUNT(1) INTO v_nrunning
-    from stratcon.rollup_runner t, pg_stat_activity a
-   where rollup_table ='rollup_matrix_numeric_5m'
-     and runner = procpid || '.' || date_part('epoch',backend_start);
+  SELECT id into v_taskid from stratcon.tasklocks where name = 'rollup_matrix_numeric_5m';
+  IF v_taskid IS NULL THEN
+    INSERT INTO stratcon.tasklocks (id, name) VALUES (DEFAULT, 'rollup_matrix_numeric_5m')
+      RETURNING id into v_taskid;
+  END IF;
 
-  IF v_nrunning > 0 THEN
+  select pg_try_advisory_lock(43191, v_taskid) into v_locked;
+
+  IF v_locked = false THEN
     RAISE NOTICE 'stratcon.rollup_matrix_numeric_5m already running';
     RETURN ;
   END IF;
 
-  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
-    FROM pg_stat_activity
-   WHERE procpid = pg_backend_pid();
-
-  IF v_self IS NULL THEN
-    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_5m cannot self-identify';
-  END IF;
-
-  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_5m''';
-
-  EXECUTE v_sql;
-
-FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' LOOP
+  FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' LOOP
         
 
  SELECT MIN(whence) FROM stratcon.log_whence_s WHERE interval='5 minutes'
@@ -2483,16 +1976,17 @@ FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='5 minutes' 
  v_max_rollup_5:= NULL;
  
  END LOOP;
- 
-  UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
+
+ perform pg_advisory_unlock(43191, v_taskid); 
   
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_5m';
-       RAISE EXCEPTION '%', SQLERRM;
+         perform pg_advisory_unlock(43191, v_taskid); 
+         RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+         perform pg_advisory_unlock(43191, v_taskid); 
          RAISE NOTICE '%', SQLERRM;
 END
 $$
@@ -2513,31 +2007,24 @@ CREATE FUNCTION rollup_matrix_numeric_60m() RETURNS void
   v_max_rollup_60 TIMESTAMPTZ;
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
-  v_self VARCHAR(22);
+  v_taskid int;
+  v_locked boolean;
   whenceint RECORD;
 BEGIN
 
-  SELECT COUNT(1) INTO v_nrunning
-    from stratcon.rollup_runner t, pg_stat_activity a
-   where rollup_table ='rollup_matrix_numeric_60m'
-     and runner = procpid || '.' || date_part('epoch',backend_start);
+  SELECT id into v_taskid from stratcon.tasklocks where name = 'rollup_matrix_numeric_60m';
+  IF v_taskid IS NULL THEN
+    INSERT INTO stratcon.tasklocks (id, name) VALUES (DEFAULT, 'rollup_matrix_numeric_60m')
+      RETURNING id into v_taskid;
+  END IF;
 
-  IF v_nrunning > 0 THEN
+  select pg_try_advisory_lock(43191, v_taskid) into v_locked;
+
+  IF v_locked = false THEN
     RAISE NOTICE 'stratcon.rollup_matrix_numeric_60m already running';
     RETURN ;
   END IF;
 
-  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
-    FROM pg_stat_activity
-   WHERE procpid = pg_backend_pid();
-
-  IF v_self IS NULL THEN
-    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_60m cannot self-identify';
-  END IF;
-
-  v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_60m''';
-
-  EXECUTE v_sql;
 
 FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='1 hour' LOOP
            
@@ -2585,15 +2072,17 @@ v_max_rollup_60 := NULL;
 
 END LOOP;
 
-UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_60m';
+    perform pg_advisory_unlock(43191, v_taskid); 
 
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
-       RAISE EXCEPTION '%', SQLERRM;
+        perform pg_advisory_unlock(43191, v_taskid); 
+        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
-      RAISE NOTICE '%', SQLERRM;
+        perform pg_advisory_unlock(43191, v_taskid); 
+        RAISE NOTICE '%', SQLERRM;
 END
 $$
     LANGUAGE plpgsql;
@@ -2613,31 +2102,23 @@ CREATE FUNCTION rollup_matrix_numeric_6hours() RETURNS void
   v_max_rollup_6 TIMESTAMPTZ;
   v_whence TIMESTAMPTZ;
   v_nrunning INT;
-  v_self VARCHAR(22);
+  v_taskid int;
+  v_locked boolean;
   whenceint RECORD;  
 BEGIN
 
-  SELECT COUNT(1) INTO v_nrunning
-    from stratcon.rollup_runner t, pg_stat_activity a
-    where rollup_table ='rollup_matrix_numeric_6hours'
-     and runner = procpid || '.' || date_part('epoch',backend_start);
-
-  IF v_nrunning > 0 THEN
-    RAISE NOTICE 'stratcon.rollup_matrix_numeric_6hours already running';
-    RETURN ;
+  SELECT id into v_taskid from stratcon.tasklocks where name = 'rollup_matrix_numeric_6h';
+  IF v_taskid IS NULL THEN
+    INSERT INTO stratcon.tasklocks (id, name) VALUES (DEFAULT, 'rollup_matrix_numeric_6h')
+      RETURNING id into v_taskid;
   END IF;
 
-  SELECT INTO v_self procpid || '.' || date_part('epoch',backend_start)
-    FROM pg_stat_activity
-     WHERE procpid = pg_backend_pid();
+  select pg_try_advisory_lock(43191, v_taskid) into v_locked;
 
-  IF v_self IS NULL THEN
-    RAISE EXCEPTION 'stratcon.rollup_matrix_numeric_6hours cannot self-identify';
-   END IF;
-
-   v_sql = 'update stratcon.rollup_runner set runner = ''' || v_self || ''' where rollup_table = ''rollup_matrix_numeric_6hours''';
-
-  EXECUTE v_sql;
+  IF v_locked = false THEN
+    RAISE NOTICE 'stratcon.rollup_matrix_numeric_6h already running';
+    RETURN ;
+  END IF;
 
 FOR whenceint IN SELECT * FROM stratcon.log_whence_s WHERE interval='6 hours' LOOP
 
@@ -2685,14 +2166,16 @@ v_max_rollup_6 := NULL;
 
 END LOOP;
 
-UPDATE stratcon.rollup_runner SET RUNNER = '' WHERE ROLLUP_TABLE= 'rollup_matrix_numeric_6hours';
+perform pg_advisory_unlock(43191, v_taskid); 
 
 RETURN;
 
 EXCEPTION
     WHEN RAISE_EXCEPTION THEN
+       perform pg_advisory_unlock(43191, v_taskid);
        RAISE EXCEPTION '%', SQLERRM;
     WHEN OTHERS THEN
+       perform pg_advisory_unlock(43191, v_taskid); 
        RAISE NOTICE '%', SQLERRM;
 END
 $$
@@ -3035,6 +2518,33 @@ CREATE SEQUENCE seq_sid
 
 ALTER TABLE stratcon.seq_sid OWNER TO reconnoiter;
 
+--
+-- Name: tasklocks_id_seq; Type: SEQUENCE; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE SEQUENCE tasklocks_id_seq
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+
+ALTER TABLE stratcon.tasklocks_id_seq OWNER TO reconnoiter;
+
+--
+-- Name: tasklocks_id_seq; Type: SEQUENCE OWNED BY; Schema: stratcon; Owner: reconnoiter
+--
+
+ALTER SEQUENCE tasklocks_id_seq OWNED BY tasklocks.id;
+
+
+--
+-- Name: id; Type: DEFAULT; Schema: stratcon; Owner: reconnoiter
+--
+
+ALTER TABLE tasklocks ALTER COLUMN id SET DEFAULT nextval('tasklocks_id_seq'::regclass);
+
+
 SET search_path = prism, pg_catalog;
 
 --
@@ -3083,72 +2593,6 @@ ALTER TABLE ONLY saved_worksheets
 
 ALTER TABLE ONLY saved_graphs
     ADD CONSTRAINT unq_saved_graphs_title UNIQUE (title);
-
-
-SET search_path = public, pg_catalog;
-
---
--- Name: pga_diagrams_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_diagrams
-    ADD CONSTRAINT pga_diagrams_pkey PRIMARY KEY (diagramname);
-
-
---
--- Name: pga_forms_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_forms
-    ADD CONSTRAINT pga_forms_pkey PRIMARY KEY (formname);
-
-
---
--- Name: pga_graphs_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_graphs
-    ADD CONSTRAINT pga_graphs_pkey PRIMARY KEY (graphname);
-
-
---
--- Name: pga_images_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_images
-    ADD CONSTRAINT pga_images_pkey PRIMARY KEY (imagename);
-
-
---
--- Name: pga_layout_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_layout
-    ADD CONSTRAINT pga_layout_pkey PRIMARY KEY (tablename);
-
-
---
--- Name: pga_queries_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_queries
-    ADD CONSTRAINT pga_queries_pkey PRIMARY KEY (queryname);
-
-
---
--- Name: pga_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_reports
-    ADD CONSTRAINT pga_reports_pkey PRIMARY KEY (reportname);
-
-
---
--- Name: pga_scripts_pkey; Type: CONSTRAINT; Schema: public; Owner: reconnoiter; Tablespace: 
---
-
-ALTER TABLE ONLY pga_scripts
-    ADD CONSTRAINT pga_scripts_pkey PRIMARY KEY (scriptname);
 
 
 SET search_path = stratcon, pg_catalog;
@@ -3241,6 +2685,14 @@ ALTER TABLE ONLY loading_dock_metric_text_s_change_log
 
 ALTER TABLE ONLY loading_dock_metric_text_s
     ADD CONSTRAINT loading_dock_metric_text_s_pkey PRIMARY KEY (whence, sid, name);
+
+
+--
+-- Name: loading_dock_status_archive_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY loading_dock_status_archive
+    ADD CONSTRAINT loading_dock_status_archive_pkey PRIMARY KEY (whence, sid);
 
 
 --
@@ -3349,6 +2801,22 @@ ALTER TABLE ONLY rollup_matrix_numeric_6hours
 ALTER TABLE rollup_matrix_numeric_6hours CLUSTER ON rollup_matrix_numeric_6hours_pkey;
 
 
+--
+-- Name: tasklocks_name_key; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY tasklocks
+    ADD CONSTRAINT tasklocks_name_key UNIQUE (name);
+
+
+--
+-- Name: tasklocks_pkey; Type: CONSTRAINT; Schema: stratcon; Owner: reconnoiter; Tablespace: 
+--
+
+ALTER TABLE ONLY tasklocks
+    ADD CONSTRAINT tasklocks_pkey PRIMARY KEY (id);
+
+
 SET search_path = prism, pg_catalog;
 
 --
@@ -3410,171 +2878,10 @@ CREATE INDEX idx_rollup_matrix_numeric_20m_rollup_time ON rollup_matrix_numeric_
 
 
 --
--- Name: loading_dock_metric_numeric_archive_200812_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200812_whence_key ON loading_dock_metric_numeric_archive_200812 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200901_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200901_whence_key ON loading_dock_metric_numeric_archive_200901 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200902_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200902_whence_key ON loading_dock_metric_numeric_archive_200902 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200903_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200903_whence_key ON loading_dock_metric_numeric_archive_200903 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200904_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200904_whence_key ON loading_dock_metric_numeric_archive_200904 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200905_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200905_whence_key ON loading_dock_metric_numeric_archive_200905 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200906_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200906_whence_key ON loading_dock_metric_numeric_archive_200906 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_numeric_archive_200907_whence_key; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_numeric_archive_200907_whence_key ON loading_dock_metric_numeric_archive_200907 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200806_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200806_pkey ON loading_dock_metric_text_archive_200806 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200807_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200807_pkey ON loading_dock_metric_text_archive_200807 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200808_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200808_pkey ON loading_dock_metric_text_archive_200808 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200809_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200809_pkey ON loading_dock_metric_text_archive_200809 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200810_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200810_pkey ON loading_dock_metric_text_archive_200810 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200811_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200811_pkey ON loading_dock_metric_text_archive_200811 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200812_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200812_pkey ON loading_dock_metric_text_archive_200812 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200901_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200901_pkey ON loading_dock_metric_text_archive_200901 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200902_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200902_pkey ON loading_dock_metric_text_archive_200902 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200903_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200903_pkey ON loading_dock_metric_text_archive_200903 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200904_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200904_pkey ON loading_dock_metric_text_archive_200904 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200905_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200905_pkey ON loading_dock_metric_text_archive_200905 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200906_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200906_pkey ON loading_dock_metric_text_archive_200906 USING btree (whence, sid, name);
-
-
---
--- Name: loading_dock_metric_text_archive_200907_pkey; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE UNIQUE INDEX loading_dock_metric_text_archive_200907_pkey ON loading_dock_metric_text_archive_200907 USING btree (whence, sid, name);
-
-
---
 -- Name: map_uuid_to_sid_idx; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
 --
 
 CREATE UNIQUE INDEX map_uuid_to_sid_idx ON map_uuid_to_sid USING btree (sid);
-
-
---
--- Name: sid_window; Type: INDEX; Schema: stratcon; Owner: reconnoiter; Tablespace: 
---
-
-CREATE INDEX sid_window ON loading_dock_metric_numeric_s USING btree (sid, whence);
 
 
 --
@@ -3649,86 +2956,6 @@ CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
 
 
 --
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200906
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200905
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200904
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200903
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200902
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200901
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200812
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
--- Name: loading_dock_metric_numeric_s_whence_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_numeric_s_whence_log
-    AFTER INSERT ON loading_dock_metric_numeric_archive_200907
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_numeric_s_whence_log();
-
-
---
 -- Name: loading_dock_metric_text_archive_empty; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -3759,143 +2986,13 @@ CREATE TRIGGER loading_dock_metric_text_s_change_log
 
 
 --
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
+-- Name: loading_dock_status_archive_empty; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
 --
 
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200806
+CREATE TRIGGER loading_dock_status_archive_empty
+    BEFORE INSERT OR UPDATE ON loading_dock_status_archive
     FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200807
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200808
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200809
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200810
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200811
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200812
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200901
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200902
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200903
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200904
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200905
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200906
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
-
-
---
--- Name: loading_dock_metric_text_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
---
-
-CREATE TRIGGER loading_dock_metric_text_s_change_log
-    AFTER INSERT ON loading_dock_metric_text_archive_200907
-    FOR EACH ROW
-    EXECUTE PROCEDURE loading_dock_metric_text_s_change_log();
+    EXECUTE PROCEDURE parent_empty();
 
 
 --
@@ -3904,6 +3001,16 @@ CREATE TRIGGER loading_dock_metric_text_s_change_log
 
 CREATE TRIGGER loading_dock_status_s_change_log
     AFTER INSERT ON loading_dock_status_s
+    FOR EACH ROW
+    EXECUTE PROCEDURE loading_dock_status_s_change_log();
+
+
+--
+-- Name: loading_dock_status_s_change_log; Type: TRIGGER; Schema: stratcon; Owner: reconnoiter
+--
+
+CREATE TRIGGER loading_dock_status_s_change_log
+    AFTER INSERT ON loading_dock_status_archive
     FOR EACH ROW
     EXECUTE PROCEDURE loading_dock_status_s_change_log();
 
@@ -4018,16 +3125,6 @@ REVOKE ALL ON SCHEMA prism FROM PUBLIC;
 REVOKE ALL ON SCHEMA prism FROM prism;
 GRANT ALL ON SCHEMA prism TO prism;
 GRANT ALL ON SCHEMA prism TO stratcon;
-
-
---
--- Name: public; Type: ACL; Schema: -; Owner: postgres
---
-
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-REVOKE ALL ON SCHEMA public FROM postgres;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO PUBLIC;
 
 
 --
@@ -4161,94 +3258,6 @@ GRANT SELECT ON TABLE loading_dock_metric_numeric_archive TO prism;
 
 
 --
--- Name: loading_dock_metric_numeric_archive_200812; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200812 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200812 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200812 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200812 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200812 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200901; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200901 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200901 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200901 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200901 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200901 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200902; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200902 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200902 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200902 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200902 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200902 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200903; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200903 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200903 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200903 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200903 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200903 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200904; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200904 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200904 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200904 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200904 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200904 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200905; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200905 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200905 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200905 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200905 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200905 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200906; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200906 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200906 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200906 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200906 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200906 TO prism;
-
-
---
--- Name: loading_dock_metric_numeric_archive_200907; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200907 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_numeric_archive_200907 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_numeric_archive_200907 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_numeric_archive_200907 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_numeric_archive_200907 TO prism;
-
-
---
 -- Name: loading_dock_metric_numeric_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -4282,160 +3291,6 @@ GRANT SELECT ON TABLE loading_dock_metric_text_archive TO prism;
 
 
 --
--- Name: loading_dock_metric_text_archive_200806; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200806 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200806 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200806 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200806 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200806 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200807; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200807 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200807 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200807 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200807 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200807 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200808; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200808 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200808 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200808 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200808 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200808 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200809; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200809 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200809 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200809 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200809 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200809 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200810; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200810 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200810 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200810 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200810 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200810 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200811; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200811 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200811 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200811 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200811 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200811 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200812; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200812 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200812 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200812 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200812 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200812 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200901; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200901 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200901 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200901 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200901 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200901 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200902; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200902 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200902 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200902 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200902 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200902 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200903; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200903 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200903 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200903 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200903 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200903 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200904; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200904 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200904 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200904 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200904 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200904 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200905; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200905 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200905 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200905 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200905 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200905 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200906; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200906 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200906 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200906 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200906 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200906 TO prism;
-
-
---
--- Name: loading_dock_metric_text_archive_200907; Type: ACL; Schema: stratcon; Owner: reconnoiter
---
-
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200907 FROM PUBLIC;
-REVOKE ALL ON TABLE loading_dock_metric_text_archive_200907 FROM reconnoiter;
-GRANT ALL ON TABLE loading_dock_metric_text_archive_200907 TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_archive_200907 TO stratcon;
-GRANT SELECT ON TABLE loading_dock_metric_text_archive_200907 TO prism;
-
-
---
 -- Name: loading_dock_metric_text_s; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -4455,6 +3310,17 @@ REVOKE ALL ON TABLE loading_dock_metric_text_s_change_log FROM reconnoiter;
 GRANT ALL ON TABLE loading_dock_metric_text_s_change_log TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_metric_text_s_change_log TO stratcon;
 GRANT SELECT ON TABLE loading_dock_metric_text_s_change_log TO prism;
+
+
+--
+-- Name: loading_dock_status_archive; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE loading_dock_status_archive FROM PUBLIC;
+REVOKE ALL ON TABLE loading_dock_status_archive FROM reconnoiter;
+GRANT ALL ON TABLE loading_dock_status_archive TO reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE loading_dock_status_archive TO stratcon;
+GRANT SELECT ON TABLE loading_dock_status_archive TO prism;
 
 
 --
@@ -4601,6 +3467,16 @@ GRANT SELECT ON TABLE rollup_runner TO prism;
 
 
 --
+-- Name: tasklocks; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON TABLE tasklocks FROM PUBLIC;
+REVOKE ALL ON TABLE tasklocks FROM reconnoiter;
+GRANT ALL ON TABLE tasklocks TO reconnoiter;
+GRANT SELECT,INSERT ON TABLE tasklocks TO stratcon;
+
+
+--
 -- Name: seq_sid; Type: ACL; Schema: stratcon; Owner: reconnoiter
 --
 
@@ -4608,6 +3484,16 @@ REVOKE ALL ON SEQUENCE seq_sid FROM PUBLIC;
 REVOKE ALL ON SEQUENCE seq_sid FROM reconnoiter;
 GRANT ALL ON SEQUENCE seq_sid TO reconnoiter;
 GRANT ALL ON SEQUENCE seq_sid TO stratcon;
+
+
+--
+-- Name: tasklocks_id_seq; Type: ACL; Schema: stratcon; Owner: reconnoiter
+--
+
+REVOKE ALL ON SEQUENCE tasklocks_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE tasklocks_id_seq FROM reconnoiter;
+GRANT ALL ON SEQUENCE tasklocks_id_seq TO reconnoiter;
+GRANT SELECT,UPDATE ON SEQUENCE tasklocks_id_seq TO stratcon;
 
 
 --

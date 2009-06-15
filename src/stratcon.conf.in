@@ -64,20 +64,20 @@
                      stratcon.generate_sid_from_id($3), $3, $4, $5, $6)
       ]]></check>
       <status><![CDATA[
-        INSERT INTO stratcon.loading_dock_status_s
+        INSERT INTO stratcon.loading_dock_status_archive_%Y%m
                     ( whence,sid, state, availability,
                      duration, status)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
                      stratcon.generate_sid_from_id($2), $3, $4, $5, $6)
       ]]></status>
       <metric_numeric><![CDATA[
-        INSERT INTO stratcon.loading_dock_metric_numeric_s
+        INSERT INTO stratcon.loading_dock_metric_numeric_archive_%Y%m
                     (whence, sid, name, value)
              VALUES ( 'epoch'::timestamptz + ($1 || ' seconds')::interval,
                      stratcon.generate_sid_from_id($2), $3, $4)
       ]]></metric_numeric>
       <metric_text><![CDATA[
-        INSERT INTO stratcon.loading_dock_metric_text_s
+        INSERT INTO stratcon.loading_dock_metric_text_archive_%Y%m
                     ( whence, sid, name,value)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
                      stratcon.generate_sid_from_id($2), $3, $4)

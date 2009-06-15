@@ -45,6 +45,7 @@
 #include <arpa/inet.h>
 #include <libpq-fe.h>
 #include <zlib.h>
+#include <assert.h>
 
 static char *check_loadall = NULL;
 static const char *check_loadall_conf = "/stratcon/database/statements/allchecks";
@@ -247,6 +248,25 @@ __noit__strndup(const char *src, int len) {
   } \
 } while(0)
 
+#define PG_TM_EXEC(cmd, whence) do { \
+  time_t __w = whence; \
+  char cmdbuf[4096]; \
+  struct tm tbuf, *tm; \
+  tm = gmtime_r(&__w, &tbuf); \
+  strftime(cmdbuf, sizeof(cmdbuf), cmd, tm); \
+  d->res = PQexecParams(cq->dbh, cmdbuf, d->nparams, NULL, \
+                        (const char * const *)d->paramValues, \
+                        d->paramLengths, d->paramFormats, 0); \
+  d->rv = PQresultStatus(d->res); \
+  if(d->rv != PGRES_COMMAND_OK && \
+     d->rv != PGRES_TUPLES_OK) { \
+    noitL(noit_error, "stratcon datasource bad (%d): %s\n", \
+          d->rv, PQresultErrorMessage(d->res)); \
+    PQclear(d->res); \
+    goto bad_row; \
+  } \
+} while(0)
+
 static int
 stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
                                     struct timeval *now) {
@@ -341,6 +361,7 @@ stratcon_datastore_find(conn_q *cq, ds_job_detail *d) {
 }
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
+  time_t whence = 0;
   int type, len;
   char *final_buff;
   uLong final_len, actual_final_len;;
@@ -394,6 +415,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         DECLARE_PARAM_STR("noitd",5); /* node_type */
         PROCESS_NEXT_FIELD(token,len);
+        whence = (time_t)strtoul(token, NULL, 10);
         DECLARE_PARAM_STR(token,len); /* timestamp */
 
         /* This is the expected uncompressed len */
@@ -433,6 +455,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
+        whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -445,6 +468,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       case 'M':
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
+        whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -457,6 +481,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       case 'S':
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
+        whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -488,7 +513,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       break;
     case 'S':
       GET_QUERY(status_insert);
-      PG_EXEC(status_insert);
+      PG_TM_EXEC(status_insert, whence);
       PQclear(d->res);
       break;
     case 'M':
@@ -499,12 +524,12 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         case METRIC_UINT64:
         case METRIC_DOUBLE:
           GET_QUERY(metric_insert_numeric);
-          PG_EXEC(metric_insert_numeric);
+          PG_TM_EXEC(metric_insert_numeric, whence);
           PQclear(d->res);
           break;
         case METRIC_STRING:
           GET_QUERY(metric_insert_text);
-          PG_EXEC(metric_insert_text);
+          PG_TM_EXEC(metric_insert_text, whence);
           PQclear(d->res);
           break;
         default:
