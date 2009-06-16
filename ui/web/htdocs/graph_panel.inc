@@ -77,8 +77,6 @@ for(var sid in sidneed) {
 }
 
 maingraph.everyTime(1000, function() {
-
-console.log("checking if stream dirty");
 			  
     if(!gstreaming) {   
        $('#gstreambox').html('');
@@ -92,7 +90,7 @@ console.log("checking if stream dirty");
 }
 });
 
-console.log("sids requestd from noit server = ", sids);
+//console.log("sids requestd from noit server = ", sids);
 
 $('#gstreambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
     

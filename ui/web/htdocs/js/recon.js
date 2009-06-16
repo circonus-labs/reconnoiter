@@ -9,8 +9,6 @@ var recon_realtime_hostname = '';
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
 function plot_iframe_data(xdata, uuid, metric_name, ydata) {
-    //    console.log("plot_iframe_date with:", metric_name, ydata);
-
     stream_object.ReconGraphAddPoint(xdata, uuid, metric_name, ydata);
     stream_dirty = true;
 }
@@ -728,10 +726,10 @@ var worksheet = (function($) {
     stream_dirty = false;
     stream_graph.ReconGraphPrepareStream(timewindow, polltime);
 
+    streaming = true;
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
     stream_graph.everyTime(1000, function() {
-	    console.log("checking if stream dirty");
       if(!streaming) {
        $('#streambox').html('');
        $(".stream-log").attr("style", "display:none;");
@@ -759,8 +757,8 @@ var worksheet = (function($) {
         for(var sid in sidneed) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
+	//console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
 
-	console.log("sids requestd from noit server = ", sids);
 	$('#streambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
   }
@@ -854,10 +852,9 @@ var worksheet = (function($) {
 
 $.getJSON("json/graph/info/" + id, function (ginfo) {
               var streaming = false;
-	      plot_board = $('#'+divid);
-	      stream_graph = plot_board;
-	      plot_board.ReconGraph({graphid: ginfo.id, type: ginfo.type});
-	      plot_board.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
+	      stream_graph = $('#'+divid);
+	      stream_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
+	      stream_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
 
 var dtool =  $("<div id='mini_ws_datetool'>");
     dtool.append('<div class="zoom"> \
@@ -873,30 +870,32 @@ var dtool =  $("<div id='mini_ws_datetool'>");
                  </div>\
                   </div>');
 
-var mheader = $("<div id='stream-header'>").append(dtool);
-    mheader.append("<span class='zoomStream'>Stream Data</span><br>");
-    plot_board.prepend(mheader);
-    plot_board.append("<div class='stream-log' style='display:none'></div>");
-    $(".zoomStream").click(function() {
+    var mheader = $("<div id='stream-header'>").append(dtool);
+    mheader.append("<span class='streamData'>Stream Data</span>");
+    stream_graph.prepend(mheader);
+    stream_graph.append('<div id="streambox" style="display:none"></div>');
+    stream_graph.append("<div class='stream-log' style='display:none'></div>");
+
+    $(".streamData").click(function() {
       if(!streaming) {
         streaming = true;
-        $(".zoomStream").html('Streaming!').fadeIn('slow');
+        $(this).html('Streaming!').fadeIn('slow');
         $(".stream-log").removeAttr("style").html("stream log_");
         stream_data(ginfo.id);
       }
       else if(streaming) {
         streaming = false;
         $('#streambox').html('');
-        $(".zoomStream").html('Stream Data').fadeIn('slow');
+        $(this).html('Stream Data').fadeIn('slow');
         $(".stream-log").attr("style", "display:none;");
-        plot_board.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
+        stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
       }
     }); //end stream click function
 
 $("#mini_ws_datetool .datechoice").click(function(){
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
-      plot_board.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
+      stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
     });
 
@@ -977,7 +976,6 @@ $("#mini_ws_datetool .datechoice").click(function(){
     });
   });
   } //end zoom_modal
-	  
 
   function lock_wforms() {
     locked = true;
