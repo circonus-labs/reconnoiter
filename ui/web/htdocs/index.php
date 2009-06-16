@@ -1,4 +1,8 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<?php
+  require_once('Reconnoiter_DB.php');
+  $db = Reconnoiter_DB::getDB();
+?>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -7,7 +11,7 @@
 <link href="css/datepicker.css" rel="stylesheet" type="text/css" />
 <link href="css/colorpicker.css" rel="stylesheet" type="text/css" />
 <link rel="icon" type="image/vnd.microsoft.icon" href="images/favicon.ico" />
-<script>document.domain='omniti.com';</script>
+<script>document.domain='<?php echo $db->realtime_config('document_domain'); ?>';</script>
 <script src="js/htmlentities.js"></script>
 <script src="js/json2.js"></script>
 <script src="js/jquery.min.js"></script>
@@ -30,6 +34,11 @@
 <script src="js/jquery.timers.js" type="text/javascript"></script>
 <script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
+<script type="text/javascript">
+<!--
+recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
+-->
+</script>
 
 <!-- color picker -->
 <link rel="stylesheet" href="css/colorpicker.css">

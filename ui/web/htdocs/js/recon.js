@@ -4,10 +4,13 @@
 // calls in an iframe, for example streambox for worksheets
 var stream_object;
 var stream_dirty;
+var recon_realtime_hostname = '';
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
 function plot_iframe_data(xdata, uuid, metric_name, ydata) {
+    //    console.log("plot_iframe_date with:", metric_name, ydata);
+
     stream_object.ReconGraphAddPoint(xdata, uuid, metric_name, ydata);
     stream_dirty = true;
 }
@@ -230,7 +233,7 @@ function rpn_eval(value, expr, meta) {
 		    && (ddata[i].metric_name == metric_name)
 		    && !ddata[i].hidden ) {
 
-//		    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
+		    //		    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
 
 		    if((xdata*1000)>doptions.max_time) { doptions.max_time = xdata*1000; }
 		    if( !doptions.min_time || ((xdata*1000)<doptions.min_time)) { doptions.min_time = xdata*1000;}
@@ -728,6 +731,7 @@ var worksheet = (function($) {
 
 //setup functionality so that every second check if we are streaming and dirty, plot if true
     stream_graph.everyTime(1000, function() {
+	    console.log("checking if stream dirty");
       if(!streaming) {
        $('#streambox').html('');
        $(".stream-log").attr("style", "display:none;");
@@ -756,8 +760,8 @@ var worksheet = (function($) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
 
-	//console.log("sids requestd from noit server = ", sids);
-         $('#streambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
+	console.log("sids requestd from noit server = ", sids);
+	$('#streambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
   }
 

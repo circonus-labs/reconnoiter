@@ -4,6 +4,9 @@ $id = $_GET['id'];
 $start = $_GET['start'];
 $end = $_GET['end'];
 $gran = $_GET['gran'];
+
+require_once('Reconnoiter_DB.php');
+$db = Reconnoiter_DB::getDB();
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -39,7 +42,11 @@ $gran = $_GET['gran'];
 <script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
 <script src="js/reconui.js" type="text/javascript"></script>
-
+<script type="text/javascript">
+<!--
+recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
+-->
+</script>
 <!-- color picker -->
 <link rel="stylesheet" href="css/colorpicker.css">
 <script type="text/javascript" src="js/colorpicker.js"></script>

@@ -58,8 +58,8 @@ function update_graph_permalink(id, start, end, gran){
 
 function graph_stream_data() {
 
-polltime = 5000;
-time_width = 50000;
+polltime = 1000;
+time_width = 300000;
 stream_object = maingraph;
 stream_dirty = false;
 maingraph.ReconGraphPrepareStream(time_width, polltime);
@@ -77,6 +77,9 @@ for(var sid in sidneed) {
 }
 
 maingraph.everyTime(1000, function() {
+
+console.log("checking if stream dirty");
+			  
     if(!gstreaming) {   
        $('#gstreambox').html('');
        maingraph.stopTime();
@@ -89,10 +92,10 @@ maingraph.everyTime(1000, function() {
 }
 });
 
-//console.log("sids requestd from noit server = ", sids);
+console.log("sids requestd from noit server = ", sids);
 
-$('#gstreambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
-
+$('#gstreambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
+    
 }
 function set_current_graph_id(id) {
   $(".rememberGraph").fadeOut('fast');

@@ -5,9 +5,11 @@ require_once('Reconnoiter_UUID.php');
 class Reconnoiter_DB {
   private $db;
   private $time_kludge;
+  private $config_cache;
 
   function __construct() {
     $this->time_kludge = "(? ::timestamp::text || '-00')::timestamptz";
+    $this->config_cache = array();
   }
   function getDB() {
     static $one;
@@ -29,7 +31,20 @@ class Reconnoiter_DB {
   function prepare($sql) {
     return $this->db->prepare($sql);
   }
-
+  function realtime_config($attr) {
+    if(isset($this->config_cache[$attr])) return $this->config_cache[$attr];
+    $sql = "
+        select array_to_string(
+                 xpath('//*[@type=\"stratcon_realtime_http\"]//config/' ||
+                       param || '/text()', config), ',') as value
+          from stratcon.current_node_config, (select ? ::text as param) p
+         where node_type = 'stratcond'";
+    $sth = $this->db->prepare($sql);
+    $sth->execute(array($attr));
+    $row = $sth->fetch();
+    $this->config_cache[$attr] = $row['value'];
+    return $row['value'];
+  }
   // Crazy extract syntax to pull out the timestamps so that it looks like the current timezone, but in UTC
   function get_data_for_window($uuid, $name, $start, $end, $expected, $derive) {
     $type = preg_match('/^\d+$/', $uuid) ? '::integer' : '::uuid';
