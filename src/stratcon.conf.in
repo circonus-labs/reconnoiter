@@ -99,6 +99,10 @@
   </consoles>
   <realtime type="stratcon_realtime_http">
     <listener address="*" port="80">
+      <config>
+        <hostname>stratcon.noit.example.com</hostname>
+        <document_domain>noit.example.com</document_domain>
+      </config>
     </listener>
   </realtime>
   </listeners>

@@ -79,23 +79,29 @@ typedef struct realtime_recv_ctx_t {
 typedef struct realtime_context {
   enum { RC_INITIAL = 0, RC_REQ_RECV, RC_INTERESTS_RESOLVED, RC_FEEDING } setup;
   struct realtime_tracker *checklist;
+  char *document_domain;
 } realtime_context;
 
-static realtime_context *alloc_realtime_context() {
+static realtime_context *alloc_realtime_context(const char *domain) {
   realtime_context *ctx;
-  return calloc(sizeof(*ctx), 1);
+  ctx = calloc(sizeof(*ctx), 1);
+  ctx->document_domain = strdup(domain);
+  return ctx;
 }
 static void free_realtime_tracker(struct realtime_tracker *rt) {
   if(rt->noit) free(rt->noit);
   free(rt);
 }
 static void clear_realtime_context(realtime_context *rc) {
+ rc->setup = RC_INITIAL;
   while(rc->checklist) {
     struct realtime_tracker *tofree;
     tofree = rc->checklist;
     rc->checklist = tofree->next;
     free_realtime_tracker(tofree);
   }
+  if(rc->document_domain) free(rc->document_domain);
+  rc->document_domain = NULL;
 }
 int
 stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
@@ -170,7 +176,7 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   BAIL_HTTP_WRITE;
   if(0) {
     noit_http_response_end(ctx);
-    memset(ctx->dispatcher_closure, 0, sizeof(realtime_context));
+    clear_realtime_context(ctx->dispatcher_closure);
     if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE);
     return 0;
   }
@@ -368,7 +374,6 @@ stratcon_realtime_http_postresolve(eventer_t e, int mask, void *closure,
   if(ctx->ref_cnt == 1) {
     noit_http_response_end(ctx);
     clear_realtime_context(rc);
-    memset(ctx->dispatcher_closure, 0, sizeof(realtime_context));
     if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE);
   }
   return 0;
@@ -406,7 +411,9 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     /*noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);*/
     noit_http_response_header_set(ctx, "Content-Type", "text/html");
 
-    snprintf(c, sizeof(c), "<html><head><script>document.domain='omniti.com';</script></head><body>\n");
+    snprintf(c, sizeof(c),
+             "<html><head><script>document.domain='%s';</script></head><body>\n",
+             rc->document_domain);
     noit_http_response_append(ctx, c, strlen(c));
 
     /* this dumb crap is to make some browsers happy (Safari) */
@@ -437,9 +444,18 @@ stratcon_realtime_http_handler(eventer_t e, int mask, void *closure,
   acceptor_closure_t *ac = closure;
   noit_http_session_ctx *http_ctx = ac->service_ctx;
   if(!http_ctx) {
+    const char *document_domain = NULL;
+
+    if(!noit_hash_retr_str(ac->config,
+                           "document_domain", strlen("document_domain"),
+                           &document_domain)) {
+      noitL(noit_error, "Document domain not set!  Realtime streaming will be broken\n");
+      document_domain = "";
+    }
+
     http_ctx = ac->service_ctx =
       noit_http_session_ctx_new(stratcon_request_dispatcher,
-                                alloc_realtime_context(),
+                                alloc_realtime_context(document_domain),
                                 e);
   }
   return http_ctx->drive(e, mask, http_ctx, now);
