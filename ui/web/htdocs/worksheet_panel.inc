@@ -2,7 +2,7 @@
 <span class="blankWorksheet">New Blank</span>
 <span class="editWorksheet">Editing!</span>
 <span class="permalink" id="wpermalink"><a href="">Link</a></span>
-<h2 id="worksheetTitle">Worksheet Title</h2>
+<h2 class="ws_title" id="worksheetTitle">Worksheet Title</h2>
 <p/>
 
 <div id="ws_datetool">

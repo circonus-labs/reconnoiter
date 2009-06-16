@@ -756,7 +756,7 @@ var worksheet = (function($) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
 
-         //console.log("sids requestd from noit server = ", sids);
+	//console.log("sids requestd from noit server = ", sids);
          $('#streambox').html('<iframe src="http://bob.office.omniti.com/data'+sids+'"></iframe>');
      });
   }
@@ -802,7 +802,7 @@ var worksheet = (function($) {
 
       plot_board = $('#'+divid);
 
-	plot_board.append('<h2 id="worksheetTitle">Worksheet Title</h2>\
+	plot_board.append('<h2 class="ws_title" id="worksheetTitlePerma">Worksheet Title</h2>\
                  <p/>\
                  <div id="ws_datetool">\
                  <div class="zoom">\
@@ -844,10 +844,6 @@ var worksheet = (function($) {
       $.getJSON("json/worksheet/info/" + id, process_worksheet_json);
       locked = true;
       lock_wforms();
-      //user can try to edit the worksheet title, but we dont save it...
-      $("h2#worksheetTitle").editable(function(value, settings) {
-	      return;
-      }, { });      
   }
 
   function render_graph_inpage(divid, id, start, end) {
@@ -1077,7 +1073,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
     wsinfo.graphs = new Array();
 
     var ul = $("ul#worksheet-graphs");
-    $("h2#worksheetTitle").html(r.title);
+    $("h2.ws_title").html(r.title);
     ul.empty();
     for(var i = 0; i < r.graphs.length; i++) {
       var g = {};

@@ -770,7 +770,7 @@ width:780px;
 height:180px;
 width:380px;
 }
-#drawing_board h2#worksheetTitle {
+#drawing_board h2.ws_title {
 margin: 10px;
 border: none;
 text-align: center;
