@@ -58,7 +58,7 @@ function update_graph_permalink(id, start, end, gran){
 
 function graph_stream_data() {
 
-polltime = 1000;
+polltime = 2000;
 time_width = 300000;
 stream_object = maingraph;
 stream_dirty = false;
@@ -76,7 +76,7 @@ for(var sid in sidneed) {
     sids+= "/"+sid+"@"+sidneed[sid];
 }
 
-maingraph.everyTime(1000, function() {
+maingraph.everyTime(2000, function() {
 			  
     if(!gstreaming) {   
        $('#gstreambox').html('');

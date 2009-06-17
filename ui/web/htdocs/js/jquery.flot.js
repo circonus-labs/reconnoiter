@@ -9,7 +9,6 @@
         //   [ series1, series2 ... ]
         // where series is either just the data as [ [x1, y1], [x2, y2], ... ]
         // or { data: [ [x1, y1], [x2, y2], ... ], label: "some label" }
-        var orig_series;
 
         var series = [],
             options = {
@@ -130,7 +129,6 @@
 
 
         function setData(d) {
-	    orig_series = copyData(d);
 
             series = parseData(d);
 		    
@@ -167,7 +165,7 @@
 		    match = binary_search(bdata, series[i].data[j][0], bdata.length-1, 0);			
 		    
 		    //if the dataset below this one has an exact timestamp match, stack the top dataset by adding it to the one above
-		    if(match.found) { 		
+		    if(match.found) { 
 			series[i].data[j][1] = parseFloat(series[i].data[j][1]) + parseFloat(bdata[match.index][1])+'';
 		    }
 		    else if(match.index >=0 && match.index<bdata.length) {
@@ -212,30 +210,6 @@
 	}
 
 	
-	//this will copy data only, ignoring other series variables
-        function copyData(d) {  
-	    var res = [];
-
-	    for (var i = 0; i < d.length; ++i) {
-		var s = {data: []};
-		if(d[i].data) {
-		    for (var j=0; j<d[i].data.length; j++) {
-			s.data[j] = d[i].data[j].slice();
-		    }
-		    for (var v in d[i]) {
-                        if(!s[v]) s[v] = d[i][v];
-		    }
-		}
-		else {		    
-		    for (var j=0; j<d[i].length; j++) {
-			s.data[j] = d[i][j].slice();
-		    }
-		}
-		res.push(s);
-	    }
-	    return res;
-	}
-
 	//this creates a new refernce to data
 	function parseData(d) {
             var res = [];

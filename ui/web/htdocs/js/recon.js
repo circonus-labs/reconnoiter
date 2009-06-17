@@ -17,6 +17,31 @@ function log_iframe_message(message) {
     $(".stream-log").html(message).fadeIn('slow');
 }
 
+
+//this will copy data only, ignoring other series variables
+function copyData(d) {  
+    var res = [];
+    
+    for (var i = 0; i < d.length; ++i) {
+	var s = {data: []};
+	if(d[i].data) {
+	    for (var j=0; j<d[i].data.length; j++) {
+		s.data[j] = d[i].data[j].slice();
+	    }
+	    for (var v in d[i]) {
+		if(!s[v]) s[v] = d[i][v];
+	    }
+	}
+	else {		    
+	    for (var j=0; j<d[i].length; j++) {
+		s.data[j] = d[i][j].slice();
+	    }
+	}
+	res.push(s);
+    }
+    return res;
+}
+
 function dump(arr,level) {
 	var dumped_text = "";
 	if(!level) level = 0;
@@ -259,6 +284,7 @@ function rpn_eval(value, expr, meta) {
 			}
 			} //end if ydata was a number
 			
+
 			tdata[0]*=1000; //convert from seconds to milliseconds for flot
 			ddata[i].data.push(tdata);
 			if(ddata[i].lastval) {
@@ -313,7 +339,8 @@ function rpn_eval(value, expr, meta) {
 		doptions.xaxis.max = doptions.min_time + doptions.time_window;
 	    }
 
-            this.flot_plot = $.plot(dplaceholder, ddata, doptions);
+	    flotdata = copyData(ddata);
+            this.flot_plot = $.plot(dplaceholder, flotdata, doptions);
             return this;
 	},
     refresh:
@@ -720,7 +747,7 @@ var worksheet = (function($) {
 
   function stream_data(graph_id) {
 
-    polltime = 1000;
+    polltime = 2000;
     timewindow = 300000;
     stream_object = stream_graph;
     stream_dirty = false;
@@ -728,8 +755,8 @@ var worksheet = (function($) {
 
     streaming = true;
 
-//setup functionality so that every second check if we are streaming and dirty, plot if true
-    stream_graph.everyTime(1000, function() {
+//setup functionality so that every 2 seconds check if we are streaming and dirty, plot if true
+    stream_graph.everyTime(2000, function() {
       if(!streaming) {
        $('#streambox').html('');
        $(".stream-log").attr("style", "display:none;");
@@ -758,7 +785,6 @@ var worksheet = (function($) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
 	//console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
-
 	$('#streambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
   }
@@ -871,7 +897,7 @@ var dtool =  $("<div id='mini_ws_datetool'>");
                   </div>');
 
     var mheader = $("<div id='stream-header'>").append(dtool);
-    mheader.append("<span class='streamData'>Stream Data</span>");
+    mheader.append("<span class='streamData'>Stream Data</span><br/>");
     stream_graph.prepend(mheader);
     stream_graph.append('<div id="streambox" style="display:none"></div>');
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
