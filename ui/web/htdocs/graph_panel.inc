@@ -411,6 +411,7 @@ $(document).ready(function(){
                 return false;
         });
         $("#graph_datetool .datechoice").click(function(){
+	    if(!graphinfo.streaming){
                 $("#graph_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
                 $("#graph_widgetCalendar").slideUp("slow");
                 $("#graph_datetool .datechoice").removeClass("selected");
@@ -423,6 +424,7 @@ $(document).ready(function(){
 		update_graph_permalink(graphinfo.id, parseInt(cdate.getTime() - displayinfo.start*1000), "", "");
                 maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: '', type: graphinfo.type});
                 return false;
+             }
         });
         $('#graph_widgetCalendar').DatePicker({
                 flat: true,
@@ -432,6 +434,7 @@ $(document).ready(function(){
                 mode: 'range',
                 starts: 1,
                 onChange: function(formated) {
+                     if(!graphinfo.streaming) {
                         var dates;
                         dates = formated[0].split('/');
                         var start = new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0);
@@ -442,6 +445,7 @@ $(document).ready(function(){
 			update_graph_permalink(graphinfo.id, parseInt(start.getTime()), parseInt(end.getTime()), "");
                         maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: displayinfo.start, end: displayinfo.end, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
+		    }
                 }
         });
         $(".graphType").change(function(){

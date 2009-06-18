@@ -929,11 +929,13 @@ var dtool =  $("<div id='mini_ws_datetool'>");
     }); //end stream click function
 
 $("#mini_ws_datetool .datechoice").click(function(){
+   if(!ginpage_streaming) {
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
       stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
-    });
+   }
+ });
 
     });//end json call
 
@@ -1007,11 +1009,13 @@ $("#mini_ws_datetool .datechoice").click(function(){
     }); //end stream click function
 
     $("#mini_ws_datetool .datechoice").click(function(){
-      $(".datechoice").removeClass("selected");
-      $(this).addClass("selected");
-      stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
-      return false;
-    });
+     if(!zmodal_streaming) {
+       $(".datechoice").removeClass("selected");
+       $(this).addClass("selected");
+       stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
+       return false;
+     }
+   });
   });
   } //end zoom_modal
 
