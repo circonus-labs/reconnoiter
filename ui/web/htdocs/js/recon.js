@@ -5,6 +5,7 @@
 var stream_object;
 var stream_dirty;
 var recon_realtime_hostname = '';
+var streaming = false;
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
@@ -16,7 +17,6 @@ function plot_iframe_data(xdata, uuid, metric_name, ydata) {
 function log_iframe_message(message) {
     $(".stream-log").html(message).fadeIn('slow');
 }
-
 
 //this will copy data only, ignoring other series variables
 function copyData(d) {  
@@ -509,7 +509,7 @@ function rpn_eval(value, expr, meta) {
               ReconGraphAddPoint: ReconGraph.AddPoint,
               ReconGraphPlotPoints: ReconGraph.PlotPoints
               });
-})(jQuery);
+  })(jQuery);
 
 function perform_graph_search_add(params) {
   perform_generic_search('json/graph/search', params,
@@ -722,30 +722,17 @@ function time_window_to_seconds(w) {
   return 86400*2;
 }
 
-///////////////////////////
-// Worksheet manipulation
-//////////////////////////
-
-var worksheet = (function($) {
-  var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
-  var wsinfo = {};
-  var locked = true;
-  var streaming = false;
-  var stream_graph;
-
-  function ws_locked(warning) {
-    if(locked) {
-      modal_warning("Worksheet Locked!", warning);
-      return locked;
+//call this function when you wish to stream a graph
+//graphid: the id, used to retrieve the graph's metric to request
+//stream_graph: the dom element to update with the stream
+//streambox: the hidden element to insert the iframe remote calls
+function stream_data(graph_id, stream_graph, streambox) {
+    if(streaming) {
+	modal_warning("Stream Error!", "You can only stream one thing at a time!");
+	return;
     }
-    else if($(".rememberWorksheet:visible").length != 0) {
-      modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
-      return true;
-    }
-    return locked;
-  }
-
-  function stream_data(graph_id) {
+    //this should be the only place we set streaming to true
+    streaming = true;
 
     polltime = 2000;
     timewindow = 300000;
@@ -753,12 +740,10 @@ var worksheet = (function($) {
     stream_dirty = false;
     stream_graph.ReconGraphPrepareStream(timewindow, polltime);
 
-    streaming = true;
-
 //setup functionality so that every 2 seconds check if we are streaming and dirty, plot if true
     stream_graph.everyTime(2000, function() {
       if(!streaming) {
-       $('#streambox').html('');
+       streambox.html('');
        $(".stream-log").attr("style", "display:none;");
        stream_graph.stopTime();
       }
@@ -785,8 +770,32 @@ var worksheet = (function($) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
 	//console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
-	$('#streambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
+	streambox.html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
+  }
+
+
+///////////////////////////
+// Worksheet manipulation
+//////////////////////////
+
+var worksheet = (function($) {
+  var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
+  var wsinfo = {};
+  var locked = true;
+  streaming = false;  //precautionary...should be set to false wherever we use it when weere done
+  var stream_graph;
+
+  function ws_locked(warning) {
+    if(locked) {
+      modal_warning("Worksheet Locked!", warning);
+      return locked;
+    }
+    else if($(".rememberWorksheet:visible").length != 0) {
+      modal_warning("Worksheet not saved!", "You must hit 'Remember' to continue editing.");
+      return true;
+    }
+    return locked;
   }
 
   function make_ws_graph(g) {
@@ -859,7 +868,6 @@ var worksheet = (function($) {
       <ul id="worksheet-graphs" />\
       <br style="clear:left" />\
       </div>	\
-	<div id="streambox" style="display:none"></div>	\
           <div style="display:none">\
 	 <div id="maingraph-template">\
          <div class="plot-area" style="width:380px;height:180px"></div>\
@@ -875,9 +883,10 @@ var worksheet = (function($) {
   }
 
   function render_graph_inpage(divid, id, start, end) {
+      var ginpage_streaming = false;
 
 $.getJSON("json/graph/info/" + id, function (ginfo) {
-              var streaming = false;
+	      streaming = false;  //precautionary
 	      stream_graph = $('#'+divid);
 	      stream_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
 	      stream_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
@@ -903,13 +912,14 @@ var dtool =  $("<div id='mini_ws_datetool'>");
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
 
     $(".streamData").click(function() {
-      if(!streaming) {
-        streaming = true;
+     if(!ginpage_streaming){
+        ginpage_streaming = true;
         $(this).html('Streaming!').fadeIn('slow');
         $(".stream-log").removeAttr("style").html("stream log_");
-        stream_data(ginfo.id);
+        stream_data(ginfo.id, stream_graph, $('#streambox'));
       }
-      else if(streaming) {
+      else if(ginpage_streaming){
+        ginpage_streaming = false;
         streaming = false;
         $('#streambox').html('');
         $(this).html('Stream Data').fadeIn('slow');
@@ -930,6 +940,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
   }
   function zoom_modal (id, gtype) {
 
+  var zmodal_streaming = false;
   if(id) $.getJSON("json/graph/info/" + id, function (ginfo) {
 
     stream_graph = $('<div></div>').ReconGraph({graphid: ginfo.id, type: ginfo.type});
@@ -979,13 +990,14 @@ $("#mini_ws_datetool .datechoice").click(function(){
     });
 
     $(".zoomStream").click(function() {
-      if(!streaming) {
-        streaming = true;
+    if(!zmodal_streaming){
+	zmodal_streaming = true;
         $(".zoomStream").html('Streaming!').fadeIn('slow');
         $(".stream-log").removeAttr("style").html("stream log_");
-        stream_data(ginfo.id);
+        stream_data(ginfo.id, stream_graph, $('#streambox'));
       }
-      else if(streaming) {
+    else if(zmodal_streaming){
+	zmodal_streaming = false;
         streaming = false;
         $('#streambox').html('');
         $(".zoomStream").html('Stream Data').fadeIn('slow');

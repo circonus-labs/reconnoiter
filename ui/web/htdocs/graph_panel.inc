@@ -3,12 +3,11 @@
 var maingraph;
 var current_graph_id = '';
 var debug_graph_edit = false;
-var graphinfo= {};
+var graphinfo= {streaming: false}; //this streaming boolean keeps track of the graphpanel stream button
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
 var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
 var color_sel = 0;
 var locked = true;
-var gstreaming = false;
 
 function graph_locked(warning) {		
   if(locked) {
@@ -56,62 +55,27 @@ function update_graph_permalink(id, start, end, gran){
  $("#gpermalink a").attr("href", "drawing_board.php?otype=graph&id="+id+"&start="+start+"&end="+end+"&gran="+gran);
 }
 
-function graph_stream_data() {
-
-polltime = 2000;
-time_width = 300000;
-stream_object = maingraph;
-stream_dirty = false;
-maingraph.ReconGraphPrepareStream(time_width, polltime);
-
-
-sids = ""; 
-var sidneed = new Object();
-for(var i=0; i<graphinfo.datapoints.length; i++) {
-    if(graphinfo.datapoints[i].sid) {
-      sidneed[graphinfo.datapoints[i].sid] = polltime;
-    }
-}
-for(var sid in sidneed) {
-    sids+= "/"+sid+"@"+sidneed[sid];
+function stop_streaming_graph (){
+	 graphinfo.streaming = false;
+	 streaming = false;
+	 $('#streambox').html('');
+	 $(".streamData").html('Stream Data').fadeIn('slow');
+	 $(".stream-log").attr("style", "display:none;");
 }
 
-maingraph.everyTime(2000, function() {
-			  
-    if(!gstreaming) {   
-       $('#gstreambox').html('');
-       maingraph.stopTime();
-    }
-    else {
-    if(stream_dirty){
-        maingraph.ReconGraphPlotPoints();     
-        stream_dirty=false;
-   }
-}
-});
-
-//console.log("sids requestd from noit server = ", sids);
-
-$('#gstreambox').html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
-    
-}
 function set_current_graph_id(id) {
   $(".rememberGraph").fadeOut('fast');
   if(id!='')  {
     graphinfo.saved = true;
     locked = true;
-    gstreaming = false;
     lock_forms();
     $(".editGraph").html('Edit Graph').fadeIn('slow');    
-    $('#gstreambox').html('');
-    $(".streamData").html('Stream Data').fadeIn('slow');
-    $(".stream-log").attr("style", "display:none;");
   }
   else {        
     locked = false;
     unlock_forms();    
     $(".editGraph").html('Editing!').fadeIn('slow');
-    $('#gstreambox').html('');
+    $('#streambox').html('');
     $(".streamData").html('Stream Data').fadeIn('slow');
     $(".stream-log").attr("style", "display:none;");
   }
@@ -122,10 +86,7 @@ function set_current_graph_id(id) {
 var recurse = 0;
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
-  gstreaming = false;
-  $('#gstreambox').html('');
-  $(".streamData").html('Stream Data').fadeIn('slow');
-  $(".stream-log").attr("style", "display:none;");
+  stop_streaming_graph();
 
   var str = JSON.stringify(graphinfo);
   if(debug_graph_edit) $("#payload").html(str);
@@ -399,7 +360,9 @@ $(document).ready(function(){
                             };
         var state = false;
 
-	$(".editGraph").click(function() {		
+	//only allow graph editing if not streaming
+	$(".editGraph").click(function() {	
+	    if(!graphinfo.streaming){
 	        if(locked){
 		    locked = false;		    
 		    unlock_forms();
@@ -409,14 +372,8 @@ $(document).ready(function(){
 		    locked = true;	
 		    lock_forms();
                     $(".editGraph").html('Edit Graph').fadeIn('slow');
-                    if(gstreaming) { 
-                      gstreaming = false;
-                      $('#gstreambox').html('');
-                      $(".streamData").html('Stream Data').fadeIn('slow');
-                      $(".stream-log").attr("style", "display:none;");
-                      update_current_graph(true); 
-		      }
 		}
+	    }
 	});
 
 	$(".editStacks").click(function() {
@@ -429,22 +386,20 @@ $(document).ready(function(){
 	       }
        });       					
 	
+	//only allow stream toggling if the graph is locked and saved
         $(".streamData").click(function() {
-               if(!graph_locked("Unlock by clicking 'Edit Graph'.") && graphinfo.id) {            
-                    if(!gstreaming) {
-                        gstreaming = true;
+	       if(locked && graphinfo.saved) {
+                    if(!graphinfo.streaming) {
+		        graphinfo.streaming = true;
 		        $(this).html('Streaming!').fadeIn('slow');
                         $(".stream-log").removeAttr("style").html("stream log_");
-	  	        graph_stream_data();
+			stream_data(graphinfo.id, maingraph, $('#streambox'));
                     }
-                    else if(gstreaming) {
-                        gstreaming = false;
-                        $('#gstreambox').html('');
-                        $(this).html('Stream Data').fadeIn('slow');
-                        $(".stream-log").attr("style", "display:none;");
+                    else if(graphinfo.streaming) {
+		        stop_streaming_graph();
                         update_current_graph(true);
                     }
-		}
+	      }
 	});
         $("#graph_datetool .btn-slide").click(function(){
                 $("#graph_widgetCalendar").stop().animate({
@@ -503,6 +458,9 @@ $(document).ready(function(){
         });
 
         $("span.blankGraph").click(function() {
+
+	  stop_streaming_graph();
+
           // current graph is saved, so just give a new one.
           if(graphinfo.saved) set_current_graph_id('');
 
@@ -552,7 +510,6 @@ $(document).ready(function(){
 		<div class="no modalClose">No</div><div class="yes">Yes</div>
 	</div>
 </div>
-<div id="gstreambox" style="display:none"></div>
 
 <div>
 	<div id="maingraphHolder">
