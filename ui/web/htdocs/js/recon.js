@@ -355,6 +355,7 @@ function rpn_eval(value, expr, meta) {
           if(o == null) return this;
           this.graphinfo = $.extend({}, o.graphinfo, options||{});
           var url = "flot/graph/settings/" + this.graphinfo.graphid;
+	  
           this.find(".plot-area")
               .html('<div class="centered"><div class="loading">&nbsp;</div></div>');
 
@@ -640,11 +641,37 @@ function graphs_for_edit(li, g, params) {
         }
     })(g.graphid, li)
 	    );
+  var add = $('<a href="#"/>');
+  add.html('stack');
+  add.click(
+    (function(graphid) {
+        return function() {
+	    aggregate_graph(graphid, true);
+          return false;
+        }
+     })(g.graphid)
+  );
+
+  var addover = $('<a href="#"/>');
+  addover.html('overlay');
+  addover.click(
+    (function(graphid) {
+        return function() {
+	    aggregate_graph(graphid, false);
+          return false;
+        }
+     })(g.graphid)
+  );
+
   var ul = $('<ul/>');
   ul.append($('<li/>').html(g.last_update));
   ul.append($('<li/>').append(edit));
   ul.append($('<li/>').append(del));
-  li.append($('<div class="graphlist-title"/>').html(g.title)).append(ul);
+  ul.append($('<li/>').append(add));
+  ul.append($('<li/>').append(addover));
+  gtitle = $('<div class="graphlist-title"/>').html(g.title);
+  
+  li.append(gtitle).append(ul);
 }
 function ws_for_edit(li, ws, params) {
   var add = $('<a href="#"/>');
@@ -720,6 +747,13 @@ function time_window_to_seconds(w) {
     case 'y': return p[1] * 86400 * 365;
   }
   return 86400*2;
+}
+
+function get_stream_controls() {
+    play_pause = $("<div class='play_pause'>PLAY</div>");
+    stop = $("<div class='stopstream'>STOP</div>");
+    stream_controls = $("<span class='stream_controls'></div>").append(play_pause).append(stop);
+    return stream_controls;
 }
 
 //call this function when you wish to stream a graph
@@ -906,27 +940,57 @@ var dtool =  $("<div id='mini_ws_datetool'>");
                   </div>');
 
     var mheader = $("<div id='stream-header'>").append(dtool);
-    mheader.append("<span class='streamData'>Stream Data</span><br/>");
+    stream_controls = get_stream_controls();
+    mheader.append(stream_controls);
+    mheader.append("<br/>");
+
     stream_graph.prepend(mheader);
-    stream_graph.append('<div id="streambox" style="display:none"></div>');
+    stream_graph.append("<div id='streambox' style='display:none'></div>");
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
 
-    $(".streamData").click(function() {
-     if(!ginpage_streaming){
-        ginpage_streaming = true;
-        $(this).html('Streaming!').fadeIn('slow');
-        $(".stream-log").removeAttr("style").html("stream log_");
-        stream_data(ginfo.id, stream_graph, $('#streambox'));
-      }
-      else if(ginpage_streaming){
+    $(".stopstream").click(function() {
+	if(ginpage_streaming){
         ginpage_streaming = false;
         streaming = false;
+        $(".play_pause").html('PLAY');
         $('#streambox').html('');
-        $(this).html('Stream Data').fadeIn('slow');
         $(".stream-log").attr("style", "display:none;");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
-      }
-    }); //end stream click function
+	}
+     });
+
+    $(".play_pause").click(function() {
+     if(!ginpage_streaming){
+        ginpage_streaming = true;
+        $(this).html('PAUSE');
+        $(".stream-log").removeAttr("style").html("stream log_");
+        stream_data(ginfo.id, stream_graph, $('#streambox'));
+     }
+     else if(ginpage_streaming) {
+	 if($(this).html() == 'PLAY') {
+             $(this).html('PAUSE');	     
+	     //this is where we start streaming again after a pause
+	      stream_graph.everyTime(2000, function() {
+		      if(!streaming) {
+			  streambox.html('');
+			  $(".stream-log").attr("style", "display:none;");
+			  stream_graph.stopTime();
+		      }
+		      else {
+			  if(stream_dirty){
+			      stream_graph.ReconGraphPlotPoints();
+			      stream_dirty=false;
+			  }
+		      }
+		  });
+	 }
+	 else if($(this).html() == 'PAUSE') {
+	     $(this).html('PLAY');
+	     //this is where we pause for a bit
+	     stream_graph.stopTime();
+	 }
+     }
+   }); 
 
 $("#mini_ws_datetool .datechoice").click(function(){
    if(!ginpage_streaming) {

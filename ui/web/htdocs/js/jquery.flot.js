@@ -947,13 +947,10 @@
 	
         function draw() {
             drawGrid();
-	    
-	    var b_series = null;
-
-            for (var i = 0; i < series.length; i++) {
-		    var daindex = findLowerInStacks(i);
-		    if(daindex>-1)  b_series = series[daindex];	    		
-
+	    for (var i = 0; i < series.length; i++) {
+		var b_series = null;
+		var daindex = findLowerInStacks(i);
+		if(daindex>-1)  b_series = series[daindex];	    		
                 drawSeries(series[i], b_series);
             }
         }

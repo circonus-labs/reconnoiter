@@ -62,6 +62,41 @@ function stop_streaming_graph (){
 	 $(".streamData").html('Stream Data').fadeIn('slow');
 	 $(".stream-log").attr("style", "display:none;");
 }
+//overlay mode: stackadd=false: we just add new stacks for any the incoming graph has
+//stack mode: stackadd=trule, push new stacks onto matching stack indexes, else append
+function aggregate_graph(id, stackadd) {
+  if(!graph_locked("Click 'Edit Graph' to unlock.")){
+	 if(id) $.getJSON("json/graph/info/" + id, function(g) {
+
+	 	var max_old = (graphinfo.datapoints.length) ?  graphinfo.datapoints.length : 0;
+
+	 	for(var i=0; i<g.datapoints.length; i++) {
+			graphinfo.datapoints.push(g.datapoints[i]);
+  		}  	 
+
+		//we must use indexes for datapoints that are updated
+		for(var i=0; i<g.stacks.length; i++) {
+		  for(var j=0; j<g.stacks[i].length; j++) {
+		    g.stacks[i][j] += max_old;
+		  }
+		}
+
+		if(stackadd) {
+		  for(var i=0; i<g.stacks.length; i++){
+		  	  if(graphinfo.stacks[i]) graphinfo.stacks[i] = graphinfo.stacks[i].concat(g.stacks[i]);
+			  else graphinfo.stacks.push(g.stacks[i]);
+		  }			  
+		}	
+		else {
+		   for(var i=0; i<g.stacks.length; i++){
+		   	   graphinfo.stacks.push(g.stacks[i]);
+		   }
+		}  	
+		update_current_graph(true);
+		refresh_graph_from_json(graphinfo);
+              });
+  }
+}
 
 function set_current_graph_id(id) {
   $(".rememberGraph").fadeOut('fast');
@@ -87,7 +122,7 @@ var recurse = 0;
 function update_current_graph(redraw, f) {
   if(recurse > 0) return;
   stop_streaming_graph();
-
+  if(graphinfo.id) update_graph_permalink(current_graph_id, "", "", "");
   var str = JSON.stringify(graphinfo);
   if(debug_graph_edit) $("#payload").html(str);
   $.post("json/graph/store",
@@ -225,11 +260,19 @@ function gtool_add_datapoint(d) {
            graphinfo.datapoints.splice(i,1);
 	   var si = find_in_stacks(i);
 	   if(si != -1) graphinfo.stacks[si.i].splice(si.j, 1);
+
+	   //we must decrement the datapoint indexes in the stack array as well
+	   for(var k=0; k<graphinfo.stacks.length; k++) {
+	     for(var j=0; j<graphinfo.stacks[k].length; j++) {
+               if(graphinfo.stacks[k][j]>i) graphinfo.stacks[k][j]-=1;
+	     }
+	   }	   
+
            break;
          }
-       }
-       update_current_graph(true);
-       refresh_graph_from_json(graphinfo);
+       }          
+          update_current_graph(true);
+     	  refresh_graph_from_json(graphinfo);
        }
     return false;
   });

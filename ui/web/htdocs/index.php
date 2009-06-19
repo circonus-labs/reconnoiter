@@ -34,6 +34,7 @@
 <script src="js/jquery.timers.js" type="text/javascript"></script>
 <script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
+<script src="js//jquery.ui-1.5.2/ui/jquery.ui.all.js"></script>
 <script type="text/javascript">
 <!--
 recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
