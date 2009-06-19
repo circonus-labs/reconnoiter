@@ -81,6 +81,8 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         }
     }//end if stacking
 */
+
+  if(count($a)) {     
     $start_ts = $a[0]['data'][0][0];
     $finish = end($a[0]['data']);
     $finish_ts = $finish[0];
@@ -93,6 +95,7 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'lines' => array ( 'color' => '3', 'show' => true, 'fill' => false, 'lineWidth' => '1' )
       );
     }
+  }
     return $a;
   }
 

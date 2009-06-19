@@ -331,8 +331,9 @@ class Reconnoiter_DB {
     return $rv;
   }
   function percentile($arr, $p, $groupname = 'left', $attr = NULL) {
+
     // This sums the sets and returns the XX percentile bucket.
-    if(!is_array($arr)) return array();
+    if(!is_array($arr) || !count($arr)) return array();
     if(!is_array($p)) $p = array($p);
     $full = array();
     foreach ($arr[0]->points() as $ts) {
