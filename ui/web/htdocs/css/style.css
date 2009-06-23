@@ -786,8 +786,7 @@ height:400px;
 width:780px;
 }
 #StreamingModalContainer .graphTitle{
-position:relative; 
-left: 50px;
+text-align: center;
 }
 #maingraph div.plot-area div.centered {
 display:table-cell;
@@ -916,19 +915,11 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
-span.stream_controls .play_pause{
+span.stream_controls #play_pause{
 padding: 10px;
 }
-span.stream_controls .stopstream{
+span.stream_controls #stopstream{
 padding: 10px;
-}
-span.zoomStream {
-border:1px solid #DDDDDD;
-float:right;
-margin-left:4px;
-padding:0 4px;
-font-weight: bold;
-color:#660000;
 }
 span.editGraph {
 border:1px solid #DDDDDD;

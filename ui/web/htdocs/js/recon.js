@@ -750,8 +750,8 @@ function time_window_to_seconds(w) {
 }
 
 function get_stream_controls() {
-    play_pause = $("<span class='play_pause'>PLAY</span>");
-    stop = $("<span class='stopstream'>STOP</span>");
+    play_pause = $("<span id='play_pause'>PLAY</span>");
+    stop = $("<span id='stopstream'>STOP</span>");
     stream_controls = $("<span class='stream_controls'></span>").append(play_pause).append(stop);
     return stream_controls;
 }
@@ -761,7 +761,6 @@ function get_stream_controls() {
 //stream_graph: the dom element to update with the stream
 //streambox: the hidden element to insert the iframe remote calls
 function stream_data(graph_id, stream_graph, streambox) {
-
     if(!streaming) {
 	polltime = 2000;
 	timewindow = 300000;
@@ -945,16 +944,16 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
     stream_graph.append("<div id='streambox' style='display:none'></div>");
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
 
-    $(".stopstream").click(function() {
+    $("#stopstream").click(function() {
         streaming = false;
 	$('#mini_ws_datetool').css("display", "");
-        $(".play_pause").html('PLAY');
+        $("#play_pause").html('PLAY');
         $('#streambox').html('');
         $(".stream-log").attr("style", "display:none;");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
      });
 
-    $(".play_pause").click(function() {
+    $("#play_pause").click(function() {
       if($(this).html() == 'PLAY') {
         $(this).html('PAUSE');
 	//if we are playing for the frist time
@@ -984,9 +983,9 @@ $("#mini_ws_datetool .datechoice").click(function(){
   }
   function zoom_modal (id, gtype) {
 
-  var zmodal_streaming = false;
   if(id) $.getJSON("json/graph/info/" + id, function (ginfo) {
 
+    streaming = false;  //precautionary
     stream_graph = $('<div></div>').ReconGraph({graphid: ginfo.id, type: ginfo.type});
     var smod = stream_graph.modal({
       containerId: 'StreamingModalContainer',
@@ -1022,7 +1021,8 @@ $("#mini_ws_datetool .datechoice").click(function(){
 
     var mheader = $("<div id='stream-modal-header'>").append(dtool);
     mheader.append("<span class='zoomClose'>x</span>");
-    mheader.append("<span class='zoomStream'>Stream Data</span><br>");
+    mheader.append(get_stream_controls());
+    mheader.append($("<br/>"));
 
     stream_graph.prepend(mheader);
 
@@ -1033,30 +1033,38 @@ $("#mini_ws_datetool .datechoice").click(function(){
       smod.close();
     });
 
-    $(".zoomStream").click(function() {
-    if(!zmodal_streaming){
-	zmodal_streaming = true;
-        $(".zoomStream").html('Streaming!').fadeIn('slow');
-        $(".stream-log").removeAttr("style").html("stream log_");
+    $("#play_pause").click(function() {
+      if($(this).html() == 'PLAY') {
+        $(this).html('PAUSE');
+	//if we are playing for the frist time
+	if(!streaming) {
+	    $('#mini_ws_datetool').css("display", "none");
+	    $(".stream-log").removeAttr("style").html("stream log_");
+	}
+	//setup/restart the plotting
         stream_data(ginfo.id, stream_graph, $('#streambox'));
       }
-    else if(zmodal_streaming){
-	zmodal_streaming = false;
+      else if($(this).html() == 'PAUSE') {
+	     $(this).html('PLAY');
+	     //this is where we pause for a bit
+	     stream_graph.stopTime();
+      }
+   });
+
+    $("#stopstream").click(function() {
         streaming = false;
+	$('#mini_ws_datetool').css("display", "");
+        $("#play_pause").html('PLAY');
         $('#streambox').html('');
-        $(".zoomStream").html('Stream Data').fadeIn('slow');
         $(".stream-log").attr("style", "display:none;");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
-      }
-    }); //end stream click function
+     });
 
     $("#mini_ws_datetool .datechoice").click(function(){
-     if(!zmodal_streaming) {
        $(".datechoice").removeClass("selected");
        $(this).addClass("selected");
        stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
        return false;
-     }
    });
   });
   } //end zoom_modal
