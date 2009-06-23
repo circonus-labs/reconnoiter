@@ -75,24 +75,26 @@ function aggregate_graph(id, stackadd) {
 			graphinfo.datapoints.push(g.datapoints[i]);
   		}  	 
 
-		//we must use indexes for datapoints that are updated
-		for(var i=0; i<g.stacks.length; i++) {
-		  for(var j=0; j<g.stacks[i].length; j++) {
-		    g.stacks[i][j] += max_old;
+		if(g.stacks) {
+		  //we must use indexes for datapoints that are updated
+		  for(var i=0; i<g.stacks.length; i++) {
+		    for(var j=0; j<g.stacks[i].length; j++) {
+		      g.stacks[i][j] += max_old;
+		    }
 		  }
-		}
 
-		if(stackadd) {
-		  for(var i=0; i<g.stacks.length; i++){
-		  	  if(graphinfo.stacks[i]) graphinfo.stacks[i] = graphinfo.stacks[i].concat(g.stacks[i]);
-			  else graphinfo.stacks.push(g.stacks[i]);
-		  }			  
-		}	
-		else {
-		   for(var i=0; i<g.stacks.length; i++){
-		   	   graphinfo.stacks.push(g.stacks[i]);
-		   }
-		}  	
+		  if(stackadd) {
+		    for(var i=0; i<g.stacks.length; i++){
+		    	  if(graphinfo.stacks[i]) graphinfo.stacks[i] = graphinfo.stacks[i].concat(g.stacks[i]);
+		 	  else graphinfo.stacks.push(g.stacks[i]);
+		    }			  
+		  }	
+		  else {
+		     for(var i=0; i<g.stacks.length; i++){
+		     	   graphinfo.stacks.push(g.stacks[i]);
+		     }
+		  }
+	       }
 		update_current_graph(true);
 		refresh_graph_from_json(graphinfo);
               });
@@ -139,6 +141,7 @@ function update_current_graph(redraw, f) {
              $(".rememberGraph").html('"Remember" this graph.').fadeIn('slow');
              $(".rememberGraph").click(function() {
                graphinfo.saved = true;
+	       if(graphinfo.stacks == undefined) graphinfo.stacks = Array();
                update_current_graph(false, function(r) {
                  if(r.error) { 
                    graphinfo.saved = false;

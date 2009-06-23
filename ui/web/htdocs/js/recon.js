@@ -642,7 +642,7 @@ function graphs_for_edit(li, g, params) {
     })(g.graphid, li)
 	    );
   var add = $('<a href="#"/>');
-  add.html('stack');
+  add.html('Stack');
   add.click(
     (function(graphid) {
         return function() {
@@ -653,7 +653,7 @@ function graphs_for_edit(li, g, params) {
   );
 
   var addover = $('<a href="#"/>');
-  addover.html('overlay');
+  addover.html('Overlay');
   addover.click(
     (function(graphid) {
         return function() {
