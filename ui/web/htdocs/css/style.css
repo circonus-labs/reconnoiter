@@ -921,6 +921,12 @@ padding: 10px;
 span.stream_controls #stopstream{
 padding: 10px;
 }
+span.stream_controls #play_pause_graph{
+padding: 10px;
+}
+span.stream_controls #stopstream_graph{
+padding: 10px;
+}
 span.editGraph {
 border:1px solid #DDDDDD;
 float:right;

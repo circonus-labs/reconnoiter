@@ -34,7 +34,8 @@ function unlock_forms() {
 	$("input[@name='math1']").removeAttr("disabled");
 	$("input[@name='math2']").removeAttr("disabled");
         $("input[@name='view']").removeAttr("disabled");
-//        $("input[@class='graphType']").removeAttr("disabled");
+	//leave the graph type disabled, since we dont use it anywhere rightnow
+	//$("input[@class='graphType']").removeAttr("disabled");
 	$("select[@name='derive']").removeAttr("disabled");
 	$("select[@class='av_stacks']").removeAttr("disabled");
 
@@ -60,7 +61,7 @@ function stop_streaming_graph (){
 	 $('#streambox').html('');
 	 $(".stream-log").attr("style", "display:none;");
          $("#graph_datetool").css("display", "");
-	 $("#play_pause").html('PLAY');
+	 $("#play_pause_graph").html('PLAY');
 }
 //overlay mode: stackadd=false: we just add new stacks for any the incoming graph has
 //stack mode: stackadd=trule, push new stacks onto matching stack indexes, else append
@@ -384,8 +385,8 @@ function fetch_graph_info(id) {
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
 <span class="stream_controls">
-<span id="play_pause">PLAY</span>
-<span id="stopstream">STOP</span>
+<span id="play_pause_graph">PLAY</span>
+<span id="stopstream_graph">STOP</span>
 </span>
 <span class="editGraph">Edit Graph</span>
 <span class="permalink" id="gpermalink"><a href="">Link</a></span>
@@ -432,7 +433,7 @@ $(document).ready(function(){
        });       					
 	
        //only allow stream toggling if the graph is locked and saved
-       $("#play_pause").click(function() {
+       $("#play_pause_graph").click(function() {
 	 if(locked && graphinfo.saved) {
       	  if($(this).html() == 'PLAY') {
             $(this).html('PAUSE');
@@ -452,7 +453,7 @@ $(document).ready(function(){
         }
        });
 
-       $("#stopstream").click(function() {
+       $("#stopstream_graph").click(function() {
         stop_streaming_graph();
         update_current_graph(true);
        });
@@ -575,7 +576,6 @@ $(document).ready(function(){
 	<fieldset>
 	<legend style="display:none;">View</legend>
 	<label for="std_view"><input class="graphType" type="radio" name="graphtype" id="std_view" value="standard"/> Standard View</label> &nbsp;&nbsp;&nbsp;
-	<label for="stacked_view"><input class="graphType" type="radio" name="graphtype" id="stacked_view" value="stacked" /> Stack Left Axis</label>
 	</fieldset>
 	</form>
 	

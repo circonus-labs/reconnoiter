@@ -59,29 +59,6 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
       $a[] = $ds;
     }
 
-    //hack for stacking...will ignore datasets and datapoints that are not set or not on the left axis, so
-    //each dataset needs to have each point set for this stacking to work
-    //non numeric metric are given the value 0 above, so that if stacked, they show up on the plot-line itself
-/*    if($this->type == "stacked") {
-        $left_count = 0; $bottom = -1; $index=0;
-        foreach($this->sets as $name => $set) {	
-            if($this->sets_config[$name]['axis'] == 'left'){
-	        $left_count++;
-		if($left_count>1) {
-                    for ($point = 0; $point < count($a[$index]['data']); $point++){
-	                if( ($a[$bottom]['data'][$point][1] != "") && ($a[$index]['data'][$point][1] != "")) {	
-		            $tmp = $a[$index]['data'][$point][1] +  $a[$bottom]['data'][$point][1];
-                            $a[$index]['data'][$point][1] = "$tmp";
-  	                }                
-	            }
-	        }  	   	       
-		$bottom =  $index; 
-            }//end if left axis
-	    $index++;
-        }
-    }//end if stacking
-*/
-
   if(count($a)) {     
     $start_ts = $a[0]['data'][0][0];
     $finish = end($a[0]['data']);
@@ -98,8 +75,6 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
   }
     return $a;
   }
-
-
 
   function graphdataset($set, $config) {
     $i = 0;
