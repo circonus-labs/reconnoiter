@@ -3,7 +3,7 @@
 var maingraph;
 var current_graph_id = '';
 var debug_graph_edit = false;
-var graphinfo= {streaming: false}; //this streaming boolean keeps track of the graphpanel stream button
+var graphinfo= {}; 
 var displayinfo = { start : 14*86400, cnt: '', end: '' };
 var color_pool = Array('#33aa33','#4a00dc','#caac00','#3377cc','#00acfa','#cc3333')
 var color_sel = 0;
@@ -56,11 +56,11 @@ function update_graph_permalink(id, start, end, gran){
 }
 
 function stop_streaming_graph (){
-	 graphinfo.streaming = false;
 	 streaming = false;
 	 $('#streambox').html('');
-	 $(".streamData").html('Stream Data').fadeIn('slow');
 	 $(".stream-log").attr("style", "display:none;");
+         $("#graph_datetool").css("display", "");
+	 $(".play_pause").html('PLAY');
 }
 //overlay mode: stackadd=false: we just add new stacks for any the incoming graph has
 //stack mode: stackadd=trule, push new stacks onto matching stack indexes, else append
@@ -99,6 +99,7 @@ function aggregate_graph(id, stackadd) {
 }
 
 function set_current_graph_id(id) {
+  streaming = false; //precautionary
   $(".rememberGraph").fadeOut('fast');
   if(id!='')  {
     graphinfo.saved = true;
@@ -110,9 +111,7 @@ function set_current_graph_id(id) {
     locked = false;
     unlock_forms();    
     $(".editGraph").html('Editing!').fadeIn('slow');
-    $('#streambox').html('');
-    $(".streamData").html('Stream Data').fadeIn('slow');
-    $(".stream-log").attr("style", "display:none;");
+    stop_streaming_graph();
   }
   current_graph_id = id;
   update_graph_permalink(current_graph_id, "", "", "");
@@ -384,7 +383,10 @@ function fetch_graph_info(id) {
 <p/>
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
-<span class="streamData ">Stream Data</span>
+<span class="stream_controls">
+<span class="play_pause">PLAY</span>
+<span class="stopstream">STOP</span>
+</span>
 <span class="editGraph">Edit Graph</span>
 <span class="permalink" id="gpermalink"><a href="">Link</a></span>
 
@@ -405,7 +407,7 @@ $(document).ready(function(){
 
 	//only allow graph editing if not streaming
 	$(".editGraph").click(function() {	
-	    if(!graphinfo.streaming){
+	    if(!streaming){
 	        if(locked){
 		    locked = false;		    
 		    unlock_forms();
@@ -429,21 +431,32 @@ $(document).ready(function(){
 	       }
        });       					
 	
-	//only allow stream toggling if the graph is locked and saved
-        $(".streamData").click(function() {
-	       if(locked && graphinfo.saved) {
-                    if(!graphinfo.streaming) {
-		        graphinfo.streaming = true;
-		        $(this).html('Streaming!').fadeIn('slow');
-                        $(".stream-log").removeAttr("style").html("stream log_");
-			stream_data(graphinfo.id, maingraph, $('#streambox'));
-                    }
-                    else if(graphinfo.streaming) {
-		        stop_streaming_graph();
-                        update_current_graph(true);
-                    }
-	      }
-	});
+       //only allow stream toggling if the graph is locked and saved
+       $(".play_pause").click(function() {
+	 if(locked && graphinfo.saved) {
+      	  if($(this).html() == 'PLAY') {
+            $(this).html('PAUSE');
+	    //if we are playing for the frist time
+	    if(!streaming) {
+	      $('#graph_datetool').css("display", "none");
+	      $(".stream-log").removeAttr("style").html("stream log_");
+	    }
+	    //setup/restart the plotting
+	    stream_data(graphinfo.id, maingraph, $('#streambox'));
+          }
+          else if($(this).html() == 'PAUSE') {
+	     $(this).html('PLAY');
+	     //this is where we pause for a bit
+	     maingraph.stopTime();
+          }
+        }
+       });
+
+       $(".stopstream").click(function() {
+        stop_streaming_graph();
+        update_current_graph(true);
+       });
+
         $("#graph_datetool .btn-slide").click(function(){
                 $("#graph_widgetCalendar").stop().animate({
                      height: state ? 0 :
@@ -454,7 +467,6 @@ $(document).ready(function(){
                 return false;
         });
         $("#graph_datetool .datechoice").click(function(){
-	    if(!graphinfo.streaming){
                 $("#graph_datetool .range a.btn-slide").html("YYYY/MM/DD - YYYY/MM/DD");
                 $("#graph_widgetCalendar").slideUp("slow");
                 $("#graph_datetool .datechoice").removeClass("selected");
@@ -467,7 +479,6 @@ $(document).ready(function(){
 		update_graph_permalink(graphinfo.id, parseInt(cdate.getTime() - displayinfo.start*1000), "", "");
                 maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: time_windows[$(this).html()], end: '', type: graphinfo.type});
                 return false;
-             }
         });
         $('#graph_widgetCalendar').DatePicker({
                 flat: true,
@@ -477,7 +488,6 @@ $(document).ready(function(){
                 mode: 'range',
                 starts: 1,
                 onChange: function(formated) {
-                     if(!graphinfo.streaming) {
                         var dates;
                         dates = formated[0].split('/');
                         var start = new Date(dates[0], dates[1]-1, dates[2], 0, 0, 0);
@@ -488,7 +498,6 @@ $(document).ready(function(){
 			update_graph_permalink(graphinfo.id, parseInt(start.getTime()), parseInt(end.getTime()), "");
                         maingraph.ReconGraphRefresh({graphid: graphinfo.id, start: displayinfo.start, end: displayinfo.end, type: graphinfo.type});
                         $('#graph_datetool .range a.btn-slide').get(0).innerHTML = formated.join(' - ');
-		    }
                 }
         });
         $(".graphType").change(function(){

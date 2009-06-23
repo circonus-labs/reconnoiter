@@ -750,9 +750,9 @@ function time_window_to_seconds(w) {
 }
 
 function get_stream_controls() {
-    play_pause = $("<div class='play_pause'>PLAY</div>");
-    stop = $("<div class='stopstream'>STOP</div>");
-    stream_controls = $("<span class='stream_controls'></div>").append(play_pause).append(stop);
+    play_pause = $("<span class='play_pause'>PLAY</span>");
+    stop = $("<span class='stopstream'>STOP</span>");
+    stream_controls = $("<span class='stream_controls'></span>").append(play_pause).append(stop);
     return stream_controls;
 }
 
@@ -761,19 +761,17 @@ function get_stream_controls() {
 //stream_graph: the dom element to update with the stream
 //streambox: the hidden element to insert the iframe remote calls
 function stream_data(graph_id, stream_graph, streambox) {
-    if(streaming) {
-	modal_warning("Stream Error!", "You can only stream one thing at a time!");
-	return;
+
+    if(!streaming) {
+	polltime = 2000;
+	timewindow = 300000;
+	stream_object = stream_graph;
+	stream_dirty = false;
+	stream_graph.ReconGraphPrepareStream(timewindow, polltime);
+
+	//this should be the only place we set streaming to true
+	streaming = true;
     }
-    //this should be the only place we set streaming to true
-    streaming = true;
-
-    polltime = 2000;
-    timewindow = 300000;
-    stream_object = stream_graph;
-    stream_dirty = false;
-    stream_graph.ReconGraphPrepareStream(timewindow, polltime);
-
 //setup functionality so that every 2 seconds check if we are streaming and dirty, plot if true
     stream_graph.everyTime(2000, function() {
       if(!streaming) {
@@ -917,7 +915,6 @@ var worksheet = (function($) {
   }
 
   function render_graph_inpage(divid, id, start, end) {
-      var ginpage_streaming = false;
 
 $.getJSON("json/graph/info/" + id, function (ginfo) {
 	      streaming = false;  //precautionary
@@ -925,7 +922,7 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
 	      stream_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
 	      stream_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
 
-var dtool =  $("<div id='mini_ws_datetool'>");
+    var dtool =  $("<div id='mini_ws_datetool'>");
     dtool.append('<div class="zoom"> \
                 <dl> \
                         <dt>Zoom:</dt> \
@@ -949,57 +946,38 @@ var dtool =  $("<div id='mini_ws_datetool'>");
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
 
     $(".stopstream").click(function() {
-	if(ginpage_streaming){
-        ginpage_streaming = false;
         streaming = false;
+	$('#mini_ws_datetool').css("display", "");
         $(".play_pause").html('PLAY');
         $('#streambox').html('');
         $(".stream-log").attr("style", "display:none;");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
-	}
      });
 
     $(".play_pause").click(function() {
-     if(!ginpage_streaming){
-        ginpage_streaming = true;
+      if($(this).html() == 'PLAY') {
         $(this).html('PAUSE');
-        $(".stream-log").removeAttr("style").html("stream log_");
+	//if we are playing for the frist time
+	if(!streaming) {
+	    $('#mini_ws_datetool').css("display", "none");
+	    $(".stream-log").removeAttr("style").html("stream log_");
+	}
+	//setup/restart the plotting
         stream_data(ginfo.id, stream_graph, $('#streambox'));
-     }
-     else if(ginpage_streaming) {
-	 if($(this).html() == 'PLAY') {
-             $(this).html('PAUSE');	     
-	     //this is where we start streaming again after a pause
-	      stream_graph.everyTime(2000, function() {
-		      if(!streaming) {
-			  streambox.html('');
-			  $(".stream-log").attr("style", "display:none;");
-			  stream_graph.stopTime();
-		      }
-		      else {
-			  if(stream_dirty){
-			      stream_graph.ReconGraphPlotPoints();
-			      stream_dirty=false;
-			  }
-		      }
-		  });
-	 }
-	 else if($(this).html() == 'PAUSE') {
+      }
+      else if($(this).html() == 'PAUSE') {
 	     $(this).html('PLAY');
 	     //this is where we pause for a bit
 	     stream_graph.stopTime();
-	 }
-     }
-   }); 
+      }
+   });
 
 $("#mini_ws_datetool .datechoice").click(function(){
-   if(!ginpage_streaming) {
       $(".datechoice").removeClass("selected");
       $(this).addClass("selected");
       stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
       return false;
-   }
- });
+    });
 
     });//end json call
 
