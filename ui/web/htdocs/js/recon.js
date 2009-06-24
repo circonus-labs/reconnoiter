@@ -813,7 +813,7 @@ function stream_data(graph_id, stream_graph, streambox) {
 var worksheet = (function($) {
   var ws_displayinfo = { start : 14*86400, cnt: '100', end: '' };
   var wsinfo = {};
-  var locked = true;
+  var locked = false;
   streaming = false;  //precautionary...should be set to false wherever we use it when weere done
   var stream_graph;
 
@@ -864,9 +864,10 @@ var worksheet = (function($) {
     return o;
   }
 
-  function render_ws_inpage(divid, id, start, end) {
+  function render_ws_inpage(divid, id, start, end, gran) {
       ws_displayinfo.start = start;
       ws_displayinfo.end = end;
+      if(gran) ws_displayinfo.cnt = gran;
 
       plot_board = $('#'+divid);
 
@@ -913,12 +914,13 @@ var worksheet = (function($) {
       lock_wforms();
   }
 
-  function render_graph_inpage(divid, id, start, end) {
+  function render_graph_inpage(divid, id, start, end, gran) {
 
 $.getJSON("json/graph/info/" + id, function (ginfo) {
+
 	      streaming = false;  //precautionary
 	      stream_graph = $('#'+divid);
-	      stream_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type});
+	      stream_graph.ReconGraph({graphid: ginfo.id, type: ginfo.type, width: (gran) ? gran : 780});
 	      stream_graph.ReconGraphRefresh({graphid: ginfo.id, start: start, end: end, stacks: ginfo.stacks});
 
     var dtool =  $("<div id='mini_ws_datetool'>");
@@ -986,7 +988,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
   if(id) $.getJSON("json/graph/info/" + id, function (ginfo) {
 
     streaming = false;  //precautionary
-    stream_graph = $('<div></div>').ReconGraph({graphid: ginfo.id, type: ginfo.type});
+    stream_graph = $('<div></div>').ReconGraph({graphid: ginfo.id, type: ginfo.type, width:780});
     var smod = stream_graph.modal({
       containerId: 'StreamingModalContainer',
       close: 'true',
@@ -1151,6 +1153,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
                    if(r.error) wsinfo.saved = false;
                    else {
                       $(".rememberWorksheet").html('Remebered').fadeOut('slow');
+	      	      if(wsinfo.id) update_worksheet_permalink(wsinfo.id, "", "", "");
                       unlock_wforms();
                    }
                  });
@@ -1187,7 +1190,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
             wsinfo.graphs.push(g.graphid);
          });
       }
-      update_worksheet_permalink(wsinfo.id, "", "", "");
+      update_worksheet_permalink(wsinfo.id, "", "", ws_displayinfo.cnt);
       ul.sortable("refresh");
   }
 
@@ -1225,7 +1228,7 @@ $("#mini_ws_datetool .datechoice").click(function(){
     ws_displayinfo.start = start;
     ws_displayinfo.end = end;
     if(cnt) ws_displayinfo.cnt = cnt;
-    update_worksheet_permalink(wsinfo.id, ws_displayinfo.start, ws_displayinfo.end, "");
+    update_worksheet_permalink(wsinfo.id, ws_displayinfo.start, ws_displayinfo.end, ws_displayinfo.cnt);
   }
   function refresh_worksheet() {
     var g = { start: ws_displayinfo.start,

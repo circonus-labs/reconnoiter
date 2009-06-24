@@ -90,17 +90,17 @@ if(id) {
 	  end = end.toUTCString();
        }
        else end = "";
+       var gran = <?php echo "\"$gran\"";?>;
 
        if(otype == 'graph') {
-	  var gran = <?php echo "\"$gran\"";?>;
 	  $('#drawing_board').width('780px');
 	  $('#drawing_board').height('400px');
-	  worksheet.render_graph_inpage('drawing_board', id, start, end);
+	  worksheet.render_graph_inpage('drawing_board', id, start, end, gran);
        }
        else if(otype == 'wsheet') {
      	  $('#drawing_board').width('1200px');
 	  $('#drawing_board').height('800px');
-	  worksheet.render_ws_inpage('drawing_board', id, start, end);
+	  worksheet.render_ws_inpage('drawing_board', id, start, end, gran);
        }
 }
 </script>
