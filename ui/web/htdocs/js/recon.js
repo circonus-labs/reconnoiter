@@ -4,6 +4,8 @@
 // calls in an iframe, for example streambox for worksheets
 var stream_object;
 var stream_dirty;
+var polltime = 2000; // (ms) how often we want data from the stream
+var timewindow = 300000;  // (ms) width of the stream window
 var recon_realtime_hostname = '';
 var streaming = false;
 
@@ -752,7 +754,8 @@ function time_window_to_seconds(w) {
 function get_stream_controls() {
     play_pause = $("<span id='play_pause'>PLAY</span>");
     stop = $("<span id='stopstream'>STOP</span>");
-    stream_controls = $("<span class='stream_controls'></span>").append(play_pause).append(stop);
+    oslider = $("<div id='oslider'><div id='pollslider'></div><div id='polltime'>"+polltime+" ms</div></div>");
+    stream_controls = $("<div class='stream_controls'></div>").append(play_pause).append(stop).append(oslider);
     return stream_controls;
 }
 
@@ -760,10 +763,8 @@ function get_stream_controls() {
 //graphid: the id, used to retrieve the graph's metric to request
 //stream_graph: the dom element to update with the stream
 //streambox: the hidden element to insert the iframe remote calls
-function stream_data(graph_id, stream_graph, streambox) {
+    function stream_data(graph_id, stream_graph, streambox) {
     if(!streaming) {
-	polltime = 2000;
-	timewindow = 300000;
 	stream_object = stream_graph;
 	stream_dirty = false;
 	stream_graph.ReconGraphPrepareStream(timewindow, polltime);
@@ -792,6 +793,7 @@ function stream_data(graph_id, stream_graph, streambox) {
         sids = "";
         var sidneed = new Object();
 
+	//we could set a polltime for each dataset, but for now we make them the same
         for(var i=0; i<g.datapoints.length; i++) {
           if(g.datapoints[i].sid) {
             sidneed[g.datapoints[i].sid] = polltime;
@@ -800,7 +802,7 @@ function stream_data(graph_id, stream_graph, streambox) {
         for(var sid in sidneed) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
-	//console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
+	//	console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
 	streambox.html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
   }
@@ -940,7 +942,6 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
     var mheader = $("<div id='stream-header'>").append(dtool);
     stream_controls = get_stream_controls();
     mheader.append(stream_controls);
-    mheader.append("<br/>");
 
     stream_graph.prepend(mheader);
     stream_graph.append("<div id='streambox' style='display:none'></div>");
@@ -973,11 +974,24 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
       }
    });
 
-$("#mini_ws_datetool .datechoice").click(function(){
-      $(".datechoice").removeClass("selected");
-      $(this).addClass("selected");
-      stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
-      return false;
+	      $("#pollslider").slider({orientation: 'horizontal', value: polltime, max: 10000, min: 1000, step: 1000,
+		    change: function (event, ui) {  
+                        polltime = $(this).slider('option', 'value'); 
+			$("#polltime").html(polltime+" ms");
+		        if(streaming) {
+			    streaming = false;
+			    $('#streambox').html('');
+			    $("#play_pause").html('PAUSE');
+			    stream_data(ginfo.id, stream_graph, $('#streambox'));
+			}
+		      }			
+	    });
+
+   $("#mini_ws_datetool .datechoice").click(function(){
+        $(".datechoice").removeClass("selected");
+        $(this).addClass("selected");
+        stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks, start: time_window_to_seconds($(this).html()), end: ''});
+        return false;
     });
 
     });//end json call
@@ -1022,18 +1036,20 @@ $("#mini_ws_datetool .datechoice").click(function(){
                   </div>');
 
     var mheader = $("<div id='stream-modal-header'>").append(dtool);
-    mheader.append("<span class='zoomClose'>x</span>");
+
     mheader.append(get_stream_controls());
-    mheader.append($("<br/>"));
+    mheader.append("<span class='zoomClose'>x</span>")
 
     stream_graph.prepend(mheader);
-
     stream_graph.append("<div class='stream-log' style='display:none'></div>");
+
+
     $(".zoomClose").click(function() {
       streaming = false;
       $('#streambox').html('');
       smod.close();
     });
+
 
     $("#play_pause").click(function() {
       if($(this).html() == 'PLAY') {
@@ -1061,6 +1077,19 @@ $("#mini_ws_datetool .datechoice").click(function(){
         $(".stream-log").attr("style", "display:none;");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
      });
+
+    $("#pollslider").slider({orientation: 'horizontal', value: polltime, max: 10000, min: 1000, step: 1000,
+		    change: function (event, ui) {  
+                        polltime = $(this).slider('option', 'value'); 
+			$("#polltime").html(polltime+" ms");
+		        if(streaming) {
+			    streaming = false;
+			    $('#streambox').html('');
+			    $("#play_pause").html('PAUSE');
+			    stream_data(ginfo.id, stream_graph, $('#streambox'));
+			}
+		      }			
+    });
 
     $("#mini_ws_datetool .datechoice").click(function(){
        $(".datechoice").removeClass("selected");

@@ -18,14 +18,16 @@ $db = Reconnoiter_DB::getDB();
 <link href="css/datepicker.css" rel="stylesheet" type="text/css" />
 <link href="css/colorpicker.css" rel="stylesheet" type="text/css" />
 <link rel="icon" type="image/vnd.microsoft.icon" href="images/favicon.ico" />
+<link href="js/jquery-ui-1.7.2/themes/base/ui.all.css" rel="stylesheet" type="text/css" />
 <script>document.domain='<?php echo $db->realtime_config('document_domain'); ?>';</script>
 <script src="js/htmlentities.js"></script>
 <script src="js/json2.js"></script>
-<script src="js/jquery.min.js"></script>
+<script src="js/jquery-1.3.2.min.js"></script>
 <script src="js/jquery.flot.js"></script>
 <script src="js/jquery.jeditable.pack.js"></script>
-<script src="js/ui.core.min.js"></script>
-<script src="js/ui.sortable.min.js"></script>
+<script src="js/jquery-ui-1.7.2/ui/ui.core.js"></script>
+<script src="js/jquery-ui-1.7.2/ui/ui.sortable.js"></script>
+<script src="js/jquery-ui-1.7.2/ui/ui.slider.js"></script>
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.async.js" type="text/javascript"></script>
@@ -37,7 +39,6 @@ $db = Reconnoiter_DB::getDB();
 <script src="js/eye/utils.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
 <script src="js/reconui.js" type="text/javascript"></script>
-
 <script type="text/javascript">
 <!--
 recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';

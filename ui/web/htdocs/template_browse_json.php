@@ -145,7 +145,7 @@ var have_req_sidvals = false;
 
 var template_e = $("#"+templateid);
 
-template_e.find("input[@id='textvar']").each ( function (i) {
+template_e.find("input[id='textvar']").each ( function (i) {
         textvars[i] = $(this).attr('name');
 	if($(this).val() != '') {
 	  have_req_txtvals = true;

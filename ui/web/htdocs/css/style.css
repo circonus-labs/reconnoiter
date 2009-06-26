@@ -761,14 +761,17 @@ color:#660000;
 #drawing_board {
 margin-left: auto;
 margin-right: auto;
+margin-top: 50px;	      
 }
 #drawing_board div.plot-area {
 height:400px;
 width:780px;
+margin-top: 50px;
 }
 #drawing_board ul#worksheet-graphs div.plot-area {
 height:180px;
 width:380px;
+margin-top: 0px;
 }
 #drawing_board h2.ws_title {
 margin: 10px;
@@ -907,25 +910,40 @@ padding:0 4px;
 font-weight: bold;
 color:#660000;
 }
-span.stream_controls {
+.stream_controls {
 border:1px solid #DDDDDD;
 float:right;
 margin-left:4px;
 padding:0 4px;
 font-weight: bold;
 color:#660000;
+width: 290px;
+height: 20px;
 }
-span.stream_controls #play_pause{
+.stream_controls #play_pause{
 padding: 10px;
 }
-span.stream_controls #stopstream{
+.stream_controls #stopstream{
 padding: 10px;
 }
-span.stream_controls #play_pause_graph{
+.stream_controls #play_pause_graph{
 padding: 10px;
 }
-span.stream_controls #stopstream_graph{
+.stream_controls #stopstream_graph{
 padding: 10px;
+}
+.stream_controls #oslider{
+position: relative;
+left:120px;
+top:-14px;
+}
+.stream_controls div#oslider div#polltime{
+position: relative;
+left:120px;
+top:-14px;
+}
+.stream_controls div.ui-slider-horizontal{
+width: 100px;
 }
 span.editGraph {
 border:1px solid #DDDDDD;

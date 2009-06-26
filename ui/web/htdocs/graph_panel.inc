@@ -18,12 +18,12 @@ function graph_locked(warning) {
 }
 
 function lock_forms() {
-	$("input[@name='math1']").attr("disabled", "true");
-	$("input[@name='math2']").attr("disabled", "true");
-        $("input[@name='view']").attr("disabled", "true");
-        $("input[@class='graphType']").attr("disabled", "true");
-	$("select[@name='derive']").attr("disabled", "true");
-	$("select[@class='av_stacks']").attr("disabled", "true");
+	$("input[name='math1']").attr("disabled", "true");
+	$("input[name='math2']").attr("disabled", "true");
+        $("input[name='view']").attr("disabled", "true");
+        $("input[class='graphType']").attr("disabled", "true");
+	$("select[name='derive']").attr("disabled", "true");
+	$("select[class='av_stacks']").attr("disabled", "true");
 
 	$("h2#graphTitle").unbind();
 	$(".datatitle").unbind();
@@ -31,13 +31,13 @@ function lock_forms() {
 
 function unlock_forms() {
 
-	$("input[@name='math1']").removeAttr("disabled");
-	$("input[@name='math2']").removeAttr("disabled");
-        $("input[@name='view']").removeAttr("disabled");
+	$("input[name='math1']").removeAttr("disabled");
+	$("input[name='math2']").removeAttr("disabled");
+        $("input[name='view']").removeAttr("disabled");
 	//leave the graph type disabled, since we dont use it anywhere rightnow
-	//$("input[@class='graphType']").removeAttr("disabled");
-	$("select[@name='derive']").removeAttr("disabled");
-	$("select[@class='av_stacks']").removeAttr("disabled");
+	//$("input[class='graphType']").removeAttr("disabled");
+	$("select[name='derive']").removeAttr("disabled");
+	$("select[class='av_stacks']").removeAttr("disabled");
 
 	$("h2#graphTitle").editable(function(value, settings) { 
            graphinfo.title = value;
@@ -229,13 +229,13 @@ function gtool_add_datapoint(d) {
     }
   });
 
-  if(!d.hidden){o.find('input[@name="view"]').attr("checked","checked");}
-  o.find('input[@name="view"]').change(function(){
+  if(!d.hidden){o.find('input[name="view"]').attr("checked","checked");}
+  o.find('input[name="view"]').change(function(){
     d.hidden = !($(this).attr("checked"));
     update_current_graph(true);
   }).change();
 
-  o.find('select[@id="datastack"]').change(function(){
+  o.find('select[id="datastack"]').change(function(){
       var si = find_in_stacks($(".av_stacks").index(this));
        if(si != -1) graphinfo.stacks[si.i].splice(si.j, 1);
 
@@ -282,24 +282,24 @@ function gtool_add_datapoint(d) {
 
   if(d.metric_type == 'text') {
     o.find('tr.mathbox').remove();
-    o.find('select[@name="derive"]').val('false');
+    o.find('select[name="derive"]').val('false');
   }
   else {
     if(d.derive){
-      o.find('select[@name="derive"]').val(d.derive);
+      o.find('select[name="derive"]').val(d.derive);
     }
-    o.find('select[@name="derive"]').change(function(){
+    o.find('select[name="derive"]').change(function(){
       d.derive = $(this).find(":selected").val();
       update_current_graph(true);
     }).change();
 
-    o.find('input[@name="math1"]').val(d.math1);
-    o.find('input[@name="math1"]').change(function(){
+    o.find('input[name="math1"]').val(d.math1);
+    o.find('input[name="math1"]').change(function(){
       d.math1 = $(this).val();
       update_current_graph(true);
     });
-    o.find('input[@name="math2"]').val(d.math2);
-    o.find('input[@name="math2"]').change(function(){
+    o.find('input[name="math2"]').val(d.math2);
+    o.find('input[name="math2"]').change(function(){
       d.math2 = $(this).val();
       update_current_graph(true);
     });
@@ -342,8 +342,8 @@ function refresh_graph_from_json(j) {
   if(graphinfo.datapoints == undefined) graphinfo.datapoints = Array();
   $("h2#graphTitle").html(graphinfo.title ? graphinfo.title : 'Graph Title (click to edit)');
 
-  $("input[@name='graphtype']:checked").removeAttr("checked");
-  $("input[@name='graphtype']")
+  $("input[name='graphtype']:checked").removeAttr("checked");
+  $("input[name='graphtype']")
     .filter(function(i){return $(this).val() == graphinfo.type;})
     .attr("checked","checked");
   $("#dataPoints").empty();
@@ -364,7 +364,7 @@ function refresh_graph_from_json(j) {
     }
   }
 
-  $('select[@id="datastack"]').each( function()  {    
+  $('select[id="datastack"]').each( function()  {    
     var si = find_in_stacks($(".av_stacks").index(this));
     if(si != -1) $(this).val(si.i);
   });
