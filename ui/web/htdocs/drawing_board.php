@@ -29,19 +29,15 @@ $db = Reconnoiter_DB::getDB();
 <script src="js/jquery.cookie.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.js" type="text/javascript"></script>
 <script src="js/jquery.treeview.async.js" type="text/javascript"></script>
-<script src="js/eye/datepicker.js" type="text/javascript"></script>
-<script src="js/eye/eye.js" type="text/javascript"></script>
-<script src="js/eye/utils.js" type="text/javascript"></script>
 <script src="js/jquery.timers.js" type="text/javascript"></script>
 <script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/eye/datepicker.js" type="text/javascript"></script>
 <script src="js/eye/colorpicker.js" type="text/javascript"></script>
 <script src="js/eye/eye.js" type="text/javascript"></script>
 <script src="js/eye/utils.js" type="text/javascript"></script>
-<script src="js/jquery.timers.js" type="text/javascript"></script>
-<script src="js/jquery.ajaxq-0.0.1.js" type="text/javascript"></script>
 <script src="js/recon.js" type="text/javascript"></script>
 <script src="js/reconui.js" type="text/javascript"></script>
+
 <script type="text/javascript">
 <!--
 recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
