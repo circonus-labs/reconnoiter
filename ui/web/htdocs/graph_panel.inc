@@ -390,6 +390,10 @@ function fetch_graph_info(id) {
 <span class="stream_controls">
 <span id="play_pause_graph">PLAY</span>
 <span id="stopstream_graph">STOP</span>
+<div id="osliderg">
+<div id="pollsliderg"></div>
+<div id="polltimeg"></div>
+</div>
 </span>
 <span class="editGraph">Edit Graph</span>
 <span class="permalink" id="gpermalink"><a href="">Link</a></span>
@@ -460,6 +464,21 @@ $(document).ready(function(){
         stop_streaming_graph();
         update_current_graph(true);
        });
+
+       $("#polltimeg").html(polltime+" ms");
+
+       $("#pollsliderg").slider({orientation: 'horizontal', value: polltime, max: 10000, min: 1000, step: 1000,
+	    change: function (event, ui) {  
+                       polltime = $(this).slider('option', 'value'); 
+		$("#polltimeg").html(polltime+" ms");
+	        if(streaming) {
+		    streaming = false;
+		    $('#streambox').html('');
+		    $("#play_pause_graph").html('PAUSE');
+		    stream_data(graphinfo.id, maingraph, $('#streambox'));
+		}
+	      }			
+        });
 
         $("#graph_datetool .btn-slide").click(function(){
                 $("#graph_widgetCalendar").stop().animate({

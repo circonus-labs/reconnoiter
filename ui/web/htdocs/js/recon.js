@@ -1037,8 +1037,9 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
 
     var mheader = $("<div id='stream-modal-header'>").append(dtool);
 
-    mheader.append(get_stream_controls());
     mheader.append("<span class='zoomClose'>x</span>")
+    mheader.append(get_stream_controls());
+
 
     stream_graph.prepend(mheader);
     stream_graph.append("<div class='stream-log' style='display:none'></div>");

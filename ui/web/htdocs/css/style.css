@@ -932,15 +932,32 @@ padding: 10px;
 .stream_controls #stopstream_graph{
 padding: 10px;
 }
+.stream_controls #osliderg{
+position: relative;
+left:120px;
+top:-14px;
+width: 177px;
+}
+.stream_controls div#osliderg div#polltimeg{
+position: relative;
+left:120px;
+top:-14px;
+width: 60px;
+}
+.stream_controls div.ui-slider-horizontal{
+width: 100px;
+}
 .stream_controls #oslider{
 position: relative;
 left:120px;
 top:-14px;
+width: 177px;
 }
 .stream_controls div#oslider div#polltime{
 position: relative;
 left:120px;
 top:-14px;
+width: 60px;
 }
 .stream_controls div.ui-slider-horizontal{
 width: 100px;
