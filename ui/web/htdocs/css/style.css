@@ -730,6 +730,20 @@ display:inline;
 padding-left:20px;
 font-size:10px;
 }
+#stream-header {
+width: 100%;
+overflow: hidden;
+}
+#stream-modal-header {
+width: 100%;
+overflow: auto;
+}
+.graphTitle {
+text-align: center;
+}
+#maingraph .graphTitle {
+display: none;
+}
 div.plot-area {
 height:180px;
 width:380px;
@@ -763,10 +777,17 @@ margin-left: auto;
 margin-right: auto;
 margin-top: 50px;	      
 }
+#drawing_board .graphTitle {
+font-size:28px;
+font-weight:normal;
+text-align: center;
+padding-bottom: 10px;
+padding-top: 10px;
+}
 #drawing_board div.plot-area {
 height:400px;
 width:780px;
-margin-top: 50px;
+margin-top: 20px;
 }
 #drawing_board ul#worksheet-graphs div.plot-area {
 height:180px;
@@ -789,7 +810,11 @@ height:400px;
 width:780px;
 }
 #StreamingModalContainer .graphTitle{
+font-size:28px;
+font-weight:normal;
 text-align: center;
+padding-bottom: 10px;
+padding-top: 10px;
 }
 #maingraph div.plot-area div.centered {
 display:table-cell;
@@ -1014,6 +1039,13 @@ margin: 0;
 }
 .moveGraph {
 margin: 0;
+}
+ul#worksheet-graphs .graphTitle {
+font-size:12px;
+font-weight:bold;
+text-align: center;
+padding-bottom: 10px;
+padding-top: 10px;
 }
 ul#worksheet-graphs li.zoomGraph {
  margin: 0;

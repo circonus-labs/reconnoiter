@@ -105,7 +105,7 @@ function aggregate_graph(id, stackadd) {
 }
 
 function set_current_graph_id(id) {
-  streaming = false; //precautionary
+  stop_streaming_graph();
   $(".rememberGraph").fadeOut('fast');
   if(id!='')  {
     graphinfo.saved = true;
@@ -117,7 +117,6 @@ function set_current_graph_id(id) {
     locked = false;
     unlock_forms();    
     $(".editGraph").html('Editing!').fadeIn('slow');
-    stop_streaming_graph();
   }
   current_graph_id = id;
   update_graph_permalink(current_graph_id, "", "", "");

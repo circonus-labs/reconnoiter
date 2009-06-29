@@ -205,7 +205,7 @@ function rpn_eval(value, expr, meta) {
           this.graphinfo = $.extend({}, displayinfo, options||{});
           if(!this.graphinfo.cnt) this.graphinfo.cnt = this.graphinfo.width / 2;
           if(!this.attr("id")) this.attr("id", this.graphinfo.graphid);
-          this.append($('<h3/>').addClass("graphTitle")
+          this.append($('<div/>').addClass("graphTitle")
                                .html(this.graphinfo.title || ''))
               .append($('<div></div>').addClass("plot-area")
                                       .css('width', this.width + 'px')
@@ -222,7 +222,7 @@ function rpn_eval(value, expr, meta) {
           }
           this.graphinfo.graphid = '';
           if(this.flot_plot) {
-            this.find("h3.graphTitle").html('');
+            this.find(".graphTitle").html('');
             this.find("div.plot-legend").html('');
             this.flot_plot.setData({});
             this.flot_plot.setupGrid();
@@ -377,7 +377,7 @@ function rpn_eval(value, expr, meta) {
       plot:
         function (r, redraw) {
           var title = this.ReconGraphMacro(r.title, r.data);
-          this.find("h3.graphTitle").html(title);
+          this.find(".graphTitle").html(title);
           var placeholder = this.find("> div.plot-area");
           placeholder.bind("plotselected", (function (o) {
             return function (event, ranges) {
