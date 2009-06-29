@@ -59,9 +59,12 @@ function update_graph_permalink(id, start, end, gran){
 function stop_streaming_graph (){
 	 streaming = false;
 	 $('#streambox').html('');
-	 $(".stream-log").attr("style", "display:none;");
-         $("#graph_datetool").css("display", "");
+	 $(".stream-log").hide();
+         $("#graph_datetool").show();
 	 $("#play_pause_graph").html('PLAY');
+	 $("#stopstream_graph").hide();
+	 $("#osliderg").hide();	 
+	 $(".stream_controls").width("");
 }
 //overlay mode: stackadd=false: we just add new stacks for any the incoming graph has
 //stack mode: stackadd=trule, push new stacks onto matching stack indexes, else append
@@ -390,7 +393,7 @@ function fetch_graph_info(id) {
 <span class="stream_controls">
 <span id="play_pause_graph">PLAY</span>
 <span id="stopstream_graph">STOP</span>
-<div id="osliderg">
+<div id="osliderg" style="display:none">
 <div id="pollsliderg"></div>
 <div id="polltimeg"></div>
 </div>
@@ -446,8 +449,12 @@ $(document).ready(function(){
             $(this).html('PAUSE');
 	    //if we are playing for the frist time
 	    if(!streaming) {
-	      $('#graph_datetool').css("display", "none");
-	      $(".stream-log").removeAttr("style").html("stream log_");
+	      $('#graph_datetool').hide();
+	      $(".stream-log").show().html("stream log_");
+	      $("#stopstream_graph").show();
+	      $("#osliderg").show();
+	      //theres probably a better way to make sure stuff fits in the stream_controls div
+	      $(".stream_controls").width("290px");
 	    }
 	    //setup/restart the plotting
 	    stream_data(graphinfo.id, maingraph, $('#streambox'));

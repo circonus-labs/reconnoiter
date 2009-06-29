@@ -753,8 +753,8 @@ function time_window_to_seconds(w) {
 
 function get_stream_controls() {
     play_pause = $("<span id='play_pause'>PLAY</span>");
-    stop = $("<span id='stopstream'>STOP</span>");
-    oslider = $("<div id='oslider'><div id='pollslider'></div><div id='polltime'>"+polltime+" ms</div></div>");
+    stop = $("<span id='stopstream' style='display:none' >STOP</span>");
+    oslider = $("<div id='oslider' style='display:none'><div id='pollslider'></div><div id='polltime'>"+polltime+" ms</div></div>");
     stream_controls = $("<div class='stream_controls'></div>").append(play_pause).append(stop).append(oslider);
     return stream_controls;
 }
@@ -776,7 +776,7 @@ function get_stream_controls() {
     stream_graph.everyTime(2000, function() {
       if(!streaming) {
        streambox.html('');
-       $(".stream-log").attr("style", "display:none;");
+       $(".stream-log").hide();
        stream_graph.stopTime();
       }
       else {
@@ -949,10 +949,13 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
 
     $("#stopstream").click(function() {
         streaming = false;
-	$('#mini_ws_datetool').css("display", "");
+	$("#mini_ws_datetool").show();
         $("#play_pause").html('PLAY');
         $('#streambox').html('');
-        $(".stream-log").attr("style", "display:none;");
+        $(".stream-log").hide();
+	$("#oslider").hide();
+	$(".stream_controls").width("");
+	$(this).hide();
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
      });
 
@@ -961,8 +964,12 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
         $(this).html('PAUSE');
 	//if we are playing for the frist time
 	if(!streaming) {
-	    $('#mini_ws_datetool').css("display", "none");
-	    $(".stream-log").removeAttr("style").html("stream log_");
+	    $('#mini_ws_datetool').hide();
+	    $(".stream-log").show().html("stream log_");
+	    //theres probably a better way to make sure stuff fits in the stream_controls div
+	    $(".stream_controls").width("290px");
+	    $("#stopstream").show();
+	    $("#oslider").show();	    
 	}
 	//setup/restart the plotting
         stream_data(ginfo.id, stream_graph, $('#streambox'));
@@ -1057,8 +1064,12 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
         $(this).html('PAUSE');
 	//if we are playing for the frist time
 	if(!streaming) {
-	    $('#mini_ws_datetool').css("display", "none");
-	    $(".stream-log").removeAttr("style").html("stream log_");
+	    $("#mini_ws_datetool").hide();
+	    $(".stream-log").show().html("stream log_");
+	    $("#stopstream").show();
+	    $("#oslider").show();
+	    //theres probably a better way to make sure stuff fits in the stream_controls div
+    	    $(".stream_controls").width("290px");
 	}
 	//setup/restart the plotting
         stream_data(ginfo.id, stream_graph, $('#streambox'));
@@ -1072,10 +1083,13 @@ $.getJSON("json/graph/info/" + id, function (ginfo) {
 
     $("#stopstream").click(function() {
         streaming = false;
-	$('#mini_ws_datetool').css("display", "");
+	$('#mini_ws_datetool').show();
         $("#play_pause").html('PLAY');
         $('#streambox').html('');
-        $(".stream-log").attr("style", "display:none;");
+        $(".stream-log").hide();
+	$(this).hide();
+	$("#oslider").hide();
+	$(".stream_controls").width("");
         stream_graph.ReconGraphRefresh({graphid: ginfo.id, stacks: ginfo.stacks});
      });
 
