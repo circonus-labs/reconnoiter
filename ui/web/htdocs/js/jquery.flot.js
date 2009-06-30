@@ -1738,76 +1738,77 @@
             }
             
             for (var i = 0; i < series.length; ++i) {
-                var data = series[i].data,
-                    axisx = series[i].xaxis,
-                    axisy = series[i].yaxis,
-                    lowestDistance = maxDistance * maxDistance + 1,
-                
-                    // precompute some stuff to make the loop faster
-                    mx = axisx.c2p(mouseX),
-                    my = axisy.c2p(mouseY),
-                    maxx = maxDistance / axisx.scale,
-                    maxy = maxDistance / axisy.scale,
-                    checkbar = series[i].bars.show,
-                    checkpoint = !(series[i].bars.show && !(series[i].lines.show || series[i].points.show)),
-                    barLeft = series[i].bars.align == "left" ? 0 : -series[i].bars.barWidth/2,
-                    barRight = barLeft + series[i].bars.barWidth,
-                    bj = binary_search(data, mx, data.length-1, 0),
-                    j_start, j_end;
-                if(options.grid.hoverXOnly) {
-                    j_start = bj.index;
-                    j_end = bj.index + 1;
-                    if(!bj.found) j_end++;
-                } else {
-                    j_start = 0;
-                    j_end = data.length;
-                }
-                for (var j = j_start; j < j_end; ++j) {
-                    if (data[j] == null)
-                        continue;
-
-                    var x = data[j][0], y = data[j][1];
-                    if(series[i].dataManip) y = series[i].dataManip(y);
-  
-                    if (checkbar) {
-                        // For a bar graph, the cursor must be inside the bar
-                        // and no other point can be nearby
-                        if (!foundPoint && mx >= x + barLeft &&
-                            mx <= x + barRight &&
-                            my >= Math.min(0, y) && my <= Math.max(0, y))
-                            item = result(i, j);
-                    }
- 
-                    if (checkpoint) {
-                        // For points and lines, the cursor must be within a
-                        // certain distance to the data point
-
-			// if the hoverxonly option is true, y doesn't matter
- 			if(options.grid.hoverXOnly) my = y;
-
-                        // check bounding box first
-                        if ((x - mx > maxx || x - mx < -maxx) ||
-                            (y - my > maxy || y - my < -maxy))
-                            continue;
-
-                        // We have to calculate distances in pixels, not in
-                        // data units, because the scale of the axes may be different
-                        var dx = Math.abs(axisx.p2c(x) - mouseX),
-                            dy = Math.abs(axisy.p2c(y) - mouseY),
-                            dist;
-			dist = dx * dx;
-			if(!options.grid.hoverXOnly) dist += dy * dy;
-                        if (dist < lowestDistance) {
-                            lowestDistance = dist;
-                            foundPoint = true;
-                            item = result(i, j);
-                        }
-                    }
-                }
-                if(item) items.push(item);
-                item = null;
-            }
-
+		if(series[i].bars.show || series[i].lines.show || series[i].points.show){
+		    var data = series[i].data,
+			axisx = series[i].xaxis,
+			axisy = series[i].yaxis,
+			lowestDistance = maxDistance * maxDistance + 1,
+			
+			// precompute some stuff to make the loop faster
+			mx = axisx.c2p(mouseX),
+			my = axisy.c2p(mouseY),
+			maxx = maxDistance / axisx.scale,
+			maxy = maxDistance / axisy.scale,
+			checkbar = series[i].bars.show,
+			checkpoint = !(series[i].bars.show && !(series[i].lines.show || series[i].points.show)),
+			barLeft = series[i].bars.align == "left" ? 0 : -series[i].bars.barWidth/2,
+			barRight = barLeft + series[i].bars.barWidth,
+			bj = binary_search(data, mx, data.length-1, 0),
+			j_start, j_end;
+		    if(options.grid.hoverXOnly) {
+			j_start = bj.index;
+			j_end = bj.index + 1;
+			if(!bj.found) j_end++;
+		    } else {
+			j_start = 0;
+			j_end = data.length;
+		    }
+		    for (var j = j_start; j < j_end; ++j) {
+			if (data[j] == null)
+			    continue;
+			
+			var x = data[j][0], y = data[j][1];
+			if(series[i].dataManip) y = series[i].dataManip(y);
+			
+			if (checkbar) {
+			    // For a bar graph, the cursor must be inside the bar
+			    // and no other point can be nearby
+			    if (!foundPoint && mx >= x + barLeft &&
+				mx <= x + barRight &&
+				my >= Math.min(0, y) && my <= Math.max(0, y))
+				item = result(i, j);
+			}
+			
+			if (checkpoint) {
+			    // For points and lines, the cursor must be within a
+			    // certain distance to the data point
+			    
+			    // if the hoverxonly option is true, y doesn't matter
+			    if(options.grid.hoverXOnly) my = y;
+			    
+			    // check bounding box first
+			    if ((x - mx > maxx || x - mx < -maxx) ||
+				(y - my > maxy || y - my < -maxy))
+				continue;
+			    
+			    // We have to calculate distances in pixels, not in
+			    // data units, because the scale of the axes may be different
+			    var dx = Math.abs(axisx.p2c(x) - mouseX),
+				dy = Math.abs(axisy.p2c(y) - mouseY),
+				dist;
+			    dist = dx * dx;
+			    if(!options.grid.hoverXOnly) dist += dy * dy;
+			    if (dist < lowestDistance) {
+				lowestDistance = dist;
+				foundPoint = true;
+				item = result(i, j);
+			    }
+			}
+		    }
+		    if(item) items.push(item);
+		    item = null;
+		}
+            }	    
             return items;
         }
 
