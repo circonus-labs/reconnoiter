@@ -168,6 +168,13 @@ function graph_add_datapoint(d) {
     update_current_graph(true);
   }
 }
+function gtool_add_composite() {
+  var d ={};
+  d.metric_type = 'composite';
+  graphinfo.datapoints.push(d);
+  gtool_add_datapoint(d);
+  update_current_graph(true);
+}
 function gtool_add_guide() {
   var d = {};
   d.metric_type = 'guide';
@@ -180,6 +187,9 @@ function gtool_add_datapoint(d) {
   var o;
   if(d.metric_type == 'guide') {
     o = $("#guideeditor").clone();
+  }
+  else if(d.metric_type == 'composite') {
+    o = $("#compositeeditor").clone();
   }
   else {
     o = $("#datapointeditor").clone();
@@ -541,6 +551,11 @@ $(document).ready(function(){
             gtool_add_guide();
 	  }
         });
+	$(".addComposite").click(function() {
+	  if(!locked){
+            gtool_add_composite();
+	  }
+        })
 
         $("span.blankGraph").click(function() {
 
@@ -611,6 +626,7 @@ $(document).ready(function(){
 <span class="graphStacks"></span>
 <div><span class="editStacks">Add Stack Set</span></div>
 <div style="float:right"><span class="addGuide">Add Guide</span></div>
+<div style="float:right"><span class="addComposite">Add Composite</span></div>
 <br style="clear:right" />
 <div class="error"><p class="error" id="gtool-error"></p></div>
 <table id="gtool">
@@ -649,6 +665,27 @@ $(document).ready(function(){
 		</div>
 		<div>
 			<label for="math">Percentile</label> <input name="math2" type="text" value="" style="width:380px;" />
+		</div>
+		</td>
+	</tr>
+	</tbody>
+	<tbody id="compositeeditor">
+	<tr>	        
+		<td><input name="view" type="checkbox" value="1" /></td>
+		<td class="data datatitle"></td>
+		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
+		<td></td>
+		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
+		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
+		<td class="math">math</td>
+	</tr>
+	<tr class="mathbox">
+		<td colspan="7">
+		<div>
+			<label for="math">Display Math</label> <input name="math1" type="text" value="" style="width:380px;" />
+		</div>
+		<div>
+			<label for="math">Function</label> <input name="math2" type="text" value="" style="width:380px;" />
 		</div>
 		</td>
 	</tr>

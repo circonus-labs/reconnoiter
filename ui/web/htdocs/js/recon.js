@@ -374,8 +374,13 @@ function rpn_eval(value, expr, meta) {
           this.data('__recon', this);
           return this;
         },
+      make_composite_data:
+        function (i, data) {
+	  //	  console.log("ok with expr", data[i].reconnoiter_source_expression);
+        },
       plot:
         function (r, redraw) {
+
           var title = this.ReconGraphMacro(r.title, r.data);
           this.find(".graphTitle").html(title);
           var placeholder = this.find("> div.plot-area");
@@ -394,6 +399,7 @@ function rpn_eval(value, expr, meta) {
             if(r.data[i].reconnoiter_display_expression)
               r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
           }
+
           ddata = r.data;          
 
           if(!r.options.grid) r.options.grid = {};
@@ -510,7 +516,8 @@ function rpn_eval(value, expr, meta) {
 	      ReconGraphMacro: ReconGraph.macro,
               ReconGraphPrepareStream: ReconGraph.PrepareStream,
               ReconGraphAddPoint: ReconGraph.AddPoint,
-              ReconGraphPlotPoints: ReconGraph.PlotPoints
+              ReconGraphPlotPoints: ReconGraph.PlotPoints,
+	      ReconGraphMakeCompositeData: ReconGraph.make_composite_data
               });
   })(jQuery);
 
@@ -794,6 +801,7 @@ function get_stream_controls() {
         var sidneed = new Object();
 
 	//we could set a polltime for each dataset, but for now we make them the same
+	//we assume we never give datasets we dont want to graph sids, like composites
         for(var i=0; i<g.datapoints.length; i++) {
           if(g.datapoints[i].sid) {
             sidneed[g.datapoints[i].sid] = polltime;
@@ -802,7 +810,7 @@ function get_stream_controls() {
         for(var sid in sidneed) {
           sids+= "/"+sid+"@"+sidneed[sid];
         }
-	//	console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
+	//console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
 	streambox.html('<iframe src="http://' + recon_realtime_hostname + '/data'+sids+'"></iframe>');
      });
   }

@@ -3,6 +3,7 @@
 require_once('Reconnoiter_DB.php');
 require_once('Reconnoiter_DataSet.php');
 require_once('Reconnoiter_ChangeSet.php');
+require_once('Reconnoiter_CompositeSet.php');
 require_once('Reconnoiter_RPN.php');
 
 class Reconnoiter_DataContainer extends Reconnoiter_RPN {
@@ -50,6 +51,12 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     $this->sets_config["$uuid-$name"] = is_array($attrs) ? $attrs : array();
     if(!isset($this->master_set)) $this->master_set = $this->sets["$uuid-$name"];
   }
+
+  function addCompositeSet($name, $math2, $attrs = array()) {
+    $this->sets[ "composite-$name"] = new Reconnoiter_CompositeSet("composite", $name, $math2);    
+    $this->sets_config[ "composite-$name"] = is_array($attrs) ? $attrs : array();
+  }
+
   function addChangeSet($uuid, $name, $attrs = array()) {
     $attrs = $this->defaultChangeSetAttrs($uuid, $name, $derive, $attrs);
     $this->sets["$uuid-$name"] =

@@ -27,6 +27,17 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $i = 0;
     foreach($this->sets as $name => $set) {
       $m_name = explode("-", $name);      
+      $metric_type = '';
+      if(get_class($set) == "Reconnoiter_ChangeSet") {
+         $metric_type = 'text';
+      }
+      else if(get_class($set) == "Reconnoiter_CompositeSet") {
+         $metric_type = 'composite';
+      }
+      else {
+         $metric_type = 'numeric';
+      }
+         
       $ds = array (
         'reconnoiter_source_expression' => $set->expression(),
         'reconnoiter_display_expression' => $this->sets_config[$name]['expression'],
@@ -35,8 +46,8 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
         'derive_val' => $set->derive_val(),
         'uuid' => $set->uuid_val(),
-        'metric_name' => $m_name[1],
-        'metric_type' => (get_class($set) == "Reconnoiter_DataSet") ? 'numeric' : 'text',
+        'metric_name' => $m_name[1],	
+        'metric_type' => $metric_type,
         'hidden' => ($this->sets_config[$name]['hidden'] == "true") ? 1: 0,
       );
       $show_set = ($this->sets_config[$name]['hidden'] != "true") ? 1: 0;
@@ -45,14 +56,15 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
       }
 
       //by default, points, lines, and bars are set not to show in jquery.flot.js
-      //if we have a numeric metric_type, draw lines
-      if(get_class($set) == "Reconnoiter_DataSet") {
+
+      //if we have a numeric metric_type or a composite metric type, draw lines
+      if( ($metric_type == 'numeric')  || ($metric_type == 'composite') ) {
         $opacity = isset($this->sets_config[$name]['opacity']) ?
                      $this->sets_config[$name]['opacity'] : '0.3';
         $ds['lines'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => $opacity, 'lineWidth' => '1' , radius => 1 );
       }
       //if we have a text metric type, draw points
-      else if(get_class($set) == "Reconnoiter_ChangeSet") {
+      else if($metric_type == 'text'){
         $ds['points'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => 'false', 'lineWidth' => 1, radius => 5 );
       }
 

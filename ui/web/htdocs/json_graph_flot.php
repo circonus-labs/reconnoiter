@@ -34,6 +34,12 @@ foreach($graph['datapoints'] as $d) {
                                 array('expression' => $d['math1'],
                                       'color' => $color));
   }
+  else if($d['metric_type'] == 'composite') {
+     $color = isset($d['color']) ? $d['color'] : '#ff0000';
+     $driver->addCompositeSet($d['name'],$d['math2'],
+				 array('expression' => $d['math1'],
+                                      'color' => $color));
+  }
   else {
     $settings = $graph_settings[$i++];
     $settings['color'] = isset($d['color']) ? $d['color'] : $settings['color'];
