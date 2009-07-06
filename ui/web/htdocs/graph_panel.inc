@@ -161,6 +161,13 @@ function update_current_graph(redraw, f) {
 
 function graph_add_datapoint(d) {
   if(!graph_locked("Click 'Edit Graph' to unlock.")){
+
+   for(i=0; i<graphinfo.datapoints.length; i++){
+       if( (graphinfo.datapoints[i].sid==d.sid) && (graphinfo.datapoints[i].metric_name == d.metric_name) ) {
+              modal_warning("Error", "Graphs cannot have duplicate datasets!");
+	      return;
+       }
+    }
     if(d.axis == undefined) { d.axis = 'l'; }
     if(d.name == undefined) { d.name = d.target + '`' + d.metric_name; }
     graphinfo.datapoints.push(d);
