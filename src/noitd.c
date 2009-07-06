@@ -146,6 +146,7 @@ static int noitice_hup(eventer_t e, int mask, void *unused, struct timeval *now)
       noitL(noit_error, "Cannot load config: '%s'\n", config_file);
       exit(-1);
     }
+    noit_poller_reload(NULL);
     __reload_needed = 0;
   }
   return 0;
