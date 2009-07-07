@@ -27,6 +27,8 @@ function lock_forms() {
 
 	$("h2#graphTitle").unbind();
 	$(".datatitle").unbind();
+	$(".combinable").each( function() { $(this).draggable('destroy'); });
+	$(".composite_function").each( function() { $(this).droppable('destroy'); });
 }
 
 function unlock_forms() {
@@ -50,8 +52,29 @@ function unlock_forms() {
            update_current_graph(true);
            return(value);
         }, { }); 
+
+	make_composite_draggables();
 }
 
+function make_composite_draggables() {
+
+	$(".combinable").each ( function() { 
+	    $(this).draggable({ cursor: 'move' });
+	});
+
+	$(".composite_function").each( function () { $(this).droppable({
+	    drop: function(event, ui) { 
+	         var data_index = $(".datatitle").index(ui.draggable);
+ 	         fbox = $(this).find("input[name='math2']");
+		 fbox.val(fbox.val()+"["+data_index+"]");
+		 var my_index = $("input[name='math2']").index(fbox);
+		 graphinfo.datapoints[my_index].math2 = fbox.val();
+ 	         update_current_graph(true);
+               }
+          }); 
+      });
+
+}
 function update_graph_permalink(id, start, end, gran){
  $("#gpermalink a").attr("href", "drawing_board.php?otype=graph&id="+id+"&start="+start+"&end="+end+"&gran="+gran);
 }
@@ -161,7 +184,6 @@ function update_current_graph(redraw, f) {
 
 function graph_add_datapoint(d) {
   if(!graph_locked("Click 'Edit Graph' to unlock.")){
-
    for(i=0; i<graphinfo.datapoints.length; i++){
        if( (graphinfo.datapoints[i].sid==d.sid) && (graphinfo.datapoints[i].metric_name == d.metric_name) ) {
               modal_warning("Error", "Graphs cannot have duplicate datasets!");
@@ -328,7 +350,7 @@ function gtool_add_datapoint(d) {
   		    	( (d.module!=undefined) ? d.module+"`": '') +
 			( (d.orig_name!=undefined)? d.orig_name+"`": '') +
 			( (d.metric_name!=undefined)? "`"+d.metric_name: '');
-
+  			
   o.find(".datatitle").html(d.name);
   o.find(".datatitle").attr("title", d.mouse_title);
 
@@ -341,7 +363,8 @@ function gtool_add_datapoint(d) {
  }
 
   recurse--;
-  $("#gtool #dataPoints").append(o.children());
+  $("#gtool #dataPoints").append(o.children());    
+  if(!locked){ make_composite_draggables();}
 }
 
 function find_in_stacks(dnum) {
@@ -691,7 +714,7 @@ $(document).ready(function(){
 		<div>
 			<label for="math">Display Math</label> <input name="math1" type="text" value="" style="width:380px;" />
 		</div>
-		<div>
+		<div class="composite_function">
 			<label for="math">Function</label> <input name="math2" type="text" value="" style="width:380px;" />
 		</div>
 		</td>
@@ -700,7 +723,7 @@ $(document).ready(function(){
 	<tbody id="datapointeditor">
 	<tr>
 		<td><input name="view" type="checkbox" value="1"/></td>
-		<td class="data datatitle"></td>
+		<td class="data datatitle combinable"></td>
 		<td><select id="datastack" class="av_stacks"><option value='na'>select</option></select></td>
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
 		<td><select name="derive"><option value="false">no</option><option value="derive">derive</option><option value="counter">counter</option></select></td>

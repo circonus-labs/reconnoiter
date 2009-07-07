@@ -92,19 +92,22 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     $i = 0;
     $a = array();
     $prev_value = '0';
-    $timeline = (get_class($set) == "Reconnoiter_ChangeSet") ? $set->points() : $this->series();
-    foreach($timeline as $ts) {
-        $value = $set->data($ts);
-        if($value != "") {
-          $desc = $set->description($ts);
-          if($desc) {
-            $a[] = array( $ts * 1000, "$value", $desc );	
-          } else {
-            $a[] = array( $ts * 1000, "$value" );
+    $timeline = ( (get_class($set) == "Reconnoiter_ChangeSet") 
+    	      	  || (get_class($set) == "Reconnoiter_CompositeSet") )  ? $set->points() : $this->series();
+    if($timeline) {
+        foreach($timeline as $ts) {
+            $value = $set->data($ts);
+            if($value != "") {
+              $desc = $set->description($ts);
+              if($desc) {
+                $a[] = array( $ts * 1000, "$value", $desc );	
+              } else {
+                $a[] = array( $ts * 1000, "$value" );
+              }
+            }
+            $i++;
           }
-        }
-        $i++;
-      }
+    }
     return $a;
   }
 

@@ -21,7 +21,7 @@ class Reconnoiter_CompositeSet{
     return $this->groupname;
   }
   function points() {
-    return array_keys($this->data);
+    return array();
   }
   function description($ts) {
     return null;
@@ -36,6 +36,6 @@ class Reconnoiter_CompositeSet{
     return $this->uuid;
   }
   function data($ts, $attr = NULL) {
-    return '';
+    return null;
   }
 }

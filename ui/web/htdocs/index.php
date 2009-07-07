@@ -19,6 +19,8 @@
 <script src="js/jquery-ui-1.7.2/ui/ui.core.js"></script>
 <script src="js/jquery-ui-1.7.2/ui/ui.sortable.js"></script>
 <script src="js/jquery-ui-1.7.2/ui/ui.slider.js"></script>
+<script src="js/jquery-ui-1.7.2/ui/ui.draggable.js"></script>
+<script src="js/jquery-ui-1.7.2/ui/ui.droppable.js"></script>
 <script src="js/jquery.flot.js"></script>
 <script src="js/jquery.jeditable.pack.js"></script>
 <script src="js/jquery.cookie.js" type="text/javascript"></script>

@@ -151,13 +151,83 @@ function rpn_eval(value, expr, meta) {
         s.unshift( s.shift() / units );
         break;
       case 'min':
-        s.unshift(min(s.shift(),s.shift())); break;
+        s.unshift(Math.min(s.shift(),s.shift())); break;
       case 'max':
-        s.unshift(max(s.shift(),s.shift())); break;
+        s.unshift(Math.max(s.shift(),s.shift())); break;
       default:
         if(op.match(/^-?\d+$/)) {
           s.unshift(op);
         }
+    }
+  }
+  var newvalue = s.shift();
+  return newvalue;
+}
+
+function my_rpn_eval(expr, meta) {
+  var s = [];
+  var ops = expr.split(",");
+  for (var i = 0; i < ops.length; i++) {
+    var opname = ops[i];
+    if(meta && meta[opname])
+      for(var j = 0; j < meta[opname].length; j++)
+        ops.splice(i, (j==0) ? 1 : 0, meta[opname][j]);
+  }
+
+  for (var i = 0; i < ops.length; i++) {
+    op = ops[i];
+
+    switch(op) {
+      case 'ln':
+        s.unshift(Math.log(parseFloat(s.shift()))); break;
+      case 'round':
+        r = Math.pow(10,parseFloat(s.shift()));
+        l = parseFloat(s.shift());
+        s.unshift(Math.round(r * l)/r);
+        break;
+      case 'floor':
+        s.unshift(Math.floor(parseFloat(s.shift()))); break;
+      case 'ceil':
+        s.unshift(Math.ceil(parseFloat(s.shift()))); break;
+      case 'log':
+        r = parseFloat(s.shift());
+        l = parseFloat(s.shift());
+        s.unshift(Math.log(l, r));
+        break;
+      case 'e':
+        s.unshift(Math.exp(1)); break;
+      case 'pi':
+        s.unshift(Math.pi()); break;
+      case '^':
+        r = parseFloat(s.shift());
+        l = parseFloat(s.shift());
+        s.unshift(Math.pow(l, r));
+        break;
+      case '-':
+        r = parseFloat(s.shift());
+        l = parseFloat(s.shift());
+        s.unshift(l - r);
+        break;
+      case '/':
+        r = parseFloat(s.shift());
+        l = parseFloat(s.shift());
+        s.unshift(l / r);
+        break;
+      case '+':
+	  s.unshift(parseFloat(s.shift()) + parseFloat(s.shift()) ); break;
+      case '*':
+        s.unshift(parseFloat(s.shift()) * parseFloat(s.shift())); break;
+      case 'min':
+        s.unshift(Math.min(parseFloat(s.shift()),parseFloat(s.shift()))); break;
+      case 'max':
+        s.unshift(Math.max(parseFloat(s.shift()),parseFloat(s.shift()))); break;
+      default:
+        if(op.match(/^-?\d+$/)) {
+          s.unshift(op);
+        }
+	else if(op.match(/^-?\d+\.\d*$/)) {
+	    s.unshift(op);
+	}
     }
   }
   var newvalue = s.shift();
@@ -375,9 +445,27 @@ function rpn_eval(value, expr, meta) {
           return this;
         },
       make_composite_data:
-        function (i, data) {
-	  //	  console.log("ok with expr", data[i].reconnoiter_source_expression);
-        },
+        function (cindex, data) {
+
+	    expr = data[cindex].reconnoiter_source_expression;
+	    var nindex;
+	    for(nindex=0; nindex<data.length; nindex++) {
+		if(data[nindex].metric_type == 'numeric') break;
+	    }		   
+	    //TODO we assume here that all numeric datasets have the same length, number of points, and time discreteness
+	    //if iths is not the case, we need to think of interpolating, like we do for stacking in flot
+	    for(var i=0; i<data[nindex].data.length; i++){
+		nexpr = expr.replace(/\[(\d+)\]/g, function($1) { 
+		    mat = $1.match(/\d+/);
+		    mat  = parseInt(mat);
+		    return data[mat].data[i][1];
+		    });
+
+		var val = my_rpn_eval(nexpr, {});
+		data[cindex].data.push([ data[nindex].data[i][0], val ]);
+	    }
+
+	},        
       plot:
         function (r, redraw) {
 
@@ -396,6 +484,9 @@ function rpn_eval(value, expr, meta) {
           dplaceholder = placeholder;
 
           for(var i=0; i<r.data.length; i++) {
+            if(r.data[i].metric_type == 'composite' && r.data[i].reconnoiter_source_expression)
+	      this.ReconGraphMakeCompositeData(i, r.data);
+
             if(r.data[i].reconnoiter_display_expression)
               r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
           }

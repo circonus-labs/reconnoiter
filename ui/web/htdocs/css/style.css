@@ -1007,6 +1007,9 @@ padding-left:10px;
 float:right;
 color:#660000;
 }
+span.addGuide {
+padding-left:10px;
+}
 span.graphStacks {
 float:left;
 border:1px solid #DDDDDD;
