@@ -686,7 +686,7 @@
                     if (t < timeUnitSize.minute)
                         fmt = "%h:%M:%S";
                     else if (t < timeUnitSize.day) {
-                        if (span < 2 * timeUnitSize.day)
+                        if (span <= 2 * timeUnitSize.day)
                             fmt = "%h:%M";
                         else
                             fmt = "%b %d %h:%M";
@@ -694,7 +694,7 @@
                     else if (t < timeUnitSize.month)
                         fmt = "%b %d";
                     else if (t < timeUnitSize.year) {
-                        if (span < timeUnitSize.year)
+                        if (span <= timeUnitSize.year)
                             fmt = "%b";
                         else
                             fmt = "%b %y";

@@ -69,6 +69,7 @@ $(document).ready(function(){
   });
 
   var state = false;
+worksheet.load();
 
   $("h2#worksheetTitle").editable(function(value, settings) {
     wsinfo.title = value;
