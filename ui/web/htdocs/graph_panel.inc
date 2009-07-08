@@ -220,6 +220,9 @@ function gtool_add_datapoint(d) {
   else if(d.metric_type == 'composite') {
     o = $("#compositeeditor").clone();
   }
+  else if(d.metric_type == 'text') {
+    o = $("#textdatapointeditor").clone();
+  }
   else {
     o = $("#datapointeditor").clone();
   }
@@ -311,7 +314,7 @@ function gtool_add_datapoint(d) {
                if(graphinfo.stacks[k][j]>i) graphinfo.stacks[k][j]-=1;
 	     }
 	   }	   
-
+	   //TODO do we wanna decrement the indexes referred in composite functions for the user?
            break;
          }
        }          
@@ -682,9 +685,10 @@ $(document).ready(function(){
 	<tr>	        
 		<td><input name="view" type="checkbox" value="1" /></td>
 		<td class="data datatitle"></td>
+		<td>&nbsp;</td>
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
-		<td></td>
-		<td></td>
+		<td>&nbsp;</td>
+		<td>&nbsp;</td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
 		<td class="math">math</td>
 	</tr>
@@ -703,8 +707,9 @@ $(document).ready(function(){
 	<tr>	        
 		<td><input name="view" type="checkbox" value="1" /></td>
 		<td class="data datatitle"></td>
+		<td>&nbsp;</td>	
 		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
-		<td></td>
+		<td>&nbsp;</td>	
 		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
 		<td class="math">math</td>
@@ -740,6 +745,17 @@ $(document).ready(function(){
 			<label for="math">Source Math</label> <input name="math2" type="text" value="" style="width:380px;" />
 		</div>
 		</td>
+	</tr>
+	</tbody>
+	<tbody id="textdatapointeditor">
+	<tr>
+		<td><input name="view" type="checkbox" value="1"/></td>
+		<td class="data datatitle"></td>
+		<td>&nbsp;</td>
+		<td><div class="colorPicker"><div class="colorSelector"><div style="background-color: #fff"></div></div><div class="colorPickerHolder"></div></div></td>
+		<td>&nbsp;</td>
+		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
+		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
 	</tr>
 	</tbody>
         </table>

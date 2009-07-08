@@ -448,23 +448,31 @@ function my_rpn_eval(expr, meta) {
         function (cindex, data) {
 
 	    expr = data[cindex].reconnoiter_source_expression;
-	    var nindex;
-	    for(nindex=0; nindex<data.length; nindex++) {
-		if(data[nindex].metric_type == 'numeric') break;
-	    }		   
+
+	    //we gotta find a numeric dataset to use for going through datapoints
+	    var nindex = -1;
+	    for(i=0; i<data.length; i++) {
+		if(data[i].metric_type == 'numeric') {
+		    nindex = i;
+		    break;
+		}
+	    }
+	    if(nindex == -1) return false; 
+
 	    //TODO we assume here that all numeric datasets have the same length, number of points, and time discreteness
 	    //if iths is not the case, we need to think of interpolating, like we do for stacking in flot
 	    for(var i=0; i<data[nindex].data.length; i++){
 		nexpr = expr.replace(/\[(\d+)\]/g, function($1) { 
-		    mat = $1.match(/\d+/);
-		    mat  = parseInt(mat);
-		    return data[mat].data[i][1];
+		        mat = parseInt($1.match(/\d+/));
+			//if the expression refers to a dataset that isnt numeric, throw an error and dont plot this dataset
+  		        if(data[mat] && (data[mat].metric_type == 'numeric') && data[mat].data[i][1]) return data[mat].data[i][1];
+		        else return "BAD";
 		    });
-
+		if(nexpr.match(/BAD/)) return false;
 		var val = my_rpn_eval(nexpr, {});
 		data[cindex].data.push([ data[nindex].data[i][0], val ]);
 	    }
-
+	    return true;
 	},        
       plot:
         function (r, redraw) {
@@ -484,8 +492,12 @@ function my_rpn_eval(expr, meta) {
           dplaceholder = placeholder;
 
           for(var i=0; i<r.data.length; i++) {
-            if(r.data[i].metric_type == 'composite' && r.data[i].reconnoiter_source_expression)
-	      this.ReconGraphMakeCompositeData(i, r.data);
+	      if(r.data[i].metric_type == 'composite' && r.data[i].reconnoiter_source_expression) {
+		  if(!this.ReconGraphMakeCompositeData(i, r.data)) {
+		      modal_warning("Composite Error!", 
+				    "The composite dataset '"+r.data[i].metric_name+"' refers to a non-existant or non-numeric dataset, and will not be plotted.");
+		  }
+	      }
 
             if(r.data[i].reconnoiter_display_expression)
               r.data[i].dataManip = rpn_magic(r.data[i].reconnoiter_display_expression);
