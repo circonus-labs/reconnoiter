@@ -1247,6 +1247,14 @@
 
             function plotLineArea(data, axisx, axisy, dataManip, b_series) {
 
+		//display manipulation of data is not done until we get here, so we
+		//need to call dataManip on b_series, like we do for series below
+		if(b_series && dataManip) {
+		    for(var i=0; i<b_series.data.length; i++) {
+			b_series.data[i][1] = dataManip(b_series.data[i][1]);
+		    }
+		}
+
                 var prev, cur = null;
 		var bprev, bcur = null;
 
