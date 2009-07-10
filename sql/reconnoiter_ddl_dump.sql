@@ -2447,6 +2447,8 @@ begin
 
    rec.sid := null;
    rec.name := null;
+   rec.count_rows := 0;
+   rec.avg_value := 0;
    rise := 0;
    run := 0;
    rec.rollup_time = in_start_time;
@@ -2496,7 +2498,14 @@ begin
     last_row_whence := r.whence;
     last_value := r.value;
   end if;
-end loop;
+  end loop;
+  if rec.count_rows > 0 then
+    rec.avg_value := rec.avg_value / rec.count_rows;
+    if run is not null and run > 0 then
+      rec.counter_dev := rise/run;
+    end if;
+    return next rec;
+  end if;
 return;
 end;
 $$
