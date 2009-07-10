@@ -161,12 +161,15 @@
 	    var bdata = series[below_index].data;
 	    
 	    for (var j = 0; j < series[i].data.length; j++) {
-		if(series[i].data[j][1] && bdata[j][1]){
+		if(series[i].data[j] && bdata[j]){
+
 		    match = binary_search(bdata, series[i].data[j][0], bdata.length-1, 0);			
 		    
 		    //if the dataset below this one has an exact timestamp match, stack the top dataset by adding it to the one above
 		    if(match.found) { 
-			series[i].data[j][1] = parseFloat(series[i].data[j][1]) + parseFloat(bdata[match.index][1])+'';
+			my1 = ( isNaN(parseFloat(series[i].data[j][1])) ) ? 0 : parseFloat(series[i].data[j][1]);				 
+			my2 = ( isNaN(parseFloat(bdata[match.index][1])) )? 0 : parseFloat(bdata[match.index][1]);
+			series[i].data[j][1] = my1 + my2 +'';
 		    }
 		    else if(match.index >=0 && match.index<bdata.length) {
 			// otherwise stack using the interpolated value from below			
@@ -205,8 +208,14 @@
 
 	//this will lerp to the y value at x=t using points p1 and p2
 	function interpolate(p1, p2, t) {
-	    dx = p2[0] - p1[0]; dy = p2[1] - p1[1];
-	    return (dy/dx)*(t-p1[0]) + p1[1];
+	    mp1 =  [ isNaN(parseFloat(p1[0])) ? 0 : parseFloat(p1[0]),
+		     isNaN(parseFloat(p1[1])) ? 0 : parseFloat(p1[1]) ];
+
+	    mp2 = [ isNaN(parseFloat(p2[0])) ? 0 : parseFloat(p2[0]), 
+		    isNaN(parseFloat(p2[1])) ? 0 : parseFloat(p2[1]) ];
+
+	    dx = mp2[0] - mp1[0]; dy = mp2[1] - mp1[1];
+	    return (dy/dx)*(t-mp1[0]) + mp1[1];
 	}
 
 	
@@ -1256,7 +1265,6 @@
 		}
 
                 var prev, cur = null;
-		var bprev, bcur = null;
 
 		//zero negative ymin, then find minimum of that and ymax for bottom
                 var bottom = Math.min(Math.max(0, axisy.min), axisy.max);
@@ -1264,22 +1272,21 @@
 
                 var areaOpen = false;
                 var pcount = 0;
-		var last_by = (b_series  ? (b_series.data[b_series.data.length-1][1] ? b_series.data[b_series.data.length-1][1] : bottom) : bottom);
-		var first_by = (b_series ? (b_series.data[0][1] ? b_series.data[0][1] : bottom) : bottom);
+		var last_by = bottom;
+		var first_by = bottom;
+
+		if(b_series) {
+
+		    if(b_series.data[b_series.data.length-1]) last_by = b_series.data[b_series.data.length-1][1];
+		    else last_by = bottom;
+
+		    if(b_series.data[0]) first_by = b_series.data[0][1];
+		    else first_by = bottom;
+		}
 
                 for (var i = 0; i < data.length; ++i) {
                     prev = cur;
                     cur = [data[i][0], data[i][1]];
-		    if(b_series){
-			bprev = bcur;
-			bcur = [parseFloat(b_series.data[i][0]), parseFloat(b_series.data[i][1])];
-		    }
-		    else {
-			bprev = axisy.min;
-			bcur = axisy.min;
-		    }
-		    
-                    if(dataManip) cur[1] = dataManip(cur[1]);
 
 		    //close only if not stacked
                     if (areaOpen && prev != null && cur == null && !b_series) {
@@ -1292,12 +1299,11 @@
 
                     if (prev == null || cur == null)
                         continue;
-                        
+                    
+                    if(dataManip) cur[1] = dataManip(cur[1]);
+    
                     var x1 = prev[0], y1 = prev[1],
                         x2 = cur[0], y2 = cur[1];
-		    var bx1 = bprev[0], by1 = bprev[1],
-			bx2 = bcur[0], by2 = bcur[1];
-
 
                     // clip x values
                     

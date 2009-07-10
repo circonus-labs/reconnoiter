@@ -328,7 +328,7 @@ function my_rpn_eval(expr, meta) {
 		    && (ddata[i].metric_name == metric_name)
 		    && !ddata[i].hidden ) {
 
-		    //		    console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
+		    //console.log("got data from stream for ",uuid,"-",metric_name," data = ",tdata, "hidden = ", ddata[i].hidden);
 
 		    if((xdata*1000)>doptions.max_time) { doptions.max_time = xdata*1000; }
 		    if( !doptions.min_time || ((xdata*1000)<doptions.min_time)) { doptions.min_time = xdata*1000;}
@@ -353,11 +353,14 @@ function my_rpn_eval(expr, meta) {
 			if(tdata[1]!=''){
 			    if(ddata[i].reconnoiter_source_expression) {
 				tdata[1] = rpn_eval(tdata[1], ddata[i].reconnoiter_source_expression, {});
-			}
+			    }
 			} //end if ydata was a number
-			
+			else { //we need to fix this so we can do numerical calcs with this val later
+			    tdata[1] = 0;
+			}
 
 			tdata[0]*=1000; //convert from seconds to milliseconds for flot
+
 			ddata[i].data.push(tdata);
 			if(ddata[i].lastval) {
 			    if ((tdata[0] - ddata[i].data[0][0]) > doptions.time_window) {
