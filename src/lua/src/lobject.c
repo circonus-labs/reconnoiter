@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <stdarg.h>
+#undef __USE_XOPEN2K8 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -11,13 +11,11 @@ package com.omniti.reconnoiter;
 import java.lang.System;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import com.omniti.reconnoiter.AMQListener;
+import com.omniti.reconnoiter.MQListener;
+import com.omniti.reconnoiter.broker.BrokerFactory;
 import com.omniti.reconnoiter.event.NoitEvent;
-import com.omniti.reconnoiter.event.NoitMetricNumeric;
 import com.omniti.reconnoiter.StratconConfig;
 import com.espertech.esper.client.*;
-import com.espertech.esper.client.soda.*;
-
 import org.apache.log4j.BasicConfigurator;
 
 class IEPEngine {
@@ -38,7 +36,7 @@ class IEPEngine {
     epService.getEPAdministrator().createEPL("create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck");
     epService.getEPAdministrator().createEPL("insert into CheckDetails select * from NoitCheck");
 
-    AMQListener l = new AMQListener(epService);
+    MQListener l = new MQListener(epService, BrokerFactory.getBroker(sconf));
 
     Thread listener = new Thread(l);
     listener.start();

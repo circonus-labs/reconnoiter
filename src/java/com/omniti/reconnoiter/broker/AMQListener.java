@@ -6,9 +6,8 @@
  * https://labs.omniti.com/reconnoiter/trunk/src/java/LICENSE
  */
 
-package com.omniti.reconnoiter;
+package com.omniti.reconnoiter.broker;
 
-import com.omniti.reconnoiter.AMQBrokerSingleton;
 import com.omniti.reconnoiter.event.StratconQuery;
 import java.lang.System;
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -25,7 +24,7 @@ import com.espertech.esper.client.util.JSONEventRenderer;
 import com.espertech.esper.client.EventBean;
 import com.espertech.esper.client.UpdateListener;
 
-public class AMQOutput implements UpdateListener {
+public class AMQListener implements UpdateListener {
     private EPServiceProvider epService;
     private EPStatement statement;
     private ActiveMQConnectionFactory connectionFactory;
@@ -35,10 +34,10 @@ public class AMQOutput implements UpdateListener {
     private MessageProducer producer;
     private StratconQuery sq;
 
-    public AMQOutput(EPServiceProvider epService, StratconQuery sq) {
+    public AMQListener(EPServiceProvider epService, StratconQuery sq) {
       try {
         // we just need it started up
-        AMQBrokerSingleton.getBroker();
+        BrokerFactory.getAMQBrokerService();
         this.epService = epService;
         this.sq = sq;
         this.statement = sq.getStatement();

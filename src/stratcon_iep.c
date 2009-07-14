@@ -68,6 +68,7 @@ struct iep_thread_driver {
   stomp_connection *connection;
 #endif
   apr_pool_t *pool;
+  char* exchange;
 };
 pthread_key_t iep_connection;
 
@@ -287,9 +288,9 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
   if(!driver->connection) {
     int port;
     char hostname[128];
-    if(!noit_conf_get_int(NULL, "/stratcon/iep/port", &port))
+    if(!noit_conf_get_int(NULL, "/stratcon/iep/stomp/port", &port))
       port = 61613;
-    if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/hostname",
+    if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/hostname",
                                 hostname, sizeof(hostname)))
       strlcpy(hostname, "127.0.0.1", sizeof(hostname));
 #ifdef OPENWIRE
@@ -312,8 +313,36 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
 
     {
       stomp_frame frame;
+      char username[128];
+      char password[128];
+      char* exchange = malloc(128);
       frame.command = "CONNECT";
       frame.headers = apr_hash_make(driver->pool);
+      // This is for RabbitMQ Support
+      if((noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/username",
+                                  username, sizeof(username))) &&
+         (noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/password",
+                                  password, sizeof(password))))
+      {
+        apr_hash_set(frame.headers, "login", APR_HASH_KEY_STRING, username);
+        apr_hash_set(frame.headers, "passcode", APR_HASH_KEY_STRING, password);
+      }
+
+
+      // This is for RabbitMQ support
+      driver->exchange = NULL;
+      if(noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/exchange",
+                                  exchange, 128))
+      {
+        if (!driver->exchange)
+          driver->exchange = exchange;
+        else
+          free(exchange);
+        apr_hash_set(frame.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
+      }
+
+
+
 /*
       We don't use login/pass
       apr_hash_set(frame.headers, "login", APR_HASH_KEY_STRING, "");
@@ -407,6 +436,9 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
 
         out.command = "SEND";
         out.headers = apr_hash_make(job->pool);
+        if (driver->exchange)
+          apr_hash_set(out.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
+
         apr_hash_set(out.headers, "destination", APR_HASH_KEY_STRING, "/queue/noit.firehose");
         apr_hash_set(out.headers, "ack", APR_HASH_KEY_STRING, "auto");
       
@@ -487,6 +519,7 @@ static void connection_destroy(void *vd) {
   if(driver->connection) amqcs_disconnect(&driver->connection);
 #else
   if(driver->connection) stomp_disconnect(&driver->connection);
+  if(driver->exchange) free(driver->exchange);
 #endif
   if(driver->pool) apr_pool_destroy(driver->pool);
   free(driver);

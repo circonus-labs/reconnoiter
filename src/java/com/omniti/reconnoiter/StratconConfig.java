@@ -19,7 +19,6 @@ import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathConstants;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import com.espertech.esper.client.ConfigurationDBRef;
@@ -27,8 +26,12 @@ import org.apache.commons.dbcp.BasicDataSourceFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
+
 public class StratconConfig {
   private Document doc;
+  
+  
+
 
   public StratconConfig(String filename) {
     DocumentBuilder docBuilder;
@@ -62,6 +65,67 @@ public class StratconConfig {
     try {
       XPathExpression expr =
         xpath.compile("/stratcon/database/dbconfig/" + param + "/text()");
+      result = expr.evaluate(doc, XPathConstants.NODESET);
+    }
+    catch(XPathExpressionException e) {
+      System.err.println("Bad expression: " + e.getMessage());
+      return null;
+    }
+    NodeList nodes = (NodeList) result;
+    if(nodes.getLength() > 0) {
+      return nodes.item(nodes.getLength() -1).getNodeValue();
+    }
+    return null;
+  }
+  public String getBroker() {
+    XPathFactory factory = XPathFactory.newInstance();
+    XPath xpath = factory.newXPath();
+    Object result;
+    try {
+      XPathExpression expr =
+        xpath.compile("/stratcon/iep/broker/@adapter");
+      result = expr.evaluate(doc, XPathConstants.NODESET);
+    }
+    catch(XPathExpressionException e) {
+      System.err.println("Bad expression: " + e.getMessage());
+      return null;
+    }
+    NodeList nodes = (NodeList) result;
+    if(nodes.getLength() > 0) {
+      return nodes.item(nodes.getLength() -1).getNodeValue();
+    }
+    return null;
+  }
+  
+  public String getBrokerParameter(String param, String or) {
+    String result = getBrokerParameter(param);
+    if (result == null)
+      return or;
+    return result;
+  }
+  
+  public String getBrokerParameter(String param) {
+    return getIepParameter("broker", param);
+  }
+  
+  public String getStompParameter(String param, String or) {
+    String result = getStompParameter(param);
+    if (result == null)
+      return or;
+    return result;
+  }
+  
+  public String getStompParameter(String param) {
+    return getIepParameter("stomp", param);
+  }
+  
+  public String getIepParameter(String which, String param) {
+    XPathFactory factory = XPathFactory.newInstance();
+    XPath xpath = factory.newXPath();
+    Object result;
+    try {
+      XPathExpression expr =
+        xpath.compile("/stratcon/iep/" + which + "/" + param + "/text()");
       result = expr.evaluate(doc, XPathConstants.NODESET);
     }
     catch(XPathExpressionException e) {
