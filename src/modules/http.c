@@ -477,6 +477,11 @@ static int serf_handler(eventer_t e, int mask,
   if(mask & EVENTER_READ) desc.rtnevents |= APR_POLLIN;
   if(mask & EVENTER_WRITE) desc.rtnevents |= APR_POLLOUT;
   if(mask & EVENTER_EXCEPTION) desc.rtnevents |= APR_POLLERR;
+  noitL(nldeb, "serf_handler() => %d, %x [%c%c%c]\n",
+        e->fd, desc.rtnevents,
+        (desc.rtnevents & APR_POLLIN) ? 'I' : '-',
+        (desc.rtnevents & APR_POLLOUT) ? 'O' : '-',
+        (desc.rtnevents & APR_POLLERR) ? 'E' : '-');
   serf_event_trigger(ci->context, sct->serf_baton, &desc);
   serf_context_prerun(ci->context);
 
@@ -705,7 +710,11 @@ static apr_status_t serf_eventer_add(void *user_baton,
   assert(pfd->desc_type == APR_POLL_SOCKET);
   struct __unix_apr_socket_t *hack = (struct __unix_apr_socket_t *)pfd->desc.s;
 
-  noitL(nldeb, "serf_eventer_add() => %d\n", hack->socketdes);
+  noitL(nldeb, "serf_eventer_add() => %d, %x [%c%c%c]\n",
+        hack->socketdes, pfd->reqevents,
+        (pfd->reqevents & APR_POLLIN) ? 'I' : '-',
+        (pfd->reqevents & APR_POLLOUT) ? 'O' : '-',
+        (pfd->reqevents & APR_POLLERR) ? 'E' : '-');
   e = eventer_find_fd(hack->socketdes);
   if(!e) {
     newe = e = eventer_alloc();
