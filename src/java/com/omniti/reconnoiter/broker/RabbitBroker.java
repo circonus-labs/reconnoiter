@@ -110,10 +110,7 @@ public class RabbitBroker implements IMQBroker, Runnable  {
     return new RabbitListener(epService, sq, channel, alertExchangeName, alertQueue);
   }
 
-  @Override
   public void run() {
-    // TODO Auto-generated method stub
-    
   }
 
 }
