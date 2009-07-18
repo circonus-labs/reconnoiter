@@ -9,7 +9,7 @@ JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
 	postgresql-8.3-604.jdbc3.jar rabbitmq-client.jar commons-io-1.2.jar \
 	commons-cli-1.1.jar"
 
-DIRS=". @prefix@/java/lib @prefix@/java"
+DIRS=". lib @prefix@/java/lib @prefix@/java"
 CP=
 
 for jar in $JARS
@@ -24,7 +24,7 @@ do
 		fi
 	done
 	if [ -z "$found" ]; then
-		echo "Cannot find $jar" 2>1
+		echo "Cannot find $jar" 2>&1
 		exit
 	fi
 done
