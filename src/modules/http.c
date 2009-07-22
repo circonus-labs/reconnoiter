@@ -53,6 +53,7 @@
 #include <apr_uri.h>
 #include <apr_atomic.h>
 #include <apr_strings.h>
+#include <apr_portable.h>
 #include "serf.h"
 
 #define NOIT_HTTP_VERSION_STRING "0.1"
@@ -511,9 +512,12 @@ static apr_status_t need_server_cert(void *data,
                                      const serf_ssl_certificate_t *cert) {
   return APR_SUCCESS;
 }
-static serf_bucket_t* conn_setup(apr_socket_t *skt,
+static apr_status_t conn_setup(apr_socket_t *skt,
+                                serf_bucket_t **input_bkt,
+                                serf_bucket_t **output_bkt,
                                 void *setup_baton,
-                                apr_pool_t *pool) {
+                                apr_pool_t *pool)
+{
   serf_bucket_t *c;
   app_baton_t *ctx = setup_baton;
 
@@ -533,14 +537,16 @@ static serf_bucket_t* conn_setup(apr_socket_t *skt,
         serf_ssl_use_default_certificates(ctx->ssl_ctx);
       serf_ssl_server_cert_callback_set(ctx->ssl_ctx, need_server_cert,
                                         ctx);
+      *output_bkt = serf_bucket_ssl_encrypt_create(*output_bkt, ctx->ssl_ctx,
+                                                    ctx->bkt_alloc);
 
       /* Setup client cert */
       serf_ssl_client_cert_provider_set(ctx->ssl_ctx, need_client_cert,
                                         ctx, pool);
     }
+    *input_bkt = c;
   }
-
-  return c;
+  return APR_SUCCESS;
 }
 
 static serf_bucket_t* accept_response(serf_request_t *request,
@@ -669,26 +675,6 @@ static apr_status_t setup_request(serf_request_t *request,
     serf_bucket_headers_setn(hdrs_bkt, "Authorization", ctx->authn);
   }
 
-  if (ctx->acceptor_baton->using_ssl) {
-    serf_bucket_alloc_t *req_alloc;
-    app_baton_t *app_ctx = ctx->acceptor_baton;
-
-    req_alloc = serf_request_get_alloc(request);
-
-    if (app_ctx->ssl_ctx == NULL) {
-      *req_bkt =
-        serf_bucket_ssl_encrypt_create(*req_bkt, NULL,
-                                       app_ctx->bkt_alloc);
-      app_ctx->ssl_ctx =
-        serf_bucket_ssl_encrypt_context_get(*req_bkt);
-    }
-    else {
-      *req_bkt =
-        serf_bucket_ssl_encrypt_create(*req_bkt, app_ctx->ssl_ctx,
-                                       app_ctx->bkt_alloc);
-    }
-  }
-
   *acceptor = ctx->acceptor;
   *acceptor_baton = ctx->acceptor_baton;
   *handler = ctx->handler;
@@ -697,28 +683,24 @@ static apr_status_t setup_request(serf_request_t *request,
   return APR_SUCCESS;
 }
 
-struct __unix_apr_socket_t {
-  apr_pool_t *pool;
-  int socketdes;
-};
-
 static apr_status_t serf_eventer_add(void *user_baton,
                                      apr_pollfd_t *pfd,
                                      void *serf_baton) {
   eventer_t e, newe = NULL;
   serf_closure_t *sct = user_baton, *newsct;
   assert(pfd->desc_type == APR_POLL_SOCKET);
-  struct __unix_apr_socket_t *hack = (struct __unix_apr_socket_t *)pfd->desc.s;
+  apr_os_sock_t fd;
+  apr_os_sock_get(&fd, pfd->desc.s);
 
   noitL(nldeb, "serf_eventer_add() => %d, %x [%c%c%c]\n",
-        hack->socketdes, pfd->reqevents,
+        fd, pfd->reqevents,
         (pfd->reqevents & APR_POLLIN) ? 'I' : '-',
         (pfd->reqevents & APR_POLLOUT) ? 'O' : '-',
         (pfd->reqevents & APR_POLLERR) ? 'E' : '-');
-  e = eventer_find_fd(hack->socketdes);
+  e = eventer_find_fd(fd);
   if(!e) {
     newe = e = eventer_alloc();
-    e->fd = hack->socketdes;
+    e->fd = fd;
     e->callback = serf_handler;
   }
   if(!e->closure)
@@ -752,10 +734,11 @@ static apr_status_t serf_eventer_remove(void *user_baton,
 
   ci = sct->check->closure;
   assert(pfd->desc_type == APR_POLL_SOCKET);
-  struct __unix_apr_socket_t *hack = (struct __unix_apr_socket_t *)pfd->desc.s;
+  apr_os_sock_t fd;
+  apr_os_sock_get(&fd, pfd->desc.s);
 
-  noitL(nldeb, "serf_eventer_remove() => %d\n", hack->socketdes);
-  e = eventer_find_fd(hack->socketdes);
+  noitL(nldeb, "serf_eventer_remove() => %d\n", fd);
+  e = eventer_find_fd(fd);
   if(e) {
     free(e->closure);
     e->closure = NULL;
