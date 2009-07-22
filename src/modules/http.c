@@ -535,17 +535,18 @@ static apr_status_t conn_setup(apr_socket_t *skt,
         serf_ssl_trust_cert(ctx->ssl_ctx, cert);
       else
         serf_ssl_use_default_certificates(ctx->ssl_ctx);
-      serf_ssl_server_cert_callback_set(ctx->ssl_ctx, need_server_cert,
-                                        ctx);
-      *output_bkt = serf_bucket_ssl_encrypt_create(*output_bkt, ctx->ssl_ctx,
-                                                    ctx->bkt_alloc);
 
       /* Setup client cert */
       serf_ssl_client_cert_provider_set(ctx->ssl_ctx, need_client_cert,
                                         ctx, pool);
     }
-    *input_bkt = c;
+    serf_ssl_server_cert_callback_set(ctx->ssl_ctx, need_server_cert,
+                                      ctx);
+    *output_bkt = serf_bucket_ssl_encrypt_create(*output_bkt, ctx->ssl_ctx,
+                                                  ctx->bkt_alloc);
   }
+  *input_bkt = c;
+
   return APR_SUCCESS;
 }
 
