@@ -69,7 +69,8 @@ serf/.libs/libserf-0.a:
 
 serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
 	ld -r -o serf/.libs/libserf-0.o \
-		serf/.libs/context.o serf/buckets/.libs/*.o
+		serf/.libs/context.o serf/.libs/outgoing.o \
+		serf/.libs/incoming.o serf/buckets/.libs/*.o
 
 noitd:	make-subdirs $(NOIT_OBJS)
 	@$(CC) -o $@ $(NOIT_OBJS) \
