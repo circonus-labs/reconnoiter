@@ -64,5 +64,4 @@ install:	all
 clean:
 	find com -name \*.class -exec rm {} \;
 	rm -f reconnoiter.jar
-	rm -f run-iep.sh
 
