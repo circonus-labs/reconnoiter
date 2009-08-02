@@ -110,6 +110,8 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
 static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   struct check_info *data;
   double avail, min = MAXFLOAT, max = 0.0, avg = 0.0, cnt;
+  int avail_needed = 100;
+  const char *config_val = NULL;
   int i, points = 0;
   char human_buffer[256];
   stats_t current;
@@ -134,6 +136,10 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   avail = (float)points /cnt;
   avg /= (float)points;
 
+  if(noit_hash_retr_str(check->config, "avail_needed", strlen("avail_needed"),
+                        &config_val))
+    avail_needed = atoi(config_val);
+
   snprintf(human_buffer, sizeof(human_buffer),
            "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
            (int)cnt, 100.0*avail, min, max, avg);
@@ -143,7 +149,7 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   sub_timeval(current.whence, check->last_fire_time, &duration);
   current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   current.available = (avail > 0.0) ? NP_AVAILABLE : NP_UNAVAILABLE;
-  current.state = (avail < 1.0) ? NP_BAD : NP_GOOD;
+  current.state = (avail < ((float)avail_needed / 100.0)) ? NP_BAD : NP_GOOD;
   current.status = human_buffer;
   noit_stats_set_metric(&current, "count",
                         METRIC_INT32, &data->expected_count);
