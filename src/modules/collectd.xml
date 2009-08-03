@@ -1,0 +1,63 @@
+<module>
+  <name>collectd</name>
+  <description><para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para></description>
+  <loader>C</loader>
+  <image>snmp.so</image>
+  <moduleconfig>
+    <parameter name="collectd_port"
+               required="required"
+               default="25826"
+               allowed="\d+">The port which collectd packets are received</parameter>
+    <parameter name="snmptrapd_host"
+               required="optional"
+               default="*"
+               allowed="\d+">The host interface on which packets are accepted.</parameter>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="security_level"
+               required="optional"
+               allowed="\d+">An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</parameter>
+    <parameter name="username"
+               required="optional"
+               allowed=".+">The collectd username for authenticating signed and encrypted packets</parameter>
+    <parameter name="password"
+               required="optional"
+               allowed=".+">The collectd password for authenticating signed and encrypted packets</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Simple encrypted passive checking.</title>
+      <para>The following example allows a collectd agent to send any metric to the noit
+      system.  In this example the collectd agent must be version 4.7.0 to support encryption 
+      and must be configured with parameters similar to the ones below.  Like the snmptrap 
+      module the collectd disregards the timeout value completely, but uses the period to
+      batch all the checks in one commit.  If there are >1 metrics within the period the
+      check is marked as G and A for state and availability respectively.</para>
+      <programlisting><![CDATA[
+      <Plugin network>
+        <Server "127.0.0.1" "25826">
+          SecurityLevel "encrypt"
+          Username "us3rname"
+          Password "s3cr3t"
+        </Server>
+      </Plugin>
+
+      <noit>
+        <modules>
+          <module image="collectd" name="collectd">
+            <config>
+              <username>us3rname</username>
+              <password>s3cr3t</password>
+              <security_level>2</security_level>
+            </config>
+          </module>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="collectd"
+                 period="60000" timeout="30000"/>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
