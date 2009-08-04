@@ -32,7 +32,9 @@
       and must be configured with parameters similar to the ones below.  Like the snmptrap 
       module the collectd disregards the timeout value completely, but uses the period to
       batch all the checks in one commit.  If there are >1 metrics within the period the
-      check is marked as G and A for state and availability respectively.</para>
+      check is marked as G and A for state and availability respectively.  The first program
+      listing shows a collectd configuration and the second listing shows the corresponding
+      check configuration in reconnoiter.</para>
       <programlisting><![CDATA[
       <Plugin network>
         <Server "127.0.0.1" "25826">
@@ -41,7 +43,9 @@
           Password "s3cr3t"
         </Server>
       </Plugin>
+      ]]></programlisting>
 
+      <programlisting><![CDATA[
       <noit>
         <modules>
           <module image="collectd" name="collectd">
@@ -57,7 +61,7 @@
                  period="60000" timeout="30000"/>
         </checks>
       </noit>
-    ]]></programlisting>
+      ]]></programlisting>
     </example>
   </examples>
 </module>
