@@ -375,10 +375,29 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
 }
 
 static int
+setup_iep_connection_callback(eventer_t e, int mask, void *closure,
+                              struct timeval *now) {
+  stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL);
+  return 0;
+}
+
+static void
+setup_iep_connection_later(int seconds) {
+  eventer_t newe = eventer_alloc();
+  gettimeofday(&newe->whence, NULL);
+  newe->whence.tv_sec += seconds;
+  newe->mask = EVENTER_TIMER;
+  newe->callback = setup_iep_connection_callback;
+  newe->closure = NULL;
+  eventer_add(newe);
+}
+
+static int
 stratcon_iep_submitter(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
   float age;
   struct iep_job_closure *job = closure;
+  struct iep_thread_driver *driver;
   /* We only play when it is an asynch event */
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
 
@@ -394,6 +413,9 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     }
     return 0;
   }
+  driver = stratcon_iep_get_connection();
+  if(!driver) setup_iep_connection_later(1);
+
   if(!job->line || job->line[0] == '\0') return 0;
 
   if((age = stratcon_iep_age_from_line(job->line, *now)) > 60) {
@@ -405,8 +427,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     job->doc_str = noit_xmlSaveToBuffer(job->doc);
     if(job->doc_str) {
       /* Submit */
-      struct iep_thread_driver *driver;
-      driver = stratcon_iep_get_connection();
       if(driver && driver->pool && driver->connection) {
         apr_status_t rc;
 #ifdef OPENWIRE
@@ -653,6 +673,9 @@ start_iep_daemon() {
   eventer_add(newe);
   info = NULL;
 
+  /* This will induce a stomp connection which will initialize esper */
+  setup_iep_connection_later(1);
+
   return;
 
  bail:
@@ -679,9 +702,8 @@ stratcon_iep_init() {
   noit_iep = noit_log_stream_find("error/iep");
   if(!noit_iep) noit_iep = noit_error;
 
-  start_iep_daemon();
-
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
+  eventer_name_callback("setup_iep_connection_callback", setup_iep_connection_callback);
   pthread_key_create(&iep_connection, connection_destroy);
 
   /* start up a thread pool of one */
@@ -689,6 +711,8 @@ stratcon_iep_init() {
   eventer_jobq_init(&iep_jobq, "iep_submitter");
   iep_jobq.backq = eventer_default_backq();
   eventer_jobq_increase_concurrency(&iep_jobq);
+
+  start_iep_daemon();
 
   /* setup our live jlog stream */
   stratcon_streamer_connection(NULL, NULL,
