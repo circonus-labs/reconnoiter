@@ -572,7 +572,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     noitL(noit_error, "IEP daemon is done, starting a new one\n");
     start_iep_daemon();
     eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &newmask, e);
+    iep_daemon_info_free(info);
     return 0;
   }
   while(1) {
