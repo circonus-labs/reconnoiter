@@ -58,6 +58,8 @@ public class StratconMessage {
         return new NoitMetricNumeric(document);
       }
       // and requests
+      else if(tag.equals("StratconStatement"))
+        return new StratconStatement(document);
       else if(tag.equals("StratconQuery"))
         return new StratconQuery(document);
       else if(tag.equals("StratconQueryStop"))

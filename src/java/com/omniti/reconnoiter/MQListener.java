@@ -18,11 +18,11 @@ import java.util.UUID;
 
 public class MQListener implements Runnable {
     private EPServiceProvider epService;
-    private ConcurrentHashMap<UUID,StratconQuery> queries;
+    private ConcurrentHashMap<UUID,StratconQueryBase> queries;
     private IMQBroker broker;
 
     public MQListener(EPServiceProvider epService, IMQBroker broker) {
-      this.queries = new ConcurrentHashMap<UUID,StratconQuery>();
+      this.queries = new ConcurrentHashMap<UUID,StratconQueryBase>();
       this.epService = epService;
       this.broker = broker;
       broker.connect();

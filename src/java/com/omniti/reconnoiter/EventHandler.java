@@ -9,28 +9,39 @@ import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.NoitEvent;
 import com.omniti.reconnoiter.event.NoitMetricNumeric;
+import com.omniti.reconnoiter.event.StratconQueryBase;
+import com.omniti.reconnoiter.event.StratconStatement;
 import com.omniti.reconnoiter.event.StratconQuery;
 import com.omniti.reconnoiter.event.StratconQueryStop;
 
 public class EventHandler {
 	
-	private EPServiceProvider epService;
-	private ConcurrentHashMap<UUID, StratconQuery> queries;
-	private IMQBroker broker;
+  private EPServiceProvider epService;
+  private ConcurrentHashMap<UUID, StratconQueryBase> queries;
+  private IMQBroker broker;
 
-	public EventHandler(ConcurrentHashMap<UUID,StratconQuery> queries, EPServiceProvider epService, IMQBroker broker) {
-		this.epService = epService;
-		this.queries = queries;
-		this.broker = broker;
-	}
+  public EventHandler(ConcurrentHashMap<UUID,StratconQueryBase> queries, EPServiceProvider epService, IMQBroker broker) {
+    this.epService = epService;
+    this.queries = queries;
+    this.broker = broker;
+  }
 	
-	public void processMessage(String xml) throws Exception {
-		
-		StratconMessage m = StratconMessage.makeMessage(xml);
+  public void processMessage(String xml) throws Exception {
+    StratconMessage m = StratconMessage.makeMessage(xml);
     if(m == null) {
       System.err.println("Can't grok:\n" + xml);
     }
-    if(m instanceof StratconQuery) {
+    if(m instanceof StratconStatement) {
+      StratconStatement sq = (StratconStatement) m;
+
+      if(queries.containsKey(sq.getUUID())) throw (new Exception("Duplicate Query"));
+
+      EPStatement statement = epService.getEPAdministrator().createEPL(sq.getExpression());
+      sq.setStatement(statement);
+      queries.put(sq.getUUID(), sq);
+      System.err.println("Creating Statement: " + sq.getUUID());
+    }
+    else if(m instanceof StratconQuery) {
       StratconQuery sq = (StratconQuery) m;
 
       if(queries.containsKey(sq.getUUID())) throw (new Exception("Duplicate Query"));
@@ -45,7 +56,8 @@ public class EventHandler {
       System.err.println("Creating Query: " + sq.getUUID());
     }
     else if(m instanceof StratconQueryStop) {
-      StratconQuery sq = queries.get(((StratconQueryStop) m).getUUID());
+      /* QueryStop stops both queries and statements */
+      StratconQueryBase sq = queries.get(((StratconQueryStop) m).getUUID());
       if(sq != null) {
         queries.remove(sq.getUUID());
         sq.destroy();

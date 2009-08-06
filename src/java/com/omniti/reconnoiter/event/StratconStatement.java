@@ -24,32 +24,17 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-public class StratconQuery extends StratconQueryBase {
-  protected UpdateListener listener;
-  protected String name;
-
-  public StratconQuery(Document d) {
+public class StratconStatement extends StratconQueryBase {
+  public StratconStatement(Document d) {
     XPath xpath = XPathFactory.newInstance().newXPath();
     try {
-      String id = (String) xpath.evaluate("/StratconQuery/id", d, XPathConstants.STRING);
+      String id = (String) xpath.evaluate("/StratconStatement/id", d, XPathConstants.STRING);
       if(id == null) uuid = UUID.randomUUID();
       else uuid = UUID.fromString(id);
-      name = (String) xpath.evaluate("/StratconQuery/name", d, XPathConstants.STRING);
-      expression = (String) xpath.evaluate("/StratconQuery/expression", d, XPathConstants.STRING);
+      expression = (String) xpath.evaluate("/StratconStatement/expression", d, XPathConstants.STRING);
     }
     catch(XPathExpressionException e) {
     }
-    if(name == null) name = "default";
     if(uuid == null) uuid = UUID.randomUUID();
-  }
-  public String getName() {
-    return name;
-  }
-  public void setListener(UpdateListener l) {
-    this.listener = l;
-  }
-  public void destroy() {
-    statement.removeListener(listener);
-    statement.destroy();
   }
 }

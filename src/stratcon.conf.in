@@ -34,8 +34,28 @@
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
     <queries>
+      <statement id="6cc613a4-7f9c-11de-973f-db7e8ccb2e5c" provides="CheckDetails-ddl">
+        <epl>create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck</epl>
+      </statement>
+      <statement id="76598f5e-7f9c-11de-9f5b-ebb4dcb2494e" provides="CheckDetails">
+        <requires>CheckDetails-ddl</requires>
+        <epl>insert into CheckDetails select * from NoitCheck</epl>
+      </statement>
+      <statement id="ba189f08-7f99-11de-9013-733772d37479" provides="UnavailableStream">
+        <requires>CheckDetails</requires>
+        <epl>insert into UnavailableStream
+             select p.* as delta, cds.target as target, cds.module as module,
+                    cds.name as name, p.s.uuid as uuid
+             from pattern [ every
+                            s=NoitStatus(availability='A') ->
+                            ( n0 = NoitStatus(uuid=s.uuid, availability='U')
+                              and not NoitStatus(uuid=s.uuid, availability='A'))
+                          ].std:lastevent() as p
+             inner join CheckDetails as cds on cds.uuid = p.s.uuid
+        </epl>
+      </statement>
       <query id="ce6bf8d2-3dd7-11de-a45c-a7df160cba9e" topic="status">
-        select * from NoitStatus
+        <epl>select * from NoitStatus</epl>
       </query>
     </queries>
   </iep>

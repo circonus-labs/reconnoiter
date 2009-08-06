@@ -168,6 +168,21 @@ stratcon_iep_doc_from_metric(char *data, char *remote) {
 }
 
 static xmlDocPtr
+stratcon_iep_doc_from_statement(char *data, char *remote) {
+  xmlDocPtr doc;
+  char *parts[3];
+  if(bust_to_parts(data, parts, 3) != 3) return NULL;
+  /*  'D' ID QUERY  */
+
+  NEWDOC(doc, "StratconStatement",
+         {
+           ADDCHILD("id", parts[1]);
+           ADDCHILD("expression", parts[2]);
+         });
+  return doc;
+}
+
+static xmlDocPtr
 stratcon_iep_doc_from_query(char *data, char *remote) {
   xmlDocPtr doc;
   char *parts[4];
@@ -204,6 +219,7 @@ stratcon_iep_doc_from_line(char *data, char *remote) {
       case 'C': return stratcon_iep_doc_from_check(data, remote);
       case 'S': return stratcon_iep_doc_from_status(data, remote);
       case 'M': return stratcon_iep_doc_from_metric(data, remote);
+      case 'D': return stratcon_iep_doc_from_statement(data, remote);
       case 'Q': return stratcon_iep_doc_from_query(data, remote);
       case 'q': return stratcon_iep_doc_from_querystop(data, remote);
     }
@@ -221,6 +237,182 @@ stratcon_iep_age_from_line(char *data, struct timeval now) {
     return n - t;
   }
   return 0;
+}
+
+struct statement_node {
+  char *id;
+  char *statement;
+  char *provides;
+  int marked; /* helps with identifying cycles */
+  int nrequires;
+  struct statement_node **requires;
+};
+static void
+statement_node_free(void *vstmt) {
+  struct statement_node *stmt = vstmt;
+  if(stmt->id) free(stmt->id);
+  if(stmt->statement) free(stmt->statement);
+  if(stmt->provides) free(stmt->provides);
+  if(stmt->requires) free(stmt->requires);
+}
+static int
+stmt_mark_dag(struct statement_node *stmt, int mgen) {
+  int i;
+  assert(stmt->marked <= mgen);
+  if(stmt->marked == mgen) return -1;
+  if(stmt->marked > 0) return 0; /* validated in a previous sweep */
+  stmt->marked = mgen;
+  for(i=0; i<stmt->nrequires; i++)
+    if(stmt_mark_dag(stmt->requires[i], mgen) < 0) return -1;
+  return 0;
+}
+static void
+submit_statement_node(struct statement_node *stmt) {
+  int line_len, i;
+  char *line, *cp;
+
+  if(stmt->marked) return;
+  for(i=0; i<stmt->nrequires; i++)
+    submit_statement_node(stmt->requires[i]);
+
+  line_len = 3 /* 2 tabs + \0 */ +
+             1 /* 'D' */ + 1 /* '\n' */ +
+             strlen(stmt->id) + strlen(stmt->statement);
+  line = malloc(line_len);
+  snprintf(line, line_len, "D\t%s\t%s\n", stmt->id, stmt->statement);
+  cp = line;
+  while(cp[0] && cp[1]) {
+    if(*cp == '\n') *cp = ' ';
+    cp++;
+  }
+  noitL(noit_error, "submitting statement: %s\n", line);
+  stratcon_iep_line_processor(DS_OP_INSERT, NULL, line);
+  stmt->marked = 1;
+}
+void stratcon_iep_submit_statements() {
+  int i, cnt = 0;
+  noit_conf_section_t *statement_configs;
+  char path[256];
+  struct statement_node *stmt;
+  void *vstmt;
+  noit_hash_table stmt_by_id = NOIT_HASH_EMPTY;
+  noit_hash_table stmt_by_provider = NOIT_HASH_EMPTY;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *key;
+  int klen, mgen = 0;
+
+  snprintf(path, sizeof(path), "/stratcon/iep/queries//statement");
+  statement_configs = noit_conf_get_sections(NULL, path, &cnt);
+  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
+
+  /* Phase 1: sweep in all the statements */
+  for(i=0; i<cnt; i++) {
+    char id[UUID_STR_LEN];
+    char provides[256];
+    char *statement;
+
+    if(!noit_conf_get_stringbuf(statement_configs[i],
+                                "self::node()/@id",
+                                id, sizeof(id))) {
+      noitL(noit_iep, "No uuid specified in query\n");
+      continue;
+    }
+    if(!noit_conf_get_stringbuf(statement_configs[i],
+                                "ancestor-or-self::node()/@provides",
+                                provides, sizeof(provides))) {
+      provides[0] = '\0';
+    }
+    if(!noit_conf_get_string(statement_configs[i], "self::node()/epl",
+                             &statement)) {
+      noitL(noit_iep, "No contents specified in statement\n");
+      continue;
+    }
+    stmt = calloc(1, sizeof(*stmt));
+    stmt->id = strdup(id);
+    stmt->statement = statement;
+    stmt->provides = provides[0] ? strdup(provides) : NULL;
+    if(!noit_hash_store(&stmt_by_id, stmt->id, strlen(stmt->id), stmt)) {
+      noitL(noit_error, "Duplicate statement id: %s\n", stmt->id);
+      exit(-1);
+    }
+    if(stmt->provides) {
+      if(!noit_hash_store(&stmt_by_provider, stmt->provides,
+                          strlen(stmt->provides), stmt)) {
+        noitL(noit_error, "Two statements provide: '%s'\n", stmt->provides);
+        exit(-1);
+      }
+    }
+  }
+
+  /* Phase 2: load the requires graph */
+  for(i=0; i<cnt; i++) {
+    char id[UUID_STR_LEN];
+    int rcnt, j;
+    char *requires;
+    noit_conf_section_t *reqs;
+
+    if(!noit_conf_get_stringbuf(statement_configs[i],
+                                "self::node()/@id",
+                                id, sizeof(id))) {
+      noitL(noit_iep, "No uuid specified in query\n");
+      continue;
+    }
+    if(!noit_hash_retrieve(&stmt_by_id, id, strlen(id), &vstmt)) {
+      noitL(noit_error, "Cannot find statement: %s\n", id);
+      exit(-1);
+    }
+    stmt = vstmt;
+    reqs = noit_conf_get_sections(statement_configs[i],
+                                  "self::node()/requires", &rcnt);
+    if(rcnt > 0) {
+      stmt->requires = malloc(rcnt * sizeof(*(stmt->requires)));
+      for(j=0; j<rcnt; j++) {
+        void *vrstmt;
+        if(!noit_conf_get_string(reqs[j], "self::node()",
+                                 &requires) || requires[0] == '\0') {
+          continue;
+        }
+        if(!noit_hash_retrieve(&stmt_by_provider, requires, strlen(requires),
+                               &vrstmt)) {
+          noitL(noit_error,
+                "Statement %s requires %s which no one provides.\n",
+                stmt->id, requires);
+          exit(-1);
+        }
+        stmt->requires[stmt->nrequires++] = vrstmt;
+      }
+    }
+  }
+
+  /* Phase 3: Recursive sweep and mark to detect cycles.
+     We're walking the graph backwards here from dependent to provider,
+     but a cycle is a cycle, so this validates the graph. */
+  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+    stmt = vstmt;
+    if(stmt_mark_dag(stmt, ++mgen) < 0) {
+      noitL(noit_error, "Statement %s has a cyclic requirement\n", stmt->id);
+      exit(-1);
+    }
+  }
+
+  /* Phase 4: clean the markings */
+  mgen = 0;
+  memset(&iter, 0, sizeof(iter));
+  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+    stmt = vstmt;
+    stmt->marked = 0;
+  }
+
+  /* Phase 5: do the load */
+  memset(&iter, 0, sizeof(iter));
+  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+    stmt = vstmt;
+    submit_statement_node(stmt);
+  }
+
+  noit_hash_destroy(&stmt_by_provider, NULL, NULL);
+  noit_hash_destroy(&stmt_by_id, NULL, statement_node_free);
+  free(statement_configs);
 }
 
 void stratcon_iep_submit_queries() {
@@ -250,7 +442,7 @@ void stratcon_iep_submit_queries() {
       noitL(noit_iep, "No topic specified in query\n");
       continue;
     }
-    if(!noit_conf_get_string(query_configs[i], "self::node()",
+    if(!noit_conf_get_string(query_configs[i], "self::node()/epl",
                              &query)) {
       noitL(noit_iep, "No contents specified in query\n");
       continue;
@@ -367,6 +559,7 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
       }
      }
 #endif
+     stratcon_iep_submit_statements();
      stratcon_datastore_iep_check_preload();
      stratcon_iep_submit_queries();
   }

@@ -31,6 +31,8 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/broker/BrokerFactory.java \
 	com/omniti/reconnoiter/event/NoitEvent.java \
 	com/omniti/reconnoiter/event/NoitMetricNumeric.java \
+	com/omniti/reconnoiter/event/StratconStatement.java \
+	com/omniti/reconnoiter/event/StratconQueryBase.java \
 	com/omniti/reconnoiter/event/StratconQuery.java \
 	com/omniti/reconnoiter/event/StratconQueryStop.java \
 	com/omniti/reconnoiter/IEPEngine.java \

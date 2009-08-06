@@ -33,9 +33,6 @@ class IEPEngine {
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
     NoitEvent.registerTypes(epService);
 
-    epService.getEPAdministrator().createEPL("create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck");
-    epService.getEPAdministrator().createEPL("insert into CheckDetails select * from NoitCheck");
-
     MQListener l = new MQListener(epService, BrokerFactory.getBroker(sconf));
 
     Thread listener = new Thread(l);
