@@ -44,7 +44,15 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
+#ifdef HAVE_MYSQL_H
 #include <mysql.h>
+#else
+#ifdef HAVE_MYSQL_MYSQL_H
+#include <mysql/mysql.h>
+#else
+#error No mysql.h header present.  This is not going to work at all.
+#endif
+#endif
 
 typedef struct {
   noit_module_t *self;

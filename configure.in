@@ -184,36 +184,44 @@ AC_TRY_LINK([
 PGCFLAGS=$CFLAGS
 AC_SUBST(PGCFLAGS)
 
-LIBS=$old_LIBS
-CFLAGS=$old_CFLAGS
+AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 
-if test -z "$MYLIBS" ; then
-  MYLIBS="-lmysqlclient_r -lz -lssl -lcrypto"
+if test "$ac_cv_header_mysql_h" = "no" -a "$ac_cv_header_mysql_mysql_h" = "no" ; then
+	AC_MSG_WARN([No libmysqlclient, skipping mysql module])
+	AC_SUBST(MYCFLAGS)
+	AC_SUBST(MYLIBS)
+else
+	LIBS=$old_LIBS
+	CFLAGS=$old_CFLAGS
+	
+	if test -z "$MYLIBS" ; then
+	  MYLIBS="-lmysqlclient_r -lz -lssl -lcrypto"
+	fi
+	
+	old_CFLAGS=$CFLAGS
+	old_LIBS=$LIBS
+	CFLAGS="$CFLAGS $MYCFLAGS"
+	LIBS="$MYLIBS"
+	
+	AC_CHECK_FUNC(mysql_real_connect,
+	        [
+	                BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
+			MYCFLAGS="$CFLAGS"
+			MYLIBS="$LIBS"
+			AC_SUBST(MYCFLAGS)
+			AC_SUBST(MYLIBS)
+	        ],
+	        [
+	                AC_MSG_WARN([No libmysqlclient, skipping mysql module])
+			AC_SUBST(MYCFLAGS)
+			AC_SUBST(MYLIBS)
+	        ]
+	)
+	
+	
+	LIBS=$old_LIBS
+	CFLAGS=$old_CFLAGS
 fi
-
-old_CFLAGS=$CFLAGS
-old_LIBS=$LIBS
-CFLAGS="$CFLAGS $MYCFLAGS"
-LIBS="$MYLIBS"
-
-AC_CHECK_FUNC(mysql_real_connect,
-        [
-                BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
-		MYCFLAGS="$CFLAGS"
-		MYLIBS="$LIBS"
-		AC_SUBST(MYCFLAGS)
-		AC_SUBST(MYLIBS)
-        ],
-        [
-                AC_MSG_WARN([No libmysqlclient, skipping mysql module])
-		AC_SUBST(MYCFLAGS)
-		AC_SUBST(MYLIBS)
-        ]
-)
-
-
-LIBS=$old_LIBS
-CFLAGS=$old_CFLAGS
 
 ########
 #
