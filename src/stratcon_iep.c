@@ -42,6 +42,9 @@
 #include "noit_check.h"
 #include "noit_xml.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/fcntl.h>
 #ifdef HAVE_SYS_FILIO_H

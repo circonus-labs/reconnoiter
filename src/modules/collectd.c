@@ -38,6 +38,9 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#ifdef HAVE_SYS_FILIO_H
+#include <sys/filio.h>
+#endif
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <inttypes.h>
