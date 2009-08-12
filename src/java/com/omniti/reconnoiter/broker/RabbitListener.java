@@ -7,9 +7,6 @@ import com.espertech.esper.client.UpdateListener;
 import com.espertech.esper.client.util.JSONEventRenderer;
 import com.omniti.reconnoiter.event.StratconQuery;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ConnectionParameters;
 import com.rabbitmq.client.MessageProperties;
 
 public class RabbitListener implements UpdateListener {

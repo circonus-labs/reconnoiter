@@ -12,7 +12,6 @@ import com.omniti.reconnoiter.StratconMessage;
 import java.util.UUID;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 public class StratconQueryStop extends StratconMessage {
   private UUID uuid;

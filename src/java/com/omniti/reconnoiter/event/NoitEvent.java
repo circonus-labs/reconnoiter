@@ -9,7 +9,6 @@
 package com.omniti.reconnoiter.event;
 
 import com.omniti.reconnoiter.StratconMessage;
-import com.omniti.reconnoiter.StratconMessage;
 
 import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.ConfigurationEventTypeXMLDOM;
@@ -17,8 +16,6 @@ import com.espertech.esper.client.ConfigurationEventTypeXMLDOM;
 import javax.xml.xpath.XPathConstants;
 
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 public class NoitEvent extends StratconMessage {
   protected Document document;

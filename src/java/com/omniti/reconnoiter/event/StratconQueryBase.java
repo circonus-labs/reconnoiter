@@ -8,20 +8,10 @@
 
 package com.omniti.reconnoiter.event;
 
-import java.lang.System;
 
 import com.omniti.reconnoiter.StratconMessage;
 import com.espertech.esper.client.EPStatement;
-import com.espertech.esper.client.UpdateListener;
 import java.util.UUID;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathFactory;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 public class StratconQueryBase extends StratconMessage {
   protected EPStatement statement;
