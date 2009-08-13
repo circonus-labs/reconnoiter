@@ -343,12 +343,43 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
   const char *cert, *key, *ca, *ciphers;
+  char remote_str[128], tmp_str[128];
   eventer_ssl_ctx_t *sslctx;
+  int aerrno, len;
+  socklen_t aerrno_len = sizeof(aerrno);
+
+  if(getsockopt(e->fd,SOL_SOCKET,SO_ERROR, &aerrno, &aerrno_len) == 0)
+    if(aerrno != 0) goto connect_error;
+  aerrno = 0;
 
   if(mask & EVENTER_EXCEPTION) {
-    if(write(e->fd, e, 0) == -1)
-      noitL(noit_error, "socket error: %s\n", strerror(errno));
+    if(aerrno == 0 && (write(e->fd, e, 0) == -1))
+      aerrno = errno;
  connect_error:
+    switch(nctx->r.remote.sa_family) {
+      case AF_INET:
+        len = sizeof(struct sockaddr_in);
+        inet_ntop(nctx->r.remote.sa_family, &nctx->r.remote_in.sin_addr,
+                  tmp_str, len);
+        snprintf(remote_str, sizeof(remote_str), "%s:%d",
+                 tmp_str, ntohs(nctx->r.remote_in.sin_port));
+        break;
+      case AF_INET6:
+        len = sizeof(struct sockaddr_in6);
+        inet_ntop(nctx->r.remote.sa_family, &nctx->r.remote_in6.sin6_addr,
+                  tmp_str, len);
+        snprintf(remote_str, sizeof(remote_str), "%s:%d",
+                 tmp_str, ntohs(nctx->r.remote_in6.sin6_port));
+       break;
+      case AF_UNIX:
+        len = SUN_LEN(&(nctx->r.remote_un));
+        snprintf(remote_str, sizeof(remote_str), "%s", nctx->r.remote_un.sun_path);
+        break;
+      default:
+        snprintf(remote_str, sizeof(remote_str), "(unknown)");
+    }
+    noitL(noit_error, "Error connecting to %s: %s\n",
+          remote_str, strerror(aerrno));
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
     noit_connection_schedule_reattempt(nctx, now);
