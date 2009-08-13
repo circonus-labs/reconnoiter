@@ -780,7 +780,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_EXCEPTION) {
     int rv;
    read_error:
-    kill(SIGKILL, info->child);
+    kill(info->child, SIGKILL);
     if(waitpid(info->child, &rv, 0) != info->child) {
       noitL(noit_error, "Failed to reap IEP daemon\n");
       exit(-1);
