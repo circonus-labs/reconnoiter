@@ -243,7 +243,7 @@ noit_listener(char *host, unsigned short port, int type,
   memset(&s, 0, sizeof(s));
   if(family == AF_UNIX) {
     struct stat sb;
-    /* unlink the path iff it is a socket */
+    /* unlink the path if it is a socket */
     if(stat(host, &sb) == -1) {
       if(errno != ENOENT) {
         noitL(noit_stderr, "%s: %s\n", host, strerror(errno));
@@ -260,6 +260,7 @@ noit_listener(char *host, unsigned short port, int type,
         return -1;
       }
     }
+    s.addru.sun_family = AF_UNIX;
     strncpy(s.addru.sun_path, host, sizeof(s.addru.sun_path)-1);
     sockaddr_len = sizeof(s.addru);
   }
