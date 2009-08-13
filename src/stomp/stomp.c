@@ -49,6 +49,9 @@ APR_DECLARE(apr_status_t) stomp_connect(stomp_connection **connection_ref, const
 	socket_family = connection->remote_sa->sa.sin.sin_family;
 	rc = apr_socket_create(&connection->socket, socket_family, SOCK_STREAM, APR_PROTO_TCP, pool);
 	CHECK_SUCCESS;	
+#undef CHECK_SUCCESS
+
+#define CHECK_SUCCESS if( rc!=APR_SUCCESS ) { apr_socket_close(connection->socket); return rc; }
    rc = apr_socket_connect(connection->socket, connection->remote_sa);
 	CHECK_SUCCESS;
    
