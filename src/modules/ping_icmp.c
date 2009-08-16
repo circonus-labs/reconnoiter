@@ -37,7 +37,6 @@
 #include <netdb.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
@@ -300,8 +299,7 @@ static int ping_icmp_init(noit_module_t *self) {
     else
       noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
 
-    on = 1;
-    if(ioctl(data->ipv4_fd, FIONBIO, &on)) {
+    if(eventer_set_fd_nonblocking(data->ipv4_fd)) {
       close(data->ipv4_fd);
       data->ipv4_fd = -1;
       noitL(noit_error,
@@ -325,8 +323,7 @@ static int ping_icmp_init(noit_module_t *self) {
           strerror(errno));
   }
   else {
-    on = 1;
-    if(ioctl(data->ipv6_fd, FIONBIO, &on)) {
+    if(eventer_set_fd_nonblocking(data->ipv6_fd)) {
       close(data->ipv6_fd);
       data->ipv6_fd = -1;
       noitL(noit_error,

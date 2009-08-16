@@ -38,7 +38,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <sys/ioctl.h>
 #include <sys/uio.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -377,9 +376,8 @@ static int external_init(noit_module_t *self) {
 
   /* Now the parent must set its bits non-blocking, the child need not */
   if(data->child != 0) {
-    long on = 1;
     /* in the parent */
-    if(ioctl(data->pipe_e2n[0], FIONBIO, &on) == -1) {
+    if(eventer_set_fd_nonblocking(data->pipe_e2n[0]) == -1) {
       close(data->pipe_n2e[1]);
       close(data->pipe_e2n[0]);
       noitL(noit_error,

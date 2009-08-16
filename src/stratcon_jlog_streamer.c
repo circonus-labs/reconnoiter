@@ -407,15 +407,13 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   struct timeval __now;
   eventer_t e;
   int rv, fd = -1;
-  long on;
 
   /* Open a socket */
   fd = socket(nctx->r.remote.sa_family, SOCK_STREAM, 0);
   if(fd < 0) goto reschedule;
 
   /* Make it non-blocking */
-  on = 1;
-  if(ioctl(fd, FIONBIO, &on)) goto reschedule;
+  if(eventer_set_fd_nonblocking(fd)) goto reschedule;
 
   /* Initiate a connection */
   rv = connect(fd, &nctx->r.remote, nctx->remote_len);

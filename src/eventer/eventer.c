@@ -33,6 +33,9 @@
 #define _EVENTER_C_
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 eventer_t eventer_alloc() {
   eventer_t e;
@@ -56,6 +59,21 @@ int eventer_timecompare(const void *av, const void *bv) {
 
 void eventer_free(eventer_t e) {
   free(e);
+}
+
+int eventer_set_fd_nonblocking(int fd) {
+  int flags;
+  if(((flags = fcntl(fd, F_GETFL, 0)) == -1) ||
+     (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1))
+    return -1;
+  return 0;
+}
+int eventer_set_fd_blocking(int fd) {
+  int flags;
+  if(((flags = fcntl(fd, F_GETFL, 0)) == -1) ||
+     (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == -1))
+    return -1;
+  return 0;
 }
 
 static noit_hash_table __name_to_func = NOIT_HASH_EMPTY;

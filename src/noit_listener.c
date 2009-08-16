@@ -37,7 +37,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
@@ -120,9 +119,8 @@ noit_listener_acceptor(eventer_t e, int mask,
   salen = sizeof(ac->remote);
   conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
   if(conn >= 0) {
-    socklen_t on = 1;
     eventer_t newe;
-    if(ioctl(conn, FIONBIO, &on)) {
+    if(eventer_set_fd_nonblocking(conn)) {
       close(conn);
       goto accept_bail;
     }
@@ -179,7 +177,7 @@ noit_listener(char *host, unsigned short port, int type,
   int rv, fd;
   int8_t family;
   int sockaddr_len;
-  socklen_t on, reuse;
+  socklen_t reuse;
   listener_closure_t listener_closure;
   eventer_t event;
   union {
@@ -224,8 +222,7 @@ noit_listener(char *host, unsigned short port, int type,
     return -1;
   }
 
-  on = 1;
-  if(ioctl(fd, FIONBIO, &on)) {
+  if(eventer_set_fd_nonblocking(fd)) {
     close(fd);
     noitL(noit_stderr, "Cannot make socket non-blocking: %s\n",
           strerror(errno));

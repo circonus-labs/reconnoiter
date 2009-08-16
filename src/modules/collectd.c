@@ -1435,7 +1435,6 @@ static int noit_collectd_init(noit_module_t *self) {
   int sockaddr_len;
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
-  socklen_t on;
   int portint = 0;
   struct sockaddr_in skaddr;
   const char *host;
@@ -1485,8 +1484,7 @@ static int noit_collectd_init(noit_module_t *self) {
     else
       noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
     */
-    on = 1;
-    if(ioctl(conf->ipv4_fd, FIONBIO, &on)) {
+    if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
       close(conf->ipv4_fd);
       conf->ipv4_fd = -1;
       noitL(noit_error,
@@ -1521,8 +1519,7 @@ static int noit_collectd_init(noit_module_t *self) {
           strerror(errno));
   }
   else {
-    on = 1;
-    if(ioctl(conf->ipv6_fd, FIONBIO, &on)) {
+    if(eventer_set_fd_nonblocking(conf->ipv6_fd)) {
       close(conf->ipv6_fd);
       conf->ipv6_fd = -1;
       noitL(noit_error,

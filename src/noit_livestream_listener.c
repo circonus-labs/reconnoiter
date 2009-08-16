@@ -40,7 +40,6 @@
 #include "noit_check.h"
 
 #include <unistd.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 
 static noit_atomic32_t ls_counter = 0;
@@ -161,11 +160,10 @@ noit_livestream_thread_main(void *e_vptr) {
   eventer_t e = e_vptr;
   acceptor_closure_t *ac = e->closure;
   noit_livestream_closure_t *jcl = ac->service_ctx;
-  long off = 0;
 
   /* Go into blocking mode */
-  if(ioctl(e->fd, FIONBIO, &off) == -1) {
-    noitL(noit_error, "ioctl failed setting livestream to blocking: [%d] [%s]\n",
+  if(eventer_set_fd_blocking(e->fd) == -1) {
+    noitL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",
           errno, strerror(errno));
     goto alldone;
   }

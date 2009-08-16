@@ -528,7 +528,7 @@ static int
 nl_socket_tcp(lua_State *L, int family) {
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
-  socklen_t on, optlen;
+  socklen_t optlen;
   int fd;
   eventer_t e;
 
@@ -537,8 +537,7 @@ nl_socket_tcp(lua_State *L, int family) {
     lua_pushnil(L);
     return 1;
   }
-  on = 1;
-  if(ioctl(fd, FIONBIO, &on)) {
+  if(eventer_set_fd_nonblocking(fd)) {
     close(fd);
     lua_pushnil(L);
     return 1;

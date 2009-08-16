@@ -851,13 +851,11 @@ start_iep_daemon() {
     exit(execv(info->command, argv));
   }
   /* in the parent */
-  socklen_t on = 1;
-
   close(info->stdin_pipe[0]);
   info->stdin_pipe[0] = -1;
   close(info->stderr_pipe[1]);
   info->stderr_pipe[1] = -1;
-  if(ioctl(info->stderr_pipe[0], FIONBIO, &on)) {
+  if(eventer_set_fd_nonblocking(info->stderr_pipe[0])) {
     goto bail;
   }
 

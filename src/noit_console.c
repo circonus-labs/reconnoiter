@@ -305,7 +305,6 @@ noit_console_motd(eventer_t e, acceptor_closure_t *ac,
 
 int
 allocate_pty(int *master, int *slave) {
-  long on = 1;
 #ifdef HAVE_OPENPTY
   if(openpty(master, slave, NULL, NULL, NULL)) return -1;
 #else
@@ -330,7 +329,7 @@ allocate_pty(int *master, int *slave) {
   ioctl(*master, I_PUSH, "ptem");       /* push ptem */
   ioctl(*master, I_PUSH, "ldterm");     /* push ldterm*/
 #endif
-  if(ioctl(*master, FIONBIO, &on)) return -1;
+  if(eventer_set_fd_nonblocking(*master)) return -1;
   noitL(noit_debug, "allocate_pty -> %d,%d\n", *master, *slave);
   return 0;
 }

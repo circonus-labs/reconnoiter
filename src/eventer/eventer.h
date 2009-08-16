@@ -141,4 +141,8 @@ API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
 API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
 
+/* Helpers to set sockets non-blocking / blocking */
+API_EXPORT(int) eventer_set_fd_nonblocking(int fd);
+API_EXPORT(int) eventer_set_fd_blocking(int fd);
+
 #endif

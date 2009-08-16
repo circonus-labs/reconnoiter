@@ -39,7 +39,6 @@
 #include "noit_jlog_listener.h"
 
 #include <unistd.h>
-#include <sys/ioctl.h>
 #define MAX_ROWS_AT_ONCE 1000
 #define DEFAULT_SECONDS_BETWEEN_BATCHES 10
 
@@ -143,11 +142,9 @@ noit_jlog_thread_main(void *e_vptr) {
   eventer_t e = e_vptr;
   acceptor_closure_t *ac = e->closure;
   noit_jlog_closure_t *jcl = ac->service_ctx;
-  long off = 0;
   char inbuff[sizeof(jlog_id)];
 
-  /* Go into blocking mode */
-  ioctl(e->fd, FIONBIO, &off);
+  eventer_set_fd_blocking(e->fd);
 
   while(1) {
     jlog_id client_chkpt;

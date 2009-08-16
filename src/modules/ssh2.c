@@ -117,7 +117,6 @@ static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
 static int ssh2_drive_session(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   int i;
-  long on;
   const char *fingerprint;
   ssh2_check_info_t *ci = closure;
   if(ci->state == WANT_CLOSE) {
@@ -131,8 +130,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      on = 0;
-      if(ioctl(e->fd, FIONBIO, &on)) {
+      if(eventer_set_fd_blocking(e->fd)) {
         ci->timed_out = 0;
         ci->error = strdup("socket error");
         return 0;
@@ -232,7 +230,6 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   socklen_t sockaddr_len;
   unsigned short ssh_port = DEFAULT_SSH_PORT;
   const char *port_str = NULL;
-  long on;
 
   /* We cannot be running */
   assert(!(check->flags & NP_RUNNING));
@@ -256,8 +253,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   if(fd < 0) goto fail;
 
   /* Make it non-blocking */
-  on = 1;
-  if(ioctl(fd, FIONBIO, &on)) goto fail;
+  if(eventer_set_fd_nonblocking(fd)) goto fail;
 
   if(noit_hash_retr_str(check->config, "port", strlen("port"),
                         &port_str)) {
