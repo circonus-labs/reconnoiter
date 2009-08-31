@@ -270,7 +270,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           eventer_remove_fd(e->fd);
           completion_e = eventer_alloc();
           memcpy(completion_e, e, sizeof(*e));
-          completion_e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
+          completion_e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = JLOG_STREAMER_WANT_CHKPT;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
           noitL(noit_debug, "Pushing batch asynch...\n");
