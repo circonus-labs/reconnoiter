@@ -480,7 +480,7 @@ static int eventer_kqueue_impl_loop() {
         /* It's possible that someone removed the event and freed it
          * before we got here.
          */
-        eventer_kqueue_impl_trigger(e, masks[fd]);
+        if(e) eventer_kqueue_impl_trigger(e, masks[fd]);
         masks[fd] = 0; /* indicates we've processed this fd */
       }
     }
