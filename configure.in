@@ -85,6 +85,14 @@ case $host in
 	WHOLE_ARCHIVE="-Wl,--whole-archive"
 	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
 	;;
+*-*-freebsd*)
+	PICFLAGS="-fpic"
+	MODULELD="$CC -shared"
+	LDFLAGS="$LDFLAGS -export-dynamic -L/usr/local/lib"
+	CFLAGS="$CFLAGS -I/usr/local/include"
+	MODULEEXT=so
+	RLDFLAG="-Wl,--rpath="
+	;;
 *)
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
