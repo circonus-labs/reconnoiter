@@ -31,7 +31,7 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer udns modules noitedit man stomp @JAVAPARTS@
+SUBS=lua utils eventer udns modules noitedit man stomp
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -52,23 +52,27 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
 
 make-subdirs:	serf/.libs/libserf-0.o jlog/libjlog.a
-	for dir in $(SUBS) ; do \
+	@for dir in $(SUBS) ; do \
 		echo "- building $$dir bits" ; \
 		(cd $$dir && make -s) ; \
 	done
 
+java-bits:
+	@echo "- building java bits"
+	@test -n "@JAVAPARTS@" && (cd java && make -s)
+
 jlog/libjlog.a:
-	(cd jlog && make libjlog.a)
+	@(cd jlog && make libjlog.a)
 
 serf/.libs/libserf-0.a:
-	(cd serf && \
+	@(cd serf && \
 		env \
 		CFLAGS="$(CFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" \
 		python serfmake build --with-apr=@APRPREFIX@)
 
 serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
-	ld -r -o serf/.libs/libserf-0.o \
+	@ld -r -o serf/.libs/libserf-0.o \
 		serf/.libs/context.o serf/.libs/outgoing.o \
 		serf/.libs/incoming.o serf/buckets/.libs/*.o
 
@@ -157,25 +161,41 @@ stratcon.conf:	stratcon.conf.in Makefile
 		stratcon.conf.in > \
 		stratcon.conf
 
-install:	all
+install-dirs:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
-	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
-	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
-	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
-	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
+
+install-noitd:	noitd noit.conf
+	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
+	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
-	(cd man && make install DESTDIR=$(DESTDIR))
 	(cd modules && make install DESTDIR=$(DESTDIR))
-	test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install DESTDIR=$(DESTDIR))
 	(cd modules-lua && make install DESTDIR=$(DESTDIR))
+
+install-stratcond:	install-dirs stratcond stratcond.conf java-bits
+	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
+	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
+	test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install DESTDIR=$(DESTDIR))
+
+install-docs:
+	(cd man && make install DESTDIR=$(DESTDIR))
+
+install:	install-dirs install-docs install-noitd install-stratcond
 
 clean-subdirs:
 	for dir in $(SUBS) ; do \
 		(cd $$dir && make clean) ; \
 	done
+	(cd java && make clean)
 
 clean:	clean-subdirs
 	rm -f *.o noitd
+	rm serf/.libs/libserf-0.a serf/.libs/libserf-0.o jlog/libjlog.a
+	(cd jlog && make clean)
+	(cd serf && \
+		env \
+		CFLAGS="$(CFLAGS)" \
+		LDFLAGS="$(LDFLAGS)" \
+		python serfmake clean)
 
