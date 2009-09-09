@@ -34,6 +34,7 @@
 #define _STRATCON_LOG_STREAMER_H
 
 #include "noit_conf.h"
+#include "utils/noit_atomic.h"
 #include "jlog/jlog.h"
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -41,6 +42,7 @@
 #include "stratcon_datastore.h"
 
 typedef struct noit_connection_ctx_t {
+  noit_atomic32_t refcnt;
   union {
     struct sockaddr remote;
     struct sockaddr_un remote_un;
@@ -52,8 +54,10 @@ typedef struct noit_connection_ctx_t {
   char *remote_cn;
   u_int32_t current_backoff;
   int wants_shutdown;
+  int wants_permanent_shutdown;
   noit_hash_table *config;
   noit_hash_table *sslconfig;
+  struct timeval last_connect;
   eventer_t timeout_event;
 
   eventer_func_t consumer_callback;
@@ -72,7 +76,8 @@ typedef struct jlog_streamer_ctx_t {
     JLOG_STREAMER_WANT_COUNT = 1,
     JLOG_STREAMER_WANT_HEADER = 2,
     JLOG_STREAMER_WANT_BODY = 3,
-    JLOG_STREAMER_WANT_CHKPT = 4,
+    JLOG_STREAMER_IS_ASYNC = 4,
+    JLOG_STREAMER_WANT_CHKPT = 5,
   } state;
   int count;            /* Number of jlog messages we need to read */
   struct {
@@ -81,6 +86,9 @@ typedef struct jlog_streamer_ctx_t {
     u_int32_t tv_usec;
     u_int32_t message_len;
   } header;
+
+  u_int64_t total_events;
+  u_int64_t total_bytes_read;
 
   void (*push)(stratcon_datastore_op_t, struct sockaddr *, void *);
 } jlog_streamer_ctx_t;
