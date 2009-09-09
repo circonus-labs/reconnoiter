@@ -22,7 +22,7 @@ public class StratconMessage {
   private static DocumentBuilderFactory factory = null;
   private static DocumentBuilder parser = null;
 
-  public static StratconMessage makeMessage(String xml) {
+  static {
     if(factory == null) {
       factory = DocumentBuilderFactory.newInstance();
       factory.setIgnoringComments(true);
@@ -35,7 +35,9 @@ public class StratconMessage {
         parser = factory.newDocumentBuilder();
       } catch(Exception e) { }
     }
+  }
 
+  public static StratconMessage makeMessage(String xml) {
     InputSource source = new InputSource(new StringReader(xml));
 
     try {
