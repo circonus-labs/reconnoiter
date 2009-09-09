@@ -52,7 +52,7 @@ reconnoiter.jar:	$(JAVA)
 	@echo "- compiling files"
 	@$(JAVAC) -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
 	@echo "- creating jar"
-	@$(JAR) cvf $@ `find com -name \*.class`
+	@$(JAR) cf $@ `find com -name \*.class`
 
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
