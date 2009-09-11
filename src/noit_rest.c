@@ -101,6 +101,7 @@ socket_error:
 }
 
 void noit_http_rest_init() {
+  eventer_name_callback("http_rest_api/1.0", noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_GET,
                                  noit_http_rest_handler);

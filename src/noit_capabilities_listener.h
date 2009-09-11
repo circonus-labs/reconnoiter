@@ -36,7 +36,7 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 
-#define NOIT_CAPABILITIES_SERVICE 0xca4aca4a
+#define NOIT_CAPABILITIES_SERVICE 0x43415041
 
 API_EXPORT(void)
   noit_capabilities_listener_init(void);

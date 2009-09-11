@@ -225,10 +225,6 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
   const char *mstr, *last_name = NULL;
   struct bchain *b;
 
-if(req->first_input && req->first_input->size) {
-noitL(noit_error, "HTTP REQ (headers): ===>%.*s<===\n",
-req->first_input->size, req->first_input->buff + req->first_input->start);
-}
   if(req->state != NOIT_HTTP_REQ_HEADERS) return noit_false;
   if(!req->current_input) req->current_input = req->first_input;
   if(!req->current_input) return noit_false;
@@ -442,7 +438,6 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
                                    in->buff + in->start + in->size,
                                    in->allocd - in->size - in->start,
                                    &mask, ctx->conn.e);
-noitL(noit_error, "HTTP REQ (drive read %d)\n", len);
     if(len == -1 && errno == EAGAIN) return mask;
     if(len <= 0) goto full_error;
     if(len > 0) in->size += len;
@@ -518,8 +513,6 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       int partial_len = MIN(in->size, len - bytes_read);
       bytes_read += partial_len;
       if(buf) memcpy(buf+bytes_read, in->buff+in->start, partial_len);
-noitL(noit_error, "HTTP REQ (consume) : ===>%.*s<===\n",
-partial_len, in->buff+in->start);
       ctx->req.content_length_read += partial_len;
       in->start += partial_len;
       in->size -= partial_len;
@@ -549,7 +542,6 @@ partial_len, in->buff+in->start);
                                       in->buff + in->start + in->size,
                                       in->allocd - in->size - in->start,
                                       mask, ctx->conn.e);
-noitL(noit_error, "HTTP REQ (consume read %d)\n", rlen);
       if(rlen == -1 && errno == EAGAIN) {
          /* We'd block to read more, but we have data,
           * so do a short read */

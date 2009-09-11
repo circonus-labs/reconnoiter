@@ -100,7 +100,7 @@ cleanup_shutdown:
 
     /* Create an XML Document */
     xmldoc = xmlNewDoc((xmlChar *)"1.0");
-    root = xmlNewDocNode(xmldoc, NULL, (xmlChar *)"noitd_capabilities", NULL);
+    root = xmlNewDocNode(xmldoc, NULL, (xmlChar *)"noit_capabilities", NULL);
     xmlDocSetRootElement(xmldoc, root);
 
     /* Fill in the document */
@@ -111,7 +111,7 @@ cleanup_shutdown:
     lc = noit_listener_commands();
     while(noit_hash_next(lc, &iter, &k, &klen, &data)) {
       xmlNodePtr cnode;
-      char hexcode[10];
+      char hexcode[11];
       const char *name;
       eventer_func_t *f = (eventer_func_t *)k;
       noit_hash_table *sc = (noit_hash_table *)data;
