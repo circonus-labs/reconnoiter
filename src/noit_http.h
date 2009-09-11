@@ -39,7 +39,7 @@
 #include "utils/noit_atomic.h"
 
 typedef enum {
-  NOIT_HTTP_OTHER, NOIT_HTTP_GET, NOIT_HTTP_HEAD
+  NOIT_HTTP_OTHER, NOIT_HTTP_GET, NOIT_HTTP_HEAD, NOIT_HTTP_POST
 } noit_http_method;
 typedef enum {
   NOIT_HTTP09, NOIT_HTTP10, NOIT_HTTP11
@@ -78,7 +78,13 @@ typedef struct {
   struct bchain *current_input;  /* The point of the input where we */
   size_t         current_offset; /* analyzing. */
 
+  enum { NOIT_HTTP_REQ_HEADERS = 0,
+         NOIT_HTTP_REQ_EXPECT,
+         NOIT_HTTP_REQ_PAYLOAD } state;
   struct bchain *current_request_chain;
+  noit_boolean has_payload;
+  int64_t content_length;
+  int64_t content_length_read;
   char *method_str;
   char *uri_str;
   char *protocol_str;
@@ -112,6 +118,7 @@ typedef int (*noit_http_dispatch_func) (struct noit_http_session_ctx *);
 
 typedef struct noit_http_session_ctx {
   noit_atomic32_t ref_cnt;
+  int64_t drainage;
   noit_http_connection conn;
   noit_http_request req;
   noit_http_response res;
@@ -128,6 +135,11 @@ API_EXPORT(void)
 API_EXPORT(int)
   noit_http_session_drive(eventer_t, int, void *, struct timeval *);
 
+API_EXPORT(noit_boolean)
+  noit_http_session_prime_input(noit_http_session_ctx *, const void *, size_t);
+API_EXPORT(int)
+  noit_http_session_req_consume(noit_http_session_ctx *ctx,
+                                void *buf, size_t len, int *mask);
 API_EXPORT(noit_boolean)
   noit_http_response_status_set(noit_http_session_ctx *, int, const char *);
 API_EXPORT(noit_boolean)

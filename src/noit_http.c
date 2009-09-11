@@ -41,6 +41,8 @@
 
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
+#define HEADER_CONTENT_LENGTH "content-length"
+#define HEADER_EXPECT "expect"
 
 #define CTX_ADD_HEADER(a,b) \
     noit_hash_replace(&ctx->res.headers, \
@@ -65,7 +67,7 @@ struct bchain *bchain_alloc(size_t size) {
     bchain_free(__b); \
   } \
 } while(0)
-struct bchain *bchain_from_data(void *d, size_t size) {
+struct bchain *bchain_from_data(const void *d, size_t size) {
   struct bchain *n;
   n = bchain_alloc(size);
   if(!n) return NULL;
@@ -85,6 +87,9 @@ _method_enum(const char *s) {
     break;
    case 'H':
     if(!strcasecmp(s, "HEAD")) return NOIT_HTTP_HEAD;
+    break;
+   case 'P':
+    if(!strcasecmp(s, "POST")) return NOIT_HTTP_POST;
     break;
    default:
     break;
@@ -176,7 +181,9 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   b = *head;
 
   if(!ctx->conn.e) return 0;
+#if 0
   if(ctx->res.output_started == noit_false) return EVENTER_EXCEPTION;
+#endif
   if(!b) {
     if(ctx->res.closed) ctx->res.complete = noit_true;
     *mask = EVENTER_EXCEPTION;
@@ -212,11 +219,17 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   goto choose_bucket;
 }
 static noit_boolean
-noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
+noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
   int start;
+  void *vval;
   const char *mstr, *last_name = NULL;
   struct bchain *b;
 
+if(req->first_input && req->first_input->size) {
+noitL(noit_error, "HTTP REQ (headers): ===>%.*s<===\n",
+req->first_input->size, req->first_input->buff + req->first_input->start);
+}
+  if(req->state != NOIT_HTTP_REQ_HEADERS) return noit_false;
   if(!req->current_input) req->current_input = req->first_input;
   if(!req->current_input) return noit_false;
  restart:
@@ -264,7 +277,7 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
            req->current_input->buff +
              req->current_input->start + req->current_offset,
            req->first_input->size);
-    if(req->last_input == req->current_request_chain)
+    if(req->last_input == req->current_input)
       req->last_input = req->first_input;
   }
   else {
@@ -346,8 +359,47 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
       curr_str = next_str;
     } while(next_str);
   }
+
+  /* headers are done... we could need to read a payload */
+  if(noit_hash_retrieve(&req->headers,
+                        HEADER_CONTENT_LENGTH,
+                        sizeof(HEADER_CONTENT_LENGTH)-1, &vval)) {
+    const char *val = vval;
+    req->has_payload = noit_true;
+    req->content_length = strtoll(val, NULL, 10);
+  }
+  if(noit_hash_retrieve(&req->headers, HEADER_EXPECT,
+                        sizeof(HEADER_EXPECT)-1, &vval)) {
+    const char *val = vval;
+    if(strncmp(val, "100-", 4) || /* Bad expect header */
+       req->has_payload == noit_false) /* expect, but no content length */
+      FAIL;
+    /* We need to tell the client to "go-ahead" -- HTTP sucks */
+    req->state = NOIT_HTTP_REQ_EXPECT;
+    return noit_false;
+  }
+  if(req->content_length > 0) {
+    /* switch modes... let's go read the payload */
+    req->state = NOIT_HTTP_REQ_PAYLOAD;
+    return noit_false;
+  }
+
   req->complete = noit_true;
   return noit_true;
+}
+static noit_boolean
+noit_http_request_finalize_payload(noit_http_request *req, noit_boolean *err) {
+  req->complete = noit_true;
+  return noit_true;
+}
+static noit_boolean
+noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
+  if(req->state == NOIT_HTTP_REQ_HEADERS)
+    if(noit_http_request_finalize_headers(req, err)) return noit_true;
+  if(req->state == NOIT_HTTP_REQ_EXPECT) return noit_false;
+  if(req->state == NOIT_HTTP_REQ_PAYLOAD)
+    if(noit_http_request_finalize_payload(req, err)) return noit_true;
+  return noit_false;
 }
 int
 noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
@@ -390,21 +442,49 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
                                    in->buff + in->start + in->size,
                                    in->allocd - in->size - in->start,
                                    &mask, ctx->conn.e);
+noitL(noit_error, "HTTP REQ (drive read %d)\n", len);
     if(len == -1 && errno == EAGAIN) return mask;
     if(len <= 0) goto full_error;
     if(len > 0) in->size += len;
     rv = noit_http_request_finalize(&ctx->req, &err);
-    if(len == -1 || err == noit_true) {
-      goto full_error;
+    if(len == -1 || err == noit_true) goto full_error;
+    if(ctx->req.state == NOIT_HTTP_REQ_EXPECT) {
+      const char *expect;
+      ctx->req.state = NOIT_HTTP_REQ_PAYLOAD;
+      assert(ctx->res.leader == NULL);
+      expect = "HTTP/1.1 100 Continue\r\n\r\n";
+      ctx->res.leader = bchain_from_data(expect, strlen(expect));
+      _http_perform_write(ctx, &mask);
+      if(ctx->res.leader != NULL) return mask;
     }
-    if(rv == noit_true) return EVENTER_WRITE | EVENTER_EXCEPTION;
+    if(rv == noit_true) return mask | EVENTER_WRITE | EVENTER_EXCEPTION;
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
+noit_boolean
+noit_http_session_prime_input(noit_http_session_ctx *ctx,
+                              const void *data, size_t len) {
+  if(ctx->req.first_input != NULL) return noit_false;
+  if(len > DEFAULT_BCHAINSIZE) return noit_false;
+  ctx->req.first_input = ctx->req.last_input =
+      bchain_alloc(DEFAULT_BCHAINSIZE);
+  memcpy(ctx->req.first_input->buff, data, len);
+  ctx->req.first_input->size = len;
+  return noit_true;
+}
+
 void
 noit_http_request_release(noit_http_session_ctx *ctx) {
   noit_hash_destroy(&ctx->req.headers, NULL, NULL);
-  RELEASE_BCHAIN(ctx->req.first_input);
+  /* If we expected a payload, we expect a trailing \r\n */
+  if(ctx->req.has_payload) {
+    int drained, mask;
+    ctx->drainage = ctx->req.content_length - ctx->req.content_length_read;
+    /* best effort, we'll drain it before the next request anyway */
+    drained = noit_http_session_req_consume(ctx, NULL, ctx->drainage, &mask);
+    ctx->drainage -= drained;
+  }
+  RELEASE_BCHAIN(ctx->req.current_request_chain);
   memset(&ctx->req, 0, sizeof(ctx->req));
 }
 void
@@ -425,15 +505,91 @@ noit_http_ctx_session_release(noit_http_session_ctx *ctx) {
   }
 }
 int
+noit_http_session_req_consume(noit_http_session_ctx *ctx,
+                              void *buf, size_t len, int *mask) {
+  size_t bytes_read = 0;
+  /* We attempt to consume from the first_input */
+  struct bchain *in, *tofree;
+  len = MIN(len, ctx->req.content_length - ctx->req.content_length_read);
+  while(bytes_read < len) {
+    int crlen = 0;
+    in = ctx->req.first_input;
+    while(in && bytes_read < len) {
+      int partial_len = MIN(in->size, len - bytes_read);
+      bytes_read += partial_len;
+      if(buf) memcpy(buf+bytes_read, in->buff+in->start, partial_len);
+noitL(noit_error, "HTTP REQ (consume) : ===>%.*s<===\n",
+partial_len, in->buff+in->start);
+      ctx->req.content_length_read += partial_len;
+      in->start += partial_len;
+      in->size -= partial_len;
+      if(in->size == 0) {
+        tofree = in;
+        ctx->req.first_input = in = in->next;
+        tofree->next = NULL;
+        RELEASE_BCHAIN(tofree);
+        if(in == NULL) {
+          ctx->req.last_input = NULL;
+          return bytes_read;
+        }
+      }
+    }
+    while(bytes_read + crlen < len) {
+      int rlen;
+      in = ctx->req.last_input;
+      if(!in)
+        in = ctx->req.first_input = ctx->req.last_input =
+            bchain_alloc(DEFAULT_BCHAINSIZE);
+      else if(in->start + in->size >= in->allocd) {
+        in->next = bchain_alloc(DEFAULT_BCHAINSIZE);
+        in = ctx->req.last_input = in->next;
+      }
+      /* pull next chunk */
+      rlen = ctx->conn.e->opset->read(ctx->conn.e->fd,
+                                      in->buff + in->start + in->size,
+                                      in->allocd - in->size - in->start,
+                                      mask, ctx->conn.e);
+noitL(noit_error, "HTTP REQ (consume read %d)\n", rlen);
+      if(rlen == -1 && errno == EAGAIN) {
+         /* We'd block to read more, but we have data,
+          * so do a short read */
+         if(ctx->req.first_input->size) break;
+         /* We've got nothing... */
+         return -1;
+      }
+      if(rlen <= 0) return -1;
+      in->size += rlen;
+      crlen += rlen;
+    }
+  }
+  /* NOT REACHED */
+  return bytes_read;
+}
+int
 noit_http_session_drive(eventer_t e, int origmask, void *closure,
                         struct timeval *now) {
   noit_http_session_ctx *ctx = closure;
   int rv;
   int mask = origmask;
+
+  /* Drainage -- this is as nasty as it sounds 
+   * The last request could have unread upload content, we would have
+   * noted that in noit_http_request_release.
+   */
+  while(ctx->drainage > 0) {
+    int len;
+    len = noit_http_session_req_consume(ctx, NULL, ctx->drainage, &mask);
+    if(len == -1 && errno == EAGAIN) return mask;
+    if(len <= 0) goto abort_drive;
+    ctx->drainage -= len;
+  }
+
  next_req:
   if(ctx->req.complete != noit_true) {
+    int maybe_write_mask;
     mask = noit_http_complete_request(ctx, origmask);
-    if(ctx->req.complete != noit_true) return mask;
+    _http_perform_write(ctx, &maybe_write_mask);
+    if(ctx->req.complete != noit_true) return mask | maybe_write_mask;
   }
 
   /* only dispatch if the response is not complete */
@@ -443,6 +599,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   if(ctx->res.complete == noit_true &&
      ctx->conn.e &&
      ctx->conn.needs_close == noit_true) {
+   abort_drive:
     ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
     ctx->conn.e = NULL;
     goto release;
@@ -454,7 +611,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   }
   if(ctx->req.complete == noit_false) goto next_req;
   if(ctx->conn.e) {
-    return mask;
+    return mask | rv;
   }
   return 0;
  release:
@@ -683,21 +840,21 @@ struct bchain *
 noit_http_process_output_bchain(noit_http_session_ctx *ctx,
                                 struct bchain *in) {
   struct bchain *out;
-  int ilen, hexlen;
+  int ilen, maxlen, hexlen;
   int opts = ctx->res.output_options;
 
   /* a chunked header looks like: hex*\r\ndata\r\n */
   /* let's assume that content never gets "larger" */
+  if(opts & NOIT_HTTP_GZIP) maxlen = deflateBound(NULL, in->size);
+  else if(opts & NOIT_HTTP_DEFLATE) maxlen = compressBound(in->size);
+
   /* So, the link size is the len(data) + 4 + ceil(log(len(data))/log(16)) */
-  ilen = in->size;
+  ilen = maxlen;
   hexlen = 0;
   while(ilen) { ilen >>= 4; hexlen++; }
   if(hexlen == 0) hexlen = 1;
 
-  ilen = in->size;
-  if(opts & NOIT_HTTP_GZIP) ilen = deflateBound(NULL, ilen);
-  else if(opts & NOIT_HTTP_DEFLATE) ilen = compressBound(ilen);
-  out = bchain_alloc(hexlen + 4 + ilen);
+  out = bchain_alloc(hexlen + 4 + maxlen);
   /* if we're chunked, let's give outselved hexlen + 2 prefix space */
   if(opts & NOIT_HTTP_CHUNKED) out->start = hexlen + 2;
   if(_http_encode_chain(out, in, opts) == noit_false) {
