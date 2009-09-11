@@ -105,6 +105,8 @@ API_EXPORT(jlog_streamer_ctx_t *)
 API_EXPORT(void)
   jlog_streamer_ctx_free(void *cl);
 API_EXPORT(void)
+  noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx);
+API_EXPORT(void)
   stratcon_streamer_connection(const char *toplevel, const char *destination,
                                eventer_func_t handler,
                                void *(*handler_alloc)(void), void *handler_ctx,
