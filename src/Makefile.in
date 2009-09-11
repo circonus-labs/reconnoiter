@@ -173,7 +173,7 @@ install-noitd:	noitd noit.conf
 	(cd modules && make install DESTDIR=$(DESTDIR))
 	(cd modules-lua && make install DESTDIR=$(DESTDIR))
 
-install-stratcond:	install-dirs stratcond stratcond.conf java-bits
+install-stratcond:	install-dirs stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install DESTDIR=$(DESTDIR))
