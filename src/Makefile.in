@@ -52,7 +52,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 
 all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
 
-make-subdirs:	serf/.libs/libserf-0.o jlog/libjlog.a
+make-subdirs:	jlog/libjlog.a
 	@for dir in $(SUBS) ; do \
 		echo "- building $$dir bits" ; \
 		(cd $$dir && make -s) ; \
@@ -64,18 +64,6 @@ java-bits:
 
 jlog/libjlog.a:
 	@(cd jlog && make libjlog.a)
-
-serf/.libs/libserf-0.a:
-	@(cd serf && \
-		env \
-		CFLAGS="$(CFLAGS)" \
-		LDFLAGS="$(LDFLAGS)" \
-		python serfmake build --with-apr=@APRPREFIX@)
-
-serf/.libs/libserf-0.o: serf/.libs/libserf-0.a
-	@ld -r -o serf/.libs/libserf-0.o \
-		serf/.libs/context.o serf/.libs/outgoing.o \
-		serf/.libs/incoming.o serf/buckets/.libs/*.o
 
 noitd:	make-subdirs $(NOIT_OBJS)
 	@$(CC) -o $@ $(NOIT_OBJS) \
@@ -101,7 +89,7 @@ stratcond:	make-subdirs $(STRATCON_OBJS)
 		-Lnoitedit -lnoitedit \
 		-Lstomp -lstomp \
 		$(NOWHOLE_ARCHIVE) \
-		$(LIBS) $(PGLIBS) @SERFLIBS@
+		$(LIBS) $(PGLIBS) @APRLIBS@
 	@echo "- linking $@"
 
 stratcon_datastore.o:	stratcon_datastore.c
@@ -109,7 +97,7 @@ stratcon_datastore.o:	stratcon_datastore.c
 	@echo "- compiling $<"
 
 stratcon_iep.o:	stratcon_iep.c
-	@$(CC) $(CPPFLAGS) $(CFLAGS) @SERFCFLAGS@ -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ -c $<
 	@echo "- compiling $<"
 
 .c.o:
@@ -192,11 +180,6 @@ clean-subdirs:
 
 clean:	clean-subdirs
 	rm -f *.o noitd
-	rm serf/.libs/libserf-0.a serf/.libs/libserf-0.o jlog/libjlog.a
+	rm jlog/libjlog.a
 	(cd jlog && make clean)
-	(cd serf && \
-		env \
-		CFLAGS="$(CFLAGS)" \
-		LDFLAGS="$(LDFLAGS)" \
-		python serfmake clean)
 

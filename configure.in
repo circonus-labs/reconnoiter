@@ -289,20 +289,28 @@ AC_MSG_RESULT([$XSLTLIBS])
 AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
 
 APRPREFIX="`apr-1-config --prefix`"
-AC_MSG_CHECKING([libserf cflags])
 AC_SUBST(APRPREFIX)
 AC_MSG_RESULT([$APRPREFIX])
 
-AC_MSG_CHECKING([libserf cflags])
-SERFCFLAGS="`apr-1-config --cflags --cppflags`"
-SERFCFLAGS="$SERFCFLAGS -I`apu-1-config --includedir` -I`apr-1-config --includedir`"
-AC_SUBST(SERFCFLAGS)
-AC_MSG_RESULT([$SERFCFLAGS])
+AC_MSG_CHECKING([libapr cflags])
+APRCFLAGS="`apr-1-config --cflags --cppflags --includes`"
+AC_SUBST(APRCFLAGS)
+AC_MSG_RESULT([$APRCFLAGS])
 
-AC_MSG_CHECKING([libserf libs])
-SERFLIBS="`apu-1-config --link-ld --ldflags --libs` `apr-1-config --link-ld --ldflags --libs`"
-AC_SUBST(SERFLIBS)
-AC_MSG_RESULT([$SERFLIBS])
+AC_MSG_CHECKING([libapr libs])
+APRLIBS="`apr-1-config --link-ld --ldflags --libs`"
+AC_SUBST(APRLIBS)
+AC_MSG_RESULT([$APRLIBS])
+
+AC_MSG_CHECKING([libcurl cflags])
+CURLCFLAGS="`curl-config --cflags`"
+AC_SUBST(CURLCFLAGS)
+AC_MSG_RESULT([$CURLCFLAGS])
+
+AC_MSG_CHECKING([libcurl libs])
+CURLLIBS="`curl-config --libs`"
+AC_SUBST(CURLLIBS)
+AC_MSG_RESULT([$CURLLIBS])
 
 AC_TRY_LINK([],
 	[ issetugid(); ],

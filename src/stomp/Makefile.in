@@ -28,7 +28,7 @@ OBJS=stomp.o
 all:	libstomp.a
 
 .c.o:
-	@$(CC) $(CPPFLAGS) $(CFLAGS) @SERFCFLAGS@ -I../libopenwire -c $<
+	@$(CC) $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ -I../libopenwire -c $<
 	@echo "- compiling $<"
 
 libstomp.a:	$(OBJS)

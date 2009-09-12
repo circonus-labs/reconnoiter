@@ -48,7 +48,7 @@ lua_noit.lo:	lua_noit.c
 	@echo "- compiling $<"
 
 postgres.@MODULEEXT@:	postgres.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo @SERFLIBS@ $(PGLIBS) -lz -lssl -lcrypto
+	@$(MODULELD) $(LDFLAGS) -o $@ postgres.lo $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
 postgres.lo:	postgres.c postgres.xmlh
@@ -72,11 +72,11 @@ dns.lo:	dns.c dns.xmlh
 	@echo "- compiling $<"
 
 http.@MODULEEXT@:	http.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @SERFLIBS@ ../serf/.libs/libserf-0.o -lz -lssl -lcrypto
+	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @CURLLIBS@ -lz -lssl -lcrypto
 	@echo "- linking $@"
 
 http.lo:	http.c http.xmlh resmon.xmlh resmon_part.xmlh
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/serf @SERFCFLAGS@ -c http.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @CURLCFLAGS@ -c http.c -o $@
 	@echo "- compiling $<"
 
 snmp.@MODULEEXT@:	snmp.lo
