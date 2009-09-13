@@ -259,6 +259,7 @@ noit_lua_set_state(lua_State *L) {
 }
 static int
 noit_lua_set_status(lua_State *L) {
+  const char *ns;
   noit_check_t *check;
   noit_lua_check_info_t *ci;
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
@@ -266,7 +267,8 @@ noit_lua_set_status(lua_State *L) {
   ci = check->closure;
   /* strdup here... but free later */
   if(ci->current.status) free(ci->current.status);
-  ci->current.status = strdup(lua_tostring(L, 1));
+  ns = lua_tostring(L, 1);
+  ci->current.status = ns ? strdup(ns) : NULL;
   return 0;
 }
 static int

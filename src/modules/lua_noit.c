@@ -78,7 +78,8 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
                                  struct timeval *now) {
   noit_lua_check_info_t *ci;
   struct nl_slcl *cl = vcl;
-  int args = 0;
+  int args = 0, aerrno;
+  socklen_t aerrno_len = sizeof(aerrno);
 
   ci = get_ci(cl->L);
   assert(ci);
@@ -88,6 +89,9 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
 
+  if(getsockopt(e->fd,SOL_SOCKET,SO_ERROR, &aerrno, &aerrno_len) == 0)
+    if(aerrno != 0) goto connerr;
+
   if(!(mask & EVENTER_EXCEPTION) &&
      mask & EVENTER_WRITE) {
     /* Connect completed successfully */
@@ -95,8 +99,10 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
     args = 1;
   }
   else {
+    aerrno = errno;
+   connerr:
     lua_pushinteger(cl->L, -1);
-    lua_pushstring(cl->L, strerror(errno));
+    lua_pushstring(cl->L, strerror(aerrno));
     args = 2;
   }
   noit_lua_resume(ci, args);
@@ -162,6 +168,66 @@ noit_lua_socket_connect(lua_State *L) {
   lua_pushinteger(L, -1);
   lua_pushstring(L, strerror(errno));
   return 2;
+}
+static int
+noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
+                     struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  int rv;
+  
+  rv = eventer_SSL_connect(e, &mask);
+  if(rv <= 0 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+  noit_lua_check_deregister_event(ci, e, 0);
+  
+  *(cl->eptr) = eventer_alloc();
+  memcpy(*cl->eptr, e, sizeof(*e));
+  noit_lua_check_register_event(ci, *cl->eptr);
+
+  /* Upgrade completed successfully */
+  lua_pushinteger(cl->L, (rv > 0) ? 0 : -1);
+  noit_lua_resume(ci, 1);
+  return 0;
+}
+static int
+noit_lua_socket_connect_ssl(lua_State *L) {
+  const char *ca, *ciphers, *cert, *key;
+  eventer_ssl_ctx_t *sslctx;
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  struct timeval now;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  e = *eptr;
+  ca = lua_tostring(L, 1);
+  ciphers = lua_tostring(L, 2);
+  cert = lua_tostring(L, 3);
+  key = lua_tostring(L, 4);
+
+  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
+  if(!sslctx) {
+    lua_pushinteger(L, -1);
+    return 1;
+  }
+
+  eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert, NULL);
+  EVENTER_ATTACH_SSL(e, sslctx);
+  e->callback = noit_lua_ssl_upgrade;
+  gettimeofday(&now, NULL);
+  e->mask = e->callback(e, EVENTER_READ|EVENTER_WRITE, e->closure, &now);
+  if(e->mask & (EVENTER_READ|EVENTER_WRITE)) {
+    /* Need completion */
+    eventer_add(e);
+    return noit_lua_yield(ci, 0);
+  }
+  lua_pushinteger(L, 0);
+  return 1;
 }
 
 static int
@@ -410,6 +476,13 @@ noit_eventer_index_func(lua_State *L) {
      if(!strcmp(k, "read")) {
        lua_pushlightuserdata(L, udata);
        lua_pushcclosure(L, noit_lua_socket_read, 1);
+       return 1;
+     }
+     break;
+    case 's':
+     if(!strcmp(k, "ssl_upgrade_socket")) {
+       lua_pushlightuserdata(L, udata);
+       lua_pushcclosure(L, noit_lua_socket_connect_ssl, 1);
        return 1;
      }
      break;
