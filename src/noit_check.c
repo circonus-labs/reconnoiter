@@ -71,7 +71,7 @@ noit_check_available_string(int16_t available) {
     case NP_UNAVAILABLE:  return "unavailable";
     case NP_UNKNOWN:      return "unknown";
   }
-  return "???";
+  return NULL;
 }
 const char *
 noit_check_state_string(int16_t state) {
@@ -80,7 +80,7 @@ noit_check_state_string(int16_t state) {
     case NP_BAD:          return "bad";
     case NP_UNKNOWN:      return "unknown";
   }
-  return "???";
+  return NULL;
 }
 static int __check_name_compare(const void *a, const void *b) {
   const noit_check_t *ac = a;
