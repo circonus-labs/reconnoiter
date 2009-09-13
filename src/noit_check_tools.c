@@ -211,3 +211,40 @@ void
 noit_check_release_attrs(noit_hash_table *attrs) {
   noit_hash_destroy(attrs, NULL, NULL);
 }
+
+int
+noit_check_xpath(char *xpath, int len,
+                 const char *base, const char *arg) {
+  uuid_t checkid;
+  int base_trailing_slash;
+  char argcopy[1024], *target, *module, *name;
+
+  base_trailing_slash = (base[strlen(base)-1] == '/');
+  xpath[0] = '\0';
+  argcopy[0] = '\0';
+  if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
+
+  if(uuid_parse(argcopy, checkid) == 0) {
+    /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
+    snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
+             base, base_trailing_slash ? "" : "/", argcopy);
+  }
+  else if((module = strchr(argcopy, '`')) != NULL) {
+    noit_check_t *check;
+    char uuid_str[37];
+    target = argcopy;
+    *module++ = '\0';
+    if((name = strchr(module+1, '`')) == NULL)
+      name = module;
+    else
+      name++;
+    check = noit_poller_lookup_by_name(target, name);
+    if(!check) {
+      return -1;
+    }
+    uuid_unparse_lower(check->checkid, uuid_str);
+    snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
+             base, base_trailing_slash ? "" : "/", uuid_str);
+  }
+  return strlen(xpath);
+}

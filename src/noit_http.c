@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <zlib.h>
+#include <libxml/tree.h>
 
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
@@ -561,7 +562,7 @@ int
 noit_http_session_drive(eventer_t e, int origmask, void *closure,
                         struct timeval *now) {
   noit_http_session_ctx *ctx = closure;
-  int rv;
+  int rv = 0;
   int mask = origmask;
 
   /* Drainage -- this is as nasty as it sounds 
@@ -832,7 +833,7 @@ struct bchain *
 noit_http_process_output_bchain(noit_http_session_ctx *ctx,
                                 struct bchain *in) {
   struct bchain *out;
-  int ilen, maxlen, hexlen;
+  int ilen, maxlen = in->size, hexlen;
   int opts = ctx->res.output_options;
 
   /* a chunked header looks like: hex*\r\ndata\r\n */
@@ -944,3 +945,29 @@ noit_http_response_end(noit_http_session_ctx *ctx) {
   if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
   return noit_true;
 }
+
+
+/* Helper functions */
+
+static int
+noit_http_write_xml(void *vctx, const char *buffer, int len) {
+  if(noit_http_response_append((noit_http_session_ctx *)vctx, buffer, len))
+    return len;
+  return -1;
+}
+static int
+noit_http_close_xml(void *vctx) {
+  noit_http_response_end((noit_http_session_ctx *)vctx);
+  return 0;
+}
+void
+noit_http_response_xml(noit_http_session_ctx *ctx, xmlDocPtr doc) {
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateIO(noit_http_write_xml,
+                                noit_http_close_xml,
+                                ctx, enc);
+  xmlSaveFormatFileTo(out, doc, "utf8", 1);
+}
+

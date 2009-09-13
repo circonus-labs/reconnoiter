@@ -45,6 +45,7 @@
 #include "noit_conf.h"
 #include "noit_conf_private.h"
 #include "noit_check.h"
+#include "noit_check_tools.h"
 #include "noit_filters.h"
 #include "noit_console.h"
 #include "utils/noit_hash.h"
@@ -111,35 +112,10 @@ static int
 noit_console_mkcheck_xpath(char *xpath, int len,
                            noit_conf_t_userdata_t *info,
                            const char *arg) {
-  uuid_t checkid;
-  char argcopy[1024], *target, *module, *name;
-
-  argcopy[0] = '\0';
-  if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
-
-  if(uuid_parse(argcopy, checkid) == 0) {
-    /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
-    snprintf(xpath, len, "/noit/checks//check[@uuid=\"%s\"]",
-             argcopy);
-  }
-  else if((module = strchr(argcopy, '`')) != NULL) {
-    noit_check_t *check;
-    char uuid_str[37];
-    target = argcopy;
-    *module++ = '\0';
-    if((name = strchr(module+1, '`')) == NULL)
-      name = module;
-    else
-      name++;
-    check = noit_poller_lookup_by_name(target, name);
-    if(!check) {
-      return -1;
-    }
-    uuid_unparse_lower(check->checkid, uuid_str);
-    snprintf(xpath, len, "/noit/checks//check[@uuid=\"%s\"]",
-             uuid_str);
-  }
-  else {
+  int rv;
+  rv = noit_check_xpath(xpath, len, "/", arg);
+  if(rv == -1) return -1;
+  if(rv == 0) {
     char *path = (!info || !strcmp(info->path, "/")) ? "" : info->path;
     snprintf(xpath, len, "/noit%s%s%s[@uuid]",
              path, arg ? "/" : "", arg ? arg : "");

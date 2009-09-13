@@ -34,6 +34,7 @@
 #define _NOIT_HTTP_H
 
 #include "noit_defines.h"
+#include <libxml/tree.h>
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
@@ -154,5 +155,23 @@ API_EXPORT(noit_boolean)
 API_EXPORT(noit_boolean)
   noit_http_response_flush(noit_http_session_ctx *, noit_boolean);
 API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
+
+#define noit_http_response_server_error(ctx, type) \
+  noit_http_response_standard(ctx, 500, "ERROR", type)
+#define noit_http_response_ok(ctx, type) \
+  noit_http_response_standard(ctx, 200, "OK", type)
+#define noit_http_response_not_found(ctx, type) \
+  noit_http_response_standard(ctx, 404, "NOT FOUND", type)
+
+#define noit_http_response_standard(ctx, code, name, type) do { \
+  noit_http_response_status_set(ctx, code, name); \
+  noit_http_response_header_set(ctx, "Content-Type", type); \
+  noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED); \
+  noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE); \
+} while(0)
+
+API_EXPORT(void)
+  noit_http_response_xml(noit_http_session_ctx *, xmlDocPtr);
+
 
 #endif

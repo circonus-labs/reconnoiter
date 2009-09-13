@@ -41,11 +41,24 @@
 #define NOIT_CONTROL_HEAD 0x48454144
 #define NOIT_CONTROL_POST 0x504f5354
 
-typedef struct {
+typedef struct noit_http_rest_closure noit_http_rest_closure_t;
+
+typedef int (*rest_request_handler)(noit_http_rest_closure_t *,
+                                    int npats, char **pats);
+
+struct noit_http_rest_closure {
   noit_http_session_ctx *http_ctx;
+  char *remote_cn;
+  rest_request_handler fastpath;
+  int nparams;
+  char **params;
   int wants_shutdown;
-} noit_http_rest_closure_t;
+};
 
 API_EXPORT(void) noit_http_rest_init();
+
+API_EXPORT(int)
+  noit_http_rest_register(const char *method, const char *base,
+                          const char *expression, rest_request_handler f);
 
 #endif

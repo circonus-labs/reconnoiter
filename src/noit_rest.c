@@ -35,6 +35,113 @@
 #include "noit_http.h"
 #include "noit_rest.h"
 
+#include <pcre.h>
+
+struct rest_url_dispatcher {
+  char *method;
+  pcre *expression;
+  pcre_extra *extra;
+  rest_request_handler handler;
+  /* Chain to the next one */
+  struct rest_url_dispatcher *next;
+};
+struct rule_container {
+  char *base;
+  struct rest_url_dispatcher *rules;
+  struct rest_url_dispatcher *rules_endptr;
+};
+noit_hash_table dispatch_points = NOIT_HASH_EMPTY;
+
+static rest_request_handler
+noit_http_get_handler(noit_http_rest_closure_t *restc) {
+  struct rule_container *cont = NULL;
+  struct rest_url_dispatcher *rule;
+  char *eoq, *eob;
+  eoq = strchr(restc->http_ctx->req.uri_str, '?');
+  if(!eoq)
+    eoq = restc->http_ctx->req.uri_str + strlen(restc->http_ctx->req.uri_str);
+  eob = eoq - 1;
+
+  /* find the right base */
+  while(1) {
+    void *vcont;
+    while(eob >= restc->http_ctx->req.uri_str && *eob != '/') eob--;
+    if(eob < restc->http_ctx->req.uri_str) break; /* off the front */
+    if(noit_hash_retrieve(&dispatch_points, restc->http_ctx->req.uri_str,
+                          eob - restc->http_ctx->req.uri_str + 1, &vcont)) {
+      cont = vcont;
+      eob++; /* move past the determined base */
+      break;
+    }
+    eob--;
+  }
+  if(!cont) return NULL;
+  for(rule = cont->rules; rule; rule = rule->next) {
+    int ovector[30];
+    int cnt;
+    if(strcmp(rule->method, restc->http_ctx->req.method_str)) continue;
+    if((cnt = pcre_exec(rule->expression, rule->extra, eob, eoq - eob, 0, 0,
+                        ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
+      /* We match, set 'er up */
+      restc->fastpath = rule->handler;
+      restc->nparams = cnt - 1;
+      if(restc->nparams) {
+        restc->params = calloc(restc->nparams, sizeof(*restc->params));
+        for(cnt = 0; cnt < restc->nparams; cnt++) {
+          int start = ovector[(cnt+1)*2];
+          int end = ovector[(cnt+1)*2+1];
+          restc->params[cnt] = malloc(end - start + 1);
+          memcpy(restc->params[cnt], eob + start, end - start);
+          restc->params[cnt][end - start] = '\0';
+        }
+      }
+      return restc->fastpath;
+    }
+  }
+  return NULL;
+}
+int
+noit_http_rest_register(const char *method, const char *base,
+                        const char *expr, rest_request_handler f) {
+  void *vcont;
+  struct rule_container *cont;
+  struct rest_url_dispatcher *rule;
+  const char *error;
+  int erroffset;
+  pcre *pcre_expr;
+  int blen = strlen(base);
+  /* base must end in a /, 'cause I said so */
+  if(blen == 0 || base[blen-1] != '/') return -1;
+  pcre_expr = pcre_compile(expr, 0, &error, &erroffset, NULL);
+  if(!pcre_expr) {
+    noitL(noit_error, "Error in rest expr(%s) '%s'@%d: %s\n",
+          base, expr, erroffset, error);
+    return -1;
+  }
+  rule = calloc(1, sizeof(*rule));
+  rule->method = strdup(method);
+  rule->expression = pcre_expr;
+  rule->extra = pcre_study(rule->expression, 0, &error);
+  rule->handler = f;
+
+  /* Make sure we have a container */
+  if(!noit_hash_retrieve(&dispatch_points, base, strlen(base), &vcont)) {
+    cont = calloc(1, sizeof(*cont));
+    cont->base = strdup(base);
+    noit_hash_store(&dispatch_points, cont->base, strlen(cont->base), cont);
+  }
+  else cont = vcont;
+
+  /* Append the rule */
+  if(cont->rules_endptr) {
+    cont->rules_endptr->next = rule;
+    cont->rules_endptr = cont->rules_endptr->next;
+  }
+  else
+    cont->rules = cont->rules_endptr = rule;
+  return 0;
+}
+
 static noit_http_rest_closure_t *
 noit_http_rest_closure_alloc() {
   noit_http_rest_closure_t *restc;
@@ -42,18 +149,37 @@ noit_http_rest_closure_alloc() {
   return restc;
 }
 static void
+noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
+  int i;
+  if(restc->nparams) {
+    for(i=0;i<restc->nparams;i++) free(restc->params[i]);
+    free(restc->params);
+  }
+  restc->nparams = 0;
+  restc->params = NULL;
+  restc->fastpath = NULL;
+}
+static void
 noit_http_rest_closure_free(noit_http_rest_closure_t *restc) {
+  free(restc->remote_cn);
+   noit_http_rest_clean_request(restc);
   free(restc);
 }
 
 int
 noit_rest_request_dispatcher(noit_http_session_ctx *ctx) {
-  noit_http_response_status_set(ctx, 200, "OK");
-  noit_http_response_header_set(ctx, "Content-Type", "application/json");
+  noit_http_rest_closure_t *restc = ctx->dispatcher_closure;
+  rest_request_handler handler = restc->fastpath;
+  if(!handler) handler = noit_http_get_handler(restc);
+  if(handler) {
+    int rv;
+    rv = handler(restc, restc->nparams, restc->params);
+    if(ctx->res.closed) noit_http_rest_clean_request(restc);
+    return rv;
+  }
+  noit_http_response_status_set(ctx, 404, "NOT FOUND");
   noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED);
-  noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE);
-  noit_http_response_append(ctx, "{error: 'Foo'}", 14);
-  noit_http_response_flush(ctx, noit_false);
+  noit_http_rest_clean_request(restc);
   noit_http_response_end(ctx);
   return 0;
 }
@@ -78,6 +204,7 @@ socket_error:
   if(!ac->service_ctx) {
     const char *primer = "";
     ac->service_ctx = restc = noit_http_rest_closure_alloc();
+    restc->remote_cn = strdup(ac->remote_cn ? ac->remote_cn : "");
     restc->http_ctx =
         noit_http_session_ctx_new(noit_rest_request_dispatcher,
                                   restc, e);
