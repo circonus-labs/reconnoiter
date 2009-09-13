@@ -34,6 +34,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "eventer/eventer_SSL_fd_opset.h"
+#include "eventer/OETS_asn1_helper.h"
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -49,6 +50,9 @@ struct eventer_ssl_ctx_t {
   SSL     *ssl;
   char    *issuer;
   char    *subject;
+  time_t   start_time;
+  time_t   end_time;
+  char    *cert_error;
   eventer_ssl_verify_func_t verify_cb;
   void    *verify_cb_closure;
 };
@@ -107,12 +111,18 @@ int
 eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
                          X509_STORE_CTX *x509ctx, void *closure) {
   time_t now;
+  int err;
   X509 *peer;
+  ASN1_TIME *t;
   if(!x509ctx) return -1;
   peer = X509_STORE_CTX_get_current_cert(x509ctx);
   time(&now);
-  if(X509_cmp_time(X509_get_notBefore(peer), &now) > 0) return -1;
-  if(X509_cmp_time(X509_get_notAfter(peer), &now) < 0) return 1;
+  t = X509_get_notBefore(peer);
+  ctx->start_time = OETS_ASN1_TIME_get(t, &err);
+  if(X509_cmp_time(t, &now) > 0) return -1;
+  t = X509_get_notAfter(peer);
+  ctx->end_time = OETS_ASN1_TIME_get(t, &err);
+  if(X509_cmp_time(t, &now) < 0) return 1;
   return 0;
 }
 
@@ -133,6 +143,11 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                          &ignore_dates))
     ignore_dates = "false";
 
+  if(options == NULL) {
+    /* Don't care about anything */
+    opt_no_ca = "true";
+    ignore_dates = "true";
+  }
   ssl = X509_STORE_CTX_get_ex_data(x509ctx,
                                    SSL_get_ex_data_X509_STORE_CTX_idx());
   v_res = X509_STORE_CTX_get_error(x509ctx);
@@ -142,6 +157,7 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
      (v_res == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) ||
      (v_res == X509_V_ERR_CERT_UNTRUSTED) ||
      (v_res == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE)) {
+    ctx->cert_error = strdup(X509_verify_cert_error_string(v_res));
     if(!strcmp(opt_no_ca, "true")) ok = 1;
     else {
       noitL(eventer_err, "SSL client cert invalid: %s\n",
@@ -175,13 +191,26 @@ eventer_ssl_set_peer_##type(eventer_ssl_ctx_t *ctx, \
   if(ctx->type) free(ctx->type); \
   ctx->type = strdup(buffer); \
 } \
-char * \
+const char * \
 eventer_ssl_get_peer_##type(eventer_ssl_ctx_t *ctx) { \
   return ctx->type; \
 }
 
 GET_SET_X509_NAME(issuer)
 GET_SET_X509_NAME(subject)
+
+time_t
+eventer_ssl_get_peer_start_time(eventer_ssl_ctx_t *ctx) {
+  return ctx->start_time;
+}
+time_t
+eventer_ssl_get_peer_end_time(eventer_ssl_ctx_t *ctx) {
+  return ctx->end_time;
+}
+const char *
+eventer_ssl_get_peer_error(eventer_ssl_ctx_t *ctx) {
+  return ctx->cert_error;
+}
 
 static int
 verify_cb(int ok, X509_STORE_CTX *x509ctx) {
@@ -207,6 +236,7 @@ eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx) {
   if(ctx->ssl_ctx) SSL_CTX_free(ctx->ssl_ctx);
   if(ctx->issuer) free(ctx->issuer);
   if(ctx->subject) free(ctx->subject);
+  if(ctx->cert_error) free(ctx->cert_error);
   free(ctx);
 }
 

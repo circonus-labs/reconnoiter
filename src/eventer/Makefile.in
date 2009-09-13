@@ -12,7 +12,7 @@ top_srcdir=@top_srcdir@
 OBJS=	eventer.o eventer_impl.o \
 	@EVENTER_OBJS@ \
 	eventer_POSIX_fd_opset.o \
-	eventer_SSL_fd_opset.o \
+	eventer_SSL_fd_opset.o OETS_asn1_helper.o \
 	eventer_jobq.o
 
 all:	libeventer.a

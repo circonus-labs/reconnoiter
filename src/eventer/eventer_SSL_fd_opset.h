@@ -91,11 +91,19 @@ API_EXPORT(int)
   eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                           X509_STORE_CTX *x509ctx, void *closure);
 
+/* These are all helper functions to expose information
+ * gleaned in the cert verfication process.
+ */
 #define GET_SET_X509_NAME_PROTO(type) \
-API_EXPORT(char *) \
+API_EXPORT(const char *) \
   eventer_ssl_get_peer_##type(eventer_ssl_ctx_t *ctx)
 GET_SET_X509_NAME_PROTO(issuer);
 GET_SET_X509_NAME_PROTO(subject);
+GET_SET_X509_NAME_PROTO(error);
+API_EXPORT(time_t)
+  eventer_ssl_get_peer_start_time(eventer_ssl_ctx_t *ctx);
+API_EXPORT(time_t)
+  eventer_ssl_get_peer_end_time(eventer_ssl_ctx_t *ctx);
 
 #endif
 
