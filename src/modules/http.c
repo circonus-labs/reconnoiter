@@ -814,9 +814,10 @@ static int http_initiate(noit_module_t *self, noit_check_t *check) {
   ci->url = NULL;
 
 
+#ifdef CURLOPT_PROTOCOLS
   curl_easy_setopt(ci->curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP|CURLPROTO_HTTPS);
+#endif
   curl_easy_setopt(ci->curl, CURLOPT_FOLLOWLOCATION, 0);
-  curl_easy_setopt(ci->curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP);
 
   curl_easy_setopt(ci->curl, CURLOPT_USERAGENT, "Noit/" NOIT_HTTP_VERSION_STRING);
   curl_easy_setopt(ci->curl, CURLOPT_HTTPHEADER, ci->cheaders);
