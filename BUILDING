@@ -41,3 +41,21 @@
 # ./configure
 # make
 }}}
+
+== Linux (CentOS 5.3) ==
+
+[https://labs.omniti.com/lists/reconnoiter-users/2009-September/000184.html Original Message]
+
+{{{
+#!/bin/sh
+# yum install autoconf subversion \
+   apr-devel apr-util-devel java-devel libssh2-devel libtermcap-devel \
+   libxslt-devel ncurses-devel net-snmp-devel openldap-devel openssl-devel \
+   pcre-devel postgresql-devel udns-devel uuid-devel zlib-devel
+# svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
+# cd reconnoiter
+# autoconf
+# ./configure
+# make
+}}}
+
