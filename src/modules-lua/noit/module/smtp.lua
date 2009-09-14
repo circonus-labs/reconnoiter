@@ -91,7 +91,7 @@ local function read_cmd(e)
   local final_status, out
   final_status, out = 0, ""
   repeat
-    local str = e.read("\r\n")
+    local str = e:read("\r\n")
     local status, c, message = string.match(str, "^(%d+)([-%s])(.+)$")
     if not status then
       return 421, "[internal error]"
@@ -107,8 +107,8 @@ local function read_cmd(e)
 end
 
 local function write_cmd(e, cmd)
-  e.write(cmd);
-  e.write("\r\n");
+  e:write(cmd);
+  e:write("\r\n");
 end
 
 local function mkaction(e, check)
@@ -135,7 +135,7 @@ end
 
 function initiate(module, check)
   local e = noit.socket()
-  local rv, err = e.connect(check.target, check.config.port or 25)
+  local rv, err = e:connect(check.target, check.config.port or 25)
   check.unavailable()
 
   if rv ~= 0 then

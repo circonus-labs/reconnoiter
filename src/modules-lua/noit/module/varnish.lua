@@ -80,10 +80,10 @@ end
 
 function initiate(module, check)
   local e = noit.socket()
-  local rv, err = e.connect(check.target, check.config.port or 8081)
+  local rv, err = e:connect(check.target, check.config.port or 8081)
 
-  e.write("stats\r\n")
-  str = e.read("\n")
+  e:write("stats\r\n")
+  str = e:read("\n")
 
   if rv ~= 0 or not str then
     check.bad()
@@ -102,7 +102,7 @@ function initiate(module, check)
     return
   end
 
-  local rawstats = e.read(len)
+  local rawstats = e:read(len)
   local i = 0
   for v, k in string.gmatch(rawstats, "%s*(%d+)%s+([^\r\n]+)") do
     k = string.gsub(k, "^%s*", "")

@@ -125,9 +125,11 @@ noit_lua_socket_connect(lua_State *L) {
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
   e = *eptr;
-  target = lua_tostring(L, 1);
-  port = lua_tointeger(L, 2);
+  target = lua_tostring(L, 2);
+  port = lua_tointeger(L, 3);
 
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
@@ -204,11 +206,13 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
   e = *eptr;
-  ca = lua_tostring(L, 1);
-  ciphers = lua_tostring(L, 2);
-  cert = lua_tostring(L, 3);
-  key = lua_tostring(L, 4);
+  ca = lua_tostring(L, 2);
+  ciphers = lua_tostring(L, 3);
+  cert = lua_tostring(L, 4);
+  key = lua_tostring(L, 5);
 
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) {
@@ -316,13 +320,15 @@ noit_lua_socket_read(lua_State *L) {
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
   e = *eptr;
   cl = e->closure;
   cl->read_goal = 0;
   cl->read_terminator = NULL;
 
-  if(lua_isnumber(L, 1)) {
-    cl->read_goal = lua_tointeger(L, 1);
+  if(lua_isnumber(L, 2)) {
+    cl->read_goal = lua_tointeger(L, 2);
     if(cl->read_goal <= cl->read_sofar) {
       int base;
      i_know_better:
@@ -338,7 +344,7 @@ noit_lua_socket_read(lua_State *L) {
     }
   }
   else {
-    cl->read_terminator = lua_tostring(L, 1);
+    cl->read_terminator = lua_tostring(L, 2);
     if(cl->read_sofar) {
       const char *cp;
       /* Ugh... inernalism */
@@ -422,10 +428,12 @@ noit_lua_socket_write(lua_State *L) {
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
   e = *eptr;
   cl = e->closure;
   cl->write_sofar = 0;
-  cl->outbuff = lua_tolstring(L, 1, &cl->write_goal);
+  cl->outbuff = lua_tolstring(L, 2, &cl->write_goal);
 
   while((rv = e->opset->write(e->fd,
                               cl->outbuff + cl->write_sofar,
