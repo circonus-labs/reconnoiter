@@ -50,7 +50,7 @@
 #include "eventer/eventer.h"
 
 /* 60 seconds of possible stutter */
-#define MAX_INITIAL_STUTTER 60
+#define MAX_INITIAL_STUTTER 60000
 
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
@@ -104,7 +104,7 @@ noit_check_max_initial_stutter() {
   int stutter;
   if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
     stutter = MAX_INITIAL_STUTTER;
-  return stutter * 1000;
+  return stutter;
 }
 void
 noit_check_fake_last_check(noit_check_t *check,
