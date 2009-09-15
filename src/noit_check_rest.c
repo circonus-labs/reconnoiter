@@ -32,6 +32,7 @@
 
 #include "noit_defines.h"
 #include <assert.h>
+#include <errno.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
@@ -43,8 +44,17 @@
 #include "noit_conf.h"
 #include "noit_conf_private.h"
 
+#define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
+
+struct rest_xml_payload {
+  char *buffer;
+  int len;
+  int allocd;
+  int complete;
+};
+
 static int
-rest_host_check(noit_http_rest_closure_t *restc,
+rest_show_check(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
   noit_http_session_ctx *ctx = restc->http_ctx;
   xmlXPathObjectPtr pobj = NULL;
@@ -218,13 +228,271 @@ rest_host_check(noit_http_rest_closure_t *restc,
   return 0;
 }
 
+static void
+rest_xml_payload_free(void *f) {
+  struct rest_xml_payload *xmlin = f;
+  if(xmlin->buffer) free(xmlin->buffer);
+}
+
+static int
+validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c) {
+  xmlNodePtr root, tl, an;
+  int name=0, module=0, target=0, period=0, timeout=0, filterset=0, disable=0;
+  *a = *c = NULL;
+  root = xmlDocGetRootElement(doc);
+  if(!root || strcmp((char *)root->name, "check")) return 0;
+  for(tl = root->children; tl; tl = tl->next) {
+    if(!strcmp((char *)tl->name, "attributes")) {
+      *a = tl->children;
+      for(an = tl->children; an; an = an->next) {
+#define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a)) a = 1
+        CHECK_N_SET(name);
+        else CHECK_N_SET(module);
+        else CHECK_N_SET(target);
+        else CHECK_N_SET(period);
+        else CHECK_N_SET(timeout);
+        else CHECK_N_SET(filterset);
+        else CHECK_N_SET(disable);
+        else return 0;
+      }
+    }
+    else if(!strcmp((char *)tl->name, "config")) {
+      *c = tl->children;
+      /* Noop, anything goes */
+    }
+    else return 0;
+  }
+  if(name && module && target && period && timeout && filterset) return 1;
+  return 0;
+}
+static void
+configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
+  xmlNodePtr n, config, oldconfig;
+  for(n = a; n; n = n->next) {
+#define ATTR2PROP(attr) do { \
+  if(!strcmp((char *)n->name, #attr)) { \
+    xmlChar *v = xmlNodeGetContent(n); \
+    if(v) xmlSetProp(check, n->name, v); \
+    else xmlUnsetProp(check, n->name); \
+    if(v) xmlFree(v); \
+  } \
+} while(0)
+    ATTR2PROP(name);
+    ATTR2PROP(target);
+    ATTR2PROP(module);
+    ATTR2PROP(period);
+    ATTR2PROP(timeout);
+    ATTR2PROP(disable);
+    ATTR2PROP(filter);
+  }
+  for(oldconfig = check->children; oldconfig; oldconfig = oldconfig->next)
+    if(!strcmp((char *)oldconfig->name, "config")) break;
+  config = xmlNewNode(NULL, (xmlChar *)"config");
+  for(n = c; n; n = n->next) {
+    xmlNodePtr co = xmlNewNode(NULL, n->name);
+    xmlNodeAddContent(co, XML_GET_CONTENT(n));
+    xmlAddChild(config, co);
+  }
+  if(oldconfig) {
+    xmlReplaceNode(oldconfig, config);
+    xmlFreeNode(oldconfig);
+  }
+  else xmlAddChild(check, config);
+}
+static xmlNodePtr
+make_conf_path(char *path) {
+  xmlNodePtr start, tmp;
+  char fullpath[1024], *tok, *brk;
+  if(!path || strlen(path) < 1) return NULL;
+  snprintf(fullpath, sizeof(fullpath), "%s", path+1);
+  fullpath[strlen(fullpath)-1] = '\0';
+  start = noit_conf_get_section(NULL, "/noit/checks");
+  if(!start) return NULL;
+  for (tok = strtok_r(fullpath, "/", &brk);
+       tok;
+       tok = strtok_r(NULL, "/", &brk)) {
+    if(!xmlValidateNameValue((xmlChar *)tok)) return NULL;
+    if(!strcmp(tok, "check")) return NULL;  /* These two paths */
+    if(!strcmp(tok, "config")) return NULL; /* are off limits. */
+    for (tmp = start->children; tmp; tmp = tmp->next) {
+      if(!strcmp((char *)tmp->name, tok)) break;
+    }
+    if(!tmp) {
+      tmp = xmlNewNode(NULL, (xmlChar *)tok);
+      xmlAddChild(start, tmp);
+    }
+    start = tmp;
+  }
+  return start;
+}
+static int
+rest_set_check(noit_http_rest_closure_t *restc,
+               int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr node, root, attr, config, parent;
+  uuid_t checkid;
+  noit_check_t *check;
+  char xpath[1024], *uuid_conf;
+  int rv, cnt;
+  const char *error = "internal error";
+  noit_boolean exists = noit_false;
+  struct rest_xml_payload *rxc;
+
+  if(npats != 2) goto error;
+
+#define FAIL(a) do { error = (a); goto error; } while(0)
+
+  if(restc->call_closure == NULL) {
+    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    restc->call_closure_free = rest_xml_payload_free;
+  }
+  rxc = restc->call_closure;
+  while(!rxc->complete) {
+    int len, mask;
+    if(rxc->len == rxc->allocd) {
+      char *b;
+      rxc->allocd += 32768;
+      b = rxc->buffer ? realloc(rxc->buffer, rxc->allocd) :
+                        malloc(rxc->allocd);
+      if(!b) FAIL("alloc failed");
+      rxc->buffer = b;
+    }
+    len = noit_http_session_req_consume(restc->http_ctx,
+                                        rxc->buffer + rxc->len,
+                                        rxc->allocd - rxc->len,
+                                        &mask);
+    if(len > 0) rxc->len += len;
+    if(len < 0 && errno == EAGAIN) return mask;
+    if(rxc->len == restc->http_ctx->req.content_length) rxc->complete = 1;
+  }
+
+  indoc = xmlParseMemory(rxc->buffer, rxc->len);
+  if(indoc == NULL) FAIL("xml parse error");
+  if(!validate_check_post(indoc, &attr, &config)) FAIL("xml validate error");
+
+  if(uuid_parse(pats[1], checkid)) goto error;
+  check = noit_poller_lookup(checkid);
+  if(check)
+    exists = noit_true;
+
+  rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
+  if(rv == 0) FAIL("uuid not valid");
+  if(rv < 0) FAIL("Tricky McTrickster... No");
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    if(exists) FAIL("uuid not yours");
+    else {
+      char *target = NULL, *name = NULL, *module = NULL;
+      noit_module_t *m;
+      xmlNodePtr newcheck, a;
+      /* make sure this isn't a dup */
+      for(a = attr; a; a = a->next) {
+        if(!strcmp((char *)a->name, "target"))
+          target = (char *)xmlNodeGetContent(a);
+        if(!strcmp((char *)a->name, "name"))
+          name = (char *)xmlNodeGetContent(a);
+        if(!strcmp((char *)a->name, "module"))
+          module = (char *)xmlNodeGetContent(a);
+      }
+      exists = (noit_poller_lookup_by_name(target, name) != NULL);
+      m = noit_module_lookup(module);
+      xmlFree(target);
+      xmlFree(name);
+      xmlFree(module);
+      if(exists) FAIL("target`name already registered");
+      if(!m) FAIL("module does not exist");
+      /* create a check here */
+      newcheck = xmlNewNode(NULL, (xmlChar *)"check");
+      xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
+      configure_xml_check(newcheck, attr, config);
+      parent = make_conf_path(pats[0]);
+      if(!parent) FAIL("invalid path");
+      xmlAddChild(parent, newcheck);
+    }
+  }
+  if(exists) {
+    int module_change;
+    char *target, *name, *module;
+    xmlNodePtr a;
+    noit_check_t *ocheck;
+    cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+    if(cnt != 1) FAIL("internal error, |checkid| > 1");
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+    if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
+      FAIL("internal error uuid");
+    /* update check here */
+
+    /* make sure this isn't a dup */
+    for(a = attr; a; a = a->next) {
+      if(!strcmp((char *)a->name, "target"))
+        target = (char *)xmlNodeGetContent(a);
+      if(!strcmp((char *)a->name, "name"))
+        name = (char *)xmlNodeGetContent(a);
+      if(!strcmp((char *)a->name, "module"))
+        module = (char *)xmlNodeGetContent(a);
+    }
+    ocheck = noit_poller_lookup_by_name(target, name);
+    module_change = strcmp(check->module, module);
+    xmlFree(target);
+    xmlFree(name);
+    xmlFree(module);
+    if(ocheck && ocheck != check) FAIL("new target`name would collide");
+    if(module_change) FAIL("cannot change module");
+    configure_xml_check(node, attr, config);
+    parent = make_conf_path(pats[0]);
+    if(!parent) FAIL("invalid path");
+    xmlUnlinkNode(node);
+    xmlAddChild(parent, node);
+  }
+
+  noit_conf_mark_changed();
+  noit_poller_reload(xpath);
+  if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
+  restc->call_closure_free = NULL;
+  restc->call_closure = NULL;
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(doc) xmlFreeDoc(doc);
+  if(indoc) xmlFreeDoc(indoc);
+  restc->fastpath = rest_show_check;
+  return restc->fastpath(restc, restc->nparams, restc->params);
+
+ error:
+  noit_http_response_server_error(ctx, "text/xml");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  noit_http_response_xml(ctx, doc);
+  noit_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(doc) xmlFreeDoc(doc);
+  if(indoc) xmlFreeDoc(indoc);
+  return 0;
+}
+
 void
 noit_check_rest_init() {
   assert(noit_http_rest_register(
     "GET",
     "/checks/",
-    "^show(/.*)(?<=/)([0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12})$",
-    rest_host_check
+    "^show(/.*)(?<=/)(" UUID_REGEX ")$",
+    rest_show_check
+  ) == 0);
+  assert(noit_http_rest_register(
+    "POST",
+    "/checks/",
+    "^set(/.*)(?<=/)(" UUID_REGEX ")$",
+    rest_set_check
   ) == 0);
 }
 

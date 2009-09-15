@@ -53,6 +53,8 @@ struct noit_http_rest_closure {
   int nparams;
   char **params;
   int wants_shutdown;
+  void *call_closure;
+  void (*call_closure_free)(void *);
 };
 
 API_EXPORT(void) noit_http_rest_init();

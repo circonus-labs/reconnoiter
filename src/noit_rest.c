@@ -155,6 +155,9 @@ noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
     for(i=0;i<restc->nparams;i++) free(restc->params[i]);
     free(restc->params);
   }
+  if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
+  restc->call_closure_free = NULL;
+  restc->call_closure = NULL;
   restc->nparams = 0;
   restc->params = NULL;
   restc->fastpath = NULL;
@@ -162,7 +165,7 @@ noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
 static void
 noit_http_rest_closure_free(noit_http_rest_closure_t *restc) {
   free(restc->remote_cn);
-   noit_http_rest_clean_request(restc);
+  noit_http_rest_clean_request(restc);
   free(restc);
 }
 

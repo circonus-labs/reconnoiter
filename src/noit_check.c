@@ -135,10 +135,10 @@ noit_poller_process_checks(const char *xpath) {
   for(i=0; i<cnt; i++) {
     void *vcheck;
     char uuid_str[37];
-    char target[256];
-    char module[256];
-    char name[256];
-    char filterset[256];
+    char target[256] = "";
+    char module[256] = "";
+    char name[256] = "";
+    char filterset[256] = "";
     char oncheck[1024] = "";
     int no_period = 0;
     int no_oncheck = 0;
