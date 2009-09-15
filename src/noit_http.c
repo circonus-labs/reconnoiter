@@ -512,8 +512,8 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
     in = ctx->req.first_input;
     while(in && bytes_read < len) {
       int partial_len = MIN(in->size, len - bytes_read);
-      bytes_read += partial_len;
       if(buf) memcpy(buf+bytes_read, in->buff+in->start, partial_len);
+      bytes_read += partial_len;
       ctx->req.content_length_read += partial_len;
       in->start += partial_len;
       in->size -= partial_len;
@@ -582,6 +582,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
     int maybe_write_mask;
     mask = noit_http_complete_request(ctx, origmask);
     _http_perform_write(ctx, &maybe_write_mask);
+    if(ctx->conn.e == NULL) goto release;
     if(ctx->req.complete != noit_true) return mask | maybe_write_mask;
   }
 
