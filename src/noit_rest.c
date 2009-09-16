@@ -222,6 +222,9 @@ socket_error:
       case NOIT_CONTROL_HEAD:
         primer = "HEAD";
         break;
+      case NOIT_CONTROL_DELETE:
+        primer = "DELE";
+        break;
       default:
         goto socket_error;
     }
@@ -240,6 +243,9 @@ void noit_http_rest_init() {
                                  noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_POST,
+                                 noit_http_rest_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_CONTROL_DELETE,
                                  noit_http_rest_handler);
 }
 

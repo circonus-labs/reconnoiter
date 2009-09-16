@@ -37,9 +37,10 @@
 #ifndef NOIT_REST_H
 #define NOIT_REST_H
 
-#define NOIT_CONTROL_GET  0x47455420
-#define NOIT_CONTROL_HEAD 0x48454144
-#define NOIT_CONTROL_POST 0x504f5354
+#define NOIT_CONTROL_GET    0x47455420 /* "GET " */
+#define NOIT_CONTROL_HEAD   0x48454144 /* "HEAD" */
+#define NOIT_CONTROL_POST   0x504f5354 /* "POST" */
+#define NOIT_CONTROL_DELETE 0x44454c45 /* "DELE" */
 
 typedef struct noit_http_rest_closure noit_http_rest_closure_t;
 

@@ -44,6 +44,7 @@
 #include "noit_conf.h"
 #include "noit_conf_private.h"
 
+#define FAIL(a) do { error = (a); goto error; } while(0)
 #define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
 
 struct rest_xml_payload {
@@ -380,6 +381,71 @@ make_conf_path(char *path) {
   return start;
 }
 static int
+rest_delete_check(noit_http_rest_closure_t *restc,
+                  int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+  xmlNodePtr node;
+  uuid_t checkid;
+  noit_check_t *check;
+  const char *error;
+  char xpath[1024], *uuid_conf;
+  int rv, cnt;
+  noit_boolean exists = noit_false;
+
+  if(npats != 2) goto error;
+
+  if(uuid_parse(pats[1], checkid)) goto error;
+  check = noit_poller_lookup(checkid);
+  if(check)
+    exists = noit_true;
+
+  rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
+  if(rv == 0) FAIL("uuid not valid");
+  if(rv < 0) FAIL("Tricky McTrickster... No");
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    if(exists) FAIL("uuid not yours");
+    goto not_found;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(cnt != 1) FAIL("internal error, |checkid| > 1");
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+  if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
+    FAIL("internal error uuid");
+
+  /* delete this here */
+  noit_poller_deschedule(check->checkid);
+  xmlUnlinkNode(node);
+  xmlFreeNode(node);
+  if(noit_conf_write_file(NULL) != 0)
+    noitL(noit_error, "local config write failed\n");
+  noit_conf_mark_changed();
+  noit_http_response_ok(ctx, "text/html");
+  noit_http_response_end(ctx);
+  goto cleanup;
+
+ not_found:
+  noit_http_response_not_found(ctx, "text/html");
+  noit_http_response_end(ctx);
+  goto cleanup;
+
+ error:
+  noit_http_response_server_error(ctx, "text/html");
+  noit_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return 0;
+}
+
+static int
 rest_set_check(noit_http_rest_closure_t *restc,
                int npats, char **pats) {
   noit_http_session_ctx *ctx = restc->http_ctx;
@@ -396,8 +462,6 @@ rest_set_check(noit_http_rest_closure_t *restc,
   struct rest_xml_payload *rxc;
 
   if(npats != 2) goto error;
-
-#define FAIL(a) do { error = (a); goto error; } while(0)
 
   if(restc->call_closure == NULL) {
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
@@ -475,6 +539,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
     char *target, *name, *module;
     xmlNodePtr a;
     noit_check_t *ocheck;
+
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     if(cnt != 1) FAIL("internal error, |checkid| > 1");
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
@@ -548,6 +613,12 @@ noit_check_rest_init() {
     "/checks/",
     "^set(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_set_check
+  ) == 0);
+  assert(noit_http_rest_register(
+    "DELETE",
+    "/checks/",
+    "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
+    rest_delete_check
   ) == 0);
 }
 
