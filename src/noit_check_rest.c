@@ -603,21 +603,15 @@ rest_set_check(noit_http_rest_closure_t *restc,
 void
 noit_check_rest_init() {
   assert(noit_http_rest_register(
-    "GET",
-    "/checks/",
-    "^show(/.*)(?<=/)(" UUID_REGEX ")$",
+    "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_show_check
   ) == 0);
   assert(noit_http_rest_register(
-    "POST",
-    "/checks/",
-    "^set(/.*)(?<=/)(" UUID_REGEX ")$",
+    "PUT", "/checks/", "^set(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_set_check
   ) == 0);
   assert(noit_http_rest_register(
-    "DELETE",
-    "/checks/",
-    "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
+    "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_delete_check
   ) == 0);
 }

@@ -213,8 +213,8 @@ socket_error:
                                   restc, e);
     
     switch(ac->cmd) {
-      case NOIT_CONTROL_POST:
-        primer = "POST";
+      case NOIT_CONTROL_DELETE:
+        primer = "DELE";
         break;
       case NOIT_CONTROL_GET:
         primer = "GET ";
@@ -222,8 +222,11 @@ socket_error:
       case NOIT_CONTROL_HEAD:
         primer = "HEAD";
         break;
-      case NOIT_CONTROL_DELETE:
-        primer = "DELE";
+      case NOIT_CONTROL_POST:
+        primer = "POST";
+        break;
+      case NOIT_CONTROL_PUT:
+        primer = "PUT ";
         break;
       default:
         goto socket_error;
@@ -236,6 +239,9 @@ socket_error:
 void noit_http_rest_init() {
   eventer_name_callback("http_rest_api/1.0", noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_CONTROL_DELETE,
+                                 noit_http_rest_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_GET,
                                  noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
@@ -245,7 +251,7 @@ void noit_http_rest_init() {
                                  NOIT_CONTROL_POST,
                                  noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
-                                 NOIT_CONTROL_DELETE,
+                                 NOIT_CONTROL_PUT,
                                  noit_http_rest_handler);
 }
 

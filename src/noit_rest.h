@@ -41,6 +41,7 @@
 #define NOIT_CONTROL_HEAD   0x48454144 /* "HEAD" */
 #define NOIT_CONTROL_POST   0x504f5354 /* "POST" */
 #define NOIT_CONTROL_DELETE 0x44454c45 /* "DELE" */
+#define NOIT_CONTROL_PUT    0x50555420 /* "PUT " */
 
 typedef struct noit_http_rest_closure noit_http_rest_closure_t;
 
