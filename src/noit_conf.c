@@ -596,11 +596,21 @@ noit_conf_write_terminal(noit_console_closure_t ncct,
   return 0;
 }
 int
-noit_conf_write_file(noit_console_closure_t ncct,
-                     int argc, char **argv,
-                     noit_console_state_t *state, void *closure) {
+noit_conf_write_file_console(noit_console_closure_t ncct,
+                             int argc, char **argv,
+                             noit_console_state_t *state, void *closure) {
+  int rv;
+  char *err = NULL;
+  rv = noit_conf_write_file(&err);
+  nc_printf(ncct, "%s\n", err);
+  if(err) free(err);
+  return rv;
+}
+int
+noit_conf_write_file(char **err) {
   int fd, len;
   char master_file_tmp[PATH_MAX];
+  char errstr[1024];
   xmlOutputBufferPtr out;
   xmlCharEncodingHandlerPtr enc;
 
@@ -609,7 +619,9 @@ noit_conf_write_file(noit_console_closure_t ncct,
   unlink(master_file_tmp);
   fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY, 0640);
   if(fd < 0) {
-    nc_printf(ncct, "Failed to open tmp file: %s\n", strerror(errno));
+    snprintf(errstr, sizeof(errstr), "Failed to open tmp file: %s",
+             strerror(errno));
+    if(err) *err = strdup(errstr);
     return -1;
   }
   enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
@@ -617,20 +629,23 @@ noit_conf_write_file(noit_console_closure_t ncct,
   if(!out) {
     close(fd);
     unlink(master_file_tmp);
-    nc_printf(ncct, "internal error: OutputBufferCreate failed\n");
+    if(err) *err = strdup("internal error: OutputBufferCreate failed");
     return -1;
   }
   len = xmlSaveFormatFileTo(out, master_config, "utf8", 1);
   close(fd);
   if(len <= 0) {
-    nc_printf(ncct, "internal error: writing to tmp file failed.\n");
+    if(err) *err = strdup("internal error: writing to tmp file failed.");
     return -1;
   }
   if(rename(master_file_tmp, master_config_file) != 0) {
-    nc_printf(ncct, "Failed to replace file: %s\n", strerror(errno));
+    snprintf(errstr, sizeof(errstr), "Failed to replace file: %s",
+             strerror(errno));
+    if(err) *err = strdup(errstr);
     return -1;
   }
-  nc_printf(ncct, "%d bytes written.\n", len);
+  snprintf(errstr, sizeof(errstr), "%d bytes written.", len);
+  if(err) *err = strdup(errstr);
   return 0;
 }
 char *

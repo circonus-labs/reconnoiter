@@ -111,9 +111,11 @@ API_EXPORT(int)
                            int argc, char **argv,
                            noit_console_state_t *state, void *closure);
 API_EXPORT(int)
-  noit_conf_write_file(noit_console_closure_t ncct,
-                       int argc, char **argv,
-                       noit_console_state_t *state, void *closure);
+  noit_conf_write_file_console(noit_console_closure_t ncct,
+                               int argc, char **argv,
+                               noit_console_state_t *state, void *closure);
+API_EXPORT(int)
+  noit_conf_write_file(char **err);
 
 API_EXPORT(char *)
   noit_conf_xml_in_mem(size_t *len);

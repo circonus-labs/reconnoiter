@@ -481,7 +481,6 @@ rest_set_check(noit_http_rest_closure_t *restc,
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
       FAIL("internal error uuid");
-    /* update check here */
 
     /* make sure this isn't a dup */
     for(a = attr; a; a = a->next) {
@@ -506,6 +505,8 @@ rest_set_check(noit_http_rest_closure_t *restc,
     xmlAddChild(parent, node);
   }
 
+  if(noit_conf_write_file(NULL) != 0)
+    noitL(noit_error, "local config write failed\n");
   noit_conf_mark_changed();
   noit_poller_reload(xpath);
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);

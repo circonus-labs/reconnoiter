@@ -1313,9 +1313,9 @@ void register_console_config_commands() {
   /* write <terimal|memory|file> */
   NEW_STATE(_write_state);
   ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL, NULL);
-  ADD_CMD(_write_state, "file", noit_conf_write_file, NULL, NULL, NULL);
+  ADD_CMD(_write_state, "file", noit_conf_write_file_console, NULL, NULL, NULL);
   /* write memory?  It's to a file, but I like router syntax */
-  ADD_CMD(_write_state, "memory", noit_conf_write_file, NULL, NULL, NULL);
+  ADD_CMD(_write_state, "memory", noit_conf_write_file_console, NULL, NULL, NULL);
 
   /* attribute <attrname> <value> */
   NEW_STATE(_attr_state);
