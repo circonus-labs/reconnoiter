@@ -65,7 +65,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf, *module, *value;
-  int rv, cnt;
+  int rv, cnt, error_code = 500;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
   int klen;
@@ -129,6 +129,8 @@ rest_show_check(noit_http_rest_closure_t *restc,
 
   attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   xmlAddChild(root, attr);
+
+  SHOW_ATTR(attr,node,uuid);
 
   /* Name is odd, it falls back transparently to module */
   if(!INHERIT(node, module, tmp, module)) module = NULL;
@@ -219,7 +221,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   goto cleanup;
 
  error:
-  noit_http_response_server_error(ctx, "text/html");
+  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
   noit_http_response_end(ctx);
   goto cleanup;
 
@@ -391,7 +393,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   noit_check_t *check;
   const char *error;
   char xpath[1024], *uuid_conf;
-  int rv, cnt;
+  int rv, cnt, error_code = 500;
   noit_boolean exists = noit_false;
 
   if(npats != 2) goto error;
@@ -409,7 +411,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    if(exists) FAIL("uuid not yours");
+    if(exists) { error_code = 403; FAIL("uuid not yours"); }
     goto not_found;
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
@@ -436,7 +438,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   goto cleanup;
 
  error:
-  noit_http_response_server_error(ctx, "text/html");
+  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
   noit_http_response_end(ctx);
   goto cleanup;
 
@@ -456,7 +458,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf;
-  int rv, cnt;
+  int rv, cnt, error_code = 500;
   const char *error = "internal error";
   noit_boolean exists = noit_false;
   struct rest_xml_payload *rxc;
@@ -504,7 +506,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    if(exists) FAIL("uuid not yours");
+    if(exists) { error_code = 403; FAIL("uuid not yours"); }
     else {
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m;
@@ -584,7 +586,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
-  noit_http_response_server_error(ctx, "text/xml");
+  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
   xmlDocSetRootElement(doc, root);
