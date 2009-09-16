@@ -485,6 +485,26 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   }
 }
 
+noit_boolean
+noit_check_is_valid_target(const char *target) {
+  int8_t family;
+  int rv;
+  union {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+  } a;
+
+  family = AF_INET;
+  rv = inet_pton(family, target, &a);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, target, &a);
+    if(rv != 1) {
+      return noit_false;
+    }
+  }
+  return noit_true;
+}
 int
 noit_check_update(noit_check_t *new_check,
                   const char *target,

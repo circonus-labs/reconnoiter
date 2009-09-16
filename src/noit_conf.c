@@ -151,9 +151,13 @@ void noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
              "XML error [%d/%d] %s\n",
              err->domain, err->code, err->message);
 }
+
+
+DECLARE_CHECKER(name)
 void noit_conf_init(const char *toplevel) {
   int i;
   char keystr[256];
+  COMPILE_CHECKER(name, "^[-_\\.:/a-zA-Z0-9]+$");
   xmlSetGenericErrorFunc(noit_error, noit_conf_xml_error_func);
   xmlSetStructuredErrorFunc(noit_error, noit_conf_xml_error_ext_func);
   for(i = 0; config_info[i].key != NULL; i++) {
@@ -422,19 +426,21 @@ int noit_conf_set_string(noit_conf_section_t section,
                     free, free);
   return 1;
 }
+int noit_conf_string_to_int(const char *str) {
+  int base = 10;
+  if(!str) return 0;
+  if(str[0] == '0') {
+    if(str[1] == 'x') base = 16;
+    else base = 8;
+  }
+  return strtol(str, NULL, base);
+}
 int noit_conf_get_int(noit_conf_section_t section,
                       const char *path, int *value) {
   char *str;
-  long longval;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
-    int base = 10;
-    if(str[0] == '0') {
-      if(str[1] == 'x') base = 16;
-      else base = 8;
-    }
-    longval = strtol(str, NULL, base);
+    *value = (int)noit_conf_string_to_int(str);
     xmlFree(str);
-    *value = (int)longval;
     return 1;
   }
   return 0;
@@ -445,11 +451,15 @@ int noit_conf_set_int(noit_conf_section_t section,
   snprintf(buffer, 32, "%d", value);
   return noit_conf_set_string(section,path,buffer);
 }
+float noit_conf_string_to_float(const char *str) {
+  if(!str) return 0.0;
+  return atof(str);
+}
 int noit_conf_get_float(noit_conf_section_t section,
                         const char *path, float *value) {
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
-    *value = atof(str);
+    *value = noit_conf_string_to_float(str);
     xmlFree(str);
     return 1;
   }
@@ -461,13 +471,16 @@ int noit_conf_set_float(noit_conf_section_t section,
   snprintf(buffer, 32, "%f", value);
   return noit_conf_set_string(section,path,buffer);
 }
+noit_boolean noit_conf_string_to_boolean(const char *str) {
+  if(!str) return noit_false;
+  if(!strcasecmp(str, "true") || !strcasecmp(str, "on")) return noit_true;
+  return noit_false;
+}
 int noit_conf_get_boolean(noit_conf_section_t section,
                           const char *path, noit_boolean *value) {
   char *str;
   if(_noit_conf_get_string(section,NULL,path,&str)) {
-    if(!strcasecmp(str, "true") ||
-       !strcasecmp(str, "on")) *value = noit_true;
-    else *value = noit_false;
+    *value = noit_conf_string_to_boolean(str);
     xmlFree(str);
     return 1;
   }

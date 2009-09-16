@@ -235,9 +235,10 @@ rest_xml_payload_free(void *f) {
 }
 
 static int
-validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c) {
+validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
+                    const char **error) {
   xmlNodePtr root, tl, an;
-  int name=0, module=0, target=0, period=0, timeout=0, filterset=0, disable=0;
+  int name=0, module=0, target=0, period=0, timeout=0, filterset=0;
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
   if(!root || strcmp((char *)root->name, "check")) return 0;
@@ -245,14 +246,66 @@ validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c) {
     if(!strcmp((char *)tl->name, "attributes")) {
       *a = tl->children;
       for(an = tl->children; an; an = an->next) {
-#define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a)) a = 1
-        CHECK_N_SET(name);
-        else CHECK_N_SET(module);
-        else CHECK_N_SET(target);
-        else CHECK_N_SET(period);
-        else CHECK_N_SET(timeout);
-        else CHECK_N_SET(filterset);
-        else CHECK_N_SET(disable);
+#define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a))
+        CHECK_N_SET(name) {
+          xmlChar *tmp;
+          pcre *valid_name = noit_conf_get_valid_name_checker();
+          int ovector[30], valid;
+          tmp = xmlNodeGetContent(an);
+          valid = (pcre_exec(valid_name, NULL,
+                             (char *)tmp, strlen((char *)tmp), 0, 0,
+                             ovector, sizeof(ovector)/sizeof(*ovector)) > 0);
+          xmlFree(tmp);
+          if(!valid) { *error = "invalid name"; return 0; }
+          name = 1;
+        }
+        else CHECK_N_SET(module) module = 1; /* This is validated by called */
+        else CHECK_N_SET(target) {
+          int valid;
+          xmlChar *tmp;
+          tmp = xmlNodeGetContent(an);
+          valid = noit_check_is_valid_target((char *)tmp);
+          xmlFree(tmp);
+          if(!valid) { *error = "invalid target"; return 0; }
+          target = 1;
+        }
+        else CHECK_N_SET(period) {
+          int pint;
+          xmlChar *tmp;
+          tmp = xmlNodeGetContent(an);
+          pint = noit_conf_string_to_int((char *)tmp);
+          xmlFree(tmp);
+          if(pint < 5000 || pint > 300000) {
+            *error = "invalid period";
+            return 0;
+          }
+          period = 1;
+        }
+        else CHECK_N_SET(timeout) {
+          int pint;
+          xmlChar *tmp;
+          tmp = xmlNodeGetContent(an);
+          pint = noit_conf_string_to_int((char *)tmp);
+          xmlFree(tmp);
+          if(pint < 0 || pint > 300000) {
+            *error = "invalid timeout";
+            return 0;
+          }
+          timeout = 1;
+        }
+        else CHECK_N_SET(filterset) filterset = 1;
+        else CHECK_N_SET(disable) { /* not required */
+          int valid;
+          xmlChar *tmp;
+          tmp = xmlNodeGetContent(an);
+          valid = (!strcasecmp((char *)tmp, "true") ||
+                   !strcasecmp((char *)tmp, "on") ||
+                   !strcasecmp((char *)tmp, "false") ||
+                   !strcasecmp((char *)tmp, "off"));
+          xmlFree(tmp);
+          if(!valid) { *error = "bad disable parameter"; return 0; }
+          target = 1;
+        }
         else return 0;
       }
     }
@@ -263,6 +316,7 @@ validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c) {
     else return 0;
   }
   if(name && module && target && period && timeout && filterset) return 1;
+  *error = "insufficient information";
   return 0;
 }
 static void
@@ -371,7 +425,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
 
   indoc = xmlParseMemory(rxc->buffer, rxc->len);
   if(indoc == NULL) FAIL("xml parse error");
-  if(!validate_check_post(indoc, &attr, &config)) FAIL("xml validate error");
+  if(!validate_check_post(indoc, &attr, &config, &error)) goto error;
 
   if(uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);

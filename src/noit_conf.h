@@ -38,6 +38,7 @@
 #include "noit_console.h"
 
 #include <uuid/uuid.h>
+#include <pcre.h>
 
 typedef void * noit_conf_section_t;
 
@@ -80,10 +81,14 @@ API_EXPORT(int) noit_conf_get_stringbuf(noit_conf_section_t section,
                                         const char *path, char *value, int len);
 API_EXPORT(int) noit_conf_get_int(noit_conf_section_t section,
                                   const char *path, int *value);
+API_EXPORT(int) noit_conf_string_to_int(const char *str);
 API_EXPORT(int) noit_conf_get_float(noit_conf_section_t section,
                                     const char *path, float *value);
+API_EXPORT(float) noit_conf_string_to_float(const char *str);
 API_EXPORT(int) noit_conf_get_boolean(noit_conf_section_t section,
                                       const char *path, noit_boolean *value);
+API_EXPORT(noit_boolean) noit_conf_string_to_boolean(const char *str);
+
 API_EXPORT(int)
   noit_conf_get_uuid(noit_conf_section_t section,
                      const char *path, uuid_t out);
@@ -117,5 +122,23 @@ API_EXPORT(int)
   noit_conf_write_log();
 
 API_EXPORT(void) noit_conf_log_init(const char *toplevel);
+
+#define EXPOSE_CHECKER(name) \
+  API_EXPORT(pcre *) noit_conf_get_valid_##name##_checker();
+#define DECLARE_CHECKER(name) \
+static pcre *checker_valid_##name; \
+pcre *noit_conf_get_valid_##name##_checker() { return checker_valid_##name; }
+#define COMPILE_CHECKER(name, expr) do { \
+  const char *errorstr; \
+  int erroff; \
+  checker_valid_##name = pcre_compile(expr, 0, &errorstr, &erroff, NULL); \
+  if(! checker_valid_##name) { \
+    noitL(noit_error, "noit_conf error: compile checker %s failed: %s\n", \
+          #name, errorstr); \
+    exit(-1); \
+  } \
+} while(0)
+
+EXPOSE_CHECKER(name);
 
 #endif

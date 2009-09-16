@@ -183,6 +183,9 @@ API_EXPORT(int)
                     const char *oncheck,
                     int flags);
 
+API_EXPORT(noit_boolean)
+  noit_check_is_valid_target(const char *str);
+
 API_EXPORT(int)
   noit_check_activate(noit_check_t *check);
 
