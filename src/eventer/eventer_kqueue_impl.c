@@ -121,6 +121,8 @@ ke_change (register int const ident,
   kep = &ke_vec[ke_vec_used++];
 
   EV_SET(kep, ident, filter, flags, 0, 0, (void *)e->fd);
+  noitL(eventer_deb, "debug: ke_change(fd:%d, filt:%x, flags:%x)\n",
+        ident, filter, flags);
   if(kqs == master_kqs) pthread_mutex_unlock(&kqs_lock);
 }
 
@@ -296,7 +298,12 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
   assert(lockstate == EV_OWNED);
 
   gettimeofday(&__now, NULL);
-  oldmask = e->mask;
+  /* We're going to lie to ourselves.  You'd think this should be:
+   * oldmask = e->mask;  However, we just fired with masks[fd], so
+   * kqueue is clearly looking for all of the events in masks[fd].
+   * So, we combine them "just to be safe."
+   */
+  oldmask = e->mask | masks[fd];
   cbname = eventer_name_for_callback(e->callback);
   noitLT(eventer_deb, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
          fd, masks[fd], cbname?cbname:"???", e->callback);
@@ -317,7 +324,7 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
         ke_change(fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
     }
     else if(oldmask & EVENTER_WRITE)
-        ke_change(fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
+      ke_change(fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
 
     /* Set our mask */
     e->mask = newmask;
