@@ -92,6 +92,7 @@ struct nl_slcl {
   lua_State *L;
 };
 
+void noit_lua_init();
 int luaopen_noit(lua_State *L);
 noit_lua_check_info_t *get_ci(lua_State *L);
 int noit_lua_yield(noit_lua_check_info_t *ci, int nargs);

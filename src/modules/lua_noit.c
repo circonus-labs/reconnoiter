@@ -667,3 +667,14 @@ int luaopen_noit(lua_State *L) {
   luaL_register(L, "noit", noitlib);
   return 0;
 }
+
+void noit_lua_init() {
+  eventer_name_callback("lua/sleep", nl_sleep_complete);
+  eventer_name_callback("lua/socket_read",
+                        noit_lua_socket_read_complete);
+  eventer_name_callback("lua/socket_write",
+                        noit_lua_socket_write_complete);
+  eventer_name_callback("lua/socket_connect",
+                        noit_lua_socket_connect_complete);
+  eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);
+}

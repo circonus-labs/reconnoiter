@@ -451,6 +451,8 @@ noit_lua_module_onload(noit_image_t *i) {
   lua_State *L;
   lua_module_closure_t *lmc;
 
+  noit_lua_init();
+
   lmc = noit_image_get_userdata(i);
   L = lmc->lua_state;
   lua_getglobal(L, "require");
@@ -592,6 +594,7 @@ noit_lua_yield(noit_lua_check_info_t *ci, int nargs) {
 int
 noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   int result = -1, base;
+  noit_module_t *self;
   noit_check_t *check;
   check = ci->check;
 
@@ -618,16 +621,18 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
           err = lua_tostring(ci->coro_state, base);
           if(err) {
             free(ci->current.status);
-            ci->current.status = (char *)err;
+            ci->current.status = strdup(err);
           }
         }
       }
       break;
   }
-  cancel_coro(ci);
 
-  noit_lua_log_results(ci->self, ci->check);
-  noit_lua_module_cleanup(ci->self, ci->check);
+  self = ci->self;
+  check = ci->check;
+  cancel_coro(ci);
+  noit_lua_log_results(self, check);
+  noit_lua_module_cleanup(self, check);
   ci = NULL; /* we freed it... explode if someone uses it before we return */
   check->flags &= ~NP_RUNNING;
 
@@ -637,6 +642,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
 static int
 noit_lua_check_timeout(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
+  noit_module_t *self;
   noit_check_t *check;
   struct nl_intcl *int_cl = closure;
   noit_lua_check_info_t *ci = int_cl->ci;
@@ -644,6 +650,10 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   noitL(nldeb, "lua: %p ->check_timeout\n", ci->coro_state);
   ci->timed_out = 1;
   noit_lua_check_deregister_event(ci, e, 0);
+
+  self = ci->self;
+  check = ci->check;
+
   if(ci->coro_state) {
     /* Our coro is still "in-flight". To fix this we will unreference
      * it, garbage collect it and then ensure that it failes a resume
@@ -651,8 +661,8 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     cancel_coro(ci);
   }
 
-  noit_lua_log_results(ci->self, ci->check);
-  noit_lua_module_cleanup(ci->self, ci->check);
+  noit_lua_log_results(self, check);
+  noit_lua_module_cleanup(self, check);
   check->flags &= ~NP_RUNNING;
 
   if(int_cl->free) int_cl->free(int_cl);
@@ -811,8 +821,8 @@ noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
 }
 static int
 noit_lua_loader_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/serf");
-  nldeb = noit_log_stream_find("debug/serf");
+  nlerr = noit_log_stream_find("error/lua");
+  nldeb = noit_log_stream_find("debug/lua");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   return 0;
