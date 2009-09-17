@@ -133,6 +133,7 @@ noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e,
 }
 void
 noit_lua_check_clean_events(noit_lua_check_info_t *ci) {
+  if(ci->events == NULL) return;
   noit_hash_destroy(ci->events, NULL, noit_event_dispose);
   free(ci->events);
   ci->events = NULL;
