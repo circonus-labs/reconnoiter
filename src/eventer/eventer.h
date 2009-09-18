@@ -141,6 +141,36 @@ API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
 API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
 
+/* Helpers to schedule timed events */
+#define eventer_add_at(func, cl, t) do { \
+  eventer_t e = eventer_alloc(); \
+  e->whence = t; \
+  e->mask = EVENTER_TIMER; \
+  e->callback = func; \
+  e->closure = cl; \
+  eventer_add(e); \
+} while(0)
+#define eventer_add_in(func, cl, t) do { \
+  struct timeval __now; \
+  eventer_t e = eventer_alloc(); \
+  gettimeofday(&__now, NULL); \
+  add_timeval(__now, t, &e->whence); \
+  e->mask = EVENTER_TIMER; \
+  e->callback = func; \
+  e->closure = cl; \
+  eventer_add(e); \
+} while(0)
+#define eventer_add_in_s_us(func, cl, s, us) do { \
+  struct timeval __now, diff = { s, us }; \
+  eventer_t e = eventer_alloc(); \
+  gettimeofday(&__now, NULL); \
+  add_timeval(__now, diff, &e->whence); \
+  e->mask = EVENTER_TIMER; \
+  e->callback = func; \
+  e->closure = cl; \
+  eventer_add(e); \
+} while(0)
+
 /* Helpers to set sockets non-blocking / blocking */
 API_EXPORT(int) eventer_set_fd_nonblocking(int fd);
 API_EXPORT(int) eventer_set_fd_blocking(int fd);
