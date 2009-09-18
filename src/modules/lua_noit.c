@@ -32,15 +32,6 @@
 
 #include "noit_defines.h"
 
-#include "noit_conf.h"
-#include "noit_module.h"
-#include "noit_check.h"
-#include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_str.h"
-#include "eventer/eventer.h"
-#include "lua_noit.h"
-
 #include <assert.h>
 #include <math.h>
 #include <errno.h>
@@ -51,6 +42,18 @@
 #include <sys/filio.h>
 #endif
 #include <zlib.h>
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/tree.h>
+
+#include "noit_conf.h"
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
+#include "utils/noit_log.h"
+#include "utils/noit_str.h"
+#include "eventer/eventer.h"
+#include "lua_noit.h"
 
 #define DEFLATE_CHUNK_SIZE 32768
 
@@ -294,12 +297,6 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
   ci = get_ci(cl->L);
   assert(ci);
 
-  if(mask & EVENTER_EXCEPTION) {
-    lua_pushnil(cl->L);
-    args = 1;
-    goto alldone;
-  }
-
   len = noit_lua_socket_do_read(e, &mask, cl, &args);
   if(len >= 0) {
     /* We broke out, cause we read enough... */
@@ -311,7 +308,6 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
     lua_pushnil(cl->L);
     args = 1;
   }
- alldone:
   eventer_remove_fd(e->fd);
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
@@ -950,6 +946,249 @@ nl_conf_get_float(lua_State *L) {
   else lua_pushnil(L);
   return 1;
 }
+struct xpath_iter {
+  xmlXPathContextPtr ctxt;
+  xmlXPathObjectPtr pobj;
+  int cnt;
+  int idx;
+};
+static int
+noit_lua_xpath_iter(lua_State *L) {
+  struct xpath_iter *xpi;
+  xpi = lua_touserdata(L, lua_upvalueindex(1));
+  if(xpi->pobj) {
+    if(xpi->idx < xpi->cnt) {
+      xmlNodePtr node, *nodeptr;
+      node = xmlXPathNodeSetItem(xpi->pobj->nodesetval, xpi->idx);
+      xpi->idx++;
+      nodeptr = (xmlNodePtr *)lua_newuserdata(L, sizeof(node));
+      *nodeptr = node;
+      luaL_getmetatable(L, "noit.xmlnode");
+      lua_setmetatable(L, -2);
+      return 1;
+    }
+  }
+  return 0;
+}
+static int
+noit_lua_xpath(lua_State *L) {
+  int n;
+  const char *xpathexpr;
+  xmlDocPtr *docptr, doc;
+  xmlNodePtr *nodeptr = NULL;
+  xmlXPathContextPtr ctxt;
+  struct xpath_iter *xpi;
+
+  n = lua_gettop(L);
+  /* the first arg is implicitly self (it's a method) */
+  docptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(docptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(n < 2 || n > 3) luaL_error(L, "expects 1 or 2 arguments, got %d", n);
+  doc = *docptr;
+  xpathexpr = lua_tostring(L, 2);
+  if(!xpathexpr) luaL_error(L, "no xpath expression provided");
+  ctxt = xmlXPathNewContext(doc);
+  if(n == 3) {
+    nodeptr = lua_touserdata(L, 3);
+    if(nodeptr) ctxt->node = *nodeptr;
+  }
+  if(!ctxt) luaL_error(L, "invalid xpath");
+
+  xpi = (struct xpath_iter *)lua_newuserdata(L, sizeof(*xpi));
+  xpi->ctxt = ctxt;
+  xpi->pobj = xmlXPathEval((xmlChar *)xpathexpr, xpi->ctxt);
+  if(!xpi->pobj || xpi->pobj->type != XPATH_NODESET)
+    xpi->cnt = 0;
+  else
+    xpi->cnt = xmlXPathNodeSetGetLength(xpi->pobj->nodesetval);
+  xpi->idx = 0;
+  luaL_getmetatable(L, "noit.xpathiter");
+  lua_setmetatable(L, -2);
+  lua_pushcclosure(L, noit_lua_xpath_iter, 1);
+  return 1;
+}
+static int
+noit_lua_xmlnode_attr(lua_State *L) {
+  xmlNodePtr *nodeptr;
+  /* the first arg is implicitly self (it's a method) */
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(nodeptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 2 && lua_isstring(L,2)) {
+    xmlChar *v;
+    const char *attr = lua_tostring(L,2);
+    v = xmlGetProp(*nodeptr, (xmlChar *)attr);
+    if(v) {
+      lua_pushstring(L, (const char *)v);
+      xmlFree(v);
+    }
+    else lua_pushnil(L);
+    return 1;
+  }
+  luaL_error(L,"must be called with no arguments");
+  return 0;
+}
+static int
+noit_lua_xmlnode_contents(lua_State *L) {
+  xmlNodePtr *nodeptr;
+  /* the first arg is implicitly self (it's a method) */
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(nodeptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 1) {
+    xmlChar *v;
+    v = xmlNodeGetContent(*nodeptr);
+    if(v) {
+      lua_pushstring(L, (const char *)v);
+      xmlFree(v);
+    }
+    else lua_pushnil(L);
+    return 1;
+  }
+  luaL_error(L,"must be called with no arguments");
+  return 0;
+}
+static int
+noit_lua_xmlnode_next(lua_State *L) {
+  xmlNodePtr *nodeptr;
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(*nodeptr) {
+    xmlNodePtr *newnodeptr;
+    newnodeptr = (xmlNodePtr *)lua_newuserdata(L, sizeof(*nodeptr));
+    *newnodeptr = *nodeptr;
+    luaL_getmetatable(L, "noit.xmlnode");
+    lua_setmetatable(L, -2);
+    *nodeptr = (*nodeptr)->next;
+    return 1;
+  }
+  return 0;
+}
+static int
+noit_lua_xmlnode_children(lua_State *L) {
+  xmlNodePtr *nodeptr, node, cnode;
+  /* the first arg is implicitly self (it's a method) */
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(nodeptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  node = *nodeptr;
+  cnode = node->children;
+  nodeptr = lua_newuserdata(L, sizeof(cnode));
+  *nodeptr = cnode;
+  luaL_getmetatable(L, "noit.xmlnode");
+  lua_setmetatable(L, -2);
+  lua_pushcclosure(L, noit_lua_xmlnode_next, 1);
+  return 1;
+}
+static int
+noit_lua_xpathiter_gc(lua_State *L) {
+  struct xpath_iter *xpi;
+  xpi = lua_touserdata(L, 1);
+  xmlXPathFreeContext(xpi->ctxt);
+  if(xpi->pobj) xmlXPathFreeObject(xpi->pobj);
+  return 0;
+}
+static int
+noit_xmlnode_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  xmlNodePtr *udata, obj;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "noit.xmlnode")) {
+    luaL_error(L, "metatable error, arg1 not a noit.xmlnode!");
+  }
+  udata = lua_touserdata(L, 1);
+  obj = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'a':
+      if(!strcmp(k,"attr") ||
+         !strcmp(k,"attribute")) {
+        lua_pushlightuserdata(L, udata);
+        lua_pushcclosure(L, noit_lua_xmlnode_attr, 1);
+        return 1;
+      }
+      break;
+    case 'c':
+      if(!strcmp(k,"children")) {
+        lua_pushlightuserdata(L, udata);
+        lua_pushcclosure(L, noit_lua_xmlnode_children, 1);
+        return 1;
+      }
+      if(!strcmp(k,"contents")) {
+        lua_pushlightuserdata(L, udata);
+        lua_pushcclosure(L, noit_lua_xmlnode_contents, 1);
+        return 1;
+      }
+      break;
+    default:
+      break;
+  }
+  luaL_error(L, "noit.xmlnode no such element: %s", k);
+  return 0;
+}
+static int
+nl_parsexml(lua_State *L) {
+  xmlDocPtr *docptr, doc;
+  const char *in;
+  size_t inlen;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "parsexml requires one argument"); 
+
+  in = lua_tolstring(L, 1, &inlen);
+  doc = xmlParseMemory(in, inlen);
+  if(!doc) {
+    lua_pushnil(L);
+    return 1;
+  }
+
+  docptr = (xmlDocPtr *)lua_newuserdata(L, sizeof(doc)); 
+  *docptr = doc;
+  luaL_getmetatable(L, "noit.xmldoc");
+  lua_setmetatable(L, -2);
+  return 1;
+}
+static int
+noit_lua_xmldoc_gc(lua_State *L) {
+  xmlDocPtr *holder;
+  holder = (xmlDocPtr *)lua_touserdata(L,1);
+  xmlFreeDoc(*holder);
+  return 0;
+}
+static int
+noit_xmldoc_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  xmlDocPtr *udata, obj;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "noit.xmldoc")) {
+    luaL_error(L, "metatable error, arg1 not a noit.xmldoc!");
+  }
+  udata = lua_touserdata(L, 1);
+  obj = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'x':
+     if(!strcmp(k, "xpath")) {
+       lua_pushlightuserdata(L, udata);
+       lua_pushcclosure(L, noit_lua_xpath, 1);
+       return 1;
+     }
+     break;
+    default:
+     break;
+  }
+  luaL_error(L, "noit.xmldoc no such element: %s", k);
+  return 0;
+}
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
@@ -963,6 +1202,7 @@ static const luaL_Reg noitlib[] = {
   { "conf_get_integer", nl_conf_get_integer },
   { "conf_get_boolean", nl_conf_get_boolean },
   { "conf_get_number", nl_conf_get_float },
+  { "parsexml", nl_parsexml },
   { NULL, NULL }
 };
 
@@ -981,6 +1221,21 @@ int luaopen_noit(lua_State *L) {
 
   luaL_newmetatable(L, "noit.pcre");
   lua_pushcfunction(L, noit_lua_pcre_gc);
+  lua_setfield(L, -2, "__gc");
+
+  luaL_newmetatable(L, "noit.xmldoc");
+  lua_pushcfunction(L, noit_lua_xmldoc_gc);
+  lua_setfield(L, -2, "__gc");
+  luaL_newmetatable(L, "noit.xmldoc");
+  lua_pushcclosure(L, noit_xmldoc_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.xmlnode");
+  lua_pushcclosure(L, noit_xmlnode_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.xpathiter");
+  lua_pushcfunction(L, noit_lua_xpathiter_gc);
   lua_setfield(L, -2, "__gc");
 
   luaL_register(L, "noit", noitlib);
