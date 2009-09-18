@@ -50,6 +50,9 @@
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
+#include <zlib.h>
+
+#define DEFLATE_CHUNK_SIZE 32768
 
 static void
 nl_extended_free(void *vcl) {
@@ -461,10 +464,10 @@ noit_eventer_index_func(lua_State *L) {
   int n;
   const char *k;
   eventer_t *udata, e;
-  n = lua_gettop(L);    /* number of arguments */
+  n = lua_gettop(L); /* number of arguments */
   assert(n == 2);
-  if(!luaL_checkudata(L, 1, "eventer_t")) {
-    luaL_error(L, "metatable error, arg1 not a eventer_t!");
+  if(!luaL_checkudata(L, 1, "noit.eventer")) {
+    luaL_error(L, "metatable error, arg1 not a noit.eventer!");
   }
   udata = lua_touserdata(L, 1);
   e = *udata;
@@ -513,10 +516,7 @@ noit_lua_event(lua_State *L, eventer_t e) {
   eventer_t *addr;
   addr = (eventer_t *)lua_newuserdata(L, sizeof(e));
   *addr = e;
-  if(luaL_newmetatable(L, "eventer_t") == 1) {
-    lua_pushcclosure(L, noit_eventer_index_func, 0);
-    lua_setfield(L, -2, "__index");
-  }
+  luaL_getmetatable(L, "noit.eventer");
   lua_setmetatable(L, -2);
   return addr;
 }
@@ -575,6 +575,8 @@ nl_log(lua_State *L) {
   int i, n;
   const char *log_dest, *message;
   noit_log_stream_t ls;
+
+  if(lua_gettop(L) < 2) luaL_error(L, "bad call to noit.log");
 
   log_dest = lua_tostring(L, 1);
   ls = noit_log_stream_find(log_dest);
@@ -654,16 +656,122 @@ nl_socket_ipv6(lua_State *L) {
   return nl_socket_tcp(L, AF_INET6);
 }
 
+static int
+nl_gunzip_deflate(lua_State *L) {
+  const char *input;
+  size_t inlen;
+  z_stream *stream;
+  Bytef *data = NULL;
+  uLong outlen = 0;
+  int limit = 1024*1024;
+  int err, n = lua_gettop(L);
+
+  if(n < 1 || n > 2) {
+    lua_pushnil(L);
+    return 1;
+  }
+
+  stream = lua_touserdata(L, lua_upvalueindex(1));
+
+  input = lua_tolstring(L, 1, &inlen);
+  if(!input) {
+    lua_pushnil(L);
+    return 1;
+  }
+  if(n == 2)
+    limit = lua_tointeger(L, 2);
+
+  stream->next_in = (Bytef *)input;
+  stream->avail_in = inlen;
+  while(1) {
+    err = inflate(stream, Z_FULL_FLUSH);
+    if(err == Z_OK || err == Z_STREAM_END) {
+      /* got some data */
+      int size_read = DEFLATE_CHUNK_SIZE - stream->avail_out;
+      uLong newoutlen = outlen + size_read;
+      if(newoutlen > limit) {
+        err = Z_MEM_ERROR;
+        break;
+      }
+      if(newoutlen > outlen) {
+        Bytef *newdata;
+        if(data) newdata = realloc(data, newoutlen);
+        else newdata = malloc(newoutlen);
+        if(!newdata) {
+          err = Z_MEM_ERROR;
+          break;
+        }
+        data = newdata;
+        memcpy(data + outlen, stream->next_out - size_read, size_read);
+        outlen += size_read;
+        stream->next_out -= size_read;
+        stream->avail_out += size_read;
+      }
+      if(err == Z_STREAM_END) {
+        /* Good to go */
+        break;
+      }
+    }
+    else break;
+    if(stream->avail_in == 0) break;
+  }
+  if(err == Z_OK || err == Z_STREAM_END) {
+    if(outlen > 0) lua_pushlstring(L, (char *)data, outlen);
+    else lua_pushstring(L, "");
+    if(data) free(data);
+    return 1;
+  }
+  lua_pushnil(L);
+  return 1;
+}
+static int
+nl_gunzip(lua_State *L) {
+  z_stream *stream;
+  
+  stream = (z_stream *)lua_newuserdata(L, sizeof(*stream));
+  memset(stream, 0, sizeof(*stream));
+  luaL_getmetatable(L, "noit.gunzip");
+  lua_setmetatable(L, -2);
+
+  stream->next_in = NULL;
+  stream->avail_in = 0;
+  stream->next_out = malloc(DEFLATE_CHUNK_SIZE);
+  stream->avail_out = stream->next_out ? DEFLATE_CHUNK_SIZE : 0;
+  inflateInit2(stream, MAX_WBITS+32);
+
+  lua_pushcclosure(L, nl_gunzip_deflate, 1);
+  return 1;
+}
+static int
+noit_lua_gunzip_gc(lua_State *L) {
+  z_stream *stream;
+  noitL(noit_debug, "lua: noit.gunzip.__gc for decompression stream\n"); 
+  stream = (z_stream *)lua_touserdata(L,1);
+  if(stream->next_out) free(stream->next_out);
+  inflateEnd(stream);
+  return 0;
+}
+
+
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },
   { "log", nl_log },
   { "socket_ipv6", nl_socket_ipv6 },
+  { "gunzip", nl_gunzip },
   { NULL, NULL }
 };
 
 int luaopen_noit(lua_State *L) {
+  luaL_newmetatable(L, "noit.eventer");
+  lua_pushcclosure(L, noit_eventer_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.gunzip");
+  lua_pushcfunction(L, noit_lua_gunzip_gc);
+  lua_setfield(L, -2, "__gc");
+
   luaL_register(L, "noit", noitlib);
   return 0;
 }
