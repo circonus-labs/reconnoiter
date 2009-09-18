@@ -745,19 +745,75 @@ nl_gunzip(lua_State *L) {
 static int
 noit_lua_gunzip_gc(lua_State *L) {
   z_stream *stream;
-  noitL(noit_debug, "lua: noit.gunzip.__gc for decompression stream\n"); 
   stream = (z_stream *)lua_touserdata(L,1);
   if(stream->next_out) free(stream->next_out);
   inflateEnd(stream);
   return 0;
 }
 
+static int
+noit_lua_pcre_match(lua_State *L) {
+  const char *subject;
+  pcre **re;
+  int i, cnt, ovector[30];
+  size_t inlen;
+
+  re = (pcre **)lua_touserdata(L, lua_upvalueindex(1));
+  subject = lua_tolstring(L,1,&inlen);
+  if(!subject) {
+    lua_pushboolean(L,0);
+    return 1;
+  }
+  cnt = pcre_exec(*re, NULL, subject, inlen, 0, 0,
+                  ovector, sizeof(ovector)/sizeof(*ovector));
+  if(cnt <= 0) {
+    lua_pushboolean(L,0);
+    return 1;
+  }
+  lua_pushboolean(L,1);
+  for(i = 0; i < cnt; i++) {
+    int start = ovector[i*2];
+    int end = ovector[i*2+1];
+    lua_pushlstring(L, subject+start, end-start);
+  }
+  return cnt+1;
+}
+static int
+nl_pcre(lua_State *L) {
+  pcre *re, **holder;
+  const char *expr;
+  const char *errstr;
+  int erroff;
+
+  expr = lua_tostring(L,1); 
+  re = pcre_compile(expr, 0, &errstr, &erroff, NULL);
+  if(!re) {
+    lua_pushnil(L);
+    lua_pushstring(L, errstr);
+    lua_pushinteger(L, erroff);
+    return 3;
+  }
+  holder = (pcre **)lua_newuserdata(L, sizeof(*holder));
+  *holder = re;
+  luaL_getmetatable(L, "noit.pcre");
+  lua_setmetatable(L, -2);
+  lua_pushcclosure(L, noit_lua_pcre_match, 1);
+  return 1;
+}
+static int
+noit_lua_pcre_gc(lua_State *L) {
+  pcre **holder;
+  holder = (pcre **)lua_touserdata(L,1);
+  pcre_free(*holder);
+  return 0;
+}
 
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },
   { "log", nl_log },
+  { "pcre", nl_pcre },
   { "socket_ipv6", nl_socket_ipv6 },
   { "gunzip", nl_gunzip },
   { NULL, NULL }
@@ -770,6 +826,10 @@ int luaopen_noit(lua_State *L) {
 
   luaL_newmetatable(L, "noit.gunzip");
   lua_pushcfunction(L, noit_lua_gunzip_gc);
+  lua_setfield(L, -2, "__gc");
+
+  luaL_newmetatable(L, "noit.pcre");
+  lua_pushcfunction(L, noit_lua_pcre_gc);
   lua_setfield(L, -2, "__gc");
 
   luaL_register(L, "noit", noitlib);
