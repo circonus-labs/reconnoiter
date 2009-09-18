@@ -43,6 +43,10 @@ function now()
   return new(base.noit.gettimeofday())
 end
 
+function seconds(self)
+  return self.sec + (self.usec / 1000000.0)
+end
+
 function metat.__add(o1, o2)
   local secs = o1.sec + o2.sec
   local usecs = o1.usec + o2.usec
