@@ -3,6 +3,7 @@
   <eventer>
     <config>
       <default_queue_threads>10</default_queue_threads>
+      <default_ca_chain>%sysconfdir%/default-ca-chain.crt</default_ca_chain>
     </config>
   </eventer>
   <logs>

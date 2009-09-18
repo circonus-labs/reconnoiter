@@ -91,7 +91,12 @@ int eventer_impl_propset(const char *key, const char *value) {
     }
     return 0;
   }
-  return -1;
+  else if(!strcasecmp(key, "default_ca_chain")) {
+    /* used by eventer consumers */
+    return 0;
+  }
+  noitL(noit_error, "Warning: unknown eventer config '%s'\n", key);
+  return 0;
 }
 
 eventer_jobq_t *eventer_default_backq() {
