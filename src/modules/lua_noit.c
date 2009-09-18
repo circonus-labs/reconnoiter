@@ -212,10 +212,10 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   if(eptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
   e = *eptr;
-  ca = lua_tostring(L, 2);
-  ciphers = lua_tostring(L, 3);
-  cert = lua_tostring(L, 4);
-  key = lua_tostring(L, 5);
+  cert = lua_tostring(L, 2);
+  key = lua_tostring(L, 3);
+  ca = lua_tostring(L, 4);
+  ciphers = lua_tostring(L, 5);
 
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) {
@@ -238,24 +238,12 @@ noit_lua_socket_connect_ssl(lua_State *L) {
 }
 
 static int
-noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
-                              struct timeval *now) {
+noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
+                        int *read_complete) {
   char buff[4096];
-  noit_lua_check_info_t *ci;
-  struct nl_slcl *cl = vcl;
   int len;
-  int args = 0;
-
-  ci = get_ci(cl->L);
-  assert(ci);
-
-  if(mask & EVENTER_EXCEPTION) {
-    lua_pushnil(cl->L);
-    args = 1;
-    goto alldone;
-  }
-
-  while((len = e->opset->read(e->fd, buff, sizeof(buff), &mask, e)) > 0) {
+  *read_complete = 0;
+  while((len = e->opset->read(e->fd, buff, sizeof(buff), mask, e)) > 0) {
     if(cl->read_goal) {
       int remaining = cl->read_goal - cl->read_sofar;
       /* copy up to the goal into the inbuff */
@@ -263,7 +251,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       cl->read_sofar += len;
       if(cl->read_sofar >= cl->read_goal) { /* We're done */
         lua_pushlstring(cl->L, cl->inbuff, cl->read_goal);
-        args = 1;
+        *read_complete = 1;
         cl->read_sofar -= cl->read_goal;
         if(cl->read_sofar > 0) {  /* We have to buffer this for next read */
           cl->inbuff_len = 0;
@@ -282,7 +270,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       cl->read_sofar += len;
       if(cp) {
         lua_pushlstring(cl->L, cl->inbuff, cl->inbuff_len);
-        args = 1;
+        *read_complete = 1;
         
         cl->read_sofar = len - remaining;
         cl->inbuff_len = 0;
@@ -293,6 +281,26 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
       }
     }
   }
+  return len;
+}
+static int
+noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
+                              struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  int len;
+  int args = 0;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+
+  if(mask & EVENTER_EXCEPTION) {
+    lua_pushnil(cl->L);
+    args = 1;
+    goto alldone;
+  }
+
+  len = noit_lua_socket_do_read(e, &mask, cl, &args);
   if(len >= 0) {
     /* We broke out, cause we read enough... */
   }
@@ -315,6 +323,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
 
 static int
 noit_lua_socket_read(lua_State *L) {
+  int args, mask, len;
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
@@ -366,8 +375,19 @@ noit_lua_socket_read(lua_State *L) {
     }
   }
 
+  len = noit_lua_socket_do_read(e, &mask, cl, &args);
+  if(args == 1) return 1; /* completed read, return result */
+  if(len == -1 && errno == EAGAIN) {
+    /* we need to drop into eventer */
+  }
+  else {
+    lua_pushnil(cl->L);
+    args = 1;
+    return args;
+  }
+
   e->callback = noit_lua_socket_read_complete;
-  e->mask = EVENTER_READ | EVENTER_EXCEPTION;
+  e->mask = mask | EVENTER_EXCEPTION;
   eventer_add(e);
   return noit_lua_yield(ci, 0);
 }
@@ -460,6 +480,28 @@ noit_lua_socket_write(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_socket_ssl_ctx(lua_State *L) {
+  eventer_t *eptr, e;
+  eventer_ssl_ctx_t **ssl_ctx_holder, *ssl_ctx;
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+
+  ssl_ctx = eventer_get_eventer_ssl_ctx(e);
+  if(!ssl_ctx) {
+    lua_pushnil(L);
+    return 1;
+  }
+
+  ssl_ctx_holder = (eventer_ssl_ctx_t **)lua_newuserdata(L, sizeof(ssl_ctx));
+  *ssl_ctx_holder = ssl_ctx;
+  luaL_getmetatable(L, "noit.eventer.ssl_ctx");
+  lua_setmetatable(L, -2);
+  return 1;
+}
+static int
 noit_eventer_index_func(lua_State *L) {
   int n;
   const char *k;
@@ -496,6 +538,11 @@ noit_eventer_index_func(lua_State *L) {
        lua_pushcclosure(L, noit_lua_socket_connect_ssl, 1);
        return 1;
      }
+     if(!strcmp(k, "ssl_ctx")) {
+       lua_pushlightuserdata(L, udata);
+       lua_pushcclosure(L, noit_lua_socket_ssl_ctx, 1);
+       return 1;
+     }
      break;
     case 'w':
      if(!strcmp(k, "write")) {
@@ -507,7 +554,7 @@ noit_eventer_index_func(lua_State *L) {
     default:
       break;
   }
-  luaL_error(L, "eventer_t no such element: %s", k);
+  luaL_error(L, "noit.eventer no such element: %s", k);
   return 0;
 }
 
@@ -519,6 +566,56 @@ noit_lua_event(lua_State *L, eventer_t e) {
   luaL_getmetatable(L, "noit.eventer");
   lua_setmetatable(L, -2);
   return addr;
+}
+
+static int
+noit_ssl_ctx_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  eventer_ssl_ctx_t **udata, *ssl_ctx;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "noit.eventer.ssl_ctx")) {
+    luaL_error(L, "metatable error, arg1 not a noit.eventer.ssl_ctx!");
+  }
+  udata = lua_touserdata(L, 1);
+  ssl_ctx = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'e':
+      if(!strcmp(k,"error")) {
+        lua_pushstring(L,eventer_ssl_get_peer_error(ssl_ctx));
+        return 1;
+      }
+      if(!strcmp(k,"end_time")) {
+        lua_pushinteger(L,eventer_ssl_get_peer_end_time(ssl_ctx));
+        return 1;
+      }
+      break;
+    case 'i':
+      if(!strcmp(k,"issuer")) {
+        lua_pushstring(L,eventer_ssl_get_peer_issuer(ssl_ctx));
+        return 1;
+      }
+      break;
+    case 's':
+      if(!strcmp(k,"subject")) {
+        lua_pushstring(L,eventer_ssl_get_peer_subject(ssl_ctx));
+        return 1;
+      }
+      if(!strcmp(k,"start_time")) {
+        lua_pushinteger(L,eventer_ssl_get_peer_start_time(ssl_ctx));
+        return 1;
+      }
+      break;
+    default:
+      break;
+  }
+  luaL_error(L, "noit.eventer.ssl_ctx no such element: %s", k);
+  return 0;
 }
 
 static int
@@ -808,6 +905,51 @@ noit_lua_pcre_gc(lua_State *L) {
   return 0;
 }
 
+static int
+nl_conf_get_string(lua_State *L) {
+  char *val;
+  const char *path = lua_tostring(L,1);
+  if(path &&
+     noit_conf_get_string(NULL, path, &val)) {
+    lua_pushstring(L,val);
+    free(val);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
+static int
+nl_conf_get_integer(lua_State *L) {
+  int val;
+  const char *path = lua_tostring(L,1);
+  if(path &&
+     noit_conf_get_int(NULL, path, &val)) {
+    lua_pushinteger(L,val);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
+static int
+nl_conf_get_boolean(lua_State *L) {
+  noit_boolean val;
+  const char *path = lua_tostring(L,1);
+  if(path &&
+     noit_conf_get_boolean(NULL, path, &val)) {
+    lua_pushboolean(L,val);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
+static int
+nl_conf_get_float(lua_State *L) {
+  float val;
+  const char *path = lua_tostring(L,1);
+  if(path &&
+     noit_conf_get_float(NULL, path, &val)) {
+    lua_pushnumber(L,val);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
@@ -816,12 +958,21 @@ static const luaL_Reg noitlib[] = {
   { "pcre", nl_pcre },
   { "socket_ipv6", nl_socket_ipv6 },
   { "gunzip", nl_gunzip },
+  { "conf_get", nl_conf_get_string },
+  { "conf_get_string", nl_conf_get_string },
+  { "conf_get_integer", nl_conf_get_integer },
+  { "conf_get_boolean", nl_conf_get_boolean },
+  { "conf_get_number", nl_conf_get_float },
   { NULL, NULL }
 };
 
 int luaopen_noit(lua_State *L) {
   luaL_newmetatable(L, "noit.eventer");
   lua_pushcclosure(L, noit_eventer_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.eventer.ssl_ctx");
+  lua_pushcclosure(L, noit_ssl_ctx_index_func, 0);
   lua_setfield(L, -2, "__index");
 
   luaL_newmetatable(L, "noit.gunzip");
