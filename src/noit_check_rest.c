@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -247,7 +247,7 @@ validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   if(!root || strcmp((char *)root->name, "check")) return 0;
   for(tl = root->children; tl; tl = tl->next) {
     if(!strcmp((char *)tl->name, "attributes")) {
-      *a = tl->children;
+      *a = tl;
       for(an = tl->children; an; an = an->next) {
 #define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a))
         CHECK_N_SET(name) {
@@ -313,7 +313,7 @@ validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
       }
     }
     else if(!strcmp((char *)tl->name, "config")) {
-      *c = tl->children;
+      *c = tl;
       /* Noop, anything goes */
     }
     else return 0;
@@ -325,7 +325,7 @@ validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
 static void
 configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
   xmlNodePtr n, config, oldconfig;
-  for(n = a; n; n = n->next) {
+  for(n = a->children; n; n = n->next) {
 #define ATTR2PROP(attr) do { \
   if(!strcmp((char *)n->name, #attr)) { \
     xmlChar *v = xmlNodeGetContent(n); \
@@ -345,10 +345,16 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
   for(oldconfig = check->children; oldconfig; oldconfig = oldconfig->next)
     if(!strcmp((char *)oldconfig->name, "config")) break;
   config = xmlNewNode(NULL, (xmlChar *)"config");
-  for(n = c; n; n = n->next) {
-    xmlNodePtr co = xmlNewNode(NULL, n->name);
-    xmlNodeAddContent(co, XML_GET_CONTENT(n));
-    xmlAddChild(config, co);
+  if(c) {
+    xmlAttrPtr inherit;
+    if((inherit = xmlHasProp(c, (xmlChar *)"inherit")) != NULL &&
+        inherit->children && inherit->children->content)
+      xmlSetProp(config, (xmlChar *)"inherit", inherit->children->content);
+    for(n = c->children; n; n = n->next) {
+      xmlNodePtr co = xmlNewNode(NULL, n->name);
+      xmlNodeAddContent(co, XML_GET_CONTENT(n));
+      xmlAddChild(config, co);
+    }
   }
   if(oldconfig) {
     xmlReplaceNode(oldconfig, config);
@@ -512,7 +518,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
       noit_module_t *m;
       xmlNodePtr newcheck, a;
       /* make sure this isn't a dup */
-      for(a = attr; a; a = a->next) {
+      for(a = attr->children; a; a = a->next) {
         if(!strcmp((char *)a->name, "target"))
           target = (char *)xmlNodeGetContent(a);
         if(!strcmp((char *)a->name, "name"))
@@ -550,7 +556,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
       FAIL("internal error uuid");
 
     /* make sure this isn't a dup */
-    for(a = attr; a; a = a->next) {
+    for(a = attr->children; a; a = a->next) {
       if(!strcmp((char *)a->name, "target"))
         target = (char *)xmlNodeGetContent(a);
       if(!strcmp((char *)a->name, "name"))
