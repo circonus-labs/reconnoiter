@@ -244,9 +244,9 @@ static int
 noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
                         int *read_complete) {
   char buff[4096];
-  int len;
+  int len = 0;
   *read_complete = 0;
-  while((len = e->opset->read(e->fd, buff, sizeof(buff), mask, e)) > 0) {
+  do {
     if(cl->read_goal) {
       int remaining = cl->read_goal - cl->read_sofar;
       /* copy up to the goal into the inbuff */
@@ -256,8 +256,8 @@ noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
         lua_pushlstring(cl->L, cl->inbuff, cl->read_goal);
         *read_complete = 1;
         cl->read_sofar -= cl->read_goal;
+        cl->inbuff_len = 0;
         if(cl->read_sofar > 0) {  /* We have to buffer this for next read */
-          cl->inbuff_len = 0;
           inbuff_addlstring(cl, buff + remaining, cl->read_sofar);
         }
         break;
@@ -283,7 +283,7 @@ noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
         break;
       }
     }
-  }
+  } while((len = e->opset->read(e->fd, buff, sizeof(buff), mask, e)) > 0);
   return len;
 }
 static int
@@ -337,39 +337,13 @@ noit_lua_socket_read(lua_State *L) {
 
   if(lua_isnumber(L, 2)) {
     cl->read_goal = lua_tointeger(L, 2);
-    if(cl->read_goal <= cl->read_sofar) {
-      int base;
-     i_know_better:
-      base = lua_gettop(L);
-      /* We have enough, we can service this right here */
-      lua_pushlstring(L, cl->inbuff, cl->read_goal);
-      cl->read_sofar -= cl->read_goal;
-      if(cl->read_sofar) {
-        memmove(cl->inbuff, cl->inbuff + cl->read_goal, cl->read_sofar);
-      }
-      cl->inbuff_len = cl->read_sofar;
+    if(cl->read_goal == 0) {
+      lua_pushstring(L, "");
       return 1;
     }
   }
-  else {
+  else
     cl->read_terminator = lua_tostring(L, 2);
-    if(cl->read_sofar) {
-      const char *cp;
-      /* Ugh... inernalism */
-      cp = strnstrn(cl->read_terminator, strlen(cl->read_terminator),
-                    cl->inbuff, cl->read_sofar);
-      if(cp) {
-        /* Here we matched... and we _know_ that someone actually wants:
-         * strlen(cl->read_terminator) + cp - cl->inbuff.buffer bytes...
-         * give it to them.
-         */
-        cl->read_goal = strlen(cl->read_terminator) + cp - cl->inbuff;
-        cl->read_terminator = NULL;
-        assert(cl->read_goal <= cl->read_sofar);
-        goto i_know_better;
-      }
-    }
-  }
 
   len = noit_lua_socket_do_read(e, &mask, cl, &args);
   if(args == 1) return 1; /* completed read, return result */
