@@ -61,7 +61,8 @@ struct uuid_dummy {
 };
 
 static void register_console_check_commands();
-
+static int check_recycle_bin_processor(eventer_t, int, void *,
+                                       struct timeval *);
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
 const char *
@@ -376,6 +377,9 @@ noit_poller_init() {
   noit_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
   register_console_check_commands();
+  eventer_name_callback("check_recycle_bin_processor",
+                        check_recycle_bin_processor);
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, 60, 0);
   noit_poller_reload(NULL);
 }
 
@@ -613,26 +617,9 @@ noit_poller_schedule(const char *target,
   return 0;
 }
 
-int
-noit_poller_deschedule(uuid_t in) {
-  void *vcheck;
-  noit_check_t *checker;
+void
+noit_poller_free_check(noit_check_t *checker) {
   noit_module_t *mod;
-  if(noit_hash_retrieve(&polls,
-                        (char *)in, UUID_SIZE,
-                        &vcheck) == 0) {
-    return -1;
-  }
-  checker = (noit_check_t *)vcheck;
-  checker->flags |= (NP_DISABLED|NP_KILLED);
-
-  if(checker->flags & NP_RUNNING) {
-    return 0;
-  }
-
-  noit_skiplist_remove(&polls_by_name, checker, NULL);
-  noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
-
   mod = noit_module_lookup(checker->module);
   if(mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
@@ -651,6 +638,68 @@ noit_poller_deschedule(uuid_t in) {
     checker->config = NULL;
   }
   free(checker);
+}
+
+/* A quick little list of recycleable checks.  This list never really
+ * grows large, so no sense in thinking too hard about the algorithmic
+ * complexity.
+ */
+struct _checker_rcb {
+  noit_check_t *checker;
+  struct _checker_rcb *next;
+};
+static struct _checker_rcb *checker_rcb = NULL;
+static void recycle_check(noit_check_t *checker) {
+  struct _checker_rcb *n = malloc(sizeof(*n));
+  n->checker = checker;
+  n->next = checker_rcb;
+  checker_rcb = n;
+}
+static int
+check_recycle_bin_processor(eventer_t e, int mask, void *closure,
+                            struct timeval *now) {
+  static struct timeval one_minute = { 60L, 0L };
+  struct _checker_rcb *prev = NULL, *curr = checker_rcb;
+  noitL(noit_debug, "Scanning check recycle bin\n");
+  while(curr) {
+    if(!(curr->checker->flags & NP_RUNNING)) {
+      noitL(noit_debug, "Check is ready to free.\n");
+      noit_poller_free_check(curr->checker);
+      if(prev) prev->next = curr->next;
+      else checker_rcb = curr->next;
+      free(curr);
+      curr = prev ? prev->next : checker_rcb;
+    }
+    else {
+      prev = curr;
+      curr = curr->next;
+    }
+  }
+  add_timeval(*now, one_minute, &e->whence);
+  return EVENTER_TIMER;
+}
+
+int
+noit_poller_deschedule(uuid_t in) {
+  void *vcheck;
+  noit_check_t *checker;
+  if(noit_hash_retrieve(&polls,
+                        (char *)in, UUID_SIZE,
+                        &vcheck) == 0) {
+    return -1;
+  }
+  checker = (noit_check_t *)vcheck;
+  checker->flags |= (NP_DISABLED|NP_KILLED);
+
+  noit_skiplist_remove(&polls_by_name, checker, NULL);
+  noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
+
+  if(checker->flags & NP_RUNNING) {
+    recycle_check(checker);
+    return 0;
+  }
+
+  noit_poller_free_check(checker);
   return 0;
 }
 
