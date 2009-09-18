@@ -808,32 +808,31 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   CTX_LEADER_APPEND("\r\n", 2);
   return len;
 }
-/* memgzip */
 static int memgzip2(Bytef *dest, uLongf *destLen,
                     const Bytef *source, uLong sourceLen, int level) {
-    z_stream stream;
-    int err;
+  z_stream stream;
+  int err;
 
-    memset(&stream, 0, sizeof(stream));
-    stream.next_in = (Bytef*)source;
-    stream.avail_in = (uInt)sourceLen;
-    stream.next_out = dest;
-    stream.avail_out = (uInt)*destLen;
-    if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
+  memset(&stream, 0, sizeof(stream));
+  stream.next_in = (Bytef*)source;
+  stream.avail_in = (uInt)sourceLen;
+  stream.next_out = dest;
+  stream.avail_out = (uInt)*destLen;
+  if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
 
-    err = deflateInit2(&stream, level, Z_DEFLATED, 15+16, 8,
-                       Z_DEFAULT_STRATEGY);
-    if (err != Z_OK) return err;
+  err = deflateInit2(&stream, level, Z_DEFLATED, 15+16, 8,
+                     Z_DEFAULT_STRATEGY);
+  if (err != Z_OK) return err;
 
-    err = deflate(&stream, Z_FINISH);
-    if (err != Z_STREAM_END) {
-        deflateEnd(&stream);
-        return err == Z_OK ? Z_BUF_ERROR : err;
-    }
-    *destLen = stream.total_out;
+  err = deflate(&stream, Z_FINISH);
+  if (err != Z_STREAM_END) {
+    deflateEnd(&stream);
+    return err == Z_OK ? Z_BUF_ERROR : err;
+  }
+  *destLen = stream.total_out;
 
-    err = deflateEnd(&stream);
-    return err;
+  err = deflateEnd(&stream);
+  return err;
 }
 static noit_boolean
 _http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
