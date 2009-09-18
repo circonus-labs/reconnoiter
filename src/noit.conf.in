@@ -46,14 +46,12 @@
     </loader>
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
-    <http image="http">
-      <module name="resmon"/>
-      <module name="resmon_part"/>
-      <module name="http"/>
-    </http>
     <module image="snmp" name="snmp"/>
     <module image="ssh2" name="ssh2"/>
     <module loader="lua" name="varnish" object="noit.module.varnish"/>
+    <module loader="lua" name="http" object="noit.module.http"/>
+    <module loader="lua" name="resmon" object="noit.module.resmon"/>
+    <module loader="lua" name="smtp" object="noit.module.smtp"/>
   </modules>
   <listeners>
     <sslconfig>
@@ -110,14 +108,6 @@
       </web>
       <resmon module="resmon" period="30000">
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fd" timeout="2000" target="10.225.209.36"/>
-        <parts module="resmon_part" period="0" timeout="10" oncheck="resmon">
-          <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fe" target="10.225.209.36">
-            <config>
-              <resmon_module>FAULTS</resmon_module>
-              <resmon_service>hardware</resmon_service>
-            </config>
-          </check>
-        </parts>
       </resmon>
       <switches module="snmp" period="60000">
         <config inherit="SwitchPortX"/>

@@ -28,8 +28,11 @@ XMLLINT=@XMLLINT@
 MODULES_DIR=@MODULES_DIR@
 
 LUA=noit/timeval.lua \
+	noit/HttpClient.lua \
 	noit/module/varnish.lua \
-	noit/module/smtp.lua
+	noit/module/smtp.lua \
+	noit/module/http.lua \
+	noit/module/resmon.lua
 
 all:
 
