@@ -52,8 +52,7 @@ function HttpClient:get_headers()
     self.headers = {}
     while true do
         local str = self.e:read("\n")
-        if str == nil then error("premature end of headers") end
-        if str == "\r\n" or str == "\n" then break end
+        if str == nil or str == "\r\n" or str == "\n" then break end
         str = string.gsub(str, '%s+$', '')
         local hdr, val = string.match(str, "^([-_%a%d]+):%s+(.+)$")
         if hdr == nil then
