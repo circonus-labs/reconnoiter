@@ -418,7 +418,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
      * connection.
      */
     if((sslctx = eventer_get_eventer_ssl_ctx(e)) != NULL) {
-      char *cn, *end;
+      const char *cn, *end;
       cn = eventer_ssl_get_peer_subject(sslctx);
       if(cn && (cn = strstr(cn, "CN=")) != NULL) {
         cn += 3;
