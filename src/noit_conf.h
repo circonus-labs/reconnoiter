@@ -46,6 +46,7 @@ typedef void * noit_conf_section_t;
 typedef struct {
   char *path;
   uuid_t current_check;
+  char filter_name[50];
   char prompt[50];
 } noit_conf_t_userdata_t;
 

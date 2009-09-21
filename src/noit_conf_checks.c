@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
@@ -44,6 +43,7 @@
 
 #include "noit_conf.h"
 #include "noit_conf_private.h"
+#include "noit_conf_checks.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_filters.h"
@@ -52,9 +52,6 @@
 #include "utils/noit_log.h"
 
 static void register_console_config_commands();
-static int noit_console_config_cd(noit_console_closure_t ncct,
-                                  int argc, char **argv,
-                                  noit_console_state_t *state, void *closure);
 
 static struct _valid_attr_t {
   const char *scope;
@@ -70,25 +67,28 @@ static struct _valid_attr_t {
   { "/checks", "disable", "@disable", 0 },
   { "/checks", "filterset", "@filterset", 0 },
   { "/checks", "module", "@module", 1 },
-  { "/filtersets/filterset", "target", "@target", 1 },
-  { "/filtersets/filterset", "module", "@module", 1 },
-  { "/filtersets/filterset", "name", "@name", 1 },
-  { "/filtersets/filterset", "metric", "@metric", 1 },
+  { "/filtersets", "target", "@target", 0 },
+  { "/filtersets", "module", "@module", 0 },
+  { "/filtersets", "name", "@name", 0 },
+  { "/filtersets", "metric", "@metric", 0 },
 };
 
 void
 noit_console_state_add_check_attrs(noit_console_state_t *state,
-                                   console_cmd_func_t f) {
+                                   console_cmd_func_t f,
+                                   const char *scope) {
   int i;
   for(i = 0;
       i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
       i++) {
+    if(strcmp(valid_attrs[i].scope, scope)) continue;
     noit_console_state_add_cmd(state,
       NCSCMD(valid_attrs[i].name, f, NULL,
              NULL, &valid_attrs[i]));
   }
 }
 static noit_hash_table check_attrs = NOIT_HASH_EMPTY;
+
 void noit_conf_checks_init(const char *toplevel) {
   int i;
   for(i=0;i<sizeof(valid_attrs)/sizeof(*valid_attrs);i++) {
@@ -264,6 +264,11 @@ noit_console_check(noit_console_closure_t ncct,
     /* We are creating a new node */
     uuid_t out;
     creating_new = noit_true;
+    if(strncmp(info->path, "/checks/", strlen("/checks/")) &&
+       strcmp(info->path, "/checks")) {
+      nc_printf(ncct, "New checks must be under /checks/\n");
+      return -1;
+    }
     if(noit_conf_mkcheck_under(info->path, argc - 1, argv + 1, out)) {
       nc_printf(ncct, "Error creating new check\n");
       return -1;
@@ -620,6 +625,10 @@ noit_console_config_section(noit_console_closure_t ncct,
     nc_printf(ncct, "use 'check' to create checks\n");
     return -1;
   }
+  if(!strcmp(argv[0], "filterset")) {
+    nc_printf(ncct, "use 'filterset' to create checks\n");
+    return -1;
+  }
   if(!strcmp(argv[0], "config")) {
     nc_printf(ncct, "use 'config' to set check config options\n");
     return -1;
@@ -697,7 +706,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   return -1;
 }
 
-static int
+int
 noit_console_config_cd(noit_console_closure_t ncct,
                        int argc, char **argv,
                        noit_console_state_t *state, void *closure) {
@@ -874,6 +883,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   for(i=0; i<cnt; i++) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
+    if(!strcmp((char *)node->name, "filterset")) continue;
     if(!strcmp((char *)xmlGetNodePath(node) + cliplen, "config")) continue;
     if(!(node->children && node->children == xmlGetLastChild(node) &&
          xmlNodeIsText(node->children))) {
@@ -885,7 +895,20 @@ noit_console_config_show(noit_console_closure_t ncct,
   titled = 0;
   for(i=0; i<cnt; i++) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-    if(!strcmp((char *)node->name, "check")) {
+    if(!strcmp((char *)node->name, "filterset")) {
+      xmlAttr *attr;
+      char *filter_name = NULL;
+      for(attr=node->properties; attr; attr = attr->next) {
+        if(!strcmp((char *)attr->name, "name"))
+          filter_name = (char *)xmlXPathCastNodeToString(attr->children);
+      }
+      if(filter_name) {
+        nc_printf(ncct, "filterset[@name=\"%s\"]\n", filter_name);
+        xmlFree(filter_name);
+      }
+      else nc_printf(ncct, "fitlerset\n");
+    }
+    else if(!strcmp((char *)node->name, "check")) {
       int busted = 1;
       xmlAttr *attr;
       char *uuid_str = "undefined";
@@ -1319,11 +1342,13 @@ void register_console_config_commands() {
 
   /* attribute <attrname> <value> */
   NEW_STATE(_attr_state);
-  noit_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr);
+  noit_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr,
+                                     "/checks");
  
   /* no attribute <attrname> <value> */
   NEW_STATE(_uattr_state);
-  noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr);
+  noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr,
+                                     "/checks");
 
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute",
