@@ -184,6 +184,7 @@ static int child_main() {
   noit_jlog_listener_init();
   noit_http_rest_init();
   noit_check_rest_init();
+  noit_filters_rest_init();
   noit_livestream_listener_init();
 
   noit_module_init();

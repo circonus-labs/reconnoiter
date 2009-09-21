@@ -65,4 +65,8 @@ API_EXPORT(int)
   noit_http_rest_register(const char *method, const char *base,
                           const char *expression, rest_request_handler f);
 
+API_EXPORT(xmlDocPtr)
+  rest_get_xml_upload(noit_http_rest_closure_t *restc,
+                      int *mask, int *complete) ;
+
 #endif

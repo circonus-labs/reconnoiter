@@ -47,13 +47,6 @@
 #define FAIL(a) do { error = (a); goto error; } while(0)
 #define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
 
-struct rest_xml_payload {
-  char *buffer;
-  int len;
-  int allocd;
-  int complete;
-};
-
 static int
 rest_show_check(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
@@ -229,12 +222,6 @@ rest_show_check(noit_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
-}
-
-static void
-rest_xml_payload_free(void *f) {
-  struct rest_xml_payload *xmlin = f;
-  if(xmlin->buffer) free(xmlin->buffer);
 }
 
 static int
@@ -464,38 +451,14 @@ rest_set_check(noit_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf;
-  int rv, cnt, error_code = 500;
+  int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
   noit_boolean exists = noit_false;
-  struct rest_xml_payload *rxc;
 
   if(npats != 2) goto error;
 
-  if(restc->call_closure == NULL) {
-    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
-    restc->call_closure_free = rest_xml_payload_free;
-  }
-  rxc = restc->call_closure;
-  while(!rxc->complete) {
-    int len, mask;
-    if(rxc->len == rxc->allocd) {
-      char *b;
-      rxc->allocd += 32768;
-      b = rxc->buffer ? realloc(rxc->buffer, rxc->allocd) :
-                        malloc(rxc->allocd);
-      if(!b) FAIL("alloc failed");
-      rxc->buffer = b;
-    }
-    len = noit_http_session_req_consume(restc->http_ctx,
-                                        rxc->buffer + rxc->len,
-                                        rxc->allocd - rxc->len,
-                                        &mask);
-    if(len > 0) rxc->len += len;
-    if(len < 0 && errno == EAGAIN) return mask;
-    if(rxc->len == restc->http_ctx->req.content_length) rxc->complete = 1;
-  }
-
-  indoc = xmlParseMemory(rxc->buffer, rxc->len);
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) return mask;
   if(indoc == NULL) FAIL("xml parse error");
   if(!validate_check_post(indoc, &attr, &config, &error)) goto error;
 
@@ -587,7 +550,6 @@ rest_set_check(noit_http_rest_closure_t *restc,
   restc->call_closure = NULL;
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
-  if(indoc) xmlFreeDoc(indoc);
   restc->fastpath = rest_show_check;
   return restc->fastpath(restc, restc->nparams, restc->params);
 
@@ -604,7 +566,6 @@ rest_set_check(noit_http_rest_closure_t *restc,
  cleanup:
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
-  if(indoc) xmlFreeDoc(indoc);
   return 0;
 }
 

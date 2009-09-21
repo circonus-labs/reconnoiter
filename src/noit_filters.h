@@ -50,4 +50,16 @@ API_EXPORT(noit_boolean)
                        noit_check_t *check,
                        metric_t *metric);
 
+API_EXPORT(void)
+  noit_filter_compile_add(noit_conf_section_t setinfo);
+
+API_EXPORT(int)
+  noit_filter_remove(noit_conf_section_t setinfo);
+
+API_EXPORT(int)
+  noit_filter_exists(const char *name);
+
+API_EXPORT(void)
+  noit_filters_rest_init();
+
 #endif

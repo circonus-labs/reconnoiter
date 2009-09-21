@@ -36,6 +36,15 @@
 #include "noit_rest.h"
 
 #include <pcre.h>
+#include <errno.h>
+
+struct rest_xml_payload {
+  char *buffer;
+  xmlDocPtr indoc;
+  int len;
+  int allocd;
+  int complete;
+};
 
 struct rest_url_dispatcher {
   char *method;
@@ -45,6 +54,7 @@ struct rest_url_dispatcher {
   /* Chain to the next one */
   struct rest_url_dispatcher *next;
 };
+
 struct rule_container {
   char *base;
   struct rest_url_dispatcher *rules;
@@ -236,6 +246,54 @@ socket_error:
   return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
 }
 
+static void
+rest_xml_payload_free(void *f) {
+  struct rest_xml_payload *xmlin = f;
+  if(xmlin->buffer) free(xmlin->buffer);
+  if(xmlin->indoc) xmlFreeDoc(xmlin->indoc);
+}
+
+xmlDocPtr
+rest_get_xml_upload(noit_http_rest_closure_t *restc,
+                    int *mask, int *complete) {
+  struct rest_xml_payload *rxc;
+  if(restc->call_closure == NULL) {
+    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    restc->call_closure_free = rest_xml_payload_free;
+  }
+  rxc = restc->call_closure;
+  while(!rxc->complete) {
+    int len;
+    if(rxc->len == rxc->allocd) {
+      char *b;
+      rxc->allocd += 32768;
+      b = rxc->buffer ? realloc(rxc->buffer, rxc->allocd) :
+                        malloc(rxc->allocd);
+      if(!b) {
+        *complete = 1;
+        return NULL;
+      }
+      rxc->buffer = b;
+    }
+    len = noit_http_session_req_consume(restc->http_ctx,
+                                        rxc->buffer + rxc->len,
+                                        rxc->allocd - rxc->len,
+                                        mask);
+    if(len > 0) rxc->len += len;
+    if(len < 0 && errno == EAGAIN) return NULL;
+    else if(len < 0) {
+      *complete = 1;
+      return NULL;
+    }
+    if(rxc->len == restc->http_ctx->req.content_length) {
+      rxc->indoc = xmlParseMemory(rxc->buffer, rxc->len);
+      rxc->complete = 1;
+    }
+  }
+
+  *complete = 1;
+  return rxc->indoc;
+}
 void noit_http_rest_init() {
   eventer_name_callback("http_rest_api/1.0", noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,

@@ -160,6 +160,26 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
                     NULL, filterset_free);
   UNLOCKFS();
 }
+int
+noit_filter_exists(const char *name) {
+  int removed;
+  void *v;
+  LOCKFS();
+  removed = noit_hash_retrieve(filtersets, name, strlen(name), &v);
+  UNLOCKFS();
+  return removed;
+}
+int
+noit_filter_remove(noit_conf_section_t vnode) {
+  int removed;
+  xmlNodePtr node = vnode;
+  char *name = (char *)node->name;
+  LOCKFS();
+  removed = noit_hash_delete(filtersets, name, strlen(name),
+                             NULL, filterset_free);
+  UNLOCKFS();
+  return removed;
+}
 void
 noit_filters_from_conf() {
   noit_conf_section_t *sets;
@@ -391,10 +411,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   fsnode = noit_conf_get_section(parent, xpath);
   if(closure) {
     int removed;
-    LOCKFS();
-    removed = noit_hash_delete(filtersets, argv[0], strlen(argv[0]),
-                               NULL, filterset_free);
-    UNLOCKFS();
+    removed = noit_filter_remove(fsnode);
     nc_printf(ncct, "%sremoved filterset '%s'\n",
               removed ? "" : "failed to ", argv[0]);
     if(removed) {
