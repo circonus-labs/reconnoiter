@@ -36,6 +36,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "noit_jlog_listener.h"
+#include "noit_rest.h"
 #include "stratcon_datastore.h"
 #include "stratcon_jlog_streamer.h"
 
@@ -702,6 +703,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
     nc_print_noit_conn_brief(ncct, ctx[i]);
     noit_connection_ctx_deref(ctx[i]);
   }
+  free(ctx);
   return 0;
 }
 
@@ -718,6 +720,94 @@ register_console_streamer_commands() {
     NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
 }
 
+static int
+rest_show_noits(noit_http_rest_closure_t *restc,
+                int npats, char **pats) {
+  xmlDocPtr doc;
+  xmlNodePtr root;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen, n = 0, i;
+  void *vconn;
+  noit_connection_ctx_t **ctxs;
+  struct timeval now, diff;
+  gettimeofday(&now, NULL);
+
+  pthread_mutex_lock(&noits_lock);
+  ctxs = malloc(sizeof(*ctxs) * noits.size);
+  while(noit_hash_next(&noits, &iter, (const char **)key_id, &klen,
+                       &vconn)) {
+    ctxs[n] = (noit_connection_ctx_t *)vconn;
+    noit_atomic_inc32(&ctxs[n]->refcnt);
+    n++;
+  }
+  pthread_mutex_unlock(&noits_lock);
+  qsort(ctxs, n, sizeof(*ctxs), remote_str_sort);
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"noits", NULL);
+  xmlDocSetRootElement(doc, root);
+  for(i=0; i<n; i++) {
+    char buff[256], *feedtype = "unknown", *state = "unknown";
+    xmlNodePtr node;
+    noit_connection_ctx_t *ctx = ctxs[i];
+    jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
+
+    node = xmlNewNode(NULL, (xmlChar *)"noit");
+    snprintf(buff, sizeof(buff), "%llu.%06d",
+             (long long unsigned)ctx->last_connect.tv_sec,
+             (int)ctx->last_connect.tv_usec);
+    xmlSetProp(node, (xmlChar *)"last_connect", (xmlChar *)buff);
+    xmlSetProp(node, (xmlChar *)"state", ctx->timeout_event ?
+               (xmlChar *)"disconnected" : (xmlChar *)"connected");
+    if(ctx->timeout_event) {
+      sub_timeval(now, ctx->timeout_event->whence, &diff);
+      snprintf(buff, sizeof(buff), "%llu.%06d",
+               (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
+      xmlSetProp(node, (xmlChar *)"next_attempt", (xmlChar *)buff);
+    }
+    xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
+    if(ctx->remote_cn)
+      xmlSetProp(node, (xmlChar *)"remote_cn", (xmlChar *)ctx->remote_cn);
+
+    switch(ntohl(jctx->jlog_feed_cmd)) {
+      case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
+      case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
+    }
+    xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
+    switch(jctx->state) {
+      case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
+      case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
+      case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
+      case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
+      case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;
+      case JLOG_STREAMER_WANT_CHKPT: state = "checkpointing"; break;
+    }
+    xmlSetProp(node, (xmlChar *)"state", (xmlChar *)state);
+    snprintf(buff, sizeof(buff), "%08x:%08x", 
+             jctx->header.chkpt.log, jctx->header.chkpt.marker);
+    xmlSetProp(node, (xmlChar *)"checkpoint", (xmlChar *)buff);
+    snprintf(buff, sizeof(buff), "%lu", jctx->total_events);
+    xmlSetProp(node, (xmlChar *)"session_events", (xmlChar *)buff);
+    snprintf(buff, sizeof(buff), "%lu", jctx->total_bytes_read);
+    xmlSetProp(node, (xmlChar *)"session_bytes", (xmlChar *)buff);
+
+    sub_timeval(now, ctx->last_connect, &diff);
+    snprintf(buff, sizeof(buff), "%llu.%06d",
+             (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
+    xmlSetProp(node, (xmlChar *)"session_duration", (xmlChar *)buff);
+
+    xmlAddChild(root, node);
+    noit_connection_ctx_deref(ctx);
+  }
+  free(ctxs);
+
+  noit_http_response_ok(restc->http_ctx, "text/xml");
+  noit_http_response_xml(restc->http_ctx, doc);
+  noit_http_response_end(restc->http_ctx);
+  xmlFreeDoc(doc);
+  return 0;
+}
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   pthread_mutex_init(&noits_lock, NULL);
@@ -731,4 +821,7 @@ stratcon_jlog_streamer_init(const char *toplevel) {
                         noit_connection_complete_connect);
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
+  assert(noit_http_rest_register(
+    "GET", "/noits/", "^show$", rest_show_noits
+  ) == 0);
 }

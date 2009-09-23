@@ -321,7 +321,7 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
   return rxc->indoc;
 }
 void noit_http_rest_init() {
-  eventer_name_callback("noit_wite_rest_api/1.0", noit_http_rest_handler);
+  eventer_name_callback("noit_wire_rest_api/1.0", noit_http_rest_handler);
   eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_DELETE,

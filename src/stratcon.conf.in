@@ -30,7 +30,7 @@
     <noit address="127.0.0.1" port="43191" />
   </noits>
 
-  <iep disable="false"> <!-- false the default -->
+  <iep disabled="false"> <!-- false the default -->
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
     <queries>
@@ -112,19 +112,25 @@
   </database>
 
   <listeners>
-  <consoles type="noit_console">
-    <listener address="/tmp/stratcon">
-      <config><line_protocol>telnet</line_protocol></config>
-    </listener>
-  </consoles>
-  <realtime type="http_rest_api">
-    <listener address="*" port="80">
-      <config>
-        <hostname>stratcon.noit.example.com</hostname>
-        <document_domain>noit.example.com</document_domain>
-      </config>
-    </listener>
-  </realtime>
+    <sslconfig>
+      <key_file>%sysconfdir%/%PKIPREFIX%stratcon.key</key_file>
+      <certificate_file>%sysconfdir%/%PKIPREFIX%stratcon.crt</certificate_file>
+      <ca_chain>%sysconfdir%/%PKIPREFIX%ca.crt</ca_chain>
+    </sslconfig>
+    <consoles type="noit_console">
+      <listener address="/tmp/stratcon">
+        <config><line_protocol>telnet</line_protocol></config>
+      </listener>
+    </consoles>
+    <realtime type="http_rest_api">
+      <listener address="*" port="80">
+        <config>
+          <hostname>stratcon.noit.example.com</hostname>
+          <document_domain>noit.example.com</document_domain>
+        </config>
+      </listener>
+    </realtime>
+    <listener type="control_dispatch" address="*" port="43191" ssl="on" />
   </listeners>
 
 </stratcon>
