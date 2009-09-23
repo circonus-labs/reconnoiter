@@ -23,7 +23,7 @@ XML2H=@top_srcdir@/buildtools/xml2h
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ http.@MODULEEXT@ postgres.@MODULEEXT@ \
+MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ \
 	@BUILD_MODULES@
@@ -69,14 +69,6 @@ dns.@MODULEEXT@:	dns.lo
 
 dns.lo:	dns.c dns.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
-	@echo "- compiling $<"
-
-http.@MODULEEXT@:	http.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ http.lo @CURLLIBS@ -lz -lssl -lcrypto
-	@echo "- linking $@"
-
-http.lo:	http.c http.xmlh resmon.xmlh resmon_part.xmlh
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @CURLCFLAGS@ -c http.c -o $@
 	@echo "- compiling $<"
 
 snmp.@MODULEEXT@:	snmp.lo
