@@ -79,7 +79,7 @@ noitd:	make-subdirs $(NOIT_OBJS)
 		$(LIBS)
 	@echo "- linking $@"
 
-stratcond:	make-subdirs $(STRATCON_OBJS)
+stratcond:	make-subdirs $(STRATCON_OBJS) java-bits
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \
