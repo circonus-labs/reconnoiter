@@ -39,6 +39,7 @@
 #include "noit_jlog_listener.h"
 #include "noit_listener.h"
 #include "noit_http.h"
+#include "noit_rest.h"
 #include "noit_livestream_listener.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_jlog_streamer.h"
@@ -437,32 +438,45 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
   }
   return EVENTER_EXCEPTION;
 }
-
 int
 stratcon_realtime_http_handler(eventer_t e, int mask, void *closure,
                                struct timeval *now) {
   acceptor_closure_t *ac = closure;
   noit_http_session_ctx *http_ctx = ac->service_ctx;
-  if(!http_ctx) {
-    const char *document_domain = NULL;
-
-    if(!noit_hash_retr_str(ac->config,
-                           "document_domain", strlen("document_domain"),
-                           &document_domain)) {
-      noitL(noit_error, "Document domain not set!  Realtime streaming will be broken\n");
-      document_domain = "";
-    }
-
-    http_ctx = ac->service_ctx =
-      noit_http_session_ctx_new(stratcon_request_dispatcher,
-                                alloc_realtime_context(document_domain),
-                                e);
-  }
   return http_ctx->drive(e, mask, http_ctx, now);
+}
+static int
+rest_stream_data(noit_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  /* We're here and want to subvert the rest system */
+  const char *document_domain = NULL;
+  noit_http_session_ctx *ctx = restc->http_ctx;
+
+  /* Rewire the handler */
+  restc->ac->service_ctx = ctx;
+
+  if(!noit_hash_retr_str(restc->ac->config,
+                         "document_domain", strlen("document_domain"),
+                         &document_domain)) {
+    noitL(noit_error, "Document domain not set!  Realtime streaming will be broken\n");
+    document_domain = "";
+  }
+  noit_http_rest_closure_free(restc);
+
+  /* Rewire the http context */
+  ctx->conn.e->callback = stratcon_realtime_http_handler;
+  ctx->dispatcher = stratcon_request_dispatcher;
+  ctx->dispatcher_closure = alloc_realtime_context(document_domain);
+  //ctx->drive = stratcon_realtime_http_handler;
+  return stratcon_request_dispatcher(ctx);
 }
 
 void
 stratcon_realtime_http_init(const char *toplevel) {
   eventer_name_callback("stratcon_realtime_http",
                         stratcon_realtime_http_handler);
+  assert(noit_http_rest_register(
+    "GET", "/data/", "^((?:\\d+(?:@\\d+)?)(?:/\\d+(?:@\\d+)?)*)$",
+    rest_stream_data
+  ) == 0);
 }

@@ -172,7 +172,7 @@ noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
   restc->params = NULL;
   restc->fastpath = NULL;
 }
-static void
+void
 noit_http_rest_closure_free(noit_http_rest_closure_t *restc) {
   free(restc->remote_cn);
   noit_http_rest_clean_request(restc);
@@ -217,6 +217,7 @@ socket_error:
   if(!ac->service_ctx) {
     const char *primer = "";
     ac->service_ctx = restc = noit_http_rest_closure_alloc();
+    restc->ac = ac;
     restc->remote_cn = strdup(ac->remote_cn ? ac->remote_cn : "");
     restc->http_ctx =
         noit_http_session_ctx_new(noit_rest_request_dispatcher,
@@ -242,6 +243,31 @@ socket_error:
         goto socket_error;
     }
     noit_http_session_prime_input(restc->http_ctx, primer, 4);
+  }
+  return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
+}
+
+int
+noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
+                           struct timeval *now) {
+  int newmask = EVENTER_READ | EVENTER_EXCEPTION;
+  acceptor_closure_t *ac = closure;
+  noit_http_rest_closure_t *restc = ac->service_ctx;
+
+  if(mask & EVENTER_EXCEPTION || (restc && restc->wants_shutdown)) {
+    /* Exceptions cause us to simply snip the connection */
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &newmask, e);
+    if(restc) noit_http_rest_closure_free(restc);
+    if(ac) acceptor_closure_free(ac);
+    return 0;
+  }
+  if(!ac->service_ctx) {
+    ac->service_ctx = restc = noit_http_rest_closure_alloc();
+    restc->ac = ac;
+    restc->http_ctx =
+        noit_http_session_ctx_new(noit_rest_request_dispatcher,
+                                  restc, e);
   }
   return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
 }
@@ -295,7 +321,8 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
   return rxc->indoc;
 }
 void noit_http_rest_init() {
-  eventer_name_callback("http_rest_api/1.0", noit_http_rest_handler);
+  eventer_name_callback("noit_wite_rest_api/1.0", noit_http_rest_handler);
+  eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_DELETE,
                                  noit_http_rest_handler);

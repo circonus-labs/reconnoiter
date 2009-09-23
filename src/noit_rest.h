@@ -50,6 +50,7 @@ typedef int (*rest_request_handler)(noit_http_rest_closure_t *,
 
 struct noit_http_rest_closure {
   noit_http_session_ctx *http_ctx;
+  acceptor_closure_t *ac;
   char *remote_cn;
   rest_request_handler fastpath;
   int nparams;
@@ -68,5 +69,8 @@ API_EXPORT(int)
 API_EXPORT(xmlDocPtr)
   rest_get_xml_upload(noit_http_rest_closure_t *restc,
                       int *mask, int *complete) ;
+
+API_EXPORT(void)
+  noit_http_rest_closure_free(noit_http_rest_closure_t *restc);
 
 #endif
