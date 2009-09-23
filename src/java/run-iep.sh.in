@@ -1,9 +1,9 @@
 #!/bin/sh
 
 JAVA=@JAVA@
-JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC"
+JPARAMS="-Xms512m -Xmx512m -server -XX:+UseParNewGC"
 JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
-	esper-3.1.0.jar log4j-1.2.15.jar \
+	esper-3.2.0.jar log4j-1.2.15.jar \
 	spring-beans-2.5.5.jar spring-context-2.5.5.jar \
 	cglib-nodep-2.2.jar commons-pool-1.4.jar commons-dbcp-1.2.2.jar \
 	postgresql-8.3-604.jdbc3.jar rabbitmq-client.jar commons-io-1.2.jar \
