@@ -35,7 +35,7 @@ class Reconnoiter_DB {
     if(isset($this->config_cache[$attr])) return $this->config_cache[$attr];
     $sql = "
         select array_to_string(
-                 xpath('//*[@type=\"stratcon_realtime_http\"]//config/' ||
+                 xpath('//*[@type=\"http_rest_api\"]//config/' ||
                        param || '/text()', config), ',') as value
           from stratcon.current_node_config, (select ? ::text as param) p
          where node_type = 'stratcond'";
