@@ -117,7 +117,7 @@
       <config><line_protocol>telnet</line_protocol></config>
     </listener>
   </consoles>
-  <realtime type="stratcon_realtime_http">
+  <realtime type="http_rest_api">
     <listener address="*" port="80">
       <config>
         <hostname>stratcon.noit.example.com</hostname>
