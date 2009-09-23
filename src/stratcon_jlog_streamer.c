@@ -787,9 +787,11 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%08x:%08x", 
              jctx->header.chkpt.log, jctx->header.chkpt.marker);
     xmlSetProp(node, (xmlChar *)"checkpoint", (xmlChar *)buff);
-    snprintf(buff, sizeof(buff), "%lu", jctx->total_events);
+    snprintf(buff, sizeof(buff), "%llu",
+             (long long unsigned)jctx->total_events);
     xmlSetProp(node, (xmlChar *)"session_events", (xmlChar *)buff);
-    snprintf(buff, sizeof(buff), "%lu", jctx->total_bytes_read);
+    snprintf(buff, sizeof(buff), "%llu",
+             (long long unsigned)jctx->total_bytes_read);
     xmlSetProp(node, (xmlChar *)"session_bytes", (xmlChar *)buff);
 
     sub_timeval(now, ctx->last_connect, &diff);
