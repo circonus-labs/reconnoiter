@@ -13,15 +13,23 @@ import java.util.UUID;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-public class StratconQueryStop extends StratconMessage {
-  private UUID uuid;
+public class StratconQueryStop extends StratconQueryBase {
 
-  public StratconQueryStop(Document d) {
-    Element e = d.getDocumentElement();
-    uuid = UUID.fromString(e.getTextContent());
+   protected String getPrefix() {
+     return "q";
+   }
+
+/*  'q' REMOTE ID */
+  public StratconQueryStop(String[] parts) throws Exception {
+    super(parts);
+    uuid = UUID.fromString(parts[2]);
   }
   public UUID getUUID() {
     return uuid;
+  }
+
+  protected int getLength() {
+    return 3;
   }
   
 }

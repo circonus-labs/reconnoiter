@@ -14,7 +14,6 @@ public class RabbitListener implements UpdateListener {
   
   private EPServiceProvider epService;
   private StratconQuery sq;
-  private EPStatement statement;
   private String routingKey;
   private String exchangeName;
   private Channel channel;
@@ -24,13 +23,11 @@ public class RabbitListener implements UpdateListener {
     try {
       this.epService = epService;
       this.sq = sq;
-      this.statement = sq.getStatement();
+      EPStatement statement=sq.getStatement();
       this.routingKey = routingKey + sq.getName();
       this.exchangeName = exchangeName;
       this.channel = channel;
-      // TODO Document this mapping
       
-
       // Create the connection and add an exchange
       channel.exchangeDeclare(exchangeName, "topic", false, false, false, null);  
     } catch(Exception e) {
@@ -40,8 +37,7 @@ public class RabbitListener implements UpdateListener {
   
   
   public void update(EventBean[] newEvents, EventBean[] oldEvents) {
-    // TODO Auto-generated method stub
-    System.err.println("AMQOutput -> dispatch");
+    System.err.println("RMQOutput -> dispatch");
     for(int i = 0; i < newEvents.length; i++) {
       EventBean event = newEvents[i];
 
@@ -51,7 +47,7 @@ public class RabbitListener implements UpdateListener {
       String output = jsonRenderer.render(sq.getName(), event);
       try {
         byte[] messageBodyBytes = output.getBytes();
-        channel.basicPublish(exchangeName, routingKey, MessageProperties.PERSISTENT_TEXT_PLAIN, messageBodyBytes);
+        channel.basicPublish(exchangeName, routingKey, MessageProperties.TEXT_PLAIN, messageBodyBytes);
       }  catch(Exception e) {
         System.err.println(e);
       }

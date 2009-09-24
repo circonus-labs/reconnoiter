@@ -14,7 +14,7 @@ import com.rabbitmq.client.ConnectionParameters;
 import com.rabbitmq.client.QueueingConsumer;
 
 
-public class RabbitBroker implements IMQBroker, Runnable  {
+public class RabbitBroker implements IMQBroker  {
 
   private Channel channel;
   private boolean noAck = false;
@@ -28,10 +28,8 @@ public class RabbitBroker implements IMQBroker, Runnable  {
   private String routingKey;
   private String alertQueue;
   private String alertExchangeName;
-  private StratconConfig config ;
 
   public RabbitBroker(StratconConfig config) {
-    this.config = config;
     this.userName = config.getBrokerParameter("username", "guest");
     this.password = config.getBrokerParameter("password", "guest");
     this.virtualHost = config.getBrokerParameter("virtualhost", "/");
@@ -109,8 +107,4 @@ public class RabbitBroker implements IMQBroker, Runnable  {
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
     return new RabbitListener(epService, sq, channel, alertExchangeName, alertQueue);
   }
-
-  public void run() {
-  }
-
 }

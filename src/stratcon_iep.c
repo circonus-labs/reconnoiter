@@ -40,7 +40,6 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
-#include "noit_xml.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -51,9 +50,6 @@
 #include <sys/filio.h>
 #endif
 #include <assert.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
-#include <libxml/xmlsave.h>
 #ifdef OPENWIRE
 #include "amqcs.h"
 #else
@@ -78,7 +74,6 @@ pthread_key_t iep_connection;
 struct iep_job_closure {
   char *line;       /* This is a copy and gets trashed during processing */
   char *remote;
-  xmlDocPtr doc;
   char *doc_str;
   apr_pool_t *pool;
 };
@@ -86,149 +81,6 @@ struct iep_job_closure {
 static void
 start_iep_daemon();
 
-static int
-bust_to_parts(char *in, char **p, int len) {
-  int cnt = 0;
-  char *s = in;
-  while(cnt < len) {
-    p[cnt++] = s;
-    while(*s && *s != '\t') s++;
-    if(!*s) break;
-    *s++ = '\0';
-  }
-  while(*s) s++; /* Move to end */
-  if(s > in && *(s-1) == '\n') *(s-1) = '\0'; /* chomp */
-  return cnt;
-}
-
-#define ADDCHILD(a,b) \
-  xmlNewTextChild(root, NULL, (xmlChar *)(a), (xmlChar *)(b))
-#define NEWDOC(xmldoc,n,stanza) do { \
-  xmlNodePtr root; \
-  xmldoc = xmlNewDoc((xmlChar *)"1.0"); \
-  root = xmlNewDocNode(xmldoc, NULL, (xmlChar *)(n), NULL); \
-  xmlDocSetRootElement(xmldoc, root); \
-  stanza \
-} while(0)
-
-
-static xmlDocPtr
-stratcon_iep_doc_from_status(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[7];
-  if(bust_to_parts(data, parts, 7) != 7) return NULL;
-  /* 'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE */
-  NEWDOC(doc, "NoitStatus",
-         {
-           ADDCHILD("remote", remote);
-           ADDCHILD("id", parts[2]);
-           ADDCHILD("state", parts[3]);
-           ADDCHILD("availability", parts[4]);
-           ADDCHILD("duration", parts[5]);
-           ADDCHILD("status", parts[6]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_check(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[6];
-  if(bust_to_parts(data, parts, 6) != 6) return NULL;
-  /* 'C' TIMESTAMP UUID TARGET MODULE NAME */
-  NEWDOC(doc, "NoitCheck",
-         {
-           ADDCHILD("remote", remote);
-           ADDCHILD("id", parts[2]);
-           ADDCHILD("target", parts[3]);
-           ADDCHILD("module", parts[4]);
-           ADDCHILD("name", parts[5]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_metric(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[6];
-  const char *rootname = "NoitMetricNumeric";
-  const char *valuename = "value";
-  if(bust_to_parts(data, parts, 6) != 6) return NULL;
-  /*  'M' TIMESTAMP UUID NAME TYPE VALUE */
-
-  if(*parts[4] == METRIC_STRING) {
-    rootname = "NoitMetricText";
-    valuename = "message";
-  }
-  NEWDOC(doc, rootname,
-         {
-           ADDCHILD("remote", remote);
-           ADDCHILD("id", parts[2]);
-           ADDCHILD("name", parts[3]);
-           ADDCHILD(valuename, parts[5]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_statement(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[3];
-  if(bust_to_parts(data, parts, 3) != 3) return NULL;
-  /*  'D' ID QUERY  */
-
-  NEWDOC(doc, "StratconStatement",
-         {
-           ADDCHILD("id", parts[1]);
-           ADDCHILD("expression", parts[2]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_query(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[4];
-  if(bust_to_parts(data, parts, 4) != 4) return NULL;
-  /*  'Q' ID NAME QUERY  */
-
-  NEWDOC(doc, "StratconQuery",
-         {
-           ADDCHILD("id", parts[1]);
-           ADDCHILD("name", parts[2]);
-           ADDCHILD("expression", parts[3]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_querystop(char *data, char *remote) {
-  xmlDocPtr doc;
-  char *parts[2];
-  if(bust_to_parts(data, parts, 2) != 2) return NULL;
-  /*  'Q' ID */
-
-  NEWDOC(doc, "StratconQueryStop",
-         {
-           xmlNodeSetContent(root, (xmlChar *)parts[1]);
-         });
-  return doc;
-}
-
-static xmlDocPtr
-stratcon_iep_doc_from_line(char *data, char *remote) {
-  if(data) {
-    switch(*data) {
-      case 'C': return stratcon_iep_doc_from_check(data, remote);
-      case 'S': return stratcon_iep_doc_from_status(data, remote);
-      case 'M': return stratcon_iep_doc_from_metric(data, remote);
-      case 'D': return stratcon_iep_doc_from_statement(data, remote);
-      case 'Q': return stratcon_iep_doc_from_query(data, remote);
-      case 'q': return stratcon_iep_doc_from_querystop(data, remote);
-    }
-  }
-  return NULL;
-}
 
 static float
 stratcon_iep_age_from_line(char *data, struct timeval now) {
@@ -536,13 +388,6 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
         apr_hash_set(frame.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
       }
 
-
-
-/*
-      We don't use login/pass
-      apr_hash_set(frame.headers, "login", APR_HASH_KEY_STRING, "");
-      apr_hash_set(frame.headers, "passcode", APR_HASH_KEY_STRING, "");
-*/
       frame.body = NULL;
       frame.body_length = -1;
       rc = stomp_write(driver->connection, &frame, driver->pool);
@@ -603,7 +448,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
       if(job->line) free(job->line);
       if(job->remote) free(job->remote);
       if(job->doc_str) free(job->doc_str);
-      if(job->doc) xmlFreeDoc(job->doc);
       if(job->pool) apr_pool_destroy(job->pool);
       free(job);
     }
@@ -618,63 +462,63 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     noitL(noit_debug, "Skipping old event %f second old.\n", age);
     return 0;
   }
-  job->doc = stratcon_iep_doc_from_line(job->line, job->remote);
-  if(job->doc) {
-    job->doc_str = noit_xmlSaveToBuffer(job->doc);
-    if(job->doc_str) {
-      /* Submit */
-      if(driver && driver->pool && driver->connection) {
-        apr_status_t rc;
+  /* Submit */
+  if(driver && driver->pool && driver->connection) {
+    apr_status_t rc;
+    int line_len = strlen(job->line);
+    int remote_len = strlen(job->remote);
 #ifdef OPENWIRE
-        ow_ActiveMQQueue *dest;
-        ow_ActiveMQTextMessage *message;
+    ow_ActiveMQQueue *dest;
+    ow_ActiveMQTextMessage *message;
 
-        apr_pool_create(&job->pool, driver->pool);
-        message = ow_ActiveMQTextMessage_create(job->pool);
-        message->content =
-          ow_byte_array_create_with_data(job->pool,strlen(job->doc_str),
-                                         job->doc_str);
-        dest = ow_ActiveMQQueue_create(job->pool);
-        dest->physicalName = ow_string_create_from_cstring(job->pool,"TEST.QUEUE");         
-        rc = amqcs_send(driver->connection,
-                        (ow_ActiveMQDestination*)dest,
-                        (ow_ActiveMQMessage*)message,
-                        1,4,0,job->pool);
-        if(rc != APR_SUCCESS) {
-          noitL(noit_error, "MQ send failed, disconnecting\n");
-          if(driver->connection) amqcs_disconnect(&driver->connection);
-          driver->connection = NULL;
-        }
-#else
-        stomp_frame out;
-
-        apr_pool_create(&job->pool, driver->pool);
-
-        out.command = "SEND";
-        out.headers = apr_hash_make(job->pool);
-        if (driver->exchange)
-          apr_hash_set(out.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
-
-        apr_hash_set(out.headers, "destination", APR_HASH_KEY_STRING, "/queue/noit.firehose");
-        apr_hash_set(out.headers, "ack", APR_HASH_KEY_STRING, "auto");
-      
-        out.body_length = -1;
-        out.body = job->doc_str;
-        rc = stomp_write(driver->connection, &out, job->pool);
-        if(rc != APR_SUCCESS) {
-          noitL(noit_error, "STOMP send failed, disconnecting\n");
-          if(driver->connection) stomp_disconnect(&driver->connection);
-          driver->connection = NULL;
-        }
-#endif
-      }
-      else {
-        noitL(noit_error, "Not submitting event, no MQ\n");
-      }
+    apr_pool_create(&job->pool, driver->pool);
+    message = ow_ActiveMQTextMessage_create(job->pool);
+    message->content =
+      ow_byte_array_create_with_data(job->pool,strlen(job->doc_str),
+                                     job->doc_str);
+    dest = ow_ActiveMQQueue_create(job->pool);
+    dest->physicalName = ow_string_create_from_cstring(job->pool,"TEST.QUEUE");         
+    rc = amqcs_send(driver->connection,
+                    (ow_ActiveMQDestination*)dest,
+                    (ow_ActiveMQMessage*)message,
+                    1,4,0,job->pool);
+    if(rc != APR_SUCCESS) {
+      noitL(noit_error, "MQ send failed, disconnecting\n");
+      if(driver->connection) amqcs_disconnect(&driver->connection);
+      driver->connection = NULL;
     }
+#else
+    stomp_frame out;
+
+    job->doc_str = (char*)calloc(line_len + 1 /* \t */ +
+        remote_len + 2, 1);
+    strncpy(job->doc_str, job->line, 2);
+    strncat(job->doc_str, job->remote, remote_len);
+    strncat(job->doc_str, "\t", 1);
+    strncat(job->doc_str, job->line + 2, line_len - 2);
+
+    apr_pool_create(&job->pool, driver->pool);
+
+    out.command = "SEND";
+    out.headers = apr_hash_make(job->pool);
+    if (driver->exchange)
+      apr_hash_set(out.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
+
+    apr_hash_set(out.headers, "destination", APR_HASH_KEY_STRING, "/queue/noit.firehose");
+    apr_hash_set(out.headers, "ack", APR_HASH_KEY_STRING, "auto");
+  
+    out.body_length = -1;
+    out.body = job->doc_str;
+    rc = stomp_write(driver->connection, &out, job->pool);
+    if(rc != APR_SUCCESS) {
+      noitL(noit_error, "STOMP send failed, disconnecting\n");
+      if(driver->connection) stomp_disconnect(&driver->connection);
+      driver->connection = NULL;
+    }
+#endif
   }
   else {
-    noitL(noit_iep, "no iep handler for: '%s'\n", job->line);
+    noitL(noit_iep, "no iep handler for: '%s'\n", job->line); 
   }
   return 0;
 }
@@ -817,7 +661,9 @@ start_iep_daemon() {
   if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@command",
                            &info->command)) {
     noitL(noit_error, "No IEP start command provided.  You're on your own.\n");
-    goto bail;
+    // goto bail;
+    // If you want to start it as a seperate process
+    return;
   }
   if(pipe(info->stdin_pipe) != 0 ||
      pipe(info->stderr_pipe) != 0) {

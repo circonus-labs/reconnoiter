@@ -18,6 +18,10 @@ public class StratconQueryBase extends StratconMessage {
   protected UUID uuid;
   protected String expression;
 
+  public StratconQueryBase(String parts[]) throws Exception {
+    super(parts);
+  }
+
   public UUID getUUID() {
     return uuid;
   }

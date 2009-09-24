@@ -50,11 +50,9 @@ public class StratconConfig {
     }
     catch (SAXException e) {
         System.err.println("Bad XML: " + e.getMessage());
-        return;
     }
     catch (IOException e) {
         System.out.println("Bad file: " + e.getMessage());
-        return;
     }
   }
 

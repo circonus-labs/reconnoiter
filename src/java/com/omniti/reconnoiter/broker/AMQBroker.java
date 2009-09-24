@@ -16,28 +16,20 @@ import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.event.StratconQuery;
 
 public class AMQBroker implements IMQBroker {
-  
-  private StratconConfig config;
 
   public AMQBroker(StratconConfig config) {
-    this.config = config;
-    // TODO Auto-generated constructor stub
   }
 
-  private ActiveMQConnectionFactory connectionFactory;
-  private Connection connection;
-  private Session session;
-  private Destination destination;
   private MessageConsumer consumer;
 
   public void connect() {
     BrokerFactory.getAMQBrokerService();
-    connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61616");
+    ActiveMQConnectionFactory connectionFactory=new ActiveMQConnectionFactory("tcp://localhost:61616");
     try {
-      connection = connectionFactory.createConnection();
+      Connection connection=connectionFactory.createConnection();
       connection.start();
-      session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      destination = session.createQueue("noit.firehose");
+      Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+      Destination destination=session.createQueue("noit.firehose");
   
       consumer = session.createConsumer(destination);
     } catch(Exception e) {
@@ -50,8 +42,7 @@ public class AMQBroker implements IMQBroker {
       Message message = null;
       try {
         message = consumer.receive(1000);
-      } catch(Exception e) {
-        
+      } catch(Exception ignored) {
       }
       if (message != null && message instanceof TextMessage) {
         TextMessage textMessage = (TextMessage) message;
@@ -68,5 +59,4 @@ public class AMQBroker implements IMQBroker {
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
     return new AMQListener(epService, sq);
   }
-
 }

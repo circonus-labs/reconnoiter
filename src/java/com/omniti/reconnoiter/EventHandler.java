@@ -7,12 +7,7 @@ import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
-import com.omniti.reconnoiter.event.NoitEvent;
-import com.omniti.reconnoiter.event.NoitMetricNumeric;
-import com.omniti.reconnoiter.event.StratconQueryBase;
-import com.omniti.reconnoiter.event.StratconStatement;
-import com.omniti.reconnoiter.event.StratconQuery;
-import com.omniti.reconnoiter.event.StratconQueryStop;
+import com.omniti.reconnoiter.event.*;
 
 public class EventHandler {
 	
@@ -63,11 +58,17 @@ public class EventHandler {
         sq.destroy();
       }
     }
-    else if(m instanceof NoitEvent) {
-      epService.getEPRuntime().sendEvent(((NoitEvent) m).getDocument());
+     else if(m instanceof NoitMetricText) {
+      epService.getEPRuntime().sendEvent(m);
     }
     else if(m instanceof NoitMetricNumeric) {
-      epService.getEPRuntime().sendEvent((NoitMetricNumeric) m);
+      epService.getEPRuntime().sendEvent(m);
+    }
+    else if(m instanceof NoitCheck) {
+      epService.getEPRuntime().sendEvent(m);
+    }
+    else if(m instanceof NoitStatus) {
+      epService.getEPRuntime().sendEvent(m);
     }
 	}
 }
