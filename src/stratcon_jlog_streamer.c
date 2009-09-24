@@ -59,9 +59,15 @@ static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
 static int
 remote_str_sort(const void *a, const void *b) {
+  int rv;
   noit_connection_ctx_t * const *actx = a;
   noit_connection_ctx_t * const *bctx = b;
-  return strcmp((*actx)->remote_str, (*bctx)->remote_str);
+  jlog_streamer_ctx_t *ajctx = (*actx)->consumer_ctx;
+  jlog_streamer_ctx_t *bjctx = (*bctx)->consumer_ctx;
+  rv = strcmp((*actx)->remote_str, (*bctx)->remote_str);
+  if(rv) return rv;
+  return (ajctx->jlog_feed_cmd < bjctx->jlog_feed_cmd) ? -1 :
+           ((ajctx->jlog_feed_cmd == bjctx->jlog_feed_cmd) ? 0 : 1);
 }
 static void
 nc_print_noit_conn_brief(noit_console_closure_t ncct,
@@ -730,7 +736,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   int klen, n = 0, i;
   void *vconn;
   noit_connection_ctx_t **ctxs;
-  struct timeval now, diff;
+  struct timeval now, diff, last;
   gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
@@ -798,6 +804,18 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     snprintf(buff, sizeof(buff), "%llu.%06d",
              (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
     xmlSetProp(node, (xmlChar *)"session_duration", (xmlChar *)buff);
+
+    if(jctx->header.tv_sec) {
+      last.tv_sec = jctx->header.tv_sec;
+      last.tv_usec = jctx->header.tv_usec;
+      snprintf(buff, sizeof(buff), "%llu.%06d",
+               (long long unsigned)last.tv_sec, (int)last.tv_usec);
+      xmlSetProp(node, (xmlChar *)"last_event", (xmlChar *)buff);
+      sub_timeval(now, last, &diff);
+      snprintf(buff, sizeof(buff), "%llu.%06d",
+               (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
+      xmlSetProp(node, (xmlChar *)"last_event_age", (xmlChar *)buff);
+    }
 
     xmlAddChild(root, node);
     noit_connection_ctx_deref(ctx);
