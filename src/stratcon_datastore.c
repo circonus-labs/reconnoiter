@@ -77,6 +77,7 @@ static struct datastore_onlooker_list {
 #define POSTGRES_PARTS \
   PGresult *res; \
   int rv; \
+  time_t whence; \
   int nparams; \
   int metric_type; \
   char *paramValues[MAX_PARAMS]; \
@@ -241,8 +242,8 @@ __noit__strndup(const char *src, int len) {
   d->rv = PQresultStatus(d->res); \
   if(d->rv != PGRES_COMMAND_OK && \
      d->rv != PGRES_TUPLES_OK) { \
-    noitL(noit_error, "stratcon datasource bad (%d): %s\n", \
-          d->rv, PQresultErrorMessage(d->res)); \
+    noitL(noit_error, "stratcon datasource bad (%d): %s\n'%s'\n", \
+          d->rv, PQresultErrorMessage(d->res), cmd); \
     PQclear(d->res); \
     goto bad_row; \
   } \
@@ -260,8 +261,9 @@ __noit__strndup(const char *src, int len) {
   d->rv = PQresultStatus(d->res); \
   if(d->rv != PGRES_COMMAND_OK && \
      d->rv != PGRES_TUPLES_OK) { \
-    noitL(noit_error, "stratcon datasource bad (%d): %s\n", \
-          d->rv, PQresultErrorMessage(d->res)); \
+    noitL(noit_error, "stratcon datasource bad (%d): %s\n'%s' time: %llu\n", \
+          d->rv, PQresultErrorMessage(d->res), cmdbuf, \
+          (long long unsigned)whence); \
     PQclear(d->res); \
     goto bad_row; \
   } \
@@ -361,7 +363,6 @@ stratcon_datastore_find(conn_q *cq, ds_job_detail *d) {
 }
 execute_outcome_t
 stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
-  time_t whence = 0;
   int type, len;
   char *final_buff;
   uLong final_len, actual_final_len;;
@@ -415,7 +416,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         DECLARE_PARAM_STR("noitd",5); /* node_type */
         PROCESS_NEXT_FIELD(token,len);
-        whence = (time_t)strtoul(token, NULL, 10);
+        d->whence = (time_t)strtoul(token, NULL, 10);
         DECLARE_PARAM_STR(token,len); /* timestamp */
 
         /* This is the expected uncompressed len */
@@ -455,7 +456,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
-        whence = (time_t)strtoul(token, NULL, 10);
+        d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -468,7 +469,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       case 'M':
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
-        whence = (time_t)strtoul(token, NULL, 10);
+        d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -481,7 +482,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       case 'S':
         PROCESS_NEXT_FIELD(token,len);
         DECLARE_PARAM_STR(token,len); /* timestamp */
-        whence = (time_t)strtoul(token, NULL, 10);
+        d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
@@ -513,7 +514,7 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
       break;
     case 'S':
       GET_QUERY(status_insert);
-      PG_TM_EXEC(status_insert, whence);
+      PG_TM_EXEC(status_insert, d->whence);
       PQclear(d->res);
       break;
     case 'M':
@@ -524,12 +525,12 @@ stratcon_datastore_execute(conn_q *cq, struct sockaddr *r, ds_job_detail *d) {
         case METRIC_UINT64:
         case METRIC_DOUBLE:
           GET_QUERY(metric_insert_numeric);
-          PG_TM_EXEC(metric_insert_numeric, whence);
+          PG_TM_EXEC(metric_insert_numeric, d->whence);
           PQclear(d->res);
           break;
         case METRIC_STRING:
           GET_QUERY(metric_insert_text);
-          PG_TM_EXEC(metric_insert_text, whence);
+          PG_TM_EXEC(metric_insert_text, d->whence);
           PQclear(d->res);
           break;
         default:
