@@ -679,6 +679,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   snmp_mod_config_t *conf;
   const char *community = NULL;
   stats_t current;
+  int success = 0;
 
   /* parsing destination */
   char uuid_str[UUID_STR_LEN + 1];
@@ -735,9 +736,20 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   /* We have a check. The trap is authorized. Now, extract everything. */
   memset(&current, 0, sizeof(current));
   gettimeofday(&current.whence, NULL);
+  current.available = NP_AVAILABLE;
 
   for(; var != NULL; var = var->next_variable)
-    noit_snmp_trapvars_to_stats(&current, var);
+    if(noit_snmp_trapvars_to_stats(&current, var) == 0) success++;
+  if(success) {
+    char buff[24];
+    snprintf(buff, sizeof(buff), "%d datum", success);
+    current.state = NP_GOOD;
+    current.status = strdup(buff);
+  }
+  else {
+    current.state = NP_BAD;
+    current.status = strdup("no data");
+  }
   noit_check_set_stats(ts->self, check, &current);
 
  cleanup:
