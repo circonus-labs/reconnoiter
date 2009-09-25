@@ -42,6 +42,10 @@ function onload(image)
     <parameter name="url"
                required="required"
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
+    <parameter name="method"
+               required="optional"
+               allowed="\S+"
+               default="GET">The HTTP method to use.</parameter>
     <parameter name="ca_chain"
                required="optional"
                allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
@@ -118,6 +122,7 @@ function initiate(module, check)
     local codere = noit.pcre(check.config.code or '^200$')
     local good = false
     local starttime = noit.timeval.now()
+    local method = check.config.method or "GET"
 
     if host == nil then host = check.target end
     if schema == nil then
@@ -167,7 +172,7 @@ function initiate(module, check)
     -- perform the request
     local headers = {}
     headers.Host = host
-    client:do_request("GET", uri, headers)
+    client:do_request(method, uri, headers)
     client:get_response()
     local endtime = noit.timeval.now()
     check.available()
