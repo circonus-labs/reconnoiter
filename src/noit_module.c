@@ -68,6 +68,7 @@ struct __extended_image_data {
 
 static noit_hash_table loaders = NOIT_HASH_EMPTY;
 static noit_hash_table modules = NOIT_HASH_EMPTY;
+static noit_hash_table generics = NOIT_HASH_EMPTY;
 
 noit_module_loader_t * noit_loader_lookup(const char *name) {
   void *vloader;
@@ -85,9 +86,23 @@ noit_module_t * noit_module_lookup(const char *name) {
   return NULL;
 }
 
+noit_module_generic_t * noit_module_generic_lookup(const char *name) {
+  void *vmodule;
+
+  if(noit_hash_retrieve(&generics, name, strlen(name), &vmodule))
+    return (noit_module_generic_t *)vmodule;
+  return NULL;
+}
+
 static int noit_module_validate_magic(noit_image_t *obj) {
   if (NOIT_IMAGE_MAGIC(obj) != NOIT_MODULE_MAGIC) return -1;
   if (NOIT_IMAGE_VERSION(obj) != NOIT_MODULE_ABI_VERSION) return -1;
+  return 0;
+}
+
+static int noit_module_generic_validate_magic(noit_image_t *obj) {
+  if (NOIT_IMAGE_MAGIC(obj) != NOIT_GENERIC_MAGIC) return -1;
+  if (NOIT_IMAGE_VERSION(obj) != NOIT_GENERIC_ABI_VERSION) return -1;
   return 0;
 }
 
@@ -160,6 +175,26 @@ int noit_load_image(const char *file, const char *name,
   }
   noit_hash_store(registry, obj->name, strlen(obj->name), obj);
   return 0;
+}
+
+static noit_module_generic_t *
+noit_load_generic_image(noit_module_loader_t *loader,
+                        char *g_name,
+                        noit_conf_section_t section) {
+  char g_file[PATH_MAX];
+
+  if(!noit_conf_get_stringbuf(section, "ancestor-or-self::node()/@image",
+                              g_file, sizeof(g_file))) {
+    noitL(noit_stderr, "No image defined for %s\n", g_name);
+    return NULL;
+  }
+  if(noit_load_image(g_file, g_name, &generics,
+                     noit_module_generic_validate_magic,
+                     sizeof(noit_module_generic_t))) {
+    noitL(noit_stderr, "Could not load %s:%s\n", g_file, g_name);
+    return NULL;
+  }
+  return noit_module_generic_lookup(g_name);
 }
 
 static noit_module_loader_t *
@@ -343,6 +378,41 @@ void noit_module_init() {
 
   noit_console_add_help("module", noit_module_help, noit_module_options);
 
+  /* Load our generic modules */
+  sections = noit_conf_get_sections(NULL, "/noit/modules//generic", &cnt);
+  for(i=0; i<cnt; i++) {
+    char g_name[256];
+    noit_module_generic_t *gen;
+
+    if(!noit_conf_get_stringbuf(sections[i], "ancestor-or-self::node()/@name",
+                                g_name, sizeof(g_name))) {
+      noitL(noit_stderr, "No name defined in generic stanza %d\n", i+1);
+      continue;
+    }
+    gen = noit_load_generic_image(&__noit_image_loader, g_name,
+                                  sections[i]);
+    if(!gen) {
+      noitL(noit_stderr, "Failed to load generic %s\n", g_name);
+      continue;
+    }
+    if(gen->config) {
+      int rv;
+      noit_hash_table *config;
+      config = noit_conf_get_hash(sections[i], "config");
+      rv = gen->config(gen, config);
+      if(rv == 0) {
+        noit_hash_destroy(config, free, free);
+        free(config);
+      }
+      else if(rv < 0) {
+        noitL(noit_stderr, "Failed to config generic %s\n", g_name);
+        continue;
+      }
+    }
+    if(gen->init && gen->init(gen))
+      noitL(noit_stderr, "Failed to init generic %s\n", g_name);
+  }
+  if(sections) free(sections);
   /* Load our module loaders */
   sections = noit_conf_get_sections(NULL, "/noit/modules//loader", &cnt);
   for(i=0; i<cnt; i++) {

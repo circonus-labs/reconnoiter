@@ -54,6 +54,15 @@ typedef struct _noit_image {
  *         is configured.
  */
 
+typedef struct _noit_module_generic {
+  noit_image_t hdr;
+  int (*config)(struct _noit_module_generic *, noit_hash_table *config);
+  int (*init)(struct _noit_module_generic *);
+} noit_module_generic_t;
+
+#define NOIT_GENERIC_MAGIC         0x3FD892A0
+#define NOIT_GENERIC_ABI_VERSION   1
+
 typedef struct _noit_module_loader {
   noit_image_t hdr;
   int (*config)(struct _noit_module_loader *, noit_hash_table *config);
