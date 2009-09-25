@@ -300,6 +300,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
   jlog_streamer_ctx_t *ctx = nctx->consumer_ctx;
+  jlog_streamer_ctx_t dummy;
   int len;
   jlog_id n_chkpt;
 
@@ -339,8 +340,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_COUNT:
         FULLREAD(e, ctx, sizeof(u_int32_t));
-        memcpy(&ctx->count, ctx->buffer, sizeof(u_int32_t));
-        ctx->count = ntohl(ctx->count);
+        memcpy(&dummy.count, ctx->buffer, sizeof(u_int32_t));
+        ctx->count = ntohl(dummy.count);
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = JLOG_STREAMER_WANT_HEADER;
         break;
@@ -351,12 +352,12 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           break;
         }
         FULLREAD(e, ctx, sizeof(ctx->header));
-        memcpy(&ctx->header, ctx->buffer, sizeof(ctx->header));
-        ctx->header.chkpt.log = ntohl(ctx->header.chkpt.log);
-        ctx->header.chkpt.marker = ntohl(ctx->header.chkpt.marker);
-        ctx->header.tv_sec = ntohl(ctx->header.tv_sec);
-        ctx->header.tv_usec = ntohl(ctx->header.tv_usec);
-        ctx->header.message_len = ntohl(ctx->header.message_len);
+        memcpy(&dummy.header, ctx->buffer, sizeof(ctx->header));
+        ctx->header.chkpt.log = ntohl(dummy.header.chkpt.log);
+        ctx->header.chkpt.marker = ntohl(dummy.header.chkpt.marker);
+        ctx->header.tv_sec = ntohl(dummy.header.tv_sec);
+        ctx->header.tv_usec = ntohl(dummy.header.tv_usec);
+        ctx->header.message_len = ntohl(dummy.header.message_len);
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = JLOG_STREAMER_WANT_BODY;
         break;
@@ -516,6 +517,10 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   struct timeval __now;
   eventer_t e;
   int rv, fd = -1;
+#ifdef SO_KEEPALIVE
+  int optval;
+  socklen_t optlen = sizeof(optval);
+#endif
 
   if(nctx->wants_permanent_shutdown) {
     noit_connection_ctx_dealloc(nctx);
@@ -527,6 +532,30 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
 
   /* Make it non-blocking */
   if(eventer_set_fd_nonblocking(fd)) goto reschedule;
+#define set_or_bail(type, opt, val) do { \
+  optval = val; \
+  optlen = sizeof(optval); \
+  if(setsockopt(fd, type, opt, &optval, optlen) < 0) { \
+    noitL(noit_error, "Cannot set " #type "/" #opt " on jlog socket: %s\n", \
+          strerror(errno)); \
+    goto reschedule; \
+  } \
+} while(0)
+#ifdef SO_KEEPALIVE
+  set_or_bail(SOL_SOCKET, SO_KEEPALIVE, 1);
+#endif
+#ifdef TCP_KEEPALIVE_THRESHOLD
+  set_or_bail(IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, 10 * 1000);
+#endif
+#ifdef TCP_KEEPALIVE_ABORT_THRESHOLD
+  set_or_bail(IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, 30 * 1000);
+#endif
+#ifdef TCP_CONN_NOTIFY_THRESHOLD
+  set_or_bail(IPPROTO_TCP, TCP_CONN_NOTIFY_THRESHOLD, 10 * 1000);
+#endif
+#ifdef TCP_CONN_ABORT_THRESHOLD
+  set_or_bail(IPPROTO_TCP, TCP_CONN_ABORT_THRESHOLD, 30 * 1000);
+#endif
 
   /* Initiate a connection */
   rv = connect(fd, &nctx->r.remote, nctx->remote_len);
