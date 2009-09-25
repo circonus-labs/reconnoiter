@@ -29,10 +29,13 @@ function HttpClient:ssl_ctx()
    return self.e:ssl_ctx()
 end
 
-function HttpClient:do_request(method, uri, headers)
+function HttpClient:do_request(method, uri, headers, payload)
     self.raw_bytes = 0
     self.content_bytes = 0
     self.e:write(method .. " " .. uri .. " " .. "HTTP/1.1\r\n")
+    if payload ~= nil and string.len(payload) > 0 then
+      headers["Content-Length"] = string.len(payload)
+    end
     headers["Accept-Encoding"] = "gzip, deflate";
     if headers["User-Agent"] == nil then
         headers["User-Agent"] = "Reconnoiter/0.9"
@@ -41,6 +44,9 @@ function HttpClient:do_request(method, uri, headers)
       self.e:write(header .. ": " .. value .. "\r\n")
     end
     self.e:write("\r\n")
+    if payload ~= nil and string.len(payload) > 0 then
+      self.e:write(payload)
+    end
 end
 
 function HttpClient:get_headers()
