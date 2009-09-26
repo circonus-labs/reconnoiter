@@ -54,6 +54,16 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
+  struct {
+    char *kex;
+    char *hostkey;
+    char *crypt_cs;
+    char *crypt_sc;
+    char *mac_cs;
+    char *mac_sc;
+    char *comp_cs;
+    char *comp_sc;
+  } methods;
   enum {
     WANT_CONNECT = 0,
     WANT_CLOSE = 1
@@ -81,6 +91,14 @@ static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
       libssh2_session_disconnect(ci->session, "Bye!");
       libssh2_session_free(ci->session);
     }
+    if(ci->methods.kex) free(ci->methods.kex);
+    if(ci->methods.hostkey) free(ci->methods.hostkey);
+    if(ci->methods.crypt_cs) free(ci->methods.crypt_cs);
+    if(ci->methods.crypt_sc) free(ci->methods.crypt_sc);
+    if(ci->methods.mac_cs) free(ci->methods.mac_cs);
+    if(ci->methods.mac_sc) free(ci->methods.mac_sc);
+    if(ci->methods.comp_cs) free(ci->methods.comp_cs);
+    if(ci->methods.comp_sc) free(ci->methods.comp_sc);
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
   }
@@ -136,6 +154,24 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
         return 0;
       }
       ci->session = libssh2_session_init();
+#define set_method(a,b) do { \
+  int rv; \
+  if(ci->methods.a && \
+     (rv = libssh2_session_method_pref(ci->session, b, ci->methods.a)) != 0) { \
+    ci->timed_out = 0; \
+    ci->error = strdup((rv == LIBSSH2_ERROR_METHOD_NOT_SUPPORTED) ? \
+                         #a " method not supported" : "error setting " #a); \
+    return 0; \
+  } \
+} while(0)
+      set_method(kex, LIBSSH2_METHOD_KEX);
+      set_method(hostkey, LIBSSH2_METHOD_HOSTKEY);
+      set_method(crypt_cs, LIBSSH2_METHOD_CRYPT_CS);
+      set_method(crypt_sc, LIBSSH2_METHOD_CRYPT_SC);
+      set_method(mac_cs, LIBSSH2_METHOD_MAC_CS);
+      set_method(mac_sc, LIBSSH2_METHOD_MAC_SC);
+      set_method(comp_cs, LIBSSH2_METHOD_COMP_CS);
+      set_method(comp_sc, LIBSSH2_METHOD_COMP_SC);
       if (libssh2_session_startup(ci->session, e->fd)) {
         ci->timed_out = 0;
         ci->error = strdup("ssh session startup failed");
@@ -259,6 +295,20 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
                         &port_str)) {
     ssh_port = (unsigned short)atoi(port_str);
   }
+#define config_method(a) do { \
+  const char *v; \
+  if(noit_hash_retr_str(check->config, "method_" #a, strlen("method_" #a), \
+                        &v)) \
+    ci->methods.a = strdup(v); \
+} while(0)
+  config_method(kex);
+  config_method(hostkey);
+  config_method(crypt_cs);
+  config_method(crypt_sc);
+  config_method(mac_cs);
+  config_method(mac_sc);
+  config_method(comp_cs);
+  config_method(comp_sc);
   memset(&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sin6.sin6_family = check->target_family;
   if(check->target_family == AF_INET) {
