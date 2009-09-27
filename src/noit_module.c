@@ -411,6 +411,8 @@ void noit_module_init() {
     }
     if(gen->init && gen->init(gen))
       noitL(noit_stderr, "Failed to init generic %s\n", g_name);
+    else
+      noitL(noit_stderr, "Generic module %s successfully loaded.\n", g_name);
   }
   if(sections) free(sections);
   /* Load our module loaders */
