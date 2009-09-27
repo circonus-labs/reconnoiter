@@ -47,6 +47,72 @@
 #define FAIL(a) do { error = (a); goto error; } while(0)
 #define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
 
+#define NODE_CONTENT(parent, k, v) do { \
+  xmlNodePtr tmp; \
+  if(v) { \
+    tmp = xmlNewNode(NULL, (xmlChar *)(k)); \
+    xmlNodeAddContent(tmp, (xmlChar *)(v)); \
+    xmlAddChild(parent, tmp); \
+  } \
+} while(0)
+
+xmlNodePtr
+noit_check_state_as_xml(noit_check_t *check) {
+  xmlNodePtr state, tmp, metrics;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+  stats_t *c = &check->stats.current;
+
+  state = xmlNewNode(NULL, (xmlChar *)"state");
+  NODE_CONTENT(state, "running", NOIT_CHECK_RUNNING(check)?"true":"false");
+  NODE_CONTENT(state, "killed", NOIT_CHECK_KILLED(check)?"true":"false");
+  NODE_CONTENT(state, "configured",
+               NOIT_CHECK_CONFIGURED(check)?"true":"false");
+  NODE_CONTENT(state, "disabled", NOIT_CHECK_DISABLED(check)?"true":"false");
+  xmlAddChild(state, (tmp = xmlNewNode(NULL, (xmlChar *)"last_run")));
+  if(check->stats.current.whence.tv_sec) {
+    struct timeval f = check->stats.current.whence;
+    struct timeval n;
+    char timestr[20];
+    gettimeofday(&n, NULL);
+    snprintf(timestr, sizeof(timestr), "%0.3f",
+             n.tv_sec + (n.tv_usec / 1000000.0));
+    xmlSetProp(tmp, (xmlChar *)"now", (xmlChar *)timestr);
+    snprintf(timestr, sizeof(timestr), "%0.3f",
+             f.tv_sec + (f.tv_usec / 1000000.0));
+    xmlNodeAddContent(tmp, (xmlChar *)timestr);
+  }
+  if(c->available) { /* truth here means the check has been run */
+    char buff[20];
+    snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
+    NODE_CONTENT(state, "runtime", buff);
+  }
+  NODE_CONTENT(state, "availability",
+               noit_check_available_string(c->available));
+  NODE_CONTENT(state, "state", noit_check_state_string(c->state));
+  NODE_CONTENT(state, "status", c->status ? c->status : "");
+  memset(&iter, 0, sizeof(iter));
+  xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+    char buff[256];
+    metric_t *m = (metric_t *)data;
+    xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)m->metric_name)));
+    buff[0] = m->metric_type; buff[1] = '\0';
+    xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
+    if(m->metric_value.s) {
+      int rv;
+      rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
+      if(rv < 0)
+        xmlSetProp(tmp, (xmlChar *)"error", (xmlChar *)"unknown type");
+      else
+        xmlNodeAddContent(tmp, (xmlChar *)buff);
+    }
+  }
+  return state;
+}
+
 static int
 rest_show_check(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
@@ -54,7 +120,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlDocPtr doc = NULL;
-  xmlNodePtr node, root, attr, config, state, tmp, anode, metrics;
+  xmlNodePtr node, root, attr, config, state, tmp, anode;
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf, *module, *value;
@@ -111,14 +177,6 @@ rest_show_check(noit_http_rest_closure_t *restc,
     xmlAddChild(parent, child); \
   } \
 } while(0)
-#define NODE_CONTENT(parent, k, v) do { \
-  xmlNodePtr tmp; \
-  if(v) { \
-    tmp = xmlNewNode(NULL, (xmlChar *)(k)); \
-    xmlNodeAddContent(tmp, (xmlChar *)(v)); \
-    xmlAddChild(parent, tmp); \
-  } \
-} while(0)
 
   attr = xmlNewNode(NULL, (xmlChar *)"attributes");
   xmlAddChild(root, attr);
@@ -151,58 +209,14 @@ rest_show_check(noit_http_rest_closure_t *restc,
   xmlAddChild(root, config);
 
   /* Add the state */
-  xmlAddChild(root, (state = xmlNewNode(NULL, (xmlChar *)"state")));
   check = noit_poller_lookup(checkid);
-  if(!check)
+  if(!check) {
+    state = xmlNewNode(NULL, (xmlChar *)"state");
     xmlSetProp(state, (xmlChar *)"error", (xmlChar *)"true");
-  else {
-    stats_t *c = &check->stats.current;
-    NODE_CONTENT(state, "running", NOIT_CHECK_RUNNING(check)?"true":"false");
-    NODE_CONTENT(state, "killed", NOIT_CHECK_KILLED(check)?"true":"false");
-    NODE_CONTENT(state, "configured",
-                 NOIT_CHECK_CONFIGURED(check)?"true":"false");
-    NODE_CONTENT(state, "disabled", NOIT_CHECK_DISABLED(check)?"true":"false");
-    xmlAddChild(state, (tmp = xmlNewNode(NULL, (xmlChar *)"last_run")));
-    if(check->stats.current.whence.tv_sec) {
-      struct timeval f = check->stats.current.whence;
-      struct timeval n;
-      char timestr[20];
-      gettimeofday(&n, NULL);
-      snprintf(timestr, sizeof(timestr), "%0.3f",
-               n.tv_sec + (n.tv_usec / 1000000.0));
-      xmlSetProp(tmp, (xmlChar *)"now", (xmlChar *)timestr);
-      snprintf(timestr, sizeof(timestr), "%0.3f",
-               f.tv_sec + (f.tv_usec / 1000000.0));
-      xmlNodeAddContent(tmp, (xmlChar *)timestr);
-    }
-    if(c->available) { /* truth here means the check has been run */
-      char buff[20];
-      snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
-      NODE_CONTENT(state, "runtime", buff);
-    }
-    NODE_CONTENT(state, "availability",
-                 noit_check_available_string(c->available));
-    NODE_CONTENT(state, "state", noit_check_state_string(c->state));
-    NODE_CONTENT(state, "status", c->status ? c->status : "");
-    memset(&iter, 0, sizeof(iter));
-    xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-    while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
-      char buff[256];
-      metric_t *m = (metric_t *)data;
-      xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)m->metric_name)));
-      buff[0] = m->metric_type; buff[1] = '\0';
-      xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
-      if(m->metric_value.s) {
-        int rv;
-        rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
-        if(rv < 0)
-          xmlSetProp(tmp, (xmlChar *)"error", (xmlChar *)"unknown type");
-        else
-          xmlNodeAddContent(tmp, (xmlChar *)buff);
-      }
-    }
-
   }
+  else
+    state = noit_check_state_as_xml(check);
+  xmlAddChild(root, state);
   noit_http_response_ok(ctx, "text/xml");
   noit_http_response_xml(ctx, doc);
   noit_http_response_end(ctx);
@@ -224,9 +238,9 @@ rest_show_check(noit_http_rest_closure_t *restc,
   return 0;
 }
 
-static int
-validate_check_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
-                    const char **error) {
+int
+noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
+                              const char **error) {
   xmlNodePtr root, tl, an;
   int name=0, module=0, target=0, period=0, timeout=0, filterset=0;
   *a = *c = NULL;
@@ -460,7 +474,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   indoc = rest_get_xml_upload(restc, &mask, &complete);
   if(!complete) return mask;
   if(indoc == NULL) FAIL("xml parse error");
-  if(!validate_check_post(indoc, &attr, &config, &error)) goto error;
+  if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
 
   if(uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);

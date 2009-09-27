@@ -37,10 +37,19 @@
 #include "noit_check_tools.h"
 #include "noit_conf.h"
 
+#include <libxml/tree.h>
+
 #ifndef NOIT_CHECK_REST_H
 #define NOIT_CHECK_REST_H
 
 API_EXPORT(void)
   noit_check_rest_init();
+
+API_EXPORT(int)
+  noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
+                                const char **error);
+
+API_EXPORT(xmlNodePtr)
+  noit_check_state_as_xml(noit_check_t *check);
 
 #endif
