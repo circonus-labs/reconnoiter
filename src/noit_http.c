@@ -262,8 +262,8 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
  match:
   req->current_request_chain = req->first_input;
   noitL(noit_debug, " noit_http_request_finalize : match(%d in %d)\n",
-        req->current_offset - req->current_input->start,
-        req->current_input->size);
+        (int)(req->current_offset - req->current_input->start),
+        (int)req->current_input->size);
   if(req->current_offset <
      req->current_input->start + req->current_input->size) {
     /* There are left-overs */
@@ -513,8 +513,8 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
   /* We attempt to consume from the first_input */
   struct bchain *in, *tofree;
   noitL(noit_debug, " ... noit_http_session_req_consume(%d) %d of %d\n",
-        ctx->conn.e->fd, len,
-        ctx->req.content_length - ctx->req.content_length_read);
+        ctx->conn.e->fd, (int)len,
+        (int)(ctx->req.content_length - ctx->req.content_length_read));
   len = MIN(len, ctx->req.content_length - ctx->req.content_length_read);
   while(bytes_read < len) {
     int crlen = 0;
@@ -525,7 +525,8 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       bytes_read += partial_len;
       ctx->req.content_length_read += partial_len;
       noitL(noit_debug, " ... filling %d bytes (read through %d/%d)\n",
-            bytes_read, ctx->req.content_length_read, ctx->req.content_length);
+            (int)bytes_read, (int)ctx->req.content_length_read,
+            (int)ctx->req.content_length);
       in->start += partial_len;
       in->size -= partial_len;
       if(in->size == 0) {
@@ -536,7 +537,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
         if(in == NULL) {
           ctx->req.last_input = NULL;
           noitL(noit_debug, " ... noit_http_session_req_consume = %d\n",
-                bytes_read);
+                (int)bytes_read);
           return bytes_read;
         }
       }
@@ -582,6 +583,9 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   noit_http_session_ctx *ctx = closure;
   int rv = 0;
   int mask = origmask;
+
+  if(origmask & EVENTER_EXCEPTION)
+    goto abort_drive;
 
   /* Drainage -- this is as nasty as it sounds 
    * The last request could have unread upload content, we would have
