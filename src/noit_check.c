@@ -617,9 +617,30 @@ noit_poller_schedule(const char *target,
   return 0;
 }
 
+/* A quick little list of recycleable checks.  This list never really
+ * grows large, so no sense in thinking too hard about the algorithmic
+ * complexity.
+ */
+struct _checker_rcb {
+  noit_check_t *checker;
+  struct _checker_rcb *next;
+};
+static struct _checker_rcb *checker_rcb = NULL;
+static void recycle_check(noit_check_t *checker) {
+  struct _checker_rcb *n = malloc(sizeof(*n));
+  n->checker = checker;
+  n->next = checker_rcb;
+  checker_rcb = n;
+}
 void
 noit_poller_free_check(noit_check_t *checker) {
   noit_module_t *mod;
+
+  if(checker->flags & NP_RUNNING) {
+    recycle_check(checker);
+    return;
+  }
+
   mod = noit_module_lookup(checker->module);
   if(mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
@@ -638,22 +659,6 @@ noit_poller_free_check(noit_check_t *checker) {
     checker->config = NULL;
   }
   free(checker);
-}
-
-/* A quick little list of recycleable checks.  This list never really
- * grows large, so no sense in thinking too hard about the algorithmic
- * complexity.
- */
-struct _checker_rcb {
-  noit_check_t *checker;
-  struct _checker_rcb *next;
-};
-static struct _checker_rcb *checker_rcb = NULL;
-static void recycle_check(noit_check_t *checker) {
-  struct _checker_rcb *n = malloc(sizeof(*n));
-  n->checker = checker;
-  n->next = checker_rcb;
-  checker_rcb = n;
 }
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
@@ -693,11 +698,6 @@ noit_poller_deschedule(uuid_t in) {
 
   noit_skiplist_remove(&polls_by_name, checker, NULL);
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
-
-  if(checker->flags & NP_RUNNING) {
-    recycle_check(checker);
-    return 0;
-  }
 
   noit_poller_free_check(checker);
   return 0;

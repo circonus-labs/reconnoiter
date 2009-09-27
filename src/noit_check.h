@@ -220,6 +220,8 @@ API_EXPORT(int)
 
 API_EXPORT(noit_check_t *)
   noit_check_clone(uuid_t in);
+API_EXPORT(void)
+  noit_poller_free_check(noit_check_t *checker);
 API_EXPORT(noit_check_t *)
   noit_check_watch(uuid_t in, int period);
 API_EXPORT(noit_check_t *)
