@@ -89,6 +89,7 @@ static int in_cksum(u_short *addr, int len);
 typedef struct  {
   int ipv4_fd;
   int ipv6_fd;
+  noit_hash_table *in_flight;
 } ping_icmp_data_t;
 
 static int ping_icmp_config(noit_module_t *self, noit_hash_table *options) {
@@ -166,18 +167,24 @@ static int ping_icmp_timeout(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
   struct ping_closure *pcl = (struct ping_closure *)closure;
   struct check_info *data;
+  ping_icmp_data_t *ping_data;
+
   if(!NOIT_CHECK_KILLED(pcl->check) && !NOIT_CHECK_DISABLED(pcl->check)) {
     ping_icmp_log_results(pcl->self, pcl->check);
     data = (struct check_info *)pcl->check->closure;
     data->timeout_event = NULL;
   }
   pcl->check->flags &= ~NP_RUNNING;
+  ping_data = noit_module_get_userdata(pcl->self);
+  noit_hash_delete(ping_data->in_flight, (const char *)pcl->check->checkid,
+                   sizeof(pcl->check->checkid), NULL, NULL);
   free(pcl);
   return 0;
 }
 static int ping_icmp_handler(eventer_t e, int mask,
                              void *closure, struct timeval *now) {
   noit_module_t *self = (noit_module_t *)closure;
+  ping_icmp_data_t *ping_data;
   struct check_info *data;
   char packet[1500];
   int packet_len = sizeof(packet);
@@ -190,8 +197,10 @@ static int ping_icmp_handler(eventer_t e, int mask,
   struct icmp *icp;
   struct ping_payload *payload;
 
+  ping_data = noit_module_get_userdata(self);
   while(1) {
     int inlen, iphlen;
+    void *vcheck;
     noit_check_t *check;
     struct timeval tt;
 
@@ -224,7 +233,12 @@ static int ping_icmp_handler(eventer_t e, int mask,
                (unsigned long)(((vpsized_uint)self) & 0xffff));
       continue;
     }
-    check = noit_poller_lookup(payload->checkid);
+    check = NULL;
+    if(noit_hash_retrieve(ping_data->in_flight,
+                          (const char *)payload->checkid,
+                          sizeof(payload->checkid), &vcheck))
+      check = vcheck;
+
     /* make sure this check is from this generation! */
     if(!check) {
       char uuid_str[37];
@@ -260,6 +274,8 @@ static int ping_icmp_handler(eventer_t e, int mask,
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
       check->flags &= ~NP_RUNNING;
+      noit_hash_delete(ping_data->in_flight, (const char *)check->checkid,
+                       sizeof(check->checkid), NULL, NULL);
     }
   }
   return EVENTER_READ;
@@ -271,6 +287,7 @@ static int ping_icmp_init(noit_module_t *self) {
   ping_icmp_data_t *data;
 
   data = malloc(sizeof(*data));
+  data->in_flight = calloc(1, sizeof(*data->in_flight));
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {
@@ -351,12 +368,19 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   struct icmp *icp;
   struct ping_payload *payload;
   ping_icmp_data_t *data;
+  void *vcheck;
   int i;
 
-  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target);
   data = noit_module_get_userdata(pcl->self);
   icp = (struct icmp *)pcl->payload;
   payload = (struct ping_payload *)(icp + 1);
+  if(!noit_hash_retrieve(data->in_flight, (const char *)payload->checkid,
+                         sizeof(payload->checkid), &vcheck)) {
+    noitLT(nldeb, now, "ping check no longer active, bailing\n");
+    goto cleanup;
+  }
+
+  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target);
   gettimeofday(&payload->whence, NULL); /* now isn't accurate enough */
   icp->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
   if(pcl->check->target_family == AF_INET) {
@@ -383,6 +407,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
     noitLT(nlerr, now, "Error sending ICMP packet to %s: %s\n",
              pcl->check->target, strerror(errno));
   }
+ cleanup:
   free(pcl->payload);
   free(pcl);
   return 0;
@@ -408,9 +433,11 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   int packet_len, i;
   eventer_t newe;
   const char *config_val;
+  ping_icmp_data_t *ping_data;
 
   int interval = PING_INTERVAL;
   int count = PING_COUNT;
+
   if(noit_hash_retr_str(check->config, "interval", strlen("interval"),
                         &config_val))
     interval = atoi(config_val);
@@ -419,6 +446,9 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     count = atoi(config_val);
 
   check->flags |= NP_RUNNING;
+  ping_data = noit_module_get_userdata(self);
+  noit_hash_store(ping_data->in_flight, (const char *)check->checkid,
+                  sizeof(check->checkid), check);
   noitL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
         self, check->target, interval, count);
 
