@@ -145,7 +145,7 @@ function initiate(module, check)
     local callbacks = { }
     callbacks.consume = function (str)
         if firstbytetime == nil then firstbytetime = noit.timeval.now() end
-        output = output .. str
+        output = output .. (str or '')
     end
     callbacks.connected = function () connecttime = noit.timeval.now() end
 

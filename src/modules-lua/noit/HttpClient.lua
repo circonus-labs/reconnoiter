@@ -90,7 +90,9 @@ function te_close(self, content_enc_func)
         end
     until str == nil or string.len(str) ~= len
     local decoded = content_enc_func(str)
-    self.content_bytes = self.content_bytes + string.len(decoded)
+    if decoded ~= nil then
+        self.content_bytes = self.content_bytes + string.len(decoded)
+    end
     if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
 end
 
