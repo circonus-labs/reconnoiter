@@ -49,6 +49,9 @@ function onload(image)
                required="optional"
                allowed="\S+"
                default="GET">The HTTP method to use.</parameter>
+    <parameter name="payload"
+               required="optional"
+               allowed=".*">The information transferred as the payload of an HTTP request.</parameter>
     <parameter name="auth_method"
                required="optional"
                allowed="^(?:Basic|Digest|Auto)$">HTTP Authentication method to use.</parameter>
@@ -307,7 +310,7 @@ function initiate(module, check)
         check.status(str or "unknown error")
         return
     end
-    client:do_request(method, uri, headers)
+    client:do_request(method, uri, headers, check.config.payload)
     client:get_response()
 
     local endtime = noit.timeval.now()
