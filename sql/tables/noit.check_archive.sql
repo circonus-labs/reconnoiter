@@ -1,3 +1,5 @@
+-- formerly loading_dock_check_s
+
 --
 -- PostgreSQL database dump
 --
@@ -56,7 +58,7 @@ CREATE TRIGGER check_archive_log_changes
 REVOKE ALL ON TABLE check_archive FROM PUBLIC;
 REVOKE ALL ON TABLE check_archive FROM reconnoiter;
 GRANT ALL ON TABLE check_archive TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE check_archive TO noit;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE check_archive TO stratcon;
 GRANT SELECT ON TABLE check_archive TO prism;
 
 
