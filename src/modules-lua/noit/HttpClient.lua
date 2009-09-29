@@ -55,6 +55,7 @@ function HttpClient:get_headers()
     if str == nil then error("no response") end
     self.protocol, self.code = string.match(str, "^HTTP/(%d.%d)%s+(%d+)%s+")
     if self.protocol == nil then error("malformed HTTP response") end
+    self.code = tonumber(self.code)
     self.headers = {}
     while true do
         local str = self.e:read("\n")
