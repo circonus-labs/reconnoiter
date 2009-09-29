@@ -42,6 +42,9 @@ function onload(image)
     <parameter name="url"
                required="required"
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
+    <parameter name="header_(\S+)"
+               required="optional"
+               allowed=".+">Allows the setting of arbitrary HTTP headers in the request.</parameter>
     <parameter name="method"
                required="optional"
                allowed="\S+"
@@ -172,6 +175,12 @@ function initiate(module, check)
     -- perform the request
     local headers = {}
     headers.Host = host
+    for header, value in pairs(check.config) do
+        hdr = string.match(header, '^header_(.+)$')
+        if hdr ~= nil then
+          headers[hdr] = value
+        end
+    end
     client:do_request(method, uri, headers)
     client:get_response()
     local endtime = noit.timeval.now()
