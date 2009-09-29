@@ -49,6 +49,15 @@ function onload(image)
                required="optional"
                allowed="\S+"
                default="GET">The HTTP method to use.</parameter>
+    <parameter name="auth_method"
+               required="optional"
+               allowed="^Basic$">HTTP Authentication method to use.</parameter>
+    <parameter name="auth_user"
+               required="optional"
+               allowed="[^:]*">The user to authenticate as.</parameter>
+    <parameter name="auth_password"
+               required="optional"
+               allowed=".*">The password to use during authentication.</parameter>
     <parameter name="ca_chain"
                required="optional"
                allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
@@ -174,6 +183,15 @@ function initiate(module, check)
 
     -- perform the request
     local headers = {}
+    if check.config.auth_method == "Basic" then
+      local user = check.config.auth_user or ''
+      local password = check.config.auth_password or ''
+      local encoded = noit.base64_encode(user .. ':' .. password)
+      headers["Authorization"] = "Basic " .. encoded
+    elseif check.config.auth_method ~= nil then
+      check.status("Unknown auth method: " .. check.config.auth_method)
+      return
+    end
     headers.Host = host
     for header, value in pairs(check.config) do
         hdr = string.match(header, '^header_(.+)$')
