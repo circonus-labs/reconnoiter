@@ -45,6 +45,7 @@
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
 #include <libxml/tree.h>
+#include <openssl/md5.h>
 
 #include "noit_conf.h"
 #include "noit_module.h"
@@ -724,6 +725,30 @@ nl_base64_encode(lua_State *L) {
   lua_pushlstring(L, (char *)encoded, encoded_len);
   return 1;
 }
+static const char _hexchars[16] =
+  {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+static int
+nl_md5_hex(lua_State *L) {
+  int i;
+  MD5_CTX ctx;
+  size_t inlen;
+  const char *in;
+  unsigned char md5[MD5_DIGEST_LENGTH];
+  char md5_hex[MD5_DIGEST_LENGTH * 2 + 1];
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.md5_hex");
+  MD5_Init(&ctx);
+  in = lua_tolstring(L, 1, &inlen);
+  MD5_Update(&ctx, (const void *)in, (unsigned long)inlen);
+  MD5_Final(md5, &ctx);
+  for(i=0;i<MD5_DIGEST_LENGTH;i++) {
+    md5_hex[i*2] = _hexchars[(md5[i] >> 4) & 0xf];
+    md5_hex[i*2+1] = _hexchars[md5[i] & 0xf];
+  }
+  md5_hex[i*2] = '\0';
+  lua_pushstring(L, md5_hex);
+  return 1;
+}
 static int
 nl_gettimeofday(lua_State *L) {
   struct timeval now;
@@ -1228,6 +1253,7 @@ static const luaL_Reg noitlib[] = {
   { "log", nl_log },
   { "base64_decode", nl_base64_decode },
   { "base64_encode", nl_base64_encode },
+  { "md5_hex", nl_md5_hex },
   { "pcre", nl_pcre },
   { "socket_ipv6", nl_socket_ipv6 },
   { "gunzip", nl_gunzip },
