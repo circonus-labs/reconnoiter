@@ -51,7 +51,7 @@ function onload(image)
                default="GET">The HTTP method to use.</parameter>
     <parameter name="auth_method"
                required="optional"
-               allowed="^Basic$">HTTP Authentication method to use.</parameter>
+               allowed="^(?:Basic|Digest|Auto)$">HTTP Authentication method to use.</parameter>
     <parameter name="auth_user"
                required="optional"
                allowed="[^:]*">The user to authenticate as.</parameter>
@@ -126,6 +126,75 @@ function elapsed(check, name, starttime, endtime)
     return seconds
 end
 
+function rand_string(t, l)
+    local n = table.getn(t)
+    local o = ''
+    while l > 0 do
+      o = o .. t[math.random(1,n)]
+      l = l - 1
+    end
+    return o
+end
+
+function auth_digest(method, uri, user, pass, challenge)
+    local c = ', ' .. challenge
+    local nc = '00000001'
+    local cnonce =
+        rand_string({'a','b','c','d','e','f','g','h','i','j','k','l','m',
+                     'n','o','p','q','r','s','t','u','v','x','y','z','A',
+                     'B','C','D','E','F','G','H','I','J','K','L','M','N',
+                     'O','P','Q','R','S','T','U','V','W','X','Y','Z','0',
+                     '1','2','3','4','5','6','7','8','9'}, 8)
+    local p = {}
+    for k,v in string.gmatch(c, ',%s+(%a+)="([^"]+)"') do p[k] = v end
+    for k,v in string.gmatch(c, ',%s+(%a+)=([^",][^,]*)') do p[k] = v end
+
+    -- qop can be a list
+    for q in string.gmatch(p.qop, '([^,]+)') do
+        if q == "auth" then p.qop = "auth" end
+    end
+
+    -- calculate H(A1)
+    local ha1 = noit.md5_hex(user .. ':' .. p.realm .. ':' .. pass)
+    if string.lower(p.qop or '') == 'md5-sess' then
+        ha1 = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. cnonce)
+    end
+    -- calculate H(A2)
+    local ha2 = ''
+    if p.qop == "auth" or p.qop == nil then
+        ha2 = noit.md5_hex(method .. ':' .. uri)
+    else
+        -- we don't support auth-int
+        error("qop=" .. p.qop .. " is unsupported")
+    end
+    local resp = ''
+    if p.qop == "auth" then
+        resp = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. nc
+                                .. ':' .. cnonce .. ':' .. p.qop
+                                .. ':' .. ha2)
+    else
+        resp = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. ha2)
+    end
+    local o = {}
+    o.username = user
+    o.realm = p.realm
+    o.nonce = p.nonce
+    o.uri = uri
+    o.cnonce = cnonce
+    o.qop = p.qop
+    o.response = resp
+    o.algorithm = p.algorithm
+    if p.opaque then o.opaque = p.opaque end
+    local hdr = ''
+    for k,v in pairs(o) do
+      if hdr == '' then hdr = k .. '="' .. v .. '"' 
+      else hdr = hdr .. ', ' .. k .. '="' .. v .. '"' end
+    end
+    hdr = hdr .. ', nc=' .. nc
+noit.log("error", "Authorization: Digest " .. hdr .. "\n")
+    return hdr
+end
+
 function initiate(module, check)
     local url = check.config.url or 'http:///'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
@@ -135,6 +204,10 @@ function initiate(module, check)
     local good = false
     local starttime = noit.timeval.now()
     local method = check.config.method or "GET"
+
+    -- expect the worst
+    check.bad()
+    check.unavailable()
 
     if host == nil then host = check.target end
     if schema == nil then
@@ -171,27 +244,9 @@ function initiate(module, check)
                                       or default_ca_chain
     end
     callbacks.ciphers = function () return check.config.ciphers end
-    local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target, port, use_ssl)
-   
-    if rv ~= 0 then
-        check.bad()
-        check.unavailable()
-        check.status(str or "unknown error")
-        return
-    end
 
-    -- perform the request
+    -- set the stage
     local headers = {}
-    if check.config.auth_method == "Basic" then
-      local user = check.config.auth_user or ''
-      local password = check.config.auth_password or ''
-      local encoded = noit.base64_encode(user .. ':' .. password)
-      headers["Authorization"] = "Basic " .. encoded
-    elseif check.config.auth_method ~= nil then
-      check.status("Unknown auth method: " .. check.config.auth_method)
-      return
-    end
     headers.Host = host
     for header, value in pairs(check.config) do
         hdr = string.match(header, '^header_(.+)$')
@@ -199,8 +254,62 @@ function initiate(module, check)
           headers[hdr] = value
         end
     end
+    if check.config.auth_method == "Basic" then
+        local user = check.config.auth_user or ''
+        local password = check.config.auth_password or ''
+        local encoded = noit.base64_encode(user .. ':' .. password)
+        headers["Authorization"] = "Basic " .. encoded
+    elseif check.config.auth_method == "Digest" or 
+           check.config.auth_method == "Auto" then
+        -- this is handled later as we need our challenge.
+        local client = HttpClient:new()
+        local rv, err = client:connect(check.target, port, use_ssl)
+        if rv ~= 0 then
+            check.status(str or "unknown error")
+            return
+        end
+        local headers_firstpass = {}
+        for k,v in pairs(headers) do
+            headers_firstpass[k] = v
+        end
+        client:do_request(method, uri, headers_firstpass)
+        client:get_response()
+        if client.code ~= 401 or
+           client.headers["www-authenticate"] == nil then
+            check.status("expected digest challenge, got " .. client.code)
+            return
+        end
+        local user = check.config.auth_user or ''
+        local password = check.config.auth_password or ''
+        local ameth, challenge =
+            string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
+        if check.config.auth_method == "Auto" and ameth == "Basic" then
+            local encoded = noit.base64_encode(user .. ':' .. password)
+            headers["Authorization"] = "Basic " .. encoded
+        elseif ameth == "Digest" then
+            headers["Authorization"] =
+                "Digest " .. auth_digest(method, uri,
+                                         user, password, challenge)
+        else
+            check.status("Unexpected auth '" .. ameth .. "' in challenge")
+            return
+        end
+    elseif check.config.auth_method ~= nil then
+      check.status("Unknown auth method: " .. check.config.auth_method)
+      return
+    end
+
+    -- perform the request
+    local client = HttpClient:new(callbacks)
+    local rv, err = client:connect(check.target, port, use_ssl)
+   
+    if rv ~= 0 then
+        check.status(str or "unknown error")
+        return
+    end
     client:do_request(method, uri, headers)
     client:get_response()
+
     local endtime = noit.timeval.now()
     check.available()
 
