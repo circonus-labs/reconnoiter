@@ -52,6 +52,7 @@
 #include "noit_check_tools.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
+#include "utils/noit_b64.h"
 #include "eventer/eventer.h"
 #include "lua_noit.h"
 
@@ -693,6 +694,37 @@ nl_log(lua_State *L) {
   return 0;
 }
 static int
+nl_base64_decode(lua_State *L) {
+  size_t inlen, decoded_len;
+  const char *message;
+  unsigned char *decoded;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
+
+  message = lua_tolstring(L, 1, &inlen);
+  decoded = malloc(MAX(1,inlen));
+  if(!decoded) luaL_error(L, "out-of-memory");
+  decoded_len = noit_b64_decode(message, inlen, decoded, MAX(1,inlen));
+  lua_pushlstring(L, (char *)decoded, decoded_len);
+  return 1;
+}
+static int
+nl_base64_encode(lua_State *L) {
+  size_t inlen, encoded_len;
+  const unsigned char *message;
+  char *encoded;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.encode");
+
+  message = (const unsigned char *)lua_tolstring(L, 1, &inlen);
+  encoded_len = (((inlen + 2) / 3) * 4) + 1;
+  encoded = malloc(encoded_len);
+  if(!encoded) luaL_error(L, "out-of-memory");
+  encoded_len = noit_b64_encode(message, inlen, encoded, encoded_len);
+  lua_pushlstring(L, (char *)encoded, encoded_len);
+  return 1;
+}
+static int
 nl_gettimeofday(lua_State *L) {
   struct timeval now;
   gettimeofday(&now, NULL);
@@ -1194,6 +1226,8 @@ static const luaL_Reg noitlib[] = {
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },
   { "log", nl_log },
+  { "base64_decode", nl_base64_decode },
+  { "base64_encode", nl_base64_encode },
   { "pcre", nl_pcre },
   { "socket_ipv6", nl_socket_ipv6 },
   { "gunzip", nl_gunzip },
