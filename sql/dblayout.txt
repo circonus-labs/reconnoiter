@@ -1,0 +1,16 @@
+To enable sharding of data storage across multiple nodes, you need to break out the schema in the following manner:
+
+A mapping database which houses the following tables:
+* stratcon.current_node_config.sql
+* stratcon.map_uuid_to_sid.sql
+* stratcon.storage_node.sql
+
+The remaining tables should be added to each individual storage node. This includes all tables in the "noit" schema. 
+
+Note, if you don't need to split your data across multiple storage nodes, you should be able to load all of these bits into the respective schemas on the same box and it will "just work". If you want, you should also be able to push all the noit stuff back into the stratcon schema. At least I think that will work. :-) 
+
+Note the tables have been renamed to be more consistent, and to make it clearer what role they play in the system. Mostly we have two types of tables, those for checks and those for metrics. Below that we _archive tables, where data is loaded from stratcon. Below that are _changelog tables, where change logs are stored. Below that are _currently tables, where we store what the value of the check/metric is currently. There are still the various rollup tables for numeric metrics. 
+
+The security model for the database layer will be to give stratcon only insert access to the tables it inserts directly to. Trigger functions will run as security definer to update data dependent tables. The web ui should only have read access to any table it needs to read data from directly (which is likely not the archive tables), keeping in mind that we do use security definer sprocs for access (and should probably force all i/o through those). We will of course only grant execute on the sprocs as needed. 
+
+ 
