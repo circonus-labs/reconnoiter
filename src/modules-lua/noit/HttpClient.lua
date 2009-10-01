@@ -14,11 +14,11 @@ function HttpClient:connect(target, port, ssl)
     self.target = target
     self.port = port
     local rv, err = self.e:connect(self.target, self.port)
-    if self.hooks.connected ~= nil then self.hooks.connected() end
-    if ssl == false then return rv, err end
     if rv ~= 0 then
         return rv, err
     end
+    if self.hooks.connected ~= nil then self.hooks.connected() end
+    if ssl == false then return rv, err end
     return self.e:ssl_upgrade_socket(self.hooks.certfile and self.hooks.certfile(),
                                      self.hooks.keyfile and self.hooks.keyfile(),
                                      self.hooks.cachain and self.hooks.cachain(),
@@ -118,7 +118,10 @@ function te_chunked(self, content_enc_func)
         local hexlen = string.match(str, "^([0-9a-fA-F]+)")
         if hexlen == nil then error("bad chunk length: " .. str) end
         local len = tonumber(hexlen, 16)
-        if len == 0 then break end
+        if len == 0 then 
+          if self.hooks.consume ~= nil then self.hooks.consume("") end
+          break 
+        end
         str = self.e:read(len)
         if string.len(str or "") ~= len then error("short chunked read") end
         self.raw_bytes = self.raw_bytes + string.len(str)
