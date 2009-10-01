@@ -112,7 +112,7 @@ begin
   return;
 end
 $BODY$
-  LANGUAGE 'plpgsql' SECURITY DEFINER;;
+  LANGUAGE 'plpgsql' SECURITY DEFINER;
  
 GRANT EXECUTE ON FUNCTION stratcon._fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer) TO stratcon;
 
