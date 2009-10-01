@@ -1,6 +1,6 @@
--- Function: noit.choose_window(timestamp with time zone, timestamp with time zone, integer)
+-- Function: stratcon.choose_window(timestamp with time zone, timestamp with time zone, integer)
 
-CREATE OR REPLACE FUNCTION noit.choose_window(IN in_start_time timestamp with time zone, IN in_end_time timestamp with time zone, IN in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer)
+CREATE OR REPLACE FUNCTION stratcon.choose_window(IN in_start_time timestamp with time zone, IN in_end_time timestamp with time zone, IN in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer)
   RETURNS SETOF record AS
 $BODY$
 declare
@@ -18,19 +18,19 @@ begin
                          extract('epoch' from in_start_time) as iv
                  ) i,
                  (   select 5*60 as isec, '5 minutes'::interval as aperiod,
-                            'metric_numeric_rollup_5m' as atablename
+                            'noit.metric_numeric_rollup_5m' as atablename
                   union all
                      select 20*60 as isec, '20 minutes'::interval as aperiod,
-                            'metric_numeric_rollup_20m' as atablename
+                            'noit.metric_numeric_rollup_20m' as atablename
                   union all
                      select 60*60 as isec, '1 hour'::interval as aperiod,
-                            'metric_numeric_rollup_60m' as atablename
+                            'noit.metric_numeric_rollup_60m' as atablename
                   union all
                      select 6*60*60 as isec, '6 hours'::interval as aaperiod,
-                            'metric_numeric_rollup_6hours' as atablename
+                            'noit.metric_numeric_rollup_6hours' as atablename
                   union all
                      select 12*60*60 as isec, '12 hours'::interval as aperiod,
-                            'metric_numeric_rollup_12hours' as atablename
+                            'noit.metric_numeric_rollup_12hours' as atablename
                  ) ivs
          ) b
  order by badness asc
@@ -44,4 +44,6 @@ begin
   return;
 end
 $BODY$
-  LANGUAGE 'plpgsql' VOLATILE;
+  LANGUAGE 'plpgsql' SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION stratcon.choose_window(timestamp with time zone, timestamp with time zone, integer) TO stratcon;

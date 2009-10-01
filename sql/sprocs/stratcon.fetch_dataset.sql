@@ -1,27 +1,29 @@
--- Function: noit.fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean)
+-- Function: stratcon.fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean)
 
-CREATE OR REPLACE FUNCTION noit.fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
+CREATE OR REPLACE FUNCTION stratcon.fetch_dataset(in_uuid uuid, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
   RETURNS SETOF noit.metric_numeric_rollup_5m AS
 $BODY$declare
   v_sid int;
   v_record noit.metric_numeric_rollup_5m%rowtype;
 begin
-  select sid into v_sid from noit.map_uuid_to_sid where id = in_uuid;
+  select sid into v_sid from stratcon.map_uuid_to_sid where id = in_uuid;
   if not found then
     return;
   end if;
 
-    for v_record in  select sid, name, rollup_time, count_rows, avg_value, counter_dev from noit._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
+    for v_record in  select sid, name, rollup_time, count_rows, avg_value, counter_dev from stratcon._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
     return next v_record; 
     end loop;
 
---  return query select sid, name, rollup_time, count_rows, avg_value from noit._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
+--  return query select sid, name, rollup_time, count_rows, avg_value from stratcon._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
   return;
 end
 $BODY$
-  LANGUAGE 'plpgsql' VOLATILE;
+  LANGUAGE 'plpgsql' SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION noit._fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
+GRANT EXECUTE ON FUNCTION stratcon.fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean) TO stratcon;
+
+CREATE OR REPLACE FUNCTION stratcon._fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
   RETURNS SETOF noit.metric_numeric_rollup_5m AS
 $BODY$declare
   v_sql text;
@@ -38,7 +40,7 @@ begin
   -- Map out uuid to an sid.
   v_sid := in_sid;
 
-  select * into v_target from noit.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
+  select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
 
   if not found then
     raise exception 'no target table';
@@ -95,4 +97,6 @@ begin
   return;
 end
 $BODY$
-  LANGUAGE 'plpgsql' VOLATILE;
+  LANGUAGE 'plpgsql' SECURITY DEFINER;
+GRANT EXECUTE ON FUNCTION  stratcon._fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean) TO stratcon;
+ 
