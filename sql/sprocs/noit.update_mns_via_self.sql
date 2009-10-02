@@ -1,0 +1,1 @@
+-- formerly stratcon.trig_update_tsvector_from_metric_summary
