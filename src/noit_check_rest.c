@@ -585,17 +585,17 @@ rest_set_check(noit_http_rest_closure_t *restc,
 
 void
 noit_check_rest_init() {
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_show_check
+    rest_show_check, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "PUT", "/checks/", "^set(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_set_check
+    rest_set_check, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_delete_check
+    rest_delete_check, noit_http_rest_client_cert_auth
   ) == 0);
 }
 

@@ -233,17 +233,17 @@ rest_set_filter(noit_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
-    rest_show_filter
+    rest_show_filter, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "PUT", "/filters/", "^set(/.*)(?<=/)([^/]+)$",
-    rest_set_filter
+    rest_set_filter, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "DELETE", "/filters/", "^delete(/.*)(?<=/)([^/]+)$",
-    rest_delete_filter
+    rest_delete_filter, noit_http_rest_client_cert_auth
   ) == 0);
 }
 

@@ -999,8 +999,9 @@ stratcon_jlog_streamer_init(const char *toplevel) {
                         noit_connection_complete_connect);
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
-  assert(noit_http_rest_register(
-    "GET", "/noits/", "^show$", rest_show_noits
+  assert(noit_http_rest_register_auth(
+    "GET", "/noits/", "^show$", rest_show_noits,
+             noit_http_rest_client_cert_auth
   ) == 0);
 }
 
