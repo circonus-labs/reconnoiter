@@ -874,7 +874,6 @@ stratcon_add_noit(const char *target, unsigned short port) {
   xmlSetProp(newnoit, (xmlChar *)"address", (xmlChar *)target);
   xmlSetProp(newnoit, (xmlChar *)"port", (xmlChar *)port_str);
   xmlAddChild(parent, newnoit);
-  noit_conf_mark_changed();
   stratcon_streamer_connection(NULL, target,
                                stratcon_jlog_recv_handler,
                                (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
@@ -908,7 +907,6 @@ stratcon_remove_noit(const char *target, unsigned short port) {
     xmlFreeNode(noit_configs[i]);
   }
   free(noit_configs);
-  noit_conf_mark_changed();
 
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
@@ -927,6 +925,42 @@ stratcon_remove_noit(const char *target, unsigned short port) {
   }
   free(ctx);
   return n;
+}
+static int
+rest_set_noit(noit_http_rest_closure_t *restc,
+              int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  unsigned short port = 43191;
+  if(npats < 1 || npats > 2)
+    noit_http_response_server_error(ctx, "text/xml");
+  if(npats == 2) port = atoi(pats[1]);
+  if(stratcon_add_noit(pats[0], port))
+    noit_http_response_ok(ctx, "text/xml");
+  else
+    noit_http_response_standard(ctx, 409, "EXISTS", "text/xml");
+  if(noit_conf_write_file(NULL) != 0)
+    noitL(noit_error, "local config write failed\n");
+  noit_conf_mark_changed();
+  noit_http_response_end(ctx);
+  return 0;
+}
+static int
+rest_delete_noit(noit_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  unsigned short port = 43191;
+  if(npats < 1 || npats > 2)
+    noit_http_response_server_error(ctx, "text/xml");
+  if(npats == 2) port = atoi(pats[1]);
+  if(stratcon_remove_noit(pats[0], port))
+    noit_http_response_ok(ctx, "text/xml");
+  else
+    noit_http_response_not_found(ctx, "text/xml");
+  if(noit_conf_write_file(NULL) != 0)
+    noitL(noit_error, "local config write failed\n");
+  noit_conf_mark_changed();
+  noit_http_response_end(ctx);
+  return 0;
 }
 static int
 stratcon_console_conf_noits(noit_console_closure_t ncct,
@@ -985,7 +1019,6 @@ register_console_streamer_commands() {
     NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
 }
 
-
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   pthread_mutex_init(&noits_lock, NULL);
@@ -1001,6 +1034,22 @@ stratcon_jlog_streamer_init(const char *toplevel) {
   stratcon_jlog_streamer_reload(toplevel);
   assert(noit_http_rest_register_auth(
     "GET", "/noits/", "^show$", rest_show_noits,
+             noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "PUT", "/noits/", "^set/([^/:]+)$", rest_set_noit,
+             noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "PUT", "/noits/", "^set/([^/:]+):(\\d+)$", rest_set_noit,
+             noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "DELETE", "/noits/", "^delete/([^/:]+)$", rest_delete_noit,
+             noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "DELETE", "/noits/", "^delete/([^/:]+):(\\d+)$", rest_delete_noit,
              noit_http_rest_client_cert_auth
   ) == 0);
 }
