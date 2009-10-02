@@ -78,7 +78,7 @@ begin
                  extract('epoch' from v_target.period)) *
            extract('epoch' from v_target.period)) || ' seconds') ::interval as whence,
            coalesce(value, '[unset]') as value
-      from stratcon.loading_dock_metric_text_s_change_log
+      from noit.metric_text_changelog 
      where sid = v_sid
        and name = in_name
        and whence > v_start_adj
