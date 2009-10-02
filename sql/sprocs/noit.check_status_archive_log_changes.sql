@@ -1,0 +1,1 @@
+-- formerly  trigger function stratcon.loading_dock_status_s_change_log 
