@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION noit.update_metric_summary_fulltext()
 $BODY$
 DECLARE
 BEGIN
-    UPDATE noit.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(sid, metric_name, metric_type) WHERE sid = NEW.sid;
+    UPDATE noit.metric_name_summary SET fts_data=stratcon.metric_name_summary_tsvector(sid, metric_name, metric_type) WHERE sid = NEW.sid;
    RETURN NEW;
 END
 $BODY$

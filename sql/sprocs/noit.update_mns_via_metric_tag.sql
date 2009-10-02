@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION noit.update_mns_via_metric_tag()
 $BODY$
 DECLARE
 BEGIN
-    UPDATE noit.metric_name_summary SET ts_search_all=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,metric_type)
+    UPDATE noit.metric_name_summary SET fts_data=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,metric_type)
     where sid=NEW.sid and metric_name=NEW.metric_name;
    RETURN NEW;
 END
