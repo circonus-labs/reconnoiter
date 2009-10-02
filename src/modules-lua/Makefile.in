@@ -32,7 +32,8 @@ LUA=noit/timeval.lua \
 	noit/module/varnish.lua \
 	noit/module/smtp.lua \
 	noit/module/http.lua \
-	noit/module/resmon.lua
+	noit/module/resmon.lua \
+	noit/module/tcp.lua
 
 all:
 
