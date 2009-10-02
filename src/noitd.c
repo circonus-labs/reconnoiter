@@ -180,6 +180,8 @@ static int child_main() {
 
   /* Initialize all of our listeners */
   noit_console_init(APPNAME);
+  noit_console_conf_init();
+  noit_console_conf_checks_init();
   noit_capabilities_listener_init();
   noit_jlog_listener_init();
   noit_http_rest_init();
@@ -225,7 +227,6 @@ int main(int argc, char **argv) {
 
   /* Next load the configs */
   noit_conf_init(APPNAME);
-  noit_conf_checks_init(APPNAME);
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
   }

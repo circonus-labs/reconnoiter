@@ -37,7 +37,7 @@
 #include "utils/noit_hash.h"
 #include "noit_console.h"
 
-API_EXPORT(void) noit_conf_checks_init(const char *toplevel);
+API_EXPORT(void) noit_console_conf_checks_init();
 API_EXPORT(int)
   noit_console_config_cd(noit_console_closure_t ncct,
                          int argc, char **argv,

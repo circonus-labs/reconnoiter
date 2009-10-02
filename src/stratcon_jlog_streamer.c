@@ -39,6 +39,7 @@
 #include "noit_rest.h"
 #include "stratcon_datastore.h"
 #include "stratcon_jlog_streamer.h"
+#include "stratcon_iep.h"
 
 #include <unistd.h>
 #include <assert.h>
@@ -72,8 +73,9 @@ remote_str_sort(const void *a, const void *b) {
 static void
 nc_print_noit_conn_brief(noit_console_closure_t ncct,
                           noit_connection_ctx_t *ctx) {
+  jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
   struct timeval now, diff, session_duration;
-  gettimeofday(&now, NULL);
+  const char *feedtype = "unknown";
   const char *lasttime = "never";
   if(ctx->last_connect.tv_sec != 0) {
     char cmdbuf[4096];
@@ -84,25 +86,28 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
     lasttime = cmdbuf;
   }
   nc_printf(ncct, "%s [%s]:\n\tLast connect: %s\n", ctx->remote_str,
-            ctx->timeout_event ? "disconnected" : "connected", lasttime);
-  if(ctx->timeout_event) {
-    sub_timeval(now, ctx->timeout_event->whence, &diff);
-    nc_printf(ncct, "\tNext attempet in %llu.%06us\n", diff.tv_sec, diff.tv_usec);
+            ctx->remote_cn ? "connected" :
+                             (ctx->timeout_event ? "disconnected" :
+                                                   "connecting"), lasttime);
+  switch(ntohl(jctx->jlog_feed_cmd)) {
+    case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
+    case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
   }
-  else {
+  nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
+  gettimeofday(&now, NULL);
+  if(ctx->timeout_event) {
+    sub_timeval(ctx->timeout_event->whence, now, &diff);
+    nc_printf(ncct, "\tNext attempt in %llu.%06us\n",
+              (unsigned long long)diff.tv_sec, (unsigned int) diff.tv_usec);
+  }
+  else if(ctx->remote_cn) {
     nc_printf(ncct, "\tRemote CN: '%s'\n",
               ctx->remote_cn ? ctx->remote_cn : "???");
     if(ctx->consumer_callback == stratcon_jlog_recv_handler) {
-      jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
       struct timeval last;
       double session_duration_seconds;
-      const char *feedtype = "unknown";
       const char *state = "unknown";
 
-      switch(ntohl(jctx->jlog_feed_cmd)) {
-        case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
-        case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
-      }
       switch(jctx->state) {
         case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
         case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
@@ -117,14 +122,14 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
       sub_timeval(now, ctx->last_connect, &session_duration);
       session_duration_seconds = session_duration.tv_sec +
                                  (double)session_duration.tv_usec/1000000.0;
-      nc_printf(ncct, "\tJLog event streamer [%s]\n\tState: %s\n"
+      nc_printf(ncct, "\tState: %s\n"
                       "\tNext checkpoint: [%08x:%08x]\n"
                       "\tLast event: %llu.%06us ago\n"
                       "\tEvents this session: %llu (%0.2f/s)\n"
                       "\tOctets this session: %llu (%0.2f/s)\n",
-                feedtype, state,
+                state,
                 jctx->header.chkpt.log, jctx->header.chkpt.marker,
-                diff.tv_sec, diff.tv_usec,
+                (unsigned long long)diff.tv_sec, (unsigned int)diff.tv_usec,
                 jctx->total_events,
                 (double)jctx->total_events/session_duration_seconds,
                 jctx->total_bytes_read,
@@ -742,19 +747,6 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
   return 0;
 }
 
-static void
-register_console_streamer_commands() {
-  noit_console_state_t *tl;
-  cmd_info_t *showcmd;
-
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
-
-  noit_console_state_add_cmd(showcmd->dstate,
-    NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
-}
-
 static int
 rest_show_noits(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
@@ -793,57 +785,61 @@ rest_show_noits(noit_http_rest_closure_t *restc,
              (long long unsigned)ctx->last_connect.tv_sec,
              (int)ctx->last_connect.tv_usec);
     xmlSetProp(node, (xmlChar *)"last_connect", (xmlChar *)buff);
-    xmlSetProp(node, (xmlChar *)"state", ctx->timeout_event ?
-               (xmlChar *)"disconnected" : (xmlChar *)"connected");
-    if(ctx->timeout_event) {
-      sub_timeval(now, ctx->timeout_event->whence, &diff);
-      snprintf(buff, sizeof(buff), "%llu.%06d",
-               (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
-      xmlSetProp(node, (xmlChar *)"next_attempt", (xmlChar *)buff);
-    }
+    xmlSetProp(node, (xmlChar *)"state", ctx->remote_cn ?
+               (xmlChar *)"connected" :
+               (ctx->timeout_event ? (xmlChar *)"disconnected" :
+                                    (xmlChar *)"connecting"));
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
-    if(ctx->remote_cn)
-      xmlSetProp(node, (xmlChar *)"remote_cn", (xmlChar *)ctx->remote_cn);
-
     switch(ntohl(jctx->jlog_feed_cmd)) {
       case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
       case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
     }
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
-    switch(jctx->state) {
-      case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
-      case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
-      case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
-      case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
-      case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;
-      case JLOG_STREAMER_WANT_CHKPT: state = "checkpointing"; break;
-    }
-    xmlSetProp(node, (xmlChar *)"state", (xmlChar *)state);
-    snprintf(buff, sizeof(buff), "%08x:%08x", 
-             jctx->header.chkpt.log, jctx->header.chkpt.marker);
-    xmlSetProp(node, (xmlChar *)"checkpoint", (xmlChar *)buff);
-    snprintf(buff, sizeof(buff), "%llu",
-             (long long unsigned)jctx->total_events);
-    xmlSetProp(node, (xmlChar *)"session_events", (xmlChar *)buff);
-    snprintf(buff, sizeof(buff), "%llu",
-             (long long unsigned)jctx->total_bytes_read);
-    xmlSetProp(node, (xmlChar *)"session_bytes", (xmlChar *)buff);
-
-    sub_timeval(now, ctx->last_connect, &diff);
-    snprintf(buff, sizeof(buff), "%llu.%06d",
-             (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
-    xmlSetProp(node, (xmlChar *)"session_duration", (xmlChar *)buff);
-
-    if(jctx->header.tv_sec) {
-      last.tv_sec = jctx->header.tv_sec;
-      last.tv_usec = jctx->header.tv_usec;
-      snprintf(buff, sizeof(buff), "%llu.%06d",
-               (long long unsigned)last.tv_sec, (int)last.tv_usec);
-      xmlSetProp(node, (xmlChar *)"last_event", (xmlChar *)buff);
-      sub_timeval(now, last, &diff);
+    if(ctx->timeout_event) {
+      sub_timeval(ctx->timeout_event->whence, now, &diff);
       snprintf(buff, sizeof(buff), "%llu.%06d",
                (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
-      xmlSetProp(node, (xmlChar *)"last_event_age", (xmlChar *)buff);
+      xmlSetProp(node, (xmlChar *)"next_attempt", (xmlChar *)buff);
+    }
+    else if(ctx->remote_cn) {
+      if(ctx->remote_cn)
+        xmlSetProp(node, (xmlChar *)"remote_cn", (xmlChar *)ctx->remote_cn);
+  
+      switch(jctx->state) {
+        case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
+        case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
+        case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
+        case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
+        case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;
+        case JLOG_STREAMER_WANT_CHKPT: state = "checkpointing"; break;
+      }
+      xmlSetProp(node, (xmlChar *)"state", (xmlChar *)state);
+      snprintf(buff, sizeof(buff), "%08x:%08x", 
+               jctx->header.chkpt.log, jctx->header.chkpt.marker);
+      xmlSetProp(node, (xmlChar *)"checkpoint", (xmlChar *)buff);
+      snprintf(buff, sizeof(buff), "%llu",
+               (unsigned long long)jctx->total_events);
+      xmlSetProp(node, (xmlChar *)"session_events", (xmlChar *)buff);
+      snprintf(buff, sizeof(buff), "%llu",
+               (unsigned long long)jctx->total_bytes_read);
+      xmlSetProp(node, (xmlChar *)"session_bytes", (xmlChar *)buff);
+  
+      sub_timeval(now, ctx->last_connect, &diff);
+      snprintf(buff, sizeof(buff), "%llu.%06d",
+               (unsigned long long)diff.tv_sec, (int)diff.tv_usec);
+      xmlSetProp(node, (xmlChar *)"session_duration", (xmlChar *)buff);
+  
+      if(jctx->header.tv_sec) {
+        last.tv_sec = jctx->header.tv_sec;
+        last.tv_usec = jctx->header.tv_usec;
+        snprintf(buff, sizeof(buff), "%llu.%06d",
+                 (unsigned long long)last.tv_sec, (int)last.tv_usec);
+        xmlSetProp(node, (xmlChar *)"last_event", (xmlChar *)buff);
+        sub_timeval(now, last, &diff);
+        snprintf(buff, sizeof(buff), "%llu.%06d",
+                 (unsigned long long)diff.tv_sec, (int)diff.tv_usec);
+        xmlSetProp(node, (xmlChar *)"last_event_age", (xmlChar *)buff);
+      }
     }
 
     xmlAddChild(root, node);
@@ -857,6 +853,139 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   xmlFreeDoc(doc);
   return 0;
 }
+static int
+stratcon_add_noit(const char *target, unsigned short port) {
+  int cnt;
+  char path[256];
+  char port_str[6];
+  noit_conf_section_t *noit_configs, parent;
+  xmlNodePtr newnoit;
+
+  snprintf(path, sizeof(path),
+           "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
+  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+  free(noit_configs);
+  if(cnt != 0) return 0;
+
+  parent = noit_conf_get_section(NULL, "//noits");
+  if(!parent) return 0;
+  snprintf(port_str, sizeof(port_str), "%d", port);
+  newnoit = xmlNewNode(NULL, (xmlChar *)"noit");
+  xmlSetProp(newnoit, (xmlChar *)"address", (xmlChar *)target);
+  xmlSetProp(newnoit, (xmlChar *)"port", (xmlChar *)port_str);
+  xmlAddChild(parent, newnoit);
+  noit_conf_mark_changed();
+  stratcon_streamer_connection(NULL, target,
+                               stratcon_jlog_recv_handler,
+                               (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
+                               NULL,
+                               jlog_streamer_ctx_free);
+  stratcon_streamer_connection(NULL, target,
+                               stratcon_jlog_recv_handler,
+                               (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
+                               NULL,
+                               jlog_streamer_ctx_free);
+  return 1;
+}
+static int
+stratcon_remove_noit(const char *target, unsigned short port) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen, n = 0, i, cnt = 0;
+  void *vconn;
+  noit_connection_ctx_t **ctx;
+  noit_conf_section_t *noit_configs;
+  char path[256];
+  char remote_str[256];
+
+  snprintf(remote_str, sizeof(remote_str), "%s:%d", target, port);
+
+  snprintf(path, sizeof(path),
+           "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
+  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+  for(i=0; i<cnt; i++) {
+    xmlUnlinkNode(noit_configs[i]);
+    xmlFreeNode(noit_configs[i]);
+  }
+  free(noit_configs);
+  noit_conf_mark_changed();
+
+  pthread_mutex_lock(&noits_lock);
+  ctx = malloc(sizeof(*ctx) * noits.size);
+  while(noit_hash_next(&noits, &iter, (const char **)key_id, &klen,
+                       &vconn)) {
+    if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {
+      ctx[n] = (noit_connection_ctx_t *)vconn;
+      noit_atomic_inc32(&ctx[n]->refcnt);
+      n++;
+    }
+  }
+  pthread_mutex_unlock(&noits_lock);
+  for(i=0; i<n; i++) {
+    noit_connection_ctx_dealloc(ctx[i]); /* once for the record */
+    noit_connection_ctx_deref(ctx[i]);   /* once for the aboce inc32 */
+  }
+  free(ctx);
+  return n;
+}
+static int
+stratcon_console_conf_noits(noit_console_closure_t ncct,
+                            int argc, char **argv,
+                            noit_console_state_t *dstate,
+                            void *closure) {
+  char *cp, target[128];
+  unsigned short port = 43191;
+  int adding = (int)closure;
+  if(argc != 1)
+    return -1;
+
+  cp = strchr(argv[0], ':');
+  if(cp) {
+    strlcpy(target, argv[0], MIN(sizeof(target), cp-argv[0]+1));
+    port = atoi(cp+1);
+  }
+  else strlcpy(target, argv[0], sizeof(target));
+  if(adding) {
+    if(stratcon_add_noit(target, port)) {
+      nc_printf(ncct, "Added noit at %s:%d\n", target, port);
+    }
+    else {
+      nc_printf(ncct, "Failed to add noit at %s:%d\n", target, port);
+    }
+  }
+  else {
+    if(stratcon_remove_noit(target, port)) {
+      nc_printf(ncct, "Removed noit at %s:%d\n", target, port);
+    }
+    else {
+      nc_printf(ncct, "Failed to remove noit at %s:%d\n", target, port);
+    }
+  }
+  return 0;
+}
+
+static void
+register_console_streamer_commands() {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd, *confcmd, *conftcmd, *conftnocmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+  confcmd = noit_console_state_get_cmd(tl, "configure");
+  conftcmd = noit_console_state_get_cmd(confcmd->dstate, "terminal");
+  conftnocmd = noit_console_state_get_cmd(conftcmd->dstate, "no");
+
+  noit_console_state_add_cmd(conftcmd->dstate,
+    NCSCMD("noit", stratcon_console_conf_noits, NULL, NULL, (void *)1));
+  noit_console_state_add_cmd(conftnocmd->dstate,
+    NCSCMD("noit", stratcon_console_conf_noits, NULL, NULL, (void *)0));
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
+}
+
+
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   pthread_mutex_init(&noits_lock, NULL);
@@ -874,3 +1003,4 @@ stratcon_jlog_streamer_init(const char *toplevel) {
     "GET", "/noits/", "^show$", rest_show_noits
   ) == 0);
 }
+

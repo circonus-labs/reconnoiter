@@ -37,6 +37,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "stratcon_datastore.h"
+#include "stratcon_jlog_streamer.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -47,5 +48,8 @@ API_EXPORT(void)
 API_EXPORT(void)
   stratcon_iep_line_processor(stratcon_datastore_op_t op,
                               struct sockaddr *remote, void *operand);
+
+API_EXPORT(jlog_streamer_ctx_t *)
+  stratcon_jlog_streamer_iep_ctx_alloc(void);
 
 #endif
