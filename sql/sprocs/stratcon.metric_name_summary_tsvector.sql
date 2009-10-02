@@ -12,7 +12,7 @@ ref_ctags text;
 ref_hostname text;
 ref_metric_name text;
 ref_alias text;
-v_ts_search_all tsvector;
+v_fts_data tsvector;
 BEGIN
     SELECT sid,module,name,target
       INTO ref_sid,ref_module,ref_name,ref_target
@@ -49,7 +49,7 @@ BEGIN
     ref_metric_name := regexp_replace(in_metric_name, E'[_\`/.\\134]', ' ', 'g');
     ref_alias := coalesce(regexp_replace(ref_alias, E'[_\`/.\\134]', ' ', 'g'), ' ');
 
-    v_ts_search_all=to_tsvector(ref_metric_name || ' ' ||
+    v_fts_data=to_tsvector(ref_metric_name || ' ' ||
                                 ref_module || ' ' ||
                                 ref_name || ' ' ||
                                 ref_target || ' ' ||
@@ -57,7 +57,7 @@ BEGIN
                                 ref_alias || ' ' ||
                                 ref_tags || ' ' ||
                                 ref_ctags);
-    RETURN v_ts_search_all;
+    RETURN v_fts_data;
 END$BODY$
   LANGUAGE 'plpgsql' SECURITY DEFINER;
  
