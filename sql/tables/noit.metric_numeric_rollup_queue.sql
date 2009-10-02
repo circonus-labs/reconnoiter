@@ -21,7 +21,7 @@ SET default_with_oids = false;
 
 CREATE TABLE metric_numeric_rollup_queue (
     whence timestamp with time zone NOT NULL,
-    "interval" character text NOT NULL
+    "interval" text NOT NULL
 );
 
 

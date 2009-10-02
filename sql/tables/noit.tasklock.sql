@@ -50,7 +50,7 @@ ALTER TABLE ONLY tasklock
 REVOKE ALL ON TABLE tasklock FROM PUBLIC;
 REVOKE ALL ON TABLE tasklock FROM reconnoiter;
 GRANT ALL ON TABLE tasklock TO reconnoiter;
-GRANT SELECT,INSERT ON TABLE tasklock TO noit;
+GRANT SELECT,INSERT ON TABLE tasklock TO stratcon;
 
 --
 -- PostgreSQL database dump complete

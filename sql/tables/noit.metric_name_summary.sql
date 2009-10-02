@@ -43,7 +43,7 @@ ALTER TABLE ONLY metric_name_summary
 -- Name: metric_name_summary_fts_data_idx; Type: INDEX; Schema: noit; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE INDEX metric_name_summary_fts_data_idx ON metric_name_summary USING gin (ts_search_all);
+CREATE INDEX metric_name_summary_fts_data_idx ON metric_name_summary USING gin (fts_data);
 
 
 --

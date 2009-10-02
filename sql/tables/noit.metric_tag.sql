@@ -48,10 +48,11 @@ CREATE TRIGGER update_metric_name_summary
 
 --
 -- Name: metric_tag_sid_fkey; Type: FK CONSTRAINT; Schema: noit; Owner: reconnoiter
+-- NOTE: this FK reference is only valid on single database installations 
 --
 
 ALTER TABLE ONLY metric_tag
-    ADD CONSTRAINT metric_tag_sid_fkey FOREIGN KEY (sid) REFERENCES map_uuid_to_sid(sid);
+    ADD CONSTRAINT metric_tag_sid_fkey FOREIGN KEY (sid) REFERENCES stratcon.map_uuid_to_sid(sid);
 
 
 --
