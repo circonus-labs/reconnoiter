@@ -373,14 +373,14 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  *
  */
 
-unsigned long long ntohll (unsigned long long n)
+static unsigned long long collectd_ntohll (unsigned long long n)
 {
 #if BYTE_ORDER == BIG_ENDIAN
   return (n);
 #else
   return (((unsigned long long) ntohl (n)) << 32) + ntohl (n >> 32);
 #endif
-} /* unsigned long long ntohll */
+} /* unsigned long long collectd_ntohll */
 
 #define ntohd(d) (d)
 
@@ -504,7 +504,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
     switch (pkg_types[i])
     {
       case DS_TYPE_COUNTER:
-        pkg_values[i].counter = (counter_t) ntohll (pkg_values[i].counter);
+        pkg_values[i].counter = (counter_t) collectd_ntohll (pkg_values[i].counter);
         break;
 
       case DS_TYPE_GAUGE:
@@ -512,11 +512,11 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
         break;
 
       case DS_TYPE_DERIVE:
-        pkg_values[i].derive = (derive_t) ntohll (pkg_values[i].derive);
+        pkg_values[i].derive = (derive_t) collectd_ntohll (pkg_values[i].derive);
         break;
 
       case DS_TYPE_ABSOLUTE:
-        pkg_values[i].absolute = (absolute_t) ntohll (pkg_values[i].absolute);
+        pkg_values[i].absolute = (absolute_t) collectd_ntohll (pkg_values[i].absolute);
         break;
 
       default:
@@ -572,7 +572,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
   memcpy ((void *) &tmp64, buffer, sizeof (tmp64));
   buffer += sizeof (tmp64);
-  *value = ntohll (tmp64);
+  *value = collectd_ntohll (tmp64);
 
   *ret_buffer = buffer;
   *ret_buffer_len = buffer_len - pkg_length;
