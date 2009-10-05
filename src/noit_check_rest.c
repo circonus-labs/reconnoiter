@@ -352,8 +352,10 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
         inherit->children && inherit->children->content)
       xmlSetProp(config, (xmlChar *)"inherit", inherit->children->content);
     for(n = c->children; n; n = n->next) {
+      xmlChar *v = xmlNodeGetContent(n);
       xmlNodePtr co = xmlNewNode(NULL, n->name);
-      xmlNodeAddContent(co, XML_GET_CONTENT(n));
+      xmlNodeAddContent(co, v);
+      xmlFree(v);
       xmlAddChild(config, co);
     }
   }
