@@ -341,7 +341,7 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
     ATTR2PROP(period);
     ATTR2PROP(timeout);
     ATTR2PROP(disable);
-    ATTR2PROP(filter);
+    ATTR2PROP(filterset);
   }
   for(oldconfig = check->children; oldconfig; oldconfig = oldconfig->next)
     if(!strcmp((char *)oldconfig->name, "config")) break;

@@ -124,7 +124,7 @@ validate_filter_post(xmlDocPtr doc) {
     char *type;
     if(strcmp((char *)r->name, "rule")) return NULL;
     type = (char *)xmlGetProp(r, (xmlChar *)"type");
-    if(!type || (strcmp(type, "deny") && strcmp(type, "allow"))) {
+    if(!type || (strcmp(type, "deny") && strcmp(type, "accept"))) {
       if(type) xmlFree(type);
       return NULL;
     }
