@@ -16,7 +16,7 @@ class Reconnoiter_DataSet extends Reconnoiter_RPN {
     $this->default_attr = 'avg_value';
 
     $this->derive = $derive;
-   $this->uuid = $db->get_uuid_by_sid($uuid);
+    $this->uuid = $db->get_uuid_by_sid($uuid);
 
     if($derive == 'derive' || $derive == 'true') {
       $pgd = 'true';
@@ -49,6 +49,7 @@ class Reconnoiter_DataSet extends Reconnoiter_RPN {
   function data($ts, $attr = NULL) {
     if(!isset($attr)) $attr = $this->default_attr;
     if(!$this->expr) return $this->data[$ts][$attr];
-    return $this->rpn_eval($this->data[$ts][$attr], $this->expr);
+    $rv = $this->rpn_eval($this->data[$ts][$attr], $this->expr);
+    return $rv;
   }
 }
