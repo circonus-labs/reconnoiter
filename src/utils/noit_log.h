@@ -100,9 +100,9 @@ API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
   ;
 
 #define noitLT(ls, t, args...) \
-  if(ls && ls->enabled) noit_log(ls, t, __FILE__, __LINE__, args)
+  if((ls) && (ls)->enabled) noit_log(ls, t, __FILE__, __LINE__, args)
 #define noitL(ls, args...) do { \
-  if(ls && ls->enabled) { \
+  if((ls) && (ls)->enabled) { \
     struct timeval __noitL_now; \
     gettimeofday(&__noitL_now, NULL); \
     noit_log(ls, &__noitL_now, __FILE__, __LINE__, args); \
