@@ -2,6 +2,9 @@ create user reconnoiter with createuser;
 create database reconnoiter with owner = reconnoiter;
 create user stratcon with unencrypted password 'stratcon';
 create user prism with unencrypted password 'prism';
+grant usage on schema stratcon to stratcon;
+grant usage on schema stratcon to prism;
+grant usage on schema prism to prism;
 \c reconnoiter reconnoiter;
 begin;
 
@@ -24,6 +27,7 @@ create schema prism;
 \i tables/noit.tasklock.sql
 \i tables/noit.tasklock_sequence.sql
 \i tables/stratcon.current_node_config.sql
+\i tables/stratcon.current_node_config_changelog.sql
 \i tables/stratcon.storage_node.sql
 \i tables/stratcon.map_uuid_to_sid.sql
 
@@ -43,6 +47,7 @@ create schema prism;
 \i sprocs/stratcon.map_uuid_to_sid.sql
 \i sprocs/stratcon.metric_name_summary_tsvector.sql
 \i sprocs/stratcon.window_robust_derive.sql
+\i sprocs/stratcon.update_config.sql
 
 \i tables/noit.check_archive.sql
 \i tables/noit.check_currently.sql
