@@ -17,7 +17,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: metric_numeric_rollup_5m; Type: TABLE; Schema: noit; Owner: postgres; Tablespace: 
+-- Name: metric_numeric_rollup_5m; Type: TABLE; Schema: noit; Owner: recnnoiter; Tablespace: 
 --
 
 CREATE TABLE metric_numeric_rollup_5m (
@@ -30,10 +30,10 @@ CREATE TABLE metric_numeric_rollup_5m (
 );
 
 
-ALTER TABLE metric_numeric_rollup_5m OWNER TO postgres;
+ALTER TABLE metric_numeric_rollup_5m OWNER TO reconnoiter;
 
 --
--- Name: fmetric_numeric_rollup_5m_pkey; Type: CONSTRAINT; Schema: noit; Owner: postgres; Tablespace: 
+-- Name: fmetric_numeric_rollup_5m_pkey; Type: CONSTRAINT; Schema: noit; Owner: reconnoiter; Tablespace: 
 --
 
 ALTER TABLE ONLY metric_numeric_rollup_5m
@@ -41,15 +41,13 @@ ALTER TABLE ONLY metric_numeric_rollup_5m
 
 
 --
--- Name: metric_numeric_rollup_5m; Type: ACL; Schema: noit; Owner: postgres
+-- Name: metric_numeric_rollup_5m; Type: ACL; Schema: noit; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE metric_numeric_rollup_5m FROM PUBLIC;
-REVOKE ALL ON TABLE metric_numeric_rollup_5m FROM postgres;
-GRANT ALL ON TABLE metric_numeric_rollup_5m TO postgres;
-GRANT ALL ON TABLE metric_numeric_rollup_5m TO reconnoiter;
+REVOKE ALL ON TABLE metric_numeric_rollup_5m FROM reconnoiter;
 GRANT SELECT ON TABLE metric_numeric_rollup_5m TO prism;
-GRANT ALL ON TABLE metric_numeric_rollup_5m TO stratcon;
+GRANT SELECT ON TABLE metric_numeric_rollup_5m TO stratcon;
 
 
 --

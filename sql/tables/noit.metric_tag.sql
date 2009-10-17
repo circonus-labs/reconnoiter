@@ -1,4 +1,4 @@
-- formerly metric_tags 
+-- formerly metric_tags 
 --
 -- PostgreSQL database dump
 --
