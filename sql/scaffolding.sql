@@ -2,9 +2,6 @@ create user reconnoiter with createuser;
 create database reconnoiter with owner = reconnoiter;
 create user stratcon with unencrypted password 'stratcon';
 create user prism with unencrypted password 'prism';
-grant usage on schema stratcon to stratcon;
-grant usage on schema stratcon to prism;
-grant usage on schema prism to prism;
 \c reconnoiter reconnoiter;
 begin;
 
@@ -12,6 +9,11 @@ create language plpgsql;
 create schema noit;
 create schema stratcon;
 create schema prism;
+grant usage on schema stratcon to stratcon;
+grant usage on schema stratcon to prism;
+grant usage on schema noit to stratcon;
+grant usage on schema noit to prism;
+grant usage on schema prism to prism;
 
 \i sprocs/noit.date_hour.sql
 
