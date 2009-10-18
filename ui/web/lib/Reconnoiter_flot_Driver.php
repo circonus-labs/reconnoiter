@@ -97,16 +97,14 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     if($timeline) {
         foreach($timeline as $ts) {
             $value = $set->data($ts);
-            if($value != "") {
-              $desc = $set->description($ts);
-              if($desc) {
+            $desc = $set->description($ts);
+            if($desc) {
                 $a[] = array( $ts * 1000, "$value", $desc );	
-              } else {
+            } else {
                 $a[] = array( $ts * 1000, "$value" );
-              }
             }
             $i++;
-          }
+        }
     }
     return $a;
   }

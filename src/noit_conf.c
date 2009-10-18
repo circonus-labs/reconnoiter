@@ -52,6 +52,7 @@
 /* tmp hash impl, replace this with something nice */
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
+static char *root_node_name = NULL;
 static char master_config_file[PATH_MAX] = "";
 static xmlXPathContextPtr xpath_ctxt = NULL;
 
@@ -173,8 +174,12 @@ void noit_conf_init(const char *toplevel) {
 
 int noit_conf_load(const char *path) {
   xmlDocPtr new_config;
+  xmlNodePtr root;
   new_config = xmlParseFile(path);
   if(new_config) {
+    root = xmlDocGetRootElement(new_config);
+    if(root_node_name) free(root_node_name);
+    root_node_name = strdup((char *)root->name);
     if(master_config) xmlFreeDoc(master_config);
     if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 
@@ -783,3 +788,379 @@ noit_conf_log_init(const char *toplevel) {
   }
   if(log_configs) free(log_configs);
 }
+
+static void
+conf_t_userdata_free(void *data) {
+  noit_conf_t_userdata_t *info = data;
+  if(info) {
+    if(info->path) free(info->path);
+    free(info);
+  }
+}
+
+static int
+noit_console_state_conf_terminal(noit_console_closure_t ncct,
+                                 int argc, char **argv,
+                                 noit_console_state_t *state, void *closure) {
+  noit_conf_t_userdata_t *info;
+  if(argc) {
+    nc_printf(ncct, "extra arguments not expected.\n");
+    return -1;
+  }
+  info = calloc(1, sizeof(*info));
+  info->path = strdup("/");
+  noit_console_userdata_set(ncct, NOIT_CONF_T_USERDATA, info,
+                            conf_t_userdata_free);
+  noit_console_state_push_state(ncct, state);
+  noit_console_state_init(ncct);
+  return 0;
+}
+static int
+noit_console_config_section(noit_console_closure_t ncct,
+                            int argc, char **argv,
+                            noit_console_state_t *state, void *closure) {
+  const char *err = "internal error";
+  char *path, xpath[1024];
+  noit_conf_t_userdata_t *info;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL;
+  xmlNodePtr node = NULL, newnode;
+  vpsized_int delete = (vpsized_int)closure;
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  if(argc != 1) {
+    nc_printf(ncct, "requires one argument\n");
+    return -1;
+  }
+  if(strchr(argv[0], '/')) {
+    nc_printf(ncct, "invalid section name\n");
+    return -1;
+  }
+  if(!strcmp(argv[0], "check") ||
+     !strcmp(argv[0], "noit") ||
+     !strcmp(argv[0], "filterset") ||
+     !strcmp(argv[0], "config")) {
+    nc_printf(ncct, "%s is reserved.\n", argv[0]);
+    return -1;
+  }
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!strcmp(info->path, "/")) {
+    nc_printf(ncct, "manipulation of toplevel section disallowed\n");
+    return -1;
+  }
+
+  if(delete) {
+    /* We cannot delete if we have checks */
+    snprintf(xpath, sizeof(xpath), "/%s%s/%s//check", root_node_name,
+             info->path, argv[0]);
+    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if(!pobj || pobj->type != XPATH_NODESET ||
+       !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+      err = "cannot delete section, has checks";
+      goto bad;
+    }
+    if(pobj) xmlXPathFreeObject(pobj);
+  }
+
+  snprintf(xpath, sizeof(xpath), "/%s%s/%s", root_node_name,
+           info->path, argv[0]);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    err = "internal error: cannot detect section";
+    goto bad;
+  }
+  if(!delete && !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    if(xmlXPathNodeSetGetLength(pobj->nodesetval) == 1) {
+      node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+      if(info->path) free(info->path);
+      info->path = strdup((char *)xmlGetNodePath(node) +
+                          1 + strlen(root_node_name));
+      goto cdout;
+    }
+    err = "cannot create section";
+    goto bad;
+  }
+  if(delete && xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    err = "no such section";
+    goto bad;
+  }
+  if(delete) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    xmlUnlinkNode(node);
+    noit_conf_mark_changed();
+    return 0;
+  }
+  if(pobj) xmlXPathFreeObject(pobj);
+
+  path = strcmp(info->path, "/") ? info->path : "";
+  snprintf(xpath, sizeof(xpath), "/%s%s", root_node_name, path);
+  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetGetLength(pobj->nodesetval) != 1) {
+    err = "path invalid?";
+    goto bad;
+  }
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL) {
+    noit_conf_mark_changed();
+    if(info->path) free(info->path);
+    info->path = strdup((char *)xmlGetNodePath(newnode) + 1 +
+                        strlen(root_node_name));
+  }
+  else {
+    err = "failed to create section";
+    goto bad;
+  }
+ cdout:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return 0;
+ bad:
+  if(pobj) xmlXPathFreeObject(pobj);
+  nc_printf(ncct, "%s\n", err);
+  return -1;
+}
+
+int
+noit_console_generic_show(noit_console_closure_t ncct,
+                          int argc, char **argv,
+                          noit_console_state_t *state, void *closure) {
+  int i, cnt, titled = 0, cliplen = 0;
+  const char *path = "", *basepath = NULL;
+  char xpath[1024];
+  noit_conf_t_userdata_t *info = NULL;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
+  xmlDocPtr master_config = NULL;
+  xmlNodePtr node = NULL;
+
+  noit_conf_xml_xpath(&master_config, &xpath_ctxt);
+  if(argc > 1) {
+    nc_printf(ncct, "too many arguments\n");
+    return -1;
+  }
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(info) path = basepath = info->path;
+  if(!info && argc == 0) {
+    nc_printf(ncct, "argument required when not in configuration mode\n");
+    return -1;
+  }
+
+  if(argc == 1) path = argv[0];
+  if(!basepath) basepath = path;
+
+  /* { / } is a special case */
+  if(!strcmp(basepath, "/")) basepath = "";
+  if(!strcmp(path, "/")) path = "";
+
+  if(!master_config) {
+    nc_printf(ncct, "no config\n");
+    return -1;
+  }
+
+  /* { / } is the only path that will end with a /
+   * in XPath { / / * } means something _entirely different than { / * }
+   * Ever notice how it is hard to describe xpath in C comments?
+   */
+  /* We don't want to show the root node */
+  cliplen = strlen(root_node_name) + 2; /* /name/ */
+
+  /* If we are in configuration mode
+   * and we are without an argument or the argument is absolute,
+   * clip the current path off */
+  if(info && (argc == 0 || path[0] != '/')) cliplen += strlen(basepath);
+  if(!path[0] || path[0] == '/') /* base only, or absolute path requested */
+    snprintf(xpath, sizeof(xpath), "/%s%s/@*", root_node_name, path);
+  else
+    snprintf(xpath, sizeof(xpath), "/%s%s/%s/@*", root_node_name,
+             basepath, path);
+
+  current_ctxt = xpath_ctxt;
+  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    nc_printf(ncct, "no such object\n");
+    goto bad;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  titled = 0;
+  for(i=0; i<cnt; i++) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(node->children && node->children == xmlGetLastChild(node) &&
+      xmlNodeIsText(node->children)) {
+      if(!titled++) nc_printf(ncct, "== Section Settings ==\n");
+      nc_printf(ncct, "%s: %s\n", xmlGetNodePath(node) + cliplen,
+                xmlXPathCastNodeToString(node->children));
+    }
+  }
+  xmlXPathFreeObject(pobj);
+
+  /* _shorten string_ turning last { / @ * } to { / * } */
+  if(!path[0] || path[0] == '/') /* base only, or absolute path requested */
+    snprintf(xpath, sizeof(xpath), "/%s%s/*", root_node_name, path);
+  else
+    snprintf(xpath, sizeof(xpath), "/%s%s/%s/*",
+             root_node_name, basepath, path);
+  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET) {
+    nc_printf(ncct, "no such object\n");
+    goto bad;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  titled = 0;
+  for(i=0; i<cnt; i++) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(!(node->children && node->children == xmlGetLastChild(node) &&
+         xmlNodeIsText(node->children))) {
+      if(!titled++) nc_printf(ncct, "== Subsections ==\n");
+      nc_printf(ncct, "%s\n", xmlGetNodePath(node) + cliplen);
+    }
+  }
+  xmlXPathFreeObject(pobj);
+  return 0;
+ bad:
+  if(pobj) xmlXPathFreeObject(pobj);
+  return -1;
+}
+int
+noit_console_config_cd(noit_console_closure_t ncct,
+                       int argc, char **argv,
+                       noit_console_state_t *state, void *closure) {
+  const char *err = "internal error";
+  char *path, xpath[1024];
+  noit_conf_t_userdata_t *info;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
+  xmlNodePtr node = NULL;
+  char *dest;
+
+  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  if(argc != 1 && !closure) {
+    nc_printf(ncct, "requires one argument\n");
+    return -1;
+  }
+  dest = argc ? argv[0] : (char *)closure;
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(dest[0] == '/')
+    snprintf(xpath, sizeof(xpath), "/%s%s", root_node_name, dest);
+  else {
+    snprintf(xpath, sizeof(xpath), "/%s%s/%s", root_node_name,
+             info->path, dest);
+  }
+  if(xpath[strlen(xpath)-1] == '/') xpath[strlen(xpath)-1] = '\0';
+
+  current_ctxt = xpath_ctxt;
+  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
+  if(!pobj || pobj->type != XPATH_NODESET ||
+     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
+    err = "no such section";
+    goto bad;
+  }
+  if(xmlXPathNodeSetGetLength(pobj->nodesetval) > 1) {
+    err = "ambiguous section";
+    goto bad;
+  }
+
+  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if(!strcmp((char *)node->name, "check") ||
+     !strcmp((char *)node->name, "noit") ||
+     !strcmp((char *)node->name, "filterset") ||
+     !strcmp((char *)node->name, "config")) {
+    err = "reserved word";
+    goto bad;
+  }
+  path = (char *)xmlGetNodePath(node);
+  if(strlen(path) < strlen(root_node_name) + 1 ||
+     strncmp(path + 1, root_node_name, strlen(root_node_name)) ||
+     (path[strlen(root_node_name) + 1] != '/' &&
+      path[strlen(root_node_name) + 1] != '\0')) {
+    err = "new path outside out tree";
+    goto bad;
+  }
+  free(info->path);
+  if(!strcmp(path + 1, root_node_name))
+    info->path = strdup("/");
+  else
+    info->path = strdup((char *)xmlGetNodePath(node) + 1 +
+                        strlen(root_node_name));
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(closure) noit_console_state_pop(ncct, argc, argv, NULL, NULL);
+  return 0;
+ bad:
+  if(pobj) xmlXPathFreeObject(pobj);
+  nc_printf(ncct, "%s [%s]\n", err, xpath);
+  return -1;
+}
+
+char *
+conf_t_prompt(EditLine *el) {
+  noit_console_closure_t ncct;
+  noit_conf_t_userdata_t *info;
+  static char *tl = "noit(conf)# ";
+  static char *pfmt = "noit(conf:%s%s)# ";
+  int path_len, max_len;
+
+  el_get(el, EL_USERDATA, (void *)&ncct);
+  if(!ncct) return tl;
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info) return tl;
+
+  path_len = strlen(info->path);
+  max_len = sizeof(info->prompt) - (strlen(pfmt) - 4 /* %s%s */) - 1 /* \0 */;
+  if(path_len > max_len)
+    snprintf(info->prompt, sizeof(info->prompt),
+             pfmt, "...", info->path + path_len - max_len + 3 /* ... */);
+  else
+    snprintf(info->prompt, sizeof(info->prompt), pfmt, "", info->path);
+  return info->prompt;
+}
+
+#define NEW_STATE(a) (a) = noit_console_state_alloc()
+#define ADD_CMD(a,cmd,func,ac,ss,c) \
+  noit_console_state_add_cmd((a), \
+    NCSCMD(cmd, func, ac, ss, c))
+#define DELEGATE_CMD(a,cmd,ac,ss) \
+  noit_console_state_add_cmd((a), \
+    NCSCMD(cmd, noit_console_state_delegate, ac, ss, NULL))
+
+void noit_console_conf_init() {
+  noit_console_state_t *tl, *_conf_state, *_conf_t_state,
+                       *_write_state, *_unset_state;
+
+  tl = noit_console_state_initial();
+
+  /* write <terimal|memory|file> */
+  NEW_STATE(_write_state);
+  ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL, NULL);
+  ADD_CMD(_write_state, "file", noit_conf_write_file_console, NULL, NULL, NULL);
+  /* write memory?  It's to a file, but I like router syntax */
+  ADD_CMD(_write_state, "memory", noit_conf_write_file_console, NULL, NULL, NULL);
+
+  NEW_STATE(_unset_state);
+  ADD_CMD(_unset_state, "section",
+          noit_console_config_section, NULL, NULL, (void *)1);
+
+  NEW_STATE(_conf_t_state); 
+  _conf_t_state->console_prompt_function = conf_t_prompt;
+  noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
+
+  ADD_CMD(_conf_t_state, "ls", noit_console_generic_show, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL, NULL);
+  ADD_CMD(_conf_t_state, "section",
+          noit_console_config_section, NULL, NULL, (void *)0);
+
+  DELEGATE_CMD(_conf_t_state, "write",
+               noit_console_opt_delegate, _write_state);
+  DELEGATE_CMD(_conf_t_state, "no", noit_console_opt_delegate, _unset_state);
+
+  NEW_STATE(_conf_state);
+  ADD_CMD(_conf_state, "terminal",
+          noit_console_state_conf_terminal, NULL, _conf_t_state, NULL);
+
+  ADD_CMD(tl, "configure",
+          noit_console_state_delegate, noit_console_opt_delegate,
+          _conf_state, NULL);
+  ADD_CMD(tl, "write",
+          noit_console_state_delegate, noit_console_opt_delegate,
+          _write_state, NULL);
+}
+

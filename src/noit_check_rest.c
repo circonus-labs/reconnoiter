@@ -341,7 +341,7 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
     ATTR2PROP(period);
     ATTR2PROP(timeout);
     ATTR2PROP(disable);
-    ATTR2PROP(filter);
+    ATTR2PROP(filterset);
   }
   for(oldconfig = check->children; oldconfig; oldconfig = oldconfig->next)
     if(!strcmp((char *)oldconfig->name, "config")) break;
@@ -352,8 +352,10 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
         inherit->children && inherit->children->content)
       xmlSetProp(config, (xmlChar *)"inherit", inherit->children->content);
     for(n = c->children; n; n = n->next) {
+      xmlChar *v = xmlNodeGetContent(n);
       xmlNodePtr co = xmlNewNode(NULL, n->name);
-      xmlNodeAddContent(co, XML_GET_CONTENT(n));
+      xmlNodeAddContent(co, v);
+      xmlFree(v);
       xmlAddChild(config, co);
     }
   }
@@ -585,17 +587,17 @@ rest_set_check(noit_http_rest_closure_t *restc,
 
 void
 noit_check_rest_init() {
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_show_check
+    rest_show_check, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "PUT", "/checks/", "^set(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_set_check
+    rest_set_check, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_delete_check
+    rest_delete_check, noit_http_rest_client_cert_auth
   ) == 0);
 }
 

@@ -619,7 +619,8 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       if(base>0) {
         if(lua_isstring(ci->coro_state, base)) {
           const char *err;
-          err = lua_tostring(ci->coro_state, base);
+          noitL(nlerr, "lua err: %s\n", lua_tostring(ci->coro_state, base));
+          err = lua_tostring(ci->coro_state, base - 2);
           if(err) {
             free(ci->current.status);
             ci->current.status = strdup(err);
@@ -661,6 +662,9 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
      */
     cancel_coro(ci);
   }
+  ci->current.status = strdup("timeout");
+  ci->current.available = NP_UNAVAILABLE;
+  ci->current.state = NP_BAD;
 
   noit_lua_log_results(self, check);
   noit_lua_module_cleanup(self, check);

@@ -124,7 +124,7 @@ validate_filter_post(xmlDocPtr doc) {
     char *type;
     if(strcmp((char *)r->name, "rule")) return NULL;
     type = (char *)xmlGetProp(r, (xmlChar *)"type");
-    if(!type || (strcmp(type, "deny") && strcmp(type, "allow"))) {
+    if(!type || (strcmp(type, "deny") && strcmp(type, "accept"))) {
       if(type) xmlFree(type);
       return NULL;
     }
@@ -233,17 +233,17 @@ rest_set_filter(noit_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
-    rest_show_filter
+    rest_show_filter, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "PUT", "/filters/", "^set(/.*)(?<=/)([^/]+)$",
-    rest_set_filter
+    rest_set_filter, noit_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "DELETE", "/filters/", "^delete(/.*)(?<=/)([^/]+)$",
-    rest_delete_filter
+    rest_delete_filter, noit_http_rest_client_cert_auth
   ) == 0);
 }
 

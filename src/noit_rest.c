@@ -51,6 +51,7 @@ struct rest_url_dispatcher {
   pcre *expression;
   pcre_extra *extra;
   rest_request_handler handler;
+  rest_authorize_func_t auth;
   /* Chain to the next one */
   struct rest_url_dispatcher *next;
 };
@@ -62,6 +63,14 @@ struct rule_container {
 };
 noit_hash_table dispatch_points = NOIT_HASH_EMPTY;
 
+static int
+noit_http_rest_permission_denied(noit_http_rest_closure_t *restc,
+                                 int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  noit_http_response_standard(ctx, 403, "DENIED", "text/xml");
+  noit_http_response_end(ctx);
+  return 0;
+}
 static rest_request_handler
 noit_http_get_handler(noit_http_rest_closure_t *restc) {
   struct rule_container *cont = NULL;
@@ -105,14 +114,28 @@ noit_http_get_handler(noit_http_rest_closure_t *restc) {
           restc->params[cnt][end - start] = '\0';
         }
       }
+      if(rule->auth && !rule->auth(restc, restc->nparams, restc->params))
+        return noit_http_rest_permission_denied;
       return restc->fastpath;
     }
   }
   return NULL;
 }
+noit_boolean
+noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
+                                int npats, char **pats) {
+  if(!restc->remote_cn || !strlen(restc->remote_cn)) return noit_false;
+  return noit_true;
+}
 int
 noit_http_rest_register(const char *method, const char *base,
                         const char *expr, rest_request_handler f) {
+  return noit_http_rest_register_auth(method, base, expr, f, NULL);
+}
+int
+noit_http_rest_register_auth(const char *method, const char *base,
+                             const char *expr, rest_request_handler f,
+                             rest_authorize_func_t auth) {
   void *vcont;
   struct rule_container *cont;
   struct rest_url_dispatcher *rule;
@@ -133,6 +156,7 @@ noit_http_rest_register(const char *method, const char *base,
   rule->expression = pcre_expr;
   rule->extra = pcre_study(rule->expression, 0, &error);
   rule->handler = f;
+  rule->auth = auth;
 
   /* Make sure we have a container */
   if(!noit_hash_retrieve(&dispatch_points, base, strlen(base), &vcont)) {

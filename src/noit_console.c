@@ -362,6 +362,7 @@ socket_error:
     if(allocate_pty(&ncct->pty_master, &ncct->pty_slave)) {
       nc_printf(ncct, "Failed to open pty: %s\n", strerror(errno));
       ncct->wants_shutdown = 1;
+      goto socket_error;
     }
     else {
       int i;
@@ -372,6 +373,7 @@ socket_error:
       history(ncct->hist, &ev, H_SETSIZE, 500);
       ncct->el = el_init("noitd", ncct->pty_master, NULL,
                          e->fd, e, e->fd, e);
+      if(!ncct->el) goto socket_error;
       if(el_set(ncct->el, EL_USERDATA, ncct)) {
         noitL(noit_error, "Cannot set userdata on noitedit session\n");
         goto socket_error;

@@ -51,7 +51,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 
-static void register_console_config_commands();
+static void register_console_config_check_commands();
 
 static struct _valid_attr_t {
   const char *scope;
@@ -89,23 +89,14 @@ noit_console_state_add_check_attrs(noit_console_state_t *state,
 }
 static noit_hash_table check_attrs = NOIT_HASH_EMPTY;
 
-void noit_conf_checks_init(const char *toplevel) {
+void noit_console_conf_checks_init() {
   int i;
   for(i=0;i<sizeof(valid_attrs)/sizeof(*valid_attrs);i++) {
     noit_hash_store(&check_attrs,
                     valid_attrs[i].name, strlen(valid_attrs[i].name),
                     &valid_attrs[i]);
   }
-  register_console_config_commands();
-}
-
-static void
-conf_t_userdata_free(void *data) {
-  noit_conf_t_userdata_t *info = data;
-  if(info) {
-    if(info->path) free(info->path);
-    free(info);
-  }
+  register_console_config_check_commands();
 }
 
 static int
@@ -584,190 +575,6 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
   return -1;
 }
 static int
-noit_console_state_conf_terminal(noit_console_closure_t ncct,
-                                 int argc, char **argv,
-                                 noit_console_state_t *state, void *closure) {
-  noit_conf_t_userdata_t *info;
-  if(argc) {
-    nc_printf(ncct, "extra arguments not expected.\n");
-    return -1;
-  }
-  info = calloc(1, sizeof(*info));
-  info->path = strdup("/");
-  noit_console_userdata_set(ncct, NOIT_CONF_T_USERDATA, info,
-                            conf_t_userdata_free);
-  noit_console_state_push_state(ncct, state);
-  noit_console_state_init(ncct);
-  return 0;
-}
-static int
-noit_console_config_section(noit_console_closure_t ncct,
-                            int argc, char **argv,
-                            noit_console_state_t *state, void *closure) {
-  const char *err = "internal error";
-  char *path, xpath[1024];
-  noit_conf_t_userdata_t *info;
-  xmlXPathObjectPtr pobj = NULL;
-  xmlXPathContextPtr xpath_ctxt = NULL;
-  xmlNodePtr node = NULL, newnode;
-  vpsized_int delete = (vpsized_int)closure;
-
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
-  if(argc != 1) {
-    nc_printf(ncct, "requires one argument\n");
-    return -1;
-  }
-  if(strchr(argv[0], '/')) {
-    nc_printf(ncct, "invalid section name\n");
-    return -1;
-  }
-  if(!strcmp(argv[0], "check")) {
-    nc_printf(ncct, "use 'check' to create checks\n");
-    return -1;
-  }
-  if(!strcmp(argv[0], "filterset")) {
-    nc_printf(ncct, "use 'filterset' to create checks\n");
-    return -1;
-  }
-  if(!strcmp(argv[0], "config")) {
-    nc_printf(ncct, "use 'config' to set check config options\n");
-    return -1;
-  }
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(!strcmp(info->path, "/")) {
-    nc_printf(ncct, "manipulation of toplevel section disallowed\n");
-    return -1;
-  }
-
-  if(delete) {
-    /* We cannot delete if we have checks */
-    snprintf(xpath, sizeof(xpath), "/noit%s/%s//check", info->path, argv[0]);
-    pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-    if(!pobj || pobj->type != XPATH_NODESET ||
-       !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-      err = "cannot delete section, has checks";
-      goto bad;
-    }
-    if(pobj) xmlXPathFreeObject(pobj);
-  }
-
-  snprintf(xpath, sizeof(xpath), "/noit%s/%s", info->path, argv[0]);
-  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-  if(!pobj || pobj->type != XPATH_NODESET) {
-    err = "internal error: cannot detect section";
-    goto bad;
-  }
-  if(!delete && !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    if(xmlXPathNodeSetGetLength(pobj->nodesetval) == 1) {
-      node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
-      if(info->path) free(info->path);
-      info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
-      goto cdout;
-    }
-    err = "cannot create section";
-    goto bad;
-  }
-  if(delete && xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    err = "no such section";
-    goto bad;
-  }
-  if(delete) {
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-    xmlUnlinkNode(node);
-    noit_conf_mark_changed();
-    return 0;
-  }
-  if(pobj) xmlXPathFreeObject(pobj);
-
-  path = strcmp(info->path, "/") ? info->path : "";
-  snprintf(xpath, sizeof(xpath), "/noit%s", path);
-  pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
-  if(!pobj || pobj->type != XPATH_NODESET ||
-     xmlXPathNodeSetGetLength(pobj->nodesetval) != 1) {
-    err = "path invalid?";
-    goto bad;
-  }
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-  if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL) {
-    noit_conf_mark_changed();
-    if(info->path) free(info->path);
-    info->path = strdup((char *)xmlGetNodePath(newnode) + strlen("/noit"));
-  }
-  else {
-    err = "failed to create section";
-    goto bad;
-  }
- cdout:
-  if(pobj) xmlXPathFreeObject(pobj);
-  return 0;
- bad:
-  if(pobj) xmlXPathFreeObject(pobj);
-  nc_printf(ncct, "%s\n", err);
-  return -1;
-}
-
-int
-noit_console_config_cd(noit_console_closure_t ncct,
-                       int argc, char **argv,
-                       noit_console_state_t *state, void *closure) {
-  const char *err = "internal error";
-  char *path, xpath[1024];
-  noit_conf_t_userdata_t *info;
-  xmlXPathObjectPtr pobj = NULL;
-  xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
-  xmlNodePtr node = NULL;
-  char *dest;
-
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
-  if(argc != 1 && !closure) {
-    nc_printf(ncct, "requires one argument\n");
-    return -1;
-  }
-  dest = argc ? argv[0] : (char *)closure;
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(dest[0] == '/')
-    snprintf(xpath, sizeof(xpath), "/noit%s", dest);
-  else {
-    snprintf(xpath, sizeof(xpath), "/noit%s/%s", info->path, dest);
-  }
-  if(xpath[strlen(xpath)-1] == '/') xpath[strlen(xpath)-1] = '\0';
-
-  current_ctxt = xpath_ctxt;
-  pobj = xmlXPathEval((xmlChar *)xpath, current_ctxt);
-  if(!pobj || pobj->type != XPATH_NODESET ||
-     xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
-    err = "no such section";
-    goto bad;
-  }
-  if(xmlXPathNodeSetGetLength(pobj->nodesetval) > 1) {
-    err = "ambiguous section";
-    goto bad;
-  }
-
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-  if(!strcmp((char *)node->name, "check")) {
-    err = "can't cd into a check, use 'check' instead";
-    goto bad;
-  }
-  path = (char *)xmlGetNodePath(node);
-  if(strncmp(path, "/noit/", strlen("/noit/")) && strcmp(path, "/noit")) {
-    err = "new path outside out tree";
-    goto bad;
-  }
-  free(info->path);
-  if(!strcmp(path, "/noit"))
-    info->path = strdup("/");
-  else
-    info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
-  if(pobj) xmlXPathFreeObject(pobj);
-  if(closure) noit_console_state_pop(ncct, argc, argv, NULL, NULL);
-  return 0;
- bad:
-  if(pobj) xmlXPathFreeObject(pobj);
-  nc_printf(ncct, "%s [%s]\n", err, xpath);
-  return -1;
-}
-static int
 noit_console_config_show(noit_console_closure_t ncct,
                          int argc, char **argv,
                          noit_console_state_t *state, void *closure) {
@@ -968,28 +775,6 @@ conf_t_check_prompt(EditLine *el) {
     uuid_unparse_lower(info->current_check, uuid_str);
     snprintf(info->prompt, sizeof(info->prompt), pfmt, "[", uuid_str, "]");
   }
-  return info->prompt;
-}
-static char *
-conf_t_prompt(EditLine *el) {
-  noit_console_closure_t ncct;
-  noit_conf_t_userdata_t *info;
-  static char *tl = "noit(conf)# ";
-  static char *pfmt = "noit(conf:%s%s)# ";
-  int path_len, max_len;
-
-  el_get(el, EL_USERDATA, (void *)&ncct);
-  if(!ncct) return tl;
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(!info) return tl;
-
-  path_len = strlen(info->path);
-  max_len = sizeof(info->prompt) - (strlen(pfmt) - 4 /* %s%s */) - 1 /* \0 */;
-  if(path_len > max_len)
-    snprintf(info->prompt, sizeof(info->prompt),
-             pfmt, "...", info->path + path_len - max_len + 3 /* ... */);
-  else
-    snprintf(info->prompt, sizeof(info->prompt), pfmt, "", info->path);
   return info->prompt;
 }
 static int
@@ -1324,22 +1109,19 @@ noit_console_config_unsetconfig(noit_console_closure_t ncct,
     NCSCMD(cmd, noit_console_state_delegate, ac, ss, NULL))
 
 static
-void register_console_config_commands() {
-  cmd_info_t *showcmd, *nocmd;
-  noit_console_state_t *tl, *_conf_state, *_conf_t_state,
-                       *_conf_t_check_state,
-                       *_write_state, *_attr_state,
-                       *_unset_state, *_uattr_state;
+void register_console_config_check_commands() {
+  cmd_info_t *showcmd, *nocmd, *confcmd, *conftcmd, *conftnocmd, *lscmd;
+  noit_console_state_t *tl, *_conf_t_check_state, *_unset_state,
+                       *_attr_state, *_uattr_state;
 
   tl = noit_console_state_initial();
-
-  /* write <terimal|memory|file> */
-  NEW_STATE(_write_state);
-  ADD_CMD(_write_state, "terminal", noit_conf_write_terminal, NULL, NULL, NULL);
-  ADD_CMD(_write_state, "file", noit_conf_write_file_console, NULL, NULL, NULL);
-  /* write memory?  It's to a file, but I like router syntax */
-  ADD_CMD(_write_state, "memory", noit_conf_write_file_console, NULL, NULL, NULL);
-
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  nocmd = noit_console_state_get_cmd(tl, "no");
+  confcmd = noit_console_state_get_cmd(tl, "configure");
+  conftcmd = noit_console_state_get_cmd(confcmd->dstate, "terminal");
+  conftnocmd = noit_console_state_get_cmd(conftcmd->dstate, "no");
+  lscmd = noit_console_state_get_cmd(conftcmd->dstate, "ls");
+  lscmd->func = noit_console_config_show;
   /* attribute <attrname> <value> */
   NEW_STATE(_attr_state);
   noit_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr,
@@ -1349,15 +1131,17 @@ void register_console_config_commands() {
   NEW_STATE(_uattr_state);
   noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr,
                                      "/checks");
-
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute",
                noit_console_opt_delegate, _uattr_state);
-  ADD_CMD(_unset_state, "section",
-          noit_console_config_section, NULL, NULL, (void *)1);
   ADD_CMD(_unset_state, "config",
           noit_console_config_unsetconfig, NULL, NULL, NULL);
-  ADD_CMD(_unset_state, "check",
+
+  DELEGATE_CMD(conftnocmd->dstate, "attribute",
+               noit_console_opt_delegate, _uattr_state);
+  ADD_CMD(conftnocmd->dstate, "config",
+          noit_console_config_unsetconfig, NULL, NULL, NULL);
+  ADD_CMD(conftnocmd->dstate, "check",
           noit_console_config_nocheck, NULL, NULL, NULL);
  
   NEW_STATE(_conf_t_check_state);
@@ -1376,46 +1160,24 @@ void register_console_config_commands() {
           noit_console_check, noit_console_conf_check_opts,
           _conf_t_check_state, "..");
 
-  NEW_STATE(_conf_t_state); 
-  _conf_t_state->console_prompt_function = conf_t_prompt;
-  noit_console_state_add_cmd(_conf_t_state, &console_command_exit);
-  ADD_CMD(_conf_t_state, "ls", noit_console_config_show, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_state, "cd", noit_console_config_cd, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_state, "config",
+  ADD_CMD(conftcmd->dstate, "config",
           noit_console_config_setconfig, NULL, NULL, NULL);
-  ADD_CMD(_conf_t_state, "section",
-          noit_console_config_section, NULL, NULL, (void *)0);
-  ADD_CMD(_conf_t_state, "check",
+  ADD_CMD(conftcmd->dstate, "check",
           noit_console_check, noit_console_conf_check_opts,
           _conf_t_check_state, NULL);
 
-  showcmd = noit_console_state_get_cmd(tl, "show");
   ADD_CMD(showcmd->dstate, "check",
           noit_console_show_check, noit_console_check_opts, NULL, NULL);
 
   ADD_CMD(tl, "watch",
           noit_console_watch_check, noit_console_check_opts, NULL, (void *)1);
 
-  nocmd = noit_console_state_get_cmd(tl, "no");
   ADD_CMD(nocmd->dstate, "watch",
           noit_console_watch_check, noit_console_check_opts, NULL, (void *)0);
 
-  DELEGATE_CMD(_conf_t_state, "write",
-               noit_console_opt_delegate, _write_state);
-  DELEGATE_CMD(_conf_t_state, "attribute",
+  DELEGATE_CMD(conftcmd->dstate, "attribute",
                noit_console_opt_delegate, _attr_state);
-  DELEGATE_CMD(_conf_t_state, "no", noit_console_opt_delegate, _unset_state);
 
-  NEW_STATE(_conf_state);
-  ADD_CMD(_conf_state, "terminal",
-          noit_console_state_conf_terminal, NULL, _conf_t_state, NULL);
-
-  ADD_CMD(tl, "configure",
-          noit_console_state_delegate, noit_console_opt_delegate,
-          _conf_state, NULL);
-  ADD_CMD(tl, "write",
-          noit_console_state_delegate, noit_console_opt_delegate,
-          _write_state, NULL);
   ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL, NULL);
 }
 

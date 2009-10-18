@@ -200,8 +200,7 @@ end
 
 function initiate(module, check)
     local url = check.config.url or 'http:///'
-    local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
-    local port
+    local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
     local use_ssl = false
     local codere = noit.pcre(check.config.code or '^200$')
     local good = false
@@ -217,14 +216,19 @@ function initiate(module, check)
         schema = 'http'
         uri = '/'
     end
-    if schema == 'http' then
-        port = check.config.port or 80
-    elseif schema == 'https' then
-        port = check.config.port or 443
-        use_ssl = true
-    else
-        error(schema .. " not supported")
-    end 
+    if uri == '' then
+        uri = '/'
+    end
+    if port == '' then
+        if schema == 'http' then
+            port = check.config.port or 80
+        elseif schema == 'https' then
+            port = check.config.port or 443
+            use_ssl = true
+        else
+            error(schema .. " not supported")
+        end 
+    end
 
     local output = ''
     local connecttime, firstbytetime

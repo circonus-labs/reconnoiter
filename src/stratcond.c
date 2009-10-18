@@ -171,6 +171,7 @@ static int child_main() {
   noit_watchdog_child_eventer_heartbeat();
 
   noit_console_init(APPNAME);
+  noit_console_conf_init();
   noit_http_rest_init();
   stratcon_realtime_http_init(APPNAME);
   noit_capabilities_listener_init();

@@ -199,7 +199,8 @@
 		}
 	    }
 	    middle = parseInt(((high-low)/2))+ low;
-	    if(middle>=a.length) { 
+	    if(middle>=a.length || a[middle] == null) { 
+              var r = { found: false, index: middle }; return r;
 	    } //bad index, somehow
 	    if(a[middle][0] > v) return binary_search(a, v, middle-1, low);
 	    else if(a[middle][0] < v) return binary_search(a, v, high, middle+1);
@@ -1178,6 +1179,7 @@
                 ctx.beginPath();
                 for (var i = 0; i < data.length; ++i) {
                     prev = cur;
+                    if(data[i] == null) continue;
                     cur = [data[i][0], data[i][1]];
                     if(dataManip) cur[1] = dataManip(cur[1]);
 

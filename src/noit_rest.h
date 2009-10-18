@@ -47,7 +47,8 @@ typedef struct noit_http_rest_closure noit_http_rest_closure_t;
 
 typedef int (*rest_request_handler)(noit_http_rest_closure_t *,
                                     int npats, char **pats);
-
+typedef noit_boolean (*rest_authorize_func_t)(noit_http_rest_closure_t *,
+                                              int npats, char **pats);
 struct noit_http_rest_closure {
   noit_http_session_ctx *http_ctx;
   acceptor_closure_t *ac;
@@ -62,9 +63,18 @@ struct noit_http_rest_closure {
 
 API_EXPORT(void) noit_http_rest_init();
 
+API_EXPORT(noit_boolean)
+  noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
+                                  int npats, char **pats);
+
 API_EXPORT(int)
   noit_http_rest_register(const char *method, const char *base,
                           const char *expression, rest_request_handler f);
+
+API_EXPORT(int)
+  noit_http_rest_register_auth(const char *method, const char *base,
+                               const char *expression, rest_request_handler f,
+                               rest_authorize_func_t auth);
 
 API_EXPORT(xmlDocPtr)
   rest_get_xml_upload(noit_http_rest_closure_t *restc,
