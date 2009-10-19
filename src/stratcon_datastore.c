@@ -185,8 +185,8 @@ typedef struct {
   char *dsn;
 } storagenode_info;
 noit_hash_table uuid_to_info_cache;
-pthread_mutex_t fqdn_to_info_cache_lock;
-noit_hash_table fqdn_to_info_cache;
+pthread_mutex_t storagenode_to_info_cache_lock;
+noit_hash_table storagenode_to_info_cache;
 
 int
 convert_sockaddr_to_buff(char *buff, int blen, struct sockaddr *remote) {
@@ -885,13 +885,13 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   const char *dsn = NULL, *fqdn = NULL;
   int found = 0;
   storagenode_info *info = NULL;
-  pthread_mutex_lock(&fqdn_to_info_cache_lock);
-  if(noit_hash_retrieve(&fqdn_to_info_cache, (void *)&id, sizeof(id),
+  pthread_mutex_lock(&storagenode_to_info_cache_lock);
+  if(noit_hash_retrieve(&storagenode_to_info_cache, (void *)&id, sizeof(id),
                         &vinfo)) {
     found = 1;
     info = vinfo;
   }
-  pthread_mutex_unlock(&fqdn_to_info_cache_lock);
+  pthread_mutex_unlock(&storagenode_to_info_cache_lock);
   if(found) {
     if(fqdn_out) *fqdn_out = info->fqdn;
     return info->dsn;
@@ -923,10 +923,10 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
     if(fqdn_out) *fqdn_out = info->fqdn;
     info->dsn = dsn ? strdup(dsn) : NULL;
     info->storagenode_id = id;
-    pthread_mutex_lock(&fqdn_to_info_cache_lock);
-    noit_hash_store(&fqdn_to_info_cache,
+    pthread_mutex_lock(&storagenode_to_info_cache_lock);
+    noit_hash_store(&storagenode_to_info_cache,
                     (void *)&info->storagenode_id, sizeof(int), info);
-    pthread_mutex_unlock(&fqdn_to_info_cache_lock);
+    pthread_mutex_unlock(&storagenode_to_info_cache_lock);
   }
   return info ? info->dsn : NULL;
 }
@@ -1189,17 +1189,17 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
       info->storagenode_id = storagenode_id;
       info->dsn = dsn ? strdup(dsn) : NULL;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
-      pthread_mutex_lock(&fqdn_to_info_cache_lock);
-      if(!noit_hash_retrieve(&fqdn_to_info_cache,
+      pthread_mutex_lock(&storagenode_to_info_cache_lock);
+      if(!noit_hash_retrieve(&storagenode_to_info_cache,
                              (void *)&storagenode_id, sizeof(int), &vinfo)) {
         /* hack to save memory -- we *never* remove from these caches,
            so we can use the same fqdn value in the above cache for the key
            in the cache below -- (no strdup) */
-        noit_hash_store(&fqdn_to_info_cache,
+        noit_hash_store(&storagenode_to_info_cache,
                         (void *)&info->storagenode_id, sizeof(int), info);
       }
       else needs_free = 1;
-      pthread_mutex_unlock(&fqdn_to_info_cache_lock);
+      pthread_mutex_unlock(&storagenode_to_info_cache_lock);
       if(needs_free) {
         if(info->dsn) free(info->dsn);
         if(info->fqdn) free(info->fqdn);
@@ -1214,11 +1214,11 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     if(uuidinfo &&
        ((!dsn && dsn_out) || (!fqdn && fqdn_out))) {
       /* we don't have dsn and we actually want it */
-      pthread_mutex_lock(&fqdn_to_info_cache_lock);
-      if(noit_hash_retrieve(&fqdn_to_info_cache,
+      pthread_mutex_lock(&storagenode_to_info_cache_lock);
+      if(noit_hash_retrieve(&storagenode_to_info_cache,
                             (void *)&storagenode_id, sizeof(int), &vinfo))
         info = vinfo;
-      pthread_mutex_unlock(&fqdn_to_info_cache_lock);
+      pthread_mutex_unlock(&storagenode_to_info_cache_lock);
     }
   }
 
@@ -1469,14 +1469,14 @@ stratcon_datastore_ingest_all_storagenode_info() {
     PG_GET_STR_COL(tmpint, i, "storage_node_id");
     storagenode_id = tmpint ? atoi(tmpint) : 0;
 
-    if(!noit_hash_retrieve(&fqdn_to_info_cache,
+    if(!noit_hash_retrieve(&storagenode_to_info_cache,
                            (void *)&storagenode_id, sizeof(int), &vinfo)) {
       storagenode_info *info;
       info = calloc(1, sizeof(*info));
       info->storagenode_id = storagenode_id;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
       info->dsn = dsn ? strdup(dsn) : NULL;
-      noit_hash_store(&fqdn_to_info_cache,
+      noit_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
     }
   }
@@ -1524,14 +1524,14 @@ stratcon_datastore_ingest_all_check_info() {
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
     loaded++;
-    if(!noit_hash_retrieve(&fqdn_to_info_cache,
+    if(!noit_hash_retrieve(&storagenode_to_info_cache,
                            (void *)&storagenode_id, sizeof(int), &vinfo)) {
       storagenode_info *info;
       info = calloc(1, sizeof(*info));
       info->storagenode_id = storagenode_id;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
       info->dsn = dsn ? strdup(dsn) : NULL;
-      noit_hash_store(&fqdn_to_info_cache,
+      noit_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
     }
   }
@@ -1546,7 +1546,7 @@ stratcon_datastore_ingest_all_check_info() {
 void
 stratcon_datastore_init() {
   pthread_mutex_init(&ds_conns_lock, NULL);
-  pthread_mutex_init(&fqdn_to_info_cache_lock, NULL);
+  pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
   ds_err = noit_log_stream_find("error/datastore");
   ingest_err = noit_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
