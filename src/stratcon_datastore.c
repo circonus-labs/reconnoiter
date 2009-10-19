@@ -159,6 +159,7 @@ typedef struct {
 } interim_journal_t;
 
 static int stratcon_database_connect(conn_q *cq);
+static int uuid_to_sid(const char *uuid_str_in, const char *remote_cn);
 
 static void
 free_params(ds_single_detail *d) {
@@ -574,8 +575,9 @@ stratcon_datastore_find(conn_q *cq, ds_rt_detail *d) {
   return DS_EXEC_SUCCESS;
 }
 execute_outcome_t
-stratcon_datastore_execute(conn_q *cq, const char *r, ds_line_detail *d) {
-  int type, len;
+stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
+                           ds_line_detail *d) {
+  int type, len, sid;
   char *final_buff;
   uLong final_len, actual_final_len;
   char *token;
@@ -657,6 +659,9 @@ stratcon_datastore_execute(conn_q *cq, const char *r, ds_line_detail *d) {
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
+        sid = uuid_to_sid(token, remote_cn);
+        if(sid == 0) goto bad_row;
+        DECLARE_PARAM_INT(sid); /* sid */
         DECLARE_PARAM_STR(token,len); /* uuid */
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* target */
@@ -670,7 +675,9 @@ stratcon_datastore_execute(conn_q *cq, const char *r, ds_line_detail *d) {
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
-        DECLARE_PARAM_STR(token,len); /* uuid */
+        sid = uuid_to_sid(token, remote_cn);
+        if(sid == 0) goto bad_row;
+        DECLARE_PARAM_INT(sid); /* sid */
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* name */
         PROCESS_NEXT_FIELD(token,len);
@@ -683,7 +690,9 @@ stratcon_datastore_execute(conn_q *cq, const char *r, ds_line_detail *d) {
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
-        DECLARE_PARAM_STR(token,len); /* uuid */
+        sid = uuid_to_sid(token, remote_cn);
+        if(sid == 0) goto bad_row;
+        DECLARE_PARAM_INT(sid); /* sid */
         PROCESS_NEXT_FIELD(token, len);
         DECLARE_PARAM_STR(token,len); /* state */
         PROCESS_NEXT_FIELD(token, len);
@@ -1011,7 +1020,8 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
         current = current->next;
         continue;
       } 
-      rv = stratcon_datastore_execute(cq, cq->remote_str, current);
+      rv = stratcon_datastore_execute(cq, cq->remote_str, cq->remote_cn,
+                                      current);
       switch(rv) {
         case DS_EXEC_SUCCESS:
           current = current->next;
@@ -1226,6 +1236,14 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   if(dsn_out) *dsn_out = dsn ? dsn : (info ? info->dsn : NULL);
   if(storagenode_id_out) *storagenode_id_out = uuidinfo->storagenode_id;
   if(sid_out) *sid_out = uuidinfo->sid;
+}
+static int
+uuid_to_sid(const char *uuid_str_in, const char *remote_cn) {
+  char uuid_str[UUID_STR_LEN+1];
+  int sid = 0;
+  strlcpy(uuid_str, uuid_str_in, sizeof(uuid_str));
+  storage_node_quick_lookup(uuid_str, remote_cn, &sid, NULL, NULL, NULL);
+  return sid;
 }
 static void
 stratcon_datastore_journal(struct sockaddr *remote,

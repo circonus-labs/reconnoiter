@@ -103,32 +103,33 @@
           FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
       ]]></mapallchecks>
       <mapchecktostoragenode><![CDATA[
-        SELECT o_storage_node_id as storage_node_id, o_sid as sid, o_fqdn as fqdn, o_dsn as dsn from stratcon.map_uuid_to_sid($1,$2)
+        SELECT o_storage_node_id as storage_node_id, o_sid as sid,
+               o_fqdn as fqdn, o_dsn as dsn
+          FROM stratcon.map_uuid_to_sid($1,$2)
       ]]></mapchecktostoragenode>
       <check><![CDATA[
-        INSERT INTO stratcon.loading_dock_check_s
+        INSERT INTO check_archive
                     (remote_address, whence, sid, id, target, module, name)
              VALUES ($1, 'epoch'::timestamptz + ($2 || ' seconds')::interval,
-                     stratcon.generate_sid_from_id($3), $3, $4, $5, $6)
+                     $3, $4, $5, $6, $7)
       ]]></check>
       <status><![CDATA[
-        INSERT INTO stratcon.loading_dock_status_archive_%Y%m
-                    ( whence,sid, state, availability,
-                     duration, status)
+        INSERT INTO check_status_archive
+                    (whence, sid, state, availability, duration, status)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
-                     stratcon.generate_sid_from_id($2), $3, $4, $5, $6)
+                     $2, $3, $4, $5, $6)
       ]]></status>
       <metric_numeric><![CDATA[
-        INSERT INTO stratcon.loading_dock_metric_numeric_archive_%Y%m
+        INSERT INTO metric_numeric_archive
                     (whence, sid, name, value)
-             VALUES ( 'epoch'::timestamptz + ($1 || ' seconds')::interval,
-                     stratcon.generate_sid_from_id($2), $3, $4)
+             VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                     $2, $3, $4)
       ]]></metric_numeric>
       <metric_text><![CDATA[
-        INSERT INTO stratcon.loading_dock_metric_text_archive_%Y%m
+        INSERT INTO metric_text_archive
                     ( whence, sid, name,value)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
-                     stratcon.generate_sid_from_id($2), $3, $4)
+                     $2, $3, $4)
       ]]></metric_text>
       <config><![CDATA[
         SELECT stratcon.update_config
