@@ -141,7 +141,7 @@ submit_statement_node(struct statement_node *stmt) {
     cp++;
   }
   noitL(noit_error, "submitting statement: %s\n", line);
-  stratcon_iep_line_processor(DS_OP_INSERT, NULL, line);
+  stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   stmt->marked = 1;
 }
 void stratcon_iep_submit_statements() {
@@ -162,7 +162,7 @@ void stratcon_iep_submit_statements() {
 
   /* Phase 1: sweep in all the statements */
   for(i=0; i<cnt; i++) {
-    char id[UUID_STR_LEN];
+    char id[UUID_STR_LEN+1];
     char provides[256];
     char *statement;
 
@@ -201,7 +201,7 @@ void stratcon_iep_submit_statements() {
 
   /* Phase 2: load the requires graph */
   for(i=0; i<cnt; i++) {
-    char id[UUID_STR_LEN];
+    char id[UUID_STR_LEN+1];
     int rcnt, j;
     char *requires;
     noit_conf_section_t *reqs;
@@ -279,7 +279,7 @@ void stratcon_iep_submit_queries() {
   query_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
-    char id[UUID_STR_LEN];
+    char id[UUID_STR_LEN+1];
     char topic[256];
     char *query;
     char *line;
@@ -313,7 +313,7 @@ void stratcon_iep_submit_queries() {
       if(*query == '\n') *query = ' ';
       query++;
     }
-    stratcon_iep_line_processor(DS_OP_INSERT, NULL, line);
+    stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   }
   free(query_configs);
 }
@@ -418,7 +418,7 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
 static int
 setup_iep_connection_callback(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
-  stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL);
+  stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, NULL, NULL);
   return 0;
 }
 
@@ -525,7 +525,8 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
 
 void
 stratcon_iep_line_processor(stratcon_datastore_op_t op,
-                            struct sockaddr *remote, void *operand) {
+                            struct sockaddr *remote, const char *remote_cn,
+                            void *operand, eventer_t completion) {
   int len;
   char remote_str[128];
   struct iep_job_closure *jc;

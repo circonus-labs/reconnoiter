@@ -8,6 +8,7 @@
       <log name="debug"/>
       <log name="error/iep"/>
       <log name="error/eventer" disabled="true"/>
+      <log name="error/datastore" disabled="true"/>
       <log name="debug/eventer" disabled="true"/>
     </console_output>
   </logs>
@@ -30,7 +31,7 @@
     <noit address="127.0.0.1" port="43191" />
   </noits>
 
-  <iep disabled="false"> <!-- false the default -->
+  <iep disabled="true"> <!-- false the default -->
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
     <queries>
@@ -61,6 +62,9 @@
   </iep>
 
   <database>
+    <journal>
+      <path>/var/log/stratcon.persist</path>
+    </journal>
     <dbconfig>
       <host>localhost</host>
       <dbname>reconnoiter</dbname>
@@ -68,15 +72,39 @@
       <password>unguessable</password>
     </dbconfig>
     <statements>
+      <!-- These are optional and used for stuff like setting search paths -->
+      <!--
+      <metanodepostconnect><![CDATA[
+        SELECT do_some_magic();
+      ]]></metanodepostconnect>
+      <storagepostconnect><![CDATA[
+        SELECT do_some_magic($1,$2);
+      ]]></storagepostconnect>
+      -->
       <allchecks><![CDATA[
         SELECT remote_address, id, target, module, name
-          FROM stratcon.mv_loading_dock_check_s
+          FROM noit.get_checks()
       ]]></allchecks>
       <findcheck><![CDATA[
-        SELECT remote_address, id
-          FROM stratcon.mv_loading_dock_check_s
-         WHERE sid = $1
+        SELECT remote_address, id, target, module, name
+          FROM noit.get_check($1,$2)
       ]]></findcheck>
+      <allstoragenodes><![CDATA[
+        SELECT storage_node_id, fqdn, dsn
+          FROM stratcon.storage_node
+      ]]></allstoragenodes>
+      <findstoragenode><![CDATA[
+        SELECT fqdn, dsn
+          FROM stratcon.storage_node
+         WHERE storage_node_id = $1
+      ]]></findstoragenode>
+      <mapallchecks><![CDATA[
+        SELECT id, sid, storage_node_id, fqdn, dsn
+          FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
+      ]]></mapallchecks>
+      <mapchecktostoragenode><![CDATA[
+        SELECT o_storage_node_id as storage_node_id, o_sid as sid, o_fqdn as fqdn, o_dsn as dsn from stratcon.map_uuid_to_sid($1,$2)
+      ]]></mapchecktostoragenode>
       <check><![CDATA[
         INSERT INTO stratcon.loading_dock_check_s
                     (remote_address, whence, sid, id, target, module, name)

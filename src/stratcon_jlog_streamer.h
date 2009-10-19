@@ -90,7 +90,7 @@ typedef struct jlog_streamer_ctx_t {
   u_int64_t total_events;
   u_int64_t total_bytes_read;
 
-  void (*push)(stratcon_datastore_op_t, struct sockaddr *, void *);
+  void (*push)(stratcon_datastore_op_t, struct sockaddr *, const char *, void *, eventer_t);
 } jlog_streamer_ctx_t;
 
 API_EXPORT(void)
