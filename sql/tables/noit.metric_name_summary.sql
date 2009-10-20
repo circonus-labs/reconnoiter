@@ -50,7 +50,7 @@ CREATE INDEX metric_name_summary_fts_data_idx ON metric_name_summary USING gin (
 -- Name: trig_update_tsvector_from_metric_summary; Type: TRIGGER; Schema: noit; Owner: reconnoiter
 --
 
-CREATE TRIGGER update_metric_name_summary
+CREATE TRIGGER update_metric_name_summary_fulltext 
     BEFORE INSERT OR UPDATE ON metric_name_summary
     FOR EACH ROW
     EXECUTE PROCEDURE update_mns_via_self();
@@ -61,8 +61,6 @@ CREATE TRIGGER update_metric_name_summary
 --
 
 REVOKE ALL ON TABLE metric_name_summary FROM PUBLIC;
-REVOKE ALL ON TABLE metric_name_summary FROM reconnoiter;
-GRANT ALL ON TABLE metric_name_summary TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_name_summary TO stratcon;
 GRANT SELECT,UPDATE ON TABLE metric_name_summary TO prism;
 

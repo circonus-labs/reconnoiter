@@ -60,8 +60,6 @@ ALTER TABLE ONLY check_tag
 --
 
 REVOKE ALL ON TABLE check_tag FROM PUBLIC;
-REVOKE ALL ON TABLE check_tag FROM reconnoiter;
-GRANT ALL ON TABLE check_tag TO reconnoiter;
 GRANT ALL ON TABLE check_tag TO prism;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE check_tag TO stratcon;
 

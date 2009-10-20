@@ -40,7 +40,7 @@ ALTER TABLE ONLY metric_tag
 -- Name: trig_update_tsvector_from_metric_tag; Type: TRIGGER; Schema: noit; Owner: reconnoiter
 --
 
-CREATE TRIGGER update_metric_name_summary
+CREATE TRIGGER update_metric_name_summary_fulltext 
     AFTER INSERT OR UPDATE ON metric_tag
     FOR EACH ROW
     EXECUTE PROCEDURE update_mns_via_metric_tag();
@@ -60,8 +60,6 @@ ALTER TABLE ONLY metric_tag
 --
 
 REVOKE ALL ON TABLE metric_tag FROM PUBLIC;
-REVOKE ALL ON TABLE metric_tag FROM reconnoiter;
-GRANT ALL ON TABLE metric_tag TO reconnoiter;
 GRANT ALL ON TABLE metric_tag TO prism;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_tag TO stratcon;
 

@@ -51,7 +51,7 @@ CREATE UNIQUE INDEX check_currently_id_uidx ON check_currently USING btree (id);
 -- Name: trig_update_tsvector_from_mv_dock; Type: TRIGGER; Schema: noit; Owner: reconnoiter
 --
 
-CREATE TRIGGER update_mns_via_check_currently
+CREATE TRIGGER update_metric_name_summary_fulltext 
     AFTER INSERT OR UPDATE ON check_currently
     FOR EACH ROW
     EXECUTE PROCEDURE update_mns_via_check_currently();
