@@ -1,21 +1,22 @@
--- formerly stratcon.trig_update_tsvector_from_metric_summary
-CREATE OR REPLACE FUNCTION noit.update_mns_via_self()
-  RETURNS trigger AS
+-- formerly stratcon.trig_update_tsvector_from_metric_summary 
+
+set search_path = noit, pg_catalog;
+
+CREATE OR REPLACE FUNCTION update_mns_via_self()
+RETURNS trigger AS
 $BODY$
-DECLARE
- BEGIN
- IF TG_OP != 'INSERT' THEN
-   IF (NEW.metric_name <> OLD.metric_name) THEN
-           UPDATE noit.metric_name_summary SET fts_data=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type)
-             where sid=NEW.sid and metric_name=NEW.metric_name and metric_type = NEW.metric_type;
-   END IF;    
- ELSE 
-    UPDATE noit.metric_name_summary SET fts_data=stratcon.metric_name_summary_tsvector(NEW.sid,NEW.metric_name,NEW.metric_type)
-            where sid=NEW.sid and metric_name=NEW.metric_name and metric_type = NEW.metric_type;
- END IF;  
-   RETURN NEW;
+BEGIN
+IF TG_OP = 'UPDATE' THEN
+    IF NEW.metric_name <> OLD.metric_name THEN
+        RETURN NEW;
+    END IF;
+END IF;
+
+NEW.fts_data = stratcon.metric_name_summary_compile_fts_data(NEW.sid, NEW.metric_name, NEW.metric_type);
+
+RETURN new;
 END
 $BODY$
-  LANGUAGE 'plpgsql'  SECURITY DEFINER;
+LANGUAGE 'plpgsql'  
+SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION noit.update_mns_via_self() TO stratcon;
