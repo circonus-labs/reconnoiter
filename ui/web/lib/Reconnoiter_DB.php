@@ -21,7 +21,7 @@ class Reconnoiter_DB {
     return $one;
   }
   function connect() {
-    $this->db = new PDO("pgsql:host=noit.office.omniti.com;dbname=reconnoiter",
+    $this->db = new PDO("pgsql:host=localhost;dbname=reconnoiter",
                         "prism", "prism");
     $this->db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
     $sth = $this->db->prepare("set timezone to 'UTC'");
@@ -83,11 +83,7 @@ class Reconnoiter_DB {
   function get_noits() {
     $sth = $this->db->prepare("
       select distinct(remote_address) as remote_address
-        from stratcon.loading_dock_check_s
-        join (   select id, max(whence) as whence
-                   from stratcon.loading_dock_check_s
-               group by id) latestrecord
-       USING (id,whence)");
+        from check_currently");
     $rv = array();
     while($row = $sth->fetch()) {
       $rv[] = $row['remote_address'];
@@ -149,10 +145,10 @@ class Reconnoiter_DB {
                            using (graphid)
                             join prism.saved_graphs_dep gd
                            using (graphid)
-                            join stratcon.metric_name_summary s
+                            join metric_name_summary s
                            using (sid,metric_name,metric_type)
                            where g.ts_search_all @@ to_tsquery(query)
-                              or s.ts_search_all @@ to_tsquery(query)))",
+                              or s.fts_data @@ to_tsquery(query)))",
       "select sheetid, title,
               to_char(last_update, 'YYYY/mm/dd') as last_update
          from prism.saved_worksheets,
@@ -165,10 +161,10 @@ class Reconnoiter_DB {
                            using (graphid)
                             join prism.saved_graphs_dep gd
                            using (graphid)
-                            join stratcon.metric_name_summary s
+                            join metric_name_summary s
                            using (sid,metric_name,metric_type)
                            where g.ts_search_all @@ to_tsquery(query)
-                              or s.ts_search_all @@ to_tsquery(query)))
+                              or s.fts_data @@ to_tsquery(query)))
      order by last_update desc",
       $offset, $limit);
   }
@@ -181,9 +177,9 @@ class Reconnoiter_DB {
            ((ts_search_all @@ to_tsquery(query) or query = '')
             or graphid in (select graphid
                             from prism.saved_graphs_dep gd
-                            join stratcon.metric_name_summary s
+                            join metric_name_summary s
                            using (sid,metric_name,metric_type)
-                           where ts_search_all @@ to_tsquery(query)))",
+                           where fts_data @@ to_tsquery(query)))",
       "select graphid, title, json,
               to_char(last_update, 'YYYY/mm/dd') as last_update
          from prism.saved_graphs,
@@ -192,26 +188,26 @@ class Reconnoiter_DB {
            ((ts_search_all @@ to_tsquery(query) or query = '')
             or graphid in (select graphid
                             from prism.saved_graphs_dep gd
-                            join stratcon.metric_name_summary s
+                            join metric_name_summary s
                            using (sid,metric_name,metric_type)
-                           where ts_search_all @@ to_tsquery(query)))
+                           where fts_data @@ to_tsquery(query)))
      order by last_update desc",
       $offset, $limit);
   }
   function get_datapoints($searchstring, $offset, $limit) {
     return $this->run_tsearch($searchstring,
       "select count(*) as count
-         from stratcon.mv_loading_dock_check_s c
-         join stratcon.metric_name_summary m using (sid),
+         from check_currently c
+         join metric_name_summary m using (sid),
               (select ? ::text as query) q
-        where active = true and (query = '' or ts_search_all @@ to_tsquery(query))",
+        where active = true and (query = '' or fts_data @@ to_tsquery(query))",
       "select c.id, c.sid, c.remote_address,
               c.target, c.whence, c.module, c.name,
               m.metric_name, m.metric_type
-         from stratcon.mv_loading_dock_check_s c
-         join stratcon.metric_name_summary m using (sid),
+         from check_currently c
+         join metric_name_summary m using (sid),
               (select ? ::text as query) q
-        where active = true and (query = '' or ts_search_all @@ to_tsquery(query))
+        where active = true and (query = '' or fts_data @@ to_tsquery(query))
      order by target, module, name, remote_address",
       $offset, $limit);
   }
@@ -237,17 +233,17 @@ class Reconnoiter_DB {
       $ptr_select = 'ciamt.value as ptr, ';
       $ptr_groupby = ', ciamt.value';
       $ptr_join = "
-        left join stratcon.mv_loading_dock_check_s cia
+        left join check_currently cia
                on (    $tblsrc.$want ::inet = cia.target ::inet
                    and cia.module='dns' and cia.name='in-addr.arpa')
-        left join stratcon.current_metric_text ciamt
+        left join metric_text_currently ciamt
                on (cia.sid = ciamt.sid and ciamt.name='answer')";
     }
     else if($want == 'name') {
       $ptr_select = 'caliasmt.value as ptr, ';
       $ptr_groupby = ', caliasmt.value';
       $ptr_join = "
-        left join stratcon.current_metric_text caliasmt
+        left join metric_text_currently caliasmt
                on (c.sid = caliasmt.sid and caliasmt.name='alias')";
     }
     else if($want == 'metric_name') {
@@ -257,8 +253,8 @@ class Reconnoiter_DB {
       select $tblsrc.$want, $ptr_select
              min(c.sid) as sid, min(metric_type) as metric_type,
              count(1) as cnt
-        from stratcon.mv_loading_dock_check_s c
-        join stratcon.metric_name_summary m using (sid)
+        from check_currently c
+        join metric_name_summary m using (sid)
              $ptr_join
        where active = " . ($active ? "true" : "false") . $where_sql . "
     group by $tblsrc.$want $ptr_groupby
@@ -292,11 +288,11 @@ class Reconnoiter_DB {
   }
   function get_targets($remote_address = null) {
     if($remote_address) {
-      $sth = $this->db->prepare("select distinct(target) as target from stratcon.loading_dock_check_s where remote_address = ?");
+      $sth = $this->db->prepare("select distinct(target) as target from check_currently where remote_address = ?");
       $sth->execute(array($remote_address));
     }
     else {
-      $sth = $this->db->prepare("select distinct(target) as target from stratcon.loading_dock_check_s");
+      $sth = $this->db->prepare("select distinct(target) as target from check_currently");
       $sth->execute();
     }
     $rv = array();
@@ -308,13 +304,8 @@ class Reconnoiter_DB {
   function get_checks($target, $active = 'true') {
     $sth = $this->db->prepare("
       select sid, id, check_name, metric_name, metric_type
-        from (
-         select distinct on (sid, id) sid, id, name as check_name
-           from stratcon.loading_dock_check_s
-          where target = ?
-       order by sid, id, whence desc
-             ) c
-        join stratcon.metric_name_summary using(sid)
+        from check_currently
+        join metric_name_summary using(sid)
        where active = ?
     ");
     $sth->execute(array($target, $active));
@@ -521,7 +512,7 @@ class Reconnoiter_DB {
 
     $binds = array();
 
-    $sql = "select m.* from stratcon.mv_loading_dock_check_s m where m.sid in (";
+    $sql = "select m.* from check_currently m where m.sid in (";
     for ($i =0 ; $i<count($sid_list);$i++){
       $binds[] = $sid_list[$i];
       $sql.= ($i == count($sid_list)-1) ? "?)" : "?,";

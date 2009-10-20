@@ -348,10 +348,10 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
- again:
   noitL(noit_debug, "[%p] requesting [%s]\n", (void *)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
+ again:
   if(cpool->head) {
     assert(cpool->in_pool > 0);
     cq = cpool->head;
@@ -366,6 +366,8 @@ get_conn_q_for_remote(const char *remote_str,
     noitL(noit_debug, "[%p] over-subscribed, waiting [%s]\n",
           (void *)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
+    noitL(noit_debug, "[%p] waking up and trying again [%s]\n",
+          (void *)pthread_self(), cpool->queue_name);
     goto again;
   }
   else {
@@ -469,10 +471,11 @@ __noit__strndup(const char *src, int len) {
 static int
 stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
                                     struct timeval *now) {
-  conn_q *cq = closure;
   ds_single_detail *d;
   int i, row_count = 0, good = 0;
   char buff[1024];
+  conn_q *cq;
+  cq = get_conn_q_for_metanode();
 
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
@@ -524,14 +527,14 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
 void
 stratcon_datastore_iep_check_preload() {
   eventer_t e;
-  conn_q *cq;
-  cq = get_conn_q_for_metanode();
+  conn_pool *cpool;
 
+  cpool = get_conn_pool_for_remote(NULL,NULL,NULL);
   e = eventer_alloc();
   e->mask = EVENTER_ASYNCH;
   e->callback = stratcon_datastore_asynch_drive_iep;
-  e->closure = cq;
-  eventer_add_asynch(cq->pool->jobq, e);
+  e->closure = NULL;
+  eventer_add_asynch(cpool->jobq, e);
 }
 execute_outcome_t
 stratcon_datastore_find(conn_q *cq, ds_rt_detail *d) {
@@ -874,9 +877,10 @@ int
 stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   ds_rt_detail *dsjd = closure;
-  conn_q *cq = dsjd->cq;
+  conn_q *cq;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
 
+  cq = get_conn_q_for_metanode();
   stratcon_database_connect(cq);
   assert(dsjd->rt);
   stratcon_datastore_find(cq, dsjd);
@@ -925,6 +929,7 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
    bad_row:
     free_params(d);
     free(d);
+    release_conn_q(cq);
   }
   if(fqdn) {
     info = calloc(1, sizeof(*info));
@@ -1306,7 +1311,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
                         struct sockaddr *remote,
                         const char *remote_cn, void *operand,
                         eventer_t completion) {
-  conn_q *cq;
+  conn_pool *cpool;
   syncset_t *syncset;
   eventer_t e;
   ds_rt_detail *rtdetail;
@@ -1330,7 +1335,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       eventer_add(e);
       break;
     case DS_OP_FIND_COMPLETE:
-      cq = get_conn_q_for_metanode();
+      cpool = get_conn_pool_for_remote(NULL,NULL,NULL);
       rtdetail = calloc(1, sizeof(*rtdetail));
       rtdetail->rt = operand;
       rtdetail->completion_event = completion;
@@ -1338,7 +1343,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
       e->mask = EVENTER_ASYNCH;
       e->callback = stratcon_datastore_asynch_lookup;
       e->closure = rtdetail;
-      eventer_add_asynch(cq->pool->jobq, e);
+      eventer_add_asynch(cpool->jobq, e);
       break;
   }
 }
