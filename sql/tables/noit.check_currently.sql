@@ -44,17 +44,17 @@ ALTER TABLE ONLY check_currently
 -- Name: check_currently_uidx; Type: INDEX; Schema: noit; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE UNIQUE INDEX ucheck_currently_id_uidx ON check_currently USING btree (id);
+CREATE UNIQUE INDEX check_currently_id_uidx ON check_currently USING btree (id);
 
 
 --
 -- Name: trig_update_tsvector_from_mv_dock; Type: TRIGGER; Schema: noit; Owner: reconnoiter
 --
 
-CREATE TRIGGER update_metric_summary_fulltext 
+CREATE TRIGGER update_mns_via_check_currently
     AFTER INSERT OR UPDATE ON check_currently
     FOR EACH ROW
-    EXECUTE PROCEDURE update_metric_summary_fulltext();
+    EXECUTE PROCEDURE update_mns_via_check_currently();
 
 
 --
@@ -62,8 +62,6 @@ CREATE TRIGGER update_metric_summary_fulltext
 --
 
 REVOKE ALL ON TABLE check_currently FROM PUBLIC;
-REVOKE ALL ON TABLE check_currently FROM reconnoiter;
-GRANT ALL ON TABLE check_currently TO reconnoiter;
 GRANT SELECT ON TABLE check_currently TO prism;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE check_currently TO stratcon;
 
