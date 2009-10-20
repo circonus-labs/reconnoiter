@@ -25,9 +25,12 @@ srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 MODULES_DIR=@MODULES_DIR@
 
-all:
+all:	reconnoiter_ddl_dump.sql
 
-install:
+reconnoiter_ddl_dump.sql:
+	./build_ddl.pl scaffolding.sql > reconnoiter_ddl_dump.sql
+
+install:	reconnoiter_ddl_dump.sql
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datarootdir)/reconnoiter
 	$(INSTALL) -m 0644 reconnoiter_ddl_dump.sql $(DESTDIR)$(datarootdir)/reconnoiter/schema.sql
 	$(INSTALL) -m 0644 crontab $(DESTDIR)$(datarootdir)/reconnoiter/crontab

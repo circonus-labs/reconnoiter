@@ -1,6 +1,7 @@
 create user reconnoiter with createuser;
 create database reconnoiter with owner = reconnoiter;
 create user stratcon with unencrypted password 'stratcon';
+alter user stratcon set search_path to noit,public;
 create user prism with unencrypted password 'prism';
 \c reconnoiter reconnoiter;
 begin;

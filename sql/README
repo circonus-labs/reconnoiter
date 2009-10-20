@@ -1,3 +1,8 @@
-== Snap the schema off a live machine ==
+== Management ==
 
-pg_dump -s -n stratcon -n prism -U postgres reconnoiter > reconnoiter_ddl_dump.sql
+Tables are in tables/, stored procedures/functions are in sprocs/
+
+The scaffolding.sql file is used to glue them all together in the right order?
+Convoluted? perhaps.  It allows us to manipulate small sections of the schema
+as code, stored in version control, and reconstitute the database easily for
+testing.
