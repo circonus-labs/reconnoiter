@@ -55,7 +55,7 @@ begin
                  extract('epoch' from v_target.period)) *
            extract('epoch' from v_target.period)) || ' seconds') ::interval as whence,
            name, value
-      from noit.metric_text_changelog
+      from metric_text_changelog
      where sid = v_sid
        and name = in_name
        and whence <= v_start_adj
@@ -78,7 +78,7 @@ begin
                  extract('epoch' from v_target.period)) *
            extract('epoch' from v_target.period)) || ' seconds') ::interval as whence,
            coalesce(value, '[unset]') as value
-      from noit.metric_text_changelog 
+      from metric_text_changelog 
      where sid = v_sid
        and name = in_name
        and whence > v_start_adj

@@ -18,19 +18,19 @@ begin
                          extract('epoch' from in_start_time) as iv
                  ) i,
                  (   select 5*60 as isec, '5 minutes'::interval as aperiod,
-                            'noit.metric_numeric_rollup_5m' as atablename
+                            'metric_numeric_rollup_5m' as atablename
                   union all
                      select 20*60 as isec, '20 minutes'::interval as aperiod,
-                            'noit.metric_numeric_rollup_20m' as atablename
+                            'metric_numeric_rollup_20m' as atablename
                   union all
                      select 60*60 as isec, '1 hour'::interval as aperiod,
-                            'noit.metric_numeric_rollup_60m' as atablename
+                            'metric_numeric_rollup_60m' as atablename
                   union all
                      select 6*60*60 as isec, '6 hours'::interval as aaperiod,
-                            'noit.metric_numeric_rollup_6hours' as atablename
+                            'metric_numeric_rollup_6hours' as atablename
                   union all
                      select 12*60*60 as isec, '12 hours'::interval as aperiod,
-                            'noit.metric_numeric_rollup_12hours' as atablename
+                            'metric_numeric_rollup_12hours' as atablename
                  ) ivs
          ) b
  order by badness asc

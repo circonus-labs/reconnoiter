@@ -11,11 +11,11 @@ begin
     return;
   end if;
 
-    for v_record in  select sid, name, rollup_time, count_rows, avg_value, counter_dev from stratcon._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
+    for v_record in  select sid, name, rollup_time, count_rows, avg_value, counter_dev from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive) loop
     return next v_record; 
     end loop;
 
---  return query select sid, name, rollup_time, count_rows, avg_value from stratcon._fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
+--  return query select sid, name, rollup_time, count_rows, avg_value from stratcon.fetch_dataset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods, derive);
   return;
 end
 $BODY$
@@ -23,7 +23,7 @@ $BODY$
 
 GRANT EXECUTE ON FUNCTION stratcon.fetch_dataset(uuid, text, timestamp with time zone, timestamp with time zone, integer, boolean) TO stratcon;
 
-CREATE OR REPLACE FUNCTION stratcon._fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
+CREATE OR REPLACE FUNCTION stratcon.fetch_dataset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer, derive boolean)
   RETURNS SETOF noit.metric_numeric_rollup_5m AS
 $BODY$declare
   v_sql text;
@@ -67,7 +67,7 @@ begin
                        ' as rollup_time' ||
              ' from generate_series(1,' || v_target.nperiods || ') t) s ' ||
            'left join ' ||
-           '(select * from noit.' || v_target.tablename ||
+           '(select * from ' || v_target.tablename ||
            ' where sid = ' || v_sid ||
              ' and name = ' || quote_literal(in_name) ||
              ' and rollup_time between ' || quote_literal(v_start_adj) || '::timestamp' ||
@@ -98,5 +98,5 @@ begin
 end
 $BODY$
   LANGUAGE 'plpgsql' SECURITY DEFINER;
-GRANT EXECUTE ON FUNCTION  stratcon._fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean) TO stratcon;
+GRANT EXECUTE ON FUNCTION  stratcon.fetch_dataset(integer, text, timestamp with time zone, timestamp with time zone, integer, boolean) TO stratcon;
  

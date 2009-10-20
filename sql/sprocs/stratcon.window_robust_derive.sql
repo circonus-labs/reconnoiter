@@ -22,7 +22,7 @@ begin
    for r in SELECT sid, name, whence,
                    (whence > in_start_time - '5 minutes'::interval) as in_window,
                    value
-              FROM noit.metric_numeric_archive
+              FROM metric_numeric_archive
              WHERE whence <= in_start_time
                AND whence > in_start_time - ('5 minutes'::interval * 2)
           order BY sid,name,whence

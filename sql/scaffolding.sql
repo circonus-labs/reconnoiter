@@ -3,6 +3,7 @@ create database reconnoiter with owner = reconnoiter;
 create user stratcon with unencrypted password 'stratcon';
 alter user stratcon set search_path to noit,public;
 create user prism with unencrypted password 'prism';
+alter user prism set search_path to noit,public;
 \c reconnoiter reconnoiter;
 begin;
 
@@ -33,6 +34,7 @@ grant usage on schema prism to prism;
 \i tables/stratcon.current_node_config_changelog.sql
 \i tables/stratcon.storage_node.sql
 \i tables/stratcon.map_uuid_to_sid.sql
+\i tables/prism.graph_templates.sql
 
 \i sprocs/noit.check_archive_log_changes.sql
 \i sprocs/noit.check_status_archive_log_changes.sql
@@ -51,6 +53,13 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.metric_name_summary_tsvector.sql
 \i sprocs/stratcon.window_robust_derive.sql
 \i sprocs/stratcon.update_config.sql
+\i sprocs/prism.add_graph_tags.sql
+\i sprocs/prism.add_tags.sql
+\i sprocs/prism.check_name_saved_graphs.sql
+\i sprocs/prism.remove_graph_tags.sql
+\i sprocs/prism.remove_tags.sql
+\i sprocs/prism.saved_graphs_tsvector.sql
+\i sprocs/prism.trig_update_tsvector_saved_graphs.sql
 
 \i tables/noit.check_archive.sql
 \i tables/noit.check_currently.sql
@@ -60,5 +69,9 @@ grant usage on schema prism to prism;
 \i tables/noit.metric_numeric_archive.sql
 \i tables/noit.metric_tag.sql
 \i tables/noit.metric_text_archive.sql
+\i tables/prism.saved_graphs.sql
+\i tables/prism.saved_graphs_dep.sql
+\i tables/prism.saved_worksheets.sql
+\i tables/prism.saved_worksheets_dep.sql
 
 commit;
