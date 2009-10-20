@@ -41,24 +41,17 @@ ALTER TABLE ONLY check_archive
     ADD CONSTRAINT check_archive_pkey PRIMARY KEY (sid, id, whence);
 
 
---
--- Name: mv_check_archive; Type: TRIGGER; Schema: noit; Owner: reconnoiter
---
-
-CREATE TRIGGER check_archive_log_changes
+CREATE TRIGGER update_check_currently 
     AFTER INSERT ON check_archive
     FOR EACH ROW
-    EXECUTE PROCEDURE check_archive_log_changes();
-
+    EXECUTE PROCEDURE update_check_currently();
 
 --
 -- Name: check_archive; Type: ACL; Schema: noit; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE check_archive FROM PUBLIC;
-REVOKE ALL ON TABLE check_archive FROM reconnoiter;
-GRANT ALL ON TABLE check_archive TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE check_archive TO stratcon;
+GRANT SELECT,INSERT ON TABLE check_archive TO stratcon;
 GRANT SELECT ON TABLE check_archive TO prism;
 
 
