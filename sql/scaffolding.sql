@@ -41,6 +41,8 @@ grant usage on schema prism to prism;
 \i sprocs/noit.mark_metric_numeric_rollup_buffer.sql
 \i sprocs/noit.metric_text_archive_log_changes.sql
 \i sprocs/noit.update_metric_summary_fulltext.sql
+\i sprocs/noit.update_check_currently.sql
+\i sprocs/noit.update_mns_via_check_currently.sql
 \i sprocs/noit.update_mns_via_check_tag.sql
 \i sprocs/noit.update_mns_via_metric_tag.sql
 \i sprocs/noit.update_mns_via_self.sql
@@ -50,9 +52,11 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.get_storage_node_for_sid.sql
 \i sprocs/stratcon.init_metric_numeric_rollup_5m.sql
 \i sprocs/stratcon.map_uuid_to_sid.sql
-\i sprocs/stratcon.metric_name_summary_tsvector.sql
 \i sprocs/stratcon.window_robust_derive.sql
 \i sprocs/stratcon.update_config.sql
+\i sprocs/stratcon.rollup_metric_numeric_5m.sql
+\i sprocs/stratcon.metric_name_summary_compile_fts_data.sql
+
 \i sprocs/prism.add_graph_tags.sql
 \i sprocs/prism.add_tags.sql
 \i sprocs/prism.check_name_saved_graphs.sql

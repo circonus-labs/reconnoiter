@@ -12,16 +12,16 @@ begin
     return;
   end if;
 
-  return query select * from stratcon._fetch_varset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods);
+  return query select * from stratcon.fetch_varset(v_sid::integer, in_name, in_start_time, in_end_time, in_hopeful_nperiods);
 end
 $BODY$
   LANGUAGE 'plpgsql'  SECURITY DEFINER;
  
 GRANT EXECUTE ON FUNCTION stratcon.fetch_varset(uuid, text, timestamp with time zone, timestamp with time zone, integer) TO stratcon;
 
--- Function: stratcon._fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer)
+-- Function: stratcon.fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer)
 
-CREATE OR REPLACE FUNCTION stratcon._fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer)
+CREATE OR REPLACE FUNCTION stratcon.fetch_varset(in_sid integer, in_name text, in_start_time timestamp with time zone, in_end_time timestamp with time zone, in_hopeful_nperiods integer)
   RETURNS SETOF noit.metric_text_changelog AS
 $BODY$declare
   v_sid int;
@@ -29,10 +29,12 @@ $BODY$declare
   v_start_adj timestamptz;
   v_start_text text;
   v_next_text text;
+  v_prev_text boolean;
   v_end_adj timestamptz;
   v_change_row noit.metric_text_changelog%rowtype;
 begin
   -- Map out uuid to an sid.
+  v_prev_text := false;
   v_sid := in_sid;
 
   select * into v_target from stratcon.choose_window(in_start_time, in_end_time, in_hopeful_nperiods);
@@ -86,16 +88,18 @@ begin
 --    using (whence)
   order by whence asc
   loop
+
     v_next_text := v_change_row.value;
-    if v_change_row.value is not null and
-       v_start_text != v_change_row.value then
+    if v_change_row.value is not null and not v_prev_text and
+       (v_start_text is null or v_start_text <> v_change_row.value) then
       v_change_row.value := coalesce(v_start_text, '[unset]') || ' -> ' || coalesce(v_change_row.value, '[unset]');
     else
-      v_change_row.value := v_start_text;
+      v_change_row.value := coalesce(v_change_row.value, '[unset]');
     end if;
-    if v_next_text is not null then
+    if v_start_text is null and v_next_text is not null then
       v_start_text := v_next_text;
     end if;
+    v_prev_text := true;
     return next v_change_row;
   end loop;
 
@@ -114,5 +118,5 @@ end
 $BODY$
   LANGUAGE 'plpgsql' SECURITY DEFINER;
  
-GRANT EXECUTE ON FUNCTION stratcon._fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer) TO stratcon;
+GRANT EXECUTE ON FUNCTION stratcon.fetch_varset(integer, text, timestamp with time zone, timestamp with time zone, integer) TO stratcon;
 
