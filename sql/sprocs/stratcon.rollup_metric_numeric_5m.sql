@@ -54,10 +54,12 @@ BEGIN
            WHERE rollup_time = v_min_whence;
     END IF;
 
-    FOR v_info IN SELECT * FROM window_robust_derive(v_min_whence) LOOP
+    FOR v_info IN SELECT * FROM stratcon.window_robust_derive(v_min_whence) LOOP
 
-        v_offset := ( 12*(extract('hour' from v_min_whence))+floor(extract('minute' from v_min_whence)/5) );   
+        v_offset := ( 12*(extract('hour' from v_min_whence at time zone 'UTC'))+floor(extract('minute' from v_min_whence at time zone 'UTC')/5) );   
+        v_info.rollup_time := date_trunc('day', v_info.rollup_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
 
+        v_init := false;
         SELECT * FROM metric_numeric_rollup_5m WHERE rollup_time = v_info.rollup_time AND sid=v_info.sid AND name=v_info.name INTO v_rec;
 	IF NOT FOUND THEN 
 		SELECT * FROM stratcon.init_metric_numeric_rollup_5m() INTO v_rec; 

@@ -1,5 +1,5 @@
 
-CREATE OR REPLACE FUNCTION stratcon.unroll_numeric_metric_rollup_5m
+CREATE OR REPLACE FUNCTION stratcon.unroll_metric_numeric_5m
 (in_sid integer, in_name text, in_start timestamp with time zone, in_end timestamp with time zone) 
 RETURNS SETOF stratcon.metric_numeric_rollup_segment
 AS $$
