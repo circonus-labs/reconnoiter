@@ -1,10 +1,14 @@
 -- Function: stratcon.window_robust_derive(timestamp with time zone)
 
+DROP TYPE IF EXISTS stratcon.metric_numeric_rollup_segment;
+CREATE TYPE stratcon.metric_numeric_rollup_segment AS (sid integer,  name text, rollup_time timestamp with time zone, count_rows integer, avg_value numeric, counter_dev numeric);      
+
+
 CREATE OR REPLACE FUNCTION stratcon.window_robust_derive(in_start_time timestamp with time zone)
-  RETURNS SETOF noit.metric_numeric_rollup_5m AS
+  RETURNS SETOF stratcon.metric_numeric_rollup_segment AS
 $BODY$
 declare
-  rec noit.metric_numeric_rollup_5m%rowtype;
+  rec stratcon.metric_numeric_rollup_segment%rowtype;
   r record;
   rise numeric;
   last_row_whence timestamp;
