@@ -50,7 +50,7 @@ BEGIN
 
     IF v_min_whence <= v_max_rollup_5 THEN
 -- do we still need this? i think "we" dont, but maybe some people do? 
-       DELETE FROM rollup_matrix_numeric_5m 
+       DELETE FROM metric_numeric_rollup_5m
            WHERE rollup_time = v_min_whence;
     END IF;
 
@@ -58,9 +58,9 @@ BEGIN
 
         v_offset := ( 12*(extract('hour' from v_min_whence))+floor(extract('minute' from v_min_whence)/5) );   
 
-        SELECT * FROM rollup_matrix_numeric_5m WHERE rollup_time = v_info.rollup_time AND sid=v_info.sid AND name=v_info.name INTO v_rec;
+        SELECT * FROM metric_numeric_rollup_5m WHERE rollup_time = v_info.rollup_time AND sid=v_info.sid AND name=v_info.name INTO v_rec;
 	IF NOT FOUND THEN 
-		SELECT * FROM init_rollup_matrix_numeric_5m() INTO v_rec; 
+		SELECT * FROM stratcon.init_metric_numeric_rollup_5m() INTO v_rec; 
 		v_init := true; 
 	END IF;
 
@@ -72,10 +72,10 @@ BEGIN
         v_rec.counter_dev[v_offset] := v_info.counter_dev;  
 
 	IF v_init THEN
-		INSERT INTO rollup_matrix_numeric_5m (sid,name,rollup_time,count_rows,avg_value,counter_dev)
+		INSERT INTO metric_numeric_rollup_5m (sid,name,rollup_time,count_rows,avg_value,counter_dev)
 			VALUES (v_rec.sid,v_rec.name,v_rec.rollup_time,v_rec.count_rows,v_rec.avg_value,v_rec.counter_dev); 
 	ELSE
-		UPDATE rollup_matrix_numeric_5m SET (count_rows,avg_value,counter_dev) 
+		UPDATE metric_numeric_rollup_5m SET (count_rows,avg_value,counter_dev) 
 			= (v_rec.count_rows,v_rec.avg_value,v_rec.counter_dev)
 			WHERE rollup_time = v_info.rollup_time  AND sid = v_info.sid  AND name = v_info.name; 
 	END IF;
