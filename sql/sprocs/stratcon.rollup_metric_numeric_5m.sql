@@ -1,7 +1,6 @@
 CREATE OR REPLACE FUNCTION stratcon.rollup_metric_numeric_5m() RETURNS void
 AS $$
 DECLARE
- rec noit.metric_numeric_rollup_5m%rowtype;
  v_sql TEXT;
  v_min_whence TIMESTAMPTZ;
  v_max_rollup_5 TIMESTAMPTZ;
@@ -13,7 +12,7 @@ DECLARE
  whenceint RECORD;
 
  v_rec RECORD;
- v_info noit.metric_numeric_rollup_5m%rowtype;
+ v_info stratcon.metric_numeric_rollup_segment%rowtype;
  v_offset smallint; 
  v_init boolean := false; 
 BEGIN
@@ -51,8 +50,8 @@ BEGIN
 
     IF v_min_whence <= v_max_rollup_5 THEN
 -- do we still need this? i think "we" dont, but maybe some people do? 
---   DELETE FROM rollup_matrix_numeric_5m 
---                WHERE rollup_time = v_min_whence;
+       DELETE FROM rollup_matrix_numeric_5m 
+           WHERE rollup_time = v_min_whence;
     END IF;
 
     FOR v_info IN SELECT * FROM window_robust_derive(v_min_whence) LOOP
