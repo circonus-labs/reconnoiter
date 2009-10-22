@@ -97,8 +97,8 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
   gettimeofday(&now, NULL);
   if(ctx->timeout_event) {
     sub_timeval(ctx->timeout_event->whence, now, &diff);
-    nc_printf(ncct, "\tNext attempt in %llu.%06us\n",
-              (unsigned long long)diff.tv_sec, (unsigned int) diff.tv_usec);
+    nc_printf(ncct, "\tNext attempt in %lld.%06us\n",
+              (long long)diff.tv_sec, (unsigned int) diff.tv_usec);
   }
   else if(ctx->remote_cn) {
     nc_printf(ncct, "\tRemote CN: '%s'\n",
@@ -124,12 +124,12 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
                                  (double)session_duration.tv_usec/1000000.0;
       nc_printf(ncct, "\tState: %s\n"
                       "\tNext checkpoint: [%08x:%08x]\n"
-                      "\tLast event: %llu.%06us ago\n"
+                      "\tLast event: %lld.%06us ago\n"
                       "\tEvents this session: %llu (%0.2f/s)\n"
                       "\tOctets this session: %llu (%0.2f/s)\n",
                 state,
                 jctx->header.chkpt.log, jctx->header.chkpt.marker,
-                (unsigned long long)diff.tv_sec, (unsigned int)diff.tv_usec,
+                (long long)diff.tv_sec, (unsigned int)diff.tv_usec,
                 jctx->total_events,
                 (double)jctx->total_events/session_duration_seconds,
                 jctx->total_bytes_read,
@@ -825,8 +825,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
       xmlSetProp(node, (xmlChar *)"session_bytes", (xmlChar *)buff);
   
       sub_timeval(now, ctx->last_connect, &diff);
-      snprintf(buff, sizeof(buff), "%llu.%06d",
-               (unsigned long long)diff.tv_sec, (int)diff.tv_usec);
+      snprintf(buff, sizeof(buff), "%lld.%06d",
+               (long long)diff.tv_sec, (int)diff.tv_usec);
       xmlSetProp(node, (xmlChar *)"session_duration", (xmlChar *)buff);
   
       if(jctx->header.tv_sec) {
@@ -836,8 +836,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
                  (unsigned long long)last.tv_sec, (int)last.tv_usec);
         xmlSetProp(node, (xmlChar *)"last_event", (xmlChar *)buff);
         sub_timeval(now, last, &diff);
-        snprintf(buff, sizeof(buff), "%llu.%06d",
-                 (unsigned long long)diff.tv_sec, (int)diff.tv_usec);
+        snprintf(buff, sizeof(buff), "%lld.%06d",
+                 (long long)diff.tv_sec, (int)diff.tv_usec);
         xmlSetProp(node, (xmlChar *)"last_event_age", (xmlChar *)buff);
       }
     }
@@ -969,7 +969,7 @@ stratcon_console_conf_noits(noit_console_closure_t ncct,
                             void *closure) {
   char *cp, target[128];
   unsigned short port = 43191;
-  int adding = (int)closure;
+  int adding = (int)(vpsized_int)closure;
   if(argc != 1)
     return -1;
 

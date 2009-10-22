@@ -523,7 +523,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   }
   if(exists) {
     int module_change;
-    char *target, *name, *module;
+    char *target = NULL, *name = NULL, *module = NULL;
     xmlNodePtr a;
     noit_check_t *ocheck;
 
