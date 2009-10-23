@@ -36,9 +36,9 @@ ALTER TABLE noit.metric_numeric_rollup_config OWNER TO reconnoiter;
 INSERT INTO metric_numeric_rollup_config VALUES ('5m', 300, NULL, 86400);
 INSERT INTO metric_numeric_rollup_config VALUES ('20m', 1200, '5m', 604800);
 INSERT INTO metric_numeric_rollup_config VALUES ('30m', 1800, '5m', 1209600);
-INSERT INTO metric_numeric_rollup_config VALUES ('4h', 1440, '1h', 7862400);
-INSERT INTO metric_numeric_rollup_config VALUES ('1d', 86400, '4h', 31536000);
 INSERT INTO metric_numeric_rollup_config VALUES ('1h', 3600, '30m', 2592000);
+INSERT INTO metric_numeric_rollup_config VALUES ('4h', 14400, '1h', 7862400);
+INSERT INTO metric_numeric_rollup_config VALUES ('1d', 86400, '4h', 31536000);
 
 --
 -- Name: metric_numeric_rollup_config_pkey; Type: CONSTRAINT; Schema: noit; Owner: reconnoiter; Tablespace: 
