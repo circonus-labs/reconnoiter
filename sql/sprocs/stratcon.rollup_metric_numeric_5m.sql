@@ -58,13 +58,6 @@ BEGIN
            VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/30)*30) * '1 minute'::interval,'30m');
     END IF;
 
-
-    IF v_min_whence <= v_max_rollup_5 THEN
--- do we still need this? i think "we" dont, but maybe some people do? 
-       DELETE FROM metric_numeric_rollup_5m
-           WHERE rollup_time = v_min_whence;
-    END IF;
-
     FOR v_info IN SELECT * FROM stratcon.window_robust_derive(v_min_whence) LOOP
 
         v_offset := ( 12*(extract('hour' from v_min_whence at time zone 'UTC'))+floor(extract('minute' from v_min_whence at time zone 'UTC')/5) );   
