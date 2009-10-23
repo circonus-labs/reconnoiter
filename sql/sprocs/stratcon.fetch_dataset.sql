@@ -41,6 +41,7 @@ DECLARE
     v_interval      numeric;
     v_start_adj     timestamptz;
     v_end_adj       timestamptz;
+    v_rollup        text;
     v_l_rollup_row  stratcon.metric_numeric_rollup_segment%rowtype;
     v_rollup_row    stratcon.metric_numeric_rollup_segment%rowtype;
     v_r_rollup_row  stratcon.metric_numeric_rollup_segment%rowtype;
@@ -52,32 +53,23 @@ BEGIN
         RETURN;
     END IF;
 
+    select array_to_string(regexp_matches (v_target.tablename, '_([^_]+)$'),'') into v_rollup;
+
     -- round start and end timestamps to period precision (i.e. to 5 minutes, or 1 hour, or ...)
     v_start_adj := ( 'epoch'::timestamp + v_target.period * floor( extract('epoch' from in_start_time) / v_target.epoch_period ) ) AT TIME ZONE 'UTC';
     v_end_adj   := ( 'epoch'::timestamp + v_target.period * floor( extract('epoch' from in_end_time)   / v_target.epoch_period ) ) AT TIME ZONE 'UTC';
 
     -- build sql using placeholders ([something]) to make it more readable than using ' || ... || ' all the time.
     v_sql_subtable := $SQL$
-        select *
-        from stratcon.[tablename]
-        where
-            sid = [in_sid]
-            and "name" = [in_name]
-            and rollup_time between [v_start_adj]::timestamp AND [v_end_adj]::timestamp
+        SELECT *
+        FROM stratcon.unroll_metric_numeric(
+            [in_sid],
+            [in_name],
+            [v_start_adj]::timestamp,
+            [v_end_adj]::timestamp,
+            [v_rollup]
+        )
     $SQL$;
-    IF v_target.tablename = 'metric_numeric_rollup_5m' THEN
-
-        v_sql_subtable := $SQL$
-            SELECT *
-            FROM stratcon.unroll_metric_numeric_5m(
-                [in_sid],
-                [in_name],
-                [v_start_adj]::timestamp,
-                [v_end_adj]::timestamp
-            )
-        $SQL$;
-
-    END IF;
 
     v_sql := $SQL$
         select
@@ -103,6 +95,7 @@ BEGIN
     v_sql := replace( v_sql, '[period]',      quote_literal( v_target.period )  );
     v_sql := replace( v_sql, '[nperiods]',    v_target.nperiods::TEXT           );
     v_sql := replace( v_sql, '[tablename]',   quote_ident( v_target.tablename ) );
+    v_sql := replace( v_sql, '[v_rollup]',    quote_literal( v_rollup )         );
 
     FOR v_rollup_row IN EXECUTE v_sql LOOP
         IF derive IS TRUE THEN
