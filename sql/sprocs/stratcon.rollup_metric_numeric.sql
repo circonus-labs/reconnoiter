@@ -54,12 +54,6 @@ BEGIN
         v_sql := 'SELECT MAX(rollup_time) FROM metric_numeric_rollup_' || in_roll;
         EXECUTE v_sql INTO v_max_rollup;
 
-RAISE NOTICE 'v_min_whence was (%), v_max_rollup was (%)',v_min_whence, v_max_rollup;  
-        IF v_min_whence <= v_max_rollup THEN
-            v_sql := 'DELETE FROM metric_numeric_rollup_'||in_roll||' WHERE rollup_time = '||quote_literal(v_min_whence);
-            EXECUTE v_sql;
-        END IF;
-
         -- now() in following query is just a placeholder to get named field (use_whence) in temprec.
         FOR v_temprec IN SELECT *, now() as use_whence FROM noit.metric_numeric_rollup_config WHERE dependent_on = in_roll LOOP
             -- Following formula gives equivalent of date_trunc(..) but working on basically any unit - like "10 minutes"
