@@ -1,0 +1,47 @@
+Listen 8080
+User nobody
+Group nobody
+PIDFile @ROOT@/logs/httpd.pid
+LockFile @ROOT@/logs/httpd.lock
+DocumentRoot @ROOT@/htdocs
+
+LoadModule php5_module /usr/libexec/apache2/libphp5.so
+LoadModule authz_host_module /usr/libexec/apache2/mod_authz_host.so
+LoadModule log_config_module /usr/libexec/apache2/mod_log_config.so
+LoadModule mime_module /usr/libexec/apache2/mod_mime.so
+LoadModule dir_module /usr/libexec/apache2/mod_dir.so
+LoadModule rewrite_module /usr/libexec/apache2/mod_rewrite.so
+
+<Directory "/">
+    Options None
+    AllowOverride None
+    Order allow,deny
+    Deny from all
+</Directory>
+<FilesMatch "^\.ht">
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</FilesMatch>
+
+<Directory "@ROOT@/htdocs/">
+    php_value include_path @ROOT@/lib
+    php_value short_open_tag off
+    Options FollowSymLinks Indexes
+    AllowOverride All
+    Order deny,allow
+    Allow from all
+</Directory>
+
+LogLevel warn
+LogFormat "%h %l %u %t \"%r\" %>s %b" common
+
+ErrorLog @ROOT@/logs/error_log
+CustomLog @ROOT@/logs/access_log common
+
+#TypesConfig /opt/apache22/conf/mime.types
+AddType application/x-compress .Z
+AddType application/x-gzip .gz .tgz
+AddType application/x-httpd-php .php
+DirectoryIndex index.php
+DefaultType text/plain
