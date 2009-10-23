@@ -7,7 +7,7 @@ DECLARE
     v_min_whence    TIMESTAMPTZ;
     v_max_rollup    TIMESTAMPTZ;
     v_whence        TIMESTAMPTZ;
-    v_taskid        INT;
+    v_taskid        INTEGER;
     v_locked        BOOLEAN;
     v_this_roll     TEXT;
     v_stored_rollup TIMESTAMPTZ;
@@ -15,6 +15,7 @@ DECLARE
     v_init          BOOLEAN := FALSE;
     v_i             SMALLINT;
     v_temprec       RECORD;
+    v_count         INTEGER;
 BEGIN
     -- Get rollup config based on given name, and fail if its wrong name.
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
@@ -84,7 +85,8 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
             v_sql := v_sql ||' and sid='||v_rec.sid||' and name = '|| quote_literal(v_rec.name);
 
             EXECUTE v_sql INTO v_segment;
-            IF v_segment IS NOT NULL THEN
+            GET DIAGNOSTICS v_count = ROW_COUNT;
+            IF v_count = 0 THEN
                 v_segment := stratcon.init_metric_numeric_rollup_segment( in_roll );
                 v_init := true;
                 RAISE NOTICE 'didnt find sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup, v_offset;
@@ -106,6 +108,7 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
                 v_sql := 'UPDATE metric_numeric_rollup_'||in_roll;
                 v_sql := v_sql || 'SET (count_rows,avg_value,counter_dev) = ('||v_rec.count_rows||','||v_rec.avg_value||','||v_rec.counter_dev||')';
                 v_sql := v_sql || 'WHERE rollup_time = '||v_stored_rollup||'  AND sid = '||v_info.sid||'  AND name = '||quote_literal(v_info.name);
+                EXECUTE v_sql; 
             END IF;
 
         v_i := v_i + 1;
