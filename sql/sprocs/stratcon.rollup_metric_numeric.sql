@@ -18,6 +18,11 @@ DECLARE
     v_temprec       RECORD;
     v_count         INTEGER;
 BEGIN
+    IF in_roll = '5m' THEN
+        PERFORM stratcon.rollup_metric_numeric_5m();
+        RETURN 0;
+    END IF;
+
     -- Get rollup config based on given name, and fail if its wrong name.
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
     IF NOT FOUND THEN
@@ -81,10 +86,6 @@ RAISE NOTICE 'v_sql was (%), %, %, %',v_sql,v_min_whence, v_min_whence + (v_conf
             v_stored_rollup_tm := 'epoch'::timestamptz + v_stored_rollup * '1 second'::interval;
             v_offset        := floor( ( extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.seconds );
 
-            --v_offset := ( 12*(extract('hour' from v_info.rollup_time))+floor(extract('minute' from v_info.rollup_time)/5) );
-            --v_stored_rollup := v_info.rollup_time::date;
-            -- RAISE NOTICE 'sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup, v_offset;
-
             v_sql := 'SELECT * FROM metric_numeric_rollup_'||in_roll||' WHERE rollup_time = '||quote_literal(v_stored_rollup_tm);
             v_sql := v_sql ||' and sid='||v_rec.sid||' and name = '|| quote_literal(v_rec.name);
 
@@ -104,15 +105,14 @@ RAISE NOTICE 'v_sql was (%), %, %, %',v_sql,v_min_whence, v_min_whence + (v_conf
 
             IF v_init THEN
                 v_sql := 'INSERT INTO metric_numeric_rollup_'||in_roll||' (sid,name,rollup_time,count_rows,avg_value,counter_dev)
-                    VALUES ('|| v_segment.sid||','||quote_literal(v_segment.name)||','||quote_literal(v_stored_rollup_tm)||','||v_segment.count_rows
-                    ||','||v_segment.avg_value||','||v_segment.counter_dev||')';
-                EXECUTE v_sql;
+                    VALUES ($1,$2,$3,$4,$5,$6)';
+                EXECUTE v_sql USING v_segment.sid, v_segment.name, v_stored_rollup_tm, v_segment.count_rows, v_segment.avg_value, v_segment.counter_dev;
                 v_init := false;
             ELSE
                 v_sql := 'UPDATE metric_numeric_rollup_'||in_roll;
-                v_sql := v_sql || 'SET (count_rows,avg_value,counter_dev) = ('||v_rec.count_rows||','||v_rec.avg_value||','||v_rec.counter_dev||')';
-                v_sql := v_sql || 'WHERE rollup_time = '||v_stored_rollup_tm||'  AND sid = '||v_info.sid||'  AND name = '||quote_literal(v_info.name);
-                EXECUTE v_sql; 
+                v_sql := v_sql || ' SET (count_rows,avg_value,counter_dev) = ($1,$2,$3)';
+                v_sql := v_sql || ' WHERE rollup_time = $4  AND sid = $5 AND name = $6';
+                EXECUTE v_sql USING v_segment.count_rows, v_segment.avg_value, v_segment.counter_dev, v_stored_rollup_tm, v_segment.sid, v_segment.name; 
             END IF;
 
         v_i := v_i + 1;
