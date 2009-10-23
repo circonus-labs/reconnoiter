@@ -952,6 +952,14 @@ build_insert_batch(interim_journal_t *ij) {
   struct stat st;
   ds_line_detail *head = NULL, *last = NULL, *next = NULL;
 
+  if(ij->fd < 0) {
+    ij->fd = open(ij->filename, O_RDONLY);
+    if(ij->fd < 0) {
+      noitL(noit_error, "Cannot open interim journal '%s': %s\n",
+            ij->filename, strerror(errno));
+      assert(ij->fd >= 0);
+    }
+  }
   while((rv = fstat(ij->fd, &st)) == -1 && errno == EINTR);
   assert(rv != -1);
   len = st.st_size;
@@ -973,6 +981,7 @@ build_insert_batch(interim_journal_t *ij) {
     lcp = cp + 1;
   }
   munmap((void *)buff, len);
+  close(ij->fd);
   return head;
 }
 static void
@@ -1077,6 +1086,8 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
     noitL(noit_debug, "Syncing journal set [%s,%s,%s]\n",
           ij->remote_str, ij->remote_cn, ij->fqdn);
     fsync(ij->fd);
+    close(ij->fd);
+    ij->fd = -1;
     ingest = eventer_alloc();
     ingest->mask = EVENTER_ASYNCH;
     ingest->callback = stratcon_datastore_asynch_execute;
@@ -1409,13 +1420,14 @@ stratcon_datastore_launch_file_ingestion(char *remote_str, char *remote_cn,
     free(ij);
     return;
   }
+  close(ij->fd);
+  ij->fd = -1;
   ij->filename = strdup(path);
   ij->remote_str = strdup(remote_str);
   ij->remote_cn = strdup(remote_cn);
   ij->storagenode_id = atoi(id_str);
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
-
   noitL(noit_error, "ingesting old payload: %s\n", ij->filename);
   ingest = eventer_alloc();
   ingest->mask = EVENTER_ASYNCH;
