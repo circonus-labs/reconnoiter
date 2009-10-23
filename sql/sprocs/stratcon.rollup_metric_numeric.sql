@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION stratcon.rollup_metric_numeric(in_roll text) RETURNS int AS $$
 DECLARE
     v_rec           stratcon.metric_numeric_rollup_segment%rowtype;
-    v_segment       stratcon.metric_numeric_rollup_segment%rowtype;
+    v_segment       stratcon.metric_numeric_rollup%rowtype;
     v_conf          RECORD;
     v_sql           TEXT;
     v_min_whence    TIMESTAMPTZ;
