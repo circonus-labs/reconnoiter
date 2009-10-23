@@ -13,12 +13,12 @@ IF TG_OP = 'INSERT' THEN
  
  v_whence_5:=date_trunc('H',NEW.WHENCE) + (round(extract('minute' from NEW.WHENCE)/5)*5) * '1 minute'::interval;
  
-   SELECT whence FROM noit.metric_numeric_rollup_queue WHERE whence=v_whence_5 and interval='5 minutes'
+   SELECT whence FROM noit.metric_numeric_rollup_queue WHERE whence=v_whence_5 and interval='5m'
      INTO v_whence;
      
    IF NOT FOUND THEN
       BEGIN
-       INSERT INTO  noit.metric_numeric_rollup_queue VALUES(v_whence_5,'5 minutes');
+       INSERT INTO  noit.metric_numeric_rollup_queue VALUES(v_whence_5,'5m');
        EXCEPTION
         WHEN UNIQUE_VIOLATION THEN
         -- do nothing 
