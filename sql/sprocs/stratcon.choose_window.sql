@@ -27,7 +27,7 @@ begin
                             'metric_numeric_rollup_30m' as atablename
                   union all
                      select 60*60 as isec, '1 hour'::interval as aperiod,
-                            'metric_numeric_rollup_60m' as atablename
+                            'metric_numeric_rollup_1hour' as atablename
                   union all
                      select 4*60*60 as isec, '4 hours'::interval as aaperiod,
                             'metric_numeric_rollup_4hour' as atablename
