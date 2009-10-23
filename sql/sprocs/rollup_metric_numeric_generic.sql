@@ -33,7 +33,7 @@ IF v_locked = false THEN
     RETURN 0;
 END IF;
 
-SELECT * FROM stratcon.window_config WHERE win = in_roll INTO v_conf; 
+SELECT * FROM stratcon.metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf; 
 
 LOOP
     IF v_i > 10 THEN
@@ -62,16 +62,17 @@ LOOP
  
     END IF;
 
+/* THIS V_SQL NEEDS TO BE REWRITTEN TO GET THE VALUE FROM ARRAY BASED TABLES */ 
     v_sql := 'SELECT sid, name, '|| v_min_whence || ' as rollup_time, 
                      SUM(1) as count_rows ,(SUM(avg_value*1)/SUM(1)) as avg_value, 
                      (SUM(counter_dev*1)/SUM(1)) as counter_dev 
-              FROM metric_numeric_rollup_'||v_conf.dep_roll||' 
-              WHERE rollup_time<= '|| v_min_whence ||' AND rollup_time > ' || v_min_whence - v_conf.int * '1 second'::interval || '
+              FROM metric_numeric_rollup_'||v_conf.dependent_on||' 
+              WHERE rollup_time<= '|| v_min_whence ||' AND rollup_time > ' || v_min_whence - v_conf.seconds * '1 second'::interval || '
               GROUP BY sid, name';
 
     FOR v_rec IN EXECUTE v_sql LOOP
-            v_stored_rollup := floor(extract('epoch' from v_rec.rollup_time)/v_conf.window)+vconf.window; 
-            v_offset := floor( (extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.int );
+            v_stored_rollup := floor(extract('epoch' from v_rec.rollup_time)/v_conf.span)+vconf.window; 
+            v_offset := floor( (extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.seconds );
  
             --v_offset := ( 12*(extract('hour' from v_info.rollup_time))+floor(extract('minute' from v_info.rollup_time)/5) );
             --v_stored_rollup := v_info.rollup_time::date;
