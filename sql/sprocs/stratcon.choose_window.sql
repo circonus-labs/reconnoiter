@@ -23,14 +23,17 @@ begin
                      select 20*60 as isec, '20 minutes'::interval as aperiod,
                             'metric_numeric_rollup_20m' as atablename
                   union all
+                     select 30*60 as isec, '30 minutes'::interval as aperiod,
+                            'metric_numeric_rollup_30m' as atablename
+                  union all
                      select 60*60 as isec, '1 hour'::interval as aperiod,
                             'metric_numeric_rollup_60m' as atablename
                   union all
-                     select 6*60*60 as isec, '6 hours'::interval as aaperiod,
-                            'metric_numeric_rollup_6hours' as atablename
+                     select 4*60*60 as isec, '4 hours'::interval as aaperiod,
+                            'metric_numeric_rollup_4hour' as atablename
                   union all
-                     select 12*60*60 as isec, '12 hours'::interval as aperiod,
-                            'metric_numeric_rollup_12hours' as atablename
+                     select 24*60*60 as isec, '1 day'::interval as aperiod,
+                            'metric_numeric_rollup_1day' as atablename
                  ) ivs
          ) b
  order by badness asc
