@@ -16,10 +16,10 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- Name: metric_numeric_rollup_60m; Type: TABLE; Schema: noit; Owner: reconnoiter; Tablespace: 
+-- Name: metric_numeric_rollup_1hour; Type: TABLE; Schema: noit; Owner: reconnoiter; Tablespace: 
 --
 
-CREATE TABLE metric_numeric_rollup_60m (
+CREATE TABLE metric_numeric_rollup_1hour (
     sid integer NOT NULL,
     name text NOT NULL,
     rollup_time timestamp with time zone NOT NULL,
@@ -29,25 +29,25 @@ CREATE TABLE metric_numeric_rollup_60m (
 );
 
 
-ALTER TABLE noit.metric_numeric_rollup_60m OWNER TO reconnoiter;
+ALTER TABLE noit.metric_numeric_rollup_1hour OWNER TO reconnoiter;
 
 --
--- Name: metric_numeric_rollup_60m_pkey; Type: CONSTRAINT; Schema: noit; Owner: reconnoiter; Tablespace: 
+-- Name: metric_numeric_rollup_1hour_pkey; Type: CONSTRAINT; Schema: noit; Owner: reconnoiter; Tablespace: 
 --
 
-ALTER TABLE ONLY metric_numeric_rollup_60m
-    ADD CONSTRAINT metric_numeric_rollup_60m_pkey PRIMARY KEY (rollup_time, sid, name);
+ALTER TABLE ONLY metric_numeric_rollup_1hour
+    ADD CONSTRAINT metric_numeric_rollup_1hour_pkey PRIMARY KEY (rollup_time, sid, name);
 
 
 --
--- Name: metric_numeric_rollup_60m; Type: ACL; Schema: noit; Owner: reconnoiter
+-- Name: metric_numeric_rollup_1hour; Type: ACL; Schema: noit; Owner: reconnoiter
 --
 
-REVOKE ALL ON TABLE metric_numeric_rollup_60m FROM PUBLIC;
-REVOKE ALL ON TABLE metric_numeric_rollup_60m FROM reconnoiter;
-GRANT ALL ON TABLE metric_numeric_rollup_60m TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_numeric_rollup_60m TO stratcon;
-GRANT SELECT ON TABLE metric_numeric_rollup_60m TO prism;
+REVOKE ALL ON TABLE metric_numeric_rollup_1hour FROM PUBLIC;
+REVOKE ALL ON TABLE metric_numeric_rollup_1hour FROM reconnoiter;
+GRANT ALL ON TABLE metric_numeric_rollup_1hour TO reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_numeric_rollup_1hour TO stratcon;
+GRANT SELECT ON TABLE metric_numeric_rollup_1hour TO prism;
 
 
 --

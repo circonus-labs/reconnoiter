@@ -40,19 +40,10 @@ ALTER TABLE ONLY metric_numeric_rollup_20m
 
 
 --
--- Name: metric_numeric_rollup_20m_rollup_time_idx; Type: INDEX; Schema: noit; Owner: reconnoiter; Tablespace: 
---
-
-CREATE INDEX metric_numeric_rollup_20m_rollup_time_idx ON metric_numeric_rollup_20m USING btree (date_hour(rollup_time));
-
-
---
 -- Name: metric_numeric_rollup_20m; Type: ACL; Schema: noit; Owner: reconnoiter
 --
 
 REVOKE ALL ON TABLE metric_numeric_rollup_20m FROM PUBLIC;
-REVOKE ALL ON TABLE metric_numeric_rollup_20m FROM reconnoiter;
-GRANT ALL ON TABLE metric_numeric_rollup_20m TO reconnoiter;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_numeric_rollup_20m TO stratcon;
 GRANT SELECT ON TABLE metric_numeric_rollup_20m TO prism;
 
