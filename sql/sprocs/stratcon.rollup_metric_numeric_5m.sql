@@ -48,6 +48,17 @@ BEGIN
            VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval,'20m');
     END IF;
 
+    -- Insert Log for 30 minutes rollup
+   
+    SELECT whence FROM metric_numeric_rollup_queue 
+        WHERE whence=date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/30)*30) * '1 minute'::interval and interval='30m'
+        INTO v_whence;
+    IF NOT FOUND THEN
+       INSERT INTO  metric_numeric_rollup_queue 
+           VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/30)*30) * '1 minute'::interval,'30m');
+    END IF;
+
+
     IF v_min_whence <= v_max_rollup_5 THEN
 -- do we still need this? i think "we" dont, but maybe some people do? 
        DELETE FROM metric_numeric_rollup_5m
