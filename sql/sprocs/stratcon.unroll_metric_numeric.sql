@@ -34,7 +34,7 @@ BEGIN
         -- ( $x is null or field = $x )
         -- which means - for every given sid/name - we will search for only this sid/name. But when given NULLs, it will return data on all sid/names.
         v_sql := 'SELECT * FROM metric_numeric_rollup_' || in_roll || ' WHERE ';
-        v_sql := 'rollup_time = $1 AND sid = coalesce( $2, sid ) AND "name" = coalesce( $3, "name" )';
+        v_sql := v_sql || 'rollup_time = $1 AND sid = coalesce( $2, sid ) AND "name" = coalesce( $3, "name" )';
 
         -- Following code (EXECUTE ... USING ... will work only from 8.4 on!
         FOR temprec IN EXECUTE v_sql USING v_rollup_time, in_sid, in_name LOOP
