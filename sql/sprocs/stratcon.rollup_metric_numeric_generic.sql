@@ -17,7 +17,7 @@ DECLARE
     v_temprec       RECORD;
 BEGIN
     -- Get rollup config based on given name, and fail if its wrong name.
-    SELECT * FROM stratcon.metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
+    SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
     IF NOT FOUND THEN
         raise exception 'Given rollup name is invalid! [%]', in_roll;
     END IF;

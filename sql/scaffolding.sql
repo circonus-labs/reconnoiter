@@ -21,11 +21,12 @@ grant usage on schema prism to prism;
 
 \i tables/noit.check_status_changelog.sql
 \i tables/noit.metric_numeric_rollup_config.sql
-\i tables/noit.metric_numeric_rollup_12hours.sql
+\i tables/noit.metric_numeric_rollup_1day.sql
 \i tables/noit.metric_numeric_rollup_20m.sql
+\i tables/noit.metric_numeric_rollup_30m.sql
+\i tables/noit.metric_numeric_rollup_4h.sql
 \i tables/noit.metric_numeric_rollup_5m.sql
 \i tables/noit.metric_numeric_rollup_60m.sql
-\i tables/noit.metric_numeric_rollup_6hours.sql
 \i tables/noit.metric_numeric_rollup_queue.sql
 \i tables/noit.metric_text_changelog.sql
 \i tables/noit.metric_text_currently.sql
@@ -47,6 +48,7 @@ grant usage on schema prism to prism;
 \i sprocs/noit.update_mns_via_check_tag.sql
 \i sprocs/noit.update_mns_via_metric_tag.sql
 \i sprocs/noit.update_mns_via_self.sql
+\i sprocs/stratcon.window_robust_derive.sql
 \i sprocs/stratcon.choose_window.sql
 \i sprocs/stratcon.unroll_metric_numeric.sql
 \i sprocs/stratcon.fetch_dataset.sql
@@ -54,10 +56,10 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.get_storage_node_for_sid.sql
 \i sprocs/stratcon.init_metric_numeric_rollup_5m.sql
 \i sprocs/stratcon.map_uuid_to_sid.sql
-\i sprocs/stratcon.window_robust_derive.sql
 \i sprocs/stratcon.update_config.sql
 \i sprocs/stratcon.rollup_metric_numeric_5m.sql
 \i sprocs/stratcon.metric_name_summary_compile_fts_data.sql
+\i sprocs/stratcon.rollup_metric_numeric_generic.sql
 
 \i sprocs/prism.add_graph_tags.sql
 \i sprocs/prism.add_tags.sql
