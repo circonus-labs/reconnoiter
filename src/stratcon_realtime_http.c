@@ -426,7 +426,6 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     /* Each interest references the ctx */
     for(node = rc->checklist; node; node = node->next) {
       noit_atomic_inc32(&ctx->ref_cnt);
-      stratcon_datastore_push(DS_OP_FIND, NULL, node);
       noitL(noit_error, "Resolving sid: %d\n", node->sid);
     }
     completion = eventer_alloc();
@@ -434,7 +433,8 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     completion->callback = stratcon_realtime_http_postresolve;
     completion->closure = ctx;
     gettimeofday(&completion->whence, NULL);
-    stratcon_datastore_push(DS_OP_FIND_COMPLETE, NULL, completion);
+    stratcon_datastore_push(DS_OP_FIND_COMPLETE, NULL, NULL,
+                            rc->checklist, completion);
   }
   return EVENTER_EXCEPTION;
 }

@@ -370,7 +370,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       case JLOG_STREAMER_WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
         if(ctx->header.message_len > 0)
-          ctx->push(DS_OP_INSERT, &nctx->r.remote, ctx->buffer);
+          ctx->push(DS_OP_INSERT, &nctx->r.remote, nctx->remote_cn,
+                    ctx->buffer, NULL);
         else if(ctx->buffer)
           free(ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
@@ -384,7 +385,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           memcpy(completion_e, e, sizeof(*e));
           completion_e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = JLOG_STREAMER_IS_ASYNC;
-          ctx->push(DS_OP_CHKPT, &nctx->r.remote, completion_e);
+          ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
+                    NULL, completion_e);
           noitL(noit_debug, "Pushing batch asynch...\n");
           return 0;
         } else

@@ -43,17 +43,20 @@
 typedef enum {
  DS_OP_INSERT = 1,
  DS_OP_CHKPT = 2,
- DS_OP_FIND = 3,
- DS_OP_FIND_COMPLETE = 4
+ DS_OP_FIND_COMPLETE = 3
 } stratcon_datastore_op_t;
 
 API_EXPORT(void)
   stratcon_datastore_push(stratcon_datastore_op_t,
-                          struct sockaddr *, void *);
+                          struct sockaddr *, const char *, void *, eventer_t);
 
 API_EXPORT(void)
   stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
-                                                 struct sockaddr *, void *));
+                                                 struct sockaddr *,
+                                                 const char *, void *));
+
+API_EXPORT(void)
+  stratcon_datastore_init();
 
 API_EXPORT(int)
   stratcon_datastore_saveconfig(void *unused);
