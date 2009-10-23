@@ -20,6 +20,7 @@ grant usage on schema prism to prism;
 \i sprocs/noit.date_hour.sql
 
 \i tables/noit.check_status_changelog.sql
+\i tables/noit.metric_numeric_rollup_config.sql
 \i tables/noit.metric_numeric_rollup_12hours.sql
 \i tables/noit.metric_numeric_rollup_20m.sql
 \i tables/noit.metric_numeric_rollup_5m.sql
@@ -47,7 +48,7 @@ grant usage on schema prism to prism;
 \i sprocs/noit.update_mns_via_metric_tag.sql
 \i sprocs/noit.update_mns_via_self.sql
 \i sprocs/stratcon.choose_window.sql
-\i sprocs/stratcon.unroll_metric_numeric_5m.sql
+\i sprocs/stratcon.unroll_metric_numeric.sql
 \i sprocs/stratcon.fetch_dataset.sql
 \i sprocs/stratcon.fetch_varset.sql
 \i sprocs/stratcon.get_storage_node_for_sid.sql
