@@ -54,12 +54,12 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.fetch_dataset.sql
 \i sprocs/stratcon.fetch_varset.sql
 \i sprocs/stratcon.get_storage_node_for_sid.sql
-\i sprocs/stratcon.init_metric_numeric_rollup_5m.sql
+\i sprocs/stratcon.init_metric_numeric_rollup.sql
 \i sprocs/stratcon.map_uuid_to_sid.sql
 \i sprocs/stratcon.update_config.sql
 \i sprocs/stratcon.rollup_metric_numeric_5m.sql
 \i sprocs/stratcon.metric_name_summary_compile_fts_data.sql
-\i sprocs/stratcon.rollup_metric_numeric_generic.sql
+\i sprocs/stratcon.rollup_metric_numeric.sql
 
 \i sprocs/prism.add_graph_tags.sql
 \i sprocs/prism.add_tags.sql

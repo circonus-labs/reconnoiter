@@ -10,7 +10,8 @@ DECLARE
     v_taskid        INTEGER;
     v_locked        BOOLEAN;
     v_this_roll     TEXT;
-    v_stored_rollup TIMESTAMPTZ;
+    v_stored_rollup INTEGER;
+    v_stored_rollup_tm TIMESTAMPTZ;
     v_offset        INTEGER;
     v_init          BOOLEAN := FALSE;
     v_i             SMALLINT;
@@ -69,27 +70,30 @@ RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence;
                 );
         END LOOP;
 
-        v_sql := 'SELECT sid, name, $2 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
-                  FROM  stratcon.unroll_metric_numeric( $2, $1, $3)
+        v_sql := 'SELECT sid, name, $1 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
+                  FROM  stratcon.unroll_metric_numeric( $1, $2, $3)
                   GROUP BY sid, name';
-RAISE NOTICE 'v_sql was (%)',v_sql; 
-        FOR v_rec IN EXECUTE v_sql USING v_min_whence - v_conf.seconds * '1 second'::INTERVAL, v_min_whence, v_conf.dependent_on LOOP
-            v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) + v_conf.window;
+RAISE NOTICE 'v_sql was (%), %, %, %',v_sql,v_min_whence, v_min_whence + (v_conf.seconds - 1) * '1 second'::interval, v_conf.dependent_on; 
+        FOR v_rec IN EXECUTE v_sql USING v_min_whence,
+                                         v_min_whence + (v_conf.seconds - 1) * '1 second'::interval,
+                                         v_conf.dependent_on LOOP
+            v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) * v_conf.span;
+            v_stored_rollup_tm := 'epoch'::timestamptz + v_stored_rollup * '1 second'::interval;
             v_offset        := floor( ( extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.seconds );
 
             --v_offset := ( 12*(extract('hour' from v_info.rollup_time))+floor(extract('minute' from v_info.rollup_time)/5) );
             --v_stored_rollup := v_info.rollup_time::date;
             -- RAISE NOTICE 'sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup, v_offset;
 
-            v_sql := 'SELECT * FROM metric_numeric_rollup_'||in_roll||' WHERE rollup_time = '||quote_literal(v_stored_rollup);
+            v_sql := 'SELECT * FROM metric_numeric_rollup_'||in_roll||' WHERE rollup_time = '||quote_literal(v_stored_rollup_tm);
             v_sql := v_sql ||' and sid='||v_rec.sid||' and name = '|| quote_literal(v_rec.name);
 
             EXECUTE v_sql INTO v_segment;
             GET DIAGNOSTICS v_count = ROW_COUNT;
             IF v_count = 0 THEN
-                v_segment := stratcon.init_metric_numeric_rollup_segment( in_roll );
+                v_segment := stratcon.init_metric_numeric_rollup( in_roll );
                 v_init := true;
-                RAISE NOTICE 'didnt find sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup, v_offset;
+                RAISE NOTICE 'didnt find sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup_tm, v_offset;
             END IF;
 
             v_segment.sid                   := v_rec.sid;
@@ -100,14 +104,14 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
 
             IF v_init THEN
                 v_sql := 'INSERT INTO metric_numeric_rollup_'||in_roll||' (sid,name,rollup_time,count_rows,avg_value,counter_dev)
-                    VALUES ('|| v_segment.sid||','||quote_literal(v_segment.name)||','||quote_literal(v_stored_rollup)||','||v_segment.count_rows
+                    VALUES ('|| v_segment.sid||','||quote_literal(v_segment.name)||','||quote_literal(v_stored_rollup_tm)||','||v_segment.count_rows
                     ||','||v_segment.avg_value||','||v_segment.counter_dev||')';
                 EXECUTE v_sql;
                 v_init := false;
             ELSE
                 v_sql := 'UPDATE metric_numeric_rollup_'||in_roll;
                 v_sql := v_sql || 'SET (count_rows,avg_value,counter_dev) = ('||v_rec.count_rows||','||v_rec.avg_value||','||v_rec.counter_dev||')';
-                v_sql := v_sql || 'WHERE rollup_time = '||v_stored_rollup||'  AND sid = '||v_info.sid||'  AND name = '||quote_literal(v_info.name);
+                v_sql := v_sql || 'WHERE rollup_time = '||v_stored_rollup_tm||'  AND sid = '||v_info.sid||'  AND name = '||quote_literal(v_info.name);
                 EXECUTE v_sql; 
             END IF;
 

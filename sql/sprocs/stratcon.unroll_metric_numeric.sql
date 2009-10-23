@@ -16,6 +16,9 @@ DECLARE
     v_sql           TEXT;
     temprec         RECORD;
 BEGIN
+    IF in_start IS NULL OR in_end IS NULL THEN
+      RAISE EXCEPTION 'start and end must be not null (%,%)', in_start, in_end;
+    END IF;
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf; 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unknown rollup %', in_roll;

@@ -30,9 +30,9 @@ BEGIN
     RETURN ;
   END IF;
 
-  FOR whenceint IN SELECT * FROM metric_numeric_rollup_queue WHERE interval='5 minutes' LOOP
+  FOR whenceint IN SELECT * FROM metric_numeric_rollup_queue WHERE interval='5m' LOOP
 
-    SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE interval='5 minutes'
+    SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE interval='5m'
         INTO v_min_whence;
         
     SELECT MAX(rollup_time) FROM metric_numeric_rollup_5m
@@ -41,11 +41,11 @@ BEGIN
     -- Insert Log for 20 minutes rollup
    
     SELECT whence FROM metric_numeric_rollup_queue 
-        WHERE whence=date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval and interval='20 minutes'
+        WHERE whence=date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval and interval='20m'
         INTO v_whence;
     IF NOT FOUND THEN
        INSERT INTO  metric_numeric_rollup_queue 
-           VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval,'20 minutes');
+           VALUES(date_trunc('H',v_min_whence) + (round(extract('minute' from v_min_whence)/20)*20) * '1 minute'::interval,'20m');
     END IF;
 
     IF v_min_whence <= v_max_rollup_5 THEN
@@ -62,7 +62,7 @@ BEGIN
         v_init := false;
         SELECT * FROM metric_numeric_rollup_5m WHERE rollup_time = v_info.rollup_time AND sid=v_info.sid AND name=v_info.name INTO v_rec;
 	IF NOT FOUND THEN 
-		SELECT * FROM stratcon.init_metric_numeric_rollup_5m() INTO v_rec; 
+		SELECT * FROM stratcon.init_metric_numeric_rollup('5m') INTO v_rec; 
 		v_init := true; 
 	END IF;
 
@@ -85,7 +85,7 @@ BEGIN
     END LOOP;
  
     -- Delete from whence log table
-    DELETE FROM metric_numeric_rollup_queue WHERE WHENCE=v_min_whence AND INTERVAL='5 minutes';
+    DELETE FROM metric_numeric_rollup_queue WHERE WHENCE=v_min_whence AND INTERVAL='5m';
  
     v_min_whence:= NULL;
     v_max_rollup_5:= NULL;
