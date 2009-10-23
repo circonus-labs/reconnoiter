@@ -1287,6 +1287,8 @@
 		}
 
                 for (var i = 0; i < data.length; ++i) {
+                    if(data[i] == null || data[i][0] == null || data[i][1] == null)
+                        continue;
                     prev = cur;
                     cur = [data[i][0], data[i][1]];
 
