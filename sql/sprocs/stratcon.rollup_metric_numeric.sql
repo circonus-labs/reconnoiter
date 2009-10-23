@@ -41,12 +41,13 @@ BEGIN
             RETURN 1;
         END IF;
 
-        SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE "interval" = in_roll;
+        SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE "interval" = in_roll INTO v_min_whence;
         EXIT WHEN NOT FOUND;
 
         v_sql := 'SELECT MAX(rollup_time) FROM metric_numeric_rollup_' || in_roll;
         EXECUTE v_sql INTO v_max_rollup;
 
+RAISE NOTICE 'v_min_whence was (%), v_max_rollup was (%)',v_min_whence, v_max_rollup;  
         IF v_min_whence <= v_max_rollup THEN
             v_sql := 'DELETE FROM metric_numeric_rollup_'||in_roll||' WHERE rollup_time = '||quote_literal(v_min_whence);
             EXECUTE v_sql;
@@ -58,18 +59,19 @@ BEGIN
             -- The unit has to be given in seconds, AND provided as v_temprec.seconds
             v_temprec.use_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_temprec.seconds * floor(extract( epoch FROM now() ) / v_temprec.seconds);
 
+RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence; 
             -- Poor mans UPSERT :)
             INSERT INTO metric_numeric_rollup_queue ("interval", whence)
                 SELECT v_temprec.rollup, v_temprec.use_whence
                 WHERE NOT EXISTS (
-                    SELECT * FROM metric_numeric_rollup_queue WHERE ( "INTERVAL", whence ) = ( v_temprec.rollup, v_temprec.use_whence )
+                    SELECT * FROM metric_numeric_rollup_queue WHERE ( "interval", whence ) = ( v_temprec.rollup, v_temprec.use_whence )
                 );
         END LOOP;
 
         v_sql := 'SELECT sid, name, $2 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
                   FROM  stratcon.unroll_metric_numeric( $2, $1, $3)
                   GROUP BY sid, name';
-
+RAISE NOTICE 'v_sql was (%)',v_sql; 
         FOR v_rec IN EXECUTE v_sql USING v_min_whence - v_conf.seconds * '1 second'::INTERVAL, v_min_whence, v_conf.dependent_on LOOP
             v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) + v_conf.window;
             v_offset        := floor( ( extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.seconds );
@@ -110,8 +112,7 @@ BEGIN
         END LOOP;
 
         -- Delete from whence log table
-
-        DELETE FROM metric_numeric_rollup_queue WHERE WHENCE=v_min_whence AND INTERVAL=in_roll;
+        DELETE FROM metric_numeric_rollup_queue WHERE whence=v_min_whence AND "interval"=in_roll;
 
         v_min_whence := NULL;
         v_max_rollup := NULL;
