@@ -42,7 +42,7 @@ BEGIN
         END IF;
 
         SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE "interval" = in_roll INTO v_min_whence;
-        EXIT WHEN NOT FOUND;
+        EXIT WHEN NOT FOUND OR v_min_whence IS NULL;
 
         v_sql := 'SELECT MAX(rollup_time) FROM metric_numeric_rollup_' || in_roll;
         EXECUTE v_sql INTO v_max_rollup;
