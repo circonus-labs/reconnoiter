@@ -130,4 +130,6 @@ EXCEPTION
        perform pg_advisory_unlock(43191, v_taskid);
        RAISE NOTICE '%', SQLERRM;
 END
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+;
