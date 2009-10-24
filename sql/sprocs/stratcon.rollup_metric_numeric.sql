@@ -18,10 +18,6 @@ DECLARE
     v_temprec       RECORD;
     v_count         INTEGER;
 BEGIN
-    IF in_roll = '5m' THEN
-        PERFORM stratcon.rollup_metric_numeric_5m();
-        RETURN 0;
-    END IF;
 
     -- Get rollup config based on given name, and fail if its wrong name.
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
@@ -44,7 +40,7 @@ BEGIN
     END IF;
 
     LOOP
-        IF v_i > 10 THEN
+        IF v_i > 12 THEN
             RETURN 1;
         END IF;
 
@@ -69,13 +65,21 @@ RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence;
                 );
         END LOOP;
 
-        v_sql := 'SELECT sid, name, $1 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
-                  FROM  stratcon.unroll_metric_numeric( $1, $2, $3)
-                  GROUP BY sid, name';
-RAISE NOTICE 'v_sql was (%), %, %, %',v_sql,v_min_whence, v_min_whence + (v_conf.seconds - 1) * '1 second'::interval, v_conf.dependent_on; 
-        FOR v_rec IN EXECUTE v_sql USING v_min_whence,
-                                         v_min_whence + (v_conf.seconds - 1) * '1 second'::interval,
-                                         v_conf.dependent_on LOOP
+        IF in_rollup = '5m' THEN
+            v_sql := 'SELECT * FROM stratcon.window_robust_derive('||quote_literal(v_min_whence)||')';
+        ELSE
+            v_sql := 'SELECT sid, name, '||quote_literal(v_min_whence)||' as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value,';
+            v_sql := v_sql || ' (SUM(counter_dev*1)/SUM(1)) as counter_dev FROM stratcon.unroll_metric_numeric('||quote_literal(v_min_whence)||',';
+            v_sql := v_sql || quote_literal(v_min_whence + (v_conf.seconds - 1) * '1 second'::interval) || ',' || quote_literal(v_conf.dependent_on) ||')';
+            v_sql := v_sql || ' GROUP BY sid, name';  
+
+       --   v_sql := 'SELECT sid, name, $1 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
+       --             FROM  stratcon.unroll_metric_numeric( $1, $2, $3)
+       --             GROUP BY sid, name';
+        END IF;
+RAISE NOTICE 'v_sql was (%),v_sql; 
+
+        FOR v_rec IN EXECUTE v_sql LOOP 
             v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) * v_conf.span;
             v_stored_rollup_tm := 'epoch'::timestamptz + v_stored_rollup * '1 second'::interval;
             v_offset        := floor( ( extract('epoch' from v_rec.rollup_time) - v_stored_rollup) / v_conf.seconds );
