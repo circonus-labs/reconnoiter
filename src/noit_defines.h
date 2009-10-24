@@ -134,4 +134,6 @@ static inline int noit_build_version(char *buff, int len) {
 
 #include "noitedit/strlcpy.h"
 
+#define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
+
 #endif

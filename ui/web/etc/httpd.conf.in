@@ -11,6 +11,8 @@ LoadModule log_config_module /usr/libexec/apache2/mod_log_config.so
 LoadModule mime_module /usr/libexec/apache2/mod_mime.so
 LoadModule dir_module /usr/libexec/apache2/mod_dir.so
 LoadModule rewrite_module /usr/libexec/apache2/mod_rewrite.so
+LoadModule proxy_module /usr/libexec/apache2/mod_proxy.so
+LoadModule proxy_http_module /usr/libexec/apache2/mod_proxy_http.so
 
 <Directory "/">
     Options None
@@ -45,3 +47,6 @@ AddType application/x-gzip .gz .tgz
 AddType application/x-httpd-php .php
 DirectoryIndex index.php
 DefaultType text/plain
+
+RewriteEngine On
+RewriteRule ^(/data/.+)$ http://localhost:80$1 [P,L,QSA]

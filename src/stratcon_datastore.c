@@ -160,6 +160,12 @@ typedef struct {
 
 static int stratcon_database_connect(conn_q *cq);
 static int uuid_to_sid(const char *uuid_str_in, const char *remote_cn);
+static int storage_node_quick_lookup(const char *uuid_str,
+                                     const char *remote_cn,
+                                     int *sid_out, int *storagenode_id_out,
+                                     const char **remote_cn_out,
+                                     const char **fqdn_out,
+                                     const char **dsn_out);
 
 static void
 free_params(ds_single_detail *d) {
@@ -177,6 +183,7 @@ noit_hash_table working_sets;
 /* the fqdn cache needs to be thread safe */
 typedef struct {
   char *uuid_str;
+  char *remote_cn;
   int storagenode_id;
   int sid;
 } uuid_info;
@@ -475,11 +482,10 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
   int i, row_count = 0, good = 0;
   char buff[1024];
   conn_q *cq;
-  cq = get_conn_q_for_metanode();
-
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
+  cq = get_conn_q_for_metanode();
   stratcon_database_connect(cq);
   d = calloc(1, sizeof(*d));
   GET_QUERY(check_loadall);
@@ -537,13 +543,26 @@ stratcon_datastore_iep_check_preload() {
   eventer_add_asynch(cpool->jobq, e);
 }
 execute_outcome_t
-stratcon_datastore_find(conn_q *cq, ds_rt_detail *d) {
+stratcon_datastore_find(ds_rt_detail *d) {
+  conn_q *cq;
   char *val;
   int row_count;
   struct realtime_tracker *node;
 
-  GET_QUERY(check_find);
   for(node = d->rt; node; node = node->next) {
+    char uuid_str[UUID_STR_LEN+1];
+    const char *fqdn, *dsn, *remote_cn;
+    int storagenode_id;
+
+    uuid_unparse_lower(node->checkid, uuid_str);
+    if(storage_node_quick_lookup(uuid_str, NULL, &node->sid,
+                                 &storagenode_id, &remote_cn, &fqdn, &dsn))
+      continue;
+
+    cq = get_conn_q_for_remote(NULL, remote_cn, fqdn, dsn);
+    stratcon_database_connect(cq);
+
+    GET_QUERY(check_find);
     DECLARE_PARAM_INT(node->sid);
     PG_EXEC(check_find);
     row_count = PQntuples(d->res);
@@ -574,6 +593,7 @@ stratcon_datastore_find(conn_q *cq, ds_rt_detail *d) {
    bad_row: 
     free_params((ds_single_detail *)d);
     d->nparams = 0;
+    release_conn_q(cq);
   }
   return DS_EXEC_SUCCESS;
 }
@@ -877,19 +897,16 @@ int
 stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   ds_rt_detail *dsjd = closure;
-  conn_q *cq;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
-  cq = get_conn_q_for_metanode();
-  stratcon_database_connect(cq);
   assert(dsjd->rt);
-  stratcon_datastore_find(cq, dsjd);
+  stratcon_datastore_find(dsjd);
   if(dsjd->completion_event)
     eventer_add(dsjd->completion_event);
 
   free_params((ds_single_detail *)dsjd);
   free(dsjd);
-  release_conn_q(cq);
   return 0;
 }
 static const char *
@@ -1159,10 +1176,11 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
 
   return ij;
 }
-static void
+static int
 storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
                           int *sid_out, int *storagenode_id_out,
-                          char **fqdn_out, char **dsn_out) {
+                          const char **remote_cn_out,
+                          const char **fqdn_out, const char **dsn_out) {
   /* only called from the main thread -- no safety issues */
   void *vuuidinfo, *vinfo;
   uuid_info *uuidinfo;
@@ -1172,10 +1190,14 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   int storagenode_id = 0, sid = 0;
   if(!noit_hash_retrieve(&uuid_to_info_cache, uuid_str, strlen(uuid_str),
                          &vuuidinfo)) {
-    int row_count;
+    int row_count = 0;
     char *tmpint;
     ds_single_detail *d;
     conn_q *cq;
+
+    /* We can't do a database lookup without the remote_cn */
+    if(!remote_cn) return -1;
+
     d = calloc(1, sizeof(*d));
     cq = get_conn_q_for_metanode();
     if(stratcon_database_connect(cq) == 0) {
@@ -1201,11 +1223,13 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     free_params((ds_single_detail *)d);
     free(d);
     release_conn_q(cq);
+    if(row_count != 1) return -1;
     /* Place in cache */
     if(fqdn) fqdn = strdup(fqdn);
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->sid = sid;
     uuidinfo->uuid_str = strdup(uuid_str);
+    uuidinfo->remote_cn = strdup(remote_cn);
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
     /* Also, we may have just witnessed a new storage node, store it */
@@ -1250,22 +1274,25 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
 
   if(fqdn_out) *fqdn_out = fqdn ? fqdn : (info ? info->fqdn : NULL);
   if(dsn_out) *dsn_out = dsn ? dsn : (info ? info->dsn : NULL);
+  if(remote_cn_out) *remote_cn_out = uuidinfo->remote_cn;
   if(storagenode_id_out) *storagenode_id_out = uuidinfo->storagenode_id;
   if(sid_out) *sid_out = uuidinfo->sid;
+  return 0;
 }
 static int
 uuid_to_sid(const char *uuid_str_in, const char *remote_cn) {
   char uuid_str[UUID_STR_LEN+1];
   int sid = 0;
   strlcpy(uuid_str, uuid_str_in, sizeof(uuid_str));
-  storage_node_quick_lookup(uuid_str, remote_cn, &sid, NULL, NULL, NULL);
+  storage_node_quick_lookup(uuid_str, remote_cn, &sid, NULL, NULL, NULL, NULL);
   return sid;
 }
 static void
 stratcon_datastore_journal(struct sockaddr *remote,
                            const char *remote_cn, const char *line) {
   interim_journal_t *ij = NULL;
-  char uuid_str[UUID_STR_LEN+1], *cp, *fqdn, *dsn;
+  char uuid_str[UUID_STR_LEN+1], *cp;
+  const char *fqdn, *dsn;
   int storagenode_id = 0;
   uuid_t checkid;
   if(!line) return;
@@ -1278,7 +1305,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
         strlcpy(uuid_str, cp + 1, sizeof(uuid_str));
         if(!uuid_parse(uuid_str, checkid)) {
           storage_node_quick_lookup(uuid_str, remote_cn, NULL,
-                                    &storagenode_id, &fqdn, &dsn);
+                                    &storagenode_id, NULL, &fqdn, &dsn);
           ij = interim_journal_get(remote, remote_cn, storagenode_id, fqdn);
         }
       }
@@ -1540,7 +1567,7 @@ stratcon_datastore_ingest_all_check_info() {
   cnt = PQntuples(d->res);
   for(i=0; i<cnt; i++) {
     void *vinfo;
-    char *tmpint, *fqdn, *dsn, *uuid_str;
+    char *tmpint, *fqdn, *dsn, *uuid_str, *remote_cn;
     int sid, storagenode_id;
     uuid_info *uuidinfo;
     PG_GET_STR_COL(uuid_str, i, "id");
@@ -1550,11 +1577,13 @@ stratcon_datastore_ingest_all_check_info() {
     sid = atoi(tmpint);
     PG_GET_STR_COL(fqdn, i, "fqdn");
     PG_GET_STR_COL(dsn, i, "dsn");
+    PG_GET_STR_COL(remote_cn, i, "remote_cn");
     PG_GET_STR_COL(tmpint, i, "storage_node_id");
     storagenode_id = tmpint ? atoi(tmpint) : 0;
 
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->uuid_str = strdup(uuid_str);
+    uuidinfo->remote_cn = strdup(remote_cn);
     uuidinfo->sid = sid;
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);

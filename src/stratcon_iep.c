@@ -535,7 +535,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   /* We only care about inserts */
 
   if(op == DS_OP_CHKPT) {
-    eventer_add((eventer_t) operand);
+    eventer_add(completion);
     return;
   }
   if(op != DS_OP_INSERT) return;

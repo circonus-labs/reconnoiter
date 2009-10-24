@@ -83,11 +83,12 @@
       -->
       <allchecks><![CDATA[
         SELECT remote_address, id, target, module, name
-          FROM noit.get_checks()
+          FROM check_currently
       ]]></allchecks>
       <findcheck><![CDATA[
         SELECT remote_address, id, target, module, name
-          FROM noit.get_check($1,$2)
+          FROM check_currently
+         WHERE sid = $1
       ]]></findcheck>
       <allstoragenodes><![CDATA[
         SELECT storage_node_id, fqdn, dsn
@@ -99,7 +100,7 @@
          WHERE storage_node_id = $1
       ]]></findstoragenode>
       <mapallchecks><![CDATA[
-        SELECT id, sid, storage_node_id, fqdn, dsn
+        SELECT id, sid, noit as remote_cn, storage_node_id, fqdn, dsn
           FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
       ]]></mapallchecks>
       <mapchecktostoragenode><![CDATA[

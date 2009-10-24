@@ -910,6 +910,7 @@ function datapoints_for_graph(li, ds, params) {
     a.click((function(ds_c) {
         return function() {
             graph_add_datapoint({
+                'id': ds_c.id,
                 'sid': ds_c.sid,
                 'name': ds_c.target + '`' + ds_c.metric_name,
                 'metric_name': ds_c.metric_name,
@@ -991,12 +992,12 @@ function stream_data(graph_id, stream_graph, streambox) {
         //we could set a polltime for each dataset, but for now we make them the same
         //we assume we never give datasets we dont want to graph sids, like composites
         for (var i = 0; i < g.datapoints.length; i++) {
-            if (g.datapoints[i].sid) {
-                sidneed[g.datapoints[i].sid] = polltime;
+            if (g.datapoints[i].id) {
+                sidneed[g.datapoints[i].id] = polltime;
             }
         }
-        for (var sid in sidneed) {
-            sids += "/" + sid + "@" + sidneed[sid];
+        for (var id in sidneed) {
+            sids += "/" + id + "@" + sidneed[id];
         }
         //console.log("sids request: http://" +recon_realtime_hostname+"/data"+sids);
         streambox.html('<iframe src="http://' + recon_realtime_hostname + '/data' + sids + '"></iframe>');

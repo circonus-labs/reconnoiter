@@ -39,10 +39,10 @@
  * how to resolve this
  */
 struct realtime_tracker {
-  int sid;        /* set by request */
+  uuid_t checkid; /* set by request */
   int interval;   /* set by request */
   char *noit;     /* resolved by datastore */
-  uuid_t checkid; /* resolved by datastore */
+  int sid;        /* resolved by datastore */
   struct realtime_tracker *next; /* next in series */
   eventer_t conn; /* used to track noitd connection feeding this */
   struct realtime_context *rc; /* link back to the rc that justified us */

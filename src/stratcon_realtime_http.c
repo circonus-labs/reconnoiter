@@ -197,6 +197,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
   for (interest = strtok_r(copy, "/", &brk);
        interest;
        interest = strtok_r(NULL, "/", &brk)) {
+    uuid_t in_uuid;
     struct realtime_tracker *node;
     char *interval;
 
@@ -205,9 +206,10 @@ stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
       interval = "5000";
     else
       *interval++ = '\0';
+    if(uuid_parse(interest, in_uuid)) continue;
     node = calloc(1, sizeof(*node));
     node->rc = rc;
-    node->sid = atoi(interest);
+    uuid_copy(node->checkid, in_uuid);
     node->interval = atoi(interval);
     node->next = rc->checklist;
     rc->checklist = node;
@@ -425,8 +427,10 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     rc->setup = RC_REQ_RECV;
     /* Each interest references the ctx */
     for(node = rc->checklist; node; node = node->next) {
+      char uuid_str[UUID_STR_LEN+1];
       noit_atomic_inc32(&ctx->ref_cnt);
-      noitL(noit_error, "Resolving sid: %d\n", node->sid);
+      uuid_unparse_lower(node->checkid, uuid_str);
+      noitL(noit_error, "Resolving uuid: %s\n", uuid_str);
     }
     completion = eventer_alloc();
     completion->mask = EVENTER_TIMER;
@@ -476,7 +480,8 @@ stratcon_realtime_http_init(const char *toplevel) {
   eventer_name_callback("stratcon_realtime_http",
                         stratcon_realtime_http_handler);
   assert(noit_http_rest_register(
-    "GET", "/data/", "^((?:\\d+(?:@\\d+)?)(?:/\\d+(?:@\\d+)?)*)$",
+    "GET", "/data/",
+           "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
     rest_stream_data
   ) == 0);
 }

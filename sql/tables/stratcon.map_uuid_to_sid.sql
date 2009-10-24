@@ -21,6 +21,7 @@ SET default_with_oids = false;
 CREATE TABLE map_uuid_to_sid (
     id uuid NOT NULL,
     sid serial NOT NULL,
+    noit text NOT NULL,
     storage_node_id integer REFERENCES stratcon.storage_node
 );
 

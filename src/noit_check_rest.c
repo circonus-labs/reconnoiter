@@ -45,7 +45,6 @@
 #include "noit_conf_private.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
-#define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
 
 #define NODE_CONTENT(parent, k, v) do { \
   xmlNodePtr tmp; \
