@@ -251,6 +251,7 @@ class Reconnoiter_DB {
     }
     $sql = "
       select $tblsrc.$want, $ptr_select
+             min(c.id::text) as id,
              min(c.sid) as sid, min(metric_type) as metric_type,
              count(1) as cnt
         from check_currently c
@@ -267,10 +268,7 @@ class Reconnoiter_DB {
       $copy = $named_binds;
       $copy[$want] = $row[$want];
       $copy['sid'] = $row['sid'];
-      $copy['id'] = 'ds';
-      foreach($vars as $var) {
-        $copy['id'] .= "-" . $copy[$var];
-      }
+      $copy['id'] = $row['id'];
       $copy['cnt'] = $row['cnt'];
       if(isset($row['module'])) $copy['module'] = $row['module'];
       if(isset($row['ptr'])) $copy['ptr'] = $row['ptr'];
