@@ -65,19 +65,18 @@ RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence;
                 );
         END LOOP;
 
-        IF in_rollup = '5m' THEN
+        IF in_roll = '5m' THEN
             v_sql := 'SELECT * FROM stratcon.window_robust_derive('||quote_literal(v_min_whence)||')';
         ELSE
-            v_sql := 'SELECT sid, name, '||quote_literal(v_min_whence)||' as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value,';
-            v_sql := v_sql || ' (SUM(counter_dev*1)/SUM(1)) as counter_dev FROM stratcon.unroll_metric_numeric('||quote_literal(v_min_whence)||',';
+            v_sql := 'SELECT sid, name, '||quote_literal(v_min_whence)||' as rollup_time, ';
+            v_sql := v_sql || ' SUM(coalesce(count_rows, 0)) as count_rows, ';
+            v_sql := v_sql || ' (SUM(avg_value*coalesce(count_rows,0))/SUM(coalesce(count_rows, 0))) as avg_value,';
+            v_sql := v_sql || ' (SUM(counter_dev*coalesce(count_rows,0))/SUM(coalesce(count_rows, 0))) as counter_dev ';
+            v_sql := v_sql || ' FROM stratcon.unroll_metric_numeric('||quote_literal(v_min_whence)||',';
             v_sql := v_sql || quote_literal(v_min_whence + (v_conf.seconds - 1) * '1 second'::interval) || ',' || quote_literal(v_conf.dependent_on) ||')';
             v_sql := v_sql || ' GROUP BY sid, name';  
-
-       --   v_sql := 'SELECT sid, name, $1 as rollup_time, SUM(1) as count_rows, (SUM(avg_value*1)/SUM(1)) as avg_value, (SUM(counter_dev*1)/SUM(1)) as counter_dev
-       --             FROM  stratcon.unroll_metric_numeric( $1, $2, $3)
-       --             GROUP BY sid, name';
         END IF;
-RAISE NOTICE 'v_sql was (%),v_sql; 
+RAISE NOTICE 'v_sql was (%)',v_sql; 
 
         FOR v_rec IN EXECUTE v_sql LOOP 
             v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) * v_conf.span;

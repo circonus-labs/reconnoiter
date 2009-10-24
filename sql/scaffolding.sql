@@ -57,7 +57,7 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.init_metric_numeric_rollup.sql
 \i sprocs/stratcon.map_uuid_to_sid.sql
 \i sprocs/stratcon.update_config.sql
-\i sprocs/stratcon.rollup_metric_numeric_5m.sql
+\i sprocs/stratcon.rollup_metric_numeric.sql
 \i sprocs/stratcon.metric_name_summary_compile_fts_data.sql
 \i sprocs/stratcon.rollup_metric_numeric.sql
 
