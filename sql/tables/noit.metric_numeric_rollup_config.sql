@@ -41,6 +41,10 @@ ALTER TABLE ONLY metric_numeric_rollup_config
     ADD CONSTRAINT metric_numeric_rollup_config_dependent_on_fkey FOREIGN KEY (dependent_on) REFERENCES metric_numeric_rollup_config(rollup);
 
 
+REVOKE ALL ON TABLE metric_numeric_rollup_config FROM PUBLIC;
+REVOKE ALL ON TABLE metric_numeric_rollup_config FROM prism;
+GRANT SELECT ON TABLE metric_numeric_rollup_config TO stratcon;
+
 --
 -- PostgreSQL database dump complete
 --

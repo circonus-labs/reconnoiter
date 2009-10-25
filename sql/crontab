@@ -1,10 +1,5 @@
 #rollup jobs
-* * * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('5m');" >/tmp/rollup_5.log 2>&1
-00,10,20,30,40,50 * * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('20m');" >/tmp/rollup_20.log 2>&1
-04,19,34,49 * * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('30m');" >/tmp/rollup_60.log 2>&1
-07,37 * * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('1hour');" >/tmp/rollup_60.log 2>&1
-15,45 0,4,8,12,16,20 * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('4hour');" >/tmp/rollup_240.log 2>&1
-30,50 0 * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric('1day');" >/tmp/rollup_1440.log 2>&1
+* * * * * /opt/pgsql835/bin/psql -d reconnoiter -U stratcon -c "select stratcon.rollup_metric_numeric(rollup) from metric_numeric_rollup_config order by seconds asc;" >/tmp/rollup.log 2>&1
 #cleanup jobs
 #01 00 * * * /opt/pgsql835/bin/psql -d reconnoiter -U reconnoiter -c "select stratcon.archive_part_maint('stratcon.loading_dock_metric_numeric_archive');" 1>/dev/null
 #01 00 * * * /opt/pgsql835/bin/psql -d reconnoiter -U reconnoiter -c "select stratcon.archive_part_maint('stratcon.loading_dock_metric_text_archive');" 1>/dev/null

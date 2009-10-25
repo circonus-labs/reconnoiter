@@ -72,6 +72,7 @@ DECL_STMT(metric_insert_text, metric_text);
 DECL_STMT(config_insert, config);
 
 static noit_log_stream_t ds_err = NULL;
+static noit_log_stream_t ds_deb = NULL;
 static noit_log_stream_t ingest_err = NULL;
 
 static struct datastore_onlooker_list {
@@ -240,7 +241,7 @@ release_conn_q_forceable(conn_q *cq, int forcefree) {
     cq->pool->in_pool++;
   }
   pthread_mutex_unlock(&cq->pool->lock);
-  noitL(noit_debug, "[%p] release %s [%s]\n", (void *)pthread_self(),
+  noitL(ds_deb, "[%p] release %s [%s]\n", (void *)pthread_self(),
         putback ? "to pool" : "and destroy", cq->pool->queue_name);
   pthread_cond_signal(&cq->pool->cv);
   if(putback) return;
@@ -288,7 +289,7 @@ ttl_purge_conn_pool(conn_pool *pool) {
     release_conn_q_forceable(cq, 1);
   }
   if(old_cnt != new_cnt)
-    noitL(noit_debug, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
+    noitL(ds_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
           pool->queue_name);
 }
 static void
@@ -355,7 +356,7 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
-  noitL(noit_debug, "[%p] requesting [%s]\n", (void *)pthread_self(),
+  noitL(ds_deb, "[%p] requesting [%s]\n", (void *)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
  again:
@@ -370,10 +371,10 @@ get_conn_q_for_remote(const char *remote_str,
     return cq;
   }
   if(cpool->in_pool + cpool->outstanding >= cpool->max_allocated) {
-    noitL(noit_debug, "[%p] over-subscribed, waiting [%s]\n",
+    noitL(ds_deb, "[%p] over-subscribed, waiting [%s]\n",
           (void *)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
-    noitL(noit_debug, "[%p] waking up and trying again [%s]\n",
+    noitL(ds_deb, "[%p] waking up and trying again [%s]\n",
           (void *)pthread_self(), cpool->queue_name);
     goto again;
   }
@@ -1024,7 +1025,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
   dsn = get_dsn_from_storagenode_id(ij->storagenode_id, 1, &ij->fqdn);
   cq = get_conn_q_for_remote(ij->remote_str, ij->remote_cn,
                              ij->fqdn, dsn);
-  noitL(noit_debug, "stratcon_datastore_asynch_execute[%s,%s,%s]\n",
+  noitL(ds_deb, "stratcon_datastore_asynch_execute[%s,%s,%s]\n",
         ij->remote_str, ij->remote_cn, ij->fqdn);
  full_monty:
   /* Make sure we have a connection */
@@ -1096,11 +1097,11 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
-  noitL(noit_debug, "Syncing journal sets...\n");
+  noitL(ds_deb, "Syncing journal sets...\n");
   while(noit_hash_next(syncset->ws, &iter, &k, &klen, &vij)) {
     eventer_t ingest;
     ij = vij;
-    noitL(noit_debug, "Syncing journal set [%s,%s,%s]\n",
+    noitL(ds_deb, "Syncing journal set [%s,%s,%s]\n",
           ij->remote_str, ij->remote_cn, ij->fqdn);
     fsync(ij->fd);
     close(ij->fd);
@@ -1612,6 +1613,7 @@ stratcon_datastore_init() {
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
   ds_err = noit_log_stream_find("error/datastore");
+  ds_deb = noit_log_stream_find("debug/datastore");
   ingest_err = noit_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;

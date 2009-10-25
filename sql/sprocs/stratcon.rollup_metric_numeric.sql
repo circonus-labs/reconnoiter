@@ -4,8 +4,8 @@ DECLARE
     v_segment       stratcon.metric_numeric_rollup%rowtype;
     v_conf          RECORD;
     v_sql           TEXT;
+    v_current_whence TIMESTAMPTZ;
     v_min_whence    TIMESTAMPTZ;
-    v_max_rollup    TIMESTAMPTZ;
     v_whence        TIMESTAMPTZ;
     v_taskid        INTEGER;
     v_locked        BOOLEAN;
@@ -39,22 +39,25 @@ BEGIN
         RETURN 0;
     END IF;
 
+   v_current_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_conf.seconds * floor(extract( epoch FROM now() ) / v_conf.seconds);
+
     LOOP
         IF v_i > 12 THEN
+            perform pg_advisory_unlock(43191, v_taskid);
             RETURN 1;
         END IF;
 
-        SELECT MIN(whence) FROM metric_numeric_rollup_queue WHERE "interval" = in_roll INTO v_min_whence;
+        SELECT MIN(whence) FROM metric_numeric_rollup_queue
+         WHERE "interval" = in_roll and whence < v_current_whence INTO v_min_whence;
         EXIT WHEN NOT FOUND OR v_min_whence IS NULL;
 
-        v_sql := 'SELECT MAX(rollup_time) FROM metric_numeric_rollup_' || in_roll;
-        EXECUTE v_sql INTO v_max_rollup;
-
         -- now() in following query is just a placeholder to get named field (use_whence) in temprec.
-        FOR v_temprec IN SELECT *, now() as use_whence FROM noit.metric_numeric_rollup_config WHERE dependent_on = in_roll LOOP
+        FOR v_temprec IN SELECT *, v_min_whence as use_whence
+                           FROM noit.metric_numeric_rollup_config WHERE dependent_on = in_roll
+        LOOP
             -- Following formula gives equivalent of date_trunc(..) but working on basically any unit - like "10 minutes"
             -- The unit has to be given in seconds, AND provided as v_temprec.seconds
-            v_temprec.use_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_temprec.seconds * floor(extract( epoch FROM now() ) / v_temprec.seconds);
+            v_temprec.use_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_temprec.seconds * floor(extract( epoch FROM v_temprec.use_whence ) / v_temprec.seconds);
 
 RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence; 
             -- Poor mans UPSERT :)
@@ -119,8 +122,6 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
         DELETE FROM metric_numeric_rollup_queue WHERE whence=v_min_whence AND "interval"=in_roll;
 
         v_min_whence := NULL;
-        v_max_rollup := NULL;
-
     END LOOP;
 
     perform pg_advisory_unlock(43191, v_taskid);
