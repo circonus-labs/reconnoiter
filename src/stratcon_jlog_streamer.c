@@ -111,6 +111,7 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
       switch(jctx->state) {
         case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
         case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
+        case JLOG_STREAMER_WANT_ERROR: state = "waiting for error"; break;
         case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
         case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
         case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;
@@ -343,12 +344,23 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         ctx->state = JLOG_STREAMER_WANT_COUNT;
         break;
 
+      case JLOG_STREAMER_WANT_ERROR:
+        FULLREAD(e, ctx, 0 - ctx->count);
+        noitL(noit_error, "[%s] %.*s\n", nctx->remote_str,
+              0 - ctx->count, ctx->buffer);
+        free(ctx->buffer); ctx->buffer = NULL;
+        goto socket_error;
+        break;
+
       case JLOG_STREAMER_WANT_COUNT:
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&dummy.count, ctx->buffer, sizeof(u_int32_t));
         ctx->count = ntohl(dummy.count);
         free(ctx->buffer); ctx->buffer = NULL;
-        ctx->state = JLOG_STREAMER_WANT_HEADER;
+        if(ctx->count < 0)
+          ctx->state = JLOG_STREAMER_WANT_ERROR;
+        else
+          ctx->state = JLOG_STREAMER_WANT_HEADER;
         break;
 
       case JLOG_STREAMER_WANT_HEADER:
@@ -810,6 +822,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
       switch(jctx->state) {
         case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
         case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
+        case JLOG_STREAMER_WANT_ERROR: state = "waiting for error"; break;
         case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
         case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
         case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;

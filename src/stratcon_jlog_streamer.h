@@ -78,6 +78,7 @@ typedef struct jlog_streamer_ctx_t {
     JLOG_STREAMER_WANT_BODY = 3,
     JLOG_STREAMER_IS_ASYNC = 4,
     JLOG_STREAMER_WANT_CHKPT = 5,
+    JLOG_STREAMER_WANT_ERROR = 6,
   } state;
   int count;            /* Number of jlog messages we need to read */
   struct {

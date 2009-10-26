@@ -207,10 +207,17 @@ noit_jlog_handler(eventer_t e, int mask, void *closure,
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
   acceptor_closure_t *ac = closure;
   noit_jlog_closure_t *jcl = ac->service_ctx;
+  char errbuff[256];
+  const char *errstr = "unknown error";
 
   if(mask & EVENTER_EXCEPTION || (jcl && jcl->wants_shutdown)) {
+    int len, nlen;
 socket_error:
     /* Exceptions cause us to simply snip the connection */
+    len = strlen(errstr);
+    nlen = htonl(0 - len);
+    e->opset->write(e->fd, &nlen, sizeof(nlen), &newmask, e);
+    e->opset->write(e->fd, errstr, strlen(errstr), &newmask, e);
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     if(jcl) noit_jlog_closure_free(jcl);
@@ -227,23 +234,29 @@ socket_error:
                            "log_transit_feed_name",
                            strlen("log_transit_feed_name"),
                            &logname)) {
-      noitL(noit_error, "No 'log_transit_feed_name' specified in log_transit.\n");
+      errstr = "No 'log_transit_feed_name' specified in log_transit.";
+      noitL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
     ls = noit_log_stream_find(logname);
     if(!ls) {
-      noitL(noit_error, "Could not find log '%s' for log_transit.\n",
-            logname);
+      snprintf(errbuff, sizeof(errbuff),
+               "Could not find log '%s' for log_transit.", logname);
+      errstr = errbuff;
+      noitL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
     if(!ls->type || strcmp(ls->type, "jlog")) {
-      noitL(noit_error, "Log '%s' for log_transit is not a jlog.\n",
-            logname);
+      snprintf(errbuff, sizeof(errbuff),
+               "Log '%s' for log_transit is not a jlog.", logname);
+      errstr = errbuff;
+      noitL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
     if(ac->cmd == NOIT_JLOG_DATA_FEED) {
       if(!ac->remote_cn) {
-        noitL(noit_error, "jlog transit started to unidentified party.\n");
+        errstr = "jlog transit started to unidentified party.";
+        noitL(noit_error, "%s\n", errstr);
         goto socket_error;
       }
       strlcpy(subscriber, ac->remote_cn, sizeof(subscriber));
@@ -267,12 +280,19 @@ socket_error:
 
     jcl->jlog = jlog_new(path);
     if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
-      if(jlog_ctx_add_subscriber(jcl->jlog, jcl->subscriber, JLOG_END) == -1)
-        noitL(noit_error, "jlog reader[%s] error: %s\n", jcl->subscriber,
-              jlog_ctx_err_string(jcl->jlog));
+      if(jlog_ctx_add_subscriber(jcl->jlog, jcl->subscriber, JLOG_END) == -1) {
+        snprintf(errbuff, sizeof(errbuff),
+                 "jlog reader[%s] error: %s", jcl->subscriber,
+                 jlog_ctx_err_string(jcl->jlog));
+        errstr = errbuff;
+        noitL(noit_error, "%s\n", errstr);
+      }
     if(jlog_ctx_open_reader(jcl->jlog, jcl->subscriber) == -1) {
-      noitL(noit_error, "jlog reader[%s] error: %s\n", jcl->subscriber,
-            jlog_ctx_err_string(jcl->jlog));
+      snprintf(errbuff, sizeof(errbuff),
+               "jlog reader[%s] error: %s", jcl->subscriber,
+               jlog_ctx_err_string(jcl->jlog));
+      errstr = errbuff;
+      noitL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
   }
