@@ -75,7 +75,7 @@ noit_listener_accept_ssl(eventer_t e, int mask,
      * connection.
      */
     if((sslctx = eventer_get_eventer_ssl_ctx(e)) != NULL) {
-      char *cn, *end;
+      const char *cn, *end;
       cn = eventer_ssl_get_peer_subject(sslctx);
       if(cn && (cn = strstr(cn, "CN=")) != NULL) {
         cn += 3;
