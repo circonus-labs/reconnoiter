@@ -17,7 +17,8 @@ grant usage on schema noit to stratcon;
 grant usage on schema noit to prism;
 grant usage on schema prism to prism;
 
-\i sprocs/noit.date_hour.sql
+\i sprocs/stratcon.parent_empty.sql
+\i sprocs/stratcon.archive_part_maint.sql
 
 \i tables/noit.check_status_changelog.sql
 \i tables/noit.metric_numeric_rollup_config.sql
