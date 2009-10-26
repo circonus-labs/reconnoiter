@@ -146,7 +146,7 @@ static int
 __safe_Ewrite(eventer_t e, void *b, int l, int *mask) {
   int w, sofar = 0;
   while(l > sofar) {
-    w = e->opset->write(e->fd, b + sofar, l - sofar, mask, e);
+    w = e->opset->write(e->fd, (char *)b + sofar, l - sofar, mask, e);
     if(w <= 0) return w;
     sofar += w;
   }

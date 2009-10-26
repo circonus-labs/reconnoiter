@@ -55,7 +55,7 @@ noit_check_interpolate_register_oper_fn(const char *name,
                                         intperpolate_oper_fn f) {
   noit_hash_replace(&interpolation_operators,
                     strdup(name), strlen(name),
-                    f,
+                    (void *)f,
                     free, NULL);
   return 0;
 }
@@ -101,7 +101,7 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
                   oper_sprint = interpolate_oper_copy;
                 }
                 else
-                  oper_sprint = voper;
+                  oper_sprint = (intperpolate_oper_fn)voper;
                 nkey++;
               }
               else {
