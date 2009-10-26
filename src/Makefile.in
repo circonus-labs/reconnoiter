@@ -31,7 +31,8 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer udns modules noitedit man stomp
+SUBS=lua utils eventer udns noitedit man stomp
+MODDIR=modules
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -59,6 +60,12 @@ make-subdirs:	jlog/libjlog.a
 		(cd $$dir && make -s) ; \
 	done
 
+make-modules:
+	@for dir in $(MODDIR) ; do \
+		echo "- building $$dir bits" ; \
+		(cd $$dir && make -s) ; \
+	done
+
 java-bits:
 	@echo "- building java bits"
 	@test -n "@JAVAPARTS@" && (cd java && make -s)
@@ -66,7 +73,7 @@ java-bits:
 jlog/libjlog.a:
 	@(cd jlog && make libjlog.a)
 
-noitd:	make-subdirs $(NOIT_OBJS)
+noitd:	make-subdirs make-modules $(NOIT_OBJS)
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \

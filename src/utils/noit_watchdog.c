@@ -73,8 +73,8 @@ int noit_watchdog_child_heartbeat() {
   return 0;
 }
 int noit_watchdog_prefork_init() {
-  lifeline = mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE,
-                  MAP_SHARED|MAP_ANON, -1, 0);
+  lifeline = (int *)mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE,
+                         MAP_SHARED|MAP_ANON, -1, 0);
   if(lifeline == (void *)-1) {
     noitL(noit_error, "Failed to mmap anon for watchdog\n");
     return -1;

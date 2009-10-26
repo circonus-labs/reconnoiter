@@ -167,6 +167,4 @@ cleanup_shutdown:
     cl->written += len;
   }
   goto cleanup_shutdown;
-
-  return 0;
 }

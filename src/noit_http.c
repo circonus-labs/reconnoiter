@@ -53,7 +53,7 @@ static const char _hexchars[16] =
 
 struct bchain *bchain_alloc(size_t size) {
   struct bchain *n;
-  n = malloc(size + ((void *)n->buff - (void *)n));
+  n = malloc(size + ((char *)n->buff - (char *)n));
   if(!n) return NULL;
   n->prev = n->next = NULL;
   n->start = n->size = 0;
@@ -461,7 +461,9 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
     }
     if(rv == noit_true) return mask | EVENTER_WRITE | EVENTER_EXCEPTION;
   }
-  return EVENTER_READ | EVENTER_EXCEPTION;
+  /* Not reached:
+   * return EVENTER_READ | EVENTER_EXCEPTION;
+   */
 }
 noit_boolean
 noit_http_session_prime_input(noit_http_session_ctx *ctx,
@@ -521,7 +523,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
     in = ctx->req.first_input;
     while(in && bytes_read < len) {
       int partial_len = MIN(in->size, len - bytes_read);
-      if(buf) memcpy(buf+bytes_read, in->buff+in->start, partial_len);
+      if(buf) memcpy((char *)buf+bytes_read, in->buff+in->start, partial_len);
       bytes_read += partial_len;
       ctx->req.content_length_read += partial_len;
       noitL(noit_debug, " ... filling %d bytes (read through %d/%d)\n",
@@ -635,7 +637,6 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
     ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
     ctx->conn.e = NULL;
     goto release;
-    return 0;
   }
   if(ctx->res.complete == noit_true) {
     noit_http_request_release(ctx);

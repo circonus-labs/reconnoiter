@@ -129,7 +129,7 @@ API_EXPORT(int)
 API_EXPORT(void) noit_conf_log_init(const char *toplevel);
 
 #define EXPOSE_CHECKER(name) \
-  API_EXPORT(pcre *) noit_conf_get_valid_##name##_checker();
+  API_EXPORT(pcre *) noit_conf_get_valid_##name##_checker()
 #define DECLARE_CHECKER(name) \
 static pcre *checker_valid_##name; \
 pcre *noit_conf_get_valid_##name##_checker() { return checker_valid_##name; }

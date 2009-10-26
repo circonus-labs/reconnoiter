@@ -136,6 +136,8 @@ extern noit_atomic32_t noit_atomic_cas32(volatile noit_atomic32_t *mem,
         volatile noit_atomic32_t newval, volatile noit_atomic32_t cmpval);
 extern noit_atomic64_t noit_atomic_cas64(volatile noit_atomic64_t *mem,
         volatile noit_atomic64_t newval, volatile noit_atomic64_t cmpval);
+extern void *noit_atomic_casptr(volatile void **mem,
+        volatile void *newval, volatile void *cmpval);
 
 static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
   while(noit_atomic_cas32(lock, 1, 0) != 0);

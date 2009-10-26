@@ -1428,7 +1428,7 @@ stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
   nnode = calloc(1, sizeof(*nnode));
   nnode->dispatch = f;
   nnode->next = onlookers;
-  while(noit_atomic_casptr((void **)&onlookers, nnode, nnode->next) != (void *)nnode->next)
+  while(noit_atomic_casptr((volatile void **)&onlookers, nnode, nnode->next) != (void *)nnode->next)
     nnode->next = onlookers;
 }
 static void
