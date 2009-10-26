@@ -221,7 +221,7 @@ socket_error:
   if(!ac->service_ctx) {
     noit_log_stream_t ls;
     const char *logname;
-    char path[PATH_MAX], subscriber[32], *sub;
+    char path[PATH_MAX], subscriber[256], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
     if(!noit_hash_retr_str(ac->config,
                            "log_transit_feed_name",
