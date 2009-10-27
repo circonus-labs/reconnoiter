@@ -92,7 +92,7 @@ BEGIN
               from pg_class as c join pg_trigger as t on(c.oid = t.tgrelid)
               join pg_proc as p on(t.tgfoid = p.oid)
               join pg_namespace as n on(p.pronamespace = n.oid) 
-             where relname = v_parent_table
+             where relname = v_parent_table and nspname = v_schema_name 
                and proname <> 'parent_empty' LOOP
           v_sql := 'CREATE TRIGGER ' || v_rec.tgname || '';
           IF 0 != (v_rec.tgtype & 2) THEN
