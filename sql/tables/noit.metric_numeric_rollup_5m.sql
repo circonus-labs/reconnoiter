@@ -45,10 +45,8 @@ ALTER TABLE ONLY metric_numeric_rollup_5m
 --
 
 REVOKE ALL ON TABLE metric_numeric_rollup_5m FROM PUBLIC;
-REVOKE ALL ON TABLE metric_numeric_rollup_5m FROM reconnoiter;
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE metric_numeric_rollup_5m TO stratcon;
 GRANT SELECT ON TABLE metric_numeric_rollup_5m TO prism;
-GRANT SELECT ON TABLE metric_numeric_rollup_5m TO stratcon;
-
 
 --
 -- PostgreSQL database dump complete
