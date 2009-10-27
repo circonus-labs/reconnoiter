@@ -1047,7 +1047,6 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
       if(!last_sp) SAVEPOINT("batch");
  
       if(current->problematic) {
-        noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
         RELEASE_SAVEPOINT("batch");
         current = current->next;
         continue;
@@ -1060,17 +1059,22 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
           break;
         case DS_EXEC_ROW_FAILED:
           /* rollback to savepoint, mark this record as bad and start again */
+          noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
           current->problematic = 1;
           current = last_sp;
           ROLLBACK_TO_SAVEPOINT("batch");
           break;
         case DS_EXEC_TXN_FAILED:
+          noitL(noit_error, "txn failed '%s', retrying\n", ij->filename);
           BUSTED(cq);
       }
     }
   }
   if(last_sp) RELEASE_SAVEPOINT("batch");
-  if(stratcon_datastore_do(cq, "COMMIT")) BUSTED(cq);
+  if(stratcon_datastore_do(cq, "COMMIT")) {
+    noitL(noit_error, "txn commit failed '%s', retrying\n", ij->filename);
+    BUSTED(cq);
+  }
   /* Cleanup the mess */
   while(head) {
     ds_line_detail *tofree;

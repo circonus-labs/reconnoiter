@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION stratcon.archive_part_maint(in_parent_table text, in_start date) RETURNS void 
+CREATE OR REPLACE FUNCTION stratcon.archive_part_maint(in_parent_table text, units text, cnt integer) RETURNS void 
 AS $$
 DECLARE
     v_recent_part date;
@@ -11,30 +11,51 @@ DECLARE
     v_sql text;
     v_has_perms boolean;
 BEGIN
-  select (in_start - '1 month'::interval)::date into v_recent_part;
-  v_parent_table := substring(in_parent_table from E'\\.(.+)');
-  IF v_parent_table IS NULL THEN
-    v_parent_table := in_parent_table;
-  END IF;
-  v_schema_name := substring(in_parent_table from E'^([^.]+)');
-  IF v_schema_name IS NULL THEN
-    v_schema_name := 'stratcon';
-  END IF;
+    v_parent_table := substring(in_parent_table from E'\\.(.+)');
+    IF v_parent_table IS NULL THEN
+      v_parent_table := in_parent_table;
+    END IF;
+    v_schema_name := substring(in_parent_table from E'^([^.]+)');
+    IF v_schema_name IS NULL THEN
+      v_schema_name := 'stratcon';
+    END IF;
 
-    select date_trunc('month', v_recent_part + '1 month'::interval)::date into v_next_part;
+    select d into v_recent_part from (
+        select overlay(
+                   overlay(
+                       substring(relname from E'_([0-9]{8})$')
+                       placing '-' from 7 for 0)
+                   placing '-' from 5 for 0)::date as d from pg_class
+         where oid in (select inhrelid
+                         from pg_inherits as i
+                         join pg_class as c on(i.inhparent = c.oid)
+                         join pg_namespace as n on (c.relnamespace = n.oid)
+                        where nspname = v_schema_name
+                          and relname = v_parent_table)) as x
+    order by d desc
+    limit 1;
+
+    IF v_recent_part IS NULL THEN
+        select (date_trunc(units, current_date) - ('1 '||units)::interval)::date
+          into v_recent_part;
+    END IF;
+
+    select date_trunc(units, v_recent_part + ('1 '||units)::interval)::date
+      into v_next_part;
 
     LOOP
-        IF v_next_part > current_date + '1 month'::interval THEN
+        IF v_next_part > current_date + (cnt * ('1 '||units)::interval) THEN
             EXIT;
         END IF;
         v_table_name := v_parent_table || '_' || extract(YEAR from v_next_part) || 
-                        lpad(extract(month from v_next_part)::text, 2, '0');
+                        lpad(extract(month from v_next_part)::text, 2, '0') ||
+                        lpad(extract(day from v_next_part)::text, 2, '0');
         v_constraint_name := 'check_' || v_table_name;
 
         execute 'CREATE TABLE ' || v_schema_name || '.' || v_table_name || '(' ||
                 'CONSTRAINT ' || v_constraint_name ||
                 E' CHECK (whence >= \'' || v_next_part::text || E' 00:00:00-00\'::timestamptz AND ' ||
-                E'        whence < \'' || (v_next_part + '1 month'::interval)::date::text || E' 00:00:00-00\'::timestamptz)' ||
+                E'        whence < \'' || (v_next_part + ('1 '||units)::interval)::date::text || E' 00:00:00-00\'::timestamptz)' ||
                 ') INHERITS (' || in_parent_table || ')';
 
         RAISE INFO 'created partition %', v_table_name;
@@ -104,7 +125,7 @@ BEGIN
           execute v_sql;
         END LOOP;
 
-        v_next_part := (v_next_part + '1 month'::interval)::date;
+        v_next_part := (v_next_part + ('1 '||units)::interval)::date;
     END LOOP;
 END
 $$ LANGUAGE plpgsql;

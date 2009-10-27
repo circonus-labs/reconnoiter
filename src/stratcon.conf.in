@@ -109,25 +109,25 @@
           FROM stratcon.map_uuid_to_sid($1,$2)
       ]]></mapchecktostoragenode>
       <check><![CDATA[
-        INSERT INTO check_archive
+        INSERT INTO check_archive_%Y%m%d
                     (remote_address, whence, sid, id, target, module, name)
              VALUES ($1, 'epoch'::timestamptz + ($2 || ' seconds')::interval,
                      $3, $4, $5, $6, $7)
       ]]></check>
       <status><![CDATA[
-        INSERT INTO check_status_archive
+        INSERT INTO check_status_archive_%Y%m%d
                     (whence, sid, state, availability, duration, status)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
                      $2, $3, $4, $5, $6)
       ]]></status>
       <metric_numeric><![CDATA[
-        INSERT INTO metric_numeric_archive
+        INSERT INTO metric_numeric_archive_%Y%m%d
                     (whence, sid, name, value)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
                      $2, $3, $4)
       ]]></metric_numeric>
       <metric_text><![CDATA[
-        INSERT INTO metric_text_archive
+        INSERT INTO metric_text_archive_%Y%m%d
                     ( whence, sid, name,value)
              VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
                      $2, $3, $4)
