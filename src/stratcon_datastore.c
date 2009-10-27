@@ -449,8 +449,9 @@ __noit__strndup(const char *src, int len) {
   d->rv = PQresultStatus(d->res); \
   if(d->rv != PGRES_COMMAND_OK && \
      d->rv != PGRES_TUPLES_OK) { \
-    noitL(ds_err, "stratcon datasource bad (%d): %s\n'%s'\n", \
-          d->rv, PQresultErrorMessage(d->res), cmd); \
+    noitL(ds_err, "[%s] stratcon datasource bad (%d): %s\n'%s'\n", \
+          cq->fqdn ? cq->fqdn : "metanode", d->rv, \
+          PQresultErrorMessage(d->res), cmd); \
     PQclear(d->res); \
     goto bad_row; \
   } \
@@ -476,18 +477,24 @@ __noit__strndup(const char *src, int len) {
   } \
 } while(0)
 
-static int
-stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
-                                    struct timeval *now) {
+static void *
+stratcon_datastore_check_loadall(void *vsn) {
+  storagenode_info *sn = vsn;
   ds_single_detail *d;
   int i, row_count = 0, good = 0;
   char buff[1024];
   conn_q *cq;
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
-  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
-  cq = get_conn_q_for_metanode();
-  stratcon_database_connect(cq);
+  cq = get_conn_q_for_remote(NULL,NULL,sn->fqdn,sn->dsn);
+  i = 0;
+  while(stratcon_database_connect(cq)) {
+    if(i++ > 4) {
+      noitL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
+      release_conn_q(cq);
+      return (void *)good;
+    }
+    sleep(1);
+  }
   d = calloc(1, sizeof(*d));
   GET_QUERY(check_loadall);
   PG_EXEC(check_loadall);
@@ -524,11 +531,52 @@ stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
     stratcon_iep_line_processor(DS_OP_INSERT, sin, NULL, strdup(buff), NULL);
     good++;
   }
-  noitL(noit_error, "Staged %d/%d remembered checks into IEP\n", good, row_count);
+  noitL(noit_error, "Staged %d/%d remembered checks from %s into IEP\n",
+        good, sn->fqdn, row_count);
  bad_row:
   free_params((ds_single_detail *)d);
   free(d);
   release_conn_q(cq);
+  return (void *)good;
+}
+static int
+stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
+                                    struct timeval *now) {
+  storagenode_info self = { 0, NULL, NULL }, **sns = NULL;
+  pthread_t *jobs = NULL;
+  int nodes, i = 0, tcnt = 0;
+  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
+
+  pthread_mutex_lock(&storagenode_to_info_cache_lock);
+  nodes = storagenode_to_info_cache.size;
+  jobs = calloc(MAX(1,nodes), sizeof(*jobs));
+  sns = calloc(MAX(1,nodes), sizeof(*sns));
+  if(nodes == 0) sns[nodes++] = &self;
+  else {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *k;
+    void *v;
+    int klen;
+    while(noit_hash_next(&storagenode_to_info_cache,
+                         &iter, &k, &klen, &v)) {
+      sns[i++] = (storagenode_info *)v;
+    }
+  }
+  pthread_mutex_unlock(&storagenode_to_info_cache_lock);
+
+  for(i=0; i<nodes; i++) {
+    if(pthread_create(&jobs[i], NULL,
+                      stratcon_datastore_check_loadall, sns[i]) != 0) {
+      noitL(noit_error, "Failed to spawn thread: %s\n", strerror(errno));
+    }
+  }
+  for(i=0; i<nodes; i++) {
+    void *good;
+    pthread_join(jobs[i], &good);
+    tcnt += (int)(vpsized_int)good;
+  }
+  noitL(noit_error, "Loaded all %d check states.\n", tcnt);
   return 0;
 }
 void
@@ -838,6 +886,11 @@ stratcon_database_connect(conn_q *cq) {
   if(cq->dbh) {
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
     PQreset(cq->dbh);
+    if(PQstatus(cq->dbh) != CONNECTION_OK) {
+      noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
+            dsn, PQerrorMessage(cq->dbh));
+      return -1;
+    }
     if(stratcon_database_post_connect(cq)) return -1;
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
     noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
@@ -847,6 +900,11 @@ stratcon_database_connect(conn_q *cq) {
 
   cq->dbh = PQconnectdb(dsn);
   if(!cq->dbh) return -1;
+  if(PQstatus(cq->dbh) != CONNECTION_OK) {
+    noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
+          dsn, PQerrorMessage(cq->dbh));
+    return -1;
+  }
   if(stratcon_database_post_connect(cq)) return -1;
   if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
   noitL(noit_error, "Error connection to database: '%s'\nError: %s\n",
@@ -1155,7 +1213,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
              (unsigned int)now.tv_sec, (unsigned int)now.tv_usec);
     ij->remote_str = strdup(remote_str);
     ij->remote_cn = strdup(remote_cn);
-    ij->fqdn = strdup(fqdn);
+    ij->fqdn = fqdn_in ? strdup(fqdn_in) : NULL;
     ij->storagenode_id = storagenode_id;
     ij->filename = strdup(jpath);
     ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
@@ -1234,6 +1292,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->sid = sid;
     uuidinfo->uuid_str = strdup(uuid_str);
+    uuidinfo->storagenode_id = storagenode_id;
     uuidinfo->remote_cn = strdup(remote_cn);
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
@@ -1297,7 +1356,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
                            const char *remote_cn, const char *line) {
   interim_journal_t *ij = NULL;
   char uuid_str[UUID_STR_LEN+1], *cp;
-  const char *fqdn, *dsn;
+  const char *fqdn = NULL, *dsn = NULL;
   int storagenode_id = 0;
   uuid_t checkid;
   if(!line) return;
@@ -1481,10 +1540,12 @@ stratcon_datastore_sweep_journals_int(char *first, char *second, char *third) {
            third ? "/" : "", third ? third : "");
   root = opendir(path);
   if(!root) return;
-  while(readdir_r(root, &de, &entry) == 0 && entry != NULL) cnt++;
-  rewinddir(root);
+  while(portable_readdir_r(root, &de, &entry) == 0 && entry != NULL) cnt++;
+  closedir(root);
+  root = opendir(path);
+  if(!root) return;
   entries = malloc(sizeof(*entries) * cnt);
-  while(readdir_r(root, &de, &entry) == 0 && entry != NULL) {
+  while(portable_readdir_r(root, &de, &entry) == 0 && entry != NULL) {
     if(i < cnt) {
       entries[i++] = strdup(entry->d_name);
     }
@@ -1589,6 +1650,7 @@ stratcon_datastore_ingest_all_check_info() {
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->uuid_str = strdup(uuid_str);
     uuidinfo->remote_cn = strdup(remote_cn);
+    uuidinfo->storagenode_id = storagenode_id;
     uuidinfo->sid = sid;
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);

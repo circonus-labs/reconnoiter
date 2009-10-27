@@ -518,7 +518,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
 #endif
   }
   else {
-    noitL(noit_iep, "no iep handler for: '%s'\n", job->line); 
+    noitL(noit_iep, "no iep connection, skipping line: '%s'\n", job->line); 
   }
   return 0;
 }
@@ -662,8 +662,7 @@ start_iep_daemon() {
   if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@command",
                            &info->command)) {
     noitL(noit_error, "No IEP start command provided.  You're on your own.\n");
-    // goto bail;
-    // If you want to start it as a seperate process
+    setup_iep_connection_later(0);
     return;
   }
   if(pipe(info->stdin_pipe) != 0 ||

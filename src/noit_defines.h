@@ -132,6 +132,11 @@ static inline int noit_build_version(char *buff, int len) {
   return snprintf(buff, len, "unknown.%s", NOIT_SVNVERSION);
 }
 
+#if defined(__sun)
+#define portable_readdir_r(a,b,c) ((*c) = readdir_r(a,b))
+#else
+#define portable_readdir_r readdir_r
+#endif
 #include "noitedit/strlcpy.h"
 
 #define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"

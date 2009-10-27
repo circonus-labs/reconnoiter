@@ -55,7 +55,7 @@ case $host in
 		ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
 	fi
 	if test "x$CC" != "xgcc" ; then
-		CFLAGS="$CFLAGS -D_POSIX_PTHREAD_SEMANTICS -mt"
+		CFLAGS="$CFLAGS -mt"
 	fi
 	PICFLAGS="-Kpic"
 	MODULELD="$CC -G"
