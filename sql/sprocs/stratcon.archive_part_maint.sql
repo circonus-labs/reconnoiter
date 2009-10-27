@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION stratcon.archive_part_maint(in_parent_table text, units text, cnt integer) RETURNS void 
+CREATE OR REPLACE FUNCTION stratcon.archive_part_maint(in_parent_table text, in_column text, in_units text, in_cnt integer) RETURNS void 
 AS $$
 DECLARE
     v_recent_part date;
@@ -36,15 +36,15 @@ BEGIN
     limit 1;
 
     IF v_recent_part IS NULL THEN
-        select (date_trunc(units, current_date) - ('1 '||units)::interval)::date
+        select (date_trunc(in_units, current_date) - ('1 '||in_units)::interval)::date
           into v_recent_part;
     END IF;
 
-    select date_trunc(units, v_recent_part + ('1 '||units)::interval)::date
+    select date_trunc(in_units, v_recent_part + ('1 '||in_units)::interval)::date
       into v_next_part;
 
     LOOP
-        IF v_next_part > current_date + (cnt * ('1 '||units)::interval) THEN
+        IF v_next_part > current_date + (in_cnt * ('1 '||in_units)::interval) THEN
             EXIT;
         END IF;
         v_table_name := v_parent_table || '_' || extract(YEAR from v_next_part) || 
@@ -54,8 +54,8 @@ BEGIN
 
         execute 'CREATE TABLE ' || v_schema_name || '.' || v_table_name || '(' ||
                 'CONSTRAINT ' || v_constraint_name ||
-                E' CHECK (whence >= \'' || v_next_part::text || E' 00:00:00-00\'::timestamptz AND ' ||
-                E'        whence < \'' || (v_next_part + ('1 '||units)::interval)::date::text || E' 00:00:00-00\'::timestamptz)' ||
+                ' CHECK (' || in_column || E' >= \'' || v_next_part::text || E' 00:00:00-00\'::timestamptz AND ' ||
+                '        ' || in_column || E' < \'' || (v_next_part + ('1 '||in_units)::interval)::date::text || E' 00:00:00-00\'::timestamptz)' ||
                 ') INHERITS (' || in_parent_table || ')';
 
         RAISE INFO 'created partition %', v_table_name;
@@ -125,7 +125,7 @@ BEGIN
           execute v_sql;
         END LOOP;
 
-        v_next_part := (v_next_part + ('1 '||units)::interval)::date;
+        v_next_part := (v_next_part + ('1 '||in_units)::interval)::date;
     END LOOP;
 END
 $$ LANGUAGE plpgsql;
