@@ -1081,6 +1081,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
 
   ij = closure;
   dsn = get_dsn_from_storagenode_id(ij->storagenode_id, 1, &ij->fqdn);
+  if(ij->fqdn) ij->fqdn = strdup(ij->fqdn); /* fqdn is now ours */
   cq = get_conn_q_for_remote(ij->remote_str, ij->remote_cn,
                              ij->fqdn, dsn);
   noitL(ds_deb, "stratcon_datastore_asynch_execute[%s,%s,%s]\n",
