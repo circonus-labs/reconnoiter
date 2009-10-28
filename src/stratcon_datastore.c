@@ -491,7 +491,7 @@ stratcon_datastore_check_loadall(void *vsn) {
     if(i++ > 4) {
       noitL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
       release_conn_q(cq);
-      return (void *)good;
+      return (void *)(vpsized_int)good;
     }
     sleep(1);
   }
@@ -532,12 +532,12 @@ stratcon_datastore_check_loadall(void *vsn) {
     good++;
   }
   noitL(noit_error, "Staged %d/%d remembered checks from %s into IEP\n",
-        good, sn->fqdn, row_count);
+        good, row_count, sn->fqdn);
  bad_row:
   free_params((ds_single_detail *)d);
   free(d);
   release_conn_q(cq);
-  return (void *)good;
+  return (void *)(vpsized_int)good;
 }
 static int
 stratcon_datastore_asynch_drive_iep(eventer_t e, int mask, void *closure,
@@ -1492,7 +1492,8 @@ stratcon_datastore_register_onlooker(void (*f)(stratcon_datastore_op_t,
   nnode = calloc(1, sizeof(*nnode));
   nnode->dispatch = f;
   nnode->next = onlookers;
-  while(noit_atomic_casptr((volatile void **)&onlookers, nnode, nnode->next) != (void *)nnode->next)
+  while(noit_atomic_casptr((volatile void **)&onlookers,
+                           nnode, nnode->next) != (void *)nnode->next)
     nnode->next = onlookers;
 }
 static void
@@ -1574,7 +1575,7 @@ stratcon_datastore_sweep_journals() {
 
 int
 stratcon_datastore_ingest_all_storagenode_info() {
-  int i, cnt;
+  int i, cnt = 0;
   ds_single_detail _d = { 0 }, *d = &_d;
   conn_q *cq;
   cq = get_conn_q_for_metanode();
