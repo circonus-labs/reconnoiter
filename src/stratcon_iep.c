@@ -58,6 +58,7 @@
 
 eventer_jobq_t iep_jobq;
 static noit_log_stream_t noit_iep = NULL;
+static noit_spinlock_t iep_conn_cnt = 0;
 
 struct iep_thread_driver {
 #ifdef OPENWIRE
@@ -418,13 +419,16 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
 static int
 setup_iep_connection_callback(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
+  noit_spinlock_unlock(&iep_conn_cnt);
   stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, NULL, NULL);
   return 0;
 }
 
 static void
 setup_iep_connection_later(int seconds) {
-  eventer_t newe = eventer_alloc();
+  eventer_t newe;
+  if(!noit_spinlock_trylock(&iep_conn_cnt)) return;
+  newe = eventer_alloc();
   gettimeofday(&newe->whence, NULL);
   newe->whence.tv_sec += seconds;
   newe->mask = EVENTER_TIMER;
