@@ -399,7 +399,7 @@ static int external_init(noit_module_t *self) {
       noit_hash_retr_str(data->options, "user", 4, &user);
       noit_hash_retr_str(data->options, "group", 4, &group);
     }
-    noit_security_usergroup(user, group);
+    noit_security_usergroup(user, group, noit_false);
     exit(external_child(data));
   }
   noit_module_set_userdata(self, data);
