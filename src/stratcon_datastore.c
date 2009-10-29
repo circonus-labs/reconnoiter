@@ -789,7 +789,7 @@ stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
       break;
     case 'C':
       GET_QUERY(check_insert);
-      PG_EXEC(check_insert);
+      PG_TM_EXEC(check_insert, d->whence);
       PQclear(d->res);
       break;
     case 'S':
@@ -829,7 +829,7 @@ static int
 stratcon_database_post_connect(conn_q *cq) {
   int rv = 0;
   ds_single_detail _d = { 0 }, *d = &_d;
-  if(cq->remote_str) {
+  if(cq->fqdn) {
     char *remote_str, *remote_cn;
     /* This is the silly way we get null's in through our declare_param_str */
     remote_str = cq->remote_str ? cq->remote_str : "[[null]]";
@@ -1381,7 +1381,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
     default:
       break;
   }
-  if(!ij && fqdn) {
+  if(!ij) {
     noitL(ingest_err, "%d\t%s\n", storagenode_id, line);
   }
   else {
