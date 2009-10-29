@@ -398,19 +398,10 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
         return NULL;
       }
     }  
-    {
-      stomp_frame *frame;
-      rc = stomp_read(driver->connection, &frame, driver->pool);
-      if (rc != APR_SUCCESS) {
-        noitL(noit_error, "MQ STOMP CONNECT bad response, %d\n", rc);
-        stomp_disconnect(&driver->connection);
-        return NULL;
-      }
-     }
 #endif
-     stratcon_iep_submit_statements();
-     stratcon_datastore_iep_check_preload();
-     stratcon_iep_submit_queries();
+    stratcon_iep_submit_statements();
+    stratcon_datastore_iep_check_preload();
+    stratcon_iep_submit_queries();
   }
 
   return driver;
