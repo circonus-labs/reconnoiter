@@ -194,11 +194,11 @@ static int child_main() {
   /* Drop privileges */
   if(chrootpath && noit_security_chroot(chrootpath)) {
     noitL(noit_stderr, "Failed to chroot(), exiting.\n");
-    exit(-1);
+    exit(2);
   }
-  if(noit_security_usergroup(droptouser, droptogroup)) {
+  if(noit_security_usergroup(droptouser, droptogroup, noit_false)) {
     noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(-1);
+    exit(2);
   }
 
   /* Prepare for launch... */
@@ -217,6 +217,7 @@ static int child_main() {
 
 int main(int argc, char **argv) {
   char conf_str[1024];
+  char user[32], group[32];
 
   parse_clargs(argc, argv);
 
@@ -232,7 +233,17 @@ int main(int argc, char **argv) {
   }
 
   /* Reinitialize the logging system now that we have a config */
+  snprintf(user, sizeof(user), "%d", getuid());
+  snprintf(group, sizeof(group), "%d", getgid());
+  if(noit_security_usergroup(droptouser, droptogroup, noit_true)) {
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(-1);
+  }
   noit_conf_log_init(APPNAME);
+  if(noit_security_usergroup(user, group, noit_true)) {
+    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
+    exit(-1);
+  }
   if(debug)
     noit_debug->enabled = 1;
 

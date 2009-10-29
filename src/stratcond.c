@@ -130,6 +130,7 @@ int configure_eventer() {
 
 static int child_main() {
   char conf_str[1024];
+  char user[32], group[32];
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -144,7 +145,17 @@ static int child_main() {
   }
 
   /* Reinitialize the logging system now that we have a config */
+  snprintf(user, sizeof(user), "%d", getuid());
+  snprintf(group, sizeof(group), "%d", getgid());
+  if(noit_security_usergroup(droptouser, droptogroup, noit_true)) {
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(2);
+  }
   noit_conf_log_init(APPNAME);
+  if(noit_security_usergroup(user, group, noit_true)) {
+    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
+    exit(2);
+  }
   if(debug)
     noit_debug->enabled = 1;
 
@@ -153,19 +164,19 @@ static int child_main() {
                               conf_str, sizeof(conf_str))) {
     noitL(noit_stderr, "Cannot find '%s' in configuration\n",
           "/" APPNAME "/eventer/@implementation");
-    exit(-1);
+    exit(2);
   }
   if(eventer_choose(conf_str) == -1) {
     noitL(noit_stderr, "Cannot choose eventer %s\n", conf_str);
-    exit(-1);
+    exit(2);
   }
   if(configure_eventer() != 0) {
     noitL(noit_stderr, "Cannot configure eventer\n");
-    exit(-1);
+    exit(2);
   }
   if(eventer_init() == -1) {
     noitL(noit_stderr, "Cannot init eventer %s\n", conf_str);
-    exit(-1);
+    exit(2);
   }
 
   noit_watchdog_child_eventer_heartbeat();
@@ -183,7 +194,7 @@ static int child_main() {
     noitL(noit_stderr, "Failed to chroot(), exiting.\n");
     exit(-1);
   }
-  if(noit_security_usergroup(droptouser, droptogroup)) {
+  if(noit_security_usergroup(droptouser, droptogroup, noit_false)) {
     noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
     exit(-1);
   }

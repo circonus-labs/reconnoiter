@@ -52,7 +52,7 @@ noit_security_chroot(const char *path) {
   return 0;
 }
 
-static inline int ispositiveinteger(const char *user) {
+static inline int isinteger(const char *user) {
   const char *cp = user;
   while(*cp) {
     switch(cp == user) {
@@ -60,7 +60,7 @@ static inline int ispositiveinteger(const char *user) {
         if(*cp < '0' || *cp > '9') return 0;
         break;
       default:
-        if(*cp < '1' || *cp > '9') return 0;
+        if(*cp != '-' && (*cp < '0' || *cp > '9')) return 0;
     }
     cp++;
   }
@@ -98,7 +98,7 @@ __getgrnam_r(const char *group, struct group *gr,
 }
 
 int
-noit_security_usergroup(const char *user, const char *group) {
+noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
   static long pwnam_buflen = 0;
   static long grnam_buflen = 0;
   uid_t uid = 0;
@@ -118,7 +118,7 @@ noit_security_usergroup(const char *user, const char *group) {
 #endif
 
   if(user) {
-    if(ispositiveinteger(user)) uid = atoi(user);
+    if(isinteger(user)) uid = atoi(user);
     else {
       struct passwd *pw, _pw;
       char *buf;
@@ -130,7 +130,7 @@ noit_security_usergroup(const char *user, const char *group) {
   }
 
   if(group) {
-    if(ispositiveinteger(group)) gid = atoi(group);
+    if(isinteger(group)) gid = atoi(group);
     else {
       struct group *gr, _gr;
       char *buf;
@@ -142,17 +142,17 @@ noit_security_usergroup(const char *user, const char *group) {
   }
 
   if(group) {
-    if(gid == 0) BAIL("Cannot use this function to setgid(0)\n");
-    if(setgid(gid) != 0)
+    if(!eff && gid == 0) BAIL("Cannot use this function to setgid(0)\n");
+    if((eff ? setegid(gid) : setgid(gid)) != 0)
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
   }
   if(user) {
-    if(uid == 0) BAIL("Cannot use this function to setuid(0)\n");
-    if(setuid(uid) != 0) 
+    if(!eff && uid == 0) BAIL("Cannot use this function to setuid(0)\n");
+    if((eff ? seteuid(uid) : setuid(uid)) != 0) 
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
-    if(setuid(0) == 0)
+    if(!eff && setuid(0) == 0)
       BAIL("setuid(0) worked, and it shouldn't have.\n");
-    if(setgid(0) == 0)
+    if(!eff && setgid(0) == 0)
       BAIL("setgid(0) worked, and it shouldn't have.\n");
   }
   return 0;

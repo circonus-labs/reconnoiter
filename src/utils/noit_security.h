@@ -43,15 +43,18 @@
  */
 API_EXPORT(int) noit_security_chroot(const char *path);
 
-/*! \fn int noit_security_usergroup(const char *user, const char *group)
-    \brief change the real, effective and saved user and group
+/*! \fn int noit_security_usergroup(const char *user, const char *group,
+                                    noit_boolean effective)
+    \brief change the effective or real, effective and saved user and group
     \param user The user name as either a login or a userid in string form.
     \param group The group name as either a login or a groupid in string form.
+    \param effective If true then only effective user and group are changed.
     \return Zero is returned on success.
 
     noit_security_usergroup will change the real, effective, and saved
     user and group for the calling process.  This is thread-safe.
  */
-API_EXPORT(int) noit_security_usergroup(const char *user, const char *group);
+API_EXPORT(int) noit_security_usergroup(const char *user, const char *group,
+                                        noit_boolean effective);
 
 #endif
