@@ -132,7 +132,8 @@ public class StratconConfig {
     }
     NodeList nodes = (NodeList) result;
     if(nodes.getLength() > 0) {
-      return nodes.item(nodes.getLength() -1).getNodeValue();
+      String rv = nodes.item(nodes.getLength() -1).getNodeValue();
+      return rv;
     }
     return null;
   }

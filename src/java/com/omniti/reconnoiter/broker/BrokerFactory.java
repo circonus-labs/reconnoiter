@@ -25,12 +25,16 @@ public class BrokerFactory {
   
 
   public static BrokerService getAMQBrokerService() {
+    if(amqBroker == null) System.err.println("Cannot broker messages");
+    return amqBroker;
+  }
+  public static BrokerService getAMQBrokerService(String stomp) {
     if(amqBroker != null) return amqBroker;
     try {
       amqBroker = new BrokerService();
       amqBroker.setUseJmx(false);
-      amqBroker.addConnector("tcp://localhost:61616");
-      amqBroker.addConnector("stomp://localhost:61613");
+      amqBroker.addConnector("vm://localhost");
+      amqBroker.addConnector(stomp);
       amqBroker.start();
     } catch(Exception e) {
       System.err.println("Cannot broker messages: " + e);

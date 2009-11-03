@@ -34,7 +34,7 @@ public class AMQListener implements UpdateListener {
     private MessageProducer producer;
     private StratconQuery sq;
 
-    public AMQListener(EPServiceProvider epService, StratconQuery sq) {
+    public AMQListener(EPServiceProvider epService, StratconQuery sq, String binding) {
       try {
         // we just need it started up
         BrokerFactory.getAMQBrokerService();
@@ -42,7 +42,7 @@ public class AMQListener implements UpdateListener {
         this.sq = sq;
         this.statement = sq.getStatement();
 
-        connectionFactory = new ActiveMQConnectionFactory("tcp://localhost:61616");
+        connectionFactory = new ActiveMQConnectionFactory(binding);
         connection = connectionFactory.createConnection();
         connection.start();
         session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);

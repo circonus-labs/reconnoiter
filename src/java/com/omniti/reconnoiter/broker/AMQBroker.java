@@ -16,15 +16,18 @@ import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.event.StratconQuery;
 
 public class AMQBroker implements IMQBroker {
-
+  private String hostName;
+  private int portNumber;
   public AMQBroker(StratconConfig config) {
+    this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
+    this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "61613"));
   }
 
   private MessageConsumer consumer;
 
   public void connect() {
-    BrokerFactory.getAMQBrokerService();
-    ActiveMQConnectionFactory connectionFactory=new ActiveMQConnectionFactory("tcp://localhost:61616");
+    BrokerFactory.getAMQBrokerService("stomp://" + hostName + ":" + portNumber);
+    ActiveMQConnectionFactory connectionFactory=new ActiveMQConnectionFactory("vm://localhost");
     try {
       Connection connection=connectionFactory.createConnection();
       connection.start();
@@ -57,6 +60,6 @@ public class AMQBroker implements IMQBroker {
   }
   
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    return new AMQListener(epService, sq);
+    return new AMQListener(epService, sq, "vm://localhost");
   }
 }
