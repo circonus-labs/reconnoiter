@@ -62,6 +62,7 @@ static const char *droptogroup = NULL;
 static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
+static int no_store = 0;
 
 #include "man/stratcond.usage.h"
 static void usage(const char *progname) {
@@ -78,8 +79,11 @@ static void usage(const char *progname) {
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "hc:dDu:g:t:")) != EOF) {
+  while((c = getopt(argc, argv, "shc:dDu:g:t:")) != EOF) {
     switch(c) {
+      case 's':
+        no_store = 1;
+        break;
       case 'h':
         usage(argv[0]);
         exit(1);
@@ -200,11 +204,15 @@ static int child_main() {
   }
 
   stratcon_iep_init();
-  stratcon_jlog_streamer_init(APPNAME);
+  if(!no_store) {
+    stratcon_jlog_streamer_init(APPNAME);
+    /* Write our log out, and setup a watchdog to write it out on change. */
+    stratcon_datastore_saveconfig(NULL);
+    noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
+  }
+  else
+    noit_conf_coalesce_changes(INT_MAX);
 
-  /* Write our log out, and setup a watchdog to write it out on change. */
-  stratcon_datastore_saveconfig(NULL);
-  noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
   noit_conf_watch_and_journal_watchdog(stratcon_datastore_saveconfig, NULL);
 
   eventer_loop();
