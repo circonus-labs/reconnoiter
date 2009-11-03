@@ -5,6 +5,7 @@ import com.omniti.reconnoiter.StratconMessage;
 
 public class NoitStatus  extends StratconMessage {
    String uuid;
+   Double time;
    String status;
    String state;
    String availability;
@@ -27,10 +28,15 @@ public class NoitStatus  extends StratconMessage {
       availability = parts[5];
       duration = Double.parseDouble(parts[6]);
       status = parts[7];
-
+      try {
+        time = Double.valueOf(parts[2]);
+      } catch (NumberFormatException nfe) {
+        time = null;
+      }
    }
 
     public String getUuid() { return uuid; }
+    public Double getTime() { return time; }
     public String getStatus() { return status; }
     public String getState() { return state; }
     public String getAvailability() { return availability; }
