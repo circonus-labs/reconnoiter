@@ -37,6 +37,11 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/event/StratconQueryBase.java \
 	com/omniti/reconnoiter/event/StratconQuery.java \
 	com/omniti/reconnoiter/event/StratconQueryStop.java \
+	com/omniti/reconnoiter/esper/ExactStatViewFactory.java \
+	com/omniti/reconnoiter/esper/ExactBaseBivariateStatisticsView.java \
+	com/omniti/reconnoiter/esper/ExactRegressionLinestView.java \
+	com/omniti/reconnoiter/esper/ExactBaseStatisticsBean.java \
+	com/omniti/reconnoiter/esper/ExactRegressionBean.java \
 	com/omniti/reconnoiter/IEPEngine.java \
 	com/omniti/reconnoiter/StratconConfig.java \
 	com/omniti/reconnoiter/StratconMessage.java

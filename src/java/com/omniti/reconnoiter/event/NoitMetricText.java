@@ -4,7 +4,7 @@ import com.omniti.reconnoiter.StratconMessage;
 
 public class NoitMetricText extends StratconMessage {
    String uuid;
-   Double time;
+   Long time;
    String name;
    String message;
    String noit;
@@ -21,14 +21,10 @@ public class NoitMetricText extends StratconMessage {
       uuid = parts[3];
       name = parts[4];
       message = parts[6];
-      try {
-        time = Double.valueOf(parts[2]);
-      } catch (NumberFormatException nfe) {
-        time = null;
-      }
+      time = timeToLong(parts[2]);
     }
     public String getUuid() { return uuid; }
-    public Double getTime() { return time; }
+    public Long getTime() { return time; }
     public String getName() { return name; }
     public String getMessage() { return message; }
     public String getNoit() { return noit; }

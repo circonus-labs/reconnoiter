@@ -13,7 +13,7 @@ import com.omniti.reconnoiter.StratconMessage;
 public class NoitMetricNumeric extends StratconMessage {
     private String uuid;
     private String name;
-    private Double time;
+    private long time;
     private Double value;
     private String noit;
 
@@ -26,13 +26,9 @@ public class NoitMetricNumeric extends StratconMessage {
    public NoitMetricNumeric(String[] parts) throws Exception {
       super(parts);
       noit = parts[1];
+      time = timeToLong(parts[2]);
       uuid = parts[3];
       name = parts[4];
-      try {
-        time = Double.valueOf(parts[2]);
-      } catch (NumberFormatException nfe) {
-        time = null;
-      }
       try {
         value = Double.valueOf(parts[6]);
       } catch (NumberFormatException nfe) {
@@ -42,7 +38,7 @@ public class NoitMetricNumeric extends StratconMessage {
    }
 
     public String getUuid() { return uuid; }
-    public Double getTime() { return time; }
+    public long getTime() { return time; }
     public String getName() { return name; }
     public Double getValue() { return value; }
     public String getNoit() { return noit; }
