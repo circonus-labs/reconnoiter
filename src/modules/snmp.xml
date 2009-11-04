@@ -9,6 +9,10 @@
                required="optional"
                default="public"
                allowed=".+">The SNMP community string providing read access.</parameter>
+    <parameter name="port"
+               required="optional"
+               default="161"
+               allowed="\d+">The UDP port to which SNMP queries will be sent.</parameter>
     <parameter name="oid_.+"
                required="optional"
                allowed=".+">Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</parameter>

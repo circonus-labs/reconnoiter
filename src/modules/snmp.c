@@ -123,6 +123,7 @@ typedef struct _mod_config {
 struct target_session {
   void *sess_handle;
   noit_module_t *self;
+  char *target;
   eventer_t timeoutevent;
   int fd;
   int in_table;
@@ -183,9 +184,10 @@ _get_target_session(noit_module_t *self, char *target) {
     ts->self = self;
     ts->fd = -1;
     ts->refcnt = 0;
+    ts->target = strdup(target);
     ts->in_table = 1;
     noit_hash_store(&conf->target_sessions,
-                    strdup(target), strlen(target), ts);
+                    ts->target, strlen(ts->target), ts);
     vts = ts;
   }
   return (struct target_session *)vts;
@@ -789,7 +791,7 @@ static void noit_snmp_sess_open(struct target_session *ts,
   struct snmp_session sess;
   snmp_sess_init(&sess);
   sess.version = SNMP_VERSION_2c;
-  sess.peername = check->target;
+  sess.peername = ts->target;
   if(!noit_hash_retr_str(check->config, "community", strlen("community"),
                          &community)) {
     community = "public";
@@ -857,13 +859,22 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   struct snmp_pdu *req;
   struct target_session *ts;
   struct check_info *info = check->closure;
+  int port = 161;
+  const char *portstr;
+  char target_port[64];
 
   info->self = self;
   info->check = check;
   info->timedout = 0;
 
   check->flags |= NP_RUNNING;
-  ts = _get_target_session(self, check->target);
+
+  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+                        &portstr)) {
+    port = atoi(portstr);
+  }
+  snprintf(target_port, sizeof(target_port), "%s:%d", check->target, port);
+  ts = _get_target_session(self, target_port);
   gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
