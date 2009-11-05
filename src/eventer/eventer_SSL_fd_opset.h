@@ -69,7 +69,7 @@ API_EXPORT(void)
   eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx);
 
 API_EXPORT(eventer_ssl_ctx_t *)
-  eventer_get_eventer_ssl_ctx(eventer_t e);
+  eventer_get_eventer_ssl_ctx(const eventer_t e);
 
 API_EXPORT(void)
   eventer_set_eventer_ssl_ctx(eventer_t e, eventer_ssl_ctx_t *ctx);
@@ -84,6 +84,7 @@ API_EXPORT(void)
 /* These happen _after_ a socket accept and thus require their
  * strings being pulled from the outside.
  */
+API_EXPORT(int) eventer_SSL_renegotiate(eventer_t e);
 API_EXPORT(int) eventer_SSL_accept(eventer_t e, int *mask);
 API_EXPORT(int) eventer_SSL_connect(eventer_t e, int *mask);
 

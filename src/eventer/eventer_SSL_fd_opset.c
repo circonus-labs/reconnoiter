@@ -55,11 +55,13 @@ struct eventer_ssl_ctx_t {
   char    *cert_error;
   eventer_ssl_verify_func_t verify_cb;
   void    *verify_cb_closure;
+  unsigned no_more_negotiations:1;
+  unsigned renegotiated:1;
 };
 
 /* Static function prototypes */
 static void SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx);
-static eventer_ssl_ctx_t *SSL_get_eventer_ssl_ctx(SSL *ssl);
+static eventer_ssl_ctx_t *SSL_get_eventer_ssl_ctx(const SSL *ssl);
 static void _eventer_ssl_error();
 static RSA *tmp_rsa_cb(SSL *ssl, int export, int keylen);
 
@@ -240,6 +242,21 @@ eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx) {
   free(ctx);
 }
 
+static void
+eventer_SSL_server_info_callback(const SSL *ssl, int type, int val) {
+  eventer_ssl_ctx_t *ctx;
+
+  if (ssl->state != SSL3_ST_SR_CLNT_HELLO_A &&
+      ssl->state != SSL23_ST_SR_CLNT_HELLO_A)
+    return;
+
+  ctx = SSL_get_eventer_ssl_ctx(ssl);
+  if(ctx->no_more_negotiations) {
+    noitL(eventer_err, "eventer_SSL_server_info_callback ... reneg is bad\n");
+    ctx->renegotiated = 1;
+  }
+}
+
 eventer_ssl_ctx_t *
 eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                     const char *certificate, const char *key,
@@ -280,6 +297,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
 
   ctx->ssl = SSL_new(ctx->ssl_ctx);
   if(!ctx->ssl) goto bail;
+  SSL_set_info_callback(ctx->ssl, eventer_SSL_server_info_callback);
   SSL_set_eventer_ssl_ctx(ctx->ssl, ctx);
   return ctx;
 
@@ -306,13 +324,13 @@ SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx) {
 }
 
 static eventer_ssl_ctx_t *
-SSL_get_eventer_ssl_ctx(SSL *ssl) {
+SSL_get_eventer_ssl_ctx(const SSL *ssl) {
   INIT_DATAID;
   return SSL_get_ex_data(ssl, SSL_eventer_ssl_ctx_dataid);
 }
 
 eventer_ssl_ctx_t *
-eventer_get_eventer_ssl_ctx(eventer_t e) {
+eventer_get_eventer_ssl_ctx(const eventer_t e) {
   return (e->opset == eventer_SSL_fd_opset) ? e->opset_ctx : NULL;
 }
 
@@ -399,12 +417,19 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
           errno = EIO;
           return -1;
         }
+        ctx->no_more_negotiations = 1;
         return rv;
       }
       break;
 
     default:
       abort();
+  }
+
+  if(ctx->renegotiated) {
+    noitL(eventer_err, "SSL renogotiation attempted on %d\n", fd);
+    errno = EIO;
+    return -1;
   }
 
   switch(sslerror = SSL_get_error(ctx->ssl, rv)) {
@@ -423,6 +448,14 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       errno = EIO;
   }
   return -1;
+}
+
+int
+eventer_SSL_renegotiate(eventer_t e) {
+  eventer_ssl_ctx_t *ctx;
+  ctx = eventer_get_eventer_ssl_ctx(e);
+  SSL_renegotiate(ctx->ssl);
+  return 0;
 }
 
 int
