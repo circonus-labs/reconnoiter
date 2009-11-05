@@ -42,6 +42,11 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/esper/ExactRegressionLinestView.java \
 	com/omniti/reconnoiter/esper/ExactBaseStatisticsBean.java \
 	com/omniti/reconnoiter/esper/ExactRegressionBean.java \
+	com/omniti/reconnoiter/esper/WeightedValueBean.java \
+	com/omniti/reconnoiter/esper/CounterView.java \
+	com/omniti/reconnoiter/esper/CounterViewFactory.java \
+	com/omniti/reconnoiter/esper/DeriveView.java \
+	com/omniti/reconnoiter/esper/DeriveViewFactory.java \
 	com/omniti/reconnoiter/IEPEngine.java \
 	com/omniti/reconnoiter/StratconConfig.java \
 	com/omniti/reconnoiter/StratconMessage.java
@@ -57,7 +62,7 @@ all:	reconnoiter.jar
 
 reconnoiter.jar:	$(JAVA)
 	@echo "- compiling files"
-	@$(JAVAC) -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
+	@$(JAVAC) -g -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
 	@echo "- creating jar"
 	@$(JAR) cf $@ `find com -name \*.class`
 

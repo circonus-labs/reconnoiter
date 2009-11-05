@@ -16,6 +16,8 @@ import com.omniti.reconnoiter.broker.BrokerFactory;
 import com.omniti.reconnoiter.StratconConfig;
 import com.espertech.esper.client.*;
 import com.omniti.reconnoiter.esper.ExactStatViewFactory;
+import com.omniti.reconnoiter.esper.DeriveViewFactory;
+import com.omniti.reconnoiter.esper.CounterViewFactory;
 import org.apache.log4j.BasicConfigurator;
 
 class IEPEngine {
@@ -31,6 +33,8 @@ class IEPEngine {
     config.addDatabaseReference("recondb", sconf.getDBConfig());
     config.addEventTypeAutoName("com.omniti.reconnoiter.event");
     config.addPlugInView("noit", "linest", ExactStatViewFactory.class.getName());
+    config.addPlugInView("noit", "derive", DeriveViewFactory.class.getName());
+    config.addPlugInView("noit", "counter", CounterViewFactory.class.getName());
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
 
     MQListener l = new MQListener(epService, BrokerFactory.getBroker(sconf));
