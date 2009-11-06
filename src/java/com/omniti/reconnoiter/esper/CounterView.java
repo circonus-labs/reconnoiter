@@ -9,8 +9,6 @@
  **************************************************************************************/
 package com.omniti.reconnoiter.esper;
 
-import java.math.BigDecimal;
-
 import com.omniti.reconnoiter.esper.DeriveView;
 import com.espertech.esper.core.StatementContext;
 import com.espertech.esper.epl.expression.ExprNode;
@@ -29,12 +27,10 @@ public class CounterView extends DeriveView
     {
         return new CounterView(statementContext, this.expressionX, this.expressionY);
     }
-    protected BigDecimal[] subtract(BigDecimal[] a, BigDecimal[] b)
+    protected NoitDerivePoint subtract(NoitDerivePoint a, NoitDerivePoint b)
     {
-        BigDecimal[] v = new BigDecimal[2];
-        v[0] = a[0].subtract(b[0]);
-        v[1] = a[1].subtract(b[1]);
-        if(v[1].signum() < 0) v[0] = BigDecimal.ZERO;
+        NoitDerivePoint v = super.subtract(a,b);
+        if(v.Ylong < 0 || v.Ydouble < 0.0) v.X = 0;
         return v;
     }
 }

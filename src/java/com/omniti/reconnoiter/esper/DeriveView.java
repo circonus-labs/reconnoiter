@@ -21,8 +21,6 @@ import com.espertech.esper.view.ViewSupport;
 
 import java.util.Iterator;
 import java.util.Arrays;
-import java.math.BigDecimal;
-import java.math.MathContext;
 
 /**
  * This view is a moving window extending the specified number of elements into the past.
@@ -32,9 +30,9 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
     private StatementContext statementContext;
     protected ExprNode expressionX;
     protected ExprNode expressionY;
-    private boolean  isDouble;
+    private boolean isDouble;
     private WeightedValueBean lastWVBean;
-    private BigDecimal[] lastpoint;
+    private NoitDerivePoint lastpoint;
 
     /**
      * Constructor creates a moving window extending the specified number of elements into the past.
@@ -85,18 +83,17 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                 derivedNew = new EventBean[derivedsize];
             for ( EventBean pointb : newData ) {
                 EventBean eventsPerStream[] = { pointb };
-                BigDecimal X = new BigDecimal(((Number) expressionX.evaluate(eventsPerStream, true, statementContext)).toString());
-                BigDecimal Y;
+                NoitDerivePoint point = new NoitDerivePoint();
+                point.X = ((Number) expressionX.evaluate(eventsPerStream, true, statementContext)).longValue();
                 if(isDouble)
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).doubleValue());
+                  point.Ydouble = ((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).doubleValue();
                 else
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).toString());
+                  point.Ylong = ((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).longValue();
 
-                BigDecimal[] point = new BigDecimal[] {X,Y};
                 if (lastpoint != null) {
                     try {
-                        BigDecimal[] sub = subtract(point,lastpoint);
-                        lastWVBean = new WeightedValueBean(sub[0], sub[1].divide(sub[0],MathContext.DECIMAL128));
+                        NoitDerivePoint sub = subtract(point,lastpoint);
+                        lastWVBean = new WeightedValueBean(sub.X, sub.ror(isDouble));
                         EventBean eb = statementContext.getEventAdapterService().adapterForBean(lastWVBean);
                         derivedNew[i++] = eb;
                     }
@@ -115,11 +112,12 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
         }
     }
 
-    protected BigDecimal[] subtract(BigDecimal[] a, BigDecimal[] b)
+    protected NoitDerivePoint subtract(NoitDerivePoint a, NoitDerivePoint b)
     {
-        BigDecimal[] v = new BigDecimal[2];
-        v[0] = a[0].subtract(b[0]);
-        v[1] = a[1].subtract(b[1]);
+        NoitDerivePoint v = new NoitDerivePoint();
+        v.X = a.X - b.X;
+        v.Ylong = a.Ylong - b.Ylong;
+        v.Ydouble = a.Ydouble - b.Ydouble;
         return v;
     }
 
@@ -130,6 +128,17 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
 
     public final String toString()
     {
-        return this.getClass().getName() + " lastpoint=" + lastpoint[0] + "," + lastpoint[1];
+        return this.getClass().getName() + " lastpoint=" + lastpoint.X + "," + (isDouble ? lastpoint.Ydouble : lastpoint.Ylong);
+    }
+
+    protected class NoitDerivePoint {
+        public long X;
+        public long Ylong;
+        public double Ydouble;
+        public double ror(boolean isDouble) {
+            if(X == 0) return Double.NaN;
+            if(isDouble) return (Ydouble / (double)X);
+            else return ((double)Ylong / (double)X);
+        }
     }
 }
