@@ -71,10 +71,10 @@ static void
 _eventer_ssl_error(const char *f, int l) {
   unsigned long err;
   char buf[120]; /* ERR_error_string(3): buf must be at least 120 bytes */
-  noitL(eventer_err, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
+  noitL(eventer_deb, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
   while((err = ERR_get_error()) != 0) {
     ERR_error_string(err, buf);
-    noitL(eventer_err, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
+    noitL(eventer_deb, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
   }
 }
 
@@ -162,7 +162,7 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
     ctx->cert_error = strdup(X509_verify_cert_error_string(v_res));
     if(!strcmp(opt_no_ca, "true")) ok = 1;
     else {
-      noitL(eventer_err, "SSL client cert invalid: %s\n",
+      noitL(eventer_deb, "SSL client cert invalid: %s\n",
             X509_verify_cert_error_string(v_res));
       ok = 0;
       goto set_out;
@@ -172,7 +172,7 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
   if(v_res != 0) {
     if(!strcmp(ignore_dates, "true")) ok = 1;
     else {
-      noitL(eventer_err, "SSL client cert is %s valid.\n",
+      noitL(eventer_deb, "SSL client cert is %s valid.\n",
             (v_res < 0) ? "not yet" : "no longer");
       ok = 0;
       goto set_out;
@@ -252,7 +252,7 @@ eventer_SSL_server_info_callback(const SSL *ssl, int type, int val) {
 
   ctx = SSL_get_eventer_ssl_ctx(ssl);
   if(ctx->no_more_negotiations) {
-    noitL(eventer_err, "eventer_SSL_server_info_callback ... reneg is bad\n");
+    noitL(eventer_deb, "eventer_SSL_server_info_callback ... reneg is bad\n");
     ctx->renegotiated = 1;
   }
 }
@@ -442,7 +442,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       errno = EAGAIN;
       break;
     default:
-      noitL(eventer_err, "SSL[%s of %d] rw error: %d\n", opstr,
+      noitL(eventer_deb, "SSL[%s of %d] rw error: %d\n", opstr,
             (int)len, sslerror);
       eventer_ssl_error();
       errno = EIO;
