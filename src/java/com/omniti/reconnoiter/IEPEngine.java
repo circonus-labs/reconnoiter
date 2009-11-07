@@ -21,14 +21,9 @@ import com.omniti.reconnoiter.esper.CounterViewFactory;
 import org.apache.log4j.BasicConfigurator;
 
 class IEPEngine {
-  static public void main(String[] args) {
-    BasicConfigurator.configure();
-    if(args.length != 1) {
-      System.err.println("Requires exactly one argument");
-      return;
-    }
-    StratconConfig sconf = new StratconConfig(args[0]);
+  private MQListener mql;
 
+  public IEPEngine(StratconConfig sconf) {
     Configuration config = new Configuration();
     config.addDatabaseReference("recondb", sconf.getDBConfig());
     config.addEventTypeAutoName("com.omniti.reconnoiter.event");
@@ -37,11 +32,24 @@ class IEPEngine {
     config.addPlugInView("noit", "counter", CounterViewFactory.class.getName());
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
 
-    MQListener l = new MQListener(epService, BrokerFactory.getBroker(sconf));
+    mql = new MQListener(epService, BrokerFactory.getBroker(sconf));
+  }
 
-    Thread listener = new Thread(l);
+  public void start() {
+    Thread listener = new Thread(mql);
     listener.start();
+  }
 
+  static public void main(String[] args) {
+    BasicConfigurator.configure();
+    if(args.length != 1) {
+      System.err.println("Requires exactly one argument");
+      return;
+    }
+    StratconConfig sconf = new StratconConfig(args[0]);
+    (new IEPEngine(sconf)).start();
+
+    System.err.println("IEPEngine ready...");
     BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
     while(true) {
       try {
