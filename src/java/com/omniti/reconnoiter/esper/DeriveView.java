@@ -83,12 +83,16 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                 derivedNew = new EventBean[derivedsize];
             for ( EventBean pointb : newData ) {
                 EventBean eventsPerStream[] = { pointb };
+                Number NX = (Number) expressionX.evaluate(eventsPerStream, true, statementContext);
+                if(NX == null) continue;
+                Number NY = (Number) expressionY.evaluate(eventsPerStream, true, statementContext);
+                if(NY == null) continue;
                 NoitDerivePoint point = new NoitDerivePoint();
-                point.X = ((Number) expressionX.evaluate(eventsPerStream, true, statementContext)).longValue();
+                point.X = NX.longValue();
                 if(isDouble)
-                  point.Ydouble = ((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).doubleValue();
+                  point.Ydouble = NY.doubleValue();
                 else
-                  point.Ylong = ((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).longValue();
+                  point.Ylong = NY.longValue();
 
                 if (lastpoint != null) {
                     try {
