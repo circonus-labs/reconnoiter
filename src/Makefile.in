@@ -153,7 +153,7 @@ stratcon.conf:	stratcon.conf.in Makefile
 		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
 		-e "s^%iepbindir%^$(bindir)^g;" \
-		-e "s^%iepdbdir%^$(prefix)/var/db^g;" \
+		-e "s^%iepdbdir%^$(prefix)/var/db/noit-iep^g;" \
 		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
 		stratcon.conf.in > \
 		stratcon.conf
