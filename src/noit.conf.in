@@ -111,13 +111,17 @@
       </resmon>
       <switches module="snmp" period="60000">
         <config inherit="SwitchPortX"/>
-        <switch target="10.80.116.3">
-          <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/>
-          <check uuid="1b4e28ba-3fa1-11d2-883f-e9b761bde3fb" name="2"/>
-          <check uuid="1b4e29ba-3fa1-11d2-883f-e9b761bde3fb" name="3"/>
-          <check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="4"/>
+        <switch target="10.1.2.3">
+          <check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="switchport::1"/>
+          <check uuid="1b4e28ba-3fa1-11d2-883f-e9b761bde3fb" name="switchport::2"/>
+          <check uuid="1b4e29ba-3fa1-11d2-883f-e9b761bde3fb" name="switchport::3"/>
+          <check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="switchport::4"/>
         </switch>
       </switches>
+      <disk module="snmp" period="60000">
+        <config inherit="disk"><community>test</community></config>
+        <check target="127.0.0.1" uuid="16eb9194-cbf4-11de-8fba-031dd96e4057" name="disk::1" />
+      </disk>
     </dc1>
     <check uuid="002d58ff-20ff-4db0-9420-782fc1748dc4" module="ssh2" target="10.80.117.2" period="60000" timeout="4000"/>
   </checks>
@@ -128,38 +132,49 @@
   </filtersets>
   <config_templates>
     <config id="SwitchPort">
-      <oid_description>IF-MIB::ifDescr.%[name]</oid_description>
-      <oid_alias>IF-MIB::ifAlias.%[name]</oid_alias>
-      <oid_speed>IF-MIB::ifSpeed.%[name]</oid_speed>
-      <oid_adminstatus>IF-MIB::ifAdminStatus.%[name]</oid_adminstatus>
-      <oid_operstatus>IF-MIB::ifOperStatus.%[name]</oid_operstatus>
-      <oid_inoctets>IF-MIB::ifInOctets.%[name]</oid_inoctets>
-      <oid_outoctets>IF-MIB::ifOutOctets.%[name]</oid_outoctets>
-      <oid_inerrors>IF-MIB::ifInErrors.%[name]</oid_inerrors>
-      <oid_outerrors>IF-MIB::ifOutErrors.%[name]</oid_outerrors>
-      <oid_indiscards>IF-MIB::ifInDiscards.%[name]</oid_indiscards>
-      <oid_outdiscards>IF-MIB::ifOutDiscards.%[name]</oid_outdiscards>
-      <oid_inucastpkts>IF-MIB::ifInUcastPkts.%[name]</oid_inucastpkts>
-      <oid_outucastpkts>IF-MIB::ifOutUcastPkts.%[name]</oid_outucastpkts>
-      <oid_inbcastpkts>IF-MIB::ifInNUcastPkts.%[name]</oid_inbcastpkts>
-      <oid_outbcastpkts>IF-MIB::ifOutNUcastPkts.%[name]</oid_outbcastpkts>
+      <oid_description>IF-MIB::ifDescr.%[:ccns:name]</oid_description>
+      <oid_alias>IF-MIB::ifAlias.%[:ccns:name]</oid_alias>
+      <oid_speed>IF-MIB::ifSpeed.%[:ccns:name]</oid_speed>
+      <oid_adminstatus>IF-MIB::ifAdminStatus.%[:ccns:name]</oid_adminstatus>
+      <oid_operstatus>IF-MIB::ifOperStatus.%[:ccns:name]</oid_operstatus>
+      <oid_inoctets>IF-MIB::ifInOctets.%[:ccns:name]</oid_inoctets>
+      <oid_outoctets>IF-MIB::ifOutOctets.%[:ccns:name]</oid_outoctets>
+      <oid_inerrors>IF-MIB::ifInErrors.%[:ccns:name]</oid_inerrors>
+      <oid_outerrors>IF-MIB::ifOutErrors.%[:ccns:name]</oid_outerrors>
+      <oid_indiscards>IF-MIB::ifInDiscards.%[:ccns:name]</oid_indiscards>
+      <oid_outdiscards>IF-MIB::ifOutDiscards.%[:ccns:name]</oid_outdiscards>
+      <oid_inucastpkts>IF-MIB::ifInUcastPkts.%[:ccns:name]</oid_inucastpkts>
+      <oid_outucastpkts>IF-MIB::ifOutUcastPkts.%[:ccns:name]</oid_outucastpkts>
+      <oid_inbcastpkts>IF-MIB::ifInNUcastPkts.%[:ccns:name]</oid_inbcastpkts>
+      <oid_outbcastpkts>IF-MIB::ifOutNUcastPkts.%[:ccns:name]</oid_outbcastpkts>
     </config>
     <config id="SwitchPortX">
-      <oid_description>IF-MIB::ifName.%[name]</oid_description>
-      <oid_alias>IF-MIB::ifAlias.%[name]</oid_alias>
-      <oid_speed>IF-MIB::ifSpeed.%[name]</oid_speed>
-      <oid_adminstatus>IF-MIB::ifAdminStatus.%[name]</oid_adminstatus>
-      <oid_operstatus>IF-MIB::ifOperStatus.%[name]</oid_operstatus>
-      <oid_inoctets>IF-MIB::ifHCInOctets.%[name]</oid_inoctets>
-      <oid_outoctets>IF-MIB::ifHCOutOctets.%[name]</oid_outoctets>
-      <oid_inerrors>IF-MIB::ifInErrors.%[name]</oid_inerrors>
-      <oid_outerrors>IF-MIB::ifOutErrors.%[name]</oid_outerrors>
-      <oid_indiscards>IF-MIB::ifInDiscards.%[name]</oid_indiscards>
-      <oid_outdiscards>IF-MIB::ifOutDiscards.%[name]</oid_outdiscards>
-      <oid_inucastpkts>IF-MIB::ifHCInUcastPkts.%[name]</oid_inucastpkts>
-      <oid_outucastpkts>IF-MIB::ifHCOutUcastPkts.%[name]</oid_outucastpkts>
-      <oid_inbcastpkts>IF-MIB::ifHCInBroadcastPkts.%[name]</oid_inbcastpkts>
-      <oid_outbcastpkts>IF-MIB::ifHCOutBroadcastPkts.%[name]</oid_outbcastpkts>
+      <oid_description>IF-MIB::ifName.%[:ccns:name]</oid_description>
+      <oid_alias>IF-MIB::ifAlias.%[:ccns:name]</oid_alias>
+      <oid_speed>IF-MIB::ifSpeed.%[:ccns:name]</oid_speed>
+      <oid_adminstatus>IF-MIB::ifAdminStatus.%[:ccns:name]</oid_adminstatus>
+      <oid_operstatus>IF-MIB::ifOperStatus.%[:ccns:name]</oid_operstatus>
+      <oid_inoctets>IF-MIB::ifHCInOctets.%[:ccns:name]</oid_inoctets>
+      <oid_outoctets>IF-MIB::ifHCOutOctets.%[:ccns:name]</oid_outoctets>
+      <oid_inerrors>IF-MIB::ifInErrors.%[:ccns:name]</oid_inerrors>
+      <oid_outerrors>IF-MIB::ifOutErrors.%[:ccns:name]</oid_outerrors>
+      <oid_indiscards>IF-MIB::ifInDiscards.%[:ccns:name]</oid_indiscards>
+      <oid_outdiscards>IF-MIB::ifOutDiscards.%[:ccns:name]</oid_outdiscards>
+      <oid_inucastpkts>IF-MIB::ifHCInUcastPkts.%[:ccns:name]</oid_inucastpkts>
+      <oid_outucastpkts>IF-MIB::ifHCOutUcastPkts.%[:ccns:name]</oid_outucastpkts>
+      <oid_inbcastpkts>IF-MIB::ifHCInBroadcastPkts.%[:ccns:name]</oid_inbcastpkts>
+      <oid_outbcastpkts>IF-MIB::ifHCOutBroadcastPkts.%[:ccns:name]</oid_outbcastpkts>
+    </config>
+    <config id="disk">
+      <oid_path>UCD-SNMP-MIB::dskPath.%[:ccns:name]</oid_path>
+      <oid_device>UCD-SNMP-MIB::dskDevice.%[:ccns:name]</oid_device>
+      <oid_total>UCD-SNMP-MIB::dskTotal.%[:ccns:name]</oid_total>
+      <oid_avail>UCD-SNMP-MIB::dskAvail.%[:ccns:name]</oid_avail>
+      <oid_used>UCD-SNMP-MIB::dskUsed.%[:ccns:name]</oid_used>
+      <oid_pctspace>UCD-SNMP-MIB::dskPercent.%[:ccns:name]</oid_pctspace>
+      <oid_pctinodes>UCD-SNMP-MIB::dskPercentNode.%[:ccns:name]</oid_pctinodes>
+      <oid_errorflag>UCD-SNMP-MIB::dskErrorFlag.%[:ccns:name]</oid_errorflag>
+      <oid_errormsg>UCD-SNMP-MIB::dskErrorMsg.%[:ccns:name]</oid_errormsg>
     </config>
   </config_templates>
 </noit>

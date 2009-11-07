@@ -43,6 +43,9 @@ typedef int (*dispatch_func_t)(noit_module_t *, noit_check_t *);
 
 typedef int (*intperpolate_oper_fn)(char *, int len, const char *replacement);
 
+API_EXPORT(void)
+  noit_check_tools_init();
+
 API_EXPORT(int)
   noit_check_interpolate_register_oper_fn(const char *name,
                                           intperpolate_oper_fn f);

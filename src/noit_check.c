@@ -47,6 +47,7 @@
 #include "noit_check.h"
 #include "noit_module.h"
 #include "noit_console.h"
+#include "noit_check_tools.h"
 #include "eventer/eventer.h"
 
 /* 60 seconds of possible stutter */
@@ -370,6 +371,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
+  noit_check_tools_init();
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);

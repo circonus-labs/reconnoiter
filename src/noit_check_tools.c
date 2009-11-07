@@ -49,8 +49,20 @@ interpolate_oper_copy(char *buff, int len, const char *replacement) {
   strlcpy(buff, replacement, len);
   return strlen(buff);
 }
+static int
+interpolate_oper_ccns(char *buff, int len, const char *replacement) {
+  char *start;
+  start = strstr(replacement, "::");
+  return interpolate_oper_copy(buff, len, start ? (start + 2) : replacement);
+}
 
-API_EXPORT(int)
+void
+noit_check_tools_init() {
+  noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
+  noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
+}
+
+int
 noit_check_interpolate_register_oper_fn(const char *name,
                                         intperpolate_oper_fn f) {
   noit_hash_replace(&interpolation_operators,
@@ -60,7 +72,7 @@ noit_check_interpolate_register_oper_fn(const char *name,
   return 0;
 }
 
-API_EXPORT(int)
+int
 noit_check_interpolate(char *buff, int len, const char *fmt,
                        noit_hash_table *attrs,
                        noit_hash_table *config) {
