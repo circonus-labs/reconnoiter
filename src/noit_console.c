@@ -486,10 +486,11 @@ noit_console_logio_reopen(noit_log_stream_t ls) {
 }
 static int
 noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
-  noit_console_closure_t ncct = ls->op_ctx;
+  noit_console_closure_t ncct;
+  ncct = noit_log_stream_get_ctx(ls);
   int rv, rlen, mask;
   if(!ncct) return 0;
-  rlen = nc_write(ls->op_ctx, buf, len);
+  rlen = nc_write(ncct, buf, len);
   while((rv = noit_console_continue_sending(ncct, &mask)) == -1 && errno == EINTR);
   if(rv == -1 && errno == EAGAIN) {
     eventer_update(ncct->e, mask | EVENTER_EXCEPTION);
@@ -498,7 +499,7 @@ noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
 }
 static int
 noit_console_logio_close(noit_log_stream_t ls) {
-  ls->op_ctx = NULL;
+  noit_log_stream_set_ctx(ls, NULL);
   return 0;
 }
 static logops_t noit_console_logio_ops = {

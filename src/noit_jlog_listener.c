@@ -227,7 +227,7 @@ socket_error:
 
   if(!ac->service_ctx) {
     noit_log_stream_t ls;
-    const char *logname;
+    const char *logname, *type;
     char path[PATH_MAX], subscriber[256], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
     if(!noit_hash_retr_str(ac->config,
@@ -246,7 +246,8 @@ socket_error:
       noitL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
-    if(!ls->type || strcmp(ls->type, "jlog")) {
+    type = noit_log_stream_get_type(ls);
+    if(!type || strcmp(type, "jlog")) {
       snprintf(errbuff, sizeof(errbuff),
                "Log '%s' for log_transit is not a jlog.", logname);
       errstr = errbuff;
@@ -267,7 +268,7 @@ socket_error:
     }
     jcl->subscriber = strdup(subscriber);
 
-    strlcpy(path, ls->path, sizeof(path));
+    strlcpy(path, noit_log_stream_get_path(ls), sizeof(path));
     sub = strchr(path, '(');
     if(sub) {
       char *esub = strchr(sub, ')');

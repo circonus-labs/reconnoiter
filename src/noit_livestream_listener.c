@@ -96,8 +96,10 @@ noit_livestream_logio_reopen(noit_log_stream_t ls) {
 }
 static int
 noit_livestream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
-  noit_livestream_closure_t *jcl = ls->op_ctx;
+  noit_livestream_closure_t *jcl;
   struct log_entry *le;
+
+  jcl = noit_log_stream_get_ctx(ls);
   if(!jcl) return 0;
 
   if(jcl->wants_shutdown) {
@@ -120,9 +122,10 @@ noit_livestream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
 }
 static int
 noit_livestream_logio_close(noit_log_stream_t ls) {
-  noit_livestream_closure_t *jcl = ls->op_ctx;
+  noit_livestream_closure_t *jcl;
+  jcl = noit_log_stream_get_ctx(ls);
   if(jcl) noit_livestream_closure_free(jcl);
-  ls->op_ctx = NULL;
+  noit_log_stream_set_ctx(ls, NULL);
   return 0;
 }
 static logops_t noit_livestream_logio_ops = {

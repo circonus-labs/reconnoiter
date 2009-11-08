@@ -51,18 +51,15 @@ typedef struct {
   size_t (*sizeop)(struct _noit_log_stream *);
 } logops_t;
 
+#ifdef noit_log_impl
+typedef struct _noit_log_stream * noit_log_stream_t;
+#else
 typedef struct _noit_log_stream {
-  char *type;
-  char *name;
-  int enabled:1;
-  int debug:1;
-  int mode;
-  char *path;
-  logops_t *ops;
-  void *op_ctx;
-  noit_hash_table *config;
-  struct _noit_log_stream_outlet_list *outlets;
+  unsigned enabled:1;
+  unsigned debug:1;
+  /* totally private type, don't even think about it */
 } * noit_log_stream_t;
+#endif
 
 extern noit_log_stream_t noit_stderr;
 extern noit_log_stream_t noit_debug;
@@ -71,6 +68,12 @@ extern noit_log_stream_t noit_error;
 API_EXPORT(void) noit_log_init();
 API_EXPORT(int) noit_log_reopen_all();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
+API_EXPORT(void *) noit_log_stream_get_ctx(noit_log_stream_t);
+API_EXPORT(void) noit_log_stream_set_ctx(noit_log_stream_t, void *);
+API_EXPORT(const char *) noit_log_stream_get_type(noit_log_stream_t);
+API_EXPORT(const char *) noit_log_stream_get_name(noit_log_stream_t);
+API_EXPORT(const char *) noit_log_stream_get_path(noit_log_stream_t);
+
 API_EXPORT(noit_log_stream_t)
   noit_log_stream_new(const char *, const char *, const char *,
                       void *, noit_hash_table *);
@@ -100,8 +103,9 @@ API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
 #endif
   ;
 
-#define noitLT(ls, t, args...) \
-  if((ls) && (ls)->enabled) noit_log(ls, t, __FILE__, __LINE__, args)
+#define noitLT(ls, t, args...) do { \
+  if((ls) && (ls)->enabled) noit_log(ls, t, __FILE__, __LINE__, args); \
+} while(0)
 #define noitL(ls, args...) do { \
   if((ls) && (ls)->enabled) { \
     struct timeval __noitL_now; \
