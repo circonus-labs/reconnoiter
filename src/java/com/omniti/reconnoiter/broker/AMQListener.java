@@ -24,7 +24,7 @@ import com.espertech.esper.client.util.JSONEventRenderer;
 import com.espertech.esper.client.EventBean;
 import com.espertech.esper.client.UpdateListener;
 
-public class AMQListener implements UpdateListener {
+public class AMQListener extends NoitListener implements Runnable {
     private EPServiceProvider epService;
     private EPStatement statement;
     private ActiveMQConnectionFactory connectionFactory;
@@ -35,6 +35,7 @@ public class AMQListener implements UpdateListener {
     private StratconQuery sq;
 
     public AMQListener(EPServiceProvider epService, StratconQuery sq, String binding) {
+      super();
       try {
         // we just need it started up
         BrokerFactory.getAMQBrokerService();
@@ -50,26 +51,33 @@ public class AMQListener implements UpdateListener {
 
         producer = session.createProducer(destination);
         producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+        Thread thr = new Thread(this);
+        sq.setThread(thr);
+        thr.start();
       } catch(Exception e) {
         System.err.println("Cannot broker messages");
       }
     }
-    public void update(EventBean[] newEvents, EventBean[] oldEvents) {
-      System.err.println("AMQOutput -> dispatch");
-      for(int i = 0; i < newEvents.length; i++) {
-        EventBean event = newEvents[i];
-
-        JSONEventRenderer jsonRenderer = epService.getEPRuntime().
-                                                   getEventRenderer().
-                                                   getJSONRenderer(sq.getStatement().getEventType());
-        String output = jsonRenderer.render(sq.getName(), event);
-        try {
-          TextMessage message = session.createTextMessage(output);
-          producer.send(message);
-        }  catch(JMSException e) {
-          System.err.println(e);
+    public void run() {
+        JSONEventRenderer jsonRenderer =
+            epService.getEPRuntime().
+                      getEventRenderer().
+                      getJSONRenderer(sq.getStatement().getEventType());
+        while(sq.isActive()) {
+            try {
+                EventBean event = queue.take();
+                String output = jsonRenderer.render("r", event);
+                try {
+                    TextMessage message = session.createTextMessage(output);
+                    producer.send(message);
+                }
+                catch(JMSException e) {
+                    System.err.println(e);
+                }
+                System.err.println(output);
+            }
+            catch (InterruptedException e) {
+            }
         }
-        System.err.println(output);
-      }
     }
 }

@@ -23,6 +23,7 @@ top_srcdir=@top_srcdir@
 
 JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/EventHandler.java \
+	com/omniti/reconnoiter/broker/NoitListener.java \
 	com/omniti/reconnoiter/broker/RabbitBroker.java \
 	com/omniti/reconnoiter/broker/IMQBroker.java \
 	com/omniti/reconnoiter/broker/AMQBroker.java \

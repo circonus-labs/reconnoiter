@@ -14,8 +14,10 @@ import com.espertech.esper.client.UpdateListener;
 import java.util.UUID;
 
 public class StratconQuery extends StratconQueryBase {
+  protected boolean active;
   protected UpdateListener listener;
   protected String name;
+  protected Thread thr;
 
   protected String getPrefix() {
      return "Q";
@@ -34,9 +36,16 @@ public class StratconQuery extends StratconQueryBase {
 
     if(name == null) name = "default";
     if(uuid == null) uuid = UUID.randomUUID();
+    active = true;
+  }
+  public boolean isActive() {
+    return active;
   }
   public String getName() {
     return name;
+  }
+  public void setThread(Thread thr) {
+    this.thr = thr;
   }
   public void setListener(UpdateListener l) {
     this.listener = l;
@@ -44,6 +53,8 @@ public class StratconQuery extends StratconQueryBase {
   public void destroy() {
     statement.removeListener(listener);
     statement.destroy();
+    active = false;
+    if(thr != null) thr.interrupt();
   }
 
   protected int getLength() {
