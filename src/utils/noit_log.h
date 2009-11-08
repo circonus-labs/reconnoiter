@@ -69,6 +69,7 @@ extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 
 API_EXPORT(void) noit_log_init();
+API_EXPORT(int) noit_log_reopen_all();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
 API_EXPORT(noit_log_stream_t)
   noit_log_stream_new(const char *, const char *, const char *,

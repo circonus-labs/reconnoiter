@@ -469,3 +469,18 @@ noit_log(noit_log_stream_t ls, struct timeval *now,
   return rv;
 }
 
+int
+noit_log_reopen_all() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen, rv = 0;
+  void *data;
+  noit_log_stream_t ls;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    ls = data;
+    if(ls->ops) if(ls->ops->reopenop(ls) < 0) rv = -1;
+  }
+  return rv;
+}
+

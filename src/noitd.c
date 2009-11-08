@@ -162,6 +162,8 @@ static int child_main() {
     exit(-1);
   }
 
+  noit_log_reopen_all();
+
   signal(SIGHUP, request_conf_reload);
 
   /* initialize the eventer */
