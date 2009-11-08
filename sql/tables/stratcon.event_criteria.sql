@@ -18,6 +18,18 @@ SET default_with_oids = false;
 -- Name: event_criteria; Type: TABLE; Schema: stratcon; Owner: reconnoiter;
 --
 
+CREATE SEQUENCE event_criteria_id_seq
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO MINVALUE
+    CACHE 1;
+
+ALTER TABLE event_criteria_id_seq OWNER TO reconnoiter;
+REVOKE ALL ON SEQUENCE event_criteria_id_seq FROM PUBLIC;
+REVOKE ALL ON SEQUENCE event_criteria_id_seq FROM reconnoiter;
+GRANT ALL ON SEQUENCE event_criteria_id_seq TO reconnoiter;
+GRANT SELECT,UPDATE ON SEQUENCE event_criteria_id_seq TO stratcon;
+
 CREATE TABLE event_criteria_numeric (
   check_id uuid not null,
   metric_name text not null,
