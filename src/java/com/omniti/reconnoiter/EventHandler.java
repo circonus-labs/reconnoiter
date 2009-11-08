@@ -70,5 +70,5 @@ public class EventHandler {
     else if(m instanceof NoitStatus) {
       epService.getEPRuntime().sendEvent(m);
     }
-	}
+  }
 }
