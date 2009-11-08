@@ -305,16 +305,6 @@ APRLIBS="`apr-1-config --link-ld --ldflags --libs`"
 AC_SUBST(APRLIBS)
 AC_MSG_RESULT([$APRLIBS])
 
-AC_MSG_CHECKING([libcurl cflags])
-CURLCFLAGS="`curl-config --cflags`"
-AC_SUBST(CURLCFLAGS)
-AC_MSG_RESULT([$CURLCFLAGS])
-
-AC_MSG_CHECKING([libcurl libs])
-CURLLIBS="`curl-config --libs`"
-AC_SUBST(CURLLIBS)
-AC_MSG_RESULT([$CURLLIBS])
-
 AC_TRY_LINK([],
 	[ issetugid(); ],
 	[ ac_cv_libc_defines_issetugid="yes" ],
