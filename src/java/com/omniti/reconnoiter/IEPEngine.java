@@ -30,6 +30,7 @@ class IEPEngine {
     config.addPlugInView("noit", "linest", ExactStatViewFactory.class.getName());
     config.addPlugInView("noit", "derive", DeriveViewFactory.class.getName());
     config.addPlugInView("noit", "counter", CounterViewFactory.class.getName());
+    config.getEngineDefaults().getThreading().setInsertIntoDispatchPreserveOrder(false);
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
 
     mql = new MQListener(epService, BrokerFactory.getBroker(sconf));
