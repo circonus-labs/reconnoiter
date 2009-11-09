@@ -2,6 +2,11 @@
 
 JAVA=@JAVA@
 JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
+if [ "$1" = "-d" ]; then
+	JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
+	JPARAMS="-sourcepath . $JPARAMS"
+	shift
+fi
 JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
 	esper-3.2.0.jar log4j-1.2.15.jar \
 	spring-beans-2.5.5.jar spring-context-2.5.5.jar \
@@ -28,4 +33,4 @@ do
 		exit
 	fi
 done
-exec $JAVA $JPARAMS -cp $CP com.omniti.reconnoiter.IEPEngine $*
+exec $JAVA $JPARAMS -classpath $CP com.omniti.reconnoiter.IEPEngine $*
