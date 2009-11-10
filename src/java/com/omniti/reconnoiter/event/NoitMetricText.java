@@ -20,7 +20,7 @@ public class NoitMetricText extends StratconMessage {
       noit = parts[1];
       uuid = parts[3];
       name = parts[4];
-      message = parts[6];
+      message = parts[6].equals("[[null]]") ? null : parts[6];
       time = timeToLong(parts[2]);
     }
     public String getUuid() { return uuid; }

@@ -29,12 +29,14 @@ public class NoitMetricNumeric extends StratconMessage {
       time = timeToLong(parts[2]);
       uuid = parts[3];
       name = parts[4];
-      try {
-        value = Double.valueOf(parts[6]);
-      } catch (NumberFormatException nfe) {
-        value = null;
+      value = null;
+      if (!parts[6].equals("[[null]]")) {
+          try {
+            value = Double.valueOf(parts[6]);
+          } catch (NumberFormatException nfe) {
+            value = null;
+          }
       }
-
    }
 
     public String getUuid() { return uuid; }
