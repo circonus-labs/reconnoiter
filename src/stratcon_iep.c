@@ -50,23 +50,14 @@
 #include <sys/filio.h>
 #endif
 #include <assert.h>
-#ifdef OPENWIRE
-#include "amqcs.h"
-#else
 #include "stomp/stomp.h"
-#endif
 
 eventer_jobq_t iep_jobq;
 static noit_log_stream_t noit_iep = NULL;
 static noit_spinlock_t iep_conn_cnt = 0;
 
 struct iep_thread_driver {
-#ifdef OPENWIRE
-  amqcs_connect_options connect_options;
-  amqcs_connection *connection;
-#else
   stomp_connection *connection;
-#endif
   apr_pool_t *pool;
   char* exchange;
 };
@@ -341,17 +332,6 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
     if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/hostname",
                                 hostname, sizeof(hostname)))
       strlcpy(hostname, "127.0.0.1", sizeof(hostname));
-#ifdef OPENWIRE
-    memset(&driver->connect_options, 0, sizeof(driver->connect_options));
-    strlcpy(driver->connect_options.hostname, hostname,
-            sizeof(driver->connect_options.hostname));
-    driver->connect_options.port = port;
-    if(amqcs_connect(&driver->connection, &driver->connect_options,
-                     driver->pool) != APR_SUCCESS) {
-      noitL(noit_error, "MQ connection failed\n");
-      return NULL;
-    }
-#else
     if(stomp_connect(&driver->connection, hostname, port,
                      driver->pool)!= APR_SUCCESS) {
       noitL(noit_error, "MQ connection failed\n");
@@ -398,7 +378,6 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
         return NULL;
       }
     }  
-#endif
     stratcon_iep_submit_statements();
     stratcon_datastore_iep_check_preload();
     stratcon_iep_submit_queries();
@@ -462,27 +441,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     apr_status_t rc;
     int line_len = strlen(job->line);
     int remote_len = strlen(job->remote);
-#ifdef OPENWIRE
-    ow_ActiveMQQueue *dest;
-    ow_ActiveMQTextMessage *message;
-
-    apr_pool_create(&job->pool, driver->pool);
-    message = ow_ActiveMQTextMessage_create(job->pool);
-    message->content =
-      ow_byte_array_create_with_data(job->pool,strlen(job->doc_str),
-                                     job->doc_str);
-    dest = ow_ActiveMQQueue_create(job->pool);
-    dest->physicalName = ow_string_create_from_cstring(job->pool,"TEST.QUEUE");         
-    rc = amqcs_send(driver->connection,
-                    (ow_ActiveMQDestination*)dest,
-                    (ow_ActiveMQMessage*)message,
-                    1,4,0,job->pool);
-    if(rc != APR_SUCCESS) {
-      noitL(noit_error, "MQ send failed, disconnecting\n");
-      if(driver->connection) amqcs_disconnect(&driver->connection);
-      driver->connection = NULL;
-    }
-#else
     stomp_frame out;
 
     job->doc_str = (char*)calloc(line_len + 1 /* \t */ +
@@ -510,7 +468,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
       if(driver->connection) stomp_disconnect(&driver->connection);
       driver->connection = NULL;
     }
-#endif
   }
   else {
     noitL(noit_iep, "no iep connection, skipping line: '%s'\n", job->line); 
@@ -571,12 +528,8 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
 
 static void connection_destroy(void *vd) {
   struct iep_thread_driver *driver = vd;
-#ifdef OPENWIRE
-  if(driver->connection) amqcs_disconnect(&driver->connection);
-#else
   if(driver->connection) stomp_disconnect(&driver->connection);
   if(driver->exchange) free(driver->exchange);
-#endif
   if(driver->pool) apr_pool_destroy(driver->pool);
   free(driver);
 }
