@@ -56,7 +56,7 @@ public class StratconConfig {
     }
   }
 
-  protected String getDatabaseParameter(String param) {
+  public String getDatabaseParameter(String param) {
     XPathFactory factory = XPathFactory.newInstance();
     XPath xpath = factory.newXPath();
     Object result;
