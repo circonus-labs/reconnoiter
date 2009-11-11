@@ -15,13 +15,14 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 CREATE TABLE event_criteria_numeric_rulesets (
-  event_criteria_id integer not null primary key references event_criteria_numeric on update cascade on delete restrict,
+  event_criteria_id integer not null references event_criteria_numeric on update cascade on delete restrict,
   minimum numeric,
   maximum numeric,
   absence boolean not null default true,
   ordering integer not null,
   priority integer not null,
-  check (coalesce(minimum,maximum) IS NOT NULL) 
+  check (coalesce(minimum,maximum) IS NOT NULL),
+  primary key (event_criteria_id, ordering)  
 );
 
 
@@ -31,7 +32,8 @@ CREATE TABLE event_criteria_text_rulesets (
   onchange boolean not null default false,
   absence boolean not null default true,
   ordering integer not null,
-  priority integer not null
+  priority integer not null, 
+  primary key (event_criteria_id, ordering)  
 );
 
 
