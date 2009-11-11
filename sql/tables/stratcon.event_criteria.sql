@@ -30,7 +30,7 @@ CREATE TABLE event_criteria_numeric (
   check_id uuid not null,
   metric_name text not null,
   event_criteria_id integer not null primary key,
-  derive text
+  derive text check (derive in ('derive_5m','counter_5m',NULL)) 
 );
 
 CREATE INDEX event_criteria_numeric_check_id_idx

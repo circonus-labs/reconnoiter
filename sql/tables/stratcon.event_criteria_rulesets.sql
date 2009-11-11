@@ -21,7 +21,7 @@ CREATE TABLE event_criteria_numeric_rulesets (
   absence boolean not null default true,
   ordering integer not null,
   priority integer not null,
-  check (coalesce(minimum,maximum,0) <> 0) 
+  check (coalesce(minimum,maximum) IS NOT NULL) 
 );
 
 
