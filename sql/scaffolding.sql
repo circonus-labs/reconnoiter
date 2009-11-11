@@ -38,6 +38,7 @@ grant usage on schema prism to prism;
 \i tables/stratcon.storage_node.sql
 \i tables/stratcon.map_uuid_to_sid.sql
 \i tables/stratcon.event_criteria.sql
+\i tables/stratcon.event_criteria_rulesets.sql
 \i tables/prism.graph_templates.sql
 
 \i sprocs/noit.check_archive_log_changes.sql
