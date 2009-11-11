@@ -24,56 +24,30 @@ CREATE SEQUENCE event_criteria_id_seq
     NO MINVALUE
     CACHE 1;
 
-ALTER TABLE event_criteria_id_seq OWNER TO reconnoiter;
-REVOKE ALL ON SEQUENCE event_criteria_id_seq FROM PUBLIC;
-REVOKE ALL ON SEQUENCE event_criteria_id_seq FROM reconnoiter;
-GRANT ALL ON SEQUENCE event_criteria_id_seq TO reconnoiter;
 GRANT SELECT,UPDATE ON SEQUENCE event_criteria_id_seq TO stratcon;
 
 CREATE TABLE event_criteria_numeric (
   check_id uuid not null,
   metric_name text not null,
-  ordering integer not null,
-  event_criteria_id integer not null,
-  priority integer not null,
-  derive text,
-  minimum numeric,
-  maximum numeric,
-  absence boolean not null default true
+  event_criteria_id integer not null primary key,
+  derive text
 );
 
-CREATE UNIQUE INDEX event_criteria_numeric_cmo
-    ON event_criteria_numeric (check_id, metric_name, ordering);
-
-CREATE INDEX event_criteria_numeric_cid
-    ON event_criteria_numeric (event_criteria_id);
+CREATE INDEX event_criteria_numeric_check_id_idx
+    ON event_criteria_numeric (check_id);
 
 CREATE TABLE event_criteria_text (
   check_id uuid not null,
   metric_name text not null,
-  ordering integer not null,
-  event_criteria_id integer not null,
-  priority integer not null,
-  match text,
-  onchange boolean not null default false,
-  absence boolean not null default true
+  event_criteria_id integer not null primary key 
 );
 
-CREATE UNIQUE INDEX event_criteria_text_cmo
-    ON event_criteria_text (check_id, metric_name, ordering);
+CREATE INDEX event_criteria_text_check_id_idx
+    ON event_criteria_text (check_id);
 
-CREATE UNIQUE INDEX event_criteria_text_cid
-    ON event_criteria_text (event_criteria_id);
-
-REVOKE ALL ON TABLE event_criteria_numeric FROM PUBLIC;
-REVOKE ALL ON TABLE event_criteria_numeric FROM reconnoiter;
-GRANT ALL ON TABLE event_criteria_numeric TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE event_criteria_numeric TO prism;
+GRANT SELECT ON TABLE event_criteria_numeric TO prism;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE event_criteria_numeric TO stratcon;
 
-REVOKE ALL ON TABLE event_criteria_text FROM PUBLIC;
-REVOKE ALL ON TABLE event_criteria_text FROM reconnoiter;
-GRANT ALL ON TABLE event_criteria_text TO reconnoiter;
-GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE event_criteria_text TO prism;
+GRANT SELECT ON TABLE event_criteria_text TO prism;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE event_criteria_text TO stratcon;
 
