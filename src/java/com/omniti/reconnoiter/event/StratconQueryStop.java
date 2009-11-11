@@ -8,18 +8,18 @@
 
 package com.omniti.reconnoiter.event;
 
-import com.omniti.reconnoiter.StratconMessage;
 import java.util.UUID;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
+import com.omniti.reconnoiter.StratconMessage;
+import com.omniti.reconnoiter.EventHandler;
 
 public class StratconQueryStop extends StratconQueryBase {
 
-   protected String getPrefix() {
-     return "q";
-   }
+  public String getPrefix() {
+    return "q";
+  }
 
-/*  'q' REMOTE ID */
+  /*  'q' REMOTE ID */
+  public StratconQueryStop() {}
   public StratconQueryStop(String[] parts) throws Exception {
     super(parts);
     uuid = UUID.fromString(parts[2]);
@@ -28,9 +28,12 @@ public class StratconQueryStop extends StratconQueryBase {
     return uuid;
   }
 
-  protected int getLength() {
+  public int getLength() {
     return 3;
   }
-  
+
+  public void handle(EventHandler eh) {
+    eh.deregisterQuery(getUUID());
+  }
 }
 

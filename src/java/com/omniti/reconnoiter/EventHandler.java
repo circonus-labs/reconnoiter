@@ -20,55 +20,34 @@ public class EventHandler {
     this.queries = queries;
     this.broker = broker;
   }
+  public EPServiceProvider getService() { return epService; }
+  public IMQBroker getBroker() { return broker; }
+  public boolean registerQuery(StratconQueryBase sq) {
+    if(queries.containsKey(sq.getUUID())) return false;
+    queries.put(sq.getUUID(), sq);
+    return true;
+  }
+  public boolean deregisterQuery(UUID id) {
+    StratconQueryBase sq = queries.get(id);
+    if(sq != null) {
+      queries.remove(sq.getUUID());
+      sq.destroy();
+      System.err.println("Stopping Query/Statement: " + id);
+      return true;
+    }
+    return false;
+  }
+  public boolean isQueryRegistered(UUID id) { return queries.containsKey(id); }
 	
-  public void processMessage(String xml) throws Exception {
-    StratconMessage m = StratconMessage.makeMessage(xml);
-    if(m == null) {
-      System.err.println("Can't grok:\n" + xml);
+  public void processMessage(String payload) throws Exception {
+    Exception last = null;
+    StratconMessage[] messages = StratconMessage.makeMessages(payload);
+    if(messages == null) {
+      System.err.println("Can't grok:\n" + payload);
     }
-    if(m instanceof StratconStatement) {
-      StratconStatement sq = (StratconStatement) m;
-
-      if(queries.containsKey(sq.getUUID())) throw (new Exception("Duplicate Query"));
-
-      EPStatement statement = epService.getEPAdministrator().createEPL(sq.getExpression());
-      sq.setStatement(statement);
-      queries.put(sq.getUUID(), sq);
-      System.err.println("Creating Statement: " + sq.getUUID());
+    for ( StratconMessage m : messages ) {
+      if(m != null) try { m.handle(this); } catch (Exception e) { last = e; }
     }
-    else if(m instanceof StratconQuery) {
-      StratconQuery sq = (StratconQuery) m;
-
-      if(queries.containsKey(sq.getUUID())) throw (new Exception("Duplicate Query"));
-
-      EPStatement statement = epService.getEPAdministrator().createEPL(sq.getExpression());
-      UpdateListener o = broker.getListener(this.epService, sq);
-
-      statement.addListener(o);
-      sq.setStatement(statement);
-      sq.setListener(o);
-      queries.put(sq.getUUID(), sq);
-      System.err.println("Creating Query: " + sq.getUUID());
-    }
-    else if(m instanceof StratconQueryStop) {
-      /* QueryStop stops both queries and statements */
-      StratconQueryBase sq = queries.get(((StratconQueryStop) m).getUUID());
-      if(sq != null) {
-        queries.remove(sq.getUUID());
-        sq.destroy();
-      }
-    }
-     else if(m instanceof NoitMetricText) {
-      epService.getEPRuntime().sendEvent(m);
-    }
-    else if(m instanceof NoitMetricNumeric) {
-      epService.getEPRuntime().sendEvent(m);
-    }
-    else if(m instanceof NoitCheck) {
-      epService.getEPRuntime().sendEvent(m);
-    }
-    else if(m instanceof NoitStatus) {
-      epService.getEPRuntime().sendEvent(m);
-    }
+    if(last != null) throw(last);
   }
 }

@@ -8,21 +8,22 @@
 
 package com.omniti.reconnoiter.event;
 
-import com.omniti.reconnoiter.StratconMessage;
+import com.omniti.reconnoiter.event.NoitEvent;
 
-public class NoitMetricNumeric extends StratconMessage {
+public class NoitMetricNumeric extends NoitEvent {
     private String uuid;
     private String name;
     private long time;
     private Double value;
     private String noit;
 
-  protected String getPrefix() {
+  public String getPrefix() {
      return "M";
    }
    /*
    'M' REMOTE TIMESTAMP UUID NAME TYPE VALUE
     */
+   public NoitMetricNumeric() {}
    public NoitMetricNumeric(String[] parts) throws Exception {
       super(parts);
       noit = parts[1];
@@ -45,7 +46,7 @@ public class NoitMetricNumeric extends StratconMessage {
     public Double getValue() { return value; }
     public String getNoit() { return noit; }
 
-    protected int getLength() {
+    public int getLength() {
         return 7;
     }
 }

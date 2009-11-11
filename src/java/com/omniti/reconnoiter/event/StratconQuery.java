@@ -10,6 +10,8 @@ package com.omniti.reconnoiter.event;
 
 
 import com.omniti.reconnoiter.event.StratconQueryBase;
+import com.omniti.reconnoiter.EventHandler;
+import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
 import java.util.UUID;
 
@@ -19,11 +21,12 @@ public class StratconQuery extends StratconQueryBase {
   protected String name;
   protected Thread thr;
 
-  protected String getPrefix() {
+  public String getPrefix() {
      return "Q";
    }
 
   /*  'Q' REMOTE ID NAME QUERY  */
+  public StratconQuery() {}
   public StratconQuery(String[] parts) throws Exception {
     super(parts);
     String id = parts[2];
@@ -57,7 +60,20 @@ public class StratconQuery extends StratconQueryBase {
     if(thr != null) thr.interrupt();
   }
 
-  protected int getLength() {
+  public int getLength() {
     return 5;
+  }
+
+  public void handle(EventHandler eh) {
+    eh.deregisterQuery(getUUID());
+
+    EPStatement statement = eh.getService().getEPAdministrator().createEPL(getExpression());
+    UpdateListener o = eh.getBroker().getListener(eh.getService(), this);
+
+    statement.addListener(o);
+    setStatement(statement);
+    setListener(o);
+    eh.registerQuery(this);
+    System.err.println("Creating Query: " + getUUID());
   }
 }

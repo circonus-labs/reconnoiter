@@ -9,28 +9,44 @@
 package com.omniti.reconnoiter;
 
 import java.io.StringReader;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import org.xml.sax.InputSource;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-
+import java.util.HashMap;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import com.omniti.reconnoiter.event.*;
 
-public class StratconMessage {
-
+public abstract class StratconMessage {
   // This is the text type in the noit_log.h
   public final static String METRIC_STRING = "s";
-  
+  public final static HashMap<String,StratconMessageFactory> quicklookup = new HashMap<String,StratconMessageFactory>();
+
+  public static boolean registerType(Class clazz) {
+    boolean success = false;
+    try {
+      Method meth = clazz.getMethod("getPrefix");
+      String prefix = (String)meth.invoke(clazz.newInstance());
+      StratconMessageFactory smf = new StratconMessageFactory(clazz);
+      quicklookup.put(prefix, smf);
+      success = true;
+    } catch (NoSuchMethodException e) {
+      e.printStackTrace();
+    } catch (IllegalAccessException e) {
+      e.printStackTrace();
+    } catch (InvocationTargetException e) {
+      e.printStackTrace();
+    } catch (InstantiationException e) {
+      e.printStackTrace();
+    }
+    return success;
+  }  
   public static String[] parseToArray(String jlog, int num) {
     // Get rid of the null parameter
-    return jlog.substring(0, jlog.length()-1).split("[\t]", num);
+    String operand = jlog.endsWith("\n") ? jlog.substring(0, jlog.length()-1)
+                                         : jlog;
+    return operand.split("[\t]", num);
   }
 
-  protected String getPrefix() {
-     return null;
-  }
+  public String getPrefix() { return null; }
 
   protected long timeToLong(String time) {
     long ms = 0;
@@ -46,10 +62,11 @@ public class StratconMessage {
     return ms;
   }
 
-  protected int getLength() {
-     return -1;
-  }
+  public int getLength() { return 0; }
 
+  public abstract void handle(EventHandler eh);
+
+  public StratconMessage() {}
   // Check and make sure
   public StratconMessage(String[] parts) throws Exception {
     if (!parts[0].equals(this.getPrefix())) {
@@ -62,38 +79,39 @@ public class StratconMessage {
 
   public static StratconMessage makeMessage(String jlog) {
     String[] parts;
+    if(jlog == null || jlog.length() == 0) return null;
     // The numbers of the parse are pulled from stratcon and
     // +1 for the extra remote
     try {
-      switch (jlog.charAt(0)) {
-        case 'C':
-          parts = parseToArray(jlog, 7);
-          return new NoitCheck(parts);
-        case 'S':
-          parts = parseToArray(jlog, 8);
-          return new NoitStatus(parts);
-        case 'M':
-          parts = parseToArray(jlog, 7);
-          if (parts[5].equals(METRIC_STRING)) {
-            return new NoitMetricText(parts);
-          } else {
-            return new NoitMetricNumeric(parts);
-          }
-        case 'D':
-          parts = parseToArray(jlog, 4);
-          return new StratconStatement(parts);
-        case 'Q':
-          parts = parseToArray(jlog, 5);
-          return new StratconQuery(parts);
-        case 'q':
-          parts = parseToArray(jlog, 3);
-          return new StratconQueryStop(parts);
+      String prefix = jlog.substring(0, jlog.indexOf('\t'));
+
+      StratconMessageFactory smf = quicklookup.get(prefix);
+      if(smf == null) {
+        throw new Exception("no handler for " + jlog);
       }
+      parts = parseToArray(jlog, smf.getLength());
+      return smf.make(parts);
     }
     catch(Exception e) {
       System.err.println("makeMessage: " + e);
       e.printStackTrace();
     }
     return null;
+  }
+  public static StratconMessage[] makeMessages(String big) {
+    String[] lines = big.split("[\n]");
+    StratconMessage[] messages = new StratconMessage[lines.length];
+    for (int i = 0; i < messages.length; i++) {
+      messages[i] = makeMessage(lines[i]);
+    }
+    return messages;
+  }
+  static {
+    StratconMessage.registerType(NoitCheck.class);
+    StratconMessage.registerType(NoitStatus.class);
+    StratconMessage.registerType(NoitMetric.class);
+    StratconMessage.registerType(StratconStatement.class);
+    StratconMessage.registerType(StratconQuery.class);
+    StratconMessage.registerType(StratconQueryStop.class);
   }
 }

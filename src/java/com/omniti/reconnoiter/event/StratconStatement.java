@@ -9,33 +9,40 @@
 package com.omniti.reconnoiter.event;
 
 import com.omniti.reconnoiter.event.StratconQueryBase;
+import com.omniti.reconnoiter.EventHandler;
+import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
 
 import java.util.UUID;
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathFactory;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import org.w3c.dom.Document;
 
 public class StratconStatement extends StratconQueryBase {
 
-   protected String getPrefix() {
-     return "D";
-   }
+  public String getPrefix() {
+    return "D";
+  }
 
-   /*  'D' REMOTE ID QUERY  */
-   public StratconStatement(String[] parts) throws Exception {
-      super(parts);
-      String id = parts[2];
-      expression = parts[3];
-      if(id == null)
-        uuid = UUID.randomUUID();
-      else
-        uuid = UUID.fromString(id);
-   }
+  /*  'D' REMOTE ID QUERY  */
+  public StratconStatement() {}
+  public StratconStatement(String[] parts) throws Exception {
+    super(parts);
+    String id = parts[2];
+    expression = parts[3];
+    if(id == null)
+      uuid = UUID.randomUUID();
+    else
+      uuid = UUID.fromString(id);
+  }
 
-  protected int getLength() {
+  public int getLength() {
     return 4;
+  }
+
+  public void handle(EventHandler eh) {
+    eh.deregisterQuery(getUUID());
+    EPStatement statement = eh.getService().getEPAdministrator().createEPL(getExpression());
+    setStatement(statement);  
+    if(eh.registerQuery(this)) {
+      System.err.println("Creating Statement: " + getUUID());
+    }
   }
 }

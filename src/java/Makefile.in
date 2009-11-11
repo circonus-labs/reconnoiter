@@ -30,8 +30,10 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/broker/RabbitListener.java \
 	com/omniti/reconnoiter/broker/AMQListener.java \
 	com/omniti/reconnoiter/broker/BrokerFactory.java \
+	com/omniti/reconnoiter/event/NoitEvent.java \
 	com/omniti/reconnoiter/event/NoitCheck.java \
 	com/omniti/reconnoiter/event/NoitStatus.java \
+	com/omniti/reconnoiter/event/NoitMetric.java \
 	com/omniti/reconnoiter/event/NoitMetricText.java \
 	com/omniti/reconnoiter/event/NoitMetricNumeric.java \
 	com/omniti/reconnoiter/event/StratconStatement.java \
@@ -50,7 +52,8 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/esper/DeriveViewFactory.java \
 	com/omniti/reconnoiter/IEPEngine.java \
 	com/omniti/reconnoiter/StratconConfig.java \
-	com/omniti/reconnoiter/StratconMessage.java
+	com/omniti/reconnoiter/StratconMessage.java \
+	com/omniti/reconnoiter/StratconMessageFactory.java
 
 SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.2.0.jar \
 	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar \

@@ -13,11 +13,12 @@ import com.omniti.reconnoiter.StratconMessage;
 import com.espertech.esper.client.EPStatement;
 import java.util.UUID;
 
-public class StratconQueryBase extends StratconMessage {
+public abstract class StratconQueryBase extends StratconMessage {
   protected EPStatement statement;
   protected UUID uuid;
   protected String expression;
 
+  public StratconQueryBase() {}
   public StratconQueryBase(String parts[]) throws Exception {
     super(parts);
   }
