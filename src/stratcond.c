@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
