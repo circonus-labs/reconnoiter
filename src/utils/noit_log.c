@@ -130,8 +130,10 @@ static logops_t posix_logio_ops = {
 };
 
 static int
-jlog_lspath_to_fspath(noit_log_stream_t ls, char *buff, int len) {
+jlog_lspath_to_fspath(noit_log_stream_t ls, char *buff, int len,
+                      char **subout) {
   char *sub;
+  if(subout) *subout = NULL;
   if(!ls->path) return -1;
   strlcpy(buff, ls->path, len);
   sub = strchr(buff, '(');
@@ -141,6 +143,7 @@ jlog_lspath_to_fspath(noit_log_stream_t ls, char *buff, int len) {
       *esub = '\0';
       *sub = '\0';
       sub += 1;
+      if(subout) *subout = sub;
     }
   }
   return strlen(buff);
@@ -175,7 +178,7 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
 
   log = (jlog_ctx *)ls->op_ctx;
   if(!log) return -1;
-  if(jlog_lspath_to_fspath(ls, path, sizeof(path)) <= 0) return -1;
+  if(jlog_lspath_to_fspath(ls, path, sizeof(path), NULL) <= 0) return -1;
   d = opendir(path);
   if(!d) return -1;
   while(portable_readdir_r(d, &de, &entry) == 0 && entry != NULL) {
@@ -230,7 +233,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub;
   jlog_ctx *log = NULL;
 
-  if(jlog_lspath_to_fspath(ls, path, sizeof(path)) <= 0) return -1;
+  if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
   log = jlog_new(path);
   if(!log) return -1;
   /* Open the writer. */
