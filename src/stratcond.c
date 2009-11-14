@@ -194,6 +194,8 @@ static int child_main() {
   noit_capabilities_listener_init();
   noit_listener_init(APPNAME);
 
+  noit_module_init();
+
   /* Drop privileges */
   if(chrootpath && noit_security_chroot(chrootpath)) {
     noitL(noit_stderr, "Failed to chroot(), exiting.\n");

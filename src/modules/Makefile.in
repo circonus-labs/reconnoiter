@@ -26,6 +26,7 @@ top_srcdir=@top_srcdir@
 MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ \
+	stomp_driver.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 all:	$(MODULES)
@@ -54,6 +55,18 @@ postgres.@MODULEEXT@:	postgres.lo
 postgres.lo:	postgres.c postgres.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+
+stomp_driver.lo:	stomp_driver.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
+	@echo "- compiling $<"
+
+libstomp.lo:	libstomp.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
+	@echo "- compiling $<"
+
+stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
+	@echo "- linking $@"
 
 mysql.@MODULEEXT@:	mysql.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ mysql.lo $(MYLIBS)

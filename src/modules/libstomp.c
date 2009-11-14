@@ -19,7 +19,7 @@
 #include <string.h>
 #include "apr.h"
 #include "apr_strings.h"
-#include "stomp.h"
+#include "libstomp.h"
 
 /********************************************************************************
  * 

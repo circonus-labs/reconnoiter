@@ -106,15 +106,15 @@ public class StratconConfig {
     return getIepParameter("broker", param);
   }
   
-  public String getStompParameter(String param, String or) {
-    String result = getStompParameter(param);
+  public String getMQParameter(String param, String or) {
+    String result = getMQParameter(param);
     if (result == null)
       return or;
     return result;
   }
   
-  public String getStompParameter(String param) {
-    return getIepParameter("stomp", param);
+  public String getMQParameter(String param) {
+    return getIepParameter("mq", param);
   }
   
   public String getIepParameter(String which, String param) {

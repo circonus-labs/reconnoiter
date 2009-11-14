@@ -13,6 +13,10 @@
     </console_output>
   </logs>
 
+  <modules directory="%modulesdir%">
+    <generic image="stomp_driver" name="stomp_driver"/>
+  </modules>
+
   <noits>
     <config>
       <!--
@@ -31,9 +35,19 @@
     <noit address="127.0.0.1" port="43191" />
   </noits>
 
-  <iep disabled="true"> <!-- false the default -->
+  <iep disabled="false">
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
+    <mq type="stomp">
+      <!-- (for RabbitMQ, leave type="stomp" in the line above, but set the following)
+      <username>guest</username>
+      <password>guest</password>
+      <exchange>noit.firehose</exchange>
+      -->
+    </mq>
+    <!-- For RabbitMQ 
+    <broker adapter="rabbitmq" />
+    -->
     <queries>
       <statement id="6cc613a4-7f9c-11de-973f-db7e8ccb2e5c" provides="CheckDetails-ddl">
         <epl>create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck</epl>

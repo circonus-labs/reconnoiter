@@ -37,9 +37,9 @@ public class RabbitBroker implements IMQBroker  {
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
     
     // This is a fanout exchange
-    this.exchangeName = config.getStompParameter("exchange", "noit.firehose");
+    this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
     // This queue is bound to the fanout exchange
-    this.queueName = config.getStompParameter("queue", "noit.firehose");
+    this.queueName = config.getMQParameter("queue", "noit.firehose");
     // No need for a routing key on a FO exchange
     this.routingKey = "";
   

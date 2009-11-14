@@ -47,7 +47,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_xml.o \
 	noit_conf.o noit_http.o noit_rest.o noit_tokenizer.o \
-	noit_capabilities_listener.o \
+	noit_capabilities_listener.o noit_module.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o
@@ -97,15 +97,11 @@ stratcond:	make-subdirs $(STRATCON_OBJS) java-bits
 		-Lnoitedit -lnoitedit \
 		-Lstomp -lstomp \
 		$(NOWHOLE_ARCHIVE) \
-		$(LIBS) $(PGLIBS) @APRLIBS@
+		$(LIBS) $(PGLIBS)
 	@echo "- linking $@"
 
 stratcon_datastore.o:	stratcon_datastore.c
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) -c $<
-	@echo "- compiling $<"
-
-stratcon_iep.o:	stratcon_iep.c
-	@$(CC) $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ -c $<
 	@echo "- compiling $<"
 
 .c.o:

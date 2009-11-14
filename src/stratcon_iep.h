@@ -53,4 +53,31 @@ API_EXPORT(void)
 API_EXPORT(jlog_streamer_ctx_t *)
   stratcon_jlog_streamer_iep_ctx_alloc(void);
 
+typedef struct iep_thread_driver iep_thread_driver_t;
+
+typedef struct mq_driver {
+  iep_thread_driver_t *(*allocate)();
+
+  int (*connect)(iep_thread_driver_t *driver);
+  /* connect returns:
+      -1 for failure,
+       0 for successful new connection,
+       1 for already connected
+   */
+
+  int (*submit)(iep_thread_driver_t *driver, const char *payload, size_t payloadlen);
+  /* submit returns: 0 on success, -1 on failure */
+
+  int (*disconnect)(iep_thread_driver_t *driver);
+  /* disconnect returns:
+      -1 for already disconnected
+       0 successful discnonect
+   */
+
+  void (*deallocate)(iep_thread_driver_t *driver);
+} mq_driver_t;
+
+API_EXPORT(void)
+  stratcon_iep_mq_driver_register(const char *, mq_driver_t *);
+
 #endif

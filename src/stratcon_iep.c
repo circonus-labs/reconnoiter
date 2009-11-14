@@ -49,30 +49,26 @@
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
+#include <signal.h>
+#include <errno.h>
 #include <assert.h>
-#include "stomp/stomp.h"
 
 eventer_jobq_t iep_jobq;
 static noit_log_stream_t noit_iep = NULL;
 static noit_spinlock_t iep_conn_cnt = 0;
 
-struct iep_thread_driver {
-  stomp_connection *connection;
-  apr_pool_t *pool;
-  char* exchange;
-};
-pthread_key_t iep_connection;
+static pthread_key_t iep_connection;
+static noit_hash_table mq_drivers = NOIT_HASH_EMPTY;
+static mq_driver_t *mq_driver = NULL;
 
 struct iep_job_closure {
   char *line;       /* This is a copy and gets trashed during processing */
   char *remote;
   char *doc_str;
-  apr_pool_t *pool;
 };
 
 static void
 start_iep_daemon();
-
 
 static float
 stratcon_iep_age_from_line(char *data, struct timeval now) {
@@ -312,72 +308,19 @@ void stratcon_iep_submit_queries() {
 
 static
 struct iep_thread_driver *stratcon_iep_get_connection() {
-  apr_status_t rc;
+  int rc;
   struct iep_thread_driver *driver;
   driver = pthread_getspecific(iep_connection);
   if(!driver) {
-    driver = calloc(1, sizeof(*driver));
+    driver = mq_driver->allocate();
     pthread_setspecific(iep_connection, driver);
   }
 
-  if(!driver->pool) {
-    if(apr_pool_create(&driver->pool, NULL) != APR_SUCCESS) return NULL;
-  }
-
-  if(!driver->connection) {
-    int port;
-    char hostname[128];
-    if(!noit_conf_get_int(NULL, "/stratcon/iep/stomp/port", &port))
-      port = 61613;
-    if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/hostname",
-                                hostname, sizeof(hostname)))
-      strlcpy(hostname, "127.0.0.1", sizeof(hostname));
-    if(stomp_connect(&driver->connection, hostname, port,
-                     driver->pool)!= APR_SUCCESS) {
-      noitL(noit_error, "MQ connection failed\n");
-      stomp_disconnect(&driver->connection);
-      return NULL;
-    }
-
-    {
-      stomp_frame frame;
-      char username[128];
-      char password[128];
-      char* exchange = malloc(128);
-      frame.command = "CONNECT";
-      frame.headers = apr_hash_make(driver->pool);
-      // This is for RabbitMQ Support
-      if((noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/username",
-                                  username, sizeof(username))) &&
-         (noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/password",
-                                  password, sizeof(password))))
-      {
-        apr_hash_set(frame.headers, "login", APR_HASH_KEY_STRING, username);
-        apr_hash_set(frame.headers, "passcode", APR_HASH_KEY_STRING, password);
-      }
-
-
-      // This is for RabbitMQ support
-      driver->exchange = NULL;
-      if(noit_conf_get_stringbuf(NULL, "/stratcon/iep/stomp/exchange",
-                                  exchange, 128))
-      {
-        if (!driver->exchange)
-          driver->exchange = exchange;
-        else
-          free(exchange);
-        apr_hash_set(frame.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
-      }
-
-      frame.body = NULL;
-      frame.body_length = -1;
-      rc = stomp_write(driver->connection, &frame, driver->pool);
-      if(rc != APR_SUCCESS) {
-        noitL(noit_error, "MQ STOMP CONNECT failed, %d\n", rc);
-        stomp_disconnect(&driver->connection);
-        return NULL;
-      }
-    }  
+  rc = mq_driver->connect(driver);
+  if(rc < 0) return NULL;
+  if(rc == 0) {
+    /* Initial connect */
+    /* TODO: this should be requested by Esper, not blindly pushed */
     stratcon_iep_submit_statements();
     stratcon_datastore_iep_check_preload();
     stratcon_iep_submit_queries();
@@ -422,7 +365,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
       if(job->line) free(job->line);
       if(job->remote) free(job->remote);
       if(job->doc_str) free(job->doc_str);
-      if(job->pool) apr_pool_destroy(job->pool);
       free(job);
     }
     return 0;
@@ -437,11 +379,9 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     return 0;
   }
   /* Submit */
-  if(driver && driver->pool && driver->connection) {
-    apr_status_t rc;
+  if(driver) {
     int line_len = strlen(job->line);
     int remote_len = strlen(job->remote);
-    stomp_frame out;
 
     job->doc_str = (char*)calloc(line_len + 1 /* \t */ +
         remote_len + 2, 1);
@@ -450,23 +390,9 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     strncat(job->doc_str, "\t", 1);
     strncat(job->doc_str, job->line + 2, line_len - 2);
 
-    apr_pool_create(&job->pool, driver->pool);
-
-    out.command = "SEND";
-    out.headers = apr_hash_make(job->pool);
-    if (driver->exchange)
-      apr_hash_set(out.headers, "exchange", APR_HASH_KEY_STRING, driver->exchange);
-
-    apr_hash_set(out.headers, "destination", APR_HASH_KEY_STRING, "/queue/noit.firehose");
-    apr_hash_set(out.headers, "ack", APR_HASH_KEY_STRING, "auto");
-  
-    out.body_length = -1;
-    out.body = job->doc_str;
-    rc = stomp_write(driver->connection, &out, job->pool);
-    if(rc != APR_SUCCESS) {
-      noitL(noit_error, "STOMP send failed, disconnecting\n");
-      if(driver->connection) stomp_disconnect(&driver->connection);
-      driver->connection = NULL;
+    /* Don't need to catch error here, next submit will catch it */
+    if(mq_driver->submit(driver, job->doc_str, line_len + remote_len + 1) != 0) {
+      noitL(noit_debug, "failed to MQ submit.\n");
     }
   }
   else {
@@ -528,10 +454,8 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
 
 static void connection_destroy(void *vd) {
   struct iep_thread_driver *driver = vd;
-  if(driver->connection) stomp_disconnect(&driver->connection);
-  if(driver->exchange) free(driver->exchange);
-  if(driver->pool) apr_pool_destroy(driver->pool);
-  free(driver);
+  mq_driver->disconnect(driver);
+  mq_driver->deallocate(driver);
 }
 
 jlog_streamer_ctx_t *
@@ -661,7 +585,6 @@ start_iep_daemon() {
   eventer_add(newe);
   info = NULL;
 
-  /* This will induce a stomp connection which will initialize esper */
   setup_iep_connection_later(1);
 
   return;
@@ -676,16 +599,34 @@ start_iep_daemon() {
 }
 
 void
+stratcon_iep_mq_driver_register(const char *name, mq_driver_t *d) {
+  noit_hash_replace(&mq_drivers, strdup(name), strlen(name), d, free, NULL);
+}
+
+void
 stratcon_iep_init() {
   noit_boolean disabled = noit_false;
-  apr_initialize();
-  atexit(apr_terminate);   
+  char mq_type[128] = "stomp";
+  void *vdriver;
 
   if(noit_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
      disabled == noit_true) {
     noitL(noit_error, "IEP system is disabled!\n");
     return;
   }
+
+  if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/mq/@type",
+                              mq_type, sizeof(mq_type))) {
+    noitL(noit_error, "You must specify an <mq type=\"...\"> that is valid.\n");
+    exit(-2);
+  }
+  if(!noit_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
+     vdriver == NULL) {
+    noitL(noit_error, "Cannot find MQ driver type: %s\n", mq_type);
+    noitL(noit_error, "Did you forget to load a module?\n");
+    exit(-2);
+  }
+  mq_driver = (mq_driver_t *)vdriver;
 
   noit_iep = noit_log_stream_find("error/iep");
   if(!noit_iep) noit_iep = noit_error;

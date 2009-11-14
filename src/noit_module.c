@@ -134,7 +134,7 @@ int noit_load_image(const char *file, const char *name,
   void *dlsymbol;
   noit_image_t *obj;
 
-  if(!noit_conf_get_string(NULL, "/noit/modules/@directory", &base))
+  if(!noit_conf_get_string(NULL, "//modules/@directory", &base))
     base = strdup("");
 
   if(file[0] == '/')
@@ -379,7 +379,7 @@ void noit_module_init() {
   noit_console_add_help("module", noit_module_help, noit_module_options);
 
   /* Load our generic modules */
-  sections = noit_conf_get_sections(NULL, "/noit/modules//generic", &cnt);
+  sections = noit_conf_get_sections(NULL, "//modules//generic", &cnt);
   for(i=0; i<cnt; i++) {
     char g_name[256];
     noit_module_generic_t *gen;
@@ -416,7 +416,7 @@ void noit_module_init() {
   }
   if(sections) free(sections);
   /* Load our module loaders */
-  sections = noit_conf_get_sections(NULL, "/noit/modules//loader", &cnt);
+  sections = noit_conf_get_sections(NULL, "//modules//loader", &cnt);
   for(i=0; i<cnt; i++) {
     char loader_name[256];
     noit_module_loader_t *loader;
@@ -451,7 +451,7 @@ void noit_module_init() {
   }
   if(sections) free(sections);
 
-  /* Load the modules */
+  /* Load the modules (these *are* specific to the /noit/ root) */
   sections = noit_conf_get_sections(NULL, "/noit/modules//module", &cnt);
   if(!sections) return;
   for(i=0; i<cnt; i++) {
