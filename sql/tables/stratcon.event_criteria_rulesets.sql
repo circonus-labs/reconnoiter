@@ -27,7 +27,7 @@ CREATE TABLE event_criteria_numeric_rulesets (
 
 
 CREATE TABLE event_criteria_text_rulesets (
-  event_criteria_id integer not null primary key references event_criteria_text on update cascade on delete restrict,
+  event_criteria_id integer not null references event_criteria_text on update cascade on delete restrict,
   match text,
   onchange boolean not null default false,
   absence boolean not null default true,
