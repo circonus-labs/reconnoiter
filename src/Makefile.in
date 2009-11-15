@@ -31,7 +31,7 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer udns noitedit man stomp
+SUBS=lua utils eventer udns noitedit man
 MODDIR=modules
 
 NOIT_OBJS=noitd.o noit_listener.o \
