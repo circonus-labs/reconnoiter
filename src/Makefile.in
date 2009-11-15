@@ -95,7 +95,6 @@ stratcond:	make-subdirs $(STRATCON_OBJS) java-bits
 		-Lutils -lnoit_utils \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
-		-Lstomp -lstomp \
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS) $(PGLIBS)
 	@echo "- linking $@"
