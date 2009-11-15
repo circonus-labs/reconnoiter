@@ -89,6 +89,34 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
             ctx->remote_cn ? "connected" :
                              (ctx->timeout_event ? "disconnected" :
                                                    "connecting"), lasttime);
+  if(ctx->e) {
+    char buff[128];
+    const char *addrstr = NULL;
+    struct sockaddr_in6 addr6;
+    socklen_t len = sizeof(addr6);
+    if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+      unsigned short port = 0;
+      if(addr6.sin6_family == AF_INET) {
+        addrstr = inet_ntop(addr6.sin6_family,
+                            &((struct sockaddr_in *)&addr6)->sin_addr,
+                            buff, sizeof(buff));
+        port = ntohs(((struct sockaddr_in *)&addr6)->sin_port);
+      }
+      else if(addr6.sin6_family == AF_INET6) {
+        addrstr = inet_ntop(addr6.sin6_family, &addr6.sin6_addr,
+                            buff, sizeof(buff));
+        port = ntohs(addr6.sin6_port);
+      }
+      if(addrstr != NULL)
+        nc_printf(ncct, "\tLocal address is %s:%u\n", buff, port);
+      else
+        nc_printf(ncct, "\tLocal address not interpretable\n");
+    }
+    else {
+      nc_printf(ncct, "\tLocal address error[%d]: %s\n",
+                ctx->e->fd, strerror(errno));
+    }
+  }
   switch(ntohl(jctx->jlog_feed_cmd)) {
     case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
     case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
@@ -322,6 +350,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     ctx->buffer = NULL;
     noit_connection_schedule_reattempt(nctx, now);
     eventer_remove_fd(e->fd);
+    nctx->e = NULL;
     e->opset->close(e->fd, &mask, e);
     return 0;
   }
@@ -395,6 +424,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           eventer_remove_fd(e->fd);
           completion_e = eventer_alloc();
           memcpy(completion_e, e, sizeof(*e));
+          nctx->e = completion_e;
           completion_e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
           ctx->state = JLOG_STREAMER_IS_ASYNC;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
@@ -462,6 +492,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
 
   noitL(noit_error, "jlog streamer SSL upgrade failed.\n");
   eventer_remove_fd(e->fd);
+  nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
   noit_connection_schedule_reattempt(nctx, now);
   return 0;
@@ -509,6 +540,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
     noitL(noit_error, "Error connecting to %s: %s\n",
           remote_str, strerror(aerrno));
     eventer_remove_fd(e->fd);
+    nctx->e = NULL;
     e->opset->close(e->fd, &mask, e);
     noit_connection_schedule_reattempt(nctx, now);
     return 0;
@@ -541,6 +573,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   socklen_t optlen = sizeof(optval);
 #endif
 
+  nctx->e = NULL;
   if(nctx->wants_permanent_shutdown) {
     noit_connection_ctx_dealloc(nctx);
     return;
@@ -586,6 +619,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   e->callback = noit_connection_complete_connect;
   e->closure = nctx;
+  nctx->e = e;
   eventer_add(e);
   return;
 
@@ -803,6 +837,31 @@ rest_show_noits(noit_http_rest_closure_t *restc,
                (xmlChar *)"connected" :
                (ctx->timeout_event ? (xmlChar *)"disconnected" :
                                     (xmlChar *)"connecting"));
+    if(ctx->e) {
+      char buff[128];
+      const char *addrstr = NULL;
+      struct sockaddr_in6 addr6;
+      socklen_t len = sizeof(addr6);
+      if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+        unsigned short port = 0;
+        if(addr6.sin6_family == AF_INET) {
+          addrstr = inet_ntop(addr6.sin6_family,
+                              &((struct sockaddr_in *)&addr6)->sin_addr,
+                              buff, sizeof(buff));
+          port = ntohs(((struct sockaddr_in *)&addr6)->sin_port);
+        }
+        else if(addr6.sin6_family == AF_INET6) {
+          addrstr = inet_ntop(addr6.sin6_family, &addr6.sin6_addr,
+                              buff, sizeof(buff));
+          port = ntohs(addr6.sin6_port);
+        }
+        if(addrstr != NULL) {
+          snprintf(buff + strlen(buff), sizeof(buff) - strlen(buff),
+                   ":%u", port);
+          xmlSetProp(node, (xmlChar *)"local", (xmlChar *)buff);
+        }
+      }
+    }
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     switch(ntohl(jctx->jlog_feed_cmd)) {
       case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;

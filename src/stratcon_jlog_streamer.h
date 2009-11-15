@@ -59,6 +59,7 @@ typedef struct noit_connection_ctx_t {
   noit_hash_table *sslconfig;
   struct timeval last_connect;
   eventer_t timeout_event;
+  eventer_t e;
 
   eventer_func_t consumer_callback;
   void (*consumer_free)(void *);
