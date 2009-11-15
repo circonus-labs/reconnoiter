@@ -599,7 +599,6 @@ src/modules-lua/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
 src/lua/Makefile
-src/stomp/Makefile
 src/java/Makefile
 src/java/run-iep.sh
 sql/Makefile
