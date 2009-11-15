@@ -18,6 +18,7 @@ public class StratconMessageFactory {
   private Constructor<StratconMessage> con;
   private int len;
 
+  @SuppressWarnings("unchecked")
   public StratconMessageFactory(Class clazz)
          throws NoSuchMethodException, IllegalAccessException,
                 InvocationTargetException, InstantiationException {

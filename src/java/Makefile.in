@@ -66,7 +66,7 @@ all:	reconnoiter.jar
 
 reconnoiter.jar:	$(JAVA)
 	@echo "- compiling files"
-	@$(JAVAC) -g -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
+	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
 	@echo "- creating jar"
 	@$(JAR) cf $@ `find com -name \*.class`
 
