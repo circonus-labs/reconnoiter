@@ -234,11 +234,11 @@ static int external_handler(eventer_t e, int mask,
       struct msghdr msg;
       struct iovec v[3];
       memset(&r, 0, sizeof(r));
-      v[0].iov_base = &r.check_no;
+      v[0].iov_base = (char *)&r.check_no;
       v[0].iov_len = sizeof(r.check_no);
-      v[1].iov_base = &r.exit_code;
+      v[1].iov_base = (char *)&r.exit_code;
       v[1].iov_len = sizeof(r.exit_code);
-      v[2].iov_base = &r.stdoutlen;
+      v[2].iov_base = (char *)&r.stdoutlen;
       v[2].iov_len = sizeof(r.stdoutlen);
       expectlen = v[0].iov_len + v[1].iov_len + v[2].iov_len;
 
@@ -336,7 +336,6 @@ static int external_handler(eventer_t e, int mask,
     ci->timeout_event = NULL;
     check->flags &= ~NP_RUNNING;
   }
-  return EVENTER_READ;
 
  widowed:
   noitL(noit_error, "external module terminated, must restart.\n");

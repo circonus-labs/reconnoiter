@@ -31,7 +31,6 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-SUBS=lua utils eventer udns noitedit man
 MODDIR=modules
 
 HEADERS=noit_capabilities_listener.h noit_check.h noit_check_rest.h \
@@ -45,9 +44,17 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_rest.h \
 	eventer/OETS_asn1_helper.h eventer/eventer.h \
 	eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
 	eventer/eventer_jobq.h \
-	utils/noit_atomic.h utils/noit_b64.h utils/noit_hash.h utils/noit_log.h \
-	utils/noit_mkdir.h utils/noit_security.h utils/noit_sem.h \
-	utils/noit_skiplist.h utils/noit_str.h utils/noit_watchdog.h
+	utils/noit_atomic.h utils/noit_b64.h utils/noit_hash.h \
+	utils/noit_log.h utils/noit_mkdir.h utils/noit_security.h \
+	utils/noit_sem.h utils/noit_skiplist.h utils/noit_str.h \
+	utils/noit_watchdog.h \
+	noitedit/chared.h noitedit/common.h noitedit/compat.h noitedit/el.h \
+	noitedit/el_term.h noitedit/emacs.h noitedit/fcns.h noitedit/fgetln.h \
+	noitedit/help.h noitedit/hist.h noitedit/histedit.h noitedit/key.h \
+	noitedit/map.h noitedit/parse.h noitedit/prompt.h noitedit/refresh.h \
+	noitedit/search.h noitedit/sig.h noitedit/strlcpy.h noitedit/sys.h \
+	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
+	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h
 
 NOIT_OBJS=noitd.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -58,6 +65,9 @@ NOIT_OBJS=noitd.o noit_listener.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
         noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o
 
+NOIT_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
+	jlog/libjlog.a utils/libnoit_utils.a
+
 STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_xml.o \
@@ -67,28 +77,54 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o
 
-all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
+STRATCON_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
+	jlog/libjlog.a utils/libnoit_utils.a
 
-make-subdirs:	jlog/libjlog.a
-	@for dir in $(SUBS) ; do \
-		echo "- building $$dir bits" ; \
-		(cd $$dir && make -s) ; \
-	done
+all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf java-bits make-modules make-man
 
-make-modules:
+make-man:
+	@(cd man && make -s)
+
+lua/liblua.lo:
+	@echo "- building lua bits"
+	@(cd lua && make -s liblua.lo)
+
+make-modules:	lua/liblua.lo
 	@for dir in $(MODDIR) ; do \
-		echo "- building $$dir bits" ; \
 		(cd $$dir && make -s) ; \
 	done
 
 java-bits:
-	@echo "- building java bits"
 	@test -n "@JAVAPARTS@" && (cd java && make -s)
 
 jlog/libjlog.a:
-	@(cd jlog && make libjlog.a)
+	@echo "- building jlog bits"
+	@(cd jlog && make -s libjlog.a)
 
-noitd:	make-subdirs make-modules $(NOIT_OBJS)
+udns/libudns.o:
+	@echo "- building udns bits"
+	@(cd udns && make -s libudns.o)
+
+noitedit/libnoitedit.a:
+	@echo "- building noitedit bits"
+	@(cd noitedit && make -s libnoitedit.a)
+
+eventer/libeventer.a:
+	@echo "- building eventer bits"
+	@(cd eventer && make -s libeventer.a)
+
+utils/libnoit_utils.a:
+	@echo "- building utils bits"
+	@(cd utils && make -s libnoit_utils.a)
+
+man/noitd.usage.h:	make-man
+
+man/stratcond.usage.h:	make-man
+
+noitd.o:	man/noitd.usage.h
+stratcond.o:	man/stratcond.usage.h
+
+noitd:	$(NOIT_OBJS) $(NOIT_LIBS) man/noitd.usage.h
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \
@@ -101,7 +137,7 @@ noitd:	make-subdirs make-modules $(NOIT_OBJS)
 		$(LIBS)
 	@echo "- linking $@"
 
-stratcond:	make-subdirs $(STRATCON_OBJS) java-bits
+stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \
@@ -133,7 +169,7 @@ noit_tokenizer.c:	noit_tokenizer.re
 	@echo "- re2c noit_tokenizer.re"
 
 test-noit.conf:	noit.conf.in Makefile
-	sed -e "s^%sysconfdir%^`pwd`^g;" \
+	@sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
 		-e "s^%PKIPREFIX%^../test/test-^g;" < \
@@ -141,7 +177,7 @@ test-noit.conf:	noit.conf.in Makefile
 		test-noit.conf
 
 noit.conf:	noit.conf.in Makefile
-	sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
+	@sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
 		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
 		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
@@ -149,7 +185,7 @@ noit.conf:	noit.conf.in Makefile
 		noit.conf
 
 test-stratcon.conf:	stratcon.conf.in Makefile
-	sed -e "s^%sysconfdir%^`pwd`^g;" \
+	@sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
 		-e "s^%iepbindir%^`pwd`/java^g;" \
@@ -159,7 +195,7 @@ test-stratcon.conf:	stratcon.conf.in Makefile
 		test-stratcon.conf
 
 stratcon.conf:	stratcon.conf.in Makefile
-	sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
+	@sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
 		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
 		-e "s^%iepbindir%^$(bindir)^g;" \
@@ -177,6 +213,8 @@ install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/eventer
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/utils
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/noitedit
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/jlog
 	for file in $(HEADERS) ; do \
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
@@ -199,14 +237,16 @@ install-docs:
 
 install:	install-dirs install-docs install-headers install-noitd install-stratcond
 
-clean-subdirs:
-	for dir in $(SUBS) ; do \
-		(cd $$dir && make clean) ; \
-	done
-	(cd java && make clean)
-
-clean:	clean-subdirs
+clean:
 	rm -f *.o noitd
 	rm jlog/libjlog.a
 	(cd jlog && make clean)
+	(cd eventer && make clean)
+	(cd udns && make clean)
+	(cd man && make clean)
+	(cd modules && make clean)
+	(cd noitedit && make clean)
+	(cd utils && make clean)
+	(cd lua && make clean)
+	(cd java && make clean)
 

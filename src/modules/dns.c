@@ -479,7 +479,8 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   pkt = result; end = pkt + r; cur = dns_payload(pkt);
   dns_getdn(pkt, &cur, end, dn, sizeof(dn));
   dns_initparse(&p, NULL, pkt, cur, end);
-  p.dnsp_qcls = p.dnsp_qtyp = 0;
+  p.dnsp_qcls = 0;
+  p.dnsp_qtyp = 0;
   nrr = 0;
 
   while((r = dns_nextrr(&p, &rr)) > 0) {
