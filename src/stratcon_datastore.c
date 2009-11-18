@@ -483,8 +483,10 @@ stratcon_datastore_check_loadall(void *vsn) {
   ds_single_detail *d;
   int i, row_count = 0, good = 0;
   char buff[1024];
-  conn_q *cq;
+  conn_q *cq = NULL;
 
+  d = calloc(1, sizeof(*d));
+  GET_QUERY(check_loadall);
   cq = get_conn_q_for_remote(NULL,NULL,sn->fqdn,sn->dsn);
   i = 0;
   while(stratcon_database_connect(cq)) {
@@ -495,8 +497,6 @@ stratcon_datastore_check_loadall(void *vsn) {
     }
     sleep(1);
   }
-  d = calloc(1, sizeof(*d));
-  GET_QUERY(check_loadall);
   PG_EXEC(check_loadall);
   row_count = PQntuples(d->res);
   
@@ -536,7 +536,7 @@ stratcon_datastore_check_loadall(void *vsn) {
  bad_row:
   free_params((ds_single_detail *)d);
   free(d);
-  release_conn_q(cq);
+  if(cq) release_conn_q(cq);
   return (void *)(vpsized_int)good;
 }
 static int
@@ -1325,13 +1325,13 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   else
     uuidinfo = vuuidinfo;
 
-  if(storagenode_id) {
-    if(uuidinfo &&
-       ((!dsn && dsn_out) || (!fqdn && fqdn_out))) {
+  if(uuidinfo && uuidinfo->storagenode_id) {
+    if((!dsn && dsn_out) || (!fqdn && fqdn_out)) {
       /* we don't have dsn and we actually want it */
       pthread_mutex_lock(&storagenode_to_info_cache_lock);
       if(noit_hash_retrieve(&storagenode_to_info_cache,
-                            (void *)&storagenode_id, sizeof(int), &vinfo))
+                            (void *)&uuidinfo->storagenode_id, sizeof(int),
+                            &vinfo))
         info = vinfo;
       pthread_mutex_unlock(&storagenode_to_info_cache_lock);
     }
@@ -1372,6 +1372,8 @@ stratcon_datastore_journal(struct sockaddr *remote,
           storage_node_quick_lookup(uuid_str, remote_cn, NULL,
                                     &storagenode_id, NULL, &fqdn, &dsn);
           ij = interim_journal_get(remote, remote_cn, storagenode_id, fqdn);
+noitL(noit_error, " %s -> %d/%s { fd: %d, path: %s }\n", uuid_str, storagenode_id, fqdn,
+      ij->fd, ij->filename);
         }
       }
       break;
@@ -1532,22 +1534,28 @@ static void
 stratcon_datastore_sweep_journals_int(char *first, char *second, char *third) {
   char path[PATH_MAX];
   DIR *root;
-  struct dirent de, *entry;
+  struct dirent *de, *entry;
   int i = 0, cnt = 0;
   char **entries;
+  int size = 0;
 
   snprintf(path, sizeof(path), "%s%s%s%s%s%s%s", basejpath,
            first ? "/" : "", first ? first : "",
            second ? "/" : "", second ? second : "",
            third ? "/" : "", third ? third : "");
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MIN(size, PATH_MAX + 128);
+  de = alloca(size);
   root = opendir(path);
   if(!root) return;
-  while(portable_readdir_r(root, &de, &entry) == 0 && entry != NULL) cnt++;
+  while(portable_readdir_r(root, de, &entry) != 0 && entry != NULL) cnt++;
   closedir(root);
   root = opendir(path);
   if(!root) return;
   entries = malloc(sizeof(*entries) * cnt);
-  while(portable_readdir_r(root, &de, &entry) == 0 && entry != NULL) {
+  while(portable_readdir_r(root, de, &entry) != 0 && entry != NULL) {
     if(i < cnt) {
       entries[i++] = strdup(entry->d_name);
     }
@@ -1558,6 +1566,8 @@ stratcon_datastore_sweep_journals_int(char *first, char *second, char *third) {
         (int (*)(const void *, const void *))strcasecmp);
   for(i=0; i<cnt; i++) {
     if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
+    noitL(ds_deb, "Processing L%d entry '%s'\n",
+          third ? 4 : second ? 3 : first ? 2 : 1, entries[i]);
     if(!first)
       stratcon_datastore_sweep_journals_int(entries[i], NULL, NULL);
     else if(!second)
@@ -1608,6 +1618,9 @@ stratcon_datastore_ingest_all_storagenode_info() {
       info->dsn = dsn ? strdup(dsn) : NULL;
       noit_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
+      noitL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
+            info->storagenode_id,
+            info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
   }
   PQclear(d->res);
@@ -1656,6 +1669,8 @@ stratcon_datastore_ingest_all_check_info() {
     uuidinfo->sid = sid;
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
+    noitL(ds_deb, "CHECK[%s] -> { remote_cn: '%s', storagenode_id: '%d' }\n",
+          uuidinfo->uuid_str, uuidinfo->remote_cn, uuidinfo->storagenode_id);
     loaded++;
     if(!noit_hash_retrieve(&storagenode_to_info_cache,
                            (void *)&storagenode_id, sizeof(int), &vinfo)) {
@@ -1666,6 +1681,9 @@ stratcon_datastore_ingest_all_check_info() {
       info->dsn = dsn ? strdup(dsn) : NULL;
       noit_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
+      noitL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
+            info->storagenode_id,
+            info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
   }
   PQclear(d->res);

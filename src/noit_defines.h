@@ -132,8 +132,8 @@ static inline int noit_build_version(char *buff, int len) {
   return snprintf(buff, len, "unknown.%s", NOIT_SVNVERSION);
 }
 
-#if defined(__sun)
-#define portable_readdir_r(a,b,c) ((*c) = readdir_r(a,b))
+#if defined(__sun) && !defined(_POSIX_PTHREAD_SEMANTICS)
+#define portable_readdir_r(a,b,c) (((*c) = readdir_r(a,b)) != NULL)
 #else
 #define portable_readdir_r readdir_r
 #endif

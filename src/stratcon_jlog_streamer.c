@@ -438,7 +438,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       case JLOG_STREAMER_IS_ASYNC:
         ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
-        noitL(noit_debug, "Pushing checkpoint: [%u/%u]\n",
+        noitL(noit_debug, "Pushing checkpoint [%s]: [%u/%u]\n",
+              nctx->remote_cn ? nctx->remote_cn : "(null)",
               ctx->header.chkpt.log, ctx->header.chkpt.marker);
         n_chkpt.log = htonl(ctx->header.chkpt.log);
         n_chkpt.marker = htonl(ctx->header.chkpt.marker);

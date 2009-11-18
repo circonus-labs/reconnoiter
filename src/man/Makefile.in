@@ -29,7 +29,7 @@ noitd.8:	$(top_srcdir)/docs/executable/noitd.xml
 
 noitd.usage.h:	noitd.8
 	@echo " - creating $@"
-	@$(NROFF)  -mandoc ./noitd.8 | \
+	@$(NROFF)  -man ./noitd.8 | \
 		$(top_srcdir)/buildtools/xml2h NOITD_USAGE > $@
 
 stratcond.8:	$(top_srcdir)/docs/executable/stratcond.xml
@@ -40,7 +40,7 @@ stratcond.8:	$(top_srcdir)/docs/executable/stratcond.xml
 
 stratcond.usage.h:	stratcond.8
 	@echo " - creating $@"
-	@$(NROFF)  -mandoc ./stratcond.8 | \
+	@$(NROFF)  -man ./stratcond.8 | \
 		$(top_srcdir)/buildtools/xml2h STRATCOND_USAGE > $@
 
 install:	all
