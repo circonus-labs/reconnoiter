@@ -172,16 +172,24 @@ static int
 jlog_logio_cleanse(noit_log_stream_t ls) {
   jlog_ctx *log;
   DIR *d;
-  struct dirent de, *entry;
+  struct dirent *de, *entry;
   int cnt = 0;
   char path[PATH_MAX];
+  int size = 0;
 
   log = (jlog_ctx *)ls->op_ctx;
   if(!log) return -1;
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), NULL) <= 0) return -1;
   d = opendir(path);
+
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MIN(size, PATH_MAX + 128);
+  de = alloca(size);
+
   if(!d) return -1;
-  while(portable_readdir_r(d, &de, &entry) == 0 && entry != NULL) {
+  while(portable_readdir_r(d, de, &entry) == 0 && entry != NULL) {
     u_int32_t logid;
     if(is_datafile(entry->d_name, &logid)) {
       int rv;
