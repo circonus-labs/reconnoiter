@@ -252,8 +252,12 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
     alter_fd(e, newmask);
     /* Set our mask */
     e->mask = newmask;
+    noitLT(eventer_deb, &__now, "ports: complete on %d/(%x->%x) to %s(%p)\n",
+           fd, mask, newmask, cbname?cbname:"???", e->callback);
   }
   else {
+    noitLT(eventer_deb, &__now, "ports: complete on %d/none to %s(%p)\n",
+           fd, cbname?cbname:"???", e->callback);
     /*
      * Long story long:
      *  When integrating with a few external event systems, we find
@@ -345,6 +349,9 @@ static int eventer_ports_impl_loop() {
     __ports_sleeptime.tv_sec = __sleeptime.tv_sec;
     __ports_sleeptime.tv_nsec = __sleeptime.tv_usec * 1000;
     fd_cnt = 1;
+
+    pevents[0].portev_source = 65535; /* This is impossible */
+
     ret = port_getn(port_fd, pevents, MAX_PORT_EVENTS, &fd_cnt,
                     &__ports_sleeptime);
     noitLT(eventer_deb, &__now, "debug: port_getn(%d, [], %d) => %d\n", port_fd,
@@ -352,10 +359,12 @@ static int eventer_ports_impl_loop() {
     if(ret < 0)
       noitLT(eventer_deb, &__now, "port_getn: %s\n", strerror(errno));
 
-    if(ret == -1 && (errno == ETIME)) fd_cnt = 0;
-    else if(ret == -1 && (errno == EINTR)) fd_cnt = 0;
-    else if(ret == -1)
+    if(ret == -1 && (errno != ETIME && errno != EINTR))
       noitLT(eventer_err, &__now, "port_getn: %s\n", strerror(errno));
+    if(pevents[0].portev_source == 65535) {
+      /* the impossible still remains, which means our fd_cnt _must_ be 0 */
+      fd_cnt = 0;
+    }
 
     if(fd_cnt > 0) {
       int idx;
