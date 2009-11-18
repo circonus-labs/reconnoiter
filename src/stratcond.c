@@ -64,6 +64,10 @@ static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 static int no_store = 0;
+static char **enable_logs;
+static int enable_logs_cnt = 0;
+static char **disable_logs;
+static int disable_logs_cnt = 0;
 
 #include "man/stratcond.usage.h"
 static void usage(const char *progname) {
@@ -78,10 +82,38 @@ static void usage(const char *progname) {
   return;
 }
 
+void cli_log_switches() {
+  int i;
+  noit_log_stream_t ls;
+  for(i=0; i<enable_logs_cnt; i++) {
+    ls = noit_log_stream_find(enable_logs[i]);
+    if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
+    if(ls && !ls->enabled) {
+      noitL(noit_error, "Enabling %s\n", enable_logs[i]);
+      ls->enabled = 1;
+    }
+  }
+  for(i=0; i<disable_logs_cnt; i++) {
+    ls = noit_log_stream_find(disable_logs[i]);
+    if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
+    if(ls && ls->enabled) {
+      noitL(noit_error, "Disabling %s\n", disable_logs[i]);
+      ls->enabled = 0;
+    }
+  }
+}
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "shc:dDu:g:t:")) != EOF) {
+  enable_logs = calloc(argc, sizeof(*enable_logs));
+  disable_logs = calloc(argc, sizeof(*disable_logs));
+  while((c = getopt(argc, argv, "shc:dDu:g:t:l:L:")) != EOF) {
     switch(c) {
+      case 'l':
+        enable_logs[enable_logs_cnt++] = strdup(optarg);
+        break;
+      case 'L':
+        disable_logs[disable_logs_cnt++] = strdup(optarg);
+        break;
       case 's':
         no_store = 1;
         break;
@@ -157,6 +189,7 @@ static int child_main() {
     exit(2);
   }
   noit_conf_log_init(APPNAME);
+  cli_log_switches();
   if(noit_security_usergroup(user, group, noit_true)) {
     noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
     exit(2);
