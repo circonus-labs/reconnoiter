@@ -114,57 +114,69 @@ noit_listener_acceptor(eventer_t e, int mask,
     return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   }
 
-  ac = malloc(sizeof(*ac));
-  memcpy(ac, listener_closure->dispatch_closure, sizeof(*ac));
-  salen = sizeof(ac->remote);
-  conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
-  if(conn >= 0) {
-    eventer_t newe;
-    if(eventer_set_fd_nonblocking(conn)) {
-      close(conn);
-      goto accept_bail;
-    }
-    newe = eventer_alloc();
-    newe->fd = conn;
-    newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
-
-    if(listener_closure->sslconfig->size) {
-      const char *cert, *key, *ca, *ciphers;
-      eventer_ssl_ctx_t *ctx;
-      /* We have an SSL configuration.  While our socket accept is
-       * complete, we now have to SSL_accept, which could require
-       * several reads and writes and needs its own event callback.
-       */
-#define SSLCONFGET(var,name) do { \
-  if(!noit_hash_retr_str(listener_closure->sslconfig, name, strlen(name), \
-                         &var)) var = NULL; } while(0)
-      SSLCONFGET(cert, "certificate_file");
-      SSLCONFGET(key, "key_file");
-      SSLCONFGET(ca, "ca_chain");
-      SSLCONFGET(ciphers, "ciphers");
-      ctx = eventer_ssl_ctx_new(SSL_SERVER, cert, key, ca, ciphers);
-      if(!ctx) {
-        newe->opset->close(newe->fd, &newmask, e);
-        eventer_free(newe);
-        goto socketfail;
+  do {
+    ac = malloc(sizeof(*ac));
+    memcpy(ac, listener_closure->dispatch_closure, sizeof(*ac));
+    salen = sizeof(ac->remote);
+    conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
+    if(conn >= 0) {
+      eventer_t newe;
+      if(eventer_set_fd_nonblocking(conn)) {
+        close(conn);
+        free(ac);
+        goto accept_bail;
       }
-      eventer_ssl_ctx_set_verify(ctx, eventer_ssl_verify_cert,
-                                 listener_closure->sslconfig);
-      EVENTER_ATTACH_SSL(newe, ctx);
-      newe->callback = noit_listener_accept_ssl;
-      newe->closure = malloc(sizeof(*listener_closure));
-      memcpy(newe->closure, listener_closure, sizeof(*listener_closure));
-      ((listener_closure_t)newe->closure)->dispatch_closure = ac;
+      newe = eventer_alloc();
+      newe->fd = conn;
+      newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
+  
+      if(listener_closure->sslconfig->size) {
+        const char *cert, *key, *ca, *ciphers;
+        eventer_ssl_ctx_t *ctx;
+        /* We have an SSL configuration.  While our socket accept is
+         * complete, we now have to SSL_accept, which could require
+         * several reads and writes and needs its own event callback.
+         */
+  #define SSLCONFGET(var,name) do { \
+    if(!noit_hash_retr_str(listener_closure->sslconfig, name, strlen(name), \
+                           &var)) var = NULL; } while(0)
+        SSLCONFGET(cert, "certificate_file");
+        SSLCONFGET(key, "key_file");
+        SSLCONFGET(ca, "ca_chain");
+        SSLCONFGET(ciphers, "ciphers");
+        ctx = eventer_ssl_ctx_new(SSL_SERVER, cert, key, ca, ciphers);
+        if(!ctx) {
+          newe->opset->close(newe->fd, &newmask, e);
+          eventer_free(newe);
+          goto socketfail;
+        }
+        eventer_ssl_ctx_set_verify(ctx, eventer_ssl_verify_cert,
+                                   listener_closure->sslconfig);
+        EVENTER_ATTACH_SSL(newe, ctx);
+        newe->callback = noit_listener_accept_ssl;
+        newe->closure = malloc(sizeof(*listener_closure));
+        memcpy(newe->closure, listener_closure, sizeof(*listener_closure));
+        ((listener_closure_t)newe->closure)->dispatch_closure = ac;
+      }
+      else {
+        newe->callback = listener_closure->dispatch_callback;
+        /* We must make a copy of the acceptor_closure_t for each new
+         * connection.
+         */
+        newe->closure = ac;
+      }
+      eventer_add(newe);
     }
     else {
-      newe->callback = listener_closure->dispatch_callback;
-      /* We must make a copy of the acceptor_closure_t for each new
-       * connection.
-       */
-      newe->closure = ac;
+      if(errno == EAGAIN) {
+        if(ac) acceptor_closure_free(ac);
+      }
+      else if(errno != EINTR) {
+        noitL(noit_error, "accept socket error: %s\n", strerror(errno));
+        goto socketfail;
+      }
     }
-    eventer_add(newe);
-  }
+  } while(conn >= 0);
  accept_bail:
   return newmask | EVENTER_EXCEPTION;
 }
