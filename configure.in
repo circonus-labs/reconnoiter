@@ -406,6 +406,19 @@ fi
 
 AC_SUBST(EVENTER_OBJS)
 
+AC_CACHE_CHECK([for posix_readdir_r], ac_cv_have_posix_readdir_r, [
+	AC_TRY_COMPILE(
+		[ #include <dirent.h> ], 
+		[ struct dirent *dep, de; readdir_r("/", &de, &dep); ], 
+		[ ac_cv_have_posix_readdir_r="yes" ],
+		[ ac_cv_have_posix_readdir_r="no" ]
+	)
+])
+if test "x$ac_cv_have_posix_readdir_r" = "xyes" ; then
+	AC_DEFINE(HAVE_POSIX_READDIR_R)
+	have_posix_readdir_r=1
+fi
+
 AC_CACHE_CHECK([for u_int type], ac_cv_have_u_int, [
 	AC_TRY_COMPILE(
 		[ #include <sys/types.h> ], 
