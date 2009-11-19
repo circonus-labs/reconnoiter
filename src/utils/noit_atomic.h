@@ -47,7 +47,7 @@ typedef int64_t noit_atomic64_t;
 typedef OSSpinLock noit_spinlock_t;
 #define noit_atomic_cas32(ref,new,old) (OSAtomicCompareAndSwap32(old,new,ref) ? old : new)
 #define noit_atomic_cas64(ref,new,old) (OSAtomicCompareAndSwap64(old,new,ref) ? old : new)
-#define noit_atomic_casptr(ref,new,old) (OSAtomicCompareAndSwapPtr(old,new,ref) ? old : new)
+#define noit_atomic_casptr(ref,new,old) (OSAtomicCompareAndSwapPtr(old,new,(void *)ref) ? old : new)
 #define noit_atomic_add32(ref,diff) OSAtomicAdd32(ref,diff)
 #define noit_atomic_add64(ref,diff) OSAtomicAdd64(ref,diff)
 #define noit_atomic_sub32(ref,diff) OSAtomicAdd32(ref,0-(diff))
