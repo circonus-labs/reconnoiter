@@ -18,16 +18,31 @@
     <components>
       <error>
         <outlet name="error"/>
+        <log name="error/collectd"/>
+        <log name="error/dns"/>
         <log name="error/eventer"/>
+        <log name="error/external"/>
+        <log name="error/lua"/>
+        <log name="error/mysql"/>
         <log name="error/ping_icmp"/>
-        <log name="error/serf"/>
+        <log name="error/postgres"/>
+        <log name="error/selfcheck"/>
         <log name="error/snmp"/>
+        <log name="error/ssh2"/>
       </error>
       <debug>
+        <outlet name="debug"/>
+        <log name="debug/collectd" disabled="true"/>
+        <log name="debug/dns" disabled="true"/>
         <log name="debug/eventer" disabled="true"/>
+        <log name="debug/external" disabled="true"/>
+        <log name="debug/lua" disabled="true"/>
+        <log name="debug/mysql" disabled="true"/>
         <log name="debug/ping_icmp" disabled="true"/>
-        <log name="debug/serf" disabled="false"/>
+        <log name="debug/postgres" disabled="true"/>
+        <log name="debug/selfcheck" disabled="true"/>
         <log name="debug/snmp" disabled="true"/>
+        <log name="debug/ssh2" disabled="true"/>
       </debug>
     </components>
     <feeds>
