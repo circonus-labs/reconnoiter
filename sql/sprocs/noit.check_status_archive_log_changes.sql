@@ -15,7 +15,7 @@ IF TG_OP = 'INSERT' THEN
                         WHERE  SID=NEW.sid and  WHENCE <> NEW.whence )
     INTO v_state,v_avail,v_whence;
 
-    IF NEW.whence > v_whence AND 
+    IF (NEW.whence > v_whence OR v_whence is NULL) AND
        (v_state IS DISTINCT FROM NEW.state OR v_avail IS DISTINCT FROM NEW.availability) THEN
         INSERT INTO noit.check_status_changelog (sid,whence,state,availability,duration,status)
             VALUES (NEW.sid,NEW.whence,NEW.state,NEW.availability,NEW.duration,NEW.status);
