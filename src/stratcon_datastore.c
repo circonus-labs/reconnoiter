@@ -73,6 +73,7 @@ DECL_STMT(config_insert, config);
 
 static noit_log_stream_t ds_err = NULL;
 static noit_log_stream_t ds_deb = NULL;
+static noit_log_stream_t ds_pool_deb = NULL;
 static noit_log_stream_t ingest_err = NULL;
 
 static struct datastore_onlooker_list {
@@ -241,7 +242,7 @@ release_conn_q_forceable(conn_q *cq, int forcefree) {
     cq->pool->in_pool++;
   }
   pthread_mutex_unlock(&cq->pool->lock);
-  noitL(ds_deb, "[%p] release %s [%s]\n", (void *)pthread_self(),
+  noitL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)pthread_self(),
         putback ? "to pool" : "and destroy", cq->pool->queue_name);
   pthread_cond_signal(&cq->pool->cv);
   if(putback) return;
@@ -289,7 +290,7 @@ ttl_purge_conn_pool(conn_pool *pool) {
     release_conn_q_forceable(cq, 1);
   }
   if(old_cnt != new_cnt)
-    noitL(ds_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
+    noitL(ds_pool_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
           pool->queue_name);
 }
 static void
@@ -356,7 +357,7 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
-  noitL(ds_deb, "[%p] requesting [%s]\n", (void *)pthread_self(),
+  noitL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
  again:
@@ -371,10 +372,10 @@ get_conn_q_for_remote(const char *remote_str,
     return cq;
   }
   if(cpool->in_pool + cpool->outstanding >= cpool->max_allocated) {
-    noitL(ds_deb, "[%p] over-subscribed, waiting [%s]\n",
+    noitL(ds_pool_deb, "[%p] over-subscribed, waiting [%s]\n",
           (void *)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
-    noitL(ds_deb, "[%p] waking up and trying again [%s]\n",
+    noitL(ds_pool_deb, "[%p] waking up and trying again [%s]\n",
           (void *)pthread_self(), cpool->queue_name);
     goto again;
   }
@@ -449,9 +450,12 @@ __noit__strndup(const char *src, int len) {
   d->rv = PQresultStatus(d->res); \
   if(d->rv != PGRES_COMMAND_OK && \
      d->rv != PGRES_TUPLES_OK) { \
-    noitL(ds_err, "[%s] stratcon datasource bad (%d): %s\n'%s'\n", \
+    const char *pgerr = PQresultErrorMessage(d->res); \
+    const char *pgerr_end = strchr(pgerr, '\n'); \
+    if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
+    noitL(ds_err, "[%s] stratcon datasource bad (%d): %.*s\n", \
           cq->fqdn ? cq->fqdn : "metanode", d->rv, \
-          PQresultErrorMessage(d->res), cmd); \
+          (pgerr_end - pgerr), pgerr); \
     PQclear(d->res); \
     goto bad_row; \
   } \
@@ -469,8 +473,11 @@ __noit__strndup(const char *src, int len) {
   d->rv = PQresultStatus(d->res); \
   if(d->rv != PGRES_COMMAND_OK && \
      d->rv != PGRES_TUPLES_OK) { \
-    noitL(ds_err, "stratcon datasource bad (%d): %s\n'%s' time: %llu\n", \
-          d->rv, PQresultErrorMessage(d->res), cmdbuf, \
+    const char *pgerr = PQresultErrorMessage(d->res); \
+    const char *pgerr_end = strchr(pgerr, '\n'); \
+    if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
+    noitL(ds_err, "stratcon datasource bad (%d): %.*s time: %llu\n", \
+          d->rv, (pgerr_end - pgerr), pgerr, \
           (long long unsigned)whence); \
     PQclear(d->res); \
     goto bad_row; \
@@ -1071,7 +1078,7 @@ interim_journal_remove(interim_journal_t *ij) {
 int
 stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
                                   struct timeval *now) {
-  int i;
+  int i, total, success, sp_total, sp_success;
   interim_journal_t *ij;
   ds_line_detail *head, *current, *last_sp;
   const char *dsn;
@@ -1090,30 +1097,43 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
   /* Make sure we have a connection */
   i = 1;
   while(stratcon_database_connect(cq)) {
-    noitL(noit_error, "Error connecting to database\n");
+    noitL(noit_error, "Error connecting to database: %s\n",
+          ij->fqdn ? ij->fqdn : "(null)");
     sleep(i);
     i *= 2;
     i = MIN(i, 16);
   }
 
   head = build_insert_batch(ij);
+  noitL(ds_deb, "Starting batch from %s/%s to %s\n",
+        ij->remote_str ? ij->remote_str : "(null)",
+        ij->remote_cn ? ij->remote_cn : "(null)",
+        ij->fqdn ? ij->fqdn : "(null)");
   current = head; 
   last_sp = NULL;
+  total = success = sp_total = sp_success = 0;
   if(stratcon_datastore_do(cq, "BEGIN")) BUSTED(cq);
   while(current) {
     execute_outcome_t rv;
     if(current->data) {
-      if(!last_sp) SAVEPOINT("batch");
+      if(!last_sp) {
+        SAVEPOINT("batch");
+        sp_success = success;
+        sp_total = total;
+      }
  
       if(current->problematic) {
         RELEASE_SAVEPOINT("batch");
         current = current->next;
+        total++;
         continue;
       } 
       rv = stratcon_datastore_execute(cq, cq->remote_str, cq->remote_cn,
                                       current);
       switch(rv) {
         case DS_EXEC_SUCCESS:
+          total++;
+          success++;
           current = current->next;
           break;
         case DS_EXEC_ROW_FAILED:
@@ -1121,6 +1141,8 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
           noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
           current->problematic = 1;
           current = last_sp;
+          success = sp_success;
+          total = sp_total;
           ROLLBACK_TO_SAVEPOINT("batch");
           break;
         case DS_EXEC_TXN_FAILED:
@@ -1143,6 +1165,10 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
     free_params((ds_single_detail *)tofree);
     free(tofree);
   }
+  noitL(ds_deb, "Finished batch %s/%s to %s [%d/%d]\n",
+        ij->remote_str ? ij->remote_str : "(null)",
+        ij->remote_cn ? ij->remote_cn : "(null)",
+        ij->fqdn ? ij->fqdn : "(null)", success, total);
   interim_journal_remove(ij);
   release_conn_q(cq);
   return 0;
@@ -1372,8 +1398,6 @@ stratcon_datastore_journal(struct sockaddr *remote,
           storage_node_quick_lookup(uuid_str, remote_cn, NULL,
                                     &storagenode_id, NULL, &fqdn, &dsn);
           ij = interim_journal_get(remote, remote_cn, storagenode_id, fqdn);
-noitL(noit_error, " %s -> %d/%s { fd: %d, path: %s }\n", uuid_str, storagenode_id, fqdn,
-      ij->fd, ij->filename);
         }
       }
       break;
@@ -1700,6 +1724,7 @@ stratcon_datastore_init() {
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
   ds_err = noit_log_stream_find("error/datastore");
   ds_deb = noit_log_stream_find("debug/datastore");
+  ds_pool_deb = noit_log_stream_find("debug/datastore_pool");
   ingest_err = noit_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;
