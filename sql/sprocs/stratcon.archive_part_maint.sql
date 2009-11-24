@@ -93,6 +93,7 @@ BEGIN
               join pg_proc as p on(t.tgfoid = p.oid)
               join pg_namespace as n on(p.pronamespace = n.oid) 
              where relname = v_parent_table and nspname = v_schema_name 
+               and relnamespace = n.oid
                and proname <> 'parent_empty' LOOP
           v_sql := 'CREATE TRIGGER ' || v_rec.tgname || '';
           IF 0 != (v_rec.tgtype & 2) THEN
