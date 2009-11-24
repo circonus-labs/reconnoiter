@@ -18,25 +18,25 @@ BEGIN
 
 IF TG_OP = 'INSERT' THEN
 
-             SELECT value FROM  noit.metric_text_changelog WHERE sid = NEW.sid AND name = NEW.name
-                 AND WHENCE = (SELECT max(whence) FROM noit.metric_text_changelog
+             SELECT value FROM  metric_text_changelog WHERE sid = NEW.sid AND name = NEW.name
+                 AND WHENCE = (SELECT max(whence) FROM metric_text_changelog
                                  WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
                      INTO v_oldvalue;
 
                     IF v_oldvalue IS DISTINCT FROM NEW.value THEN
 
-                        INSERT INTO noit.metric_text_changelog (sid,whence,name,value)
+                        INSERT INTO metric_text_changelog (sid,whence,name,value)
                             VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
-                        DELETE FROM noit.metric_text_currently
+                        DELETE FROM metric_text_currently
                                 WHERE sid = NEW.sid and name = NEW.name;
-                        INSERT INTO noit.metric_text_currently (sid,whence,name,value)
+                        INSERT INTO metric_text_currently (sid,whence,name,value)
                                 VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
                     END IF;
 
-SELECT sid,metric_name FROM noit.metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
+SELECT sid,metric_name FROM metric_name_summary WHERE sid=NEW.sid  and metric_name=NEW.name
         INTO v_sid,v_name;
      IF NOT FOUND THEN
-          INSERT INTO  noit.metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.name,'text');
+          INSERT INTO  metric_name_summary(sid,metric_name,metric_type)  VALUES(NEW.sid,NEW.name,'text');
      END IF;
 
 ELSE
