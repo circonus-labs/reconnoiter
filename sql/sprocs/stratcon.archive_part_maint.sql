@@ -86,15 +86,18 @@ BEGIN
         LOOP
           execute v_rec.sql;
         END LOOP;
+        RAISE INFO 'set permissions on partition %', v_table_name;
 
         FOR v_rec in
             select tgname, tgtype, nspname, proname
               from pg_class as c join pg_trigger as t on(c.oid = t.tgrelid)
               join pg_proc as p on(t.tgfoid = p.oid)
               join pg_namespace as n on(p.pronamespace = n.oid) 
-             where relname = v_parent_table and nspname = v_schema_name 
-               and relnamespace = n.oid
+             where relname = v_parent_table
+               and relnamespace in (select oid from pg_namespace
+                                     where nspname = v_schema_name)
                and proname <> 'parent_empty' LOOP
+          RAISE INFO 'creating trigger % on partition %', v_rec.tgname, v_table_name;
           v_sql := 'CREATE TRIGGER ' || v_rec.tgname || '';
           IF 0 != (v_rec.tgtype & 2) THEN
             v_sql := v_sql || ' BEFORE ';
