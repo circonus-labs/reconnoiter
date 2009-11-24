@@ -204,6 +204,7 @@ noit_jlog_handler(eventer_t e, int mask, void *closure,
                      struct timeval *now) {
   eventer_t newe;
   pthread_t tid;
+  pthread_attr_t tattr;
   int newmask = EVENTER_READ | EVENTER_EXCEPTION;
   acceptor_closure_t *ac = closure;
   noit_jlog_closure_t *jcl = ac->service_ctx;
@@ -304,7 +305,9 @@ socket_error:
   eventer_remove_fd(e->fd);
   newe = eventer_alloc();
   memcpy(newe, e, sizeof(*e));
-  if(pthread_create(&tid, NULL, noit_jlog_thread_main, newe) == 0) {
+  pthread_attr_init(&tattr);
+  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+  if(pthread_create(&tid, &tattr, noit_jlog_thread_main, newe) == 0) {
     return 0;
   }
 
