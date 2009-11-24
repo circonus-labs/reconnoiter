@@ -36,6 +36,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
+#include "jlog/jlog_private.h"
 #include "noit_jlog_listener.h"
 
 #include <unistd.h>
@@ -152,6 +153,29 @@ noit_jlog_thread_main(void *e_vptr) {
                       1 : DEFAULT_SECONDS_BETWEEN_BATCHES;
     jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
+    if(jcl->count < 0) {
+      char idxfile[PATH_MAX];
+      noitL(noit_error, "jlog_ctx_read_interval: %s\n",
+            jlog_ctx_err_string(jcl->jlog));
+      switch (jlog_ctx_err(jcl->jlog)) {
+        case JLOG_ERR_FILE_CORRUPT:
+        case JLOG_ERR_IDX_CORRUPT:
+          jlog_repair_datafile(jcl->jlog, jcl->start.log);
+          jlog_repair_datafile(jcl->jlog, jcl->start.log + 1);
+          noitL(noit_error,
+                "jlog reconstructed, deleting corresponding index.\n");
+          STRSETDATAFILE(jcl->jlog, idxfile, jcl->start.log);
+          strlcat(idxfile, INDEX_EXT, sizeof(idxfile));
+          unlink(idxfile);
+          STRSETDATAFILE(jcl->jlog, idxfile, jcl->start.log + 1);
+          strlcat(idxfile, INDEX_EXT, sizeof(idxfile));
+          unlink(idxfile);
+          goto alldone;
+          break;
+        default:
+          goto alldone;
+      }
+    }
     if(jcl->count > MAX_ROWS_AT_ONCE) {
       /* Artificially set down the range to make the batches a bit easier
        * to handle on the stratcond/postgres end.
