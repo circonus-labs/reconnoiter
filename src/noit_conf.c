@@ -101,8 +101,15 @@ noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
 }
 void
 noit_conf_watch_and_journal_watchdog(int (*f)(void *), void *c) {
+  static int callbacknamed = 0;
   struct recurrent_journaler *rj;
   struct timeval __now;
+
+  if(!callbacknamed) {
+    callbacknamed = 1;
+    eventer_name_callback("noit_conf_watch_config_and_journal",
+                          noit_conf_watch_config_and_journal);
+  }
   rj = calloc(1, sizeof(*rj));
   rj->journal_config = f;
   rj->jc_closure = c;
