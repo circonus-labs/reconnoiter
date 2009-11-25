@@ -1204,6 +1204,7 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
   noit_hash_destroy(syncset->ws, free, NULL);
   free(syncset->ws);
   eventer_add(syncset->completion);
+  eventer_trigger(syncset->completion, EVENTER_READ | EVENTER_WRITE);
   free(syncset);
   return 0;
 }
