@@ -455,7 +455,7 @@ __noit__strndup(const char *src, int len) {
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
     noitL(ds_err, "[%s] stratcon datasource bad (%d): %.*s\n", \
           cq->fqdn ? cq->fqdn : "metanode", d->rv, \
-          (pgerr_end - pgerr), pgerr); \
+          (int)(pgerr_end - pgerr), pgerr); \
     PQclear(d->res); \
     goto bad_row; \
   } \
@@ -477,7 +477,7 @@ __noit__strndup(const char *src, int len) {
     const char *pgerr_end = strchr(pgerr, '\n'); \
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
     noitL(ds_err, "stratcon datasource bad (%d): %.*s time: %llu\n", \
-          d->rv, (pgerr_end - pgerr), pgerr, \
+          d->rv, (int)(pgerr_end - pgerr), pgerr, \
           (long long unsigned)whence); \
     PQclear(d->res); \
     goto bad_row; \
