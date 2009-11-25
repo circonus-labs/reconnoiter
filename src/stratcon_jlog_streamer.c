@@ -58,6 +58,14 @@ noit_hash_table noits = NOIT_HASH_EMPTY;
 
 static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
+static const char *feed_type_to_str(int jlog_feed_cmd) {
+  switch(jlog_feed_cmd) {
+    case NOIT_JLOG_DATA_FEED: return "durable/storage";
+    case NOIT_JLOG_DATA_TEMP_FEED: return "transient/iep";
+  }
+  return "unknown";
+}
+
 static int
 remote_str_sort(const void *a, const void *b) {
   int rv;
@@ -117,10 +125,7 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
                 ctx->e->fd, strerror(errno));
     }
   }
-  switch(ntohl(jctx->jlog_feed_cmd)) {
-    case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
-    case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
-  }
+  feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
   nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
   gettimeofday(&now, NULL);
   if(ctx->timeout_event) {
@@ -429,7 +434,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           ctx->state = JLOG_STREAMER_IS_ASYNC;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
-          noitL(noit_debug, "Pushing batch asynch...\n");
+          noitL(noit_debug, "Pushing %s batch async [%s]: [%u/%u]\n",
+                feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
+                nctx->remote_cn ? nctx->remote_cn : "(null)",
+                ctx->header.chkpt.log, ctx->header.chkpt.marker);
           return 0;
         } else
           ctx->state = JLOG_STREAMER_WANT_HEADER;
@@ -438,7 +446,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       case JLOG_STREAMER_IS_ASYNC:
         ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
-        noitL(noit_debug, "Pushing checkpoint [%s]: [%u/%u]\n",
+        noitL(noit_debug, "Pushing %s checkpoint [%s]: [%u/%u]\n",
+              feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
               nctx->remote_cn ? nctx->remote_cn : "(null)",
               ctx->header.chkpt.log, ctx->header.chkpt.marker);
         n_chkpt.log = htonl(ctx->header.chkpt.log);
@@ -824,7 +833,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"noits", NULL);
   xmlDocSetRootElement(doc, root);
   for(i=0; i<n; i++) {
-    char buff[256], *feedtype = "unknown", *state = "unknown";
+    char buff[256];
+    const char *feedtype = "unknown", *state = "unknown";
     xmlNodePtr node;
     noit_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
@@ -864,10 +874,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
       }
     }
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
-    switch(ntohl(jctx->jlog_feed_cmd)) {
-      case NOIT_JLOG_DATA_FEED: feedtype = "durable/storage"; break;
-      case NOIT_JLOG_DATA_TEMP_FEED: feedtype = "transient/iep"; break;
-    }
+    feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
     if(ctx->timeout_event) {
       sub_timeval(ctx->timeout_event->whence, now, &diff);
