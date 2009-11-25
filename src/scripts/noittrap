@@ -120,3 +120,4 @@ while(@ARGV) {
 }
 
 exec { "snmptrap" } @cmd;
+die "Couldn't find snmptrap\n";
