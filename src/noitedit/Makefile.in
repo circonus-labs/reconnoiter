@@ -72,5 +72,4 @@ editline.c: vi.c emacs.c common.c makelist
 	@echo "- makelist $@"
 
 clean:
-	rm -f *.o *.a vi.h emacs.h common.h fcns.h fcns.c \
-		help.c help.h editline.c
+	rm -f *.o *.a editline.c

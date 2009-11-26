@@ -239,7 +239,7 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 
 clean:
 	rm -f *.o noitd
-	rm jlog/libjlog.a
+	rm -f jlog/libjlog.a
 	(cd jlog && make clean)
 	(cd eventer && make clean)
 	(cd udns && make clean)
