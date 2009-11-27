@@ -101,13 +101,13 @@ class Reconnoiter_GraphTemplate {
     foreach($vs as $v => $d) {
       if(isset($d['SID'])) {
         $this->num_sids++;
-        $sql = "select m.* from stratcon.mv_loading_dock_check_s as m";
+        $sql = "select m.* from noit.check_currently as m";
         $binds = array();
         $t = 1;
         $sids[$v] = array();
         foreach($d['SID'] as $m) {
           $sql = "$sql
-                    join stratcon.metric_name_summary t$t
+                    join noit.metric_name_summary t$t
                       on (    m.sid = t$t.sid
                           and t$t.metric_name = ?
                           and t$t.metric_type = ?)";
