@@ -33,11 +33,14 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
+#include "utils/noit_skiplist.h"
 #include <pthread.h>
 #include <assert.h>
 
 static struct timeval *eventer_impl_epoch = NULL;
 static int EVENTER_DEBUGGING = 0;
+static pthread_mutex_t te_lock;
+static noit_skiplist *timed_events = NULL;
 
 #ifdef HAVE_KQUEUE
 extern struct _eventer_impl eventer_kqueue_impl;
@@ -128,6 +131,13 @@ int eventer_impl_init() {
   }
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
+  pthread_mutex_init(&te_lock, NULL);
+    timed_events = calloc(1, sizeof(*timed_events));
+  noit_skiplist_init(timed_events);
+  noit_skiplist_set_compare(timed_events,
+                            eventer_timecompare, eventer_timecompare);
+  noit_skiplist_add_index(timed_events,
+                          noit_compare_voidptr, noit_compare_voidptr);
 
   eventer_err = noit_log_stream_find("error/eventer");
   eventer_deb = noit_log_stream_find("debug/eventer");
@@ -167,6 +177,93 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
     eventer_add(job->timeout_event);
   }
   eventer_jobq_enqueue(q ? q : &__default_jobq, job);
+}
+
+void eventer_add_timed(eventer_t e) {
+  assert(e->mask & EVENTER_TIMER);
+  if(EVENTER_DEBUGGING) {
+    const char *cbname;
+    cbname = eventer_name_for_callback(e->callback);
+    noitL(eventer_deb, "debug: eventer_add timed (%s)\n",
+          cbname ? cbname : "???");
+  }
+  pthread_mutex_lock(&te_lock);
+  noit_skiplist_insert(timed_events, e);
+  pthread_mutex_unlock(&te_lock);
+}
+eventer_t eventer_remove_timed(eventer_t e) {
+  eventer_t removed = NULL;
+  assert(e->mask & EVENTER_TIMER);
+  pthread_mutex_lock(&te_lock);
+  if(noit_skiplist_remove_compare(timed_events, e, NULL,
+                                  noit_compare_voidptr))
+    removed = e;
+  pthread_mutex_unlock(&te_lock);
+  return removed;
+}
+void eventer_update_timed(eventer_t e, int mask) {
+  assert(mask & EVENTER_TIMER);
+  pthread_mutex_lock(&te_lock);
+  noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
+  noit_skiplist_insert(timed_events, e);
+  pthread_mutex_unlock(&te_lock);
+}
+void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
+  int max_timed_events_to_process;
+    /* Handle timed events...
+     * we could be multithreaded, so if we pop forever we could starve
+     * ourselves. */
+  max_timed_events_to_process = timed_events->size;
+  while(max_timed_events_to_process-- > 0) {
+    int newmask;
+    eventer_t timed_event;
+
+    gettimeofday(now, NULL);
+
+    pthread_mutex_lock(&te_lock);
+    /* Peek at our next timed event, if should fire, pop it.
+     * otherwise we noop and NULL it out to break the loop. */
+    timed_event = noit_skiplist_peek(timed_events);
+    if(timed_event) {
+      if(compare_timeval(timed_event->whence, *now) < 0) {
+        timed_event = noit_skiplist_pop(timed_events, NULL);
+      }
+      else {
+        sub_timeval(timed_event->whence, *now, next);
+        timed_event = NULL;
+      }
+    }
+    pthread_mutex_unlock(&te_lock);
+    if(timed_event == NULL) break;
+    if(EVENTER_DEBUGGING) {
+      const char *cbname;
+      cbname = eventer_name_for_callback(timed_event->callback);
+      noitLT(eventer_deb, now, "debug: timed dispatch(%s)\n",
+             cbname ? cbname : "???");
+    }
+    /* Make our call */
+    newmask = timed_event->callback(timed_event, EVENTER_TIMER,
+                                    timed_event->closure, now);
+    if(newmask)
+      eventer_add_timed(timed_event);
+    else
+      eventer_free(timed_event);
+  }
+
+  if(compare_timeval(eventer_max_sleeptime, *next) < 0) {
+    /* we exceed our configured maximum, set it down */
+    memcpy(next, &eventer_max_sleeptime, sizeof(*next));
+  }
+}
+void
+eventer_foreach_timedevent (void (*f)(eventer_t e, void *), void *closure) {
+  noit_skiplist_node *iter = NULL;
+  pthread_mutex_lock(&te_lock);
+  for(iter = noit_skiplist_getlist(timed_events); iter;
+      noit_skiplist_next(timed_events,&iter)) {
+    if(iter->data) f(iter->data, closure);
+  }
+  pthread_mutex_unlock(&te_lock);
 }
 
 void eventer_dispatch_recurrent(struct timeval *now) {

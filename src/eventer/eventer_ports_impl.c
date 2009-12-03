@@ -46,42 +46,17 @@
 
 #define MAX_PORT_EVENTS 1024
 
-static struct timeval __max_sleeptime = { 0, 200000 }; /* 200ms */
-static int maxfds;
-static struct {
-  eventer_t e;
-  pthread_t executor;
-  noit_spinlock_t lock;
-} *master_fds = NULL;
+struct _eventer_impl eventer_ports_impl;
+#define LOCAL_EVENTER eventer_ports_impl
+#define LOCAL_EVENTER_foreach_fdevent eventer_ports_impl_foreach_fdevent
+#define LOCAL_EVENTER_foreach_timedevent eventer_ports_impl_foreach_timedevent
+#define maxfds LOCAL_EVENTER.maxfds
+#define master_fds LOCAL_EVENTER.master_fds
 
-typedef enum { EV_OWNED, EV_ALREADY_OWNED } ev_lock_state_t;
-
-static ev_lock_state_t
-acquire_master_fd(int fd) {
-  if(noit_spinlock_trylock(&master_fds[fd].lock)) {
-    master_fds[fd].executor = pthread_self();
-    return EV_OWNED;
-  }
-  if(pthread_equal(master_fds[fd].executor, pthread_self())) {
-    return EV_ALREADY_OWNED;
-  }
-  noit_spinlock_lock(&master_fds[fd].lock);
-  master_fds[fd].executor = pthread_self();
-  return EV_OWNED;
-}
-static void
-release_master_fd(int fd, ev_lock_state_t as) {
-  if(as == EV_OWNED) {
-    memset(&master_fds[fd].executor, 0, sizeof(master_fds[fd].executor));
-    noit_spinlock_unlock(&master_fds[fd].lock);
-  }
-}
+#include "eventer/eventer_impl_private.h"
 
 static pthread_t master_thread;
 static int port_fd = -1;
-
-static pthread_mutex_t te_lock;
-static noit_skiplist *timed_events = NULL;
 
 static int eventer_ports_impl_init() {
   struct rlimit rlim;
@@ -96,16 +71,9 @@ static int eventer_ports_impl_init() {
   if(port_fd == -1) {
     return -1;
   }
-  pthread_mutex_init(&te_lock, NULL);
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
-  timed_events = calloc(1, sizeof(*timed_events));
-  noit_skiplist_init(timed_events);
-  noit_skiplist_set_compare(timed_events,
-                            eventer_timecompare, eventer_timecompare);
-  noit_skiplist_add_index(timed_events,
-                          noit_compare_voidptr, noit_compare_voidptr);
   return 0;
 }
 static int eventer_ports_impl_propset(const char *key, const char *value) {
@@ -157,10 +125,7 @@ static void eventer_ports_impl_add(eventer_t e) {
 
   /* Timed events are simple */
   if(e->mask & EVENTER_TIMER) {
-    noitL(eventer_deb, "debug: eventer_add timed (%s)\n", cbname ? cbname : "???");
-    pthread_mutex_lock(&te_lock);
-    noit_skiplist_insert(timed_events, e);
-    pthread_mutex_unlock(&te_lock);
+    eventer_add_timed(e);
     return;
   }
 
@@ -187,11 +152,7 @@ static eventer_t eventer_ports_impl_remove(eventer_t e) {
     release_master_fd(e->fd, lockstate);
   }
   else if(e->mask & EVENTER_TIMER) {
-    pthread_mutex_lock(&te_lock);
-    if(noit_skiplist_remove_compare(timed_events, e, NULL,
-                                    noit_compare_voidptr))
-      removed = e;
-    pthread_mutex_unlock(&te_lock);
+    removed = eventer_remove_timed(e);
   }
   else if(e->mask & EVENTER_RECURRENT) {
     removed = eventer_remove_recurrent(e);
@@ -203,11 +164,7 @@ static eventer_t eventer_ports_impl_remove(eventer_t e) {
 }
 static void eventer_ports_impl_update(eventer_t e, int mask) {
   if(e->mask & EVENTER_TIMER) {
-    assert(mask & EVENTER_TIMER);
-    pthread_mutex_lock(&te_lock);
-    noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
-    noit_skiplist_insert(timed_events, e);
-    pthread_mutex_unlock(&te_lock);
+    eventer_update_timed(e,mask);
     return;
   }
   alter_fd(e, mask);
@@ -299,48 +256,9 @@ static int eventer_ports_impl_loop() {
     int max_timed_events_to_process;
     int newmask;
 
-    __sleeptime = __max_sleeptime;
+    __sleeptime = eventer_max_sleeptime;
 
-    /* Handle timed events...
-     * we could be multithreaded, so if we pop forever we could starve
-     * ourselves. */
-    max_timed_events_to_process = timed_events->size;
-    while(max_timed_events_to_process-- > 0) {
-      eventer_t timed_event;
-
-      gettimeofday(&__now, NULL);
-
-      pthread_mutex_lock(&te_lock);
-      /* Peek at our next timed event, if should fire, pop it.
-       * otherwise we noop and NULL it out to break the loop. */
-      timed_event = noit_skiplist_peek(timed_events);
-      if(timed_event) {
-        if(compare_timeval(timed_event->whence, __now) < 0) {
-          timed_event = noit_skiplist_pop(timed_events, NULL);
-        }
-        else {
-          sub_timeval(timed_event->whence, __now, &__sleeptime);
-          timed_event = NULL;
-        }
-      }
-      pthread_mutex_unlock(&te_lock);
-      if(timed_event == NULL) break;
-
-      cbname = eventer_name_for_callback(timed_event->callback);
-      noitLT(eventer_deb, &__now, "debug: timed dispatch(%s)\n", cbname ? cbname : "???");
-      /* Make our call */
-      newmask = timed_event->callback(timed_event, EVENTER_TIMER,
-                                      timed_event->closure, &__now);
-      if(newmask)
-        eventer_add(timed_event);
-      else
-        eventer_free(timed_event);
-    }
-
-    if(compare_timeval(__max_sleeptime, __sleeptime) < 0) {
-      /* we exceed our configured maximum, set it down */
-      memcpy(&__sleeptime, &__max_sleeptime, sizeof(__sleeptime));
-    }
+    eventer_dispatch_timed(&__now, &__sleeptime);
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);
@@ -407,5 +325,9 @@ struct _eventer_impl eventer_ports_impl = {
   eventer_ports_impl_remove_fd,
   eventer_ports_impl_find_fd,
   eventer_ports_impl_trigger,
-  eventer_ports_impl_loop
+  eventer_ports_impl_loop,
+  eventer_ports_impl_foreach_fdevent,
+  { 0, 200000 },
+  0,
+  NULL
 };

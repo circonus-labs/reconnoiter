@@ -35,6 +35,7 @@
 
 #include "noit_defines.h"
 #include "utils/noit_log.h"
+#include "utils/noit_atomic.h"
 #include <sys/time.h>
 #include <sys/socket.h>
 
@@ -95,6 +96,7 @@ API_EXPORT(const char *)
 API_EXPORT(eventer_func_t)
                       eventer_callback_for_name(const char *name);
 
+
 typedef struct _eventer_impl {
   const char         *name;
   int               (*init)();
@@ -106,6 +108,14 @@ typedef struct _eventer_impl {
   eventer_t         (*find_fd)(int fd);
   void              (*trigger)(eventer_t e, int mask);
   int               (*loop)();
+  void              (*foreach_fdevent)(void (*f)(eventer_t, void *), void *);
+  struct timeval    max_sleeptime;
+  int               maxfds;
+  struct {
+    eventer_t e;
+    pthread_t executor;
+    noit_spinlock_t lock;
+  }                 *master_fds;
 } *eventer_impl_t;
 
 /* This is the "chosen one" */
@@ -127,6 +137,8 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_find_fd       __eventer->find_fd
 #define eventer_loop          __eventer->loop
 #define eventer_trigger       __eventer->trigger
+#define eventer_max_sleeptime __eventer->max_sleeptime
+#define eventer_foreach_fdevent  __eventer->foreach_fdevent
 
 extern eventer_impl_t registered_eventers[];
 
@@ -136,6 +148,13 @@ API_EXPORT(eventer_jobq_t *) eventer_default_backq();
 API_EXPORT(int) eventer_impl_propset(const char *key, const char *value);
 API_EXPORT(int) eventer_impl_init();
 API_EXPORT(void) eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
+API_EXPORT(void) eventer_add_timed(eventer_t e);
+API_EXPORT(eventer_t) eventer_remove_timed(eventer_t e);
+API_EXPORT(void) eventer_update_timed(eventer_t e, int mask);
+API_EXPORT(void) eventer_dispatch_timed(struct timeval *now,
+                                        struct timeval *next);
+API_EXPORT(void)
+  eventer_foreach_timedevent (void (*f)(eventer_t e, void *), void *closure);
 API_EXPORT(void) eventer_dispatch_recurrent(struct timeval *now);
 API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
