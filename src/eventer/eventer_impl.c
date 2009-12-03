@@ -129,6 +129,11 @@ int eventer_impl_init() {
       noitL(noit_error, "Enabling eventer debugging from environment\n");
     }
   }
+  eventer_name_callback("eventer_jobq_execute_timeout",
+                        eventer_jobq_execute_timeout);
+  eventer_name_callback("eventer_jobq_consume_available",
+                        eventer_jobq_consume_available);
+
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
   pthread_mutex_init(&te_lock, NULL);

@@ -56,12 +56,6 @@ interpolate_oper_ccns(char *buff, int len, const char *replacement) {
   return interpolate_oper_copy(buff, len, start ? (start + 2) : replacement);
 }
 
-void
-noit_check_tools_init() {
-  noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
-  noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
-}
-
 int
 noit_check_interpolate_register_oper_fn(const char *name,
                                         intperpolate_oper_fn f) {
@@ -260,3 +254,11 @@ noit_check_xpath(char *xpath, int len,
   }
   return strlen(xpath);
 }
+
+void
+noit_check_tools_init() {
+  noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
+  noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
+  eventer_name_callback("noit_check_recur_handler", noit_check_recur_handler);
+}
+

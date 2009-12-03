@@ -80,24 +80,18 @@ noit_console_spit_event(eventer_t e, void *c) {
             cname ? cname : funcptr, e->closure);
 }
 static int
-noit_console_eventer(noit_console_closure_t ncct, int argc, char **argv,
-                     noit_console_state_t *dstate, void *unused) {
-  if(argc < 2 || strcmp(argv[0], "debug")) {
-    nc_printf(ncct, "eventer <debug> ...\n");
-    return -1;
-  }
-  if(argc == 2) {
-    if(!strcmp(argv[1], "sockets")) {
-      eventer_foreach_fdevent(noit_console_spit_event, ncct);
-      return 0;
-    }
-    if(!strcmp(argv[1], "timers")) {
-      eventer_foreach_timedevent(noit_console_spit_event, ncct);
-      return 0;
-    }
-  }
-  nc_printf(ncct, "eventer command not understood\n");
-  return -1;
+noit_console_eventer_timers(noit_console_closure_t ncct, int argc, char **argv,
+                            noit_console_state_t *dstate, void *unused) {
+  if(argc != 0) return -1;
+  eventer_foreach_timedevent(noit_console_spit_event, ncct);
+  return 0;
+}
+static int
+noit_console_eventer_sockets(noit_console_closure_t ncct, int argc, char **argv,
+                             noit_console_state_t *dstate, void *unused) {
+  if(argc != 0) return -1;
+  eventer_foreach_fdevent(noit_console_spit_event, ncct);
+  return 0;
 }
 
 cmd_info_t console_command_help = {
@@ -112,8 +106,11 @@ cmd_info_t console_command_shutdown = {
 cmd_info_t console_command_restart = {
   "restart", noit_console_restart, NULL, NULL, NULL
 };
-cmd_info_t console_command_eventer = {
-  "eventer", noit_console_eventer, NULL, NULL, NULL
+cmd_info_t console_command_eventer_timers = {
+  "timers", noit_console_eventer_timers, NULL, NULL, NULL
+};
+cmd_info_t console_command_eventer_sockets = {
+  "sockets", noit_console_eventer_sockets, NULL, NULL, NULL
 };
 
 void
@@ -455,24 +452,37 @@ cmd_info_t *NCSCMD(const char *name, console_cmd_func_t func,
 }
 
 noit_console_state_t *
+noit_console_mksubdelegate(noit_console_state_t *parent, const char *cmd) {
+  noit_console_state_t *child;
+  cmd_info_t *existing;
+  existing = noit_console_state_get_cmd(parent, cmd);
+  if(existing) return existing->dstate;
+  child = noit_console_state_alloc();
+  noit_console_state_add_cmd(parent,
+                              NCSCMD(cmd, noit_console_state_delegate,
+                                     noit_console_opt_delegate, child, NULL));
+  return child;
+}
+
+noit_console_state_t *
 noit_console_state_initial() {
   static noit_console_state_t *_top_level_state = NULL;
   if(!_top_level_state) {
-    static noit_console_state_t *no_state, *show_state;
+    static noit_console_state_t *no_state, *show_state, *evdeb;
     _top_level_state = noit_console_state_alloc();
     noit_console_state_add_cmd(_top_level_state, &console_command_exit);
-    show_state = noit_console_state_alloc();
-    noit_console_state_add_cmd(_top_level_state,
-      NCSCMD("show", noit_console_state_delegate, noit_console_opt_delegate,
-             show_state, NULL));
-    no_state = noit_console_state_alloc();
-    noit_console_state_add_cmd(_top_level_state,
-      NCSCMD("no", noit_console_state_delegate, noit_console_opt_delegate,
-             no_state, NULL));
+    show_state = noit_console_mksubdelegate(_top_level_state, "show");
+    no_state = noit_console_mksubdelegate(_top_level_state, "no");
 
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
-    noit_console_state_add_cmd(show_state, &console_command_eventer);
+
+    evdeb = noit_console_mksubdelegate(
+              noit_console_mksubdelegate(show_state,
+                                         "eventer"),
+                                       "debug");
+    noit_console_state_add_cmd(evdeb, &console_command_eventer_timers);
+    noit_console_state_add_cmd(evdeb, &console_command_eventer_sockets);
   }
   return _top_level_state;
 }

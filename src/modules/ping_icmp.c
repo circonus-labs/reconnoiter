@@ -581,6 +581,7 @@ static int ping_icmp_onload(noit_image_t *self) {
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("ping_icmp/timeout", ping_icmp_timeout);
   eventer_name_callback("ping_icmp/handler", ping_icmp_handler);
+  eventer_name_callback("ping_icmp/send", ping_icmp_real_send);
   return 0;
 }
 #include "ping_icmp.xmlh"

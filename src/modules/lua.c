@@ -830,6 +830,7 @@ noit_lua_loader_onload(noit_image_t *self) {
   nldeb = noit_log_stream_find("debug/lua");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
+  eventer_name_callback("lua/check_timeout", noit_lua_check_timeout);
   return 0;
 }
 
