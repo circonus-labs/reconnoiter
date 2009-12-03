@@ -31,7 +31,7 @@
  */
 
 #ifndef LOCAL_EVENTER
-#error You're not using eventer_impl_private.h correctly
+#error You are not using eventer_impl_private.h correctly
 #endif
 
 typedef enum { EV_OWNED, EV_ALREADY_OWNED } ev_lock_state_t;
