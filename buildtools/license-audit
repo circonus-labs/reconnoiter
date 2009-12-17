@@ -99,6 +99,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  a copy of which can be found at:
  https://labs.omniti.com/reconnoiter/trunk/src/java/LICENSE
 %),
+  'Esper-GPL' => normalize(q%published under the terms of the GPL license%),
   'LGPL' => normalize(q%
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
