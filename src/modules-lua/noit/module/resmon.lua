@@ -151,8 +151,31 @@ function initiate(module, check)
         check.metric_uint32(prefix .. "duration", ds)
         obj = (doc:xpath("state", result))()
         check.metric_string(prefix .. "state", obj and obj:contents())
-        obj = (doc:xpath("message", result))()
-        check.metric_string(prefix .. "message", obj and obj:contents())
+	local metrics = 0
+        for metric in doc:xpath("metric", result) do
+            metrics = metrics + 1
+            local name = metric:attr("name") or "DUMMY"
+            local type = metric:attr("type") or "DUMMY"
+            if type == 'i' then
+                check.metric_int32(prefix .. name, metric and metric:contents())
+            elseif type == 'I' then
+                check.metric_uint32(prefix .. name, metric and metric:contents())
+            elseif type == 'l' then
+                check.metric_int64(prefix .. name, metric and metric:contents())
+            elseif type == 'L' then
+                check.metric_uint64(prefix .. name, metric and metric:contents())
+            elseif type == 'n' then
+                check.metric_double(prefix .. name, metric and metric:contents())
+            elseif type == 's' then
+                check.metric_string(prefix .. name, metric and metric:contents())
+            else
+                check.metric(prefix .. name, metric and metric:contents())
+            end
+        end
+        if metrics == 0 then
+            local message = (doc:xpath("message", result))()
+            check.metric_string(prefix .. "message", message and message:contents())
+        end
     end
     check.metric_uint32("services", services)
     local status = ''
