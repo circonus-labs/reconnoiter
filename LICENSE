@@ -38,9 +38,20 @@ found in full form with their code within the source tree.
 
 jlog: new-BSD style (no advert)
 noitedit: (libedit: new-BSD w/advert)
+eventer: new-BSD
 serf: Apache-2.0
 lua: MIT
 libudns: LGPL
+collectd: LGPL
 esper: GPLv2
 activemq: Apache-2.0
 reconnoiter.jar: GPLv2
+
+ *    "This product includes software developed by the OpenEvidence Project
+ *    for use in the OpenEvidence Toolkit (http://www.openevidence.org/)
+ *    This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *    This product includes cryptographic software written by Eric Young
+ *    (eay@cryptsoft.com).  This product includes software written by Tim
+ *    Hudson (tjh@cryptsoft.com)."
+
