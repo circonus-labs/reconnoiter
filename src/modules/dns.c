@@ -548,7 +548,10 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   ci->timed_out = 1;
   ci->nrr = 0;
 
-  if(!strcmp(check->name, "in-addr.arpa")) {
+  if(!strcmp(check->name, "in-addr.arpa") ||
+     (strlen(check->name) >= sizeof("::in-addr.arpa") - 1 &&
+      !strcmp(check->name + strlen(check->name) - sizeof("::in-addr.arpa") + 1,
+              "::in-addr.arpa"))) {
     /* in-addr.arpa defaults:
      *   nameserver to NULL
      *   rtype to PTR
