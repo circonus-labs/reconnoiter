@@ -1044,11 +1044,16 @@ build_insert_batch(interim_journal_t *ij) {
     }
   }
   while((rv = fstat(ij->fd, &st)) == -1 && errno == EINTR);
-  assert(rv != -1);
+  if(rv == -1) {
+      noitL(noit_error, "Cannot stat interim journal '%s': %s\n",
+            ij->filename, strerror(errno));
+    assert(rv != -1);
+  }
   len = st.st_size;
   buff = mmap(NULL, len, PROT_READ, MAP_PRIVATE, ij->fd, 0);
   if(buff == (void *)-1) {
-    noitL(noit_error, "mmap(%s) => %s\n", ij->filename, strerror(errno));
+    noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", len, ij->fd,
+          ij->filename, strerror(errno));
     assert(buff != (void *)-1);
   }
   lcp = buff;
@@ -1080,7 +1085,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
                                   struct timeval *now) {
   int i, total, success, sp_total, sp_success;
   interim_journal_t *ij;
-  ds_line_detail *head, *current, *last_sp;
+  ds_line_detail *head = NULL, *current, *last_sp;
   const char *dsn;
   conn_q *cq;
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
@@ -1104,7 +1109,7 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
     i = MIN(i, 16);
   }
 
-  head = build_insert_batch(ij);
+  if(head == NULL) head = build_insert_batch(ij);
   noitL(ds_deb, "Starting batch from %s/%s to %s\n",
         ij->remote_str ? ij->remote_str : "(null)",
         ij->remote_cn ? ij->remote_cn : "(null)",
