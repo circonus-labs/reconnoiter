@@ -636,6 +636,7 @@ stratcon_iep_init() {
   if(!noit_iep) noit_iep = noit_error;
 
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
+  eventer_name_callback("stratcon_iep_err_handler", stratcon_iep_err_handler);
   eventer_name_callback("setup_iep_connection_callback", setup_iep_connection_callback);
   pthread_key_create(&iep_connection, connection_destroy);
 
