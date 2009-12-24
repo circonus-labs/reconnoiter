@@ -694,6 +694,7 @@ stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
       /* See noit_check_log.c for log description */
       case 'n':
         DECLARE_PARAM_STR(raddr, strlen(raddr));
+        DECLARE_PARAM_STR(remote_cn, strlen(remote_cn));
         DECLARE_PARAM_STR("noitd",5); /* node_type */
         PROCESS_NEXT_FIELD(token,len);
         d->whence = (time_t)strtoul(token, NULL, 10);
@@ -1052,7 +1053,7 @@ build_insert_batch(interim_journal_t *ij) {
   len = st.st_size;
   buff = mmap(NULL, len, PROT_READ, MAP_PRIVATE, ij->fd, 0);
   if(buff == (void *)-1) {
-    noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", len, ij->fd,
+    noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
           ij->filename, strerror(errno));
     assert(buff != (void *)-1);
   }
@@ -1499,6 +1500,7 @@ stratcon_datastore_saveconfig(void *unused) {
 
     snprintf(time_as_str, sizeof(time_as_str), "%lu", (long unsigned int)time(NULL));
     DECLARE_PARAM_STR("0.0.0.0", 7);
+    DECLARE_PARAM_STR("", 0);
     DECLARE_PARAM_STR("stratcond", 9);
     DECLARE_PARAM_STR(time_as_str, strlen(time_as_str));
     DECLARE_PARAM_STR(buff, len);

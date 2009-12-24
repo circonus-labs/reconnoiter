@@ -148,9 +148,9 @@
       ]]></metric_text>
       <config><![CDATA[
         SELECT stratcon.update_config
-               ($1, $2, 
-                'epoch'::timestamptz + ($3 || ' seconds')::interval,
-                $4 )
+               ($1, $2, $3,
+                'epoch'::timestamptz + ($4 || ' seconds')::interval,
+                $5)
       ]]></config>
     </statements>
   </database>

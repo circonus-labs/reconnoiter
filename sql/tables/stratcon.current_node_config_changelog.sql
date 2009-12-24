@@ -1,6 +1,7 @@
 CREATE TABLE stratcon.current_node_config_changelog (
-    remote_address inet NOT NULL,
+    remote_cn text NOT NULL,
     node_type text NOT NULL,
+    remote_address inet NOT NULL,
     whence timestamp with time zone NOT NULL,
     config xml NOT NULL
 );
@@ -13,7 +14,7 @@ ALTER TABLE stratcon.current_node_config_changelog OWNER TO reconnoiter;
 --
 
 ALTER TABLE ONLY stratcon.current_node_config_changelog
-    ADD CONSTRAINT current_node_config_changelog_pkey PRIMARY KEY (remote_address, node_type, whence);
+    ADD CONSTRAINT current_node_config_changelog_pkey PRIMARY KEY (remote_cn, node_type, whence);
 
 --
 -- Name: current_node_config_changelog; Type: ACL; Schema: stratcon; Owner: reconnoiter
