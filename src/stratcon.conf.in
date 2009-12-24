@@ -152,6 +152,9 @@
                 'epoch'::timestamptz + ($4 || ' seconds')::interval,
                 $5)
       ]]></config>
+      <findconfig><![CDATA[
+        SELECT config FROM stratcon.current_node_config WHERE remote_cn = $1
+      ]]></findconfig>
     </statements>
   </database>
 

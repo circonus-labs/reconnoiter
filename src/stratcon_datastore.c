@@ -41,6 +41,7 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
+#include "noit_rest.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -70,6 +71,7 @@ DECL_STMT(status_insert, status);
 DECL_STMT(metric_insert_numeric, metric_numeric);
 DECL_STMT(metric_insert_text, metric_text);
 DECL_STMT(config_insert, config);
+DECL_STMT(config_get, findconfig);
 
 static noit_log_stream_t ds_err = NULL;
 static noit_log_stream_t ds_deb = NULL;
@@ -1726,6 +1728,56 @@ stratcon_datastore_ingest_all_check_info() {
   noitL(noit_error, "Loaded %d uuid -> (sid,storage_node_id) mappings\n", loaded);
   return loaded;
 }
+
+static int
+rest_get_noit_config(noit_http_rest_closure_t *restc,
+                     int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  ds_single_detail *d;
+  int row_count = 0;
+  const char *xml = NULL;
+  conn_q *cq = NULL;
+
+  if(npats != 0) {
+    noit_http_response_server_error(ctx, "text/xml");
+    noit_http_response_end(ctx);
+    return 0;
+  }
+  d = calloc(1, sizeof(*d));
+  GET_QUERY(config_get);
+  cq = get_conn_q_for_metanode();
+  if(!cq) {
+    noit_http_response_server_error(ctx, "text/xml");
+    goto bad_row;
+  }
+
+  DECLARE_PARAM_STR(restc->remote_cn,
+                    restc->remote_cn ? strlen(restc->remote_cn) : 0);
+  PG_EXEC(config_get);
+  row_count = PQntuples(d->res);
+  if(row_count == 1) PG_GET_STR_COL(xml, 0, "config");
+
+  if(xml == NULL) {
+    char buff[1024];
+    snprintf(buff, sizeof(buff), "<error><remote_cn>%s</remote_cn>"
+                                 "<row_count>%d</row_count></error>\n",
+             restc->remote_cn, row_count);
+    noit_http_response_append(ctx, buff, strlen(buff));
+    noit_http_response_not_found(ctx, "text/xml");
+  }
+  else {
+    noit_http_response_append(ctx, xml, strlen(xml));
+    noit_http_response_ok(ctx, "text/xml");
+  }
+ bad_row:
+  free_params((ds_single_detail *)d);
+  d->nparams = 0;
+  if(cq) release_conn_q(cq);
+
+  noit_http_response_end(ctx);
+  return 0;
+}
+
 void
 stratcon_datastore_init() {
   pthread_mutex_init(&ds_conns_lock, NULL);
@@ -1744,4 +1796,10 @@ stratcon_datastore_init() {
   stratcon_datastore_ingest_all_check_info();
   stratcon_datastore_ingest_all_storagenode_info();
   stratcon_datastore_sweep_journals();
+
+  assert(noit_http_rest_register_auth(
+    "GET", "/noits/", "^config$", rest_get_noit_config,
+             noit_http_rest_client_cert_auth
+  ) == 0);
 }
+

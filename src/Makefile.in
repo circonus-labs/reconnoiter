@@ -151,7 +151,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
 	@echo "- linking $@"
 
 stratcon_datastore.o:	stratcon_datastore.c
-	@$(CC) $(CPPFLAGS) $(PGCFLAGS) -c $<
+	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
 	@echo "- compiling $<"
 
 .c.o:
