@@ -124,6 +124,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
     int nrows, ncols, i, j;
     nrows = PQntuples(ci->result);
     ncols = PQnfields(ci->result);
+    noit_stats_set_metric(&current, "row_count", METRIC_INT32, &nrows);
     for (i=0; i<nrows; i++) {
       noitL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
       if(ncols<2) continue;
