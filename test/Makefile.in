@@ -41,6 +41,15 @@ test-ca.csr:	test-ca.key
 test-ca.crt:	test-ca.key test-ca.csr
 	openssl x509 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt
 
+client.key:
+	openssl genrsa -out client.key
+
+client.csr:	client.key
+	openssl req -key client.key -days 365 -new -out client.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=sampleclient"
+
+client.crt:	client.csr test-ca.key test-ca.crt
+	openssl ca -batch -config demo-openssl.cnf -in client.csr -out client.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
+
 test-noit.key:
 	openssl genrsa -out test-noit.key
 
@@ -59,7 +68,7 @@ test-stratcon.csr:	test-stratcon.key
 test-stratcon.crt:	test-stratcon.csr test-ca.key
 	openssl ca -batch -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-testcerts:	demoCA-dir test-noit.key test-noit.crt test-stratcon.key test-stratcon.crt test-ca.key test-ca.crt
+testcerts:	demoCA-dir test-noit.key test-noit.crt test-stratcon.key test-stratcon.crt test-ca.key test-ca.crt client.key client.crt
 
 clean-keys:
 	rm -f *.key *.csr *.crt *.pem

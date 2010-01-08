@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+
+push @INC, '.';
+
+use Test::Harness;
+
+my @files = sort <*.t>;
+@files = @ARGV if(@ARGV);
+
+$Test::Harness::verbose=1;
+runtests(@files);
+
+1;
