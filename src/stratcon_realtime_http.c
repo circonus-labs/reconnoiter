@@ -74,6 +74,7 @@ typedef struct realtime_recv_ctx_t {
     REALTIME_HTTP_WANT_BODY = 4,
   } state;
   int count;            /* Number of jlog messages we need to read */
+  u_int32_t hack_inc_id;
   noit_http_session_ctx *ctx;
   struct realtime_tracker *rt;
 } realtime_recv_ctx_t;
@@ -106,14 +107,17 @@ static void clear_realtime_context(realtime_context *rc) {
   rc->document_domain = NULL;
 }
 int
-stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
+stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
+                            u_int32_t inc_id) {
   char buffer[1024];
   char *scp, *ecp, *token;
   int len;
   void *vcb;
   const char *v, *cb = NULL;
   noit_hash_table json = NOIT_HASH_EMPTY;
+  char s_inc_id[42];
 
+  snprintf(s_inc_id, sizeof(s_inc_id), "script-%08x", inc_id);
   if(noit_hash_retrieve(&ctx->req.querystring, "cb", strlen("cb"), &vcb))
     cb = vcb;
   for(v = cb; v && *v; v++)
@@ -161,7 +165,7 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
 
 #define ra_write(a,b) if(noit_http_response_append(ctx, a, b) == noit_false) BAIL_HTTP_WRITE
 
-    snprintf(buffer, sizeof(buffer), "<script>%s({", cb);
+    snprintf(buffer, sizeof(buffer), "<script id=\"%s\">%s({", s_inc_id, cb);
     ra_write(buffer, strlen(buffer));
 
     while(noit_hash_next(&ctx->req.querystring, &iter, &key, &klen, &vval)) {
@@ -169,6 +173,7 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
       noit_hash_store(&json, key, klen, strdup(vval ?(char *)vval : "true"));
     }
     /* Time */
+    noit_hash_store(&json, "script_id", 9, strdup(s_inc_id));
     noit_hash_store(&json, "type", 4, strdup("M"));
     PROCESS_NEXT_FIELD(token,len);
     noit_hash_store(&json, "time", 4, noit__strndup(token, len));
@@ -368,7 +373,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         break;
       case REALTIME_HTTP_WANT_BODY:
         FULLREAD(e, ctx, ctx->body_len);
-        if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer)) goto socket_error;
+        if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer, ctx->hack_inc_id++)) goto socket_error;
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = REALTIME_HTTP_WANT_HEADER;
         break;
