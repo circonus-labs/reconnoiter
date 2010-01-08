@@ -120,7 +120,7 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
     if(!((*v >= '0' && *v <= '9') ||
          (*v >= 'a' && *v <= 'z') ||
          (*v >= 'A' && *v <= 'Z') ||
-         (*v == '_'))) {
+         (*v == '_') || (*v == '.'))) {
       cb = NULL;
       break;
     }
