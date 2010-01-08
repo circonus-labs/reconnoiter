@@ -89,6 +89,7 @@ typedef struct {
   char *method_str;
   char *uri_str;
   char *protocol_str;
+  noit_hash_table querystring;
   u_int32_t opts;
   noit_http_method method;
   noit_http_protocol protocol;
@@ -132,6 +133,8 @@ API_EXPORT(noit_http_session_ctx *)
   noit_http_session_ctx_new(noit_http_dispatch_func, void *, eventer_t);
 API_EXPORT(void)
   noit_http_session_ctx_release(noit_http_session_ctx *);
+API_EXPORT(void)
+  noit_http_process_querystring(noit_http_request *);
 
 API_EXPORT(int)
   noit_http_session_drive(eventer_t, int, void *, struct timeval *);

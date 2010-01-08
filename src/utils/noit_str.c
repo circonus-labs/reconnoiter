@@ -68,5 +68,18 @@ const char *strnstrn(const char *needle, int needle_len,
   }
   return NULL;
 }
+
+char *
+noit__strndup(const char *src, int len) {
+  int slen;
+  char *dst;
+  for(slen = 0; slen < len; slen++)
+    if(src[slen] == '\0') break;
+  dst = malloc(slen + 1);
+  memcpy(dst, src, slen);
+  dst[slen] = '\0';
+  return dst;
+}
+
 #endif
 

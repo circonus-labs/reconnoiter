@@ -35,6 +35,7 @@
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
+#include "utils/noit_str.h"
 #include "jlog/jlog.h"
 #include "noit_jlog_listener.h"
 #include "noit_listener.h"
@@ -109,8 +110,24 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   char buffer[1024];
   char *scp, *ecp, *token;
   int len;
+  void *vcb;
+  const char *v, *cb = NULL;
+  noit_hash_table json = NOIT_HASH_EMPTY;
+
+  if(noit_hash_retrieve(&ctx->req.querystring, "cb", strlen("cb"), &vcb))
+    cb = vcb;
+  for(v = cb; v && *v; v++)
+    if(!((*v >= '0' && *v <= '9') ||
+         (*v >= 'a' && *v <= 'z') ||
+         (*v >= 'A' && *v <= 'Z') ||
+         (*v == '_'))) {
+      cb = NULL;
+      break;
+    }
+  if(!cb) cb = "window.parent.plot_iframe_data";
 
 #define BAIL_HTTP_WRITE do { \
+  noit_hash_destroy(&json, NULL, free); \
   noitL(noit_error, "javascript emit failed: %s:%s:%d\n", \
         __FILE__, __FUNCTION__, __LINE__); \
   return -1; \
@@ -137,50 +154,57 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff) {
   scp = buff;
   PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
   if(buff[0] == 'M') {
-    snprintf(buffer, sizeof(buffer), "<script>window.parent.plot_iframe_data('");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *key;
+    int klen, i=0;
+    void *vval;
 
+#define ra_write(a,b) if(noit_http_response_append(ctx, a, b) == noit_false) BAIL_HTTP_WRITE
+
+    snprintf(buffer, sizeof(buffer), "<script>%s({", cb);
+    ra_write(buffer, strlen(buffer));
+
+    while(noit_hash_next(&ctx->req.querystring, &iter, &key, &klen, &vval)) {
+      if(!strcmp(key, "cb")) continue;
+      noit_hash_store(&json, key, klen, strdup(vval ?(char *)vval : "true"));
+    }
     /* Time */
+    noit_hash_store(&json, "type", 4, strdup("M"));
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
-
-    snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
-
+    noit_hash_store(&json, "time", 4, noit__strndup(token, len));
     /* UUID */
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
-
-    snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
-
+    noit_hash_store(&json, "id", 2, noit__strndup(token, len));
     /* name */
     PROCESS_NEXT_FIELD(token,len);
-    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
-
-    snprintf(buffer, sizeof(buffer), "', '");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
-
-    PROCESS_NEXT_FIELD(token,len); /* skip type */
+    noit_hash_store(&json, "metric_name", 11, noit__strndup(token, len));
+    /* type */
+    PROCESS_NEXT_FIELD(token,len);
+    noit_hash_store(&json, "metric_type", 11, noit__strndup(token, len));
+    /* value */
     PROCESS_LAST_FIELD(token,len); /* value */
-    if(noit_http_response_append(ctx, token, len) == noit_false) BAIL_HTTP_WRITE;
+    noit_hash_store(&json, "value", 5, noit__strndup(token, len));
 
-    snprintf(buffer, sizeof(buffer), "');</script>\n");
-    if(noit_http_response_append(ctx, buffer, strlen(buffer)) == noit_false) BAIL_HTTP_WRITE;
+    memset(&iter, 0, sizeof(iter));
+    while(noit_hash_next(&json, &iter, &key, &klen, &vval)) {
+      if(i++) ra_write(",", 1);
+      ra_write("'", 1);
+      ra_write(key, klen);
+      ra_write("':'", 3);
+      ra_write((char *)vval, strlen((char *)vval));
+      ra_write("'", 1);
+    }
+    snprintf(buffer, sizeof(buffer), "});</script>\n");
+    ra_write(buffer, strlen(buffer));
 
     if(noit_http_response_flush(ctx, noit_false) == noit_false) BAIL_HTTP_WRITE;
   }
 
+  noit_hash_destroy(&json, NULL, free);
   return 0;
 
  bad_row:
   BAIL_HTTP_WRITE;
-  if(0) {
-    noit_http_response_end(ctx);
-    clear_realtime_context(ctx->dispatcher_closure);
-    if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE);
-    return 0;
-  }
 }
 int
 stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
@@ -467,6 +491,7 @@ rest_stream_data(noit_http_rest_closure_t *restc,
   }
   noit_http_rest_closure_free(restc);
 
+  noit_http_process_querystring(&ctx->req);
   /* Rewire the http context */
   ctx->conn.e->callback = stratcon_realtime_http_handler;
   ctx->dispatcher = stratcon_request_dispatcher;

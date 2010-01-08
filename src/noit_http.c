@@ -50,6 +50,27 @@
                       strdup(a), strlen(a), strdup(b), free, free)
 static const char _hexchars[16] =
   {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+static void inplace_urldecode(char *c) {
+  char *o = c;
+  while(*c) {
+    if(*c == '%') {
+      int i, ord = 0;
+      for(i = 0; i < 2; i++) {
+        if(c[i] >= '0' && c[i] <= '9') ord = (ord << 4) | (c[i] - '0');
+        else if (c[i] >= 'a' && c[i] <= 'f') ord = (ord << 4) | (c[i] - 'a');
+        else if (c[i] >= 'A' && c[i] <= 'F') ord = (ord << 4) | (c[i] - 'A');
+        else break;
+      }
+      if(i==2) {
+        *((unsigned char *)o++) = ord;
+        c+=3;
+        continue;
+      }
+    }
+    *o++ = *c++;
+  }
+  *o = '\0';
+}
 
 struct bchain *bchain_alloc(size_t size) {
   struct bchain *n;
@@ -389,6 +410,29 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
   req->complete = noit_true;
   return noit_true;
 }
+void
+noit_http_process_querystring(noit_http_request *req) {
+  char *cp, *copy, *interest, *brk;
+  cp = strchr(req->uri_str, '?');
+  if(!cp) return;
+  *cp++ = '\0';
+  for (interest = strtok_r(cp, "&", &brk);
+       interest;
+       interest = strtok_r(NULL, "&", &brk)) {
+    char *eq;
+    eq = strchr(interest, '=');
+    if(!eq) {
+      inplace_urldecode(interest);
+      noit_hash_store(&req->querystring, interest, strlen(interest), NULL);
+    }
+    else {
+      *eq++ = '\0';
+      inplace_urldecode(interest);
+      inplace_urldecode(eq);
+      noit_hash_store(&req->querystring, interest, strlen(interest), eq);
+    }
+  }
+}
 static noit_boolean
 noit_http_request_finalize_payload(noit_http_request *req, noit_boolean *err) {
   req->complete = noit_true;
@@ -479,6 +523,7 @@ noit_http_session_prime_input(noit_http_session_ctx *ctx,
 
 void
 noit_http_request_release(noit_http_session_ctx *ctx) {
+  noit_hash_destroy(&ctx->req.querystring, NULL, NULL);
   noit_hash_destroy(&ctx->req.headers, NULL, NULL);
   /* If we expected a payload, we expect a trailing \r\n */
   if(ctx->req.has_payload) {

@@ -39,4 +39,6 @@
 API_EXPORT(const char *) strnstrn(const char *, int, const char *, int);
 #endif
 
+API_EXPORT(char *) noit__strndup(const char *src, int len);
+
 #endif

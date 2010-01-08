@@ -405,19 +405,8 @@ typedef enum {
   DS_EXEC_TXN_FAILED = 2,
 } execute_outcome_t;
 
-static char *
-__noit__strndup(const char *src, int len) {
-  int slen;
-  char *dst;
-  for(slen = 0; slen < len; slen++)
-    if(src[slen] == '\0') break;
-  dst = malloc(slen + 1);
-  memcpy(dst, src, slen);
-  dst[slen] = '\0';
-  return dst;
-}
 #define DECLARE_PARAM_STR(str, len) do { \
-  d->paramValues[d->nparams] = __noit__strndup(str, len); \
+  d->paramValues[d->nparams] = noit__strndup(str, len); \
   d->paramLengths[d->nparams] = len; \
   d->paramFormats[d->nparams] = 0; \
   d->paramAllocd[d->nparams] = 1; \
