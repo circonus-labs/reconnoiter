@@ -11,8 +11,10 @@ var streaming = false;
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
-function plot_iframe_data(xdata, uuid, metric_name, ydata) {
-    stream_object.ReconGraphAddPoint(xdata, uuid, metric_name, ydata);
+function plot_iframe_data(data) {
+    if(data.type != 'M') return;
+    stream_object.ReconGraphAddPoint(data.time, data.id,
+                                     data.metric_name, data.value);
     stream_dirty = true;
 }
 
