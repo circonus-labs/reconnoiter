@@ -25,6 +25,9 @@ sub do {
         $self->{curl}->setopt(CURLOPT_INFILE, $fh);
         $self->{curl}->setopt(CURLOPT_INFILESIZE, length($payload));
     }
+    else {
+        $self->{curl}->setopt(CURLOPT_UPLOAD, 0);
+    }
     $self->{curl}->setopt(CURLOPT_CUSTOMREQUEST, $method);
     $self->{curl}->setopt(CURLOPT_URL, "https://$self->{host}:$self->{port}$uri");
 

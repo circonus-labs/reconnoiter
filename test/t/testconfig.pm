@@ -115,6 +115,7 @@ sub make_logs_config {
 sub make_modules_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
+  $opts->{modules} = $all_noit_modules unless exists($opts->{modules});
   print $o qq{
   <modules directory="$cwd/../../src/modules">
     <loader image="lua" name="lua">
@@ -211,7 +212,7 @@ sub make_noit_config {
   $options->{cwd} ||= cwd();
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_noit.conf";
-  open (my $o, ">$file");
+  open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
   print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
   print $o qq{<noit>};
   make_eventer_config($o, $options);
