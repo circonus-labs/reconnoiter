@@ -127,9 +127,12 @@ static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
   else if(ci->fingerprint[0]) current.status = ci->fingerprint;
   else current.status = "internal error";
 
-  if(ci->fingerprint[0])
+  if(ci->fingerprint[0]) {
+    u_int32_t mduration = current.duration;
+    noit_stats_set_metric(&current, "duration", METRIC_UINT32, &mduration);
     noit_stats_set_metric(&current, "fingerprint", METRIC_STRING,
                           ci->fingerprint);
+  }
   noit_check_set_stats(self, check, &current);
 }
 static int ssh2_drive_session(eventer_t e, int mask, void *closure,
