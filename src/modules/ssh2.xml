@@ -16,7 +16,7 @@
     <parameter name="method_hostkey"
                required="optional"
                default=""
-               allowed="^(?:ssh-dsa|ssh-rsa)$">The host key algorithm supported.</parameter>
+               allowed="^(?:ssh-dss|ssh-rsa)$">The host key algorithm supported.</parameter>
     <parameter name="method_crypt_cs"
                required="optional"
                default=""
