@@ -30,7 +30,6 @@ sub do {
     }
     $self->{curl}->setopt(CURLOPT_CUSTOMREQUEST, $method);
     $self->{curl}->setopt(CURLOPT_URL, "https://$self->{host}:$self->{port}$uri");
-
     my $response_body;
 
     open (my $fileb, ">", \$response_body);

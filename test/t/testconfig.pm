@@ -1,8 +1,11 @@
 package testconfig;
+use Fcntl;
 use DBI;
 use Cwd;
 use Exporter 'import';
 use Data::Dumper;
+use strict;
+use vars qw/@EXPORT/;
 
 my $noit_pid = 0;
 my $stratcon_pid = 0;
@@ -10,8 +13,10 @@ my $stratcon_pid = 0;
 
 @EXPORT = qw($NOIT_TEST_DB $NOIT_TEST_DB_PORT
              $NOIT_API_PORT $NOIT_CLI_PORT
+             $STRATCON_API_PORT $STRATCON_CLI_PORT
              pg make_noit_config start_noit stop_noit
-             $MODULES_DIR $LUA_DIR $all_noit_modules);
+             make_stratcon_config start_stratcon stop_stratcon
+             $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules);
 
 our $all_noit_modules = {
   'selfcheck' => { 'image' => 'selfcheck' },
@@ -31,6 +36,9 @@ our $NOIT_TEST_DB = "/tmp/noit-test-db";
 our $NOIT_TEST_DB_PORT = 23816;
 our $NOIT_API_PORT = 42364;
 our $NOIT_CLI_PORT = 42365;
+our $STRATCON_API_PORT = 42366;
+our $STRATCON_CLI_PORT = 42367;
+our $STRATCON_WEB_PORT = 42368;
 
 our ($MODULES_DIR, $LUA_DIR);
 
@@ -115,13 +123,18 @@ sub make_logs_config {
 sub make_modules_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
-  $opts->{modules} = $all_noit_modules unless exists($opts->{modules});
   print $o qq{
   <modules directory="$cwd/../../src/modules">
     <loader image="lua" name="lua">
       <config><directory>$cwd/../../src/modules-lua/?.lua</directory></config>
     </loader>
 };
+  foreach(keys %{$opts->{generics}}) {
+    print $o qq{    <generic }; 
+    print $o qq{ image="$opts->{generics}->{$_}->{image}"}
+      if(exists($opts->{generics}->{$_}->{image}));
+    print $o qq{ name="$_"/>\n};
+  }
   foreach(keys %{$opts->{modules}}) {
     print $o qq{    <module }; 
     print $o qq{ image="$opts->{modules}->{$_}->{image}"}
@@ -134,11 +147,11 @@ sub make_modules_config {
   }
   print $o qq{</modules>\n};
 }
-sub make_listeners_config {
+sub make_noit_listeners_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
-  $options->{noit_api_port} ||= $NOIT_API_PORT;
-  $options->{noit_cli_port} ||= $NOIT_CLI_PORT;
+  $opts->{noit_api_port} ||= $NOIT_API_PORT;
+  $opts->{noit_cli_port} ||= $NOIT_CLI_PORT;
   print $o qq{
   <listeners>
     <sslconfig>
@@ -148,13 +161,13 @@ sub make_listeners_config {
       <ca_chain>$cwd/../test-ca.crt</ca_chain>
     </sslconfig>
     <consoles type="noit_console">
-      <listener address="*" port="$options->{noit_cli_port}">
+      <listener address="*" port="$opts->{noit_cli_port}">
         <config>
           <line_protocol>telnet</line_protocol>
         </config>
       </listener>
     </consoles>
-    <listener type="control_dispatch" address="*" port="$options->{noit_api_port}" ssl="on">
+    <listener type="control_dispatch" address="*" port="$opts->{noit_api_port}" ssl="on">
       <config>
         <log_transit_feed_name>feed</log_transit_feed_name>
       </config>
@@ -185,7 +198,7 @@ sub make_checks_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
   print $o qq{  <checks max_initial_stutter="1000" filterset="default">\n};
-  do_check_print($o, $options->{checks});
+  do_check_print($o, $opts->{checks});
   print $o qq{  </checks>\n};
 }
 sub make_filtersets_config {
@@ -210,6 +223,7 @@ sub make_noit_config {
   my $name = shift;
   my $options = shift;
   $options->{cwd} ||= cwd();
+  $options->{modules} = $all_noit_modules unless exists($options->{modules});
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_noit.conf";
   open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
@@ -218,10 +232,201 @@ sub make_noit_config {
   make_eventer_config($o, $options);
   make_logs_config($o, $options);
   make_modules_config($o, $options);
-  make_listeners_config($o, $options);
+  make_noit_listeners_config($o, $options);
   make_checks_config($o, $options);
   make_filtersets_config($o, $options);
   print $o qq{</noit>\n};
+  close($o);
+  return $file;
+}
+
+sub make_stratcon_noits_config {
+  my ($o, $opts) = @_;
+  my $cwd = $opts->{cwd};
+  $opts->{noit_api_port} ||= $NOIT_API_PORT;
+  print $o qq{
+  <noits>
+    <sslconfig>
+      <certificate_file>$cwd/../test-stratcon.crt</certificate_file>
+      <key_file>$cwd/../test-stratcon.key</key_file>
+      <ca_chain>$cwd/../test-ca.crt</ca_chain>
+    </sslconfig>
+    <config>
+      <reconnect_initial_interval>1000</reconnect_initial_interval>
+      <reconnect_maximum_interval>15000</reconnect_maximum_interval>
+    </config>
+};
+  foreach my $n (@{$opts->{noits}}) {
+    print $o qq{    <noit};
+    while (my ($k,$v) = each %$n) {
+      print $o qq{ $k=\"$v\"};
+    }
+    print $o qq{/>\n};
+  }
+  print $o qq{</noits>\n};
+}
+
+sub make_stratcon_listeners_config {
+  my ($o, $opts) = @_;
+  my $cwd = $opts->{cwd};
+  $opts->{stratcon_api_port} ||= $STRATCON_API_PORT;
+  $opts->{stratcon_web_port} ||= $STRATCON_WEB_PORT;
+  print $o qq{
+  <listeners>
+    <sslconfig>
+      <certificate_file>$cwd/../test-stratcon.crt</certificate_file>
+      <key_file>$cwd/../test-stratcon.key</key_file>
+      <ca_chain>$cwd/../test-ca.crt</ca_chain>
+    </sslconfig>
+    <realtime type="http_rest_api">
+      <listener address="*" port="$opts->{stratcon_web_port}">
+        <config>
+          <hostname>stratcon.noit.example.com</hostname>
+          <document_domain>noit.example.com</document_domain>
+        </config>
+      </listener>
+    </realtime>
+    <listener type="control_dispatch" address="*" port="$opts->{stratcon_api_port}" ssl="on" />
+  </listeners>
+};
+}
+
+sub make_iep_config {
+  my ($o, $opts) = @_;
+  my $cwd = $opts->{cwd};
+  $opts->{iep}->{disabled} ||= 'false';
+  mkdir("$cwd/logs/$opts->{name}_iep_root");
+  open(my $run, "<$cwd/../../src/java/run-iep.sh") ||
+    BAIL_OUT("cannot open source run-iep.sh");
+  sysopen(my $newrun, "$cwd/logs/$opts->{name}_iep_root/run-iep.sh", O_WRONLY|O_CREAT, 0755) ||
+    BAIL_OUT("cannot open target run-iep.sh");
+  while(<$run>) {
+    s%^DIRS="%DIRS="$cwd/../../src/java $cwd/../../src/java/lib %;
+    print $newrun $_;
+  }
+  close($run);
+  close($newrun);
+  print $o qq{
+  <iep disabled="$opts->{iep}->{disabled}">
+    <start directory="$cwd/logs/$opts->{name}_iep_root"
+           command="$cwd/logs/$opts->{name}_iep_root/run-iep.sh" />
+};
+  foreach my $mqt (keys %{$opts->{iep}->{mq}}) {
+    print $o qq{    <mq type="$mqt">\n};
+    while (my ($k,$v) = each %{$opts->{iep}->{mq}->{mqt}}) {
+      print $o qq{      <$k>$v</$k>\n};
+    }
+    print $o qq{    </mq>\n};
+  }
+  foreach my $bt (keys %{$opts->{iep}->{broker}}) {
+    print $o qq{    <broker adapter="$bt">\n};
+    while (my ($k,$v) = each %{$opts->{iep}->{broker}->{bt}}) {
+      print $o qq{      <$k>$v</$k>\n};
+    }
+    print $o qq{    </broker>\n};
+  }
+  print $o qq{</iep>\n};
+}
+sub make_database_config {
+  my ($o, $opts) = @_;
+  my $cwd = $opts->{cwd};
+  print $o qq{
+  <database>
+    <journal>
+      <path>$cwd/logs/$opts->{name}_stratcon.persist</path>
+    </journal>
+    <dbconfig>
+      <host>localhost</host>
+      <port>$NOIT_TEST_DB_PORT</port>
+      <dbname>reconnoiter</dbname>
+      <user>stratcon</user>
+      <password>stratcon</password>
+    </dbconfig>
+    <statements>
+      <allchecks><![CDATA[
+        SELECT remote_address, id, target, module, name
+          FROM check_currently
+      ]]></allchecks>
+      <findcheck><![CDATA[
+        SELECT remote_address, id, target, module, name
+          FROM check_currently
+         WHERE sid = \$1
+      ]]></findcheck>
+      <allstoragenodes><![CDATA[
+        SELECT storage_node_id, fqdn, dsn
+          FROM stratcon.storage_node
+      ]]></allstoragenodes>
+      <findstoragenode><![CDATA[
+        SELECT fqdn, dsn
+          FROM stratcon.storage_node
+         WHERE storage_node_id = \$1
+      ]]></findstoragenode>
+      <mapallchecks><![CDATA[
+        SELECT id, sid, noit as remote_cn, storage_node_id, fqdn, dsn
+          FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
+      ]]></mapallchecks>
+      <mapchecktostoragenode><![CDATA[
+        SELECT o_storage_node_id as storage_node_id, o_sid as sid,
+               o_fqdn as fqdn, o_dsn as dsn
+          FROM stratcon.map_uuid_to_sid(\$1,\$2)
+      ]]></mapchecktostoragenode>
+      <check><![CDATA[
+        INSERT INTO check_archive_%Y%m%d
+                    (remote_address, whence, sid, id, target, module, name)
+             VALUES (\$1, 'epoch'::timestamptz + (\$2 || ' seconds')::interval,
+                     \$3, \$4, \$5, \$6, \$7)
+      ]]></check>
+      <status><![CDATA[
+        INSERT INTO check_status_archive_%Y%m%d
+                    (whence, sid, state, availability, duration, status)
+             VALUES ('epoch'::timestamptz + (\$1 || ' seconds')::interval,
+                     \$2, \$3, \$4, \$5, \$6)
+      ]]></status>
+      <metric_numeric><![CDATA[
+        INSERT INTO metric_numeric_archive_%Y%m%d
+                    (whence, sid, name, value)
+             VALUES ('epoch'::timestamptz + (\$1 || ' seconds')::interval,
+                     \$2, \$3, \$4)
+      ]]></metric_numeric>
+      <metric_text><![CDATA[
+        INSERT INTO metric_text_archive_%Y%m%d
+                    ( whence, sid, name,value)
+             VALUES ('epoch'::timestamptz + (\$1 || ' seconds')::interval,
+                     \$2, \$3, \$4)
+      ]]></metric_text>
+      <config><![CDATA[
+        SELECT stratcon.update_config
+               (\$1, \$2, \$3,
+                'epoch'::timestamptz + (\$4 || ' seconds')::interval,
+                \$5)
+      ]]></config>
+      <findconfig><![CDATA[
+        SELECT config FROM stratcon.current_node_config WHERE remote_cn = \$1
+      ]]></findconfig>
+    </statements>
+  </database>
+};
+}
+
+sub make_stratcon_config {
+  my $name = shift;
+  my $options = shift;
+  $options->{cwd} ||= cwd();
+  $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' } };
+  $options->{iep}->{mq} ||= { 'stomp' => {} };
+  my $cwd = $options->{cwd};
+  my $file = "$cwd/logs/${name}_stratcon.conf";
+  open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
+  print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
+  print $o qq{<stratcon>};
+  make_eventer_config($o, $options);
+  make_stratcon_noits_config($o, $options);
+  make_logs_config($o, $options);
+  make_modules_config($o, $options);
+  make_stratcon_listeners_config($o, $options);
+  make_database_config($o, $options);
+  make_iep_config($o, $options);
+  print $o qq{</stratcon>\n};
   close($o);
   return $file;
 }
@@ -250,6 +455,33 @@ sub start_noit {
 sub stop_noit {
   kill 9, $noit_pid if($noit_pid && kill 1, $noit_pid);
   $noit_pid = 0;
+  return 1;
+}
+
+sub start_stratcon {
+  my $name = shift;
+  my $options = shift;
+  $options->{name} = $name;
+  return 0 if $stratcon_pid;
+  my $conf = make_stratcon_config($name, $options);
+  $stratcon_pid = fork();
+  mkdir "logs";
+  if($stratcon_pid == 0) {
+    close(STDIN);
+    open(STDIN, "</dev/null");
+    close(STDOUT);
+    open(STDOUT, ">/dev/null");
+    close(STDERR);
+    open(STDERR, ">logs/${name}_stratcon.log");
+    my @args = ( 'stratcond', '-D', '-c', $conf );
+    exec { '../../src/stratcond' } @args;
+    exit(-1);
+  }
+  return $stratcon_pid;
+}
+sub stop_stratcon {
+  kill 9, $stratcon_pid if($stratcon_pid && kill 1, $stratcon_pid);
+  $stratcon_pid = 0;
   return 1;
 }
 
