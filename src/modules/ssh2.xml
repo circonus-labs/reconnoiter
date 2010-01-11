@@ -20,11 +20,11 @@
     <parameter name="method_crypt_cs"
                required="optional"
                default=""
-               allowed="^(?:aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
+               allowed="^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from client to server.</parameter>
     <parameter name="method_crypt_sc"
                required="optional"
                default=""
-               allowed="^(?:aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
+               allowed="^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$">The encryption algorithm used from server to client.</parameter>
     <parameter name="method_mac_cs"
                required="optional"
                default=""
