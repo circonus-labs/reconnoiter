@@ -84,9 +84,10 @@ noit_check_state_as_xml(noit_check_t *check) {
     xmlNodeAddContent(tmp, (xmlChar *)timestr);
   }
   if(c->available) { /* truth here means the check has been run */
-    char buff[20];
+    char buff[20], *compiler_warning;
     snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
-    NODE_CONTENT(state, "runtime", buff);
+    compiler_warning = buff;
+    NODE_CONTENT(state, "runtime", compiler_warning);
   }
   NODE_CONTENT(state, "availability",
                noit_check_available_string(c->available));
@@ -97,7 +98,8 @@ noit_check_state_as_xml(noit_check_t *check) {
   while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
-    xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)m->metric_name)));
+    xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
+    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
     buff[0] = m->metric_type; buff[1] = '\0';
     xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
     if(m->metric_value.s) {
