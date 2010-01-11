@@ -103,7 +103,8 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
     current.status = "got rows, ok";
   }
 
-  noit_stats_set_metric(&current, "row_count", METRIC_INT32, &ci->rv);
+  if(ci->rv >= 0)
+    noit_stats_set_metric(&current, "row_count", METRIC_INT32, &ci->rv);
 
   if(ci->rv > 0) {
     /* metrics */
