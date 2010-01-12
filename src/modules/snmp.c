@@ -912,6 +912,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
     info->timeoutevent->closure = info;
     info->timeoutevent->mask = EVENTER_TIMER;
 
+    noitL(nldeb, "Sending snmp get\n");
     gettimeofday(&when, NULL);
     to.tv_sec = check->timeout / 1000;
     to.tv_usec = (check->timeout % 1000) * 1000;
@@ -921,6 +922,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   }
   else {
     ts->refcnt--;
+    noitL(nlerr, "Error sending snmp get request.\n");
     noit_snmp_session_cleanse(ts);
     /* Error */
     if(req) snmp_free_pdu(req);

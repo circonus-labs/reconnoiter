@@ -15,9 +15,17 @@ OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
 
 all:	libnoit_utils.a
 
-libnoit_utils.a:	$(OBJS)
+@DTRACEOBJ@:	$(OBJS)
+	@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o @DTRACEOBJ@ $(OBJS)
+
+noit_log.o:	@DTRACEHDR@
+
+@DTRACEHDR@:	dtrace_probes.d
+	@DTRACE@ -h -s dtrace_probes.d
+
+libnoit_utils.a:	$(OBJS) @DTRACEOBJ@
 	@rm -f $@
-	@$(AR) cq $@ $(OBJS)
+	@$(AR) cq $@ $(OBJS) @DTRACEOBJ@
 	@echo "- archiving $@"
 	@$(RANLIB) $@
 

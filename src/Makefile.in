@@ -130,7 +130,7 @@ noitd:	$(NOIT_OBJS) $(NOIT_LIBS) man/noitd.usage.h
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
-		-Lutils -lnoit_utils \
+		utils/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
@@ -143,7 +143,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
-		-Lutils -lnoit_utils \
+		utils/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \

@@ -36,6 +36,7 @@
 /* define inline unless that is what the compiler already calls it. */
 #undef inline
 
+#undef DTRACE_ENABLED
 #undef MODULEEXT
 #undef MODULES_DIR
 #undef DEFAULT_EVENTER

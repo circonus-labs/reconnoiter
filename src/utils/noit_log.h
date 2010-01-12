@@ -65,6 +65,7 @@ extern noit_log_stream_t noit_stderr;
 extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 
+API_EXPORT(int) noit_log_global_enabled();
 API_EXPORT(void) noit_log_init();
 API_EXPORT(int) noit_log_reopen_all();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
@@ -104,10 +105,11 @@ API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
   ;
 
 #define noitLT(ls, t, args...) do { \
-  if((ls) && (ls)->enabled) noit_log(ls, t, __FILE__, __LINE__, args); \
+  if((ls) && (noit_log_global_enabled() || (ls)->enabled)) \
+    noit_log(ls, t, __FILE__, __LINE__, args); \
 } while(0)
 #define noitL(ls, args...) do { \
-  if((ls) && (ls)->enabled) { \
+  if((ls) && (noit_log_global_enabled() || (ls)->enabled)) { \
     struct timeval __noitL_now; \
     gettimeofday(&__noitL_now, NULL); \
     noit_log(ls, &__noitL_now, __FILE__, __LINE__, args); \

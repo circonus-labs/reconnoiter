@@ -39,6 +39,9 @@ CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
 
 case $host in
 *-*-darwin*)
+	DTRACE=/usr/sbin/dtrace
+	DTRACEHDR=dtrace_probes.h
+	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
 	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
@@ -46,9 +49,14 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 *-*-solaris*)
+	DTRACE=/usr/sbin/dtrace
+	DTRACEHDR=dtrace_probes.h
+	DTRACE_ENABLED=1
+	DTRACEOBJ=dtrace_stub.o
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`"; then
 		AC_MSG_RESULT([64])
+		DTRACEFLAGS=-64
 		ATOMIC_OBJS="noit_atomic_sol_x86_64.o"
 	else
 		AC_MSG_RESULT([32])
@@ -103,6 +111,11 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 esac
+AC_SUBST(DTRACE)
+AC_SUBST(DTRACE_ENABLED)
+AC_DEFINE(DTRACE_ENABLED)
+AC_SUBST(DTRACEOBJ)
+AC_SUBST(DTRACEFLAGS)
 AC_SUBST(SHLD)
 AC_SUBST(RLDFLAG)
 AC_SUBST(MODULELD)

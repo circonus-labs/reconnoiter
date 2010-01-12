@@ -50,6 +50,12 @@
 #include "utils/noit_hash.h"
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
+#ifdef DTRACE_ENABLED
+#include "utils/dtrace_probes.h"
+#else
+#define NOIT_LOG_LOG(a,b,c,d)
+#define NOIT_LOG_LOG_ENABLED() 0
+#endif
 
 struct _noit_log_stream {
   unsigned enabled:1;
@@ -71,6 +77,10 @@ static noit_hash_table noit_logops = NOIT_HASH_EMPTY;
 noit_log_stream_t noit_stderr = NULL;
 noit_log_stream_t noit_error = NULL;
 noit_log_stream_t noit_debug = NULL;
+
+int noit_log_global_enabled() {
+  return NOIT_LOG_LOG_ENABLED();
+}
 
 static int
 posix_logio_open(noit_log_stream_t ls) {
@@ -555,7 +565,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   va_list copy;
 #endif
 
-  if(ls->enabled) {
+  if(ls->enabled || NOIT_LOG_LOG_ENABLED()) {
     int len;
     if(ls->debug) {
       struct tm _tm, *tm = &_tm;
@@ -589,11 +599,15 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
         len = vsnprintf(dynbuff, allocd, format, arg);
 #endif
       }
-      rv = noit_log_line(ls, dynbuff, len);
+      NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
+      if(ls->enabled)
+        rv = noit_log_line(ls, dynbuff, len);
       free(dynbuff);
     }
     else {
-      rv = noit_log_line(ls, buffer, len);
+      NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
+      if(ls->enabled)
+        rv = noit_log_line(ls, buffer, len);
     }
     if(rv == len) return 0;
     return -1;
