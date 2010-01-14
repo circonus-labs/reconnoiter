@@ -36,6 +36,9 @@
 #include "noit_rest.h"
 
 #include <pcre.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <errno.h>
 
 struct rest_xml_payload {
@@ -344,6 +347,69 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
   *complete = 1;
   return rxc->indoc;
 }
+int
+noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
+                              int npats, char **pats) {
+  int drlen = 0;
+  const char *document_root = NULL;
+  const char *index_file = NULL;
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  char file[PATH_MAX], rfile[PATH_MAX];
+  struct stat st;
+  int fd;
+  void *contents;
+
+  if(npats != 1 ||
+     !noit_hash_retr_str(restc->ac->config,
+                         "document_root", strlen("document_root"),
+                         &document_root)) {
+    goto not_found;
+  }
+  if(!noit_hash_retr_str(restc->ac->config,
+                         "index_file", strlen("index_file"),
+                         &index_file)) {
+    index_file = "index.html";
+  }
+  drlen = strlen(document_root);
+  snprintf(file, sizeof(file), "%s/%s", document_root, pats[0]);
+  if(file[strlen(file) - 1] == '/') {
+    snprintf(file + strlen(file), sizeof(file) - strlen(file),
+             "%s", index_file);
+  }
+  /* resolve */
+  if(realpath(file, rfile) == NULL) goto not_found;
+  /* restrict */
+  if(strncmp(rfile, document_root, drlen)) goto denied;
+  if(rfile[drlen] != '/' && rfile[drlen + 1] != '/') goto denied;
+  /* stat */
+  if(stat(rfile, &st) != 0) {
+    switch (errno) {
+      case EACCES: goto denied;
+      default: goto not_found;
+    }
+  }
+  /* open */
+  fd = open(rfile, O_RDONLY);
+  if(fd < 0) goto not_found;
+  contents = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+  close(fd);
+  if(contents == (void *)-1) goto not_found;
+  noit_http_response_ok(ctx, "text/html");
+  noit_http_response_append(ctx, contents, st.st_size);
+  munmap(contents, st.st_size);
+  noit_http_response_end(ctx);
+  return 0;
+
+ denied:
+  noit_http_response_denied(ctx, "text/html");
+  noit_http_response_end(ctx);
+  return 0;
+ not_found:
+  noit_http_response_not_found(ctx, "text/html");
+  noit_http_response_end(ctx);
+  return 0;
+}
+
 void noit_http_rest_init() {
   eventer_name_callback("noit_wire_rest_api/1.0", noit_http_rest_handler);
   eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);

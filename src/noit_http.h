@@ -165,6 +165,8 @@ API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
   noit_http_response_standard(ctx, 200, "OK", type)
 #define noit_http_response_not_found(ctx, type) \
   noit_http_response_standard(ctx, 404, "NOT FOUND", type)
+#define noit_http_response_denied(ctx, type) \
+  noit_http_response_standard(ctx, 403, "DENIED", type)
 
 #define noit_http_response_standard(ctx, code, name, type) do { \
   noit_http_response_status_set(ctx, code, name); \

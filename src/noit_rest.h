@@ -83,4 +83,8 @@ API_EXPORT(xmlDocPtr)
 API_EXPORT(void)
   noit_http_rest_closure_free(noit_http_rest_closure_t *restc);
 
+API_EXPORT(int)
+  noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
+                                int npats, char **pats);
+
 #endif

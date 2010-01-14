@@ -514,4 +514,7 @@ stratcon_realtime_http_init(const char *toplevel) {
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
     rest_stream_data
   ) == 0);
+  assert(noit_http_rest_register(
+    "GET", "/", "^(.*)$", noit_rest_simple_file_handler
+  ) == 0);
 }

@@ -665,6 +665,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
             mask|maybe_write_mask);
       return mask | maybe_write_mask;
     }
+    noitL(noit_debug, "HTTP start request (%s)\n", ctx->req.uri_str);
   }
 
   /* only dispatch if the response is not complete */
@@ -1029,6 +1030,8 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
 }
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
+  if(ctx->res.output)
+    noitL(noit_debug, "HTTP finished request (%s)\n", ctx->req.uri_str);
   if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
   return noit_true;
 }
