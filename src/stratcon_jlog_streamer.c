@@ -511,7 +511,7 @@ int
 noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
-  const char *cert, *key, *ca, *ciphers;
+  const char *cert, *key, *ca, *ciphers, *crl = NULL;
   char remote_str[128], tmp_str[128];
   eventer_ssl_ctx_t *sslctx;
   int aerrno, len;
@@ -563,8 +563,16 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
   SSLCONFGET(key, "key_file");
   SSLCONFGET(ca, "ca_chain");
   SSLCONFGET(ciphers, "ciphers");
+  SSLCONFGET(crl, "crl");
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) goto connect_error;
+  if(crl) {
+    if(!eventer_ssl_use_crl(sslctx, crl)) {
+      noitL(noit_error, "Failed to load CRL from %s\n", crl);
+      eventer_ssl_ctx_free(sslctx);
+      goto connect_error;
+    }
+  }
 
   memcpy(&nctx->last_connect, now, sizeof(*now));
   eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert,

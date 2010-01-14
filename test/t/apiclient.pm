@@ -6,11 +6,20 @@ sub new {
     my $class = shift;
     my $host = shift;
     my $port = shift;
+    my $options = {
+        'cainfo' => '../test-ca.crt',
+        'key' => '../client.key',
+        'cert' => '../client.crt',
+    };
+    my $ext = shift || {};
+    while(my ($k,$v) = each %$ext) {
+      $options->{$k} = $v;
+    }
     my $curl = WWW::Curl::Easy->new();
     $curl->setopt(CURLOPT_SSL_VERIFYPEER, 0);
-    $curl->setopt(CURLOPT_CAINFO, '../test-ca.crt');
-    $curl->setopt(CURLOPT_SSLKEY, '../client.key');
-    $curl->setopt(CURLOPT_SSLCERT, '../client.crt');
+    $curl->setopt(CURLOPT_CAINFO, $options->{cainfo});
+    $curl->setopt(CURLOPT_SSLKEY, $options->{key});
+    $curl->setopt(CURLOPT_SSLCERT, $options->{cert});
     $curl->setopt(CURLOPT_TIMEOUT, 35);
     return bless { curl => $curl, host => $host, port => $port }, $class;
 }

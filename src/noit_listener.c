@@ -131,7 +131,7 @@ noit_listener_acceptor(eventer_t e, int mask,
       newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   
       if(listener_closure->sslconfig->size) {
-        const char *cert, *key, *ca, *ciphers;
+        const char *cert, *key, *ca, *ciphers, *crl;
         eventer_ssl_ctx_t *ctx;
         /* We have an SSL configuration.  While our socket accept is
          * complete, we now have to SSL_accept, which could require
@@ -150,6 +150,17 @@ noit_listener_acceptor(eventer_t e, int mask,
           eventer_free(newe);
           goto socketfail;
         }
+        SSLCONFGET(crl, "crl");
+        if(crl) {
+          if(!eventer_ssl_use_crl(ctx, crl)) {
+            noitL(noit_error, "Failed to load CRL from %s\n", crl);
+            eventer_ssl_ctx_free(ctx);
+            newe->opset->close(newe->fd, &newmask, e);
+            eventer_free(newe);
+            goto socketfail;
+          }
+        }
+
         eventer_ssl_ctx_set_verify(ctx, eventer_ssl_verify_cert,
                                    listener_closure->sslconfig);
         EVENTER_ATTACH_SSL(newe, ctx);

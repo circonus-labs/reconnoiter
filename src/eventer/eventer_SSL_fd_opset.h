@@ -89,6 +89,9 @@ API_EXPORT(int) eventer_SSL_accept(eventer_t e, int *mask);
 API_EXPORT(int) eventer_SSL_connect(eventer_t e, int *mask);
 
 API_EXPORT(int)
+  eventer_ssl_use_crl(eventer_ssl_ctx_t *ctx, const char *crl_file);
+
+API_EXPORT(int)
   eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                           X509_STORE_CTX *x509ctx, void *closure);
 

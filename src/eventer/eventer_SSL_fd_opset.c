@@ -307,6 +307,19 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   return NULL;
 }
 
+int
+eventer_ssl_use_crl(eventer_ssl_ctx_t *ctx, const char *crl_file) {
+  int ret;
+  X509_STORE *store;
+  X509_LOOKUP *lookup;
+  store = SSL_CTX_get_cert_store(ctx->ssl_ctx);
+  lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
+  ret = X509_load_crl_file(lookup, crl_file, X509_FILETYPE_PEM); 
+  X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK |
+                              X509_V_FLAG_CRL_CHECK_ALL);
+  return ret;
+}
+
 /*
  * This is a set of helpers to tie the SSL stuff to the eventer_t.
  */

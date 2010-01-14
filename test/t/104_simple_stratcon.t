@@ -9,7 +9,7 @@ my $xp = XML::LibXML->new();
 my $xpc = XML::LibXML::XPathContext->new();
 my $doc;
 
-ok(start_stratcon("004"), 'starting stratcon');
+ok(start_stratcon("104"), 'starting stratcon');
 sleep(1);
 my $c = apiclient->new('localhost', $STRATCON_API_PORT);
 my @r = $c->get("/noits/show");

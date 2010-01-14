@@ -1,4 +1,5 @@
 package testconfig;
+use Test::More;
 use Fcntl;
 use DBI;
 use Cwd;
@@ -159,6 +160,7 @@ sub make_noit_listeners_config {
       <certificate_file>$cwd/../test-noit.crt</certificate_file>
       <key_file>$cwd/../test-noit.key</key_file>
       <ca_chain>$cwd/../test-ca.crt</ca_chain>
+      <crl>$cwd/../test-ca.crl</crl>
     </sslconfig>
     <consoles type="noit_console">
       <listener address="*" port="$opts->{noit_cli_port}">
