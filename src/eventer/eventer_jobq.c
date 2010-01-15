@@ -213,7 +213,10 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
     newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
                                       job->fd_event->closure, now);
     if(!newmask) eventer_free(job->fd_event);
-    else eventer_add(job->fd_event);
+    else {
+      job->fd_event->mask = newmask;
+      eventer_add(job->fd_event);
+    }
     job->fd_event = NULL;
     assert(job->timeout_event == NULL);
     free(job);
