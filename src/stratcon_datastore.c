@@ -1180,8 +1180,13 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
   interim_journal_t *ij;
   syncset_t *syncset = closure;
 
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
-  if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
+  if((mask & EVENTER_ASYNCH) == EVENTER_ASYNCH) {
+    eventer_add(syncset->completion);
+    eventer_trigger(syncset->completion, EVENTER_READ | EVENTER_WRITE);
+    free(syncset);
+    return 0;
+  }
+  if(!((mask & EVENTER_ASYNCH_WORK) == EVENTER_ASYNCH_WORK)) return 0;
 
   noitL(ds_deb, "Syncing journal sets...\n");
   while(noit_hash_next(syncset->ws, &iter, &k, &klen, &vij)) {
@@ -1200,9 +1205,6 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
   }
   noit_hash_destroy(syncset->ws, free, NULL);
   free(syncset->ws);
-  eventer_add(syncset->completion);
-  eventer_trigger(syncset->completion, EVENTER_READ | EVENTER_WRITE);
-  free(syncset);
   return 0;
 }
 static interim_journal_t *
