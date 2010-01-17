@@ -91,17 +91,17 @@ posix_logio_open(noit_log_stream_t ls) {
     ls->op_ctx = NULL;
     return -1;
   }
-  ls->op_ctx = (void *)fd;
+  ls->op_ctx = (void *)(vpsized_int)fd;
   return 0;
 }
 static int
 posix_logio_reopen(noit_log_stream_t ls) {
   if(ls->path) {
     int newfd, oldfd;
-    oldfd = (int)ls->op_ctx;
+    oldfd = (int)(vpsized_int)ls->op_ctx;
     newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
     if(newfd >= 0) {
-      ls->op_ctx = (void *)newfd;
+      ls->op_ctx = (void *)(vpsized_int)newfd;
       if(oldfd >= 0) close(oldfd);
       return 0;
     }
@@ -111,21 +111,21 @@ posix_logio_reopen(noit_log_stream_t ls) {
 static int
 posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   int fd;
-  fd = (int)ls->op_ctx;
+  fd = (int)(vpsized_int)ls->op_ctx;
   if(fd < 0) return -1;
   return write(fd, buf, len);
 }
 static int
 posix_logio_close(noit_log_stream_t ls) {
   int fd;
-  fd = (int)ls->op_ctx;
+  fd = (int)(vpsized_int)ls->op_ctx;
   return close(fd);
 }
 static size_t
 posix_logio_size(noit_log_stream_t ls) {
   int fd;
   struct stat sb;
-  fd = (int)ls->op_ctx;
+  fd = (int)(vpsized_int)ls->op_ctx;
   if(fstat(fd, &sb) == 0) {
     return (size_t)sb.st_size;
   }
@@ -369,7 +369,7 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
   ls->ops = &posix_logio_ops;
-  ls->op_ctx = (void *)fd;
+  ls->op_ctx = (void *)(vpsized_int)fd;
   ls->enabled = 1;
   ls->config = config;
   ls->lock = calloc(1, sizeof(*ls->lock));
