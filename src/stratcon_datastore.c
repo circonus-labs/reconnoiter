@@ -1484,14 +1484,14 @@ stratcon_datastore_saveconfig(void *unused) {
   char *buff;
   ds_single_detail _d = { 0 }, *d = &_d;
   conn_q *cq;
-  char ipv4_str[16];
+  char ipv4_str[32];
   struct in_addr r, l;
 
   r.s_addr = htonl((4 << 24) || (2 << 16) || (2 << 8) || 1);
   memset(&l, 0, sizeof(l));
   noit_getip_ipv4(r, &l);
   /* Ignore the error.. what are we going to do anyway */
-  if(inet_ntop(AF_INET, &l, ipv4_str, sizeof(l)) == NULL)
+  if(inet_ntop(AF_INET, &l, ipv4_str, sizeof(ipv4_str)) == NULL)
     strlcpy(ipv4_str, "0.0.0.0", sizeof(ipv4_str));
 
   cq = get_conn_q_for_metanode();
