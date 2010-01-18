@@ -77,7 +77,7 @@ test-stratcon.csr:	test-stratcon.key
 test-stratcon.crt:	test-stratcon.csr test-ca.key
 	openssl ca -batch -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
-test-ca.crl:	demoCA-dir test-ca.key test-ca.crt badclient.key badclient.crt
+test-ca.crl:	test-ca.key test-ca.crt badclient.key badclient.crt
 	openssl ca -config demo-openssl.cnf  -keyfile test-ca.key -cert test-ca.crt -revoke badclient.crt
 	openssl ca -config demo-openssl.cnf  -keyfile test-ca.key -cert test-ca.crt -gencrl -out  test-ca.crl
 

@@ -36,6 +36,7 @@
 #include "utils/noit_b64.h"
 #include "utils/noit_str.h"
 #include "utils/noit_mkdir.h"
+#include "utils/noit_getip.h"
 #include "stratcon_datastore.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_iep.h"
@@ -1483,6 +1484,16 @@ stratcon_datastore_saveconfig(void *unused) {
   char *buff;
   ds_single_detail _d = { 0 }, *d = &_d;
   conn_q *cq;
+  char ipv4_str[16];
+  struct in_addr r, l;
+
+  r.s_addr = htonl((4 << 24) || (2 << 16) || (2 << 8) || 1);
+  memset(&l, 0, sizeof(l));
+  noit_getip_ipv4(r, &l);
+  /* Ignore the error.. what are we going to do anyway */
+  if(inet_ntop(AF_INET, &l, ipv4_str, sizeof(l)) == NULL)
+    strlcpy(ipv4_str, "0.0.0.0", sizeof(ipv4_str));
+
   cq = get_conn_q_for_metanode();
 
   if(stratcon_database_connect(cq) == 0) {
@@ -1492,7 +1503,7 @@ stratcon_datastore_saveconfig(void *unused) {
     if(!buff) goto bad_row;
 
     snprintf(time_as_str, sizeof(time_as_str), "%lu", (long unsigned int)time(NULL));
-    DECLARE_PARAM_STR("0.0.0.0", 7);
+    DECLARE_PARAM_STR(ipv4_str, strlen(ipv4_str));
     DECLARE_PARAM_STR("", 0);
     DECLARE_PARAM_STR("stratcond", 9);
     DECLARE_PARAM_STR(time_as_str, strlen(time_as_str));
