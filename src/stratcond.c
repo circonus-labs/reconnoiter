@@ -63,6 +63,7 @@ static const char *droptogroup = NULL;
 static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
+static int strict_module_load = 0;
 static int no_store = 0;
 static char **enable_logs;
 static int enable_logs_cnt = 0;
@@ -106,8 +107,11 @@ void parse_clargs(int argc, char **argv) {
   int c;
   enable_logs = calloc(argc, sizeof(*enable_logs));
   disable_logs = calloc(argc, sizeof(*disable_logs));
-  while((c = getopt(argc, argv, "shc:dDu:g:t:l:L:")) != EOF) {
+  while((c = getopt(argc, argv, "Mshc:dDu:g:t:l:L:")) != EOF) {
     switch(c) {
+      case 'M':
+        strict_module_load = 1;
+        break;
       case 'l':
         enable_logs[enable_logs_cnt++] = strdup(optarg);
         break;
@@ -219,7 +223,6 @@ static int child_main() {
 
   noit_watchdog_child_eventer_heartbeat();
 
-  stratcon_datastore_init();
   noit_console_init(APPNAME);
   noit_console_conf_init();
   noit_http_rest_init();
@@ -228,6 +231,12 @@ static int child_main() {
   noit_listener_init(APPNAME);
 
   noit_module_init();
+  if(strict_module_load && noit_module_load_failures() > 0) {
+    noitL(noit_stderr, "Failed to load some modules and -M given.\n");
+    exit(2);
+  }
+
+  stratcon_datastore_init();
 
   /* Drop privileges */
   if(chrootpath && noit_security_chroot(chrootpath)) {

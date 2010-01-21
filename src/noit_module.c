@@ -69,7 +69,11 @@ struct __extended_image_data {
 static noit_hash_table loaders = NOIT_HASH_EMPTY;
 static noit_hash_table modules = NOIT_HASH_EMPTY;
 static noit_hash_table generics = NOIT_HASH_EMPTY;
+static int noit_module_load_failure_count = 0;
 
+int noit_module_load_failures() {
+  return noit_module_load_failure_count;
+}
 noit_module_loader_t * noit_loader_lookup(const char *name) {
   void *vloader;
 
@@ -192,6 +196,7 @@ noit_load_generic_image(noit_module_loader_t *loader,
                      noit_module_generic_validate_magic,
                      sizeof(noit_module_generic_t))) {
     noitL(noit_stderr, "Could not load %s:%s\n", g_file, g_name);
+    noit_module_load_failure_count++;
     return NULL;
   }
   return noit_module_generic_lookup(g_name);
@@ -212,6 +217,7 @@ noit_load_loader_image(noit_module_loader_t *loader,
                      noit_module_loader_validate_magic,
                      sizeof(noit_module_loader_t))) {
     noitL(noit_stderr, "Could not load %s:%s\n", loader_file, loader_name);
+    noit_module_load_failure_count++;
     return NULL;
   }
   return noit_loader_lookup(loader_name);
@@ -231,6 +237,7 @@ noit_load_module_image(noit_module_loader_t *loader,
   if(noit_load_image(module_file, module_name, &modules,
                      noit_module_validate_magic, sizeof(noit_module_t))) {
     noitL(noit_stderr, "Could not load %s:%s\n", module_file, module_name);
+    noit_module_load_failure_count++;
     return NULL;
   }
   return noit_module_lookup(module_name);

@@ -101,6 +101,8 @@ typedef struct _noit_module {
 API_EXPORT(void)
   noit_module_init();
 API_EXPORT(int)
+  noit_module_load_failures();
+API_EXPORT(int)
   noit_module_load(const char *file, const char *name);
 API_EXPORT(noit_module_t *)
   noit_module_lookup(const char *name);

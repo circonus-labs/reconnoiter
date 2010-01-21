@@ -69,6 +69,7 @@ static const char *droptogroup = NULL;
 static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
+static int strict_module_load = 0;
 static char **enable_logs;
 static int enable_logs_cnt = 0;
 static char **disable_logs;
@@ -111,8 +112,11 @@ void parse_clargs(int argc, char **argv) {
   int c;
   enable_logs = calloc(argc, sizeof(*enable_logs));
   disable_logs = calloc(argc, sizeof(*disable_logs));
-  while((c = getopt(argc, argv, "hc:dDu:g:t:l:L:")) != EOF) {
+  while((c = getopt(argc, argv, "Mhc:dDu:g:t:l:L:")) != EOF) {
     switch(c) {
+      case 'M':
+        strict_module_load = 1;
+        break;
       case 'h':
         usage(argv[0]);
         exit(1);
@@ -225,6 +229,10 @@ static int child_main() {
   noit_livestream_listener_init();
 
   noit_module_init();
+  if(strict_module_load && noit_module_load_failures() > 0) {
+    noitL(noit_stderr, "Failed to load some modules and -M given.\n");
+    exit(2);
+  }
 
   /* Drop privileges */
   if(chrootpath && noit_security_chroot(chrootpath)) {
