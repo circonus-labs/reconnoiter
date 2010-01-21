@@ -26,10 +26,11 @@ top_srcdir=@top_srcdir@
 MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ \
-	stomp_driver.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-all:	$(MODULES)
+SMODULES=stomp_driver.@MODULEEXT@
+
+all:	$(MODULES) $(SMODULES)
 
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
@@ -129,9 +130,17 @@ alldocs:
 		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - > $(top_srcdir)/docs/config/modules/$$c ; \
 	done
 
-install:	all
+install:	install-modules install-smodules
+
+install-modules:	$(MODULES)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
 	for mod in $(MODULES); do \
+		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MODULES_DIR)/$$mod ; \
+	done
+
+install-smodules:	$(SMODULES)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
+	for mod in $(SMODULES); do \
 		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MODULES_DIR)/$$mod ; \
 	done
 
