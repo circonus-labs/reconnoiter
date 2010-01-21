@@ -881,7 +881,25 @@ stratcon_database_connect(conn_q *cq) {
     free(t);
     dsn = dsn_meta;
   }
-  else dsn = cq->dsn;
+  else {
+    char options[32];
+    strlcpy(dsn_meta, cq->dsn, sizeof(dsn_meta));
+    if(noit_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/user",
+                               options, sizeof(options))) {
+      strlcat(dsn_meta, " ", sizeof(dsn_meta));
+      strlcat(dsn_meta, "user", sizeof(dsn_meta));
+      strlcat(dsn_meta, "=", sizeof(dsn_meta));
+      strlcat(dsn_meta, options, sizeof(dsn_meta));
+    }
+    if(noit_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/password",
+                               options, sizeof(options))) {
+      strlcat(dsn_meta, " ", sizeof(dsn_meta));
+      strlcat(dsn_meta, "password", sizeof(dsn_meta));
+      strlcat(dsn_meta, "=", sizeof(dsn_meta));
+      strlcat(dsn_meta, options, sizeof(dsn_meta));
+    }
+    dsn = dsn_meta;
+  }
 
   if(cq->dbh) {
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
