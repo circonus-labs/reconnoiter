@@ -72,6 +72,7 @@ reconnoiter.jar:	$(JAVA)
 
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)/lib
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(prefix)/var/db/noit-iep
 	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
