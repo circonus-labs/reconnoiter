@@ -65,4 +65,10 @@ API_EXPORT(int)
 API_EXPORT(void)
   stratcon_datastore_iep_check_preload();
 
+API_EXPORT(int)
+  stratcon_datastore_get_enabled();
+
+API_EXPORT(void)
+  stratcon_datastore_set_enabled(int);
+
 #endif

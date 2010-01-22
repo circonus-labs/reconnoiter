@@ -64,7 +64,6 @@ static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 static int strict_module_load = 0;
-static int no_store = 0;
 static char **enable_logs;
 static int enable_logs_cnt = 0;
 static char **disable_logs;
@@ -107,7 +106,7 @@ void parse_clargs(int argc, char **argv) {
   int c;
   enable_logs = calloc(argc, sizeof(*enable_logs));
   disable_logs = calloc(argc, sizeof(*disable_logs));
-  while((c = getopt(argc, argv, "Mshc:dDu:g:t:l:L:")) != EOF) {
+  while((c = getopt(argc, argv, "Mrshc:dDu:g:t:l:L:")) != EOF) {
     switch(c) {
       case 'M':
         strict_module_load = 1;
@@ -118,8 +117,11 @@ void parse_clargs(int argc, char **argv) {
       case 'L':
         disable_logs[disable_logs_cnt++] = strdup(optarg);
         break;
+      case 'r':
+        stratcon_iep_set_enabled(0);
+        break;
       case 's':
-        no_store = 1;
+        stratcon_datastore_set_enabled(0);
         break;
       case 'h':
         usage(argv[0]);
@@ -236,7 +238,8 @@ static int child_main() {
     exit(2);
   }
 
-  stratcon_datastore_init();
+  if(stratcon_datastore_get_enabled())
+    stratcon_datastore_init();
 
   /* Drop privileges */
   if(chrootpath && noit_security_chroot(chrootpath)) {
@@ -248,8 +251,9 @@ static int child_main() {
     exit(-1);
   }
 
-  stratcon_iep_init();
-  if(!no_store) {
+  if(stratcon_iep_get_enabled())
+    stratcon_iep_init();
+  if(stratcon_datastore_get_enabled()) {
     stratcon_jlog_streamer_init(APPNAME);
     /* Write our log out, and setup a watchdog to write it out on change. */
     stratcon_datastore_saveconfig(NULL);

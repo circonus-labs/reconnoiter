@@ -80,4 +80,10 @@ typedef struct mq_driver {
 API_EXPORT(void)
   stratcon_iep_mq_driver_register(const char *, mq_driver_t *);
 
+API_EXPORT(int)
+  stratcon_iep_get_enabled();
+
+API_EXPORT(void)
+  stratcon_iep_set_enabled(int);
+
 #endif

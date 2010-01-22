@@ -64,6 +64,11 @@ static pthread_key_t iep_connection;
 static noit_hash_table mq_drivers = NOIT_HASH_EMPTY;
 static mq_driver_t *mq_driver = NULL;
 
+static int iep_system_enabled = 1;
+int stratcon_iep_get_enabled() { return iep_system_enabled; }
+void stratcon_iep_set_enabled(int n) { iep_system_enabled = n; }
+
+
 struct iep_job_closure {
   char *line;       /* This is a copy and gets trashed during processing */
   char *remote;

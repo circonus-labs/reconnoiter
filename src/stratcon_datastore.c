@@ -79,6 +79,10 @@ static noit_log_stream_t ds_deb = NULL;
 static noit_log_stream_t ds_pool_deb = NULL;
 static noit_log_stream_t ingest_err = NULL;
 
+static int ds_system_enabled = 1;
+int stratcon_datastore_get_enabled() { return ds_system_enabled; }
+void stratcon_datastore_set_enabled(int n) { ds_system_enabled = n; }
+
 static struct datastore_onlooker_list {
   void (*dispatch)(stratcon_datastore_op_t, struct sockaddr *,
                    const char *, void *);

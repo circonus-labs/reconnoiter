@@ -964,16 +964,18 @@ stratcon_add_noit(const char *target, unsigned short port) {
   xmlSetProp(newnoit, (xmlChar *)"address", (xmlChar *)target);
   xmlSetProp(newnoit, (xmlChar *)"port", (xmlChar *)port_str);
   xmlAddChild(parent, newnoit);
-  stratcon_streamer_connection(NULL, target,
-                               stratcon_jlog_recv_handler,
-                               (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
-                               NULL,
-                               jlog_streamer_ctx_free);
-  stratcon_streamer_connection(NULL, target,
-                               stratcon_jlog_recv_handler,
-                               (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
-                               NULL,
-                               jlog_streamer_ctx_free);
+  if(stratcon_datastore_get_enabled())
+    stratcon_streamer_connection(NULL, target,
+                                 stratcon_jlog_recv_handler,
+                                 (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
+                                 NULL,
+                                 jlog_streamer_ctx_free);
+  if(stratcon_iep_get_enabled())
+    stratcon_streamer_connection(NULL, target,
+                                 stratcon_jlog_recv_handler,
+                                 (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
+                                 NULL,
+                                 jlog_streamer_ctx_free);
   return 1;
 }
 static int
