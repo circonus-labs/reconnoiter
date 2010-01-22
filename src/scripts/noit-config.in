@@ -47,7 +47,7 @@ unless ($worked) {
 __END__
 cc=@CC@
 cppflags=@CPPFLAGS@
-flags=@CFLAGS@ @PGCFLAGS@
+cflags=@CFLAGS@ @PGCFLAGS@
 ldflags=@LDFLAGS@
 libs=@LIBS@ @PGLIBS@
 prefix=@prefix@
@@ -65,8 +65,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 shld=@SHLD@
-shflags=@SHFLAGS@
+shcflags=@SHCFLAGS@
 moduleld=@MODULELD@
 modules_dir=@MODULES_DIR@
 moduleext=@MODULEEXT@
-picflags=@PICFLAGS@
