@@ -632,6 +632,7 @@ src/noitedit/Makefile
 src/lua/Makefile
 src/java/Makefile
 src/java/run-iep.sh
+src/scripts/noit-config
 sql/Makefile
 test/Makefile
 ])

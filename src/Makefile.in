@@ -210,11 +210,13 @@ install-dirs:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
 
 install-headers:	$(HEADERS)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/eventer
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/utils
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/noitedit
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/jlog
+	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noit-config
 	for file in $(HEADERS) ; do \
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done

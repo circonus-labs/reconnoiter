@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+
+use strict;
+my %opts;
+my $worked = 0;
+
+while(<DATA>) {
+  chomp;
+  my ($o, $v) = split /=/, $_, 2;
+  $v =~ s#-I\$\(top_srcdir\)/src#-I\${includedir}#g;
+  $opts{$o} = $v;
+}
+
+sub help {
+  print STDERR "help:\n";
+  for my $o (keys %opts) {
+    print STDERR "\t--$o\n";
+  }
+  return 1;
+}
+
+sub interp {
+  my $o = shift;
+  my $v = $o;
+  $v =~ s#\$\{([^\}]+)\}#$opts{$1}#eg;
+  return $v if $o eq $v;
+  return interp($v);
+}
+
+foreach my $v (@ARGV) {
+  if($v eq '-h' || $v eq '--help') {
+    help && exit;
+  }
+  (my $o = $v) =~ s/^--//;
+  $o =~ s/_/-/g;
+  die "Bad option: $v" if "--$o" ne $v;
+  die "No such option: $o" unless exists $opts{$o};
+  print interp($opts{$o});
+  $worked = 1;
+}
+
+unless ($worked) {
+  help && exit;
+}
+
+__END__
+cc=@CC@
+cppflags=@CPPFLAGS@
+flags=@CFLAGS@ @PGCFLAGS@
+ldflags=@LDFLAGS@
+libs=@LIBS@ @PGLIBS@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+libdir=@libdir@
+includedir=${prefix}/include
+libexecdir=@libexecdir@
+datarootdir=@datarootdir@
+mandir=@mandir@
+mansubdir=@mansubdir@
+docdir=${prefix}/@docdir@
+sysconfdir=@sysconfdir@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+modules_dir=@MODULES_DIR@
