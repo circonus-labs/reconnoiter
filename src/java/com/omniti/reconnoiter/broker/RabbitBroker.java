@@ -34,7 +34,7 @@ public class RabbitBroker implements IMQBroker  {
   private String exchangeName;
   private String queueName;
   private String routingKey;
-  private String alertQueue;
+  private String alertRoutingKey;
   private String alertExchangeName;
 
   public RabbitBroker(StratconConfig config) {
@@ -51,7 +51,7 @@ public class RabbitBroker implements IMQBroker  {
     // No need for a routing key on a FO exchange
     this.routingKey = "";
   
-    this.alertQueue = config.getBrokerParameter("queue", "noit.alerts.");
+    this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
     this.alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
   }
   
@@ -74,8 +74,9 @@ public class RabbitBroker implements IMQBroker  {
       Connection conn = factory.newConnection(hostName, portNumber);
       channel = conn.createChannel();
 
-      boolean passive = false, exclusive = true, durable = true, autoDelete = false;
+      boolean passive = false, exclusive = false, durable = false, autoDelete = false;
       channel.exchangeDeclare(exchangeName, "fanout", passive, durable, autoDelete, null);
+      autoDelete = true;
       channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
       channel.queueBind(queueName, exchangeName, routingKey);
 
@@ -121,6 +122,6 @@ public class RabbitBroker implements IMQBroker  {
   }
   
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    return new RabbitListener(epService, sq, channel, alertExchangeName, alertQueue);
+    return new RabbitListener(epService, sq, channel, alertExchangeName, alertRoutingKey);
   }
 }
