@@ -33,6 +33,8 @@ public class AMQBroker implements IMQBroker {
 
   private MessageConsumer consumer;
 
+  public void disconnect() {
+  }
   public void connect() {
     BrokerFactory.getAMQBrokerService("stomp://" + hostName + ":" + portNumber);
     ActiveMQConnectionFactory connectionFactory=new ActiveMQConnectionFactory("vm://localhost");

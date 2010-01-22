@@ -16,6 +16,7 @@ import com.omniti.reconnoiter.event.StratconQuery;
 public interface IMQBroker {
   
   public void connect();
+  public void disconnect();
   public void consume(EventHandler eh);
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq);
 

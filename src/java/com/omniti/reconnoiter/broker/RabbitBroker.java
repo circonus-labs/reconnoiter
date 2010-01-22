@@ -56,6 +56,13 @@ public class RabbitBroker implements IMQBroker  {
   }
   
   // 
+  public void disconnect() {
+    try {
+      channel.getConnection().abort();
+      channel.abort();
+    }
+    catch (Exception e) { }
+  }
   public void connect() {
     ConnectionParameters params = new ConnectionParameters();
     params.setUsername(userName);
@@ -66,9 +73,10 @@ public class RabbitBroker implements IMQBroker  {
     try {
       Connection conn = factory.newConnection(hostName, portNumber);
       channel = conn.createChannel();
-      
-      channel.exchangeDeclare(exchangeName, "fanout");
-      channel.queueDeclare(queueName);
+
+      boolean passive = false, exclusive = true, durable = true, autoDelete = false;
+      channel.exchangeDeclare(exchangeName, "fanout", passive, durable, autoDelete, null);
+      channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
       channel.queueBind(queueName, exchangeName, routingKey);
 
     } catch(Exception e) {

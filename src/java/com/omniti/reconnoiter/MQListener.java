@@ -25,11 +25,15 @@ public class MQListener implements Runnable {
       this.queries = new ConcurrentHashMap<UUID,StratconQueryBase>();
       this.epService = epService;
       this.broker = broker;
-      broker.connect();
     }
     
     public void run() {
       EventHandler eh = new EventHandler(queries, this.epService, broker);
-      broker.consume(eh);
+      while(true) {
+        broker.connect();
+        try { broker.consume(eh); } catch (Exception anything) {}
+        broker.disconnect();
+        try { Thread.sleep(1000); } catch (InterruptedException ignore) {}
+      }
     }
 }
