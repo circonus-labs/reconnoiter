@@ -14,6 +14,7 @@ while(<DATA>) {
 sub help {
   print STDERR "help:\n";
   for my $o (keys %opts) {
+    $o =~ s/_/-/g;
     print STDERR "\t--$o\n";
   }
   return 1;
@@ -32,8 +33,8 @@ foreach my $v (@ARGV) {
     help && exit;
   }
   (my $o = $v) =~ s/^--//;
-  $o =~ s/_/-/g;
   die "Bad option: $v" if "--$o" ne $v;
+  $o =~ s/-/_/g;
   die "No such option: $o" unless exists $opts{$o};
   print interp($opts{$o});
   $worked = 1;
@@ -63,4 +64,9 @@ docdir=${prefix}/@docdir@
 sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
+shld=@SHLD@
+shflags=@SHFLAGS@
+moduleld=@MODULELD@
 modules_dir=@MODULES_DIR@
+moduleext=@MODULEEXT@
+picflags=@PICFLAGS@
