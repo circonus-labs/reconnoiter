@@ -53,6 +53,7 @@
 /* 60 seconds of possible stutter */
 #define MAX_INITIAL_STUTTER 60000
 
+static u_int64_t check_completion_count = 0;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
@@ -61,6 +62,9 @@ struct uuid_dummy {
   uuid_t foo;
 };
 
+u_int64_t noit_check_completion_count() {
+  return check_completion_count;
+}
 static void register_console_check_commands();
 static int check_recycle_bin_processor(eventer_t, int, void *,
                                        struct timeval *);
@@ -938,6 +942,8 @@ noit_check_set_stats(struct _noit_module *module,
   noit_check_log_status(check);
   /* Write out all metrics */
   noit_check_log_metrics(check);
+  /* count the check as complete */
+  check_completion_count++;
 
   for(dep = check->causal_checks; dep; dep = dep->next) {
     noit_module_t *mod;

@@ -73,6 +73,7 @@ static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
 }
 static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   char buff[128];
+  u_int64_t u64;
   int64_t s64;
   int32_t s32;
   stats_t current;
@@ -108,6 +109,8 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   eventer_jobq_process_each(jobq_thread_helper, &current);
   noit_build_version(buff, sizeof(buff));
   noit_stats_set_metric(&current, "version", METRIC_STRING, buff);
+  u64 = noit_check_completion_count();
+  noit_stats_set_metric(&current, "checks_run", METRIC_UINT64, &u64);
 
   noit_check_set_stats(self, check, &current);
 }

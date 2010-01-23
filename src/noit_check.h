@@ -148,6 +148,7 @@ typedef struct noit_check {
 #define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
 
 API_EXPORT(void) noit_poller_init();
+API_EXPORT(u_int64_t) noit_check_completion_count();
 API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
 API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
