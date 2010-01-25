@@ -20,6 +20,9 @@ public abstract class StratconMessage {
   public final static String METRIC_STRING = "s";
   public final static HashMap<String,StratconMessageFactory> quicklookup = new HashMap<String,StratconMessageFactory>();
 
+  public static void ignorePrefix(String prefix) {
+    quicklookup.put(prefix, null);
+  }
   public static boolean registerType(Class clazz) {
     boolean success = false;
     try {
@@ -87,7 +90,8 @@ public abstract class StratconMessage {
 
       StratconMessageFactory smf = quicklookup.get(prefix);
       if(smf == null) {
-        throw new Exception("no handler for " + jlog);
+        System.err.println("no handler for " + prefix);
+        return null;
       }
       parts = parseToArray(jlog, smf.getLength());
       return smf.make(parts);
@@ -113,5 +117,6 @@ public abstract class StratconMessage {
     StratconMessage.registerType(StratconStatement.class);
     StratconMessage.registerType(StratconQuery.class);
     StratconMessage.registerType(StratconQueryStop.class);
+    StratconMessage.ignorePrefix("n");
   }
 }
