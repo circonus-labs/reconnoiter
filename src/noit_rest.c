@@ -34,6 +34,7 @@
 #include "noit_listener.h"
 #include "noit_http.h"
 #include "noit_rest.h"
+#include "noit_conf.h"
 
 #include <pcre.h>
 #include <unistd.h>
@@ -65,6 +66,22 @@ struct rule_container {
   struct rest_url_dispatcher *rules_endptr;
 };
 noit_hash_table dispatch_points = NOIT_HASH_EMPTY;
+
+struct noit_rest_acl_rule {
+  noit_boolean allow;
+  pcre *url;
+  pcre *cn;
+  struct noit_rest_acl_rule *next;
+};
+struct noit_rest_acl {
+  noit_boolean allow;
+  pcre *url;
+  pcre *cn;
+  struct noit_rest_acl_rule *rules;
+  struct noit_rest_acl *next;
+};
+
+static struct noit_rest_acl *global_rest_acls = NULL;
 
 static int
 noit_http_rest_permission_denied(noit_http_rest_closure_t *restc,
@@ -127,8 +144,34 @@ noit_http_get_handler(noit_http_rest_closure_t *restc) {
 noit_boolean
 noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                 int npats, char **pats) {
+  struct noit_rest_acl *acl;
+  struct noit_rest_acl_rule *rule;
+  int ovector[30];
+
   if(!restc->remote_cn || !strlen(restc->remote_cn)) return noit_false;
-  return noit_true;
+  for(acl = global_rest_acls; acl; acl = acl->next) {
+    if(acl->cn && pcre_exec(acl->cn, NULL, restc->remote_cn,
+                            strlen(restc->remote_cn), 0, 0,
+                            ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+      continue;
+    if(acl->url && pcre_exec(acl->url, NULL, restc->http_ctx->req.uri_str,
+                             strlen(restc->http_ctx->req.uri_str), 0, 0,
+                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+      continue;
+    for(rule = acl->rules; rule; rule = rule->next) {
+      if(rule->cn && pcre_exec(rule->cn, NULL, restc->remote_cn,
+                               strlen(restc->remote_cn), 0, 0,
+                               ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+        continue;
+      if(rule->url && pcre_exec(rule->url, NULL, restc->http_ctx->req.uri_str,
+                                strlen(restc->http_ctx->req.uri_str), 0, 0,
+                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+        continue;
+      return rule->allow;
+    }
+    return acl->allow;
+  }
+  return noit_false;
 }
 int
 noit_http_rest_register(const char *method, const char *base,
@@ -410,9 +453,82 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
   return 0;
 }
 
+void noit_http_rest_load_rules() {
+  int ai, cnt = 0;
+  noit_conf_section_t *acls;
+  char path[256];
+  struct noit_rest_acl *newhead = NULL, *oldacls, *remove_acl;
+  struct noit_rest_acl_rule *remove_rule;
+
+  snprintf(path, sizeof(path), "//rest/acl");
+  acls = noit_conf_get_sections(NULL, path, &cnt);
+  noitL(noit_stderr, "Found %d acl stanzas\n", cnt);
+  for(ai = cnt-1; ai>=0; ai--) {
+    char tbuff[32];
+    struct noit_rest_acl *newacl;
+    int ri, rcnt = 0;
+    noit_boolean default_allow = false;
+    noit_conf_section_t *rules;
+
+    newacl = calloc(1, sizeof(*newacl));
+    newacl->next = newhead;
+    newhead = newacl;
+    if(noit_conf_get_stringbuf(acls[ai], "@type", tbuff, sizeof(tbuff)) &&
+       !strcmp(tbuff, "allow"))
+      newacl->allow = noit_true;
+
+#define compile_re(node, cont, name) do { \
+  char buff[256]; \
+  if(noit_conf_get_stringbuf(node, "@" #name, buff, sizeof(buff))) { \
+    const char *error; \
+    int erroffset; \
+    cont->name = pcre_compile(buff, 0, &error, &erroffset, NULL); \
+  } \
+} while(0)
+
+    newacl->allow = default_allow;
+    compile_re(acls[ai], newacl, cn);
+    compile_re(acls[ai], newacl, url);
+    rules = noit_conf_get_sections(acls[ai], "rule", &rcnt);
+    for(ri = rcnt - 1; ri >= 0; ri--) {
+      struct noit_rest_acl_rule *newacl_rule;
+      newacl_rule = calloc(1, sizeof(*newacl_rule));
+      newacl_rule->next = newacl->rules;
+      newacl->rules = newacl_rule;
+      if(noit_conf_get_stringbuf(rules[ri], "@type", tbuff, sizeof(tbuff)) &&
+         !strcmp(tbuff, "allow"))
+        newacl_rule->allow = noit_true;
+      compile_re(rules[ri], newacl_rule, cn);
+      compile_re(rules[ri], newacl_rule, url);
+    }
+    free(rules);
+  }
+  free(acls);
+
+  oldacls = global_rest_acls;
+  global_rest_acls = newhead;
+
+  while(oldacls) {
+    remove_acl = oldacls->next;
+    while(oldacls->rules) {
+      remove_rule = oldacls->rules->next;
+      if(oldacls->rules->cn) pcre_free(oldacls->rules->cn);
+      if(oldacls->rules->url) pcre_free(oldacls->rules->url);
+      free(oldacls->rules);
+      oldacls->rules = remove_rule;
+    }
+    if(oldacls->cn) pcre_free(oldacls->cn);
+    if(oldacls->url) pcre_free(oldacls->url);
+    free(oldacls);
+    oldacls = remove_acl;
+  }
+}
 void noit_http_rest_init() {
   eventer_name_callback("noit_wire_rest_api/1.0", noit_http_rest_handler);
   eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);
+
+  noit_http_rest_load_rules();
+
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_DELETE,
                                  noit_http_rest_handler);

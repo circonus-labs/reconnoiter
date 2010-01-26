@@ -180,4 +180,16 @@
     <listener type="control_dispatch" address="*" port="43191" ssl="on" />
   </listeners>
 
+  <rest>
+    <acl>
+      <rule type="allow" />
+    </acl>
+    <!--
+    <acl cn="^clientfoo$" url=".*" type="deny">
+      <rule type="deny" url="^/check/set/"/>
+      <rule type="allow" url=".*"/>
+    </acl>
+    -->
+  </rest>
+
 </stratcon>

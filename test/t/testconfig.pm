@@ -65,6 +65,28 @@ sub make_eventer_config {
   </eventer>
 };
 }
+sub make_rest_acls {
+  my ($o, $opts) = @_;
+  my $acls = $opts->{rest_acls};
+  print $o qq{  <rest>\n};
+  foreach my $acl (@$acls) {
+    print $o qq^    <acl^;
+    print $o qq^ type="$acl->{type}"^ if exists($acl->{type});
+    print $o qq^ cn="$acl->{cn}"^ if exists($acl->{cn});
+    print $o qq^ url="$acl->{url}"^ if exists($acl->{url});
+    print $o qq^>\n^;
+    my $rules = $acl->{rules};
+    foreach my $rule (@$rules) {
+      print $o qq^      <rule^;
+      print $o qq^ type="$rule->{type}"^ if exists($rule->{type});
+      print $o qq^ cn="$rule->{cn}"^ if exists($rule->{cn});
+      print $o qq^ url="$rule->{url}"^ if exists($rule->{url});
+      print $o qq^/>\n^;
+    }
+    print $o qq^    </acl>\n^;
+  }
+  print $o qq{  </rest>\n};
+}
 sub make_log_section {
   my ($o, $type, $dis) = @_;
   print $o qq{      <$type>
@@ -226,12 +248,14 @@ sub make_noit_config {
   my $options = shift;
   $options->{cwd} ||= cwd();
   $options->{modules} = $all_noit_modules unless exists($options->{modules});
+  $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_noit.conf";
   open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
   print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
   print $o qq{<noit>};
   make_eventer_config($o, $options);
+  make_rest_acls($o, $options);
   make_logs_config($o, $options);
   make_modules_config($o, $options);
   make_noit_listeners_config($o, $options);
@@ -415,6 +439,7 @@ sub make_stratcon_config {
   my $options = shift;
   $options->{cwd} ||= cwd();
   $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' } };
+  $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
   $options->{iep}->{mq} ||= { 'stomp' => {} };
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_stratcon.conf";
@@ -422,6 +447,7 @@ sub make_stratcon_config {
   print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
   print $o qq{<stratcon>};
   make_eventer_config($o, $options);
+  make_rest_acls($o, $options);
   make_stratcon_noits_config($o, $options);
   make_logs_config($o, $options);
   make_modules_config($o, $options);
