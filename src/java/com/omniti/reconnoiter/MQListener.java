@@ -14,21 +14,39 @@ import java.lang.Runnable;
 
 import com.espertech.esper.client.EPServiceProvider;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
 import java.util.UUID;
 
 public class MQListener implements Runnable {
     private EPServiceProvider epService;
     private ConcurrentHashMap<UUID,StratconQueryBase> queries;
     private IMQBroker broker;
+    private LinkedList<StratconMessage> preproc;
+    private boolean booted = false;
 
     public MQListener(EPServiceProvider epService, IMQBroker broker) {
       this.queries = new ConcurrentHashMap<UUID,StratconQueryBase>();
       this.epService = epService;
       this.broker = broker;
+      preproc = new LinkedList<StratconMessage>();
+    }
+
+    public void preprocess(StratconMessage m) throws Exception {
+      if(booted) throw new Exception("Already booted");
+      preproc.add(m);
     }
     
     public void run() {
       EventHandler eh = new EventHandler(queries, this.epService, broker);
+      for (StratconMessage m : preproc) {
+        try { eh.processMessage(m); }
+        catch (Exception e) {
+          System.err.println("Something went wrong preprocessing events:");
+          e.printStackTrace();
+          System.exit(-2);
+        }
+      }
+      booted = true;
       while(true) {
         broker.connect();
         try { broker.consume(eh); } catch (Exception anything) {}

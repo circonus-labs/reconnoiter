@@ -11,9 +11,11 @@ package com.omniti.reconnoiter;
 import java.lang.System;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.List;
 import com.omniti.reconnoiter.MQListener;
 import com.omniti.reconnoiter.broker.BrokerFactory;
 import com.omniti.reconnoiter.StratconConfig;
+import com.omniti.reconnoiter.StratconMessage;
 import com.espertech.esper.client.*;
 import com.omniti.reconnoiter.esper.ExactStatViewFactory;
 import com.omniti.reconnoiter.esper.DeriveViewFactory;
@@ -34,6 +36,17 @@ class IEPEngine {
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
 
     mql = new MQListener(epService, BrokerFactory.getBroker(sconf));
+    try {
+      List<StratconMessage> mlist = sconf.getQueries();
+      for ( StratconMessage m : mlist ) {
+        mql.preprocess(m);
+      }
+    }
+    catch (Exception e) {
+      System.err.println("Failed to load queries:");
+      e.printStackTrace();
+      System.exit(-1);
+    }
   }
 
   public void start() {

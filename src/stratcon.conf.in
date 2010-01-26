@@ -48,7 +48,7 @@
     <!-- For RabbitMQ 
     <broker adapter="rabbitmq" />
     -->
-    <queries>
+    <queries master="iep">
       <statement id="6cc613a4-7f9c-11de-973f-db7e8ccb2e5c" provides="CheckDetails-ddl">
         <epl>create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck</epl>
       </statement>

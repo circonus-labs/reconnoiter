@@ -152,7 +152,7 @@ void stratcon_iep_submit_statements() {
   const char *key;
   int klen, mgen = 0;
 
-  snprintf(path, sizeof(path), "/stratcon/iep/queries//statement");
+  snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
   statement_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
 
@@ -271,7 +271,7 @@ void stratcon_iep_submit_queries() {
   noit_conf_section_t *query_configs;
   char path[256];
 
-  snprintf(path, sizeof(path), "/stratcon/iep/queries//query");
+  snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//query");
   query_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {

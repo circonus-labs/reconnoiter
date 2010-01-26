@@ -46,16 +46,23 @@ public class EventHandler {
     return false;
   }
   public boolean isQueryRegistered(UUID id) { return queries.containsKey(id); }
-	
+
+  public void processMessage(StratconMessage m) throws Exception {
+    m.handle(this);
+  }
+  public void processMessage(StratconMessage[] messages) throws Exception {
+    Exception last = null;
+    for ( StratconMessage m : messages ) {
+      if(m != null) try { processMessage(m); } catch (Exception e) { last = e; }
+    }
+    if(last != null) throw(last);
+  }
   public void processMessage(String payload) throws Exception {
     Exception last = null;
     StratconMessage[] messages = StratconMessage.makeMessages(payload);
     if(messages == null) {
       System.err.println("Can't grok:\n" + payload);
     }
-    for ( StratconMessage m : messages ) {
-      if(m != null) try { m.handle(this); } catch (Exception e) { last = e; }
-    }
-    if(last != null) throw(last);
+    processMessage(messages);
   }
 }
