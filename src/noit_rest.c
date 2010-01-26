@@ -467,7 +467,7 @@ void noit_http_rest_load_rules() {
     char tbuff[32];
     struct noit_rest_acl *newacl;
     int ri, rcnt = 0;
-    noit_boolean default_allow = false;
+    noit_boolean default_allow = noit_false;
     noit_conf_section_t *rules;
 
     newacl = calloc(1, sizeof(*newacl));
