@@ -15,6 +15,7 @@ import java.lang.Runnable;
 import com.espertech.esper.client.EPServiceProvider;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 public class MQListener implements Runnable {
@@ -22,6 +23,7 @@ public class MQListener implements Runnable {
     private ConcurrentHashMap<UUID,StratconQueryBase> queries;
     private IMQBroker broker;
     private LinkedList<StratconMessage> preproc;
+    private LinkedList<StratconMessage> queries_toload;
     private boolean booted = false;
 
     public MQListener(EPServiceProvider epService, IMQBroker broker) {
@@ -29,26 +31,34 @@ public class MQListener implements Runnable {
       this.epService = epService;
       this.broker = broker;
       preproc = new LinkedList<StratconMessage>();
+      queries_toload = new LinkedList<StratconMessage>();
     }
 
     public void preprocess(StratconMessage m) throws Exception {
       if(booted) throw new Exception("Already booted");
-      preproc.add(m);
+      if(m instanceof StratconQuery)
+        queries_toload.add(m);
+      else
+        preproc.add(m);
     }
-    
-    public void run() {
-      EventHandler eh = new EventHandler(queries, this.epService, broker);
-      for (StratconMessage m : preproc) {
+
+    protected void process(EventHandler eh, List<StratconMessage> l) {
+      for (StratconMessage m : l) {
         try { eh.processMessage(m); }
         catch (Exception e) {
           System.err.println("Something went wrong preprocessing events:");
           e.printStackTrace();
-          System.exit(-2);
         }
       }
+    }
+    
+    public void run() {
+      EventHandler eh = new EventHandler(queries, this.epService, broker);
+      process(eh, preproc);
       booted = true;
       while(true) {
         broker.connect();
+        process(eh, queries_toload);
         try { broker.consume(eh); } catch (Exception anything) {}
         broker.disconnect();
         try { Thread.sleep(1000); } catch (InterruptedException ignore) {}

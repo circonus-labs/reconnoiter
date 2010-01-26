@@ -38,7 +38,7 @@ public class RabbitListener implements UpdateListener {
       
       // Create the connection and add an exchange
       boolean passive = false, durable = true, autoDelete = false;
-System.err.println("channel.exchangeDeclare -> " + exchangeName);
+      System.err.println("channel.exchangeDeclare -> " + exchangeName);
       channel.exchangeDeclare(exchangeName, "topic", passive, durable, autoDelete, null);  
     } catch(Exception e) {
       e.printStackTrace();
