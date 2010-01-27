@@ -51,11 +51,13 @@ public class MQListener implements Runnable {
         }
       }
     }
-    
+    public void booted() {
+      booted = true;
+    }
     public void run() {
       EventHandler eh = new EventHandler(queries, this.epService, broker);
       process(eh, preproc);
-      booted = true;
+      booted();
       while(true) {
         try {
           broker.connect();
