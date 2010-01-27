@@ -35,19 +35,16 @@ public class AMQBroker implements IMQBroker {
 
   public void disconnect() {
   }
-  public void connect() {
+  public void connect() throws Exception {
     BrokerFactory.getAMQBrokerService("stomp://" + hostName + ":" + portNumber);
     ActiveMQConnectionFactory connectionFactory=new ActiveMQConnectionFactory("vm://localhost");
-    try {
-      Connection connection=connectionFactory.createConnection();
-      connection.start();
-      Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-      Destination destination=session.createQueue("noit.firehose");
-  
-      consumer = session.createConsumer(destination);
-    } catch(Exception e) {
-      System.err.println("Cannot broker messages");
-    }
+
+    Connection connection=connectionFactory.createConnection();
+    connection.start();
+    Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    Destination destination=session.createQueue("noit.firehose");
+
+    consumer = session.createConsumer(destination);
   }
   
   public void consume(EventHandler eh) {

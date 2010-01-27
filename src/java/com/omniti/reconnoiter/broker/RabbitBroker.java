@@ -63,27 +63,23 @@ public class RabbitBroker implements IMQBroker  {
     }
     catch (Exception e) { }
   }
-  public void connect() {
+  public void connect() throws Exception {
     ConnectionParameters params = new ConnectionParameters();
     params.setUsername(userName);
     params.setPassword(password);
     params.setVirtualHost(virtualHost);
     params.setRequestedHeartbeat(0);
     ConnectionFactory factory = new ConnectionFactory(params);
-    try {
-      Connection conn = factory.newConnection(hostName, portNumber);
-      if(conn != null) {
-        channel = conn.createChannel();
-  
-        boolean passive = false, exclusive = false, durable = false, autoDelete = false;
-        channel.exchangeDeclare(exchangeName, "fanout", passive, durable, autoDelete, null);
-        autoDelete = true;
-        channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
-        channel.queueBind(queueName, exchangeName, routingKey);
-      }
-    } catch(Exception e) {
-      System.err.println("Cannot broker messages");
-    }
+    Connection conn = factory.newConnection(hostName, portNumber);
+
+    if(conn == null) throw new Exception("connection failed");
+
+    channel = conn.createChannel();
+    boolean passive = false, exclusive = false, durable = false, autoDelete = false;
+    channel.exchangeDeclare(exchangeName, "fanout", passive, durable, autoDelete, null);
+    autoDelete = true;
+    channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
+    channel.queueBind(queueName, exchangeName, routingKey);
   }
   
   public void consume(EventHandler eh) {

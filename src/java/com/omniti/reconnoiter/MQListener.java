@@ -57,10 +57,15 @@ public class MQListener implements Runnable {
       process(eh, preproc);
       booted = true;
       while(true) {
-        broker.connect();
-        process(eh, queries_toload);
-        try { broker.consume(eh); } catch (Exception anything) {}
-        broker.disconnect();
+        try {
+          broker.connect();
+          process(eh, queries_toload);
+          try { broker.consume(eh); } catch (Exception anything) {}
+          broker.disconnect();
+        }
+        catch (Exception e) {
+          System.err.println("MQ connection failed: " + e.getMessage());
+        }
         try { Thread.sleep(1000); } catch (InterruptedException ignore) {}
       }
     }
