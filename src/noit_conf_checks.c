@@ -499,8 +499,10 @@ noit_console_show_check(noit_console_closure_t ncct,
         memset(&iter, 0, sizeof(iter));
         while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
           char buff[256];
+          noit_boolean filtered;
           noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
-          nc_printf(ncct, "   %s\n", buff);
+          filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+          nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
         }
       }
     }

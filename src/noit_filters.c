@@ -216,7 +216,8 @@ noit_apply_filterset(const char *filterset,
    * a filterset other than check->filterset.. You never know.
    */
   void *vfs;
-  if(!filtersets || !filterset) return noit_true;
+  if(!filterset) return noit_true;   /* No filter */
+  if(!filtersets) return noit_false; /* Couldn't possibly match */
 
   LOCKFS();
   if(noit_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
@@ -235,7 +236,7 @@ noit_apply_filterset(const char *filterset,
     filterset_free(fs);
   }
   UNLOCKFS();
-  return noit_true;
+  return noit_false;
 }
 
 static char *
