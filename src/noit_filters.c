@@ -122,13 +122,13 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     filterrule_t *rule;
     char buffer[256];
     if(!noit_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
-       (strcmp(buffer, "accept") && strcmp(buffer, "deny"))) {
-      noitL(noit_error, "rule must have type 'accept' or 'deny'\n");
+       (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny"))) {
+      noitL(noit_error, "rule must have type 'accept' or 'allow' or 'deny'\n");
       continue;
     }
     noitL(noit_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
-    rule->type = (!strcmp(buffer, "accept")) ?
+    rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
                    NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
 
     /* Compile our rules */
