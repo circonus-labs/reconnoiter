@@ -476,6 +476,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
   int rv;
+  const char *error = "jlog streamer SSL upgrade failed.\n";
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv > 0) {
@@ -486,6 +487,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
      */
     if((sslctx = eventer_get_eventer_ssl_ctx(e)) != NULL) {
       const char *cn, *end;
+      void *vcn;
       cn = eventer_ssl_get_peer_subject(sslctx);
       if(cn && (cn = strstr(cn, "CN=")) != NULL) {
         cn += 3;
@@ -495,12 +497,22 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
         memcpy(nctx->remote_cn, cn, end - cn);
         nctx->remote_cn[end-cn] = '\0';
       }
+      if(nctx->config &&
+         noit_hash_retrieve(nctx->config, "cn", 2, &vcn)) {
+        const char *cn_expected = vcn;
+        if(!nctx->remote_cn ||
+           strcmp(nctx->remote_cn, cn_expected)) {
+          error = "jlog connect CN mismatch\n";
+          goto error;
+        }
+      }
     }
     return e->callback(e, mask, e->closure, now);
   }
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
 
-  noitL(noit_error, "jlog streamer SSL upgrade failed.\n");
+ error:
+  noitL(noit_error, error);
   eventer_remove_fd(e->fd);
   nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
@@ -798,7 +810,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
 
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)key_id, &klen,
+  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
                        &vconn)) {
     ctx[n] = (noit_connection_ctx_t *)vconn;
     noit_atomic_inc32(&ctx[n]->refcnt);
@@ -834,7 +846,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
 
   pthread_mutex_lock(&noits_lock);
   ctxs = malloc(sizeof(*ctxs) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)key_id, &klen,
+  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
     noit_atomic_inc32(&ctxs[n]->refcnt);
@@ -1041,7 +1053,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
 
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)key_id, &klen,
+  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
                        &vconn)) {
     if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {
       ctx[n] = (noit_connection_ctx_t *)vconn;
