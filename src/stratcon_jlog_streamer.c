@@ -777,6 +777,7 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
 }
 void
 stratcon_jlog_streamer_reload(const char *toplevel) {
+  if(!stratcon_datastore_get_enabled()) return;
   stratcon_streamer_connection(toplevel, NULL,
                                stratcon_jlog_recv_handler,
                                (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
@@ -790,7 +791,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
                             noit_console_state_t *dstate,
                             void *closure) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  uuid_t key_id;
+  void *key_id;
   int klen, n = 0, i;
   void *vconn;
   noit_connection_ctx_t **ctx;
@@ -818,12 +819,17 @@ rest_show_noits(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
   xmlDocPtr doc;
   xmlNodePtr root;
+  noit_hash_table seen = NOIT_HASH_EMPTY;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  uuid_t key_id;
-  int klen, n = 0, i;
+  char path[256];
+  void *key_id;
+  int klen, n = 0, i, di, cnt;
   void *vconn;
   noit_connection_ctx_t **ctxs;
+  noit_conf_section_t *noit_configs;
   struct timeval now, diff, last;
+  xmlNodePtr node;
+
   gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
@@ -840,10 +846,10 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"noits", NULL);
   xmlDocSetRootElement(doc, root);
+
   for(i=0; i<n; i++) {
     char buff[256];
     const char *feedtype = "unknown", *state = "unknown";
-    xmlNodePtr node;
     noit_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
 
@@ -881,6 +887,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
         }
       }
     }
+    noit_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+                      0, free, NULL);
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
@@ -937,6 +945,28 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   }
   free(ctxs);
 
+  snprintf(path, sizeof(path), "//noits//noit");
+  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+  for(di=0; di<cnt; di++) {
+    char address[64], port_str[32], remote_str[98];
+    if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
+                               address, sizeof(address))) {
+      void *v;
+      if(!noit_conf_get_stringbuf(noit_configs[di], "self::node()/@port",
+                                 port_str, sizeof(port_str)))
+        strlcpy(port_str, "43191", sizeof(port_str));
+      snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
+      if(!noit_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        node = xmlNewNode(NULL, (xmlChar *)"noit");
+        xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)remote_str);
+        xmlSetProp(node, (xmlChar *)"type", (xmlChar *)"durable/inactive");
+        xmlAddChild(root, node);
+      }
+    }
+  }
+  free(noit_configs);
+  noit_hash_destroy(&seen, free, NULL);
+
   noit_http_response_ok(restc->http_ctx, "text/xml");
   noit_http_response_xml(restc->http_ctx, doc);
   noit_http_response_end(restc->http_ctx);
@@ -944,26 +974,34 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   return 0;
 }
 static int
-stratcon_add_noit(const char *target, unsigned short port) {
+stratcon_add_noit(const char *target, unsigned short port,
+                  const char *cn) {
   int cnt;
   char path[256];
   char port_str[6];
   noit_conf_section_t *noit_configs, parent;
-  xmlNodePtr newnoit;
+  xmlNodePtr newnoit, config, cnnode;
 
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
   noit_configs = noit_conf_get_sections(NULL, path, &cnt);
   free(noit_configs);
-  if(cnt != 0) return 0;
+  if(cnt != 0) return -1;
 
   parent = noit_conf_get_section(NULL, "//noits");
-  if(!parent) return 0;
+  if(!parent) return -1;
   snprintf(port_str, sizeof(port_str), "%d", port);
   newnoit = xmlNewNode(NULL, (xmlChar *)"noit");
   xmlSetProp(newnoit, (xmlChar *)"address", (xmlChar *)target);
   xmlSetProp(newnoit, (xmlChar *)"port", (xmlChar *)port_str);
   xmlAddChild(parent, newnoit);
+  if(cn) {
+    config = xmlNewNode(NULL, (xmlChar *)"config");
+    cnnode = xmlNewNode(NULL, (xmlChar *)"cn");
+    xmlNodeAddContent(cnnode, (xmlChar *)cn);
+    xmlAddChild(config, cnnode);
+    xmlAddChild(newnoit, config);
+  }
   if(stratcon_datastore_get_enabled())
     stratcon_streamer_connection(NULL, target,
                                  stratcon_jlog_recv_handler,
@@ -981,8 +1019,8 @@ stratcon_add_noit(const char *target, unsigned short port) {
 static int
 stratcon_remove_noit(const char *target, unsigned short port) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  uuid_t key_id;
-  int klen, n = 0, i, cnt = 0;
+  void *key_id;
+  int klen, n = -1, i, cnt = 0;
   void *vconn;
   noit_connection_ctx_t **ctx;
   noit_conf_section_t *noit_configs;
@@ -997,6 +1035,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
   for(i=0; i<cnt; i++) {
     xmlUnlinkNode(noit_configs[i]);
     xmlFreeNode(noit_configs[i]);
+    n = 0;
   }
   free(noit_configs);
 
@@ -1021,12 +1060,17 @@ stratcon_remove_noit(const char *target, unsigned short port) {
 static int
 rest_set_noit(noit_http_rest_closure_t *restc,
               int npats, char **pats) {
+  void *vcn;
+  const char *cn = NULL;
   noit_http_session_ctx *ctx = restc->http_ctx;
   unsigned short port = 43191;
   if(npats < 1 || npats > 2)
     noit_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  if(stratcon_add_noit(pats[0], port))
+  noit_http_process_querystring(&ctx->req);
+  if(noit_hash_retrieve(&ctx->req.querystring, "cn", 2, &vcn))
+    cn = vcn;
+  if(stratcon_add_noit(pats[0], port, cn) >= 0)
     noit_http_response_ok(ctx, "text/xml");
   else
     noit_http_response_standard(ctx, 409, "EXISTS", "text/xml");
@@ -1044,7 +1088,7 @@ rest_delete_noit(noit_http_rest_closure_t *restc,
   if(npats < 1 || npats > 2)
     noit_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  if(stratcon_remove_noit(pats[0], port))
+  if(stratcon_remove_noit(pats[0], port) >= 0)
     noit_http_response_ok(ctx, "text/xml");
   else
     noit_http_response_not_found(ctx, "text/xml");
@@ -1072,7 +1116,7 @@ stratcon_console_conf_noits(noit_console_closure_t ncct,
   }
   else strlcpy(target, argv[0], sizeof(target));
   if(adding) {
-    if(stratcon_add_noit(target, port)) {
+    if(stratcon_add_noit(target, port, NULL) >= 0) {
       nc_printf(ncct, "Added noit at %s:%d\n", target, port);
     }
     else {
@@ -1080,7 +1124,7 @@ stratcon_console_conf_noits(noit_console_closure_t ncct,
     }
   }
   else {
-    if(stratcon_remove_noit(target, port)) {
+    if(stratcon_remove_noit(target, port) >= 0) {
       nc_printf(ncct, "Removed noit at %s:%d\n", target, port);
     }
     else {
@@ -1124,6 +1168,7 @@ stratcon_jlog_streamer_init(const char *toplevel) {
                         noit_connection_complete_connect);
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
+  stratcon_streamer_connection(toplevel, "", NULL, NULL, NULL, NULL);
   assert(noit_http_rest_register_auth(
     "GET", "/noits/", "^show$", rest_show_noits,
              noit_http_rest_client_cert_auth

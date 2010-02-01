@@ -251,10 +251,11 @@ static int child_main() {
     exit(-1);
   }
 
+  stratcon_jlog_streamer_init(APPNAME);
+
   if(stratcon_iep_get_enabled())
     stratcon_iep_init();
   if(stratcon_datastore_get_enabled()) {
-    stratcon_jlog_streamer_init(APPNAME);
     /* Write our log out, and setup a watchdog to write it out on change. */
     stratcon_datastore_saveconfig(NULL);
     noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
