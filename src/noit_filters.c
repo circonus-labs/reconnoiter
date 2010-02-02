@@ -162,12 +162,12 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
 }
 int
 noit_filter_exists(const char *name) {
-  int removed;
+  int exists;
   void *v;
   LOCKFS();
-  removed = noit_hash_retrieve(filtersets, name, strlen(name), &v);
+  exists = noit_hash_retrieve(filtersets, name, strlen(name), &v);
   UNLOCKFS();
-  return removed;
+  return exists;
 }
 int
 noit_filter_remove(noit_conf_section_t vnode) {
