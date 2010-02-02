@@ -43,6 +43,7 @@
 #include "noit_check_tools.h"
 #include "noit_conf.h"
 #include "noit_conf_private.h"
+#include "noit_filters.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
@@ -298,7 +299,15 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           }
           timeout = 1;
         }
-        else CHECK_N_SET(filterset) filterset = 1;
+        else CHECK_N_SET(filterset) {
+          xmlChar *tmp;
+          tmp = xmlNodeGetContent(an);
+          if(!noit_filter_exists((char *)tmp)) {
+            *error = "filterset does not exist";
+            return 0;
+          }
+          filterset = 1;
+        }
         else CHECK_N_SET(disable) { /* not required */
           int valid;
           xmlChar *tmp;
