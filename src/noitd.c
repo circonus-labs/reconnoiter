@@ -196,7 +196,7 @@ static int child_main() {
    * to ensure it is current w.r.t. to this child starting */
   if(noit_conf_load(config_file) == -1) {
     noitL(noit_error, "Cannot load config: '%s'\n", config_file);
-    exit(-1);
+    exit(2);
   }
 
   noit_log_reopen_all();
@@ -273,6 +273,7 @@ int main(int argc, char **argv) {
   noit_conf_init(APPNAME);
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
+    exit(-1);
   }
 
   /* Reinitialize the logging system now that we have a config */
