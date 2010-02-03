@@ -119,7 +119,7 @@
       ]]></mapallchecks>
       <mapchecktostoragenode><![CDATA[
         SELECT o_storage_node_id as storage_node_id, o_sid as sid,
-               o_fqdn as fqdn, o_dsn as dsn
+               o_fqdn as fqdn, o_dsn as dsn, o_noit as remote_cn
           FROM stratcon.map_uuid_to_sid($1,$2)
       ]]></mapchecktostoragenode>
       <check><![CDATA[

@@ -611,6 +611,7 @@ stratcon_datastore_find(ds_rt_detail *d) {
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;
 
+    noitL(noit_error, "stratcon_datastore_find <- (%d, %s)\n", node->sid, remote_cn);
     cq = get_conn_q_for_remote(NULL, remote_cn, fqdn, dsn);
     stratcon_database_connect(cq);
 
@@ -1300,6 +1301,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   storagenode_info *info = NULL;
   char *fqdn = NULL;
   char *dsn = NULL;
+  char *new_remote_cn = NULL;
   int storagenode_id = 0, sid = 0;
   if(!noit_hash_retrieve(&uuid_to_info_cache, uuid_str, strlen(uuid_str),
                          &vuuidinfo)) {
@@ -1309,7 +1311,14 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     conn_q *cq;
 
     /* We can't do a database lookup without the remote_cn */
-    if(!remote_cn) return -1;
+    if(!remote_cn) {
+      if(stratcon_datastore_get_enabled()) {
+        /* We have an authoritatively maintained cache, we don't do lookups */
+        return -1;
+      }
+      else
+        remote_cn = "[[null]]";
+    }
 
     d = calloc(1, sizeof(*d));
     cq = get_conn_q_for_metanode();
@@ -1325,25 +1334,33 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
         goto bad_row;
       }
       PG_GET_STR_COL(tmpint, 0, "sid");
+      if(!tmpint) {
+        row_count = 0;
+        PQclear(d->res);
+        goto bad_row;
+      }
       sid = atoi(tmpint);
       PG_GET_STR_COL(tmpint, 0, "storage_node_id");
       if(tmpint) storagenode_id = atoi(tmpint);
       PG_GET_STR_COL(fqdn, 0, "fqdn");
       PG_GET_STR_COL(dsn, 0, "dsn");
+      PG_GET_STR_COL(new_remote_cn, 0, "remote_cn");
       PQclear(d->res);
     }
    bad_row:
     free_params((ds_single_detail *)d);
     free(d);
     release_conn_q(cq);
-    if(row_count != 1) return -1;
+    if(row_count != 1) {
+      return -1;
+    }
     /* Place in cache */
     if(fqdn) fqdn = strdup(fqdn);
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->sid = sid;
     uuidinfo->uuid_str = strdup(uuid_str);
     uuidinfo->storagenode_id = storagenode_id;
-    uuidinfo->remote_cn = strdup(remote_cn);
+    uuidinfo->remote_cn = strdup(new_remote_cn);
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
     /* Also, we may have just witnessed a new storage node, store it */
