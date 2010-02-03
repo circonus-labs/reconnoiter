@@ -259,8 +259,8 @@ fi
 ########
 
 # Should we build snmp checks?
-AC_CHECK_HEADERS(net-snmp/net-snmp-includes.h)
-if test "$ac_cv_header_net_snmp_net_snmp_includes_h" = "yes" ; then
+AC_CHECK_HEADERS(net-snmp/net-snmp-config.h)
+if test "$ac_cv_header_net_snmp_net_snmp_config_h" = "yes" ; then
 SAVELIBS="$LIBS"
 AC_CHECK_LIB(netsnmp, snmp_sess_open,
 	[
