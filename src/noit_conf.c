@@ -775,7 +775,7 @@ noit_conf_log_init(const char *toplevel) {
       
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);
-    noitL(noit_debug, "Found %d outlets for log '%s'\n", ocnt, name);
+    noitL(noit_error, "Found %d outlets for log '%s'\n", ocnt, name);
 
     for(o=0; o<ocnt; o++) {
       noit_log_stream_t outlet;

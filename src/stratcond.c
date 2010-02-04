@@ -270,6 +270,7 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
+  int fd;
   parse_clargs(argc, argv);
 
   if(chdir("/") != 0) {
@@ -281,9 +282,10 @@ int main(int argc, char **argv) {
 
   if(foreground) exit(child_main());
 
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
+  fd = open("/dev/null", O_RDWR);
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);

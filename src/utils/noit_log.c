@@ -57,6 +57,18 @@
 #define NOIT_LOG_LOG_ENABLED() 0
 #endif
 
+static int DEBUG_LOG_ENABLED() {
+  static int enabled = -1;
+  if(enabled == -1) {
+    char *env = getenv("NOIT_LOG_DEBUG");
+    enabled = env ? atoi(env) : 0;
+  }
+  return enabled;
+}
+#define debug_printf(a...) do { \
+  if(DEBUG_LOG_ENABLED()) fprintf(stderr, a); \
+} while(0)
+
 struct _noit_log_stream {
   unsigned enabled:1;
   unsigned debug:1;
@@ -87,6 +99,7 @@ posix_logio_open(noit_log_stream_t ls) {
   int fd;
   ls->mode = 0664;
   fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
+  debug_printf("opened '%s' => %d\n", ls->path, fd);
   if(fd < 0) {
     ls->op_ctx = NULL;
     return -1;
@@ -112,6 +125,7 @@ static int
 posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   int fd;
   fd = (int)(vpsized_int)ls->op_ctx;
+  debug_printf("writing to %d\n", fd);
   if(fd < 0) return -1;
   return write(fd, buf, len);
 }
@@ -549,6 +563,7 @@ noit_log_line(noit_log_stream_t ls, char *buffer, size_t len) {
     rv = ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
   for(node = ls->outlets; node; node = node->next) {
     int srv = 0;
+    debug_printf(" %s -> %s\n", ls->name, node->outlet->name);
     srv = noit_log_line(node->outlet, buffer, len);
     if(srv) rv = srv;
   }

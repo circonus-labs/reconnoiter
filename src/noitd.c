@@ -259,6 +259,7 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
+  int fd;
   char conf_str[1024];
   char user[32], group[32];
 
@@ -316,9 +317,10 @@ int main(int argc, char **argv) {
   }
   if(foreground) return child_main();
 
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
+  open("/dev/null", O_RDWR);
+  dup2(fd, STDIN_FILENO);
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
