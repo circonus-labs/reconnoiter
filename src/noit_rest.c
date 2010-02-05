@@ -432,14 +432,18 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
     }
   }
   /* open */
-  fd = open(rfile, O_RDONLY);
-  if(fd < 0) goto not_found;
-  contents = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-  close(fd);
-  if(contents == (void *)-1) goto not_found;
+  if(st.st_size > 0) {
+    fd = open(rfile, O_RDONLY);
+    if(fd < 0) goto not_found;
+    contents = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+    if(contents == (void *)-1) goto not_found;
+  }
   noit_http_response_ok(ctx, "text/html");
-  noit_http_response_append(ctx, contents, st.st_size);
-  munmap(contents, st.st_size);
+  if(st.st_size > 0) {
+    noit_http_response_append(ctx, contents, st.st_size);
+    munmap(contents, st.st_size);
+  }
   noit_http_response_end(ctx);
   return 0;
 
