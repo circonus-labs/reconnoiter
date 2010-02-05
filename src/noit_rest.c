@@ -142,6 +142,35 @@ noit_http_get_handler(noit_http_rest_closure_t *restc) {
   return NULL;
 }
 noit_boolean
+noit_http_rest_access(noit_http_rest_closure_t *restc,
+                      int npats, char **pats) {
+  struct noit_rest_acl *acl;
+  struct noit_rest_acl_rule *rule;
+  int ovector[30];
+
+  for(acl = global_rest_acls; acl; acl = acl->next) {
+    if(acl->cn && pcre_exec(acl->cn, NULL, "", 0, 0, 0,
+                            ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+      continue;
+    if(acl->url && pcre_exec(acl->url, NULL, restc->http_ctx->req.uri_str,
+                             strlen(restc->http_ctx->req.uri_str), 0, 0,
+                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+      continue;
+    for(rule = acl->rules; rule; rule = rule->next) {
+      if(rule->cn && pcre_exec(rule->cn, NULL, "", 0, 0, 0,
+                               ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+        continue;
+      if(rule->url && pcre_exec(rule->url, NULL, restc->http_ctx->req.uri_str,
+                                strlen(restc->http_ctx->req.uri_str), 0, 0,
+                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
+        continue;
+      return rule->allow;
+    }
+    return acl->allow;
+  }
+  return noit_false;
+}
+noit_boolean
 noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                 int npats, char **pats) {
   struct noit_rest_acl *acl;

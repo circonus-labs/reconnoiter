@@ -509,12 +509,12 @@ void
 stratcon_realtime_http_init(const char *toplevel) {
   eventer_name_callback("stratcon_realtime_http",
                         stratcon_realtime_http_handler);
-  assert(noit_http_rest_register(
+  assert(noit_http_rest_register_auth(
     "GET", "/data/",
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
-    rest_stream_data
+    rest_stream_data, noit_http_rest_access
   ) == 0);
-  assert(noit_http_rest_register(
-    "GET", "/", "^(.*)$", noit_rest_simple_file_handler
+  assert(noit_http_rest_register_auth(
+    "GET", "/", "^(.*)$", noit_rest_simple_file_handler, noit_http_rest_access
   ) == 0);
 }

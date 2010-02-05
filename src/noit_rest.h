@@ -64,6 +64,10 @@ struct noit_http_rest_closure {
 API_EXPORT(void) noit_http_rest_init();
 
 API_EXPORT(noit_boolean)
+  noit_http_rest_access(noit_http_rest_closure_t *restc,
+                        int npats, char **pats) ;
+
+API_EXPORT(noit_boolean)
   noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                   int npats, char **pats);
 

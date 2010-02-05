@@ -181,15 +181,14 @@
   </listeners>
 
   <rest>
-    <acl>
-      <rule type="allow" />
+    <acl type="deny">
+      <rule type="deny" url="/\.svn"/>
+      <rule type="allow" cn="^admin$"/>
+      <rule type="allow" cn="^nagios$" url="^/noits/show$"/>
+      <rule type="allow" url="^/noits/config$"/>
+      <rule type="allow" url="^/data/"/>
+      <rule type="allow" url="^/$"/>
     </acl>
-    <!--
-    <acl cn="^clientfoo$" url=".*" type="deny">
-      <rule type="deny" url="^/check/set/"/>
-      <rule type="allow" url=".*"/>
-    </acl>
-    -->
   </rest>
 
 </stratcon>
