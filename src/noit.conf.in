@@ -148,6 +148,7 @@
   <filtersets>
     <filterset name="default">
       <rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$" />
+      <rule type="allow"/>
     </filterset>
   </filtersets>
   <config_templates>
