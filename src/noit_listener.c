@@ -285,9 +285,16 @@ noit_listener(char *host, unsigned short port, int type,
     sockaddr_len = sizeof(s.addru);
   }
   else {
-    s.addr6.sin6_family = family;
-    s.addr6.sin6_port = htons(port);
-    memcpy(&s.addr6.sin6_addr, &a, sizeof(a));
+    if(family == AF_INET6) {
+      s.addr6.sin6_family = family;
+      s.addr6.sin6_port = htons(port);
+      memcpy(&s.addr6.sin6_addr, &a.addr6, sizeof(a.addr6));
+    }
+    else {
+      s.addr4.sin_family = family;
+      s.addr4.sin_port = htons(port);
+      memcpy(&s.addr4.sin_addr, &a.addr4, sizeof(a.addr4));
+    }
     sockaddr_len = (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6);
   }
   if(bind(fd, (struct sockaddr *)&s, sockaddr_len) < 0) {
