@@ -1066,6 +1066,25 @@ noit_lua_xpath(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_xmlnode_name(lua_State *L) {
+  xmlNodePtr *nodeptr;
+  /* the first arg is implicitly self (it's a method) */
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(nodeptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 1) {
+    xmlChar *v;
+    v = (xmlChar *)(*nodeptr)->name;
+    if(v) {
+      lua_pushstring(L, (const char *)v);
+    }
+    else lua_pushnil(L);
+    return 1;
+  }
+  luaL_error(L,"must be called with no arguments");
+  return 0;
+}
+static int
 noit_lua_xmlnode_attr(lua_State *L) {
   xmlNodePtr *nodeptr;
   /* the first arg is implicitly self (it's a method) */
@@ -1083,7 +1102,7 @@ noit_lua_xmlnode_attr(lua_State *L) {
     else lua_pushnil(L);
     return 1;
   }
-  luaL_error(L,"must be called with no arguments");
+  luaL_error(L,"must be called with one argument");
   return 0;
 }
 static int
@@ -1138,6 +1157,23 @@ noit_lua_xmlnode_children(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_xml_docroot(lua_State *L) {
+  int n;
+  xmlDocPtr *docptr;
+  xmlNodePtr *ptr;
+  n = lua_gettop(L);
+  /* the first arg is implicitly self (it's a method) */
+  docptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(docptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
+  ptr = lua_newuserdata(L, sizeof(*ptr));
+  *ptr = xmlDocGetRootElement(*docptr);
+  luaL_getmetatable(L, "noit.xmlnode");
+  lua_setmetatable(L, -2);
+  return 1;
+}
+static int
 noit_lua_xpathiter_gc(lua_State *L) {
   struct xpath_iter *xpi;
   xpi = lua_touserdata(L, 1);
@@ -1179,6 +1215,13 @@ noit_xmlnode_index_func(lua_State *L) {
       if(!strcmp(k,"contents")) {
         lua_pushlightuserdata(L, udata);
         lua_pushcclosure(L, noit_lua_xmlnode_contents, 1);
+        return 1;
+      }
+      break;
+    case 'n':
+      if(!strcmp(k,"name")) {
+        lua_pushlightuserdata(L, udata);
+        lua_pushcclosure(L, noit_lua_xmlnode_name, 1);
         return 1;
       }
       break;
@@ -1233,6 +1276,13 @@ noit_xmldoc_index_func(lua_State *L) {
   }
   k = lua_tostring(L, 2);
   switch(*k) {
+    case 'r':
+     if(!strcmp(k, "root")) {
+       lua_pushlightuserdata(L, udata);
+       lua_pushcclosure(L, noit_lua_xml_docroot, 1);
+       return 1;
+     }
+     break;
     case 'x':
      if(!strcmp(k, "xpath")) {
        lua_pushlightuserdata(L, udata);
