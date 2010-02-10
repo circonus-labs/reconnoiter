@@ -182,10 +182,12 @@ static void __deactivate_ci(struct dns_check_info *ci) {
 
 static void dns_check_log_results(struct dns_check_info *ci) {
   struct timeval duration;
+  double rtt;
 
   gettimeofday(&ci->current.whence, NULL);
   sub_timeval(ci->current.whence, ci->check->last_fire_time, &duration);
-  ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  rtt = duration.tv_sec * 1000.0 + duration.tv_usec / 1000.0;
+  ci->current.duration = rtt;
 
   ci->current.state = (ci->error || ci->nrr == 0) ? NP_BAD : NP_GOOD;
   ci->current.available = ci->timed_out ? NP_UNAVAILABLE : NP_AVAILABLE;
@@ -197,6 +199,8 @@ static void dns_check_log_results(struct dns_check_info *ci) {
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
     ci->current.status = strdup(buff);
+    noit_stats_set_metric(&ci->current, "rtt", METRIC_DOUBLE,
+                          ci->timed_out ? NULL : &rtt);
   }
 
   noit_check_set_stats(ci->self, ci->check, &ci->current);
