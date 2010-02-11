@@ -52,6 +52,14 @@
 /* tmp hash impl, replace this with something nice */
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
+static int config_include_cnt = -1;
+static struct { 
+  xmlNodePtr insertion_point;
+  xmlNodePtr old_children;
+  xmlDocPtr doc;
+  xmlNodePtr root;
+} *config_include_nodes = NULL;
+
 static char *root_node_name = NULL;
 static char master_config_file[PATH_MAX] = "";
 static xmlXPathContextPtr xpath_ctxt = NULL;
@@ -179,7 +187,120 @@ void noit_conf_init(const char *toplevel) {
   xmlXPathInit();
 }
 
+void
+noit_conf_magic_separate(xmlDocPtr doc) {
+  assert(config_include_cnt != -1);
+  if(config_include_nodes) {
+    int i;
+    for(i=0; i<config_include_cnt; i++) {
+      if(config_include_nodes[i].doc) {
+        xmlNodePtr n;
+        for(n=config_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = config_include_nodes[i].root;
+        config_include_nodes[i].insertion_point->children =
+          config_include_nodes[i].old_children;
+        xmlFreeDoc(config_include_nodes[i].doc);
+      }
+    }
+    free(config_include_nodes);
+  }
+  config_include_nodes = NULL;
+  config_include_cnt = -1;
+}
+void
+noit_conf_kansas_city_shuffle_redo(xmlDocPtr doc) {
+  if(config_include_nodes) {
+    int i;
+    for(i=0; i<config_include_cnt; i++) {
+      if(config_include_nodes[i].doc) {
+        xmlNodePtr n;
+        config_include_nodes[i].insertion_point->children =
+          config_include_nodes[i].root->children;
+        for(n=config_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = config_include_nodes[i].insertion_point;
+      }
+    }
+  }
+}
+void
+noit_conf_kansas_city_shuffle_undo(xmlDocPtr doc) {
+  if(config_include_nodes) {
+    int i;
+    for(i=0; i<config_include_cnt; i++) {
+      if(config_include_nodes[i].doc) {
+        xmlNodePtr n;
+        for(n=config_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = config_include_nodes[i].root;
+        config_include_nodes[i].insertion_point->children =
+          config_include_nodes[i].old_children;
+      }
+    }
+  }
+}
+int
+noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
+  xmlXPathContextPtr mix_ctxt = NULL;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlNodePtr node;
+  int i, cnt, rv = 0;
+
+  assert(config_include_cnt == -1);
+
+  config_include_cnt = 0;
+  mix_ctxt = xmlXPathNewContext(doc);
+  pobj = xmlXPathEval((xmlChar *)"//include[@file]", mix_ctxt);
+  if(!pobj) goto out;
+  if(pobj->type != XPATH_NODESET) goto out;
+  if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(cnt > 0)
+    config_include_nodes = calloc(cnt, sizeof(*config_include_nodes));
+  for(i=0; i<cnt; i++) {
+    char *path, *infile;
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    path = (char *)xmlGetProp(node, (xmlChar *)"file");
+    if(!path) continue;
+    if(*path == '/') infile = strdup(path);
+    else {
+      char *cp;
+      infile = malloc(PATH_MAX);
+      strlcpy(infile, parentfile, PATH_MAX);
+      for(cp = infile + strlen(infile) - 1; cp > infile; cp--) {
+        if(*cp == '/') { *cp = '\0'; break; }
+        else *cp = '\0';
+      }
+      strlcat(infile, "/", PATH_MAX);
+      strlcat(infile, path, PATH_MAX);
+    }
+    config_include_nodes[i].doc = xmlParseFile(infile);
+    if(config_include_nodes[i].doc) {
+      xmlNodePtr n;
+      config_include_nodes[i].insertion_point = node;
+      config_include_nodes[i].root = xmlDocGetRootElement(config_include_nodes[i].doc);
+      config_include_nodes[i].old_children = node->children;
+      node->children = config_include_nodes[i].root->children;
+      for(n=node->children; n; n = n->next)
+        n->parent = config_include_nodes[i].insertion_point;
+    }
+    else {
+      noitL(noit_error, "Could not load: '%s'\n", infile);
+      rv = -1;
+    }
+    free(infile);
+  }
+  config_include_cnt = cnt;
+  noitL(noit_debug, "Processed %d includes\n", config_include_cnt);
+ out:
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(mix_ctxt) xmlXPathFreeContext(mix_ctxt);
+  return rv;
+}
+
 int noit_conf_load(const char *path) {
+  int rv = 0;
   xmlDocPtr new_config;
   xmlNodePtr root;
   new_config = xmlParseFile(path);
@@ -187,18 +308,27 @@ int noit_conf_load(const char *path) {
     root = xmlDocGetRootElement(new_config);
     if(root_node_name) free(root_node_name);
     root_node_name = strdup((char *)root->name);
-    if(master_config) xmlFreeDoc(master_config);
+
+    if(master_config) {
+      /* separate all includes */
+      noit_conf_magic_separate(master_config);
+      xmlFreeDoc(master_config);
+    }
     if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 
     master_config = new_config;
+    /* mixin all the includes */
+    if(noit_conf_magic_mix(path, master_config)) rv = -1;
+
     xpath_ctxt = xmlXPathNewContext(master_config);
     if(path != master_config_file)
       if(realpath(path, master_config_file) == NULL)
         noitL(noit_error, "realpath failed: %s\n", strerror(errno));
     noit_conf_mark_changed();
-    return 0;
+    return rv;
   }
-  return -1;
+  rv = -1;
+  return rv;
 }
 
 char *noit_conf_config_filename() {
@@ -604,7 +734,9 @@ noit_conf_write_terminal(noit_console_closure_t ncct,
   out = xmlOutputBufferCreateIO(noit_console_write_xml,
                                 noit_console_close_xml,
                                 ncct, enc);
+  noit_conf_kansas_city_shuffle_undo(master_config);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  noit_conf_kansas_city_shuffle_redo(master_config);
   return 0;
 }
 int
@@ -644,7 +776,9 @@ noit_conf_write_file(char **err) {
     if(err) *err = strdup("internal error: OutputBufferCreate failed");
     return -1;
   }
+  noit_conf_kansas_city_shuffle_undo(master_config);
   len = xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  noit_conf_kansas_city_shuffle_redo(master_config);
   close(fd);
   if(len <= 0) {
     if(err) *err = strdup("internal error: writing to tmp file failed.");
@@ -673,7 +807,9 @@ noit_conf_xml_in_mem(size_t *len) {
   out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
                                 noit_config_log_close_xml,
                                 clv, enc);
+  noit_conf_kansas_city_shuffle_undo(master_config);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  noit_conf_kansas_city_shuffle_redo(master_config);
   if(clv->encoded != CONFIG_RAW) {
     noitL(noit_error, "Error logging configuration\n");
     if(clv->buff) free(clv->buff);
@@ -706,7 +842,9 @@ noit_conf_write_log() {
   out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
                                 noit_config_log_close_xml,
                                 clv, enc);
+  noit_conf_kansas_city_shuffle_undo(master_config);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  noit_conf_kansas_city_shuffle_redo(master_config);
   if(clv->encoded != CONFIG_B64) {
     noitL(noit_error, "Error logging configuration\n");
     if(clv->buff) free(clv->buff);
@@ -898,7 +1036,12 @@ noit_console_config_section(noit_console_closure_t ncct,
     return 0;
   }
   if(pobj) xmlXPathFreeObject(pobj);
+  pobj = NULL;
 
+  if(!strcmp(argv[0],"include")) {
+    err = "include is a reserved section name";
+    goto bad;
+  }
   path = strcmp(info->path, "/") ? info->path : "";
   snprintf(xpath, sizeof(xpath), "/%s%s", root_node_name, path);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);

@@ -225,6 +225,7 @@ install-noitd:	install-dirs noitd noit.conf
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
+	$(INSTALL) -m 0644 config_templates.conf $(DESTDIR)$(sysconfdir)/config_templates.conf
 	$(INSTALL) -m 0644 default-ca-chain.crt $(DESTDIR)$(sysconfdir)/default-ca-chain.crt
 	(cd modules && make install-modules DESTDIR=$(DESTDIR))
 	(cd modules-lua && make install DESTDIR=$(DESTDIR))
