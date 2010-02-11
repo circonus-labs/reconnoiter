@@ -23,7 +23,7 @@ IF TG_OP = 'INSERT' THEN
                                  WHERE WHENCE <> NEW.WHENCE and sid=NEW.sid and name=NEW.name )
                      INTO v_oldvalue;
 
-                    IF v_oldvalue IS DISTINCT FROM NEW.value THEN
+                    IF ( (NOT FOUND) OR (v_oldvalue IS DISTINCT FROM NEW.value) ) THEN
 
                         INSERT INTO metric_text_changelog (sid,whence,name,value)
                             VALUES (NEW.sid, NEW.whence, NEW.name, NEW.value);
