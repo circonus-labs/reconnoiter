@@ -611,7 +611,8 @@ stratcon_datastore_find(ds_rt_detail *d) {
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;
 
-    noitL(noit_error, "stratcon_datastore_find <- (%d, %s)\n", node->sid, remote_cn);
+    noitL(noit_debug, "stratcon_datastore_find <- (%d, %s)\n",
+          node->sid, remote_cn ? remote_cn : "(null)");
     cq = get_conn_q_for_remote(NULL, remote_cn, fqdn, dsn);
     stratcon_database_connect(cq);
 
@@ -1360,7 +1361,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     uuidinfo->sid = sid;
     uuidinfo->uuid_str = strdup(uuid_str);
     uuidinfo->storagenode_id = storagenode_id;
-    uuidinfo->remote_cn = strdup(new_remote_cn);
+    uuidinfo->remote_cn = new_remote_cn ? strdup(new_remote_cn) : strdup(remote_cn);
     noit_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
     /* Also, we may have just witnessed a new storage node, store it */
