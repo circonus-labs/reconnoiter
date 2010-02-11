@@ -42,13 +42,13 @@ function onload(image)
     <parameter name="port" required="optional" default="25"
                allowed="\d+">Specifies the TCP port to connect to.</parameter>
     <parameter name="ehlo" required="optional" default="noit.local"
-               allowed="\d+">Specifies the EHLO parameter.</parameter>
+               allowed=".+">Specifies the EHLO parameter.</parameter>
     <parameter name="from" required="optional" default=""
-               allowed="\d+">Specifies the envelope sender.</parameter>
+               allowed=".+">Specifies the envelope sender.</parameter>
     <parameter name="to" required="required"
-               allowed="\d+">Specifies the envelope recipient.</parameter>
+               allowed=".+">Specifies the envelope recipient.</parameter>
     <parameter name="payload" required="optional" default="Subject: Testing"
-               allowed="\d+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
+               allowed=".+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
   </checkconfig>
   <examples>
     <example>
