@@ -757,11 +757,15 @@ noit_conf_write_file(char **err) {
   char errstr[1024];
   xmlOutputBufferPtr out;
   xmlCharEncodingHandlerPtr enc;
+  struct stat st;
+  mode_t mode = 0640; /* the default */
 
+  if(stat(master_config_file, &st) == 0)
+    mode = st.st_mode;
   snprintf(master_file_tmp, sizeof(master_file_tmp),
            "%s.tmp", master_config_file);
   unlink(master_file_tmp);
-  fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY, 0640);
+  fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY, mode);
   if(fd < 0) {
     snprintf(errstr, sizeof(errstr), "Failed to open tmp file: %s",
              strerror(errno));
