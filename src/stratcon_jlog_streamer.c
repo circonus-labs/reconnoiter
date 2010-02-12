@@ -876,8 +876,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   noit_hash_table seen = NOIT_HASH_EMPTY;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   char path[256];
-  void *key_id, *vtype;
-  const char *type = NULL;
+  void *key_id, *vstr;
+  const char *type = NULL, *want_cn = NULL;
   int klen, n = 0, i, di, cnt;
   void *vconn;
   noit_connection_ctx_t **ctxs;
@@ -886,8 +886,10 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   xmlNodePtr node;
 
   noit_http_process_querystring(&restc->http_ctx->req);
-  if(noit_hash_retrieve(&restc->http_ctx->req.querystring, "type", 4, &vtype))
-    type = vtype;
+  if(noit_hash_retrieve(&restc->http_ctx->req.querystring, "type", 4, &vstr))
+    type = vstr;
+  if(noit_hash_retrieve(&restc->http_ctx->req.querystring, "cn", 2, &vstr))
+    want_cn = vstr;
 
   gettimeofday(&now, NULL);
 
@@ -916,6 +918,9 @@ rest_show_noits(noit_http_rest_closure_t *restc,
 
     /* If the user requested a specific type and we're not it, skip. */
     if(type && strcmp(feedtype, type)) continue;
+    /* If the user wants a specific CN... limit to that. */
+    if(want_cn && (!ctx->remote_cn || strcmp(want_cn, ctx->remote_cn)))
+      continue;
 
     node = xmlNewNode(NULL, (xmlChar *)"noit");
     snprintf(buff, sizeof(buff), "%llu.%06d",
@@ -1008,25 +1013,33 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   }
   free(ctxs);
 
-  if(type && !strcmp(type, "configured")) {
+  if(!type || !strcmp(type, "configured")) {
     snprintf(path, sizeof(path), "//noits//noit");
     noit_configs = noit_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98];
+      char expected_cn_buff[256], *expected_cn = NULL;
+      if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
+                                 expected_cn_buff, sizeof(expected_cn_buff)))
+        expected_cn = expected_cn_buff;
+      if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn))) continue;
       if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
                                  address, sizeof(address))) {
         void *v;
         if(!noit_conf_get_stringbuf(noit_configs[di], "self::node()/@port",
                                    port_str, sizeof(port_str)))
           strlcpy(port_str, "43191", sizeof(port_str));
+
+        /* If the user wants a specific CN... limit to that. */
+          if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
+            continue;
+
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
         if(!noit_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
-          char expected_cn[256];
           node = xmlNewNode(NULL, (xmlChar *)"noit");
           xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)remote_str);
           xmlSetProp(node, (xmlChar *)"type", (xmlChar *)"configured");
-          if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
-                                     expected_cn, sizeof(expected_cn)))
+          if(expected_cn)
             xmlSetProp(node, (xmlChar *)"cn", (xmlChar *)expected_cn);
           xmlAddChild(root, node);
         }
