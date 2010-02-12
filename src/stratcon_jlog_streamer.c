@@ -55,6 +55,8 @@
 
 pthread_mutex_t noits_lock;
 noit_hash_table noits = NOIT_HASH_EMPTY;
+pthread_mutex_t noit_ip_by_cn_lock;
+noit_hash_table noit_ip_by_cn = NOIT_HASH_EMPTY;
 
 static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
@@ -787,8 +789,48 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
   }
   free(noit_configs);
 }
+int
+stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
+  int rv = -1;
+  void *vip;
+  pthread_mutex_lock(&noit_ip_by_cn_lock);
+  if(noit_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vip)) {
+    int new_len;
+    char *new_ip = (char *)vip;
+    new_len = strlen(new_ip);
+    strlcpy(ip, new_ip, len);
+    if(new_len >= len) rv = new_len+1;
+    else rv = 0;
+  }
+  pthread_mutex_unlock(&noit_ip_by_cn_lock);
+  return rv;
+}
+void
+stratcon_jlog_streamer_recache_noit() {
+  int di, cnt;
+  noit_conf_section_t *noit_configs;
+  noit_configs = noit_conf_get_sections(NULL, "//noits//noit", &cnt);
+  pthread_mutex_lock(&noit_ip_by_cn_lock);
+  noit_hash_delete_all(&noit_ip_by_cn, free, free);
+  for(di=0; di<cnt; di++) {
+    char address[64];
+    if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
+                                 address, sizeof(address))) {
+      char expected_cn[256];
+      if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
+                                 expected_cn, sizeof(expected_cn)))
+        noit_hash_store(&noit_ip_by_cn,
+                        strdup(expected_cn), strlen(expected_cn),
+                        strdup(address));
+    }
+  }
+  free(noit_configs);
+  pthread_mutex_unlock(&noit_ip_by_cn_lock);
+}
 void
 stratcon_jlog_streamer_reload(const char *toplevel) {
+  /* flush and repopulate the cn cache */
+  stratcon_jlog_streamer_recache_noit();
   if(!stratcon_datastore_get_enabled()) return;
   stratcon_streamer_connection(toplevel, NULL,
                                stratcon_jlog_recv_handler,
@@ -1028,6 +1070,10 @@ stratcon_add_noit(const char *target, unsigned short port,
     xmlNodeAddContent(cnnode, (xmlChar *)cn);
     xmlAddChild(config, cnnode);
     xmlAddChild(newnoit, config);
+    pthread_mutex_lock(&noit_ip_by_cn_lock);
+    noit_hash_replace(&noit_ip_by_cn, strdup(cn), strlen(cn),
+                      strdup(target), free, free);
+    pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
     stratcon_streamer_connection(NULL, target,
@@ -1060,6 +1106,14 @@ stratcon_remove_noit(const char *target, unsigned short port) {
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
   noit_configs = noit_conf_get_sections(NULL, path, &cnt);
   for(i=0; i<cnt; i++) {
+    char expected_cn[256];
+    if(noit_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
+                               expected_cn, sizeof(expected_cn))) {
+      pthread_mutex_lock(&noit_ip_by_cn_lock);
+      noit_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
+                       free, free);
+      pthread_mutex_unlock(&noit_ip_by_cn_lock);
+    }
     xmlUnlinkNode(noit_configs[i]);
     xmlFreeNode(noit_configs[i]);
     n = 0;
@@ -1185,6 +1239,7 @@ register_console_streamer_commands() {
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   pthread_mutex_init(&noits_lock, NULL);
+  pthread_mutex_init(&noit_ip_by_cn_lock, NULL);
   eventer_name_callback("noit_connection_reinitiate",
                         noit_connection_reinitiate);
   eventer_name_callback("stratcon_jlog_recv_handler",

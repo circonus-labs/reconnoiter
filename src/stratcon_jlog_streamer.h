@@ -114,4 +114,16 @@ API_EXPORT(void)
                                void *(*handler_alloc)(void), void *handler_ctx,
                                void (*handler_free)(void *));
 
+/*! \fn int stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len)
+    \brief find the remote IPv4 address for the cn if it is configured
+    \param cn the remote CN in which you are interested
+    \param ip the buffer where the IP will be stored if it is found
+    \param len the length of the passed buffer
+    \return 0 on success, -1 if the CN is not in the cache, > 0 represents the size needed if the supplied buffer is too short.
+ */
+
+API_EXPORT(int)
+  stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len);
+
+
 #endif

@@ -604,6 +604,7 @@ stratcon_datastore_find(ds_rt_detail *d) {
   for(node = d->rt; node; node = node->next) {
     char uuid_str[UUID_STR_LEN+1];
     const char *fqdn, *dsn, *remote_cn;
+    char remote_ip[32];
     int storagenode_id;
 
     uuid_unparse_lower(node->checkid, uuid_str);
@@ -611,8 +612,19 @@ stratcon_datastore_find(ds_rt_detail *d) {
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;
 
-    noitL(noit_debug, "stratcon_datastore_find <- (%d, %s)\n",
-          node->sid, remote_cn ? remote_cn : "(null)");
+    noitL(noit_debug, "stratcon_datastore_find <- (%d, %s) @ %s\n",
+          node->sid, remote_cn ? remote_cn : "(null)", dsn ? dsn : "(null)");
+
+    /* We might be able to find the IP from our config if someone has
+     * specified the expected cn in the noit definition.
+     */
+    if(stratcon_find_noit_ip_by_cn(remote_cn,
+                                   remote_ip, sizeof(remote_ip)) == 0) {
+      node->noit = strdup(remote_ip);
+      noitL(noit_debug, "lookup(cache): %s -> %s\n", remote_cn, node->noit);
+      continue;
+    }
+
     cq = get_conn_q_for_remote(NULL, remote_cn, fqdn, dsn);
     stratcon_database_connect(cq);
 
@@ -621,29 +633,20 @@ stratcon_datastore_find(ds_rt_detail *d) {
     PG_EXEC(check_find);
     row_count = PQntuples(d->res);
     if(row_count != 1) {
+      noitL(noit_debug, "lookup (sid:%d): NOT THERE!\n", node->sid, val);
       PQclear(d->res);
       goto bad_row;
     }
 
-    /* Get the check uuid */
-    PG_GET_STR_COL(val, 0, "id");
-    if(!val) {
-      PQclear(d->res);
-      goto bad_row;
-    }
-    if(uuid_parse(val, node->checkid)) {
-      PQclear(d->res);
-      goto bad_row;
-    }
-  
     /* Get the remote_address (which noit owns this) */
     PG_GET_STR_COL(val, 0, "remote_address");
     if(!val) {
+      noitL(noit_debug, "lookup: %s -> NOT THERE!\n", remote_cn);
       PQclear(d->res);
       goto bad_row;
     }
     node->noit = strdup(val);
- 
+    noitL(noit_debug, "lookup: %s -> %s\n", remote_cn, node->noit);
    bad_row: 
     free_params((ds_single_detail *)d);
     d->nparams = 0;
