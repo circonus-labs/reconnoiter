@@ -449,8 +449,8 @@ typedef enum {
     const char *pgerr = PQresultErrorMessage(d->res); \
     const char *pgerr_end = strchr(pgerr, '\n'); \
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
-    noitL(ds_err, "[%s] stratcon datasource bad (%d): %.*s\n", \
-          cq->fqdn ? cq->fqdn : "metanode", d->rv, \
+    noitL(ds_err, "[%s] stratcon_datasource.c:%d bad (%d): %.*s\n", \
+          cq->fqdn ? cq->fqdn : "metanode", __LINE__, d->rv, \
           (int)(pgerr_end - pgerr), pgerr); \
     PQclear(d->res); \
     goto bad_row; \
@@ -472,8 +472,8 @@ typedef enum {
     const char *pgerr = PQresultErrorMessage(d->res); \
     const char *pgerr_end = strchr(pgerr, '\n'); \
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
-    noitL(ds_err, "stratcon datasource bad (%d): %.*s time: %llu\n", \
-          d->rv, (int)(pgerr_end - pgerr), pgerr, \
+    noitL(ds_err, "stratcon_datasource.c:%d bad (%d): %.*s time: %llu\n", \
+          __LINE__, d->rv, (int)(pgerr_end - pgerr), pgerr, \
           (long long unsigned)whence); \
     PQclear(d->res); \
     goto bad_row; \
@@ -633,7 +633,7 @@ stratcon_datastore_find(ds_rt_detail *d) {
     PG_EXEC(check_find);
     row_count = PQntuples(d->res);
     if(row_count != 1) {
-      noitL(noit_debug, "lookup (sid:%d): NOT THERE!\n", node->sid, val);
+      noitL(noit_debug, "lookup (sid:%d): NOT THERE!\n", node->sid);
       PQclear(d->res);
       goto bad_row;
     }
