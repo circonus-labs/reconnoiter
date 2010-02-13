@@ -136,7 +136,7 @@ else
 fi
 AC_SUBST(JAVAPARTS)
 
-NOIT_FALLBACK_VERSION=`echo '$Revision$ | awk '{print $2;}'`
+NOIT_FALLBACK_VERSION=`echo '$Revision$' | awk '{print $2;}'`
 NOIT_SVNVERSION=`svnversion`
 if [ "x$NOIT_SVNVERSION" = "xexported" ]; then
 	NOIT_SVNVERSION="$NOIT_FALLBACK_VERSION"
