@@ -136,12 +136,14 @@ else
 fi
 AC_SUBST(JAVAPARTS)
 
+AC_MSG_CHECKING([determining reconnoiter version])
 NOIT_FALLBACK_VERSION=`echo '$Revision$' | awk '{print $2;}'`
 NOIT_SVNVERSION=`svnversion`
 if test "x$NOIT_SVNVERSION" = "xexported" ; then
 	NOIT_SVNVERSION="$NOIT_FALLBACK_VERSION"
 fi
 AC_DEFINE_UNQUOTED(NOIT_SVNVERSION, "$NOIT_SVNVERSION", [svn version from wc])
+AC_MSG_RESULT([$NOIT_SVNVERSION])
 
 # Checks for data types
 AC_CHECK_SIZEOF(char, 1)
