@@ -113,7 +113,7 @@ case $host in
 esac
 AC_SUBST(DTRACE)
 AC_SUBST(DTRACE_ENABLED)
-if [ "$DTRACE_ENABLED" == "1" ]; then
+if test "x$DTRACE_ENABLED" = "x1" ; then
 	AC_DEFINE(DTRACE_ENABLED)
 fi
 AC_SUBST(DTRACEOBJ)
@@ -138,7 +138,7 @@ AC_SUBST(JAVAPARTS)
 
 NOIT_FALLBACK_VERSION=`echo '$Revision$' | awk '{print $2;}'`
 NOIT_SVNVERSION=`svnversion`
-if [ "x$NOIT_SVNVERSION" = "xexported" ]; then
+if test "x$NOIT_SVNVERSION" = "xexported" ; then
 	NOIT_SVNVERSION="$NOIT_FALLBACK_VERSION"
 fi
 AC_DEFINE_UNQUOTED(NOIT_SVNVERSION, "$NOIT_SVNVERSION", [svn version from wc])
