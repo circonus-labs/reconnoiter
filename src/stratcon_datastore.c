@@ -1629,12 +1629,12 @@ stratcon_datastore_sweep_journals_int(char *first, char *second, char *third) {
   de = alloca(size);
   root = opendir(path);
   if(!root) return;
-  while(portable_readdir_r(root, de, &entry) != 0 && entry != NULL) cnt++;
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) cnt++;
   closedir(root);
   root = opendir(path);
   if(!root) return;
   entries = malloc(sizeof(*entries) * cnt);
-  while(portable_readdir_r(root, de, &entry) != 0 && entry != NULL) {
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
     if(i < cnt) {
       entries[i++] = strdup(entry->d_name);
     }
