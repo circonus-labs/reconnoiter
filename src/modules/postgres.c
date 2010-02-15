@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,9 +72,14 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
+  stats_t current;
   PGconn *conn;
   PGresult *result;
   int rv;
+  double connect_duration_d;
+  double *connect_duration;
+  double query_duration_d;
+  double *query_duration;
   noit_hash_table attrs;
   int timed_out;
   char *error;
@@ -93,38 +98,13 @@ static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
     memset(ci, 0, sizeof(*ci));
   }
 }
-static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
-  stats_t current;
-  struct timeval duration;
-  postgres_check_info_t *ci = check->closure;
-
-  noit_check_stats_clear(&current);
-
-  gettimeofday(&current.whence, NULL);
-  sub_timeval(current.whence, check->last_fire_time, &duration);
-  current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  current.available = NP_UNAVAILABLE;
-  current.state = NP_BAD;
-  if(ci->error) current.status = ci->error;
-  else if(ci->timed_out) current.status = "timeout";
-  else if(ci->rv == PGRES_COMMAND_OK) {
-    current.available = NP_AVAILABLE;
-    current.state = NP_GOOD;
-    current.status = "command ok";
-  }
-  else if(ci->rv == PGRES_TUPLES_OK) {
-    current.available = NP_AVAILABLE;
-    current.state = NP_GOOD;
-    current.status = "tuples ok";
-  }
-  else current.status = "internal error";
-
+static void postgres_ingest_stats(postgres_check_info_t *ci) {
   if(ci->rv == PGRES_TUPLES_OK) {
     /* metrics */
     int nrows, ncols, i, j;
     nrows = PQntuples(ci->result);
     ncols = PQnfields(ci->result);
-    noit_stats_set_metric(&current, "row_count", METRIC_INT32, &nrows);
+    noit_stats_set_metric(&ci->current, "row_count", METRIC_INT32, &nrows);
     for (i=0; i<nrows; i++) {
       noitL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
       if(ncols<2) continue;
@@ -148,7 +128,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
               iv = strcmp(PQgetvalue(ci->result, i, j), "f") ? 1 : 0;
               piv = &iv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_INT32, piv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_INT32, piv);
             break;
           case INT2OID:
           case INT4OID:
@@ -158,7 +138,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
               lv = strtoll(PQgetvalue(ci->result, i, j), NULL, 10);
               plv = &lv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_INT64, plv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_INT64, plv);
           case FLOAT4OID:
           case FLOAT8OID:
           case NUMERICOID:
@@ -167,17 +147,47 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
               dv = atof(PQgetvalue(ci->result, i, j));
               pdv = &dv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_DOUBLE, pdv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_DOUBLE, pdv);
           default:
             if(PQgetisnull(ci->result, i, j)) sv = NULL;
             else sv = PQgetvalue(ci->result, i, j);
-            noit_stats_set_metric(&current, mname, METRIC_GUESS, sv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_GUESS, sv);
             break;
         }
       }
     }
   }
-  noit_check_set_stats(self, check, &current);
+}
+static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
+  struct timeval duration;
+  postgres_check_info_t *ci = check->closure;
+
+  gettimeofday(&ci->current.whence, NULL);
+  sub_timeval(ci->current.whence, check->last_fire_time, &duration);
+  ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  ci->current.available = NP_UNAVAILABLE;
+  ci->current.state = NP_BAD;
+  if(ci->connect_duration)
+    noit_stats_set_metric(&ci->current, "connect_duration", METRIC_DOUBLE,
+                          ci->connect_duration);
+  if(ci->query_duration)
+    noit_stats_set_metric(&ci->current, "query_duration", METRIC_DOUBLE,
+                          ci->query_duration);
+  if(ci->error) ci->current.status = ci->error;
+  else if(ci->timed_out) ci->current.status = "timeout";
+  else if(ci->rv == PGRES_COMMAND_OK) {
+    ci->current.available = NP_AVAILABLE;
+    ci->current.state = NP_GOOD;
+    ci->current.status = "command ok";
+  }
+  else if(ci->rv == PGRES_TUPLES_OK) {
+    ci->current.available = NP_AVAILABLE;
+    ci->current.state = NP_GOOD;
+    ci->current.status = "tuples ok";
+  }
+  else ci->current.status = "internal error";
+
+  noit_check_set_stats(self, check, &ci->current);
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
@@ -196,6 +206,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
   const char *dsn, *sql;
   char sql_buff[8192];
   char dsn_buff[512];
+  struct timeval t1, t2, diff;
   postgres_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
 
@@ -208,8 +219,13 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
     check->flags &= ~NP_RUNNING;
     return 0;
   }
+
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
+      noit_check_stats_clear(&ci->current);
+      ci->connect_duration = NULL;
+      ci->query_duration = NULL;
+
       FETCH_CONFIG_OR(dsn, "");
       noit_check_interpolate(dsn_buff, sizeof(dsn_buff), dsn,
                              &ci->attrs, check->config);
@@ -221,11 +237,23 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
       FETCH_CONFIG_OR(sql, "");
       noit_check_interpolate(sql_buff, sizeof(sql_buff), sql,
                              &ci->attrs, check->config);
+      gettimeofday(&t1, NULL);
+      sub_timeval(t1, check->last_fire_time, &diff);
+      ci->connect_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
+      ci->connect_duration = &ci->connect_duration_d;
+
       ci->result = PQexec(ci->conn, sql_buff);
+
+      gettimeofday(&t2, NULL);
+      sub_timeval(t2, t1, &diff);
+      ci->query_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
+      ci->query_duration = &ci->query_duration_d;
+
       if(!ci->result) AVAIL_BAIL("PQexec failed");
       ci->rv = PQresultStatus(ci->result);
       switch(ci->rv) {
        case PGRES_TUPLES_OK:
+        postgres_ingest_stats(ci);
        case PGRES_COMMAND_OK:
         break;
        default:

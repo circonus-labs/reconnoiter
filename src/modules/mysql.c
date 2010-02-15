@@ -57,8 +57,13 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
+  stats_t current;
   MYSQL *conn;
   MYSQL_RES *result;
+  double connect_duration_d;
+  double *connect_duration;
+  double query_duration_d;
+  double *query_duration;
   int rv;
   noit_hash_table attrs;
   int timed_out;
@@ -78,34 +83,7 @@ static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
     memset(ci, 0, sizeof(*ci));
   }
 }
-static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
-  stats_t current;
-  struct timeval duration;
-  mysql_check_info_t *ci = check->closure;
-
-  noit_check_stats_clear(&current);
-
-  gettimeofday(&current.whence, NULL);
-  sub_timeval(current.whence, check->last_fire_time, &duration);
-  current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  current.available = NP_UNAVAILABLE;
-  current.state = NP_BAD;
-  if(ci->error) current.status = ci->error;
-  else if(ci->timed_out) current.status = "timeout";
-  else if(ci->rv == 0) {
-    current.available = NP_AVAILABLE;
-    current.state = NP_GOOD;
-    current.status = "no rows, ok";
-  }
-  else {
-    current.available = NP_AVAILABLE;
-    current.state = NP_GOOD;
-    current.status = "got rows, ok";
-  }
-
-  if(ci->rv >= 0)
-    noit_stats_set_metric(&current, "row_count", METRIC_INT32, &ci->rv);
-
+static void mysql_ingest_stats(mysql_check_info_t *ci) {
   if(ci->rv > 0) {
     /* metrics */
     int nrows, ncols, i, j;
@@ -137,7 +115,7 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
               iv = strtol(row[j], NULL, 10);
               piv = &iv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_INT32, piv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_INT32, piv);
             break;
           case FIELD_TYPE_INT24:
           case FIELD_TYPE_LONGLONG:
@@ -146,7 +124,7 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
               lv = strtoll(row[j], NULL, 10);
               plv = &lv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_INT64, plv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_INT64, plv);
             break;
           case FIELD_TYPE_DECIMAL:
           case FIELD_TYPE_FLOAT:
@@ -156,18 +134,50 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
               dv = atof(row[j]);
               pdv = &dv;
             }
-            noit_stats_set_metric(&current, mname, METRIC_DOUBLE, pdv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_DOUBLE, pdv);
             break;
           default:
             if(!row[j]) sv = NULL;
             else sv = row[j];
-            noit_stats_set_metric(&current, mname, METRIC_GUESS, sv);
+            noit_stats_set_metric(&ci->current, mname, METRIC_GUESS, sv);
             break;
         }
       }
     }
   }
-  noit_check_set_stats(self, check, &current);
+}
+static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
+  struct timeval duration;
+  mysql_check_info_t *ci = check->closure;
+
+  gettimeofday(&ci->current.whence, NULL);
+  sub_timeval(ci->current.whence, check->last_fire_time, &duration);
+  ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  ci->current.available = NP_UNAVAILABLE;
+  ci->current.state = NP_BAD;
+  if(ci->error) ci->current.status = ci->error;
+  else if(ci->timed_out) ci->current.status = "timeout";
+  else if(ci->rv == 0) {
+    ci->current.available = NP_AVAILABLE;
+    ci->current.state = NP_GOOD;
+    ci->current.status = "no rows, ok";
+  }
+  else {
+    ci->current.available = NP_AVAILABLE;
+    ci->current.state = NP_GOOD;
+    ci->current.status = "got rows, ok";
+  }
+
+  if(ci->rv >= 0)
+    noit_stats_set_metric(&ci->current, "row_count", METRIC_INT32, &ci->rv);
+  if(ci->connect_duration)
+    noit_stats_set_metric(&ci->current, "connect_duration", METRIC_DOUBLE,
+                          ci->connect_duration);
+  if(ci->query_duration)
+    noit_stats_set_metric(&ci->current, "query_duration", METRIC_DOUBLE,
+                          ci->query_duration);
+
+  noit_check_set_stats(self, check, &ci->current);
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
@@ -219,6 +229,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   char dsn_buff[512];
   mysql_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
+  struct timeval t1, t2, diff;
   noit_hash_table dsn_h = NOIT_HASH_EMPTY;
   const char *host=NULL;
   const char *user=NULL;
@@ -240,6 +251,10 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
+      noit_check_stats_clear(&ci->current);
+      ci->connect_duration = NULL;
+      ci->query_duration = NULL;
+
       FETCH_CONFIG_OR(dsn, "");
       noit_check_interpolate(dsn_buff, sizeof(dsn_buff), dsn,
                              &ci->attrs, check->config);
@@ -266,14 +281,26 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       if(mysql_ping(ci->conn))
         AVAIL_BAIL(mysql_error(ci->conn));
 
+      gettimeofday(&t1, NULL);
+      sub_timeval(t1, check->last_fire_time, &diff);
+      ci->connect_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
+      ci->connect_duration = &ci->connect_duration_d;
+
       FETCH_CONFIG_OR(sql, "");
       noit_check_interpolate(sql_buff, sizeof(sql_buff), sql,
                              &ci->attrs, check->config);
       if (mysql_query(ci->conn, sql_buff))
         AVAIL_BAIL(mysql_error(ci->conn));
+
+      gettimeofday(&t2, NULL);
+      sub_timeval(t2, t1, &diff);
+      ci->query_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
+      ci->query_duration = &ci->query_duration_d;
+
       ci->result = mysql_store_result(ci->conn);
       if(!ci->result) AVAIL_BAIL("mysql_store_result failed");
       ci->rv = mysql_num_rows(ci->result);
+      mysql_ingest_stats(ci);
       ci->timed_out = 0;
       return 0;
       break;
