@@ -46,6 +46,7 @@
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
 
+#include <ctype.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
@@ -192,12 +193,26 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
 
     memset(&iter, 0, sizeof(iter));
     while(noit_hash_next(&json, &iter, &key, &klen, &vval)) {
+      char *val = (char *)vval;
       if(i++) ra_write(",", 1);
       ra_write("'", 1);
       ra_write(key, klen);
-      ra_write("':'", 3);
-      ra_write((char *)vval, strlen((char *)vval));
-      ra_write("'", 1);
+      ra_write("':\"", 3);
+      while(*val) {
+        if(*val == '\"' || *val == '\\') {
+          ra_write((char *)"\\", 1);
+        }
+        if(isprint(*val)) {
+          ra_write((char *)val, 1);
+        }
+        else {
+          char od[5];
+          snprintf(od, sizeof(od), "\\%03o", *((unsigned char *)val));
+          ra_write(od, strlen(od));
+        }
+        val++;
+      }
+      ra_write("\"", 1);
     }
     snprintf(buffer, sizeof(buffer), "});</script>\n");
     ra_write(buffer, strlen(buffer));
