@@ -59,11 +59,53 @@
 
 #define DEFLATE_CHUNK_SIZE 32768
 
+#define LUA_DISPATCH(n, f) \
+     if(!strcmp(k, #n)) { \
+       lua_pushlightuserdata(L, udata); \
+       lua_pushcclosure(L, f, 1); \
+       return 1; \
+     }
+#define LUA_RETSTRING(n, g) \
+     if(!strcmp(k, #n)) { \
+       lua_pushstring(L, g); \
+       return 1; \
+     }
+#define LUA_RETINTEGER(n, g) \
+     if(!strcmp(k, #n)) { \
+       lua_pushinteger(L, g); \
+       return 1; \
+     }
+
 static void
 nl_extended_free(void *vcl) {
   struct nl_slcl *cl = vcl;
   if(cl->inbuff) free(cl->inbuff);
   free(cl);
+}
+static int
+lua_push_inet_ntop(lua_State *L, struct sockaddr *r) {
+  char remote_str[128];
+  int len;
+  switch(r->sa_family) {
+    case AF_INET:
+      len = sizeof(struct sockaddr_in);
+      inet_ntop(AF_INET, &((struct sockaddr_in *)r)->sin_addr,
+                remote_str, len);
+      lua_pushstring(L, remote_str);
+      lua_pushinteger(L, ntohs(((struct sockaddr_in *)r)->sin_port));
+      break;
+    case AF_INET6:
+      len = sizeof(struct sockaddr_in6);
+      inet_ntop(AF_INET6, &((struct sockaddr_in6 *)r)->sin6_addr,
+                remote_str, len);
+      lua_pushstring(L, remote_str);
+      lua_pushinteger(L, ntohs(((struct sockaddr_in6 *)r)->sin6_port));
+      break;
+    default:
+      lua_pushnil(L);
+      lua_pushnil(L);
+  }
+  return 2;
 }
 static void
 inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
@@ -115,6 +157,276 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
   }
   noit_lua_resume(ci, args);
   return 0;
+}
+static int
+noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
+                              struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  int rv, args = 0;
+  void *inbuff = NULL;
+  socklen_t alen;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+
+  if(mask & EVENTER_EXCEPTION) {
+    lua_pushinteger(cl->L, -1);
+    args = 1;
+    goto alldone;
+  }
+
+  inbuff = malloc(cl->read_goal);
+  if(!inbuff) {
+    lua_pushinteger(cl->L, -1);
+    args = 1;
+    goto alldone;
+  }
+
+  alen = sizeof(cl->address);
+  while((rv = recvfrom(e->fd, inbuff, cl->read_goal, 0,
+                       (struct sockaddr *)&cl->address, &alen)) == -1 &&
+        errno == EINTR);
+  if(rv < 0) {
+    if(errno == EAGAIN) {
+      free(inbuff);
+      return EVENTER_READ | EVENTER_EXCEPTION;
+    }
+    lua_pushinteger(cl->L, rv);
+    lua_pushstring(cl->L, strerror(errno));
+    args = 2;
+  }
+  else {
+    lua_pushinteger(cl->L, rv);
+    lua_pushlstring(cl->L, inbuff, rv);
+    args = 2;
+    args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
+  }
+
+ alldone:
+  if(inbuff) free(inbuff);
+  eventer_remove_fd(e->fd);
+  noit_lua_check_deregister_event(ci, e, 0);
+  *(cl->eptr) = eventer_alloc();
+  memcpy(*cl->eptr, e, sizeof(*e));
+  noit_lua_check_register_event(ci, *cl->eptr);
+  noit_lua_resume(ci, args);
+  return 0;
+}
+static int
+noit_lua_socket_recv(lua_State *L) {
+  int args, rv;
+  struct nl_slcl *cl;
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  void *inbuff;
+  socklen_t alen;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  cl = e->closure;
+  cl->read_goal = lua_tointeger(L, 2);
+  inbuff = malloc(cl->read_goal);
+
+  alen = sizeof(cl->address);
+  while((rv = recvfrom(e->fd, inbuff, cl->read_goal, 0,
+                       (struct sockaddr *)&cl->address, &alen)) == -1 &&
+        errno == EINTR);
+  if(rv < 0) {
+    if(errno == EAGAIN) {
+      e->callback = noit_lua_socket_recv_complete;
+      e->mask = EVENTER_READ | EVENTER_EXCEPTION;
+      eventer_add(e);
+      free(inbuff);
+      return noit_lua_yield(ci, 0);
+    }
+    lua_pushinteger(cl->L, rv);
+    lua_pushstring(cl->L, strerror(errno));
+    args = 2;
+  }
+  else {
+    lua_pushinteger(cl->L, rv);
+    lua_pushlstring(cl->L, inbuff, rv);
+    args = 2;
+    args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
+  }
+  free(inbuff);
+  return args;
+}
+static int
+noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
+                              struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  int sbytes;
+  int args = 0;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+
+  if(mask & EVENTER_EXCEPTION) {
+    lua_pushinteger(cl->L, -1);
+    args = 1;
+    goto alldone;
+  }
+  if(cl->sendto) {
+    while((sbytes = sendto(e->fd, cl->outbuff, cl->write_goal, 0,
+                           (struct sockaddr *)&cl->address,
+                           cl->address.sin4.sin_family==AF_INET ?
+                               sizeof(cl->address.sin4) :
+                               sizeof(cl->address.sin6))) == -1 &&
+          errno == EINTR);
+  }
+  else {
+    while((sbytes = send(e->fd, cl->outbuff, cl->write_goal, 0)) == -1 &&
+          errno == EINTR);
+  }
+  if(sbytes > 0) {
+    lua_pushinteger(cl->L, sbytes);
+    args = 1;
+  }
+  else if(sbytes == -1 && errno == EAGAIN) {
+    return EVENTER_WRITE | EVENTER_EXCEPTION;
+  }
+  else {
+    lua_pushinteger(cl->L, sbytes);
+    args = 1;
+    if(sbytes == -1) {
+      lua_pushstring(cl->L, strerror(errno));
+      args++;
+    }
+  }
+
+ alldone:
+  eventer_remove_fd(e->fd);
+  noit_lua_check_deregister_event(ci, e, 0);
+  *(cl->eptr) = eventer_alloc();
+  memcpy(*cl->eptr, e, sizeof(*e));
+  noit_lua_check_register_event(ci, *cl->eptr);
+  noit_lua_resume(ci, args);
+  return 0;
+}
+static int
+noit_lua_socket_send(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  const void *bytes;
+  size_t nbytes;
+  ssize_t sbytes;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  if(lua_gettop(L) != 2)
+    luaL_error(L, "noit.socket.send with bad arguments");
+  bytes = lua_tolstring(L, 2, &nbytes);
+
+  while((sbytes = send(e->fd, bytes, nbytes, 0)) == -1 && errno == EINTR);
+  if(sbytes < 0 && errno == EAGAIN) {
+    struct nl_slcl *cl;
+    /* continuation */
+    cl = e->closure;
+    cl->write_sofar = 0;
+    cl->outbuff = bytes;
+    cl->write_goal = nbytes;
+    cl->sendto = 0;
+    e->callback = noit_lua_socket_send_complete;
+    e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
+    eventer_add(e);
+    return noit_lua_yield(ci, 0);
+  }
+  lua_pushinteger(L, sbytes);
+  if(sbytes < 0) {
+    lua_pushstring(L, strerror(errno));
+    return 2;
+  }
+  return 1;
+}
+
+static int
+noit_lua_socket_sendto(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  const char *target;
+  unsigned short port;
+  int8_t family;
+  int rv;
+  const void *bytes;
+  size_t nbytes;
+  ssize_t sbytes;
+  union {
+    struct sockaddr_in sin4;
+    struct sockaddr_in6 sin6;
+  } a;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  if(lua_gettop(L) != 4)
+    luaL_error(L, "noit.socket.sendto with bad arguments");
+  bytes = lua_tolstring(L, 2, &nbytes);
+  target = lua_tostring(L, 3);
+  port = lua_tointeger(L, 4);
+
+  family = AF_INET;
+  rv = inet_pton(family, target, &a.sin4.sin_addr);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, target, &a.sin6.sin6_addr);
+    if(rv != 1) {
+      noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
+      memset(&a, 0, sizeof(a));
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
+      return 2;
+    }
+    else {
+      /* We've IPv6 */
+      a.sin6.sin6_family = AF_INET6;
+      a.sin6.sin6_port = htons(port);
+    }
+  }
+  else {
+    a.sin4.sin_family = family;
+    a.sin4.sin_port = htons(port);
+  }
+
+  while((sbytes = sendto(e->fd, bytes, nbytes, 0, (struct sockaddr *)&a,
+                         family==AF_INET ? sizeof(a.sin4)
+                                         : sizeof(a.sin6))) == -1 &&
+        errno == EINTR);
+  if(sbytes < 0 && errno == EAGAIN) {
+    struct nl_slcl *cl;
+    /* continuation */
+    cl = e->closure;
+    cl->write_sofar = 0;
+    cl->outbuff = bytes;
+    cl->write_goal = nbytes;
+    cl->sendto = 1;
+    e->callback = noit_lua_socket_send_complete;
+    e->mask = EVENTER_WRITE | EVENTER_EXCEPTION;
+    eventer_add(e);
+    return noit_lua_yield(ci, 0);
+  }
+  lua_pushinteger(L, sbytes);
+  if(sbytes < 0) {
+    lua_pushstring(L, strerror(errno));
+    return 2;
+  }
+  return 1;
 }
 static int
 noit_lua_socket_connect(lua_State *L) {
@@ -517,37 +829,20 @@ noit_eventer_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   switch(*k) {
     case 'c':
-     if(!strcmp(k, "connect")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_socket_connect, 1);
-       return 1;
-     }
+     LUA_DISPATCH(connect, noit_lua_socket_connect);
      break;
     case 'r':
-     if(!strcmp(k, "read")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_socket_read, 1);
-       return 1;
-     }
+     LUA_DISPATCH(read, noit_lua_socket_read);
+     LUA_DISPATCH(recv, noit_lua_socket_recv);
      break;
     case 's':
-     if(!strcmp(k, "ssl_upgrade_socket")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_socket_connect_ssl, 1);
-       return 1;
-     }
-     if(!strcmp(k, "ssl_ctx")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_socket_ssl_ctx, 1);
-       return 1;
-     }
+     LUA_DISPATCH(send, noit_lua_socket_send);
+     LUA_DISPATCH(sendto, noit_lua_socket_sendto);
+     LUA_DISPATCH(ssl_upgrade_socket, noit_lua_socket_connect_ssl);
+     LUA_DISPATCH(ssl_ctx, noit_lua_socket_ssl_ctx);
      break;
     case 'w':
-     if(!strcmp(k, "write")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_socket_write, 1);
-       return 1;
-     }
+     LUA_DISPATCH(write, noit_lua_socket_write);
      break;
     default:
       break;
@@ -584,30 +879,15 @@ noit_ssl_ctx_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   switch(*k) {
     case 'e':
-      if(!strcmp(k,"error")) {
-        lua_pushstring(L,eventer_ssl_get_peer_error(ssl_ctx));
-        return 1;
-      }
-      if(!strcmp(k,"end_time")) {
-        lua_pushinteger(L,eventer_ssl_get_peer_end_time(ssl_ctx));
-        return 1;
-      }
+      LUA_RETSTRING(error, eventer_ssl_get_peer_error(ssl_ctx));
+      LUA_RETINTEGER(end_time, eventer_ssl_get_peer_end_time(ssl_ctx));
       break;
     case 'i':
-      if(!strcmp(k,"issuer")) {
-        lua_pushstring(L,eventer_ssl_get_peer_issuer(ssl_ctx));
-        return 1;
-      }
+      LUA_RETSTRING(issuer, eventer_ssl_get_peer_issuer(ssl_ctx));
       break;
     case 's':
-      if(!strcmp(k,"subject")) {
-        lua_pushstring(L,eventer_ssl_get_peer_subject(ssl_ctx));
-        return 1;
-      }
-      if(!strcmp(k,"start_time")) {
-        lua_pushinteger(L,eventer_ssl_get_peer_start_time(ssl_ctx));
-        return 1;
-      }
+      LUA_RETSTRING(subject, eventer_ssl_get_peer_subject(ssl_ctx));
+      LUA_RETINTEGER(start_time, eventer_ssl_get_peer_start_time(ssl_ctx));
       break;
     default:
       break;
@@ -758,14 +1038,14 @@ nl_gettimeofday(lua_State *L) {
   return 2;
 }
 static int
-nl_socket_tcp(lua_State *L, int family) {
+nl_socket_internal(lua_State *L, int family, int proto) {
   struct nl_slcl *cl;
   noit_lua_check_info_t *ci;
   socklen_t optlen;
   int fd;
   eventer_t e;
 
-  fd = socket(family, SOCK_STREAM, 0);
+  fd = socket(family, proto, 0);
   if(fd < 0) {
     lua_pushnil(L);
     return 1;
@@ -799,11 +1079,26 @@ nl_socket_tcp(lua_State *L, int family) {
 }
 static int
 nl_socket(lua_State *L) {
-  return nl_socket_tcp(L, AF_INET);
-}
-static int
-nl_socket_ipv6(lua_State *L) {
-  return nl_socket_tcp(L, AF_INET6);
+  int n = lua_gettop(L);
+  uint8_t family = AF_INET;
+
+  if(n > 0 && lua_isstring(L,1)) {
+    const char *fam = lua_tostring(L,1);
+    if(!strcmp(fam, "inet")) family = AF_INET;
+    else if(!strcmp(fam, "inet6")) family = AF_INET6;
+    else luaL_error(L, "noit.socket unknown family %s", fam);
+  }
+
+  if(n <= 1) return nl_socket_internal(L, family, SOCK_STREAM);
+  if(n == 2 && lua_isstring(L,2)) {
+    const char *type = lua_tostring(L,2);
+    if(!strcmp(type, "tcp"))
+      return nl_socket_internal(L, family, SOCK_STREAM);
+    else if(!strcmp(type, "udp"))
+      return nl_socket_internal(L, family, SOCK_DGRAM);
+  }
+  luaL_error(L, "noit.socket called with invalid arguments");
+  return 0;
 }
 
 static int
@@ -1199,31 +1494,15 @@ noit_xmlnode_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   switch(*k) {
     case 'a':
-      if(!strcmp(k,"attr") ||
-         !strcmp(k,"attribute")) {
-        lua_pushlightuserdata(L, udata);
-        lua_pushcclosure(L, noit_lua_xmlnode_attr, 1);
-        return 1;
-      }
+      LUA_DISPATCH(attr, noit_lua_xmlnode_attr);
+      LUA_DISPATCH(attribute, noit_lua_xmlnode_attr);
       break;
     case 'c':
-      if(!strcmp(k,"children")) {
-        lua_pushlightuserdata(L, udata);
-        lua_pushcclosure(L, noit_lua_xmlnode_children, 1);
-        return 1;
-      }
-      if(!strcmp(k,"contents")) {
-        lua_pushlightuserdata(L, udata);
-        lua_pushcclosure(L, noit_lua_xmlnode_contents, 1);
-        return 1;
-      }
+      LUA_DISPATCH(children, noit_lua_xmlnode_children);
+      LUA_DISPATCH(contents, noit_lua_xmlnode_contents);
       break;
     case 'n':
-      if(!strcmp(k,"name")) {
-        lua_pushlightuserdata(L, udata);
-        lua_pushcclosure(L, noit_lua_xmlnode_name, 1);
-        return 1;
-      }
+      LUA_DISPATCH(name, noit_lua_xmlnode_name);
       break;
     default:
       break;
@@ -1277,18 +1556,10 @@ noit_xmldoc_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   switch(*k) {
     case 'r':
-     if(!strcmp(k, "root")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_xml_docroot, 1);
-       return 1;
-     }
+     LUA_DISPATCH(root, noit_lua_xml_docroot);
      break;
     case 'x':
-     if(!strcmp(k, "xpath")) {
-       lua_pushlightuserdata(L, udata);
-       lua_pushcclosure(L, noit_lua_xpath, 1);
-       return 1;
-     }
+     LUA_DISPATCH(xpath, noit_lua_xpath);
      break;
     default:
      break;
@@ -1305,7 +1576,6 @@ static const luaL_Reg noitlib[] = {
   { "base64_encode", nl_base64_encode },
   { "md5_hex", nl_md5_hex },
   { "pcre", nl_pcre },
-  { "socket_ipv6", nl_socket_ipv6 },
   { "gunzip", nl_gunzip },
   { "conf_get", nl_conf_get_string },
   { "conf_get_string", nl_conf_get_string },
@@ -1358,6 +1628,8 @@ void noit_lua_init() {
                         noit_lua_socket_read_complete);
   eventer_name_callback("lua/socket_write",
                         noit_lua_socket_write_complete);
+  eventer_name_callback("lua/socket_send",
+                        noit_lua_socket_send_complete);
   eventer_name_callback("lua/socket_connect",
                         noit_lua_socket_connect_complete);
   eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);

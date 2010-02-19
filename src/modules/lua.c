@@ -173,26 +173,35 @@ noit_lua_hash_to_table(lua_State *L,
 static int
 noit_lua_module_set_description(lua_State *L) {
   noit_module_t *module;
-  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   module = lua_touserdata(L, lua_upvalueindex(1));
-  module->hdr.description = strdup(lua_tostring(L, 1));
-  return 0;
+  if(lua_gettop(L) == 1)
+    module->hdr.description = strdup(lua_tostring(L, 1));
+  else if(lua_gettop(L) > 1)
+    luaL_error(L, "wrong number of arguments");
+  lua_pushstring(L, module->hdr.description);
+  return 1;
 }
 static int
 noit_lua_module_set_name(lua_State *L) {
   noit_module_t *module;
-  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   module = lua_touserdata(L, lua_upvalueindex(1));
-  module->hdr.name = strdup(lua_tostring(L, 1));
-  return 0;
+  if(lua_gettop(L) == 1)
+    module->hdr.name = strdup(lua_tostring(L, 1));
+  else if(lua_gettop(L) > 1)
+    luaL_error(L, "wrong number of arguments");
+  lua_pushstring(L, module->hdr.name);
+  return 1;
 }
 static int
 noit_lua_module_set_xml_description(lua_State *L) {
   noit_module_t *module;
-  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   module = lua_touserdata(L, lua_upvalueindex(1));
-  module->hdr.xml_description = strdup(lua_tostring(L, 1));
-  return 0;
+  if(lua_gettop(L) == 1)
+    module->hdr.xml_description = strdup(lua_tostring(L, 1));
+  else if(lua_gettop(L) > 1)
+    luaL_error(L, "wrong number of arguments");
+  lua_pushstring(L, module->hdr.xml_description);
+  return 1;
 }
 static int
 noit_module_index_func(lua_State *L) {

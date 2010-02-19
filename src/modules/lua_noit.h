@@ -89,6 +89,13 @@ struct nl_slcl {
   size_t write_sofar;
   size_t write_goal;
   eventer_t *eptr;
+
+  int sendto; /* whether this send is a sendto call */
+  union {
+    struct sockaddr_in sin4;
+    struct sockaddr_in6 sin6;
+  } address;
+
   lua_State *L;
 };
 
