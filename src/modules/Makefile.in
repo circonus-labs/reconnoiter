@@ -37,8 +37,8 @@ all:	$(MODULES) $(SMODULES)
 
 selfcheck.lo:	selfcheck.xmlh
 
-lua.@MODULEEXT@:	lua.lo lua_noit.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo ../lua/liblua.lo
+lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_lpack.lo ../lua/liblua.lo
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
@@ -47,6 +47,10 @@ lua.lo:	lua.c lua.xmlh
 
 lua_noit.lo:	lua_noit.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_noit.c -o $@
+	@echo "- compiling $<"
+
+lua_lpack.lo:	lua_lpack.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_lpack.c -o $@
 	@echo "- compiling $<"
 
 postgres.@MODULEEXT@:	postgres.lo

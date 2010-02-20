@@ -779,6 +779,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
+  luaopen_pack(L);
   luaopen_noit(L);
 
   lua_newtable(L);

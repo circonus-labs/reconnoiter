@@ -101,6 +101,7 @@ struct nl_slcl {
 
 void noit_lua_init();
 int luaopen_noit(lua_State *L);
+int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 noit_lua_check_info_t *get_ci(lua_State *L);
 int noit_lua_yield(noit_lua_check_info_t *ci, int nargs);
 int noit_lua_resume(noit_lua_check_info_t *ci, int nargs);
