@@ -118,13 +118,13 @@ function te_close(self, content_enc_func)
         local str = self.e:read(len)
         if str ~= nil then
             self.raw_bytes = self.raw_bytes + string.len(str)
+            local decoded = content_enc_func(str)
+            if decoded ~= nil then
+                self.content_bytes = self.content_bytes + string.len(decoded)
+            end
+            if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
         end
     until str == nil or string.len(str) ~= len
-    local decoded = content_enc_func(str)
-    if decoded ~= nil then
-        self.content_bytes = self.content_bytes + string.len(decoded)
-    end
-    if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
 end
 
 function te_length(self, content_enc_func)
