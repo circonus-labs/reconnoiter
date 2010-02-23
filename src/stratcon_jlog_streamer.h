@@ -41,6 +41,8 @@
 #include <arpa/inet.h>
 #include "stratcon_datastore.h"
 
+#define DEFAULT_NOIT_CONNECTION_TIMEOUT 60000 /* 60 seconds */
+
 typedef struct noit_connection_ctx_t {
   noit_atomic32_t refcnt;
   union {
@@ -55,10 +57,12 @@ typedef struct noit_connection_ctx_t {
   u_int32_t current_backoff;
   int wants_shutdown;
   int wants_permanent_shutdown;
+  int max_silence;
   noit_hash_table *config;
   noit_hash_table *sslconfig;
   struct timeval last_connect;
   eventer_t timeout_event;
+  eventer_t retry_event;
   eventer_t e;
 
   eventer_func_t consumer_callback;
@@ -106,6 +110,10 @@ API_EXPORT(jlog_streamer_ctx_t *)
   stratcon_jlog_streamer_ctx_alloc(void);
 API_EXPORT(void)
   jlog_streamer_ctx_free(void *cl);
+API_EXPORT(int)
+  noit_connection_update_timeout(noit_connection_ctx_t *ctx);
+API_EXPORT(int)
+  noit_connection_disable_timeout(noit_connection_ctx_t *ctx);
 API_EXPORT(void)
   noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx);
 API_EXPORT(void)

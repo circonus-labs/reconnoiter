@@ -97,7 +97,7 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
   }
   nc_printf(ncct, "%s [%s]:\n\tLast connect: %s\n", ctx->remote_str,
             ctx->remote_cn ? "connected" :
-                             (ctx->timeout_event ? "disconnected" :
+                             (ctx->retry_event ? "disconnected" :
                                                    "connecting"), lasttime);
   if(ctx->e) {
     char buff[128];
@@ -130,8 +130,8 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
   feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
   nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
   gettimeofday(&now, NULL);
-  if(ctx->timeout_event) {
-    sub_timeval(ctx->timeout_event->whence, now, &diff);
+  if(ctx->retry_event) {
+    sub_timeval(ctx->retry_event->whence, now, &diff);
     nc_printf(ncct, "\tNext attempt in %lld.%06us\n",
               (long long)diff.tv_sec, (unsigned int) diff.tv_usec);
   }
@@ -207,7 +207,7 @@ int
 noit_connection_reinitiate(eventer_t e, int mask, void *closure,
                          struct timeval *now) {
   noit_connection_ctx_t *ctx = closure;
-  ctx->timeout_event = NULL;
+  ctx->retry_event = NULL;
   noit_connection_initiate_connection(closure);
   return 0;
 }
@@ -217,6 +217,8 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
   struct timeval __now, interval;
   const char *v;
   u_int32_t min_interval = 1000, max_interval = 8000;
+
+  noit_connection_disable_timeout(ctx);
   if(ctx->remote_cn) {
     free(ctx->remote_cn);
     ctx->remote_cn = NULL;
@@ -247,20 +249,24 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
   interval.tv_usec = (ctx->current_backoff % 1000) * 1000;
   noitL(noit_debug, "Next jlog_streamer attempt in %ums\n",
         ctx->current_backoff);
-  if(ctx->timeout_event)
-    eventer_remove(ctx->timeout_event);
+  if(ctx->retry_event)
+    eventer_remove(ctx->retry_event);
   else
-    ctx->timeout_event = eventer_alloc();
-  ctx->timeout_event->callback = noit_connection_reinitiate;
-  ctx->timeout_event->closure = ctx;
-  ctx->timeout_event->mask = EVENTER_TIMER;
-  add_timeval(*now, interval, &ctx->timeout_event->whence);
-  eventer_add(ctx->timeout_event);
+    ctx->retry_event = eventer_alloc();
+  ctx->retry_event->callback = noit_connection_reinitiate;
+  ctx->retry_event->closure = ctx;
+  ctx->retry_event->mask = EVENTER_TIMER;
+  add_timeval(*now, interval, &ctx->retry_event->whence);
+  eventer_add(ctx->retry_event);
 }
 static void
 noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
   if(ctx->remote_cn) free(ctx->remote_cn);
   if(ctx->remote_str) free(ctx->remote_str);
+  if(ctx->retry_event) {
+    eventer_remove(ctx->retry_event);
+    eventer_free(ctx->retry_event);
+  }
   if(ctx->timeout_event) {
     eventer_remove(ctx->timeout_event);
     eventer_free(ctx->timeout_event);
@@ -337,6 +343,18 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
 } while(0)
 
 int
+noit_connection_session_timeout(eventer_t e, int mask, void *closure,
+                                struct timeval *now) {
+  noit_connection_ctx_t *nctx = closure;
+  eventer_t fde = nctx->e;
+  nctx->timeout_event = NULL;
+  noitL(noit_error, "Timing out jlog session: %s\n",
+        nctx->remote_cn ? nctx->remote_cn : "(null)");
+  if(fde)
+    eventer_trigger(fde, EVENTER_EXCEPTION);
+  return 0;
+}
+int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
@@ -362,6 +380,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     return 0;
   }
 
+  noit_connection_update_timeout(nctx);
   while(1) {
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
@@ -440,6 +459,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                 feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
                 nctx->remote_cn ? nctx->remote_cn : "(null)",
                 ctx->header.chkpt.log, ctx->header.chkpt.marker);
+          noit_connection_disable_timeout(nctx);
           return 0;
         } else
           ctx->state = JLOG_STREAMER_WANT_HEADER;
@@ -653,6 +673,8 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   e->closure = nctx;
   nctx->e = e;
   eventer_add(e);
+
+  noit_connection_update_timeout(nctx);
   return;
 
  reschedule:
@@ -663,12 +685,44 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
 }
 
 int
+noit_connection_update_timeout(noit_connection_ctx_t *nctx) {
+  struct timeval now, diff;
+  if(nctx->max_silence == 0) return 0;
+
+  diff.tv_sec = nctx->max_silence / 1000;
+  diff.tv_usec = (nctx->max_silence % 1000) * 1000;
+  gettimeofday(&now, NULL);
+
+  if(!nctx->timeout_event) {
+    nctx->timeout_event = eventer_alloc();
+    nctx->timeout_event->mask = EVENTER_TIMER;
+    nctx->timeout_event->closure = nctx;
+    nctx->timeout_event->callback = noit_connection_session_timeout;
+    add_timeval(now, diff, &nctx->timeout_event->whence);
+    eventer_add(nctx->timeout_event);
+  }
+  else {
+    add_timeval(now, diff, &nctx->timeout_event->whence);
+    eventer_update(nctx->timeout_event, EVENTER_TIMER);
+  }
+}
+
+int
+noit_connection_disable_timeout(noit_connection_ctx_t *nctx) {
+  if(nctx->timeout_event) {
+    eventer_remove(nctx->timeout_event);
+    eventer_free(nctx->timeout_event);
+    nctx->timeout_event = NULL;
+  }
+}
+
+int
 initiate_noit_connection(const char *host, unsigned short port,
                          noit_hash_table *sslconfig, noit_hash_table *config,
                          eventer_func_t handler, void *closure,
                          void (*freefunc)(void *)) {
   noit_connection_ctx_t *ctx;
-
+  const char *stimeout;
   int8_t family;
   int rv;
   union {
@@ -730,6 +784,10 @@ initiate_noit_connection(const char *host, unsigned short port,
     ctx->config = calloc(1, sizeof(noit_hash_table));
   noit_hash_merge_as_dict(ctx->config, config);
 
+  if(noit_hash_retr_str(ctx->config, "timeout", strlen("timeout"), &stimeout))
+    ctx->max_silence = atoi(stimeout);
+  else
+    ctx->max_silence = DEFAULT_NOIT_CONNECTION_TIMEOUT;
   ctx->consumer_callback = handler;
   ctx->consumer_free = freefunc;
   ctx->consumer_ctx = closure;
@@ -929,7 +987,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     xmlSetProp(node, (xmlChar *)"last_connect", (xmlChar *)buff);
     xmlSetProp(node, (xmlChar *)"state", ctx->remote_cn ?
                (xmlChar *)"connected" :
-               (ctx->timeout_event ? (xmlChar *)"disconnected" :
+               (ctx->retry_event ? (xmlChar *)"disconnected" :
                                     (xmlChar *)"connecting"));
     if(ctx->e) {
       char buff[128];
@@ -960,8 +1018,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
                       0, free, NULL);
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
-    if(ctx->timeout_event) {
-      sub_timeval(ctx->timeout_event->whence, now, &diff);
+    if(ctx->retry_event) {
+      sub_timeval(ctx->retry_event->whence, now, &diff);
       snprintf(buff, sizeof(buff), "%llu.%06d",
                (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
       xmlSetProp(node, (xmlChar *)"next_attempt", (xmlChar *)buff);
@@ -1261,6 +1319,8 @@ stratcon_jlog_streamer_init(const char *toplevel) {
                         noit_connection_ssl_upgrade);
   eventer_name_callback("noit_connection_complete_connect",
                         noit_connection_complete_connect);
+  eventer_name_callback("noit_connection_session_timeout",
+                        noit_connection_session_timeout);
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
   stratcon_streamer_connection(toplevel, "", NULL, NULL, NULL, NULL);
