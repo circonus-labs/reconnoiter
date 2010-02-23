@@ -48,6 +48,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_security.h"
 #include "utils/noit_watchdog.h"
+#include "utils/noit_lockfile.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_jlog_listener.h"
@@ -315,6 +316,19 @@ int main(int argc, char **argv) {
     noitL(noit_stderr, "Failed chdir(\"/\"): %s\n", strerror(errno));
     exit(-1);
   }
+
+  /* Acquire the lock so that we can throw an error if it doesn't work.
+   * If we've started -D, we'll have the lock.
+   * If not we will daemon and must reacquire the lock.
+   */
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             conf_str, sizeof(conf_str))) {
+    if(noit_lockfile_acquire(conf_str) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      exit(-1);
+    }
+  }
+
   if(foreground) return child_main();
 
   open("/dev/null", O_RDWR);
@@ -324,6 +338,15 @@ int main(int argc, char **argv) {
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
+
+  /* Reacquire the lock */
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             conf_str, sizeof(conf_str))) {
+    if(noit_lockfile_acquire(conf_str) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      exit(-1);
+    }
+  }
 
   signal(SIGHUP, SIG_IGN);
   return noit_watchdog_start_child("noitd", child_main, 0);

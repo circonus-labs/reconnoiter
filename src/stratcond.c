@@ -45,6 +45,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_security.h"
 #include "utils/noit_watchdog.h"
+#include "utils/noit_lockfile.h"
 #include "noit_listener.h"
 #include "noit_console.h"
 #include "noit_module.h"
@@ -271,6 +272,7 @@ static int child_main() {
 
 int main(int argc, char **argv) {
   int fd;
+  char conf_str[PATH_MAX];
   parse_clargs(argc, argv);
 
   if(chdir("/") != 0) {
@@ -279,6 +281,18 @@ int main(int argc, char **argv) {
   }
 
   noit_watchdog_prefork_init();
+
+  /* Acquire the lock so that we can throw an error if it doesn't work.
+   * If we've started -D, we'll have the lock.
+   * If not we will daemon and must reacquire the lock.
+   */
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             conf_str, sizeof(conf_str))) {
+    if(noit_lockfile_acquire(conf_str) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      exit(-1);
+    }
+  }
 
   if(foreground) exit(child_main());
 
@@ -289,6 +303,15 @@ int main(int argc, char **argv) {
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
+
+  /* Reacquire the lock */
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             conf_str, sizeof(conf_str))) {
+    if(noit_lockfile_acquire(conf_str) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      exit(-1);
+    }
+  }
 
   return noit_watchdog_start_child("stratcond", child_main, 0);
 }

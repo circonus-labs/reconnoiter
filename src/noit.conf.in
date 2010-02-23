@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf8" standalone="yes"?>
-<noit>
+<noit lockfile="/var/run/noitd.lock">
   <eventer>
     <config>
       <default_queue_threads>10</default_queue_threads>
@@ -47,9 +47,7 @@
     </components>
     <feeds>
       <outlet name="feed"/>
-      <log name="check">
-        <outlet name="error"/>
-      </log>
+      <log name="check"/>
       <log name="status"/>
       <log name="metrics"/>
       <log name="config"/>
