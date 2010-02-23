@@ -872,7 +872,7 @@ noit_conf_log_init(const char *toplevel) {
 
   snprintf(path, sizeof(path), "/%s/logs//log", toplevel);
   log_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_stderr, "Found %d %s stanzas\n", cnt, path);
+  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     noit_log_stream_t ls;
     char name[256], type[256], path[256];
@@ -917,7 +917,7 @@ noit_conf_log_init(const char *toplevel) {
       
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);
-    noitL(noit_error, "Found %d outlets for log '%s'\n", ocnt, name);
+    noitL(noit_debug, "Found %d outlets for log '%s'\n", ocnt, name);
 
     for(o=0; o<ocnt; o++) {
       noit_log_stream_t outlet;
