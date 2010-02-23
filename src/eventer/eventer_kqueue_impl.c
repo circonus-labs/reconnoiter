@@ -159,6 +159,7 @@ static void eventer_kqueue_impl_add(eventer_t e) {
 
   /* file descriptor event */
   noitL(eventer_deb, "debug: eventer_add fd (%s,%d,0x%04x)\n", cbname ? cbname : "???", e->fd, e->mask);
+  assert(e->whence.tv_sec == 0 && e->whence.tv_usec == 0);
   lockstate = acquire_master_fd(e->fd);
   master_fds[e->fd].e = e;
   if(e->mask & (EVENTER_READ | EVENTER_EXCEPTION))

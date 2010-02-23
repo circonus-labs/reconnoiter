@@ -105,6 +105,7 @@ static void eventer_epoll_impl_add(eventer_t e) {
   }
 
   /* file descriptor event */
+  assert(e->whence.tv_sec == 0 && e->whence.tv_usec == 0);
   memset(&_ev, 0, sizeof(_ev));
   _ev.data.fd = e->fd;
   if(e->mask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);

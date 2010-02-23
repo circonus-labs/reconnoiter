@@ -132,6 +132,7 @@ static void eventer_ports_impl_add(eventer_t e) {
   /* file descriptor event */
   noitL(eventer_deb, "debug: eventer_add fd (%s,%d,0x%04x)\n", cbname ? cbname : "???", e->fd, e->mask);
   lockstate = acquire_master_fd(e->fd);
+  assert(e->whence.tv_sec == 0 && e->whence.tv_usec == 0);
   master_fds[e->fd].e = e;
   alter_fd(e, e->mask);
   release_master_fd(e->fd, lockstate);
