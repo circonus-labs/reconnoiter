@@ -358,6 +358,7 @@ function initiate(module, check)
       check.metric_string("cert_subject", ssl_ctx.subject)
       check.metric_uint32("cert_start", ssl_ctx.start_time)
       check.metric_uint32("cert_end", ssl_ctx.end_time)
+      check.metric_uint32("cert_end_in", ssl_ctx.end_time - os.time())
       if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
         good = false
         status = status .. ',ssl=expired'
