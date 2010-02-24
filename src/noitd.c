@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
   /* This isn't inherited across forks... */
   if(lockfd >= 0) noit_lockfile_release(lockfd);
 
-  open("/dev/null", O_RDWR);
+  fd = open("/dev/null", O_RDWR);
   dup2(fd, STDIN_FILENO);
   dup2(fd, STDOUT_FILENO);
   dup2(fd, STDERR_FILENO);
