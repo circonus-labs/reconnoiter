@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
   if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
                              lockfile, sizeof(lockfile))) {
     if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
       exit(-1);
     }
   }
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
   /* Reacquire the lock */
   if(*lockfile) {
     if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
       exit(-1);
     }
   }
