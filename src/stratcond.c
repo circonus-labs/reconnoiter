@@ -271,8 +271,8 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  int fd;
-  char conf_str[PATH_MAX];
+  int fd, lockfd;
+  char conf_str[PATH_MAX], lockfile[PATH_MAX];
   parse_clargs(argc, argv);
 
   if(chdir("/") != 0) {
@@ -286,15 +286,19 @@ int main(int argc, char **argv) {
    * If we've started -D, we'll have the lock.
    * If not we will daemon and must reacquire the lock.
    */
+  lockfd = -1;
+  lockfile[0] = '\0';
   if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
-                             conf_str, sizeof(conf_str))) {
-    if(noit_lockfile_acquire(conf_str) < 0) {
+                             lockfile, sizeof(lockfile))) {
+    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
       noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
       exit(-1);
     }
   }
 
   if(foreground) exit(child_main());
+
+  if(lockfd >= 0) noit_lockfile_release(lockfd);
 
   fd = open("/dev/null", O_RDWR);
   dup2(fd, STDIN_FILENO);
@@ -305,9 +309,8 @@ int main(int argc, char **argv) {
   if(fork()) exit(0);
 
   /* Reacquire the lock */
-  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
-                             conf_str, sizeof(conf_str))) {
-    if(noit_lockfile_acquire(conf_str) < 0) {
+  if(*lockfile) {
+    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
       noitL(noit_stderr, "Failed to acquire lock: %s\n", conf_str);
       exit(-1);
     }
