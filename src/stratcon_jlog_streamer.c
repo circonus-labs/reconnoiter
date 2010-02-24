@@ -534,7 +534,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
 
  error:
-  noitL(noit_error, error);
+  noitL(noit_error, "%s", error);
   eventer_remove_fd(e->fd);
   nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
@@ -705,6 +705,7 @@ noit_connection_update_timeout(noit_connection_ctx_t *nctx) {
     add_timeval(now, diff, &nctx->timeout_event->whence);
     eventer_update(nctx->timeout_event, EVENTER_TIMER);
   }
+  return 0;
 }
 
 int
@@ -714,6 +715,7 @@ noit_connection_disable_timeout(noit_connection_ctx_t *nctx) {
     eventer_free(nctx->timeout_event);
     nctx->timeout_event = NULL;
   }
+  return 0;
 }
 
 int
