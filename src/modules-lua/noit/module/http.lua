@@ -206,6 +206,7 @@ function initiate(module, check)
     local good = false
     local starttime = noit.timeval.now()
     local method = check.config.method or "GET"
+    local max_len = 80
 
     -- expect the worst
     check.bad()
@@ -341,10 +342,17 @@ function initiate(module, check)
     -- check body
     if check.config.body ~= nil then
       local bodyre = noit.pcre(check.config.body)
-      if bodyre ~= nil and bodyre(output) then
+      local rv, m, m1 = bodyre(output or '')
+      if rv then
+        m = m1 or m or output
+        if string.len(m) > max_len then
+          m = string.sub(m,1,max_len)
+        end
         status = status .. ',body=matched'
+        check.metric_string('body_match', m)
       else
         status = status .. ',body=failed'
+        check.metric_string('body_match', nil)
         good = false
       end
     end
