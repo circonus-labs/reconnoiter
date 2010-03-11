@@ -49,6 +49,20 @@ function onload(image)
                allowed=".+">Specifies the envelope recipient.</parameter>
     <parameter name="payload" required="optional" default="Subject: Testing"
                allowed=".+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
+    <parameter name="starttls" required="optional" default="false"
+               allowed="(?:true|false)">Specified if the client should attempt a STARTTLS upgrade</parameter>
+    <parameter name="ca_chain"
+               required="optional"
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
+    <parameter name="certificate_file"
+               required="optional"
+               allowed=".+">A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</parameter>
+    <parameter name="key_file"
+               required="optional"
+               allowed=".+">A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</parameter>
+    <parameter name="ciphers"
+               required="optional"
+               allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -134,6 +148,7 @@ local function mkaction(e, check)
 end
 
 function initiate(module, check)
+  local starttime = noit.timeval.now()
   local e = noit.socket()
   local rv, err = e:connect(check.target, check.config.port or 25)
   check.unavailable()
@@ -144,22 +159,57 @@ function initiate(module, check)
     return
   end
 
+  local try_starttls = check.config.starttls == "true" or check.config.starttls == "on"
+  local good = true
   local ehlo = string.format("EHLO %s", check.config.ehlo or "noit.local")
   local mailfrom = string.format("MAIL FROM:<%s>", check.config.from or "")
   local rcptto = string.format("RCPT TO:<%s>", check.config.to)
   local payload = check.config.payload or "Subject: Test\n\nHello."
   payload = payload:gsub("\n", "\r\n")
+  local status = 'connected'
   local action = mkaction(e, check)
-  if     action("banner", nil, 220)
-     and action("ehlo", ehlo, 250)
-     and action("mailfrom", mailfrom, 250)
+
+  if     not action("banner", nil, 220)
+      or not action("ehlo", ehlo, 250) then return end
+
+  if try_starttls then
+    local starttls  = action("starttls", "STARTTLS", 220)
+    e:ssl_upgrade_socket(check.config.certificate_file, check.config.key_file,
+                         check.config.ca_chain, check.config.ciphers)
+
+    local ssl_ctx = e:ssl_ctx()
+    if ssl_ctx ~= nil then
+      if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
+      check.metric_string("cert_error", ssl_ctx.error)
+      check.metric_string("cert_issuer", ssl_ctx.issuer)
+      check.metric_string("cert_subject", ssl_ctx.subject)
+      check.metric_uint32("cert_start", ssl_ctx.start_time)
+      check.metric_uint32("cert_end", ssl_ctx.end_time)
+      check.metric_uint32("cert_end_in", ssl_ctx.end_time - os.time())
+      if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+        good = false
+        status = status .. ',ssl=expired'
+      end
+    end
+
+    if not action("ehlo", ehlo, 250) then return end
+  end
+
+  if     action("mailfrom", mailfrom, 250)
      and action("rcptto", rcptto, 250)
      and action("data", "DATA", 354)
      and action("body", payload .. "\r\n.", 250)
      and action("quit", "QUIT", 221)
   then
-    check.status("mail sent")
-    check.good()
+    status = status .. ',sent'
+  else
+    return
   end
+  check.status(status)
+  if good then check.good() end
+
+  local elapsed = noit.timeval.now() - starttime
+  local elapsed_ms = math.floor(tostring(elapsed) * 1000)
+  check.metric("duration",  elapsed_ms)
 end
 
