@@ -173,6 +173,8 @@ int configure_eventer() {
 }
 
 static int child_main() {
+  int lockfd;
+  char lockfile[PATH_MAX];
   char conf_str[1024];
   char user[32], group[32];
 
@@ -186,6 +188,20 @@ static int child_main() {
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
     exit(2);
+  }
+
+  /* Acquire the lock so that we can throw an error if it doesn't work.
+   * If we've started -D, we'll have the lock.
+   * If not we will daemon and must reacquire the lock.
+   */
+  lockfd = -1;
+  lockfile[0] = '\0';
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             lockfile, sizeof(lockfile))) {
+    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+      exit(-1);
+    }
   }
 
   /* Reinitialize the logging system now that we have a config */
@@ -271,8 +287,7 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  int fd, lockfd;
-  char lockfile[PATH_MAX];
+  int fd;
   parse_clargs(argc, argv);
 
   if(chdir("/") != 0) {
@@ -282,23 +297,7 @@ int main(int argc, char **argv) {
 
   noit_watchdog_prefork_init();
 
-  /* Acquire the lock so that we can throw an error if it doesn't work.
-   * If we've started -D, we'll have the lock.
-   * If not we will daemon and must reacquire the lock.
-   */
-  lockfd = -1;
-  lockfile[0] = '\0';
-  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
-                             lockfile, sizeof(lockfile))) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
-    }
-  }
-
   if(foreground) exit(child_main());
-
-  if(lockfd >= 0) noit_lockfile_release(lockfd);
 
   fd = open("/dev/null", O_RDWR);
   dup2(fd, STDIN_FILENO);
@@ -307,14 +306,6 @@ int main(int argc, char **argv) {
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
-
-  /* Reacquire the lock */
-  if(*lockfile) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
-    }
-  }
 
   return noit_watchdog_start_child("stratcond", child_main, 0);
 }
