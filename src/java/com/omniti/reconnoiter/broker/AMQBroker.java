@@ -8,6 +8,8 @@
 
 package com.omniti.reconnoiter.broker;
 
+import java.lang.reflect.Constructor;
+
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
@@ -26,9 +28,27 @@ import com.omniti.reconnoiter.event.StratconQuery;
 public class AMQBroker implements IMQBroker {
   private String hostName;
   private int portNumber;
+  private Class listenerClass;
+  private Constructor<UpdateListener> con;
+
+  @SuppressWarnings("unchecked")
   public AMQBroker(StratconConfig config) {
     this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "61613"));
+    String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.AMQListener");
+    try {
+      this.listenerClass = Class.forName(className);
+      this.con = this.listenerClass.getDeclaredConstructor(
+          new Class[] { EPServiceProvider.class, StratconQuery.class, String.class }
+      );
+    }
+    catch(java.lang.ClassNotFoundException e) {
+      throw new RuntimeException("Cannot find class: " + className);
+    }
+    catch(java.lang.NoSuchMethodException e) {
+      throw new RuntimeException("Cannot find constructor for class: " + className);
+    }
+
   }
 
   private MessageConsumer consumer;
@@ -67,6 +87,13 @@ public class AMQBroker implements IMQBroker {
   }
   
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    return new AMQListener(epService, sq, "vm://localhost");
+    UpdateListener l = null;
+    try {
+      l = con.newInstance(epService, sq, "vm://localhost");
+    }
+    catch(java.lang.InstantiationException ie) { }
+    catch(java.lang.IllegalAccessException ie) { }
+    catch(java.lang.reflect.InvocationTargetException ie) { }
+    return l;
   }
 }

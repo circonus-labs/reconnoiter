@@ -9,6 +9,7 @@
 package com.omniti.reconnoiter.broker;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 
 import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.UpdateListener;
@@ -36,7 +37,10 @@ public class RabbitBroker implements IMQBroker  {
   private String routingKey;
   private String alertRoutingKey;
   private String alertExchangeName;
+  private Class listenerClass;
+  private Constructor<UpdateListener> con;
 
+  @SuppressWarnings("unchecked") 
   public RabbitBroker(StratconConfig config) {
     this.userName = config.getBrokerParameter("username", "guest");
     this.password = config.getBrokerParameter("password", "guest");
@@ -44,6 +48,21 @@ public class RabbitBroker implements IMQBroker  {
     this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
     
+    String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
+    try {
+      this.listenerClass = Class.forName(className);
+      this.con = this.listenerClass.getDeclaredConstructor(
+          new Class[] { EPServiceProvider.class, StratconQuery.class, Channel.class,
+                        String.class, String.class }
+      );
+    }
+    catch(java.lang.ClassNotFoundException e) {
+      throw new RuntimeException("Cannot find class: " + className);
+    }
+    catch(java.lang.NoSuchMethodException e) {
+      throw new RuntimeException("Cannot find constructor for class: " + className);
+    }
+
     // This is a fanout exchange
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
     // This queue is bound to the fanout exchange
@@ -117,8 +136,15 @@ public class RabbitBroker implements IMQBroker  {
       }
     }
   }
-  
+
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    return new RabbitListener(epService, sq, channel, alertExchangeName, alertRoutingKey);
+    UpdateListener l = null;
+    try {
+      l = con.newInstance(epService, sq, channel, alertExchangeName, alertRoutingKey);
+    }
+    catch(java.lang.InstantiationException ie) { }
+    catch(java.lang.IllegalAccessException ie) { }
+    catch(java.lang.reflect.InvocationTargetException ie) { }
+    return l;
   }
 }
