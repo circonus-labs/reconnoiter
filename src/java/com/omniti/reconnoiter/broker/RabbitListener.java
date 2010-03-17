@@ -58,7 +58,6 @@ public class RabbitListener implements UpdateListener {
   }
 
   public void update(EventBean[] newEvents, EventBean[] oldEvents) {
-    System.err.println("RMQOutput -> dispatch");
     for(int i = 0; i < newEvents.length; i++) {
       processEvent(newEvents[i]);
     }
