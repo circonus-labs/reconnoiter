@@ -58,26 +58,25 @@ public class AMQListener extends NoitListener implements Runnable {
         System.err.println("Cannot broker messages");
       }
     }
-    public void run() {
+    public void processEvent(EventBean event) {
         JSONEventRenderer jsonRenderer =
             epService.getEPRuntime().
                       getEventRenderer().
                       getJSONRenderer(sq.getStatement().getEventType());
+        String output = jsonRenderer.render("r", event);
+        try {
+            TextMessage message = session.createTextMessage(output);
+            producer.send(message);
+        }
+        catch(JMSException e) {
+            System.err.println(e);
+        }
+        System.err.println(output);
+    }
+    public void run() {
         while(sq.isActive()) {
-            try {
-                EventBean event = queue.take();
-                String output = jsonRenderer.render("r", event);
-                try {
-                    TextMessage message = session.createTextMessage(output);
-                    producer.send(message);
-                }
-                catch(JMSException e) {
-                    System.err.println(e);
-                }
-                System.err.println(output);
-            }
-            catch (InterruptedException e) {
-            }
+            try  { processEvent(queue.take()); }
+            catch (InterruptedException e) { }
         }
     }
 }

@@ -18,13 +18,11 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.MessageProperties;
 
 public class RabbitListener implements UpdateListener {
-
-  
-  private EPServiceProvider epService;
-  private StratconQuery sq;
-  private String routingKey;
-  private String exchangeName;
-  private Channel channel;
+  protected EPServiceProvider epService;
+  protected StratconQuery sq;
+  protected String routingKey;
+  protected String exchangeName;
+  protected Channel channel;
 
 
   public RabbitListener(EPServiceProvider epService, StratconQuery sq, Channel channel, String exchangeName, String routingKey) {
@@ -44,24 +42,25 @@ public class RabbitListener implements UpdateListener {
       e.printStackTrace();
     }
   }
-  
-  
+
+  public void processEvent(EventBean event) {  
+    JSONEventRenderer jsonRenderer = epService.getEPRuntime().
+                                               getEventRenderer().
+                                               getJSONRenderer(sq.getStatement().getEventType());
+
+    String output = jsonRenderer.render(sq.getName(), event);
+    try {
+      byte[] messageBodyBytes = output.getBytes();
+      channel.basicPublish(exchangeName, routingKey, MessageProperties.TEXT_PLAIN, messageBodyBytes);
+    }  catch(Exception e) {
+      System.err.println(e);
+    }
+  }
+
   public void update(EventBean[] newEvents, EventBean[] oldEvents) {
     System.err.println("RMQOutput -> dispatch");
     for(int i = 0; i < newEvents.length; i++) {
-      EventBean event = newEvents[i];
-
-      JSONEventRenderer jsonRenderer = epService.getEPRuntime().
-                                                 getEventRenderer().
-                                                 getJSONRenderer(sq.getStatement().getEventType());
-      String output = jsonRenderer.render(sq.getName(), event);
-      try {
-        byte[] messageBodyBytes = output.getBytes();
-        channel.basicPublish(exchangeName, routingKey, MessageProperties.TEXT_PLAIN, messageBodyBytes);
-      }  catch(Exception e) {
-        System.err.println(e);
-      }
-      System.err.println(output);
+      processEvent(newEvents[i]);
     }
   }
 
