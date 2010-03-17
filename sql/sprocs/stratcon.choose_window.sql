@@ -1,13 +1,13 @@
--- Function: stratcon.choose_window(timestamp with time zone, timestamp with time zone, integer)
+-- Function: stratcon.choose_v_window(timestamp with time zone, timestamp with time zone, integer)
 
 CREATE OR REPLACE FUNCTION stratcon.choose_window(IN in_start_time timestamp with time zone, IN in_end_time timestamp with time zone, IN in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer)
   RETURNS SETOF record AS
 $BODY$
 declare
-  window record;
+  v_window record;
 begin
   -- Figure out which table we should be looking in
-  for window in
+  for v_window in
     select atablename, aperiod, anperiods
     from (select aperiod, round(iv/isec) ::integer as anperiods, atablename,
                  abs(case when iv/isec - in_hopeful_nperiods < 0
@@ -39,9 +39,9 @@ begin
  order by badness asc
   limit 1
   loop
-    tablename := window.atablename;
-    period := window.aperiod;
-    nperiods := window.anperiods;
+    tablename := v_window.atablename;
+    period := v_window.aperiod;
+    nperiods := v_window.anperiods;
     return next;
   end loop;
   return;
