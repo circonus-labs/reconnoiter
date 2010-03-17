@@ -1,4 +1,4 @@
--- Function: stratcon.choose_v_window(timestamp with time zone, timestamp with time zone, integer)
+-- Function: stratcon.choose_window(timestamp with time zone, timestamp with time zone, integer)
 
 CREATE OR REPLACE FUNCTION stratcon.choose_window(IN in_start_time timestamp with time zone, IN in_end_time timestamp with time zone, IN in_hopeful_nperiods integer, OUT tablename text, OUT period interval, OUT nperiods integer)
   RETURNS SETOF record AS
