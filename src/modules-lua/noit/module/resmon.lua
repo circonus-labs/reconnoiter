@@ -147,10 +147,14 @@ function initiate(module, check)
         local obj
         obj = (doc:xpath("last_runtime_seconds", result))()
         local ds = tonumber(obj and obj:contents())
-        if ds ~= nil then ds = math.floor(ds * 1000) end
-        check.metric_uint32(prefix .. "duration", ds)
+        if ds ~= nil then
+            ds = math.floor(ds * 1000)
+            check.metric_uint32(prefix .. "duration", ds)
+        end
         obj = (doc:xpath("state", result))()
-        check.metric_string(prefix .. "state", obj and obj:contents())
+        if obj ~= nil then
+            check.metric_string(prefix .. "state", obj and obj:contents())
+        end
 	local metrics = 0
         for metric in doc:xpath("metric", result) do
             metrics = metrics + 1
