@@ -9,6 +9,7 @@
 package com.omniti.reconnoiter;
 
 import java.util.UUID;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.espertech.esper.client.EPServiceProvider;
@@ -16,9 +17,10 @@ import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.*;
+import com.omniti.reconnoiter.MessageHandler;
 
 public class EventHandler {
-	
+  private LinkedList<MessageHandler> alternates;
   private EPServiceProvider epService;
   private ConcurrentHashMap<UUID, StratconQueryBase> queries;
   private IMQBroker broker;
@@ -27,6 +29,10 @@ public class EventHandler {
     this.epService = epService;
     this.queries = queries;
     this.broker = broker;
+    alternates = new LinkedList<MessageHandler>();
+  }
+  public void addObserver(MessageHandler mh) {
+    alternates.push(mh);
   }
   public EPServiceProvider getService() { return epService; }
   public IMQBroker getBroker() { return broker; }
@@ -48,6 +54,7 @@ public class EventHandler {
   public boolean isQueryRegistered(UUID id) { return queries.containsKey(id); }
 
   public void processMessage(StratconMessage m) throws Exception {
+    for ( MessageHandler mh : alternates ) mh.observe(m);
     m.handle(this);
   }
   public void processMessage(StratconMessage[] messages) throws Exception {

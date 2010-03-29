@@ -9,6 +9,7 @@
 package com.omniti.reconnoiter;
 
 import com.omniti.reconnoiter.broker.IMQBroker;
+import com.omniti.reconnoiter.MessageHandler;
 import com.omniti.reconnoiter.event.*;
 import java.lang.Runnable;
 
@@ -24,6 +25,7 @@ public class MQListener implements Runnable {
     private IMQBroker broker;
     private LinkedList<StratconMessage> preproc;
     private LinkedList<StratconMessage> queries_toload;
+    private LinkedList<MessageHandler>  alternates;
     private boolean booted = false;
 
     public MQListener(EPServiceProvider epService, IMQBroker broker) {
@@ -32,8 +34,12 @@ public class MQListener implements Runnable {
       this.broker = broker;
       preproc = new LinkedList<StratconMessage>();
       queries_toload = new LinkedList<StratconMessage>();
+      alternates = new LinkedList<MessageHandler>();
     }
 
+    public void addObserver(MessageHandler mh) {
+      alternates.push(mh);
+    }
     public void preprocess(StratconMessage m) throws Exception {
       if(booted) throw new Exception("Already booted");
       if(m instanceof StratconQuery)
@@ -56,6 +62,7 @@ public class MQListener implements Runnable {
     }
     public void run() {
       EventHandler eh = new EventHandler(queries, this.epService, broker);
+      for ( MessageHandler mh : alternates ) eh.addObserver(mh);
       process(eh, preproc);
       booted();
       while(true) {
