@@ -237,7 +237,9 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   const char *dbname=NULL;
   const char *port_s=NULL;
   const char *socket=NULL;
+  const char *sslmode=NULL;
   u_int32_t port;
+  unsigned long client_flag = CLIENT_IGNORE_SIGPIPE;
   unsigned int timeout;
 
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
@@ -265,6 +267,9 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       noit_hash_retrieve(&dsn_h, "password", strlen("password"), (void**)&password);
       noit_hash_retrieve(&dsn_h, "dbname", strlen("dbname"), (void**)&dbname);
       noit_hash_retrieve(&dsn_h, "port", strlen("port"), (void**)&port_s);
+      if(noit_hash_retrieve(&dsn_h, "sslmode", strlen("sslmode"), (void**)&sslmode) &&
+         !strcmp(sslmode, "require"))
+        client_flag |= CLIENT_SSL;
       port = port_s ? strtol(port_s, NULL, 10) : 3306;
       noit_hash_retrieve(&dsn_h, "socket", strlen("socket"), (void**)&socket);
 
@@ -273,7 +278,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       timeout = check->timeout / 1000;
       mysql_options(ci->conn, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&timeout);
       if(!mysql_real_connect(ci->conn, host, user, password,
-                             dbname, port, socket, CLIENT_IGNORE_SIGPIPE)) {
+                             dbname, port, socket, client_flag)) {
         noitL(noit_stderr, "error during mysql_real_connect: %s\n",
           mysql_error(ci->conn));
         AVAIL_BAIL(mysql_error(ci->conn));
