@@ -316,6 +316,5 @@ int external_child(external_data_t *data) {
 
     finish_procs();
   }
-  return 0;
 }
 
