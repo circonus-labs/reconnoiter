@@ -38,7 +38,7 @@ public class MQListener implements Runnable {
     }
 
     public void addObserver(MessageHandler mh) {
-      alternates.push(mh);
+      alternates.add(mh);
     }
     public void preprocess(StratconMessage m) throws Exception {
       if(booted) throw new Exception("Already booted");

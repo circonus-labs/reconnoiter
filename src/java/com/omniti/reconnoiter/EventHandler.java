@@ -32,7 +32,7 @@ public class EventHandler {
     alternates = new LinkedList<MessageHandler>();
   }
   public void addObserver(MessageHandler mh) {
-    alternates.push(mh);
+    alternates.add(mh);
   }
   public EPServiceProvider getService() { return epService; }
   public IMQBroker getBroker() { return broker; }
