@@ -141,10 +141,11 @@ _fixup_bchain(struct bchain *b) {
       }
       start_in_b = b->start + b->size - 3; /* we already checked -2 */
       while(start_in_b >= b->start) {
-        if(memcmp(b->buff + start_in_b, "\r\n", 2) == 0) {
+        if(b->buff[start_in_b] == '\r' && b->buff[start_in_b+1] == '\n') {
           start_in_b += 2;
           break;
         }
+        start_in_b--;
       }
     }
 
@@ -343,6 +344,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
         req->protocol_str++;
         req->method = _method_enum(req->method_str);
         req->protocol = _protocol_enum(req->protocol_str);
+        req->opts |= NOIT_HTTP_CLOSE;
         if(req->protocol == NOIT_HTTP11) req->opts |= NOIT_HTTP_CHUNKED;
       }
       else { /* request headers */
@@ -412,7 +414,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
 }
 void
 noit_http_process_querystring(noit_http_request *req) {
-  char *cp, *copy, *interest, *brk;
+  char *cp, *interest, *brk;
   cp = strchr(req->uri_str, '?');
   if(!cp) return;
   *cp++ = '\0';

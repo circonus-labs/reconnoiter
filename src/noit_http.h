@@ -171,7 +171,8 @@ API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
 #define noit_http_response_standard(ctx, code, name, type) do { \
   noit_http_response_status_set(ctx, code, name); \
   noit_http_response_header_set(ctx, "Content-Type", type); \
-  noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED); \
+  if(noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED) == noit_false) \
+    noit_http_response_option_set(ctx, NOIT_HTTP_CLOSE); \
   noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE); \
 } while(0)
 
