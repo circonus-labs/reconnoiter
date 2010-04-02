@@ -47,7 +47,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_rest.h \
 	utils/noit_atomic.h utils/noit_b64.h utils/noit_hash.h \
 	utils/noit_log.h utils/noit_mkdir.h utils/noit_security.h \
 	utils/noit_sem.h utils/noit_skiplist.h utils/noit_str.h \
-	utils/noit_watchdog.h \
+	utils/noit_watchdog.h utils/noit_lockfile.h \
 	noitedit/chared.h noitedit/common.h noitedit/compat.h noitedit/el.h \
 	noitedit/el_term.h noitedit/emacs.h noitedit/fcns.h noitedit/fgetln.h \
 	noitedit/help.h noitedit/hist.h noitedit/histedit.h noitedit/key.h \
