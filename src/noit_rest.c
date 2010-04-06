@@ -557,6 +557,7 @@ void noit_http_rest_load_rules() {
   }
 }
 void noit_http_rest_init() {
+  noit_http_init();
   eventer_name_callback("noit_wire_rest_api/1.0", noit_http_rest_handler);
   eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);
 

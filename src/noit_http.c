@@ -45,6 +45,10 @@
 #define HEADER_CONTENT_LENGTH "content-length"
 #define HEADER_EXPECT "expect"
 
+static noit_log_stream_t http_debug = NULL;
+static noit_log_stream_t http_io = NULL;
+static noit_log_stream_t http_access = NULL;
+
 #define CTX_ADD_HEADER(a,b) \
     noit_hash_replace(&ctx->res.headers, \
                       strdup(a), strlen(a), strdup(b), free, free)
@@ -237,6 +241,8 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
     ctx->conn.e = NULL;
     return -1;
   }
+  noitL(http_io, " http_write(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd,
+        len, len, b->buff + b->start + ctx->res.output_raw_offset);
   ctx->res.output_raw_offset += len;
   tlen += len;
   goto choose_bucket;
@@ -283,14 +289,14 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
   req->current_offset = mstr - req->current_input->buff + REQ_PATSIZE;
  match:
   req->current_request_chain = req->first_input;
-  noitL(noit_debug, " noit_http_request_finalize : match(%d in %d)\n",
+  noitL(http_debug, " noit_http_request_finalize : match(%d in %d)\n",
         (int)(req->current_offset - req->current_input->start),
         (int)req->current_input->size);
   if(req->current_offset <
      req->current_input->start + req->current_input->size) {
     /* There are left-overs */
     int lsize = req->current_input->size - req->current_offset;
-    noitL(noit_debug, " noit_http_request_finalize -- leftovers: %d\n", lsize);
+    noitL(http_debug, " noit_http_request_finalize -- leftovers: %d\n", lsize);
     req->first_input = bchain_alloc(lsize);
     req->first_input->prev = NULL;
     req->first_input->next = req->current_input->next;
@@ -299,6 +305,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     memcpy(req->first_input->buff,
            req->current_input->buff + req->current_offset,
            req->first_input->size);
+    req->current_input->size -= lsize;
     if(req->last_input == req->current_input)
       req->last_input = req->first_input;
     else
@@ -490,7 +497,8 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
                                    in->buff + in->start + in->size,
                                    in->allocd - in->size - in->start,
                                    &mask, ctx->conn.e);
-    noitL(noit_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, len);
+    noitL(http_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, len);
+    noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, len, len, in->buff + in->start + in->size);
     if(len == -1 && errno == EAGAIN) return mask;
     if(len <= 0) goto full_error;
     if(len > 0) in->size += len;
@@ -561,7 +569,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
   size_t bytes_read = 0;
   /* We attempt to consume from the first_input */
   struct bchain *in, *tofree;
-  noitL(noit_debug, " ... noit_http_session_req_consume(%d) %d of %d\n",
+  noitL(http_debug, " ... noit_http_session_req_consume(%d) %d of %d\n",
         ctx->conn.e->fd, (int)len,
         (int)(ctx->req.content_length - ctx->req.content_length_read));
   len = MIN(len, ctx->req.content_length - ctx->req.content_length_read);
@@ -573,7 +581,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       if(buf) memcpy((char *)buf+bytes_read, in->buff+in->start, partial_len);
       bytes_read += partial_len;
       ctx->req.content_length_read += partial_len;
-      noitL(noit_debug, " ... filling %d bytes (read through %d/%d)\n",
+      noitL(http_debug, " ... filling %d bytes (read through %d/%d)\n",
             (int)bytes_read, (int)ctx->req.content_length_read,
             (int)ctx->req.content_length);
       in->start += partial_len;
@@ -585,7 +593,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
         RELEASE_BCHAIN(tofree);
         if(in == NULL) {
           ctx->req.last_input = NULL;
-          noitL(noit_debug, " ... noit_http_session_req_consume = %d\n",
+          noitL(http_debug, " ... noit_http_session_req_consume = %d\n",
                 (int)bytes_read);
           return bytes_read;
         }
@@ -606,17 +614,18 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
                                       in->buff + in->start + in->size,
                                       in->allocd - in->size - in->start,
                                       mask, ctx->conn.e);
-      noitL(noit_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, rlen);
+      noitL(http_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, rlen);
+    noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, rlen, rlen, in->buff + in->start + in->size);
       if(rlen == -1 && errno == EAGAIN) {
         /* We'd block to read more, but we have data,
          * so do a short read */
         if(ctx->req.first_input->size) break;
         /* We've got nothing... */
-        noitL(noit_debug, " ... noit_http_session_req_consume = -1 (EAGAIN)\n");
+        noitL(http_debug, " ... noit_http_session_req_consume = -1 (EAGAIN)\n");
         return -1;
       }
       if(rlen <= 0) {
-        noitL(noit_debug, " ... noit_http_session_req_consume = -1 (error)\n");
+        noitL(http_debug, " ... noit_http_session_req_consume = -1 (error)\n");
         return -1;
       }
       in->size += rlen;
@@ -640,13 +649,13 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
    * The last request could have unread upload content, we would have
    * noted that in noit_http_request_release.
    */
-  noitL(noit_debug, " -> noit_http_session_drive(%d) [%x]\n", e->fd, origmask);
+  noitL(http_debug, " -> noit_http_session_drive(%d) [%x]\n", e->fd, origmask);
   while(ctx->drainage > 0) {
     int len;
-    noitL(noit_debug, "   ... draining last request(%d)\n", e->fd);
+    noitL(http_debug, "   ... draining last request(%d)\n", e->fd);
     len = noit_http_session_req_consume(ctx, NULL, ctx->drainage, &mask);
     if(len == -1 && errno == EAGAIN) {
-      noitL(noit_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, mask);
+      noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, mask);
       return mask;
     }
     if(len <= 0) goto abort_drive;
@@ -656,25 +665,25 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
  next_req:
   if(ctx->req.complete != noit_true) {
     int maybe_write_mask;
-    noitL(noit_debug, "   -> noit_http_complete_request(%d)\n", e->fd);
+    noitL(http_debug, "   -> noit_http_complete_request(%d)\n", e->fd);
     mask = noit_http_complete_request(ctx, origmask);
-    noitL(noit_debug, "   <- noit_http_complete_request(%d) = %d\n",
+    noitL(http_debug, "   <- noit_http_complete_request(%d) = %d\n",
           e->fd, mask);
     _http_perform_write(ctx, &maybe_write_mask);
     if(ctx->conn.e == NULL) goto release;
     if(ctx->req.complete != noit_true) {
-      noitL(noit_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd,
+      noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd,
             mask|maybe_write_mask);
       return mask | maybe_write_mask;
     }
-    noitL(noit_debug, "HTTP start request (%s)\n", ctx->req.uri_str);
+    noitL(http_access, "HTTP start request (%s)\n", ctx->req.uri_str);
   }
 
   /* only dispatch if the response is not complete */
   if(ctx->res.complete == noit_false) {
-    noitL(noit_debug, "   -> dispatch(%d)\n", e->fd);
+    noitL(http_debug, "   -> dispatch(%d)\n", e->fd);
     rv = ctx->dispatcher(ctx);
-    noitL(noit_debug, "   <- dispatch(%d) = %d\n", e->fd, rv);
+    noitL(http_debug, "   <- dispatch(%d) = %d\n", e->fd, rv);
   }
 
   _http_perform_write(ctx, &mask);
@@ -692,14 +701,14 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   }
   if(ctx->req.complete == noit_false) goto next_req;
   if(ctx->conn.e) {
-    noitL(noit_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, mask|rv);
+    noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, mask|rv);
     return mask | rv;
   }
-  noitL(noit_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
+  noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
   return 0;
  release:
   noit_http_ctx_session_release(ctx);
-  noitL(noit_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
+  noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
   return 0;
 }
 
@@ -1033,7 +1042,7 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
   if(ctx->res.output)
-    noitL(noit_debug, "HTTP finished request (%s)\n", ctx->req.uri_str);
+    noitL(http_access, "HTTP finished request (%s)\n", ctx->req.uri_str);
   if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
   return noit_true;
 }
@@ -1063,3 +1072,9 @@ noit_http_response_xml(noit_http_session_ctx *ctx, xmlDocPtr doc) {
   xmlSaveFormatFileTo(out, doc, "utf8", 1);
 }
 
+void
+noit_http_init() {
+  http_debug = noit_log_stream_find("debug/http");
+  http_access = noit_log_stream_find("http/access");
+  http_io = noit_log_stream_find("http/io");
+}

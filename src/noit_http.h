@@ -179,5 +179,7 @@ API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
 API_EXPORT(void)
   noit_http_response_xml(noit_http_session_ctx *, xmlDocPtr);
 
+API_EXPORT(void)
+  noit_http_init();
 
 #endif
