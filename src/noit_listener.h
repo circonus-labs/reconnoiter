@@ -84,6 +84,9 @@ API_EXPORT(void)
 API_EXPORT(int)
   noit_control_dispatch(eventer_t, int, void *, struct timeval *);
 
+API_EXPORT(int)
+  noit_convert_sockaddr_to_buff(char *, int, struct sockaddr *);
+
 API_EXPORT(noit_hash_table *)
   noit_listener_commands();
 

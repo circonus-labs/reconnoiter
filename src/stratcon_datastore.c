@@ -205,34 +205,6 @@ noit_hash_table uuid_to_info_cache;
 pthread_mutex_t storagenode_to_info_cache_lock;
 noit_hash_table storagenode_to_info_cache;
 
-int
-convert_sockaddr_to_buff(char *buff, int blen, struct sockaddr *remote) {
-  char name[128] = "";
-  buff[0] = '\0';
-  if(remote) {
-    int len = 0;
-    switch(remote->sa_family) {
-      case AF_INET:
-        len = sizeof(struct sockaddr_in);
-        inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
-                  name, len);
-        break;
-      case AF_INET6:
-       len = sizeof(struct sockaddr_in6);
-        inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
-                  name, len);
-       break;
-      case AF_UNIX:
-        len = SUN_LEN(((struct sockaddr_un *)remote));
-        snprintf(name, sizeof(name), "%s", ((struct sockaddr_un *)remote)->sun_path);
-        break;
-      default: return 0;
-    }
-  }
-  strlcpy(buff, name, blen);
-  return strlen(buff);
-}
-
 /* Thread-safe connection pools */
 
 /* Forcefree -> 1 prevents it from going to the pool and it gets freed */
@@ -1247,7 +1219,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   const char *remote_cn = remote_cn_in ? remote_cn_in : "default";
   const char *fqdn = fqdn_in ? fqdn_in : "default";
 
-  convert_sockaddr_to_buff(remote_str, sizeof(remote_str), remote);
+  noit_convert_sockaddr_to_buff(remote_str, sizeof(remote_str), remote);
   if(!*remote_str) strlcpy(remote_str, "default", sizeof(remote_str));
 
   /* Lookup the working set */

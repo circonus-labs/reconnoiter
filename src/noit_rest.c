@@ -320,7 +320,7 @@ socket_error:
     restc->remote_cn = strdup(ac->remote_cn ? ac->remote_cn : "");
     restc->http_ctx =
         noit_http_session_ctx_new(noit_rest_request_dispatcher,
-                                  restc, e);
+                                  restc, e, ac);
     
     switch(ac->cmd) {
       case NOIT_CONTROL_DELETE:
@@ -366,7 +366,7 @@ noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
     restc->ac = ac;
     restc->http_ctx =
         noit_http_session_ctx_new(noit_rest_request_dispatcher,
-                                  restc, e);
+                                  restc, e, ac);
   }
   return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
 }

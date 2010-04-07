@@ -488,6 +488,34 @@ noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
                     free, free);
 }
 
+int
+noit_convert_sockaddr_to_buff(char *buff, int blen, struct sockaddr *remote) {
+  char name[128] = "";
+  buff[0] = '\0';
+  if(remote) {
+    int len = 0;
+    switch(remote->sa_family) {
+      case AF_INET:
+        len = sizeof(struct sockaddr_in);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
+                  name, len);
+        break;
+      case AF_INET6:
+       len = sizeof(struct sockaddr_in6);
+        inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
+                  name, len);
+       break;
+      case AF_UNIX:
+        len = SUN_LEN(((struct sockaddr_un *)remote));
+        snprintf(name, sizeof(name), "%s", ((struct sockaddr_un *)remote)->sun_path);
+        break;
+      default: return 0;
+    }
+  }
+  strlcpy(buff, name, blen);
+  return strlen(buff);
+}
+
 void
 noit_listener_init(const char *toplevel) {
   eventer_name_callback("noit_listener_acceptor", noit_listener_acceptor);

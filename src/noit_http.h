@@ -38,6 +38,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
+#include "noit_listener.h"
 
 typedef enum {
   NOIT_HTTP_OTHER, NOIT_HTTP_GET, NOIT_HTTP_HEAD, NOIT_HTTP_POST
@@ -95,6 +96,7 @@ typedef struct {
   noit_http_protocol protocol;
   noit_hash_table headers;
   noit_boolean complete;
+  struct timeval start_time;
 } noit_http_request;
 
 typedef struct {
@@ -113,6 +115,7 @@ typedef struct {
                                /*   and possibly output. */
   noit_boolean closed;         /* set by _end() */
   noit_boolean complete;       /* complete, drained and disposable */
+  size_t bytes_written;        /* tracks total bytes written */
 } noit_http_response;
 
 struct noit_http_session_ctx;
@@ -127,10 +130,12 @@ typedef struct noit_http_session_ctx {
   noit_http_dispatch_func dispatcher;
   void *dispatcher_closure;
   eventer_func_t drive;
+  acceptor_closure_t *ac;
 } noit_http_session_ctx;
 
 API_EXPORT(noit_http_session_ctx *)
-  noit_http_session_ctx_new(noit_http_dispatch_func, void *, eventer_t);
+  noit_http_session_ctx_new(noit_http_dispatch_func, void *, eventer_t,
+                            acceptor_closure_t *);
 API_EXPORT(void)
   noit_http_session_ctx_release(noit_http_session_ctx *);
 API_EXPORT(void)

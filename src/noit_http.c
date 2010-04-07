@@ -244,6 +244,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   noitL(http_io, " http_write(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd,
         len, len, b->buff + b->start + ctx->res.output_raw_offset);
   ctx->res.output_raw_offset += len;
+  ctx->res.bytes_written += len;
   tlen += len;
   goto choose_bucket;
 }
@@ -257,6 +258,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
   if(req->state != NOIT_HTTP_REQ_HEADERS) return noit_false;
   if(!req->current_input) req->current_input = req->first_input;
   if(!req->current_input) return noit_false;
+  if(req->start_time.tv_sec == 0) gettimeofday(&req->start_time, NULL);
  restart:
   while(req->current_input->prev &&
         (req->current_offset < (req->current_input->start + REQ_PATSIZE - 1))) {
@@ -676,7 +678,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
             mask|maybe_write_mask);
       return mask | maybe_write_mask;
     }
-    noitL(http_access, "HTTP start request (%s)\n", ctx->req.uri_str);
+    noitL(http_debug, "HTTP start request (%s)\n", ctx->req.uri_str);
   }
 
   /* only dispatch if the response is not complete */
@@ -713,7 +715,8 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
 }
 
 noit_http_session_ctx *
-noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e) {
+noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e,
+                          acceptor_closure_t *ac) {
   noit_http_session_ctx *ctx;
   ctx = calloc(1, sizeof(*ctx));
   ctx->ref_cnt = 1;
@@ -722,6 +725,7 @@ noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e) {
   ctx->dispatcher = f;
   ctx->dispatcher_closure = c;
   ctx->drive = noit_http_session_drive;
+  ctx->ac = ac;
   return ctx;
 }
 
@@ -1041,8 +1045,29 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
 }
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
-  if(ctx->res.output)
-    noitL(http_access, "HTTP finished request (%s)\n", ctx->req.uri_str);
+  if(ctx->res.output) {
+    char ip[64], timestr[64];
+    double time_ms;
+    struct tm *tm, tbuf;
+    time_t now;
+    struct timeval end_time, diff;
+
+    gettimeofday(&end_time, NULL);
+    now = end_time.tv_sec;
+    tm = gmtime_r(&now, &tbuf);
+    strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
+    sub_timeval(end_time, ctx->req.start_time, &diff);
+    time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+    noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
+    noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
+          ip, timestr,
+          ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
+          ctx->res.status_code,
+          (long long unsigned)ctx->res.bytes_written,
+          time_ms);
+  }
+  ctx->res.bytes_written = 0;
+  ctx->req.start_time.tv_sec = 0L;
   if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
   return noit_true;
 }
