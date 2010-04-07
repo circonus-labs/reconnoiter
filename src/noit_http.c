@@ -637,6 +637,30 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
   /* NOT REACHED */
   return bytes_read;
 }
+
+static void
+noit_http_log_request(noit_http_session_ctx *ctx) {
+  char ip[64], timestr[64];
+  double time_ms;
+  struct tm *tm, tbuf;
+  time_t now;
+  struct timeval end_time, diff;
+
+  gettimeofday(&end_time, NULL);
+  now = end_time.tv_sec;
+  tm = gmtime_r(&now, &tbuf);
+  strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
+  sub_timeval(end_time, ctx->req.start_time, &diff);
+  time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
+  noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
+        ip, timestr,
+        ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
+        ctx->res.status_code,
+        (long long unsigned)ctx->res.bytes_written,
+        time_ms);
+}
+
 int
 noit_http_session_drive(eventer_t e, int origmask, void *closure,
                         struct timeval *now) {
@@ -693,11 +717,13 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
      ctx->conn.e &&
      ctx->conn.needs_close == noit_true) {
    abort_drive:
+    noit_http_log_request(ctx);
     ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
     ctx->conn.e = NULL;
     goto release;
   }
   if(ctx->res.complete == noit_true) {
+    noit_http_log_request(ctx);
     noit_http_request_release(ctx);
     noit_http_response_release(ctx);
   }
@@ -1043,31 +1069,9 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
   /* If the write fails completely, the event will be closed, freed and NULL */
   return ctx->conn.e ? noit_true : noit_false;
 }
+
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
-  if(ctx->res.output) {
-    char ip[64], timestr[64];
-    double time_ms;
-    struct tm *tm, tbuf;
-    time_t now;
-    struct timeval end_time, diff;
-
-    gettimeofday(&end_time, NULL);
-    now = end_time.tv_sec;
-    tm = gmtime_r(&now, &tbuf);
-    strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
-    sub_timeval(end_time, ctx->req.start_time, &diff);
-    time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-    noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
-    noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
-          ip, timestr,
-          ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
-          ctx->res.status_code,
-          (long long unsigned)ctx->res.bytes_written,
-          time_ms);
-  }
-  ctx->res.bytes_written = 0;
-  ctx->req.start_time.tv_sec = 0L;
   if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
   return noit_true;
 }
