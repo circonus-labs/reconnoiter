@@ -391,7 +391,7 @@ static int eventer_kqueue_impl_loop() {
 
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) {
-          if(ke->data != EBADF)
+          if(ke->data != EBADF && ke->data != ENOENT)
             noitLT(eventer_err, &__now, "error [%d]: %s\n",
                    (int)ke->ident, strerror(ke->data));
           continue;
