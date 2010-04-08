@@ -1,5 +1,7 @@
 = Building Reconnoiter =
 
+PostgreSQL 8.4 is required.
+
 == FreeBSD ==
 
 [https://labs.omniti.com/lists/reconnoiter-users/2009-March/000028.html Original Message]
