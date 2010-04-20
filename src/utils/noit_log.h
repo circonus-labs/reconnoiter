@@ -36,6 +36,7 @@
 #include "noit_defines.h"
 #include <pthread.h>
 #include <stdarg.h>
+#include <sys/time.h>
 #include "utils/noit_hash.h"
 
 struct _noit_log_stream_outlet_list {
