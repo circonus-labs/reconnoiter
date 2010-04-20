@@ -355,7 +355,7 @@ void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree) {
   m=sl->bottom;
   while(m) {
     p = m->next;
-    if(myfree && p->data) myfree(p->data);
+    if(p && myfree && p->data) myfree(p->data);
     while(m) {
       u = m->up;
       free(m);
