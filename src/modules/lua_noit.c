@@ -1577,6 +1577,7 @@ static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },
+  { "dns", nl_dns_lookup },
   { "log", nl_log },
   { "base64_decode", nl_base64_decode },
   { "base64_encode", nl_base64_encode },
@@ -1599,6 +1600,13 @@ int luaopen_noit(lua_State *L) {
 
   luaL_newmetatable(L, "noit.eventer.ssl_ctx");
   lua_pushcclosure(L, noit_ssl_ctx_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.dns");
+  lua_pushcfunction(L, noit_lua_dns_gc);
+  lua_setfield(L, -2, "__gc");
+  luaL_newmetatable(L, "noit.dns");
+  lua_pushcfunction(L, noit_lua_dns_index_func);
   lua_setfield(L, -2, "__index");
 
   luaL_newmetatable(L, "noit.gunzip");
@@ -1639,4 +1647,5 @@ void noit_lua_init() {
   eventer_name_callback("lua/socket_connect",
                         noit_lua_socket_connect_complete);
   eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);
+  noit_lua_init_dns();
 }

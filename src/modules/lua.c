@@ -749,6 +749,10 @@ noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
   INITIATE_CHECK(noit_lua_initiate, self, check);
   return 0;
 }
+static int noit_lua_panic(lua_State *L) {
+  assert(L == NULL);
+  return 0;
+}
 static noit_module_t *
 noit_lua_loader_load(noit_module_loader_t *loader,
                      char *module_name,
@@ -775,7 +779,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lmc->object = object;
 
   L = lmc->lua_state = lua_open();
-
+  lua_atpanic(L, &noit_lua_panic);
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
