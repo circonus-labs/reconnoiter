@@ -77,6 +77,10 @@ function onload(image)
                required="optional"
                default="^200$"
                allowed=".+">The HTTP code that is expected.  If the code received does not match this regular expression, the check is marked as "bad."</parameter>
+    <parameter name="redirects"
+               required="optional"
+               default="0"
+               allowed="\d+">The maximum number of Location header redirects to follow.</parameter>
     <parameter name="body"
                required="optional"
                allowed=".+">This regular expression is matched against the body of the response.  If a match is not found, the check will be marked as "bad."</parameter>
