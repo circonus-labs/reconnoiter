@@ -198,7 +198,6 @@ function auth_digest(method, uri, user, pass, challenge)
       else hdr = hdr .. ', ' .. k .. '="' .. v .. '"' end
     end
     hdr = hdr .. ', nc=' .. nc
-noit.log("error", "Authorization: Digest " .. hdr .. "\n")
     return hdr
 end
 
@@ -407,10 +406,10 @@ function initiate(module, check)
                 uri = next_location
             elseif schema == 'http' then 
                 use_ssl = false
-                port = port or 80
+                if port == "" then port = 80 end
             elseif schema == 'https' then
                 use_ssl = true
-                port = port or 443
+                if port == "" then port = 443 end
             end
             if host ~= nil then
                 headers.Host = host
