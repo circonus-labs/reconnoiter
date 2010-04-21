@@ -140,5 +140,8 @@ static inline int noit_build_version(char *buff, int len) {
 #include "noitedit/strlcpy.h"
 
 #define UUID_REGEX "[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}"
+#include <uuid/uuid.h>
+struct uuid_dummy { uuid_t foo; };
+#define UUID_SIZE sizeof(struct uuid_dummy)
 
 #endif

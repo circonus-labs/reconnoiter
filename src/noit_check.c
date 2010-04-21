@@ -58,9 +58,6 @@ static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
-struct uuid_dummy {
-  uuid_t foo;
-};
 
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
@@ -68,7 +65,6 @@ u_int64_t noit_check_completion_count() {
 static void register_console_check_commands();
 static int check_recycle_bin_processor(eventer_t, int, void *,
                                        struct timeval *);
-#define UUID_SIZE sizeof(struct uuid_dummy)
 
 const char *
 noit_check_available_string(int16_t available) {
