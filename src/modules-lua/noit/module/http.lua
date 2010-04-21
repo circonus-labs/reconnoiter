@@ -198,6 +198,56 @@ noit.log("error", "Authorization: Digest " .. hdr .. "\n")
     return hdr
 end
 
+function populate_cookie_jar(cookies, host, hdr)
+    if hdr ~= nil then
+        local name, value, trailer =
+            string.match(hdr, "([^=]+)=([^;]+)\;?%s*(.*)")
+        if name ~= nil then
+            local jar = { }
+            jar.name = name;
+            jar.value = value;
+            for k, v in string.gmatch(trailer, "%s*(%w+)(=%w+)?;?") do
+                if v == nil then jar[string.lower(k)] = true
+                else jar[string.lower(k)] = v:sub(2)
+                end
+            end
+            if jar.domain ~= nil then host = jar.domain end
+            if cookies[host] == nil then cookies[host] = { } end
+            table.insert(cookies[host], jar)
+        end
+    end
+end
+
+function has_host(pat, host)
+    if pat == host then return true end
+    if pat:sub(1,1) ~= "." then return false end
+    local revpat = pat:sub(2):reverse()
+    local revhost = host:reverse()
+    if revpat == revhost then return true end
+    if revpat == revhost:sub(1, revpat:len()) then
+        if revhost:sub(pat:len(), pat:len()) == "." then return true end
+    end
+    return false
+end
+
+function apply_cookies(headers, cookies, host, uri)
+    for h, jars in pairs(cookies) do
+        if has_host(h, host) then
+            for i, jar in ipairs(jars) do
+                if jar.path == nil or
+                   uri:sub(1, jar.path:len()) == jar.path then
+                    if headers["Cookie"] == nil then
+                        headers["Cookie"] = jar.name .. "=" .. jar.value
+                    else
+                        headers["Cookie"] = headers["Cookie"] .. "; " ..
+                                            jar.name .. "=" .. jar.value
+                    end
+                end
+            end
+        end
+    end
+end
+
 function initiate(module, check)
     local url = check.config.url or 'http:///'
     local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
@@ -207,6 +257,7 @@ function initiate(module, check)
     local starttime = noit.timeval.now()
     local method = check.config.method or "GET"
     local max_len = 80
+    local redirects = check.config.redirects or 0
 
     -- expect the worst
     check.bad()
@@ -233,6 +284,8 @@ function initiate(module, check)
 
     local output = ''
     local connecttime, firstbytetime
+    local next_location
+    local cookies = { }
 
     -- callbacks from the HttpClient
     local callbacks = { }
@@ -240,6 +293,12 @@ function initiate(module, check)
         if firstbytetime == nil then firstbytetime = noit.timeval.now() end
         output = output .. (str or '')
     end
+    callbacks.headers = function (hdrs)
+        next_location = hdrs.location
+        populate_cookie_jar(cookies, host, hdrs["set-cookie"])
+        populate_cookie_jar(cookies, hdrs["set-cookie2"])
+    end
+
     callbacks.connected = function () connecttime = noit.timeval.now() end
 
     -- setup SSL info
@@ -308,15 +367,60 @@ function initiate(module, check)
     end
 
     -- perform the request
-    local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target, port, use_ssl)
-   
-    if rv ~= 0 then
-        check.status(err or "unknown error")
-        return
-    end
-    client:do_request(method, uri, headers, check.config.payload)
-    client:get_response()
+    local client
+    local dns = noit.dns()
+    local target = check.target
+    local payload = check.config.payload
+    -- artificially increase redirects as the initial request counts
+    redirects = redirects + 1
+    repeat
+        starttime = noit.timeval.now()
+        local optclient = HttpClient:new(callbacks)
+        local rv, err = optclient:connect(target, port, use_ssl)
+       
+        if rv ~= 0 then
+            check.status(err or "unknown error")
+            return
+        end
+        optclient:do_request(method, uri, headers, payload)
+        optclient:get_response()
+
+        redirects = redirects - 1
+        client = optclient
+
+        if next_location ~= nil then
+            -- reset some stuff for the redirect
+            local prev_port = port
+            local prev_host = host
+            method = 'GET'
+            payload = nil
+            schema, host, port, uri =
+                string.match(next_location,
+                             "^(https?)://([^:/]*):?([0-9]*)(/?.*)$")
+            if schema == nil then
+                port = prev_port
+                host = prev_host
+                uri = next_location
+            elseif schema == 'http' then 
+                use_ssl = false
+                port = port or 80
+            elseif schema == 'https' then
+                use_ssl = true
+                port = port or 443
+            end
+            if host ~= nil then
+                headers.Host = host
+                local r = dns:lookup(host)
+                if r.a == nil then
+                    check.status("failed to resolve " + host)
+                    return
+                end
+                target = r.a
+            end
+            headers["Cookie"] = check.config["header_Cookie"]
+            apply_cookies(headers, cookies, host, uri)
+        end
+    until redirects <= 0 or next_location == nil
 
     local endtime = noit.timeval.now()
     check.available()
