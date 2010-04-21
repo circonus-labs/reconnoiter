@@ -63,6 +63,7 @@ function HttpClient:do_request(method, uri, headers, payload)
     self.raw_bytes = 0
     self.content_bytes = 0
     self.e:write(method .. " " .. uri .. " " .. "HTTP/1.1\r\n")
+    headers["Content-Length"] = nil
     if payload ~= nil and string.len(payload) > 0 then
       headers["Content-Length"] = string.len(payload)
     end
@@ -71,7 +72,7 @@ function HttpClient:do_request(method, uri, headers, payload)
         headers["User-Agent"] = "Reconnoiter/0.9"
     end
     for header, value in pairs(headers) do
-      self.e:write(header .. ": " .. value .. "\r\n")
+      if value ~= nil then self.e:write(header .. ": " .. value .. "\r\n") end
     end
     self.e:write("\r\n")
     if payload ~= nil and string.len(payload) > 0 then
