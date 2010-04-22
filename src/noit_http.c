@@ -199,6 +199,30 @@ _extract_header(char *l, const char **n, const char **v) {
   while(**v == ' ' || **v == '\t') (*v)++;
   return noit_true;
 }
+static void
+noit_http_log_request(noit_http_session_ctx *ctx) {
+  char ip[64], timestr[64];
+  double time_ms;
+  struct tm *tm, tbuf;
+  time_t now;
+  struct timeval end_time, diff;
+
+  if(ctx->req.start_time.tv_sec == 0) return;
+  gettimeofday(&end_time, NULL);
+  now = end_time.tv_sec;
+  tm = gmtime_r(&now, &tbuf);
+  strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
+  sub_timeval(end_time, ctx->req.start_time, &diff);
+  time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
+  noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
+        ip, timestr,
+        ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
+        ctx->res.status_code,
+        (long long unsigned)ctx->res.bytes_written,
+        time_ms);
+}
+
 static int
 _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   int len, tlen = 0;
@@ -237,6 +261,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   }
   if(len == -1) {
     /* socket error */
+    noit_http_log_request(ctx);
     ctx->conn.e->opset->close(ctx->conn.e->fd, mask, ctx->conn.e);
     ctx->conn.e = NULL;
     return -1;
@@ -636,29 +661,6 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
   }
   /* NOT REACHED */
   return bytes_read;
-}
-
-static void
-noit_http_log_request(noit_http_session_ctx *ctx) {
-  char ip[64], timestr[64];
-  double time_ms;
-  struct tm *tm, tbuf;
-  time_t now;
-  struct timeval end_time, diff;
-
-  gettimeofday(&end_time, NULL);
-  now = end_time.tv_sec;
-  tm = gmtime_r(&now, &tbuf);
-  strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
-  sub_timeval(end_time, ctx->req.start_time, &diff);
-  time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
-  noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
-  noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
-        ip, timestr,
-        ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
-        ctx->res.status_code,
-        (long long unsigned)ctx->res.bytes_written,
-        time_ms);
 }
 
 int
