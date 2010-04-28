@@ -364,6 +364,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
   ctx->bytes_expected = 0; \
 } while(0)
 
+  noit_connection_update_timeout(nctx);
   while(1) {
     u_int32_t net_body_len;
 
