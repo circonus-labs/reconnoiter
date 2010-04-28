@@ -338,6 +338,9 @@ socket_error:
       case NOIT_CONTROL_PUT:
         primer = "PUT ";
         break;
+      case NOIT_CONTROL_MERGE:
+        primer = "MERG";
+        break;
       default:
         goto socket_error;
     }
@@ -565,6 +568,9 @@ void noit_http_rest_init() {
 
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_DELETE,
+                                 noit_http_rest_handler);
+  noit_control_dispatch_delegate(noit_control_dispatch,
+                                 NOIT_CONTROL_MERGE,
                                  noit_http_rest_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CONTROL_GET,
