@@ -52,6 +52,7 @@ struct _eventer_impl eventer_kqueue_impl;
 
 #include "eventer/eventer_impl_private.h"
 
+static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
 static pthread_t master_thread;
 static int kqueue_fd = -1;
 typedef struct kqueue_setup {
@@ -315,6 +316,7 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
 }
 static int eventer_kqueue_impl_loop() {
   int is_master_thread = 0;
+  struct timeval __dyna_sleep = { 0, 0 };
   pthread_t self;
   KQUEUE_DECL;
   KQUEUE_SETUP;
@@ -332,9 +334,15 @@ static int eventer_kqueue_impl_loop() {
     struct timespec __kqueue_sleeptime;
     int fd_cnt = 0;
 
-    __sleeptime = eventer_max_sleeptime;
+    if(compare_timeval(eventer_max_sleeptime, __dyna_sleep) < 0)
+      __dyna_sleep = eventer_max_sleeptime;
+
+    __sleeptime = __dyna_sleep;
 
     eventer_dispatch_timed(&__now, &__sleeptime);
+
+    if(compare_timeval(__sleeptime, __dyna_sleep) > 0)
+      __sleeptime = __dyna_sleep;
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);
@@ -366,8 +374,13 @@ static int eventer_kqueue_impl_loop() {
     if(fd_cnt < 0) {
       noitLT(eventer_err, &__now, "kevent: %s\n", strerror(errno));
     }
+    else if(fd_cnt == 0) {
+      /* timeout */
+      add_timeval(__dyna_sleep, __dyna_increment, &__dyna_sleep);
+    }
     else {
       int idx;
+      __dyna_sleep.tv_sec = __dyna_sleep.tv_usec = 0; /* reset */
       /* loop once to clear */
       for(idx = 0; idx < fd_cnt; idx++) {
         struct kevent *ke;
