@@ -55,6 +55,7 @@ struct _eventer_impl eventer_ports_impl;
 
 #include "eventer/eventer_impl_private.h"
 
+static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
 static pthread_t master_thread;
 static int port_fd = -1;
 
@@ -241,6 +242,7 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   release_master_fd(fd, lockstate);
 }
 static int eventer_ports_impl_loop() {
+  struct timeval __dyna_sleep = { 0, 0 };
   int is_master_thread = 0;
   pthread_t self;
 
@@ -257,9 +259,15 @@ static int eventer_ports_impl_loop() {
     int max_timed_events_to_process;
     int newmask;
 
-    __sleeptime = eventer_max_sleeptime;
+    if(compare_timeval(eventer_max_sleeptime, __dyna_sleep) < 0)
+      __dyna_sleep = eventer_max_sleeptime;
+ 
+    __sleeptime = __dyna_sleep;
 
     eventer_dispatch_timed(&__now, &__sleeptime);
+
+    if(compare_timeval(__sleeptime, __dyna_sleep) > 0)
+      __sleeptime = __dyna_sleep;
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);
@@ -273,13 +281,23 @@ static int eventer_ports_impl_loop() {
 
     ret = port_getn(port_fd, pevents, MAX_PORT_EVENTS, &fd_cnt,
                     &__ports_sleeptime);
-    noitLT(eventer_deb, &__now, "debug: port_getn(%d, [], %d) => %d\n", port_fd,
-           fd_cnt, ret);
-    if(ret < 0)
-      noitLT(eventer_deb, &__now, "port_getn: %s\n", strerror(errno));
+    /* The timeout case is a tad complex with ports.  -1/ETIME is clearly
+     * a timeout.  However, it i spossible that we got that and fd_cnt isn't
+     * 0, which means we both timed out and got events... WTF?
+     */
+    if(fd_cnt == 0 ||
+       (ret == -1 && errno == ETIME && pevents[0].portev_source == 65535))
+      add_timeval(__dyna_sleep, __dyna_increment, &__dyna_sleep);
 
     if(ret == -1 && (errno != ETIME && errno != EINTR))
       noitLT(eventer_err, &__now, "port_getn: %s\n", strerror(errno));
+
+    if(ret < 0)
+      noitLT(eventer_deb, &__now, "port_getn: %s\n", strerror(errno));
+
+    noitLT(eventer_deb, &__now, "debug: port_getn(%d, [], %d) => %d\n", port_fd,
+           fd_cnt, ret);
+
     if(pevents[0].portev_source == 65535) {
       /* the impossible still remains, which means our fd_cnt _must_ be 0 */
       fd_cnt = 0;
@@ -288,6 +306,7 @@ static int eventer_ports_impl_loop() {
     if(fd_cnt > 0) {
       int idx;
       /* Loop a last time to process */
+      __dyna_sleep.tv_sec = __dyna_sleep.tv_usec = 0; /* reset */
       for(idx = 0; idx < fd_cnt; idx++) {
         port_event_t *pe;
         eventer_t e;
