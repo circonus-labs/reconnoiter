@@ -438,7 +438,9 @@ socket_error:
     len = e->opset->read(e->fd, sbuf, sizeof(sbuf)-1, &newmask, e);
     if(len == 0 || (len < 0 && errno != EAGAIN)) {
       eventer_remove_fd(e->fd);
-      close(e->fd);
+      if(ncct) noit_console_closure_free(ncct);
+      if(ac) acceptor_closure_free(ac);
+      e->opset->close(e->fd, &newmask, e);
       return 0;
     }
     if(len > 0) {
@@ -499,6 +501,10 @@ noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
 }
 static int
 noit_console_logio_close(noit_log_stream_t ls) {
+  noit_console_closure_t ncct;
+  ncct = noit_log_stream_get_ctx(ls);
+  if(!ncct) return 0;
+  ncct->e = NULL;
   noit_log_stream_set_ctx(ls, NULL);
   return 0;
 }
