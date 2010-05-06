@@ -427,6 +427,7 @@ noit_check_clone(uuid_t in) {
 noit_check_t *
 noit_check_watch(uuid_t in, int period) {
   /* First look for a copy that is being watched */
+  char uuid_str[UUID_STR_LEN + 1];
   noit_check_t n, *f;
 
   uuid_copy(n.checkid, in);
@@ -439,6 +440,8 @@ noit_check_watch(uuid_t in, int period) {
   f->period = period;
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
+  uuid_unparse_lower(in, uuid_str);
+  noitL(noit_debug, "Watching %s@%d\n", uuid_str, period);
   noit_skiplist_insert(&watchlist, f);
   return f;
 }
@@ -479,6 +482,9 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
     noit_skiplist_remove(check->feeds, feed, free);
   }
   if(check->feeds->size == 0) {
+    char uuid_str[UUID_STR_LEN + 1];
+    uuid_unparse_lower(check->checkid, uuid_str);
+    noitL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
     noit_skiplist_remove(&watchlist, check, NULL);
     noit_skiplist_destroy(check->feeds, free);
     free(check->feeds);
@@ -954,6 +960,32 @@ noit_check_set_stats(struct _noit_module *module,
   }
 }
 
+static int
+noit_console_show_watchlist(noit_console_closure_t ncct,
+                            int argc, char **argv,
+                            noit_console_state_t *dstate,
+                            void *closure) {
+  noit_skiplist_node *iter, *fiter;
+  nc_printf(ncct, "%d active watches.\n", watchlist.size);
+  for(iter = noit_skiplist_getlist(&watchlist); iter;
+      noit_skiplist_next(&watchlist, &iter)) {
+    char uuid_str[UUID_STR_LEN + 1];
+    noit_check_t *check = iter->data;
+
+    uuid_unparse_lower(check->checkid, uuid_str);
+    nc_printf(ncct, "%s:\n\t[%s`%s`%s]\n\tPeriod: %dms\n\tFeeds[%d]:\n",
+              uuid_str, check->target, check->module, check->name,
+              check->period, check->feeds ? check->feeds->size : 0);
+    if(check->feeds && check->feeds->size) {
+      for(fiter = noit_skiplist_getlist(check->feeds); fiter;
+          noit_skiplist_next(check->feeds, &fiter)) {
+        nc_printf(ncct, "\t\t%s\n", (const char *)fiter->data);
+      }
+    }
+  }
+  return 0;
+}
+
 static void
 nc_printf_check_brief(noit_console_closure_t ncct,
                       noit_check_t *check) {
@@ -1070,5 +1102,8 @@ register_console_check_commands() {
 
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("watches", noit_console_show_watchlist, NULL, NULL, NULL));
 }
 
