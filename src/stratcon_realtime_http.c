@@ -264,7 +264,14 @@ stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
 static void
 free_realtime_recv_ctx(void *vctx) {
   realtime_recv_ctx_t *rrctx = vctx;
-  noit_atomic_dec32(&rrctx->ctx->ref_cnt);
+  noit_http_session_ctx *ctx = rrctx->ctx;
+  realtime_context *rc = ctx->dispatcher_closure;
+
+  if(noit_atomic_dec32(&ctx->ref_cnt) == 1) {
+    noit_http_response_end(ctx);
+    clear_realtime_context(rc);
+    if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE | EVENTER_EXCEPTION);
+  }
   free(rrctx);
 }
 #define Eread(a,b) e->opset->read(e->fd, (a), (b), &mask, e)
@@ -525,6 +532,8 @@ void
 stratcon_realtime_http_init(const char *toplevel) {
   eventer_name_callback("stratcon_realtime_http",
                         stratcon_realtime_http_handler);
+  eventer_name_callback("stratcon_realtime_recv",
+                        stratcon_realtime_recv_handler);
   assert(noit_http_rest_register_auth(
     "GET", "/data/",
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
