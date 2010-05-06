@@ -97,10 +97,10 @@
       <rule type="allow" />
     </acl>
   </rest>
-  <checks max_initial_stutter="30000" filterset="default">
+  <checks max_initial_stutter="30000" filterset="default" transient_min_period="1000" transient_period_granularity="500">
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="10.80.117.90" period="5000" timeout="4000"/>
     <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="10.80.116.4" period="15000" timeout="14000"/>
-    <dc1 timeout="30000" period="60000">
+    <dc1 timeout="30000" period="60000" transient_min_period="10000">
       <icmp module="ping_icmp">
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fb" target="66.225.209.7"/>
       </icmp>

@@ -427,8 +427,31 @@ noit_check_clone(uuid_t in) {
 noit_check_t *
 noit_check_watch(uuid_t in, int period) {
   /* First look for a copy that is being watched */
+  int minimum_pi = 1000, granularity_pi = 500;
+  noit_conf_section_t check_node;
   char uuid_str[UUID_STR_LEN + 1];
+  char xpath[1024];
   noit_check_t n, *f;
+
+  uuid_unparse_lower(in, uuid_str);
+  /* Find the check */
+  snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
+  check_node = noit_conf_get_section(NULL, xpath);
+  noit_conf_get_int(NULL, "//checks/@transient_min_period", &minimum_pi);
+  noit_conf_get_int(NULL, "//checks/@transient_period_granularity", &granularity_pi);
+  if(check_node) {
+    noit_conf_get_int(check_node,
+                      "ancestor-or-self::node()/@transient_min_period",
+                      &minimum_pi);
+    noit_conf_get_int(check_node,
+                      "ancestor-or-self::node()/@transient_period_granularity",
+                      &granularity_pi);
+  }
+
+  /* apply the bounds */
+  period /= granularity_pi;
+  period *= granularity_pi;
+  period = MAX(period, minimum_pi);
 
   uuid_copy(n.checkid, in);
   n.period = period;
@@ -440,7 +463,6 @@ noit_check_watch(uuid_t in, int period) {
   f->period = period;
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
-  uuid_unparse_lower(in, uuid_str);
   noitL(noit_debug, "Watching %s@%d\n", uuid_str, period);
   noit_skiplist_insert(&watchlist, f);
   return f;
