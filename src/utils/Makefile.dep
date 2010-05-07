@@ -11,8 +11,7 @@ noit_log.o: noit_log.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_log.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
   ../utils/noit_hash.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../jlog/jlog_private.h ../jlog/jlog.h ../jlog/jlog_io.h \
-  ../utils/dtrace_probes.h
+  ../jlog/jlog_private.h ../jlog/jlog.h ../jlog/jlog_io.h
 noit_mkdir.o: noit_mkdir.c ../noit_config.h ../utils/noit_mkdir.h \
   ../noit_config.h ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_log.h \
