@@ -254,3 +254,8 @@ clean:
 	(cd lua && make clean)
 	(cd java && make clean)
 
+Makefile.dep:
+	gcc -MM *.c > Makefile.dep
+
+include Makefile.dep
+

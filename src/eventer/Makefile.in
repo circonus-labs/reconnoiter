@@ -29,3 +29,8 @@ libeventer.a:	$(OBJS)
 
 clean:
 	rm -f *.o libeventer.a
+
+Makefile.dep:
+	gcc -I.. -MM *.c > Makefile.dep
+
+include Makefile.dep

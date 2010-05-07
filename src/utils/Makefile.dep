@@ -1,0 +1,36 @@
+noit_b64.o: noit_b64.c ../noit_config.h noit_b64.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h
+noit_getip.o: noit_getip.c ../noit_config.h ../utils/noit_getip.h \
+  ../noit_config.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h
+noit_hash.o: noit_hash.c ../noit_config.h noit_hash.h
+noit_lockfile.o: noit_lockfile.c ../noit_config.h \
+  ../utils/noit_lockfile.h ../noit_config.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h
+noit_log.o: noit_log.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_hash.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../jlog/jlog_private.h ../jlog/jlog.h ../jlog/jlog_io.h \
+  ../utils/dtrace_probes.h
+noit_mkdir.o: noit_mkdir.c ../noit_config.h ../utils/noit_mkdir.h \
+  ../noit_config.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_log.h \
+  ../utils/noit_hash.h
+noit_security.o: noit_security.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noit_config.h \
+  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
+  ../noit_config.h ../utils/noit_security.h
+noit_sem.o: noit_sem.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_sem.h
+noit_skiplist.o: noit_skiplist.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h noit_skiplist.h
+noit_str.o: noit_str.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h
+noit_watchdog.o: noit_watchdog.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_log.h ../utils/noit_watchdog.h

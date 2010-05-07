@@ -44,3 +44,9 @@ noit_atomic_sol_x86_64.o:	noit_atomic_sol.s
 
 clean:
 	rm -f *.o libnoit_utils.a
+
+Makefile.dep:
+	gcc -I.. -MM *.c > Makefile.dep
+
+include Makefile.dep
+

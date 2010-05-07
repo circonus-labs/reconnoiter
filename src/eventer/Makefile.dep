@@ -1,0 +1,65 @@
+OETS_asn1_helper.o: OETS_asn1_helper.c
+eventer.o: eventer.c ../eventer/eventer.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
+  ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_hash.h
+eventer_POSIX_fd_opset.o: eventer_POSIX_fd_opset.c ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h
+eventer_SSL_fd_opset.o: eventer_SSL_fd_opset.c ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_log.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/OETS_asn1_helper.h
+eventer_epoll_impl.o: eventer_epoll_impl.c ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_atomic.h \
+  ../utils/noit_skiplist.h ../utils/noit_log.h \
+  ../eventer/eventer_impl_private.h
+eventer_impl.o: eventer_impl.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_log.h ../utils/noit_skiplist.h
+eventer_jobq.o: eventer_jobq.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer.h ../noit_defines.h \
+  ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h
+eventer_kqueue_impl.o: eventer_kqueue_impl.c ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_atomic.h \
+  ../utils/noit_skiplist.h ../utils/noit_log.h \
+  ../eventer/eventer_impl_private.h
+eventer_ports_impl.o: eventer_ports_impl.c ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_atomic.h \
+  ../utils/noit_skiplist.h ../utils/noit_log.h \
+  ../eventer/eventer_impl_private.h
