@@ -215,9 +215,11 @@ noit_http_log_request(noit_http_session_ctx *ctx) {
   sub_timeval(end_time, ctx->req.start_time, &diff);
   time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
   noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
-  noitL(http_access, "%s - - [%s] \"%s %s %s\" %d %llu %.3f\n",
+  noitL(http_access, "%s - - [%s] \"%s %s%s%s %s\" %d %llu %.3f\n",
         ip, timestr,
-        ctx->req.method_str, ctx->req.uri_str, ctx->req.protocol_str,
+        ctx->req.method_str, ctx->req.uri_str,
+        ctx->req.orig_qs ? "?" : "", ctx->req.orig_qs ? ctx->req.orig_qs : "",
+        ctx->req.protocol_str,
         ctx->res.status_code,
         (long long unsigned)ctx->res.bytes_written,
         time_ms);
@@ -452,6 +454,7 @@ noit_http_process_querystring(noit_http_request *req) {
   cp = strchr(req->uri_str, '?');
   if(!cp) return;
   *cp++ = '\0';
+  req->orig_qs = strdup(cp);
   for (interest = strtok_r(cp, "&", &brk);
        interest;
        interest = strtok_r(NULL, "&", &brk)) {
@@ -571,6 +574,7 @@ noit_http_request_release(noit_http_session_ctx *ctx) {
     ctx->drainage -= drained;
   }
   RELEASE_BCHAIN(ctx->req.current_request_chain);
+  if(ctx->req.orig_qs) free(ctx->req.orig_qs);
   memset(&ctx->req, 0, sizeof(ctx->req));
 }
 void
@@ -705,6 +709,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
       return mask | maybe_write_mask;
     }
     noitL(http_debug, "HTTP start request (%s)\n", ctx->req.uri_str);
+    noit_http_process_querystring(&ctx->req);
   }
 
   /* only dispatch if the response is not complete */

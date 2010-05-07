@@ -97,6 +97,7 @@ typedef struct {
   noit_hash_table headers;
   noit_boolean complete;
   struct timeval start_time;
+  char *orig_qs;
 } noit_http_request;
 
 typedef struct {
