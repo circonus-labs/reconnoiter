@@ -14,6 +14,10 @@ declare
   last_row_whence timestamp;
   last_value numeric;
   run numeric;
+  v_sql text;
+  v_in_minus_5 timestamptz := in_start_time - '5 minutes'::interval;
+  v_in_minus_10 timestamptz := in_start_time - '10 minutes'::interval;
+
 begin
 
    rec.sid := null;
@@ -23,13 +27,16 @@ begin
    rise := 0;
    run := 0;
    rec.rollup_time = in_start_time;
-   for r in SELECT sid, name, whence,
-                   (whence > in_start_time - '5 minutes'::interval) as in_window,
+   v_sql := 'SELECT sid, name, whence,
+                   (whence > '||quote_literal(v_in_minus_5)||'::timestamptz) as in_window,
                    value
-              FROM metric_numeric_archive
-             WHERE whence <= in_start_time
-               AND whence > in_start_time - ('5 minutes'::interval * 2)
+              FROM stratcon.loading_dock_metric_numeric_archive
+             WHERE whence <= '||quote_literal(in_start_time)||'::timestamptz
+               AND whence > '||quote_literal(v_in_minus_10)||'::timestamptz
           order BY sid,name,whence
+             ';
+
+  for r in EXECUTE v_sql
   loop
   if (rec.sid is not null and rec.name is not null) and
      (rec.sid <> r.sid or rec.name <> r.name) then
