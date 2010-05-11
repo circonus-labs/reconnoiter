@@ -30,7 +30,7 @@ begin
    v_sql := 'SELECT sid, name, whence,
                    (whence > '||quote_literal(v_in_minus_5)||'::timestamptz) as in_window,
                    value
-              FROM stratcon.loading_dock_metric_numeric_archive
+              FROM metric_numeric_archive
              WHERE whence <= '||quote_literal(in_start_time)||'::timestamptz
                AND whence > '||quote_literal(v_in_minus_10)||'::timestamptz
           order BY sid,name,whence
