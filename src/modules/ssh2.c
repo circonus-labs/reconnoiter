@@ -202,8 +202,8 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   }
   return 0;
 }
-static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
-                                 struct timeval *now) {
+static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void *closure,
+                                                    struct timeval *now) {
   ssh2_check_info_t *ci = closure;
   eventer_t asynch_e;
 
@@ -218,8 +218,6 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
     check->flags &= ~NP_RUNNING;
     return 0;
   }
-
-  ci->available = 1;
 
   /* We steal the timeout_event as it has the exact timeout we want. */
   assert(ci->timeout_event);
@@ -236,6 +234,27 @@ static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
 
   eventer_remove_fd(e->fd);
   return 0;
+}
+static int ssh2_connect_complete(eventer_t e, int mask, void *closure,
+                                 struct timeval *now) {
+  ssh2_check_info_t *ci = closure;
+
+  if(mask & EVENTER_EXCEPTION) {
+    noit_check_t *check = ci->check;
+    ci->timed_out = 0;
+    ci->error = strdup("ssh connection failed");
+    ssh2_log_results(ci->self, ci->check);
+    ssh2_cleanup(ci->self, ci->check);
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &mask, e);
+    check->flags &= ~NP_RUNNING;
+    return 0;
+  }
+
+  ci->available = 1;
+  e->callback = ssh2_needs_bytes_as_libssh2_is_impatient;
+  e->mask = EVENTER_READ | EVENTER_EXCEPTION;
+  return e->mask;
 }
 static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
