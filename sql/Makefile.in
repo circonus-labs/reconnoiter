@@ -36,3 +36,4 @@ install:	reconnoiter_ddl_dump.sql
 	$(INSTALL) -m 0644 crontab $(DESTDIR)$(datarootdir)/reconnoiter/crontab
 
 clean:
+	rm -f reconnoiter_ddl_dump.sql
