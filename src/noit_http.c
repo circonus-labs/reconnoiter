@@ -712,8 +712,8 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
     noit_http_process_querystring(&ctx->req);
   }
 
-  /* only dispatch if the response is not complete */
-  if(ctx->res.complete == noit_false) {
+  /* only dispatch if the response is not closed */
+  if(ctx->res.closed == noit_false) {
     noitL(http_debug, "   -> dispatch(%d)\n", e->fd);
     rv = ctx->dispatcher(ctx);
     noitL(http_debug, "   <- dispatch(%d) = %d\n", e->fd, rv);
