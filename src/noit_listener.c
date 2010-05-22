@@ -55,6 +55,8 @@ noit_listener_commands() {
 void
 acceptor_closure_free(acceptor_closure_t *ac) {
   if(ac->remote_cn) free(ac->remote_cn);
+  if(ac->service_ctx_free && ac->service_ctx)
+    ac->service_ctx_free(ac->service_ctx);
   free(ac);
 }
 

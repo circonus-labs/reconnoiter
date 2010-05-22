@@ -497,9 +497,12 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
 int
 stratcon_realtime_http_handler(eventer_t e, int mask, void *closure,
                                struct timeval *now) {
+  int done = 0, rv;
   acceptor_closure_t *ac = closure;
   noit_http_session_ctx *http_ctx = ac->service_ctx;
-  return http_ctx->drive(e, mask, http_ctx, now);
+  rv = noit_http_session_drive(e, mask, http_ctx, now, &done);
+  if(done) acceptor_closure_free(ac);
+  return rv;
 }
 static int
 rest_stream_data(noit_http_rest_closure_t *restc,
@@ -507,24 +510,26 @@ rest_stream_data(noit_http_rest_closure_t *restc,
   /* We're here and want to subvert the rest system */
   const char *document_domain = NULL;
   noit_http_session_ctx *ctx = restc->http_ctx;
+  acceptor_closure_t *ac = restc->ac;
 
   /* Rewire the handler */
-  restc->ac->service_ctx = ctx;
+  if(ac->service_ctx_free)
+    ac->service_ctx_free(ac->service_ctx);
+  ac->service_ctx = ctx;
+  ac->service_ctx_free = noit_http_ctx_acceptor_free;
 
-  if(!noit_hash_retr_str(restc->ac->config,
+  if(!noit_hash_retr_str(ac->config,
                          "document_domain", strlen("document_domain"),
                          &document_domain)) {
     noitL(noit_error, "Document domain not set!  Realtime streaming will be broken\n");
     document_domain = "";
   }
-  noit_http_rest_closure_free(restc);
 
   noit_http_process_querystring(&ctx->req);
   /* Rewire the http context */
   ctx->conn.e->callback = stratcon_realtime_http_handler;
   ctx->dispatcher = stratcon_request_dispatcher;
   ctx->dispatcher_closure = alloc_realtime_context(document_domain);
-  //ctx->drive = stratcon_realtime_http_handler;
   return stratcon_request_dispatcher(ctx);
 }
 

@@ -55,6 +55,7 @@ typedef struct {
   void *service_ctx;
   eventer_func_t dispatch;
   u_int32_t cmd;
+  void (*service_ctx_free)(void *);
 } acceptor_closure_t;
 
 typedef struct {

@@ -66,9 +66,6 @@ struct bchain {
 
 #define BCHAIN_SPACE(a) ((a)->allocd - (a)->size - (a)->start)
 
-API_EXPORT(struct bchain *) bchain_alloc(size_t size);
-API_EXPORT(void) bchain_free(struct bchain *);
-
 typedef struct {
   eventer_t e;
   int needs_close;
@@ -130,7 +127,6 @@ typedef struct noit_http_session_ctx {
   noit_http_response res;
   noit_http_dispatch_func dispatcher;
   void *dispatcher_closure;
-  eventer_func_t drive;
   acceptor_closure_t *ac;
 } noit_http_session_ctx;
 
@@ -139,11 +135,15 @@ API_EXPORT(noit_http_session_ctx *)
                             acceptor_closure_t *);
 API_EXPORT(void)
   noit_http_session_ctx_release(noit_http_session_ctx *);
+
+API_EXPORT(void)
+  noit_http_ctx_acceptor_free(void *); /* just calls noit_http_session_ctx_release */
+
 API_EXPORT(void)
   noit_http_process_querystring(noit_http_request *);
 
 API_EXPORT(int)
-  noit_http_session_drive(eventer_t, int, void *, struct timeval *);
+  noit_http_session_drive(eventer_t, int, void *, struct timeval *, int *done);
 
 API_EXPORT(noit_boolean)
   noit_http_session_prime_input(noit_http_session_ctx *, const void *, size_t);

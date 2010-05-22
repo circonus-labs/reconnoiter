@@ -76,33 +76,37 @@ static void inplace_urldecode(char *c) {
   *o = '\0';
 }
 
-struct bchain *bchain_alloc(size_t size) {
+struct bchain *bchain_alloc(size_t size, int line) {
   struct bchain *n;
   n = malloc(size + ((char *)n->buff - (char *)n));
+  /*noitL(noit_error, "bchain_alloc(%p) : %d\n", n, line);*/
   if(!n) return NULL;
   n->prev = n->next = NULL;
   n->start = n->size = 0;
   n->allocd = size;
   return n;
 }
+void bchain_free(struct bchain *b, int line) {
+  /*noitL(noit_error, "bchain_free(%p) : %d\n", b, line);*/
+  free(b);
+}
+#define ALLOC_BCHAIN(s) bchain_alloc(s, __LINE__)
+#define FREE_BCHAIN(a) bchain_free(a, __LINE__)
 #define RELEASE_BCHAIN(a) do { \
   while(a) { \
     struct bchain *__b; \
     __b = a; \
     a = __b->next; \
-    bchain_free(__b); \
+    bchain_free(__b, __LINE__); \
   } \
 } while(0)
 struct bchain *bchain_from_data(const void *d, size_t size) {
   struct bchain *n;
-  n = bchain_alloc(size);
+  n = ALLOC_BCHAIN(size);
   if(!n) return NULL;
   memcpy(n->buff, d, size);
   n->size = size;
   return n;
-}
-void bchain_free(struct bchain *b) {
-  free(b);
 }
 
 static noit_http_method
@@ -164,7 +168,7 @@ _fixup_bchain(struct bchain *b) {
     end_in_f = (str_in_f - f->buff - f->start);
     new_size = end_in_f + (b->start + b->size - start_in_b);
     if(new_size > DEFAULT_BCHAINSIZE) return noit_false; /* string too long */
-    f = bchain_alloc(new_size);
+    f = ALLOC_BCHAIN(new_size);
     f->prev = b;
     f->next = b->next;
     f->start = 0;
@@ -245,7 +249,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
 
   if(ctx->res.output_raw_offset >= b->size) {
     *head = b->next;
-    bchain_free(b);
+    FREE_BCHAIN(b);
     b = *head;
     if(b) b->prev = NULL;
     ctx->res.output_raw_offset = 0;
@@ -326,7 +330,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     /* There are left-overs */
     int lsize = req->current_input->size - req->current_offset;
     noitL(http_debug, " noit_http_request_finalize -- leftovers: %d\n", lsize);
-    req->first_input = bchain_alloc(lsize);
+    req->first_input = ALLOC_BCHAIN(lsize);
     req->first_input->prev = NULL;
     req->first_input->next = req->current_input->next;
     req->first_input->start = 0;
@@ -338,7 +342,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     if(req->last_input == req->current_input)
       req->last_input = req->first_input;
     else
-      bchain_free(req->current_input);
+      FREE_BCHAIN(req->current_input);
   }
   else {
     req->first_input = req->last_input = NULL;
@@ -403,7 +407,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
           if(!prefix) FAIL;
           l1 = strlen(prefix);
           l2 = strlen(value);
-          b = bchain_alloc(l1 + l2 + 2);
+          b = ALLOC_BCHAIN(l1 + l2 + 2);
           b->next = req->current_request_chain;
           b->next->prev = b;
           req->current_request_chain = b;
@@ -510,14 +514,14 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
     in = ctx->req.last_input;
     if(!in) {
       in = ctx->req.first_input = ctx->req.last_input =
-        bchain_alloc(DEFAULT_BCHAINSIZE);
+        ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
       if(!in) goto full_error;
     }
     if(in->size > 0 && /* we've read something */
        DEFAULT_BCHAINMINREAD > BCHAIN_SPACE(in) && /* we'd like read more */
        DEFAULT_BCHAINMINREAD < DEFAULT_BCHAINSIZE) { /* and we can */
       in->next = ctx->req.last_input =
-        bchain_alloc(DEFAULT_BCHAINSIZE);
+        ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
       in->next->prev = in;
       in = in->next;
       if(!in) goto full_error;
@@ -555,7 +559,7 @@ noit_http_session_prime_input(noit_http_session_ctx *ctx,
   if(ctx->req.first_input != NULL) return noit_false;
   if(len > DEFAULT_BCHAINSIZE) return noit_false;
   ctx->req.first_input = ctx->req.last_input =
-      bchain_alloc(DEFAULT_BCHAINSIZE);
+      ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
   memcpy(ctx->req.first_input->buff, data, len);
   ctx->req.first_input->size = len;
   return noit_true;
@@ -575,7 +579,8 @@ noit_http_request_release(noit_http_session_ctx *ctx) {
   }
   RELEASE_BCHAIN(ctx->req.current_request_chain);
   if(ctx->req.orig_qs) free(ctx->req.orig_qs);
-  memset(&ctx->req, 0, sizeof(ctx->req));
+  memset(&ctx->req.state, 0,
+         sizeof(ctx->req) - (unsigned long)&(((noit_http_request *)0)->state));
 }
 void
 noit_http_response_release(noit_http_session_ctx *ctx) {
@@ -590,9 +595,14 @@ void
 noit_http_ctx_session_release(noit_http_session_ctx *ctx) {
   if(noit_atomic_dec32(&ctx->ref_cnt) == 0) {
     noit_http_request_release(ctx);
+    if(ctx->req.first_input) RELEASE_BCHAIN(ctx->req.first_input);
     noit_http_response_release(ctx);
     free(ctx);
   }
+}
+void
+noit_http_ctx_acceptor_free(void *v) {
+  noit_http_ctx_session_release((noit_http_session_ctx *)v);
 }
 int
 noit_http_session_req_consume(noit_http_session_ctx *ctx,
@@ -635,9 +645,9 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       in = ctx->req.last_input;
       if(!in)
         in = ctx->req.first_input = ctx->req.last_input =
-            bchain_alloc(DEFAULT_BCHAINSIZE);
+            ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
       else if(in->start + in->size >= in->allocd) {
-        in->next = bchain_alloc(DEFAULT_BCHAINSIZE);
+        in->next = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
         in = ctx->req.last_input = in->next;
       }
       /* pull next chunk */
@@ -669,7 +679,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
 
 int
 noit_http_session_drive(eventer_t e, int origmask, void *closure,
-                        struct timeval *now) {
+                        struct timeval *now, int *done) {
   noit_http_session_ctx *ctx = closure;
   int rv = 0;
   int mask = origmask;
@@ -725,8 +735,10 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
      ctx->conn.needs_close == noit_true) {
    abort_drive:
     noit_http_log_request(ctx);
-    ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
-    ctx->conn.e = NULL;
+    if(ctx->conn.e) {
+      ctx->conn.e->opset->close(ctx->conn.e->fd, &mask, ctx->conn.e);
+      ctx->conn.e = NULL;
+    }
     goto release;
   }
   if(ctx->res.complete == noit_true) {
@@ -740,8 +752,13 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
     return mask | rv;
   }
   noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
-  return 0;
+  goto abort_drive;
+
  release:
+  *done = 1;
+  /* We're about to release, unhook us from the acceptor_closure so we
+   * don't get double freed */
+  if(ctx->ac->service_ctx == ctx) ctx->ac->service_ctx = NULL;
   noit_http_ctx_session_release(ctx);
   noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, 0);
   return 0;
@@ -757,7 +774,6 @@ noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e,
   ctx->conn.e = e;
   ctx->dispatcher = f;
   ctx->dispatcher_closure = c;
-  ctx->drive = noit_http_session_drive;
   ctx->ac = ac;
   return ctx;
 }
@@ -825,13 +841,13 @@ noit_http_response_append(noit_http_session_ctx *ctx,
      !(ctx->res.output_options & (NOIT_HTTP_CLOSE | NOIT_HTTP_CHUNKED)))
     return noit_false;
   if(!ctx->res.output)
-    assert(ctx->res.output = bchain_alloc(DEFAULT_BCHAINSIZE));
+    assert(ctx->res.output = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE));
   o = ctx->res.output;
   while(o->next) o = o->next;
   while(l > 0) {
     if(o->allocd == o->start + o->size) {
       /* Filled up, need another */
-      o->next = bchain_alloc(DEFAULT_BCHAINSIZE);
+      o->next = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
       o->next->prev = o->next;
       o = o->next;
     }
@@ -873,7 +889,7 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
 
   assert(!ctx->res.leader);
-  ctx->res.leader = b = bchain_alloc(DEFAULT_BCHAINSIZE);
+  ctx->res.leader = b = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
 
   protocol_str = ctx->res.protocol == NOIT_HTTP11 ?
                    "HTTP/1.1" :
@@ -887,7 +903,7 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
 
 #define CTX_LEADER_APPEND(s, slen) do { \
   if(b->size + slen > DEFAULT_BCHAINSIZE) { \
-    b->next = bchain_alloc(DEFAULT_BCHAINSIZE); \
+    b->next = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE); \
     assert(b->next); \
     b->next->prev = b; \
     b = b->next; \
@@ -983,7 +999,7 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   while(ilen) { ilen >>= 4; hexlen++; }
   if(hexlen == 0) hexlen = 1;
 
-  out = bchain_alloc(hexlen + 4 + maxlen);
+  out = ALLOC_BCHAIN(hexlen + 4 + maxlen);
   /* if we're chunked, let's give outselved hexlen + 2 prefix space */
   if(opts & NOIT_HTTP_CHUNKED) out->start = hexlen + 2;
   if(_http_encode_chain(out, in, opts) == noit_false) {
@@ -1049,7 +1065,7 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
     else {
       r = ctx->res.output_raw = n;
     }
-    tofree = o; o = o->next; free(tofree); /* advance and free */
+    tofree = o; o = o->next; FREE_BCHAIN(tofree); /* advance and free */
   }
   ctx->res.output = NULL;
   if(final) {

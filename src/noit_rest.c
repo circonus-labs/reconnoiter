@@ -272,7 +272,8 @@ noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
   restc->fastpath = NULL;
 }
 void
-noit_http_rest_closure_free(noit_http_rest_closure_t *restc) {
+noit_http_rest_closure_free(void *v) {
+  noit_http_rest_closure_t *restc = v;
   free(restc->remote_cn);
   noit_http_rest_clean_request(restc);
   free(restc);
@@ -299,7 +300,7 @@ noit_rest_request_dispatcher(noit_http_session_ctx *ctx) {
 int
 noit_http_rest_handler(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
-  int newmask = EVENTER_READ | EVENTER_EXCEPTION;
+  int newmask = EVENTER_READ | EVENTER_EXCEPTION, rv, done = 0;
   acceptor_closure_t *ac = closure;
   noit_http_rest_closure_t *restc = ac->service_ctx;
 
@@ -308,7 +309,6 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(restc) noit_http_rest_closure_free(restc);
     if(ac) acceptor_closure_free(ac);
     return 0;
   }
@@ -316,6 +316,7 @@ socket_error:
   if(!ac->service_ctx) {
     const char *primer = "";
     ac->service_ctx = restc = noit_http_rest_closure_alloc();
+    ac->service_ctx_free = noit_http_rest_closure_free;
     restc->ac = ac;
     restc->remote_cn = strdup(ac->remote_cn ? ac->remote_cn : "");
     restc->http_ctx =
@@ -346,13 +347,17 @@ socket_error:
     }
     noit_http_session_prime_input(restc->http_ctx, primer, 4);
   }
-  return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
+  rv = noit_http_session_drive(e, mask, restc->http_ctx, now, &done);
+  if(done) {
+    if(ac) acceptor_closure_free(ac);
+  }
+  return rv;
 }
 
 int
 noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
-  int newmask = EVENTER_READ | EVENTER_EXCEPTION;
+  int newmask = EVENTER_READ | EVENTER_EXCEPTION, rv, done = 0;
   acceptor_closure_t *ac = closure;
   noit_http_rest_closure_t *restc = ac->service_ctx;
 
@@ -360,18 +365,22 @@ noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(restc) noit_http_rest_closure_free(restc);
     if(ac) acceptor_closure_free(ac);
     return 0;
   }
   if(!ac->service_ctx) {
     ac->service_ctx = restc = noit_http_rest_closure_alloc();
+    ac->service_ctx_free = noit_http_rest_closure_free;
     restc->ac = ac;
     restc->http_ctx =
         noit_http_session_ctx_new(noit_rest_request_dispatcher,
                                   restc, e, ac);
   }
-  return restc->http_ctx->drive(e, mask, restc->http_ctx, now);
+  rv = noit_http_session_drive(e, mask, restc->http_ctx, now, &done);
+  if(done) {
+    if(ac) acceptor_closure_free(ac);
+  }
+  return rv;
 }
 
 static void
