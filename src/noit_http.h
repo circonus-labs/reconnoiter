@@ -134,7 +134,8 @@ API_EXPORT(noit_http_session_ctx *)
   noit_http_session_ctx_new(noit_http_dispatch_func, void *, eventer_t,
                             acceptor_closure_t *);
 API_EXPORT(void)
-  noit_http_session_ctx_release(noit_http_session_ctx *);
+  noit_http_ctx_session_release(noit_http_session_ctx *ctx);
+
 
 API_EXPORT(void)
   noit_http_ctx_acceptor_free(void *); /* just calls noit_http_session_ctx_release */
