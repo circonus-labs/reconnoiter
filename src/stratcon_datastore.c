@@ -970,7 +970,7 @@ stratcon_datastore_asynch_lookup(eventer_t e, int mask, void *closure,
 static const char *
 get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   void *vinfo;
-  const char *dsn = NULL, *fqdn = NULL;
+  char *dsn = NULL, *fqdn = NULL;
   int found = 0;
   storagenode_info *info = NULL;
   pthread_mutex_lock(&storagenode_to_info_cache_lock);
@@ -999,6 +999,8 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
     if(row_count) {
       PG_GET_STR_COL(dsn, 0, "dsn");
       PG_GET_STR_COL(fqdn, 0, "fqdn");
+      fqdn = fqdn ? strdup(fqdn) : NULL;
+      dsn = dsn ? strdup(dsn) : NULL;
     }
     PQclear(d->res);
    bad_row:
@@ -1008,9 +1010,9 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   }
   if(fqdn) {
     info = calloc(1, sizeof(*info));
-    info->fqdn = strdup(fqdn);
+    info->fqdn = fqdn;
     if(fqdn_out) *fqdn_out = info->fqdn;
-    info->dsn = dsn ? strdup(dsn) : NULL;
+    info->dsn = dsn;
     info->storagenode_id = id;
     pthread_mutex_lock(&storagenode_to_info_cache_lock);
     noit_hash_store(&storagenode_to_info_cache,
@@ -1321,6 +1323,9 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
       PG_GET_STR_COL(fqdn, 0, "fqdn");
       PG_GET_STR_COL(dsn, 0, "dsn");
       PG_GET_STR_COL(new_remote_cn, 0, "remote_cn");
+      fqdn = fqdn ? strdup(fqdn) : NULL;
+      dsn = dsn ? strdup(dsn) : NULL;
+      new_remote_cn = new_remote_cn ? strdup(new_remote_cn) : NULL;
       PQclear(d->res);
     }
    bad_row:
@@ -1331,7 +1336,6 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
       return -1;
     }
     /* Place in cache */
-    if(fqdn) fqdn = strdup(fqdn);
     uuidinfo = calloc(1, sizeof(*uuidinfo));
     uuidinfo->sid = sid;
     uuidinfo->uuid_str = strdup(uuid_str);
@@ -1379,11 +1383,14 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     }
   }
 
-  if(fqdn_out) *fqdn_out = fqdn ? fqdn : (info ? info->fqdn : NULL);
-  if(dsn_out) *dsn_out = dsn ? dsn : (info ? info->dsn : NULL);
+  if(fqdn_out) *fqdn_out = info ? info->fqdn : NULL;
+  if(dsn_out) *dsn_out = info ? info->dsn : NULL;
   if(remote_cn_out) *remote_cn_out = uuidinfo->remote_cn;
   if(storagenode_id_out) *storagenode_id_out = uuidinfo->storagenode_id;
   if(sid_out) *sid_out = uuidinfo->sid;
+  if(fqdn) free(fqdn);
+  if(dsn) free(dsn);
+  if(new_remote_cn) free(new_remote_cn);
   return 0;
 }
 static int
