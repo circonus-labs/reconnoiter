@@ -268,8 +268,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   if(len == -1) {
     /* socket error */
     noit_http_log_request(ctx);
-    ctx->conn.e->opset->close(ctx->conn.e->fd, mask, ctx->conn.e);
-    ctx->conn.e = NULL;
+    *mask |= EVENTER_EXCEPTION;
     return -1;
   }
   noitL(http_io, " http_write(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd,
@@ -490,7 +489,7 @@ noit_http_request_finalize(noit_http_request *req, noit_boolean *err) {
     if(noit_http_request_finalize_payload(req, err)) return noit_true;
   return noit_false;
 }
-int
+static int
 noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
   struct bchain *in;
   noit_boolean rv, err = noit_false;
