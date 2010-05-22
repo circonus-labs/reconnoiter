@@ -398,12 +398,13 @@ noit_listener_reconfig(const char *toplevel) {
 
     if(noit_listener(address, port, SOCK_STREAM, backlog,
                      sslconfig, config, f, NULL) != 0) {
-      if(sslconfig) {
-        noit_hash_destroy(sslconfig,free,free);
-        free(sslconfig);
-      }
       noit_hash_destroy(config,free,free);
       free(config);
+    }
+    if(sslconfig) {
+      /* A copy of this is made within noit_listener */
+      noit_hash_destroy(sslconfig,free,free);
+      free(sslconfig);
     }
   }
   free(listener_configs);
