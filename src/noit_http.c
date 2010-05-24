@@ -1033,7 +1033,7 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
 noit_boolean
 noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
   struct bchain *o, *r;
-  int mask;
+  int mask, rv;
 
   if(ctx->res.closed == noit_true) return noit_false;
   if(ctx->res.output_started == noit_false) {
@@ -1084,11 +1084,14 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
     }
   }
 
-  _http_perform_write(ctx, &mask);
+  rv = _http_perform_write(ctx, &mask);
   if(ctx->conn.e) {
     eventer_update(ctx->conn.e, mask);
   }
-  /* If the write fails completely, the event will be closed, freed and NULL */
+  if(rv < 0) return noit_false;
+  /* If the write fails completely, the event will not be closed,
+   * the following should not trigger the false case.
+   */
   return ctx->conn.e ? noit_true : noit_false;
 }
 
