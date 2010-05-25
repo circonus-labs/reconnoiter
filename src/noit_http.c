@@ -78,7 +78,7 @@ static void inplace_urldecode(char *c) {
 
 struct bchain *bchain_alloc(size_t size, int line) {
   struct bchain *n;
-  n = malloc(size + ((char *)n->buff - (char *)n));
+  n = malloc(size + (int)((char *)((struct bchain *)0)->buff));
   /*noitL(noit_error, "bchain_alloc(%p) : %d\n", n, line);*/
   if(!n) return NULL;
   n->prev = n->next = NULL;
