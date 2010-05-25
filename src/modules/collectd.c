@@ -684,7 +684,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   unsigned char hash[sizeof (pss.hash)];
 
   unsigned char *hash_ptr;
-  unsigned int length, err;
+  unsigned int length;
 
   buffer = *ret_buffer;
   buffer_len = *ret_buffer_len;
@@ -744,8 +744,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
       hash,         &length);
   if (hash_ptr == NULL)
   {
-    noitL(noit_error, "collectd: Creating HMAC-SHA-256 object failed: %d\n",
-        err);
+    noitL(noit_error, "collectd: Creating HMAC-SHA-256 object failed.\n");
     sfree (pss.username);
     return (-1);
   }
