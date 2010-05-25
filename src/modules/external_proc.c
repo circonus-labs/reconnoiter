@@ -88,7 +88,7 @@ static int __proc_state_check_no(const void *av, const void *bv) {
 }
 static int __proc_state_check_no_key(const void *akv, const void *bv) {
   int64_t *acheck_no = (int64_t *)akv;
-  struct proc_state *b = (struct proc_state *)b;
+  struct proc_state *b = (struct proc_state *)bv;
   if(*acheck_no == b->check_no) return 0;
   if(*acheck_no < b->check_no) return -1;
   return 1;
