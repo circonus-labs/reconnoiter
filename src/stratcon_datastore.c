@@ -1044,25 +1044,27 @@ build_insert_batch(interim_journal_t *ij) {
     assert(rv != -1);
   }
   len = st.st_size;
-  buff = mmap(NULL, len, PROT_READ, MAP_PRIVATE, ij->fd, 0);
-  if(buff == (void *)-1) {
-    noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
-          ij->filename, strerror(errno));
-    assert(buff != (void *)-1);
+  if(len > 0) {
+    buff = mmap(NULL, len, PROT_READ, MAP_PRIVATE, ij->fd, 0);
+    if(buff == (void *)-1) {
+      noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
+            ij->filename, strerror(errno));
+      assert(buff != (void *)-1);
+    }
+    lcp = buff;
+    while(lcp < (buff + len) &&
+          NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
+      next = calloc(1, sizeof(*next));
+      next->data = malloc(cp - lcp + 1);
+      memcpy(next->data, lcp, cp - lcp);
+      next->data[cp - lcp] = '\0';
+      if(!head) head = next;
+      if(last) last->next = next;
+      last = next;
+      lcp = cp + 1;
+    }
+    munmap((void *)buff, len);
   }
-  lcp = buff;
-  while(lcp < (buff + len) &&
-        NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
-    next = calloc(1, sizeof(*next));
-    next->data = malloc(cp - lcp + 1);
-    memcpy(next->data, lcp, cp - lcp);
-    next->data[cp - lcp] = '\0';
-    if(!head) head = next;
-    if(last) last->next = next;
-    last = next;
-    lcp = cp + 1;
-  }
-  munmap((void *)buff, len);
   close(ij->fd);
   return head;
 }
