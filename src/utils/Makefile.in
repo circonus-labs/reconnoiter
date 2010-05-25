@@ -17,12 +17,13 @@ OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
 all:	libnoit_utils.a
 
 @DTRACEOBJ@:	$(OBJS)
+	@-test -n "@DTRACE@" && \
 	@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o @DTRACEOBJ@ $(OBJS)
 
 noit_log.o:	@DTRACEHDR@
 
 @DTRACEHDR@:	dtrace_probes.d
-	@DTRACE@ -h -s dtrace_probes.d
+	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
 
 libnoit_utils.a:	$(OBJS) @DTRACEOBJ@
 	@rm -f $@
