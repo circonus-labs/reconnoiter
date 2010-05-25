@@ -150,6 +150,12 @@
 /* The number of bytes in a void *.  */
 #undef SIZEOF_VOID_P
 
+/* The number of bytes in a void * (workaround for OpenBSD). */
+#undef SIZEOF_VOID__
+#if !defined(SIZEOF_VOID_P) && defined(SIZEOF_VOID__)
+#  define SIZEOF_VOID_P SIZEOF_VOID__
+#endif
+
 #ifndef HAVE_U_INT
 typedef unsigned int u_int;
 #endif
