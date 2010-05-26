@@ -251,7 +251,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   p.dnsp_qcls = 0;
   p.dnsp_qtyp = 0;
 
-  while((r = dns_nextrr(&p, &rr)) > 0) {
+  while(dns_nextrr(&p, &rr) > 0) {
     const char *fieldname = NULL;
     char buff[DNS_MAXDN], *txt_str, *c;
     int totalsize;
@@ -416,14 +416,13 @@ int noit_lua_dns_gc(lua_State *L) {
 int noit_lua_dns_index_func(lua_State *L) {
   int n;
   const char *k;
-  dns_lookup_ctx_t **udata, *obj;
+  dns_lookup_ctx_t **udata;
 
   n = lua_gettop(L);
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "noit.dns"))
     luaL_error(L, "metatable error, arg1 is not a noit.dns");
   udata = lua_touserdata(L, 1);
-  obj = *udata;
   if(!lua_isstring(L, 2))
     luaL_error(L, "metatable error, arg2 is not a string");
   k = lua_tostring(L, 2);

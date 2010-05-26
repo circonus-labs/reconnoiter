@@ -584,14 +584,12 @@ static void
 noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   noit_lua_check_info_t *ci = check->closure;
   struct timeval duration;
-  u_int32_t duration_ms;
 
   gettimeofday(&ci->finish_time, NULL);
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
   memcpy(&ci->current.whence, &ci->finish_time, sizeof(ci->current.whence));
   ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  duration_ms = ci->current.duration;
 
   noit_check_set_stats(self, check, &ci->current);
   free(ci->current.status);
@@ -606,7 +604,6 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   int result = -1, base;
   noit_module_t *self;
   noit_check_t *check;
-  check = ci->check;
 
   noitL(nldeb, "lua: %p resuming\n", ci->coro_state);
   result = lua_resume(ci->coro_state, nargs);
@@ -657,7 +654,6 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   noit_check_t *check;
   struct nl_intcl *int_cl = closure;
   noit_lua_check_info_t *ci = int_cl->ci;
-  check = ci->check;
   noitL(nldeb, "lua: %p ->check_timeout\n", ci->coro_state);
   ci->timed_out = 1;
   noit_lua_check_deregister_event(ci, e, 0);

@@ -658,9 +658,7 @@ noit_lua_socket_read(lua_State *L) {
   if(lua_isnumber(L, 2)) {
     cl->read_goal = lua_tointeger(L, 2);
     if(cl->read_goal <= cl->read_sofar) {
-      int base;
      i_know_better:
-      base = lua_gettop(L);
       /* We have enough, we can service this right here */
       lua_pushlstring(L, cl->inbuff, cl->read_goal);
       cl->read_sofar -= cl->read_goal;
@@ -821,14 +819,13 @@ static int
 noit_eventer_index_func(lua_State *L) {
   int n;
   const char *k;
-  eventer_t *udata, e;
+  eventer_t *udata;
   n = lua_gettop(L); /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "noit.eventer")) {
     luaL_error(L, "metatable error, arg1 not a noit.eventer!");
   }
   udata = lua_touserdata(L, 1);
-  e = *udata;
   if(!lua_isstring(L, 2)) {
     luaL_error(L, "metatable error, arg2 not a string!");
   }
@@ -1486,14 +1483,13 @@ static int
 noit_xmlnode_index_func(lua_State *L) {
   int n;
   const char *k;
-  xmlNodePtr *udata, obj;
+  xmlNodePtr *udata;
   n = lua_gettop(L); /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "noit.xmlnode")) {
     luaL_error(L, "metatable error, arg1 not a noit.xmlnode!");
   }
   udata = lua_touserdata(L, 1);
-  obj = *udata;
   if(!lua_isstring(L, 2)) {
     luaL_error(L, "metatable error, arg2 not a string!");
   }
@@ -1548,14 +1544,13 @@ static int
 noit_xmldoc_index_func(lua_State *L) {
   int n;
   const char *k;
-  xmlDocPtr *udata, obj;
+  xmlDocPtr *udata;
   n = lua_gettop(L); /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "noit.xmldoc")) {
     luaL_error(L, "metatable error, arg1 not a noit.xmldoc!");
   }
   udata = lua_touserdata(L, 1);
-  obj = *udata;
   if(!lua_isstring(L, 2)) {
     luaL_error(L, "metatable error, arg2 not a string!");
   }

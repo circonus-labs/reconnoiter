@@ -107,13 +107,11 @@ APR_DECLARE(apr_status_t) stomp_disconnect(stomp_connection **connection_ref)
 APR_DECLARE(apr_status_t) stomp_write_buffer(stomp_connection *connection, const char *data, apr_size_t size)
 {
    apr_size_t remaining = size;
-   size=0;
 	while( remaining>0 ) {
 		apr_size_t length = remaining;
 		apr_status_t rc = apr_socket_send(connection->socket, data, &length);
       data+=length;
       remaining -= length;
-      //      size += length;
       if( rc != APR_SUCCESS ) {
          return rc;
       }

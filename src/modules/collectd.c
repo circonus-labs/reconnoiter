@@ -541,7 +541,6 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
   size_t exp_size = 2 * sizeof (uint16_t) + sizeof (uint64_t);
 
   uint16_t pkg_length;
-  uint16_t pkg_type;
 
   if ((buffer_len < 0) || ((size_t) buffer_len < exp_size))
   {
@@ -553,9 +552,8 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
     return (-1);
   }
 
-  memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+  /* skip pkg_type */
   buffer += sizeof (tmp16);
-  pkg_type = ntohs (tmp16);
 
   memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
   buffer += sizeof (tmp16);
@@ -581,7 +579,6 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   size_t header_size = 2 * sizeof (uint16_t);
 
   uint16_t pkg_length;
-  uint16_t pkg_type;
 
   if ((buffer_len < 0) || (buffer_len < header_size))
   {
@@ -593,9 +590,8 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
     return (-1);
   }
 
-  memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
+  /* skip pkg_type */
   buffer += sizeof (tmp16);
-  pkg_type = ntohs (tmp16);
 
   memcpy ((void *) &tmp16, buffer, sizeof (tmp16));
   buffer += sizeof (tmp16);
@@ -884,7 +880,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   memset (hash, 0, sizeof (hash));
   EVP_DigestInit(&ctx_md, EVP_sha1());
   EVP_DigestUpdate(&ctx_md, buffer + buffer_offset, payload_len);
-  err = EVP_DigestFinal(&ctx_md, hash, &hash_length);
+  EVP_DigestFinal(&ctx_md, hash, &hash_length);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
     noitL(noit_error, "collectd: Decryption failed: Checksum mismatch.\n");
