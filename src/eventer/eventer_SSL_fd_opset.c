@@ -404,7 +404,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
   eventer_t e = closure;
   eventer_ssl_ctx_t *ctx = e->opset_ctx;
   int (*sslop)(SSL *) = NULL;
-  const char *opstr = "none";
+  const char *opstr = NULL;
 
   switch(op) {
     case SSL_OP_READ:
@@ -421,7 +421,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       if(!sslop) sslop = SSL_connect;
       /* fall through */
     case SSL_OP_ACCEPT:
-      opstr = "accept";
+      if(!opstr) opstr = "accept";
       /* only set if we didn't fall through */
       if(!sslop) sslop = SSL_accept;
    
@@ -438,6 +438,8 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
     default:
       abort();
   }
+  /* This can't happen as we'd have already aborted... */
+  if(!opstr) opstr = "none";
 
   if(ctx->renegotiated) {
     noitL(eventer_err, "SSL renogotiation attempted on %d\n", fd);
