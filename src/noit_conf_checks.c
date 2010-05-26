@@ -666,15 +666,17 @@ noit_console_config_show(noit_console_closure_t ncct,
     goto bad;
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-  titled = 0;
-  config = noit_conf_get_hash(node, "config");
-  while(noit_hash_next(config, &iter, &k, &klen, &data)) {
-    if(!titled++) nc_printf(ncct, "== Section [Aggregated] Config ==\n");
-    nc_printf(ncct, "config::%s: %s\n", k, (const char *)data);
+  if(cnt > 0) {
+    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    titled = 0;
+    config = noit_conf_get_hash(node, "config");
+    while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+      if(!titled++) nc_printf(ncct, "== Section [Aggregated] Config ==\n");
+      nc_printf(ncct, "config::%s: %s\n", k, (const char *)data);
+    }
+    noit_hash_destroy(config, free, free);
+    free(config);
   }
-  noit_hash_destroy(config, free, free);
-  free(config);
   xmlXPathFreeObject(pobj);
 
   /* _shorten string_ turning last { / @ * } to { / * } */
