@@ -229,7 +229,6 @@ int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char *
 int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
                   NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
   int off;
-  void *data;
   noit_hash_bucket *b, *prev = NULL;
 
   if(h->table_size == 0) noit_hash_init(h);
@@ -241,7 +240,6 @@ int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
     b = b->next;
   }
   if(!b) return 0; /* No match */
-  data = b->data;
   if(!prev) h->buckets[off] = h->buckets[off]->next;
   else prev->next = b->next;
   if(keyfree) keyfree((void *)b->k);

@@ -583,7 +583,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   if(ls->enabled || NOIT_LOG_LOG_ENABLED()) {
     int len;
     if(ls->debug) {
-      struct tm _tm, *tm = &_tm;
+      struct tm _tm, *tm;
       char tbuf[32];
       time_t s = (time_t)now->tv_sec;
       tm = localtime_r(&s, &_tm);
