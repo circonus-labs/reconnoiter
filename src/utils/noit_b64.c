@@ -102,11 +102,11 @@ noit_b64_encode(const unsigned char *src, size_t src_len,
     if(len > 1) {
       *eptr++ = __b64[((bptr[0] & 0x03) << 4) + (bptr[1] >> 4)];
       *eptr++ = __b64[(bptr[1] & 0x0f) << 2];
-      *eptr++ = '=';
+      *eptr = '=';
     } else {
       *eptr++ = __b64[(bptr[0] & 0x03) << 4];
       *eptr++ = '=';
-      *eptr++ = '=';
+      *eptr = '=';
     }
   }
   return n;
