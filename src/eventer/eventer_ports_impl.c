@@ -56,7 +56,6 @@ struct _eventer_impl eventer_ports_impl;
 #include "eventer/eventer_impl_private.h"
 
 static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
-static pthread_t master_thread;
 static int port_fd = -1;
 
 static int eventer_ports_impl_init() {
@@ -66,7 +65,6 @@ static int eventer_ports_impl_init() {
   /* super init */
   if((rv = eventer_impl_init()) != 0) return rv;
 
-  master_thread = pthread_self();
   signal(SIGPIPE, SIG_IGN);
   port_fd = port_create();
   if(port_fd == -1) {
@@ -243,11 +241,6 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
 }
 static int eventer_ports_impl_loop() {
   struct timeval __dyna_sleep = { 0, 0 };
-  int is_master_thread = 0;
-  pthread_t self;
-
-  self = pthread_self();
-  if(pthread_equal(self, master_thread)) is_master_thread = 1;
 
   while(1) {
     const char *cbname;

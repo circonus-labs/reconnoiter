@@ -53,7 +53,6 @@ struct _eventer_impl eventer_kqueue_impl;
 #include "eventer/eventer_impl_private.h"
 
 static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
-static pthread_t master_thread;
 static int kqueue_fd = -1;
 typedef struct kqueue_setup {
   struct kevent *__ke_vec;
@@ -110,7 +109,6 @@ static int eventer_kqueue_impl_init() {
   /* super init */
   if((rv = eventer_impl_init()) != 0) return rv;
 
-  master_thread = pthread_self();
   signal(SIGPIPE, SIG_IGN);
   kqueue_fd = kqueue();
   if(kqueue_fd == -1) {
@@ -315,14 +313,9 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
   release_master_fd(fd, lockstate);
 }
 static int eventer_kqueue_impl_loop() {
-  int is_master_thread = 0;
   struct timeval __dyna_sleep = { 0, 0 };
-  pthread_t self;
   KQUEUE_DECL;
   KQUEUE_SETUP;
-
-  self = pthread_self();
-  if(pthread_equal(self, master_thread)) is_master_thread = 1;
 
   if(!kqs) {
     kqs = calloc(1, sizeof(*kqs));

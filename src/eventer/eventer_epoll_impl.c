@@ -52,7 +52,6 @@ struct _eventer_impl eventer_epoll_impl;
 
 #include "eventer/eventer_impl_private.h"
 
-static pthread_t master_thread;
 static int *masks;
 static int epoll_fd = -1;
 
@@ -63,7 +62,6 @@ static int eventer_epoll_impl_init() {
   /* super init */
   if((rv = eventer_impl_init()) != 0) return rv;
 
-  master_thread = pthread_self();
   signal(SIGPIPE, SIG_IGN);
   epoll_fd = epoll_create(1024);
   if(epoll_fd == -1) {
@@ -221,12 +219,7 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
   release_master_fd(fd, lockstate);
 }
 static int eventer_epoll_impl_loop() {
-  int is_master_thread = 0;
   struct epoll_event *epev;
-  pthread_t self;
-
-  self = pthread_self();
-  if(pthread_equal(self, master_thread)) is_master_thread = 1;
 
   epev = malloc(sizeof(*epev) * maxfds);
 
