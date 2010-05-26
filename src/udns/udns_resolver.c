@@ -843,7 +843,6 @@ dns_send(struct dns_ctx *ctx, struct dns_query *q, time_t now) {
 
 static void dns_dummy_cb(struct dns_ctx *ctx, void *result, void *data) {
   if (result) free(result);
-  data = ctx = 0;	/* used */
 }
 
 /* The (only, main, real) query submission routine.
