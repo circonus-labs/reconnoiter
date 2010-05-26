@@ -219,10 +219,9 @@ public int
 el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonblock)
 {
 	el_action_t cmd = ED_UNASSIGNED;
-	int num;
 
 	while (cmd == ED_UNASSIGNED || cmd == ED_SEQUENCE_LEAD_IN) {
-		if ((num = el_getc(el, ch)) != 1) {	/* if EOF or error */
+		if (el_getc(el, ch) != 1) {	/* if EOF or error */
 			/* So solaris doesn't read -> -1 with EAGAIN when
 			 * no data is ready on the terminal.. it returns 0.
 			 * I'm likely not understanding something, but that
