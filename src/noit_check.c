@@ -793,7 +793,7 @@ noit_metric_sizes(metric_type_t type, void *value) {
 static metric_type_t
 noit_metric_guess_type(const char *s, void **replacement) {
   char *copy, *cp, *trailer, *rpl;
-  int negative = 0, bigF = 0;
+  int negative = 0;
   metric_type_t type = METRIC_STRING;
 
   if(!s) return METRIC_GUESS;
@@ -865,7 +865,6 @@ noit_metric_guess_type(const char *s, void **replacement) {
    goto notanumber;
 
   exponent:
-   if(s[0] == 'E') bigF = 1; /* We want the caps variant */
    s++;
    if(s[0] != '-' && s[0] != '+') goto notanumber;
    s++;

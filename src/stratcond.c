@@ -173,7 +173,6 @@ int configure_eventer() {
 }
 
 static int child_main() {
-  int lockfd;
   char lockfile[PATH_MAX];
   char conf_str[1024];
   char user[32], group[32];
@@ -194,11 +193,10 @@ static int child_main() {
    * If we've started -D, we'll have the lock.
    * If not we will daemon and must reacquire the lock.
    */
-  lockfd = -1;
   lockfile[0] = '\0';
   if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
                              lockfile, sizeof(lockfile))) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+    if(noit_lockfile_acquire(lockfile) < 0) {
       noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
       exit(-1);
     }

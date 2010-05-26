@@ -97,7 +97,7 @@ noitedit_completion_function(EditLine *el, const char *text, int state) {
   noit_console_closure_t ncct;
   const LineInfo *li;
   char **cmds, *curstr;
-  int len, i, cnt = 32;
+  int len, cnt = 32;
 
   li = el_line(el);
   len = li->cursor - li->buffer;
@@ -106,7 +106,7 @@ noitedit_completion_function(EditLine *el, const char *text, int state) {
   curstr[len] = '\0';
 
   cmds = alloca(32 * sizeof(*cmds));
-  i = noit_tokenize(curstr, cmds, &cnt);
+  (void) noit_tokenize(curstr, cmds, &cnt);
 
   el_get(el, EL_USERDATA, (void *)&ncct);
 

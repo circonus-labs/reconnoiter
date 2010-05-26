@@ -247,7 +247,6 @@ void stratcon_iep_submit_statements() {
   }
 
   /* Phase 4: clean the markings */
-  mgen = 0;
   memset(&iter, 0, sizeof(iter));
   while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
     stmt = vstmt;
@@ -441,7 +440,6 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
                   remote_str, len);
        break;
       case AF_UNIX:
-        len = SUN_LEN(((struct sockaddr_un *)remote));
         snprintf(remote_str, sizeof(remote_str), "%s", ((struct sockaddr_un *)remote)->sun_path);
         break;
     }

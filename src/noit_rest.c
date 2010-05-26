@@ -395,7 +395,7 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_xml_payload *rxc;
   if(restc->call_closure == NULL) {
-    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    restc->call_closure = calloc(1, sizeof(*rxc));
     restc->call_closure_free = rest_xml_payload_free;
   }
   rxc = restc->call_closure;

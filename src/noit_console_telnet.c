@@ -1798,7 +1798,6 @@ doeof(noit_console_closure_t ncct)
 
 noit_console_telnet_closure_t
 noit_console_telnet_alloc(noit_console_closure_t ncct) {
-  int on;
   noit_console_telnet_closure_t telnet, tmp;
   static unsigned char ttytype_sbbuf[] = {
     IAC, SB, TELOPT_TTYPE, TELQUAL_SEND, IAC, SE
@@ -1825,7 +1824,6 @@ noit_console_telnet_alloc(noit_console_closure_t ncct) {
   }
   if (my_state_is_wont(TELOPT_ECHO))
     send_will(TELOPT_ECHO, 1);
-  on = 1;
   init_termbuf(ncct);
 #ifdef LINEMODE
   localstat(ncct);

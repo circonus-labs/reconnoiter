@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
 
   /* Reacquire the lock */
   if(*lockfile) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+    if(noit_lockfile_acquire(lockfile) < 0) {
       noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
       exit(-1);
     }

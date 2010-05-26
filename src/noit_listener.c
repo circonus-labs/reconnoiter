@@ -509,7 +509,6 @@ noit_convert_sockaddr_to_buff(char *buff, int blen, struct sockaddr *remote) {
                   name, len);
        break;
       case AF_UNIX:
-        len = SUN_LEN(((struct sockaddr_un *)remote));
         snprintf(name, sizeof(name), "%s", ((struct sockaddr_un *)remote)->sun_path);
         break;
       default: return 0;

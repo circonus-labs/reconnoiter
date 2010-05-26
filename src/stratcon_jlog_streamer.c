@@ -575,7 +575,6 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                  tmp_str, ntohs(nctx->r.remote_in6.sin6_port));
        break;
       case AF_UNIX:
-        len = SUN_LEN(&(nctx->r.remote_un));
         snprintf(remote_str, sizeof(remote_str), "%s", nctx->r.remote_un.sun_path);
         break;
       default:

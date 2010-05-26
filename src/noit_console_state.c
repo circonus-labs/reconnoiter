@@ -514,7 +514,7 @@ noit_console_help(noit_console_closure_t ncct, int argc, char **argv,
   current = ncct->state_stack;
 
   if(!argc) {
-    noit_console_state_stack_t *i = current;
+    noit_console_state_stack_t *i;
     if(!current) {
       nc_printf(ncct, "no state!\n");
       return -1;

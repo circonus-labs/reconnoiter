@@ -1077,10 +1077,9 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
     if(r) {
       r->next = n;
       n->prev = r;
-      r = n;
     }
     else {
-      r = ctx->res.output_raw = n;
+      ctx->res.output_raw = n;
     }
   }
 

@@ -264,7 +264,6 @@ ttl_purge_conn_pool(conn_pool *pool) {
 
   /* Force release these without holding the lock */
   while(cq) {
-    prev = cq;
     cq = cq->next;
     release_conn_q_forceable(cq, 1);
   }
