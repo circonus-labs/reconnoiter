@@ -836,6 +836,7 @@ replace_config(noit_console_closure_t ncct,
   }
   if(pobj) xmlXPathFreeObject(pobj);
 
+#ifdef UNSAFE_RECONFIG
   snprintf(xpath, sizeof(xpath), "/noit/%s", path);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET) goto out;
@@ -857,14 +858,13 @@ replace_config(noit_console_closure_t ncct,
       if(NOIT_CHECK_LIVE(check)) active++;
     }
   }
-#ifdef UNSAFE_RECONFIG
   if(active) {
     nc_printf(ncct, "Cannot set '%s', it would effect %d live check(s)\n",
               name, active);
     goto out;
   }
-#endif
   if(pobj) xmlXPathFreeObject(pobj);
+#endif
 
   /* Here we want to remove /noit/path/config/name */
   snprintf(xpath, sizeof(xpath), "/noit/%s/config/%s", path, name);
