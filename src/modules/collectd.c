@@ -511,11 +511,11 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
         break;
 
       default:
-        sfree (pkg_types);
-        sfree (pkg_values);
         noitL(noit_debug, "collectd: parse_part_values: "
       "Don't know how to handle data source type %"PRIu8 "\n",
       pkg_types[i]);
+        sfree (pkg_types);
+        sfree (pkg_values);
         return (-1);
     } /* switch (pkg_types[i]) */
   }
