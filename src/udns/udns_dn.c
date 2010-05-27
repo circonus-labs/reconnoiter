@@ -86,7 +86,8 @@ dns_ptodn(const char *name, unsigned namelen,
       if (!c) {			/* empty label */
         if (np == (dnscc_t *)name && np + 1 == ne) {
           /* special case for root dn, aka `.' */
-          ++np;
+          /* ++np;
+             ... incrementing a variable that isn't subsequently looked at */
           break;
         }
         return -1;		/* zero label */
