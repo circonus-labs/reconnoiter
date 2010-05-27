@@ -85,17 +85,17 @@ APR_DECLARE(apr_status_t) stomp_disconnect(stomp_connection **connection_ref)
    
 	result = APR_SUCCESS;	
    rc = apr_socket_shutdown(connection->socket, APR_SHUTDOWN_WRITE);	
-	if( result!=APR_SUCCESS )
+	if( rc!=APR_SUCCESS )
 		result = rc;
    
    if( connection->socket != NULL ) {
       rc = apr_socket_close(connection->socket);
-      if( result!=APR_SUCCESS )
+      if( rc!=APR_SUCCESS )
          result = rc;
       connection->socket=NULL;
    }   
 	*connection_ref=NULL;
-	return rc;	
+	return result;	
 }
 
 /********************************************************************************
