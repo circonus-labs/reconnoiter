@@ -792,7 +792,7 @@ _history_expand_command(const char *command, size_t cmdlen, char **result)
 
 	for (i = 0; i <= max; i++)
 		free(arr[i]);
-	free(arr), arr = (char **) NULL;
+	free(arr);
 	return (p_on) ? 2 : 1;
 }
 
