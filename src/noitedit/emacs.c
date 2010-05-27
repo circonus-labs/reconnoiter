@@ -216,7 +216,7 @@ em_copy_region(EditLine *el, int c)
 {
 	char *kp, *cp;
 
-	if (el->el_chared.c_kill.mark)
+	if (!el->el_chared.c_kill.mark)
 		return (CC_ERROR);
 
 	if (el->el_chared.c_kill.mark > el->el_line.cursor) {
