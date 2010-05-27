@@ -292,6 +292,7 @@ int ec_rl_setup_event_driven_mode(const char *prompt, ec_rl_line_consumer_func c
 
 	if (e == NULL || h == NULL)
 		rl_initialize();
+	if (e == NULL) return (CC_ERROR);
 
 	ec_consumer = consumer;
 
@@ -1607,6 +1608,8 @@ rl_complete_internal(int what_to_do)
 	if (h == NULL || e == NULL)
 		rl_initialize();
 
+	if (e == NULL) return (CC_ERROR);
+
 	complet_func = rl_completion_entry_function;
 	if (!complet_func)
 		complet_func = filename_completion_function;
@@ -1737,6 +1740,7 @@ rl_complete(int ignore, int invoking_key)
 {
 	if (h == NULL || e == NULL)
 		rl_initialize();
+	if (e == NULL) return (CC_ERROR);
 
 	if (rl_inhibit_completion) {
 		rl_insert(ignore, invoking_key);
