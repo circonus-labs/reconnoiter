@@ -131,7 +131,6 @@ eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
 int
 eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                         X509_STORE_CTX *x509ctx, void *closure) {
-  SSL *ssl;
   noit_hash_table *options = closure;
   const char *opt_no_ca, *ignore_dates;
   int v_res;
@@ -150,8 +149,8 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
     opt_no_ca = "true";
     ignore_dates = "true";
   }
-  ssl = X509_STORE_CTX_get_ex_data(x509ctx,
-                                   SSL_get_ex_data_X509_STORE_CTX_idx());
+  X509_STORE_CTX_get_ex_data(x509ctx,
+                             SSL_get_ex_data_X509_STORE_CTX_idx());
   v_res = X509_STORE_CTX_get_error(x509ctx);
 
   if((v_res == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
