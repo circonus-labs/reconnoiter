@@ -391,9 +391,12 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   char xpath[1024];
 
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(!info ||
-     (strncmp(info->path, "/filtersets/", strlen("/filtersets/")) &&
-      strcmp(info->path, "/filtersets"))) {
+  if(!info) {
+    nc_printf(ncct, "internal error\n");
+    goto cleanup;
+  }
+  if(strncmp(info->path, "/filtersets/", strlen("/filtersets/")) &&
+     strcmp(info->path, "/filtersets")) {
     nc_printf(ncct, "filterset only allows inside /filtersets (not %s)\n",
               info->path);
     goto cleanup;
