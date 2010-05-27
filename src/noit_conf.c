@@ -411,7 +411,7 @@ void noit_conf_get_into_hash(noit_conf_section_t section,
    */
   node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-1);
   /* 1. */
-  if(cnt > 1) {
+  if(cnt > 1 && node) {
     parent_node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-2);
     if(parent_node != current_node)
       noit_conf_get_into_hash(parent_node, (const char *)node->name, table);
@@ -1094,7 +1094,7 @@ noit_console_generic_show(noit_console_closure_t ncct,
   }
 
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(info) path = basepath = info->path;
+  if(info && info->path) path = basepath = info->path;
   if(!info && argc == 0) {
     nc_printf(ncct, "argument required when not in configuration mode\n");
     return -1;
@@ -1215,6 +1215,10 @@ noit_console_config_cd(noit_console_closure_t ncct,
   }
 
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  if(!node) {
+    err = "internal XML error";
+    goto bad;
+  }
   if(!strcmp((char *)node->name, "check") ||
      !strcmp((char *)node->name, "noit") ||
      !strcmp((char *)node->name, "filterset") ||
