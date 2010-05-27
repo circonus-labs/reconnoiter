@@ -459,7 +459,7 @@ cv_search(EditLine *el, int dir)
 	tmplen = 0;
 #ifdef ANCHOR
 	tmpbuf[tmplen++] = '.';
-	tmpbuf[tmplen++] = '*';
+	tmpbuf[tmplen] = '*';
 #endif
 
 	el->el_line.buffer[0] = '\0';

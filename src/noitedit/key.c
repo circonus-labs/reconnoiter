@@ -678,7 +678,7 @@ key__decode_str(char *str, char *buf, char *sep)
 		*b++ = '@';
 		if (sep[0] != '\0' && sep[1] != '\0')
 			*b++ = sep[1];
-		*b++ = 0;
+		*b = 0;
 		return (buf);
 	}
 	for (p = str; *p != 0; p++) {
@@ -703,6 +703,6 @@ key__decode_str(char *str, char *buf, char *sep)
 	}
 	if (sep[0] != '\0' && sep[1] != '\0')
 		*b++ = sep[1];
-	*b++ = 0;
+	*b = 0;
 	return (buf);		/* should check for overflow */
 }
