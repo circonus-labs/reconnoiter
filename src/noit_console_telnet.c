@@ -2867,7 +2867,6 @@ suboption(noit_console_closure_t ncct)
 	    *terminaltype++ = c;    /* accumulate name */
 	}
 	*terminaltype = 0;
-	terminaltype = terminalname;
 	break;
     }  /* end of case TELOPT_TTYPE */
 
