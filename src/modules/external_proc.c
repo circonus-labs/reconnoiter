@@ -118,7 +118,7 @@ static void external_sigchld(int sig) {
   ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
   noitL(nldeb, "reaped pid %d (check: %lld) -> %x\n",
         pid, ps?ps->check_no:-1, status);
-  if(iter) {
+  if(ps) {
     ps->status = status;
     noit_skiplist_remove_compare(&active_procs, &pid, NULL,  __proc_state_pid);
     noit_skiplist_insert(&done_procs, ps);
