@@ -659,7 +659,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       if(rlen == -1 && errno == EAGAIN) {
         /* We'd block to read more, but we have data,
          * so do a short read */
-        if(ctx->req.first_input->size) break;
+        if(ctx->req.first_input && ctx->req.first_input->size) break;
         /* We've got nothing... */
         noitL(http_debug, " ... noit_http_session_req_consume = -1 (EAGAIN)\n");
         return -1;
