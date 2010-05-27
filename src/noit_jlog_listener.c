@@ -300,7 +300,6 @@ socket_error:
       if(esub) {
         *esub = '\0';
         *sub = '\0';
-        sub += 1;
       }
     }
 
