@@ -601,7 +601,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   }
 
   info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
-  if(info) path = basepath = info->path;
+  if(info && info->path) path = basepath = info->path;
   if(!info && argc == 0) {
     nc_printf(ncct, "argument required when not in configuration mode\n");
     return -1;

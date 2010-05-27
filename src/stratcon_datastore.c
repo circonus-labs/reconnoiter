@@ -1386,6 +1386,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
 
   if(fqdn_out) *fqdn_out = info ? info->fqdn : NULL;
   if(dsn_out) *dsn_out = info ? info->dsn : NULL;
+  assert(uuidinfo);
   if(remote_cn_out) *remote_cn_out = uuidinfo->remote_cn;
   if(storagenode_id_out) *storagenode_id_out = uuidinfo->storagenode_id;
   if(sid_out) *sid_out = uuidinfo->sid;
