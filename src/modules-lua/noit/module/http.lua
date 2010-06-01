@@ -84,6 +84,9 @@ function onload(image)
     <parameter name="body"
                required="optional"
                allowed=".+">This regular expression is matched against the body of the response.  If a match is not found, the check will be marked as "bad."</parameter>
+    <parameter name="extract"
+               required="optional"
+               allowed=".+">This regular expression is matched against the body of the response globally.  The first capturing match is the key and the second capturing match is the value.  Each key/value extracted is registered as a metric for the check.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -445,6 +448,17 @@ function initiate(module, check)
     -- size
     status = status .. ',bytes=' .. client.content_bytes
     check.metric_int32("bytes", client.content_bytes)
+
+    if check.config.extract ~= nil then
+      local exre = noit.pcre(check.config.extract)
+      local rv = true
+      while rv do
+        rv, m, key, value = exre(output or '')
+        if rv and key ~= nil then
+          check.metric(key, value)
+        end
+      end
+    end
 
     -- check body
     if check.config.body ~= nil then

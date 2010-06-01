@@ -1199,20 +1199,29 @@ noit_lua_gunzip_gc(lua_State *L) {
   return 0;
 }
 
+struct pcre_global_info {
+  pcre *re;
+  int offset;
+};
 static int
 noit_lua_pcre_match(lua_State *L) {
   const char *subject;
-  pcre **re;
+  struct pcre_global_info *pgi;
   int i, cnt, ovector[30];
   size_t inlen;
 
-  re = (pcre **)lua_touserdata(L, lua_upvalueindex(1));
+  pgi = (struct pcre_global_info *)lua_touserdata(L, lua_upvalueindex(1));
   subject = lua_tolstring(L,1,&inlen);
   if(!subject) {
     lua_pushboolean(L,0);
     return 1;
   }
-  cnt = pcre_exec(*re, NULL, subject, inlen, 0, 0,
+  if (pgi->offset >= inlen) {
+    lua_pushboolean(L,0);
+    return 1;
+  }
+  cnt = pcre_exec(pgi->re, NULL, subject + pgi->offset,
+                  inlen - pgi->offset, 0, 0,
                   ovector, sizeof(ovector)/sizeof(*ovector));
   if(cnt <= 0) {
     lua_pushboolean(L,0);
@@ -1222,13 +1231,15 @@ noit_lua_pcre_match(lua_State *L) {
   for(i = 0; i < cnt; i++) {
     int start = ovector[i*2];
     int end = ovector[i*2+1];
-    lua_pushlstring(L, subject+start, end-start);
+    lua_pushlstring(L, subject+pgi->offset+start, end-start);
   }
+  pgi->offset += ovector[1]; /* endof the overall match */
   return cnt+1;
 }
 static int
 nl_pcre(lua_State *L) {
-  pcre *re, **holder;
+  pcre *re;
+  struct pcre_global_info *pgi;
   const char *expr;
   const char *errstr;
   int erroff;
@@ -1241,8 +1252,9 @@ nl_pcre(lua_State *L) {
     lua_pushinteger(L, erroff);
     return 3;
   }
-  holder = (pcre **)lua_newuserdata(L, sizeof(*holder));
-  *holder = re;
+  pgi = (struct pcre_global_info *)lua_newuserdata(L, sizeof(*pgi));
+  pgi->re = re;
+  pgi->offset = 0;
   luaL_getmetatable(L, "noit.pcre");
   lua_setmetatable(L, -2);
   lua_pushcclosure(L, noit_lua_pcre_match, 1);
@@ -1250,9 +1262,9 @@ nl_pcre(lua_State *L) {
 }
 static int
 noit_lua_pcre_gc(lua_State *L) {
-  pcre **holder;
-  holder = (pcre **)lua_touserdata(L,1);
-  pcre_free(*holder);
+  struct pcre_global_info *pgi;
+  pgi = (struct pcre_global_info *)lua_touserdata(L,1);
+  pcre_free(pgi->re);
   return 0;
 }
 
