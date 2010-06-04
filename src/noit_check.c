@@ -566,7 +566,7 @@ noit_check_update(noit_check_t *new_check,
     if(rv != 1) {
       noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
       memset(&a, 0, sizeof(a));
-      flags |= (NP_UNCONFIG & NP_DISABLED);
+      flags |= (NP_UNCONFIG | NP_DISABLED);
     }
   }
 
