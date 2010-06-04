@@ -207,8 +207,8 @@ noit_poller_process_checks(const char *xpath) {
 
     INHERIT(boolean, disable, &disabled);
     flags = 0;
-    if(busted) flags |= NP_UNCONFIG;
-    if(disabled) flags |= NP_DISABLED;
+    if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
+    else if(disabled) flags |= NP_DISABLED;
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {
