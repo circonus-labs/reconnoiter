@@ -35,10 +35,12 @@
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
 #include <pthread.h>
+#include <errno.h>
 #include <assert.h>
 
 static struct timeval *eventer_impl_epoch = NULL;
 static int EVENTER_DEBUGGING = 0;
+static int desired_nofiles = 1024*1024;
 static pthread_mutex_t te_lock;
 static noit_skiplist *timed_events = NULL;
 
@@ -70,6 +72,7 @@ noit_log_stream_t eventer_err = NULL;
 noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
+static int desired_limit = 1024 * 1024;
 static eventer_jobq_t __global_backq, __default_jobq;
 static pthread_mutex_t recurrent_lock = PTHREAD_MUTEX_INITIALIZER;
 struct recurrent_events {
@@ -83,6 +86,14 @@ int eventer_impl_propset(const char *key, const char *value) {
     __default_queue_threads = atoi(value);
     if(__default_queue_threads < 1) {
       noitL(noit_error, "default_queue_threads must be >= 1\n");
+      return -1;
+    }
+    return 0;
+  }
+  else if(!strcasecmp(key, "debugging")) {
+    desired_limit = atoi(value);
+    if(__default_queue_threads < 256) {
+      noitL(noit_error, "rlim_nofiles must be >= 256\n");
       return -1;
     }
     return 0;
@@ -113,7 +124,8 @@ int eventer_get_epoch(struct timeval *epoch) {
 }
 
 int eventer_impl_init() {
-  int i;
+  struct rlimit rlim;
+  int i, try;
   eventer_t e;
   char *evdeb;
 
@@ -133,6 +145,15 @@ int eventer_impl_init() {
                         eventer_jobq_execute_timeout);
   eventer_name_callback("eventer_jobq_consume_available",
                         eventer_jobq_consume_available);
+
+  getrlimit(RLIMIT_NOFILE, &rlim);
+  rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
+  while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > desired_limit + 10) {
+    noitL(noit_debug, "setrlimit(%u) : %s\n", (u_int32_t)rlim.rlim_cur, strerror(errno));
+    rlim.rlim_cur = rlim.rlim_max = --try;
+  }
+  getrlimit(RLIMIT_NOFILE, &rlim);
+  noitL(noit_error, "rlim { %u, % }\n", (uint32_t)rlim.rlim_cur, (uint32_t)rlim.rlim_max);
 
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
