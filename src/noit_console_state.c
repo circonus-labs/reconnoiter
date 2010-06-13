@@ -67,7 +67,7 @@ noit_console_spit_event(eventer_t e, void *c) {
   snprintf(fdstr, sizeof(fdstr), " fd: %d", e->fd);
   gettimeofday(&now, NULL);
   sub_timeval(e->whence, now, &diff);
-  snprintf(wfn, sizeof(wfn), " fires: %lld.%06ds", (long long)diff.tv_sec, diff.tv_usec);
+  snprintf(wfn, sizeof(wfn), " fires: %lld.%06ds", (long long)diff.tv_sec, (int)diff.tv_usec);
   snprintf(funcptr, sizeof(funcptr), "%p", e->callback);
   nc_printf(ncct, "  [%p]%s%s [%c%c%c%c] -> %s(%p)\n",
             e,

@@ -441,7 +441,7 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
   char file[PATH_MAX], rfile[PATH_MAX];
   struct stat st;
   int fd;
-  void *contents;
+  void *contents = MAP_FAILED;
 
   if(npats != 1 ||
      !noit_hash_retr_str(restc->ac->config,
@@ -478,7 +478,7 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
     if(fd < 0) goto not_found;
     contents = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
     close(fd);
-    if(contents == (void *)-1) goto not_found;
+    if(contents == MAP_FAILED) goto not_found;
   }
   noit_http_response_ok(ctx, "text/html");
   if(st.st_size > 0) {
