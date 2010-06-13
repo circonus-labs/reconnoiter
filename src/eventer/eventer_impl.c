@@ -153,7 +153,7 @@ int eventer_impl_init() {
     rlim.rlim_cur = rlim.rlim_max = --try;
   }
   getrlimit(RLIMIT_NOFILE, &rlim);
-  noitL(noit_error, "rlim { %u, % }\n", (uint32_t)rlim.rlim_cur, (uint32_t)rlim.rlim_max);
+  noitL(noit_error, "rlim { %u, %u }\n", (u_int32_t)rlim.rlim_cur, (u_int32_t)rlim.rlim_max);
 
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
