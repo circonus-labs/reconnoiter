@@ -267,6 +267,8 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   }
   if(len == -1) {
     /* socket error */
+    ctx->res.complete = true;
+    ctx->conn.needs_close = true;
     noit_http_log_request(ctx);
     *mask |= EVENTER_EXCEPTION;
     return -1;
