@@ -595,8 +595,41 @@ rest_set_check(noit_http_rest_closure_t *restc,
   return 0;
 }
 
+static int
+rest_show_config(noit_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr node, root;
+  char xpath[1024];
+
+  snprintf(xpath, sizeof(xpath), "/noit%s", pats ? pats[0] : "");
+  node = noit_conf_get_section(NULL, xpath);
+
+  if(!node) {
+    noit_http_response_not_found(ctx, "text/xml");
+    noit_http_response_end(ctx);
+  }
+  else {
+    doc = xmlNewDoc((xmlChar *)"1.0");
+    root = xmlCopyNode(node, 1);
+    xmlDocSetRootElement(doc, root);
+    noit_http_response_ok(ctx, "text/xml");
+    noit_http_response_xml(ctx, doc);
+    noit_http_response_end(ctx);
+  }
+
+  if(doc) xmlFreeDoc(doc);
+
+  return 0;
+}
+
 void
 noit_check_rest_init() {
+  assert(noit_http_rest_register_auth(
+    "GET", "/", "^config(/.*)?$",
+    rest_show_config, noit_http_rest_client_cert_auth
+  ) == 0);
   assert(noit_http_rest_register_auth(
     "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_show_check, noit_http_rest_client_cert_auth
