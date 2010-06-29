@@ -51,6 +51,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_xml.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
 #include "utils/noit_b64.h"
@@ -1401,6 +1402,14 @@ noit_lua_xmlnode_attr(lua_State *L) {
   nodeptr = lua_touserdata(L, lua_upvalueindex(1));
   if(nodeptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 3 && lua_isstring(L,2)) {
+    const char *attr = lua_tostring(L,2);
+    if(lua_isnil(L,3))
+      xmlSetProp(*nodeptr, (xmlChar *)attr, NULL);
+    else
+      xmlSetProp(*nodeptr, (xmlChar *)attr, (xmlChar *)lua_tostring(L,3));
+    return 0;
+  }
   if(lua_gettop(L) == 2 && lua_isstring(L,2)) {
     xmlChar *v;
     const char *attr = lua_tostring(L,2);
@@ -1422,6 +1431,12 @@ noit_lua_xmlnode_contents(lua_State *L) {
   nodeptr = lua_touserdata(L, lua_upvalueindex(1));
   if(nodeptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 2 && lua_isstring(L,2)) {
+    const char *data = lua_tostring(L,2);
+    xmlChar *enc = xmlEncodeEntitiesReentrant((*nodeptr)->doc, (xmlChar *)data);
+    xmlNodeSetContent(*nodeptr, (xmlChar *)enc);
+    return 0;
+  }
   if(lua_gettop(L) == 1) {
     xmlChar *v;
     v = xmlNodeGetContent(*nodeptr);
@@ -1451,6 +1466,24 @@ noit_lua_xmlnode_next(lua_State *L) {
   return 0;
 }
 static int
+noit_lua_xmlnode_addchild(lua_State *L) {
+  xmlNodePtr *nodeptr;
+  nodeptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(nodeptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(lua_gettop(L) == 2 && lua_isstring(L,2)) {
+    xmlNodePtr *newnodeptr;
+    newnodeptr = (xmlNodePtr *)lua_newuserdata(L, sizeof(*nodeptr));
+    *newnodeptr = xmlNewChild(*nodeptr, NULL,
+                              (xmlChar *)lua_tostring(L,2), NULL);
+    luaL_getmetatable(L, "noit.xmlnode");
+    lua_setmetatable(L, -2);
+    return 1;
+  }
+  luaL_error(L,"must be called with one argument");
+  return 0;
+}
+static int
 noit_lua_xmlnode_children(lua_State *L) {
   xmlNodePtr *nodeptr, node, cnode;
   /* the first arg is implicitly self (it's a method) */
@@ -1464,6 +1497,22 @@ noit_lua_xmlnode_children(lua_State *L) {
   luaL_getmetatable(L, "noit.xmlnode");
   lua_setmetatable(L, -2);
   lua_pushcclosure(L, noit_lua_xmlnode_next, 1);
+  return 1;
+}
+static int
+noit_lua_xml_tostring(lua_State *L) {
+  int n;
+  xmlDocPtr *docptr;
+  char *xmlstring;
+  n = lua_gettop(L);
+  /* the first arg is implicitly self (it's a method) */
+  docptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(docptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
+  xmlstring = noit_xmlSaveToBuffer(*docptr);
+  lua_pushstring(L, xmlstring);
+  free(xmlstring);
   return 1;
 }
 static int
@@ -1510,6 +1559,7 @@ noit_xmlnode_index_func(lua_State *L) {
     case 'a':
       LUA_DISPATCH(attr, noit_lua_xmlnode_attr);
       LUA_DISPATCH(attribute, noit_lua_xmlnode_attr);
+      LUA_DISPATCH(addchild, noit_lua_xmlnode_addchild);
       break;
     case 'c':
       LUA_DISPATCH(children, noit_lua_xmlnode_children);
@@ -1570,6 +1620,9 @@ noit_xmldoc_index_func(lua_State *L) {
   switch(*k) {
     case 'r':
      LUA_DISPATCH(root, noit_lua_xml_docroot);
+     break;
+    case 't':
+     LUA_DISPATCH(tostring, noit_lua_xml_tostring);
      break;
     case 'x':
      LUA_DISPATCH(xpath, noit_lua_xpath);
