@@ -21,7 +21,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
-JAVA=com/omniti/reconnoiter/MQListener.java \
+R_JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/EventHandler.java \
 	com/omniti/reconnoiter/MessageHandler.java \
 	com/omniti/reconnoiter/broker/NoitListener.java \
@@ -56,20 +56,34 @@ JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/StratconMessage.java \
 	com/omniti/reconnoiter/StratconMessageFactory.java
 
-SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.3.0.jar \
+R_CLASS = $(R_JAVA:.java=.class)
+
+J_JAVA = com/omniti/jezebel/Jezebel.java
+
+J_CLASS = $(J_JAVA:.java=.class)
+
+R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.3.0.jar \
 	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar \
 	lib/cglib-nodep-2.2.jar lib/commons-pool-1.4.jar lib/commons-dbcp-1.2.2.jar \
 	lib/postgresql-8.3-604.jdbc3.jar lib/rabbitmq-client.jar lib/commons-io-1.2.jar \
 	lib/commons-cli-1.1.jar lib/commons-logging-1.1.1.jar
 
-all:	reconnoiter.jar
+J_SUPPORT=lib/log4j-1.2.15.jar
+
+all:	reconnoiter.jar jezebel.jar
 	@chmod 755 run-iep.sh
 
-reconnoiter.jar:	$(JAVA)
-	@echo "- compiling files"
-	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(SUPPORT) | sed -e 's/ /:/g;'` $(JAVA)
-	@echo "- creating jar"
-	@$(JAR) cf $@ `find com -name \*.class`
+reconnoiter.jar:	$(R_JAVA)
+	@echo "- $@ compiling files"
+	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(R_SUPPORT) | sed -e 's/ /:/g;'` $(R_JAVA)
+	@echo "- creating $@"
+	@$(JAR) cf $@ $(R_CLASS)
+
+jezebel.jar:	$(J_JAVA)
+	@echo "- $@ compiling files"
+	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(J_SUPPORT) | sed -e 's/ /:/g;'` $(J_JAVA)
+	@echo "- creating $@"
+	@$(JAR) cf $@ $(J_CLASS)
 
 install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
@@ -77,7 +91,8 @@ install:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(prefix)/var/db/noit-iep
 	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
-	for jar in $(SUPPORT) ; do \
+	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
+	for jar in $(R_SUPPORT) $(J_SUPPORT) ; do \
 		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
 	done
 	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(prefix)/var/db/noit-iep/log4j.xml
@@ -85,5 +100,5 @@ install:	all
 
 clean:
 	find com -name \*.class -exec rm {} \;
-	rm -f reconnoiter.jar
+	rm -f reconnoiter.jar jezebel.jar
 
