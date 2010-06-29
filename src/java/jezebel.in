@@ -1,0 +1,34 @@
+#!/bin/sh
+
+JAVA=@JAVA@
+JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
+if [ "$1" = "-d" ]; then
+	JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
+	JPARAMS="-sourcepath . $JPARAMS"
+	shift
+fi
+JARS="jezebel.jar log4j-1.2.15.jar \
+	lib/jetty-6.1.20.jar lib/servlet-api-2.5-20081211.jar \
+	lib/jetty-util-6.1.20.jar \
+	commons-cli-1.1.jar commons-logging-1.1.1.jar"
+
+DIRS=". lib @prefix@/java/lib @prefix@/java"
+CP=
+
+for jar in $JARS
+do
+	found=
+	for dir in $DIRS
+	do
+		if [ -r "$dir/$jar" ]; then
+			found="$dir/$jar"
+			CP="$CP:$found"
+			break
+		fi
+	done
+	if [ -z "$found" ]; then
+		echo "Cannot find $jar" 2>&1
+		exit
+	fi
+done
+exec $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $*

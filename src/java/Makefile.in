@@ -58,7 +58,14 @@ R_JAVA=com/omniti/reconnoiter/MQListener.java \
 
 R_CLASS = $(R_JAVA:.java=.class)
 
-J_JAVA = com/omniti/jezebel/Jezebel.java
+J_JAVA = com/omniti/jezebel/Jezebel.java \
+	com/omniti/jezebel/JezebelDispatch.java \
+	com/omniti/jezebel/JezebelCheck.java \
+	com/omniti/jezebel/JezebelClassLoader.java \
+	com/omniti/jezebel/JezebelResmon.java \
+	com/omniti/jezebel/Resmon.java \
+	com/omniti/jezebel/ResmonResult.java \
+	com/omniti/jezebel/SampleCheck.java
 
 J_CLASS = $(J_JAVA:.java=.class)
 
@@ -68,10 +75,14 @@ R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.3.0
 	lib/postgresql-8.3-604.jdbc3.jar lib/rabbitmq-client.jar lib/commons-io-1.2.jar \
 	lib/commons-cli-1.1.jar lib/commons-logging-1.1.1.jar
 
-J_SUPPORT=lib/log4j-1.2.15.jar
+J_SUPPORT=lib/log4j-1.2.15.jar \
+	lib/jetty-6.1.20.jar lib/servlet-api-2.5-20081211.jar \
+	lib/jetty-util-6.1.20.jar lib/commons-logging-1.1.1.jar \
+	lib/commons-cli-1.1.jar
 
 all:	reconnoiter.jar jezebel.jar
 	@chmod 755 run-iep.sh
+	@chmod 755 jezebel
 
 reconnoiter.jar:	$(R_JAVA)
 	@echo "- $@ compiling files"
