@@ -14,13 +14,13 @@ public class JezebelTools {
 
     p = Pattern.compile("%\\{([^\\}]+)\\}");
     while((m = p.matcher(dst)) != null && m.find()) {
-      String token = dst.substring(m.start(1) + 2, m.end(1) - m.start(1));
+      String token = dst.substring(m.start(1), m.end(1));
       dst = m.replaceFirst(config.get(token));
     }
     
     p = Pattern.compile("%\\[([^\\]]+)\\]");
     while((m = p.matcher(dst)) != null && m.find()) {
-      String token = dst.substring(m.start(1), m.end(1) - m.start(1));
+      String token = dst.substring(m.start(1), m.end(1));
       dst = m.replaceFirst(attrs.get(token));
     }
 

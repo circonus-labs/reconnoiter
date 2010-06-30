@@ -12,7 +12,7 @@ import com.omniti.jezebel.JezebelTools;
 
 public abstract class JDBC implements JezebelCheck {
   public JDBC() { }
-  protected abstract String jdbcDriverName();
+  protected abstract String jdbcConnectUrl(String host, String port, String db);
   protected abstract String defaultPort();
 
   public void perform(Map<String,String> check,
@@ -24,8 +24,7 @@ public abstract class JDBC implements JezebelCheck {
     String port = config.remove("port");
     if(port == null) port = defaultPort();
     String sql = config.remove("sql");
-    String url = "jdbc:" + jdbcDriverName() + "://" +
-                 check.get("target") + ":" + port + "/" + database;
+    String url = jdbcConnectUrl(check.get("target"), port, database);
     Properties props = new Properties();
     props.setProperty("user", username == null ? "" : username);
     props.setProperty("password", password == null ? "" : password);
@@ -50,7 +49,7 @@ public abstract class JDBC implements JezebelCheck {
       conn = DriverManager.getConnection(url, props);
       Date t2 = new Date();
       rr.set("connect_duration", (double)(t2.getTime() - t1.getTime())/1000.0);
-      queryToResmon(conn, sql, rr);
+      queryToResmon(conn, config, sql, rr);
       Date t3 = new Date();
       rr.set("query_duration", (double)(t3.getTime() - t2.getTime())/1000.0);
     }
@@ -60,8 +59,12 @@ public abstract class JDBC implements JezebelCheck {
       catch (SQLException e) { }
     }
   }
-  protected void queryToResmon(Connection conn, String sql, ResmonResult rr) {
+  protected void queryToResmon(Connection conn, Map<String,String> config,
+                               String sql, ResmonResult rr) {
     int nrows = 0;
+    boolean auto = false;
+    String autotype = config.get("autotype");
+    if(autotype != null && autotype.equals("true")) auto = true;
     Statement st = null;
     ResultSet rs = null;
     try {
@@ -95,7 +98,18 @@ public abstract class JDBC implements JezebelCheck {
                 rr.set(name, rs.getDouble(i));
                 break;
               default:
-                rr.set(name, rs.getString(i));
+                if(auto) {
+                  String s = rs.getString(i);
+                  try { Long l = Long.decode(s); rr.set(name, l); }
+                  catch (NumberFormatException nfe) {
+                    try { Double d = Double.valueOf(s); rr.set(name, d); }
+                    catch (NumberFormatException nfe2) {
+                      rr.set(name, s);
+                    }
+                  }
+                } else {
+                  rr.set(name, rs.getString(i));
+                }
                 break;
             }
           }

@@ -18,7 +18,7 @@ JARS="$JARS jezebel.jar log4j-1.2.15.jar \
 	lib/jetty-util-6.1.20.jar \
 	commons-cli-1.1.jar commons-logging-1.1.1.jar"
 
-DIRS=". lib @prefix@/java/lib @prefix@/java"
+DIRS="/ . lib @prefix@/java/lib @prefix@/java"
 CP=
 
 for jar in $JARS
