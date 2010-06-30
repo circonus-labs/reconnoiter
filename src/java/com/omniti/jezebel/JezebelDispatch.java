@@ -51,6 +51,7 @@ public class JezebelDispatch extends HttpServlet {
       catch (Exception e) { robustE(e, response); return; }
 
       String clz = request.getPathInfo().substring(1);
+      if(clz.indexOf('.') == -1) clz = "com.omniti.jezebel.check." + clz;
       Class clazz = null;
       try { clazz = cl.loadClass(clz); }
       catch (ClassNotFoundException e) { robustE(e, response); return; }
@@ -78,7 +79,8 @@ public class JezebelDispatch extends HttpServlet {
       catch (InstantiationException e) { robustE(e, response); return; }
       catch (IllegalAccessException e) { robustE(e, response); return; }
       Resmon r = new Resmon();
-      check.perform(info, config, r);
+      ResmonResult rr = r.addResult(info.get("module"), info.get("name"));
+      check.perform(info, config, rr);
       r.write(response);
     }
     private Hashtable<String,String> constructCheckConfig(Document d)

@@ -6,5 +6,5 @@ import com.omniti.jezebel.Resmon;
 public interface JezebelCheck {
   void perform(Map<String,String> check,
                Map<String,String> config,
-               Resmon r);
+               ResmonResult rr);
 }
