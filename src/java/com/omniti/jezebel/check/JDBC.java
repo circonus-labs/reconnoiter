@@ -78,7 +78,8 @@ public abstract class JDBC implements JezebelCheck {
         if(ncols < 2) continue;
         String prefix = rs.getString(1);
         for(int i = 2; i <= ncols; i++) {
-          String name = prefix + '`' + rsmd.getColumnName(i);
+          String name = prefix;
+          if(ncols > 2) name = name + '`' + rsmd.getColumnName(i);
           try {
             switch(rsmd.getColumnType(i)) {
               case Types.BOOLEAN:
