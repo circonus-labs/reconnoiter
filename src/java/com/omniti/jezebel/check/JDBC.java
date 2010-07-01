@@ -48,10 +48,10 @@ public abstract class JDBC implements JezebelCheck {
       Date t1 = new Date();
       conn = DriverManager.getConnection(url, props);
       Date t2 = new Date();
-      rr.set("connect_duration", (double)(t2.getTime() - t1.getTime())/1000.0);
+      rr.set("connect_duration", t2.getTime() - t1.getTime());
       queryToResmon(conn, config, sql, rr);
       Date t3 = new Date();
-      rr.set("query_duration", (double)(t3.getTime() - t2.getTime())/1000.0);
+      rr.set("query_duration", t3.getTime() - t2.getTime());
     }
     catch (SQLException e) { rr.set("jezebel_status", e.getMessage()); }
     finally {
