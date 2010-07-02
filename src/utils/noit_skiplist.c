@@ -349,7 +349,7 @@ int noit_skiplist_remove_compare(noit_skiplist *sli,
   noit_skiplisti_find_compare(sl, data, &m, NULL, NULL, comp);
   if(!m) return 0;
   while(m->previndex) m=m->previndex;
-  return noit_skiplisti_remove(sl, m, myfree);
+  return noit_skiplisti_remove(m->sl, m, myfree);
 }
 void noit_skiplist_remove_all(noit_skiplist *sl, noit_freefunc_t myfree) {
   noit_skiplist_node *m, *p, *u;
