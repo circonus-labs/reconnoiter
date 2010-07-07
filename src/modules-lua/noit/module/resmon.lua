@@ -62,7 +62,12 @@ function onload(image)
         </modules>
         <checks>
           <labs target="8.8.38.5" module="resmon">
-            <check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de"/>
+            <check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de">
+              <config>
+                <auth_user>foo</auth_user>
+                <auth_password>bar</auth_password>
+              </config>
+            </check>
           </labs>
         </checks>
       </noit>
@@ -92,6 +97,13 @@ function initiate(module, check)
     local codere = noit.pcre(check.config.code or '^200$')
     local good = false
     local starttime = noit.timeval.now()
+
+    local user = check.config.auth_user or nil
+    local pass = check.config.auth_password or nil
+    local encoded = nil
+    if (user ~= nil and pass ~= nil) then
+        encoded = noit.base64_encode(user .. ':' .. pass)
+    end
 
     -- assume the worst.
     check.bad()
@@ -127,6 +139,9 @@ function initiate(module, check)
     -- perform the request
     local headers = {}
     headers.Host = host
+    if encoded ~= nil then
+        headers["Authorization"] = "Basic " .. encoded
+    end
     client:do_request("GET", uri, headers)
     client:get_response()
 
