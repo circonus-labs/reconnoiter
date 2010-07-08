@@ -546,6 +546,7 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
       expect = "HTTP/1.1 100 Continue\r\n\r\n";
       ctx->res.leader = bchain_from_data(expect, strlen(expect));
       _http_perform_write(ctx, &mask);
+      ctx->req.complete = noit_true;
       if(ctx->res.leader != NULL) return mask;
     }
     if(rv == noit_true) return mask | EVENTER_WRITE | EVENTER_EXCEPTION;
