@@ -287,8 +287,10 @@ noit_console_filter_show(noit_console_closure_t ncct,
     noit_conf_get_stringbuf(rules[i], "@type", val, sizeof(val));
     nc_printf(ncct, "Rule %d [%s]:\n", i+1, val);
 #define DUMP_ATTR(a) do { \
-  if(noit_conf_get_stringbuf(rules[i], "@" #a, val, sizeof(val))) { \
+  char *vstr; \
+  if(noit_conf_get_string(rules[i], "@" #a, &vstr)) { \
     nc_printf(ncct, "\t%s: /%s/\n", #a, val); \
+    free(vstr); \
   } \
 } while(0)
     DUMP_ATTR(target);
