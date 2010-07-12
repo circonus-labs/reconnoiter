@@ -390,7 +390,6 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   payload = (struct ping_payload *)(icp + 1);
   k.addr_of_check = payload->addr_of_check;
   uuid_copy(k.checkid, payload->checkid);
-noitL(noit_error, "payload->addr_of_check -> %p\n", payload->addr_of_check);
   if(!noit_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
                          &vcheck)) {
     noitLT(nldeb, now, "ping check no longer active, bailing\n");
@@ -467,7 +466,6 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
   k->addr_of_check = check;
-noitL(noit_error, "check -> %p\n", k->addr_of_check);
   uuid_copy(k->checkid, check->checkid);
   if(!noit_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
