@@ -54,7 +54,9 @@ public class EventHandler {
   public boolean isQueryRegistered(UUID id) { return queries.containsKey(id); }
 
   public void processMessage(StratconMessage m) throws Exception {
-    for ( MessageHandler mh : alternates ) mh.observe(m);
+    for ( MessageHandler mh : alternates )
+      if(mh.observe(m) == true)
+        return;
     m.handle(this);
   }
   public void processMessage(StratconMessage[] messages) throws Exception {
