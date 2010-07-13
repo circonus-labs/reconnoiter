@@ -56,7 +56,7 @@ R_JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/StratconMessage.java \
 	com/omniti/reconnoiter/StratconMessageFactory.java
 
-R_CLASS = $(R_JAVA:.java=.class)
+R_CLASS = $(R_JAVA:.java=*.class)
 
 J_JAVA = com/omniti/jezebel/Jezebel.java \
 	com/omniti/jezebel/JezebelDispatch.java \
@@ -73,7 +73,7 @@ J_JAVA = com/omniti/jezebel/Jezebel.java \
 	com/omniti/jezebel/check/sqlserver.java \
 	com/omniti/jezebel/check/postgres.java
 
-J_CLASS = $(J_JAVA:.java=.class)
+J_CLASS = $(J_JAVA:.java=*.class)
 
 R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.3.0.jar \
 	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar \

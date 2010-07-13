@@ -35,6 +35,14 @@ public class NoitMetric extends NoitEvent {
     if(nmn != null) eh.getService().getEPRuntime().sendEvent(nmn);
     if(nmt != null) eh.getService().getEPRuntime().sendEvent(nmt);
   }
+  public String getUuid() {
+    return (nmn != null) ? nmn.getUuid() : nmt.getUuid();
+  }
+  public String getName() {
+    return (nmn != null) ? nmn.getName() : nmt.getName();
+  }
+  public boolean isNumeric() { return nmn != null; }
+  public boolean isText() { return nmt != null; }
   public String getPrefix() { return "M"; }
   public int getLength() { return 7; }
 }
