@@ -133,17 +133,19 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
 
     /* Compile our rules */
 #define RULE_COMPILE(rname) do { \
-  if(noit_conf_get_stringbuf(rules[j], "@" #rname, buffer, sizeof(buffer))) { \
+  char *longre = NULL; \
+  if(noit_conf_get_string(rules[j], "@" #rname, &longre)) { \
     const char *error; \
     int erroffset; \
-    rule->rname = pcre_compile(buffer, 0, &error, &erroffset, NULL); \
+    rule->rname = pcre_compile(longre, 0, &error, &erroffset, NULL); \
     if(!rule->rname) { \
       noitL(noit_error, "set '%s' rule '%s: %s' compile failed: %s\n", \
-            set->name, #rname, buffer, error ? error : "???"); \
+            set->name, #rname, longre, error ? error : "???"); \
     } \
     else { \
       rule->rname##_e = pcre_study(rule->rname, 0, &error); \
     } \
+    free(longre); \
   } \
 } while(0)
 
