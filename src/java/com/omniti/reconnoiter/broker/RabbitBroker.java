@@ -68,7 +68,7 @@ public class RabbitBroker implements IMQBroker  {
     // This queue is bound to the fanout exchange
     this.queueName = config.getMQParameter("queue", "noit.firehose");
     // No need for a routing key on a FO exchange
-    this.routingKey = "";
+    this.routingKey = config.getMQParameter("routingkey", "");
   
     this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
     this.alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
