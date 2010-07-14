@@ -33,6 +33,7 @@ public class RabbitBroker implements IMQBroker  {
   private String hostName;
   private int portNumber;
   private String exchangeName;
+  private String exchangeType;
   private String queueName;
   private String routingKey;
   private String alertRoutingKey;
@@ -63,11 +64,9 @@ public class RabbitBroker implements IMQBroker  {
       throw new RuntimeException("Cannot find constructor for class: " + className);
     }
 
-    // This is a fanout exchange
+    this.exchangeType = config.getMQParameter("exchangetype", "fanout");
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
-    // This queue is bound to the fanout exchange
     this.queueName = config.getMQParameter("queue", "noit.firehose");
-    // No need for a routing key on a FO exchange
     this.routingKey = config.getMQParameter("routingkey", "");
   
     this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
@@ -95,10 +94,12 @@ public class RabbitBroker implements IMQBroker  {
 
     channel = conn.createChannel();
     boolean passive = false, exclusive = false, durable = false, autoDelete = false;
-    channel.exchangeDeclare(exchangeName, "fanout", passive, durable, autoDelete, null);
+    channel.exchangeDeclare(exchangeName, exchangeType, passive, durable, autoDelete, null);
     autoDelete = true;
     channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
     channel.queueBind(queueName, exchangeName, routingKey);
+    if(!routingKey.equals(""))
+      channel.queueBind(queueName, exchangeName, "");
   }
   
   public void consume(EventHandler eh) {
