@@ -12,8 +12,10 @@ import com.omniti.reconnoiter.EventHandler;
 import com.omniti.reconnoiter.StratconMessage;
 import com.omniti.reconnoiter.event.NoitMetricNumeric;
 import com.omniti.reconnoiter.event.NoitMetricText;
+import org.apache.log4j.Logger;
 
 public class NoitMetric extends NoitEvent {
+  static Logger logger = Logger.getLogger(NoitMetric.class.getName());
   public final static String METRIC_STRING = "s";
 
   private NoitMetricText nmt;
@@ -32,8 +34,11 @@ public class NoitMetric extends NoitEvent {
     }
   }
   public void handle(EventHandler eh) {
+    long start = System.nanoTime();
     if(nmn != null) eh.getService().getEPRuntime().sendEvent(nmn);
     if(nmt != null) eh.getService().getEPRuntime().sendEvent(nmt);
+    long nanos = System.nanoTime() - start;
+    logger.debug("sendEvent("+getUuid()+"-"+getName()+") took "+(nanos/1000)+"us");
   }
   public String getUuid() {
     return (nmn != null) ? nmn.getUuid() : nmt.getUuid();
