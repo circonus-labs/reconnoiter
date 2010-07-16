@@ -18,18 +18,23 @@ import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.*;
 import com.omniti.reconnoiter.MessageHandler;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class EventHandler {
   private LinkedList<MessageHandler> alternates;
   private EPServiceProvider epService;
   private ConcurrentHashMap<UUID, StratconQueryBase> queries;
   private IMQBroker broker;
+  private AtomicLong events_handled_num;
+  private AtomicLong events_handled_microseconds;
 
   public EventHandler(ConcurrentHashMap<UUID,StratconQueryBase> queries, EPServiceProvider epService, IMQBroker broker) {
     this.epService = epService;
     this.queries = queries;
     this.broker = broker;
     alternates = new LinkedList<MessageHandler>();
+    events_handled_num = new AtomicLong(0);
+    events_handled_microseconds = new AtomicLong(0);
   }
   public void addObserver(MessageHandler mh) {
     alternates.add(mh);
@@ -57,8 +62,14 @@ public class EventHandler {
     for ( MessageHandler mh : alternates )
       if(mh.observe(m) == true)
         return;
+    long start = System.nanoTime();
     m.handle(this);
+    long us = (System.nanoTime() - start) / 1000;
+    events_handled_num.incrementAndGet();
+    events_handled_microseconds.addAndGet(us);
   }
+  public long getNumEventsHandled() { return events_handled_num.longValue(); }
+  public long getMicrosecondsHandlingEvents() { return events_handled_microseconds.longValue(); }
   public void processMessage(StratconMessage[] messages) throws Exception {
     Exception last = null;
     for ( StratconMessage m : messages ) {

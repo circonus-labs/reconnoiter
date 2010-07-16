@@ -27,6 +27,7 @@ public class MQListener implements Runnable {
     private LinkedList<StratconMessage> queries_toload;
     private LinkedList<MessageHandler>  alternates;
     private boolean booted = false;
+    private EventHandler eh = null;
 
     public MQListener(EPServiceProvider epService, IMQBroker broker) {
       this.queries = new ConcurrentHashMap<UUID,StratconQueryBase>();
@@ -60,8 +61,9 @@ public class MQListener implements Runnable {
     public void booted() {
       booted = true;
     }
+    public EventHandler getEventHandler() { return eh; }
     public void run() {
-      EventHandler eh = new EventHandler(queries, this.epService, broker);
+      eh = new EventHandler(queries, this.epService, broker);
       for ( MessageHandler mh : alternates ) eh.addObserver(mh);
       process(eh, preproc);
       booted();
