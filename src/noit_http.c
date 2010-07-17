@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <zlib.h>
+#include <sys/mman.h>
 #include <libxml/tree.h>
 
 #define REQ_PAT "\r\n\r\n"
@@ -78,16 +79,32 @@ static void inplace_urldecode(char *c) {
 
 struct bchain *bchain_alloc(size_t size, int line) {
   struct bchain *n;
-  n = malloc(size + (int)((char *)((struct bchain *)0)->buff));
+  n = malloc(size + offsetof(struct bchain, _buff));
   /*noitL(noit_error, "bchain_alloc(%p) : %d\n", n, line);*/
   if(!n) return NULL;
   n->prev = n->next = NULL;
   n->start = n->size = 0;
   n->allocd = size;
+  n->buff = n->_buff;
+  return n;
+}
+struct bchain *bchain_mmap(int fd, size_t len, int flags, off_t offset) {
+  struct bchain *n;
+  void *buff;
+  buff = mmap(NULL, len, PROT_READ, flags, fd, offset);
+  if(buff == MAP_FAILED) return NULL;
+  n = bchain_alloc(0, 0);
+  n->type = BCHAIN_MMAP;
+  n->buff = buff;
+  n->size = len;
+  n->allocd = len;
   return n;
 }
 void bchain_free(struct bchain *b, int line) {
   /*noitL(noit_error, "bchain_free(%p) : %d\n", b, line);*/
+  if(b->type == BCHAIN_MMAP) {
+    munmap(b->buff, b->allocd);
+  }
   free(b);
 }
 #define ALLOC_BCHAIN(s) bchain_alloc(s, __LINE__)
@@ -232,6 +249,7 @@ noit_http_log_request(noit_http_session_ctx *ctx) {
 static int
 _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   int len, tlen = 0;
+  size_t attempt_write_len;
   struct bchain **head, *b;
  choose_bucket:
   head = ctx->res.leader ? &ctx->res.leader : &ctx->res.output_raw;
@@ -256,11 +274,13 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
     goto choose_bucket;
   }
 
+  attempt_write_len = b->size - ctx->res.output_raw_offset;
+  attempt_write_len = MIN(attempt_write_len, ctx->max_write);
+
   len = ctx->conn.e->opset->
           write(ctx->conn.e->fd,
                 b->buff + b->start + ctx->res.output_raw_offset,
-                b->size - ctx->res.output_raw_offset,
-                mask, ctx->conn.e);
+                attempt_write_len, mask, ctx->conn.e);
   if(len == -1 && errno == EAGAIN) {
     *mask |= EVENTER_EXCEPTION;
     return tlen;
@@ -774,6 +794,7 @@ noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e,
   ctx->ref_cnt = 1;
   ctx->req.complete = noit_false;
   ctx->conn.e = e;
+  ctx->max_write = DEFAULT_MAXWRITE;
   ctx->dispatcher = f;
   ctx->dispatcher_closure = c;
   ctx->ac = ac;
@@ -876,10 +897,19 @@ noit_http_response_append_bchain(noit_http_session_ctx *ctx,
   else {
     o = ctx->res.output;
     while(o->next) o = o->next;
+    o->allocd = o->size; /* so we know it is full */
     o->next = b;
     b->prev = o;
   }
   return noit_true;
+}
+noit_boolean
+noit_http_response_append_mmap(noit_http_session_ctx *ctx,
+                               int fd, size_t len, int flags, off_t offset) {
+  struct bchain *n;
+  n = bchain_mmap(fd, len, flags, offset);
+  if(n == NULL) return noit_false;
+  return noit_http_response_append_bchain(ctx, n);
 }
 static int
 _http_construct_leader(noit_http_session_ctx *ctx) {
@@ -990,6 +1020,16 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   int ilen, maxlen = in->size, hexlen;
   int opts = ctx->res.output_options;
 
+  if(in->type == BCHAIN_MMAP &&
+     0 == (opts & (NOIT_HTTP_GZIP | NOIT_HTTP_DEFLATE | NOIT_HTTP_CHUNKED))) {
+    out = ALLOC_BCHAIN(0);
+    out->buff = in->buff;
+    out->type = in->type;
+    out->size = in->size;
+    out->allocd = in->allocd;
+    in->type = BCHAIN_INLINE;
+    return out;
+  }
   /* a chunked header looks like: hex*\r\ndata\r\n */
   /* let's assume that content never gets "larger" */
   if(opts & NOIT_HTTP_GZIP) maxlen = deflateBound(NULL, in->size);

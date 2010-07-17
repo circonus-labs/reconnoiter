@@ -52,18 +52,25 @@ typedef enum {
 #define NOIT_HTTP_GZIP    0x0010
 #define NOIT_HTTP_DEFLATE 0x0020
 
-#define DEFAULT_BCHAINSIZE ((1 << 15)-(3*sizeof(size_t))-(2*sizeof(void *)))
-/* 64k - delta */
-#define DEFAULT_BCHAINMINREAD (DEFAULT_BCHAINSIZE/4)
+typedef enum {
+  BCHAIN_INLINE = 0,
+  BCHAIN_MMAP
+} bchain_type_t;
 
 struct bchain {
+  bchain_type_t type;
   struct bchain *next, *prev;
   size_t start; /* where data starts (buff + start) */
   size_t size;  /* data length (past start) */
   size_t allocd;/* total allocation */
-  char buff[1]; /* over allocate as needed */
+  char *buff;
+  char _buff[1]; /* over allocate as needed */
 };
 
+#define DEFAULT_MAXWRITE 1<<14 /* 32k */
+#define DEFAULT_BCHAINSIZE ((1 << 15)-(offsetof(struct bchain, _buff)))
+/* 64k - delta */
+#define DEFAULT_BCHAINMINREAD (DEFAULT_BCHAINSIZE/4)
 #define BCHAIN_SPACE(a) ((a)->allocd - (a)->size - (a)->start)
 
 typedef struct {
@@ -122,6 +129,7 @@ typedef int (*noit_http_dispatch_func) (struct noit_http_session_ctx *);
 typedef struct noit_http_session_ctx {
   noit_atomic32_t ref_cnt;
   int64_t drainage;
+  int max_write;
   noit_http_connection conn;
   noit_http_request req;
   noit_http_response res;
@@ -162,6 +170,9 @@ API_EXPORT(noit_boolean)
   noit_http_response_append(noit_http_session_ctx *, const void *, size_t);
 API_EXPORT(noit_boolean)
   noit_http_response_append_bchain(noit_http_session_ctx *, struct bchain *);
+API_EXPORT(noit_boolean)
+  noit_http_response_append_mmap(noit_http_session_ctx *,
+                                 int fd, size_t len, int flags, off_t offset);
 API_EXPORT(noit_boolean)
   noit_http_response_flush(noit_http_session_ctx *, noit_boolean);
 API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
