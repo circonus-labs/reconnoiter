@@ -236,6 +236,7 @@ noit_apply_filterset(const char *filterset,
         return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
     }
     filterset_free(fs);
+    return noit_false;
   }
   UNLOCKFS();
   return noit_false;
