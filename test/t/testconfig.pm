@@ -19,6 +19,9 @@ my $stratcon_pid = 0;
              make_stratcon_config start_stratcon stop_stratcon
              $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules);
 
+our $default_filterset = {
+  allowall => [ { type => "allow" } ],
+};
 our $all_noit_modules = {
   'selfcheck' => { 'image' => 'selfcheck' },
   'ping_icmp' => { 'image' => 'ping_icmp' },
@@ -248,6 +251,7 @@ sub make_noit_config {
   my $options = shift;
   $options->{cwd} ||= cwd();
   $options->{modules} = $all_noit_modules unless exists($options->{modules});
+  $options->{filtersets} = $default_filterset unless exists($options->{filtersets});
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_noit.conf";

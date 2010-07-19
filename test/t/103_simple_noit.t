@@ -16,7 +16,7 @@ is($r[0], 404, 'get checks');
 
 @r = $c->put("/checks/set/f7cea020-f19d-11dd-85a6-cb6d3a2207dc",
         qq{<?xml version="1.0" encoding="utf8"?>
-<check><attributes><target>127.0.0.1</target><period>5000</period><timeout>1000</timeout><name>selfcheck</name><filterset/><module>selfcheck</module></attributes><config/></check>});
+<check><attributes><target>127.0.0.1</target><period>5000</period><timeout>1000</timeout><name>selfcheck</name><filterset>allowall</filterset><module>selfcheck</module></attributes><config/></check>});
 
 is($r[0], 200, 'add selfcheck');
 my $doc = $xp->parse_string($r[1]);
