@@ -128,7 +128,9 @@ AC_SUBST(ATOMIC_OBJS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 AC_MSG_CHECKING([enable build/install of the Java IEP bits])
 
-if test -z "$ac_cv_path_JAVA" ; then
+if test -z "$ac_cv_path_JAVA" \
+	-o -z "$ac_cv_path_JAVAC" \
+	-o -z "$ac_cv_path_JAR" ; then
 	AC_MSG_RESULT([no])
 else
 	JAVAPARTS=java
