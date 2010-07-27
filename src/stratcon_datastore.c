@@ -1443,6 +1443,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
             ij->filename, strerror(errno));
     }
   }
+  free(line);
   return;
 }
 static noit_hash_table *
