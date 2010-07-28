@@ -1074,6 +1074,7 @@ interim_journal_remove(interim_journal_t *ij) {
   if(ij->remote_str) free(ij->remote_str);
   if(ij->remote_cn) free(ij->remote_cn);
   if(ij->fqdn) free(ij->fqdn);
+  free(ij);
 }
 int
 stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
