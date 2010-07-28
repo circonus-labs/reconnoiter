@@ -62,6 +62,8 @@ static unsigned long last_tick_time() {
     lastcheck = *lifeline;
     memcpy(&lastchange, &now, sizeof(lastchange));
   }
+  if(lastchange.tv_sec == 0) return 0;
+
   sub_timeval(now, lastchange, &diff);
   return (unsigned long)diff.tv_sec;
 }
