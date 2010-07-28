@@ -67,6 +67,9 @@ static unsigned long last_tick_time() {
   sub_timeval(now, lastchange, &diff);
   return (unsigned long)diff.tv_sec;
 }
+static void it_ticks_zero() {
+  (*lifeline) = 0;
+}
 static void it_ticks() {
   (*lifeline)++;
 }
@@ -81,6 +84,7 @@ int noit_watchdog_prefork_init() {
     noitL(noit_error, "Failed to mmap anon for watchdog\n");
     return -1;
   }
+  (*lifeline) = 0;
   return 0;
 }
 
@@ -97,7 +101,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     }
     if(child_pid == 0) {
       /* This sets up things so we start alive */
-      it_ticks();
+      it_ticks_zero();
       /* run the program */
       exit(func());
     }
