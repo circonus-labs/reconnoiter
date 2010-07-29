@@ -246,6 +246,14 @@ typedef unsigned long long int u_int64_t;
 #endif
 #endif
 
+/* BIND, Kerberos and Berkeley DB use __BIT_TYPES_DEFINED__ to protect
+ * against multiple redefinitions of these types (u_int{8,16,32,64}_t)
+ * and so shall we.
+ */
+#ifndef __BIT_TYPES_DEFINED__
+#define __BIT_TYPES_DEFINED__
+#endif
+
 #if (SIZEOF_VOID_P == 8)
 typedef u_int64_t vpsized_uint;
 typedef int64_t vpsized_int;
