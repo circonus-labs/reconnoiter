@@ -864,6 +864,111 @@ noit_conf_write_log() {
   return 0;
 }
 
+struct log_rotate_crutch {
+  noit_log_stream_t ls;
+  int seconds;
+  size_t max_size;
+};
+
+static int
+noit_conf_log_rotate_size(eventer_t e, int mask, void *closure,
+                          struct timeval *now) {
+  struct log_rotate_crutch *lrc = closure;
+  if(noit_log_stream_written(lrc->ls) > lrc->max_size) {
+    noit_log_stream_rename(lrc->ls, NOIT_LOG_RENAME_AUTOTIME);
+    noit_log_stream_reopen(lrc->ls);
+  }
+  /* Yes the 5 is arbitrary, but this is cheap */
+  eventer_add_in_s_us(noit_conf_log_rotate_size, closure, 5, 0);
+  return 0;
+}
+static int
+noit_conf_log_rotate_time(eventer_t e, int mask, void *closure,
+                          struct timeval *now) {
+  struct timeval lnow;
+  eventer_t newe;
+  struct log_rotate_crutch *lrc = closure;
+
+  if(now) {
+    noit_log_stream_rename(lrc->ls, NOIT_LOG_RENAME_AUTOTIME);
+    noit_log_stream_reopen(lrc->ls);
+  }
+  
+  newe = eventer_alloc();
+  newe->closure = closure;
+  if(!now) { gettimeofday(&lnow, NULL); now = &lnow; }
+  if(e)
+    memcpy(&newe->whence, &e->whence, sizeof(newe->whence));
+  else if(now) {
+    memcpy(&newe->whence, now, sizeof(newe->whence));
+    newe->whence.tv_sec = (newe->whence.tv_sec / lrc->seconds) * lrc->seconds;
+  }
+  newe->whence.tv_sec += lrc->seconds;
+  newe->mask = EVENTER_TIMER;
+  newe->callback = noit_conf_log_rotate_time;
+  eventer_add(newe);
+  return 0;
+}
+int
+noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
+  int i, cnt = 0, max_time, max_size, rv = 0;
+  noit_conf_section_t *log_configs;
+  char path[256];
+
+  snprintf(path, sizeof(path), "/%s/logs//log", toplevel);
+  log_configs = noit_conf_get_sections(NULL, path, &cnt);
+  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
+  for(i=0; i<cnt; i++) {
+    noit_log_stream_t ls;
+    char name[256];
+
+    if(!noit_conf_get_stringbuf(log_configs[i],
+                                "ancestor-or-self::node()/@name",
+                                name, sizeof(name))) {
+      noitL(noit_error, "log section %d does not have a name attribute\n", i+1);
+      if(validate) { rv = -1; break; }
+      else exit(-2);
+    }
+    ls = noit_log_stream_find(name);
+    if(!ls) continue;
+
+    if(noit_conf_get_int(log_configs[i],    
+                         "ancestor-or-self::node()/@rotate_seconds",
+                         &max_time) && max_time) {
+      struct log_rotate_crutch *lrc;
+      if(max_time < 600) {
+        fprintf(stderr, "rotate_seconds must be >= 600s (10 minutes)\n");
+        if(validate) { rv = -1; break; }
+        else exit(-2);
+      }
+      if(!validate) {
+        lrc = calloc(1, sizeof(*lrc));
+        lrc->ls = ls;
+        lrc->seconds = max_time;
+        noit_conf_log_rotate_time(NULL, EVENTER_TIMER, lrc, NULL);
+      }
+    }
+
+    if(noit_conf_get_int(log_configs[i],    
+                         "ancestor-or-self::node()/@rotate_bytes",
+                         &max_size) && max_size) {
+      struct log_rotate_crutch *lrc;
+      if(max_size < 102400) {
+        fprintf(stderr, "rotate_bytes must be >= 102400 (100k)\n");
+        if(validate) { rv = -1; break; }
+        else exit(-2);
+      }
+      if(!validate) {
+        lrc = calloc(1, sizeof(*lrc));
+        lrc->ls = ls;
+        lrc->max_size = max_size;
+        noit_conf_log_rotate_size(NULL, EVENTER_TIMER, lrc, NULL);
+      }
+    }
+  }
+  free(log_configs);
+  return rv;
+}
 void
 noit_conf_log_init(const char *toplevel) {
   int i, cnt = 0, o, ocnt = 0;
@@ -916,9 +1021,9 @@ noit_conf_log_init(const char *toplevel) {
       
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@timestamps",
-                             &timestamps) && timestamps)
-      ls->timestamps = 1;
-      
+                             &timestamps))
+      ls->timestamps = timestamps ? 1 : 0;
+  
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);
     noitL(noit_debug, "Found %d outlets for log '%s'\n", ocnt, name);
@@ -940,6 +1045,7 @@ noit_conf_log_init(const char *toplevel) {
     if(outlets) free(outlets);
   }
   if(log_configs) free(log_configs);
+  if(noit_conf_log_init_rotate(toplevel, noit_true)) exit(-1);
 }
 
 static void

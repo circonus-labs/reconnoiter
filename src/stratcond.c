@@ -237,6 +237,8 @@ static int child_main() {
     noitL(noit_stderr, "Cannot init eventer %s\n", conf_str);
     exit(2);
   }
+  /* rotation init requires, eventer_init() */
+  noit_conf_log_init_rotate(APPNAME, noit_false);
 
   noit_watchdog_child_eventer_heartbeat();
 

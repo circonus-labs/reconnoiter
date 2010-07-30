@@ -49,6 +49,7 @@
 #define noit_log_impl
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_atomic.h"
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
 #ifdef DTRACE_ENABLED
@@ -84,6 +85,7 @@ struct _noit_log_stream {
   noit_hash_table *config;
   struct _noit_log_stream_outlet_list *outlets;
   pthread_rwlock_t *lock;
+  noit_atomic64_t written;
   unsigned deps_materialized:1;
   unsigned debug_below:1;
   unsigned timestamps_below:1;
@@ -112,8 +114,8 @@ static void materialize_deps(noit_log_stream_t ls) {
     struct _noit_log_stream_outlet_list *node;
     for(node = ls->outlets; node; node = node->next) {
       MATERIALIZE_DEPS(node->outlet);
-      if(!ls->debug) ls->debug_below = node->outlet->debug;
-      if(!ls->timestamps) ls->timestamps_below = node->outlet->timestamps;
+      if(!ls->debug) ls->debug_below = node->outlet->debug_below;
+      if(!ls->timestamps) ls->timestamps_below = node->outlet->timestamps_below;
     }
   }
   ls->deps_materialized = 1;
@@ -138,10 +140,13 @@ posix_logio_reopen(noit_log_stream_t ls) {
     if(ls->lock) pthread_rwlock_wrlock(ls->lock);
     oldfd = (int)(vpsized_int)ls->op_ctx;
     newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
+    ls->written = 0;
     if(newfd >= 0) {
+      struct stat sb;
       ls->op_ctx = (void *)(vpsized_int)newfd;
       if(oldfd >= 0) close(oldfd);
       rv = 0;
+      if(fstat(newfd, &sb) == 0) ls->written = (size_t)sb.st_size;
     }
     if(ls->lock) pthread_rwlock_unlock(ls->lock);
     return rv;
@@ -156,6 +161,7 @@ posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   debug_printf("writing to %d\n", fd);
   if(fd >= 0) rv = write(fd, buf, len);
   if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(rv > 0) noit_atomic_add64(&ls->written, rv);
   return rv;
 }
 static int
@@ -166,6 +172,7 @@ posix_logio_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
   debug_printf("writ(v)ing to %d\n", fd);
   if(fd >= 0) rv = writev(fd, iov, iovcnt);
   if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(rv > 0) noit_atomic_add64(&ls->written, rv);
   return rv;
 }
 static int
@@ -193,6 +200,13 @@ posix_logio_size(noit_log_stream_t ls) {
 static int
 posix_logio_rename(noit_log_stream_t ls, const char *name) {
   int rv = 0;
+  char autoname[PATH_MAX];
+  if(name == NOIT_LOG_RENAME_AUTOTIME) {
+    time_t now = time(NULL);
+    snprintf(autoname, sizeof(autoname), "%s.%llu",
+             ls->path, (unsigned long long)now);
+    name = autoname;
+  }
   if(!strcmp(name, ls->path)) return 0; /* noop */
   if(ls->lock) pthread_rwlock_rdlock(ls->lock);
   rv = rename(ls->path, name);
@@ -598,6 +612,11 @@ size_t
 noit_log_stream_size(noit_log_stream_t ls) {
   if(ls->ops && ls->ops->sizeop) return ls->ops->sizeop(ls);
   return -1;
+}
+
+size_t
+noit_log_stream_written(noit_log_stream_t ls) {
+  return ls->written;
 }
 
 void

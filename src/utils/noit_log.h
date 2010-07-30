@@ -95,9 +95,13 @@ API_EXPORT(noit_log_stream_t)
                  noit_log_stream_remove_stream(noit_log_stream_t ls,
                                                const char *name);
 API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
+
+#define NOIT_LOG_RENAME_AUTOTIME ((const char *)-1)
+
 API_EXPORT(int) noit_log_stream_rename(noit_log_stream_t ls, const char *);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
 API_EXPORT(size_t) noit_log_stream_size(noit_log_stream_t ls);
+API_EXPORT(size_t) noit_log_stream_written(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);
 API_EXPORT(int) noit_vlog(noit_log_stream_t ls, struct timeval *,
                           const char *file, int line,

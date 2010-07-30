@@ -127,6 +127,7 @@ API_EXPORT(int)
   noit_conf_write_log();
 
 API_EXPORT(void) noit_conf_log_init(const char *toplevel);
+API_EXPORT(int) noit_conf_log_init_rotate(const char *, noit_boolean);
 
 #define EXPOSE_CHECKER(name) \
   API_EXPORT(pcre *) noit_conf_get_valid_##name##_checker()
