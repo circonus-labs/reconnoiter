@@ -132,7 +132,9 @@ static logops_t noit_livestream_logio_ops = {
   noit_livestream_logio_open,
   noit_livestream_logio_reopen,
   noit_livestream_logio_write,
+  NULL,
   noit_livestream_logio_close,
+  NULL,
   NULL
 };
 

@@ -36,6 +36,7 @@
 #include "noit_defines.h"
 #include <pthread.h>
 #include <stdarg.h>
+#include <sys/uio.h>
 #include <sys/time.h>
 #include "utils/noit_hash.h"
 
@@ -48,8 +49,10 @@ typedef struct {
   int (*openop)(struct _noit_log_stream *);
   int (*reopenop)(struct _noit_log_stream *);
   int (*writeop)(struct _noit_log_stream *, const void *, size_t);
+  int (*writevop)(struct _noit_log_stream *, const struct iovec *iov, int iovcnt);
   int (*closeop)(struct _noit_log_stream *);
   size_t (*sizeop)(struct _noit_log_stream *);
+  int (*renameop)(struct _noit_log_stream *, const char *);
 } logops_t;
 
 #ifdef noit_log_impl
@@ -58,6 +61,7 @@ typedef struct _noit_log_stream * noit_log_stream_t;
 typedef struct _noit_log_stream {
   unsigned enabled:1;
   unsigned debug:1;
+  unsigned timestamps:1;
   /* totally private type, don't even think about it */
 } * noit_log_stream_t;
 #endif
@@ -91,6 +95,7 @@ API_EXPORT(noit_log_stream_t)
                  noit_log_stream_remove_stream(noit_log_stream_t ls,
                                                const char *name);
 API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
+API_EXPORT(int) noit_log_stream_rename(noit_log_stream_t ls, const char *);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
 API_EXPORT(size_t) noit_log_stream_size(noit_log_stream_t ls);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);

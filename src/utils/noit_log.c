@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/uio.h>
 #include <sys/time.h>
 #include <assert.h>
 #if HAVE_ERRNO_H
@@ -72,6 +73,7 @@ static int DEBUG_LOG_ENABLED() {
 struct _noit_log_stream {
   unsigned enabled:1;
   unsigned debug:1;
+  unsigned timestamps:1;
   /* Above is exposed... */
   char *type;
   char *name;
@@ -82,6 +84,9 @@ struct _noit_log_stream {
   noit_hash_table *config;
   struct _noit_log_stream_outlet_list *outlets;
   pthread_rwlock_t *lock;
+  unsigned deps_materialized:1;
+  unsigned debug_below:1;
+  unsigned timestamps_below:1;
 };
 
 static noit_hash_table noit_loggers = NOIT_HASH_EMPTY;
@@ -94,6 +99,25 @@ int noit_log_global_enabled() {
   return NOIT_LOG_LOG_ENABLED();
 }
 
+#define MATERIALIZE_DEPS(ls) do { \
+  if(!(ls)->deps_materialized) materialize_deps(ls); \
+} while(0)
+
+static void materialize_deps(noit_log_stream_t ls) {
+  if(ls->deps_materialized) return;
+  if(ls->debug) ls->debug_below = 1;
+  if(ls->timestamps) ls->timestamps_below = 1;
+  if(ls->debug_below == 0 || ls->timestamps_below == 0) {
+    /* we might have children than need these */
+    struct _noit_log_stream_outlet_list *node;
+    for(node = ls->outlets; node; node = node->next) {
+      MATERIALIZE_DEPS(node->outlet);
+      if(!ls->debug) ls->debug_below = node->outlet->debug;
+      if(!ls->timestamps) ls->timestamps_below = node->outlet->timestamps;
+    }
+  }
+  ls->deps_materialized = 1;
+}
 static int
 posix_logio_open(noit_log_stream_t ls) {
   int fd;
@@ -110,47 +134,79 @@ posix_logio_open(noit_log_stream_t ls) {
 static int
 posix_logio_reopen(noit_log_stream_t ls) {
   if(ls->path) {
-    int newfd, oldfd;
+    int newfd, oldfd, rv = -1;
+    if(ls->lock) pthread_rwlock_wrlock(ls->lock);
     oldfd = (int)(vpsized_int)ls->op_ctx;
     newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
     if(newfd >= 0) {
       ls->op_ctx = (void *)(vpsized_int)newfd;
       if(oldfd >= 0) close(oldfd);
-      return 0;
+      rv = 0;
     }
+    if(ls->lock) pthread_rwlock_unlock(ls->lock);
+    return rv;
   }
   return -1;
 }
 static int
 posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
-  int fd;
+  int fd, rv = -1;
+  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   debug_printf("writing to %d\n", fd);
-  if(fd < 0) return -1;
-  return write(fd, buf, len);
+  if(fd >= 0) rv = write(fd, buf, len);
+  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  return rv;
+}
+static int
+posix_logio_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
+  int fd, rv = -1;
+  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  fd = (int)(vpsized_int)ls->op_ctx;
+  debug_printf("writ(v)ing to %d\n", fd);
+  if(fd >= 0) rv = writev(fd, iov, iovcnt);
+  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  return rv;
 }
 static int
 posix_logio_close(noit_log_stream_t ls) {
-  int fd;
+  int fd, rv;
+  if(ls->lock) pthread_rwlock_wrlock(ls->lock);
   fd = (int)(vpsized_int)ls->op_ctx;
-  return close(fd);
+  rv = close(fd);
+  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  return rv;
 }
 static size_t
 posix_logio_size(noit_log_stream_t ls) {
   int fd;
+  size_t s = -1;
   struct stat sb;
+  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   if(fstat(fd, &sb) == 0) {
-    return (size_t)sb.st_size;
+    s = (size_t)sb.st_size;
   }
+  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  return s;
+}
+static int
+posix_logio_rename(noit_log_stream_t ls, const char *name) {
+  int rv = 0;
+  if(!strcmp(name, ls->path)) return 0; /* noop */
+  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  rv = rename(ls->path, name);
+  if(ls->lock) pthread_rwlock_unlock(ls->lock);
   return -1;
 }
 static logops_t posix_logio_ops = {
   posix_logio_open,
   posix_logio_reopen,
   posix_logio_write,
+  posix_logio_writev,
   posix_logio_close,
-  posix_logio_size
+  posix_logio_size,
+  posix_logio_rename
 };
 
 static int
@@ -328,12 +384,19 @@ jlog_logio_size(noit_log_stream_t ls) {
   pthread_rwlock_unlock(ls->lock);
   return size;
 }
+static int
+jlog_logio_rename(noit_log_stream_t ls, const char *newname) {
+  /* Not supported (and makes no sense) */
+  return -1;
+}
 static logops_t jlog_logio_ops = {
   jlog_logio_open,
   jlog_logio_reopen,
   jlog_logio_write,
+  NULL,
   jlog_logio_close,
-  jlog_logio_size
+  jlog_logio_size,
+  jlog_logio_rename
 };
 
 void
@@ -343,6 +406,7 @@ noit_log_init() {
   noit_register_logops("file", &posix_logio_ops);
   noit_register_logops("jlog", &jlog_logio_ops);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2, NULL);
+  noit_stderr->timestamps = 1;
   noit_error = noit_log_stream_new("error", NULL, NULL, NULL, NULL);
   noit_debug = noit_log_stream_new("debug", NULL, NULL, NULL, NULL);
 }
@@ -521,6 +585,10 @@ void noit_log_stream_reopen(noit_log_stream_t ls) {
   }
 }
 
+int noit_log_stream_rename(noit_log_stream_t ls, const char *newname) {
+  return (ls->ops && ls->ops->renameop) ? ls->ops->renameop(ls, newname) : -1;
+}
+
 void
 noit_log_stream_close(noit_log_stream_t ls) {
   if(ls->ops) ls->ops->closeop(ls);
@@ -556,15 +624,60 @@ noit_log_stream_free(noit_log_stream_t ls) {
 }
 
 static int
-noit_log_line(noit_log_stream_t ls, char *buffer, size_t len) {
+noit_log_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
+  /* This emulates writev into a buffer for ops that don't support it */
+  char stackbuff[4096], *tofree = NULL, *buff = NULL;
+  int i, s = 0, ins = 0;
+
+  if(!ls->ops) return -1;
+  if(ls->ops->writevop) return ls->ops->writevop(ls, iov, iovcnt);
+  if(!ls->ops->writeop) return -1;
+  if(iovcnt == 1) return ls->ops->writeop(ls, iov[0].iov_base, iov[0].iov_len);
+
+  for(i=0;i<iovcnt;i++) s+=iov[i].iov_len;
+  if(s > sizeof(stackbuff)) {
+    tofree = buff = malloc(s);
+    if(tofree == NULL) return -1;
+  }
+  else buff = stackbuff;
+  for(i=0;i<iovcnt;i++) {
+    memcpy(buff + ins, iov[i].iov_base, iov[i].iov_len);
+    ins += iov[i].iov_len;
+  }
+  i = ls->ops->writeop(ls, buff, s);
+  if(tofree) free(tofree);
+  return i;
+}
+
+static int
+noit_log_line(noit_log_stream_t ls,
+              const char *timebuf, int timebuflen,
+              const char *debugbuf, int debugbuflen,
+              const char *buffer, size_t len) {
   int rv = 0;
   struct _noit_log_stream_outlet_list *node;
-  if(ls->ops)
-    rv = ls->ops->writeop(ls, buffer, len); /* Not much one can do about errors */
+  if(ls->ops) {
+    int iovcnt = 0;
+    struct iovec iov[3];
+    if(ls->timestamps) {
+      iov[iovcnt].iov_base = (void *)timebuf;
+      iov[iovcnt].iov_len = timebuflen;
+      iovcnt++;
+    }
+    if(ls->debug) {
+      iov[iovcnt].iov_base = (void *)debugbuf;
+      iov[iovcnt].iov_len = debugbuflen;
+      iovcnt++;
+    }
+    iov[iovcnt].iov_base = (void *)buffer;
+    iov[iovcnt].iov_len = len;
+    iovcnt++;
+    rv = noit_log_writev(ls, iov, iovcnt);
+  }
   for(node = ls->outlets; node; node = node->next) {
     int srv = 0;
     debug_printf(" %s -> %s\n", ls->name, node->outlet->name);
-    srv = noit_log_line(node->outlet, buffer, len);
+    srv = noit_log_line(node->outlet, timebuf, timebuflen, debugbuf, debugbuflen, buffer, len);
     if(srv) rv = srv;
   }
   return rv;
@@ -575,23 +688,30 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
           const char *format, va_list arg) {
   int rv = 0, allocd = 0;
   char buffer[4096], *dynbuff = NULL;
-  char fbuf[1024];
 #ifdef va_copy
   va_list copy;
 #endif
 
   if(ls->enabled || NOIT_LOG_LOG_ENABLED()) {
     int len;
-    if(ls->debug) {
+    char tbuf[48], dbuf[80];
+    int tbuflen = 0, dbuflen = 0;
+    MATERIALIZE_DEPS(ls);
+    if(ls->timestamps_below) {
       struct tm _tm, *tm;
-      char tbuf[32];
+      char tempbuf[32];
       time_t s = (time_t)now->tv_sec;
       tm = localtime_r(&s, &_tm);
-      strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", tm);
-      snprintf(fbuf, sizeof(fbuf), "[%s.%06d %s:%d] %s",
-               tbuf, (int)now->tv_usec, file, line, format);
-      format = fbuf;
+      strftime(tempbuf, sizeof(tempbuf), "%Y-%m-%d %H:%M:%S", tm);
+      snprintf(tbuf, sizeof(tbuf), "[%s.%06d] ", tempbuf, (int)now->tv_usec);
+      tbuflen = strlen(tbuf);
     }
+    else tbuf[0] = '\0';
+    if(ls->debug_below) {
+      snprintf(dbuf, sizeof(dbuf), "[%s:%d] ", file, line);
+      dbuflen = strlen(dbuf);
+    }
+    else dbuf[0] = '\0';
 #ifdef va_copy
     va_copy(copy, arg);
     len = vsnprintf(buffer, sizeof(buffer), format, copy);
@@ -616,13 +736,13 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       }
       NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
       if(ls->enabled)
-        rv = noit_log_line(ls, dynbuff, len);
+        rv = noit_log_line(ls, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
       free(dynbuff);
     }
     else {
       NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
       if(ls->enabled)
-        rv = noit_log_line(ls, buffer, len);
+        rv = noit_log_line(ls, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
     }
     if(rv == len) return 0;
     return -1;
