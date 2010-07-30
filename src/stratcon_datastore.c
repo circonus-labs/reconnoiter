@@ -1406,7 +1406,7 @@ uuid_to_sid(const char *uuid_str_in, const char *remote_cn) {
 }
 static void
 stratcon_datastore_journal(struct sockaddr *remote,
-                           const char *remote_cn, const char *line) {
+                           const char *remote_cn, char *line) {
   interim_journal_t *ij = NULL;
   char uuid_str[UUID_STR_LEN+1], *cp;
   const char *fqdn = NULL, *dsn = NULL;
@@ -1478,7 +1478,7 @@ stratcon_datastore_push(stratcon_datastore_op_t op,
 
   switch(op) {
     case DS_OP_INSERT:
-      stratcon_datastore_journal(remote, remote_cn, (const char *)operand);
+      stratcon_datastore_journal(remote, remote_cn, (char *)operand);
       break;
     case DS_OP_CHKPT:
       e = eventer_alloc();
