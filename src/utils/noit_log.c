@@ -123,6 +123,7 @@ static void materialize_deps(noit_log_stream_t ls) {
 static int
 posix_logio_open(noit_log_stream_t ls) {
   int fd;
+  struct stat sb;
   ls->mode = 0664;
   fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
   debug_printf("opened '%s' => %d\n", ls->path, fd);
@@ -130,6 +131,7 @@ posix_logio_open(noit_log_stream_t ls) {
     ls->op_ctx = NULL;
     return -1;
   }
+  if(fstat(fd, &sb) == 0) ls->written = (size_t)sb.st_size;
   ls->op_ctx = (void *)(vpsized_int)fd;
   return 0;
 }
