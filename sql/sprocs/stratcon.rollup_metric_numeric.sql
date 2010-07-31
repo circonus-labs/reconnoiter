@@ -19,6 +19,8 @@ DECLARE
     v_count         INTEGER;
 BEGIN
 
+    v_i := 0;
+
     -- Get rollup config based on given name, and fail if its wrong name.
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
     IF NOT FOUND THEN
@@ -115,8 +117,9 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
                 EXECUTE v_sql USING v_segment.count_rows, v_segment.avg_value, v_segment.counter_dev, v_stored_rollup_tm, v_segment.sid, v_segment.name; 
             END IF;
 
-        v_i := v_i + 1;
         END LOOP;
+
+        v_i := v_i + 1;
 
         -- Delete from whence log table
         DELETE FROM metric_numeric_rollup_queue WHERE whence=v_min_whence AND "interval"=in_roll;
