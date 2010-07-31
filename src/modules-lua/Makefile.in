@@ -34,6 +34,7 @@ LUA=noit/timeval.lua \
 	noit/module/http.lua \
 	noit/module/haproxy.lua \
 	noit/module/resmon.lua \
+	noit/module/memcached.lua \
 	noit/module/tcp.lua \
 	noit/module/ntp.lua
 
