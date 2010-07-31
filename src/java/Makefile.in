@@ -114,6 +114,7 @@ install:	all
 	done
 	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(prefix)/var/db/noit-iep/log4j.xml
 	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
+	$(INSTALL) -m 0755 jezebel $(DESTDIR)$(bindir)/jezebel
 
 clean:
 	find com -name \*.class -exec rm {} \;

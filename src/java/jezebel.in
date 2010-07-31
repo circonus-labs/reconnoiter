@@ -1,21 +1,37 @@
 #!/bin/sh
 
+set -- `getopt fj:dD: $*`
+
 JAVA=@JAVA@
-JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
+JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
-if [ "$1" = "-d" ]; then
-	JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
-	JPARAMS="-sourcepath . $JPARAMS"
-	shift
-fi
-while [ "$1" = "-jar" ]; do
-	JARS="$JARS $2"
-	shift 2
+
+for i in $*
+do
+        case $i in
+        -f)
+                FOREGROUND=1
+                shift
+                ;;
+        -d)
+                JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
+                JPARAMS="-sourcepath src $JPARAMS"
+                DEBUG=1
+                shift
+                ;;
+        -D)     DIRS="$2 $DIRS"
+                shift 2
+                ;;
+	-j)	JARS="$JARS $2"
+		shift 2
+		;;
+        --)     shift; break;;
+        esac
 done
 
 JARS="$JARS jezebel.jar log4j-1.2.15.jar \
-	lib/jetty-6.1.20.jar lib/servlet-api-2.5-20081211.jar \
-	lib/jetty-util-6.1.20.jar \
+	jetty-6.1.20.jar servlet-api-2.5-20081211.jar \
+	jetty-util-6.1.20.jar \
 	commons-cli-1.1.jar commons-logging-1.1.1.jar"
 
 DIRS="/ . lib @prefix@/java/lib @prefix@/java"
@@ -37,4 +53,11 @@ do
 		exit
 	fi
 done
-exec $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $*
+if [ "$DEBUG" = "1" ]; then
+        exec $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS
+elif [ "$FOREGROUND" = "1" ]; then
+        $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS
+else
+        $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS < /dev/null &
+fi
+
