@@ -221,7 +221,7 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-noitd:	install-dirs noitd noit.conf
+install-noitd:	install-dirs noitd noit.conf java-bits
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
@@ -229,12 +229,13 @@ install-noitd:	install-dirs noitd noit.conf
 	$(INSTALL) -m 0644 default-ca-chain.crt $(DESTDIR)$(sysconfdir)/default-ca-chain.crt
 	(cd modules && make install-modules DESTDIR=$(DESTDIR))
 	(cd modules-lua && make install DESTDIR=$(DESTDIR))
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install-jezebel DESTDIR=$(DESTDIR))
 
 install-stratcond:	install-dirs stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	(cd modules && make install-smodules DESTDIR=$(DESTDIR))
-	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install DESTDIR=$(DESTDIR))
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install-iep DESTDIR=$(DESTDIR))
 
 install-docs:
 	(cd man && make install DESTDIR=$(DESTDIR))

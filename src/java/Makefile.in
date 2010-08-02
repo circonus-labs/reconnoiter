@@ -84,7 +84,7 @@ R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-3.3.0
 J_SUPPORT=lib/log4j-1.2.15.jar \
 	lib/jetty-6.1.20.jar lib/servlet-api-2.5-20081211.jar \
 	lib/jetty-util-6.1.20.jar lib/commons-logging-1.1.1.jar \
-	lib/commons-cli-1.1.jar
+	lib/commons-cli-1.1.jar lib/postgresql-8.3-604.jdbc3.jar
 
 all:	reconnoiter.jar jezebel.jar
 	@chmod 755 run-iep.sh
@@ -102,19 +102,28 @@ jezebel.jar:	$(J_JAVA)
 	@echo "- creating $@"
 	@$(JAR) cf $@ $(J_CLASS)
 
-install:	all
+install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)/lib
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
+
+install-iep:	install-dirs all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(prefix)/var/db/noit-iep
 	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
-	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
-	for jar in $(R_SUPPORT) $(J_SUPPORT) ; do \
+	for jar in $(R_SUPPORT) ; do \
 		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
 	done
-	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(prefix)/var/db/noit-iep/log4j.xml
 	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
+	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(prefix)/var/db/noit-iep/log4j.xml
+
+install-jezebel:	install-dirs all
+	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
+	for jar in $(J_SUPPORT) ; do \
+		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
+	done
 	$(INSTALL) -m 0755 jezebel $(DESTDIR)$(bindir)/jezebel
+
+install:	install-iep install-jezebel
 
 clean:
 	find com -name \*.class -exec rm {} \;
