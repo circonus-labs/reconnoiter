@@ -605,13 +605,17 @@ AC_SUBST(mansubdir)
 SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
 
+SUBPREFIX="$prefix"
+if test "x$prefix" = "xNONE"; then
+  SUBPREFIX="$ac_default_prefix"
+fi
 AC_MSG_CHECKING([Resolving libexec path...])
 fullpath=$libexecdir
 while test "x$temppath" != "x$fullpath" ; do
   temppath=$fullpath
   fullpath=`eval echo ${fullpath}`
 done
-fullpath=`echo $fullpath | sed "s~NONE~$ac_default_prefix~"`
+fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath/noit])
 AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}/noit")
 MODULES_DIR=${fullpath}/noit
@@ -623,7 +627,7 @@ while test "x$temppath" != "x$fullpath" ; do
   temppath=$fullpath
   fullpath=`eval echo ${fullpath}`
 done
-fullpath=`echo $fullpath | sed "s~NONE~$ac_default_prefix~"`
+fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath])
 AC_DEFINE_UNQUOTED(ETC_DIR, "${fullpath}")
 ETC_DIR=${fullpath}
