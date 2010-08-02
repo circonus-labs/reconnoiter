@@ -5,6 +5,7 @@ set -- `getopt fj:dD: $*`
 JAVA=@JAVA@
 JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
+DIRS="/ . lib @prefix@/java/lib @prefix@/java"
 
 for i in $*
 do
@@ -34,7 +35,6 @@ JARS="$JARS jezebel.jar log4j-1.2.15.jar \
 	jetty-util-6.1.20.jar \
 	commons-cli-1.1.jar commons-logging-1.1.1.jar"
 
-DIRS="/ . lib @prefix@/java/lib @prefix@/java"
 CP=
 
 for jar in $JARS
