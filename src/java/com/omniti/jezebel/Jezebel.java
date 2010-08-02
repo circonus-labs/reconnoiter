@@ -4,6 +4,7 @@ import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.handler.AbstractHandler;
 import org.mortbay.jetty.Request;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.bio.SocketConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.apache.log4j.BasicConfigurator;
@@ -22,6 +23,7 @@ public class Jezebel {
   static final public void main(String args[]) {
     String port;
     Server server;
+    SocketConnector connector;
     CommandLine cmd = null;
     CommandLineParser parser = new PosixParser();
     Options o = new Options();
@@ -39,7 +41,11 @@ public class Jezebel {
 
     port = cmd.getOptionValue("p");
     if(port == null) port = "8083";
-    server = new Server(new Integer(port));
+    connector = new SocketConnector();
+    connector.setPort(new Integer(port));
+    connector.setHost("127.0.0.1");
+    server = new Server();
+    server.addConnector(connector);
     Context root = new Context(server, "/", Context.SESSIONS);
     root.addServlet(new ServletHolder(new JezebelResmon()), "/resmon");
     root.addServlet(new ServletHolder(new JezebelDispatch()), "/dispatch/*");
