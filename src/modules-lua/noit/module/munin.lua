@@ -28,7 +28,7 @@
 -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
--- This connects to a Varnish instance on the management port (8081)
+-- This connects to a Munin instance on the management port (4949)
 -- It issues the stats comment and translates the output into metrics
 
 module(..., package.seeall)
