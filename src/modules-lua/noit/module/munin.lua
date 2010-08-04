@@ -87,12 +87,32 @@ function initiate(module, check)
   local plugins = check.config.plugins
   local rv, err = e:connect(check.target, check.config.port or 4949)
 
-  e:read("\n") -- munin banner
-  if plugins == nil then
-    e:write("list\r\n")
-    plugins = e:read("\n")
+  check.bad()
+  check.unavailable()
+
+  if rv ~= 0 then
+    check.status(err or "connect failed")
+    return
   end
 
+  str = e:read("\n") -- munin banner
+  if str == nil or str == "" then
+    check.status("no banner, ACL issue?")
+    return
+  end
+
+  e:write("list\r\n")
+  local rplugins = e:read("\n")
+  if rplugins == nil or rplugins == "" then
+    check.status("no plugins")
+    return
+  end
+
+  rplugins = string.gsub(rplugins, "[\r\n]+$", "")
+  check.metric_string("remote_plugins", rplugins)
+  if plugins == nil then plugins = rplugins end
+
+  check.available()
   local i = 0
   for p in string.gmatch(plugins, "%s*(%S+)%s*") do
     e:write("fetch " .. p .. "\r\n")
@@ -105,13 +125,6 @@ function initiate(module, check)
       end
       i = i + 1
     end
-  end
-
-  if rv ~= 0 then
-    check.bad()
-    check.unavailable()
-    check.status(err or str or "unknown error")
-    return
   end
 
   check.status(string.format("%d stats", i))
