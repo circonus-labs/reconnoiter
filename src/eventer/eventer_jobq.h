@@ -73,6 +73,7 @@ typedef struct _eventer_jobq_t {
 } eventer_jobq_t;
 
 int eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name);
+eventer_jobq_t *eventer_jobq_retrieve(const char *name);
 void eventer_jobq_enqueue(eventer_jobq_t *jobq, eventer_job_t *job);
 eventer_job_t *eventer_jobq_dequeue(eventer_jobq_t *jobq);
 eventer_job_t *eventer_jobq_dequeue_nowait(eventer_jobq_t *jobq);

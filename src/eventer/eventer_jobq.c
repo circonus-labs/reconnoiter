@@ -132,6 +132,15 @@ eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name) {
   return 0;
 }
 
+eventer_jobq_t *
+eventer_jobq_retrieve(const char *name) {
+  void *vjq = NULL;
+  pthread_mutex_lock(&all_queues_lock);
+  noit_hash_retrieve(&all_queues, name, strlen(name), &vjq);
+  pthread_mutex_unlock(&all_queues_lock);
+  return vjq;
+}
+
 void
 eventer_jobq_enqueue(eventer_jobq_t *jobq, eventer_job_t *job) {
   job->next = NULL;
