@@ -71,7 +71,8 @@ J_JAVA = com/omniti/jezebel/Jezebel.java \
 	com/omniti/jezebel/check/mysql.java \
 	com/omniti/jezebel/check/oracle.java \
 	com/omniti/jezebel/check/sqlserver.java \
-	com/omniti/jezebel/check/postgres.java
+	com/omniti/jezebel/check/postgres.java \
+	com/omniti/jezebel/check/jmx.java
 
 J_CLASS = $(J_JAVA:.java=*.class)
 
