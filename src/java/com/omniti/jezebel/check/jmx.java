@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Hashtable;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -30,6 +32,7 @@ public class jmx implements JezebelCheck {
         final String port = config.remove("port");
         final String username = config.remove("username");
         final String password = config.remove("password");
+        final String mbean_domains = config.remove("mbean_domains");
         final String jmxGlassFishConnectorString =
             "service:jmx:rmi:///jndi/rmi://" + host + ":" + port + "/jmxrmi";
         try {
@@ -47,9 +50,18 @@ public class jmx implements JezebelCheck {
 
             final Set<ObjectName> allObjectNames = mbsc.queryNames(null, null);
 
+            ArrayList<String> domains = new ArrayList<String>();
+            if ( mbean_domains != null ) {
+                domains = new ArrayList<String>(Arrays.asList(mbean_domains.split("\\s+")));
+            }
+
             Pattern space = Pattern.compile("\\s");
             
             for (ObjectName objectName : allObjectNames) {
+                if ( ! domains.isEmpty() && ! domains.contains(objectName.getDomain()) ) {
+                    continue;
+                }
+
                 MBeanInfo mbi = mbsc.getMBeanInfo(objectName);
                 MBeanAttributeInfo[] attribs = mbi.getAttributes();
                 String oname = "";
