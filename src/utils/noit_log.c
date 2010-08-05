@@ -189,7 +189,7 @@ posix_logio_close(noit_log_stream_t ls) {
 static size_t
 posix_logio_size(noit_log_stream_t ls) {
   int fd;
-  size_t s = -1;
+  size_t s = (size_t)-1;
   struct stat sb;
   if(ls->lock) pthread_rwlock_rdlock(ls->lock);
   fd = (int)(vpsized_int)ls->op_ctx;
