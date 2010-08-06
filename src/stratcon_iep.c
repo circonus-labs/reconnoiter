@@ -530,20 +530,23 @@ static void
 start_iep_daemon() {
   eventer_t newe;
   struct iep_daemon_info *info;
+  char *cmd = NULL;
 
-  info = calloc(1, sizeof(*info));
-  info->stdin_pipe[0] = info->stdin_pipe[1] = -1;
-  info->stderr_pipe[0] = info->stderr_pipe[1] = -1;
-
-  if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@directory",
-                           &info->directory))
-    info->directory = strdup(".");
   if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@command",
-                           &info->command)) {
+                           &cmd)) {
     noitL(noit_error, "No IEP start command provided.  You're on your own.\n");
     setup_iep_connection_later(0);
     return;
   }
+
+  info = calloc(1, sizeof(*info));
+  info->stdin_pipe[0] = info->stdin_pipe[1] = -1;
+  info->stderr_pipe[0] = info->stderr_pipe[1] = -1;
+  info->command = cmd;
+
+  if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@directory",
+                           &info->directory))
+    info->directory = strdup(".");
   if(pipe(info->stdin_pipe) != 0 ||
      pipe(info->stderr_pipe) != 0) {
     noitL(noit_error, "pipe: %s\n", strerror(errno));
