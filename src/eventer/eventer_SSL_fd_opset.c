@@ -382,9 +382,11 @@ eventer_SSL_setup(eventer_ssl_ctx_t *ctx) {
   if(!peer ||
      (peer && SSL_get_verify_result(ctx->ssl) != X509_V_OK)) {
     if(ctx->verify_cb) {
+      if(peer) X509_free(peer);
       return ctx->verify_cb(ctx, 0, NULL, ctx->verify_cb_closure);
     }
   }
+  if(peer) X509_free(peer);
   return 0;
 }
 
