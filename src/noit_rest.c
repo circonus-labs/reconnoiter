@@ -505,7 +505,7 @@ void noit_http_rest_load_rules() {
   struct noit_rest_acl *newhead = NULL, *oldacls, *remove_acl;
   struct noit_rest_acl_rule *remove_rule;
 
-  snprintf(path, sizeof(path), "//rest/acl");
+  snprintf(path, sizeof(path), "//rest//acl");
   acls = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_stderr, "Found %d acl stanzas\n", cnt);
   for(ai = cnt-1; ai>=0; ai--) {
