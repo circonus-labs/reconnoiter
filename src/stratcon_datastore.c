@@ -1088,8 +1088,13 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
   ij = closure;
-  dsn = get_dsn_from_storagenode_id(ij->storagenode_id, 1, &ij->fqdn);
-  if(ij->fqdn) ij->fqdn = strdup(ij->fqdn); /* fqdn is now ours */
+  if(ij->fqdn == NULL) {
+    dsn = get_dsn_from_storagenode_id(ij->storagenode_id, 1, &ij->fqdn);
+    if(ij->fqdn) ij->fqdn = strdup(ij->fqdn); /* fqdn is now ours */
+  }
+  else {
+    dsn = get_dsn_from_storagenode_id(ij->storagenode_id, 1, NULL);
+  }
   cq = get_conn_q_for_remote(ij->remote_str, ij->remote_cn,
                              ij->fqdn, dsn);
   noitL(ds_deb, "stratcon_datastore_asynch_execute[%s,%s,%s]\n",
@@ -1268,7 +1273,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   else
     ij = vij;
 
-  return ij;
+	  return ij;
 }
 static int
 storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
