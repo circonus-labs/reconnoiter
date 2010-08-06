@@ -1639,6 +1639,9 @@ stratcon_datastore_sweep_journals_int(char *first, char *second, char *third) {
     else if(strlen(entries[i]) == 16)
       stratcon_datastore_launch_file_ingestion(first,second,third,entries[i]);
   }
+  for(i=0; i<cnt; i++)
+    free(entries[i]);
+  free(entries);
 }
 static void
 stratcon_datastore_sweep_journals() {
