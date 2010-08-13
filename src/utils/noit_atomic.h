@@ -113,7 +113,7 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
       "popl %%ebx"
     : "=A" (prev)
     : "m" (rpl), "A" (curr), "r" (ptr)
-    : "%ebx", "%ecx", "memory", "cc");
+    : "%ecx", "memory", "cc");
   return prev;
 };
 #endif
