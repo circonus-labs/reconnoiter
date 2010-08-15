@@ -38,28 +38,7 @@
 typedef int32_t noit_atomic32_t;
 typedef int64_t noit_atomic64_t;
 
-#ifdef HAVE_LIBKERN_OSATOMIC_H
-/*
- * This secion is for Darwin.
- * And we simply don't run on 32bit PPC.  Life's a bitch.
- */
-#include <libkern/OSAtomic.h>
-typedef OSSpinLock noit_spinlock_t;
-#define noit_atomic_cas32(ref,new,old) (OSAtomicCompareAndSwap32(old,new,ref) ? old : new)
-#define noit_atomic_cas64(ref,new,old) (OSAtomicCompareAndSwap64(old,new,ref) ? old : new)
-#define noit_atomic_casptr(ref,new,old) (OSAtomicCompareAndSwapPtr(old,new,(void *)ref) ? old : new)
-#define noit_atomic_add32(ref,diff) OSAtomicAdd32(diff,ref)
-#define noit_atomic_add64(ref,diff) OSAtomicAdd64(diff,ref)
-#define noit_atomic_sub32(ref,diff) OSAtomicAdd32(0-(diff),ref)
-#define noit_atomic_sub64(ref,diff) OSAtomicAdd64(0-(diff),ree)
-#define noit_atomic_inc32(ref) OSAtomicIncrement32(ref)
-#define noit_atomic_inc64(ref) OSAtomicIncrement64(ref)
-#define noit_atomic_dec32(ref) OSAtomicDecrement32(ref)
-#define noit_atomic_dec64(ref) OSAtomicDecrement64(ref)
-#define noit_spinlock_lock OSSpinLockLock
-#define noit_spinlock_unlock OSSpinLockUnlock
-#define noit_spinlock_trylock OSSpinLockTry
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 
 #if (SIZEOF_VOID_P == 4)
 #define noit_atomic_casptr(a,b,c) ((void *)noit_atomic_cas32((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c)))
