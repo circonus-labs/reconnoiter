@@ -87,6 +87,10 @@ function onload(image)
     <parameter name="extract"
                required="optional"
                allowed=".+">This regular expression is matched against the body of the response globally.  The first capturing match is the key and the second capturing match is the value.  Each key/value extracted is registered as a metric for the check.</parameter>
+    <parameter name="pcre_match_limit"
+               required="optional"
+               default="10000"
+               allowed="\d+">This sets the PCRE internal match limit (see pcreapi documentation).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -263,6 +267,7 @@ function initiate(module, check)
     local starttime = noit.timeval.now()
     local method = check.config.method or "GET"
     local max_len = 80
+    local pcre_match_limit = check.config.pcre_match_limit or 10000
     local redirects = check.config.redirects or 0
 
     -- expect the worst
@@ -453,7 +458,7 @@ function initiate(module, check)
       local exre = noit.pcre(check.config.extract)
       local rv = true
       while rv do
-        rv, m, key, value = exre(output or '')
+        rv, m, key, value = exre(output or '', { limit = pcre_match_limit })
         if rv and key ~= nil then
           check.metric(key, value)
         end
