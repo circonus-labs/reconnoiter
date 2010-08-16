@@ -65,6 +65,10 @@
     <module loader="lua" name="http" object="noit.module.http"/>
     <module loader="lua" name="resmon" object="noit.module.resmon"/>
     <module loader="lua" name="smtp" object="noit.module.smtp"/>
+    <jezebel>
+      <config><url>http://127.0.0.1:8083/dispatch</url></config>
+      <module loader="lua" name="jmx" object="noit.module.jezebel"/>
+    </jezebel>
   </modules>
   <listeners>
     <sslconfig>
