@@ -1,15 +1,23 @@
 #!/bin/sh
 
-set -- `getopt fj:dD: $*`
+set -- `getopt l:p:fj:dD: $*`
 
 JAVA=@JAVA@
 JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
 DIRS="/ . lib @prefix@/java/lib @prefix@/java"
+LOGFILE=/dev/null
 
 for i in $*
 do
         case $i in
+	-l)	LOGFILE=$2
+		shift 2
+		;;
+
+	-p)	PIDFILE=$2
+		shift 2
+		;;
         -f)
                 FOREGROUND=1
                 shift
@@ -58,6 +66,8 @@ if [ "$DEBUG" = "1" ]; then
 elif [ "$FOREGROUND" = "1" ]; then
         $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS
 else
-        $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS < /dev/null &
+        $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS < /dev/null > $LOGFILE 2>&1 &
+	PID=$!
+	echo $PID > $PIDFILE
 fi
 
