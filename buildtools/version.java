@@ -4,7 +4,7 @@ public class version {
     Double v = Double.valueOf(System.getProperty("java.specification.version"));
     if(a.length > 0) {
       Double want = Double.valueOf(a[0]);
-      if(want >= v) System.exit(0);
+      if(v >= want) System.exit(0);
     }
     else {
       System.out.println(v);
