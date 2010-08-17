@@ -177,9 +177,9 @@ static int ping_icmp_timeout(eventer_t e, int mask,
 
   if(!NOIT_CHECK_KILLED(pcl->check) && !NOIT_CHECK_DISABLED(pcl->check)) {
     ping_icmp_log_results(pcl->self, pcl->check);
-    data = (struct check_info *)pcl->check->closure;
-    data->timeout_event = NULL;
   }
+  data = (struct check_info *)pcl->check->closure;
+  data->timeout_event = NULL;
   pcl->check->flags &= ~NP_RUNNING;
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = pcl->check;
