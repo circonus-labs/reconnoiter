@@ -581,10 +581,6 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   CONFIG_OVERRIDE(query);
 
   noit_check_make_attrs(check, &check_attrs_hash);
-#define CA_STORE(a,b) noit_hash_store(&check_attrs_hash, a, strlen(a), b)
-  CA_STORE("target", check->target);
-  CA_STORE("name", check->name);
-  CA_STORE("module", check->module);
 
   if(nameserver) {
     noit_check_interpolate(interpolated_nameserver,
