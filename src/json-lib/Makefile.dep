@@ -1,0 +1,10 @@
+arraylist.o: arraylist.c ../noit_config.h bits.h arraylist.h
+debug.o: debug.c ../noit_config.h debug.h
+json_object.o: json_object.c ../noit_config.h debug.h printbuf.h \
+  linkhash.h arraylist.h json_object.h json_object_private.h
+json_tokener.o: json_tokener.c ../noit_config.h bits.h debug.h printbuf.h \
+  arraylist.h json_object.h json_tokener.h
+json_util.o: json_util.c ../noit_config.h bits.h debug.h printbuf.h \
+  json_object.h json_tokener.h json_util.h
+linkhash.o: linkhash.c linkhash.h
+printbuf.o: printbuf.c ../noit_config.h bits.h debug.h printbuf.h

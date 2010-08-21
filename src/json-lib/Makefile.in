@@ -1,0 +1,34 @@
+CC=@CC@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+AR=@AR@
+RANLIB=@RANLIB@
+LIBS=@LIBS@
+INSTALL=@INSTALL@
+
+top_srcdir=@top_srcdir@
+
+OBJS=arraylist.o debug.o json_object.o json_tokener.o json_util.o \
+	linkhash.o printbuf.o
+
+all:	libnoitjson.a
+
+libnoitjson.a:	$(OBJS)
+	@rm -f $@
+	@$(AR) cq $@ $(OBJS)
+	@echo "- archiving $@"
+	@$(RANLIB) $@
+
+.c.o:
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@echo "- compiling $<"
+
+clean:
+	rm -f *.o libnoitjson.a
+
+Makefile.dep:
+	gcc -I.. -MM *.c > Makefile.dep
+
+include Makefile.dep
+

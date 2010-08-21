@@ -89,67 +89,34 @@ end
 
 local HttpClient = require 'noit.HttpClient'
 
-function initiate(module, check)
-    local url = check.config.url or 'http:///'
-    local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
-    local port
-    local use_ssl = false
-    local codere = noit.pcre(check.config.code or '^200$')
-    local good = false
-    local starttime = noit.timeval.now()
-
-    local user = check.config.auth_user or nil
-    local pass = check.config.auth_password or nil
-    local encoded = nil
-    if (user ~= nil and pass ~= nil) then
-        encoded = noit.base64_encode(user .. ':' .. pass)
+function json_metric(check, prefix, o)
+    local cnt = 1
+    if type(o) == "table" then
+        cnt = 0
+        for k, v in pairs(o) do
+            cnt = cnt + json_metric(check, prefix and (prefix .. '`' .. k) or k, v)
+        end
+    elseif type(o) == "string" then
+        check.metric_string(prefix, o)
+    elseif type(o) == "number" then
+        check.metric_double(prefix, o)
+    elseif type(o) == "boolean" then
+        check.metric_int32(prefix, o and 1 or 0)
     end
+    return cnt
+end
 
-    -- assume the worst.
-    check.bad()
-    check.unavailable()
+function json_to_metrics(check, doc)
+    local services = 0
+    check.available()
+    local data = doc:document()
+    services = json_metric(check, nil, data)
+    check.metric_uint32("services", services)
+    if services > 0 then check.good() else check.bad() end
+    check.status("services=" .. services)
+end
 
-    if host == nil then host = check.target end
-    if schema == nil then
-        schema = 'http'
-        uri = '/'
-    end
-    if schema == 'http' then
-        port = check.config.port or 81
-    elseif schema == 'https' then
-        port = check.config.port or 443
-        use_ssl = true
-    else
-        error(schema .. " not supported")
-    end 
-
-    local output = ''
-
-    -- callbacks from the HttpClient
-    local callbacks = { }
-    callbacks.consume = function (str) output = output .. str end
-    local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target, port, use_ssl)
-   
-    if rv ~= 0 then
-        check.status(err or "unknown error")
-        return
-    end
-
-    -- perform the request
-    local headers = {}
-    headers.Host = host
-    if encoded ~= nil then
-        headers["Authorization"] = "Basic " .. encoded
-    end
-    client:do_request("GET", uri, headers)
-    client:get_response()
-
-    -- parse the xml doc
-    local doc = noit.parsexml(output)
-    if doc == nil then
-        noit.log("error", "bad xml: %s", output)
-    end
+function xml_to_metrics(check, doc)
     check.available()
 
     local services = 0
@@ -200,5 +167,97 @@ function initiate(module, check)
     local status = ''
     if services > 0 then check.good() else check.bad() end
     check.status("services=" .. services)
+end
+
+function initiate(module, check)
+    local url = check.config.url or 'http:///'
+    local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
+    local port
+    local use_ssl = false
+    local codere = noit.pcre(check.config.code or '^200$')
+    local good = false
+    local starttime = noit.timeval.now()
+
+    local user = check.config.auth_user or nil
+    local pass = check.config.auth_password or nil
+    local encoded = nil
+    if (user ~= nil and pass ~= nil) then
+        encoded = noit.base64_encode(user .. ':' .. pass)
+    end
+
+    -- assume the worst.
+    check.bad()
+    check.unavailable()
+
+    if host == nil then host = check.target end
+    if schema == nil then
+        schema = 'http'
+        uri = '/'
+    end
+    if schema == 'http' then
+        port = check.config.port or 81
+    elseif schema == 'https' then
+        port = check.config.port or 443
+        use_ssl = true
+    else
+        error(schema .. " not supported")
+    end 
+
+    local output = ''
+
+    -- callbacks from the HttpClient
+    local callbacks = { }
+    local hdrs_in = { }
+    callbacks.consume = function (str) output = output .. str end
+    callbacks.headers = function (t) hdrs_in = t end
+    local client = HttpClient:new(callbacks)
+    local rv, err = client:connect(check.target, port, use_ssl)
+   
+    if rv ~= 0 then
+        check.status(err or "unknown error")
+        return
+    end
+
+    -- perform the request
+    local headers = {}
+    headers.Host = host
+    if encoded ~= nil then
+        headers["Authorization"] = "Basic " .. encoded
+    end
+    client:do_request("GET", uri, headers)
+    client:get_response()
+
+    local jsondoc = nil
+    if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
+       string.find(hdrs_in["content-type"] or '', 'javascript') ~= nil then
+        jsondoc = noit.parsejson(output)
+        if jsondoc == nil then
+            noit.log("error", "bad json: %s", output)
+            check.status("json parse error")
+            return
+        end
+    end
+
+    if jsondoc ~= nil then
+        json_to_metrics(check, jsondoc)
+        return
+    end
+
+    -- try xml by "default" (assuming no json-specific content header)
+
+    -- parse the xml doc
+    local doc = noit.parsexml(output)
+    if doc == nil then
+        jsondoc = noit.parsejson(output)
+        if jsondoc == nil then
+            noit.log("error", "bad xml: %s", output)
+            check.status("xml parse error")
+            return
+        end
+        json_to_metrics(check, jsondoc)
+        return
+    end
+    
+    xml_to_metrics(check, doc)
 end
 

@@ -56,6 +56,7 @@
 #include "utils/noit_str.h"
 #include "utils/noit_b64.h"
 #include "eventer/eventer.h"
+#include "json-lib/json.h"
 #include "lua_noit.h"
 
 #define DEFLATE_CHUNK_SIZE 32768
@@ -76,6 +77,11 @@
        lua_pushinteger(L, g); \
        return 1; \
      }
+
+typedef struct {
+  struct json_tokener *tok;
+  struct json_object *root;
+} json_crutch;
 
 static void
 nl_extended_free(void *vcl) {
@@ -1655,6 +1661,138 @@ noit_xmldoc_index_func(lua_State *L) {
   luaL_error(L, "noit.xmldoc no such element: %s", k);
   return 0;
 }
+
+static int
+noit_lua_json_tostring(lua_State *L) {
+  int n;
+  json_crutch **docptr;
+  const char *jsonstring;
+  n = lua_gettop(L);
+  /* the first arg is implicitly self (it's a method) */
+  docptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(docptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
+  jsonstring = json_object_to_json_string((*docptr)->root);
+  lua_pushstring(L, jsonstring);
+  /* jsonstring is freed with the root object later */
+  return 1;
+}
+static int
+noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
+  if(!o) {
+    lua_pushnil(L);
+    return 1;
+  }
+  switch(json_object_get_type(o)) {
+    case json_type_null: lua_pushnil(L); break;
+    case json_type_object:
+    {
+      struct lh_table *lh;
+      struct lh_entry *el;
+      lh = json_object_get_object(o);
+      lua_createtable(L, 0, lh->count);
+      lh_foreach(lh, el) {
+        noit_json_object_to_luatype(L, (struct json_object *)el->v);
+        lua_setfield(L, -2, el->k);
+      }
+      break;
+    }
+    case json_type_string: lua_pushstring(L, json_object_get_string(o)); break;
+    case json_type_boolean: lua_pushboolean(L, json_object_get_boolean(o)); break;
+    case json_type_double: lua_pushnumber(L, json_object_get_double(o)); break;
+    case json_type_int: lua_pushnumber(L, json_object_get_int(o)); break;
+    case json_type_array:
+    {
+      int i, cnt;
+      struct array_list *al;
+      al = json_object_get_array(o);
+      cnt = al ? array_list_length(al) : 0;
+      lua_createtable(L, 0, cnt);
+      for(i=0;i<cnt;i++) {
+        noit_json_object_to_luatype(L, (struct json_object *)array_list_get_idx(al, i));
+        lua_rawseti(L, -2, i);
+      }
+      break;
+    }
+  }
+  return 1;
+}
+static int
+noit_lua_json_document(lua_State *L) {
+  int n;
+  json_crutch **docptr;
+  n = lua_gettop(L);
+  /* the first arg is implicitly self (it's a method) */
+  docptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(docptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
+  return noit_json_object_to_luatype(L, (*docptr)->root);
+}
+static int
+nl_parsejson(lua_State *L) {
+  json_crutch **docptr, *doc;
+  const char *in;
+  size_t inlen;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "parsejson requires one argument"); 
+
+  in = lua_tolstring(L, 1, &inlen);
+  doc = calloc(1, sizeof(*doc));
+  doc->tok = json_tokener_new();
+  doc->root = json_tokener_parse_ex(doc->tok, in, inlen);
+  if(is_error(doc->root)) {
+    json_tokener_free(doc->tok);
+    if(doc->root) json_object_put(doc->root);
+    free(doc);
+    lua_pushnil(L);
+    return 1;
+  }
+
+  docptr = (json_crutch **)lua_newuserdata(L, sizeof(doc)); 
+  *docptr = doc;
+  luaL_getmetatable(L, "noit.json");
+  lua_setmetatable(L, -2);
+  return 1;
+}
+static int
+noit_lua_json_gc(lua_State *L) {
+  json_crutch **json;
+  json = (json_crutch **)lua_touserdata(L,1);
+  if((*json)->tok) json_tokener_free((*json)->tok);
+  if((*json)->root) json_object_put((*json)->root);
+  free(*json);
+  return 0;
+}
+static int
+noit_json_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  json_crutch **udata;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "noit.json")) {
+    luaL_error(L, "metatable error, arg1 not a noit.json!");
+  }
+  udata = lua_touserdata(L, 1);
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'd':
+     LUA_DISPATCH(document, noit_lua_json_document);
+     break;
+    case 't':
+     LUA_DISPATCH(tostring, noit_lua_json_tostring);
+     break;
+    default:
+     break;
+  }
+  luaL_error(L, "noit.json no such element: %s", k);
+  return 0;
+}
 static const luaL_Reg noitlib[] = {
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
@@ -1672,6 +1810,7 @@ static const luaL_Reg noitlib[] = {
   { "conf_get_boolean", nl_conf_get_boolean },
   { "conf_get_number", nl_conf_get_float },
   { "parsexml", nl_parsexml },
+  { "parsejson", nl_parsejson },
   { NULL, NULL }
 };
 
@@ -1698,6 +1837,13 @@ int luaopen_noit(lua_State *L) {
   luaL_newmetatable(L, "noit.pcre");
   lua_pushcfunction(L, noit_lua_pcre_gc);
   lua_setfield(L, -2, "__gc");
+
+  luaL_newmetatable(L, "noit.json");
+  lua_pushcfunction(L, noit_lua_json_gc);
+  lua_setfield(L, -2, "__gc");
+  luaL_newmetatable(L, "noit.json");
+  lua_pushcclosure(L, noit_json_index_func, 0);
+  lua_setfield(L, -2, "__index");
 
   luaL_newmetatable(L, "noit.xmldoc");
   lua_pushcfunction(L, noit_lua_xmldoc_gc);

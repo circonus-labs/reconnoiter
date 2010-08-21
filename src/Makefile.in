@@ -66,7 +66,7 @@ NOIT_OBJS=noitd.o noit_listener.o \
         noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o
 
 NOIT_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
-	jlog/libjlog.a utils/libnoit_utils.a
+	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
 STRATCON_OBJS=stratcond.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -78,7 +78,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	stratcon_iep.o
 
 STRATCON_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
-	jlog/libjlog.a utils/libnoit_utils.a
+	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
 all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf java-bits make-modules make-man
 
@@ -117,6 +117,10 @@ utils/libnoit_utils.a:
 	@echo "- building utils bits"
 	@(cd utils && make -s libnoit_utils.a)
 
+json-lib/libnoitjson.a:
+	@echo "- building json bits"
+	@(cd json-lib && make -s libnoitjson.a)
+
 man/noitd.usage.h:	make-man
 
 man/stratcond.usage.h:	make-man
@@ -131,6 +135,7 @@ noitd:	$(NOIT_OBJS) $(NOIT_LIBS) man/noitd.usage.h
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
 		utils/*.o \
+		json-lib/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
@@ -144,6 +149,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
 		utils/*.o \
+		json-lib/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
@@ -252,6 +258,7 @@ clean:
 	(cd modules && make clean)
 	(cd noitedit && make clean)
 	(cd utils && make clean)
+	(cd json-lib && make clean)
 	(cd lua && make clean)
 	(cd java && make clean)
 

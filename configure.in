@@ -646,6 +646,7 @@ src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL
 src/udns/Makefile
+src/json-lib/Makefile
 src/man/Makefile
 src/modules/Makefile
 src/modules-lua/Makefile
