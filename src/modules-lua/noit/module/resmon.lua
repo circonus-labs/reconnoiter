@@ -34,7 +34,7 @@ function onload(image)
   image.xml_description([=[
 <module>
   <name>resmon</name>
-  <description><para>The resmon module performs services checks against an HTTP server serving withe Resmon XML or JSON.</para>
+  <description><para>The resmon module performs services checks against an HTTP server serving with Resmon XML or JSON.</para>
   <para><ulink url="https://labs.omniti.com/trac/resmon"><citetitle>Resmon</citetitle></ulink> is a light-weight resource monitor that exposes health of services over HTTP in XML.</para>
   <para>This module rides on the http module and provides a secondary phase of XML parsing on the contents that extracts Resmon status messages into metrics that can be trended.</para>
   </description>
