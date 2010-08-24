@@ -23,7 +23,7 @@ SET default_with_oids = false;
 CREATE TABLE metric_name_summary (
     sid integer NOT NULL,
     metric_name text NOT NULL,
-    metric_type text,
+    metric_type text NOT NULL,
     active boolean DEFAULT true,
     fts_data tsvector
 );
@@ -36,7 +36,7 @@ ALTER TABLE noit.metric_name_summary OWNER TO reconnoiter;
 --
 
 ALTER TABLE ONLY metric_name_summary
-    ADD CONSTRAINT metric_name_summary_pkey UNIQUE (sid, metric_name, metric_type);
+    ADD CONSTRAINT metric_name_summary_pkey PRIMARY KEY (sid, metric_name, metric_type);
 
 
 --
