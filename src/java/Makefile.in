@@ -13,7 +13,8 @@ libdir=@libdir@
 javalibdir=@prefix@/java
 includedir=${prefix}/include
 libexecdir=@libexecdir@
-datarootdir = @datarootdir@
+localstatedir=@localstatedir@
+datarootdir=@datarootdir@
 mandir=@mandir@
 mansubdir=@mansubdir@
 docdir=${prefix}/@docdir@
@@ -109,13 +110,13 @@ install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 
 install-iep:	install-dirs all
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(prefix)/var/db/noit-iep
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(localstatedir)/db/noit-iep
 	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
 	for jar in $(R_SUPPORT) ; do \
 		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
 	done
 	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
-	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(prefix)/var/db/noit-iep/log4j.xml
+	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(localstatedir)/db/noit-iep/log4j.xml
 
 install-jezebel:	install-dirs all
 	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
