@@ -1144,7 +1144,8 @@ stratcon_datastore_asynch_execute(eventer_t e, int mask, void *closure,
           break;
         case DS_EXEC_ROW_FAILED:
           /* rollback to savepoint, mark this record as bad and start again */
-          noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
+          if(current->data[0] != 'n')
+            noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
           current->problematic = 1;
           current = last_sp;
           success = sp_success;
