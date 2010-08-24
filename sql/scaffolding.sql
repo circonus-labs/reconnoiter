@@ -85,4 +85,9 @@ grant usage on schema prism to prism;
 \i tables/prism.saved_worksheets.sql
 \i tables/prism.saved_worksheets_dep.sql
 
+select stratcon.archive_part_maint('noit.metric_numeric_archive', 'whence', 'day', 7);
+select stratcon.archive_part_maint('noit.metric_text_archive', 'whence', 'day', 7);
+select stratcon.archive_part_maint('noit.check_status_archive', 'whence', 'day', 7);
+select stratcon.archive_part_maint('noit.check_archive', 'whence', 'day', 7);
+
 commit;
