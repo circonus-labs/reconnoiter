@@ -234,7 +234,7 @@ class Reconnoiter_DB {
       $ptr_groupby = ', ciamt.value';
       $ptr_join = "
         left join check_currently cia
-               on (    $tblsrc.$want ::inet = cia.target ::inet
+               on (    $tblsrc.$want ::text = cia.target ::text
                    and cia.module='dns' and cia.name='in-addr.arpa')
         left join metric_text_currently ciamt
                on (cia.sid = ciamt.sid and ciamt.name='answer')";
