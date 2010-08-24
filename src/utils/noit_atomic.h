@@ -83,6 +83,7 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
                   volatile noit_atomic64_t rpl,
                   volatile noit_atomic64_t curr) {
   noit_atomic64_t prev;
+#ifdef __PIC__
   __asm__ volatile (
       "pushl %%ebx;"
       "mov 4+%1,%%ecx;"
@@ -93,6 +94,14 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
     : "=A" (prev)
     : "m" (rpl), "A" (curr), "r" (ptr)
     : "%ecx", "memory", "cc");
+#else
+  __asm__ volatile (
+      "lock;"
+      "cmpxchg8b (%3);"
+    : "=A" (prev)
+    : "m" (rpl), "A" (curr), "r" (ptr)
+    : "memory", "cc");
+#endif
   return prev;
 };
 #endif
