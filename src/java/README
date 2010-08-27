@@ -5,5 +5,7 @@ As far as I can tell there is no way to be actually compliant with this
 license -- even with no code changes.  Apache commons isn't GPLd, but
 I need bits of that.  They run in the same VM, so that's a mess.
 
-Anyway, we'll GPL everything we write in Java just to be on the safe
-side.
+Everything under the com.omniti.reconnoiter package path is GPLd.
+
+Everything under the com.omniti.jezebel package path is BSDd.
+
