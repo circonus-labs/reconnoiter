@@ -369,6 +369,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
  socket_error:
     ctx->state = JLOG_STREAMER_WANT_INITIATE;
     ctx->count = 0;
+    ctx->needs_chkpt = 0;
     ctx->bytes_read = 0;
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
@@ -411,6 +412,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&dummy.count, ctx->buffer, sizeof(u_int32_t));
         ctx->count = ntohl(dummy.count);
+        ctx->needs_chkpt = 0;
         free(ctx->buffer); ctx->buffer = NULL;
         if(ctx->count < 0)
           ctx->state = JLOG_STREAMER_WANT_ERROR;
@@ -436,16 +438,18 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_BODY:
         FULLREAD(e, ctx, (unsigned long)ctx->header.message_len);
-        if(ctx->header.message_len > 0)
+        if(ctx->header.message_len > 0) {
+          ctx->needs_chkpt = 1;
           ctx->push(DS_OP_INSERT, &nctx->r.remote, nctx->remote_cn,
                     ctx->buffer, NULL);
+        }
         else if(ctx->buffer)
           free(ctx->buffer);
         /* Don't free the buffer, it's used by the datastore process. */
         ctx->buffer = NULL;
         ctx->count--;
         ctx->total_events++;
-        if(ctx->count == 0) {
+        if(ctx->count == 0 && ctx->needs_chkpt) {
           eventer_t completion_e;
           eventer_remove_fd(e->fd);
           completion_e = eventer_alloc();
@@ -461,7 +465,10 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                 ctx->header.chkpt.log, ctx->header.chkpt.marker);
           noit_connection_disable_timeout(nctx);
           return 0;
-        } else
+        }
+        else if(ctx->count == 0)
+          ctx->state = JLOG_STREAMER_WANT_CHKPT;
+        else
           ctx->state = JLOG_STREAMER_WANT_HEADER;
         break;
 

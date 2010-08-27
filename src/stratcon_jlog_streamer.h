@@ -86,6 +86,7 @@ typedef struct jlog_streamer_ctx_t {
     JLOG_STREAMER_WANT_ERROR = 6,
   } state;
   int count;            /* Number of jlog messages we need to read */
+  int needs_chkpt;
   struct {
     jlog_id   chkpt;
     u_int32_t tv_sec;
