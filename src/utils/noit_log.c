@@ -85,7 +85,7 @@ struct _noit_log_stream {
   noit_hash_table *config;
   struct _noit_log_stream_outlet_list *outlets;
   pthread_rwlock_t *lock;
-  noit_atomic64_t written;
+  noit_atomic32_t written;
   unsigned deps_materialized:1;
   unsigned debug_below:1;
   unsigned timestamps_below:1;
@@ -131,7 +131,7 @@ posix_logio_open(noit_log_stream_t ls) {
     ls->op_ctx = NULL;
     return -1;
   }
-  if(fstat(fd, &sb) == 0) ls->written = (size_t)sb.st_size;
+  if(fstat(fd, &sb) == 0) ls->written = (int32_t)sb.st_size;
   ls->op_ctx = (void *)(vpsized_int)fd;
   return 0;
 }
@@ -148,7 +148,7 @@ posix_logio_reopen(noit_log_stream_t ls) {
       ls->op_ctx = (void *)(vpsized_int)newfd;
       if(oldfd >= 0) close(oldfd);
       rv = 0;
-      if(fstat(newfd, &sb) == 0) ls->written = (size_t)sb.st_size;
+      if(fstat(newfd, &sb) == 0) ls->written = (int32_t)sb.st_size;
     }
     if(ls->lock) pthread_rwlock_unlock(ls->lock);
     return rv;
@@ -163,7 +163,7 @@ posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   debug_printf("writing to %d\n", fd);
   if(fd >= 0) rv = write(fd, buf, len);
   if(ls->lock) pthread_rwlock_unlock(ls->lock);
-  if(rv > 0) noit_atomic_add64(&ls->written, rv);
+  if(rv > 0) noit_atomic_add32(&ls->written, rv);
   return rv;
 }
 static int
@@ -174,7 +174,7 @@ posix_logio_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
   debug_printf("writ(v)ing to %d\n", fd);
   if(fd >= 0) rv = writev(fd, iov, iovcnt);
   if(ls->lock) pthread_rwlock_unlock(ls->lock);
-  if(rv > 0) noit_atomic_add64(&ls->written, rv);
+  if(rv > 0) noit_atomic_add32(&ls->written, rv);
   return rv;
 }
 static int
