@@ -334,8 +334,9 @@ jlog_logio_reopen(noit_log_stream_t ls) {
 }
 static int
 jlog_logio_open(noit_log_stream_t ls) {
-  char path[PATH_MAX], *sub;
+  char path[PATH_MAX], *sub, **subs, *p;
   jlog_ctx *log = NULL;
+  int i, listed, found;
 
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
   log = jlog_new(path);
@@ -362,12 +363,59 @@ jlog_logio_open(noit_log_stream_t ls) {
       jlog_ctx_close(log);
       return -1;
     }
-    /* The first time we open after an init, we should add the subscriber. */
-    if(sub)
-      jlog_ctx_add_subscriber(log, sub, JLOG_BEGIN);
-    else
-      jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
   }
+
+  /* Add or remove subscribers according to the current configuration. */
+  listed = jlog_ctx_list_subscribers(log, &subs);
+  if(listed == -1) {
+    noitL(noit_error, "Cannot list jlog subscribers: %s\n",
+          jlog_ctx_err_string(log));
+    return -1;
+  }
+
+  if(sub) {
+    /* Match all configured subscribers against jlog's list. */
+    for(p=strtok(sub, ",");p;p=strtok(NULL, ",")) {
+      for(i=0;i<listed;i++) {
+        if((subs[i]) && (strcmp(p, subs[i]) == 0)) {
+          free(subs[i]);
+          subs[i] = NULL;
+          break;
+        }
+      }
+      if(i == listed)
+        jlog_ctx_add_subscriber(log, p, JLOG_BEGIN);
+    }
+
+    /* Remove all unmatched subscribers. */
+    for(i=0;i<listed;i++) {
+      if(subs[i]) {
+        jlog_ctx_remove_subscriber(log, subs[i]);
+        free(subs[i]);
+        subs[i] = NULL;
+      }
+    }
+
+    free(subs);
+    subs = NULL;
+  } else {
+    /* Remove all subscribers other than DEFAULT_JLOG_SUBSCRIBER. */
+    found = 0;
+    for(i=0;i<listed;i++) {
+      if((subs[i]) && (strcmp(DEFAULT_JLOG_SUBSCRIBER, subs[i]) == 0)) {
+        found = 1;
+        continue;
+      }
+      jlog_ctx_remove_subscriber(log, subs[i]);
+    }
+
+    /* Add DEFAULT_JLOG_SUBSCRIBER if it wasn't already on the jlog's list. */
+    if(!found)
+      jlog_ctx_add_subscriber(log, DEFAULT_JLOG_SUBSCRIBER, JLOG_BEGIN);
+
+    jlog_ctx_list_subscribers_dispose(log, subs);
+  }
+
   ls->op_ctx = log;
   /* We do this to clean things up */
   jlog_logio_reopen(ls);
