@@ -10,3 +10,9 @@ clean:
 	(cd src && make clean)
 	(cd sql && make clean)
 	(cd test && make clean)
+
+distclean: 	clean
+	rm -f Makefile config.status config.log
+	(cd src && make distclean)
+	(cd sql && make distclean)
+	(cd test && make distclean)

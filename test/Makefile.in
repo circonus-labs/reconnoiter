@@ -89,3 +89,6 @@ clean-keys:
 	rm -f *.key *.csr *.crt *.crl *.pem
 	rm -rf demoCA
 
+distclean:	clean
+	rm -f Makefile
+

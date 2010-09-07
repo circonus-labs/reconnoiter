@@ -37,3 +37,6 @@ install:	reconnoiter_ddl_dump.sql
 
 clean:
 	rm -f reconnoiter_ddl_dump.sql
+
+distclean:
+	rm -f Makefile

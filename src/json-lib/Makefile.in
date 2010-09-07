@@ -27,6 +27,9 @@ libnoitjson.a:	$(OBJS)
 clean:
 	rm -f *.o libnoitjson.a
 
+distclean:	clean
+	rm -f Makefile
+
 Makefile.dep:
 	gcc -I.. -MM *.c > Makefile.dep
 

@@ -21,3 +21,7 @@ liblua.lo:	liblua.c
 
 clean:
 	rm -f liblua.lo
+
+distclean:	clean
+	rm -f Makefile
+

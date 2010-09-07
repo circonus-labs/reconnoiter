@@ -154,3 +154,7 @@ install-smodules:	$(SMODULES)
 
 clean:
 	rm -f *.lo *.@MODULEEXT@ *.xmlh
+
+distclean:	clean
+	rm -f Makefile
+

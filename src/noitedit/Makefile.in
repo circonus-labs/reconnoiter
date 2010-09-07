@@ -73,3 +73,7 @@ editline.c: vi.c emacs.c common.c makelist
 
 clean:
 	rm -f *.o *.a editline.c
+
+distclean:	clean
+	rm -f Makefile
+

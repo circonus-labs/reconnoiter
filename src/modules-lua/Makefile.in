@@ -57,3 +57,9 @@ alldocs:	../modules/docs
 			$(top_srcdir)/docs/config/modules/`echo $$lua | sed -e 's/\.lua/.xml/; s/\//./g'` ; \
 		rm -f tmp.xml ; \
 	done
+
+clean:
+
+distclean:	clean
+	rm -f Makefile
+

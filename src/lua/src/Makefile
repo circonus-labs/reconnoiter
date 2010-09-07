@@ -60,6 +60,8 @@ $(LUAC_T): $(LUAC_O) $(LUA_A)
 clean:
 	$(RM) $(ALL_T) $(ALL_O)
 
+distclean:	clean
+
 depend:
 	@$(CC) $(CFLAGS) -MM l*.c print.c
 

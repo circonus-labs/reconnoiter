@@ -131,3 +131,6 @@ clean:
 	find com -name \*.class -exec rm {} \;
 	rm -f reconnoiter.jar jezebel.jar
 
+distclean: 	clean
+	rm -f Makefile run-iep.sh jezebel
+

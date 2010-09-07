@@ -41,4 +41,6 @@ strict:
 clean:
 	$(RM) a.out core core.* *.o luac.out
 
+distclean:	clean
+
 .PHONY:	default min noparser one strict clean

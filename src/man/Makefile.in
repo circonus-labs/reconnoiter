@@ -52,3 +52,5 @@ install:	all
 clean:
 	rm -f noitd.8 noitd.usage.h stratcond.8 stratcond.usage.h
 
+distclean:
+	rm -f Makefile

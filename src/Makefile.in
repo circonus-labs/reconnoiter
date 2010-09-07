@@ -270,3 +270,11 @@ Makefile.dep:
 
 include Makefile.dep
 
+distclean-subdirs:
+	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib lua java ; do \
+		(cd $$dir && make distclean) ; \
+	done
+
+distclean:	clean distclean-subdirs
+	rm -f Makefile noit_config.h scripts/noit-config
+
