@@ -32,6 +32,8 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
+TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
+
 MODDIR=modules
 
 HEADERS=noit_capabilities_listener.h noit_check.h noit_check_rest.h \
@@ -81,7 +83,7 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 STRATCON_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
-all:	noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf java-bits make-modules make-man
+all:	$(TARGETS) java-bits make-modules make-man
 
 make-man:
 	@(cd man && make -s)
@@ -250,8 +252,8 @@ install-docs:
 install:	install-dirs install-docs install-headers install-noitd install-stratcond
 
 clean:
-	rm -f *.o noitd
-	rm -f jlog/libjlog.a
+	rm -f *.o $(TARGETS)
+	rm -f module-online.h
 	(cd jlog && make clean)
 	(cd eventer && make clean)
 	(cd udns && make clean)

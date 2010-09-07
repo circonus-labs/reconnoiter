@@ -8,4 +8,5 @@ install:	all
 
 clean:
 	(cd src && make clean)
+	(cd sql && make clean)
 	(cd test && make clean)

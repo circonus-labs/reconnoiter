@@ -86,6 +86,6 @@ testcrl:	test-ca.crl
 testcerts:	demoCA-dir test-noit.key test-noit.crt test-stratcon.key test-stratcon.crt test-ca.key test-ca.crt client.key client.crt badclient.key badclient.crt
 
 clean-keys:
-	rm -f *.key *.csr *.crt *.pem
+	rm -f *.key *.csr *.crt *.crl *.pem
 	rm -rf demoCA
 

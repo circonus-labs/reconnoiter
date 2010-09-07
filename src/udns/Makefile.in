@@ -131,6 +131,7 @@ udns.3.html: udns.3
 	mv $@.tmp $@
 
 clean:
+	rm -f libudns.o udns_codes.c
 	rm -f $(OBJS)
 	rm -f $(SOBJS)
 	rm -f $(UOBJS)
