@@ -59,6 +59,7 @@
     </loader>
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
+    <module image="dns" name="dns"/>
     <module image="snmp" name="snmp"/>
     <module image="ssh2" name="ssh2"/>
     <module loader="lua" name="varnish" object="noit.module.varnish"/>

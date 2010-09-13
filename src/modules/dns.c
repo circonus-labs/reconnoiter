@@ -46,6 +46,8 @@
 #include "utils/noit_atomic.h"
 #include "udns/udns.h"
 
+#define MAX_RR 256
+
 static void eventer_dns_utm_fn(struct dns_ctx *, int, void *);
 static int dns_eventer_callback(eventer_t, int, void *, struct timeval *);
 
@@ -64,6 +66,10 @@ typedef struct dns_ctx_handle {
   eventer_t e; /* evetner handling UDP traffic */
   eventer_t timeout; /* the timeout managed by libudns */
 } dns_ctx_handle_t;
+
+static int cstring_cmp(const void *a, const void *b) {
+  return strcmp(*((const char **)a), *((const char **)b));
+}
 
 static dns_ctx_handle_t *default_ctx_handle = NULL;
 static void dns_ctx_handle_free(void *vh) {
@@ -150,6 +156,7 @@ typedef struct dns_check_info {
   dns_ctx_handle_t *h;
   char *error;
   int nrr;
+  int sort;
 
   /* These make up the query itself */
   unsigned char dn[DNS_MAXDN];
@@ -458,13 +465,15 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
 
 static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   int r = dns_status(ctx);
+  int len, i;
   struct dns_check_info *ci = data;
   struct dns_parse p;
   struct dns_rr rr;
   unsigned nrr;
   unsigned char dn[DNS_MAXDN];
   const unsigned char *pkt, *cur, *end;
-  char *result_str = NULL;
+  char *result_str[MAX_RR] = { NULL };
+  char *result_combined = NULL;
 
   /* If out ci isn't active, we must have timed out already */
   if(!__isactive_ci(ci)) {
@@ -514,9 +523,26 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   dns_rewind(&p, NULL);
   p.dnsp_qtyp = ci->query_rtype == DNS_T_ANY ? 0 : ci->query_rtype;
   p.dnsp_qcls = ci->query_ctype == DNS_C_ANY ? 0 : ci->query_ctype;
-  while(dns_nextrr(&p, &rr))
-    decode_rr(ci, &p, &rr, &result_str);
-  noit_stats_set_metric(&ci->current, "answer", METRIC_STRING, result_str);
+  while(dns_nextrr(&p, &rr) && ci->nrr < MAX_RR)
+    decode_rr(ci, &p, &rr, &result_str[ci->nrr]);
+  if(ci->sort)
+    qsort(result_str, ci->nrr, sizeof(*result_str), cstring_cmp);
+  /* calculate the length and allocate on the stack */
+  len = 0;
+  for(i=0; i<ci->nrr; i++) len += strlen(result_str[i]) + 2;
+  result_combined = alloca(len);
+  /* string it together */
+  len = 0;
+  for(i=0; i<ci->nrr; i++) {
+    int slen;
+    if(i) { memcpy(result_combined + len, ", ", 2); len += 2; }
+    slen = strlen(result_str[i]);
+    memcpy(result_combined + len, result_str[i], slen);
+    len += slen;
+    result_combined[len] = '\0';
+    free(result_str[i]); /* free as we go */
+  }
+  noit_stats_set_metric(&ci->current, "answer", METRIC_STRING, result_combined);
 
  cleanup:
   if(result) free(result);
@@ -539,6 +565,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   const char *config_val;
   const char *rtype = NULL;
   const char *nameserver = NULL;
+  const char *want_sort = NULL;
   const char *ctype = "IN";
   const char *query = NULL;
   char interpolated_nameserver[1024];
@@ -551,6 +578,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   ci->current.available = NP_UNAVAILABLE;
   ci->timed_out = 1;
   ci->nrr = 0;
+  ci->sort = 1;
 
   if(!strcmp(check->name, "in-addr.arpa") ||
      (strlen(check->name) >= sizeof("::in-addr.arpa") - 1 &&
@@ -579,6 +607,9 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   CONFIG_OVERRIDE(nameserver);
   CONFIG_OVERRIDE(rtype);
   CONFIG_OVERRIDE(query);
+  CONFIG_OVERRIDE(want_sort);
+  if(want_sort && strcasecmp(want_sort, "on") && strcasecmp(want_sort, "true"))
+    ci->sort = 0;
 
   noit_check_make_attrs(check, &check_attrs_hash);
 

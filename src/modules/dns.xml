@@ -23,6 +23,10 @@
                required="required"
                default="%[name]|%[:inaddrarpa:target].in-addr.arpa"
                allowed=".+">The query to send.  If the name of the check is in-addr.arpa, the reverse IP octet notation of in-addr.arpa syntax is synthesized by default.  Otherwise the default query is the name of the check itself.</parameter>
+    <parameter name="want_sort"
+               required="optional"
+               default="true"
+               allowed="(true|false|on|off)">Sorts (strcmp) the answers if multiple RRs are returned in the result set.</parameter>
   </checkconfig>
   <examples>
     <example>
