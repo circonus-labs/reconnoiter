@@ -97,7 +97,7 @@ function json_metric(check, prefix, o)
             cnt = cnt + json_metric(check, prefix and (prefix .. '`' .. k) or k, v)
         end
     elseif type(o) == "string" then
-        check.metric_string(prefix, o)
+        check.metric(prefix, o)
     elseif type(o) == "number" then
         check.metric_double(prefix, o)
     elseif type(o) == "boolean" then
