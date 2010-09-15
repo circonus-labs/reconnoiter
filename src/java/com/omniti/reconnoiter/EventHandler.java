@@ -18,6 +18,8 @@ import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.*;
 import com.omniti.reconnoiter.MessageHandler;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class EventHandler {
@@ -41,6 +43,13 @@ public class EventHandler {
   }
   public EPServiceProvider getService() { return epService; }
   public IMQBroker getBroker() { return broker; }
+  public HashMap<UUID,StratconQueryBase> getQueries() {
+    HashMap<UUID,StratconQueryBase> c = new HashMap<UUID,StratconQueryBase>();
+    for ( Map.Entry<UUID,StratconQueryBase> e : queries.entrySet() ) {
+      c.put(e.getKey(), e.getValue());
+    }
+    return c;
+  }
   public boolean registerQuery(StratconQueryBase sq) {
     if(queries.containsKey(sq.getUUID())) return false;
     queries.put(sq.getUUID(), sq);
