@@ -66,7 +66,7 @@ public class RabbitBroker implements IMQBroker  {
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
-    this.queueName = config.getMQParameter("queue", "noit.firehose");
+    this.queueName = config.getMQParameter("queue", "");
     this.routingKey = config.getMQParameter("routingkey", "");
   
     this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
@@ -95,8 +95,8 @@ public class RabbitBroker implements IMQBroker  {
     channel = conn.createChannel();
     boolean passive = false, exclusive = false, durable = false, autoDelete = false;
     channel.exchangeDeclare(exchangeName, exchangeType, passive, durable, autoDelete, null);
-    autoDelete = true;
-    channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null);
+    exclusive = true; autoDelete = true;
+    queueName = channel.queueDeclare(queueName, passive, durable, exclusive, autoDelete, null).getQueue();
     channel.queueBind(queueName, exchangeName, routingKey);
     if(!routingKey.equals(""))
       channel.queueBind(queueName, exchangeName, "");
