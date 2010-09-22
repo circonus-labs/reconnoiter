@@ -23,6 +23,7 @@ public abstract class StratconMessage {
   public static void ignorePrefix(String prefix) {
     quicklookup.put(prefix, null);
   }
+  @SuppressWarnings("unchecked")
   public static boolean registerType(Class clazz) {
     boolean success = false;
     try {
