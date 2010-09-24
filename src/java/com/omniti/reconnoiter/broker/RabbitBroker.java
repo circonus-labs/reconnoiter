@@ -24,7 +24,7 @@ import com.rabbitmq.client.QueueingConsumer;
 
 
 public class RabbitBroker implements IMQBroker  {
-
+  private Connection conn;
   private Channel channel;
   private boolean noAck = false;
   private String userName;
@@ -53,7 +53,7 @@ public class RabbitBroker implements IMQBroker  {
     try {
       this.listenerClass = Class.forName(className);
       this.con = this.listenerClass.getDeclaredConstructor(
-          new Class[] { EPServiceProvider.class, StratconQuery.class, Channel.class,
+          new Class[] { EPServiceProvider.class, StratconQuery.class, RabbitBroker.class,
                         String.class, String.class }
       );
     }
@@ -76,8 +76,13 @@ public class RabbitBroker implements IMQBroker  {
   // 
   public void disconnect() {
     try {
-      channel.getConnection().abort();
       channel.abort();
+      channel = null;
+    }
+    catch (Exception e) { }
+    try {
+      conn.abort();
+      conn = null;
     }
     catch (Exception e) { }
   }
@@ -88,7 +93,7 @@ public class RabbitBroker implements IMQBroker  {
     params.setVirtualHost(virtualHost);
     params.setRequestedHeartbeat(0);
     ConnectionFactory factory = new ConnectionFactory(params);
-    Connection conn = factory.newConnection(hostName, portNumber);
+    conn = factory.newConnection(hostName, portNumber);
 
     if(conn == null) throw new Exception("connection failed");
 
@@ -101,47 +106,37 @@ public class RabbitBroker implements IMQBroker  {
     if(!routingKey.equals(""))
       channel.queueBind(queueName, exchangeName, "");
   }
+  public Channel getChannel() { return channel; }
   
-  public void consume(EventHandler eh) {
+  public void consume(EventHandler eh) throws IOException {
     QueueingConsumer consumer = new QueueingConsumer(channel);
 
-    try {
-      channel.basicConsume(queueName, noAck, consumer);
-    } catch (IOException e) {
-      // TODO Not sure what to do here
-      e.printStackTrace();
-    }
+    channel.basicConsume(queueName, noAck, consumer);
     
     while (true) {
-      try
-      {
-        QueueingConsumer.Delivery delivery;
-        try {
-          delivery = consumer.nextDelivery();
-        } catch (InterruptedException ie) {
-          continue;
-        }
-        // (process the message components ...)
-      
-        String xml = new String(delivery.getBody());
-        try {
-          eh.processMessage(xml);
-        } catch (Exception e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-        }
-        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+      QueueingConsumer.Delivery delivery;
+      try {
+        delivery = consumer.nextDelivery();
+      } catch (InterruptedException ie) {
+        continue;
       }
-      catch (IOException ie) {
-        ie.printStackTrace();
+      // (process the message components ...)
+    
+      String xml = new String(delivery.getBody());
+      try {
+        eh.processMessage(xml);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
       }
+      channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
     }
   }
 
   public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
     UpdateListener l = null;
     try {
-      l = con.newInstance(epService, sq, channel, alertExchangeName, alertRoutingKey);
+      l = con.newInstance(epService, sq, this, alertExchangeName, alertRoutingKey);
     }
     catch(java.lang.InstantiationException ie) { }
     catch(java.lang.IllegalAccessException ie) { }

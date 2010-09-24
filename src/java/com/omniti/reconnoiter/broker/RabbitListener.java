@@ -22,22 +22,22 @@ public class RabbitListener implements UpdateListener {
   protected StratconQuery sq;
   protected String routingKey;
   protected String exchangeName;
-  protected Channel channel;
+  protected RabbitBroker broker;
 
 
-  public RabbitListener(EPServiceProvider epService, StratconQuery sq, Channel channel, String exchangeName, String routingKey) {
+  public RabbitListener(EPServiceProvider epService, StratconQuery sq, RabbitBroker broker, String exchangeName, String routingKey) {
     try {
       this.epService = epService;
       this.sq = sq;
       EPStatement statement=sq.getStatement();
       this.routingKey = routingKey + sq.getName();
       this.exchangeName = exchangeName;
-      this.channel = channel;
+      this.broker = broker;
       
       // Create the connection and add an exchange
       boolean passive = false, durable = true, autoDelete = false;
       System.err.println("channel.exchangeDeclare -> " + exchangeName);
-      channel.exchangeDeclare(exchangeName, "topic", passive, durable, autoDelete, null);  
+      broker.getChannel().exchangeDeclare(exchangeName, "topic", passive, durable, autoDelete, null);  
     } catch(Exception e) {
       e.printStackTrace();
     }
@@ -51,9 +51,15 @@ public class RabbitListener implements UpdateListener {
     String output = jsonRenderer.render(sq.getName(), event);
     try {
       byte[] messageBodyBytes = output.getBytes();
-      channel.basicPublish(exchangeName, routingKey, MessageProperties.TEXT_PLAIN, messageBodyBytes);
-    }  catch(Exception e) {
+      broker.getChannel().basicPublish(exchangeName, routingKey, MessageProperties.TEXT_PLAIN, messageBodyBytes);
+    } catch(Exception e) {
       System.err.println(e);
+      try {
+        broker.disconnect();
+        broker.connect();
+      } catch(Exception be) {
+        System.err.println(be);
+      }
     }
   }
 

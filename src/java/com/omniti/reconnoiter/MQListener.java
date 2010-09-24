@@ -62,6 +62,7 @@ public class MQListener implements Runnable {
       booted = true;
     }
     public EventHandler getEventHandler() { return eh; }
+    public IMQBroker getBroker() { return broker; }
     public void run() {
       eh = new EventHandler(queries, this.epService, broker);
       for ( MessageHandler mh : alternates ) eh.addObserver(mh);
