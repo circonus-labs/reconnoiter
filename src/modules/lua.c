@@ -302,7 +302,22 @@ noit_lua_set_metric(lua_State *L) {
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
   if(lua_isnil(L, 2)) {
     noit_stats_set_metric(&ci->current, metric_name, metric_type, NULL);
-    return 0;
+    lua_pushboolean(L, 1);
+    return 1;
+  }
+  switch(metric_type) {
+    case METRIC_INT32:
+    case METRIC_UINT32:
+    case METRIC_INT64:
+    case METRIC_UINT64:
+    case METRIC_DOUBLE:
+      if(!lua_isnumber(L, 2)) {
+        noit_stats_set_metric(&ci->current, metric_name, metric_type, NULL);
+        lua_pushboolean(L, 0);
+        return 1;
+      }
+    default:
+    break;
   }
   switch(metric_type) {
     case METRIC_GUESS:
@@ -331,7 +346,8 @@ noit_lua_set_metric(lua_State *L) {
       noit_stats_set_metric(&ci->current, metric_name, metric_type, &__n);
       break;
   }
-  return 0;
+  lua_pushboolean(L, 1);
+  return 1;
 }
 static int
 noit_check_index_func(lua_State *L) {
