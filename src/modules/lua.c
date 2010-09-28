@@ -617,7 +617,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
-      noitL(nlerr, "lua resume returned: %d\n", result);
+      noitL(nldeb, "lua resume returned: %d\n", result);
       ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error");
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
@@ -625,7 +625,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       if(base>0) {
         if(lua_isstring(ci->coro_state, base)) {
           const char *err;
-          noitL(nlerr, "lua err: %s\n", lua_tostring(ci->coro_state, base));
+          noitL(nldeb, "lua err: %s\n", lua_tostring(ci->coro_state, base));
           err = lua_tostring(ci->coro_state, base - 2);
           if(err) {
             free(ci->current.status);
