@@ -76,4 +76,10 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_watchdog_child_eventer_heartbeat();
 
+API_EXPORT(void)
+  noit_watchdog_glider(const char *path);
+
+API_EXPORT(void)
+  noit_watchdog_glider_trace_dir(const char *path);
+
 #endif

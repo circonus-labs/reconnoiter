@@ -49,6 +49,16 @@
 #include "utils/noit_watchdog.h"
 
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
+const char *appname = "unknown";
+const char *glider_path = NULL;
+const char *trace_dir = "/var/tmp";
+
+void noit_watchdog_glider(const char *path) {
+  glider_path = path;
+}
+void noit_watchdog_glider_trace_dir(const char *path) {
+  trace_dir = path;
+}
 
 /* Watchdog stuff */
 static int *lifeline = NULL;
@@ -88,9 +98,22 @@ int noit_watchdog_prefork_init() {
   return 0;
 }
 
+int noit_monitored_child_pid = -1;
+
+void glideme(int sig) {
+  char cmd[1024];
+  signal(sig, SIG_DFL);
+  snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
+           glider_path, noit_monitored_child_pid,
+           trace_dir, appname, noit_monitored_child_pid);
+  system(cmd);
+  kill(noit_monitored_child_pid, sig);
+}
+
 int noit_watchdog_start_child(const char *app, int (*func)(),
                               int child_watchdog_timeout) {
   int child_pid;
+  appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
   while(1) {
@@ -102,6 +125,9 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     if(child_pid == 0) {
       /* This sets up things so we start alive */
       it_ticks_zero();
+      /* trace handlers */
+      noit_monitored_child_pid = getpid();
+      if(glider_path) signal(SIGSEGV, glideme);
       /* run the program */
       exit(func());
     }
@@ -153,7 +179,7 @@ int noit_watchdog_child_eventer_heartbeat() {
 
   assert(__eventer);
 
-  /* Setup our hearbeat */
+ /* Setup our hearbeat */
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
   e->callback = watchdog_tick;

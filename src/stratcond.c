@@ -69,6 +69,7 @@ static char **enable_logs;
 static int enable_logs_cnt = 0;
 static char **disable_logs;
 static int disable_logs_cnt = 0;
+static char *glider = NULL;
 
 #include "man/stratcond.usage.h"
 static void usage(const char *progname) {
@@ -107,10 +108,13 @@ void parse_clargs(int argc, char **argv) {
   int c;
   enable_logs = calloc(argc, sizeof(*enable_logs));
   disable_logs = calloc(argc, sizeof(*disable_logs));
-  while((c = getopt(argc, argv, "Mrshc:dDu:g:t:l:L:")) != EOF) {
+  while((c = getopt(argc, argv, "Mrshc:dDu:g:t:l:L:G:")) != EOF) {
     switch(c) {
       case 'M':
         strict_module_load = 1;
+        break;
+      case 'G':
+        glider = strdup(optarg);
         break;
       case 'l':
         enable_logs[enable_logs_cnt++] = strdup(optarg);
@@ -176,6 +180,7 @@ static int child_main() {
   char lockfile[PATH_MAX];
   char conf_str[1024];
   char user[32], group[32];
+  char *trace_dir = NULL;
 
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -217,6 +222,11 @@ static int child_main() {
   }
   if(debug)
     noit_debug->enabled = 1;
+
+  if(!glider) noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@glider", &glider);
+  noit_watchdog_glider(glider);
+  noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@tracedir", &trace_dir);
+  if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
 
   /* Lastly, run through all other system inits */
   if(!noit_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",
