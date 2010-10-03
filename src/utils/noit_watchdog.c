@@ -55,6 +55,8 @@ const char *trace_dir = "/var/tmp";
 
 void noit_watchdog_glider(const char *path) {
   glider_path = path;
+  if(glider_path)
+    noitL(noit_error, "Setting watchdog glider to '%s'\n", glider_path);
 }
 void noit_watchdog_glider_trace_dir(const char *path) {
   trace_dir = path;
@@ -127,7 +129,10 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
       it_ticks_zero();
       /* trace handlers */
       noit_monitored_child_pid = getpid();
-      if(glider_path) signal(SIGSEGV, glideme);
+      if(glider_path) {
+        noitL(noit_error, "catching faults with glider\n");
+        signal(SIGSEGV, glideme);
+      }
       /* run the program */
       exit(func());
     }

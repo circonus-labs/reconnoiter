@@ -177,56 +177,15 @@ int configure_eventer() {
 }
 
 static int child_main() {
-  char lockfile[PATH_MAX];
   char conf_str[1024];
-  char user[32], group[32];
-  char *trace_dir = NULL;
 
-  /* First initialize logging, so we can log errors */
-  noit_log_init();
-  noit_log_stream_add_stream(noit_debug, noit_stderr);
-  noit_log_stream_add_stream(noit_error, noit_stderr);
-
-  /* Next load the configs */
-  noit_conf_init(APPNAME);
+  /* Next (re)load the configs */
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
     exit(2);
   }
 
-  /* Acquire the lock so that we can throw an error if it doesn't work.
-   * If we've started -D, we'll have the lock.
-   * If not we will daemon and must reacquire the lock.
-   */
-  lockfile[0] = '\0';
-  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
-                             lockfile, sizeof(lockfile))) {
-    if(noit_lockfile_acquire(lockfile) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
-    }
-  }
-
-  /* Reinitialize the logging system now that we have a config */
-  snprintf(user, sizeof(user), "%d", getuid());
-  snprintf(group, sizeof(group), "%d", getgid());
-  if(noit_security_usergroup(droptouser, droptogroup, noit_true)) {
-    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(2);
-  }
-  noit_conf_log_init(APPNAME);
-  cli_log_switches();
-  if(noit_security_usergroup(user, group, noit_true)) {
-    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
-    exit(2);
-  }
-  if(debug)
-    noit_debug->enabled = 1;
-
-  if(!glider) noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@glider", &glider);
-  noit_watchdog_glider(glider);
-  noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@tracedir", &trace_dir);
-  if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
+  noit_log_reopen_all();
 
   /* Lastly, run through all other system inits */
   if(!noit_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",
@@ -297,8 +256,43 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  int fd;
+  int fd, lockfd = -1;
+  char lockfile[PATH_MAX];
+  char user[32], group[32];
+  char *trace_dir = NULL;
   parse_clargs(argc, argv);
+
+  noit_log_init();
+  noit_log_stream_add_stream(noit_debug, noit_stderr);
+  noit_log_stream_add_stream(noit_error, noit_stderr);
+
+  /* Next load the configs */
+  noit_conf_init(APPNAME);
+  if(noit_conf_load(config_file) == -1) {
+    fprintf(stderr, "Cannot load config: '%s'\n", config_file);
+    exit(-1);
+  }
+
+  /* Reinitialize the logging system now that we have a config */
+  snprintf(user, sizeof(user), "%d", getuid());
+  snprintf(group, sizeof(group), "%d", getgid());
+  if(noit_security_usergroup(droptouser, droptogroup, noit_true)) {
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(-1);
+  }
+  noit_conf_log_init(APPNAME);
+  cli_log_switches();
+  if(noit_security_usergroup(user, group, noit_true)) {
+    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
+    exit(-1);
+  }
+  if(debug)
+    noit_debug->enabled = 1;
+
+  if(!glider) noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@glider", &glider);
+  noit_watchdog_glider(glider);
+  noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@tracedir", &trace_dir);
+  if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
 
   if(chdir("/") != 0) {
     fprintf(stderr, "cannot chdir(\"/\"): %s\n", strerror(errno));
@@ -307,7 +301,24 @@ int main(int argc, char **argv) {
 
   noit_watchdog_prefork_init();
 
+  /* Acquire the lock so that we can throw an error if it doesn't work.
+   * If we've started -D, we'll have the lock.
+   * If not we will daemon and must reacquire the lock.
+   */
+  lockfd = -1;
+  lockfile[0] = '\0';
+  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
+                             lockfile, sizeof(lockfile))) {
+    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+      exit(-1);
+    }
+  }
+
   if(foreground) exit(child_main());
+
+  /* This isn't inherited across forks... */
+  if(lockfd >= 0) noit_lockfile_release(lockfd);
 
   fd = open("/dev/null", O_RDWR);
   dup2(fd, STDIN_FILENO);
@@ -316,6 +327,14 @@ int main(int argc, char **argv) {
   if(fork()) exit(0);
   setsid();
   if(fork()) exit(0);
+
+  /* Reacquire the lock */
+  if(*lockfile) {
+    if(noit_lockfile_acquire(lockfile) < 0) {
+      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+      exit(-1);
+    }
+  }
 
   return noit_watchdog_start_child("stratcond", child_main, 0);
 }
