@@ -22,6 +22,7 @@ import com.espertech.esper.view.ViewSupport;
 
 import java.util.Iterator;
 import java.util.Arrays;
+import java.lang.ArithmeticException;
 
 /**
  * This view is a moving window extending the specified number of elements into the past.
@@ -98,6 +99,16 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                 if (lastpoint != null) {
                     try {
                         NoitDerivePoint sub = subtract(point,lastpoint);
+                        long weight = sub.X;
+                        double value = sub.ror(isDouble);
+                        // Bad things(TM) happen in Esper when value is NaN/Inf
+                        // and things with weight 0 have no place here.
+                        if(weight == 0)
+                          throw new ArithmeticException("future / 0");
+                        if(Double.isNaN(value))
+                          throw new ArithmeticException("Esper Octopus: NaN");
+                        if(Double.isInfinite(value))
+                          throw new ArithmeticException("Esper Octopus: Inf");
                         lastWVBean = new WeightedValueBean(sub.X, sub.ror(isDouble));
                         EventBean eb = statementContext.getEventAdapterService().adapterForBean(lastWVBean);
                         derivedNew[i++] = eb;
