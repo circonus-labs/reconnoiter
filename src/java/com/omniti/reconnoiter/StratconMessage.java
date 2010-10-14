@@ -91,7 +91,6 @@ public abstract class StratconMessage {
 
       StratconMessageFactory smf = quicklookup.get(prefix);
       if(smf == null) {
-        System.err.println("no handler for " + prefix);
         return null;
       }
       parts = parseToArray(jlog, smf.getLength());
