@@ -84,10 +84,12 @@ public abstract class StratconMessage {
   public static StratconMessage makeMessage(String jlog) {
     String[] parts;
     if(jlog == null || jlog.length() == 0) return null;
+    int idxOftab = jlog.indexOf('\t');
+    if(idxOftab < 0) return null;
     // The numbers of the parse are pulled from stratcon and
     // +1 for the extra remote
     try {
-      String prefix = jlog.substring(0, jlog.indexOf('\t'));
+      String prefix = jlog.substring(0, idxOftab);
 
       StratconMessageFactory smf = quicklookup.get(prefix);
       if(smf == null) {
