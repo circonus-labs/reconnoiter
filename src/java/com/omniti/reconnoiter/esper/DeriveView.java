@@ -79,11 +79,12 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
         int derivedsize = 0;
         EventBean[] derivedNew = null;
         if (newData != null) {
+            EventBean[] derivedWorking = null;
             int i = 0;
             derivedsize = newData.length;
             if (lastpoint == null) derivedsize -= 1;
             if(derivedsize > 0)
-                derivedNew = new EventBean[derivedsize];
+                derivedWorking = new EventBean[derivedsize];
             for ( EventBean pointb : newData ) {
                 EventBean eventsPerStream[] = { pointb };
                 Number NX = (Number) expressionX.evaluate(eventsPerStream, true, statementContext);
@@ -112,13 +113,19 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                           throw new ArithmeticException("Esper Octopus: Inf");
                         lastWVBean = new WeightedValueBean(sub.X, sub.ror(isDouble));
                         EventBean eb = statementContext.getEventAdapterService().adapterForBean(lastWVBean);
-                        derivedNew[i++] = eb;
+                        derivedWorking[i++] = eb;
                     }
                     catch(Exception e) {
                         derivedsize--;
                     }
                 }
                 lastpoint = point;
+            }
+
+            if(i > 0) {
+                derivedNew = new EventBean[i];
+                for(int j = 0; j<i; j++)
+                    derivedNew[j] = derivedWorking[j];
             }
         }
 
