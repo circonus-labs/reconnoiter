@@ -742,6 +742,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
     }
     noitL(http_debug, "HTTP start request (%s)\n", ctx->req.uri_str);
     noit_http_process_querystring(&ctx->req);
+    inplace_urldecode(ctx->req.uri_str);
   }
 
   /* only dispatch if the response is not closed */
