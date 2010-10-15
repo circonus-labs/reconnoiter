@@ -62,8 +62,8 @@ static void inplace_urldecode(char *c) {
       int i, ord = 0;
       for(i = 1; i < 3; i++) {
         if(c[i] >= '0' && c[i] <= '9') ord = (ord << 4) | (c[i] - '0');
-        else if (c[i] >= 'a' && c[i] <= 'f') ord = (ord << 4) | (c[i] - 'a');
-        else if (c[i] >= 'A' && c[i] <= 'F') ord = (ord << 4) | (c[i] - 'A');
+        else if (c[i] >= 'a' && c[i] <= 'f') ord = (ord << 4) | (c[i] - 'a' + 0xa);
+        else if (c[i] >= 'A' && c[i] <= 'F') ord = (ord << 4) | (c[i] - 'A' + 0xa);
         else break;
       }
       if(i==3) {
