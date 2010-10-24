@@ -35,6 +35,7 @@
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
+#include "utils/noit_getip.h"
 #include "noit_jlog_listener.h"
 #include "noit_rest.h"
 #include "stratcon_datastore.h"
@@ -57,6 +58,11 @@ pthread_mutex_t noits_lock;
 noit_hash_table noits = NOIT_HASH_EMPTY;
 pthread_mutex_t noit_ip_by_cn_lock;
 noit_hash_table noit_ip_by_cn = NOIT_HASH_EMPTY;
+static uuid_t self_stratcon_id;
+static char self_stratcon_hostname[256] = "\0";
+static struct sockaddr_in self_stratcon_ip;
+
+static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
 static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
 
@@ -934,6 +940,132 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
   return 0;
 }
 
+static void
+emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
+                       noit_connection_ctx_t *nctx) {
+  struct timeval last, session_duration, diff;
+  u_int64_t session_duration_ms, last_event_ms;
+  jlog_streamer_ctx_t *jctx = nctx->consumer_ctx;
+  char str[1024], *wr;
+  int len;
+  void *vcn;
+  const char *cn_expected;
+  const char *feedtype = "unknown";
+
+  if(jctx->push == stratcon_datastore_push)
+    feedtype = "storage";
+  else if(jctx->push == stratcon_iep_line_processor)
+    feedtype = "iep";
+  if(NULL != (wr = strchr(feedtype, '/'))) feedtype = wr+1;
+
+  noit_hash_retrieve(nctx->config, "cn", 2, &vcn);
+  if(!vcn) return;
+  cn_expected = vcn;
+
+  snprintf(str, sizeof(str), "M\t%lu.%03lu\t%s\t%s`%s`",
+           now->tv_sec, now->tv_usec/1000UL, uuid_str, cn_expected, feedtype);
+  wr = str + strlen(str);
+  len = sizeof(str) - (wr - str);
+
+  /* Now we write NAME TYPE VALUE into wr each time and push it */
+#define push_noit_m_str(name, value) do { \
+  snprintf(wr, len, "%s\ts\t%s\n", name, value); \
+  stratcon_datastore_push(DS_OP_INSERT, \
+                          (struct sockaddr *)&self_stratcon_ip, \
+                          self_stratcon_hostname, strdup(str), NULL); \
+  stratcon_iep_line_processor(DS_OP_INSERT, \
+                              (struct sockaddr *)&self_stratcon_ip, \
+                              self_stratcon_hostname, strdup(str), NULL); \
+} while(0)
+#define push_noit_m_u64(name, value) do { \
+  snprintf(wr, len, "%s\tL\t%llu\n", name, value); \
+  stratcon_datastore_push(DS_OP_INSERT, \
+                          (struct sockaddr *)&self_stratcon_ip, \
+                          self_stratcon_hostname, strdup(str), NULL); \
+  stratcon_iep_line_processor(DS_OP_INSERT, \
+                              (struct sockaddr *)&self_stratcon_ip, \
+                              self_stratcon_hostname, strdup(str), NULL); \
+} while(0)
+
+  last.tv_sec = jctx->header.tv_sec;
+  last.tv_usec = jctx->header.tv_usec;
+  sub_timeval(*now, last, &diff);
+  last_event_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  sub_timeval(*now, nctx->last_connect, &session_duration);
+  session_duration_ms = session_duration.tv_sec * 1000 +
+                        session_duration.tv_usec / 1000;
+
+  push_noit_m_str("state", nctx->remote_cn ? "connected" :
+                             (nctx->retry_event ? "disconnected" :
+                                                  "connecting"));
+  push_noit_m_u64("last_event_age_ms", last_event_ms);
+  push_noit_m_u64("session_length_ms", last_event_ms);
+}
+static int
+periodic_noit_metrics(eventer_t e, int mask, void *closure,
+                      struct timeval *now) {
+  struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
+  noit_connection_ctx_t **ctxs;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  void *key_id;
+  void *vconn;
+  int klen, n = 0, i;
+  char str[1024];
+  char uuid_str[UUID_STR_LEN+1];
+
+  uuid_unparse_lower(self_stratcon_id, uuid_str);
+
+  if(closure == NULL) {
+    /* Only do this the first time we get called */
+    char ip_str[128];
+    inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
+              sizeof(ip_str));
+    snprintf(str, sizeof(str), "C\t%lu.%03lu\t%s\t%s\tstratcon\t%s\n",
+             now->tv_sec, now->tv_usec/1000UL, uuid_str, ip_str,
+             self_stratcon_hostname);
+    stratcon_datastore_push(DS_OP_INSERT,
+                            (struct sockaddr *)&self_stratcon_ip,
+                            self_stratcon_hostname, strdup(str), NULL);
+    stratcon_iep_line_processor(DS_OP_INSERT,
+                                (struct sockaddr *)&self_stratcon_ip,
+                                self_stratcon_hostname, strdup(str), NULL);
+  }
+
+  pthread_mutex_lock(&noits_lock);
+  ctxs = malloc(sizeof(*ctxs) * noits.size);
+  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
+                       &vconn)) {
+    ctxs[n] = (noit_connection_ctx_t *)vconn;
+    noit_atomic_inc32(&ctxs[n]->refcnt);
+    n++;
+  }
+  pthread_mutex_unlock(&noits_lock);
+
+  snprintf(str, sizeof(str), "S\t%lu.%03lu\t%s\tG\tA\t0\tok\n",
+           now->tv_sec, now->tv_usec/1000UL, uuid_str);
+  stratcon_datastore_push(DS_OP_INSERT,
+                          (struct sockaddr *)&self_stratcon_ip,
+                          self_stratcon_hostname, strdup(str), NULL);
+  stratcon_iep_line_processor(DS_OP_INSERT, \
+                              (struct sockaddr *)&self_stratcon_ip, \
+                              self_stratcon_hostname, strdup(str), NULL); \
+  for(i=0; i<n; i++) {
+    emit_noit_info_metrics(now, uuid_str, ctxs[i]);
+    noit_connection_ctx_deref(ctxs[i]);
+  }
+  free(ctxs);
+  stratcon_datastore_push(DS_OP_CHKPT,
+                          (struct sockaddr *)&self_stratcon_ip,
+                          self_stratcon_hostname, NULL, NULL);
+  stratcon_iep_line_processor(DS_OP_CHKPT, \
+                              (struct sockaddr *)&self_stratcon_ip, \
+                              self_stratcon_hostname, NULL, NULL); \
+
+  add_timeval(e->whence, whence, &whence);
+  eventer_add_at(periodic_noit_metrics, (void *)0x1, whence);
+  return 0;
+}
+
 static int
 rest_show_noits(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
@@ -1317,6 +1449,10 @@ register_console_streamer_commands() {
 
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
+  struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
+  struct in_addr remote;
+  char uuid_str[UUID_STR_LEN + 1];
+
   pthread_mutex_init(&noits_lock, NULL);
   pthread_mutex_init(&noit_ip_by_cn_lock, NULL);
   eventer_name_callback("noit_connection_reinitiate",
@@ -1352,5 +1488,26 @@ stratcon_jlog_streamer_init(const char *toplevel) {
     "DELETE", "/noits/", "^delete/([^/:]+):(\\d+)$", rest_delete_noit,
              noit_http_rest_client_cert_auth
   ) == 0);
+
+  uuid_clear(self_stratcon_id);
+
+  if(noit_conf_get_stringbuf(NULL, "/stratcon/@id",
+                             uuid_str, sizeof(uuid_str)) &&
+     uuid_parse(uuid_str, self_stratcon_id) == 0) {
+    int period;
+    /* If a UUID was provided for stratcon itself, we will report metrics
+     * on a large variety of things (including all noits).
+     */
+    if(noit_conf_get_int(NULL, "/stratcon/@metric_period", &period) &&
+       period > 0) {
+      DEFAULT_NOIT_PERIOD_TV.tv_sec = period / 1000;
+      DEFAULT_NOIT_PERIOD_TV.tv_usec = (period % 1000) * 1000;
+    }
+    self_stratcon_ip.sin_family = AF_INET;
+    remote.s_addr = 0xffffffff;
+    noit_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
+    gethostname(self_stratcon_hostname, sizeof(self_stratcon_hostname));
+    eventer_add_in(periodic_noit_metrics, NULL, whence);
+  }
 }
 
