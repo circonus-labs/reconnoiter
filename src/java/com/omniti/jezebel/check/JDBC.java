@@ -68,8 +68,8 @@ public abstract class JDBC implements JezebelCheck {
         Map.Entry<String,String> e = i.next();
         String key = e.getKey();
         if(key.startsWith("jdbc_")) {
-          config.remove(key);
           props.setProperty(key.substring(5), e.getValue());
+          config.remove(key);
         }
       }
     }
