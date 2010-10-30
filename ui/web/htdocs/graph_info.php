@@ -2,6 +2,9 @@
 
 require_once('Reconnoiter_DB.php');
 $db = Reconnoiter_DB::getDB();
+
+header('Content-Type: application/json; charset=utf-8');
+
 if($_GET['id']) {
   $row = $db->getGraphByID($_GET['id']);
   $graph = json_decode($row['json'], true);

@@ -7,6 +7,8 @@ $db = Reconnoiter_DB::getDB();
 $force = $_GET['force'];
 $wsheets = $db->getWorksheetsByGraph($_GET['id']);
 
+header('Content-Type: application/json; charset=utf-8');
+
 if($wsheets && !$force) {
   print json_encode(array('refed' => $wsheets));
 }

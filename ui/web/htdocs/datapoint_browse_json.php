@@ -59,4 +59,5 @@ foreach ($db->get_sources($want, $_GET) as $item){
     $bag[] = $jitem;
 }
 
+header('Content-Type: application/json; charset=utf-8');
 echo json_encode($bag);

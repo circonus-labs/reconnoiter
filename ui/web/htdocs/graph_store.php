@@ -6,6 +6,9 @@ $json = stripslashes($_POST['json']);
 $graph = json_decode($json, true);
 $saved_id = $graph['id'];
 $db = Reconnoiter_DB::getDB();
+
+header('Content-Type: application/json; charset=utf-8');
+
 try {
   $id = $db->saveGraph($graph);
   print json_encode(array('id' => $id));

@@ -69,6 +69,9 @@ $options = array(
   'shadowSize' => 0,
   'colors' => $driver->graphcolors()
 );
+
+header('Content-Type: application/json; charset=utf-8');
+
 print json_encode(array(
   'data' => $data,
   'options' => $options,

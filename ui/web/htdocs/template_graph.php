@@ -78,6 +78,8 @@ function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base,
 
 createGraphsFromCombos('', $var_vals, 0, $sid_vars, $genesis_base, $rparams, $templateid, $graph_num, $update);
 
+header('Content-Type: application/json; charset=utf-8');
+
 print json_encode($graphs_to_update);
 ?>
 

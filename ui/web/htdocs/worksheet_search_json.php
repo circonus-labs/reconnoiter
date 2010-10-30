@@ -4,6 +4,8 @@ require_once('Reconnoiter_DB.php');
 
 $db = Reconnoiter_DB::GetDB();
 
+header('Content-Type: application/json; charset=utf-8');
+
 try {
   print json_encode($db->get_worksheets($_GET['q'], $_GET['o'], $_GET['l']));
 }
