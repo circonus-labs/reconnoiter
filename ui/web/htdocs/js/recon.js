@@ -876,9 +876,50 @@ function ws_for_edit(li, ws, params) {
             return false;
         }
     })(ws.sheetid));
+    var del = $('<a href="#"/>');
+    del.html('Forget').addClass('deletews');
+    del.click((function(sheetid, li) {
+        return function() {
+        		$.getJSON('json/worksheet/forget/' + sheetid + '/0', function(r) {
+                    if (r.refed) {
+                        var msg = "This worksheet contains following graphs:<p>";
+                        for (var g in r.refed) {
+                            msg += "<br>" + r.refed[g];
+                        }
+                        msg += "<p>Are you sure you want to forget it?";
+                        confirm(msg, function() {
+                            $.getJSON('json/worksheet/forget/' + sheetid + '/1', function(r) {
+                                if (r.error) {
+                                    modal_warning("Database Error!", r.error);
+                                }
+                                else {
+                                	perform_ws_search_edit(params);
+                                    if (worksheet.get_sheetid() == sheetid) {
+                                        worksheet.load();
+                                    }
+                                }
+                            });
+                        });
+                    }
+                    else {
+                        if (r.error) {
+                            modal_warning("Database Error!", r.error);
+                        }
+                        else {
+                        	perform_ws_search_edit(params);
+                            if (worksheet.get_sheetid() == sheetid) {
+                                worksheet.load();
+                            }
+                        }
+                    }
+            });
+            return false;
+        }
+    })(ws.sheetid, li));
     var ul = $('<ul/>');
     ul.append($('<li/>').html(ws.last_update));
     ul.append($('<li/>').append(add));
+    ul.append($('<li/>').append(del));
     li.append($('<div class="worksheetlist-title"/>').html(ws.title)).append(ul);
 }
 
@@ -1561,6 +1602,9 @@ var worksheet = (function($) {
         stream: stream_data,
         islocked: function() {
             return locked;
+        },
+        get_sheetid: function() {
+        	return wsinfo.id;
         }
     };
 })(jQuery);

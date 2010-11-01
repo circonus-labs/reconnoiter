@@ -498,6 +498,39 @@ class Reconnoiter_DB {
                                       where sheetid=? and graphid=?");
     $sth->execute(array($ws_id, $graphid));
   }
+  function deleteWorksheet($ws_id) {
+    $this->db->beginTransaction();
+    try {
+    	// we have to delete the dependencies first, because the foreign
+    	// key has no ON DELETE CASCADE
+    	$sth = $this->db->prepare("delete from prism.saved_worksheets_dep 
+                                      where sheetid=?");
+    	$sth->execute(array($ws_id));
+  		// now it is safe to delete the worksheet itself 
+    	$sth = $this->db->prepare("delete from prism.saved_worksheets 
+                                          where sheetid=?");
+    	$sth->execute(array($ws_id));
+    	$this->db->commit();
+    } catch(PDOException $e) {
+      $this->db->rollback();
+      throw(new Exception('DB: ' . $e->getMessage()));
+    }
+  }
+  function getGraphsByWorksheet($ws_id){
+
+    $sth = $this->db->prepare("select saved_graphs.title 
+                                 from prism.saved_graphs
+                         natural join prism.saved_worksheets_dep
+                                where prism.saved_worksheets_dep.sheetid=?");
+
+    $sth->execute(array($ws_id));
+    
+    $rv = array();
+    while($row = $sth->fetch()) {
+      $rv[] = $row['title'];
+    }
+    return $rv;
+  }
   function getWorksheetsByGraph($graphid){
 
     $sth = $this->db->prepare("select title from
