@@ -513,9 +513,13 @@ list-style-type:none;
 display:block;
 padding:0;
 }
-#browselist ul li span {
-background:transparent url(../images/icon-min-max.png) no-repeat scroll 0 3px;
+#browselist ul li.expandable span {
 padding-left:15px;
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 0 -13px;
+}
+#browselist ul li.collapsable span {
+padding-left:15px;
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 0 3px;
 }
 #browselist ul li span.numeric {
 background:transparent url(../images/icon-data.png) no-repeat scroll 0 1px;
@@ -525,7 +529,11 @@ padding-left:15px;
 background:transparent url(../images/icon-data-txt.png) no-repeat scroll 0 1px;
 padding-left:15px;
 }
-#browselist ul li ul li span {
+#browselist ul li ul li.expandable span {
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 15px -13px;
+padding-left:30px;
+}
+#browselist ul li ul li.collapsable span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 15px 3px;
 padding-left:30px;
 }
@@ -549,7 +557,11 @@ padding-left:30px;
 background:transparent url(../images/icon-data-txt.png) no-repeat scroll 15px 1px;
 padding-left:30px;
 }
-#browselist ul li ul li ul li span {
+#browselist ul li ul li ul li.expandable span {
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 30px -13px;
+padding-left:45px;
+}
+#browselist ul li ul li ul li.collapsable span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 30px 3px;
 padding-left:45px;
 }
@@ -582,7 +594,11 @@ padding:0 4px;
 width:67px;
 background:transparent;
 }
-#browselist ul li ul li ul li ul li span {
+#browselist ul li ul li ul li ul li.expandable span {
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 45px -13px;
+padding-left:60px;
+}
+#browselist ul li ul li ul li ul li.collapsable span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 45px 3px;
 padding-left:60px;
 }
@@ -594,8 +610,12 @@ padding-left:60px;
 background:transparent url(../images/icon-data-txt.png) no-repeat scroll 45px 1px;
 padding-left:60px;
 }
-#browselist ul li ul li ul li ul li ul li span {
+#browselist ul li ul li ul li ul li ul li.collapsable span {
 background:transparent url(../images/icon-min-max.png) no-repeat scroll 60px 3px;
+padding-left:75px;
+}
+#browselist ul li ul li ul li ul li ul li.expandable span {
+background:transparent url(../images/icon-min-max.png) no-repeat scroll 60px -13px;
 padding-left:75px;
 }
 #browselist ul li ul li ul li ul li ul li span.numeric {
