@@ -19,20 +19,61 @@ $db = Reconnoiter_DB::GetDB();
 $row = $db->getGraphByID($_GET['id']);
 $graph = json_decode($row['json'], true);
 
-foreach($graph['datapoints'] as $d) {
+foreach($graph['datapoints'] as $k => $d) {
   if($d['metric_type'] == 'guide') {
-    $driver->calcPercentile($d['math2']);
+  	if (preg_match('/\d+\%?/', $d['math2'])) {
+  	  // if the math field cotains just numbers or numbers with % sign, we want percentile
+      $driver->calcPercentile($d['math2']);
+      $guideType[$k]='percentile';
+  	} else {
+  		// if it is a string, see if we can recognize some aggregate aliases
+  		switch ($d['math2']) {
+  			case 'med':
+  			case 'median':
+  				$driver->calcPercentile(50);
+  				$guideType[$k]='percentile';
+  				$graph['datapoints'][$k]['math2']='50';
+  				break;
+  			case 'min':
+  			case 'minimum':
+  				$driver->calcPercentile(0);
+  				$guideType[$k]='percentile';
+  				$graph['datapoints'][$k]['math2']='0';
+  				break;
+  			case 'max':
+  			case 'maximum':
+  				$driver->calcPercentile(100);
+  				$guideType[$k]='percentile';
+  				$graph['datapoints'][$k]['math2']='100';
+  				break;
+  			case 'average':
+  				$driver->calcAggregate('avg');
+  				$guideType[$k]='aggregate';
+  				$graph['datapoints'][$k]['math2']='avg';
+  				break;
+  			default:
+  				// everything else is passed to aggregate calculator
+  				$driver->calcAggregate($d['math2']);
+  				$guideType[$k]='aggregate';
+  		}
+  	}
   }
 }
 
 $i = 0;
 $autounits = 0;
-foreach($graph['datapoints'] as $d) {
+foreach($graph['datapoints'] as $k => $d) {
   if($d['metric_type'] == 'guide') {
     $color = isset($d['color']) ? $d['color'] : '#ff0000';
+    if ($guideType[$k]=='percentile') {
     $driver->addPercentileGuide($d['name'], $d['math2'],
                                 array('expression' => $d['math1'],
                                       'color' => $color));
+    } else {
+    $driver->addAggregateGuide($d['name'], $d['math2'],
+                                array('expression' => $d['math1'],
+                                      'color' => $color));
+    }
   }
   else if($d['metric_type'] == 'composite') {
      $color = isset($d['color']) ? $d['color'] : '#ff0000';

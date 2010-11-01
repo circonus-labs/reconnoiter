@@ -130,7 +130,7 @@ class Reconnoiter_DB {
     $a = array();
     while($row = $sth->fetch()) $a[] = $row;
     return array('query' => $searchstring, 'limit' => $limit,
-                 'offset' => $offset, count => $r['count'], 'results' => $a);
+                 'offset' => $offset, 'count' => $r['count'], 'results' => $a);
   }
   function get_worksheets($searchstring, $offset, $limit) {
     return $this->run_tsearch($searchstring,
@@ -234,7 +234,7 @@ class Reconnoiter_DB {
       $ptr_groupby = ', ciamt.value';
       $ptr_join = "
         left join check_currently cia
-               on (    $tblsrc.$want ::text = cia.target ::text
+               on (    $tblsrc.$want::text = cia.target::text
                    and cia.module='dns' and cia.name='in-addr.arpa')
         left join metric_text_currently ciamt
                on (cia.sid = ciamt.sid and ciamt.name='answer')";
@@ -344,6 +344,68 @@ class Reconnoiter_DB {
     }
     return $rv;
   }
+  
+  function aggregate($arr, $p, $groupname = 'left', $attr=NULL) {
+  	
+  	/* Calculate aggregate values
+  	 * 
+  	 * Currently recognized aggregates: 
+  	 *   avg: average
+  	 *   stddev: standard deviation
+  	 *   stddev+: average + standard deviation
+  	 *   stddev-: average - standard deviation 
+  	 */
+  	
+    if(!is_array($arr) || !count($arr)) return array();
+    if(!is_array($p)) $p = array($p);
+    $full = array();
+    $rv=array();
+    foreach ($arr[0]->points() as $ts) {
+      $sum = 0;
+      $nonnull = 0;
+      foreach ($arr as $sets) {
+        if($sets->groupname() != $groupname) continue;
+        $value = $sets->data($ts, $attr);
+        if($value != "") $nonnull = 1;
+        $sum += $value;
+      }
+      if($nonnull == 1) $full[] = $sum;
+    }
+    if (in_array('avg',$p)) {
+    	$rv['avg']=array_sum($full) / count($full);	
+    }
+    if (in_array('stddev',$p) || in_array('stddev+',$p) || in_array('stddev-',$p)) {
+  
+		function sd_square($x, $mean) { return pow($x - $mean,2); }
+
+		function sd($array) {
+			return sqrt(array_sum(array_map("sd_square", $array, array_fill(0,count($array), (array_sum($array) / count($array)) ) ) ) / (count($array)-1) );
+		}
+		
+		$stddev=sd($full);
+		if (in_array('stddev', $p)) {
+			$rv['stddev']=$stddev;
+		}
+		if (in_array('stddev+', $p)) {
+			if (empty($rv['avg'])) {
+				$avg=array_sum($full) / count($full);
+			} else {
+				$avg = $rv['avg'];
+			}
+			$rv['stddev+']=$avg+$stddev;
+		}
+		if (in_array('stddev-', $p)) {
+			if (empty($rv['avg'])) {
+				$avg=array_sum($full) / count($full);
+			} else {
+				$avg = $rv['avg'];
+			}
+			$rv['stddev-']=$avg-$stddev;
+		}
+    }
+    return $rv;
+  }
+  
   function getWorksheetByID($id) {
     $sth = $this->db->prepare("select w.sheetid, w.title, wd.graphid
                                  from prism.saved_worksheets as w

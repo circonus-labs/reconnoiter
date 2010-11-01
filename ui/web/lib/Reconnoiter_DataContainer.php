@@ -12,7 +12,9 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
   protected $end;
   protected $cnt;
   protected $ps_to_calc;
+  protected $agg_to_calc;
   protected $percentile;
+  protected $aggregate;
   protected $title;
   protected $type;
 
@@ -76,11 +78,20 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     $this->__calc();
     $this->addGuide($name, $this->percentile[$p], $config);
   }
+  function addAggregateGuide($name, $p, $config = array()) {
+    $this->__calc();
+    $this->addGuide($name, $this->aggregate[$p], $config);
+  }
+  
   function min() { $this->__calc(); return $this->percentile[0]; }
   function max() { $this->__calc(); return $this->percentile[100]; }
   function calcPercentile($p) {
     if($this->units) throw new Exception("Already calculated percentiles");
     $this->ps_to_calc[$p] = 'true';
+  }
+  function calcAggregate($p) {
+    if($this->units) throw new Exception("Already calculated percentiles");
+  	$this->agg_to_calc[]=$p;
   }
   function __calc() {
     if($this->units) return;
@@ -88,6 +99,10 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
     foreach($db->percentile(array_values($this->sets),
                             array_keys($this->ps_to_calc)) as $p => $v) {
       $this->percentile[$p] = $v;
+    }
+    foreach($db->aggregate(array_values($this->sets),
+    						array_keys($this->agg_to_calc)) as $p => $v) {
+      $this->aggregate[$p] = $v;
     }
     $this->units = pow(1000,floor(log($this->percentile[100], 1000)));
     if($this->units == 0) $this->units = 1;
