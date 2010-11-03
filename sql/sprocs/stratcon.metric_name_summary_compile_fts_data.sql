@@ -16,7 +16,8 @@ DECLARE
     ref_alias text;
     v_fts_data tsvector;
 BEGIN
-    SELECT sid, module, name, target FROM check_archive WHERE sid=in_sid INTO ref_sid,ref_module,ref_name,ref_target;
+    SELECT sid, module, name, target FROM check_archive WHERE sid=in_sid 
+        ORDER BY whence DESC LIMIT 1 INTO ref_sid,ref_module,ref_name,ref_target;
     IF NOT FOUND THEN
         RETURN NULL;
     END IF;
