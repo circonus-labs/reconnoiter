@@ -672,7 +672,7 @@ noit_poller_free_check(noit_check_t *checker) {
   }
 
   mod = noit_module_lookup(checker->module);
-  if(mod->cleanup) mod->cleanup(mod, checker);
+  if(mod && mod->cleanup) mod->cleanup(mod, checker);
   if(checker->fire_event) {
      eventer_remove(checker->fire_event);
      free(checker->fire_event->closure);
