@@ -213,11 +213,13 @@ noit_poller_process_checks(const char *xpath) {
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {
       noit_check_t *existing_check = (noit_check_t *)vcheck;
-      /* Once set, we can never change it. */
+      /* Once set, it cannot be checked if the check is live */
       assert(!existing_check->module || !existing_check->module[0] ||
-             !strcmp(existing_check->module, module));
-      /* Only set it if it is not yet set */
-      if(!existing_check->module || !existing_check->module[0]) {
+             !strcmp(existing_check->module, module) ||
+             !NOIT_CHECK_LIVE(existing_check));
+      /* Set it if it is unset or being changed */
+      if(!existing_check->module || !existing_check->module[0] ||
+         strcmp(existing_check->module, module)) {
         if(existing_check->module) free(existing_check->module);
         existing_check->module = strdup(module);
       }
