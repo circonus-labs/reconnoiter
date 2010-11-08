@@ -288,11 +288,11 @@ noit_lua_set_metric(lua_State *L) {
   const char *metric_name;
   metric_type_t metric_type;
 
-  double __n;
-  int32_t __i;
-  u_int32_t __I;
-  int64_t __l;
-  u_int64_t __L;
+  double __n = 0.0;
+  int32_t __i = 0;
+  u_int32_t __I = 0;
+  int64_t __l = 0;
+  u_int64_t __L = 0;
 
   if(lua_gettop(L) != 2) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -326,19 +326,19 @@ noit_lua_set_metric(lua_State *L) {
                             (void *)lua_tostring(L, 2));
       break;
     case METRIC_INT32:
-      __i = luaL_optinteger(L, 2, 0);
+      __i = strtol(lua_tostring(L, 2), NULL, 10);
       noit_stats_set_metric(&ci->current, metric_name, metric_type, &__i);
       break;
     case METRIC_UINT32:
-      __I = luaL_optinteger(L, 2, 0);
+      __I = strtoul(lua_tostring(L, 2), NULL, 10);
       noit_stats_set_metric(&ci->current, metric_name, metric_type, &__I);
       break;
     case METRIC_INT64:
-      __l = luaL_optinteger(L, 2, 0);
+      __l = strtoll(lua_tostring(L, 2), NULL, 10);
       noit_stats_set_metric(&ci->current, metric_name, metric_type, &__l);
       break;
     case METRIC_UINT64:
-      __L = luaL_optinteger(L, 2, 0);
+      __L = strtoull(lua_tostring(L, 2), NULL, 10);
       noit_stats_set_metric(&ci->current, metric_name, metric_type, &__L);
       break;
     case METRIC_DOUBLE:
