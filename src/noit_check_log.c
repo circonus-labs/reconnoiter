@@ -103,8 +103,8 @@ _noit_check_log_check(noit_log_stream_t ls,
 
 void
 noit_check_log_check(noit_check_t *check) {
-  handle_extra_feeds(check, _noit_check_log_check);
   if(!(check->flags & NP_TRANSIENT)) {
+    handle_extra_feeds(check, _noit_check_log_check);
     SETUP_LOG(check, return);
     _noit_check_log_check(check_log, check);
   }
