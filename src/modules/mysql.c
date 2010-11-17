@@ -286,6 +286,20 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       if(mysql_ping(ci->conn))
         AVAIL_BAIL(mysql_error(ci->conn));
 
+#if MYSQL_VERSION_ID >= 50000
+      if (!strcmp(sslmode, "require")) {
+        /* mysql has a bad habit of silently failing to establish ssl and
+         * falling back to unencrypted, so after making the connection, let's 
+         * check that we're actually using SSL by checking for a non-NULL 
+         * return value from mysql_get_ssl_cipher().
+         */
+        if (mysql_get_ssl_cipher(ci->conn) == NULL) {
+          noitL(nldeb, "mysql_get_ssl_cipher() returns NULL, but SSL mode required.");
+          AVAIL_BAIL("mysql_get_ssl_cipher() returns NULL, but SSL mode required.");
+        }
+      }
+#endif
+
       gettimeofday(&t1, NULL);
       sub_timeval(t1, check->last_fire_time, &diff);
       ci->connect_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
