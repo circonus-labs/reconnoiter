@@ -1111,8 +1111,13 @@ nl_socket(lua_State *L) {
   return 0;
 }
 
+struct gunzip_crutch {
+  z_stream *stream;
+  void *scratch_buffer;
+};
 static int
 nl_gunzip_deflate(lua_State *L) {
+  struct gunzip_crutch *crutch;
   const char *input;
   size_t inlen;
   z_stream *stream;
@@ -1126,7 +1131,8 @@ nl_gunzip_deflate(lua_State *L) {
     return 1;
   }
 
-  stream = lua_touserdata(L, lua_upvalueindex(1));
+  crutch = lua_touserdata(L, lua_upvalueindex(1));
+  stream = crutch->stream;
 
   input = lua_tolstring(L, 1, &inlen);
   if(!input) {
@@ -1176,33 +1182,46 @@ nl_gunzip_deflate(lua_State *L) {
     if(data) free(data);
     return 1;
   }
+  if(data) free(data);
+  switch(err) {
+    case Z_NEED_DICT: luaL_error(L, "zlib: dictionary error"); break;
+    case Z_STREAM_ERROR: luaL_error(L, "zlib: stream error"); break;
+    case Z_DATA_ERROR: luaL_error(L, "zlib: data error"); break;
+    case Z_MEM_ERROR: luaL_error(L, "zlib: out-of-memory"); break;
+    case Z_BUF_ERROR: luaL_error(L, "zlib: buffer error"); break;
+    case Z_VERSION_ERROR: luaL_error(L, "zlib: version mismatch"); break;
+    case Z_ERRNO: luaL_error(L, strerror(errno)); break;
+  }
   lua_pushnil(L);
   return 1;
 }
 static int
 nl_gunzip(lua_State *L) {
+  struct gunzip_crutch *crutch;
   z_stream *stream;
   
-  stream = (z_stream *)lua_newuserdata(L, sizeof(*stream));
-  memset(stream, 0, sizeof(*stream));
+  crutch = (struct gunzip_crutch *)lua_newuserdata(L, sizeof(*crutch));
+  crutch->stream = malloc(sizeof(*stream));
+  memset(crutch->stream, 0, sizeof(*crutch->stream));
   luaL_getmetatable(L, "noit.gunzip");
   lua_setmetatable(L, -2);
 
-  stream->next_in = NULL;
-  stream->avail_in = 0;
-  stream->next_out = malloc(DEFLATE_CHUNK_SIZE);
-  stream->avail_out = stream->next_out ? DEFLATE_CHUNK_SIZE : 0;
-  inflateInit2(stream, MAX_WBITS+32);
+  crutch->stream->next_in = NULL;
+  crutch->stream->avail_in = 0;
+  crutch->scratch_buffer =
+    crutch->stream->next_out = malloc(DEFLATE_CHUNK_SIZE);
+  crutch->stream->avail_out = crutch->stream->next_out ? DEFLATE_CHUNK_SIZE : 0;
+  inflateInit2(crutch->stream, MAX_WBITS+32);
 
   lua_pushcclosure(L, nl_gunzip_deflate, 1);
   return 1;
 }
 static int
 noit_lua_gunzip_gc(lua_State *L) {
-  z_stream *stream;
-  stream = (z_stream *)lua_touserdata(L,1);
-  if(stream->next_out) free(stream->next_out);
-  inflateEnd(stream);
+  struct gunzip_crutch *crutch;
+  crutch = (struct gunzip_crutch *)lua_touserdata(L,1);
+  if(crutch->scratch_buffer) free(crutch->scratch_buffer);
+  inflateEnd(crutch->stream);
   return 0;
 }
 
