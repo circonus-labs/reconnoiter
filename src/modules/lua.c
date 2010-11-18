@@ -640,12 +640,17 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       base = lua_gettop(ci->coro_state);
       if(base>0) {
         if(lua_isstring(ci->coro_state, base)) {
-          const char *err;
-          noitL(nldeb, "lua err: %s\n", lua_tostring(ci->coro_state, base));
-          err = lua_tostring(ci->coro_state, base - 2);
-          if(err) {
+          const char *err, *nerr;
+          err = lua_tostring(ci->coro_state, base);
+          nerr = lua_tostring(ci->coro_state, base - 2);
+          if(nerr && *nerr == 31) nerr = NULL; // 31? WTF lua?
+          if(!nerr && err) {
+            nerr = strchr(err, ' '); /* advance past the file */
+            if(nerr) nerr += 1;
+          }
+          if(nerr) {
             free(ci->current.status);
-            ci->current.status = strdup(err);
+            ci->current.status = strdup(nerr);
           }
         }
       }
