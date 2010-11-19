@@ -1,5 +1,6 @@
 all:
 	(cd src && make)
+	(cd sql && make)
 	(cd test && make)
 
 install:	all
