@@ -50,7 +50,8 @@ sub pg {
   my $db = shift || 'postgres';
   my $user = shift || $ENV{USER};
   return DBI->connect(
-    "dbi:Pg:host=localhost;port=$NOIT_TEST_DB_PORT;database=$db", $user, ''
+    "dbi:Pg:host=localhost;port=$NOIT_TEST_DB_PORT;database=$db", $user, '',
+    { 'PrintError' => 0 }
   );
 }
 
