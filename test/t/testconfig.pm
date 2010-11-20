@@ -225,7 +225,7 @@ sub do_check_print {
 sub make_checks_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
-  print $o qq{  <checks max_initial_stutter="1000" filterset="default">\n};
+  print $o qq{  <checks max_initial_stutter="10" filterset="default">\n};
   do_check_print($o, $opts->{checks});
   print $o qq{  </checks>\n};
 }
