@@ -15,6 +15,7 @@ my $stratcon_pid = 0;
 @EXPORT = qw($NOIT_TEST_DB $NOIT_TEST_DB_PORT
              $NOIT_API_PORT $NOIT_CLI_PORT
              $STRATCON_API_PORT $STRATCON_CLI_PORT
+             $STRATCON_WEB_PORT
              pg make_noit_config start_noit stop_noit
              make_stratcon_config start_stratcon stop_stratcon
              $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules);
