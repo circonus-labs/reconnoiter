@@ -95,8 +95,11 @@ public abstract class JDBC implements JezebelCheck {
                                String sql, ResmonResult rr) {
     int nrows = 0;
     boolean auto = false;
+    boolean append = false;
     String autotype = config.get("autotype");
+    String append_column_name = config.get("append_column_name");
     if(autotype != null && autotype.equals("true")) auto = true;
+    if(append_column_name != null && append_column_name.equals("true")) append = true;
     Statement st = null;
     ResultSet rs = null;
     try {
@@ -111,7 +114,7 @@ public abstract class JDBC implements JezebelCheck {
         String prefix = rs.getString(1);
         for(int i = 2; i <= ncols; i++) {
           String name = prefix;
-          if(ncols > 2) name = name + '`' + rsmd.getColumnName(i);
+          if(ncols > 2 || append) name = name + '`' + rsmd.getColumnName(i);
           try {
             switch(rsmd.getColumnType(i)) {
               case Types.BOOLEAN:
