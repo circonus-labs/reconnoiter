@@ -92,7 +92,7 @@ function HttpClient:get_headers()
         local str = self.e:read("\n")
         if str == nil or str == "\r\n" or str == "\n" then break end
         str = string.gsub(str, '%s+$', '')
-        local hdr, val = string.match(str, "^([-_%a%d]+):%s+(.+)$")
+        local hdr, val = string.match(str, "^([-_%a%d]+):%s*(.*)$")
         if hdr == nil then
             if lasthdr == nil then error ("malformed header line") end
             hdr = lasthdr
