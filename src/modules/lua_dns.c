@@ -90,7 +90,10 @@ static int noit_lua_dns_timeouts(eventer_t e, int mask, void *closure,
 static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
   dns_ctx_handle_t *h = data;
   eventer_t e = NULL, newe = NULL;
-  if(ctx == NULL) e = eventer_remove(h->timeout);
+  if(h == NULL) return;
+  if(ctx == NULL) {
+    if(h->timeout) e = eventer_remove(h->timeout);
+  }
   else {
     assert(h->ctx == ctx);
     if(timeout < 0) e = eventer_remove(h->timeout);
@@ -110,10 +113,19 @@ static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
 
 static void dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
-  assert(h->timeout == NULL);
   free(h->ns);
+  eventer_remove_fd(h->e->fd);
+  eventer_free(h->e);
+  h->e = NULL;
+  if(h->timeout) {
+    eventer_remove(h->timeout);
+    eventer_free(h->timeout);
+    h->timeout = NULL;
+  }
   dns_close(h->ctx);
   dns_free(h->ctx);
+  assert(h->timeout == NULL);
+  free(h);
 }
 
 static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
@@ -199,7 +211,8 @@ int nl_dns_lookup(lua_State *L) {
 
   ci = get_ci(L);
   assert(ci);
-
+  if(lua_gettop(L) > 0)
+    nameserver = lua_tostring(L, 1);
   holder = (dns_lookup_ctx_t **)lua_newuserdata(L, sizeof(*holder));
   dlc = calloc(1, sizeof(*dlc));
   dlc->refcnt = 1;
