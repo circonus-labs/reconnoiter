@@ -948,6 +948,8 @@ void dns_ioevent(struct dns_ctx *ctx, time_t now) {
 
 again: /* receive the reply */
 
+  if (!CTXOPEN(ctx))
+    return;
   slen = sizeof(sns);
   r = recvfrom(ctx->dnsc_udpsock, (void*)pbuf, ctx->dnsc_udpbuf,
                MSG_DONTWAIT, &sns.sa, &slen);
