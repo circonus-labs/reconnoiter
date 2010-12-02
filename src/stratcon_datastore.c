@@ -1276,7 +1276,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   else
     ij = vij;
 
-	  return ij;
+  return ij;
 }
 static int
 storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
