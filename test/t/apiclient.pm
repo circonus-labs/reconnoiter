@@ -26,7 +26,7 @@ sub new {
 sub do {
     my $self = shift;
     my $method = shift;
-    my $uri = shift;
+    my $uri = shift || '/';
     if (@_) {
         my $payload = shift;
         $self->{curl}->setopt(CURLOPT_UPLOAD, 1);
@@ -51,6 +51,7 @@ sub do {
     }
     die $self->{curl}->strerror($retcode);
 }
+sub capabilities { shift->do('CAPA', @_); }
 sub get { shift->do('GET', @_); }
 sub post { shift->do('POST', @_); }
 sub put { shift->do('PUT', @_); }

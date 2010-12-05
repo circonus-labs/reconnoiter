@@ -62,41 +62,20 @@ noit_capabilities_listener_init() {
                                  noit_capabilities_handler);
 }
 
-int
-noit_capabilities_handler(eventer_t e, int mask, void *closure,
-                          struct timeval *now) {
-  int newmask = EVENTER_WRITE | EVENTER_EXCEPTION;
-  acceptor_closure_t *ac = closure;
-  noit_capsvc_closure_t *cl = ac->service_ctx;
-
-  if(mask & EVENTER_EXCEPTION) {
-socket_error:
-    /* Exceptions cause us to simply snip the connection */
-cleanup_shutdown:
-    eventer_remove_fd(e->fd);
-    e->opset->close(e->fd, &newmask, e);
-    if(cl) {
-      if(cl->buff) free(cl->buff);
-      free(cl);
-    }
-    if(ac) acceptor_closure_free(ac);
-    return 0;
-  }
-
-  if(!ac->service_ctx) {
+static void
+noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     char vbuff[128];
     noit_hash_table *lc;
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *k;
     int klen;
     void *data;
+    struct timeval now;
 
     xmlDocPtr xmldoc;
     xmlNodePtr root, cmds;
 
-    cl = ac->service_ctx = calloc(1, sizeof(*cl));
     /* fill out capabilities */
-    noit_build_version(vbuff, sizeof(vbuff));
 
     /* Create an XML Document */
     xmldoc = xmlNewDoc((xmlChar *)"1.0");
@@ -104,7 +83,14 @@ cleanup_shutdown:
     xmlDocSetRootElement(xmldoc, root);
 
     /* Fill in the document */
+    noit_build_version(vbuff, sizeof(vbuff));
     xmlNewTextChild(root, NULL, (xmlChar *)"version", (xmlChar *)vbuff);
+
+    /* time (poor man's time check) */
+    gettimeofday(&now, NULL);
+    snprintf(vbuff, sizeof(vbuff), "%llu.%03d", (unsigned long long)now.tv_sec,
+             now.tv_usec / 1000);
+    xmlNewTextChild(root, NULL, (xmlChar *)"current_time", (xmlChar *)vbuff);
 
     cmds = xmlNewNode(NULL, (xmlChar *)"services");
     xmlAddChild(root, cmds);
@@ -123,7 +109,7 @@ cleanup_shutdown:
       name = eventer_name_for_callback(*f);
       cnode = xmlNewNode(NULL, (xmlChar *)"service");
       xmlSetProp(cnode, (xmlChar *)"name", name ? (xmlChar *)name : NULL);
-      if(*f == ac->dispatch)
+      if(*f == curr)
         xmlSetProp(cnode, (xmlChar *)"connected", (xmlChar *)"true");
       xmlAddChild(cmds, cnode);
       while(noit_hash_next(sc, &sc_iter, &sc_k, &sc_klen, &sc_data)) {
@@ -153,6 +139,32 @@ cleanup_shutdown:
 
     /* Clean up after ourselves */
     xmlFreeDoc(xmldoc);
+}
+
+int
+noit_capabilities_handler(eventer_t e, int mask, void *closure,
+                          struct timeval *now) {
+  int newmask = EVENTER_WRITE | EVENTER_EXCEPTION;
+  acceptor_closure_t *ac = closure;
+  noit_capsvc_closure_t *cl = ac->service_ctx;
+
+  if(mask & EVENTER_EXCEPTION) {
+socket_error:
+    /* Exceptions cause us to simply snip the connection */
+cleanup_shutdown:
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &newmask, e);
+    if(cl) {
+      if(cl->buff) free(cl->buff);
+      free(cl);
+    }
+    if(ac) acceptor_closure_free(ac);
+    return 0;
+  }
+
+  if(!ac->service_ctx) {
+    cl = ac->service_ctx = calloc(1, sizeof(*cl));
+    noit_capabilities_tobuff(cl, ac->dispatch);
   }
 
   while(cl->towrite > cl->written) {
@@ -168,3 +180,5 @@ cleanup_shutdown:
   }
   goto cleanup_shutdown;
 }
+
+
