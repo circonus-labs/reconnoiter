@@ -316,6 +316,7 @@ static int ping_icmp_init(noit_module_t *self) {
   else {
     socklen_t slen = sizeof(on);
     if(getsockopt(data->ipv4_fd, SOL_SOCKET, SO_SNDBUF, &on, &slen) == 0) {
+      if(on <= 0) on = 1024;
       while(on < (1 << 20)) {
         on <<= 1;
         if(setsockopt(data->ipv4_fd, SOL_SOCKET, SO_SNDBUF,
