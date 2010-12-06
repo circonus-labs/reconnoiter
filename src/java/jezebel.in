@@ -3,6 +3,9 @@
 set -- `getopt l:p:fj:dD: $*`
 
 JAVA=@JAVA@
+if [ ! -x $JAVA ]; then
+	JAVA=/usr/bin/java
+fi
 JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
 DIRS="/ . lib @prefix@/java/lib @prefix@/java"
