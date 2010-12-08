@@ -711,6 +711,8 @@ stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
+        /* uuid is last 36 bytes */
+        if(len > 36) { token += (len-36); len = 36; }
         sid = uuid_to_sid(token, remote_cn);
         if(sid == 0) goto bad_row;
         DECLARE_PARAM_INT(sid); /* sid */
@@ -727,6 +729,8 @@ stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
+        /* uuid is last 36 bytes */
+        if(len > 36) { token += (len-36); len = 36; }
         sid = uuid_to_sid(token, remote_cn);
         if(sid == 0) goto bad_row;
         DECLARE_PARAM_INT(sid); /* sid */
@@ -742,6 +746,8 @@ stratcon_datastore_execute(conn_q *cq, const char *r, const char *remote_cn,
         DECLARE_PARAM_STR(token,len); /* timestamp */
         d->whence = (time_t)strtoul(token, NULL, 10);
         PROCESS_NEXT_FIELD(token, len);
+        /* uuid is last 36 bytes */
+        if(len > 36) { token += (len-36); len = 36; }
         sid = uuid_to_sid(token, remote_cn);
         if(sid == 0) goto bad_row;
         DECLARE_PARAM_INT(sid); /* sid */
@@ -1416,7 +1422,7 @@ static void
 stratcon_datastore_journal(struct sockaddr *remote,
                            const char *remote_cn, char *line) {
   interim_journal_t *ij = NULL;
-  char uuid_str[UUID_STR_LEN+1], *cp;
+  char uuid_str[UUID_STR_LEN+1], *cp1, *cp2;
   const char *fqdn = NULL, *dsn = NULL;
   int storagenode_id = 0;
   uuid_t checkid;
@@ -1426,8 +1432,10 @@ stratcon_datastore_journal(struct sockaddr *remote,
     case 'C':
     case 'S':
     case 'M':
-      if(line[1] == '\t' && (cp = strchr(line+2, '\t')) != NULL) {
-        strlcpy(uuid_str, cp + 1, sizeof(uuid_str));
+      if(line[1] == '\t' && (cp1 = strchr(line+2, '\t')) != NULL &&
+         (cp2 = strchr(cp1+1, '\t')) != NULL &&
+         (cp2-cp1 >= UUID_STR_LEN)) {
+        strlcpy(uuid_str, cp2 - UUID_STR_LEN, sizeof(uuid_str));
         if(!uuid_parse(uuid_str, checkid)) {
           storage_node_quick_lookup(uuid_str, remote_cn, NULL,
                                     &storagenode_id, NULL, &fqdn, &dsn);

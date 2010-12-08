@@ -46,6 +46,7 @@
       </debug>
     </components>
     <feeds>
+      <config><extended_id>off</extended_id></config>
       <outlet name="feed"/>
       <log name="check"/>
       <log name="status"/>

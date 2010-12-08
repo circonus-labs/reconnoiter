@@ -218,41 +218,49 @@ noit_check_release_attrs(noit_hash_table *attrs) {
   noit_hash_destroy(attrs, NULL, NULL);
 }
 
-int
-noit_check_xpath(char *xpath, int len,
-                 const char *base, const char *arg) {
-  uuid_t checkid;
-  int base_trailing_slash;
-  char argcopy[1024], *target, *module, *name;
-
-  base_trailing_slash = (base[strlen(base)-1] == '/');
-  xpath[0] = '\0';
-  argcopy[0] = '\0';
-  if(arg) strlcpy(argcopy, arg, sizeof(argcopy));
-
-  if(uuid_parse(argcopy, checkid) == 0) {
-    /* If they kill by uuid, we'll seek and destroy -- find it anywhere */
-    snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
-             base, base_trailing_slash ? "" : "/", argcopy);
+void
+noit_check_extended_id_split(const char *in, int len,
+                             char *target, int target_len,
+                             char *module, int module_len,
+                             char *name, int name_len,
+                             char *uuid, int uuid_len) {
+  if(target) *target = '\0';
+  if(module) *module = '\0';
+  if(name) *name = '\0';
+  if(uuid) *uuid = '\0';
+  if(len >= UUID_STR_LEN) {
+    memcpy(uuid, in + len - UUID_STR_LEN, UUID_STR_LEN);
+    uuid[UUID_STR_LEN] = '\0';
   }
-  else if((module = strchr(argcopy, '`')) != NULL) {
-    noit_check_t *check;
-    char uuid_str[37];
-    target = argcopy;
-    *module++ = '\0';
-    if((name = strchr(module+1, '`')) == NULL)
-      name = module;
-    else
-      name++;
-    check = noit_poller_lookup_by_name(target, name);
-    if(!check) {
-      return -1;
+  if(len > UUID_STR_LEN) {
+    const char *tcp = in;
+    const char *mcp, *ncp, *ucp;
+    /* find the end of the target */
+    mcp = strchr(tcp,'`');
+    if(!mcp) return;
+    /* copy in the target */
+    if(target_len > mcp-tcp) {
+      memcpy(target,tcp,mcp-tcp);
+      target[mcp-tcp] = '\0';
     }
-    uuid_unparse_lower(check->checkid, uuid_str);
-    snprintf(xpath, len, "/noit/checks%s%s/check[@uuid=\"%s\"]",
-             base, base_trailing_slash ? "" : "/", uuid_str);
+    mcp++;
+    ncp = strchr(mcp,'`');
+    if(!ncp) return;
+    /* copy in the module */
+    if(module_len > ncp-mcp) {
+      memcpy(module,mcp,ncp-mcp);
+      module[ncp-mcp] = '\0';
+    }
+    ncp++;
+    /* copy in the name */
+    ucp = in + len - UUID_STR_LEN - 1;
+    if(ncp < ucp) {
+      if(name_len > ucp-ncp) {
+        memcpy(name, ncp, ucp-ncp);
+        name[ucp-ncp] = '\0';
+      }
+    }
   }
-  return strlen(xpath);
 }
 
 void

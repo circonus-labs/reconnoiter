@@ -199,6 +199,10 @@ API_EXPORT(noit_check_t *)
 API_EXPORT(noit_check_t *)
   noit_poller_lookup_by_name(char *target, char *name);
 
+API_EXPORT(int)
+  noit_check_xpath(char *xpath, int len,
+                   const char *base, const char *arg);
+
 API_EXPORT(void)
   noit_check_stats_clear(stats_t *s);
 
@@ -236,6 +240,12 @@ API_EXPORT(void)
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
+API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
+                                              char *target, int target_len,
+                                              char *module, int module_len,
+                                              char *name, int name_len,
+                                              char *uuid, int uuid_len);
+
 
 API_EXPORT(char *)
   noit_console_check_opts(noit_console_closure_t ncct,

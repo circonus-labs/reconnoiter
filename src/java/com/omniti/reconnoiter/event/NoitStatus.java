@@ -18,6 +18,9 @@ public class NoitStatus extends NoitEvent {
   String availability;
   Double duration;
   String noit;
+  String check_target;
+  String check_module;
+  String check_name;
 
   public String getPrefix() {
     return "S";
@@ -29,8 +32,12 @@ public class NoitStatus extends NoitEvent {
   public NoitStatus() {}
   public NoitStatus(String[] parts) throws Exception {
     super(parts);
+    String id[] = extended_id_split(parts[3]);
     noit = parts[1];
-    uuid = parts[3];
+    check_target = id[0];
+    check_module = id[1];
+    check_name = id[2];
+    uuid = id[3];
     state = parts[4];
     availability = parts[5];
     duration = Double.parseDouble(parts[6]);
@@ -45,6 +52,9 @@ public class NoitStatus extends NoitEvent {
   public String getAvailability() { return availability; }
   public Double getDuration() { return duration; }
   public String getNoit() { return noit; }
+  public String getCheck_target() { return check_target; }
+  public String getCheck_module() { return check_module; }
+  public String getCheck_name() { return check_name; }
 
   public int getLength() {
     return 8;

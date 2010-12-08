@@ -1001,7 +1001,7 @@ noit_conf_log_init(const char *toplevel) {
       path[0] = '\0';
     }
     config = noit_conf_get_hash(log_configs[i],
-                                "ancestor-or-self::node()/config/*");
+                                "ancestor-or-self::node()/config");
     ls = noit_log_stream_new(name, type[0] ? type : NULL,
                              path[0] ? path : NULL, NULL, config);
     if(!ls) {

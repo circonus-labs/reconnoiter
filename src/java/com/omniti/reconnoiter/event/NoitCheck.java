@@ -28,8 +28,9 @@ public class NoitCheck extends NoitEvent {
   public NoitCheck() {}
   public NoitCheck(String[] parts) throws Exception {
     super(parts);
+    String id[] = extended_id_split(parts[3]);
     noit = parts[1];
-    uuid = parts[3];
+    uuid = id[3];
     target = parts[4];
     module = parts[5];
     name = parts[6];

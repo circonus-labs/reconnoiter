@@ -41,6 +41,7 @@
 #include "noit_listener.h"
 #include "noit_http.h"
 #include "noit_rest.h"
+#include "noit_check.h"
 #include "noit_livestream_listener.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_jlog_streamer.h"
@@ -158,11 +159,14 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
 
   scp = buff;
   PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
-  if(buff[0] == 'M') {
+  if(buff[1] == '\t' && (buff[0] == 'M' || buff[0] == 'S')) {
+    char target[256], module[256], name[256], uuid_str[UUID_STR_LEN+1];
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *key;
     int klen, i=0;
     void *vval;
+    char type[2] = { '\0', '\0' };
+    type[0] = buff[0];
 
 #define ra_write(a,b) if(noit_http_response_append(ctx, a, b) == noit_false) BAIL_HTTP_WRITE
 
@@ -175,29 +179,59 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
     }
     /* Time */
     noit_hash_store(&json, "script_id", 9, strdup(s_inc_id));
-    noit_hash_store(&json, "type", 4, strdup("M"));
+    noit_hash_store(&json, "type", 4, strdup(type));
     PROCESS_NEXT_FIELD(token,len);
     noit_hash_store(&json, "time", 4, noit__strndup(token, len));
     /* UUID */
     PROCESS_NEXT_FIELD(token,len);
-    noit_hash_store(&json, "id", 2, noit__strndup(token, len));
-    /* name */
-    PROCESS_NEXT_FIELD(token,len);
-    noit_hash_store(&json, "metric_name", 11, noit__strndup(token, len));
-    /* type */
-    PROCESS_NEXT_FIELD(token,len);
-    noit_hash_store(&json, "metric_type", 11, noit__strndup(token, len));
-    /* value */
-    PROCESS_LAST_FIELD(token,len); /* value */
-    noit_hash_store(&json, "value", 5, noit__strndup(token, len));
+    noit_check_extended_id_split(token, len, target, sizeof(target),
+                                 module, sizeof(module), name, sizeof(name),
+                                 uuid_str, sizeof(uuid_str));
+    if(*uuid_str)
+      noit_hash_store(&json, "id", 2,
+                      noit__strndup(uuid_str, strlen(uuid_str)));
+    if(*target)
+      noit_hash_store(&json, "check_target", 12,
+                      noit__strndup(target, strlen(target)));
+    if(*module)
+      noit_hash_store(&json, "check_module", 12,
+                      noit__strndup(module, strlen(module)));
+    if(*name)
+      noit_hash_store(&json, "check_name", 10,
+                      noit__strndup(name, strlen(name)));
+    if(buff[0] == 'M') {
+      /* name */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "metric_name", 11, noit__strndup(token, len));
+      /* type */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "metric_type", 11, noit__strndup(token, len));
+      /* value */
+      PROCESS_LAST_FIELD(token,len); /* value */
+      noit_hash_store(&json, "value", 5, noit__strndup(token, len));
+    }
+    else if(buff[0] == 'S') {
+      /* state */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "check_state", 11, noit__strndup(token, len));
+      /* availability */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "check_availability", 18, noit__strndup(token, len));
+      /* duration */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "check_duration_ms", 17, noit__strndup(token, len));
+      /* status */
+      PROCESS_LAST_FIELD(token,len);
+      noit_hash_store(&json, "status_message", 14, noit__strndup(token, len));
+    }
 
     memset(&iter, 0, sizeof(iter));
     while(noit_hash_next(&json, &iter, &key, &klen, &vval)) {
       char *val = (char *)vval;
       if(i++) ra_write(",", 1);
-      ra_write("'", 1);
+      ra_write("\"", 1);
       ra_write(key, klen);
-      ra_write("':\"", 3);
+      ra_write("\":\"", 3);
       while(*val) {
         if(*val == '\"' || *val == '\\') {
           ra_write((char *)"\\", 1);

@@ -505,6 +505,27 @@ noit_log_stream_get_path(noit_log_stream_t ls) {
   return ls->path;
 }
 
+const char *
+noit_log_stream_get_property(noit_log_stream_t ls,
+                             const char *prop) {
+  const char *v;
+  if(ls && ls->config &&
+     noit_hash_retr_str(ls->config, prop, strlen(prop), &v))
+    return v;
+  return NULL;
+}
+
+void
+noit_log_stream_set_property(noit_log_stream_t ls,
+                             const char *prop, const char *v) {
+  if(!ls) return;
+  if(!ls->config) {
+    ls->config = calloc(1, sizeof(*ls->config));
+    noit_hash_init(ls->config);
+  }
+  noit_hash_replace(ls->config, prop, strlen(prop), (void *)v, free, free);
+}
+
 noit_log_stream_t
 noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   noit_log_stream_t ls;

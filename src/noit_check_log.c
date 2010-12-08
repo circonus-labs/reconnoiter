@@ -59,6 +59,22 @@ static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
+#define MAKE_CHECK_UUID_STR(uuid_str, len, ls, check) do { \
+  noit_boolean extended_id = noit_false; \
+  const char *v; \
+  v = noit_log_stream_get_property(ls, "extended_id"); \
+  if(v && !strcmp(v, "on")) extended_id = noit_true; \
+  uuid_str[0] = '\0'; \
+  if(extended_id) { \
+    strlcat(uuid_str, check->target, len-37); \
+    strlcat(uuid_str, "`", len-37); \
+    strlcat(uuid_str, check->module, len-37); \
+    strlcat(uuid_str, "`", len-37); \
+    strlcat(uuid_str, check->name, len-37); \
+    strlcat(uuid_str, "`", len-37); \
+  } \
+  uuid_unparse_lower(check->checkid, uuid_str + strlen(uuid_str)); \
+} while(0)
 
 static void
 handle_extra_feeds(noit_check_t *check,
@@ -91,9 +107,10 @@ static int
 _noit_check_log_check(noit_log_stream_t ls,
                       noit_check_t *check) {
   struct timeval __now;
-  char uuid_str[37];
+  char uuid_str[256*3+37];
+  SETUP_LOG(check, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
-  uuid_unparse_lower(check->checkid, uuid_str);
   gettimeofday(&__now, NULL);
   return noit_log(ls, &__now, __FILE__, __LINE__,
                   "C\t%lu.%03lu\t%s\t%s\t%s\t%s\n",
@@ -114,9 +131,10 @@ static int
 _noit_check_log_status(noit_log_stream_t ls,
                        noit_check_t *check) {
   stats_t *c;
-  char uuid_str[37];
+  char uuid_str[256*3+37];
+  SETUP_LOG(status, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
 
-  uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
   return noit_log(ls, &c->whence, __FILE__, __LINE__,
                   "S\t%lu.%03lu\t%s\t%c\t%c\t%d\t%s\n",
@@ -135,14 +153,15 @@ static int
 _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   int srv;
-  char uuid_str[37];
+  char uuid_str[256*3+37];
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *key;
   int klen;
   stats_t *c;
   void *vm;
+  SETUP_LOG(metrics, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
 
-  uuid_unparse_lower(check->checkid, uuid_str);
   c = &check->stats.current;
   while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */

@@ -78,10 +78,6 @@ API_EXPORT(void)
   noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs);
 API_EXPORT(void)
   noit_check_release_attrs(noit_hash_table *attrs);
-API_EXPORT(int)
-  noit_check_xpath(char *xpath, int len,
-                   const char *base, const char *arg);
-
 
 #endif
 

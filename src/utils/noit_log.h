@@ -102,6 +102,10 @@ API_EXPORT(int) noit_log_stream_rename(noit_log_stream_t ls, const char *);
 API_EXPORT(void) noit_log_stream_close(noit_log_stream_t ls);
 API_EXPORT(size_t) noit_log_stream_size(noit_log_stream_t ls);
 API_EXPORT(size_t) noit_log_stream_written(noit_log_stream_t ls);
+API_EXPORT(const char *) noit_log_stream_get_property(noit_log_stream_t ls,
+                                                      const char *);
+API_EXPORT(void) noit_log_stream_set_property(noit_log_stream_t ls,
+                                              const char *, const char *);
 API_EXPORT(void) noit_log_stream_free(noit_log_stream_t ls);
 API_EXPORT(int) noit_vlog(noit_log_stream_t ls, struct timeval *,
                           const char *file, int line,
