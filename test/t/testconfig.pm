@@ -137,6 +137,7 @@ sub make_logs_config {
   print $o qq{
     </components>
     <feeds>
+      <config><extended_id>on</extended_id></config>
       <outlet name="feed"/>
       <log name="check">
         <outlet name="error"/>
@@ -357,6 +358,19 @@ sub make_iep_config {
     }
     print $o qq{    </broker>\n};
   }
+  print $o qq{    <queries master="iep">\n};
+  foreach my $s (@{$opts->{iep}->{statements}}) {
+    print $o qq{        <statement id="$s->{id}" provides="$s->{id}">\n};
+    print $o qq{            <requires>$s->{requires}</requires>\n} if $s->{requires};
+    print $o qq{            <epl><![CDATA[$s->{epl}]]></epl>\n};
+    print $o qq{        </statement>\n};
+  }
+  foreach my $s (@{$opts->{iep}->{queries}}) {
+    print $o qq{        <query id="$s->{id}" topic="$s->{topic}">\n};
+    print $o qq{            <epl><![CDATA[$s->{epl}]]></epl>\n};
+    print $o qq{        </query>\n};
+  }
+  print $o qq{    </queries>\n};
   print $o qq{</iep>\n};
 }
 sub make_database_config {

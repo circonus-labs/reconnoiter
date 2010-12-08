@@ -1,18 +1,36 @@
-use Test::More tests => 19;
+use Test::More tests => 26;
 use WWW::Curl::Easy;
+use JSON;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
 use apiclient;
+use stomp;
 use Data::Dumper;
 
 use strict;
+my $uuid_re = qr/^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$/;
 my $uuid = '9c2163aa-f4bd-11df-851b-979bd290a553';
 my $xp = XML::LibXML->new();
 my $xpc = XML::LibXML::XPathContext->new();
 
+my $iep_queries = [
+  { id => '52f1f2ec-0275-11e0-a846-b757d1de0f4a',
+    topic => 'numeric',
+    epl => 'select * from NoitMetricNumeric as r'
+  },
+  { id => '8f04d54c-0275-11e0-b62c-6fdd90cb8bde',
+    topic => 'text',
+    epl => 'select * from NoitMetricText as r'
+  },
+  { id => '95f4ed2e-0275-11e0-bdc7-27110e43915b',
+    topic => 'status',
+    epl => 'select * from NoitStatus as r'
+  },
+];
+
 ok(start_noit("108", { logs_debug => { '' => 'false' } }), 'starting noit');
-ok(start_stratcon("108", { noits => [ { address => "127.0.0.1", port => "$NOIT_API_PORT" } ] }), 'starting stratcon');
+ok(start_stratcon("108", { noits => [ { address => "127.0.0.1", port => "$NOIT_API_PORT" } ], iep => { queries => $iep_queries } }), 'starting stratcon');
 sleep(1);
 my $c = apiclient->new('localhost', $NOIT_API_PORT);
 my @r = $c->get("/checks/show/$uuid");
@@ -87,11 +105,51 @@ my $retcode = 0;
 $retcode = $curl->perform;
 is($retcode, 28, 'needed to timeout stream');
 
-my @rdata = grep { /^\s*<script id=.*window\.parent\.plot_iframe_data\(\{.*'value':"/ } split(/\R/,$response_body);
+my @rdata;
+my $json_text;
+my $test_S = 0;
+eval {
+  foreach (split(/\R/,$response_body)) {
+    if(/^\s*<script id=.*window\.parent\.plot_iframe_data\((\{.*?\})\)/) {
+      $json_text = $1;
+      my $json = from_json($json_text);
+      push @rdata, $json;
+      if(!$test_S && $json->{type} eq 'S') {
+        like($json->{id}, $uuid_re, 'status line uuid');
+        is($json->{check_module}, 'selfcheck', 'status line module');
+        $test_S = 1;
+      }
+    }
+  }
+};
+if(!$test_S) {
+  ok(0, "status line uuid");
+  ok(0, "status line module");
+}
+is($@, '', 'json parse errors: ' . ($@ ? $json_text : 'none'));
 
 # There are at least 4 metrics for the self check.
 # in 5 seconds - (1 second lag) - jittered start at 500ms period,
 # it should run at least 7 times.
 cmp_ok(scalar(@rdata), '>=', 7*4, 'streamed data');
+
+my $stomp;
+my $payload;
+my $json;
+
+$stomp = stomp->new();
+$stomp->subscribe('/queue/noit.firehose');
+$payload = $stomp->get({timeout => 6});
+undef $stomp;
+ok($payload, 'firehose traffic');
+
+$stomp = stomp->new();
+$stomp->subscribe('/topic/noit.alerts.numeric');
+$payload = $stomp->get({timeout => 6});
+eval { $json = from_json($payload); };
+is($@, '', 'json numeric payload');
+undef $stomp;
+like($json->{r}->{uuid} || '', $uuid_re, 'numeric match has uuid');
+is($json->{r}->{check_module} || '', 'selfcheck', 'modules is set');
 
 1;
