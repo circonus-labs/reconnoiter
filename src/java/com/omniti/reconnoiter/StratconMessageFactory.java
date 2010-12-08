@@ -26,7 +26,7 @@ public class StratconMessageFactory {
 
     this.clazz = clazz;
     con = clazz.getDeclaredConstructor( new Class[] { String[].class } );
-    meth = clazz.getMethod("getLength");
+    meth = clazz.getMethod("getlength");
     int len = (Integer)meth.invoke(clazz.newInstance());
     this.con = con;
     this.len = len;
@@ -36,6 +36,6 @@ public class StratconMessageFactory {
                          InvocationTargetException {
     return con.newInstance((Object)args);
   }
-  int getLength() { return len; }
+  int getlength() { return len; }
 } 
 

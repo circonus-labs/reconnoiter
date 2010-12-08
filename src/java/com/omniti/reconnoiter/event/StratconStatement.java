@@ -33,9 +33,7 @@ public class StratconStatement extends StratconQueryBase {
       uuid = UUID.fromString(id);
   }
 
-  public int getLength() {
-    return 4;
-  }
+  public int getlength() { return 4; }
 
   public void handle(EventHandler eh) {
     eh.deregisterQuery(getUUID());

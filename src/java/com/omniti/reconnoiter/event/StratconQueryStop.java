@@ -28,9 +28,7 @@ public class StratconQueryStop extends StratconQueryBase {
     return uuid;
   }
 
-  public int getLength() {
-    return 3;
-  }
+  public int getlength() { return 3; }
 
   public void handle(EventHandler eh) {
     eh.deregisterQuery(getUUID());

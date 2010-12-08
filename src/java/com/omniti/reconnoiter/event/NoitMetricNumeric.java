@@ -56,7 +56,5 @@ public class NoitMetricNumeric extends NoitEvent {
     public String getCheck_module() { return check_module; }
     public String getCheck_name() { return check_name; }
 
-    public int getLength() {
-        return 7;
-    }
+    public int getlength() { return 7; }
 }

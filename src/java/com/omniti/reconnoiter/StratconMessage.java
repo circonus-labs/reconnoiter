@@ -66,7 +66,7 @@ public abstract class StratconMessage {
     return ms;
   }
 
-  public int getLength() { return 0; }
+  public int getlength() { return 0; }
 
   public abstract void handle(EventHandler eh);
 
@@ -76,7 +76,7 @@ public abstract class StratconMessage {
     if (!parts[0].equals(this.getPrefix())) {
       throw new Exception("Incorrect state prefix:" + getPrefix() + " not applicable for " + getClass());
     }
-    if (parts.length != getLength()) {
+    if (parts.length != getlength()) {
       throw new Exception("Incorrect amount of parts parsed, tossing message.");
     }
   }
@@ -95,7 +95,7 @@ public abstract class StratconMessage {
       if(smf == null) {
         return null;
       }
-      parts = parseToArray(jlog, smf.getLength());
+      parts = parseToArray(jlog, smf.getlength());
       return smf.make(parts);
     }
     catch(Exception e) {
