@@ -264,6 +264,10 @@ socket_error:
 
 
     jcl->check = noit_check_watch(jcl->uuid, jcl->period);
+    if(!jcl->check) {
+      e->opset->close(e->fd, &newmask, e);
+      return 0;
+    }
     /* This check must be watched from the livestream */
     noit_check_transient_add_feed(jcl->check, jcl->feed);
     /* Note the check */
