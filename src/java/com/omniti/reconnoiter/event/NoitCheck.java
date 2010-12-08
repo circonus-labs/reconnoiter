@@ -42,5 +42,5 @@ public class NoitCheck extends NoitEvent {
   public String getModule() { return module; }
   public String getNoit() { return noit; }
 
-  public int getlength() { return 7; }
+  public int numparts() { return 7; }
 }

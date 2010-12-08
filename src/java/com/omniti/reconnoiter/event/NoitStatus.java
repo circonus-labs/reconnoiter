@@ -56,5 +56,5 @@ public class NoitStatus extends NoitEvent {
   public String getCheck_module() { return check_module; }
   public String getCheck_name() { return check_name; }
 
-  public int getlength() { return 8; }
+  public int numparts() { return 8; }
 }

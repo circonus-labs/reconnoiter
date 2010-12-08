@@ -60,7 +60,7 @@ public class StratconQuery extends StratconQueryBase {
     if(thr != null) thr.interrupt();
   }
 
-  public int getlength() { return 5; }
+  public int numparts() { return 5; }
 
   public void handle(EventHandler eh) {
     eh.deregisterQuery(getUUID());
