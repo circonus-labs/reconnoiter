@@ -13,7 +13,8 @@
 			date: '2008-07-31',
 			current: '2008-07-31',
 			calendars: 1,
-			starts: 1
+			starts: 1,
+			view: 'years'
 		});
 		var now = new Date();
 		now.addDays(-10);
@@ -33,17 +34,23 @@
 					className: date.valueOf() == now2.valueOf() ? 'datepickerSpecial' : false
 				}
 			},
+			onChange: function(formated, dates) {
+			},
 			starts: 0
+		});
+		$('#clearSelection').bind('click', function(){
+			$('#date3').DatePickerClear();
+			return false;
 		});
 		$('#date3').DatePicker({
 			flat: true,
-			date: ['2008-07-28','2008-07-31'],
-			current: '2008-07-31',
+			date: ['2009-12-28','2010-01-23'],
+			current: '2010-01-01',
 			calendars: 3,
 			mode: 'range',
 			starts: 1
 		});
-		$('#inputDate').DatePicker({
+		$('.inputDate').DatePicker({
 			format:'m/d/Y',
 			date: $('#inputDate').val(),
 			current: $('#inputDate').val(),
@@ -54,6 +61,9 @@
 			},
 			onChange: function(formated, dates){
 				$('#inputDate').val(formated);
+				if ($('#closeOnSelect input').attr('checked')) {
+					$('#inputDate').DatePickerHide();
+				}
 			}
 		});
 		var now3 = new Date();

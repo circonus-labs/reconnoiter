@@ -3,10 +3,17 @@
  * Date picker
  * Author: Stefan Petre www.eyecon.ro
  * 
+ * Dual licensed under the MIT and GPL licenses
+ * 
  */
 (function ($) {
 	var DatePicker = function () {
 		var	ids = {},
+			views = {
+				years: 'datepickerViewYears',
+				moths: 'datepickerViewMonths',
+				days: 'datepickerViewDays'
+			},
 			tpl = {
 				wrapper: '<div class="datepicker"><div class="datepickerBorderT" /><div class="datepickerBorderB" /><div class="datepickerBorderL" /><div class="datepickerBorderR" /><div class="datepickerBorderTL" /><div class="datepickerBorderTR" /><div class="datepickerBorderBL" /><div class="datepickerBorderBR" /><div class="datepickerContainer"><table cellspacing="0" cellpadding="0"><tbody><tr></tr></tbody></table></div></div>',
 				head: [
@@ -126,6 +133,7 @@
 				next: '&#9654;',
 				lastSel: false,
 				mode: 'single',
+				view: 'days',
 				calendars: 1,
 				format: 'Y-m-d',
 				position: 'bottom',
@@ -241,7 +249,7 @@
 							d = parseInt(parts[i],10);
 							break;
 						case 'm':
-							m = parseInt(parts[i], 10) - 1;
+							m = parseInt(parts[i], 10)-1;
 							break;
 						case 'Y':
 						case 'y':
@@ -268,11 +276,11 @@
 					}
 				}
 				return new Date(
-					y||now.getFullYear(),
-					m||now.getMonth(),
-					d||now.getDate(),
-					h||now.getHours(),
-					min||now.getMinutes(),
+					y === undefined ? now.getFullYear() : y,
+					m === undefined ? now.getMonth() : m,
+					d === undefined ? now.getDate() : d,
+					h === undefined ? now.getHours() : h,
+					min === undefined ? now.getMinutes() : min,
 					0
 				);
 			},
@@ -537,7 +545,7 @@
 										if ($.inArray(val, options.date) > -1) {
 											$.each(options.date, function(nr, dat){
 												if (dat == val) {
-													delete options.date[nr];
+													options.date.splice(nr,1);
 													return false;
 												}
 											});
@@ -580,9 +588,9 @@
 				var tmp;
 				if (options.mode == 'single') {
 					tmp = new Date(options.date);
-					return [formatDate(tmp, options.format), tmp];
+					return [formatDate(tmp, options.format), tmp, options.el];
 				} else {
-					tmp = [[],[]];
+					tmp = [[],[], options.el];
 					$.each(options.date, function(nr, val){
 						var date = new Date(val);
 						tmp[0].push(formatDate(date, options.format));
@@ -622,6 +630,7 @@
 				var cal = $('#' + $(this).data('datepickerId'));
 				if (!cal.is(':visible')) {
 					var calEl = cal.get(0);
+					fill(calEl);
 					var options = cal.data('datepicker');
 					options.onBeforeShow.apply(this, [cal.get(0)]);
 					var pos = $(this).offset();
@@ -689,6 +698,7 @@
 				options.mode = /single|multiple|range/.test(options.mode) ? options.mode : 'single';
 				return this.each(function(){
 					if (!$(this).data('datepicker')) {
+						options.el = this;
 						if (options.date.constructor == String) {
 							options.date = parseDate(options.date, options.format);
 							options.date.setHours(0,0,0,0);
@@ -724,11 +734,13 @@
 						if (options.className) {
 							cal.addClass(options.className);
 						}
+						var html = '';
 						for (var i = 0; i < options.calendars; i++) {
 							cnt = options.starts;
-							cal.find('tr:first').append(
-								i > 0 ?  tpl.space: '',
-								tmpl(tpl.head.join(''), {
+							if (i > 0) {
+								html += tpl.space;
+							}
+							html += tmpl(tpl.head.join(''), {
 									week: options.locale.weekMin,
 									prev: options.prev,
 									next: options.next,
@@ -739,10 +751,11 @@
 									day5: options.locale.daysMin[(cnt++)%7],
 									day6: options.locale.daysMin[(cnt++)%7],
 									day7: options.locale.daysMin[(cnt++)%7]
-								})
-							);
+								});
 						}
-						cal.find('tr:first table').addClass('datepickerViewDays');
+						cal
+							.find('tr:first').append(html)
+								.find('table').addClass(views[options.view]);
 						fill(cal.get(0));
 						if (options.flat) {
 							cal.appendTo(this).show().css('position', 'relative');
@@ -806,15 +819,40 @@
 				if (this.size() > 0) {
 					return prepareDate($('#' + $(this).data('datepickerId')).data('datepicker'))[formated ? 0 : 1];
 				}
+			},
+			clear: function(){
+				return this.each(function(){
+					if ($(this).data('datepickerId')) {
+						var cal = $('#' + $(this).data('datepickerId'));
+						var options = cal.data('datepicker');
+						if (options.mode != 'single') {
+							options.date = [];
+							fill(cal.get(0));
+						}
+					}
+				});
+			},
+			fixLayout: function(){
+				return this.each(function(){
+					if ($(this).data('datepickerId')) {
+						var cal = $('#' + $(this).data('datepickerId'));
+						var options = cal.data('datepicker');
+						if (options.flat) {
+							layout(cal.get(0));
+						}
+					}
+				});
 			}
 		};
 	}();
 	$.fn.extend({
 		DatePicker: DatePicker.init,
-		DatePickerHide: DatePicker.hide,
-		DatePickerShow: DatePicker.show,
+		DatePickerHide: DatePicker.hidePicker,
+		DatePickerShow: DatePicker.showPicker,
 		DatePickerSetDate: DatePicker.setDate,
-		DatePickerGetDate: DatePicker.getDate
+		DatePickerGetDate: DatePicker.getDate,
+		DatePickerClear: DatePicker.clear,
+		DatePickerLayout: DatePicker.fixLayout
 	});
 })(jQuery);
 
