@@ -313,6 +313,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
 static int noit_snmp_session_cleanse(struct target_session *ts) {
   if(ts->refcnt == 0 && ts->sess_handle) {
     eventer_remove_fd(ts->fd);
+    ts->fd = -1;
     if(ts->timeoutevent) {
       eventer_remove(ts->timeoutevent);
       ts->timeoutevent = NULL;
@@ -1008,12 +1009,17 @@ static int noit_snmptrap_onload(noit_image_t *self) {
 static void
 nc_printf_snmpts_brief(noit_console_closure_t ncct,
                        struct target_session *ts) {
+  char fd[32];
   struct timeval now, diff;
   gettimeofday(&now, NULL);
   sub_timeval(now, ts->last_open, &diff);
-  nc_printf(ncct, "[%s]\n\topened: %0.3fs ago\n\tFD: %d\n\trefcnt: %d\n",
+  if(ts->fd < 0)
+    snprintf(fd, sizeof(fd), "%s", "(closed)");
+  else
+    snprintf(fd, sizeof(fd), "%d", ts->fd);
+  nc_printf(ncct, "[%s]\n\topened: %0.3fs ago\n\tFD: %s\n\trefcnt: %d\n",
             ts->target, diff.tv_sec + (float)diff.tv_usec/1000000,
-            ts->fd, ts->refcnt);
+            fd, ts->refcnt);
 }
 
 static int
