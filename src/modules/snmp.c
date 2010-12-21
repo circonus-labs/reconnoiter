@@ -128,6 +128,7 @@ struct target_session {
   int fd;
   int in_table;
   int refcnt;
+  struct timeval last_open;
 };
 
 struct snmp_check_closure {
@@ -148,6 +149,7 @@ struct check_info {
   eventer_t timeoutevent;
   noit_module_t *self;
   noit_check_t *check;
+  struct target_session *ts;
 };
 
 /* We hold struct check_info's in there key's by their reqid.
@@ -339,6 +341,11 @@ static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   struct check_info *info = closure;
   info->timedout = 1;
+  if(info->ts) {
+    info->ts->refcnt--;
+    noit_snmp_session_cleanse(info->ts);
+    info->ts = NULL;
+  }
   remove_check(info);
   /* Log our findings */
   noit_snmp_log_results(info->self, info->check, NULL);
@@ -738,6 +745,15 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   gettimeofday(&current.whence, NULL);
   current.available = NP_AVAILABLE;
 
+  /* Rate limit */
+  if(((current.whence.tv_sec * 1000 +
+       current.whence.tv_usec / 1000) -
+      (check->last_fire_time.tv_sec * 1000 +
+       check->last_fire_time.tv_usec / 1000)) < check->period) goto cleanup;
+
+  /* update the last fire time... */
+  gettimeofday(&check->last_fire_time, NULL);
+
   for(; var != NULL; var = var->next_variable)
     if(noit_snmp_trapvars_to_stats(&current, var) == 0) success++;
   if(success) {
@@ -761,15 +777,16 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
                                      int reqid, struct snmp_pdu *pdu,
                                      void *magic) {
   struct check_info *info;
-  struct target_session *ts = magic;
-
   /* We don't deal with refcnt hitting zero here.  We could only be hit from
    * the snmp read/timeout stuff.  Handle it there.
    */
-  ts->refcnt--; 
 
   info = get_check(reqid);
   if(!info) return 1;
+  if(info->ts) {
+    info->ts->refcnt--;
+    info->ts = NULL;
+  }
   remove_check(info);
   if(info->timeoutevent) {
     eventer_remove(info->timeoutevent);
@@ -799,6 +816,7 @@ static void noit_snmp_sess_open(struct target_session *ts,
   sess.callback = noit_snmp_asynch_response;
   sess.callback_magic = ts;
   ts->sess_handle = snmp_sess_open(&sess);
+  gettimeofday(&ts->last_open, NULL);
 }
 
 static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
@@ -908,6 +926,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
   if(ts->sess_handle && req &&
      (info->reqid = snmp_sess_send(ts->sess_handle, req)) != 0) {
     struct timeval when, to;
+    info->ts = ts;
     info->timeoutevent = eventer_alloc();
     info->timeoutevent->callback = noit_snmp_check_timeout;
     info->timeoutevent->closure = info;
@@ -986,6 +1005,49 @@ static int noit_snmptrap_onload(noit_image_t *self) {
   return 0;
 }
 
+static void
+nc_printf_snmpts_brief(noit_console_closure_t ncct,
+                       struct target_session *ts) {
+  struct timeval now, diff;
+  gettimeofday(&now, NULL);
+  sub_timeval(now, ts->last_open, &diff);
+  nc_printf(ncct, "[%s]\n\topened: %0.3fs ago\n\tFD: %d\n\trefcnt: %d\n",
+            ts->target, diff.tv_sec + (float)diff.tv_usec/1000000,
+            ts->fd, ts->refcnt);
+}
+
+static int
+noit_console_show_snmp(noit_console_closure_t ncct,
+                       int argc, char **argv,
+                       noit_console_state_t *dstate,
+                       void *closure) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  void *vts;
+  snmp_mod_config_t *conf = closure;
+
+  while(noit_hash_next(&conf->target_sessions, &iter,
+                       (const char **)key_id, &klen,
+                       &vts)) {
+    struct target_session *ts = vts;
+    nc_printf_snmpts_brief(ncct, ts);
+  }
+  return 0;
+}
+
+static void
+register_console_snmp_commands(snmp_mod_config_t *conf) {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("snmp", noit_console_show_snmp, NULL, NULL, conf));
+}
+
 static int noit_snmp_init(noit_module_t *self) {
   const char *opt;
   snmp_mod_config_t *conf;
@@ -998,6 +1060,9 @@ static int noit_snmp_init(noit_module_t *self) {
     read_configs();
     init_snmp("noitd");
     __snmp_initialize_once = 1;
+  }
+  if(strcmp(self->hdr.name, "snmp") == 0) {
+    register_console_snmp_commands(conf);
   }
 
   if(strcmp(self->hdr.name, "snmptrap") == 0) {
