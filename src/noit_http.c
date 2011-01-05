@@ -256,6 +256,9 @@ noit_hash_table *noit_http_request_headers_table(noit_http_request *req) {
 noit_boolean noit_http_response_closed(noit_http_response *res) {
   return res->closed;
 }
+noit_boolean noit_http_response_complete(noit_http_response *res) {
+  return res->complete;
+}
 
 static noit_http_method
 _method_enum(const char *s) {

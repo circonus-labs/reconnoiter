@@ -133,6 +133,8 @@ API_EXPORT(noit_hash_table *)
 
 API_EXPORT(noit_boolean)
   noit_http_response_closed(noit_http_response *);
+API_EXPORT(noit_boolean)
+  noit_http_response_complete(noit_http_response *);
 
 API_EXPORT(void)
   noit_http_ctx_acceptor_free(void *); /* just calls noit_http_session_ctx_release */
