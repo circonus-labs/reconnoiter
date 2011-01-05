@@ -94,6 +94,7 @@ struct noit_http_response {
   noit_boolean closed;         /* set by _end() */
   noit_boolean complete;       /* complete, drained and disposable */
   size_t bytes_written;        /* tracks total bytes written */
+  z_stream *gzip;
 };
 
 struct noit_http_session_ctx {
@@ -111,6 +112,9 @@ struct noit_http_session_ctx {
 static noit_log_stream_t http_debug = NULL;
 static noit_log_stream_t http_io = NULL;
 static noit_log_stream_t http_access = NULL;
+
+static const char gzip_header[10] =
+  { '\037', '\213', Z_DEFLATED, 0, 0, 0, 0, 0, 0, 0x03 };
 
 #define CTX_ADD_HEADER(a,b) \
     noit_hash_replace(&ctx->res.headers, \
@@ -738,6 +742,10 @@ noit_http_response_release(noit_http_session_ctx *ctx) {
   RELEASE_BCHAIN(ctx->res.leader);
   RELEASE_BCHAIN(ctx->res.output);
   RELEASE_BCHAIN(ctx->res.output_raw);
+  if(ctx->res.gzip) {
+    deflateEnd(ctx->res.gzip);
+    free(ctx->res.gzip);
+  }
   memset(&ctx->res, 0, sizeof(ctx->res));
 }
 void
@@ -1083,42 +1091,61 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   CTX_LEADER_APPEND("\r\n", 2);
   return len;
 }
-static int memgzip2(Bytef *dest, uLongf *destLen,
-                    const Bytef *source, uLong sourceLen, int level) {
+static int memgzip2(noit_http_response *res, Bytef *dest, uLongf *destLen,
+                    const Bytef *source, uLong sourceLen, int level,
+                    int deflate_option, noit_boolean *done) {
   z_stream stream;
-  int err;
+  int err, skip=0, expect = Z_OK;
+  if(!res->gzip) {
+    res->gzip = calloc(1, sizeof(*res->gzip));
+    err = deflateInit2(res->gzip, level, Z_DEFLATED, -15, 9,
+                       Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) {
+      noitL(noit_error, "memgzip2() -> deflateInit2: %d\n", err);
+      return err;
+    }
 
-  memset(&stream, 0, sizeof(stream));
-  stream.next_in = (Bytef*)source;
-  stream.avail_in = (uInt)sourceLen;
-  stream.next_out = dest;
-  stream.avail_out = (uInt)*destLen;
-  if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
+    memcpy(dest, gzip_header, sizeof(gzip_header));
+    skip = sizeof(gzip_header);
+    *destLen -= skip;
+  }
+  res->gzip->next_in = (Bytef*)source;
+  res->gzip->avail_in = (uInt)sourceLen;
+  res->gzip->next_out = dest + skip;
+  res->gzip->avail_out = (uInt)*destLen;
+  if ((uLong)res->gzip->avail_out != *destLen) return Z_BUF_ERROR;
 
-  err = deflateInit2(&stream, level, Z_DEFLATED, 15+16, 8,
-                     Z_DEFAULT_STRATEGY);
-  if (err != Z_OK) return err;
+  err = deflate(res->gzip, deflate_option);
 
-  err = deflate(&stream, Z_FINISH);
-  if (err != Z_STREAM_END) {
-    deflateEnd(&stream);
+  if(deflate_option == Z_FINISH) expect = Z_STREAM_END;
+  if (err != expect) {
+    noitL(noit_error, "memgzip2() -> deflate: got %d, need %d\n", err, expect);
+    deflateEnd(res->gzip);
+    free(res->gzip);
+    res->gzip = NULL;
     return err == Z_OK ? Z_BUF_ERROR : err;
   }
-  *destLen = stream.total_out;
+  if(done) *done = (err == Z_STREAM_END) ? noit_true : noit_false;
+  *destLen = res->gzip->total_out + skip;
 
-  err = deflateEnd(&stream);
-  return err;
+  return Z_OK;
 }
 static noit_boolean
-_http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
+_http_encode_chain(noit_http_response *res,
+                   struct bchain *out, void *inbuff, int inlen,
+                   noit_boolean final, noit_boolean *done) {
+  int opts = res->output_options;
   /* implement gzip and deflate! */
+  if(done && final) *done = noit_true;
   if(opts & NOIT_HTTP_GZIP) {
     uLongf olen;
+    int err;
     olen = out->allocd - out->start;
-    if(Z_OK != memgzip2((Bytef *)(out->buff + out->start), &olen,
-                        (Bytef *)(in->buff + in->start), (uLong)in->size,
-                        9)) {
-      noitL(noit_error, "zlib compress2 error\n");
+    err = memgzip2(res, (Bytef *)(out->buff + out->start), &olen,
+                   (Bytef *)(inbuff), (uLong)inlen,
+                   9, final ? Z_FINISH : Z_NO_FLUSH, done);
+    if(Z_OK != err) {
+      noitL(noit_error, "zlib compress2 error %d\n", err);
       return noit_false;
     }
     out->size += olen;
@@ -1127,7 +1154,7 @@ _http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
     uLongf olen;
     olen = out->allocd - out->start;
     if(Z_OK != compress2((Bytef *)(out->buff + out->start), &olen,
-                         (Bytef *)(in->buff + in->start), (uLong)in->size,
+                         (Bytef *)(inbuff), (uLong)inlen,
                          9)) {
       noitL(noit_error, "zlib compress2 error\n");
       return noit_false;
@@ -1135,9 +1162,9 @@ _http_encode_chain(struct bchain *out, struct bchain *in, int opts) {
     out->size += olen;
   }
   else {
-    if(in->size > out->allocd - out->start) return noit_false;
-    memcpy(out->buff + out->start, in->buff + in->start, in->size);
-    out->size += in->size;
+    if(inlen > out->allocd - out->start) return noit_false;
+    memcpy(out->buff + out->start, inbuff, inlen);
+    out->size += inlen;
   }
   return noit_true;
 }
@@ -1172,12 +1199,17 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   out = ALLOC_BCHAIN(hexlen + 4 + maxlen);
   /* if we're chunked, let's give outselved hexlen + 2 prefix space */
   if(opts & NOIT_HTTP_CHUNKED) out->start = hexlen + 2;
-  if(_http_encode_chain(out, in, opts) == noit_false) {
+  if(_http_encode_chain(&ctx->res, out,in->buff + in->start, in->size,
+                        noit_false, NULL) == noit_false) {
     free(out);
     return NULL;
   }
-  /* Too long! Out "larger" assumption is bad */
-  if(opts & NOIT_HTTP_CHUNKED) {
+  if(out->size == 0) {
+    FREE_BCHAIN(out);
+    out = ALLOC_BCHAIN(0);
+    noitL(noit_error, "_http_encode_chain() -> 0...\n");
+  }
+  if((out->size > 0) && (opts & NOIT_HTTP_CHUNKED)) {
     ilen = out->size;
     assert(out->start+out->size+2 <= out->allocd);
     out->buff[out->start + out->size++] = '\r';
@@ -1200,6 +1232,68 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
     }
   }
   return out;
+}
+void
+raw_finalize_encoding(noit_http_response *res) {
+  void *buff;
+  buff = alloca(2048);
+  uLong olen = 2048;
+
+  if(res->output_options & NOIT_HTTP_GZIP) {
+    int err = Z_OK;
+    noit_boolean finished = noit_false;
+    struct bchain *r = res->output_raw;
+    while(r && r->next) r = r->next;
+    while(finished == noit_false) {
+      int hexlen, ilen;
+      struct bchain *out = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
+
+      /* The link size is the len(data) + 4 + ceil(log(len(data))/log(16)) */
+      ilen = out->allocd;
+      hexlen = 0;
+      while(ilen) { ilen >>= 4; hexlen++; }
+      if(hexlen == 0) hexlen = 1;
+
+      out->start += hexlen + 2;
+      if(_http_encode_chain(res, out, "", 0, noit_true,
+                            &finished) == noit_false) {
+        FREE_BCHAIN(out);
+        break;
+      }
+
+      ilen = out->size;
+      assert(out->start+out->size+2 <= out->allocd);
+      out->buff[out->start + out->size++] = '\r';
+      out->buff[out->start + out->size++] = '\n';
+      out->start = 0;
+      /* terminate */
+      out->size += 2;
+      out->buff[hexlen] = '\r';
+      out->buff[hexlen+1] = '\n';
+      /* backfill */
+      out->size += hexlen;
+      while(hexlen > 0) {
+        out->buff[hexlen - 1] = _hexchars[ilen & 0xf];
+        ilen >>= 4;
+        hexlen--;
+      }
+      while(out->buff[out->start] == '0') {
+        out->start++;
+        out->size--;
+      }
+      if(r == NULL)
+        res->output_raw = out;
+      else {
+        r->next = out;
+        out->prev = r;
+      }
+      r = out;
+    }
+
+    deflateEnd(res->gzip);
+    free(res->gzip);
+    res->gzip = NULL;
+  }
 }
 noit_boolean
 noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
@@ -1241,6 +1335,8 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
   if(final) {
     struct bchain *n;
     ctx->res.closed = noit_true;
+    raw_finalize_encoding(&ctx->res);
+    if(r) while(r->next) r = r->next;
     if(ctx->res.output_options & NOIT_HTTP_CHUNKED)
       n = bchain_from_data("0\r\n\r\n", 5);
     else

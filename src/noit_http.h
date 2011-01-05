@@ -180,7 +180,7 @@ API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
   noit_http_response_header_set(ctx, "Content-Type", type); \
   if(noit_http_response_option_set(ctx, NOIT_HTTP_CHUNKED) == noit_false) \
     noit_http_response_option_set(ctx, NOIT_HTTP_CLOSE); \
-  noit_http_response_option_set(ctx, NOIT_HTTP_DEFLATE); \
+  noit_http_response_option_set(ctx, NOIT_HTTP_GZIP); \
 } while(0)
 
 API_EXPORT(void)
