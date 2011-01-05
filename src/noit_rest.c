@@ -95,19 +95,22 @@ static rest_request_handler
 noit_http_get_handler(noit_http_rest_closure_t *restc) {
   struct rule_container *cont = NULL;
   struct rest_url_dispatcher *rule;
-  char *eoq, *eob;
-  eoq = strchr(restc->http_ctx->req.uri_str, '?');
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  const char *uri_str;
+  const char *eoq, *eob;
+  uri_str = noit_http_request_uri_str(req);
+  eoq = strchr(uri_str, '?');
   if(!eoq)
-    eoq = restc->http_ctx->req.uri_str + strlen(restc->http_ctx->req.uri_str);
+    eoq = uri_str + strlen(uri_str);
   eob = eoq - 1;
 
   /* find the right base */
   while(1) {
     void *vcont;
-    while(eob >= restc->http_ctx->req.uri_str && *eob != '/') eob--;
-    if(eob < restc->http_ctx->req.uri_str) break; /* off the front */
-    if(noit_hash_retrieve(&dispatch_points, restc->http_ctx->req.uri_str,
-                          eob - restc->http_ctx->req.uri_str + 1, &vcont)) {
+    while(eob >= uri_str && *eob != '/') eob--;
+    if(eob < uri_str) break; /* off the front */
+    if(noit_hash_retrieve(&dispatch_points, uri_str,
+                          eob - uri_str + 1, &vcont)) {
       cont = vcont;
       eob++; /* move past the determined base */
       break;
@@ -118,7 +121,7 @@ noit_http_get_handler(noit_http_rest_closure_t *restc) {
   for(rule = cont->rules; rule; rule = rule->next) {
     int ovector[30];
     int cnt;
-    if(strcmp(rule->method, restc->http_ctx->req.method_str)) continue;
+    if(strcmp(rule->method, noit_http_request_method_str(req))) continue;
     if((cnt = pcre_exec(rule->expression, rule->extra, eob, eoq - eob, 0, 0,
                         ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
       /* We match, set 'er up */
@@ -146,22 +149,23 @@ noit_http_rest_access(noit_http_rest_closure_t *restc,
                       int npats, char **pats) {
   struct noit_rest_acl *acl;
   struct noit_rest_acl_rule *rule;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  const char *uri_str;
   int ovector[30];
 
+  uri_str = noit_http_request_uri_str(req);
   for(acl = global_rest_acls; acl; acl = acl->next) {
     if(acl->cn && pcre_exec(acl->cn, NULL, "", 0, 0, 0,
                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
-    if(acl->url && pcre_exec(acl->url, NULL, restc->http_ctx->req.uri_str,
-                             strlen(restc->http_ctx->req.uri_str), 0, 0,
+    if(acl->url && pcre_exec(acl->url, NULL, uri_str, strlen(uri_str), 0, 0,
                              ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     for(rule = acl->rules; rule; rule = rule->next) {
       if(rule->cn && pcre_exec(rule->cn, NULL, "", 0, 0, 0,
                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
-      if(rule->url && pcre_exec(rule->url, NULL, restc->http_ctx->req.uri_str,
-                                strlen(restc->http_ctx->req.uri_str), 0, 0,
+      if(rule->url && pcre_exec(rule->url, NULL, uri_str, strlen(uri_str), 0, 0,
                                 ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
       return rule->allow;
@@ -175,16 +179,18 @@ noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                 int npats, char **pats) {
   struct noit_rest_acl *acl;
   struct noit_rest_acl_rule *rule;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  const char *uri_str;
   int ovector[30];
 
+  uri_str = noit_http_request_uri_str(req);
   if(!restc->remote_cn || !strlen(restc->remote_cn)) return noit_false;
   for(acl = global_rest_acls; acl; acl = acl->next) {
     if(acl->cn && pcre_exec(acl->cn, NULL, restc->remote_cn,
                             strlen(restc->remote_cn), 0, 0,
                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
-    if(acl->url && pcre_exec(acl->url, NULL, restc->http_ctx->req.uri_str,
-                             strlen(restc->http_ctx->req.uri_str), 0, 0,
+    if(acl->url && pcre_exec(acl->url, NULL, uri_str, strlen(uri_str), 0, 0,
                              ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     for(rule = acl->rules; rule; rule = rule->next) {
@@ -192,8 +198,7 @@ noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                strlen(restc->remote_cn), 0, 0,
                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
-      if(rule->url && pcre_exec(rule->url, NULL, restc->http_ctx->req.uri_str,
-                                strlen(restc->http_ctx->req.uri_str), 0, 0,
+      if(rule->url && pcre_exec(rule->url, NULL, uri_str, strlen(uri_str), 0, 0,
                                 ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
       return rule->allow;
@@ -281,13 +286,14 @@ noit_http_rest_closure_free(void *v) {
 
 int
 noit_rest_request_dispatcher(noit_http_session_ctx *ctx) {
-  noit_http_rest_closure_t *restc = ctx->dispatcher_closure;
+  noit_http_rest_closure_t *restc = noit_http_session_dispatcher_closure(ctx);
   rest_request_handler handler = restc->fastpath;
   if(!handler) handler = noit_http_get_handler(restc);
   if(handler) {
+    noit_http_response *res = noit_http_session_response(ctx);
     int rv;
     rv = handler(restc, restc->nparams, restc->params);
-    if(ctx->res.closed) noit_http_rest_clean_request(restc);
+    if(noit_http_response_closed(res)) noit_http_rest_clean_request(restc);
     return rv;
   }
   noit_http_response_status_set(ctx, 404, "NOT FOUND");
@@ -394,6 +400,8 @@ xmlDocPtr
 rest_get_xml_upload(noit_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_xml_payload *rxc;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+
   if(restc->call_closure == NULL) {
     restc->call_closure = calloc(1, sizeof(*rxc));
     restc->call_closure_free = rest_xml_payload_free;
@@ -422,7 +430,7 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    if(rxc->len == restc->http_ctx->req.content_length) {
+    if(rxc->len == noit_http_request_content_length(req)) {
       rxc->indoc = xmlParseMemory(rxc->buffer, rxc->len);
       rxc->complete = 1;
     }

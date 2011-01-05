@@ -1074,7 +1074,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   noit_hash_table seen = NOIT_HASH_EMPTY;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   char path[256];
-  void *key_id, *vstr;
+  void *key_id;
   const char *type = NULL, *want_cn = NULL;
   int klen, n = 0, i, di, cnt;
   void *vconn;
@@ -1082,12 +1082,11 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   noit_conf_section_t *noit_configs;
   struct timeval now, diff, last;
   xmlNodePtr node;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
 
-  noit_http_process_querystring(&restc->http_ctx->req);
-  if(noit_hash_retrieve(&restc->http_ctx->req.querystring, "type", 4, &vstr))
-    type = vstr;
-  if(noit_hash_retrieve(&restc->http_ctx->req.querystring, "cn", 2, &vstr))
-    want_cn = vstr;
+  noit_http_process_querystring(req);
+  type = noit_http_request_querystring(req, "type");
+  want_cn = noit_http_request_querystring(req, "cn");
 
   gettimeofday(&now, NULL);
 
@@ -1352,16 +1351,15 @@ stratcon_remove_noit(const char *target, unsigned short port) {
 static int
 rest_set_noit(noit_http_rest_closure_t *restc,
               int npats, char **pats) {
-  void *vcn;
   const char *cn = NULL;
   noit_http_session_ctx *ctx = restc->http_ctx;
+  noit_http_request *req = noit_http_session_request(ctx);
   unsigned short port = 43191;
   if(npats < 1 || npats > 2)
     noit_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  noit_http_process_querystring(&ctx->req);
-  if(noit_hash_retrieve(&ctx->req.querystring, "cn", 2, &vcn))
-    cn = vcn;
+  noit_http_process_querystring(req);
+  cn = noit_http_request_querystring(req, "cn");
   if(stratcon_add_noit(pats[0], port, cn) >= 0)
     noit_http_response_ok(ctx, "text/xml");
   else

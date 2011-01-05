@@ -46,6 +46,68 @@
 #define HEADER_CONTENT_LENGTH "content-length"
 #define HEADER_EXPECT "expect"
 
+struct noit_http_connection {
+  eventer_t e;
+  int needs_close;
+};
+
+struct noit_http_request {
+  struct bchain *first_input; /* The start of the input chain */
+  struct bchain *last_input;  /* The end of the input chain */
+  struct bchain *current_input;  /* The point of the input where we */
+  size_t         current_offset; /* analyzing. */
+
+  enum { NOIT_HTTP_REQ_HEADERS = 0,
+         NOIT_HTTP_REQ_EXPECT,
+         NOIT_HTTP_REQ_PAYLOAD } state;
+  struct bchain *current_request_chain;
+  noit_boolean has_payload;
+  int64_t content_length;
+  int64_t content_length_read;
+  char *method_str;
+  char *uri_str;
+  char *protocol_str;
+  noit_hash_table querystring;
+  u_int32_t opts;
+  noit_http_method method;
+  noit_http_protocol protocol;
+  noit_hash_table headers;
+  noit_boolean complete;
+  struct timeval start_time;
+  char *orig_qs;
+};
+
+struct noit_http_response {
+  noit_http_protocol protocol;
+  int status_code;
+  char *status_reason;
+
+  noit_hash_table headers;
+  struct bchain *leader; /* serialization of status line and headers */
+
+  u_int32_t output_options;
+  struct bchain *output;       /* data is pushed in here */
+  struct bchain *output_raw;   /* internally transcoded here for output */
+  size_t output_raw_offset;    /* tracks our offset */
+  noit_boolean output_started; /* locks the options and leader */
+                               /*   and possibly output. */
+  noit_boolean closed;         /* set by _end() */
+  noit_boolean complete;       /* complete, drained and disposable */
+  size_t bytes_written;        /* tracks total bytes written */
+};
+
+struct noit_http_session_ctx {
+  noit_atomic32_t ref_cnt;
+  int64_t drainage;
+  int max_write;
+  noit_http_connection conn;
+  noit_http_request req;
+  noit_http_response res;
+  noit_http_dispatch_func dispatcher;
+  void *dispatcher_closure;
+  acceptor_closure_t *ac;
+};
+
 static noit_log_stream_t http_debug = NULL;
 static noit_log_stream_t http_io = NULL;
 static noit_log_stream_t http_access = NULL;
@@ -124,6 +186,71 @@ struct bchain *bchain_from_data(const void *d, size_t size) {
   memcpy(n->buff, d, size);
   n->size = size;
   return n;
+}
+
+noit_http_request *
+noit_http_session_request(noit_http_session_ctx *ctx) {
+  return &ctx->req;
+}
+noit_http_response *
+noit_http_session_response(noit_http_session_ctx *ctx) {
+  return &ctx->res;
+}
+noit_http_connection *
+noit_http_session_connection(noit_http_session_ctx *ctx) {
+  return &ctx->conn;
+}
+void
+noit_http_session_set_dispatcher(noit_http_session_ctx *ctx,
+                                 int (*d)(noit_http_session_ctx *), void *dc) {
+  ctx->dispatcher = d;
+  ctx->dispatcher_closure = dc;
+}
+void *noit_http_session_dispatcher_closure(noit_http_session_ctx *ctx) {
+  return ctx->dispatcher_closure;
+}
+void noit_http_session_trigger(noit_http_session_ctx *ctx, int state) {
+  if(ctx->conn.e) eventer_trigger(ctx->conn.e, state);
+}
+uint32_t noit_http_session_ref_cnt(noit_http_session_ctx *ctx) {
+  return ctx->ref_cnt;
+}
+uint32_t noit_http_session_ref_dec(noit_http_session_ctx *ctx) {
+  return noit_atomic_dec32(&ctx->ref_cnt);
+}
+uint32_t noit_http_session_ref_inc(noit_http_session_ctx *ctx) {
+  return noit_atomic_inc32(&ctx->ref_cnt);
+}
+eventer_t noit_http_connection_event(noit_http_connection *conn) {
+  return conn->e;
+}
+const char *noit_http_request_uri_str(noit_http_request *req) {
+  return req->uri_str;
+}
+const char *noit_http_request_method_str(noit_http_request *req) {
+  return req->method_str;
+}
+const char *noit_http_request_protocol_str(noit_http_request *req) {
+  return req->protocol_str;
+}
+size_t noit_http_request_content_length(noit_http_request *req) {
+  return req->content_length;
+}
+const char *noit_http_request_querystring(noit_http_request *req, const char *k) {
+  void *vv;
+  const char *v = NULL;
+  if(noit_hash_retrieve(&req->querystring, k, strlen(k), &vv))
+    v = vv;
+  return v;
+}
+noit_hash_table *noit_http_request_querystring_table(noit_http_request *req) {
+  return &req->querystring;
+}
+noit_hash_table *noit_http_request_headers_table(noit_http_request *req) {
+  return &req->headers;
+}
+noit_boolean noit_http_response_closed(noit_http_response *res) {
+  return res->closed;
 }
 
 static noit_http_method

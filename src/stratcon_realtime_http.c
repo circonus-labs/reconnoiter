@@ -114,14 +114,14 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
   char buffer[1024];
   char *scp, *ecp, *token;
   int len;
-  void *vcb;
   const char *v, *cb = NULL;
   noit_hash_table json = NOIT_HASH_EMPTY;
+  noit_http_request *req = noit_http_session_request(ctx);
   char s_inc_id[42];
 
   snprintf(s_inc_id, sizeof(s_inc_id), "script-%08x", inc_id);
-  if(noit_hash_retrieve(&ctx->req.querystring, "cb", strlen("cb"), &vcb))
-    cb = vcb;
+ 
+  cb = noit_http_request_querystring(req, "cb"); 
   for(v = cb; v && *v; v++)
     if(!((*v >= '0' && *v <= '9') ||
          (*v >= 'a' && *v <= 'z') ||
@@ -161,6 +161,8 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
   PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
   if(buff[1] == '\t' && (buff[0] == 'M' || buff[0] == 'S')) {
     char target[256], module[256], name[256], uuid_str[UUID_STR_LEN+1];
+    noit_http_request *req = noit_http_session_request(ctx);
+    noit_hash_table *qs;
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *key;
     int klen, i=0;
@@ -173,7 +175,8 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
     snprintf(buffer, sizeof(buffer), "<script id=\"%s\">%s({", s_inc_id, cb);
     ra_write(buffer, strlen(buffer));
 
-    while(noit_hash_next(&ctx->req.querystring, &iter, &key, &klen, &vval)) {
+    qs = noit_http_request_querystring_table(req);
+    while(noit_hash_next(qs, &iter, &key, &klen, &vval)) {
       if(!strcmp(key, "cb")) continue;
       noit_hash_store(&json, key, klen, strdup(vval ?(char *)vval : "true"));
     }
@@ -261,9 +264,10 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
   BAIL_HTTP_WRITE;
 }
 int
-stratcon_realtime_uri_parse(realtime_context *rc, char *uri) {
+stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
   int len, cnt = 0;
-  char *cp, *copy, *interest, *brk;
+  const char *cp, *interest;
+  char *copy, *brk;
   if(strncmp(uri, "/data/", 6)) return 0;
   cp = uri + 6;
   len = strlen(cp);
@@ -299,12 +303,12 @@ static void
 free_realtime_recv_ctx(void *vctx) {
   realtime_recv_ctx_t *rrctx = vctx;
   noit_http_session_ctx *ctx = rrctx->ctx;
-  realtime_context *rc = ctx->dispatcher_closure;
+  realtime_context *rc = noit_http_session_dispatcher_closure(ctx);
 
-  if(noit_atomic_dec32(&ctx->ref_cnt) == 1) {
+  if(noit_http_session_ref_dec(ctx) == 1) {
     noit_http_response_end(ctx);
     clear_realtime_context(rc);
-    if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE | EVENTER_EXCEPTION);
+    noit_http_session_trigger(ctx, EVENTER_WRITE | EVENTER_EXCEPTION);
   }
   free(rrctx);
 }
@@ -443,7 +447,7 @@ int
 stratcon_realtime_http_postresolve(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   noit_http_session_ctx *ctx = closure;
-  realtime_context *rc = ctx->dispatcher_closure;
+  realtime_context *rc = noit_http_session_dispatcher_closure(ctx);
   struct realtime_tracker *node;
 
   for(node = rc->checklist; node; node = node->next) {
@@ -458,30 +462,32 @@ stratcon_realtime_http_postresolve(eventer_t e, int mask, void *closure,
                                    free_realtime_recv_ctx);
     }
     else
-      noit_atomic_dec32(&ctx->ref_cnt);
+      noit_http_session_ref_dec(ctx);
   }
-  if(ctx->ref_cnt == 1) {
+  if(noit_http_session_ref_cnt(ctx) == 1) {
     noit_http_response_end(ctx);
     clear_realtime_context(rc);
-    if(ctx->conn.e) eventer_trigger(ctx->conn.e, EVENTER_WRITE);
+    noit_http_session_trigger(ctx, EVENTER_WRITE);
   }
   return 0;
 }
 int
 stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
   const char *key, *value;
-  realtime_context *rc = ctx->dispatcher_closure;
+  realtime_context *rc = noit_http_session_dispatcher_closure(ctx);
   int klen;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  noit_http_request *req = &ctx->req;
+  noit_http_request *req = noit_http_session_request(ctx);
 
   if(rc->setup == RC_INITIAL) {
     eventer_t completion;
     struct realtime_tracker *node;
     char c[1024];
     int num_interests;
+    const char *uri_str = noit_http_request_uri_str(req);
+    noit_hash_table *headers = noit_http_request_headers_table(req);
 
-    num_interests = stratcon_realtime_uri_parse(rc, ctx->req.uri_str);
+    num_interests = stratcon_realtime_uri_parse(rc, uri_str);
     if(num_interests == 0) {
       noit_http_response_status_set(ctx, 404, "OK");
       noit_http_response_option_set(ctx, NOIT_HTTP_CLOSE);
@@ -490,8 +496,9 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     }
 
     noitL(noit_error, "http: %s %s %s\n",
-          req->method_str, req->uri_str, req->protocol_str);
-    while(noit_hash_next_str(&req->headers, &iter, &key, &klen, &value)) {
+          noit_http_request_method_str(req), uri_str,
+          noit_http_request_protocol_str(req));
+    while(noit_hash_next_str(headers, &iter, &key, &klen, &value)) {
       noitL(noit_error, "http: [%s: %s]\n", key, value);
     }
     noit_http_response_status_set(ctx, 200, "OK");
@@ -514,7 +521,7 @@ stratcon_request_dispatcher(noit_http_session_ctx *ctx) {
     /* Each interest references the ctx */
     for(node = rc->checklist; node; node = node->next) {
       char uuid_str[UUID_STR_LEN+1];
-      noit_atomic_inc32(&ctx->ref_cnt);
+      noit_http_session_ref_inc(ctx);
       uuid_unparse_lower(node->checkid, uuid_str);
       noitL(noit_error, "Resolving uuid: %s\n", uuid_str);
     }
@@ -544,6 +551,8 @@ rest_stream_data(noit_http_rest_closure_t *restc,
   /* We're here and want to subvert the rest system */
   const char *document_domain = NULL;
   noit_http_session_ctx *ctx = restc->http_ctx;
+  noit_http_connection *conn = noit_http_session_connection(ctx);
+  eventer_t e;
   acceptor_closure_t *ac = restc->ac;
 
   /* Rewire the handler */
@@ -559,11 +568,12 @@ rest_stream_data(noit_http_rest_closure_t *restc,
     document_domain = "";
   }
 
-  noit_http_process_querystring(&ctx->req);
+  noit_http_process_querystring(noit_http_session_request(ctx));
   /* Rewire the http context */
-  ctx->conn.e->callback = stratcon_realtime_http_handler;
-  ctx->dispatcher = stratcon_request_dispatcher;
-  ctx->dispatcher_closure = alloc_realtime_context(document_domain);
+  e = noit_http_connection_event(conn);
+  e->callback = stratcon_realtime_http_handler;
+  noit_http_session_set_dispatcher(ctx, stratcon_request_dispatcher,
+                                   alloc_realtime_context(document_domain));
   return stratcon_request_dispatcher(ctx);
 }
 
