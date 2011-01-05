@@ -1094,7 +1094,6 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
 static int memgzip2(noit_http_response *res, Bytef *dest, uLongf *destLen,
                     const Bytef *source, uLong sourceLen, int level,
                     int deflate_option, noit_boolean *done) {
-  z_stream stream;
   int err, skip=0, expect = Z_OK;
   if(!res->gzip) {
     res->gzip = calloc(1, sizeof(*res->gzip));
@@ -1235,12 +1234,7 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
 }
 void
 raw_finalize_encoding(noit_http_response *res) {
-  void *buff;
-  buff = alloca(2048);
-  uLong olen = 2048;
-
   if(res->output_options & NOIT_HTTP_GZIP) {
-    int err = Z_OK;
     noit_boolean finished = noit_false;
     struct bchain *r = res->output_raw;
     while(r && r->next) r = r->next;
