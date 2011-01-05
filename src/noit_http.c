@@ -1050,13 +1050,17 @@ noit_http_response_append_mmap(noit_http_session_ctx *ctx,
   if(n == NULL) return noit_false;
   return noit_http_response_append_bchain(ctx, n);
 }
+static int casesort(const void *a, const void *b) {
+  return strcasecmp(*((const char **)a), *((const char **)b));
+}
 static int
 _http_construct_leader(noit_http_session_ctx *ctx) {
   int len = 0, tlen;
   struct bchain *b;
   const char *protocol_str;
   const char *key, *value;
-  int klen;
+  int klen, i;
+  const char **keys;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
 
   assert(!ctx->res.leader);
@@ -1083,9 +1087,19 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   memcpy(b->buff + b->start + b->size, s, slen); \
   b->size += slen; \
 } while(0)
+  keys = alloca(sizeof(*keys)*ctx->res.headers.size);
+  i = 0;
   while(noit_hash_next_str(&ctx->res.headers, &iter,
                            &key, &klen, &value)) {
-    int vlen = strlen(value);
+    keys[i++] = key;
+  }
+  qsort(keys, i, sizeof(*keys), casesort);
+  for(i=0;i<ctx->res.headers.size;i++) {
+    int vlen;
+    key = keys[i];
+    klen = strlen(key);
+    noit_hash_retr_str(&ctx->res.headers, key, klen, &value);
+    vlen = strlen(value);
     CTX_LEADER_APPEND(key, klen);
     CTX_LEADER_APPEND(": ", 2);
     CTX_LEADER_APPEND(value, vlen);
