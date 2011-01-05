@@ -1206,7 +1206,6 @@ noit_http_process_output_bchain(noit_http_session_ctx *ctx,
   if(out->size == 0) {
     FREE_BCHAIN(out);
     out = ALLOC_BCHAIN(0);
-    noitL(noit_error, "_http_encode_chain() -> 0...\n");
   }
   if((out->size > 0) && (opts & NOIT_HTTP_CHUNKED)) {
     ilen = out->size;
