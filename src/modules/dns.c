@@ -608,6 +608,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   CONFIG_OVERRIDE(rtype);
   CONFIG_OVERRIDE(query);
   CONFIG_OVERRIDE(want_sort);
+  if(nameserver && !strcmp(nameserver, "default")) nameserver = NULL;
   if(want_sort && strcasecmp(want_sort, "on") && strcasecmp(want_sort, "true"))
     ci->sort = 0;
 

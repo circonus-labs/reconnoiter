@@ -10,7 +10,7 @@
     <parameter name="nameserver"
                required="optional"
                default="%[target] or determined from underlying system"
-               allowed=".+">The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target] of the the check.</parameter>
+               allowed=".+">The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target] of the the check.  If set to the string "default" the underlying system default nameserver is used.</parameter>
     <parameter name="ctype"
                required="optional"
                default="IN"
