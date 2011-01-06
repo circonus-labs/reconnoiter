@@ -382,7 +382,7 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
 
    case DNS_T_AAAA:
     if (rr->dnsrr_dsz != 16) goto decode_err;
-    inet_ntop(AF_INET6, dptr, buff, 16);
+    inet_ntop(AF_INET6, dptr, buff, sizeof(buff));
     break;
 
    case DNS_T_TXT:
@@ -648,10 +648,12 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   }
   /* use the cached one, unless we don't have one */
   if(!ci->h) ci->h = dns_ctx_alloc(nameserver);
+  if(!ci->h) ci->error = strdup("bad nameserver");
 
   /* Lookup out class */
   if(!noit_hash_retrieve(&dns_ctypes, ctype, strlen(ctype),
                          &vnv_pair)) {
+    if(ci->error) free(ci->error);
     ci->error = strdup("bad class");
   }
   else {
@@ -661,6 +663,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
   /* Lookup out rr type */
   if(!noit_hash_retrieve(&dns_rtypes, rtype, strlen(rtype),
                          &vnv_pair)) {
+    if(ci->error) free(ci->error);
     ci->error = strdup("bad rr type");
   }
   else {
