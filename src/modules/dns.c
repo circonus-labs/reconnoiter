@@ -531,7 +531,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   len = 0;
   for(i=0; i<ci->nrr; i++) len += strlen(result_str[i]) + 2;
   result_combined = alloca(len);
-  result_combines[0] = '\0';
+  result_combined[0] = '\0';
   /* string it together */
   len = 0;
   for(i=0; i<ci->nrr; i++) {
