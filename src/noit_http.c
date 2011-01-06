@@ -1350,10 +1350,10 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
     if(ctx->res.output_options & NOIT_HTTP_CHUNKED)
       n = bchain_from_data("0\r\n\r\n", 5);
     else
-      n = bchain_from_data("\r\n", 2);
+      n = NULL;
     if(r) {
       r->next = n;
-      n->prev = r;
+      if(n) n->prev = r;
     }
     else {
       ctx->res.output_raw = n;
