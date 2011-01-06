@@ -509,10 +509,16 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
         break;
       }
       else {
-        noitL(nldeb, "%s.\n", dns_dntosp(dn));
-        noitL(nldeb, " CNAME %s.\n", dns_dntosp(p.dnsp_dnbuf));
+        int32_t on = 1;
+        /* This actually updates what we're looking for */
+        dns_dntodn(p.dnsp_dnbuf, ci->dn, sizeof(dn));
+        noit_stats_set_metric(&ci->current, "cname", METRIC_INT32, &on);
+
+        /* Now follow the leader */
+        noitL(nldeb, "%s. CNAME %s.\n", dns_dntosp(dn),
+              dns_dntosp(p.dnsp_dnbuf));
         dns_dntodn(p.dnsp_dnbuf, dn, sizeof(dn));
-        noitL(nldeb, " ---> '%s'\n", dn);
+        noitL(nldeb, " ---> '%s'\n", dns_dntosp(dn));
       }
     }
   }
