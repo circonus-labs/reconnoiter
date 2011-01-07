@@ -32,6 +32,7 @@
 
 #include "noit_defines.h"
 #include "noit_check_tools.h"
+#include "noit_check_tools_shared.h"
 #include "utils/noit_str.h"
 
 #include <assert.h>
@@ -41,101 +42,6 @@ typedef struct {
   noit_check_t *check;
   dispatch_func_t dispatch;
 } recur_closure_t;
-
-static noit_hash_table interpolation_operators = NOIT_HASH_EMPTY;
-
-static int
-interpolate_oper_copy(char *buff, int len, const char *replacement) {
-  strlcpy(buff, replacement, len);
-  return strlen(buff);
-}
-static int
-interpolate_oper_ccns(char *buff, int len, const char *replacement) {
-  char *start;
-  start = strstr(replacement, "::");
-  return interpolate_oper_copy(buff, len, start ? (start + 2) : replacement);
-}
-
-int
-noit_check_interpolate_register_oper_fn(const char *name,
-                                        intperpolate_oper_fn f) {
-  noit_hash_replace(&interpolation_operators,
-                    strdup(name), strlen(name),
-                    (void *)f,
-                    free, NULL);
-  return 0;
-}
-
-int
-noit_check_interpolate(char *buff, int len, const char *fmt,
-                       noit_hash_table *attrs,
-                       noit_hash_table *config) {
-  char *copy = NULL;
-  char closer;
-  const char *fmte, *key;
-  int replaced_something = 1;
-  int iterations = 3;
-
-  while(replaced_something && iterations > 0) {
-    char *cp = buff, * const end = buff + len;
-    iterations--;
-    replaced_something = 0;
-    while(*fmt && cp < end) {
-      switch(*fmt) {
-        case '%':
-          if(fmt[1] == '{' || fmt[1] == '[') {
-            closer = (fmt[1] == '{') ? '}' : ']';
-            fmte = fmt + 2;
-            key = fmte;
-            while(*fmte && *fmte != closer) fmte++;
-            if(*fmte == closer) {
-              /* We have a full key here */
-              const char *replacement, *oper, *nkey;
-              intperpolate_oper_fn oper_sprint;
-
-              /* keys can be of the form: :operator:key */
-              oper = key;
-              if(*oper == ':' &&
-                 (nkey = strnstrn(":", 1, oper + 1, fmte - key - 1)) != NULL) {
-                void *voper;
-                oper++;
-                /* find oper, nkey-oper */
-                if(!noit_hash_retrieve(&interpolation_operators,
-                                       oper, nkey - oper,
-                                       &voper)) {
-                  /* else oper <- copy */
-                  oper_sprint = interpolate_oper_copy;
-                }
-                else
-                  oper_sprint = (intperpolate_oper_fn)voper;
-                nkey++;
-              }
-              else {
-                oper_sprint = interpolate_oper_copy;
-                nkey = key;
-              }
-              if(!noit_hash_retr_str((closer == '}') ?  config : attrs,
-                                     nkey, fmte - nkey, &replacement))
-                replacement = "";
-              fmt = fmte + 1; /* Format points just after the end of the key */
-              cp += oper_sprint(cp, end-cp, replacement);
-              *(end-1) = '\0'; /* In case the oper_sprint didn't teminate */
-              replaced_something = 1;
-              break;
-            }
-          }
-        default:
-          *cp++ = *fmt++;
-      }
-    }
-    *cp = '\0';
-    if(copy) free(copy);
-    if(replaced_something)
-      copy = strdup(buff);
-    fmt = copy;
-  }
-  return strlen(buff);
-}
 
 static int
 noit_check_recur_handler(eventer_t e, int mask, void *closure,
@@ -207,66 +113,8 @@ noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
 }
 
 void
-noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs) {
-#define CA_STORE(a,b) noit_hash_store(attrs, a, strlen(a), b)
-  CA_STORE("target", check->target);
-  CA_STORE("name", check->name);
-  CA_STORE("module", check->module);
-}
-void
-noit_check_release_attrs(noit_hash_table *attrs) {
-  noit_hash_destroy(attrs, NULL, NULL);
-}
-
-void
-noit_check_extended_id_split(const char *in, int len,
-                             char *target, int target_len,
-                             char *module, int module_len,
-                             char *name, int name_len,
-                             char *uuid, int uuid_len) {
-  if(target) *target = '\0';
-  if(module) *module = '\0';
-  if(name) *name = '\0';
-  if(uuid) *uuid = '\0';
-  if(len >= UUID_STR_LEN) {
-    memcpy(uuid, in + len - UUID_STR_LEN, UUID_STR_LEN);
-    uuid[UUID_STR_LEN] = '\0';
-  }
-  if(len > UUID_STR_LEN) {
-    const char *tcp = in;
-    const char *mcp, *ncp, *ucp;
-    /* find the end of the target */
-    mcp = strchr(tcp,'`');
-    if(!mcp) return;
-    /* copy in the target */
-    if(target_len > mcp-tcp) {
-      memcpy(target,tcp,mcp-tcp);
-      target[mcp-tcp] = '\0';
-    }
-    mcp++;
-    ncp = strchr(mcp,'`');
-    if(!ncp) return;
-    /* copy in the module */
-    if(module_len > ncp-mcp) {
-      memcpy(module,mcp,ncp-mcp);
-      module[ncp-mcp] = '\0';
-    }
-    ncp++;
-    /* copy in the name */
-    ucp = in + len - UUID_STR_LEN - 1;
-    if(ncp < ucp) {
-      if(name_len > ucp-ncp) {
-        memcpy(name, ncp, ucp-ncp);
-        name[ucp-ncp] = '\0';
-      }
-    }
-  }
-}
-
-void
 noit_check_tools_init() {
-  noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
-  noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
+  noit_check_tools_shared_init();
   eventer_name_callback("noit_check_recur_handler", noit_check_recur_handler);
 }
 
