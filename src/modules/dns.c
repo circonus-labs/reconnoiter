@@ -219,11 +219,28 @@ static void dns_check_log_results(struct dns_check_info *ci) {
 
 static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *ip) {
   const char *b, *e;
-  char *o = buff;
+  char *o;
+  unsigned char dn[DNS_MAXDN];
   int il;
+  struct {
+    struct in_addr addr;
+    struct in6_addr addr6;
+  } a;
   /* This function takes a dot delimited string as input and
    * reverses the parts split on dot.
    */
+  if (dns_pton(AF_INET, ip, &a.addr) > 0) {
+    dns_a4todn(&a.addr, 0, dn, sizeof(dn));
+    dns_dntop(dn,buff,len);
+    return strlen(buff);
+  }
+  else if (dns_pton(AF_INET6, ip, &a.addr6) > 0) {
+    dns_a6todn(&a.addr6, 0, dn, sizeof(dn));
+    dns_dntop(dn,buff,len);
+    return strlen(buff);
+  }
+
+  o = buff;
   il = strlen(ip);
   if(len <= il) {
     /* not enough room for ip and '\0' */
@@ -246,6 +263,18 @@ static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *ip) {
   assert((o - buff) == il);
   return o - buff;
 }
+static int dns_interpolate_reverse_ip(char *buff, int len, const char *ip) {
+#define IN4ADDRARPA_LEN 13 // strlen(".in-addr.arpa");
+#define IN6ADDRARPA_LEN 9 // strlen(".ip6.arpa");
+  dns_interpolate_inaddr_arpa(buff,len,ip);
+  if(len > IN4ADDRARPA_LEN &&
+     !strcmp(buff+len-IN4ADDRARPA_LEN, ".in-addr.arpa"))
+    buff[len-IN4ADDRARPA_LEN] = '\0';
+  else if((len > IN6ADDRARPA_LEN) &&
+          !strcmp(buff+len-IN6ADDRARPA_LEN, ".ip6.arpa"))
+    buff[len-IN6ADDRARPA_LEN] = '\0';
+  return strlen(buff);
+}
 
 static int dns_module_init(noit_module_t *self) {
   const struct dns_nameval *nv;
@@ -266,6 +295,8 @@ static int dns_module_init(noit_module_t *self) {
 
   noit_check_interpolate_register_oper_fn("inaddrarpa",
                                           dns_interpolate_inaddr_arpa);
+  noit_check_interpolate_register_oper_fn("reverseip",
+                                          dns_interpolate_reverse_ip);
 
   if (dns_init(NULL, 0) < 0 || (pctx = dns_new(NULL)) == NULL) {
     noitL(nlerr, "Unable to initialize dns subsystem\n");
@@ -594,11 +625,11 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
     /* in-addr.arpa defaults:
      *   nameserver to NULL
      *   rtype to PTR
-     *   query to %[:inaddrarpa:target].in-addr.arpa
+     *   query to %[:inaddrarpa:target]
      */
     nameserver = NULL;
     rtype = "PTR";
-    query = "%[:inaddrarpa:target].in-addr.arpa";
+    query = "%[:inaddrarpa:target]";
   }
   else {
     nameserver = "%[target]";

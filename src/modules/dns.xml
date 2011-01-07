@@ -21,7 +21,7 @@
                allowed="(A|AAAA|TXT|MX|SOA|CNAME|PTR|NS|MB|MD|MF|MG|MR)">The DNS resource record type of the query.  If the name of the check is in-addr.arpa, the default is PTR, otherwise it is A.</parameter>
     <parameter name="query"
                required="required"
-               default="%[name]|%[:inaddrarpa:target].in-addr.arpa"
+               default="%[name]|%[:inaddrarpa:target]"
                allowed=".+">The query to send.  If the name of the check is in-addr.arpa, the reverse IP octet notation of in-addr.arpa syntax is synthesized by default.  Otherwise the default query is the name of the check itself.</parameter>
     <parameter name="want_sort"
                required="optional"
