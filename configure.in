@@ -100,7 +100,7 @@ case $host in
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	LDFLAGS="$LDFLAGS -export-dynamic -L/usr/local/lib"
-	CFLAGS="$CFLAGS -I/usr/local/include"
+	CFLAGS="$CFLAGS -DCOMPAT_43TTY -I/usr/local/include"
 	MODULEEXT=so
 	RLDFLAG="-Wl,--rpath="
 	;;
