@@ -93,7 +93,7 @@ local HttpClient = require 'noit.HttpClient'
 
 
 function initiate(module, check)
-  local host = check.config.host or check.target
+  local host = check.config.host or check.target or check.target_ip
   local port = check.config.port or 80
   local uri  = check.config.uri or "/admin?stats;csv"
 
@@ -126,7 +126,7 @@ function initiate(module, check)
   end
 
   local client = HttpClient:new(callbacks)
-  local rv, err = client:connect(check.target, port, false)
+  local rv, err = client:connect(check.target_ip, port, false)
  
   if rv ~= 0 then error(err or "unknown error") end
 

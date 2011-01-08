@@ -341,7 +341,7 @@ function initiate(module, check)
            check.config.auth_method == "Auto" then
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
-        local rv, err = client:connect(check.target, port, use_ssl)
+        local rv, err = client:connect(check.target_ip, port, use_ssl)
         if rv ~= 0 then
             check.status(str or "unknown error")
             return
@@ -380,7 +380,7 @@ function initiate(module, check)
     -- perform the request
     local client
     local dns = noit.dns()
-    local target = check.target
+    local target = check.target_ip
     local payload = check.config.payload
     -- artificially increase redirects as the initial request counts
     redirects = redirects + 1

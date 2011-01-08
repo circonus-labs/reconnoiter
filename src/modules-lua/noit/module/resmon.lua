@@ -211,7 +211,7 @@ function initiate(module, check)
     callbacks.consume = function (str) output = output .. str end
     callbacks.headers = function (t) hdrs_in = t end
     local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target, port, use_ssl)
+    local rv, err = client:connect(check.target_ip, port, use_ssl)
    
     if rv ~= 0 then
         check.status(err or "unknown error")

@@ -66,6 +66,8 @@
 #define NP_DISABLED  0x00000004
 #define NP_UNCONFIG  0x00000008
 #define NP_TRANSIENT 0x00000010
+#define NP_RESOLVE   0x00000020
+#define NP_RESOLVED  0x00000040
 
 #define NP_UNKNOWN '0'             /* stats_t.{available,state} */
 #define NP_AVAILABLE 'A'           /* stats_t.available */
@@ -139,6 +141,7 @@ typedef struct noit_check {
   void *closure;
 
   noit_skiplist *feeds;
+  char target_ip[INET6_ADDRSTRLEN];
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -146,6 +149,9 @@ typedef struct noit_check {
 #define NOIT_CHECK_CONFIGURED(a) (((a)->flags & NP_UNCONFIG) == 0)
 #define NOIT_CHECK_RUNNING(a) ((a)->flags & NP_RUNNING)
 #define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
+#define NOIT_CHECK_SHOULD_RESOLVE(a) ((a)->flags & NP_RESOLVE)
+/* It is resolved if it is resolved or never needed to be resolved */
+#define NOIT_CHECK_RESOLVED(a) (((a)->flags & NP_RESOLVED) || (((a)->flags & NP_RESOLVE) == 0))
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(u_int64_t) noit_check_completion_count();
@@ -172,6 +178,9 @@ API_EXPORT(int)
                        int flags,
                        uuid_t in,
                        uuid_t out);
+
+API_EXPORT(int)
+  noit_check_resolve(noit_check_t *check);
 
 API_EXPORT(int)
   noit_check_update(noit_check_t *new_check,

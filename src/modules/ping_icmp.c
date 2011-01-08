@@ -107,7 +107,7 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
   for(i=0; i<data->expected_count; i++)
     if(data->turnaround[i] < 0.0) {
       noitL(nldeb, "ping_icmp: %s %d is still outstanding.\n",
-            check->target, i);
+            check->target_ip, i);
       return 0;
     }
   return 1;
@@ -148,7 +148,7 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   snprintf(human_buffer, sizeof(human_buffer),
            "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
            (int)cnt, 100.0*avail, min, max, avg);
-  noitL(nldeb, "ping_icmp(%s) [%s]\n", check->target, human_buffer);
+  noitL(nldeb, "ping_icmp(%s) [%s]\n", check->target_ip, human_buffer);
 
   gettimeofday(&current.whence, NULL);
   sub_timeval(current.whence, check->last_fire_time, &duration);
@@ -391,13 +391,16 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   payload = (struct ping_payload *)(icp + 1);
   k.addr_of_check = payload->addr_of_check;
   uuid_copy(k.checkid, payload->checkid);
+
+  if(pcl->check->target_ip[0] == '\0') goto cleanup;
+
   if(!noit_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
                          &vcheck)) {
     noitLT(nldeb, now, "ping check no longer active, bailing\n");
     goto cleanup;
   }
 
-  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target);
+  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target_ip);
   gettimeofday(&payload->whence, NULL); /* now isn't accurate enough */
   icp->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
   if(pcl->check->target_family == AF_INET) {
@@ -410,7 +413,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
                pcl->payload, pcl->payload_len, 0,
                (struct sockaddr *)&sin, sizeof(sin));
   }
-  else {
+  else if(pcl->check->target_family == AF_INET6) {
     struct sockaddr_in6 sin;
     memset(&sin, 0, sizeof(sin));
     sin.sin6_family = AF_INET6;
@@ -421,8 +424,8 @@ static int ping_icmp_real_send(eventer_t e, int mask,
                (struct sockaddr *)&sin, sizeof(sin));
   }
   if(i != pcl->payload_len) {
-    noitLT(nlerr, now, "Error sending ICMP packet to %s: %s\n",
-             pcl->check->target, strerror(errno));
+    noitLT(nlerr, now, "Error sending ICMP packet to %s(%s): %s\n",
+             pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
   free(pcl->payload);
@@ -473,7 +476,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     free(k);
   }
   noitL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
-        self, check->target, interval, count);
+        self, check->target_ip, interval, count);
 
   /* remove a timeout if we still have one -- we should unless someone
    * has set a lower timeout than the period.

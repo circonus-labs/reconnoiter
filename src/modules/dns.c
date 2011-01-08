@@ -629,10 +629,10 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check) {
      */
     nameserver = NULL;
     rtype = "PTR";
-    query = "%[:inaddrarpa:target]";
+    query = "%[:inaddrarpa:target_ip]";
   }
   else {
-    nameserver = "%[target]";
+    nameserver = "%[target_ip]";
     rtype = "A";
     query = "%[name]";
   }

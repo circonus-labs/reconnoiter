@@ -82,7 +82,7 @@ function initiate(module, check)
 
   -- connect to the memcache instance
   local e = noit.socket()
-  local rv, err = e:connect(check.target, check.config.port or 11211)
+  local rv, err = e:connect(check.target_ip, check.config.port or 11211)
 
   -- issue the stats command and read everything until the END keyword
   e:write("stats\r\n")

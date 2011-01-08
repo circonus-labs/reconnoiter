@@ -100,6 +100,9 @@ function constructXml(check)
   local doc = noit.parsexml("<check/>")
   local root = doc:root()
   root:attr("target", check.target)
+  if(check.target_ip ~= nil) then
+    root:attr("target_ip", check.target_ip)
+  end
   root:attr("module", check.module)
   root:attr("name", check.name)
   root:attr("period", check.period)

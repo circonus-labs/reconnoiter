@@ -150,7 +150,7 @@ end
 function initiate(module, check)
   local starttime = noit.timeval.now()
   local e = noit.socket()
-  local rv, err = e:connect(check.target, check.config.port or 25)
+  local rv, err = e:connect(check.target_ip, check.config.port or 25)
   check.unavailable()
 
   if rv ~= 0 then

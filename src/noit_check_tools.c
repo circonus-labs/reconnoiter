@@ -50,7 +50,12 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
                            rcl->dispatch);
-  rcl->dispatch(rcl->self, rcl->check);
+  noit_check_resolve(rcl->check);
+  if(NOIT_CHECK_RESOLVED(rcl->check))
+    rcl->dispatch(rcl->self, rcl->check);
+  else
+    noitL(noit_debug, "skipping %s`%s`%s, unresolved\n",
+          rcl->check->target, rcl->check->module, rcl->check->name);
   free(rcl);
   return 0;
 }
@@ -74,8 +79,19 @@ noit_check_schedule_next(noit_module_t *self,
     memcpy(&earliest, now, sizeof(earliest));
   else
     gettimeofday(&earliest, NULL);
-  period.tv_sec = check->period / 1000;
-  period.tv_usec = (check->period % 1000) * 1000;
+
+  /* If the check is unconfigured and needs resolving, we'll set the
+   * period down a bit lower so we can pick up the resolution quickly.
+   */
+  if(!NOIT_CHECK_RESOLVED(check) && NOIT_CHECK_SHOULD_RESOLVE(check) &&
+      check->period > 1000) {
+    period.tv_sec = 1;
+    period.tv_usec = 0;
+  }
+  else {
+    period.tv_sec = check->period / 1000;
+    period.tv_usec = (check->period % 1000) * 1000;
+  }
 
   newe = eventer_alloc();
   memcpy(&newe->whence, last_check, sizeof(*last_check));

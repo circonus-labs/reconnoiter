@@ -306,6 +306,10 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
   gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
+  if(check->target_ip[0] == '\0') {
+    ci->error = strdup("name resolution failure");
+    goto fail;
+  }
   /* Open a socket */
   fd = socket(check->target_family, SOCK_STREAM, 0);
   if(fd < 0) goto fail;

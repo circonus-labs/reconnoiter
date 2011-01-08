@@ -71,6 +71,7 @@ noit_check_state_as_xml(noit_check_t *check) {
   NODE_CONTENT(state, "configured",
                NOIT_CHECK_CONFIGURED(check)?"true":"false");
   NODE_CONTENT(state, "disabled", NOIT_CHECK_DISABLED(check)?"true":"false");
+  NODE_CONTENT(state, "target_ip", check->target_ip);
   xmlAddChild(state, (tmp = xmlNewNode(NULL, (xmlChar *)"last_run")));
   if(check->stats.current.whence.tv_sec) {
     struct timeval f = check->stats.current.whence;
@@ -267,12 +268,19 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
         }
         else CHECK_N_SET(module) module = 1; /* This is validated by called */
         else CHECK_N_SET(target) {
+          noit_boolean should_resolve;
           int valid;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
           valid = noit_check_is_valid_target((char *)tmp);
           xmlFree(tmp);
-          if(!valid) { *error = "invalid target"; return 0; }
+          if(noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
+                                   &should_resolve) &&
+             should_resolve == noit_false &&
+             !valid) {
+            *error = "invalid target";
+            return 0;
+          }
           target = 1;
         }
         else CHECK_N_SET(period) {

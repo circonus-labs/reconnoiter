@@ -135,7 +135,7 @@ function initiate(module, check)
   end
 
   local e = noit.socket()
-  local rv, err = e:connect(check.target, check.config.port)
+  local rv, err = e:connect(check.target_ip, check.config.port)
 
   if rv ~= 0 then
     check.status(err or "connect error")

@@ -893,7 +893,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
                         &portstr)) {
     port = atoi(portstr);
   }
-  snprintf(target_port, sizeof(target_port), "%s:%d", check->target, port);
+  snprintf(target_port, sizeof(target_port), "%s:%d", check->target_ip, port);
   ts = _get_target_session(self, target_port);
   gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {

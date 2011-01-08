@@ -56,7 +56,7 @@ public abstract class JDBC implements JezebelCheck {
     String port = config.remove("port");
     if(port == null) port = defaultPort();
     String sql = config.remove("sql");
-    String url = jdbcConnectUrl(check.get("target"), port, database);
+    String url = jdbcConnectUrl(check.get("target_ip"), port, database);
     Properties props = new Properties();
     props.setProperty("user", username == null ? "" : username);
     props.setProperty("password", password == null ? "" : password);

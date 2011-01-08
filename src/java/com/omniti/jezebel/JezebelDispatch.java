@@ -142,6 +142,8 @@ public class JezebelDispatch extends HttpServlet {
       o.put("module", root.getAttribute("module"));
       o.put("name", root.getAttribute("name"));
       o.put("target", root.getAttribute("target"));
+      String target_ip = root.getAttribute("target_ip");
+      if(target_ip != null) o.put("target_ip", target_ip);
       o.put("timeout", root.getAttribute("timeout"));
       o.put("period", root.getAttribute("period"));
       return o;

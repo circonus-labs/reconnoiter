@@ -60,7 +60,7 @@ public class jmx implements JezebelCheck {
                         Map<String,String> config,
                         ResmonResult rr) 
     {
-        final String host = check.remove("target");
+        final String host = check.remove("target_ip");
         final String port = config.remove("port");
         final String username = config.remove("username");
         final String password = config.remove("password");

@@ -48,6 +48,7 @@
 #include "noit_module.h"
 #include "noit_console.h"
 #include "noit_check_tools.h"
+#include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
 /* 60 seconds of possible stutter */
@@ -373,6 +374,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
+  noit_check_resolver_init();
   noit_check_tools_init();
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
@@ -542,6 +544,55 @@ noit_check_is_valid_target(const char *target) {
   return noit_true;
 }
 int
+noit_check_set_ip(noit_check_t *new_check,
+                  const char *ip_str) {
+  int8_t family;
+  int rv, failed = 0;
+  union {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+  } a;
+
+
+  family = AF_INET;
+  rv = inet_pton(family, ip_str, &a);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, ip_str, &a);
+    if(rv != 1) {
+      family = AF_INET;
+      noitL(noit_error, "Cannot translate '%s' to IP\n", ip_str);
+      memset(&a, 0, sizeof(a));
+      failed = -1;
+    }
+  }
+
+  new_check->target_family = family;
+  memcpy(&new_check->target_addr, &a, sizeof(a));
+  new_check->target_ip[0] = '\0';
+  if(failed == 0)
+    inet_ntop(new_check->target_family,
+              &new_check->target_addr,
+              new_check->target_ip,
+              sizeof(new_check->target_ip));
+  return failed;
+}
+int
+noit_check_resolve(noit_check_t *check) {
+  uint8_t family_pref = AF_INET;
+  char ipaddr[INET6_ADDRSTRLEN];
+  if(!NOIT_CHECK_SHOULD_RESOLVE(check)) return 1; /* success, not required */
+  noit_check_resolver_remind(check->target);
+  if(noit_check_resolver_fetch(check->target, ipaddr, sizeof(ipaddr),
+                               family_pref) >= 0) {
+    check->flags |= NP_RESOLVED;
+    noit_check_set_ip(check, ipaddr);
+    return 0;
+  }
+  check->flags &= ~NP_RESOLVED;
+  return -1;
+}
+int
 noit_check_update(noit_check_t *new_check,
                   const char *target,
                   const char *name,
@@ -551,32 +602,23 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t timeout,
                   const char *oncheck,
                   int flags) {
-  int8_t family;
-  int rv;
   int mask = NP_DISABLED | NP_UNCONFIG;
-  union {
-    struct in_addr addr4;
-    struct in6_addr addr6;
-  } a;
-
-
-  family = AF_INET;
-  rv = inet_pton(family, target, &a);
-  if(rv != 1) {
-    family = AF_INET6;
-    rv = inet_pton(family, target, &a);
-    if(rv != 1) {
-      noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
-      memset(&a, 0, sizeof(a));
-      flags |= (NP_UNCONFIG | NP_DISABLED);
-    }
-  }
 
   new_check->generation = __config_load_generation;
-  new_check->target_family = family;
-  memcpy(&new_check->target_addr, &a, sizeof(a));
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
+
+  if(noit_check_set_ip(new_check, target)) {
+    noit_boolean should_resolve;
+    new_check->flags |= NP_RESOLVE;
+    new_check->flags &= ~NP_RESOLVED;
+    if(noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
+                             &should_resolve) && should_resolve == noit_false)
+      
+      flags |= NP_DISABLED | NP_UNCONFIG;
+    noit_check_resolve(new_check);
+  }
+
   if(new_check->name) free(new_check->name);
   new_check->name = name ? strdup(name): NULL;
   if(new_check->filterset) free(new_check->filterset);

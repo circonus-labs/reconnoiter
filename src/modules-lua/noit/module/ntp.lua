@@ -161,7 +161,7 @@ function initiate(module, check)
     check.unavailable()
     check.bad()
 
-    s:connect(check.target, 123)
+    s:connect(check.target_ip, 123)
     status.responses = 0
     status.avg_offset = 0
     status.offset = { }
