@@ -61,10 +61,10 @@
 #define PING_COUNT    5
 
 struct check_info {
-  int check_no;
-  int check_seq_no;
-  int seq;
-  int32_t expected_count;
+  u_int16_t check_no;
+  u_int8_t check_seq_no;
+  u_int8_t seq;
+  int8_t expected_count;
   float *turnaround;
   eventer_t timeout_event;
 };
@@ -75,12 +75,15 @@ struct ping_session_key {
 struct ping_payload {
   void  *addr_of_check; /* ticket #288 */
   uuid_t checkid;
-  u_int32_t generation;    
-  struct timeval whence;
-  int    check_no;
-  int    check_pack_no;
-  int    check_pack_cnt;
+  u_int64_t tv_sec;
+  u_int32_t tv_usec;
+  u_int16_t generation;    
+  u_int16_t check_no;
+  u_int8_t  check_pack_no;
+  u_int8_t  check_pack_cnt;
+  u_int8_t  size_bookend;
 };
+#define PING_PAYLOAD_LEN offsetof(struct ping_payload, size_bookend)
 struct ping_closure {
   noit_module_t *self;
   noit_check_t *check;
@@ -211,7 +214,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     int inlen, iphlen;
     void *vcheck;
     noit_check_t *check;
-    struct timeval tt;
+    struct timeval tt, whence;
 
     from_len = sizeof(from);
 
@@ -221,11 +224,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
     if(inlen < 0) {
       if(errno == EAGAIN || errno == EINTR) break;
-      noitLT(nlerr, now, "ping_icmp recvfrom: %s\n", strerror(errno));
+      noitLT(nldeb, now, "ping_icmp recvfrom: %s\n", strerror(errno));
       break;
     }
     iphlen = ip->ip_hl << 2;
-    if((inlen-iphlen) != (sizeof(struct icmp)+sizeof(struct ping_payload))) {
+    if((inlen-iphlen) != (sizeof(struct icmp)+PING_PAYLOAD_LEN)) {
       noitLT(nldeb, now,
              "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
       continue;
@@ -233,10 +236,11 @@ static int ping_icmp_handler(eventer_t e, int mask,
     icp = (struct icmp *)(packet + iphlen);
     payload = (struct ping_payload *)(icp + 1);
     if(icp->icmp_type != ICMP_ECHOREPLY) {
+      noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp->icmp_type);
       continue;
     }
     if(icp->icmp_id != (((vpsized_uint)self) & 0xffff)) {
-      noitLT(nlerr, now,
+      noitLT(nldeb, now,
                "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                icp->icmp_id, ntohs(icp->icmp_seq),
                (unsigned long)(((vpsized_uint)self) & 0xffff));
@@ -258,7 +262,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
              "ping_icmp response for unknown check '%s'\n", uuid_str);
       continue;
     }
-    if(check->generation != payload->generation) {
+    if((check->generation & 0xffff) != payload->generation) {
       noitLT(nldeb, now,
              "ping_icmp response in generation gap\n");
       continue;
@@ -275,7 +279,9 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(payload->check_pack_no < 0 ||
        payload->check_pack_no >= data->expected_count) continue;
 
-    sub_timeval(*now, payload->whence, &tt);
+    whence.tv_sec = payload->tv_sec;
+    whence.tv_usec = payload->tv_usec;
+    sub_timeval(*now, whence, &tt);
     data->turnaround[payload->check_pack_no] =
       (float)tt.tv_sec + (float)tt.tv_usec / 1000000.0;
     if(ping_icmp_is_complete(self, check)) {
@@ -382,6 +388,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   struct ping_session_key k;
   struct icmp *icp;
   struct ping_payload *payload;
+  struct timeval whence;
   ping_icmp_data_t *data;
   void *vcheck;
   int i;
@@ -401,7 +408,9 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   }
 
   noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target_ip);
-  gettimeofday(&payload->whence, NULL); /* now isn't accurate enough */
+  gettimeofday(&whence, NULL); /* now isn't accurate enough */
+  payload->tv_sec = whence.tv_sec;
+  payload->tv_usec = whence.tv_usec;
   icp->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
   if(pcl->check->target_family == AF_INET) {
     struct sockaddr_in sin;
@@ -494,7 +503,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   /* Setup some stuff used in the loop */
   p_int.tv_sec = interval / 1000;
   p_int.tv_usec = (interval % 1000) * 1000;
-  packet_len = sizeof(*icp) + sizeof(*payload);
+  packet_len = sizeof(*icp) + PING_PAYLOAD_LEN;
 
   /* Prep holding spots for return info */
   ci->expected_count = count;
@@ -523,7 +532,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
 
     payload->addr_of_check = check;
     uuid_copy(payload->checkid, check->checkid);
-    payload->generation = check->generation;
+    payload->generation = check->generation & 0xffff;
     payload->check_no = ci->check_no;
     payload->check_pack_no = i;
     payload->check_pack_cnt = count;
