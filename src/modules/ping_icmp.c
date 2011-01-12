@@ -46,6 +46,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
 #include <math.h>
 #ifndef MAXFLOAT
 #include <float.h>
@@ -89,6 +91,7 @@ struct ping_closure {
   noit_check_t *check;
   void *payload;
   int payload_len;
+  int icp_len;
 };
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
@@ -192,8 +195,10 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   free(pcl);
   return 0;
 }
+
 static int ping_icmp_handler(eventer_t e, int mask,
-                             void *closure, struct timeval *now) {
+                             void *closure, struct timeval *now,
+                             u_int8_t family) {
   noit_module_t *self = (noit_module_t *)closure;
   ping_icmp_data_t *ping_data;
   struct check_info *data;
@@ -204,14 +209,15 @@ static int ping_icmp_handler(eventer_t e, int mask,
    struct sockaddr_in6 in6;
   } from;
   unsigned int from_len;
-  struct ip *ip = (struct ip *)packet;
-  struct icmp *icp;
   struct ping_payload *payload;
+
+  if(family != AF_INET && family != AF_INET6) return EVENTER_READ;
 
   ping_data = noit_module_get_userdata(self);
   while(1) {
     struct ping_session_key k;
-    int inlen, iphlen;
+    int inlen;
+    u_int8_t iphlen = 0;
     void *vcheck;
     noit_check_t *check;
     struct timeval tt, whence;
@@ -227,23 +233,52 @@ static int ping_icmp_handler(eventer_t e, int mask,
       noitLT(nldeb, now, "ping_icmp recvfrom: %s\n", strerror(errno));
       break;
     }
-    iphlen = ip->ip_hl << 2;
-    if((inlen-iphlen) != (sizeof(struct icmp)+PING_PAYLOAD_LEN)) {
-      noitLT(nldeb, now,
-             "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
-      continue;
+
+    if(family == AF_INET) {
+      struct ip *ip = (struct ip *)packet;
+      struct icmp *icp4;
+      iphlen = ((struct ip *)packet)->ip_hl << 2;
+      if((inlen-iphlen) != sizeof(struct icmp)+PING_PAYLOAD_LEN) {
+        noitLT(nldeb, now,
+               "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
+        continue;
+      }
+      icp4 = (struct icmp *)(packet + iphlen);
+      payload = (struct ping_payload *)(icp4 + 1);
+      if(icp4->icmp_type != ICMP_ECHOREPLY) {
+        noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
+        continue;
+      }
+      if(icp4->icmp_id != (((vpsized_uint)self) & 0xffff)) {
+        noitLT(nldeb, now,
+                 "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
+                 icp4->icmp_id, ntohs(icp4->icmp_seq),
+                 (unsigned long)(((vpsized_uint)self) & 0xffff));
+        continue;
+      }
     }
-    icp = (struct icmp *)(packet + iphlen);
-    payload = (struct ping_payload *)(icp + 1);
-    if(icp->icmp_type != ICMP_ECHOREPLY) {
-      noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp->icmp_type);
-      continue;
+    else if(family == AF_INET6) {
+      struct icmp6_hdr *icp6 = (struct icmp6_hdr *)packet;
+      if((inlen) != sizeof(struct icmp6_hdr)+PING_PAYLOAD_LEN) {
+        noitLT(nldeb, now,
+               "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
+        continue;
+      }
+      payload = (struct ping_payload *)(icp6+1);
+      if(icp6->icmp6_type != ICMP6_ECHO_REPLY) {
+        noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
+        continue;
+      }
+      if(icp6->icmp6_id != (((vpsized_uint)self) & 0xffff)) {
+        noitLT(nldeb, now,
+                 "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
+                 icp6->icmp6_id, ntohs(icp6->icmp6_seq),
+                 (unsigned long)(((vpsized_uint)self) & 0xffff));
+        continue;
+      }
     }
-    if(icp->icmp_id != (((vpsized_uint)self) & 0xffff)) {
-      noitLT(nldeb, now,
-               "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
-               icp->icmp_id, ntohs(icp->icmp_seq),
-               (unsigned long)(((vpsized_uint)self) & 0xffff));
+    else {
+      /* This should be unreachable */
       continue;
     }
     check = NULL;
@@ -299,6 +334,14 @@ static int ping_icmp_handler(eventer_t e, int mask,
   }
   return EVENTER_READ;
 }
+static int ping_icmp4_handler(eventer_t e, int mask,
+                              void *closure, struct timeval *now) {
+  return ping_icmp_handler(e, mask, closure, now, AF_INET);
+}
+static int ping_icmp6_handler(eventer_t e, int mask,
+                              void *closure, struct timeval *now) {
+  return ping_icmp_handler(e, mask, closure, now, AF_INET6);
+}
 
 static int ping_icmp_init(noit_module_t *self) {
   socklen_t on;
@@ -349,34 +392,38 @@ static int ping_icmp_init(noit_module_t *self) {
     newe = eventer_alloc();
     newe->fd = data->ipv4_fd;
     newe->mask = EVENTER_READ;
-    newe->callback = ping_icmp_handler;
+    newe->callback = ping_icmp4_handler;
     newe->closure = self;
     eventer_add(newe);
   }
 
-  data->ipv6_fd = socket(AF_INET6, SOCK_RAW, proto->p_proto);
-  if(data->ipv6_fd < 0) {
-    noitL(noit_error, "ping_icmp: socket failed: %s\n",
-          strerror(errno));
-  }
-  else {
-    if(eventer_set_fd_nonblocking(data->ipv6_fd)) {
-      close(data->ipv6_fd);
-      data->ipv6_fd = -1;
-      noitL(noit_error,
-            "ping_icmp: could not set socket non-blocking: %s\n",
-               strerror(errno));
+  if ((proto = getprotobyname("ipv6-icmp")) != NULL) {
+    data->ipv6_fd = socket(AF_INET6, SOCK_RAW, proto->p_proto);
+    if(data->ipv6_fd < 0) {
+      noitL(noit_error, "ping_icmp: socket failed: %s\n",
+            strerror(errno));
+    }
+    else {
+      if(eventer_set_fd_nonblocking(data->ipv6_fd)) {
+        close(data->ipv6_fd);
+        data->ipv6_fd = -1;
+        noitL(noit_error,
+              "ping_icmp: could not set socket non-blocking: %s\n",
+                 strerror(errno));
+      }
+    }
+    if(data->ipv6_fd >= 0) {
+      eventer_t newe;
+      newe = eventer_alloc();
+      newe->fd = data->ipv6_fd;
+      newe->mask = EVENTER_READ;
+      newe->callback = ping_icmp6_handler;
+      newe->closure = self;
+      eventer_add(newe);
     }
   }
-  if(data->ipv6_fd >= 0) {
-    eventer_t newe;
-    newe = eventer_alloc();
-    newe->fd = data->ipv6_fd;
-    newe->mask = EVENTER_READ;
-    newe->callback = ping_icmp_handler;
-    newe->closure = self;
-    eventer_add(newe);
-  }
+  else
+    noitL(noit_error, "Couldn't find 'ipv6-icmp' protocol\n");
 
   noit_module_set_userdata(self, data);
   return 0;
@@ -386,7 +433,6 @@ static int ping_icmp_real_send(eventer_t e, int mask,
                                void *closure, struct timeval *now) {
   struct ping_closure *pcl = (struct ping_closure *)closure;
   struct ping_session_key k;
-  struct icmp *icp;
   struct ping_payload *payload;
   struct timeval whence;
   ping_icmp_data_t *data;
@@ -394,8 +440,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   int i;
 
   data = noit_module_get_userdata(pcl->self);
-  icp = (struct icmp *)pcl->payload;
-  payload = (struct ping_payload *)(icp + 1);
+  payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);
   k.addr_of_check = payload->addr_of_check;
   uuid_copy(k.checkid, payload->checkid);
 
@@ -411,9 +456,10 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   gettimeofday(&whence, NULL); /* now isn't accurate enough */
   payload->tv_sec = whence.tv_sec;
   payload->tv_usec = whence.tv_usec;
-  icp->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
   if(pcl->check->target_family == AF_INET) {
     struct sockaddr_in sin;
+    struct icmp *icp4 = (struct icmp *)pcl->payload;
+    icp4->icmp_cksum = in_cksum(pcl->payload, pcl->payload_len);
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
     memcpy(&sin.sin_addr,
@@ -424,6 +470,8 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   }
   else if(pcl->check->target_family == AF_INET6) {
     struct sockaddr_in6 sin;
+    struct icmp6_hdr *icp6 = (struct icmp6_hdr *)pcl->payload;
+    icp6->icmp6_cksum = in_cksum(pcl->payload, pcl->payload_len);
     memset(&sin, 0, sizeof(sin));
     sin.sin6_family = AF_INET6;
     memcpy(&sin.sin6_addr,
@@ -455,15 +503,15 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
 }
 static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   struct timeval when, p_int;
-  struct icmp *icp;
   struct ping_payload *payload;
   struct ping_closure *pcl;
   struct check_info *ci = (struct check_info *)check->closure;
-  int packet_len, i;
+  int packet_len, icp_len, i;
   eventer_t newe;
   const char *config_val;
   ping_icmp_data_t *ping_data;
   struct ping_session_key *k;
+  void *icp;
 
   int interval = PING_INTERVAL;
   int count = PING_COUNT;
@@ -503,7 +551,9 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
   /* Setup some stuff used in the loop */
   p_int.tv_sec = interval / 1000;
   p_int.tv_usec = (interval % 1000) * 1000;
-  packet_len = sizeof(*icp) + PING_PAYLOAD_LEN;
+  icp_len = (check->target_family == AF_INET6) ?
+              sizeof(struct icmp6_hdr) : sizeof(struct icmp);
+  packet_len = icp_len + PING_PAYLOAD_LEN;
 
   /* Prep holding spots for return info */
   ci->expected_count = count;
@@ -522,13 +572,24 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     add_timeval(when, p_int, &when); /* Next one is a bit later */
 
     icp = calloc(1,packet_len);
-    payload = (struct ping_payload *)(icp + 1);
+    payload = (struct ping_payload *)((char *)icp + icp_len);
 
-    icp->icmp_type = ICMP_ECHO;
-    icp->icmp_code = 0;
-    icp->icmp_cksum = 0;
-    icp->icmp_seq = htons(ci->seq++);
-    icp->icmp_id = (((vpsized_uint)self) & 0xffff);
+    if(check->target_family == AF_INET) {
+      struct icmp *icp4 = icp;
+      icp4->icmp_type = ICMP_ECHO;
+      icp4->icmp_code = 0;
+      icp4->icmp_cksum = 0;
+      icp4->icmp_seq = htons(ci->seq++);
+      icp4->icmp_id = (((vpsized_uint)self) & 0xffff);
+    }
+    else if(check->target_family == AF_INET6) {
+      struct icmp6_hdr *icp6 = icp;
+      icp6->icmp6_type = ICMP6_ECHO_REQUEST;
+      icp6->icmp6_code = 0;
+      icp6->icmp6_cksum = 0;
+      icp6->icmp6_seq = htons(ci->seq++);
+      icp6->icmp6_id = (((vpsized_uint)self) & 0xffff);
+    }
 
     payload->addr_of_check = check;
     uuid_copy(payload->checkid, check->checkid);
@@ -542,6 +603,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
     pcl->check = check;
     pcl->payload = icp;
     pcl->payload_len = packet_len;
+    pcl->icp_len = icp_len;
 
     newe->closure = pcl;
     eventer_add(newe);
@@ -616,7 +678,8 @@ static int ping_icmp_onload(noit_image_t *self) {
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("ping_icmp/timeout", ping_icmp_timeout);
-  eventer_name_callback("ping_icmp/handler", ping_icmp_handler);
+  eventer_name_callback("ping_icmp/handler", ping_icmp4_handler);
+  eventer_name_callback("ping_icmp6/handler", ping_icmp6_handler);
   eventer_name_callback("ping_icmp/send", ping_icmp_real_send);
   return 0;
 }
