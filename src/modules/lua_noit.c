@@ -1091,12 +1091,18 @@ static int
 nl_socket(lua_State *L) {
   int n = lua_gettop(L);
   uint8_t family = AF_INET;
+  union {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+  } a;
 
   if(n > 0 && lua_isstring(L,1)) {
     const char *fam = lua_tostring(L,1);
     if(!strcmp(fam, "inet")) family = AF_INET;
     else if(!strcmp(fam, "inet6")) family = AF_INET6;
-    else luaL_error(L, "noit.socket unknown family %s", fam);
+    else if(inet_pton(AF_INET, fam, &a) == 1) family = AF_INET;
+    else if(inet_pton(AF_INET6, fam, &a) == 1) family = AF_INET6;
+    else luaL_error(L, "noit.socket family for %s unknown", fam);
   }
 
   if(n <= 1) return nl_socket_internal(L, family, SOCK_STREAM);
