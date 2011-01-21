@@ -134,7 +134,7 @@ function initiate(module, check)
     use_ssl = true
   end
 
-  local e = noit.socket()
+  local e = noit.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, check.config.port)
 
   if rv ~= 0 then

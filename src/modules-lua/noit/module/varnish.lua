@@ -79,7 +79,7 @@ function config(module, options)
 end
 
 function initiate(module, check)
-  local e = noit.socket()
+  local e = noit.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, check.config.port or 8081)
 
   e:write("stats\r\n")

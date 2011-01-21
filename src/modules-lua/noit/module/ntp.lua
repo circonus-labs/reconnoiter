@@ -154,7 +154,7 @@ function calculate_offset(response, now)
 end
 
 function initiate(module, check)
-    local s = noit.socket('inet', 'udp')
+    local s = noit.socket(check.target_ip, 'udp')
     local status = { }
     local cnt = check.config.count or 4
 

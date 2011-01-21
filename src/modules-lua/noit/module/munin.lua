@@ -83,7 +83,7 @@ function config(module, options)
 end
 
 function initiate(module, check)
-  local e = noit.socket()
+  local e = noit.socket(check.target_ip)
   local plugins = check.config.plugins
   local rv, err = e:connect(check.target_ip, check.config.port or 4949)
 

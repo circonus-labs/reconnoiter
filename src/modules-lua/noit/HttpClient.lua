@@ -33,7 +33,6 @@ HttpClient.__index = HttpClient;
 
 function HttpClient:new(hooks)
     local obj = { }
-    obj.e = noit.socket()
     setmetatable(obj, HttpClient)
     obj.hooks = hooks or { }
     return obj
@@ -41,6 +40,7 @@ end
 
 function HttpClient:connect(target, port, ssl)
     if ssl == nil then ssl = false end
+    self.e = noit.socket(target)
     self.target = target
     self.port = port
     local rv, err = self.e:connect(self.target, self.port)
