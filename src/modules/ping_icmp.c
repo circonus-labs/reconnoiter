@@ -235,7 +235,6 @@ static int ping_icmp_handler(eventer_t e, int mask,
     }
 
     if(family == AF_INET) {
-      struct ip *ip = (struct ip *)packet;
       struct icmp *icp4;
       iphlen = ((struct ip *)packet)->ip_hl << 2;
       if((inlen-iphlen) != sizeof(struct icmp)+PING_PAYLOAD_LEN) {
@@ -311,8 +310,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     /* Sanity check the payload */
     if(payload->check_no != data->check_no) continue;
     if(payload->check_pack_cnt != data->expected_count) continue;
-    if(payload->check_pack_no < 0 ||
-       payload->check_pack_no >= data->expected_count) continue;
+    if(payload->check_pack_no >= data->expected_count) continue;
 
     whence.tv_sec = payload->tv_sec;
     whence.tv_usec = payload->tv_usec;
