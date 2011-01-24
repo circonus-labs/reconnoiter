@@ -48,9 +48,9 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   recur_closure_t *rcl = closure;
   rcl->check->fire_event = NULL; /* This is us, we get free post-return */
+  noit_check_resolve(rcl->check);
   noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
                            rcl->dispatch);
-  noit_check_resolve(rcl->check);
   if(NOIT_CHECK_RESOLVED(rcl->check))
     rcl->dispatch(rcl->self, rcl->check);
   else
