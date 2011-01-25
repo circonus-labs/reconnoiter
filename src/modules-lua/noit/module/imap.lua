@@ -170,7 +170,7 @@ function initiate(module, check)
 
   function tok()
     _tok = _tok + 1
-    return 'A' .. _tok
+    return '.rN.A.' .. _tok
   end
 
   -- SSL
