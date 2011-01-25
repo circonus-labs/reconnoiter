@@ -265,6 +265,7 @@ function initiate(module, check)
   end
 
   if check.config.search ~= nil then
+    last_msg = nil
     local search = check.config.search:gsub("[\r\n]", "")
     local sstart = noit.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "SEARCH " .. search)
