@@ -38,6 +38,7 @@ LUA=noit/timeval.lua \
 	noit/module/memcached.lua \
 	noit/module/munin.lua \
 	noit/module/tcp.lua \
+	noit/module/imap.lua \
 	noit/module/ntp.lua
 
 all:
