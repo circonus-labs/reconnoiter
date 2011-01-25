@@ -240,7 +240,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   ttl = 0;
 
   while((r = dns_nextrr(&p, &rr)) > 0) {
-    if (!dns_dnequal(dn, rr.dnsrr_dn)) continue;
+    if (!dns_dnequal(idn, rr.dnsrr_dn)) continue;
     if (DNS_C_IN == rr.dnsrr_cls && rtype == rr.dnsrr_typ) ++nrr;
     else if (rr.dnsrr_typ == DNS_T_CNAME && !nrr) {
       if (dns_getdn(pkt, &rr.dnsrr_dptr, end,
