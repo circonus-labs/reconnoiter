@@ -47,6 +47,10 @@ function onload(image)
               allowed=".+">The IMAP password.</parameter>
     <parameter name="folder" required="optional" default="INBOX"
               allowed=".+">The folder that should be examined.</parameter>
+    <parameter name="search" required="optional"
+              allowed=".+">Specify an optional IMAP SEARCH operation to execute after EXAMINE</parameter>
+    <parameter name="fetch" required="optional" default="false"
+              allowed="(?:true|false|on|off)">Fetch either that highest UID or last SEARCH result.</parameter>
     <parameter name="use_ssl" required="optional" allowed="^(?:true|false|on|off)$" default="false">Upgrade TCP connection to use SSL.</parameter>
     <parameter name="ca_chain"
                required="optional"
@@ -157,6 +161,7 @@ function initiate(module, check)
   local status = ""
   local use_ssl = false
   local _tok = 0
+  local last_msg = 0
 
   if check.target_ip == nil then
     check.status("dns resolution failure")
@@ -231,17 +236,19 @@ function initiate(module, check)
   local state, lines, errors
 
   -- login
+  local lstart = noit.timeval.now()
   state, lines, errors = issue_cmd(e, tok(), "LOGIN " ..
                                              check.config.auth_user .. " " ..
                                              check.config.auth_password)
-  elapsed(check, "tt_login", starttime, noit.timeval.now())
-  check.metric_string("login", lines[ # lines ])
+  elapsed(check, "login`duration", lstart, noit.timeval.now())
+  check.metric_string("login`status", lines[ # lines ])
   if state ~= "OK" then good = false
   else
     -- Examine the mailbox
+    local estart = noit.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "EXAMINE " .. folder)
-    elapsed(check, "tt_examine", starttime, noit.timeval.now())
-    check.metric_string('examine', lines[ # lines ])
+    elapsed(check, 'examine`duration', estart, noit.timeval.now())
+    check.metric_string('examine`status', lines[ # lines ])
     if ok ~= "OK" then good = false
     else
       local num, type, num_exists, num_recent = nil
@@ -251,9 +258,41 @@ function initiate(module, check)
         elseif type == "RECENT" then num_recent = num
         end
       end
+      last_msg = num_exists
       check.metric_uint32('messages`total', num_exists)
       check.metric_uint32('messages`recent', num_recent)
     end
+  end
+
+  if check.config.search ~= nil then
+    local search = check.config.search:gsub("[\r\n]", "")
+    local sstart = noit.timeval.now()
+    state, lines, errors = issue_cmd(e, tok(), "SEARCH " .. search)
+    elapsed(check, "search`duration", sstart, noit.timeval.now())
+    if ok ~= "OK" then good = false
+    else
+      local matches = 0
+      for i,v in ipairs(lines) do
+        local msgs = v:match("SEARCH%s+(.+)")
+        if msgs ~= nil then
+          for m in msgs:gmatch("(%d+)") do
+            matches = matches + 1
+            last_msg = m + 0
+          end
+        end
+      end
+      check.metric_uint32('search`total', matches)
+    end
+  end
+
+  if check.config.fetch ~= nil and
+     (check.config.fetch == "true" or check.config.fetch == "on") and
+     last_msg ~= nil and
+     last_msg > 0 then
+    local fstart = noit.timeval.now()
+    state, lines, errors = issue_cmd(e, tok(), "FETCH " .. last_msg .. " RFC822")
+    elapsed(check, "fetch`duration", fstart, noit.timeval.now())
+    check.metric_string('fetch`status', state)
   end
 
   -- bye
