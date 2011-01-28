@@ -9,20 +9,20 @@ $l1 = $_GET['l1'];
 $l2 = $_GET['l2'];
 $l3 = $_GET['l3'];
 $l4 = $_GET['l4'];
-$l5 = $_GET['l5'];
+$l5 = !empty($_GET['l5'])?$_GET['l5']:false;
 
-if ($_REQUEST['root'] == 'source'){
+if (!empty($_REQUEST['root']) && $_REQUEST['root'] == 'source'){
   $want = $l1;
 }
-else if($_REQUEST[$l1]) {
+else if(!empty($_REQUEST[$l1])) {
   $want = $l2;
-  if($_REQUEST[$l2]) {
+  if(!empty($_REQUEST[$l2])) {
     $want = $l3;
-    if($_REQUEST[$l3]) {
+    if(!empty($_REQUEST[$l3])) {
       $want = $l4;
-      if($_REQUEST[$l4]) {
+      if(!empty($_REQUEST[$l4])) {
         $want = $l5;
-        if($_REQUEST[$l5])
+        if(!empty($_REQUEST[$l5]))
           $want = '';
       }
     }
@@ -40,7 +40,7 @@ foreach ($db->get_sources($want, $_GET) as $item){
       if(isset($item[$var])) $params[$var] = $item[$var];
     }
     $jitem = array('id'          => $item['id'],
-                   'text'        => $item['ptr'] ?
+                   'text'        => !empty($item['ptr']) ?
                                       $item[$want] . "(" . $item['ptr'] . ")" :
                                       $item[$want],
                    'classes'     => $want,

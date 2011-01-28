@@ -340,7 +340,7 @@ class Reconnoiter_DB {
     $rv = array();
     foreach ($p as $wanted) {
       $idx = max(ceil((count($full)-1) * ($wanted/100.0)), 0);
-      $rv[$wanted] = $full[$idx];
+      $rv[$wanted] = !empty($full[$idx])?$full[$idx] : null;
     }
     return $rv;
   }
@@ -371,15 +371,21 @@ class Reconnoiter_DB {
       }
       if($nonnull == 1) $full[] = $sum;
     }
-    if (in_array('avg',$p)) {
+    if ( in_array('avg',$p) && count($full) > 0 ) {
     	$rv['avg']=array_sum($full) / count($full);	
     }
     if (in_array('stddev',$p) || in_array('stddev+',$p) || in_array('stddev-',$p)) {
   
-		function sd_square($x, $mean) { return pow($x - $mean,2); }
+		function sd_square($x, $mean) { 
+		  return pow($x - $mean,2); 
+		}
 
 		function sd($array) {
-			return sqrt(array_sum(array_map("sd_square", $array, array_fill(0,count($array), (array_sum($array) / count($array)) ) ) ) / (count($array)-1) );
+		  if ( count($array) > 0 ) { // make sure we do not divide by zero
+		    return sqrt(array_sum(array_map("sd_square", $array, array_fill(0,count($array), (array_sum($array) / count($array)) ) ) ) / (count($array)-1) );
+		  } else {
+		    return 0;
+		  }
 		}
 		
 		$stddev=sd($full);
@@ -387,7 +393,7 @@ class Reconnoiter_DB {
 			$rv['stddev']=$stddev;
 		}
 		if (in_array('stddev+', $p)) {
-			if (empty($rv['avg'])) {
+			if ( empty($rv['avg']) && count($full)>0 ) {
 				$avg=array_sum($full) / count($full);
 			} else {
 				$avg = $rv['avg'];
@@ -395,7 +401,7 @@ class Reconnoiter_DB {
 			$rv['stddev+']=$avg+$stddev;
 		}
 		if (in_array('stddev-', $p)) {
-			if (empty($rv['avg'])) {
+			if ( empty($rv['avg']) && count($full)>0 ) {
 				$avg=array_sum($full) / count($full);
 			} else {
 				$avg = $rv['avg'];

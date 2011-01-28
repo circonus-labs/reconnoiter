@@ -22,7 +22,8 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
   protected $sets;
   protected $sets_config;
   protected $guides;
-
+  protected $auto_units_on = false;
+  
   function __construct($start, $end, $cnt, $type) {
     $this->start = $start;
     $this->end = $end;
@@ -100,9 +101,11 @@ class Reconnoiter_DataContainer extends Reconnoiter_RPN {
                             array_keys($this->ps_to_calc)) as $p => $v) {
       $this->percentile[$p] = $v;
     }
-    foreach($db->aggregate(array_values($this->sets),
+    if (is_array($this->agg_to_calc)) {
+	foreach($db->aggregate(array_values($this->sets),
     						array_keys($this->agg_to_calc)) as $p => $v) {
-      $this->aggregate[$p] = $v;
+    	    $this->aggregate[$p] = $v;
+	}
     }
     $this->units = pow(1000,floor(log($this->percentile[100], 1000)));
     if($this->units == 0) $this->units = 1;

@@ -40,17 +40,17 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
          
       $ds = array (
         'reconnoiter_source_expression' => $set->expression(),
-        'reconnoiter_display_expression' => $this->sets_config[$name]['expression'],
-        'dataname' => $this->sets_config[$name]['title'] ? $this->sets_config[$name]['title'] : $name,
+        'reconnoiter_display_expression' => !empty($this->sets_config[$name]['expression']) ? $this->sets_config[$name]['expression'] : null,
+        'dataname' => !empty($this->sets_config[$name]['title']) ? $this->sets_config[$name]['title'] : $name,
         'data' => $this->graphdataset($set, $this->sets_config[$name]),
         'yaxis' => ($this->sets_config[$name]['axis'] == 'right') ? 2 : 1,
         'derive_val' => $set->derive_val(),
         'uuid' => $set->uuid_val(),
         'metric_name' => $m_name[1],	
         'metric_type' => $metric_type,
-        'hidden' => ($this->sets_config[$name]['hidden'] == "true") ? 1: 0,
+        'hidden' => (!empty($this->sets_config[$name]['hidden']) && $this->sets_config[$name]['hidden'] == "true") ? 1: 0,
       );
-      $show_set = ($this->sets_config[$name]['hidden'] != "true") ? 1: 0;
+      $show_set = (empty($this->sets_config[$name]['hidden']) || $this->sets_config[$name]['hidden'] != "true") ? 1: 0;
       if($show_set) {
         $ds['label'] = $ds['dataname'];
       }
@@ -61,11 +61,11 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
       if( ($metric_type == 'numeric')  || ($metric_type == 'composite') ) {
         $opacity = isset($this->sets_config[$name]['opacity']) ?
                      $this->sets_config[$name]['opacity'] : '0.3';
-        $ds['lines'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => $opacity, 'lineWidth' => '1' , radius => 1 );
+        $ds['lines'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => $opacity, 'lineWidth' => '1' , 'radius' => 1 );
       }
       //if we have a text metric type, draw points
       else if($metric_type == 'text'){
-        $ds['points'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => 'false', 'lineWidth' => 1, radius => 5 );
+        $ds['points'] = array ( 'show' => ($show_set) ? 1:0, 'fill' => 'false', 'lineWidth' => 1, 'radius' => 5 );
       }
 
       $a[] = $ds;

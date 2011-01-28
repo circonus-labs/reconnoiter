@@ -63,8 +63,11 @@ foreach($graph['datapoints'] as $k => $d) {
 $i = 0;
 $autounits = 0;
 foreach($graph['datapoints'] as $k => $d) {
+  if (!isset($d['math1'])) $d['math1']='';
+  if (!isset($d['math2'])) $d['math2']='';
   if($d['metric_type'] == 'guide') {
     $color = isset($d['color']) ? $d['color'] : '#ff0000';
+    
     if ($guideType[$k]=='percentile') {
     $driver->addPercentileGuide($d['name'], $d['math2'],
                                 array('expression' => $d['math1'],
@@ -85,7 +88,7 @@ foreach($graph['datapoints'] as $k => $d) {
     $settings = $graph_settings[$i++];
     $settings['color'] = isset($d['color']) ? $d['color'] : $settings['color'];
     if($d['hidden'] == "true") $settings['hidden'] = "true";
-    if($d['math1']) $settings['expression'] = $d['math1'];
+    if(!empty($d['math1'])) $settings['expression'] = $d['math1'];
     $settings['axis'] = ($d['axis'] == 'l') ? 'left' : 'right';
     $settings['title'] = $d['name'];
     if($d['metric_type'] == 'numeric') {
@@ -105,7 +108,7 @@ if($driver->max() < 0) $yaxis['max'] = 0;
 $options = array(
   'xaxis' => array ( 'mode' => 'time' ),
   'yaxis' => array ( 'suffix' => $driver->autounit() . '' ),
-  'legend' => array ( 'noColumns' => 4, position => 'sw' ),
+  'legend' => array ( 'noColumns' => 4, 'position' => 'sw' ),
   'selection' => array ( 'mode' => 'x' ),
   'shadowSize' => 0,
   'colors' => $driver->graphcolors()

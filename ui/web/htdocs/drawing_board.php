@@ -1,8 +1,8 @@
 <?php
 $otype = $_GET['otype'];
 $id = $_GET['id'];
-$start = $_GET['start'];
-$end = $_GET['end'];
+$start = !empty($_GET['start'])?$_GET['start']:null;
+$end = !empty($_GET['end'])?$_GET['end']:null;
 $gran = $_GET['gran'];
 
 require_once('Reconnoiter_DB.php');

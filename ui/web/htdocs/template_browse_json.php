@@ -26,7 +26,7 @@ else {
 $templateid;
 $template;
 
-if($_REQUEST[$l1]){
+if(!empty($_REQUEST[$l1])){
 	$templateid = $_REQUEST[$l1];
 	$template = new Reconnoiter_GraphTemplate($templateid);
 }
