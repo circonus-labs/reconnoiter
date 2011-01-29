@@ -430,7 +430,7 @@ noit_check_index_func(lua_State *L) {
       return 1;
     case 't':
       if(!strcmp(k, "target")) lua_pushstring(L, check->target);
-      if(!strcmp(k, "target_ip")) {
+      else if(!strcmp(k, "target_ip")) {
         if(check->target_ip[0] == '\0') lua_pushnil(L);
         else lua_pushstring(L, check->target_ip);
       }
