@@ -54,6 +54,7 @@
 #include "noit_xml.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
+#include "utils/noit_b32.h"
 #include "utils/noit_b64.h"
 #include "eventer/eventer.h"
 #include "json-lib/json.h"
@@ -985,6 +986,37 @@ nl_log(lua_State *L) {
   return 0;
 }
 static int
+nl_base32_decode(lua_State *L) {
+  size_t inlen, decoded_len;
+  const char *message;
+  unsigned char *decoded;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
+
+  message = lua_tolstring(L, 1, &inlen);
+  decoded = malloc(MAX(1,inlen));
+  if(!decoded) luaL_error(L, "out-of-memory");
+  decoded_len = noit_b32_decode(message, inlen, decoded, MAX(1,inlen));
+  lua_pushlstring(L, (char *)decoded, decoded_len);
+  return 1;
+}
+static int
+nl_base32_encode(lua_State *L) {
+  size_t inlen, encoded_len;
+  const unsigned char *message;
+  char *encoded;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.encode");
+
+  message = (const unsigned char *)lua_tolstring(L, 1, &inlen);
+  encoded_len = (((inlen + 7) / 5) * 8) + 1;
+  encoded = malloc(encoded_len);
+  if(!encoded) luaL_error(L, "out-of-memory");
+  encoded_len = noit_b32_encode(message, inlen, encoded, encoded_len);
+  lua_pushlstring(L, (char *)encoded, encoded_len);
+  return 1;
+}
+static int
 nl_base64_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
@@ -1824,6 +1856,8 @@ static const luaL_Reg noitlib[] = {
   { "socket", nl_socket },
   { "dns", nl_dns_lookup },
   { "log", nl_log },
+  { "base32_decode", nl_base32_decode },
+  { "base32_encode", nl_base32_encode },
   { "base64_decode", nl_base64_decode },
   { "base64_encode", nl_base64_encode },
   { "md5_hex", nl_md5_hex },
