@@ -1014,6 +1014,7 @@ void
 noit_check_set_stats(struct _noit_module *module,
                      noit_check_t *check, stats_t *newstate) {
   int report_change = 0;
+  char *cp;
   dep_list_t *dep;
   if(check->stats.previous.status)
     free(check->stats.previous.status);
@@ -1022,6 +1023,8 @@ noit_check_set_stats(struct _noit_module *module,
   memcpy(&check->stats.current, newstate, sizeof(stats_t));
   if(check->stats.current.status)
     check->stats.current.status = strdup(check->stats.current.status);
+  for(cp = check->stats.current.status; cp && *cp; cp++)
+    if(*cp == '\r' || *cp == '\n') *cp = ' ';
 
   /* check for state changes */
   if(check->stats.current.available != NP_UNKNOWN &&
