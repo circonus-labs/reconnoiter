@@ -511,7 +511,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
   int rv;
-  const char *error = "jlog streamer SSL upgrade failed.\n";
+  const char *error = NULL;
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv > 0) {
@@ -545,9 +545,10 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
     return e->callback(e, mask, e->closure, now);
   }
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+  noitL(noit_debug, "jlog streamer SSL upgrade failed.\n");
 
  error:
-  noitL(noit_error, "%s", error);
+  if(error) noitL(noit_error, "%s", error);
   eventer_remove_fd(e->fd);
   nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
