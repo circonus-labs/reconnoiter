@@ -387,7 +387,7 @@ static EVP_CIPHER_CTX* network_get_aes256_cypher (collectd_closure_t *ccl, /* {{
     const void *iv, size_t iv_size, const char *username)
 {
 
-  if (ccl->username == NULL && ccl->secret == NULL)
+  if (ccl->secret == NULL)
     return (NULL);
   else
   {
@@ -690,6 +690,13 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   {
     noitL(noit_debug, "collectd: Received signed network packet but can't verify "
         "it because no user has been configured. Will accept it.\n");
+    return (0);
+  }
+
+  if (ccl->secret == NULL)
+  {
+    noitL(noit_debug, "collectd: Received signed network packet but can't verify "
+        "it because no secret has been configured. Will accept it.\n");
     return (0);
   }
 
@@ -1358,15 +1365,18 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
       }
     }
 
-    if (!noit_hash_retr_str(check->config, "secret", strlen("secret"),
-                           (const char**)&ccl->secret) &&
-        !noit_hash_retr_str(conf->options, "secret", strlen("secret"),
-                           (const char**)&ccl->secret)) 
-    {
+    if(!ccl->secret)
+      noit_hash_retr_str(check->config, "secret", strlen("secret"),
+                         (const char**)&ccl->secret);
+    if(!ccl->secret)
+      noit_hash_retr_str(conf->options, "secret", strlen("secret"),
+                         (const char**)&ccl->secret);
+    if(!ccl->secret) {
       if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
         noitL(nlerr, "collectd: no secret defined for check.\n");
         goto cleanup;
-      } else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
+      }
+      else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
         noitL(nlerr, "collectd: no secret defined for check, "
             "will accept any signed packet.\n");
       }
