@@ -39,7 +39,8 @@ LUA=noit/timeval.lua \
 	noit/module/munin.lua \
 	noit/module/tcp.lua \
 	noit/module/imap.lua \
-	noit/module/ntp.lua
+	noit/module/ntp.lua \
+        noit/module/redis.lua
 
 all:
 
