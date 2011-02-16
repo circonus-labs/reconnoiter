@@ -2,16 +2,16 @@
   <name>collectd</name>
   <description><para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para></description>
   <loader>C</loader>
-  <image>snmp.so</image>
+  <image>collectd.so</image>
   <moduleconfig>
     <parameter name="collectd_port"
                required="required"
                default="25826"
                allowed="\d+">The port which collectd packets are received</parameter>
-    <parameter name="snmptrapd_host"
-               required="optional"
-               default="*"
-               allowed="\d+">The host interface on which packets are accepted.</parameter>
+    <parameter name="notifications"
+               required="options"
+               default="true"
+               allowed="(?:true|on|false|off)">Specify whether collectd notifications are acted upon.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="security_level"

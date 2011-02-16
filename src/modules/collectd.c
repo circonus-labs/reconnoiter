@@ -46,12 +46,11 @@
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
-static int __collectd_initialize_once = 0;
-
 
 typedef struct _mod_config {
   noit_hash_table *options;
   noit_hash_table target_sessions;
+  noit_boolean support_notifications;
   int ipv4_fd;
   int ipv6_fd;
 } collectd_mod_config_t;
@@ -112,7 +111,7 @@ typedef struct meta_data_s meta_data_t;
 
 #define NET_DEFAULT_V4_ADDR "239.192.74.66"
 #define NET_DEFAULT_V6_ADDR "ff18::efc0:4a42"
-#define NET_DEFAULT_PORT    "25826"
+#define NET_DEFAULT_PORT    25826
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001
@@ -1165,7 +1164,7 @@ static int infer_type(char *buffer, int buffer_len, value_list_t *vl, int index)
   } else {
     char buf[20];
     snprintf(buf, sizeof(buf), "%d", index);
-    strcat(buffer, buf); 
+    strcat(buffer, buf);
     noitL(noit_debug, "collectd: parsing multiple values" 
         " and guessing on the type for plugin[%s] and type[%s]"
         , vl->plugin, vl->type);
@@ -1194,13 +1193,20 @@ static int queue_notifications(collectd_closure_t *ccl,
       noit_module_t *self, noit_check_t *check, notification_t *n) {
   stats_t current;
   char buffer[DATA_MAX_NAME_LEN*4 + 128];
+  collectd_mod_config_t *conf;
+  conf = noit_module_get_userdata(self);
+
+  if(!conf->support_notifications) return 0;
+  /* We are passive, so we don't do anything for transient checks */
+  if(check->flags & NP_TRANSIENT) return 0;
 
   noit_check_stats_clear(&current);
   gettimeofday(&current.whence, NULL);
+
   // Concat all the names together so they fit into the flat noitd model 
   concat_metrics(buffer, n->plugin, n->plugin_instance, n->type, n->type_instance);
   noit_stats_set_metric(&ccl->current, buffer, METRIC_STRING, n->message);
-  noit_check_set_stats(self, check, &current);
+  noit_check_passive_set_stats(self, check, &current);
   noitL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
   return 0;
 }
@@ -1249,7 +1255,6 @@ static int queue_values(collectd_closure_t *ccl,
     ccl->stats_count++;
     noitL(nldeb, "collectd: queue_values(%s, %s)\n", buffer, check->target);
   }
-  //noit_check_set_stats(self, check, &current);
   return 0;
 } 
 
@@ -1263,6 +1268,9 @@ static void clear_closure(collectd_closure_t *ccl) {
 static int collectd_submit(noit_module_t *self, noit_check_t *check) {
   collectd_closure_t *ccl;
   struct timeval duration;
+  /* We are passive, so we don't do anything for transient checks */
+  if(check->flags & NP_TRANSIENT) return 0;
+
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
     memset(ccl, 0, sizeof(collectd_closure_t));
@@ -1285,7 +1293,7 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check) {
     ccl->current.state = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
         NP_GOOD : NP_BAD;
     ccl->current.status = human_buffer;
-    noit_check_set_stats(self, check, &ccl->current);
+    noit_check_passive_set_stats(self, check, &ccl->current);
 
     memcpy(&check->last_fire_time, &ccl->current.whence, sizeof(duration));
   }
@@ -1295,11 +1303,14 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check) {
 
 static int noit_collectd_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
-  struct sockaddr_in  skaddr;
+  union {
+    struct sockaddr_in  skaddr;
+    struct sockaddr_in6 skaddr6;
+  } remote;
   char packet[1500];
   int packet_len = sizeof(packet);
   unsigned int from_len;
-  char ip_p[INET_ADDRSTRLEN];
+  char ip_p[INET6_ADDRSTRLEN];
   noit_module_t *self = (noit_module_t *)closure;
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
@@ -1313,10 +1324,10 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
     collectd_closure_t *ccl;
     char *security_buffer; 
 
-    from_len = sizeof(skaddr);
+    from_len = sizeof(remote);
 
     inlen = recvfrom(e->fd, packet, packet_len, 0,
-                     (struct sockaddr *)&skaddr, &from_len);
+                     (struct sockaddr *)&remote, &from_len);
     gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
     if(inlen < 0) {
@@ -1324,8 +1335,20 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
       noitLT(nlerr, now, "collectd: recvfrom: %s\n", strerror(errno));
       break;
     }
-    if (!inet_ntop(AF_INET, &(skaddr.sin_addr), ip_p, INET_ADDRSTRLEN)) {
-      noitLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
+    if (from_len == sizeof(remote.skaddr)) {
+      if (!inet_ntop(AF_INET, &(remote.skaddr.sin_addr), ip_p, INET_ADDRSTRLEN)) {
+        noitLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
+        break;
+      }
+    }
+    else if(from_len == sizeof(remote.skaddr6)) {
+      if (!inet_ntop(AF_INET6, &(remote.skaddr6.sin6_addr), ip_p, INET6_ADDRSTRLEN)) {
+        noitLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
+        break;
+      }
+    }
+    else {
+      noitLT(nlerr, now, "collectd: could not determine address family of remote\n");
       break;
     }
     check = noit_poller_lookup_by_name(ip_p, "collectd");
@@ -1340,10 +1363,10 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
       ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
       memset(ccl, 0, sizeof(collectd_closure_t));
     } else {
-      ccl = (collectd_closure_t*)check->closure; 
+      ccl = (collectd_closure_t*)check->closure;
     }
     // Default to NONE
-    ccl->security_level = SECURITY_LEVEL_NONE;     
+    ccl->security_level = SECURITY_LEVEL_NONE;
     if (noit_hash_retr_str(check->config, "security_level", strlen("security_level"),
                            (const char**)&security_buffer)) 
     {
@@ -1420,7 +1443,7 @@ static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
 static int noit_collectd_onload(noit_image_t *self) {
   if(!nlerr) nlerr = noit_log_stream_find("error/collectd");
   if(!nldeb) nldeb = noit_log_stream_find("debug/collectd");
-  if(!nlerr) nlerr = noit_stderr;
+  if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_collectd/handler", noit_collectd_handler);
   return 0;
@@ -1433,16 +1456,20 @@ static int noit_collectd_init(noit_module_t *self) {
   conf = noit_module_get_userdata(self);
   int portint = 0;
   struct sockaddr_in skaddr;
+  struct sockaddr_in6 skaddr6;
+  struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
   const char *host;
   unsigned short port;
 
-  if(!__collectd_initialize_once) {
-    __collectd_initialize_once = 1;
+  conf->support_notifications = noit_true;
+  if(noit_hash_retr_str(conf->options,
+                        "notifications", strlen("notifications"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      conf->support_notifications = noit_false;
   }
-
-
   /* Default Collectd port */
-  portint = 25826;
+  portint = NET_DEFAULT_PORT;
   if(noit_hash_retr_str(conf->options,
                          "collectd_port", strlen("collectd_port"),
                          (const char**)&config_val))
@@ -1464,22 +1491,6 @@ static int noit_collectd_init(noit_module_t *self) {
           strerror(errno));
   }
   else {
-   /*
-    socklen_t slen = sizeof(on);
-    if(getsockopt(conf->ipv4_fd, SOL_SOCKET, SO_SNDBUF, &on, &slen) == 0) {
-      while(on < (1 << 20)) {
-        on <<= 1;
-        if(setsockopt(conf->ipv4_fd, SOL_SOCKET, SO_SNDBUF,
-                      &on, sizeof(on)) != 0) {
-          on >>= 1;
-          break;
-        }
-      }
-      noitL(noit_debug, ": send buffer set to %d\n", on);
-    }
-    else
-      noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
-    */
     if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
       close(conf->ipv4_fd);
       conf->ipv4_fd = -1;
@@ -1494,7 +1505,7 @@ static int noit_collectd_init(noit_module_t *self) {
 
   sockaddr_len = sizeof(skaddr);
   if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-    noitL(noit_stderr, "bind failed[%s]: %s\n", host, strerror(errno));
+    noitL(noit_error, "bind failed[%s]: %s\n", host, strerror(errno));
     close(conf->ipv4_fd);
     return -1;
   }
@@ -1508,10 +1519,10 @@ static int noit_collectd_init(noit_module_t *self) {
     newe->closure = self;
     eventer_add(newe);
   }
-/*
+
   conf->ipv6_fd = socket(AF_INET6, SOCK_DGRAM, 0);
   if(conf->ipv6_fd < 0) {
-    noitL(noit_error, "collectd: socket failed: %s\n",
+    noitL(noit_error, "collectd: IPv6 socket failed: %s\n",
           strerror(errno));
   }
   else {
@@ -1523,16 +1534,28 @@ static int noit_collectd_init(noit_module_t *self) {
                strerror(errno));
     }
   }
+  sockaddr_len = sizeof(skaddr6);
+  memset(&skaddr6, 0, sizeof(skaddr6));
+  skaddr6.sin6_family = AF_INET6;
+  skaddr6.sin6_addr = in6addr_any;
+  skaddr6.sin6_port = htons(port);
+
+  if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
+    noitL(noit_error, "bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
+    close(conf->ipv6_fd);
+    conf->ipv6_fd = -1;
+  }
+
   if(conf->ipv6_fd >= 0) {
     eventer_t newe;
     newe = eventer_alloc();
     newe->fd = conf->ipv6_fd;
     newe->mask = EVENTER_READ;
-    newe->callback = ping_icmp_handler;
+    newe->callback = noit_collectd_handler;
     newe->closure = self;
     eventer_add(newe);
   }
-  */
+
   noit_module_set_userdata(self, conf);
   return 0;
 }

@@ -1011,6 +1011,35 @@ noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
 }
 
 void
+noit_check_passive_set_stats(struct _noit_module *module, 
+                             noit_check_t *check, stats_t *newstate) {
+  noit_skiplist_node *next;
+  noit_check_t n;
+
+  uuid_copy(n.checkid, check->checkid);
+  n.period = 0;
+
+  noit_check_set_stats(module,check,newstate);
+  noit_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
+  while(next && next->data) {
+    stats_t backup;
+    noit_check_t *wcheck = next->data;
+    if(uuid_compare(n.checkid, wcheck->checkid)) break;
+
+    /* Swap the real check's stats into place */
+    memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
+    memcpy(&wcheck->stats.current, newstate, sizeof(stats_t));
+    /* Write out our status */
+    noit_check_log_status(wcheck);
+    /* Write out all metrics */
+    noit_check_log_metrics(wcheck);
+    /* Swap them back out */
+    memcpy(&wcheck->stats.current, &backup, sizeof(stats_t));
+
+    noit_skiplist_next(&watchlist, &next);
+  }
+}
+void
 noit_check_set_stats(struct _noit_module *module,
                      noit_check_t *check, stats_t *newstate) {
   int report_change = 0;

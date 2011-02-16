@@ -216,6 +216,11 @@ API_EXPORT(void)
   noit_check_stats_clear(stats_t *s);
 
 struct _noit_module;
+/* This if for modules (passive) than cannot be watched... */
+API_EXPORT(void)
+  noit_check_passive_set_stats(struct _noit_module *self, noit_check_t *check,
+                               stats_t *newstate);
+/* This is for normal (active) modules... */
 API_EXPORT(void)
   noit_check_set_stats(struct _noit_module *self, noit_check_t *check,
                         stats_t *newstate);
