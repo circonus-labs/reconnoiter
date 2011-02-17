@@ -1160,7 +1160,6 @@ _http_encode_chain(noit_http_response *res,
     err = memgzip2(res, (Bytef *)(out->buff + out->start), &olen,
                    (Bytef *)(inbuff), (uLong)inlen,
                    9, final ? Z_FINISH : Z_NO_FLUSH, done);
-noitL(noit_error, " GZIP %d -> %d\n", inlen, olen);
     if(Z_OK != err) {
       noitL(noit_error, "zlib compress2 error %d\n", err);
       return noit_false;
@@ -1348,11 +1347,16 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
     struct bchain *n;
     ctx->res.closed = noit_true;
     raw_finalize_encoding(&ctx->res);
+    /* We could have just pushed in the only block */
+    if(!r) r = ctx->res.output_raw;
+    /* Advance to the end to append out ending */
     if(r) while(r->next) r = r->next;
+    /* Create an ending */
     if(ctx->res.output_options & NOIT_HTTP_CHUNKED)
       n = bchain_from_data("0\r\n\r\n", 5);
     else
       n = NULL;
+    /* Append an ending (chunked) */
     if(r) {
       r->next = n;
       if(n) n->prev = r;
