@@ -1142,7 +1142,7 @@ static int memgzip2(noit_http_response *res, Bytef *dest, uLongf *destLen,
     return err == Z_OK ? Z_BUF_ERROR : err;
   }
   if(done) *done = (err == Z_STREAM_END) ? noit_true : noit_false;
-  *destLen = res->gzip->total_out + skip;
+  *destLen = (*destLen - res->gzip->avail_out) + skip;
 
   return Z_OK;
 }
@@ -1156,10 +1156,11 @@ _http_encode_chain(noit_http_response *res,
   if(opts & NOIT_HTTP_GZIP) {
     uLongf olen;
     int err;
-    olen = out->allocd - out->start;
+    olen = out->allocd - out->start - 2; /* leave 2 for the \r\n */
     err = memgzip2(res, (Bytef *)(out->buff + out->start), &olen,
                    (Bytef *)(inbuff), (uLong)inlen,
                    9, final ? Z_FINISH : Z_NO_FLUSH, done);
+noitL(noit_error, " GZIP %d -> %d\n", inlen, olen);
     if(Z_OK != err) {
       noitL(noit_error, "zlib compress2 error %d\n", err);
       return noit_false;
@@ -1168,7 +1169,7 @@ _http_encode_chain(noit_http_response *res,
   }
   else if(opts & NOIT_HTTP_DEFLATE) {
     uLongf olen;
-    olen = out->allocd - out->start;
+    olen = out->allocd - out->start - 2; /* leave 2 for the \r\n */
     if(Z_OK != compress2((Bytef *)(out->buff + out->start), &olen,
                          (Bytef *)(inbuff), (uLong)inlen,
                          9)) {
@@ -1178,7 +1179,8 @@ _http_encode_chain(noit_http_response *res,
     out->size += olen;
   }
   else {
-    if(inlen > out->allocd - out->start) return noit_false;
+    /* leave 2 for the \r\n */
+    if(inlen > out->allocd - out->start - 2) return noit_false;
     memcpy(out->buff + out->start, inbuff, inlen);
     out->size += inlen;
   }
