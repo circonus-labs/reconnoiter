@@ -175,7 +175,8 @@ int
 noit_filter_remove(noit_conf_section_t vnode) {
   int removed;
   xmlNodePtr node = vnode;
-  char *name = (char *)node->name;
+  char *name = (char *)xmlGetProp(vnode, (xmlChar *)"name");
+  if(!name) return 0;
   LOCKFS();
   removed = noit_hash_delete(filtersets, name, strlen(name),
                              NULL, filterset_free);

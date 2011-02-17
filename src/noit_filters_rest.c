@@ -146,7 +146,9 @@ rest_delete_filter(noit_http_rest_closure_t *restc,
            pats[0], pats[1]);
   node = noit_conf_get_section(NULL, xpath);
   if(!node) goto not_found;
-  noit_filter_remove(node);
+  if(noit_filter_remove(node) == 0) goto not_found;
+  xmlUnlinkNode(node);
+  xmlFreeNode(node);
 
   if(noit_conf_write_file(NULL) != 0)
     noitL(noit_error, "local config write failed\n");
