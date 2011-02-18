@@ -417,7 +417,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   char remote_str[128];
   struct iep_job_closure *jc;
   eventer_t newe;
-  struct timeval __now, iep_timeout = { 20L, 0L };
+  struct timeval __now, iep_timeout = { 10L, 0L };
   /* We only care about inserts */
 
   if(op == DS_OP_CHKPT) {
