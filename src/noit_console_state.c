@@ -33,6 +33,7 @@
 #include "noit_defines.h"
 
 #include "eventer/eventer.h"
+#include "eventer/eventer_jobq.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "noit_listener.h"
@@ -79,6 +80,18 @@ noit_console_spit_event(eventer_t e, void *c) {
             e->mask & EVENTER_TIMER ? 't' : '-',
             cname ? cname : funcptr, e->closure);
 }
+static void
+noit_console_spit_jobq(eventer_jobq_t *jobq, void *c) {
+  noit_console_closure_t ncct = c;
+  int qlen = 0;
+  const char *bqn = "(undefined)";
+  if(jobq->backq && jobq->backq->queue_name) bqn = jobq->backq->queue_name;
+  nc_printf(ncct, "=== %s ===\n", jobq->queue_name);
+  nc_printf(ncct, " concurrency: %d\n", jobq->concurrency);
+  nc_printf(ncct, " backq: %s\n", bqn);
+  sem_getvalue(&jobq->semaphore, &qlen);
+  nc_printf(ncct, " queue size: %d\n", qlen);
+}
 static int
 noit_console_eventer_timers(noit_console_closure_t ncct, int argc, char **argv,
                             noit_console_state_t *dstate, void *unused) {
@@ -91,6 +104,19 @@ noit_console_eventer_sockets(noit_console_closure_t ncct, int argc, char **argv,
                              noit_console_state_t *dstate, void *unused) {
   if(argc != 0) return -1;
   eventer_foreach_fdevent(noit_console_spit_event, ncct);
+  return 0;
+}
+static int
+noit_console_eventer_jobq(noit_console_closure_t ncct, int argc, char **argv,
+                             noit_console_state_t *dstate, void *unused) {
+  eventer_jobq_t *jobq;
+  if(argc != 1) return -1;
+  jobq = eventer_jobq_retrieve(argv[0]);
+  if(!jobq) {
+    nc_printf(ncct, "no jobq found for '%s'\n", argv[0] ? argv[0] : "");
+    return 0;
+  }
+  noit_console_spit_jobq(jobq, ncct);
   return 0;
 }
 
@@ -111,6 +137,9 @@ cmd_info_t console_command_eventer_timers = {
 };
 cmd_info_t console_command_eventer_sockets = {
   "sockets", noit_console_eventer_sockets, NULL, NULL, NULL
+};
+cmd_info_t console_command_eventer_jobq = {
+  "jobq", noit_console_eventer_jobq, NULL, NULL, NULL
 };
 
 void
@@ -483,6 +512,7 @@ noit_console_state_initial() {
                                        "debug");
     noit_console_state_add_cmd(evdeb, &console_command_eventer_timers);
     noit_console_state_add_cmd(evdeb, &console_command_eventer_sockets);
+    noit_console_state_add_cmd(evdeb, &console_command_eventer_jobq);
   }
   return _top_level_state;
 }
