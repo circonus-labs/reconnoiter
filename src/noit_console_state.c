@@ -110,7 +110,10 @@ static int
 noit_console_eventer_jobq(noit_console_closure_t ncct, int argc, char **argv,
                              noit_console_state_t *dstate, void *unused) {
   eventer_jobq_t *jobq;
-  if(argc != 1) return -1;
+  if(argc != 1) {
+    nc_printf(ncct, "jobq <queue_name>\n");
+    return -1;
+  }
   jobq = eventer_jobq_retrieve(argv[0]);
   if(!jobq) {
     nc_printf(ncct, "no jobq found for '%s'\n", argv[0] ? argv[0] : "");
