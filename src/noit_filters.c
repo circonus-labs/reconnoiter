@@ -174,7 +174,6 @@ noit_filter_exists(const char *name) {
 int
 noit_filter_remove(noit_conf_section_t vnode) {
   int removed;
-  xmlNodePtr node = vnode;
   char *name = (char *)xmlGetProp(vnode, (xmlChar *)"name");
   if(!name) return 0;
   LOCKFS();
