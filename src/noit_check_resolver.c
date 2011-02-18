@@ -478,6 +478,8 @@ register_console_dns_cache_commands() {
 
 void noit_check_resolver_init() {
   eventer_t e;
+  if(dns_init(NULL, 0) < 0)
+    noitL(noit_error, "dns initialization failed.\n");
   dns_ctx = dns_new(NULL);
   if(dns_init(dns_ctx, 0) != 0 ||
      dns_open(dns_ctx) < 0) {
