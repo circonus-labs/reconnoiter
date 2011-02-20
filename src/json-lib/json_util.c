@@ -65,7 +65,7 @@ struct json_object* json_object_from_file(char *filename)
     return (struct json_object*)error_ptr(-1);
   }
   if(!(pb = printbuf_new())) {
-    MC_ERROR("json_object_from_file: printbuf_new failed\n");
+    MC_ERROR("json_object_from_file: printbuf_new failed%s\n", "");
     return (struct json_object*)error_ptr(-1);
   }
   while((ret = read(fd, buf, JSON_FILE_BUF_SIZE)) > 0) {
@@ -90,7 +90,7 @@ int json_object_to_file(char *filename, struct json_object *obj)
   unsigned int wpos, wsize;
 
   if(!obj) {
-    MC_ERROR("json_object_to_file: object is null\n");
+    MC_ERROR("json_object_to_file: object is null%s\n", "");
     return -1;
   }
 
