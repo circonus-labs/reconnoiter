@@ -30,7 +30,7 @@ AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
 if test "x$CC" = "xgcc" ; then
-  CFLAGS="$CFLAGS -g -Wall"
+  CFLAGS="$CFLAGS -g"
   DEPFLAGS="-MM"
 else
   CFLAGS="$CFLAGS -g"
@@ -642,6 +642,11 @@ AC_DEFINE_UNQUOTED(ETC_DIR, "${fullpath}")
 ETC_DIR=${fullpath}
 AC_SUBST(ETC_DIR)
 
+if test "x$CC" = "xgcc" ; then
+  CFLAGS="$CFLAGS -Werror -Wall"
+else
+  CFLAGS="$CFLAGS -errwarn=%all"
+fi
 
 AC_OUTPUT([
 Makefile
