@@ -1,0 +1,307 @@
+
+chared.o: chared.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/el.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+common.o: common.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/el.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+el.o: el.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+emacs.o: emacs.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+fcns.o: fcns.c sys.h el.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noit_defines.h ../noitedit/histedit.h ../eventer/eventer.h \
+  ../noitedit/prompt.h ../noitedit/key.h ../noitedit/el_term.h \
+  ../noitedit/refresh.h ../noitedit/chared.h ../noitedit/common.h \
+  ../noitedit/vi.h ../noitedit/emacs.h ../noitedit/search.h \
+  ../noitedit/fcns.h ../noitedit/common.h ../noitedit/search.h \
+  ../noitedit/hist.h ../noitedit/map.h ../noitedit/parse.h \
+  ../noitedit/sig.h ../noitedit/help.h
+
+fgetln.o: fgetln.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/compat.h \
+  ../noit_defines.h ../noitedit/fgetln.h
+
+help.o: help.c sys.h el.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noit_defines.h ../noitedit/histedit.h ../eventer/eventer.h \
+  ../noitedit/prompt.h ../noitedit/key.h ../noitedit/el_term.h \
+  ../noitedit/refresh.h ../noitedit/chared.h ../noitedit/common.h \
+  ../noitedit/vi.h ../noitedit/emacs.h ../noitedit/search.h \
+  ../noitedit/fcns.h ../noitedit/common.h ../noitedit/search.h \
+  ../noitedit/hist.h ../noitedit/map.h ../noitedit/parse.h \
+  ../noitedit/sig.h ../noitedit/help.h
+
+hist.o: hist.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+history.o: history.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/histedit.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h
+
+key.o: key.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+map.o: map.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+parse.o: parse.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h ../noitedit/tokenizer.h
+
+prompt.o: prompt.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/el.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+read.o: read.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+readline.o: readline.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/histedit.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h \
+  ../noitedit/readline/readline.h ../noitedit/sys.h ../noitedit/el.h \
+  ../noitedit/tty.h ../noitedit/histedit.h ../noitedit/prompt.h \
+  ../noitedit/key.h ../noitedit/el_term.h ../noitedit/refresh.h \
+  ../noitedit/chared.h ../noitedit/common.h ../noitedit/vi.h \
+  ../noitedit/emacs.h ../noitedit/search.h ../noitedit/fcns.h \
+  ../noitedit/hist.h ../noitedit/map.h ../noitedit/parse.h \
+  ../noitedit/sig.h ../noitedit/help.h ../noitedit/fcns.h
+
+refresh.o: refresh.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/el.h \
+  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
+  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+search.o: search.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noit_defines.h ../noitedit/sys.h \
+  ../noitedit/el.h ../eventer/eventer.h ../noit_defines.h \
+  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
+  ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+sig.o: sig.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+strlcpy.o: strlcpy.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h
+
+term.o: term.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
+
+tokenizer.o: tokenizer.c ../noitedit/compat.h ../noit_defines.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
+  ../noitedit/fgetln.h ../noitedit/sys.h ../noitedit/tokenizer.h
+
+tty.o: tty.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h ../noitedit/tty.h
+
+vi.o: vi.c ../noitedit/compat.h ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_config.h ../noitedit/fgetln.h \
+  ../noitedit/sys.h ../noitedit/el.h ../eventer/eventer.h \
+  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
+  ../utils/noit_hash.h ../noit_config.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
+  ../eventer/eventer_SSL_fd_opset.h  \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/tty.h \
+  ../noitedit/histedit.h ../noitedit/prompt.h ../noitedit/key.h \
+  ../noitedit/el_term.h ../noitedit/refresh.h ../noitedit/chared.h \
+  ../noitedit/common.h ../noitedit/vi.h ../noitedit/emacs.h \
+  ../noitedit/search.h ../noitedit/fcns.h ../noitedit/hist.h \
+  ../noitedit/map.h ../noitedit/parse.h ../noitedit/sig.h \
+  ../noitedit/help.h
