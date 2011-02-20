@@ -112,12 +112,13 @@ noit_check_schedule_next(noit_module_t *self,
 }
 
 void
-noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
+noit_check_run_full_asynch_opts(noit_check_t *check, eventer_func_t callback,
+                                int mask) {
   struct timeval __now, p_int;
   eventer_t e;
   e = eventer_alloc();
   e->fd = -1;
-  e->mask = EVENTER_ASYNCH; 
+  e->mask = EVENTER_ASYNCH | mask;
   gettimeofday(&__now, NULL);
   memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
@@ -126,6 +127,11 @@ noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
   e->callback = callback;
   e->closure =  check->closure;
   eventer_add(e);
+}
+void
+noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
+  noit_check_run_full_asynch_opts(check, callback,
+                                  EVENTER_DEFAULT_ASYNCH_ABORT);
 }
 
 void

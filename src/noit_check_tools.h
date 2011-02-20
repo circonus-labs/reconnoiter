@@ -51,6 +51,9 @@ API_EXPORT(int)
                            struct timeval *now, dispatch_func_t recur);
 
 API_EXPORT(void)
+  noit_check_run_full_asynch_opts(noit_check_t *check, eventer_func_t callback,
+                                  int mask);
+API_EXPORT(void)
   noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback);
 
 #define INITIATE_CHECK(func, self, check) do { \

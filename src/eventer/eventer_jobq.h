@@ -58,6 +58,7 @@ typedef struct _eventer_job_t {
   noit_atomic32_t         has_cleanedup;
   void                  (*cleanup)(struct _eventer_job_t *);
   struct _eventer_job_t  *next;
+  struct _eventer_jobq_t *jobq;
 } eventer_job_t;
 
 typedef struct _eventer_jobq_t {
@@ -65,6 +66,8 @@ typedef struct _eventer_jobq_t {
   pthread_mutex_t         lock;
   sem_t                   semaphore;
   noit_atomic32_t         concurrency;
+  noit_atomic32_t         desired_concurrency;
+  noit_atomic32_t         pending_cancels;
   eventer_job_t          *headq;
   eventer_job_t          *tailq;
   pthread_key_t           threadenv;

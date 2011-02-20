@@ -289,7 +289,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           tmp = xmlNodeGetContent(an);
           pint = noit_conf_string_to_int((char *)tmp);
           xmlFree(tmp);
-          if(pint < 5000 || pint > 300000) {
+          if(pint < 1000 || pint > 300000) {
             *error = "invalid period";
             return 0;
           }

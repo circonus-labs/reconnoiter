@@ -191,6 +191,7 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   eventer_job_t *job;
   job = calloc(1, sizeof(*job));
   job->fd_event = e;
+  job->jobq = q ? q : &__default_jobq;
   gettimeofday(&job->create_time, NULL);
   /* If we're debugging the eventer, these cross thread timeouts will
    * make it impossible for us to slowly trace an asynch job. */

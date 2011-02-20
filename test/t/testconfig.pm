@@ -5,19 +5,22 @@ use DBI;
 use Cwd;
 use Exporter 'import';
 use Data::Dumper;
+use IO::File;
 use strict;
 use vars qw/@EXPORT/;
 
 my $noit_pid = 0;
+my $noit_log = undef;
 my $stratcon_pid = 0;
+my $stratcon_log = undef;
 
 
 @EXPORT = qw($NOIT_TEST_DB $NOIT_TEST_DB_PORT
              $NOIT_API_PORT $NOIT_CLI_PORT
              $STRATCON_API_PORT $STRATCON_CLI_PORT
              $STRATCON_WEB_PORT
-             pg make_noit_config start_noit stop_noit
-             make_stratcon_config start_stratcon stop_stratcon
+             pg make_noit_config start_noit stop_noit get_noit_log
+             make_stratcon_config start_stratcon stop_stratcon get_stratcon_log
              $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules);
 
 our $default_filterset = {
@@ -30,6 +33,7 @@ our $all_noit_modules = {
   'ssh2' => { 'image' => 'ssh2' },
   'mysql' => { 'image' => 'mysql' },
   'postgres' => { 'image' => 'postgres' },
+  'test_abort' => { 'image' => 'test_abort' },
   'varnish' => { 'loader' => 'lua', 'object' => 'noit.module.varnish' },
   'http' => { 'loader' => 'lua', 'object' => 'noit.module.http' },
   'resmon' => { 'loader' => 'lua', 'object' => 'noit.module.resmon' },
@@ -124,8 +128,8 @@ sub make_logs_config {
   <logs>
     <console_output>
       <outlet name="stderr"/>
-      <log name="error" disabled="$opts->{logs_error}->{''}"/>
-      <log name="debug" disabled="$opts->{logs_debug}->{''}"/>
+      <log name="error" disabled="$opts->{logs_error}->{''}" timestamps="true"/>
+      <log name="debug" disabled="$opts->{logs_debug}->{''}" timestamps="true"/>
     </console_output>
     <feeds>
       <log name="feed" type="jlog" path="$cwd/logs/$opts->{name}.feed(stratcon)"/>
@@ -479,6 +483,12 @@ sub make_stratcon_config {
   return $file;
 }
 
+$SIG{CHLD} = sub {
+  my $pid = wait;
+  $noit_pid = 0 if($pid == $noit_pid);
+  $stratcon_pid = 0 if($pid == $stratcon_pid);
+};
+
 sub start_noit {
   my $name = shift;
   my $options = shift;
@@ -487,21 +497,28 @@ sub start_noit {
   my $conf = make_noit_config($name, $options);
   $noit_pid = fork();
   mkdir "logs";
+  $noit_log = "logs/${name}_noit.log";
   if($noit_pid == 0) {
+    $noit_pid = $$;
+    $noit_log = "logs/${name}_noit.log";
     close(STDIN);
     open(STDIN, "</dev/null");
     close(STDOUT);
     open(STDOUT, ">/dev/null");
     close(STDERR);
-    open(STDERR, ">logs/${name}_noit.log");
+    open(STDERR, ">$noit_log");
     my @args = ( 'noitd', '-D', '-c', $conf );
     exec { '../../src/noitd' } @args;
     exit(-1);
   }
   return $noit_pid;
 }
+sub get_noit_log {
+  return IO::File->new("<$noit_log");
+}
 sub stop_noit {
-  kill 9, $noit_pid if($noit_pid && kill 1, $noit_pid);
+  return 0 unless ($noit_pid && kill 0, $noit_pid);
+  kill 9, $noit_pid;
   $noit_pid = 0;
   return 1;
 }
@@ -514,21 +531,28 @@ sub start_stratcon {
   my $conf = make_stratcon_config($name, $options);
   $stratcon_pid = fork();
   mkdir "logs";
+  $stratcon_log = "logs/${name}_stratcon.log";
   if($stratcon_pid == 0) {
+    $stratcon_pid = $$;
+    $stratcon_log = "logs/${name}_stratcon.log";
     close(STDIN);
     open(STDIN, "</dev/null");
     close(STDOUT);
     open(STDOUT, ">/dev/null");
     close(STDERR);
-    open(STDERR, ">logs/${name}_stratcon.log");
+    open(STDERR, ">$stratcon_log");
     my @args = ( 'stratcond', '-D', '-c', $conf );
     exec { '../../src/stratcond' } @args;
     exit(-1);
   }
   return $stratcon_pid;
 }
+sub get_stratcon_log {
+  return IO::File->new("<$stratcon_log");
+}
 sub stop_stratcon {
-  kill 9, $stratcon_pid if($stratcon_pid && kill 1, $stratcon_pid);
+  return 0 unless ($stratcon_pid && kill 0, $stratcon_pid);
+  kill 9, $stratcon_pid;
   $stratcon_pid = 0;
   return 1;
 }

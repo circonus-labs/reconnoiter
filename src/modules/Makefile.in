@@ -30,7 +30,7 @@ MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 
 SMODULES=stomp_driver.@MODULEEXT@
 
-all:	$(MODULES) $(SMODULES)
+all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@

@@ -60,7 +60,7 @@ eventer_jobq_handler(int signo)
   assert(jobq);
   env = pthread_getspecific(jobq->threadenv);
   job = pthread_getspecific(jobq->activejob);
-  if(env && job)
+  if(env && job && job->fd_event->mask & EVENTER_EVIL_BRUTAL)
     if(noit_atomic_cas32(&job->inflight, 0, 1) == 1)
        siglongjmp(*env, 1);
 }
@@ -141,10 +141,40 @@ eventer_jobq_retrieve(const char *name) {
   return vjq;
 }
 
+static void *
+eventer_jobq_consumer_pthreadentry(void *vp) {
+  return eventer_jobq_consumer((eventer_jobq_t *)vp);
+}
+static void
+eventer_jobq_maybe_spawn(eventer_jobq_t *jobq) {
+  int32_t current = jobq->concurrency;
+  /* if we've no desired concurrency, this doesn't apply to us */
+  if(jobq->desired_concurrency == 0) return;
+  /* See if we need to launch one */
+  if(jobq->desired_concurrency > current) {
+    /* we need another thread, maybe... this is a race as we do the
+     * increment in the new thread, but we check there and back it out
+     * if we did something we weren't supposed to. */
+    pthread_t tid;
+    noitL(eventer_deb, "Starting queue[%s] thread now at %d\n",
+          jobq->queue_name, jobq->concurrency);
+    pthread_create(&tid, NULL, eventer_jobq_consumer_pthreadentry, jobq);
+  }
+  noitL(eventer_deb, "jobq_queue[%s] pending cancels [%d/%d]\n",
+        jobq->queue_name, jobq->pending_cancels,
+        jobq->desired_concurrency);
+  if(jobq->pending_cancels == jobq->desired_concurrency) {
+    /* we're absolutely screwed at this point... it's time to just die */
+    noitL(noit_error, "jobq_queue[%s] induced [%d/%d] game over.\n",
+          jobq->queue_name, jobq->pending_cancels,
+          jobq->desired_concurrency);
+    assert(jobq->pending_cancels != jobq->desired_concurrency);
+  }
+}
 void
 eventer_jobq_enqueue(eventer_jobq_t *jobq, eventer_job_t *job) {
   job->next = NULL;
-
+  eventer_jobq_maybe_spawn(jobq);
   pthread_mutex_lock(&jobq->lock);
   if(jobq->tailq) {
     /* If there is a tail (queue has items), just push it on the end. */
@@ -205,7 +235,42 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   job->timeout_triggered = 1;
   job->timeout_event = NULL;
   noitL(eventer_deb, "%p jobq -> timeout job [%p]\n", pthread_self(), job);
-  if(job->inflight) pthread_kill(job->executor, JOBQ_SIGNAL);
+  if(job->inflight) {
+    eventer_job_t *jobcopy;
+    if(job->fd_event->mask & (EVENTER_CANCEL)) {
+      eventer_t my_precious = job->fd_event;
+      /* we set this to null so we can't complete on it */
+      job->fd_event = NULL;
+      noitL(eventer_deb, "[inline] timeout cancelling job\n");
+      noit_atomic_inc32(&job->jobq->pending_cancels);
+      pthread_cancel(job->executor);
+      /* complete on it ourselves */
+      if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
+        /* We need to cleanup... we haven't done it yet. */
+        noitL(eventer_deb, "[inline] %p jobq[%s] -> cleanup [%p]\n",
+              pthread_self(), job->jobq->queue_name, job);
+        /* This is the real question... asynch cleanup is supposed to
+         * be called asynch -- we're going to call it synchronously
+         * I think this is a bad idea, but not cleaning up seems worse.
+         * Because we're synchronous, if we hang, we'll be watchdogged.
+         *
+         * Uncooperative plugins/third-party libs can truly suck
+         * one's soul out.
+         */
+        if(my_precious)
+          my_precious->callback(my_precious, EVENTER_ASYNCH_CLEANUP,
+                                my_precious->closure, &job->finish_time);
+      }
+      jobcopy = malloc(sizeof(*jobcopy));
+      memcpy(jobcopy, job, sizeof(*jobcopy));
+      free(job);
+      jobcopy->fd_event = my_precious;
+      eventer_jobq_maybe_spawn(jobcopy->jobq);
+      eventer_jobq_enqueue(jobcopy->jobq->backq, jobcopy);
+    }
+    else
+      pthread_kill(job->executor, JOBQ_SIGNAL);
+  }
   return 0;
 }
 int
@@ -232,20 +297,32 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
   }
   return EVENTER_RECURRENT;
 }
-static void *
-eventer_jobq_consumer_pthreadentry(void *vp) {
-  return eventer_jobq_consumer((eventer_jobq_t *)vp);
+static void
+eventer_jobq_cancel_cleanup(void *vp) {
+  eventer_jobq_t *jobq = vp;
+  noit_atomic_dec32(&jobq->pending_cancels);
+  noit_atomic_dec32(&jobq->concurrency);
 }
 void *
 eventer_jobq_consumer(eventer_jobq_t *jobq) {
   eventer_job_t *job;
+  int32_t current_count;
   sigjmp_buf env;
 
   assert(jobq->backq);
-  noit_atomic_inc32(&jobq->concurrency);
+  current_count = noit_atomic_inc32(&jobq->concurrency);
+  noitL(eventer_deb, "jobq[%s] -> %d\n", jobq->queue_name, current_count);
+  if(current_count > jobq->desired_concurrency) {
+    noitL(eventer_deb, "jobq[%s] over provisioned, backing out.",
+          jobq->queue_name);
+    noit_atomic_dec32(&jobq->concurrency);
+    pthread_exit(NULL);
+    return NULL;
+  }
   /* Each thread can consume from only one queue */
   pthread_setspecific(threads_jobq, jobq);
   pthread_setspecific(jobq->threadenv, &env);
+  pthread_cleanup_push(eventer_jobq_cancel_cleanup, jobq);
 
   while(1) {
     pthread_setspecific(jobq->activejob, NULL);
@@ -283,12 +360,13 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       continue;
     }
     pthread_mutex_unlock(&job->lock);
-    
+
     /* Run the job, if we timeout, will be killed with a JOBQ_SIGNAL from
      * the master thread.  We handle the alarm by longjmp'd out back here.
      */
     job->executor = pthread_self();
-    if(sigsetjmp(env, 1) == 0) {
+    if(0 == (job->fd_event->mask & EVENTER_EVIL_BRUTAL) ||
+       sigsetjmp(env, 1) == 0) {
       /* We could get hit right here... (timeout and terminated from
        * another thread.  inflight isn't yet set (next line), so it
        * won't longjmp.  But timeout_triggered will be set... so we
@@ -297,8 +375,31 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       if(noit_atomic_cas32(&job->inflight, 1, 0) == 0) {
         if(!job->timeout_triggered) {
           noitL(eventer_deb, "%p jobq[%s] -> executing [%p]\n", pthread_self(), jobq->queue_name, job);
+          /* Choose the right cancellation policy (or none) */
+          if(job->fd_event->mask & EVENTER_CANCEL_ASYNCH) {
+            noitL(eventer_deb, "PTHREAD_CANCEL_ASYNCHRONOUS\n");
+            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+            pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+          }
+          else if(job->fd_event->mask & EVENTER_CANCEL_DEFERRED) {
+            noitL(eventer_deb, "PTHREAD_CANCEL_DEFERRED\n");
+            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+            pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+          }
+          else {
+            noitL(eventer_deb, "PTHREAD_CANCEL_DISABLE\n");
+            pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+          }
+          /* run the job */
+          noitL(eventer_deb, "jobq[%s] -> dispatch BEGIN\n", jobq->queue_name);
           job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_WORK,
                                   job->fd_event->closure, &job->start_time);
+          noitL(eventer_deb, "jobq[%s] -> dispatch END\n", jobq->queue_name);
+          if(job->fd_event && job->fd_event->mask & EVENTER_CANCEL)
+            pthread_testcancel();
+          /* reset the cancellation policy */
+          pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+          pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
         }
       }
     }
@@ -317,22 +418,24 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
       /* We need to cleanup... we haven't done it yet. */
       noitL(eventer_deb, "%p jobq[%s] -> cleanup [%p]\n", pthread_self(), jobq->queue_name, job);
-      job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
-                              job->fd_event->closure, &job->finish_time);
+      if(job->fd_event)
+        job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
+                                job->fd_event->closure, &job->finish_time);
     }
     eventer_jobq_enqueue(jobq->backq, job);
   }
+  pthread_cleanup_pop(0);
   noit_atomic_dec32(&jobq->concurrency);
   pthread_exit(NULL);
   return NULL;
 }
 
 void eventer_jobq_increase_concurrency(eventer_jobq_t *jobq) {
-  pthread_t tid;
-  pthread_create(&tid, NULL, eventer_jobq_consumer_pthreadentry, jobq);
+  noit_atomic_inc32(&jobq->desired_concurrency);
 }
 void eventer_jobq_decrease_concurrency(eventer_jobq_t *jobq) {
   eventer_job_t *job;
+  noit_atomic_dec32(&jobq->desired_concurrency);
   job = calloc(1, sizeof(*job));
   eventer_jobq_enqueue(jobq, job);
 }
