@@ -93,37 +93,37 @@ STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 all:	$(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
 
 make-man:
-	@(cd man && make -s)
+	@(cd man && $(MAKE) -s)
 
 lua/liblua.lo:
 	@echo "- building lua bits"
-	@(cd lua && make -s liblua.lo)
+	@(cd lua && $(MAKE) -s liblua.lo)
 
 make-modules:	lua/liblua.lo
 	@for dir in $(MODDIR) ; do \
-		(cd $$dir && make -s) ; \
+		(cd $$dir && $(MAKE) -s) ; \
 	done
 
 java-bits:
-	@-test -n "@JAVAPARTS@" && (cd java && make -s)
+	@-test -n "@JAVAPARTS@" && (cd java && $(MAKE) -s)
 
 libjlog:
-	@(cd jlog && make -s libjlog.a)
+	@(cd jlog && $(MAKE) -s libjlog.a)
 
 libudns:
-	@(cd udns && make -s libudns.o)
+	@(cd udns && $(MAKE) -s libudns.o)
 
 libnoitedit:
-	@(cd noitedit && make -s libnoitedit.a)
+	@(cd noitedit && $(MAKE) -s libnoitedit.a)
 
 libeventer:
-	@(cd eventer && make -s libeventer.a)
+	@(cd eventer && $(MAKE) -s libeventer.a)
 
 libnoit_utils:
-	@(cd utils && make -s libnoit_utils.a)
+	@(cd utils && $(MAKE) -s libnoit_utils.a)
 
 libnoitjson:
-	@(cd json-lib && make -s libnoitjson.a)
+	@(cd json-lib && $(MAKE) -s libnoitjson.a)
 
 jlog/libjlog.a:	libjlog
 udns/libudns.o:	libudns
@@ -244,34 +244,34 @@ install-noitd:	install-dirs noitd noit.conf java-bits
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
 	$(INSTALL) -m 0644 config_templates.conf $(DESTDIR)$(sysconfdir)/config_templates.conf
 	$(INSTALL) -m 0644 default-ca-chain.crt $(DESTDIR)$(sysconfdir)/default-ca-chain.crt
-	(cd modules && make install-modules DESTDIR=$(DESTDIR))
-	(cd modules-lua && make install DESTDIR=$(DESTDIR))
-	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install-jezebel DESTDIR=$(DESTDIR))
+	(cd modules && $(MAKE) install-modules DESTDIR=$(DESTDIR))
+	(cd modules-lua && $(MAKE) install DESTDIR=$(DESTDIR))
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
 install-stratcond:	install-dirs stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
-	(cd modules && make install-smodules DESTDIR=$(DESTDIR))
-	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && make install-iep DESTDIR=$(DESTDIR))
+	(cd modules && $(MAKE) install-smodules DESTDIR=$(DESTDIR))
+	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
 
 install-docs:
-	(cd man && make install DESTDIR=$(DESTDIR))
+	(cd man && $(MAKE) install DESTDIR=$(DESTDIR))
 
 install:	install-dirs install-docs install-headers install-noitd install-stratcond
 
 clean:
 	rm -f *.o $(TARGETS)
 	rm -f module-online.h
-	(cd jlog && make clean)
-	(cd eventer && make clean)
-	(cd udns && make clean)
-	(cd man && make clean)
-	(cd modules && make clean)
-	(cd noitedit && make clean)
-	(cd utils && make clean)
-	(cd json-lib && make clean)
-	(cd lua && make clean)
-	(cd java && make clean)
+	(cd jlog && $(MAKE) clean)
+	(cd eventer && $(MAKE) clean)
+	(cd udns && $(MAKE) clean)
+	(cd man && $(MAKE) clean)
+	(cd modules && $(MAKE) clean)
+	(cd noitedit && $(MAKE) clean)
+	(cd utils && $(MAKE) clean)
+	(cd json-lib && $(MAKE) clean)
+	(cd lua && $(MAKE) clean)
+	(cd java && $(MAKE) clean)
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
@@ -281,7 +281,7 @@ include Makefile.dep
 
 distclean-subdirs:
 	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib lua java ; do \
-		(cd $$dir && make distclean) ; \
+		(cd $$dir && $(MAKE) distclean) ; \
 	done
 
 distclean:	clean distclean-subdirs
