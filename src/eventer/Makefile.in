@@ -2,6 +2,7 @@ CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
+DEPFLAGS=@DEPFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
@@ -34,6 +35,7 @@ distclean:	clean
 	rm -f Makefile
 
 Makefile.dep:
-	gcc -I.. -MM *.c > Makefile.dep
+	$(CC) -I. -I.. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
+	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep

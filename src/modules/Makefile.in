@@ -4,6 +4,7 @@ CC=@CC@
 LD=@LD@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+DEPFLAGS=@DEPFLAGS@
 PGCFLAGS=@PGCFLAGS@
 MYCFLAGS=@MYCFLAGS@
 SHCFLAGS=@SHCFLAGS@
@@ -158,3 +159,9 @@ clean:
 distclean:	clean
 	rm -f Makefile
 
+Makefile.dep:
+	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) -I$(top_srcdir)/src/lua/src @APRCFLAGS@ \
+			$(DEPFLAGS) -c *.c > Makefile.dep
+	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
+
+include Makefile.dep

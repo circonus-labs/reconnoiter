@@ -5,6 +5,7 @@ CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
+DEPFLAGS=@DEPFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
@@ -71,7 +72,8 @@ NOIT_OBJS=noitd.o noit_listener.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
         noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o
 
-NOIT_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
+NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
+NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
 STRATCON_OBJS=stratcond.o noit_listener.o \
@@ -84,10 +86,11 @@ STRATCON_OBJS=stratcond.o noit_listener.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o
 
-STRATCON_LIBS=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
+STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
+STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
-all:	$(TARGETS) java-bits make-modules make-man
+all:	$(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
 
 make-man:
 	@(cd man && make -s)
@@ -104,29 +107,30 @@ make-modules:	lua/liblua.lo
 java-bits:
 	@-test -n "@JAVAPARTS@" && (cd java && make -s)
 
-jlog/libjlog.a:
-	@echo "- building jlog bits"
+libjlog:
 	@(cd jlog && make -s libjlog.a)
 
-udns/libudns.o:
-	@echo "- building udns bits"
+libudns:
 	@(cd udns && make -s libudns.o)
 
-noitedit/libnoitedit.a:
-	@echo "- building noitedit bits"
+libnoitedit:
 	@(cd noitedit && make -s libnoitedit.a)
 
-eventer/libeventer.a:
-	@echo "- building eventer bits"
+libeventer:
 	@(cd eventer && make -s libeventer.a)
 
-utils/libnoit_utils.a:
-	@echo "- building utils bits"
+libnoit_utils:
 	@(cd utils && make -s libnoit_utils.a)
 
-json-lib/libnoitjson.a:
-	@echo "- building json bits"
+libnoitjson:
 	@(cd json-lib && make -s libnoitjson.a)
+
+jlog/libjlog.a:	libjlog
+udns/libudns.o:	libudns
+noitedit/libnoitedit.a:	libnoitedit
+eventer/libeventer.a:	libeventer
+utils/libnoit_utils.a:	libnoit_utils
+json-lib/libnoitjson.a:	libnoitjson
 
 man/noitd.usage.h:	make-man
 
@@ -135,7 +139,8 @@ man/stratcond.usage.h:	make-man
 noitd.o:	man/noitd.usage.h
 stratcond.o:	man/stratcond.usage.h
 
-noitd:	$(NOIT_OBJS) $(NOIT_LIBS) man/noitd.usage.h
+noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h
+	@echo "- linking $@"
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \
@@ -147,9 +152,9 @@ noitd:	$(NOIT_OBJS) $(NOIT_LIBS) man/noitd.usage.h
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
-	@echo "- linking $@"
 
-stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
+stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES)
+	@echo "- linking $@"
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
 		$(LDFLAGS) \
@@ -161,7 +166,6 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIBS)
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS) $(PGLIBS)
-	@echo "- linking $@"
 
 stratcon_datastore.o:	stratcon_datastore.c
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
@@ -270,7 +274,8 @@ clean:
 	(cd java && make clean)
 
 Makefile.dep:
-	gcc -MM *.c > Makefile.dep
+	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
+	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep
 
