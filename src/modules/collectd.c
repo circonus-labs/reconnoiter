@@ -936,7 +936,7 @@ static int parse_packet (/* {{{ */
         (void *) buffer,
         sizeof (pkg_type));
     memcpy ((void *) &pkg_length,
-        (void *) (buffer + sizeof (pkg_type)),
+        (void *) ((char *)buffer + sizeof (pkg_type)),
         sizeof (pkg_length));
 
     pkg_length = ntohs (pkg_length);
@@ -1247,9 +1247,10 @@ static int queue_values(collectd_closure_t *ccl,
         noit_stats_set_metric(&ccl->current, buffer, METRIC_INT64, &vl->values[i].absolute);
         break;
 
+      default:
         noitL(noit_debug, "collectd: parse_part_values: "
-      "Don't know how to handle data source type %"PRIu8 "\n",
-      vl->types[i]);
+              "Don't know how to handle data source type %"PRIu8 "\n",
+              vl->types[i]);
         return (-1);
     } /* switch (value_types[i]) */
     ccl->stats_count++;
