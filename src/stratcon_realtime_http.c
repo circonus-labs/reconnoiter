@@ -288,7 +288,7 @@ stratcon_realtime_uri_parse(realtime_context *rc, const char *uri) {
       interval = "5000";
     else
       *interval++ = '\0';
-    if(uuid_parse(interest, in_uuid)) continue;
+    if(uuid_parse((char *)interest, in_uuid)) continue;
     node = calloc(1, sizeof(*node));
     node->rc = rc;
     uuid_copy(node->checkid, in_uuid);
