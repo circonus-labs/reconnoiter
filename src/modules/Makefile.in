@@ -124,6 +124,10 @@ external.@MODULEEXT@:	external.lo external_proc.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ external.lo external_proc.lo
 	@echo "- linking $@"
 
+test_abort.@MODULEEXT@:	test_abort.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ $<
+	@echo "- linking $@"
+
 .lo.@MODULEEXT@:
 	@$(MODULELD) $(LDFLAGS) -o $@ $<
 	@echo "- linking $@"
