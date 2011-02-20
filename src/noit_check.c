@@ -561,7 +561,6 @@ noit_check_set_ip(noit_check_t *new_check,
     rv = inet_pton(family, ip_str, &a);
     if(rv != 1) {
       family = AF_INET;
-      noitL(noit_error, "Cannot translate '%s' to IP\n", ip_str);
       memset(&a, 0, sizeof(a));
       failed = -1;
     }
