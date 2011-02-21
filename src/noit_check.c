@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -570,10 +571,12 @@ noit_check_set_ip(noit_check_t *new_check,
   memcpy(&new_check->target_addr, &a, sizeof(a));
   new_check->target_ip[0] = '\0';
   if(failed == 0)
-    inet_ntop(new_check->target_family,
-              &new_check->target_addr,
-              new_check->target_ip,
-              sizeof(new_check->target_ip));
+    if(inet_ntop(new_check->target_family,
+                 &new_check->target_addr,
+                 new_check->target_ip,
+                 sizeof(new_check->target_ip)) == NULL) {
+      noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
+    }
   return failed;
 }
 int
