@@ -44,9 +44,6 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
-#include <libpq-fe.h>
-
-/* Ripped from test_abort 8.3.3 */
 #ifndef BOOLOID
 #define BOOLOID                  16
 #endif
