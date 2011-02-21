@@ -103,12 +103,12 @@ int noit_watchdog_prefork_init() {
 int noit_monitored_child_pid = -1;
 
 void glideme(int sig) {
-  char cmd[1024];
+  char cmd[1024], unused;
   signal(sig, SIG_DFL);
   snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
            glider_path, noit_monitored_child_pid,
            trace_dir, appname, noit_monitored_child_pid);
-  system(cmd);
+  unused = system(cmd);
   kill(noit_monitored_child_pid, sig);
 }
 
