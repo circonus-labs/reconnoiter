@@ -62,7 +62,7 @@ eval { @r = $c->get("/checks/show/$uuid"); };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
 while(<$fh>) {
-  if(/Assertion failed:.*check->flags & NP_RUNNING.*test_abort_initiate/) {
+  if(/Assertion failed:.*check->flags & NP_RUNNING.*test_abort/) {
     $fh->close;
     ok(1, "$prefix: found assertion");
     last;
@@ -131,7 +131,7 @@ eval { @r = $c->get("/checks/show/$uuid"); };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
 while(<$fh>) {
-  if(/Assertion failed:.*check->flags & NP_RUNNING.*test_abort_initiate/) {
+  if(/Assertion failed:.*check->flags & NP_RUNNING.*test_abort/) {
     $fh->close;
     ok(1, "$prefix: found assertion");
     last;

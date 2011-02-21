@@ -17,6 +17,7 @@ sub new {
     }
     my $curl = WWW::Curl::Easy->new();
     $curl->setopt(CURLOPT_SSL_VERIFYPEER, 0);
+    $curl->setopt(CURLOPT_SSL_VERIFYHOST, 1);
     $curl->setopt(CURLOPT_CAINFO, $options->{cainfo});
     $curl->setopt(CURLOPT_SSLKEY, $options->{key});
     $curl->setopt(CURLOPT_SSLCERT, $options->{cert});
