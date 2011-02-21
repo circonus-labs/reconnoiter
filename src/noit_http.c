@@ -609,7 +609,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
 }
 void
 noit_http_process_querystring(noit_http_request *req) {
-  char *cp, *interest, *brk;
+  char *cp, *interest, *brk = NULL;
   cp = strchr(req->uri_str, '?');
   if(!cp) return;
   *cp++ = '\0';

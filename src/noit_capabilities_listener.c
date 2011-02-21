@@ -89,7 +89,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     /* time (poor man's time check) */
     gettimeofday(&now, NULL);
     snprintf(vbuff, sizeof(vbuff), "%llu.%03d", (unsigned long long)now.tv_sec,
-             now.tv_usec / 1000);
+             (int)(now.tv_usec / 1000));
     xmlNewTextChild(root, NULL, (xmlChar *)"current_time", (xmlChar *)vbuff);
 
     cmds = xmlNewNode(NULL, (xmlChar *)"services");

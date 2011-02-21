@@ -380,7 +380,7 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
 void noit_conf_get_into_hash(noit_conf_section_t section,
                              const char *path,
                              noit_hash_table *table) {
-  int cnt;
+  unsigned int cnt;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;

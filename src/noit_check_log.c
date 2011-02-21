@@ -194,13 +194,15 @@ _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
           srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
                          "M\t%lu.%03lu\t%s\t%s\t%c\t%lld\n",
                          SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, *(m->metric_value.l));
+                         m->metric_name, m->metric_type,
+                         (long long int)*(m->metric_value.l));
           break;
         case METRIC_UINT64:
           srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
                          "M\t%lu.%03lu\t%s\t%s\t%c\t%llu\n",
                          SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, *(m->metric_value.L));
+                         m->metric_name, m->metric_type,
+                         (long long unsigned int)*(m->metric_value.L));
           break;
         case METRIC_DOUBLE:
           srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
@@ -245,9 +247,10 @@ noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
       case METRIC_UINT32:
         rv = snprintf(b, l, "%u", *(m->metric_value.I)); break;
       case METRIC_INT64:
-        rv = snprintf(b, l, "%lld", *(m->metric_value.l)); break;
+        rv = snprintf(b, l, "%lld", (long long int)*(m->metric_value.l)); break;
       case METRIC_UINT64:
-        rv = snprintf(b, l, "%llu", *(m->metric_value.L)); break;
+        rv = snprintf(b, l, "%llu",
+                      (long long unsigned int)*(m->metric_value.L)); break;
       case METRIC_DOUBLE:
         rv = snprintf(b, l, "%.12e", *(m->metric_value.n)); break;
       case METRIC_STRING:

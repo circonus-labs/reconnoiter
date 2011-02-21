@@ -43,6 +43,8 @@
 #define JOBQ_SIGNAL SIGALRM
 #endif
 
+#define pthread_self_ptr() ((void *)pthread_self())
+
 static noit_atomic32_t threads_jobq_inited = 0;
 static pthread_key_t threads_jobq;
 static sigset_t alarm_mask;
@@ -234,7 +236,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   eventer_job_t *job = closure;
   job->timeout_triggered = 1;
   job->timeout_event = NULL;
-  noitL(eventer_deb, "%p jobq -> timeout job [%p]\n", pthread_self(), job);
+  noitL(eventer_deb, "%p jobq -> timeout job [%p]\n", pthread_self_ptr(), job);
   if(job->inflight) {
     eventer_job_t *jobcopy;
     if(job->fd_event->mask & (EVENTER_CANCEL)) {
@@ -248,7 +250,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
       if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
         /* We need to cleanup... we haven't done it yet. */
         noitL(eventer_deb, "[inline] %p jobq[%s] -> cleanup [%p]\n",
-              pthread_self(), job->jobq->queue_name, job);
+              pthread_self_ptr(), job->jobq->queue_name, job);
         /* This is the real question... asynch cleanup is supposed to
          * be called asynch -- we're going to call it synchronously
          * I think this is a bad idea, but not cleaning up seems worse.
@@ -333,7 +335,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       break;
     }
     pthread_setspecific(jobq->activejob, job);
-    noitL(eventer_deb, "%p jobq[%s] -> running job [%p]\n", pthread_self(), jobq->queue_name, job);
+    noitL(eventer_deb, "%p jobq[%s] -> running job [%p]\n", pthread_self_ptr(),
+          jobq->queue_name, job);
 
     /* Mark our commencement */
     gettimeofday(&job->start_time, NULL);
@@ -345,12 +348,13 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       /* This happens if the timeout occurred before we even had the change
        * to pull the job off the queue.  We must be in bad shape here.
        */
-      noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p]\n", pthread_self(), jobq->queue_name, job);
+      noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p]\n",
+            pthread_self_ptr(), jobq->queue_name, job);
       gettimeofday(&job->finish_time, NULL); /* We're done */
       sub_timeval(job->finish_time, job->fd_event->whence, &diff);
       sub_timeval(job->finish_time, job->create_time, &diff2);
       noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p] -%0.6f (%0.6f)\n",
-            pthread_self(), jobq->queue_name, job,
+            pthread_self_ptr(), jobq->queue_name, job,
             (float)diff.tv_sec + (float)diff.tv_usec/1000000.0,
             (float)diff2.tv_sec + (float)diff2.tv_usec/1000000.0);
       pthread_mutex_unlock(&job->lock);
@@ -374,7 +378,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
        */
       if(noit_atomic_cas32(&job->inflight, 1, 0) == 0) {
         if(!job->timeout_triggered) {
-          noitL(eventer_deb, "%p jobq[%s] -> executing [%p]\n", pthread_self(), jobq->queue_name, job);
+          noitL(eventer_deb, "%p jobq[%s] -> executing [%p]\n",
+                pthread_self_ptr(), jobq->queue_name, job);
           /* Choose the right cancellation policy (or none) */
           if(job->fd_event->mask & EVENTER_CANCEL_ASYNCH) {
             noitL(eventer_deb, "PTHREAD_CANCEL_ASYNCHRONOUS\n");
@@ -405,7 +410,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     }
 
     job->inflight = 0;
-    noitL(eventer_deb, "%p jobq[%s] -> finished [%p]\n", pthread_self(), jobq->queue_name, job);
+    noitL(eventer_deb, "%p jobq[%s] -> finished [%p]\n", pthread_self_ptr(),
+          jobq->queue_name, job);
     /* No we know we won't have siglongjmp called on us */
 
     gettimeofday(&job->finish_time, NULL);
@@ -417,7 +423,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
 
     if(noit_atomic_cas32(&job->has_cleanedup, 1, 0) == 0) {
       /* We need to cleanup... we haven't done it yet. */
-      noitL(eventer_deb, "%p jobq[%s] -> cleanup [%p]\n", pthread_self(), jobq->queue_name, job);
+      noitL(eventer_deb, "%p jobq[%s] -> cleanup [%p]\n", pthread_self_ptr(),
+            jobq->queue_name, job);
       if(job->fd_event)
         job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                                 job->fd_event->closure, &job->finish_time);

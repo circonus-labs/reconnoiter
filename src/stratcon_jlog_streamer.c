@@ -116,7 +116,8 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
         addrstr = inet_ntop(addr6.sin6_family,
                             &((struct sockaddr_in *)&addr6)->sin_addr,
                             buff, sizeof(buff));
-        port = ntohs(((struct sockaddr_in *)&addr6)->sin_port);
+        memcpy(&port, &((struct sockaddr_in *)&addr6)->sin_port, sizeof(port));
+        port = ntohs(port);
       }
       else if(addr6.sin6_family == AF_INET6) {
         addrstr = inet_ntop(addr6.sin6_family, &addr6.sin6_addr,
@@ -979,7 +980,7 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
                               self_stratcon_hostname, strdup(str), NULL); \
 } while(0)
 #define push_noit_m_u64(name, value) do { \
-  snprintf(wr, len, "%s\tL\t%llu\n", name, value); \
+  snprintf(wr, len, "%s\tL\t%llu\n", name, (long long unsigned int)value); \
   stratcon_datastore_push(DS_OP_INSERT, \
                           (struct sockaddr *)&self_stratcon_ip, \
                           self_stratcon_hostname, strdup(str), NULL); \
@@ -1140,7 +1141,8 @@ rest_show_noits(noit_http_rest_closure_t *restc,
           addrstr = inet_ntop(addr6.sin6_family,
                               &((struct sockaddr_in *)&addr6)->sin_addr,
                               buff, sizeof(buff));
-          port = ntohs(((struct sockaddr_in *)&addr6)->sin_port);
+          memcpy(&port, &((struct sockaddr_in *)&addr6)->sin_port, sizeof(port));
+          port = ntohs(port);
         }
         else if(addr6.sin6_family == AF_INET6) {
           addrstr = inet_ntop(addr6.sin6_family, &addr6.sin6_addr,

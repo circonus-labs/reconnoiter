@@ -117,7 +117,7 @@ static void external_sigchld(int sig) {
   pid = waitpid(0, &status, WNOHANG);
   ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
   noitL(nldeb, "reaped pid %d (check: %lld) -> %x\n",
-        pid, ps?ps->check_no:-1, status);
+        pid, (long long int)(ps?ps->check_no:-1), status);
   if(ps) {
     ps->status = status;
     noit_skiplist_remove_compare(&active_procs, &pid, NULL,  __proc_state_pid);
@@ -185,7 +185,7 @@ static void finish_procs() {
   struct proc_state *ps;
   noitL(noit_error, "%d done procs to cleanup\n", done_procs.size);
   while((ps = noit_skiplist_pop(&done_procs, NULL)) != NULL) {
-    noitL(noit_error, "finished %lld/%d\n", ps->check_no, ps->pid);
+    noitL(noit_error, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
     if(ps->cancelled == 0) {
       assert_write(out_fd, &ps->check_no,
                    sizeof(ps->check_no));
