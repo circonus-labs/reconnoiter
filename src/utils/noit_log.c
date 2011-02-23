@@ -559,6 +559,8 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
                     void *ctx, noit_hash_table *config) {
   noit_log_stream_t ls, saved;
   struct _noit_log_stream tmpbuf;
+  void *vops = NULL;
+
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
   ls->path = path ? strdup(path) : NULL;
@@ -567,8 +569,10 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
   ls->config = config;
   if(!type)
     ls->ops = NULL;
-  else if(!noit_hash_retrieve(&noit_logops, type, strlen(type),
-                              (void **)&ls->ops))
+  else if(noit_hash_retrieve(&noit_logops, type, strlen(type),
+                             &vops))
+    ls->ops = vops;
+  else
     goto freebail;
  
   if(ls->ops && ls->ops->openop(ls)) goto freebail;
