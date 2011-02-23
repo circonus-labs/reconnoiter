@@ -40,17 +40,7 @@ typedef int64_t noit_atomic64_t;
 
 #if defined(__GNUC__)
 
-#if (SIZEOF_VOID_P == 4)
-#define noit_atomic_casptr(a,b,c) ((void *)noit_atomic_cas32((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c)))
-#elif (SIZEOF_VOID_P == 8)
-#define noit_atomic_casptr(a,b,c) ((void *)noit_atomic_cas64((vpsized_int *)(a),(vpsized_int)(void *)(b),(vpsized_int)(void *)(c)))
-#else
-#error unsupported pointer width
-#endif
-
-
 typedef noit_atomic32_t noit_spinlock_t;
-
 static inline noit_atomic32_t
 noit_atomic_cas32(volatile noit_atomic32_t *ptr,
                   volatile noit_atomic32_t rpl,
@@ -63,6 +53,21 @@ noit_atomic_cas32(volatile noit_atomic32_t *ptr,
     : "memory");
   return prev;
 }
+
+#if (SIZEOF_VOID_P == 4)
+static inline void *
+noit_atomic_casptr(volatile void **ptr,
+                   volatile void *rpl,
+                   volatile void *curr) {
+  void *prev;
+  __asm__ volatile (
+      "lock; cmpxchgl %1, %2"
+    : "=a" (prev)
+    : "r"  (rpl), "m" (*(ptr)), "0" (curr)
+    : "memory");
+  return prev;
+}
+#endif
 
 #ifdef __x86_64__
 static inline noit_atomic64_t
@@ -77,6 +82,20 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
     : "memory");
   return prev;
 }
+#if (SIZEOF_VOID_P == 8)
+static inline void *
+noit_atomic_cas64(volatile void **ptr,
+                  volatile void *rpl,
+                  volatile void *curr) {
+  void *prev;
+  __asm__ volatile (
+      "lock; cmpxchgq %1, %2"
+    : "=a" (prev)
+    : "r"  (rpl), "m" (*(ptr)), "0" (curr)
+    : "memory");
+  return prev;
+}
+#endif
 #else
 static inline noit_atomic64_t
 noit_atomic_cas64(volatile noit_atomic64_t *ptr,
@@ -104,6 +123,10 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
 #endif
   return prev;
 };
+#if (SIZEOF_VOID_P == 8)
+/* This should never be triggered.. 8 byte pointers on 32bit machines */
+#error "64bit pointers on a 32bit architecture?"
+#endif
 #endif
 
 static inline void noit_spinlock_lock(volatile noit_spinlock_t *lock) {
