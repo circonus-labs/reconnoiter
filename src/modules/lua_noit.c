@@ -387,6 +387,7 @@ noit_lua_socket_sendto(lua_State *L) {
     luaL_error(L, "noit.socket.sendto with bad arguments");
   bytes = lua_tolstring(L, 2, &nbytes);
   target = lua_tostring(L, 3);
+  if(!target) target = "";
   port = lua_tointeger(L, 4);
 
   family = AF_INET;
@@ -395,7 +396,6 @@ noit_lua_socket_sendto(lua_State *L) {
     family = AF_INET6;
     rv = inet_pton(family, target, &a.sin6.sin6_addr);
     if(rv != 1) {
-      noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
       memset(&a, 0, sizeof(a));
       lua_pushinteger(L, -1);
       lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
@@ -457,6 +457,7 @@ noit_lua_socket_connect(lua_State *L) {
     luaL_error(L, "must be called as method");
   e = *eptr;
   target = lua_tostring(L, 2);
+  if(!target) target = "";
   port = lua_tointeger(L, 3);
 
   family = AF_INET;
@@ -465,7 +466,6 @@ noit_lua_socket_connect(lua_State *L) {
     family = AF_INET6;
     rv = inet_pton(family, target, &a.sin6.sin6_addr);
     if(rv != 1) {
-      noitL(noit_stderr, "Cannot translate '%s' to IP\n", target);
       memset(&a, 0, sizeof(a));
       lua_pushinteger(L, -1);
       lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
@@ -1130,6 +1130,7 @@ nl_socket(lua_State *L) {
 
   if(n > 0 && lua_isstring(L,1)) {
     const char *fam = lua_tostring(L,1);
+    if(!fam) fam = "";
     if(!strcmp(fam, "inet")) family = AF_INET;
     else if(!strcmp(fam, "inet6")) family = AF_INET6;
     else if(inet_pton(AF_INET, fam, &a) == 1) family = AF_INET;
