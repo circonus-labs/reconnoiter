@@ -919,14 +919,14 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
                             noit_console_state_t *dstate,
                             void *closure) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  void *key_id;
+  const char *key_id;
   int klen, n = 0, i;
   void *vconn;
   noit_connection_ctx_t **ctx;
 
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
+  while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctx[n] = (noit_connection_ctx_t *)vconn;
     noit_atomic_inc32(&ctx[n]->refcnt);
@@ -1009,7 +1009,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
   noit_connection_ctx_t **ctxs;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  void *key_id;
+  const char *key_id;
   void *vconn;
   int klen, n = 0, i;
   char str[1024];
@@ -1035,7 +1035,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
 
   pthread_mutex_lock(&noits_lock);
   ctxs = malloc(sizeof(*ctxs) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
+  while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
     noit_atomic_inc32(&ctxs[n]->refcnt);
@@ -1076,7 +1076,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   noit_hash_table seen = NOIT_HASH_EMPTY;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   char path[256];
-  void *key_id;
+  const char *key_id;
   const char *type = NULL, *want_cn = NULL;
   int klen, n = 0, i, di, cnt;
   void *vconn;
@@ -1094,7 +1094,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
 
   pthread_mutex_lock(&noits_lock);
   ctxs = malloc(sizeof(*ctxs) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
+  while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
     noit_atomic_inc32(&ctxs[n]->refcnt);
@@ -1305,7 +1305,7 @@ stratcon_add_noit(const char *target, unsigned short port,
 static int
 stratcon_remove_noit(const char *target, unsigned short port) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  void *key_id;
+  const char *key_id;
   int klen, n = -1, i, cnt = 0;
   void *vconn;
   noit_connection_ctx_t **ctx;
@@ -1335,7 +1335,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
 
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
-  while(noit_hash_next(&noits, &iter, (const char **)&key_id, &klen,
+  while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {
       ctx[n] = (noit_connection_ctx_t *)vconn;

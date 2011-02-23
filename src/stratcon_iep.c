@@ -78,12 +78,12 @@ struct iep_job_closure {
 static void
 start_iep_daemon();
 
-static float
+static double
 stratcon_iep_age_from_line(char *data, struct timeval now) {
-  float n, t;
+  double n, t;
   if(data && (*data == 'S' || *data == 'M')) {
     if(data[1] != '\t') return 0;
-    t = strtof(data + 2, NULL);
+    t = strtod(data + 2, NULL);
     n = (float)now.tv_sec + (float)now.tv_usec / 1000000.0;
     return n - t;
   }
@@ -360,7 +360,7 @@ setup_iep_connection_later(int seconds) {
 static int
 stratcon_iep_submitter(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
-  float age;
+  double age;
   struct iep_job_closure *job = closure;
   struct iep_thread_driver *driver;
   /* We only play when it is an asynch event */
