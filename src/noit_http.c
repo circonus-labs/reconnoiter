@@ -1072,7 +1072,8 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
                      "HTTP/1.0" :
                      "HTTP/0.9");
   tlen = snprintf(b->buff, b->allocd, "%s %03d %s\r\n",
-                  protocol_str, ctx->res.status_code, ctx->res.status_reason);
+                  protocol_str, ctx->res.status_code,
+                  ctx->res.status_reason ? ctx->res.status_reason : "unknown");
   if(tlen < 0) return -1;
   len = b->size = tlen;
 
