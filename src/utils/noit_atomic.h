@@ -84,7 +84,7 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
 }
 #if (SIZEOF_VOID_P == 8)
 static inline void *
-noit_atomic_cas64(volatile void **ptr,
+noit_atomic_casptr(volatile void **ptr,
                   volatile void *rpl,
                   volatile void *curr) {
   void *prev;
