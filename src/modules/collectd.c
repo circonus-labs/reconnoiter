@@ -1302,6 +1302,75 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check) {
   return 0;
 }
 
+struct collectd_pkt {
+  noit_module_t *self;  /* which collect load context */
+  char *payload;
+  int len;
+};
+
+static int
+push_packet_at_check(noit_check_t *check, void *closure) {
+  struct collectd_pkt *pkt = closure;
+  collectd_closure_t *ccl;
+  char *security_buffer; 
+  collectd_mod_config_t *conf;
+  conf = noit_module_get_userdata(pkt->self);
+
+  /* We need a check, and a collectd one at that */
+  if (!check || strcmp(check->module, pkt->self->hdr.name)) return 0;
+
+  // If its a new check retrieve some values
+  if (check->closure == NULL) {
+    // TODO: Verify if it could somehow retrieve data before the check closure exists 
+    ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
+    memset(ccl, 0, sizeof(collectd_closure_t));
+  } else {
+    ccl = (collectd_closure_t*)check->closure;
+  }
+  // Default to NONE
+  ccl->security_level = SECURITY_LEVEL_NONE;
+  if (noit_hash_retr_str(check->config, "security_level", strlen("security_level"),
+                         (const char**)&security_buffer)) 
+  {
+    ccl->security_level = atoi(security_buffer);
+  }
+
+  // Is this outside to keep updates happening?
+  if (!noit_hash_retr_str(check->config, "username", strlen("username"),
+                         (const char**)&ccl->username) &&
+      !noit_hash_retr_str(conf->options, "username", strlen("username"),
+                         (const char**)&ccl->username)) 
+  {
+    if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
+      noitL(nlerr, "collectd: no username defined for check.\n");
+      return 0;
+    } else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
+      noitL(nlerr, "collectd: no username defined for check, "
+          "will accept any signed packet.\n");
+    }
+  }
+
+  if(!ccl->secret)
+    noit_hash_retr_str(check->config, "secret", strlen("secret"),
+                       (const char**)&ccl->secret);
+  if(!ccl->secret)
+    noit_hash_retr_str(conf->options, "secret", strlen("secret"),
+                       (const char**)&ccl->secret);
+  if(!ccl->secret) {
+    if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
+      noitL(nlerr, "collectd: no secret defined for check.\n");
+      return 0;
+    }
+    else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
+      noitL(nlerr, "collectd: no secret defined for check, "
+          "will accept any signed packet.\n");
+    }
+  }
+
+  parse_packet(ccl, pkt->self, check, pkt->payload, pkt->len, 0);
+  return 1;
+}
+
 static int noit_collectd_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
   union {
@@ -1320,10 +1389,8 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
   // Get the username and password of the string
 
   while(1) {
-    int inlen;
-    noit_check_t *check;
-    collectd_closure_t *ccl;
-    char *security_buffer; 
+    struct collectd_pkt pkt;
+    int inlen, check_cnt;
 
     from_len = sizeof(remote);
 
@@ -1352,68 +1419,16 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
       noitLT(nlerr, now, "collectd: could not determine address family of remote\n");
       break;
     }
-    check = noit_poller_lookup_by_name(ip_p, "collectd");
-    if (!check) {
+
+    pkt.self = self;
+    pkt.payload = packet;
+    pkt.len = inlen;
+    check_cnt = noit_poller_target_do(ip_p, push_packet_at_check ,&pkt);
+    if(check_cnt == 0)
       noitL(nlerr, "collectd: No defined check from ip [%s].\n", ip_p);
-      break;
-    }
-
-    // If its a new check retrieve some values
-    if (check->closure == NULL) {
-      // TODO: Verify if it could somehow retrieve data before the check closure exists 
-      ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
-      memset(ccl, 0, sizeof(collectd_closure_t));
-    } else {
-      ccl = (collectd_closure_t*)check->closure;
-    }
-    // Default to NONE
-    ccl->security_level = SECURITY_LEVEL_NONE;
-    if (noit_hash_retr_str(check->config, "security_level", strlen("security_level"),
-                           (const char**)&security_buffer)) 
-    {
-      ccl->security_level = atoi(security_buffer);
-    }
-
-    // Is this outside to keep updates happening?
-    if (!noit_hash_retr_str(check->config, "username", strlen("username"),
-                           (const char**)&ccl->username) &&
-        !noit_hash_retr_str(conf->options, "username", strlen("username"),
-                           (const char**)&ccl->username)) 
-    {
-      if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
-        noitL(nlerr, "collectd: no username defined for check.\n");
-        goto cleanup;
-      } else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
-        noitL(nlerr, "collectd: no username defined for check, "
-            "will accept any signed packet.\n");
-      }
-    }
-
-    if(!ccl->secret)
-      noit_hash_retr_str(check->config, "secret", strlen("secret"),
-                         (const char**)&ccl->secret);
-    if(!ccl->secret)
-      noit_hash_retr_str(conf->options, "secret", strlen("secret"),
-                         (const char**)&ccl->secret);
-    if(!ccl->secret) {
-      if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
-        noitL(nlerr, "collectd: no secret defined for check.\n");
-        goto cleanup;
-      }
-      else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
-        noitL(nlerr, "collectd: no secret defined for check, "
-            "will accept any signed packet.\n");
-      }
-    }
-
-    parse_packet(ccl, self, check, packet, inlen, 0);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
-
-cleanup:
-  return 0;
 }
-
 
 static int noit_collectd_initiate_check(noit_module_t *self,
                                         noit_check_t *check,

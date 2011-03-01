@@ -209,6 +209,10 @@ API_EXPORT(noit_check_t *)
   noit_poller_lookup_by_name(char *target, char *name);
 
 API_EXPORT(int)
+   noit_poller_target_do(char *target, int (*f)(noit_check_t *, void *),
+                         void *closure);
+
+API_EXPORT(int)
   noit_check_xpath(char *xpath, int len,
                    const char *base, const char *arg);
 

@@ -796,6 +796,25 @@ noit_poller_lookup_by_name(char *target, char *name) {
   free(tmp_check);
   return check;
 }
+int
+noit_poller_target_do(char *target, int (*f)(noit_check_t *, void *),
+                      void *closure) {
+  int count = 0;
+  noit_check_t pivot;
+  noit_skiplist_node *next;
+
+  memset(&pivot, 0, sizeof(pivot));
+  pivot.target = target;
+  pivot.name = "";
+  noit_skiplist_find_neighbors(&polls_by_name, &pivot, NULL, NULL, &next);
+  while(next && next->data) {
+    noit_check_t *check = next->data;
+    if(strcmp(check->target, target)) break;
+    count += f(check,closure);
+    noit_skiplist_next(&polls_by_name, &next);
+  }
+  return count;
+}
 
 int
 noit_check_xpath(char *xpath, int len,
