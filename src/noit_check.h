@@ -69,6 +69,9 @@
 #define NP_RESOLVE   0x00000020
 #define NP_RESOLVED  0x00000040
 
+#define NP_SUPPRESS_STATUS  0x00001000
+#define NP_SUPPRESS_METRICS 0x00002000
+
 #define NP_UNKNOWN '0'             /* stats_t.{available,state} */
 #define NP_AVAILABLE 'A'           /* stats_t.available */
 #define NP_UNAVAILABLE 'U'         /* stats_t.available */
@@ -232,6 +235,11 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_stats_set_metric(stats_t *, const char *, metric_type_t, void *);
 
+API_EXPORT(void)
+  noit_stats_log_immediate_metric(noit_check_t *check,
+                                  const char *name, metric_type_t type,
+                                  void *value);
+
 API_EXPORT(const char *)
   noit_check_available_string(int16_t available);
 API_EXPORT(const char *)
@@ -258,6 +266,8 @@ API_EXPORT(void)
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
+API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
+                                       struct timeval *whence, metric_t *m);
 API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *target, int target_len,
                                               char *module, int module_len,

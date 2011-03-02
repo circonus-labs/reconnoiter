@@ -859,10 +859,10 @@ noit_check_stats_clear(stats_t *s) {
   s->state = NP_UNKNOWN;
   s->available = NP_UNKNOWN;
 }
-static void
-__free_metric(void *vm) {
-  metric_t *m = vm;
-  free(m->metric_name);
+void
+free_metric(metric_t *m) {
+  if(!m) return;
+  if(m->metric_name) free(m->metric_name);
   if(m->metric_value.i) free(m->metric_value.i);
   free(m);
 }
@@ -870,7 +870,7 @@ __free_metric(void *vm) {
 void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
   noit_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
-                    m, NULL, __free_metric);
+                    m, NULL, (void (*)(void *))free_metric);
 }
 
 static size_t
@@ -1008,16 +1008,14 @@ noit_metric_guess_type(const char *s, void **replacement) {
   free(copy);
   return type;
 }
-void
-noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
-                      void *value) {
-  metric_t *m;
+int
+noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
+                           void *value) {
   void *replacement = NULL;
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
-  if(type == METRIC_GUESS) return;
+  if(type == METRIC_GUESS) return -1;
 
-  m = calloc(1, sizeof(*m));
   m->metric_name = strdup(name);
   m->metric_type = type;
   if(replacement)
@@ -1028,7 +1026,31 @@ noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
     m->metric_value.vp = calloc(1, len);
     memcpy(m->metric_value.vp, value, len);
   }
+  return 0;
+}
+void
+noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
+                      void *value) {
+  metric_t *m = calloc(1, sizeof(*m));
+  if(noit_stats_populate_metric(m, name, type, value)) {
+    free_metric(m);
+    return;
+  }
   __stats_add_metric(newstate, m);
+}
+void
+noit_stats_log_immediate_metric(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                void *value) {
+  struct timeval now;
+  metric_t *m = calloc(1, sizeof(*m));
+  if(noit_stats_populate_metric(m, name, type, value)) {
+    free_metric(m);
+    return;
+  }
+  gettimeofday(&now, NULL);
+  noit_check_log_metric(check, &now, m);
+  free_metric(m);
 }
 
 void
@@ -1068,7 +1090,8 @@ noit_check_set_stats(struct _noit_module *module,
   dep_list_t *dep;
   if(check->stats.previous.status)
     free(check->stats.previous.status);
-  noit_hash_destroy(&check->stats.previous.metrics, NULL, __free_metric);
+  noit_hash_destroy(&check->stats.previous.metrics, NULL,
+                    (void (*)(void *))free_metric);
   memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
   memcpy(&check->stats.current, newstate, sizeof(stats_t));
   if(check->stats.current.status)

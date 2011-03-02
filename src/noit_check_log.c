@@ -144,10 +144,77 @@ _noit_check_log_status(noit_log_stream_t ls,
 void
 noit_check_log_status(noit_check_t *check) {
   handle_extra_feeds(check, _noit_check_log_status);
-  if(!(check->flags & NP_TRANSIENT)) {
+  if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS))) {
     SETUP_LOG(status, return);
     _noit_check_log_status(status_log, check);
   }
+}
+static int
+_noit_check_log_metric(noit_log_stream_t ls, noit_check_t *check,
+                       const char *uuid_str,
+                       struct timeval *whence, metric_t *m) {
+  char our_uuid_str[256*3+37];
+  int srv = 0;
+  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(!ls->enabled) return 0;
+
+  if(!uuid_str) {
+    MAKE_CHECK_UUID_STR(our_uuid_str, sizeof(our_uuid_str), metrics_log, check);
+    uuid_str = our_uuid_str;
+  }
+
+  if(!m->metric_value.s) { /* they are all null */
+    srv = noit_log(ls, whence, __FILE__, __LINE__,
+                   "M\t%lu.%03lu\t%s\t%s\t%c\t[[null]]\n",
+                   SECPART(whence), MSECPART(whence), uuid_str,
+                   m->metric_name, m->metric_type);
+  }
+  else {
+    switch(m->metric_type) {
+      case METRIC_INT32:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%d\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type, *(m->metric_value.i));
+        break;
+      case METRIC_UINT32:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%u\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type, *(m->metric_value.I));
+        break;
+      case METRIC_INT64:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%lld\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type,
+                       (long long int)*(m->metric_value.l));
+        break;
+      case METRIC_UINT64:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%llu\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type,
+                       (long long unsigned int)*(m->metric_value.L));
+        break;
+      case METRIC_DOUBLE:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%.12e\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type, *(m->metric_value.n));
+        break;
+      case METRIC_STRING:
+        srv = noit_log(ls, whence, __FILE__, __LINE__,
+                       "M\t%lu.%03lu\t%s\t%s\t%c\t%s\n",
+                       SECPART(whence), MSECPART(whence), uuid_str,
+                       m->metric_name, m->metric_type, m->metric_value.s);
+        break;
+      default:
+        noitL(noit_error, "Unknown metric type '%c' 0x%x\n",
+              m->metric_type, m->metric_type);
+    }
+  }
+  return srv;
 }
 static int
 _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
@@ -166,61 +233,7 @@ _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
   while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
-    if(!noit_apply_filterset(check->filterset, check, m)) continue;
-    if(!ls->enabled) continue;
-
-    srv = 0;
-    if(!m->metric_value.s) { /* they are all null */
-      srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                     "M\t%lu.%03lu\t%s\t%s\t%c\t[[null]]\n",
-                     SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                     m->metric_name, m->metric_type);
-    }
-    else {
-      switch(m->metric_type) {
-        case METRIC_INT32:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%d\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, *(m->metric_value.i));
-          break;
-        case METRIC_UINT32:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%u\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, *(m->metric_value.I));
-          break;
-        case METRIC_INT64:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%lld\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type,
-                         (long long int)*(m->metric_value.l));
-          break;
-        case METRIC_UINT64:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%llu\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type,
-                         (long long unsigned int)*(m->metric_value.L));
-          break;
-        case METRIC_DOUBLE:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%.12e\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, *(m->metric_value.n));
-          break;
-        case METRIC_STRING:
-          srv = noit_log(ls, &c->whence, __FILE__, __LINE__,
-                         "M\t%lu.%03lu\t%s\t%s\t%c\t%s\n",
-                         SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                         m->metric_name, m->metric_type, m->metric_value.s);
-          break;
-        default:
-          noitL(noit_error, "Unknown metric type '%c' 0x%x\n",
-                m->metric_type, m->metric_type);
-      }
-    }
+    srv = _noit_check_log_metric(ls, check, uuid_str, &c->whence, m);
     if(srv) rv = srv;
   }
   return rv;
@@ -228,9 +241,36 @@ _noit_check_log_metrics(noit_log_stream_t ls, noit_check_t *check) {
 void
 noit_check_log_metrics(noit_check_t *check) {
   handle_extra_feeds(check, _noit_check_log_metrics);
-  if(!(check->flags & NP_TRANSIENT)) {
+  if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(metrics, return);
     _noit_check_log_metrics(metrics_log, check);
+  }
+}
+
+void
+noit_check_log_metric(noit_check_t *check, struct timeval *whence,
+                      metric_t *m) {
+  char uuid_str[256*3+37];
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
+
+  /* handle feeds -- hust like handle_extra_feeds, but this
+   * is with different arguments.
+   */
+  if(check->feeds) {
+    noit_skiplist_node *curr, *next;
+    curr = next = noit_skiplist_getlist(check->feeds);
+    while(curr) {
+      const char *feed_name = (char *)curr->data;
+      noit_log_stream_t ls = noit_log_stream_find(feed_name);
+      noit_skiplist_next(check->feeds, &next);
+      if(!ls || _noit_check_log_metric(ls, check, uuid_str, whence, m))
+        noit_check_transient_remove_feed(check, feed_name);
+      curr = next;
+    }
+  }
+  if(!(check->flags & NP_TRANSIENT)) {
+    SETUP_LOG(metrics, return);
+    _noit_check_log_metric(metrics_log, check, uuid_str, whence, m);
   }
 }
 

@@ -51,6 +51,7 @@ typedef struct _mod_config {
   noit_hash_table *options;
   noit_hash_table target_sessions;
   noit_boolean support_notifications;
+  noit_boolean asynch_metrics;
   int ipv4_fd;
   int ipv6_fd;
 } collectd_mod_config_t;
@@ -377,6 +378,23 @@ static u_int64_t collectd_ntohll (u_int64_t n)
 
 #define ntohd(d) (d)
 
+static noit_boolean
+noit_collects_check_aynsch(noit_module_t *self,
+                           noit_check_t *check) {
+  const char *config_val;
+  collectd_mod_config_t *conf = noit_module_get_userdata(self);
+  noit_boolean is_asynch = conf->asynch_metrics;
+  if(noit_hash_retr_str(check->config,
+                        "asynch_metrics", strlen("asynch_metrics"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      is_asynch = noit_true;
+  }
+
+  if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
+  else check->flags &= ~NP_SUPPRESS_METRICS;
+  return is_asynch;
+}
 
 /* Forward declare this so the parse function can use it */
 static int queue_values(collectd_closure_t *ccl, 
@@ -1196,6 +1214,7 @@ static void concat_metrics(char *buffer, char* plugin, char* plugin_inst, char* 
 static int queue_notifications(collectd_closure_t *ccl, 
       noit_module_t *self, noit_check_t *check, notification_t *n) {
   stats_t current;
+  noit_boolean immediate;
   char buffer[DATA_MAX_NAME_LEN*4 + 128];
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
@@ -1210,6 +1229,9 @@ static int queue_notifications(collectd_closure_t *ccl,
   // Concat all the names together so they fit into the flat noitd model 
   concat_metrics(buffer, n->plugin, n->plugin_instance, n->type, n->type_instance);
   noit_stats_set_metric(&ccl->current, buffer, METRIC_STRING, n->message);
+  immediate = noit_collects_check_aynsch(self,check);
+  if(immediate)
+    noit_stats_log_immediate_metric(check, buffer, METRIC_STRING, n->message);
   noit_check_passive_set_stats(self, check, &current);
   noitL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
   return 0;
@@ -1218,10 +1240,12 @@ static int queue_notifications(collectd_closure_t *ccl,
 
 static int queue_values(collectd_closure_t *ccl,
       noit_module_t *self, noit_check_t *check, value_list_t *vl) {
+  noit_boolean immediate;
   char buffer[DATA_MAX_NAME_LEN*4 + 4 + 1 + 20];
   int i, len = 0;
 
   // Concat all the names together so they fit into the flat noitd model 
+  immediate = noit_collects_check_aynsch(self,check);
   concat_metrics(buffer, vl->plugin, vl->plugin_instance, vl->type, vl->type_instance);
   for (i=0; i < vl->values_len; i++) {
   
@@ -1237,18 +1261,22 @@ static int queue_values(collectd_closure_t *ccl,
     {
       case DS_TYPE_COUNTER:
         noit_stats_set_metric(&ccl->current, buffer, METRIC_UINT64, &vl->values[i].counter);
+        if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_UINT64, &vl->values[i].counter);
         break;
 
       case DS_TYPE_GAUGE:
         noit_stats_set_metric(&ccl->current, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
+        if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
         break;
 
       case DS_TYPE_DERIVE:
         noit_stats_set_metric(&ccl->current, buffer, METRIC_INT64, &vl->values[i].derive);
+        if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].derive);
         break;
 
       case DS_TYPE_ABSOLUTE:
         noit_stats_set_metric(&ccl->current, buffer, METRIC_INT64, &vl->values[i].absolute);
+        if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].absolute);
         break;
 
       default:
@@ -1276,6 +1304,7 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check) {
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
+  noit_collects_check_aynsch(self, check);
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
     memset(ccl, 0, sizeof(collectd_closure_t));
@@ -1488,6 +1517,14 @@ static int noit_collectd_init(noit_module_t *self) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       conf->support_notifications = noit_false;
   }
+  conf->asynch_metrics = noit_false;
+  if(noit_hash_retr_str(conf->options,
+                        "asynch_metrics", strlen("asynch_metrics"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      conf->asynch_metrics = noit_true;
+  }
+
   /* Default Collectd port */
   portint = NET_DEFAULT_PORT;
   if(noit_hash_retr_str(conf->options,
