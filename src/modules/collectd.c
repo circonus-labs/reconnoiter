@@ -363,14 +363,17 @@ typedef struct receive_list_entry_s receive_list_entry_t;
  *
  */
 
-static unsigned long long collectd_ntohll (unsigned long long n)
+static u_int64_t collectd_ntohll (u_int64_t n)
 {
 #if BYTE_ORDER == BIG_ENDIAN
   return (n);
 #else
-  return (((unsigned long long) ntohl (n)) << 32) + ntohl (n >> 32);
+  u_int64_t retval;
+  retval = ((uint64_t) ntohl(n & 0xFFFFFFFFLLU)) << 32;
+  retval |= ntohl((n & 0xFFFFFFFF00000000LLU) >> 32);
+  return retval;
 #endif
-} /* unsigned long long collectd_ntohll */
+} /* u_int64_t collectd_ntohll */
 
 #define ntohd(d) (d)
 
@@ -1006,20 +1009,17 @@ static int parse_packet (/* {{{ */
       if (status != 0)
         break;
 
-      if ((vl.time > 0)
-          && (strlen (vl.host) > 0)
-          && (strlen (vl.plugin) > 0)
-          && (strlen (vl.type) > 0))
+      if ((strlen (vl.host) > 0) &&
+          (strlen (vl.plugin) > 0) &&
+          (strlen (vl.type) > 0))
       {
         queue_values(ccl, self, check, &vl);
       }
       else
       {
         noitL(noit_error,
-              "collectd: NOT dispatching values [%lld,%lld,%lld,%lld]\n",
-              (long long int)vl.time, (long long int)strlen (vl.host),
-              (long long int)strlen (vl.plugin),
-              (long long int)strlen (vl.type));
+              "collectd: NOT dispatching values [%lld,%s:%s:%s]\n",
+              (long long int)vl.time, vl.host, vl.plugin, vl.type);
       }
 
       sfree (vl.values);
@@ -1028,8 +1028,7 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_TIME)
     {
       uint64_t tmp = 0;
-      status = parse_part_number (&buffer, &buffer_size,
-          &tmp);
+      status = parse_part_number (&buffer, &buffer_size, &tmp);
       if (status == 0)
       {
         vl.time = (time_t) tmp;
@@ -1103,12 +1102,14 @@ static int parse_packet (/* {{{ */
             "unknown severity %i.\n",
             n.severity);
       }
+/* Time proves untrustworthy... and we don't use it.
       else if (n.time <= 0)
       {
         noitL(noit_error, "collectd: "
             "Ignoring notification with "
             "time == 0.\n");
       }
+*/
       else if (strlen (n.message) <= 0)
       {
         noitL(noit_error, "collectd: "
