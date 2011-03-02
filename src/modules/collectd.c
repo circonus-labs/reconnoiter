@@ -1016,7 +1016,10 @@ static int parse_packet (/* {{{ */
       else
       {
         noitL(noit_error,
-            "collectd:  NOT dispatching values\n");
+              "collectd: NOT dispatching values [%lld,%lld,%lld,%lld]\n",
+              (long long int)vl.time, (long long int)strlen (vl.host),
+              (long long int)strlen (vl.plugin),
+              (long long int)strlen (vl.type));
       }
 
       sfree (vl.values);
