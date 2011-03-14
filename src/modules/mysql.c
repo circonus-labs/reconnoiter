@@ -186,6 +186,16 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
 } while(0)
 
 #define AVAIL_BAIL(str) do { \
+  MYSQL *conn_swap = ci->conn; \
+  MYSQL_RES *result_swap = ci->result; \
+  if(ci->result) { \
+    ci->result = NULL; \
+    mysql_free_result(result_swap); \
+  } \
+  if(ci->conn) { \
+    ci->conn = NULL; \
+    mysql_close(conn_swap); \
+  } \
   ci->timed_out = 0; \
   ci->error = strdup(str); \
   return 0; \
@@ -320,6 +330,16 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       if(!ci->result) AVAIL_BAIL("mysql_store_result failed");
       ci->rv = mysql_num_rows(ci->result);
       mysql_ingest_stats(ci);
+      if(ci->result) {
+        MYSQL_RES *result_swap = ci->result;
+        ci->result = NULL;
+        mysql_free_result(result_swap);
+      }
+      if(ci->conn) {
+        MYSQL *conn_swap = ci->conn;
+        ci->conn = NULL;
+        mysql_close(conn_swap);
+      }
       ci->timed_out = 0;
       return 0;
       break;
