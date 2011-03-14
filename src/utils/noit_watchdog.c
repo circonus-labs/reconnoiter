@@ -102,13 +102,18 @@ int noit_watchdog_prefork_init() {
 
 int noit_monitored_child_pid = -1;
 
-void glideme(int sig) {
+void run_glider(int pid) {
   char cmd[1024], unused;
+  if(glider_path) {
+    snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
+             glider_path, pid, trace_dir, appname, pid);
+    unused = system(cmd);
+  }
+}
+
+void glideme(int sig) {
   signal(sig, SIG_DFL);
-  snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
-           glider_path, noit_monitored_child_pid,
-           trace_dir, appname, noit_monitored_child_pid);
-  unused = system(cmd);
+  run_glider(noit_monitored_child_pid);
   kill(noit_monitored_child_pid, sig);
 }
 
@@ -166,6 +171,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
           noitL(noit_error,
                 "Watchdog timeout (%lu s)... terminating child\n",
                 ltt);
+          run_glider(child_pid);
           kill(child_pid, SIGKILL);
         }
       }
