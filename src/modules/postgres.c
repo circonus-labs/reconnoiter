@@ -196,6 +196,10 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
 } while(0)
 
 #define AVAIL_BAIL(str) do { \
+  PGconn *conn_swap = ci->conn; \
+  PGresult *result_swap = ci->result; \
+  if(ci->result) { ci->result = NULL; PQclear(result_swap); } \
+  if(ci->conn) { ci->conn = NULL; PQfinish(conn_swap); } \
   ci->timed_out = 0; \
   ci->error = strdup(str); \
   return 0; \
@@ -258,6 +262,16 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
         break;
        default:
         AVAIL_BAIL(PQresultErrorMessage(ci->result));
+      }
+      if(ci->result) {
+        PGresult *result_swap = ci->result;
+        ci->result = NULL;
+        PQclear(result_swap);
+      }
+      if(ci->conn) {
+        PGconn *conn_swap = ci->conn;
+        ci->conn = NULL;
+        PQfinish(conn_swap);
       }
       ci->timed_out = 0;
       return 0;
