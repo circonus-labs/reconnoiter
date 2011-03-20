@@ -89,19 +89,49 @@ end
 
 local HttpClient = require 'noit.HttpClient'
 
+function set_check_metric(check, name, type, value)
+    if type == 'i' then
+        check.metric_int32(name, value)
+    elseif type == 'I' then
+        check.metric_uint32(name, value)
+    elseif type == 'l' then
+        check.metric_int64(name, value)
+    elseif type == 'L' then
+        check.metric_uint64(name, value)
+    elseif type == 'n' then
+        check.metric_double(name, value)
+    elseif type == 's' then
+        check.metric_string(name, value)
+    else
+        check.metric(name, value)
+    end
+end
+
 function json_metric(check, prefix, o)
-    local cnt = 1
+    local cnt = 0
     if type(o) == "table" then
-        cnt = 0
+        local has_type, has_value = false, false
         for k, v in pairs(o) do
-            cnt = cnt + json_metric(check, prefix and (prefix .. '`' .. k) or k, v)
+            if k == "_type" then has_type = true
+            elseif k == "_value" then has_value = true
+            else cnt = cnt + json_metric(check, prefix and (prefix .. '`' .. k) or k, v) end
+        end
+        if has_type and has_value then
+          set_check_metric(check, prefix, o._type, o._value)
+          cnt = cnt + 1
         end
     elseif type(o) == "string" then
         check.metric(prefix, o)
+        cnt = cnt + 1
     elseif type(o) == "number" then
         check.metric_double(prefix, o)
+        cnt = cnt + 1
     elseif type(o) == "boolean" then
         check.metric_int32(prefix, o and 1 or 0)
+        cnt = cnt + 1
+    else
+        noit.log("error", "got unknown type: " .. type(o) .. "\n")
+        cnt = 0
     end
     return cnt
 end
@@ -142,21 +172,7 @@ function xml_to_metrics(check, doc)
             metrics = metrics + 1
             local name = metric:attr("name") or "DUMMY"
             local type = metric:attr("type") or "DUMMY"
-            if type == 'i' then
-                check.metric_int32(prefix .. name, metric and metric:contents())
-            elseif type == 'I' then
-                check.metric_uint32(prefix .. name, metric and metric:contents())
-            elseif type == 'l' then
-                check.metric_int64(prefix .. name, metric and metric:contents())
-            elseif type == 'L' then
-                check.metric_uint64(prefix .. name, metric and metric:contents())
-            elseif type == 'n' then
-                check.metric_double(prefix .. name, metric and metric:contents())
-            elseif type == 's' then
-                check.metric_string(prefix .. name, metric and metric:contents())
-            else
-                check.metric(prefix .. name, metric and metric:contents())
-            end
+            set_check_metric(prefix .. name, type, metric and metric:contents())
         end
         if metrics == 0 then
             local message = (doc:xpath("message", result))()
