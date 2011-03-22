@@ -1208,10 +1208,27 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
 
   noitL(ds_deb, "Syncing journal sets...\n");
   while(noit_hash_next(syncset->ws, &iter, &k, &klen, &vij)) {
+    char tmppath[PATH_MAX];
+    int suffix_idx;
     eventer_t ingest;
     ij = vij;
     noitL(ds_deb, "Syncing journal set [%s,%s,%s]\n",
           ij->remote_str, ij->remote_cn, ij->fqdn);
+    strlcpy(tmppath, ij->filename, sizeof(tmppath));
+    suffix_idx = strlen(ij->filename) - 4; /* . t m p */
+    ij->filename[suffix_idx] = '\0';
+    if(rename(tmppath, ij->filename) != 0) {
+      if(errno == EEXIST) {
+        unlink(ij->filename);
+        if(rename(tmppath, ij->filename) != 0) goto rename_failed;
+      }
+      else {
+       rename_failed:
+        noitL(noit_error, "rename failed(%s): (%s->%s)\n", strerror(errno),
+              tmppath, ij->filename);
+        exit(-1);
+      }
+    }
     fsync(ij->fd);
     close(ij->fd);
     ij->fd = -1;
@@ -1253,7 +1270,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   if(!noit_hash_retrieve(working_set, fqdn, strlen(fqdn), &vij)) {
     ij = calloc(1, sizeof(*ij));
     gettimeofday(&now, NULL);
-    snprintf(jpath, sizeof(jpath), "%s/%s/%s/%d/%08x%08x",
+    snprintf(jpath, sizeof(jpath), "%s/%s/%s/%d/%08x%08x.tmp",
              basejpath, remote_str, remote_cn, storagenode_id,
              (unsigned int)now.tv_sec, (unsigned int)now.tv_usec);
     ij->remote_str = strdup(remote_str);
@@ -1270,6 +1287,11 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
               ij->filename, strerror(errno));
         exit(-1);
       }
+      ij->fd = open(ij->filename, O_RDWR | O_CREAT | O_EXCL, 0640);
+    }
+    if(ij->fd < 0 && errno == EEXIST) {
+      /* This can only occur if we crash after before checkpointing */
+      unlink(ij->filename);
       ij->fd = open(ij->filename, O_RDWR | O_CREAT | O_EXCL, 0640);
     }
     if(ij->fd < 0) {
