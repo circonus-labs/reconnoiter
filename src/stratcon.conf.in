@@ -16,6 +16,7 @@
 
   <modules directory="%modulesdir%">
     <generic image="stomp_driver" name="stomp_driver"/>
+    <generic image="postgres_ingestor" name="postgres_ingestor"/>
   </modules>
 
   <noits>

@@ -462,7 +462,8 @@ sub make_stratcon_config {
   my $name = shift;
   my $options = shift;
   $options->{cwd} ||= cwd();
-  $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' } };
+  $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' },
+                             'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
   $options->{iep}->{mq} ||= { 'stomp' => {} };
   my $cwd = $options->{cwd};

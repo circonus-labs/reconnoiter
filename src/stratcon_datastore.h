@@ -36,9 +36,35 @@
 #include "noit_defines.h"
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
+#include "stratcon_realtime_http.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
+
+typedef struct {
+  void (*launch_file_ingestion)(const char *file, const char *ip,
+                                const char *cn, const char *store);
+  void (*iep_check_preload)();
+  int (*storage_node_lookup)(const char *uuid_str, const char *remote_cn,
+                             int *sid_out, int *storagenode_id_out,
+                             const char **remote_cn_out,
+                             const char **fqdn_out, const char **dsn_out);
+  void (*submit_realtime_lookup)(struct realtime_tracker *rt,
+                                 eventer_t completion);
+  char *(*get_noit_config)(const char *cn);
+  int (*save_config)();
+} ingestor_api_t;
+
+API_EXPORT(int) stratcon_datastore_set_ingestor(ingestor_api_t *ni);
+
+typedef struct {
+  char *remote_str;
+  char *remote_cn;
+  char *fqdn;
+  int storagenode_id;
+  int fd; 
+  char *filename;
+} interim_journal_t;
 
 typedef enum {
  DS_OP_INSERT = 1,

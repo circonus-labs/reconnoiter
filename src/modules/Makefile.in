@@ -29,7 +29,7 @@ MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-SMODULES=stomp_driver.@MODULEEXT@
+SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@
 
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
@@ -63,6 +63,14 @@ postgres.@MODULEEXT@:	postgres.lo
 	@echo "- linking $@"
 
 postgres.lo:	postgres.c postgres.xmlh
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
+postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
+	@echo "- linking $@"
+
+postgres_ingestor.lo: postgres_ingestor.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 

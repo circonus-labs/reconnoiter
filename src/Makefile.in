@@ -9,7 +9,6 @@ DEPFLAGS=@DEPFLAGS@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
-PGLIBS=@PGLIBS@
 INSTALL=@INSTALL@
 XML2H=@top_srcdir@/buildtools/xml2h
 
@@ -165,7 +164,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES)
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
-		$(LIBS) $(PGLIBS)
+		$(LIBS)
 
 stratcon_datastore.o:	stratcon_datastore.c
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
