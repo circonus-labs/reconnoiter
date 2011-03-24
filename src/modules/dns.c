@@ -379,7 +379,7 @@ static char *encode_txt(char *dst, const unsigned char *src, int len) {
 
 static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
                       struct dns_rr *rr, char **output) {
-  char buff[DNS_MAXDN], *txt_str, *c;
+  char buff[DNS_MAXDN], *txt_str = buff, *c;
   u_int32_t ttl, vu;
   int32_t vs;
   int totalsize;
@@ -485,7 +485,7 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
     *output = newstr;
   }
   else
-    *output = strdup(buff);
+    *output = strdup(txt_str);
   ci->nrr++;
   return;
 
