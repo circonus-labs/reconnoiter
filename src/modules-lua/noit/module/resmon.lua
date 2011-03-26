@@ -167,12 +167,12 @@ function xml_to_metrics(check, doc)
         if obj ~= nil then
             check.metric_string(prefix .. "state", obj and obj:contents())
         end
-	local metrics = 0
+        local metrics = 0
         for metric in doc:xpath("metric", result) do
             metrics = metrics + 1
             local name = metric:attr("name") or "DUMMY"
             local type = metric:attr("type") or "DUMMY"
-            set_check_metric(prefix .. name, type, metric and metric:contents())
+            set_check_metric(check, prefix .. name, type, metric and metric:contents())
         end
         if metrics == 0 then
             local message = (doc:xpath("message", result))()
