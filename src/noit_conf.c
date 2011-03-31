@@ -856,7 +856,8 @@ noit_conf_write_log() {
     return -1;
   }
   noitL(config_log, "n\t%lu.%03lu\t%d\t%.*s\n",
-        __now.tv_sec, __now.tv_usec / 1000UL, clv->raw_len,
+        (unsigned long int)__now.tv_sec,
+        (unsigned long int)__now.tv_usec / 1000UL, clv->raw_len,
         clv->len, clv->buff);
   free(clv->buff);
   free(clv);
