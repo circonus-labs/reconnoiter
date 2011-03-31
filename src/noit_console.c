@@ -39,7 +39,9 @@
 #include <alloca.h>
 #endif
 #include <errno.h>
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -57,6 +59,9 @@
 #endif
 #ifdef HAVE_UTIL_H
 #include <util.h>
+#endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
 #endif
 #include <arpa/telnet.h>
 #include <signal.h>
