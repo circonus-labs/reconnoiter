@@ -50,10 +50,19 @@
 #include "utils/noit_b64.h"
 
 /* tmp hash impl, replace this with something nice */
+static noit_log_stream_t xml_debug = NULL;
+#define XML2LOG(log) do { \
+  xmlSetGenericErrorFunc(log, noit_conf_xml_error_func); \
+  xmlSetStructuredErrorFunc(log, noit_conf_xml_error_ext_func); \
+} while(0)
+#define XML2CONSOLE(ncct) do { \
+  xmlSetGenericErrorFunc(ncct, noit_conf_xml_console_error_func); \
+  xmlSetStructuredErrorFunc(ncct, noit_conf_xml_console_error_ext_func); \
+} while(0)
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
 static int config_include_cnt = -1;
-static struct { 
+static struct {
   xmlNodePtr insertion_point;
   xmlNodePtr old_children;
   xmlDocPtr doc;
@@ -143,6 +152,26 @@ static struct {
   { NULL, NULL }
 };
 
+void noit_conf_xml_console_error_func(void *ctx, const char *format, ...) {
+  noit_console_closure_t ncct = ctx;
+  va_list arg;
+  if(!ncct) return;
+  va_start(arg, format);
+  nc_vprintf(ncct, format, arg);
+  va_end(arg);
+}
+
+void noit_conf_xml_console_error_ext_func(void *ctx, xmlErrorPtr err) {
+  noit_console_closure_t ncct = ctx;
+  if(!ctx) return;
+  if(err->file)
+    nc_printf(ncct, "XML error [%d/%d] in %s on line %d %s\n",
+              err->domain, err->code, err->file, err->line, err->message);
+  else
+    nc_printf(ncct, "XML error [%d/%d] %s\n",
+              err->domain, err->code, err->message);
+}
+
 void noit_conf_xml_error_func(void *ctx, const char *format, ...) {
   struct timeval __now;
   noit_log_stream_t ls = ctx;
@@ -173,9 +202,11 @@ DECLARE_CHECKER(name)
 void noit_conf_init(const char *toplevel) {
   int i;
   char keystr[256];
+
+  xml_debug = noit_log_stream_find("debug/xml");
+
   COMPILE_CHECKER(name, "^[-_\\.:/a-zA-Z0-9]+$");
-  xmlSetGenericErrorFunc(noit_error, noit_conf_xml_error_func);
-  xmlSetStructuredErrorFunc(noit_error, noit_conf_xml_error_ext_func);
+  XML2LOG(noit_error);
   for(i = 0; config_info[i].key != NULL; i++) {
     snprintf(keystr, sizeof(keystr), config_info[i].key, toplevel);
     noit_hash_store(&_compiled_fallback,
@@ -718,10 +749,13 @@ int
 noit_conf_reload(noit_console_closure_t ncct,
                  int argc, char **argv,
                  noit_console_state_t *state, void *closure) {
+  XML2CONSOLE(ncct);
   if(noit_conf_load(master_config_file)) {
+    XML2LOG(xml_debug);
     nc_printf(ncct, "error loading config\n");
     return -1;
   }
+  XML2LOG(xml_debug);
   return 0;
 }
 int
