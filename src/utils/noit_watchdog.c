@@ -137,6 +137,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
       if(glider_path) {
         noitL(noit_error, "catching faults with glider\n");
         signal(SIGSEGV, glideme);
+        signal(SIGABRT, glideme);
       }
       /* run the program */
       exit(func());
