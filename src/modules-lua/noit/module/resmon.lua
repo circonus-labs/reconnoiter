@@ -140,7 +140,9 @@ function json_to_metrics(check, doc)
     local services = 0
     check.available()
     local data = doc:document()
-    services = json_metric(check, nil, data)
+    if data ~= nil then
+      services = json_metric(check, nil, data)
+    end
     check.metric_uint32("services", services)
     if services > 0 then check.good() else check.bad() end
     check.status("services=" .. services)
