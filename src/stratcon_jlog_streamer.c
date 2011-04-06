@@ -965,7 +965,9 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
   cn_expected = vcn;
 
   snprintf(str, sizeof(str), "M\t%lu.%03lu\t%s\t%s`%s`",
-           now->tv_sec, now->tv_usec/1000UL, uuid_str, cn_expected, feedtype);
+           (long unsigned int)now->tv_sec,
+           (long unsigned int)now->tv_usec/1000UL,
+           uuid_str, cn_expected, feedtype);
   wr = str + strlen(str);
   len = sizeof(str) - (wr - str);
 
@@ -1023,7 +1025,8 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
     inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
               sizeof(ip_str));
     snprintf(str, sizeof(str), "C\t%lu.%03lu\t%s\t%s\tstratcon\t%s\n",
-             now->tv_sec, now->tv_usec/1000UL, uuid_str, ip_str,
+             (long unsigned int)now->tv_sec,
+             (long unsigned int)now->tv_usec/1000UL, uuid_str, ip_str,
              self_stratcon_hostname);
     stratcon_datastore_push(DS_OP_INSERT,
                             (struct sockaddr *)&self_stratcon_ip,
@@ -1044,7 +1047,8 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   pthread_mutex_unlock(&noits_lock);
 
   snprintf(str, sizeof(str), "S\t%lu.%03lu\t%s\tG\tA\t0\tok\n",
-           now->tv_sec, now->tv_usec/1000UL, uuid_str);
+           (long unsigned int)now->tv_sec,
+           (long unsigned int)now->tv_usec/1000UL, uuid_str);
   stratcon_datastore_push(DS_OP_INSERT,
                           (struct sockaddr *)&self_stratcon_ip,
                           self_stratcon_hostname, strdup(str), NULL);
