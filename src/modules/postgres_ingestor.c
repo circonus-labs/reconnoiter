@@ -1369,9 +1369,10 @@ stratcon_ingest_saveconfig() {
 }
 
 static void
-stratcon_ingest_launch_file_ingestion(char *path,
-                                      char *remote_str, char *remote_cn,
-                                      char *id_str) {
+stratcon_ingest_launch_file_ingestion(const char *path,
+                                      const char *remote_str,
+                                      const char *remote_cn,
+                                      const char *id_str) {
   pg_interim_journal_t *ij;
   eventer_t ingest;
 
