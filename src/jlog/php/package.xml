@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!DOCTYPE package SYSTEM "http://pear.php.net/dtd/package-1.0">
+<package>
+
+  <name>jlog</name>
+  <summary>A sample PHP extension</summary>
+  <description>
+  This is a sample extension specification
+  showing how to use CodeGen_PECL for
+  extension generation.
+  </description>
+
+  <configureoptions>
+   <configureoption name="with-jlog" default="autodetect" prompt="jlog installation directory?" />
+  </configureoptions>
+
+  <release>
+    <version>0.0.1</version>
+    <state>devel</state>
+    <date>2007-07-02</date>
+  </release>
+  <changelog>
+
+  </changelog>
+  <deps>
+    <dep type="php" rel="ge" version="5.0.0"/>
+    <dep type='os' rel='has' name='unix'/>
+  </deps>
+
+  <filelist>
+    <dir name="/">
+      <file role='doc' name='EXPERIMENTAL'/>
+      <file role='src' name='config.m4'/>
+      <file role='src' name='jlog.c'/>
+      <file role='src' name='php_jlog.h'/>
+      <dir name="tests">
+        <file role='test' name='Jlog____construct.phpt'/>
+        <file role='test' name='Jlog__add_subscriber.phpt'/>
+        <file role='test' name='Jlog__remove_subscriber.phpt'/>
+        <file role='test' name='Jlog__list_subscribers.phpt'/>
+        <file role='test' name='Jlog__alter_journal_size.phpt'/>
+        <file role='test' name='Jlog__raw_size.phpt'/>
+        <file role='test' name='Jlog__close.phpt'/>
+        <file role='test' name='Jlog_Writer__open.phpt'/>
+        <file role='test' name='Jlog_Writer__write.phpt'/>
+        <file role='test' name='Jlog_Reader__open.phpt'/>
+        <file role='test' name='Jlog_Reader__read.phpt'/>
+        <file role='test' name='Jlog_Reader__checkpoint.phpt'/>
+        <file role='test' name='Jlog_Reader__auto_checkpoint.phpt'/>
+      </dir>
+    </dir>
+  </filelist>
+</package>

@@ -1,0 +1,261 @@
+dnl vim:ts=2:sw=2:et:
+AC_INIT(jlog.c)
+AC_CONFIG_HEADER(jlog_config.h)
+
+AC_PROG_CC
+AC_C_INLINE
+AC_CANONICAL_HOST
+AC_C_BIGENDIAN
+AC_PROG_CPP
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PATH_PROG(AR, ar)
+AC_PATH_PROGS(PERL, perl)
+AC_SUBST(PERL)
+
+# Checks for data types
+AC_CHECK_SIZEOF(char, 1)
+AC_CHECK_SIZEOF(short int, 2)
+AC_CHECK_SIZEOF(int, 4)
+AC_CHECK_SIZEOF(long int, 4)
+AC_CHECK_SIZEOF(long long int, 8)
+AC_CHECK_SIZEOF(void *, 1)
+
+AC_CHECK_LIB(rt, sem_init, , )
+AC_CHECK_LIB(posix4, sem_wait, , )
+
+AC_MSG_CHECKING([whether sem_init works])
+AC_TRY_RUN(
+	[
+#include <semaphore.h>
+int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
+	],
+	[AC_MSG_RESULT(yes)], 
+	[
+		AC_MSG_RESULT(no)
+		AC_DEFINE(BROKEN_SEM_INIT)
+		AC_MSG_WARN([****** sem_init() is broken, I'll implement one myself.])
+	]
+)
+
+AC_CHECK_LIB(rt, sem_init, , )
+AC_FUNC_STRFTIME
+
+# Checks for header files.
+AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
+                 sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
+                 ctype.h unistd.h time.h sys/stat.h sys/time.h unistd.h sys/mman.h)
+
+AC_CACHE_CHECK([for u_int type], ac_cv_have_u_int, [
+	AC_TRY_COMPILE(
+		[ #include <sys/types.h> ], 
+		[ u_int a; a = 1;], 
+		[ ac_cv_have_u_int="yes" ],
+		[ ac_cv_have_u_int="no" ]
+	)
+])
+if test "x$ac_cv_have_u_int" = "xyes" ; then
+	AC_DEFINE(HAVE_U_INT)
+	have_u_int=1
+fi
+
+AC_CACHE_CHECK([for intXX_t types], ac_cv_have_intxx_t, [
+	AC_TRY_COMPILE(
+		[ #include <sys/types.h> ], 
+		[ int8_t a; int16_t b; int32_t c; a = b = c = 1;], 
+		[ ac_cv_have_intxx_t="yes" ],
+		[ ac_cv_have_intxx_t="no" ]
+	)
+])
+if test "x$ac_cv_have_intxx_t" = "xyes" ; then
+	AC_DEFINE(HAVE_INTXX_T)
+	have_intxx_t=1
+fi
+	
+AC_CACHE_CHECK([for int64_t type], ac_cv_have_int64_t, [
+	AC_TRY_COMPILE(
+		[ #include <sys/types.h> ], 
+		[ int64_t a; a = 1;], 
+		[ ac_cv_have_int64_t="yes" ],
+		[ ac_cv_have_int64_t="no" ]
+	)
+])
+if test "x$ac_cv_have_int64_t" = "xyes" ; then
+	AC_DEFINE(HAVE_INT64_T)
+	have_int64_t=1
+fi
+	
+AC_CACHE_CHECK([for u_intXX_t types], ac_cv_have_u_intxx_t, [
+	AC_TRY_COMPILE(
+		[ #include <sys/types.h> ], 
+		[ u_int8_t a; u_int16_t b; u_int32_t c; a = b = c = 1;], 
+		[ ac_cv_have_u_intxx_t="yes" ],
+		[ ac_cv_have_u_intxx_t="no" ]
+	)
+])
+if test "x$ac_cv_have_u_intxx_t" = "xyes" ; then
+	AC_DEFINE(HAVE_U_INTXX_T)
+	have_u_intxx_t=1
+fi
+
+AC_CACHE_CHECK([for u_int64_t types], ac_cv_have_u_int64_t, [
+	AC_TRY_COMPILE(
+		[ #include <sys/types.h> ], 
+		[ u_int64_t a; a = 1;], 
+		[ ac_cv_have_u_int64_t="yes" ],
+		[ ac_cv_have_u_int64_t="no" ]
+	)
+])
+if test "x$ac_cv_have_u_int64_t" = "xyes" ; then
+	AC_DEFINE(HAVE_U_INT64_T)
+	have_u_int64_t=1
+fi
+
+if (test -z "$have_u_intxx_t" || test -z "$have_intxx_t" && \
+           test "x$ac_cv_header_sys_bitypes_h" = "xyes")
+then
+	AC_MSG_CHECKING([for intXX_t and u_intXX_t types in sys/bitypes.h])
+	AC_TRY_COMPILE(
+		[
+#include <sys/bitypes.h>
+		], 
+		[
+			int8_t a; int16_t b; int32_t c;
+			u_int8_t e; u_int16_t f; u_int32_t g;
+			a = b = c = e = f = g = 1;
+		], 
+		[
+			AC_DEFINE(HAVE_U_INTXX_T)
+			AC_DEFINE(HAVE_INTXX_T)
+			AC_MSG_RESULT(yes)
+		],
+		[AC_MSG_RESULT(no)]
+	) 
+fi
+
+if test -z "$have_u_intxx_t" ; then
+	AC_CACHE_CHECK([for uintXX_t types], ac_cv_have_uintxx_t, [
+		AC_TRY_COMPILE(
+			[
+#include <sys/types.h>
+			], 
+			[ uint8_t a; uint16_t b; uint32_t c; a = b = c = 1; ], 
+			[ ac_cv_have_uintxx_t="yes" ],
+			[ ac_cv_have_uintxx_t="no" ]
+		)
+	])
+	if test "x$ac_cv_have_uintxx_t" = "xyes" ; then
+		AC_DEFINE(HAVE_UINTXX_T)
+	fi
+fi
+
+AC_CACHE_CHECK([for socklen_t], ac_cv_have_socklen_t, [
+	AC_TRY_COMPILE(
+		[
+#include <sys/types.h>
+#include <sys/socket.h>
+		],
+		[socklen_t foo; foo = 1235;],
+		[ ac_cv_have_socklen_t="yes" ],
+		[ ac_cv_have_socklen_t="no" ]
+	)
+])
+if test "x$ac_cv_have_socklen_t" = "xyes" ; then
+	AC_DEFINE(HAVE_SOCKLEN_T)
+fi
+
+AC_CACHE_CHECK([for size_t], ac_cv_have_size_t, [
+	AC_TRY_COMPILE(
+		[
+#include <sys/types.h>
+		],
+		[ size_t foo; foo = 1235; ],
+		[ ac_cv_have_size_t="yes" ],
+		[ ac_cv_have_size_t="no" ]
+	)
+])
+if test "x$ac_cv_have_size_t" = "xyes" ; then
+	AC_DEFINE(HAVE_SIZE_T)
+fi
+
+AC_CACHE_CHECK([for ssize_t], ac_cv_have_ssize_t, [
+	AC_TRY_COMPILE(
+		[
+#include <sys/types.h>
+		],
+		[ ssize_t foo; foo = 1235; ],
+		[ ac_cv_have_ssize_t="yes" ],
+		[ ac_cv_have_ssize_t="no" ]
+	)
+])
+if test "x$ac_cv_have_ssize_t" = "xyes" ; then
+	AC_DEFINE(HAVE_SSIZE_T)
+fi
+
+docdir="docs"
+mansubdir="man"
+AC_SUBST(docdir)
+AC_SUBST(mansubdir)
+
+AC_CHECK_LIB(pthread, pthread_create)
+
+case $host in
+  *-*-solaris*)
+    RLDFLAG="-R"
+    ;;
+  *)
+    RLDFLAG="-Wl,--rpath="
+    ;;
+esac
+AC_SUBST(RLDFLAG)
+
+DOTSO=so
+case $host in
+  *solaris*)
+    if test "x$ac_compiler_gnu" = "xyes" ; then
+       # GCC
+       SHCFLAGS="$SHCFLAGS -fPIC -pthreads"
+       CFLAGS="$CFLAGS -pthreads"
+       SHLD="$CC -shared"
+    else
+       # Sun C compiler
+       SHCFLAGS="$SHCFLAGS -KPIC -mt"
+       CFLAGS="$CFLAGS -mt"
+       LIBS="-mt $LIBS"
+       SHLD="$CC -G"
+    fi
+    ;;
+  *linux*)
+    case `uname -m` in
+      *x86_64*)
+        SHCFLAGS="$SHCFLAGS -fPIC"
+        ;;
+    esac
+    SHCFLAGS="$SHCFLAGS -shared"
+    SHLD="$CC -shared -rdynamic"
+    ;;
+  *darwin*)
+    RLDFLAG="-R"
+    DOTSO=dylib
+    SHCFLAGS="$CFLAGS"
+    SHLD="$CC -dynamiclib -single_module -undefined dynamic_lookup -install_name \$(libdir)/\$@"
+    ;;
+  *freebsd*)
+    SHCFLAGS="$CFLAGS -fPIC -pthread"
+    SHLD="$CC -shared -rdynamic"
+    ;;
+  *)
+    AC_MSG_ERROR(need to handle this case)
+    exit 1
+    ;;
+esac
+AC_SUBST(DOTSO)
+AC_SUBST(SHLD)
+AC_SUBST(SHCFLAGS)
+AC_SUBST(LDFLAGS)
+
+AC_OUTPUT([
+Makefile
+perl/Makefile.PL
+])

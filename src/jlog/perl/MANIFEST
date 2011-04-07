@@ -1,0 +1,12 @@
+Changes
+JLog.xs
+Makefile.PL
+MANIFEST
+ppport.h
+README
+t/1.t
+lib/JLog.pm
+lib/JLog/Writer.pm
+lib/JLog/Reader.pm
+typemap
+META.yml                                 Module meta-data (added by MakeMaker)

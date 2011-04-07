@@ -1,0 +1,6 @@
+Revision history for Perl extension JLog.
+
+0.01  Sun Jul  2 15:54:08 2006
+	- original version; created by h2xs 1.23 with options
+		-A -n JLog
+
