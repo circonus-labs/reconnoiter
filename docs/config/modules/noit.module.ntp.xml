@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<section>
+  <title>ntp</title>
+  <para>Determine clock skew from an NTP source.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>lua</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>object</term>
+      <listitem>
+        <para>noit.module.ntp</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Monitor an NTP service</title>
+    <para>The following example monitors an NTP services on 10.1.2.3.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="ntp" object="noit.module.ntp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="4ee1a1e2-1e60-11df-8e99-bf796ca462ef" module="ntp" target="10.1.2.3" period="60000" timeout="5000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+  </example>
+</section>

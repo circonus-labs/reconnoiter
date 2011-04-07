@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<book id="reconnoiter" lang="en">
+
+  <bookinfo>
+    <title>Reconnoiter</title>
+    <subtitle>Large-scale Monitoring and Trend Analysis System</subtitle>
+    <!-- edition>edition</edition -->
+    <pubdate>@PUBDATE@, Document revision @VERS@</pubdate>
+
+    <corpauthor>OmniTI Computer Consulting, Inc.</corpauthor>
+
+    <copyright>
+      <year>2008</year>
+      <holder>OmniTI Computer Consulting, Inc.</holder>
+    </copyright>
+
+  </bookinfo>
+
+  &preface;
+
+  <part id="archecture">
+    <title>Architecture</title>
+    &arch.all;
+  </part>
+  <part id="configuration">
+    <title>Configuration</title>
+    &config.all;
+  </part>
+  <part id="operation">
+    <title>Operation</title>
+    &operation.all;
+  </part>
+  <part id="reference">
+    <title>Reference</title>
+    <reference id="exe">
+      <title>Reconnoiter Command Line Reference</title>
+      &executable.all;
+    </reference>
+    <chapter id="ref">
+      <title>Code Reference</title>
+      <section><title>Internal Functions</title>
+      <reference><title>Function Refrence</title>
+      &gen.all;
+      </reference>
+      </section>
+    </chapter>
+  </part>
+
+  <index id="the.index"/>
+</book>
+<!--
+vim:ts=2:sw=2:et:
+-->

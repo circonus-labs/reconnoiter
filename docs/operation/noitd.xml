@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<chapter id="operation.noitd">
+  <title>Operating the noitd daemon</title>
+
+<para>
+Once <command>noitd</command> is configured and running, there
+are several methods of interacting with the service.  The operator
+can interactively manage the instance via the integrated command line
+console (accessible via telnet on the port of your choice, as configured
+in noitd.conf via listener elements; by default port 32322) and
+programmatic access is available over the <command>noitd</command>
+wire protocol on port 43191.
+</para>
+
+<para>
+The wire protocol is a binary protocol that is leverage for
+inter-system communication.  While not entirely compliant with
+the HTTP specification, the protocol will give well formed HTTP
+responses to sessions that commence with the terms: "DELETE"
+"GET " "HEAD" "POST" "PUT ".
+</para>
+
+<section id="noitd.interactive.console">
+<title><command>noitd</command> Interactive Console</title>
+&operation.cli.all;
+</section>
+
+<section id="noitd.wire.protocol">
+<title><command>noitd</command> Wire Protocol</title>
+&operation.wire.all;
+</section>
+
+</chapter>

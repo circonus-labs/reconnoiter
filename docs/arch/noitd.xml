@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<chapter id="arch.noitd">
+  <title>noitd</title>
+  <para>
+    <command>noitd</command> is the "scout in the field."  It is responsible 
+    for performing service checks and obtaining metric information from services
+    on remote machines.  Typically, one <command>noitd</command> daemon is 
+    deployed in each datacenter and is responsible for talking to each machine 
+    and collecting service information.
+  </para>
+  <para>
+    The <command>noitd</command> daemon should be positioned in the network 
+    topology such that it has direct access to each machine it monitors (same 
+    layer 2 segment).  This is a SHOULD, not a MUST.  <command>noitd</command> 
+    can be used to monitor remote services as well (such as checking HTTP page 
+    load times from one monitoring location to services running in another 
+    datacenter).  The direct access is suggested for sensitive services that 
+    should not be accessible from outside the network.
+  </para>
+  <para>
+    The <command>noitd</command> daemon provides datafeed services to a 
+    <command>stratcond</command> daemon over port 34332 (or another port of 
+    your choosing) via an SSL-protected TCP transport.
+  </para>
+  <section id="arch.noitd.design">
+    <title>noitd Design</title>
+    <para>
+      <command>noitd</command> is designed to be high-performance as well as
+      easy to administer.  Clearly, ease of administration is a subjective
+      assessment.  The goal in administration was to make the
+      <command>noitd</command> system as much like a network device as
+      possible.  The methodology and approach to use is very similar to other
+      network devices such as switches and routers.  Telnet access (available
+      over both SSL and non-SSL) provides access to a CLI that allows
+      assessment of operation as well as reconfiguration.  It is designed to
+      make network administrators feel "at home."
+    </para>
+    <para>
+      The performance of <command>noitd</command> is grounded in its use of a
+      hybrid event/thread and careful coding practices to ensure that blocking
+      operations and computationally intensive operations are handled 
+      asynchronously to non-blocking operations.
+    </para>
+    <para>
+      The configuration system is entirely XML-based, providing two inheritance
+      paradigms.  The first is provided by simple XML parent-child relationships
+      such that required attributes that are unspecified in leaf nodes are
+      resolved by walking up the element's ancestral stack.  The second model
+      uses an explicit "inherit" attribute that allows for complicated 
+      configuration information to be stored elsewhere in the XML tree for 
+      readability and maintainability.  All configuration can be performed by 
+      the CLI with a router-like syntax, so those uncomfortable with XML can 
+      configure the system with equal ability.
+    </para>
+    <para>
+      Checks are loaded into the system dynamically (through shared object 
+      loading.) New checks can be authored and added to the system without 
+      recompiling the host <command>noitd</command> daemon.  Some modules can 
+      be loaded during runtime, but due to security concerns, super-user 
+      privileges are dropped after module initialization.  This security 
+      feature prevents the correct operation of any module requiring extended 
+      privileges for initialization.  Adding such a module to the configuration 
+      will require a restart of the <command>noitd</command> process.  The 
+      ping_icmp module is an example of a module requiring extended privileges 
+      for initialization (the opening of RAW network sockets.)
+    </para>
+    <para>
+      In addition to checks implemented as dynamic objects (ELF or Mach) that
+      are loaded into the system with dlopen() or similar such mechanisms,
+      <command>noitd</command> allows for alternate "loader" implementations.  
+      <command>noitd</command> has a "lua" loader that allows checks to be 
+      scripts in the Lua programming language.
+    </para>
+  </section>
+</chapter>
+<!--
+vim:ts=2:sw=2:et:
+-->

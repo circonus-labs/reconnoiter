@@ -1,0 +1,140 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+
+<refentry id="executable.noitd">
+  <refmeta>
+    <refentrytitle>noitd</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+
+  <refentryinfo>
+    <date>21/01/2010</date>
+  </refentryinfo>
+
+  <refnamediv>
+    <refname>noitd</refname>
+    <refpurpose>Reconnoiter scout daemon</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>noitd</command>
+      <arg choice="opt">-c</arg>
+      <arg choice="opt">-u <replaceable>user</replaceable></arg>
+      <arg choice="opt">-g <replaceable>group</replaceable></arg>
+      <arg choice="opt">-t <replaceable>path</replaceable></arg>
+      <arg choice="opt">-d</arg>
+      <arg choice="opt">-D</arg>
+      <arg choice="opt">-l <replaceable>logstream</replaceable></arg>
+      <arg choice="opt">-L <replaceable>logstream</replaceable></arg>
+      <arg choice="opt">-M</arg>
+      <arg choice="opt">-h</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+<para>
+  <command>noitd</command> is the daemon that performs all health and metric
+  checks.  Generally, one is run in each environment (secured submet).
+</para>
+
+<variablelist>
+  <varlistentry><term><option>-u</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a username or uid under which to operate.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-g</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a group name or gid under which to operate.
+      </para>
+    </listitem>
+  </varlistentry>  
+  <varlistentry><term><option>-t</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a path to chroot(2) for operation.  Measures
+        must be taken to ensure that log files can be accessed in the
+        chrooted environment.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-c</option></term>
+    <listitem>
+      <para>
+        Specifies a configuration file to read.  The initial configuration
+        is read from this file and <command>write config</command> commands
+        will write to this file.  The default location of the configuration
+        file is <filename>noitd.conf</filename> in the sysconfdir specified
+        at build time.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-l</option></term>
+    <listitem>
+      <para>
+        Marks the enabled bit for the specified log stream.  This enables
+        the stream even if it is disabled in the configuration file.  It
+        must exist in the configuration file.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-L</option></term>
+    <listitem>
+      <para>
+        Disables the enabled bit for the specified log stream.  This disables
+        the stream even if it is enabled in the configuration file.  It
+        must exist in the configuration file.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-D</option></term>
+    <listitem>
+      <para>
+        Instructs <command>noitd</command> to run in the foreground.
+        Normally, noitd consists of a management process and a child
+        process that performs all actions.  This prevents that scenario
+        and runs only the child process attached to the terminal.  This
+        is primarily for debugging purposes.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-d</option></term>
+    <listitem>
+      <para>
+        Enables the debug output facility despite configuration to the
+        contrary.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-M</option></term>
+    <listitem>
+      <para>
+        Instructs <command>noitd</command> to exit immediately if there
+        where any problems loading specified modules.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-h</option></term>
+    <listitem>
+      <para>
+        Displays the usage information.
+      </para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect1>
+</refentry>
+
+<!--
+vim:ts=2:sw=2:et:
+-->
+

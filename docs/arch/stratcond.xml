@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<chapter id="arch.stratcond">
+  <title>stratcond</title>
+  <para>
+    <command>stratcond</command> is responsible for pulling collected metrics 
+    from <command>noitd</command> processes running in the field.  It will 
+    connect to <command>noitd</command> over an SSL-protected TCP transport on 
+    port 34332 (or another port of your choosing), then 
+    <command>noitd</command> will push a dataset to 
+    <command>stratcond</command>.  <command>stratcond</command> will transform 
+    this dataset and insert it into the PostgreSQL datastore.
+  </para>
+  <para>
+    Data collected by <command>noitd</command> is stored in a jlog journal 
+    which is a segment-based, publish-subscribe journal.  Adhering to the 
+    publish-subscribe model, <command>stratcond</command> must be a subscriber 
+    to this log and the common name (CN) in the client-side SSL certificate 
+    that <command>stratcond</command> presents to <command>noitd</command> upon 
+    connecting is used as the jlog subscriber name.
+  </para>
+  <para>
+    See the 
+    <ulink url="http://labs.omniti.com/trac/jlog"><citetitle>JLog</citetitle></ulink>
+    project page for more information about JLog.
+  </para>
+  <section id="arch.stratcond.design">
+    <title>stratcond Design</title>
+    <para>
+      <command>stratcond</command> is simple in both purpose and design.  All 
+      connections to remote <command>noitd</command> deamons are managed in a 
+      single thread in the event system.  As data is received from each 
+      <command>noitd</command> daemon, it is pushed onto a datastore queue for 
+      that daemon.  A database connection is established for each 
+      <command>noitd</command> daemon (each in its own thread) and those 
+      threads consume the datastore queue, transforming and inserting data into 
+      PostgreSQL.
+    </para>
+    <para>
+      Inserts are performed in batches.  At the end of each batch, 
+      <command>stratcond</command> will commit the database transaction and 
+      advise the the remote <command>noitd</command> to checkpoint the 
+      subscriber position.  This two-point commit is not XA-safe and there is 
+      a possibility that data could be committed to the datastore and the 
+      subscriber checkpoint not be updated.  This will result in an attempt to 
+      repeat the data insertion, resulting in primary key violations which are 
+      ignored.
+    </para>
+    <para>
+      <command>stratcond</command> uses the same configuration processing 
+      system as <command>noitd</command>.  It is XML-based and provides 
+      facilities for defining the SQL statements executed against PostgreSQL, 
+      the connection parameters, and the various remote 
+      <command>noitd</command> instances to which it should connect.
+    </para>
+  </section>
+</chapter>
+<!--
+vim:ts=2:sw=2:et:
+-->

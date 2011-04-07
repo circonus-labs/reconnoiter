@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<section>
+  <title>snmp</title>
+  <para>The snmp module provides SNMP polling support for reconnoiter.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>snmp.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>community</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>public</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SNMP community string providing read access.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>161</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The UDP port to which SNMP queries will be sent.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>oid_.+</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Simple snmp polling of two switchports</title>
+    <para>The following example configures SNMP checks against switchport 1 and 2
+      on the switch with the IP address 10.80.116.3.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;switch target="10.80.116.3" module="snmp"&gt;
+            &lt;config&gt;
+              &lt;community&gt;SeKr3t&lt;/community&gt;
+              &lt;oid_description&gt;IF-MIB::ifName.%[name]&lt;/oid_description&gt;
+              &lt;oid_alias&gt;IF-MIB::ifAlias.%[name]&lt;/oid_alias&gt;
+              &lt;oid_speed&gt;IF-MIB::ifSpeed.%[name]&lt;/oid_speed&gt;
+              &lt;oid_adminstatus&gt;IF-MIB::ifAdminStatus.%[name]&lt;/oid_adminstatus&gt;
+              &lt;oid_operstatus&gt;IF-MIB::ifOperStatus.%[name]&lt;/oid_operstatus&gt;
+              &lt;oid_inoctets&gt;IF-MIB::ifHCInOctets.%[name]&lt;/oid_inoctets&gt;
+              &lt;oid_outoctets&gt;IF-MIB::ifHCOutOctets.%[name]&lt;/oid_outoctets&gt;
+              &lt;oid_inerrors&gt;IF-MIB::ifInErrors.%[name]&lt;/oid_inerrors&gt;
+              &lt;oid_outerrors&gt;IF-MIB::ifOutErrors.%[name]&lt;/oid_outerrors&gt;
+              &lt;oid_indiscards&gt;IF-MIB::ifInDiscards.%[name]&lt;/oid_indiscards&gt;
+              &lt;oid_outdiscards&gt;IF-MIB::ifOutDiscards.%[name]&lt;/oid_outdiscards&gt;
+              &lt;oid_inucastpkts&gt;IF-MIB::ifHCInUcastPkts.%[name]&lt;/oid_inucastpkts&gt;
+              &lt;oid_outucastpkts&gt;IF-MIB::ifHCOutUcastPkts.%[name]&lt;/oid_outucastpkts&gt;
+              &lt;oid_inbcastpkts&gt;IF-MIB::ifHCInBroadcastPkts.%[name]&lt;/oid_inbcastpkts&gt;
+              &lt;oid_outbcastpkts&gt;IF-MIB::ifHCOutBroadcastPkts.%[name]&lt;/oid_outbcastpkts&gt;
+            &lt;/config&gt;
+            &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/&gt;
+            &lt;check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/&gt;
+          &lt;/switch&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+  <example>
+    <title>Example using config inheritance to show reuse</title>
+    <para>Accomplising the same goal, but by using reuse:</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;switch target="10.80.116.3" module="snmp"&gt;
+            &lt;config inherit="SwitchPortX"/&gt;
+              &lt;community&gt;SeKr3t&lt;/community&gt;
+            &lt;/config&gt;
+            &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/&gt;
+            &lt;check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/&gt;
+          &lt;/switch&gt;
+        &lt;/checks&gt;
+        &lt;config_templates&gt;
+          &lt;config id="SwitchPortX"&gt;
+            &lt;oid_description&gt;IF-MIB::ifName.%[name]&lt;/oid_description&gt;
+            &lt;oid_alias&gt;IF-MIB::ifAlias.%[name]&lt;/oid_alias&gt;
+            &lt;oid_speed&gt;IF-MIB::ifSpeed.%[name]&lt;/oid_speed&gt;
+            &lt;oid_adminstatus&gt;IF-MIB::ifAdminStatus.%[name]&lt;/oid_adminstatus&gt;
+            &lt;oid_operstatus&gt;IF-MIB::ifOperStatus.%[name]&lt;/oid_operstatus&gt;
+            &lt;oid_inoctets&gt;IF-MIB::ifHCInOctets.%[name]&lt;/oid_inoctets&gt;
+            &lt;oid_outoctets&gt;IF-MIB::ifHCOutOctets.%[name]&lt;/oid_outoctets&gt;
+            &lt;oid_inerrors&gt;IF-MIB::ifInErrors.%[name]&lt;/oid_inerrors&gt;
+            &lt;oid_outerrors&gt;IF-MIB::ifOutErrors.%[name]&lt;/oid_outerrors&gt;
+            &lt;oid_indiscards&gt;IF-MIB::ifInDiscards.%[name]&lt;/oid_indiscards&gt;
+            &lt;oid_outdiscards&gt;IF-MIB::ifOutDiscards.%[name]&lt;/oid_outdiscards&gt;
+            &lt;oid_inucastpkts&gt;IF-MIB::ifHCInUcastPkts.%[name]&lt;/oid_inucastpkts&gt;
+            &lt;oid_outucastpkts&gt;IF-MIB::ifHCOutUcastPkts.%[name]&lt;/oid_outucastpkts&gt;
+            &lt;oid_inbcastpkts&gt;IF-MIB::ifHCInBroadcastPkts.%[name]&lt;/oid_inbcastpkts&gt;
+            &lt;oid_outbcastpkts&gt;IF-MIB::ifHCOutBroadcastPkts.%[name]&lt;/oid_outbcastpkts&gt;
+          &lt;/config&gt;
+        &lt;/config_templates&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>

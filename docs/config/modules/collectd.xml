@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+<section>
+  <title>collectd</title>
+  <para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>collectd.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>collectd_port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>25826</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The port which collectd packets are received</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>notifications</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>options</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>true</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|on|false|off)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify whether collectd notifications are acted upon.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>security_level</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>username</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The collectd username for authenticating signed and encrypted packets</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>password</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The collectd password for authenticating signed and encrypted packets</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Simple encrypted passive checking.</title>
+    <para>The following example allows a collectd agent to send any metric to the noit
+      system.  In this example the collectd agent must be version 4.7.0 to support encryption 
+      and must be configured with parameters similar to the ones below.  Like the snmptrap 
+      module the collectd disregards the timeout value completely, but uses the period to
+      batch all the checks in one commit.  If there are &gt;1 metrics within the period the
+      check is marked as G and A for state and availability respectively.  The first program
+      listing shows a collectd configuration and the second listing shows the corresponding
+      check configuration in reconnoiter.</para>
+    <programlisting>
+      &lt;Plugin network&gt;
+        &lt;Server "127.0.0.1" "25826"&gt;
+          SecurityLevel "encrypt"
+          Username "us3rname"
+          Password "s3cr3t"
+        &lt;/Server&gt;
+      &lt;/Plugin&gt;
+      </programlisting>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="collectd" name="collectd"&gt;
+            &lt;config&gt;
+              &lt;username&gt;us3rname&lt;/username&gt;
+              &lt;password&gt;s3cr3t&lt;/password&gt;
+              &lt;security_level&gt;2&lt;/security_level&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="collectd"
+                 target="127.0.0.1" period="60000" timeout="30000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+  </example>
+</section>

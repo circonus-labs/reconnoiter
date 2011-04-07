@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<section>
+  <title>selfcheck</title>
+  <para>The selfcheck module performs a self assessment on the host noitd instance.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>selfcheck.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>feedname</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>feed</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The name of the feed that will be sized.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Testing the local noitd instance.</title>
+    <para>We self check the noitd instance every 5 seconds.  Here, the target doesn't mean anything in particular as the check is entirely internal.  The target should match the local noitd's IP address from the perspective of stratcond.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="selfcheck" name="selfcheck"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="6e65ffdc-f174-11dd-86fe-b7da9645ce7c" target="10.225.209.90" period="5000" timeout="4000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>

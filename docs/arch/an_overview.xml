@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<chapter id="arch.overview">
+  <title>Reconnoiter Architecture Overview</title>
+    <para>
+      <figure xml:id="over_arch_fig">
+        <title>Some image properties</title>
+        <mediaobject>
+          <imageobject>
+            <imagedata width="50%" fileref="https://labs.omniti.com/reconnoiter/docs/assets/noit-network-arch.png" format="PNG"/>
+          </imageobject>
+          <textobject><phrase>A graphic illustrating the the various components of Reconnoiter and how they inter-operate.</phrase></textobject>
+        </mediaobject>
+        <caption><para>The various interactions between Reconnoiter components.</para></caption>
+      </figure>
+    </para>
+    <para>
+      Both <command>noitd</command> and <command>stratcond</command> make heavy
+      use of SSL certificates. The SSL certificates are used for security 
+      purposes, and are required for correct operation. The common names of the
+      certs identify different system components to each other and must match 
+      or the components will fail to communicate.
+    </para>
+    <para>
+      It is strongly recommended that you use a certificate authority to manage
+      the certificates issued to each <command>noitd</command> and 
+      <command>stratcond</command> daemon.
+    </para>
+</chapter>

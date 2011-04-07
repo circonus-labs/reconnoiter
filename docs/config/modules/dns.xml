@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+<section>
+  <title>dns</title>
+  <para>The dns module leverages libudns to allow highly concurrent DNS lookups of a variety of DNS RR types.  In the event that you name a dns check <parameter>in-addr.arpa</parameter> with an rtype of <parameter>PTR</parameter>, the result of the query may be used throughout reconnoiter as the identifying hostname of that target.</para>
+  <para>This module provides the <function>inaddrarpa</function> interpolation method which will reverse a dot-delimited IP address.  This is particularly useful for constructing in-addr.arpa queries, but also used for checking blacklists, whitelists and other IP-based DNS databases.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>dns.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>nameserver</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>%[target_ip] or determined from underlying system</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target_ip] of the the check.  If set to the string "default" the underlying system default nameserver is used.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>ctype</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>IN</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(IN|CH|HS)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The DNS class of the query. IN: Internet, CH: Chaos, HS: Hesoid.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>rtype</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>A|PTR</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(A|AAAA|TXT|MX|SOA|CNAME|PTR|NS|MB|MD|MF|MG|MR)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The DNS resource record type of the query.  If the name of the check is in-addr.arpa, the default is PTR, otherwise it is A.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>query</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>%[name]|%[:inaddrarpa:target_ip]</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The query to send.  If the name of the check is in-addr.arpa, the reverse IP octet notation of in-addr.arpa syntax is synthesized by default.  Otherwise the default query is the name of the check itself.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>want_sort</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>true</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(true|false|on|off)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Sorts (strcmp) the answers if multiple RRs are returned in the result set.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Establishing PTR records for hosts.</title>
+    <para>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="dns" name="dns"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config&gt;
+            &lt;nameserver&gt;10.1.2.2&lt;/nameserver&gt;
+          &lt;/config&gt;
+          &lt;ptr module="dns" name="in-addr.arpa"&gt;
+            &lt;check uuid="2cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" target="10.1.2.3"/&gt;
+            &lt;check uuid="2dd79110-76ff-11dd-9b54-739adc274a93" target="10.1.2.4"/&gt;
+            &lt;check uuid="5627560a-76ff-11dd-941f-4b75679cb908" target="10.1.2.5"/&gt;
+            &lt;check uuid="5fdcb8de-76ff-11dd-ae16-2740afc178ae" target="10.1.2.6"/&gt;
+          &lt;/ptr&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+  <example>
+    <title>Checking labs.omniti.com.</title>
+    <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="dns" name="dns"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;ns1 module="dns" target="66.225.209.4"&gt;
+            &lt;check uuid="3cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" name="labs.omniti.com"/&gt;
+          &lt;/ns1&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>

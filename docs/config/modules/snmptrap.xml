@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<section>
+  <title>snmptrap</title>
+  <para>The snmptrap module provides SNMP trap daemon support for reconnoiter.  Reconnoiter comes with a <command>snmptrap</command>-based helper utility called <command>noittrap</command> aimed to assist with the complexities of forming valid SNMP traps to this module.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>snmp.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>community</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SNMP community string providing trap access.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>snmptrapd_port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The port on which traps are accepted.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>community</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SNMP community string providing trap access (overrides modules config).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Simple passive checking.</title>
+    <para>The following example configures a check prepared to accept traps from
+      host 10.1.1.1.  Traps must be performed with the community name 's3cr3t'. Note that
+      because this check is passive, the timeout and period mean nothing to reconnoiter.
+      Though these values may be used by an upstream provider for fault detection.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmptrap"&gt;
+            &lt;config&gt;
+              &lt;community&gt;s3cr3t&lt;/community&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="snmptrap" name="magic"
+                 period="60000" timeout="30000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>

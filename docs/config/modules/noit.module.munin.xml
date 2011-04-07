@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+<section>
+  <title>munin</title>
+  <para>Monitor metrics exposed by a munin-node instance.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>lua</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>object</term>
+      <listitem>
+        <para>noit.module.munin</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>4949</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specifies the port on which the management interface can be reached.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>plugins</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A list of space separated plugins from which to fetch metrics. If not specified, a list will be retrieved from the munin node.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Monitor a node running munun-node</title>
+    <para>The following example pulls all munin metrics from 10.1.2.3 and just "processes" metrics from 10.1.2.4</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="munin" object="noit.module.munin"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="535cc224-9f66-11df-b198-8b094b17808a" module="munin" target="10.1.2.3" /&gt;
+          &lt;check uuid="5acce980-9f66-11df-8027-ebfe9d8b53e1" module="munin" target="10.1.2.4"&gt;
+            &lt;config&gt;&lt;plugins&gt;processes&lt;/plugins&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+  </example>
+</section>

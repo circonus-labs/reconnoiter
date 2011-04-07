@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE preface PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+<preface id="introduction">
+  <title>Introduction</title>
+  <para>
+    Reconnoiter is a monitoring and trend analysis system designed to cope
+    with large architectures (thousands of machines and hundreds of thousands
+    of metrics).
+  </para>
+  <para>
+    Heavy focus is placed on decoupling the various components of the system
+    to allow for disjoint evolution of each component as issues arise or new
+    requirements are identified.  Resource monitoring, metric aggregation,
+    metric analysis and visualization are all cleanly separated.
+  </para>
+  <para>
+    The monitor, <command>noitd</command>, is written in C and designed to 
+    support highly concurrent and rapid checks with an expected capability 
+    of monitoring 100,000 services per minute (6 million checks per hour.)  
+    While it is hard to make writing checks "easy" in this high-performance
+    environment, efforts have been made to ensure that custom check scripting
+    does not require the expertise of writing highly-concurrent, event-driven
+    C code.  Instead, glue is provided via scripting languages such as Lua
+    that attempt to handle aspects of this high-concurrency environment
+    transparently.  As with any high-performance system, you can easily
+    introduce non-performant code and jeopardize performance system-wide.
+  </para>
+  <para>
+    The aggregator, <command>stratcond</command>, is also written in C and 
+    responsible for the simple task of securely gathering data from all of the 
+    distributed <command>noitd</command> instances and transforming them into 
+    the data storage facility (currently PostgreSQL).
+  </para>
+  <para>
+    The data storage facility (PostgreSQL) holds all information about
+    individual checks, their statuses and the individual metrics associated
+    with them.  Automatic processes are in place that summarize the
+    numeric metrics into windowed averages for expedient graphing at
+    a variety of time window resolutions (hour, day, month, year, etc.).
+  </para>
+  <para>
+    The visualization interface (reconnoiter) draws from the data store
+    to visualize collected metrics and assist with monitoring, trending and
+    other visual analyses.  The visualization system is written in PHP.
+  </para>
+</preface>
+<!--
+vim:ts=2:sw=2:et:
+-->

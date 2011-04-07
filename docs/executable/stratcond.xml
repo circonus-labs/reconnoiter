@@ -1,0 +1,157 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
+  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
+[
+  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
+  %magic.fixup;
+]>
+
+<refentry id="executable.stratcond">
+  <refmeta>
+    <refentrytitle>stratcond</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+
+  <refentryinfo>
+    <date>09/08/2008</date>
+  </refentryinfo>
+
+  <refnamediv>
+    <refname>stratcond</refname>
+    <refpurpose>Reconnoiter data collector/aggregator.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>stratcond</command>
+      <arg choice="opt">-c</arg>
+      <arg choice="opt">-M</arg>
+      <arg choice="opt">-u <replaceable>user</replaceable></arg>
+      <arg choice="opt">-g <replaceable>group</replaceable></arg>
+      <arg choice="opt">-t <replaceable>path</replaceable></arg>
+      <arg choice="opt">-d</arg>
+      <arg choice="opt">-D</arg>
+      <arg choice="opt">-l <replaceable>logstream</replaceable></arg>
+      <arg choice="opt">-L <replaceable>logstream</replaceable></arg>
+      <arg choice="opt">-s</arg>
+      <arg choice="opt">-r</arg>
+      <arg choice="opt">-h</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+<para>
+  <command>stratcond</command> is the daemon that coordinates all
+  <command>noitd</command> daemons, processes their data feeds
+  (configuration updates, metrics, checks and statuses) and provides
+  that data to the backend business logic: storage services and
+  fault detection services.
+</para>
+
+<variablelist>
+  <varlistentry><term><option>-u</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a username or uid under which to operate.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-g</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a group name or gid under which to operate.
+      </para>
+    </listitem>
+  </varlistentry>  
+  <varlistentry><term><option>-t</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a path to chroot(2) for operation.  Measures
+        must be taken to ensure that log files can be accessed in the
+        chrooted environment.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-c</option></term>
+    <listitem>
+      <para>
+        Specifies a configuration file to read.  The default location of the
+        configuration file is <filename>stratcond.conf</filename> in the
+        sysconfdir specified at build time.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-l</option></term>
+    <listitem>
+      <para>
+        Marks the enabled bit for the specified log stream.  This enables
+        the stream even if it is disabled in the configuration file.  It
+        must exist in the configuration file.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-L</option></term>
+    <listitem>
+      <para>
+        Disables the enabled bit for the specified log stream.  This disables
+        the stream even if it is enabled in the configuration file.  It
+        must exist in the configuration file.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-D</option></term>
+    <listitem>
+      <para>
+        Instructs <command>stratcond</command> to run in the foreground.
+        The process remains attached to the terminal.  This is primarily
+        for debugging purposes.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-d</option></term>
+    <listitem>
+      <para>
+        Enables the debug output facility despite configuration to the
+        contrary.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-M</option></term>
+    <listitem>
+      <para>
+        Instructs <command>noitd</command> to exit immediately if there
+        where any problems loading specified modules.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-s</option></term>
+    <listitem>
+      <para>
+        Disables pulling for durable logs from noits and subsequent
+        loading of data into the database.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-r</option></term>
+    <listitem>
+      <para>
+        Disables pulling for transient logs from noits and subsequent
+        submission to the message queue.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-h</option></term>
+    <listitem>
+      <para>
+        Displays the usage information.
+      </para>
+    </listitem>
+  </varlistentry>
+</variablelist>
+</refsect1>
+</refentry>
+
+<!--
+vim:ts=2:sw=2:et:
+-->
+

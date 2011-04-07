@@ -1,0 +1,1090 @@
+2005-08-11  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* lists.xsl: Fixed check for first following siblings in lists.
+
+2005-08-09  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl, lists.xsl, utility.xsl: Output .sp macro in mixed blocks where we were outputting
+	completely blank line before. Thanks (again) to Costin Stroie for
+	pointing out the problems and providing a test case.
+	
+	Also, corrected the test for checking first preceding siblings of
+	text nodes in mixed blocks (the test is used for determining
+	whether or not we need to insert a line break before those nodes.)
+
+2005-08-05  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* utility.xsl: Fixed bug that caused literal .sp to show up in output. (Thanks to
+	Costin Stroie for reporting).
+	
+	WARNING: One of the consequences of this change is that the
+	stylesheet no longer generates spaces at the end of certain lines.
+	I had it doing that as a sort of hack to prevent certain kinds of
+	problems in output. It seems like the hack my no longer be
+	necessary. But if I am wrong, this change may cause spaces to show
+	up at the beginning of some lines in "mixed content". If you see
+	those, then this change has introduced a regression, and I will
+	need to go back and figure out the right way to fix it (instead of
+	the kludgy way I was doing it before.
+	
+	Also, instances like the following were showing up in some cases.
+	
+	  .PP
+	  .sp
+	
+	That is, a .PP macro immediately followed by a .sp macro. I can
+	think of no good read to ever generate that, and I am not sure why
+	it is getting generated. So I have taked the lazy way out and
+	caused the stylesheet to now strip out the .sp from all such
+	instances, leaving just the .PP
+
+2005-07-24  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl, lists.xsl, utility.xsl: New file.
+
+	* block.xsl, lists.xsl, utility.xsl: Fixed handling of lists with titles. Also reworked handling of
+	space around lists. (Closes #1243003 and 1241371).
+	
+	Among other things, this change "normalizes" line space before and
+	after verbatims. For most cases, the stylesheet now attempts to
+	ensure each verbatim is preceded and followed by exactly one line
+	of space.
+
+2005-07-14  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* links.xsl: Removed unnecessary .br requests.
+
+	* links.xsl: Use string value of link contents in link list so character
+	formatting is "normalized" (no bold or ital).
+
+2005-07-13  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* inline.xsl, param.ent, param.xweb: Prevent hyphenation of computer inlines, filenames, and URLs.
+	(Closes #1124391; thanks to Ryan Hofschneider for reporting).
+	
+	By default, even when hyphenation is enabled (globally),
+	hyphenation is now suppressed for "computer inlines" (currently,
+	just classname, constant, envar, errorcode, option, replaceable,
+	userinput, type, varname -- but probably need to add more) and for
+	filenames, and for URLs from Ulink.
+	
+	It can be (re)enabled using the man.hyphenate.computer.inlines,
+	man.hyphenate.filenames, and man.hyphenate.urls params.
+
+	* lists.xsl: branches:  1.18.2;
+	Removed unnecessary .LP requests that were being generated after
+	lists. I don't know why those were there, but they have apparently
+	been in since the code was first added to the repository.
+
+	* synop.xsl: Made Funcsynopsisinfo bold, and made it a proper .PP block, and
+	removed the extra space (.sp) that was being added after it.
+
+2005-07-12  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* inline.xsl, links.xsl, synop.xsl: Added support for suppressing hyphenation of "computer inlines"
+	and filenames and URLs. More details to follow with param
+	checkins.
+
+	* synop.xsl: Boldface everything in Funcsynopsis output except params.
+	Closes #1236641.
+	
+	The man(7) man page says:
+	
+	  For functions, the arguments are always specified using italics,
+	  even in the SYNOPSIS section, where the rest of the function is
+	  specified in bold:
+	
+	A look through the contents of the man/man2 directory shows that
+	most (all) existing pages do follow this "everything in bold" rule.
+	
+	That means the <type> content and any punctuation (parens,
+	semicolons, varargs) also must be bolded.
+
+	* utility.xsl: branches:  1.2.2;
+	Added support for suppressing hyphenation of "computer inlines"
+	and filenames and URLs. More details to follow with param
+	checkins.
+
+2005-07-11  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, inline.xsl, links.xsl, param.ent, param.xweb: 
+	Implemented out-of-line handling of URLs for links (Ulinks).
+	(Closes #1234711 and #1233909)
+	
+	For display of links, this implementation gives users three choices:
+	
+	  1. Number & list links. Each link is numbered and a numbered
+	     list of all links is added to the end of the document.
+	
+	     or
+	
+	  2. Only list links. Links are not numbered, but an (unnumbered)
+	     list of links is added to the end of the document.
+	
+	     or
+	
+	  3. Suppress links. Don't number links and don't add any list of
+	     links to the end of the document
+	
+	Users can also choose whether links should be underlined.
+	
+	Default is "the works" -- list, number, and underline links. The
+	man.links.* parameters can be used to change the defaults.
+	
+	The default heading for the link list is REFERENCES. That can be
+	changed using the man.links.list.heading param.
+	
+	There is a performance hit for listing and numbering links. But it
+	is not an unreasonable one.
+	
+	The code currently only checks for Ulinks. It can be updated later
+	(possibly) to deal with DocBook NG linking. But come to think of
+	it, DocBook NG links get converted by the strip-ns template. So
+	DocBook NG users will just need to run that first. Or, if I can
+	ever manage to get the single-pass conversion process to work with
+	manpages, it will get done automatically.
+
+	* other.xsl: New file.
+
+2005-07-10  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* inline.xsl: ulink handling now working as expected; but performance is poor
+	for docs that have a lot of ulinks; that needs to be fixed
+
+	* inline.xsl: Ulink handling -- fixed performance issue (per-Refentry sets of
+	Ulinks are now assembled once per document and stored in a
+	global variable).
+	
+	It now takes roughly on the order of 15 to 20 percent longer to
+	process a doc with links numbered than it does to process it with
+	links unnumbered. Which may sound like a lot, but with a doc that
+	has 100+ links, on my machine, that still amounts to less than a
+	one-second difference (only about 0.7 seconds).
+
+	* inline.xsl: Checkpointing further ulink changes.
+
+2005-07-09  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, info.xsl, inline.xsl: ulink fixes. (initial implementation of out-of-line handling of ulinks)
+
+	* inline.xsl: Checkpointing further ulink changes. All visible links are now
+	displayed in the link list, and numbered. But it performance
+	leaves something to be desired. And not working properly for case
+	where document contains multiple Refentry.
+
+	* inline.xsl: Checkpointing. Now link list contains unique URLs (removes dupes),
+	but needs more work -- some URLs are getting suppressed that
+	shouldn't be; one symptom of that is that numbering is thrown off.
+
+	* other.xsl: branches:  1.11.2;
+	ulink fixes. (initial implementation of out-of-line handling of ulinks)
+
+2005-07-08  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* lists.xsl: Removed redundant template.
+
+	* param.ent, param.xweb: Added new params for controlling link handling.
+
+2005-07-06  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* param.xweb: Replaced duplicated "charmap" IDs with good ones.
+
+2005-07-05  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl: branches:  1.5.2;
+	suppress Abstract
+
+	* docbook.xsl: Use utility.xsl
+
+	* docbook.xsl: Implemented output-independent mechanism for gathering refentry
+	metadata, along with a customization parameters for tuning it.
+	(Closes #1232541)
+
+	* general.xsl, info.xsl, other.xsl: Did some reorganizing.
+	
+	- Moved prepare.manpage.contents template out of general.xsl file
+	  and into other.xsl; general.xsl templates are now all templates
+	  that are called multiple times for each refentry, while
+	  templates in other.xsl are called only once per each refentry.
+	
+	- Removed get.metadata template; refentry metadata gathering is
+	  now done by common/refentry.xsl in a way that is independent of
+	  the final output format; so the common/refentry.xsl templates
+	  can be called not just by manpages stylesheets, but by
+	  stylesheets for any other output format
+	
+	- Added a write.man.file template. This is basically just a
+	  wrapper around the write.text.chunk template; it takes "name"
+	  and "section" params, assembles those into a filename, then
+	  passes that filename to write.text.chunk
+
+	* general.xsl, utility.xsl: Renamed general.xsl to utility.xsl.
+
+	* inline.xsl: Added trademark/productname template.
+	
+	This template causes true Unicode characters to be output for the
+	"copyright" and "registered" symbols (which be default then get
+	replaced by the apply-string-subst-map template). It outputs the
+	string "(TM)" for trademark (because roff "\(tm" output is not
+	good) and "(SM)" for servicemark.
+
+	* other.xsl: Removed leftover debugging variables.
+
+	* other.xsl, param.ent, param.xweb: Added support for enabling users to control what appears and does
+	not appear in the content of the .TH title-line header/footer.
+	(Closes #1210492)
+
+	* param.ent, param.xweb: Implemented capability for users to customize "refentry metadata
+	gathering" by specifying XPath expressions to use as "info
+	profiles" for gathering the data, and, in some cases, to suppress
+	parts of the data collected.
+
+	* param.ent, param.xweb: Added man.subheading.divider.enabled flag and tweaked doc for
+	man.subheading.divider
+
+	* param.ent, param.xweb: Added params to support makin "metadata gathering" independent of
+	output format (initial change for #1232541, more to follow shortly).
+
+	* refentry.xsl: Cleaned up redundancies in refnamediv and refsynopsisdiv title handling.
+
+2005-07-01  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, general.xsl, info.xsl: Checkpointing. In the middle of tinkering with composition of the
+	.TH title line. Started pulling at thread and unwound things. This
+	works as-is now (not broken) but is not finished.
+
+	* other.xsl, refentry.xsl: Put quotes around section in .TH title line & normalize space in
+	title and section in .TH title line (as we do with all other
+	fields in it).
+	
+	Also, added and refined comments, in part based on reading of
+	man(7) man page.
+
+2005-06-29  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl, general.xsl, other.xsl, param.ent, param.xweb, refentry.xsl: 
+	Added support for man.subheading.divider parameter.
+
+	* docbook.xsl, other.xsl, param.ent, param.xweb: Added support for man.justify, man.hyphenate,
+	man.break.after.slash, and an.th.title.max.length parameters.
+	Also switch to using locale-safe "string-upper" function to
+	uppercase the TH title. So manpages output is now
+	internationalized/localizable in all respects where is can be made
+	so at this point.
+
+	* general.xsl, info.xsl: Deal with *info correctly & remove some kruft.
+
+	* lists.xsl, other.xsl, refentry.xsl: Removed unnecessary additional linebreak that was getting added
+	after each varlistentry. Also, in a couple places that needed it,
+	added check for *info/title (instead of just title). Also, added
+	support of processing title or *info/title on Refsynopsisdiv
+	(still falls back to gentext SYNOPSIS title if no hard-coded title
+	found.
+
+2005-06-28  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* charmap.groff.xsl: Render servicemark and trademark as (SM) and (TM).
+	Because console output for groff "\(tm" is not acceptable.
+
+	* charmap.groff.xsl: Output "\-" for non-breaking hyphen.
+
+	* docbook.xsl, param.ent, param.xweb, synop.xsl: Support man.justify and man.hyphenate params. (closes #1229225).
+	
+	Note that default for the both of those is zero (off), because
+	justified text looks good only when it is also hyphenated; to
+	quote the "Hypenation" node from the groff info page:
+	
+	  Since the odds are not great for finding a set of words, for
+	  every output line, which fit nicely on a line without inserting
+	  excessive amounts of space between words, `gtroff' hyphenates
+	  words so that it can justify lines without inserting too much
+	  space between words.
+	
+	The problem is that groff is not particularly smart about how it
+	does hyphenation; it can end up hyphenating a lot of things that
+	you don't want hyphenated (names of symbols, for example), and it
+	is difficult and tiresome work to prevent it from doing that. So,
+	disabling both justification and hyphenation ensures that hyphens
+	won't get inserted where you don't want to them, and you don't end
+	up with lines containing excessive amounts of space between words.
+	
+	Yes, these default settings run counter to how most existing man
+	pages are formatted. But there are some notable exceptions, such
+	as the perl man pages.
+
+	* other.xsl: Added support for man.output.quietly for writing of stubs.
+	Also, added comments regarding display of .TH contents across
+	platforms.
+
+2005-06-27  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, general.xsl, param.ent: Implemented "character map" system for replacing Unicode
+	characters. (closes #1226009).
+	
+	::PROBLEM:
+	The existing manpages mechanism for replacing Unicode symbols and
+	special characters with roff equivalents is not scalable and not
+	anywhere near as complete as it should be.
+	
+	For example, the mechanism currently only handles a (somewhat
+	arbitrary) selection of less than 20 or so Unicode characters.
+	
+	But there are potentially more than _800_ Unicode special
+	characters that have some groff equivalent they can be mapped to.
+	
+	And there are about 34 symbols in the Latin-1 (ISO-8859-1) block
+	alone. Users might reasonably expect that if they include any of
+	those Latin-1 characters in their DocBook source documents, they
+	will get correctly convered to known roff equivalents in output.
+	
+	In addition to those common symbols, certain users may have a need
+	to use symbols from other Unicode blocks.
+	
+	Say, somebody who is documenting an application related to math
+	might need to use a bunch of symbols from the "Mathematical
+	Operators" Unicode block (there are about 65 characters in that
+	block that have reasonable roff equivalents).
+	
+	Or somebody else might really like Dingbats -- such as the
+	checkmark character (I like that one myself) and so might use a
+	bunch of things from the "Dingbat" block (141 characters in that
+	that have roff equivalents or that can at least be "degraded"
+	somewhat gracefully into roff).
+	
+	So we need a mechanism that is capable of handling all those 800
+	Unicode characters that have roff equivalents -- and/or of
+	allowing users to choose which Unicode blocks to use (through
+	tuning the value of a parameter or something).
+	
+	::FIX:
+	Replaced the current Unicode character-substitution mechanism
+	(replace-entities template) with a completely different
+	character-substitution mechanism that is based on use of a
+	"character map" (in a format compliant with the XSLT 2.0 spec and
+	therefore completely "forward compatible" with XSLT 2.0).
+	
+	By default, the new "character map" mechanism does replacement of
+	all Latin-1 symbols, along with most special spaces, dashes, and
+	quotes (about 75 characters by default, compared to the less than
+	20 special characters that were handled previously). And the
+	"full" character map provides support for converting about 800
+	characters.
+	
+	The mechanism is controlled through the following parameters:
+	
+	  - man.charmap.enabled:
+	      turns character-map support on/off
+	
+	  - man.charmap.use.subset.xml
+	      specifies that a subset of the character map is used instead
+	      of the full character map
+	
+	  - man.charmap.subset.profile.xml
+	      specifies profile of character-map subset
+	
+	  - man.charmap.uri.xml
+	      specifies an alternate character map to use instead of the
+	      "standard" character map provided in the distribution
+	
+	For more details, see the current documention at:
+	
+	  http://docbook.sf.net/snapshot/xsl/doc/manpages/charmap.html
+
+	* param.xweb: Added IDs for sub-references, so that "human readable" filenames
+	are generated based on those (instead of, e.g., "rn.html")
+
+	* param.xweb: Made doc source compliant with expectations of doc build.
+
+2005-06-26  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, general.xsl, info.xsl, inline.xsl, lists.xsl, other.xsl, param.ent, param.xweb, refentry.xsl, synop.xsl: 
+	Checkpointing before coding and committing final character-map changes.
+	
+	This change fully implements character-map support. I'll write up
+	a longer description of that in a later commit. But the brief
+	description is: The old Unicode character replacement mechanism
+	(replace-entities template) has been removed; a completely
+	different character-replacement mechanism is now used instead.
+	
+	By default, it does replacement of all Latin-1 symbols, along with
+	most special spaces, dashes, and quotes (about 75 characters by
+	default, compared to the less than 20 special characters that were
+	handled previously). And the "full" character map provides support
+	for converting about 800 characters. The mechanism use a
+	"character map" (in a format compliant with the XSLT 2.0 spec and
+	therefore completely "forward compatible" with XSLT 2.0.
+	
+	Other changes made for this commit:
+	
+	  - Changed default output encoding to UTF-8.
+	
+	    THIS DOES NOT MEAN THAT MAN PAGES ARE OUTPUT IN RAW UTF-8,
+	    because the character-map is applied before final output,
+	    causing all UTF-8 characters covered in the map to be
+	    converted to roff equivalents.
+	
+	  - Removed code for adding backslashes before periods/dots and
+	    before hyphens (&#45;); here's why:
+	
+	    * Backslashes in front of periods/dots are needed only in the
+	      very rare case where a period is the very first character in
+	      a line, without any space in front of it. A better way to
+	      deal with that rare case is for authors to add a zero-width
+	      space in front of the offending dot(s) in their source
+	
+	    * Backslashes in front of (&#45;/&#x2D;) are needed... when?
+	      Myself, I don't know, so the current stylesheet does not add
+	      backslashes in front of them, ever. If there is a specific
+	      case where they are necessary or desirable, then we need to
+	      add code for that case, not just do a blanket conversion.
+	
+	      And, anyway, my understanding from reading the groff docs is
+	      that \- is, specifically, a _minus sign_. So if you have a
+	      place where you want a minus sign to be output instead of
+	      (&#45;), then you should use (&#8722;/&#x2212;) in your
+	      source instead. And if you have a place where you want an
+	      en dash, (&#8211;/&#x2013;). Or if there are places where
+	      the stylesheets are internally generating (&#45;) where they
+	      should be generating &#8722; or &#8211;, then we need to fix
+	      those, not just do blanket conversion.
+	
+	  - Consolidated all bold and italic formatting so that it is done
+	    by applying the mode="bold" and mode="italic" templates.
+	
+	  - Consolidated handling of all instances where we want to
+	    prevent line breaking; they are all now processed using the
+	    prevent.line.breaking template.
+	
+	  - Removed "quote" template. In output, this was causing anything
+	    marked up with the <quote> element to be preceded by two
+	    backticks and followed by two apostrophes  -- that is, that
+	    old-school hack for generating "curly" quotes in Emacs and in
+	    X-Windows fonts. While Emacs still seems to support that,
+	    I don't think X-Windows has for a long time now. And, anyway,
+	    it looks (and has always looked) like complete crap when
+	    viewed on a normal tty/console
+
+2005-06-25  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* charmap.groff.xsl: Switched to "block" and "class" attributes and back to using real
+	backslashes instead of @esc@ hack.
+
+2005-06-20  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* charmap.groff.xsl: Added "class" attribute on all characters, value of which is the
+	name of the Unicode block the character is from.
+	
+	This replaces the use of the ad-hoc "class='default'" scheme.
+
+2005-06-14  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* charmap.groff.xml, charmap.groff.xsl, charmap.roff.min.xml, unicodetrans.xsl: 
+	More charmap reorganization.
+	
+	  - Removed unicodetrans.xsl file (function moved to lib/lib.xsl).
+	
+	  - Removed charmap.groff.xml & charmap.roff.min.xml and created a
+	    single charmap.groff.xsl file that incorporates both (using a
+	    class="default" attribute/value to mark those mappings that
+	    are in the default/minimal set).
+	
+	  - Made charmap.groff.xsl into a "real" (valid) XSLT 2.0 character
+	    map so it can be used as-is for XSLT 2.0-aware processing (e.g.,
+	    it can imported or included into another XSLT 2.0 stylesheet).
+
+	* docbook.xsl, other.xsl: Created an other.xsl file and moved some templates into it.
+
+	* textify.xsl: Removed. No longer used by build. html/xref.xsl is used "as is"
+
+2005-06-10  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* Makefile: Reverted some recent build changes.
+	
+	Reverted build of xref.xsl. Will no longer need it after Unicode
+	char handling change is made.
+	
+	Reverted build of single-pass profiling stylesheet (for now). It
+	doesn't appear to work with manpages, and figuring if and how I
+	can get it work is a very low priority, especially given that
+	single-pass profiling doesn't work with documents that contain
+	xref instances. If you want to profile content before converting
+	to man-page output, please just do a separate profiling pass first.
+
+	* charmap.groff.xml, charmap.roff.min.xml, roff.charmap.xml, unicodetrans.xsl: 
+	Made further changes for Unicode character translation.
+	
+	Renamed roff.charmap.xml to charmap.groff.xml.
+	Added charmap.roff.min.xml (minimal subset of around 40 "safe"
+	mappings appropriate for nroff as opposed to groff).
+	
+	Removed $charmap.file param from unicodetrans.xsl in preparation
+	for adding it as a real param to param.xweb
+
+2005-06-09  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* general.xsl, info.xsl, synop.xsl: (devel-only issue) replace-string() -> string.subst()
+	
+	Removed the used-in-manpages-stylesheet-only replace-string()
+	function and replaced all instances where it had been called with
+	calls to the same string-substitution function used by the HTML
+	and FO stylesheets: string.subst() from ../lib/lib.xsl
+
+	* roff.charmap.xml: Corrected stray comment.
+
+	* roff.charmap.xml, unicodetrans.xsl: New file.
+
+2005-06-08  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, info.xsl: Reworked *info gathering and rethought Refclass handling.
+	
+	For each Refentry found, we now cache its *info and its parent's
+	*info as node-sets; we then do all further matches against those
+	node-sets (rather than re-selecting the original *info nodes each
+	time we need to check them).
+	
+	Also, reverted the special handling of Refclass that was added
+	recently. We eventually need to make Refclass handling consistent
+	with that of the HTML and FO stylesheets.
+
+2005-06-07  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* ChangeLog.20020917: New file.
+
+	* README: Added some Notes section with info contributed by Barry Rountree.
+
+	* README: Fixed typo.
+
+	* lists.xsl: Removed unnecessary trailing comma after final term/glossterm
+	(closes #1215890; thanks to Sam Steingold for reporting the
+	problem).
+	
+	::PROBLEM::
+	If a varlistentry or glossentry contains multiple term or
+	glossterm elements, a comma is rendered after the final term or
+	glossterm. A comma should instead be rendered only after every
+	term or glossterm _except_ the last.
+	
+	::FIX::
+	Reworked template logic for term/glossterm. They are now handled
+	with an xsl:for-each in the varlistentry/glossentry template,
+	rather than as separate templates.
+	
+	HTML and FO stylesheets appear to have the same problem, so we
+	probably need to port this change to those as well.
+
+	* refentry.xsl: Don't render NAME heading for secondary Refnamedivs (closes #1216292)
+	
+	If a document has multiple Refnamedivs, a NAME heading was getting
+	rendered for each. But we only need one NAME heading. This change
+	causes it to be rendered just once. This makes behavior in this
+	respect consistent with how the HTML and FO stylesheets handle the
+	generated NAME heading for Refnamediv.
+
+2005-06-06  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* refentry.xsl: Uppercase titles in x-ref to Refentry children (closes #1215547;
+	thanks to Jens Granseuer for reporting the problem).
+	
+	::PROBLEM::
+	Titles of all first-level sections in man pages are always
+	rendered in uppercase. But cross-references to those titles are
+	not uppercase.
+	
+	::FIX::
+	Cross-references to titles of all first-level sections of Refentry
+	output are now rendered in uppercase; that is, titles in x-refs to
+	Refnamediv, Refsynopsisdiv, Refsect1, and any Refsection that is a
+	direct child of Refentry.
+	
+	Also, x-ref to Refnamediv now uses the localized "NAME" title
+	instead of the using the first Refname child. This makes the
+	output inconsistent with HTML and FO output, but for man-page
+	output, it seems to make better sense to have the "NAME". (It may
+	actually make better sense to do it that way in HTML and FO output
+	as well.) That said, I guess it's not likely that most people
+	would put in an x-ref to a Refnamediv section, so maybe it's kind
+	of a moot point...
+
+2005-06-02  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* general.xsl, synop.xsl: Added support for processing funcparams (closes #1213166; thanks
+	to Barry Rountree for reporting).
+	
+	::PROBLEM::
+	The funcparams element was not being processed as expected.
+	
+	::CAUSE::
+	No logic existed in manpages stylesheets for handling funcparams.
+	
+	::FIX::
+	Fixed by taking old code for handling of funcprototype and
+	children, and replacing it with code ported over from HTML
+	templates for ANSI-style output.
+	
+	::AFFECTS::
+	This change affects handling of all funcprototype output. Along
+	with adding support for funcparams, the following changes were
+	also made:
+	
+	  - removed the space that was being output between funcdef and
+	    paramdef; example:
+	
+	      was: float rand (void);
+	      now: float rand(void);
+	
+	  - turned off bold formatting for the <type> element when it
+	    occurs within a funcdef or paramdef
+	
+	  - moved space -> nobreak-space replacement logic into a separate
+	    template (for potential re-use elsewhere if we need it)
+	
+	::TODO::
+	We need to add an option for K&R style funcprototypes.
+	See #1213277.
+	
+	  http://sourceforge.net/tracker/index.php?func=detail&aid=1213277&group_id=21935&atid=516914
+
+2005-05-30  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, info.xsl: Re-worked construction of .TH title line (closes #1210488).
+	Also, made comment generated at top of page include version info
+	(closes #1211254).
+	
+	Here are the details about the refinements made to the
+	construction of the .TH title line:
+	
+	  - "extra1" (which shows up in the center footer of each page):
+	    If a date cannot be found in the source, we now automatically
+	    generate a localized "long format" date
+	
+	  - "extra2" (which shows up in the left footer):
+	    We now first search for "product version" info; then, if we
+	    can't find that, a "product name"; if we can't find that, we
+	    look for "other" info to use. And we can't find that, we leave
+	    it empty. The exact sequence of elements checked is this:
+	
+	      1. productnumber in info or refentryinfo
+	      2. productnumber in info or referenceinfo of parent reference
+	      3. any refmeta/refmiscinfo that has class = 'version'
+	      4. productname in info or refentryinfo
+	      5. productname in info or referenceinfo of parent reference
+	      6. refmeta/refmiscinfo (first one)
+	      7. refnamediv/refclass (first one)
+	
+	  - "extra3" (which shows up in the center header):
+	    The exact sequence of elements checked is now this:
+	
+	      1. title in info or referenceinfo of parent reference
+	      2. refnamediv/refclass (first one)
+	      3. refmeta/refmiscinfo (first one)
+
+2005-05-29  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* general.xsl, refentry.xsl: Added support for processing refsection down to any arbitrary
+	level of nesting (closes #1210482).
+
+	* stripns.xsl: New file.
+
+	* stripns.xsl: Fixed typo in comment.
+
+2005-05-28  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl, docbook.xsl, general.xsl, refentry.xsl: Added support for refsect3 and formalpara processing (closes
+	#1210478 and #1210479).
+	
+	Also did some further templates re-organizing, including to the
+	logic for gathering and processing metadata.
+
+2005-05-27  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* block.xsl, docbook.xsl, general.xsl, inline.xsl: Modularized a bit further.
+
+	* block.xsl, lists.xsl, synop.xsl, textify.xsl: Added header (with RCS keywords and copyright info) to all files
+	that lacked it.
+
+	* docbook.xsl: Modularized main "refentry" template a bit.
+
+	* sect23.xsl: Removed. This file has never been included by docbook.xsl, so it
+	serves no purpose at all...
+
+2005-05-24  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* .cvsignore, Makefile, textify.xsl, xref.xsl: Make xrefs and olinks work, and prevent instances of &#8220; and
+	&#8221; entities in output (closes #741578 and #956072; thanks to
+	Jens Granseuer and Sam Steingold for reporting the problems)
+	
+	::Problem:
+	  If you include an xref in a source document, instead of getting
+	  the xref text you would expect in the output, you just get
+	  "[xref to refsect1]", where "refsect" is the name of the target
+	  element for the xref.  If you include an olink, it works as
+	  expected -- except that the output text has &#8220; and &#8221;
+	  entities (double "curly" quotation marks).
+	
+	::Cause:
+	  The manpages/docbook.xsl driver imports the html/docbook.xsl
+	  stylesheet, which in turn imports the html/xref.xsl file.
+	
+	  The manpages/docbook.xsl file then imports the manpages/xref.xsl
+	  file. That file contains a "xref" template that overrides the
+	  the one in html/xref.xsl and that, by design, does nothing
+	  except to generate the "[xref to refsect1]" text instead of the
+	  expected xref output.
+	
+	  On the other hand, the manpages stylesheets don't override the
+	  "olink" template; therefore, the "olink" template from the
+	  html/xref.xsl file is used "as is". And being that it is
+	  intended for HTML output, that template uses the &#8220; and
+	  &#8221; to wrap titles in xref output.
+	
+	::Fix:
+	  The original manpages/xref.xsl file has now been removed. The
+	  build for the manpages distribution now makes that file, using
+	  the textify.xsl stylesheet to automatically generate it from the
+	  html/xref.xsl file. It is built in such a away that it basically
+	  just contains special copies of the "xref" and "olink" templates
+	  that cause &#8220; and &#8221; instances to be transformed into
+	  "\(lq" and "\(rq" (groff "left quote" and "right quote").
+	
+	  It might seem odd that templates from the html/xref.xsl are
+	  used, since those templates a designed to generate hyperlinks of
+	  the form <a href="#foo">the section called "Bar"</a>. But it
+	  works because the manpages stylesheets end up using the text
+	  value of the output of the above. Thus, the <a href="#foo"> and
+	  </a> parts are stripped out, leaving just the text between
+	  ('the section called "Bar"').
+	
+	::Affects
+	  Only affects output of xref and olink elements. The fix may not
+	  be complete and/or may cause other problems. Please test.
+	
+	  In particular, while it may fix the &#8220; and &#8221; problem
+	  that English lang/locales users have run into, it doesn't fix
+	  the corresponding problem for output of xrefs and olinks in many
+	  non-English locales, which use quoting characters other than
+	  &#8220; and &#8221;
+	
+	  To give just one example of many: in Japanese, the quoting
+	  characters are &#12300; and &#12301; ("left corner bracket" and
+	  "right corner bracket"). It is possible to "fix" the problem for
+	  all locales; but it is just a question of whether there is
+	  enough of a demand for it that it is worth doing.
+
+	* Makefile: Cause "clean" target to remove xref.xsl
+
+	* docbook.xsl: Whitespace-only change. Expanded all tabs
+
+	* docbook.xsl: Added replace-ldqou and replace-rdquo templates, for translating
+	&#8220; to \(lq and  &#8221; to \(rq
+
+	* docbook.xsl, sect23.xsl, synop.xsl: Prevent "sticky" fonts changes. (closes #956070; thanks to Sam
+	Steingold for reporting the problem, and for his patience...)
+	
+	::Problem:
+	  Sometimes a bold or italic font change inadvertently ends up
+	  becoming "sticky" such that a following chunk of text that
+	  should just be rendered as plain text instead gets
+	  boldfaced/italicized.
+	
+	::Cause:
+	  Font changes were simply being nested, as they are in HTML.
+	  While that works for HTML, it doesn't work for roff, where
+	  font-change instructions aren't actually intended to nest.
+	
+	::Fix:
+	  Attempted to un-nest bold/italic font changes. When the manpages
+	  stylesheets encounter node sets that need to be boldfaced or
+	  italicized, they now put the \fBfoo\fR \fIbar\fR groff
+	  bold/italic instructions separately around each node in the set.
+	
+	  This may not be a complete fix for the problem. In fact, it may
+	  cause other problems. Please test :^)
+
+	* lists.xsl: Support generation of choice separator in inline simplelist
+	(closes #1207532)
+	
+	This ehancement enables auto-generation of an appropriate
+	localized "choice separator" (for example, "and" or
+	"or") before the final item in an inline simplelist.
+	
+	To indicate that you want a choice separator generated
+	for a particular list, you need to put a processing
+	instruction (PI) of the form <?dbchoice choice="foo"?>
+	as a child a of the list. For example:
+	
+	  <para>This release adds localiation support for the
+	  following Indic languages:
+	    <simplelist type="inline">
+	      <?dbchoice choice="and" ?>
+	      <member>Hindi</member>
+	      <member>Punjabi</member>
+	      <member>Tamil</member>
+	      <member>Oriya</member>
+	      <member>Gujarati</member>
+	    </simplelist>.
+	  </para>
+	
+	Output (for English):
+	
+	  This release adds localiation support for the
+	  following Indic languages: Hindi, Punjabi, Tamil,
+	  Oriya, and Gujarati.
+	
+	Or if the logical relationship between the items in the
+	list is an "or" relationship, then use choice="or":
+	
+	  <para>Choose from ONE and ONLY ONE of the following:
+	    <simplelist type="inline">
+	      <?dbchoice choice="or" ?>
+	      <member>A</member>
+	      <member>B</member>
+	      <member>C</member>.
+	    </simplelist>
+	  </para>
+	
+	Output (for English):
+	
+	  Choose from ONE and only ONE of the
+	  following choices: A, B, or C.
+	
+	As a temporary workaround for the fact that most of the
+	DocBook non-English locale files don't have a
+	localization for the word "or", you can put in a
+	literal string to be used; example for French:
+	
+	  <para>Choose from ONE and ONLY ONE of the following:
+	    <simplelist type="inline">
+	      <?dbchoice choice="ou" ?>
+	      <member>A</member>
+	      <member>B</member>
+	      <member>C</member>.
+	    </simplelist>
+	  </para>
+	
+	That is, use "ou" instead of "or".
+
+2005-05-23  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* synop.xsl: Rolled back some over-aggressive line-break cleanup, and removed
+	space-normalizing call in group|arg template because it causes
+	<sbr/> to be handled incorrectly.
+
+2005-05-22  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl: Grand Unification: Epilogue (2): If "neighboring" text nodes in
+	mixed content are whitespace-only, apply the special sauce just
+	before serving; that is, at the end, not both at the beginning and
+	at the end.
+
+	* lists.xsl: Repaired line-breaking in list output. Thanks to Hendrik Sattler
+	for reporting the problem.
+	
+	The cause of this is was a change that was made a while back to
+	reduce excessive blank lines in output. Looks like in this case it
+	cut it back a bit too aggressively. There may yet be some other
+	cases that will need more fine-tuning.
+
+2005-05-21  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl: Whitespace Grand Unification: Epilogue (1): If "neighboring" text
+	nodes in mixed content are whitespace-only, leave them unseasoned;
+	that is, don't add the special sauce.
+
+2005-05-20  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl, lists.xsl, synop.xsl: Verbatim environment "Grand Unification" fix.
+	
+	Attempte to fix handling of verbatim environments (literallayout,
+	programlisting, screen) and, in a related way, text nodes.
+	Particularly in mixed-content blocks. I think I got it working...
+	
+	Closes #1167995, #975243, #935833, #763861, #728932, #628393, #595213.
+	
+	Thanks to Hendrik Sattler, Tobias Reif, Tommi Virtanen, Dennis
+	Grace, and Matthias Andree for reporting the problems.
+	
+	Sorry it took so long for the fix.
+
+2005-05-11  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl: remove some unnecessary generated line breaks (relates to issue #607270)
+
+	* docbook.xsl: Handle email in info section apprpropriately.
+	Replace "Man page edited by Foo." with "Foo. (man page)"
+
+	* lists.xsl: Simplified and corrected rendering of simplelist. (closes #1154750
+	and #699081; thanks to Matthias Andree and Bert Vermeulen for
+	reporting the problem)
+	
+	  - Any simplelist type="inline" instance is now rendered as a
+	    comma-separated list, with a comma and also a localized "and"
+	    before the last item.
+	
+	  - Any simplelist instance whose type is not inline is rendered
+	    as a one-column vertical list (ignoring the values of the type
+	    and columns attributes if present)
+
+	* lists.xsl, sect23.xsl, synop.xsl: removed some more unnecessary line breaks (closes #607270)
+
+2005-05-10  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl: Support localization of gentext for various things (issue
+	#1199352, #1199153, #1199033, and #1167995; thanks to Hendrik
+	Sattler for reporting the issue).
+	
+	Gentext is now localized for the following
+	
+	  - Heading generated for refsynopsis section
+	  - Heading generated for refname section
+	  - Heading generated for author attribution
+	  - Headings generated for admontions
+	
+	There are some other bits of gentext that still need to be
+	localized.
+
+2005-02-24  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* .cvsignore: ignore stuff
+
+	* .cvsignore: New file.
+
+	* Makefile, param.ent, param.xweb: New file.
+
+	* docbook.xsl: revert misguided dependence on emphasis.propagates.style in
+	manpages output; manpages are now just hard-coded (not
+	configurable) to turn emphasis into groff italic and emphasis
+	role=bold|strong into groff bold; this is equivalent to what is
+	done for HTML output; should it be configurable?
+
+2005-02-10  Robert Stayton <bobstayton@users.sourceforge.net>
+
+	* synop.xsl: Fixed sbr template to output .br.
+
+2004-11-22  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Use ASCII escape sequence for '&nbsp;'.
+
+2004-10-21  Michael Smith <xmldoc@users.sourceforge.net>
+
+	* docbook.xsl: Bug #1049155 (support Emphasis tag in man/groff output)
+	
+	Added support for converting <emphasis>foo</emphasis> to groff italic
+	and <emphasis role='bold'>foo</emphasis> to bold.
+	
+	Controlled by emphasis.propagates.style param, but not documented
+	yet using litprog system. Will do that next (planning to add some
+	other parameter-controllable options for hyphenation and
+	handling of line spacing).
+
+2004-02-04  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl, lists.xsl: Place-holder implementation for simplelist.
+
+2004-01-30  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Add replacement dingbat characters.
+
+2003-12-24  <twaugh@users.sourceforge.net>
+
+	* lists.xsl: .RS/.RE doesn't nest precisely.  Use .IP to fix up the environment.  Part of
+	bug #852714.
+
+	* lists.xsl: Handle comments inside lists (part of bug #852714).
+
+2003-12-15  <twaugh@users.sourceforge.net>
+
+	* lists.xsl: Fix nested lists properly.
+
+2003-12-13  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Use .nf environment for literallayout.
+
+	* docbook.xsl: Prevent duplicate .nf environments inside informalexample or screen.  All
+	fiftenn allowed contained element in these elements will provide its own.
+
+2003-12-12  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Last commit reverted a previous change -- redo it.
+
+2003-12-11  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Remove unused rule.
+
+	* docbook.xsl: Fix literallayout inside para.
+
+	* lists.xsl: Fix singly-nested lists.
+
+2003-12-10  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Don't mess up roff markup in tables.
+
+2003-11-06  <twaugh@users.sourceforge.net>
+
+	* lists.xsl, synop.xsl: 2003-11-06  Tim Waugh  <twaugh@redhat.com>
+	
+	        * lists.xsl: Normalize space in itemizedlist/listitem.
+	        * synop.xsl: Likewise.
+
+2003-05-23  <twaugh@users.sourceforge.net>
+
+	* synop.xsl: Only escape option spaces once when args are nested.
+
+2003-05-15  <twaugh@users.sourceforge.net>
+
+	* docbook.xsl: Handle refsection as well as refsect1|refsect2 in the manpages stylesheet.
+
+2003-05-09  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* synop.xsl, synop.xsl: Patch from Tim Waugh
+
+2003-04-12  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* docbook.xsl, synop.xsl: Patches from Tim Waugh
+
+2003-03-15  <jorton@users.sourceforge.net>
+
+	* docbook.xsl: If the refmeta contains no manvolnum, then:
+	- if the refentry contains a funcsynopsis, default to section 3
+	- otherwise, default to section 1
+
+	* docbook.xsl: Don't try and generate man pages with spaces in the filename; replace
+	spaces with underscores.
+
+2003-01-05  <jorton@users.sourceforge.net>
+
+	* docbook.xsl: Second half of fix for #628888: add template for <optional>.
+
+	* docbook.xsl: Add replacement ulink template from xmlto, fixing bug #619500.
+	Written by Tim Waugh.
+
+	* docbook.xsl: First part of fix for #628888:
+	- don't use generic italic/bold templates for things like <replaceable>,
+	since <replaceable> can contain other elements, but the templates discard
+	any non-PCDATA content.
+
+	* docbook.xsl: Prevent a line beginning with a '.' character being interpreted as a
+	troff macro by inserting \& (a zero-width space) before every '.' in text.
+
+	* xref.xsl: Make xref work again, though I'm not sure why it stopped working.
+
+2002-09-20  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* synop.xsl: Joe Orton: Use replace-string from lib.xsl
+
+2002-09-18  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* db2man.xsl, docbook.xsl: Renamed
+
+	* docbook.xsl: Joe Orton: patch to get rid of extra whitespace in author names
+
+2002-09-17  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* db2man.xsl: Another patch from Joe Orton
+
+	* db2man.xsl, synop.xsl: Patch from Joe Orton
+
+2002-07-04  Norman Walsh <nwalsh@users.sourceforge.net>
+
+	* README, db2man.xsl, lists.xsl, sect23.xsl, synop.xsl, xref.xsl: 
+	Initial checkins; moved from contrib by nwalsh
+

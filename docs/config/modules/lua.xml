@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<section>
+  <title>lua</title>
+  <para>The lua module is a loader that allows the authoring of checks in Lua.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>lua.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>directory</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>/install/prefix/modules-lua/?.lua</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>This is the lua load path.  See the lua manual for more details on meaning and syntax.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Loading the lua loader.</title>
+    <para>This example loads the lua VM and registers it as a module loader.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="lua" name="lua"&gt;
+            &lt;config&gt;
+              &lt;directory&gt;/some/other/path/?.lua&lt;/directory&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>

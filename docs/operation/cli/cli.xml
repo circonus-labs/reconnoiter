@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section>
+  <title>Interactive Console Command Line Operation</title>
+  <para>
+      This section serves to document the basic methods of operation
+      available through the interactive console's command line interface.  
+      It is currently in rough draft status.
+  </para>
+
+  <section>
+    <title>General Operational Principles</title>
+    <para>
+      The command line interface to the system available through the 
+      interactive console operates in a fashion similar to Cisco's <trademark>IOS</trademark>, 
+      in that there are various "levels" or "sets"/"sub-sets" of commands 
+      within the interface.  Operations and operands may be tab-completed 
+      or abbreviated to their un-ambiguous form as needed or desired 
+      (analogous to "configure terminal" becoming "conf t" in common IOS 
+      usage).  Command history and editing is available.
+    </para>
+  </section>
+
+  <section>
+    <title>Accessing the Interactive Console</title>
+    <para>
+      The interactive console is accessed by telneting to the configured
+      access port on the host running <command>noitd</command>.  By default this is
+      port 32322.  The applicable configuration parameter in the <filename>noitd.conf</filename>
+      XML file is the port attribute of the "listener" element, e.g.:
+      <programlisting><![CDATA[
+      <listener address="*" port="32322">
+        ]]></programlisting> Please see the configuration section of
+      the manual for more information.
+    </para>
+  </section>
+
+  <section>
+    <title>Basic Command List</title>
+    <para>An example session of interaction showing the use of help and a few 
+      operating modes is illustrative:
+      <screen>
+      noit# help
+      = Topics =
+      ==&gt; 'module'
+
+      = Commands =
+      ==&gt; 'apply'
+      ==&gt; 'configure'
+      ==&gt; 'exit'
+      ==&gt; 'no'
+      ==&gt; 'reload'
+      ==&gt; 'restart'
+      ==&gt; 'show'
+      ==&gt; 'shutdown'
+      ==&gt; 'watch'
+      ==&gt; 'write'
+      noit# help module
+      Help for 'module':
+      = Loaders and Modules =
+      lua
+      ping_icmp
+      smtp
+      ssh2
+      varnish
+      selfcheck
+      resmon
+      http
+      snmp
+      noit# configure {tab pressed twice}
+      apply     help      terminal
+      noit# conf t
+      noit(conf:/)# ls
+      == Section Settings ==
+      @lockfile: /var/run/noitd.lock
+      == Subsections ==
+      eventer
+      logs
+      modules
+      listeners
+      rest
+      checks
+      filtersets
+      config_templates
+      noit(conf:/)# help
+      -&gt; 'terminal'
+      = Topics =
+      ==&gt; 'module'
+
+      = Commands =
+      ==&gt; 'apply'
+      ==&gt; 'attribute'
+      ==&gt; 'cd'
+      ==&gt; 'check'
+      ==&gt; 'config'
+      ==&gt; 'exit'
+      ==&gt; 'filterset'
+      ==&gt; 'ls'
+      ==&gt; 'no'
+      ==&gt; 'section'
+      ==&gt; 'write'
+      noit(conf:/)# exit
+      noit# show
+      ==&gt; 'apply'
+      ==&gt; 'check'
+      ==&gt; 'checks'
+      ==&gt; 'eventer'
+      ==&gt; 'watches'
+      incomplete command.
+
+      </screen>
+
+      <variablelist>
+        <title>Command Descriptions</title>
+
+        <varlistentry>
+          <term>help</term>
+          <listitem>
+            <para><command>help</command> provides brief help information appropriate to a given context.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>show</term>
+          <listitem>
+            <para><command>show</command> shows various aspects of the system.  See the "Showing System Information" section below for further detail.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>watch</term>
+          <listitem>
+            <para><command>watch</command> is much like show except it re-displays the given information periodically.  See the "Showing System Information" section below for further detail.</para>
+          </listitem>
+        </varlistentry>
+        
+        <varlistentry>
+          <term>exit</term>
+          <listitem>
+            <para><command>exit</command> leaves the current "level" of session (e.g. returns to regular interactive session if used within a configuration sub-"level" or exits the current interactive session entirely and closes the connection if used within the regular interaction "level").</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>configure</term>
+          <listitem>
+            <para><command>configure</command> causes the session to enter configuration mode if used with the <command>terminal</command> argument or with the <command>apply</command> argument allows for multiple configurations to be specified at once in an automated fashion (see below for coverage of <command>apply</command> and the "Configuring the System" section for more information about run-time configuration in general).</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>write</term>
+          <listitem>
+            <para><command>write</command> writes the current operating configuration to: the permanent configuration store (<filename>noitd.conf</filename> by default, in the location specified either at startup with -c or in the default compile-time system directory) with <command>file</command> argument (<command>memory</command> is an alias), or to the current interactive display with the <command>terminal</command> argument.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>reload</term>
+          <listitem>
+            <para><command>reload</command> causes <command>noitd</command> to reload configuration information from the permanent configuration store (<filename>noitd.conf</filename> by default, in the location specified either at startup with -c or in the default compile-time system directory).</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>restart</term>
+            <listitem>
+              <para><command>restart</command> causes <command>noitd</command> to restart, re-reading all configuration from the permanent configuration store in the process. As part of restarting, the current interactive session is terminated.</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>shutdown</term>
+            <listitem>
+              <para><command>shutdown</command> causes <command>noitd</command> to shut down entirely.</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>apply</term>
+            <listitem>
+              <para><command>apply {variable name} {range specifier} {command}</command> works much like a <command>for {name} in {list}; do {command, optionally using $name}; done</command> loop in the <command>bash</command> shell, in that it iterates over the given range, setting the variable name to each value in turn and executing the given command with $variablename set and available at each execution. A simple example is given below of executing an ssh2 check three times using apply:</para>
+              <screen>
+                noit# apply i 1..3 show check 002d58ff-20ff-4db0-9420-782fc1748dc4
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+              </screen>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>no</term>
+          <listitem>
+            <para><command>no</command> works much like "no" in <trademark>IOS</trademark>, negating or nullifying another command.  e.g. <command>no watch {check id} {interval}</command> to disable a given watch (see below for further details).</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </para>
+  </section>
+
+  <section>
+    <title>Showing System Information</title>
+    <para>The two main commands for showing system information are <command>show</command> and <command>watch</command>.  <command>show</command> is useful for one-off queries of information, and <command>watch</command> is useful for periodically redisplaying the same information (e.g. to see snapshots of activity while some other process is affecting the monitored system/information).</para>
+    <section>
+      <title>show</title>
+      <para><command>show</command> show accepts a number of arguments:</para>
+      <variablelist>
+        <varlistentry>
+          <term>watches</term>
+          <listitem>
+            <para><command>show watches</command> displays a list of all active watches currently being serviced by <command>noitd</command>.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>checks</term>
+          <listitem>
+            <para><command>show checks</command> displays a list of checks that <command>noitd</command> is currently servicing.  Example output is illuminative:</para>
+              <screen>
+                noit# show checks
+                1b4e28ba-2fa1-11d2-883f-b9b761bde3fb 127.0.0.1`ping_icmp
+                cnt=5,avail=100,min=0.0000,max=0.0000,avg=0.0000
+                f7cea020-f19d-11dd-85a6-cb6d3a2207dc 127.0.0.1`selfcheck
+                ok
+                002d58ff-20ff-4db0-9420-782fc1748dc4 127.0.0.1`ssh2
+                59698f91c167393deb952564fe316dca
+              </screen>
+              <para>Each check's primary identifier is a hexadecimal GUID.  This may be tab-completed in common use from the longest unique string, much like commands. In the example above, for instance, "002" would be sufficient to tab complete a reference to the check 002d58ff-20ff-4db0-9420-782fc1748dc4. Each check is further identified as accessing a given IP/host and contains some description of what the check is doing as configured when the check was configured (see the "Configuring the System" section below, and/or <filename>noitd.conf</filename>). The second line for each check provides check-specific further information or status.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>check</term>
+          <listitem>
+            <para><command>show check {check id}</command>. See discussion above for referencing a particular check by id.  This provides more in-depth information about a specific check.  For example, using the check list mentioned above:</para>
+              <screen>
+                noit# show check 1b4e28ba-2fa1-11d2-883f-b9b761bde3fb
+                ==== 1b4e28ba-2fa1-11d2-883f-b9b761bde3fb ====
+                name: ping_icmp [from module]
+                module: ping_icmp
+                target: 127.0.0.1
+                period: 15000
+                timeout: 14000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: running
+                last run: 9.377 seconds ago
+                availability/state: available/good
+                status: cnt=5,avail=100,min=0.0000,max=0.0001,avg=0.0000
+                metrics:
+                available[n] = 1.000000000000e+02
+                *count[i] = 5
+                average[n] = 4.359999984445e-05
+                *maximum[n] = 5.400000009104e-05
+                *minimum[n] = 2.800000038405e-05
+              </screen>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+    </section>
+
+    <section>
+      <title>watch</title>
+    </section>
+    <para><command>watch {check id} {interval}</command> redisplays information for a given check at a configurable interval. Interval is given in units of milliseconds.  If interval is omitted, presently, there is a bug where the check begins to output at its configured interval directly to the cli, but does not appear as a watch in <command>show watches</command> and <command>no watch {id}</command> has no effect.</para>
+    <para>The currently active watches may be listed with <command>show watches</command>, and an active watch may be terminated with by issuing the command <command>no watch {check id} {interval}</command> where check id and interval are the ones used for the initial creation of the watch.</para>
+  </section>
+
+  <section>
+    <title>Configuring the System</title>
+    <para>The focus of this section is configuring <command>noitd</command>'s behavior at run-time via the interactive console.  For documentation of <filename>noitd.conf</filename> itself, see <link linkend="configuration">the main chapter on system configuration</link>.  As a general note, to store run-time configuration to the permanent configuration store, see the <command>write file</command> command above.</para>
+    <section>
+      <title>Configure Terminal ("conf t") Mode</title>
+      <para>To enter the interactive configuration mode, first telnet to <command>noitd</command>'s telnet port and issue the "configure terminal" command, which may be abbreviated as "conf t" if desired. (Please see above information about default port, port configuration location, etc.)</para>
+      <para>Configure terminal mode presents a different array of options than regular mode, which are summarized below.  (Some common commands have been ommitted as their function is identical within conf-t mode as within normal interactive mode, e.g. <command>exit</command>.)</para>
+      <variablelist>
+        <varlistentry>
+            <term>cd</term>
+            <listitem>
+              <para><command>cd {location, e.g. ".." or "checks"}</command> changes the point where the interactive configuration session is within the tree-like organizational structure of the configuration space in a fashion similar to <command>cd</command> within a filesystem directory tree.  (See note below.)</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>section</term>
+            <listitem>
+                <para><command>section {location}</command> operates similarly to <command>cd</command>, except that it will create the new location if it does not exist.</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>ls</term>
+            <listitem>
+              <para><command>ls</command> lists the configured entities at a given point within the tree-like organizational structure of the configuration space in a fashion similar to <command>ls</command> within a filesystem directory tree.  (See note below.) </para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>status</term>
+            <listitem>
+              <para><command>status</command> displays the fine-grained details about a particular leaf-node/entity within the configuration space.</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>check</term>
+          <listitem>
+            <para><command>check {check id}</command> enters the configuration space for a particular leaf-node of the general configuration tree, i.e. the exact configuration for a particular check within the system. <command>check new {params}</command> may be used to set up a new check within the system, where params are dependent on what is required for a check using whichever module.  For example, <command>check new target 127.0.0.1 module http period 60000 timeout 10000</command> sets up a new http check on localhost running every minute and timing out after ten seconds.  By default the new check will be named "target`module", and after entry of the above command you will be placed into the configuration space for the new check as though you had run <command>check {the new id}</command> upon it.  Of note is that the new check is disabled by default (see <command>status</command> output), you must run <command>no attribute disable</command> to enable it.</para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>attribute</term>
+            <listitem>
+              <para><command>attribute</command> enables you to alter the fine-grained details about a particular leaf-node/entity within the configuration space; e.g. "no attr disable" to enable a check, or "attr port 2222" on an ssh2 check to have it check port 2222 instead of the default 22.</para>
+            </listitem>
+        </varlistentry>
+
+        <varlistentry>
+            <term>filterset</term>
+            <listitem>
+              <para><command>filterset</command> is applicable only in the /filterset "directory" and has to do with the maintenance of filters, which are (briefly) exclusion patterns that filter out collected metrics from being reported upstream to <command>stratcon</command> (the noit daemon will still collect all of the data, but only the un-filtered metrics will propagate).</para>
+            </listitem>
+        </varlistentry>
+      </variablelist>
+      <para>Configure terminal mode has a general tree-like organizational structure mimicing the xml in <filename>noitd.conf</filename>, hence commands like <command>cd</command> and <command>ls</command>. Within some leaf nodes of the tree (for instance, check entities' representations) <command>status</command> should be substituted for <command>ls</command> as the latter operates on entities rather than attributes of entities (which would be displayed by <command>status</command>).</para>
+      <para>An example configuration session is shown below to illustrate some of the above:</para>
+      <screen>
+        noit# conf t
+        noit(conf:/)# cd checks
+        noit(conf:/checks)# ls
+        == Section Settings ==
+        @max_initial_stutter: 30000
+        @filterset: default
+        @transient_min_period: 1000
+        @transient_period_granularity: 500
+        == Subsections ==
+        foo
+        == Checks ==
+        check[@uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc"] 127.0.0.1`selfcheck`selfcheck
+        check[@uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb"] 127.0.0.1`ping_icmp`ping_icmp
+        check[@uuid="002d58ff-20ff-4db0-9420-782fc1748dc4"] 127.0.0.1`ssh2`ssh2
+        check[@uuid="70a3633f-1629-4417-a7db-d48b9558c48e"] 127.0.0.1`http`http
+        noit(conf:/checks)# check 70a3633f-1629-4417-a7db-d48b9558c48e 
+        noit(conf:127.0.0.1`http)# status
+        ==== 70a3633f-1629-4417-a7db-d48b9558c48e ====
+        name: http [from module]
+        module: http
+        target: 127.0.0.1
+        period: 60000
+        timeout: 10000
+        oncheck: [undef]
+        filterset: default [inherited from @filterset]
+        disable: [undef]
+        currently: idle
+        last run: 46.432 seconds ago
+        availability/state: available/good
+        status: code=200,rt=0.001s,bytes=39
+        metrics:
+        tt_connect[I] = 0
+        bytes[i] = 39
+        code[s] = 200
+        tt_firstbyte[I] = 1
+        duration[I] = 1
+        noit(conf:127.0.0.1`http)# exit
+        noit(conf:/checks)# exit
+        noit# 
+      </screen>
+    </section>
+  </section>
+</section>
+<!--
+vim:ts=2:sw=2:et:
+-->
