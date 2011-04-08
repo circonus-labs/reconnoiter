@@ -524,7 +524,8 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
 int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
   const char *str;
-  int i, rv = 1;
+  int rv = 1;
+  unsigned int i;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
