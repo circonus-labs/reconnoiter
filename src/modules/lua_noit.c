@@ -986,6 +986,20 @@ nl_log(lua_State *L) {
   return 0;
 }
 static int
+nl_crc32(lua_State *L) {
+  size_t inlen;
+  const char *input;
+  uLong start = 0, inputidx = 1;
+  if(lua_isnil(L,1)) start = crc32(0, NULL, 0);
+  if(lua_gettop(L) == 2) {
+    start = lua_tointeger(L, 2);
+    inputidx = 2;
+  }
+  input = lua_tolstring(L, inputidx, &inlen);
+  lua_pushnumber(L, (double)crc32(start, input, inlen));
+  return 1;
+}
+static int
 nl_base32_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
@@ -1857,6 +1871,7 @@ static const luaL_Reg noitlib[] = {
   { "socket", nl_socket },
   { "dns", nl_dns_lookup },
   { "log", nl_log },
+  { "crc32", nl_crc32 },
   { "base32_decode", nl_base32_decode },
   { "base32_encode", nl_base32_encode },
   { "base64_decode", nl_base64_decode },

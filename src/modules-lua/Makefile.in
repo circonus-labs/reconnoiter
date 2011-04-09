@@ -40,7 +40,8 @@ LUA=noit/timeval.lua \
 	noit/module/tcp.lua \
 	noit/module/imap.lua \
 	noit/module/ntp.lua \
-        noit/module/redis.lua
+	noit/module/nrpe.lua \
+	noit/module/redis.lua
 
 all:
 
@@ -50,7 +51,7 @@ install:
 		$(INSTALL) -m 0644 $$lua $(DESTDIR)$(MODULES_DIR)/$$lua ; \
 	done
 
-alldocs:	../modules/docs
+alldocs:	../../docs
 	for lua in $(LUA); do \
 		$(top_srcdir)/src/lua/src/lua extract_xml.lua $$lua tmp.xml ; \
 		test -f tmp.xml && \
