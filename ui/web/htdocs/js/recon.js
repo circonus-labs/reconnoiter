@@ -785,6 +785,7 @@ function perform_generic_search(url, params, search_func, create_item, summary_f
                 'offset': o,
                 'limit': l
             });
+            li.attr('title', g[7]);
             $(params.domid + " > ul.searchresults").append(li);
         }
     });
