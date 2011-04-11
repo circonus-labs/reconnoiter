@@ -433,6 +433,7 @@ function fetch_graph_info(id) {
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
 <span class="exportcsv" id="exportcsvg"><a>CSV</a></span>
+<span class="exportcsv" id="exportpngg" onclick="exportCanvasAsPNG('#maingraph')">PNG</span>
 <span class="stream_controls">
 <span id="play_pause_graph">PLAY</span>
 <span id="stopstream_graph">STOP</span>

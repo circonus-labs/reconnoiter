@@ -282,6 +282,19 @@ function my_rpn_eval(expr, meta) {
     return newvalue;
 }
 
+function exportCanvasAsPNG(startfrom) {
+	srccanvas = $(startfrom + " .plot-area canvas");
+	nc = $("<canvas width="+srccanvas.attr('width')+" height="+srccanvas.attr('height')+" />").get(0);
+	ctx = nc.getContext("2d");
+	layers = $(startfrom + " .plot-area canvas").get();
+	for (i=0; i<layers.length; i++) {
+		ctx.drawImage(layers[i],0,0);
+	}
+	
+	data = nc.toDataURL("image/png");
+	window.location = data;
+}
+
 (function($) {
     var ReconGraph = function() {
         var displayinfo = {
@@ -1207,6 +1220,7 @@ var worksheet = (function($) {
             stream_controls = get_stream_controls();
             mheader.append(stream_controls);
             mheader.append("<span class='exportcsv' id='exportcsv'><a href='"+exportcsvlink+"'>CSV</a></span>");
+            mheader.append("<span class='exportcsv' id='exportpng' onclick='exportCanvasAsPNG(\"#drawing_board\")'>PNG</span>");
             
             stream_graph.prepend(mheader);
             stream_graph.append("<div id='streambox' style='display:none'></div>");
@@ -1333,6 +1347,7 @@ var worksheet = (function($) {
                 // but apparently this snippet gets added 
                 // after the graph is refresehd, might be worth some investigation
                 mheader.append("<span class='exportcsv' id='exportcsv'><a href='"+exportcsvlink+"'>CSV</a></span>");
+                mheader.append("<span class='exportcsv' id='exportpng' onclick='exportCanvasAsPNG(\".modalData\")'>PNG</span>");
                 mheader.append(get_stream_controls());
                 
                 stream_graph.prepend(mheader);
