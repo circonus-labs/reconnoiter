@@ -114,11 +114,48 @@ $options = array(
   'colors' => $driver->graphcolors()
 );
 
-header('Content-Type: application/json; charset=utf-8');
+// Export the data in CSV format
+if (!empty($_GET['csv'])) {
 
-print json_encode(array(
-  'data' => $data,
-  'options' => $options,
-  'title' => $graph['title'] . '',
-));
+	// proper headers to make the browser offer the "Save as" dialog
+	header('Content-Disposition: attachment; filename='.$_GET['id'].'.csv');
+	header('Content-Type: text/csv; charset=UTF-8');
+	$dataLines = sizeof($data);
+	$points = sizeof($data[0]['data']);
+	
+	// output headers
+	$datArray = array('Time');
+	for ($i=0; $i<$dataLines; $i++) {
+		$datArray[]=$data[$i]['label'];
+	}
+	$out = fopen('php://output', 'w');
+	fputcsv($out, $datArray, ';', '"');
+	
+	// output data
+	for ($i=0; $i<$points; $i++) {
+		$datArray = array();
+		$datArray[0]=date('Y-m-d H:i:s',$data[0]['data'][$i][0]/1000);
+		for ($j=0; $j<$dataLines; $j++) {
+			
+			if (!isset($data[$j]['data'][$i])) {
+				// this is a ruler datapoint
+				$datArray[$j+1]=$data[$j]['data'][0][1];
+			} else {
+				// ordinary datapoint
+				$datArray[$j+1]=$data[$j]['data'][$i][1];
+			}
+		}
+		fputcsv($out, $datArray, ';', '"');
+	}
+	fclose($out);
+	exit(0);
+} else {
 
+	header('Content-Type: application/json; charset=utf-8');
+
+	print json_encode(array(
+	  'data' => $data,
+	  'options' => $options,
+	  'title' => $graph['title'] . '',
+	));
+}

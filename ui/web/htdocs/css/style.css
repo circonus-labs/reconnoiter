@@ -756,7 +756,7 @@ overflow: hidden;
 }
 #stream-modal-header {
 width: 100%;
-overflow: auto;
+overflow: hidden;
 }
 .graphTitle {
 text-align: center;
@@ -934,6 +934,12 @@ margin-left:4px;
 padding:0 4px;
 }
 span.blankWorksheet {
+border:1px solid #DDDDDD;
+float:right;
+margin-left:4px;
+padding:0 4px;
+}
+span.exportcsv {
 border:1px solid #DDDDDD;
 float:right;
 margin-left:4px;
