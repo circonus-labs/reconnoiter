@@ -97,16 +97,12 @@ function initiate(module, check)
   end
 
   conn:write(redis_comm)
-  local res
-  local res_len = conn:read("\r\n")
-  res_len = string.sub(res_len, 2, -2)
-  res = conn:read(res_len)
   local metric_count = 0
 
-  if ( check.config.command ~= nil ) then
-    metric_count = get_command_metrics(res, check)
+  if ( check.config.command ~= nil and check.config.command:upper() ~= "INFO" ) then
+    metric_count = get_command_metrics(conn, check)
   else
-    metric_count = get_info_metrics(res, check)
+    metric_count = get_info_metrics(conn, check)
   end
 
   if ( metric_count > 0 ) then
@@ -129,8 +125,12 @@ function build_redis_command(command)
   return redis_comm
 end
 
-function get_info_metrics(redis_result, check)
-  local count                 = 0
+function get_info_metrics(conn, check)
+  local count = 0
+  local redis_result
+  local result_len = conn:read("\r\n")
+  result_len = string.sub(result_len, 2, -2)
+  redis_result = conn:read(result_len)
 
   local list = string.split(redis_result, "\r\n")
 
@@ -148,6 +148,17 @@ function get_info_metrics(redis_result, check)
         met = string.split(db_metrics[idx], "=")
         add_check_metric(kv[1] .. "`" .. met[1], met[2], check)
       end
+    elseif ( string.find(kv[1], "^allocation_stats$") ) then
+      alloc_metrics = string.split(kv[2], ",")
+      for idx in pairs(alloc_metrics) do
+        count = count + 1
+        met = string.split(alloc_metrics[idx], "=")
+        if ( 3 == table.getn(met) ) then
+            check.metric_int32("allocation_stats`" .. met[2], met[3])
+        else
+            check.metric_int32("allocation_stats`" .. met[1], met[2])
+        end
+      end
     else
       count = count + 1
       add_check_metric(kv[1], kv[2], check)
@@ -157,13 +168,91 @@ function get_info_metrics(redis_result, check)
   return count
 end
 
-function get_command_metrics(redis_result, check)
-  local count = 1
+metric_names = {}
 
+function get_command_metrics(conn, check)
+  -- the only metric name we know is what we are sending to redis
+  metric_names = {}
   local cs = string.split(check.config.command, "%s+")
-  add_check_metric(cs[2], redis_result, check)
+  if ( string.find(cs[1]:upper(), "MGET") ) then
+    for idx in pairs(cs) do
+      if ( idx > 1 ) then
+        metric_names[idx-2] = cs[idx]
+      end
+    end
+  end
+  return read_redis_response(conn, check, cs[2])
+end
 
-  return count
+function read_redis_response(conn, check, metric_name)
+  local response_type = conn:read(1);
+  if ( response_type == "+" ) then
+    return redis_response_string(conn, check, metric_name)
+  elseif ( response_type == "-" ) then
+    return redis_response_error(conn, check)
+  elseif ( response_type == ":" ) then
+    return redis_response_integer(conn, check, metric_name)
+  elseif ( response_type == "$" ) then
+    return redis_bulk_response(conn, check, metric_name)
+  elseif ( response_type == "*" ) then
+    return redis_multibulk_response(conn, check, metric_name)
+  end
+end
+
+function redis_bulk_response(conn, check, metric_name)
+  local response
+  local response_len = conn:read("\r\n")
+  response_len = string.sub(response_len, 1, -2)
+  if ( -1 == tonumber(response_len) ) then
+    return redis_response_null(check, metric_name)
+  else
+    response = conn:read(response_len)
+    add_check_metric(metric_name, response, check)
+    -- clean out rest of response
+    conn:read("\r\n")
+    return 1
+  end
+end
+
+function redis_multibulk_response(conn, check, metric_name)
+  local responses = conn:read("\r\n")
+  responses = string.sub(responses, 1, -2)
+
+  for i = 1, responses, 1 do
+    local m_name = metric_name .. '`' .. (i-1)
+    if ( metric_names[i-1] ) then
+      m_name = metric_names[i-1]
+    end
+    read_redis_response(conn, check, m_name)
+  end
+  return tonumber(responses)
+end
+
+function redis_response_integer(conn, check, metric_name)
+  local response = conn:read("\r\n")
+  response = string.sub(response, 1, -2)
+  add_check_metric(metric_name, response, check)
+  return 1
+end
+
+function redis_response_string(conn, check, metric_name)
+  local response = conn:read("\r\n")
+  response = string.sub(response, 1, -2)
+  add_check_metric(metric_name, response, check)
+  return 1
+end
+
+function redis_response_error(conn, check)
+  local response = conn:read("\r\n")
+  response = string.sub(response, 1, -2)
+  check.status(response)
+  check.bad()
+  return 0
+end
+
+function redis_response_null(check, metric_name)
+  check.metric_string(metric_name, nil)
+  return 1
 end
 
 function add_check_metric(name, value, check)
