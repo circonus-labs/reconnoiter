@@ -432,6 +432,7 @@ function fetch_graph_info(id) {
 <p/>
 <span class="rememberGraph"></span>
 <span class="blankGraph">New Blank</span>
+<span class="exportcsv" id="exportcsvg"><a>CSV</a></span>
 <span class="stream_controls">
 <span id="play_pause_graph">PLAY</span>
 <span id="stopstream_graph">STOP</span>
@@ -482,8 +483,7 @@ $(document).ready(function(){
 		 $('.av_stacks').append('<option value="'+ns+'">Stack '+ns+'</option>');
   		 update_current_graph(true);
 	       }
-       });       					
-	
+       });	
        //only allow stream toggling if the graph is locked and saved
        $("#play_pause_graph").click(function() {
 	 if(locked && graphinfo.saved) {

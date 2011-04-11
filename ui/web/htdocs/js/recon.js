@@ -8,6 +8,7 @@ var polltime = 2000; // (ms) how often we want data from the stream
 var timewindow = 300000; // (ms) width of the stream window
 var recon_realtime_hostname = '';
 var streaming = false;
+var exportcsvlink;
 
 //set the global streaming object to the local ReconGraph object to use,
 // and init,update the global streaming boolean to then call this from a server
@@ -483,6 +484,13 @@ function my_rpn_eval(expr, meta) {
                     'end': this.graphinfo.end,
                     'type': this.graphinfo.type
                 };
+                exportcsvlink = 'flot/graph/settings/'+this.graphinfo.graphid
+                		+'?start=' + this.graphinfo.start
+                		+'&end=' + this.graphinfo.end
+                		+'&type=' + this.graphinfo.type
+                		+'&csv=1';
+                $("#exportcsvg a").attr("href", exportcsvlink);
+                $("#exportcsv a").attr("href", exportcsvlink);
                 
                 $.ajaxq(this.graphinfo.graphid, {
                     url: url,
@@ -1198,6 +1206,7 @@ var worksheet = (function($) {
             var mheader = $("<div id='stream-header'>").append(dtool);
             stream_controls = get_stream_controls();
             mheader.append(stream_controls);
+            mheader.append("<span class='exportcsv' id='exportcsv'><a href='"+exportcsvlink+"'>CSV</a></span>");
             
             stream_graph.prepend(mheader);
             stream_graph.append("<div id='streambox' style='display:none'></div>");
@@ -1319,7 +1328,11 @@ var worksheet = (function($) {
                 
                 var mheader = $("<div id='stream-modal-header'>").append(dtool);
                 
-                mheader.append("<span class='zoomClose'>x</span>")
+                mheader.append("<span class='zoomClose'>x</span>");
+                // this is not nice, we have to use global variable,
+                // but apparently this snippet gets added 
+                // after the graph is refresehd, might be worth some investigation
+                mheader.append("<span class='exportcsv' id='exportcsv'><a href='"+exportcsvlink+"'>CSV</a></span>");
                 mheader.append(get_stream_controls());
                 
                 stream_graph.prepend(mheader);
