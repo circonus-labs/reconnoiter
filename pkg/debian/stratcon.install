@@ -1,4 +1,4 @@
-etc/reconnoiter/stratcon.conf.sample
+etc/reconnoiter/stratcon.conf
 usr/bin/run-iep.sh
 usr/sbin/stratcond
 usr/share/java/lib/activemq-all-5.2.0.jar

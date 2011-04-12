@@ -1,5 +1,5 @@
 etc/reconnoiter/config_templates.conf
-etc/reconnoiter/noit.conf.sample
+etc/reconnoiter/noit.conf
 usr/bin/noit-config
 usr/bin/noittrap
 usr/bin/jezebel
