@@ -37,6 +37,7 @@ binary-indep: install
 	dh_installdocs -i
 	dh_installchangelogs -i
 	dh_installinit  -i
+	dh_installcron -i
 	dh_compress -i
 	dh_fixperms -i
 	dh_installdeb -i
@@ -51,6 +52,7 @@ binary-arch: install
 	dh_installdocs -a
 	dh_installchangelogs -a
 	dh_installinit -a
+	dh_installcron -a
 	dh_makeshlibs -a
 	dh_shlibdeps -a
 	dh_compress -a
