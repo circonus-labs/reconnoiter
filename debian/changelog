@@ -1,0 +1,11 @@
+reconnoiter (0.0.1+20110204) lucid; urgency=low
+
+  * New svn snapshot
+
+ -- Thom May <thom@debian.org>  Fri, 04 Feb 2011 03:03:38 -0800
+
+reconnoiter (0.0.1+20110125) lucid; urgency=low
+
+  * First upload.
+
+ -- Thom May <thom@debian.org>  Tue, 25 Jan 2011 16:14:40 +0000

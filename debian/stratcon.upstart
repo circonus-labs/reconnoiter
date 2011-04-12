@@ -1,0 +1,19 @@
+
+description "Noitd Monitoring Scout Server"
+
+start on filesystem
+stop on runlevel S
+
+respawn
+respawn limit 10 5
+expect daemon
+
+oom never
+
+pre-start script
+	test -x /usr/sbin/stratcond || {stop; exit 0; }
+	test -s /etc/reconnoiter/stratcon.conf || {stop; exit 0; }
+end script
+
+exec /usr/sbin/stratcond -c /etc/reconnoiter/stratcon.conf
+
