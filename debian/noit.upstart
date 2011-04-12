@@ -1,0 +1,18 @@
+description "Noitd Monitoring Scout Server"
+
+start on filesystem
+stop on runlevel S
+
+respawn
+respawn limit 10 5
+expect daemon
+
+oom never
+
+pre-start script
+	test -x /usr/sbin/noitd || {stop; exit 0; }
+	test -s /etc/reconnoiter/noit.conf || {stop; exit 0; }
+end script
+
+exec /usr/sbin/noitd -c /etc/reconnoiter/noit.conf
+

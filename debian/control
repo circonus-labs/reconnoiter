@@ -1,0 +1,21 @@
+Source: reconnoiter
+Section: admin
+Priority: optional
+Maintainer: Thom May <thom@debian.org>
+Build-Depends: debhelper (>=4.1.16), autoconf, libtool, gettext, zlib1g-dev, uuid-dev, libpcre3-dev, libssl-dev, libpq-dev,  libxml2-dev, libxslt-dev, libapr1-dev, libaprutil1-dev, xsltproc,  libncurses5-dev, libssh2-1-dev, libsnmp-dev, libmysqlclient-dev, subversion, default-jdk, libevent-dev
+Standards-Version: 3.6.1.0
+
+Package: noit
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: uuid-runtime
+Description: Reconnoiter Scout Daemon
+ Noit is the monitoring daemon for Reconnoiter. 
+
+Package: stratcon
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, noit (= ${source:Version})
+Recommends: postgresql, postgresql-client, rabbitmq-server, php5-pgsql
+Description: Reconnoiter Stratcon Daemon
+ Stratcon is the central management daemon for Reconnoiter. 
+
