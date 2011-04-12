@@ -23,6 +23,9 @@ install-stamp:
 	
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
 	-cp -a $(CURDIR)/ui/web $(CURDIR)/debian/tmp/usr/share/reconnoiter/www
+	-cp -a $(CURDIR)/debian/tmp/etc/reconnoiter/noit.conf.sample $(CURDIR)/debian/tmp/etc/reconnoiter/noit.conf 
+	-cp -a $(CURDIR)/debian/tmp/etc/reconnoiter/stratcon.conf.sample $(CURDIR)/debian/tmp/etc/reconnoiter/stratcon.conf 
+
 
 	touch $@
 	
