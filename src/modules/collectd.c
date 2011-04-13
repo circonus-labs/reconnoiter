@@ -1350,7 +1350,7 @@ push_packet_at_check(noit_check_t *check, void *closure) {
   conf = noit_module_get_userdata(pkt->self);
 
   /* We need a check, and a collectd one at that */
-  if (!check || strcmp(check->module, pkt->self->hdr.name)) return 0;
+  if (!check || strcmp(check->module, "collectd")) return 0;
 
   // If its a new check retrieve some values
   if (check->closure == NULL) {
