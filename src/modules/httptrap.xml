@@ -1,0 +1,45 @@
+<module>
+  <name>httptrap</name>
+  <description><para>The httptrap module provides a simple way to push data into reconnoiter from other applications.  Simply structure a json document and use the PUT method against reconnoiter's psuedo-webserver on port 43191.</para></description>
+  <loader>C</loader>
+  <image>httptrap.so</image>
+  <moduleconfig>
+    <parameter name="asynch_metrics"
+               required="optional"
+               default="true"
+               allowed="(?:true|on|false|off)">Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</parameter>
+  </moduleconfig>
+  <checkconfig>
+    <parameter name="asynch_metrics"
+               required="optional"
+               default="true"
+               allowed="(?:true|on|false|off)">Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Posting a string and a number.</title>
+      <para><code>curl -X PUT https://noit:43191/module/httptrap/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code></para>
+      <para>PUT payload:</para>
+      <programlisting><![CDATA[
+      { "version": "1.alpha",
+        "requests": 123853,
+        "bignumber": { "_type": "L", "_value": "18426744073707551616" }
+      }
+      ]]></programlisting>
+
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="httptrap" name="httptrap"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="httptrap"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><secret>s3cr3tk3y</secret></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>

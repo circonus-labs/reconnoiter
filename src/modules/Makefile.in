@@ -26,7 +26,7 @@ top_srcdir=@top_srcdir@
 
 MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
-	external.@MODULEEXT@ collectd.@MODULEEXT@ \
+	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@
@@ -110,11 +110,17 @@ ssh2.@MODULEEXT@:	ssh2.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ ssh2.lo -lssh2
 	@echo "- linking $@"
 
-collectd.@MODULEEXT@: collectd.lo
+httptrap.@MODULEEXT@:	httptrap.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ httptrap.lo
+	@echo "- linking $@"
+
+httptrap.lo:	httptrap.xmlh
+
+collectd.@MODULEEXT@:	collectd.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ collectd.lo -lssl 
 	@echo "- linking $@"
 
-collectd.lo: collectd.c collectd.xmlh
+collectd.lo:	collectd.c collectd.xmlh
 	@$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c collectd.c -o $@
 	@echo "- compiling $<"
 

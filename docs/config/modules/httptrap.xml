@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<section>
+  <title>httptrap</title>
+  <para>The httptrap module provides a simple way to push data into reconnoiter from other applications.  Simply structure a json document and use the PUT method against reconnoiter's psuedo-webserver on port 43191.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>httptrap.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>true</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|on|false|off)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>true</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|on|false|off)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Posting a string and a number.</title>
+    <para>
+      <code>curl -X PUT https://noit:43191/module/httptrap/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code>
+    </para>
+    <para>PUT payload:</para>
+    <programlisting>
+      { "version": "1.alpha",
+        "requests": 123853,
+        "bignumber": { "_type": "L", "_value": "18426744073707551616" }
+      }
+      </programlisting>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="httptrap" name="httptrap"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="httptrap"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;secret&gt;s3cr3tk3y&lt;/secret&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+  </example>
+</section>
