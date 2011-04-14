@@ -263,29 +263,29 @@ json_parse_descent(noit_check_t *check, noit_boolean immediate,
       break;
 
     case json_type_null: {
-        if(!key || !*key) return;
+        if(!key || !*key) break;
         break;
       }
       break;
     case json_type_boolean: {
-        if(!key || !*key) return;
+        if(!key || !*key) break;
         int32_t value = json_object_get_boolean(o) ? 1 : 0;
         setstat(key, METRIC_INT32, &value);
       }
       break;
     case json_type_double: {
-        if(!key || !*key) return;
+        if(!key || !*key) break;
         double value = json_object_get_double(o);
         setstat(key, METRIC_DOUBLE, &value);
       }
       break;
     case json_type_int: {
-      if(!key || !*key) return;
+      if(!key || !*key) break;
       int32_t value = json_object_get_int(o);
       setstat(key, METRIC_INT32, &value);
     }
     case json_type_string: {
-        if(!key || !*key) return;
+        if(!key || !*key) break;
         const char *val = json_object_get_string(o);
         setstat(key, METRIC_GUESS, (void *)val);
       }
