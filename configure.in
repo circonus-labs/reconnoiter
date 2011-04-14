@@ -24,8 +24,11 @@ AC_PATH_PROGS(PERL, perl)
 AC_PATH_PROGS(XSLTPROC, xsltproc)
 AC_PATH_PROGS(XMLLINT, xmllint)
 AC_PATH_PROGS(JAVA, java)
+AC_PATH_PROGS(JAVA, java, , $JAVA_HOME/bin)
 AC_PATH_PROGS(JAVAC, javac)
+AC_PATH_PROGS(JAVAC, javac, , $JAVA_HOME/bin)
 AC_PATH_PROGS(JAR, jar)
+AC_PATH_PROGS(JAR, jar, , $JAVA_HOME/bin)
 AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
@@ -386,6 +389,27 @@ AC_CHECK_HEADERS([term.h], [], [],
      # include <curses.h>
      #endif
      ]])
+
+AC_CHECK_DECLS([openpty], [], [],
+		[#if defined(HAVE_SYS_TYPES_H)
+		 # include <sys/types.h>
+		 #endif
+		 #if defined(HAVE_SYS_IOCTL_H)
+		 # include <sys/ioctl.h>
+		 #endif
+		 #if defined(HAVE_TERMIOS_H)
+		 # include <termios.h>
+		 #endif
+		 #if defined(HAVE_LIBUTIL_H)
+		 # include <libutil.h>
+		 #endif
+		 #if defined(HAVE_UTIL_H)
+		 # include <util.h>
+		 #endif
+		 #if defined(HAVE_PTY_H)
+		 # include <pty.h>
+		 #endif
+		])
 
 AC_CHECK_FUNCS(getpwnam_r)
 GETPWNAM_R_POSIX

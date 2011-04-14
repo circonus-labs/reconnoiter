@@ -35,6 +35,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <inttypes.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "noit_module.h"
