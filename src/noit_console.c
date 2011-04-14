@@ -310,7 +310,7 @@ noit_console_motd(eventer_t e, acceptor_closure_t *ac,
 
 int
 allocate_pty(int *master, int *slave) {
-#if defined(HAVE_OPENPTY) || defined(HAVE_DECL_OPENPTY)
+#if defined(HAVE_OPENPTY) || (defined(HAVE_DECL_OPENPTY) && HAVE_DECL_OPENPTY != 0)
   if(openpty(master, slave, NULL, NULL, NULL)) return -1;
 #else
   /* STREAMS... sigh */
