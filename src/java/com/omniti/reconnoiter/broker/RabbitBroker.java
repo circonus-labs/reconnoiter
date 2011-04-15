@@ -11,6 +11,7 @@ package com.omniti.reconnoiter.broker;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 
+import org.apache.log4j.Logger;
 import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.EventHandler;
@@ -19,18 +20,20 @@ import com.omniti.reconnoiter.event.StratconQuery;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ConnectionParameters;
 import com.rabbitmq.client.QueueingConsumer;
 
 
 public class RabbitBroker implements IMQBroker  {
+  static Logger logger = Logger.getLogger(RabbitBroker.class.getName());
+  private int cidx;
   private Connection conn;
   private Channel channel;
   private boolean noAck = false;
   private String userName;
   private String password;
   private String virtualHost;
-  private String hostName;
+  private String hostName[];
+  private ConnectionFactory factory[];
   private int portNumber;
   private String exchangeName;
   private String exchangeType;
@@ -39,16 +42,22 @@ public class RabbitBroker implements IMQBroker  {
   private String routingKey;
   private String alertRoutingKey;
   private String alertExchangeName;
+  private Integer heartBeat;
+  private Integer connectTimeout;
   private Class listenerClass;
   private Constructor<UpdateListener> con;
 
   @SuppressWarnings("unchecked") 
   public RabbitBroker(StratconConfig config) {
+    this.cidx = 0;
     this.userName = config.getBrokerParameter("username", "guest");
     this.password = config.getBrokerParameter("password", "guest");
     this.virtualHost = config.getBrokerParameter("virtualhost", "/");
-    this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
+    this.hostName = config.getBrokerParameter("hostname", "127.0.0.1").split(",");
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
+    this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
+    this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
+    this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
     
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
     try {
@@ -72,10 +81,23 @@ public class RabbitBroker implements IMQBroker  {
   
     this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
     this.alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
+
+    this.factory = new ConnectionFactory[this.hostName.length];
+    for(int i = 0; i<hostName.length; i++) {
+      this.factory[i] = new ConnectionFactory();
+      this.factory[i].setUsername(this.userName);
+      this.factory[i].setPassword(this.password);
+      this.factory[i].setVirtualHost(this.virtualHost);
+      this.factory[i].setRequestedHeartbeat(this.heartBeat);
+      this.factory[i].setConnectionTimeout(this.connectTimeout);
+      this.factory[i].setPort(this.portNumber);
+      this.factory[i].setHost(this.hostName[i]);
+    }
   }
   
   // 
   public void disconnect() {
+    logger.info("AMQP disconnect.");
     try {
       channel.abort();
       channel = null;
@@ -88,13 +110,9 @@ public class RabbitBroker implements IMQBroker  {
     catch (Exception e) { }
   }
   public void connect() throws Exception {
-    ConnectionParameters params = new ConnectionParameters();
-    params.setUsername(userName);
-    params.setPassword(password);
-    params.setVirtualHost(virtualHost);
-    params.setRequestedHeartbeat(0);
-    ConnectionFactory factory = new ConnectionFactory(params);
-    conn = factory.newConnection(hostName, portNumber);
+    int offset = ++cidx % factory.length;
+    logger.info("AMQP connect to " + this.hostName[offset]);
+    conn = factory[offset].newConnection();
 
     if(conn == null) throw new Exception("connection failed");
 
@@ -102,7 +120,7 @@ public class RabbitBroker implements IMQBroker  {
     boolean passive = false, exclusive = false, durable = false, autoDelete = false;
     channel.exchangeDeclare(exchangeName, exchangeType, passive, durable, autoDelete, null);
     exclusive = true; autoDelete = true;
-    queueName = channel.queueDeclare(declaredQueueName, passive, durable, exclusive, autoDelete, null).getQueue();
+    queueName = channel.queueDeclare(declaredQueueName, durable, exclusive, autoDelete, null).getQueue();
     channel.queueBind(queueName, exchangeName, routingKey);
     if(!routingKey.equals(""))
       channel.queueBind(queueName, exchangeName, "");

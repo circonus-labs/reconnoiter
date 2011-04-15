@@ -8,6 +8,7 @@
 
 package com.omniti.reconnoiter.broker;
 
+import org.apache.log4j.Logger;
 import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.EventBean;
@@ -18,6 +19,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.MessageProperties;
 
 public class RabbitListener implements UpdateListener {
+  static Logger logger = Logger.getLogger(RabbitListener.class.getName());
   protected EPServiceProvider epService;
   protected StratconQuery sq;
   protected String routingKey;
@@ -25,7 +27,8 @@ public class RabbitListener implements UpdateListener {
   protected RabbitBroker broker;
 
 
-  public RabbitListener(EPServiceProvider epService, StratconQuery sq, RabbitBroker broker, String exchangeName, String routingKey) {
+  public RabbitListener(EPServiceProvider epService, StratconQuery sq,
+                        RabbitBroker broker, String exchangeName, String routingKey) {
     try {
       this.epService = epService;
       this.sq = sq;
@@ -35,9 +38,9 @@ public class RabbitListener implements UpdateListener {
       this.broker = broker;
       
       // Create the connection and add an exchange
-      boolean passive = false, durable = true, autoDelete = false;
-      System.err.println("channel.exchangeDeclare -> " + exchangeName);
-      broker.getChannel().exchangeDeclare(exchangeName, "topic", passive, durable, autoDelete, null);  
+      boolean internal = false, durable = true, autoDelete = false;
+      logger.debug("channel.exchangeDeclare -> " + exchangeName);
+      broker.getChannel().exchangeDeclare(exchangeName, "topic", durable, autoDelete, internal, null);  
     } catch(Exception e) {
       e.printStackTrace();
     }
