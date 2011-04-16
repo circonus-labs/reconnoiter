@@ -535,6 +535,8 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
     pthread_join(jobs[i], &good);
     tcnt += (int)(vpsized_int)good;
   }
+  free(jobs);
+  free(sns);
   noitL(noit_error, "Loaded all %d check states.\n", tcnt);
   return 0;
 }
