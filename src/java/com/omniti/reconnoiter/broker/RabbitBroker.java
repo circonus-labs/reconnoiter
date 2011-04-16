@@ -49,6 +49,7 @@ public class RabbitBroker implements IMQBroker  {
 
   @SuppressWarnings("unchecked") 
   public RabbitBroker(StratconConfig config) {
+    this.conn = null;
     this.cidx = 0;
     this.userName = config.getBrokerParameter("username", "guest");
     this.password = config.getBrokerParameter("password", "guest");
@@ -100,16 +101,18 @@ public class RabbitBroker implements IMQBroker  {
     logger.info("AMQP disconnect.");
     try {
       channel.abort();
-      channel = null;
     }
     catch (Exception e) { }
+    channel = null;
     try {
       conn.abort();
-      conn = null;
     }
     catch (Exception e) { }
+    conn = null;
   }
   public void connect() throws Exception {
+    if(conn != null) disconnect();
+
     int offset = ++cidx % factory.length;
     logger.info("AMQP connect to " + this.hostName[offset]);
     conn = factory[offset].newConnection();
@@ -117,10 +120,13 @@ public class RabbitBroker implements IMQBroker  {
     if(conn == null) throw new Exception("connection failed");
 
     channel = conn.createChannel();
-    boolean passive = false, exclusive = false, durable = false, autoDelete = false;
-    channel.exchangeDeclare(exchangeName, exchangeType, passive, durable, autoDelete, null);
+    boolean exclusive = false, durable = true, internal = false,
+            autoDelete = false;
+    channel.exchangeDeclare(exchangeName, exchangeType,
+                            durable, autoDelete, internal, null);
     exclusive = true; autoDelete = true;
-    queueName = channel.queueDeclare(declaredQueueName, durable, exclusive, autoDelete, null).getQueue();
+    queueName = channel.queueDeclare(declaredQueueName, durable,
+                                     exclusive, autoDelete, null).getQueue();
     channel.queueBind(queueName, exchangeName, routingKey);
     if(!routingKey.equals(""))
       channel.queueBind(queueName, exchangeName, "");
