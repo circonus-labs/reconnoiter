@@ -32,7 +32,7 @@ public final class ExactRegressionLinestView extends ExactBaseBivariateStatistic
 
     public static EventType getEventType(com.espertech.esper.event.EventAdapterService eas)
     {
-        return eas.addBeanType(ExactRegressionBean.class.getName(), ExactRegressionBean.class, false);
+        return eas.addBeanType(ExactRegressionBean.class.getName(), ExactRegressionBean.class, true, true, true);
     }
 
     public EventType getEventType()

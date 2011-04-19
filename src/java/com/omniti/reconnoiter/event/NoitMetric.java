@@ -40,12 +40,14 @@ public class NoitMetric extends NoitEvent {
     long nanos = System.nanoTime() - start;
     logger.debug("sendEvent("+getUuid()+"-"+getName()+") took "+(nanos/1000)+"us");
   }
-  public String getUuid() {
-    return (nmn != null) ? nmn.getUuid() : nmt.getUuid();
-  }
-  public String getName() {
-    return (nmn != null) ? nmn.getName() : nmt.getName();
-  }
+  public String getUuid() { return (nmn != null)?nmn.getUuid():nmt.getUuid(); }
+  public String getName() { return (nmn != null)?nmn.getName():nmt.getName(); }
+  public long getTime() { return (nmn != null)?nmn.getTime():nmt.getTime(); }
+  public String getNoit() { return (nmn != null)?nmn.getNoit():nmt.getNoit(); }
+  public String getCheck_target() { return (nmn != null)?nmn.getCheck_target():nmt.getCheck_target(); }
+  public String getCheck_module() { return (nmn != null)?nmn.getCheck_module():nmt.getCheck_module(); }
+  public String getCheck_name() { return (nmn != null)?nmn.getCheck_name():nmt.getCheck_name(); }
+
   public boolean isNumeric() { return nmn != null; }
   public boolean isText() { return nmt != null; }
   public String getPrefix() { return "M"; }

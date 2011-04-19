@@ -48,7 +48,7 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
         this.statementContext = statementContext;
         this.expressionX = expressionX;
         this.expressionY = expressionY;
-        isDouble = (expressionY.getType() != double.class || expressionY.getType() != Double.class);
+        isDouble = (expressionY.getExprEvaluator().getType() != double.class || expressionY.getExprEvaluator().getType() != Double.class);
     }
 
     public View cloneView(StatementContext statementContext)
@@ -63,7 +63,7 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
 
     public static EventType getEventType(com.espertech.esper.event.EventAdapterService eas)
     {
-        return eas.addBeanType(WeightedValueBean.class.getName(), WeightedValueBean.class, false);
+        return eas.addBeanType(WeightedValueBean.class.getName(), WeightedValueBean.class, true, true, true);
     }
 
     public EventType getEventType()
@@ -87,9 +87,9 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                 derivedWorking = new EventBean[derivedsize];
             for ( EventBean pointb : newData ) {
                 EventBean eventsPerStream[] = { pointb };
-                Number NX = (Number) expressionX.evaluate(eventsPerStream, true, statementContext);
+                Number NX = (Number) expressionX.getExprEvaluator().evaluate(eventsPerStream, true, statementContext);
                 if(NX == null) continue;
-                Number NY = (Number) expressionY.evaluate(eventsPerStream, true, statementContext);
+                Number NY = (Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext);
                 if(NY == null) continue;
                 NoitDerivePoint point = new NoitDerivePoint();
                 point.X = NX.longValue();
