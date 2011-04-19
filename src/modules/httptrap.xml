@@ -14,6 +14,10 @@
                required="optional"
                default="true"
                allowed="(?:true|on|false|off)">Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</parameter>
+    <parameter name="secret"
+               required="optional"
+               default=""
+               allowed=".+">Specify the secret with which metrics may be submitted.</parameter>
   </checkconfig>
   <examples>
     <example>
