@@ -47,6 +47,7 @@ public class RabbitBroker implements IMQBroker  {
   private Integer connectTimeout;
   private Class listenerClass;
   private boolean exclusiveQueue;
+  private boolean durableQueue;
   private Constructor<UpdateListener> con;
 
   @SuppressWarnings("unchecked") 
@@ -61,6 +62,7 @@ public class RabbitBroker implements IMQBroker  {
     this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
     this.exclusiveQueue = config.getBrokerParameter("exclusivequeue", "false").equals("true");
+    this.durableQueue = config.getBrokerParameter("durablequeue", "false").equals("true");
     this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
     
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
@@ -141,11 +143,9 @@ public class RabbitBroker implements IMQBroker  {
                             durable, autoDelete, internal, null);
     autoDelete = true;
 
-    returnedQueueName = channel.queueDeclare(queueName, durable,
+    returnedQueueName = channel.queueDeclare(queueName, durableQueue,
                                              exclusiveQueue, autoDelete, null).getQueue();
     channel.queueBind(returnedQueueName, exchangeName, routingKey);
-    if(!routingKey.equals(""))
-      channel.queueBind(returnedQueueName, exchangeName, "");
   }
   public Channel getChannel() { return channel; }
   
