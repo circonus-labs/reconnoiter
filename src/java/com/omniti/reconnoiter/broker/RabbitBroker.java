@@ -39,12 +39,15 @@ public class RabbitBroker implements IMQBroker  {
   private String exchangeType;
   private String declaredQueueName;
   private String queueName;
+  private String returnedQueueName;
   private String routingKey;
   private String alertRoutingKey;
   private String alertExchangeName;
   private Integer heartBeat;
   private Integer connectTimeout;
   private Class listenerClass;
+  private boolean exclusiveQueue;
+  private boolean durableQueue;
   private Constructor<UpdateListener> con;
 
   @SuppressWarnings("unchecked") 
@@ -58,6 +61,8 @@ public class RabbitBroker implements IMQBroker  {
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
     this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
+    this.exclusiveQueue = config.getBrokerParameter("exclusivequeue", "false").equals("true");
+    this.durableQueue = config.getBrokerParameter("durablequeue", "false").equals("true");
     this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
     
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
@@ -77,9 +82,21 @@ public class RabbitBroker implements IMQBroker  {
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
-    this.declaredQueueName = config.getMQParameter("queue", "");
+    this.declaredQueueName = config.getMQParameter("queue", "reconnoiter-{node}-{pid}");
     this.routingKey = config.getMQParameter("routingkey", "");
   
+    try {
+      this.queueName = this.declaredQueueName;
+      this.queueName = this.queueName.replace("{node}",
+        java.net.InetAddress.getLocalHost().getHostName());
+      this.queueName = this.queueName.replace("{pid}",
+        java.lang.management.ManagementFactory.getRuntimeMXBean()
+                                              .getName().replaceAll("@.+$", ""));
+    } catch(java.net.UnknownHostException uhe) {
+      System.err.println("Cannot self identify for queuename!");
+      System.exit(-1);
+    }     
+
     this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
     this.alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
 
@@ -124,19 +141,18 @@ public class RabbitBroker implements IMQBroker  {
             autoDelete = false;
     channel.exchangeDeclare(exchangeName, exchangeType,
                             durable, autoDelete, internal, null);
-    exclusive = true; autoDelete = true;
-    queueName = channel.queueDeclare(declaredQueueName, durable,
-                                     exclusive, autoDelete, null).getQueue();
-    channel.queueBind(queueName, exchangeName, routingKey);
-    if(!routingKey.equals(""))
-      channel.queueBind(queueName, exchangeName, "");
+    autoDelete = true;
+
+    returnedQueueName = channel.queueDeclare(queueName, durableQueue,
+                                             exclusiveQueue, autoDelete, null).getQueue();
+    channel.queueBind(returnedQueueName, exchangeName, routingKey);
   }
   public Channel getChannel() { return channel; }
   
   public void consume(EventHandler eh) throws IOException {
     QueueingConsumer consumer = new QueueingConsumer(channel);
 
-    channel.basicConsume(queueName, noAck, consumer);
+    channel.basicConsume(returnedQueueName, noAck, consumer);
     
     while (true) {
       QueueingConsumer.Delivery delivery;
