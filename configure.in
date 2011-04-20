@@ -60,12 +60,22 @@ case $host in
 	DTRACEOBJ=dtrace_stub.o
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`"; then
-		AC_MSG_RESULT([64])
 		DTRACEFLAGS=-64
-		ATOMIC_OBJS="noit_atomic_sol_x86_64.o"
+		if test -n "`isalist | grep sparc`"; then
+			AC_MSG_RESULT([sparc 64])
+			ATOMIC_OBJS="noit_atomic_sol_sparcv9.o"
+		else
+			AC_MSG_RESULT([intel 64])
+			ATOMIC_OBJS="noit_atomic_sol_x86_64.o"
+		fi
 	else
-		AC_MSG_RESULT([32])
-		ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
+		if test -n "`isalist | grep sparc`"; then
+			AC_MSG_RESULT([sparc 32])
+			ATOMIC_OBJS="noit_atomic_sol_sparcv8plus.o"
+		else
+			AC_MSG_RESULT([intel 32])
+			ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
+		fi
 	fi
 	if test "x$CC" != "xgcc" ; then
 		CFLAGS="$CFLAGS -mt"
@@ -375,7 +385,7 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 
 AC_FUNC_STRFTIME
 AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty inet_pton inet_ntop getopt \
-               poll)
+               poll vasprintf)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \

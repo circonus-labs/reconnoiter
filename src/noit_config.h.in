@@ -123,6 +123,7 @@
 #undef HAVE_INET_NTOP
 #undef HAVE_GETOPT
 #undef HAVE_POLL
+#undef HAVE_VASPRINTF
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
