@@ -40,6 +40,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noit_check_rest.h \
 	noit_check_tools_shared.h \
 	noit_check_tools.h noit_conf.h noit_conf_checks.h noit_conf_private.h \
+	noit_version.h \
 	noit_config.h noit_console.h noit_console_telnet.h noit_defines.h \
 	noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
 	noit_livestream_listener.h noit_module.h noit_rest.h noit_tokenizer.h \
@@ -130,6 +131,11 @@ noitedit/libnoitedit.a:	libnoitedit
 eventer/libeventer.a:	libeventer
 utils/libnoit_utils.a:	libnoit_utils
 json-lib/libnoitjson.a:	libnoitjson
+
+.PHONY:	noit_version.h
+
+noit_version.h:
+	@$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
 man/noitd.usage.h:	make-man
 

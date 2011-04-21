@@ -31,7 +31,7 @@
  */
 
 #include "noit_defines.h"
-
+#include "noit_version.h"
 #include "eventer/eventer.h"
 #include "eventer/eventer_jobq.h"
 #include "utils/noit_log.h"
@@ -143,6 +143,18 @@ cmd_info_t console_command_eventer_sockets = {
 };
 cmd_info_t console_command_eventer_jobq = {
   "jobq", noit_console_eventer_jobq, NULL, NULL, NULL
+};
+
+static int
+noit_console_version(noit_console_closure_t ncct, int argc, char **argv,
+                     noit_console_state_t *dstate, void *unused) {
+  char buff[256];
+  noit_build_version(buff, sizeof(buff));
+  nc_printf(ncct, "version: %s\n", buff);
+  return 0;
+}
+cmd_info_t console_command_version = {
+  "version", noit_console_version, NULL, NULL, NULL
 };
 
 void
@@ -508,6 +520,7 @@ noit_console_state_initial() {
 
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
+    noit_console_state_add_cmd(show_state, &console_command_version);
 
     evdeb = noit_console_mksubdelegate(
               noit_console_mksubdelegate(show_state,
