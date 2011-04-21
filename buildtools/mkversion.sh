@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 STATUS=`git status 2>&1`
 if [ $? == 0 ]; then
