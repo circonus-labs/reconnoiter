@@ -61,8 +61,6 @@ public class RabbitBroker implements IMQBroker  {
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
     this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
-    this.exclusiveQueue = config.getBrokerParameter("exclusivequeue", "false").equals("true");
-    this.durableQueue = config.getBrokerParameter("durablequeue", "false").equals("true");
     this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
     
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
@@ -82,6 +80,8 @@ public class RabbitBroker implements IMQBroker  {
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
+    this.exclusiveQueue = config.getMQParameter("exclusivequeue", "false").equals("true");
+    this.durableQueue = config.getMQParameter("durablequeue", "false").equals("true");
     this.declaredQueueName = config.getMQParameter("queue", "reconnoiter-{node}-{pid}");
     this.routingKey = config.getMQParameter("routingkey", "");
   
