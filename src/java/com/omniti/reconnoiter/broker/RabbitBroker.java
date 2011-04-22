@@ -48,6 +48,7 @@ public class RabbitBroker implements IMQBroker  {
   private Class listenerClass;
   private boolean exclusiveQueue;
   private boolean durableQueue;
+  private boolean durableExchange;
   private Constructor<UpdateListener> con;
 
   @SuppressWarnings("unchecked") 
@@ -79,6 +80,7 @@ public class RabbitBroker implements IMQBroker  {
     }
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
+    this.durableExchange = config.getMQParameter("durableexchange", "false").equals("true");
     this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
     this.exclusiveQueue = config.getMQParameter("exclusivequeue", "false").equals("true");
     this.durableQueue = config.getMQParameter("durablequeue", "false").equals("true");
@@ -137,10 +139,9 @@ public class RabbitBroker implements IMQBroker  {
     if(conn == null) throw new Exception("connection failed");
 
     channel = conn.createChannel();
-    boolean exclusive = false, durable = true, internal = false,
-            autoDelete = false;
+    boolean exclusive = false, internal = false, autoDelete = false;
     channel.exchangeDeclare(exchangeName, exchangeType,
-                            durable, autoDelete, internal, null);
+                            durableExchange, autoDelete, internal, null);
     autoDelete = true;
 
     returnedQueueName = channel.queueDeclare(queueName, durableQueue,
