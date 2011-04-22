@@ -4,6 +4,7 @@ STATUS=`git status 2>&1`
 if [ $? == 0 ]; then
   echo "Building version info from git"
   HASH=`git show --format=%H | head -1`
+  TSTAMP=`git show --format=%at | head -1`
   echo "    * version -> $HASH"
   SYM=`git name-rev $HASH | awk '{print $2;}' | sed -e 's/\^.*//'`
   if [ -z "`echo $SYM | grep '^tags/'`" ]; then
@@ -11,8 +12,9 @@ if [ $? == 0 ]; then
   fi
   echo "    * symbolic -> $SYM"
   BRANCH=$SYM
+  VERSION="$HASH.$TSTAMP"
   if [ -n "`echo $STATUS | grep 'Changed but not updated'`" ]; then
-    HASH="$HASH.modified"
+    VERSION="$HASH.modified.$TSTAMP"
   fi
 else
   BRANCH=exported
@@ -21,7 +23,7 @@ fi
 
 if [ -r "$1" ]; then
   eval `cat noit_version.h | awk '/^#define/ { print $2"="$3;}'`
-  if [ "$NOIT_BRANCH" == "$BRANCH" -a "$NOIT_VERSION" == "$HASH" ]; then
+  if [ "$NOIT_BRANCH" == "$BRANCH" -a "$NOIT_VERSION" == "$VERSION" ]; then
     echo "    * version unchanged"
     exit
   fi
@@ -33,7 +35,7 @@ cat > $1 <<EOF
 #define NOIT_BRANCH "$BRANCH"
 #endif
 #ifndef NOIT_VERSION
-#define NOIT_VERSION "$HASH"
+#define NOIT_VERSION "$VERSION"
 #endif
 
 #include <stdio.h>
