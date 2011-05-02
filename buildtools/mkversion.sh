@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
 STATUS=`git status 2>&1`
-if [ $? == 0 ]; then
+if [ $? -eq 0 ]; then
   echo "Building version info from git"
   HASH=`git show --format=%H | head -1`
   TSTAMP=`git show --format=%at | head -1`
