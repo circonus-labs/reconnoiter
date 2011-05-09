@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 #ifdef HAVE_SYS_IOCTL_COMPAT_H
 #include <sys/ioctl_compat.h>
 #endif
