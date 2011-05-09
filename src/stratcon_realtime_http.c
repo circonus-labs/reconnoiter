@@ -60,6 +60,13 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 
+/*
+ * it appears that GCC 4.5.2 incorrectly thinks that FULLREAD uses "mask"
+ * without initializing it, so disable that specific warning for this file
+ * for now
+ */
+
+#pragma GCC diagnostic ignored "-Wuninitialized"
 
 typedef struct realtime_recv_ctx_t {
   int bytes_expected;
