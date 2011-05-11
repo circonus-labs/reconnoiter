@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
@@ -114,13 +115,17 @@ void
 noit_check_fake_last_check(noit_check_t *check,
                            struct timeval *lc, struct timeval *_now) {
   struct timeval now, period;
-  double r;
+  static int start_offset_ms = -1;
   int offset = 0, max;
 
+  if(start_offset_ms == -1)
+    start_offset_ms = drand48() * noit_check_max_initial_stutter();
   if(!(check->flags & NP_TRANSIENT)) {
-    r = drand48();
     max = noit_check_max_initial_stutter();
-    offset = r * (MIN(max, check->period));
+    offset = start_offset_ms + drand48() * 1000;
+    offset = offset % MIN(max, check->period);
+    start_offset_ms += 1000;
+    noitL(noit_error, "offset -> %d\n", offset);
   }
   period.tv_sec = (check->period - offset) / 1000;
   period.tv_usec = ((check->period - offset) % 1000) * 1000;
@@ -375,6 +380,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
+  srand48((getpid() << 16) & time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
   noit_skiplist_init(&polls_by_name);
