@@ -125,7 +125,6 @@ noit_check_fake_last_check(noit_check_t *check,
     offset = start_offset_ms + drand48() * 1000;
     offset = offset % MIN(max, check->period);
     start_offset_ms += 1000;
-    noitL(noit_error, "offset -> %d\n", offset);
   }
   period.tv_sec = (check->period - offset) / 1000;
   period.tv_usec = ((check->period - offset) % 1000) * 1000;
