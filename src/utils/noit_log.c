@@ -361,8 +361,9 @@ jlog_asynch_pop(jlog_asynch_ctx *actx, jlog_line **iter) {
   }
 
   while(1) {
-    h = actx->head;
+    h = (void *)(volatile void *)actx->head;
     if(noit_atomic_casptr((volatile void **)&actx->head, NULL, h) == h) break;
+    /* TODO: load-load */
   }
   while(h) {
     /* which unshifted things into the queue -- it's backwards, reverse it */
@@ -378,8 +379,9 @@ jlog_asynch_pop(jlog_asynch_ctx *actx, jlog_line **iter) {
 void
 jlog_asynch_push(jlog_asynch_ctx *actx, jlog_line *n) {
   while(1) {
-    n->next = actx->head;
+    n->next = (void *)(volatile void *)actx->head;
     if(noit_atomic_casptr((volatile void **)&actx->head, n, n->next) == n->next) return;
+    /* TODO: load-load */
   }
 }
 static void *
