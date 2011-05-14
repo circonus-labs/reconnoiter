@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007-2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 #include "noit_jlog_listener.h"
 
 #include <unistd.h>
+#include <poll.h>
 #define MAX_ROWS_AT_ONCE 1000
 #define DEFAULT_SECONDS_BETWEEN_BATCHES 10
 
@@ -212,6 +213,27 @@ noit_jlog_thread_main(void *e_vptr) {
         goto alldone;
       }
       jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
+    }
+    else {
+      /* we have nothing to write -- maybe we have no checks configured...
+       * If this is the case "forever", the remote might disconnect and
+       * we would never know. Do the painful work of detecting a
+       * disconnected client.
+       */
+      struct pollfd pfd;
+      pfd.fd = e->fd;
+      pfd.events = POLLIN | POLLHUP | POLLRDNORM;
+      pfd.revents = 0;
+      if(poll(&pfd, 1, 0) != 0) {
+        /* normally, we'd recv PEEK|DONTWAIT.  However, the client should
+         * not be writing to us.  So, we know we can't have any legitimate
+         * data on this socket (true even though this is SSL). So, if we're
+         * here then "shit went wrong"
+         */
+        noitL(noit_error, "jlog client %s disconnected while idle\n",
+              ac->remote_cn);
+        goto alldone;
+      }
     }
     if(sleeptime) sleep(sleeptime);
   }
