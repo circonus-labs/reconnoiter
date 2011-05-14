@@ -66,7 +66,9 @@
  * for now
  */
 
+#if __GNUC__ == 4 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 2
 #pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
 
 typedef struct realtime_recv_ctx_t {
   int bytes_expected;
