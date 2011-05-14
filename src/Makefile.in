@@ -32,7 +32,8 @@ MODULES_DIR=@MODULES_DIR@
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
-TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf
+TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
+	jlog/jlogctl
 
 MODDIR=modules
 
@@ -109,6 +110,10 @@ java-bits:
 
 libjlog:
 	@(cd jlog && $(MAKE) -s libjlog.a)
+
+jlog/jlogctl:
+	@echo "- building jlogctl"
+	@(cd jlog && $(MAKE) -s jlogctl)
 
 libudns:
 	@(cd udns && $(MAKE) -s libudns.o)
@@ -243,8 +248,9 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-noitd:	install-dirs noitd noit.conf java-bits
+install-noitd:	install-dirs noitd noit.conf java-bits jlog/jlogctl
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
+	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
 	$(INSTALL) -m 0644 config_templates.conf $(DESTDIR)$(sysconfdir)/config_templates.conf

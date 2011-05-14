@@ -29,6 +29,7 @@ src/java/com/omniti/reconnoiter/*.class
 src/java/com/omniti/reconnoiter/*/*.class
 src/jlog/jlog_config.h
 src/jlog/perl/Makefile.PL
+src/jlog/jlogctl
 src/man/*.8
 src/man/*.h
 src/module-online.h
