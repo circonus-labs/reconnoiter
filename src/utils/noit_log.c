@@ -138,8 +138,9 @@ posix_logio_open(noit_log_stream_t ls) {
 static int
 posix_logio_reopen(noit_log_stream_t ls) {
   if(ls->path) {
+    pthread_rwlock_t *lock = ls->lock;
     int newfd, oldfd, rv = -1;
-    if(ls->lock) pthread_rwlock_wrlock(ls->lock);
+    if(lock) pthread_rwlock_wrlock(lock);
     oldfd = (int)(vpsized_int)ls->op_ctx;
     newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
     ls->written = 0;
@@ -150,7 +151,7 @@ posix_logio_reopen(noit_log_stream_t ls) {
       rv = 0;
       if(fstat(newfd, &sb) == 0) ls->written = (int32_t)sb.st_size;
     }
-    if(ls->lock) pthread_rwlock_unlock(ls->lock);
+    if(lock) pthread_rwlock_unlock(lock);
     return rv;
   }
   return -1;
@@ -158,32 +159,35 @@ posix_logio_reopen(noit_log_stream_t ls) {
 static int
 posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   int fd, rv = -1;
-  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  pthread_rwlock_t *lock = ls->lock;
+  if(lock) pthread_rwlock_rdlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   debug_printf("writing to %d\n", fd);
   if(fd >= 0) rv = write(fd, buf, len);
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   if(rv > 0) noit_atomic_add32(&ls->written, rv);
   return rv;
 }
 static int
 posix_logio_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
   int fd, rv = -1;
-  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  pthread_rwlock_t *lock = ls->lock;
+  if(lock) pthread_rwlock_rdlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   debug_printf("writ(v)ing to %d\n", fd);
   if(fd >= 0) rv = writev(fd, iov, iovcnt);
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   if(rv > 0) noit_atomic_add32(&ls->written, rv);
   return rv;
 }
 static int
 posix_logio_close(noit_log_stream_t ls) {
   int fd, rv;
-  if(ls->lock) pthread_rwlock_wrlock(ls->lock);
+  pthread_rwlock_t *lock = ls->lock;
+  if(lock) pthread_rwlock_wrlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   rv = close(fd);
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   return rv;
 }
 static size_t
@@ -191,18 +195,20 @@ posix_logio_size(noit_log_stream_t ls) {
   int fd;
   size_t s = (size_t)-1;
   struct stat sb;
-  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  pthread_rwlock_t *lock = ls->lock;
+  if(lock) pthread_rwlock_rdlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   if(fstat(fd, &sb) == 0) {
     s = (size_t)sb.st_size;
   }
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   return s;
 }
 static int
 posix_logio_rename(noit_log_stream_t ls, const char *name) {
   int rv = 0;
   char autoname[PATH_MAX];
+  pthread_rwlock_t *lock = ls->lock;
   if(name == NOIT_LOG_RENAME_AUTOTIME) {
     time_t now = time(NULL);
     snprintf(autoname, sizeof(autoname), "%s.%llu",
@@ -210,9 +216,9 @@ posix_logio_rename(noit_log_stream_t ls, const char *name) {
     name = autoname;
   }
   if(!strcmp(name, ls->path)) return 0; /* noop */
-  if(ls->lock) pthread_rwlock_rdlock(ls->lock);
+  if(lock) pthread_rwlock_rdlock(lock);
   rv = rename(ls->path, name);
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   return -1;
 }
 static logops_t posix_logio_ops = {
@@ -237,6 +243,7 @@ typedef struct {
   jlog_ctx *log;
   pthread_t writer;
   void *head;
+  int gen;  /* generation */
 } jlog_asynch_ctx;
 
 static int
@@ -328,28 +335,6 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   return cnt;
 }
 
-static int
-jlog_logio_reopen(noit_log_stream_t ls) {
-  char **subs;
-  jlog_asynch_ctx *actx = ls->op_ctx;
-  int i;
-  /* reopening only has the effect of removing temporary subscriptions */
-  /* (they start with ~ in our hair-brained model */
-
-  if(ls->lock) pthread_rwlock_wrlock(ls->lock);
-  if(jlog_ctx_list_subscribers(actx->log, &subs) == -1)
-    goto bail;
-
-  for(i=0;subs[i];i++)
-    if(subs[i][0] == '~')
-      jlog_ctx_remove_subscriber(actx->log, subs[i]);
-
-  jlog_ctx_list_subscribers_dispose(actx->log, subs);
-  jlog_logio_cleanse(ls);
- bail:
-  if(ls->lock) pthread_rwlock_unlock(ls->lock);
-  return 0;
-}
 static jlog_line *
 jlog_asynch_pop(jlog_asynch_ctx *actx, jlog_line **iter) {
   jlog_line *h = NULL, *rev = NULL;
@@ -389,10 +374,14 @@ jlog_logio_asynch_writer(void *vls) {
   noit_log_stream_t ls = vls;
   jlog_asynch_ctx *actx = ls->op_ctx;
   jlog_line *iter = NULL;
-  while(1) {
+  int gen = actx->gen;
+  noitL(noit_error, "Starting asynchronous jlog writer[%p]\n", (void *)pthread_self());
+  while(gen == actx->gen) {
+    pthread_rwlock_t *lock;
     int fast = 0, max = 1000;
     jlog_line *line;
-    pthread_rwlock_rdlock(ls->lock);
+    lock = ls->lock;
+    if(lock) pthread_rwlock_rdlock(lock);
     while(max > 0 && NULL != (line = jlog_asynch_pop(actx, &iter))) {
       jlog_ctx_write(actx->log, line->buf_dynamic ?
                                   line->buf_dynamic :
@@ -403,13 +392,44 @@ jlog_logio_asynch_writer(void *vls) {
       fast = 1;
       max--;
     }
-    pthread_rwlock_unlock(ls->lock);
+    if(lock) pthread_rwlock_unlock(lock);
     if(max > 0) {
       /* we didn't hit our limit... so we ran the queue dry */
       /* 200ms if there was nothing, 10ms otherwise */
       usleep(fast ? 10000 : 200000);
     }
   }
+  pthread_exit((void *)0);
+}
+static int
+jlog_logio_reopen(noit_log_stream_t ls) {
+  void *unused;
+  char **subs;
+  jlog_asynch_ctx *actx = ls->op_ctx;
+  pthread_rwlock_t *lock = ls->lock;
+  int i;
+  /* reopening only has the effect of removing temporary subscriptions */
+  /* (they start with ~ in our hair-brained model */
+
+  if(lock) pthread_rwlock_wrlock(lock);
+  if(jlog_ctx_list_subscribers(actx->log, &subs) == -1)
+    goto bail;
+
+  for(i=0;subs[i];i++)
+    if(subs[i][0] == '~')
+      jlog_ctx_remove_subscriber(actx->log, subs[i]);
+
+  jlog_ctx_list_subscribers_dispose(actx->log, subs);
+  jlog_logio_cleanse(ls);
+ bail:
+  if(lock) pthread_rwlock_unlock(lock);
+
+  actx->gen++;
+  pthread_join(actx->writer, &unused);
+  if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
+    return -1;
+  
+  return 0;
 }
 static int
 jlog_logio_open(noit_log_stream_t ls) {
@@ -500,14 +520,12 @@ jlog_logio_open(noit_log_stream_t ls) {
   actx = calloc(1, sizeof(*actx));
   actx->log = log;
   ls->op_ctx = actx;
+
+  if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
+    return -1;
+
   /* We do this to clean things up */
   jlog_logio_reopen(ls);
-
-  pthread_attr_init(&tattr);
-  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if(pthread_create(&actx->writer, &tattr, jlog_logio_asynch_writer, ls) != 0) {
-    return -1;
-  }
   return 0;
 }
 static int
@@ -542,11 +560,12 @@ static size_t
 jlog_logio_size(noit_log_stream_t ls) {
   size_t size;
   jlog_asynch_ctx *actx;
+  pthread_rwlock_t *lock = ls->lock;
   if(!ls->op_ctx) return -1;
   actx = ls->op_ctx;
-  pthread_rwlock_rdlock(ls->lock);
+  if(lock) pthread_rwlock_rdlock(lock);
   size = jlog_raw_size(actx->log);
-  pthread_rwlock_unlock(ls->lock);
+  if(lock) pthread_rwlock_unlock(lock);
   return size;
 }
 static int
