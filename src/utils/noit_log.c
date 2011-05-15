@@ -375,7 +375,8 @@ jlog_logio_asynch_writer(void *vls) {
   jlog_asynch_ctx *actx = ls->op_ctx;
   jlog_line *iter = NULL;
   int gen = actx->gen;
-  noitL(noit_error, "Starting asynchronous jlog writer[%p]\n", (void *)pthread_self());
+  noitL(noit_error, "starting asynchronous jlog writer[%d/%p]\n",
+        (int)getpid(), (void *)pthread_self());
   while(gen == actx->gen) {
     pthread_rwlock_t *lock;
     int fast = 0, max = 1000;
@@ -399,6 +400,8 @@ jlog_logio_asynch_writer(void *vls) {
       usleep(fast ? 10000 : 200000);
     }
   }
+  noitL(noit_error, "stopping asynchronous jlog writer[%d/%p]\n",
+        (int)getpid(), (void *)pthread_self());
   pthread_exit((void *)0);
 }
 static int
