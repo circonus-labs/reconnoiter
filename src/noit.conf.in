@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf8" standalone="yes"?>
 <noit lockfile="/var/run/noitd.lock">
+  <!-- <watchdog glider="/opt/gimli/bin/glider" tracedir="/var/log/noitd.crash"/> -->
   <eventer>
     <config>
       <default_queue_threads>10</default_queue_threads>
