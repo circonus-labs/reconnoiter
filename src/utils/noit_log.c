@@ -436,7 +436,6 @@ jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub, **subs, *p;
   jlog_asynch_ctx *actx;
   jlog_ctx *log = NULL;
-  pthread_attr_t tattr;
   int i, listed, found;
 
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
