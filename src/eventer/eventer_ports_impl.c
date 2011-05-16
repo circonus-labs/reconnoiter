@@ -243,14 +243,11 @@ static int eventer_ports_impl_loop() {
   struct timeval __dyna_sleep = { 0, 0 };
 
   while(1) {
-    const char *cbname;
     struct timeval __now, __sleeptime;
     struct timespec __ports_sleeptime;
     unsigned int fd_cnt = 0;
     int ret;
     port_event_t pevents[MAX_PORT_EVENTS];
-    int max_timed_events_to_process;
-    int newmask;
 
     if(compare_timeval(eventer_max_sleeptime, __dyna_sleep) < 0)
       __dyna_sleep = eventer_max_sleeptime;
@@ -303,7 +300,7 @@ static int eventer_ports_impl_loop() {
       for(idx = 0; idx < fd_cnt; idx++) {
         port_event_t *pe;
         eventer_t e;
-        int fd, oldmask, mask;
+        int fd, mask;
 
         pe = &pevents[idx];
         if(pe->portev_source != PORT_SOURCE_FD) continue;

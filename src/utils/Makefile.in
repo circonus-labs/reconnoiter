@@ -32,6 +32,14 @@ libnoit_utils.a:	$(OBJS) @DTRACEOBJ@
 	@echo "- archiving $@"
 	@$(RANLIB) $@
 
+noit_atomic_sol_sparcv8plus.o:	noit_atomic_sol.s
+	@as -P -xarch=v8plus -o $@ noit_atomic_sol.s
+	@echo "- assembling $@"
+
+noit_atomic_sol_sparcv9.o:	noit_atomic_sol.s
+	@as -P -xarch=v9 -o $@ noit_atomic_sol.s
+	@echo "- assembling $@"
+
 noit_atomic_sol_x86_32.o:	noit_atomic_sol.s
 	@as -P -o $@ noit_atomic_sol.s
 	@echo "- assembling $@"

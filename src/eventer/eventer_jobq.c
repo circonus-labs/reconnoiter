@@ -158,9 +158,12 @@ eventer_jobq_maybe_spawn(eventer_jobq_t *jobq) {
      * increment in the new thread, but we check there and back it out
      * if we did something we weren't supposed to. */
     pthread_t tid;
+    pthread_attr_t tattr;
     noitL(eventer_deb, "Starting queue[%s] thread now at %d\n",
           jobq->queue_name, jobq->concurrency);
-    pthread_create(&tid, NULL, eventer_jobq_consumer_pthreadentry, jobq);
+    pthread_attr_init(&tattr);
+    pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&tid, &tattr, eventer_jobq_consumer_pthreadentry, jobq);
   }
   noitL(eventer_deb, "jobq_queue[%s] pending cancels [%d/%d]\n",
         jobq->queue_name, jobq->pending_cancels,

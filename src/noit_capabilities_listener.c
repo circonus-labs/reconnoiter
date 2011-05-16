@@ -31,6 +31,7 @@
  */
 
 #include "noit_defines.h"
+#include "noit_version.h"
 #include "eventer/eventer.h"
 #include "noit_listener.h"
 #include "utils/noit_hash.h"

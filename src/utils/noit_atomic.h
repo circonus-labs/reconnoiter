@@ -139,7 +139,7 @@ static inline int noit_spinlock_trylock(volatile noit_spinlock_t *lock) {
   return (noit_atomic_cas32(lock, 1, 0) == 0);
 }
 
-#elif (defined(__amd64) || defined(__i386)) && (defined(__SUNPRO_C) || defined(__SUNPRO_CC))
+#elif (defined(__sparc) || defined(__sparcv9) || defined(__amd64) || defined(__i386)) && (defined(__SUNPRO_C) || defined(__SUNPRO_CC))
 
 typedef noit_atomic32_t noit_spinlock_t;
 

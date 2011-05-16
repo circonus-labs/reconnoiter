@@ -330,7 +330,7 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
   return rv;
 }
 
-int noit_conf_load(const char *path) {
+static int noit_conf_load_internal(const char *path) {
   int rv = 0;
   xmlDocPtr new_config;
   xmlNodePtr root;
@@ -359,6 +359,13 @@ int noit_conf_load(const char *path) {
     return rv;
   }
   rv = -1;
+  return rv;
+}
+int noit_conf_load(const char *path) {
+  int rv;
+  XML2LOG(noit_error);
+  rv = noit_conf_load_internal(path);
+  XML2LOG(xml_debug);
   return rv;
 }
 
@@ -751,7 +758,7 @@ noit_conf_reload(noit_console_closure_t ncct,
                  int argc, char **argv,
                  noit_console_state_t *state, void *closure) {
   XML2CONSOLE(ncct);
-  if(noit_conf_load(master_config_file)) {
+  if(noit_conf_load_internal(master_config_file)) {
     XML2LOG(xml_debug);
     nc_printf(ncct, "error loading config\n");
     return -1;

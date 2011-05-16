@@ -45,15 +45,15 @@ public class CounterViewFactory extends ViewFactorySupport {
         timestampExpression = validatedNodes[0];
         valueExpression = validatedNodes[1];
     
-        if ((timestampExpression.getType() != long.class) && 
-            (timestampExpression.getType() != Long.class)) {
+        if ((timestampExpression.getExprEvaluator().getType() != long.class) && 
+            (timestampExpression.getExprEvaluator().getType() != Long.class)) {
             throw new ViewParameterException(
                 "View requires long-typed timestamp values in parameter 1");
         }
-        if ((valueExpression.getType() != double.class) && 
-            (valueExpression.getType() != Double.class) &&
-            (valueExpression.getType() != long.class) && 
-            (valueExpression.getType() != Long.class)) {
+        if ((valueExpression.getExprEvaluator().getType() != double.class) && 
+            (valueExpression.getExprEvaluator().getType() != Double.class) &&
+            (valueExpression.getExprEvaluator().getType() != long.class) && 
+            (valueExpression.getExprEvaluator().getType() != Long.class)) {
             throw new ViewParameterException(
                 "View requires long-typed or double-typed values for in parameter 2");
         }

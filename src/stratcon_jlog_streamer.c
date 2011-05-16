@@ -913,24 +913,84 @@ stratcon_jlog_streamer_reload(const char *toplevel) {
                                jlog_streamer_ctx_free);
 }
 
+char *
+stratcon_console_noit_opts(noit_console_closure_t ncct,
+                           noit_console_state_stack_t *stack,
+                           noit_console_state_t *dstate,
+                           int argc, char **argv, int idx) {
+  if(argc == 1) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *key_id;
+    int klen, i = 0;
+    void *vconn, *vcn;
+    noit_connection_ctx_t *ctx;
+    noit_hash_table dedup = NOIT_HASH_EMPTY;
+
+    pthread_mutex_lock(&noits_lock);
+    while(noit_hash_next(&noits, &iter, &key_id, &klen, &vconn)) {
+      ctx = (noit_connection_ctx_t *)vconn;
+      vcn = NULL;
+      if(ctx->config && noit_hash_retrieve(ctx->config, "cn", 2, &vcn) &&
+         !noit_hash_store(&dedup, vcn, strlen(vcn), NULL)) {
+        if(!strncmp(vcn, argv[0], strlen(argv[0]))) {
+          if(idx == i) {
+            pthread_mutex_unlock(&noits_lock);
+            noit_hash_destroy(&dedup, NULL, NULL);
+            return strdup(vcn);
+          }
+          i++;
+        }
+      }
+      if(ctx->remote_str &&
+         !noit_hash_store(&dedup, ctx->remote_str, strlen(ctx->remote_str), NULL)) {
+        if(!strncmp(ctx->remote_str, argv[0], strlen(argv[0]))) {
+          if(idx == i) {
+            pthread_mutex_unlock(&noits_lock);
+            noit_hash_destroy(&dedup, NULL, NULL);
+            return strdup(ctx->remote_str);
+          }
+          i++;
+        }
+      }
+    }
+    pthread_mutex_unlock(&noits_lock);
+    noit_hash_destroy(&dedup, NULL, NULL);
+  }
+  if(argc == 2)
+    return noit_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
+  return NULL;
+}
 static int
 stratcon_console_show_noits(noit_console_closure_t ncct,
                             int argc, char **argv,
                             noit_console_state_t *dstate,
                             void *closure) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  const char *key_id;
+  const char *key_id, *ecn;
   int klen, n = 0, i;
   void *vconn;
   noit_connection_ctx_t **ctx;
 
+  if(closure != (void *)0 && argc == 0) {
+    nc_printf(ncct, "takes an argument\n");
+    return 0;
+  }
+  if(closure == (void *)0 && argc > 0) {
+    nc_printf(ncct, "takes no arguments\n");
+    return 0;
+  }
   pthread_mutex_lock(&noits_lock);
   ctx = malloc(sizeof(*ctx) * noits.size);
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctx[n] = (noit_connection_ctx_t *)vconn;
-    noit_atomic_inc32(&ctx[n]->refcnt);
-    n++;
+    if(argc == 0 ||
+       !strcmp(ctx[n]->remote_str, argv[0]) ||
+       (ctx[n]->config && noit_hash_retr_str(ctx[n]->config, "cn", 2, &ecn) &&
+        !strcmp(ecn, argv[0]))) {
+      noit_atomic_inc32(&ctx[n]->refcnt);
+      n++;
+    }
   }
   pthread_mutex_unlock(&noits_lock);
   qsort(ctx, n, sizeof(*ctx), remote_str_sort);
@@ -1448,6 +1508,9 @@ register_console_streamer_commands() {
   noit_console_state_add_cmd(conftnocmd->dstate,
     NCSCMD("noit", stratcon_console_conf_noits, NULL, NULL, (void *)0));
 
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("noit", stratcon_console_show_noits,
+           stratcon_console_noit_opts, NULL, (void *)1));
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
 }

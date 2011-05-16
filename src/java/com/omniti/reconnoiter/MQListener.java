@@ -76,7 +76,9 @@ public class MQListener implements Runnable {
           broker.disconnect();
         }
         catch (Exception e) {
-          System.err.println("MQ connection failed: " + e.getMessage());
+          Throwable cause = e.getCause();
+          if(cause == null) cause = e;
+          System.err.println("MQ connection failed: " + cause.getMessage());
         }
         try { Thread.sleep(1000); } catch (InterruptedException ignore) {}
       }

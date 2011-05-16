@@ -31,6 +31,7 @@
  */
 
 #include "noit_defines.h"
+#include "noit_version.h"
 
 #include <stdio.h>
 #include <unistd.h>

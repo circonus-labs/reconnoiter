@@ -118,10 +118,12 @@
 #undef HAVE_STRLCPY
 #undef HAVE_STRNSTRN
 #undef HAVE_OPENPTY
+#undef HAVE_DECL_OPENPTY
 #undef HAVE_INET_PTON
 #undef HAVE_INET_NTOP
 #undef HAVE_GETOPT
 #undef HAVE_POLL
+#undef HAVE_VASPRINTF
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE
@@ -271,8 +273,5 @@ typedef int32_t vpsized_int;
 #endif
 
 typedef enum { noit_false = 0, noit_true } noit_boolean;
-
-#define NOIT_HEADURL "$HeadURL$"
-#undef NOIT_SVNVERSION
 
 #endif

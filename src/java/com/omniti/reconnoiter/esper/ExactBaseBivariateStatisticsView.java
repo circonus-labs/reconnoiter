@@ -44,7 +44,7 @@ public abstract class ExactBaseBivariateStatisticsView extends ViewSupport
         this.statisticsBean = statisticsBean;
         this.expressionX = expressionX;
         this.expressionY = expressionY;
-        isDouble = (expressionY.getType() != double.class || expressionY.getType() != Double.class);
+        isDouble = (expressionY.getExprEvaluator().getType() != double.class || expressionY.getExprEvaluator().getType() != Double.class);
     }
 
     public void update(EventBean[] newData, EventBean[] oldData)
@@ -65,12 +65,12 @@ public abstract class ExactBaseBivariateStatisticsView extends ViewSupport
             for (int i = 0; i < newData.length; i++)
             {
                 eventsPerStream[0] = newData[i];
-                BigDecimal X = new BigDecimal(((Number) expressionX.evaluate(eventsPerStream, true, statementContext)).toString());
+                BigDecimal X = new BigDecimal(((Number) expressionX.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).toString());
                 BigDecimal Y;
                 if(isDouble)
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).doubleValue());
+                  Y = new BigDecimal(((Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).doubleValue());
                 else
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).toString());
+                  Y = new BigDecimal(((Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).toString());
                 statisticsBean.addPoint(X, Y);
             }
         }
@@ -81,12 +81,12 @@ public abstract class ExactBaseBivariateStatisticsView extends ViewSupport
             for (int i = 0; i < oldData.length; i++)
             {
                 eventsPerStream[0] = oldData[i];
-                BigDecimal X = new BigDecimal(((Number) expressionX.evaluate(eventsPerStream, true, statementContext)).toString());
+                BigDecimal X = new BigDecimal(((Number) expressionX.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).toString());
                 BigDecimal Y;
                 if(isDouble)
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).doubleValue());
+                  Y = new BigDecimal(((Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).doubleValue());
                 else
-                  Y = new BigDecimal(((Number) expressionY.evaluate(eventsPerStream, true, statementContext)).toString());
+                  Y = new BigDecimal(((Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext)).toString());
                 statisticsBean.removePoint(X, Y);
             }
         }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf8" standalone="yes"?>
 <stratcon lockfile="/var/run/stratcond.lock">
+  <!-- <watchdog glider="/opt/gimli/bin/glider" tracedir="/var/log/stratcond.crash"/> -->
   <eventer/>
 
   <logs>
