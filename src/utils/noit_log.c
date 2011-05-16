@@ -243,7 +243,7 @@ typedef struct {
   jlog_ctx *log;
   pthread_t writer;
   void *head;
-  int gen;  /* generation */
+  noit_atomic32_t gen;  /* generation */
 } jlog_asynch_ctx;
 
 static int
@@ -374,9 +374,10 @@ jlog_logio_asynch_writer(void *vls) {
   noit_log_stream_t ls = vls;
   jlog_asynch_ctx *actx = ls->op_ctx;
   jlog_line *iter = NULL;
-  int gen = actx->gen;
-  noitL(noit_error, "starting asynchronous jlog writer[%d/%p]\n",
-        (int)getpid(), (void *)pthread_self());
+  int gen;
+  gen = noit_atomic_inc32(&actx->gen);
+  noitL(noit_error, "starting asynchronous jlog writer[%d/%p] (%d-%d)\n",
+        (int)getpid(), (void *)pthread_self(), gen, actx->gen);
   while(gen == actx->gen) {
     pthread_rwlock_t *lock;
     int fast = 0, max = 1000;
@@ -406,10 +407,10 @@ jlog_logio_asynch_writer(void *vls) {
 }
 static int
 jlog_logio_reopen(noit_log_stream_t ls) {
-  void *unused;
   char **subs;
   jlog_asynch_ctx *actx = ls->op_ctx;
   pthread_rwlock_t *lock = ls->lock;
+  pthread_attr_t tattr;
   int i;
   /* reopening only has the effect of removing temporary subscriptions */
   /* (they start with ~ in our hair-brained model */
@@ -427,8 +428,8 @@ jlog_logio_reopen(noit_log_stream_t ls) {
  bail:
   if(lock) pthread_rwlock_unlock(lock);
 
-  actx->gen++;
-  pthread_join(actx->writer, &unused);
+  pthread_attr_init(&tattr);
+  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
     return -1;
   
@@ -439,6 +440,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub, **subs, *p;
   jlog_asynch_ctx *actx;
   jlog_ctx *log = NULL;
+  pthread_attr_t tattr;
   int i, listed, found;
 
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
@@ -523,6 +525,8 @@ jlog_logio_open(noit_log_stream_t ls) {
   actx->log = log;
   ls->op_ctx = actx;
 
+  pthread_attr_init(&tattr);
+  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
     return -1;
 
