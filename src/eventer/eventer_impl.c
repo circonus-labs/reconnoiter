@@ -90,9 +90,9 @@ int eventer_impl_propset(const char *key, const char *value) {
     }
     return 0;
   }
-  else if(!strcasecmp(key, "debugging")) {
+  else if(!strcasecmp(key, "rlim_nofiles")) {
     desired_limit = atoi(value);
-    if(__default_queue_threads < 256) {
+    if(desired_limit < 256) {
       noitL(noit_error, "rlim_nofiles must be >= 256\n");
       return -1;
     }
