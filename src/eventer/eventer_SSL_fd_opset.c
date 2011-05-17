@@ -45,8 +45,20 @@
 
 #define EVENTER_SSL_DATANAME "eventer_ssl"
 
+#define SSL_CTX_KEYLEN (PATH_MAX * 4 + 5)
+typedef struct {
+  char *key;
+  SSL_CTX *internal_ssl_ctx;
+  time_t creation_time;
+  noit_atomic32_t refcnt;
+} ssl_ctx_cache_node;
+
+static noit_hash_table ssl_ctx_cache;
+static pthread_mutex_t ssl_ctx_cache_lock;
+static int ssl_ctx_cache_expiry = 3600;
+
 struct eventer_ssl_ctx_t {
-  SSL_CTX *ssl_ctx;
+  ssl_ctx_cache_node *ssl_ctx_cn;
   SSL     *ssl;
   char    *issuer;
   char    *subject;
@@ -58,6 +70,8 @@ struct eventer_ssl_ctx_t {
   unsigned no_more_negotiations:1;
   unsigned renegotiated:1;
 };
+
+#define ssl_ctx ssl_ctx_cn->internal_ssl_ctx
 
 /* Static function prototypes */
 static void SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx);
@@ -231,10 +245,20 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
 /*
  * Helpers to create and destroy our context.
  */
+static void
+ssl_ctx_cache_node_free(ssl_ctx_cache_node *node) {
+  if(!node) return;
+  if(noit_atomic_dec32(&node->refcnt) == 0) {
+    SSL_CTX_free(node->internal_ssl_ctx);
+    free(node->key);
+    free(node);
+  }
+}
+
 void
 eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx) {
   if(ctx->ssl) SSL_free(ctx->ssl);
-  if(ctx->ssl_ctx) SSL_CTX_free(ctx->ssl_ctx);
+  if(ctx->ssl_ctx_cn) ssl_ctx_cache_node_free(ctx->ssl_ctx_cn);
   if(ctx->issuer) free(ctx->issuer);
   if(ctx->subject) free(ctx->subject);
   if(ctx->cert_error) free(ctx->cert_error);
@@ -256,43 +280,109 @@ eventer_SSL_server_info_callback(const SSL *ssl, int type, int val) {
   }
 }
 
+static void
+ssl_ctx_key_write(char *b, int blen, eventer_ssl_orientation_t type,
+                  const char *certificate, const char *key,
+                  const char *ca, const char *ciphers) {
+  snprintf(b, blen, "%c:%s:%s:%s:%s",
+           (type == SSL_SERVER) ? 'S' : 'C',
+           certificate ? certificate : "", key ? key : "",
+           ca ? ca : "", ciphers ? ciphers : "");
+}
+
+static void
+ssl_ctx_cache_remove(const char *key) {
+  pthread_mutex_lock(&ssl_ctx_cache_lock);
+  noit_hash_delete(&ssl_ctx_cache, key, strlen(key),
+                   NULL, (void (*)(void *))ssl_ctx_cache_node_free);
+  pthread_mutex_unlock(&ssl_ctx_cache_lock);
+}
+
+static ssl_ctx_cache_node *
+ssl_ctx_cache_get(const char *key) {
+  void *vnode;
+  ssl_ctx_cache_node *node = NULL;
+  pthread_mutex_lock(&ssl_ctx_cache_lock);
+  if(noit_hash_retrieve(&ssl_ctx_cache, key, strlen(key), &vnode)) {
+    node = vnode;
+    noit_atomic_inc32(&node->refcnt);
+  }
+  pthread_mutex_unlock(&ssl_ctx_cache_lock);
+  return node;
+}
+
+static ssl_ctx_cache_node *
+ssl_ctx_cache_set(ssl_ctx_cache_node *node) {
+  void *vnode;
+  pthread_mutex_lock(&ssl_ctx_cache_lock);
+  if(noit_hash_retrieve(&ssl_ctx_cache, node->key, strlen(node->key),
+                        &vnode)) {
+    ssl_ctx_cache_node_free(node);
+    node = vnode;
+  }
+  else {
+    noit_hash_store(&ssl_ctx_cache, node->key, strlen(node->key), node);
+  }
+  noit_atomic_inc32(&node->refcnt);
+  pthread_mutex_unlock(&ssl_ctx_cache_lock);
+  return node;
+}
+
 eventer_ssl_ctx_t *
 eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                     const char *certificate, const char *key,
                     const char *ca, const char *ciphers) {
+  char ssl_ctx_key[SSL_CTX_KEYLEN];
   eventer_ssl_ctx_t *ctx;
+  time_t now;
   ctx = calloc(1, sizeof(*ctx));
   if(!ctx) return NULL;
-  /*
-   * First step is to setup the SSL context.  This is long-lived in SSL-land
-   * however, that would require us caching it.  Maybe we'll do that?
-   */
-  ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
-                             SSLv23_server_method() : SSLv23_client_method());
-  if(!ctx->ssl_ctx) return NULL;
-  if (type == SSL_SERVER)
-    SSL_CTX_set_session_id_context(ctx->ssl_ctx,
-            (unsigned char *)EVENTER_SSL_DATANAME,
-            sizeof(EVENTER_SSL_DATANAME)-1);
-  SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_ALL);
-  if(certificate &&
-     SSL_CTX_use_certificate_chain_file(ctx->ssl_ctx, certificate) != 1)
-    goto bail;
-  if(key &&
-     SSL_CTX_use_RSAPrivateKey_file(ctx->ssl_ctx,key,
-                                    SSL_FILETYPE_PEM) != 1)
-    goto bail;
-  if(ca) {
-    STACK_OF(X509_NAME) *cert_stack;
-    if(!SSL_CTX_load_verify_locations(ctx->ssl_ctx,ca,NULL) ||
-       (cert_stack = SSL_load_client_CA_file(ca)) == NULL)
-      goto bail;
-    SSL_CTX_set_client_CA_list(ctx->ssl_ctx, cert_stack);
+
+  now = time(NULL);
+  ssl_ctx_key_write(ssl_ctx_key, sizeof(ssl_ctx_key),
+                    type, certificate, key, ca, ciphers);
+  ctx->ssl_ctx_cn = ssl_ctx_cache_get(ssl_ctx_key);
+  if(ctx->ssl_ctx_cn) {
+    if(now - ctx->ssl_ctx_cn->creation_time > ssl_ctx_cache_expiry) {
+      noit_atomic_dec32(&ctx->ssl_ctx_cn->refcnt);
+      ssl_ctx_cache_remove(ssl_ctx_key);
+      ctx->ssl_ctx_cn = NULL;
+    }
   }
-  SSL_CTX_set_tmp_rsa_callback(ctx->ssl_ctx, tmp_rsa_cb);
-  SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
-  SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
-  SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2);
+
+  if(!ctx->ssl_ctx_cn) {
+    ctx->ssl_ctx_cn = calloc(1, sizeof(*ctx->ssl_ctx_cn));
+    ctx->ssl_ctx_cn->key = strdup(ssl_ctx_key);
+    ctx->ssl_ctx_cn->refcnt = 1;
+    ctx->ssl_ctx_cn->creation_time = now;
+    ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                               SSLv23_server_method() : SSLv23_client_method());
+    if(!ctx->ssl_ctx) return NULL;
+    if (type == SSL_SERVER)
+      SSL_CTX_set_session_id_context(ctx->ssl_ctx,
+              (unsigned char *)EVENTER_SSL_DATANAME,
+              sizeof(EVENTER_SSL_DATANAME)-1);
+    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_ALL);
+    if(certificate &&
+       SSL_CTX_use_certificate_chain_file(ctx->ssl_ctx, certificate) != 1)
+      goto bail;
+    if(key &&
+       SSL_CTX_use_RSAPrivateKey_file(ctx->ssl_ctx,key,
+                                      SSL_FILETYPE_PEM) != 1)
+      goto bail;
+    if(ca) {
+      STACK_OF(X509_NAME) *cert_stack;
+      if(!SSL_CTX_load_verify_locations(ctx->ssl_ctx,ca,NULL) ||
+         (cert_stack = SSL_load_client_CA_file(ca)) == NULL)
+        goto bail;
+      SSL_CTX_set_client_CA_list(ctx->ssl_ctx, cert_stack);
+    }
+    SSL_CTX_set_tmp_rsa_callback(ctx->ssl_ctx, tmp_rsa_cb);
+    SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
+    SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
+    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2);
+    ssl_ctx_cache_set(ctx->ssl_ctx_cn);
+  }
 
   ctx->ssl = SSL_new(ctx->ssl_ctx);
   if(!ctx->ssl) goto bail;
@@ -540,6 +630,9 @@ static void lock_dynamic(int mode, struct CRYPTO_dynlock_value *lock,
                          const char *f, int l) {
   if(mode & CRYPTO_LOCK) pthread_mutex_lock(&lock->lock);
   else pthread_mutex_unlock(&lock->lock);
+}
+void eventer_ssl_set_ssl_ctx_cache_expiry(int timeout) {
+  ssl_ctx_cache_expiry = timeout;
 }
 void eventer_ssl_init() {
   int i, numlocks;

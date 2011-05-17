@@ -94,6 +94,8 @@ API_EXPORT(int)
 API_EXPORT(int)
   eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                           X509_STORE_CTX *x509ctx, void *closure);
+API_EXPORT(void)
+  eventer_ssl_set_ssl_ctx_cache_expiry(int timeout);
 
 /* These are all helper functions to expose information
  * gleaned in the cert verfication process.
