@@ -179,7 +179,7 @@ distclean:	clean
 
 Makefile.dep:
 	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) -I$(top_srcdir)/src/lua/src @APRCFLAGS@ \
-			$(DEPFLAGS) -c *.c > Makefile.dep
+		$(DEPFLAGS) -c *.c | sed -e 's/\.o:/\.lo:/' > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep
