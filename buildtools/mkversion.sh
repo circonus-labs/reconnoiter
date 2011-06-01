@@ -23,7 +23,7 @@ fi
 
 if [ -r "$1" ]; then
   eval `cat noit_version.h | awk '/^#define/ { print $2"="$3;}'`
-  if [ "$NOIT_BRANCH" == "$BRANCH" -a "$NOIT_VERSION" == "$VERSION" ]; then
+  if [ "$NOIT_BRANCH" = "$BRANCH" -a "$NOIT_VERSION" = "$VERSION" ]; then
     echo "    * version unchanged"
     exit
   fi
