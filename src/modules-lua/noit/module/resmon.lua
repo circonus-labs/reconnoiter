@@ -130,7 +130,7 @@ function json_metric(check, prefix, o)
         check.metric_int32(prefix, o and 1 or 0)
         cnt = cnt + 1
     else
-        noit.log("error", "got unknown type: " .. type(o) .. "\n")
+        noit.log("debug", "got unknown type: " .. type(o) .. "\n")
         cnt = 0
     end
     return cnt
@@ -250,7 +250,7 @@ function initiate(module, check)
        string.find(hdrs_in["content-type"] or '', 'javascript') ~= nil then
         jsondoc = noit.parsejson(output)
         if jsondoc == nil then
-            noit.log("error", "bad json: %s", output)
+            noit.log("debug", "bad json: %s", output)
             check.status("json parse error")
             return
         end
@@ -268,7 +268,9 @@ function initiate(module, check)
     if doc == nil then
         jsondoc = noit.parsejson(output)
         if jsondoc == nil then
-            noit.log("error", "bad xml: %s", output)
+            if output ~= "" then
+                noit.log("debug", "bad xml: %s", output)
+            end
             check.status("xml parse error")
             return
         end
