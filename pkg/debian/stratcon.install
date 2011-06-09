@@ -7,9 +7,9 @@ usr/share/java/lib/cglib-nodep-2.2.jar
 usr/share/java/lib/commons-dbcp-1.2.2.jar
 usr/share/java/lib/commons-io-1.2.jar
 usr/share/java/lib/commons-pool-1.4.jar
-usr/share/java/lib/esper-3.5.0.jar
+usr/share/java/lib/esper-4.1.0.jar
 usr/share/java/lib/postgresql-8.3-604.jdbc3.jar
-usr/share/java/lib/rabbitmq-client.jar
+usr/share/java/lib/rabbitmq-client-2.4.1.jar
 usr/share/java/lib/spring-beans-2.5.5.jar
 usr/share/java/lib/spring-context-2.5.5.jar
 usr/share/java/reconnoiter.jar

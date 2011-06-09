@@ -660,6 +660,12 @@ AC_DEFINE_UNQUOTED(MODULES_DIR, "${fullpath}/noit")
 MODULES_DIR=${fullpath}/noit
 AC_SUBST(MODULES_DIR)
 
+JAVA_LIB_DIR="$prefix/java"
+AC_ARG_WITH(java-libdir,
+	[--with-javalibdir=PFX  prefix to install java libs (optional)],
+	[JAVA_LIB_DIR=$withval],)
+AC_SUBST(JAVA_LIB_DIR)
+
 AC_MSG_CHECKING([Resolving sysconfdir path...])
 fullpath=$sysconfdir
 while test "x$temppath" != "x$fullpath" ; do
