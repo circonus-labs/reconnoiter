@@ -29,7 +29,8 @@ MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@
+SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
+	rabbitmq_driver.@MODULEEXT@
 
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
@@ -84,6 +85,16 @@ libstomp.lo:	libstomp.c
 
 stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
+	@echo "- linking $@"
+
+RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
+	librabbitmq/amqp_api.lo librabbitmq/amqp_connection.lo \
+	librabbitmq/amqp_debug.lo librabbitmq/amqp_framing.lo \
+	librabbitmq/amqp_mem.lo librabbitmq/amqp_socket.lo \
+	librabbitmq/amqp_table.lo
+
+rabbitmq_driver.@MODULEEXT@:    $(RABBITMQ_DRIVER_OBJS)
+	@$(MODULELD) $(LDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
 	@echo "- linking $@"
 
 mysql.@MODULEEXT@:	mysql.lo
@@ -172,7 +183,7 @@ install-smodules:	$(SMODULES)
 	done
 
 clean:
-	rm -f *.lo *.@MODULEEXT@ *.xmlh
+	rm -f *.lo *.@MODULEEXT@ *.xmlh $(RABBITMQ_DRIVER_OBJS)
 
 distclean:	clean
 	rm -f Makefile
