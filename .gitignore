@@ -60,3 +60,4 @@ test/test-stratcon.crt
 test/test-stratcon.csr
 test/test-stratcon.key
 test/t/logs
+pkg/debian/changelog
