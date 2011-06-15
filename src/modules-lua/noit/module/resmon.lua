@@ -269,7 +269,7 @@ function initiate(module, check)
         jsondoc = noit.parsejson(output)
         if jsondoc == nil then
             if output ~= "" then
-                noit.log("debug", "bad xml: %s", output)
+                noit.log("debug", "bad xml: %s\n", output)
             end
             check.status("xml parse error")
             return
