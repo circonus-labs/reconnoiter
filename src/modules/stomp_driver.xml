@@ -1,0 +1,35 @@
+<module>
+  <name>stomp_driver</name>
+  <description><para>The stomp_driver module allows publishing of metrics and status messages over the STOMP protocol for use powering the IEP system.</para></description>
+  <loader>C</loader>
+  <image>stomp_driver.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Loading the stomp_driver.</title>
+      <para>This example loads the stomp_driver and configures it.</para>
+      <programlisting><![CDATA[
+      <stratcon>
+        <modules>
+          <module image="stomp_driver" name="stomp_driver" />
+        </modules>
+        <iep>
+          <mq type="stomp">
+            <!--  exchange, username and password are all optional
+            <exchange></exchange>
+            <username></username>
+            <password></password>
+            -->
+            <!-- the following will default to the values shown -->
+            <destination>/queue/noit.firehose</destination>
+            <hostname>127.0.0.1</hostname>
+            <port>61613</port>
+          </mq>
+        </iep>
+      </stratcon>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

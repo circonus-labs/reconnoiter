@@ -71,11 +71,11 @@ postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
-postgres_ingestor.lo: postgres_ingestor.c
+postgres_ingestor.lo: postgres_ingestor.c postgres_ingestor.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
-stomp_driver.lo:	stomp_driver.c
+stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 	@echo "- compiling $<"
 

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<section>
+  <title>stomp_driver</title>
+  <para>The stomp_driver module allows publishing of metrics and status messages over the STOMP protocol for use powering the IEP system.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>stomp_driver.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Loading the stomp_driver.</title>
+    <para>This example loads the stomp_driver and configures it.</para>
+    <programlisting>
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="stomp_driver" name="stomp_driver" /&gt;
+        &lt;/modules&gt;
+        &lt;iep&gt;
+          &lt;mq type="stomp"&gt;
+            &lt;!--  exchange, username and password are all optional
+            &lt;exchange&gt;&lt;/exchange&gt;
+            &lt;username&gt;&lt;/username&gt;
+            &lt;password&gt;&lt;/password&gt;
+            --&gt;
+            &lt;!-- the following will default to the values shown --&gt;
+            &lt;destination&gt;/queue/noit.firehose&lt;/destination&gt;
+            &lt;hostname&gt;127.0.0.1&lt;/hostname&gt;
+            &lt;port&gt;61613&lt;/port&gt;
+          &lt;/mq&gt;
+        &lt;/iep&gt;
+      &lt;/stratcon&gt;
+    </programlisting>
+  </example>
+</section>
