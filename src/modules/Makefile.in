@@ -93,6 +93,8 @@ RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
 	librabbitmq/amqp_mem.lo librabbitmq/amqp_socket.lo \
 	librabbitmq/amqp_table.lo
 
+rabbitmq_driver.lo:	rabbitmq_driver.c rabbitmq_driver.xmlh
+
 rabbitmq_driver.@MODULEEXT@:    $(RABBITMQ_DRIVER_OBJS)
 	@$(MODULELD) $(LDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
 	@echo "- linking $@"

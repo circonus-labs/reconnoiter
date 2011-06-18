@@ -37,6 +37,7 @@
 #include "noit_conf.h"
 #include "librabbitmq/amqp.h"
 #include "librabbitmq/amqp_framing.h"
+#include "rabbitmq_driver.xmlh"
 
 #include <poll.h>
 #include <assert.h>
@@ -438,7 +439,7 @@ noit_module_generic_t rabbitmq_driver = {
     NOIT_GENERIC_ABI_VERSION,
     "rabbitmq_driver",
     "AMQP driver for IEP MQ submission",
-    "",
+    rabbitmq_driver_xml_description,
     noit_rabbimq_driver_onload
   },
   noit_rabbimq_driver_config,
