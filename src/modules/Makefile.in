@@ -30,7 +30,7 @@ MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
-	rabbitmq_driver.@MODULEEXT@
+	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
@@ -72,6 +72,16 @@ postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
 	@echo "- linking $@"
 
 postgres_ingestor.lo: postgres_ingestor.c postgres_ingestor.xmlh
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
+handoff_ingestor.lo:	handoff_ingestor.c handoff_ingestor.xmlh
+
+handoff_ingestor.@MODULEEXT@:	handoff_ingestor.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ handoff_ingestor.lo
+	@echo "- linking $@"
+
+handoff_ingestor.lo: handoff_ingestor.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
