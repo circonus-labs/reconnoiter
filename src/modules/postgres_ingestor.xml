@@ -16,6 +16,9 @@
           <module image="postgres_ingestor" name="postgres_ingestor" />
         </modules>
         <database>
+          <journal>
+            <path>/var/log/stratcon.persist</path>
+          </journal>
           <dbconfig>
             <host>db1</host>
             <dbname>reconnoiter</dbname>

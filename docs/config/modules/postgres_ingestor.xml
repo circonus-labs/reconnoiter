@@ -31,6 +31,9 @@
           &lt;module image="postgres_ingestor" name="postgres_ingestor" /&gt;
         &lt;/modules&gt;
         &lt;database&gt;
+          &lt;journal&gt;
+            &lt;path&gt;/var/log/stratcon.persist&lt;/path&gt;
+          &lt;/journal&gt;
           &lt;dbconfig&gt;
             &lt;host&gt;db1&lt;/host&gt;
             &lt;dbname&gt;reconnoiter&lt;/dbname&gt;
