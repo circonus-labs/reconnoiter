@@ -34,11 +34,26 @@
 
 #include <uuid/uuid.h>
 #include <netinet/in.h>
+#include <zlib.h>
 
 #include "noit_check.h"
 #include "noit_filters.h"
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
+#include "utils/noit_hash.h"
+#include "utils/noit_log.h"
+#include "utils/noit_b64.h"
+
+#ifdef HAVE_BUNDLED_METRICS
+
+#include "protocol/thrift_protocol.h"
+#include "protocol/thrift_binary_protocol.h"
+#include "transport/thrift_memory_buffer.h"
+#include "transport/thrift_transport.h"
+
+#include "gen-c_glib/bundle_types.h"
+
+#endif
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
@@ -52,11 +67,22 @@
  *
  * METRICS:
  *  'M' TIMESTAMP UUID NAME TYPE VALUE
+ *
+ * BUNDLED PAYLOAD
+ *  'B' TIMESTAMP, strlen(base64(bundled_metrics)) base64(bundled_metrics)
  */
 
 static noit_log_stream_t check_log = NULL;
 static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
+static noit_log_stream_t bundle_log = NULL;
+
+#ifdef HAVE_BUNDLED_METRICS
+static bool type_initted = false;
+static bool use_compression = true;
+#endif
+
+
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
 #define MAKE_CHECK_UUID_STR(uuid_str, len, ls, check) do { \
@@ -124,6 +150,219 @@ noit_check_log_check(noit_check_t *check) {
     handle_extra_feeds(check, _noit_check_log_check);
     SETUP_LOG(check, return);
     _noit_check_log_check(check_log, check);
+  }
+}
+
+#ifdef HAVE_BUNDLED_METRICS
+
+static void
+_noit_write_bundle_metric(noit_log_stream_t ls,
+                           Bundle *bundle,
+                           metric_t *m,
+                           Metric *mobj) {
+  mobj->metricType = m->metric_type;
+  if(!m->metric_value.s) { /* they are all null */
+    return;
+  }
+
+  switch(m->metric_type) {
+    case METRIC_INT32:
+    case METRIC_UINT32:
+      mobj->valueI32 = *(m->metric_value.I);
+      mobj->__isset_valueI32 = true;
+      break;
+    case METRIC_INT64:
+    case METRIC_UINT64:
+      mobj->valueI64 = *(m->metric_value.L);
+      mobj->__isset_valueI64 = true;
+      break;
+    case METRIC_DOUBLE:
+      mobj->valueDbl = *(m->metric_value.n);
+      mobj->__isset_valueDbl = true;
+      break;
+    case METRIC_STRING:
+      mobj->valueStr = m->metric_value.s;
+      mobj->__isset_valueStr = true;
+      break;
+    default:
+      noitL(noit_error, "Unknown metric type '%c' 0x%x\n",
+            m->metric_type, m->metric_type);
+  }
+}
+
+static void
+_noit_write_bundle_metrics(noit_log_stream_t ls,
+                           stats_t *c,
+                           Bundle *bundle) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *key;
+  int klen;
+  void *vm;
+
+  while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
+    /* If we apply the filter set and it returns false, we don't log */
+    metric_t *m = (metric_t *)vm;
+    Metric* mobj = g_object_new (TYPE_METRIC, NULL);
+    _noit_write_bundle_metric(ls, bundle, m, mobj);
+    g_hash_table_insert (bundle->metrics, m->metric_name, mobj);
+    // Set the optional flag to true only if there is at least 1 metric
+    bundle->__isset_metrics = true;
+    // TODO: can we g_object_unref(mobj) here?
+  }
+}
+
+static int
+_noit_check_compress_b64(ThriftMemoryBuffer *tbuf,
+                         unsigned char ** buf_out,
+                         uLong * len_out) {
+  uLong initial_dlen, dlen;
+  unsigned char *compbuff, *b64buff;
+
+  // Compress saves 25% of space (ex 470 -> 330)
+  if (use_compression) {
+    /* Compress */
+    initial_dlen = dlen = compressBound(tbuf->buf->len);
+    compbuff = malloc(initial_dlen);
+    if(!compbuff) return -1;
+    if(Z_OK != compress2((Bytef *)compbuff, &dlen,
+                         (Bytef *)tbuf->buf->data, tbuf->buf->len, 9)) {
+      noitL(noit_error, "Error compressing bundled metrics.\n");
+      free(compbuff);
+      return -1;
+    }
+  } else {
+    // Or don't
+    dlen = tbuf->buf->len;
+    compbuff = (unsigned char *)tbuf->buf->data;
+  }
+
+  /* Encode */
+  // Problems with the calculation?
+  initial_dlen = ((dlen + 2) / 3 * 4);
+  b64buff = malloc(initial_dlen);
+  if (!b64buff) {
+    if (use_compression) {
+      // Free only if we malloc'd
+      free(compbuff);
+    }
+    return -1;
+  }
+  dlen = noit_b64_encode(compbuff, dlen,
+                         (char *)b64buff, initial_dlen);
+  if (use_compression) {
+    // Free only if we malloc'd
+    free(compbuff);
+  }
+  if(dlen == 0) {
+    noitL(noit_error, "Error base64'ing bundled metrics.\n");
+    free(b64buff);
+    return -1;
+  }
+  *buf_out = b64buff;
+  *len_out = dlen;
+  return 0;
+}
+
+static int
+_noit_check_log_bundle_serialize(noit_log_stream_t ls,
+                       noit_check_t *check) {
+  int rv;
+  Bundle *tobject = NULL;
+  ThriftMemoryBuffer *tbuffer = NULL;
+  ThriftProtocol *protocol = NULL;
+  GError *write_error = NULL;
+  char uuid_str[256*3+37];
+  unsigned char *out_buf =  NULL;
+  uLong buf_len = 0;
+  stats_t *current = &check->stats.current;
+
+  // Metric cleanup iteration
+  GHashTableIter iter;
+  gpointer key, value;
+
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
+
+  if (!type_initted) {
+    g_type_init();
+    type_initted = true;
+  }
+
+  tobject = g_object_new (TYPE_BUNDLE, NULL);
+  tbuffer = g_object_new (THRIFT_TYPE_MEMORY_BUFFER, NULL);
+  protocol = g_object_new (THRIFT_TYPE_BINARY_PROTOCOL, "transport",
+                           tbuffer, NULL);
+
+  // Set the attributes
+  tobject->id = uuid_str;
+  tobject->checkModule = check->module;
+  tobject->target = check->target;
+  tobject->name = check->name;
+  tobject->available = current->available;
+  tobject->state = current->state;
+  tobject->duration = current->duration;
+  tobject->status = current->status;
+  tobject->timestamp = current->whence.tv_sec * 1000 + (current->whence.tv_usec / 1000);  // Use milliseconds here
+
+  _noit_write_bundle_metrics(ls, current, tobject);
+
+  thrift_struct_write (THRIFT_STRUCT(tobject), protocol, &write_error);
+
+  // The data is in tbuffer->buf->{data,len} tbuffer->buf_size is just the
+  // allocated size
+  if (write_error != NULL) {
+    noitL(noit_error, "Error message from translation: %s\n", (char *)(write_error->message));
+    g_error_free (write_error);
+  }
+  rv = _noit_check_compress_b64(tbuffer, &out_buf, &buf_len);
+  if (rv) {
+    noitL(noit_error, "Error message from compression/b64\n");
+  }
+
+  noit_log(ls, &(current->whence), __FILE__, __LINE__,
+                  "B\t%lu\t%.*s\n", buf_len, (unsigned int)buf_len, out_buf);
+  free(out_buf);
+
+  g_object_unref(protocol);
+  g_object_unref(tbuffer);
+
+  // Free each metrics gobject
+  g_hash_table_iter_init (&iter, tobject->metrics);
+  while (g_hash_table_iter_next (&iter, &key, &value)) 
+  {
+    g_object_unref(value);
+  }
+
+  g_object_unref(tobject);
+  return rv;
+}
+
+#endif
+
+static int
+_noit_check_log_bundle(noit_log_stream_t ls,
+                       noit_check_t *check) {
+
+
+  SETUP_LOG(bundle, );
+  char uuid_str[256*3+37];
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
+  stats_t *c;
+  c = &check->stats.current;
+
+#ifdef HAVE_BUNDLED_METRICS
+  return _noit_check_log_bundle_serialize(ls, check);
+#else
+  noitL(noit_error, "You've enabled bundled metrics, but you haven't compiled them in correctly");
+  abort();
+  return -1;
+#endif
+
+}
+void noit_check_log_bundle(noit_check_t *check) {
+  handle_extra_feeds(check, _noit_check_log_bundle);
+  if (!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_METRICS))) {
+    SETUP_LOG(bundle, return);
+    _noit_check_log_bundle(bundle_log, check);
   }
 }
 
