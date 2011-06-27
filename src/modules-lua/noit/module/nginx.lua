@@ -92,7 +92,7 @@ local HttpClient = require 'noit.HttpClient'
 
 function initiate(module, check)
   local url = check.config.url
-  local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
+  local host, port, uri = string.match(url, "^http://([^:/]*):?([0-9]*)(/?.*)$");
 
   local good = false
   local starttime = noit.timeval.now()
