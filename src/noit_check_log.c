@@ -44,6 +44,9 @@
  * NOIT CONFIG (implemented in noit_conf.c):
  *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
  *
+ * DELETE:
+ *  'D' TIMESTAMP UUID
+ *
  * CHECK:
  *  'C' TIMESTAMP UUID TARGET MODULE NAME
  *
@@ -57,6 +60,7 @@
 static noit_log_stream_t check_log = NULL;
 static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
+static noit_log_stream_t delete_log = NULL;
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
 #define MAKE_CHECK_UUID_STR(uuid_str, len, ls, check) do { \
@@ -101,6 +105,28 @@ handle_extra_feeds(noit_check_t *check,
   /* We're done... we may have destroyed the last feed.
    * that combined with transience means we should kill the check */
   /* noit_check_transient_remove_feed(check, NULL); */
+}
+
+static int
+_noit_check_log_delete(noit_log_stream_t ls,
+                       noit_check_t *check) {
+  stats_t *c;
+  char uuid_str[256*3+37];
+  SETUP_LOG(delete, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
+
+  c = &check->stats.current;
+  return noit_log(ls, &c->whence, __FILE__, __LINE__,
+                  "D\t%lu.%03lu\t%s\n",
+                  SECPART(&c->whence), MSECPART(&c->whence), uuid_str);
+}
+void
+noit_check_log_delete(noit_check_t *check) {
+  if(!(check->flags & NP_TRANSIENT)) {
+    handle_extra_feeds(check, _noit_check_log_delete);
+    SETUP_LOG(delete, return);
+    _noit_check_log_delete(delete_log, check);
+  }
 }
 
 static int
