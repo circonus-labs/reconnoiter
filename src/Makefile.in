@@ -149,10 +149,20 @@ man/stratcond.usage.h:	make-man
 noitd.o:	man/noitd.usage.h
 stratcond.o:	man/stratcond.usage.h
 
+stratcon_jlog_streamer.o:	@DTRACEHDR@
+
+@DTRACEOBJ@:    $(OBJS)
+	@-test -n "@DTRACE@" && \
+	@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o @DTRACEOBJ@ $(OBJS)
+
+@DTRACEHDR@:    dtrace_probes.d
+	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
+
 noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h
 	@echo "- linking $@"
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
+		@DTRACEOBJ@ \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
@@ -167,6 +177,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES)
 	@echo "- linking $@"
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
+		@DTRACEOBJ@ \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
 		-Leventer -leventer \
