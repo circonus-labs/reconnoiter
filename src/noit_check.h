@@ -265,6 +265,7 @@ API_EXPORT(void)
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
+API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
                                        struct timeval *whence, metric_t *m);

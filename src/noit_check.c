@@ -777,6 +777,8 @@ noit_poller_deschedule(uuid_t in) {
   checker = (noit_check_t *)vcheck;
   checker->flags |= (NP_DISABLED|NP_KILLED);
 
+  noit_check_log_delete(checker);
+
   noit_skiplist_remove(&polls_by_name, checker, NULL);
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
 

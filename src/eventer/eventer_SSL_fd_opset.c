@@ -50,6 +50,7 @@ typedef struct {
   char *key;
   SSL_CTX *internal_ssl_ctx;
   time_t creation_time;
+  unsigned crl_loaded:1;
   noit_atomic32_t refcnt;
 } ssl_ctx_cache_node;
 
@@ -72,6 +73,7 @@ struct eventer_ssl_ctx_t {
 };
 
 #define ssl_ctx ssl_ctx_cn->internal_ssl_ctx
+#define ssl_ctx_crl_loaded ssl_ctx_cn->crl_loaded
 
 /* Static function prototypes */
 static void SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx);
@@ -401,11 +403,14 @@ eventer_ssl_use_crl(eventer_ssl_ctx_t *ctx, const char *crl_file) {
   int ret;
   X509_STORE *store;
   X509_LOOKUP *lookup;
+  if(ctx->ssl_ctx_crl_loaded) return 1;
   store = SSL_CTX_get_cert_store(ctx->ssl_ctx);
   lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
   ret = X509_load_crl_file(lookup, crl_file, X509_FILETYPE_PEM); 
   X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK |
                               X509_V_FLAG_CRL_CHECK_ALL);
+  if(!ret) eventer_ssl_error();
+  else ctx->ssl_ctx_crl_loaded = 1;
   return ret;
 }
 
