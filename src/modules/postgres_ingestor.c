@@ -693,6 +693,8 @@ stratcon_ingest_execute(conn_q *cq, const char *r, const char *remote_cn,
         DECLARE_PARAM_STR(final_buff, final_len);
         free(final_buff);
         break;
+      case 'D':
+        break;
       case 'C':
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         PROCESS_NEXT_FIELD(token,len);
@@ -770,6 +772,8 @@ stratcon_ingest_execute(conn_q *cq, const char *r, const char *remote_cn,
       GET_QUERY(status_insert);
       PG_TM_EXEC(status_insert, d->whence);
       PQclear(d->res);
+      break;
+    case 'D':
       break;
     case 'M':
       switch(d->metric_type) {
