@@ -9,14 +9,9 @@ struct Metric
 
 struct Bundle
 {
-  1: string id,
-  2: string checkModule,
-  3: string target,
-  4: string name,
-  5: byte available,
-  6: byte state,
-  7: i32 duration,
-  8: string status,
-  9: i64 timestamp,
-  10: optional map<string, Metric> metrics,
+  1: byte available,
+  2: byte state,
+  3: i32 duration,
+  4: string status,
+  5: optional map<string, Metric> metrics,
 }
