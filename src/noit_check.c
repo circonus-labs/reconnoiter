@@ -1123,10 +1123,13 @@ noit_check_set_stats(struct _noit_module *module,
           noit_check_state_string(check->stats.current.state));
   }
 
+  /* Write everything out on one line */
+  noit_check_log_bundle(check);
   /* Write out our status */
   noit_check_log_status(check);
   /* Write out all metrics */
   noit_check_log_metrics(check);
+
   /* count the check as complete */
   check_completion_count++;
 

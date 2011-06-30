@@ -1,0 +1,12 @@
+
+CC=@CC@
+CFLAGS=@CFLAGS@
+
+bundle_types.o:
+	$(CC) $(CFLAGS) @LIBS@ -c bundle_types.c
+
+clean:
+	rm -f *.o
+
+distclean: clean
+	rm -f Makefile

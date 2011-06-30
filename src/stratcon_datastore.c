@@ -233,6 +233,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
         }
       }
       break;
+    case 'B':
     case 'n':
       ij = interim_journal_get(remote,remote_cn,0,NULL);
       break;

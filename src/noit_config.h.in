@@ -86,6 +86,7 @@
 #undef HAVE_UUID_UNPARSE_LOWER
 #define IFS_CH '/'
 #undef WORKING_SEM_INIT
+#undef HAVE_BUNDLED_METRICS
 
 #undef HAVE_GETPWNAM_R
 #undef HAVE_GETPWNAM_R_POSIX
@@ -113,6 +114,7 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
+
 
 #undef HAVE_ISSETUGID
 #undef HAVE_STRLCPY
