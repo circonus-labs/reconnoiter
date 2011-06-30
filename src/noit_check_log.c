@@ -69,7 +69,7 @@
  *  'M' TIMESTAMP UUID NAME TYPE VALUE
  *
  * BUNDLED PAYLOAD
- *  'B' TIMESTAMP, strlen(base64(bundled_metrics)) base64(bundled_metrics)
+ *  'B' TIMESTAMP UUID NAME MODULE TARGET strlen(base64(bundled_metrics)) base64(bundled_metrics)
  */
 
 static noit_log_stream_t check_log = NULL;
@@ -293,15 +293,10 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls,
                            tbuffer, NULL);
 
   // Set the attributes
-  tobject->id = uuid_str;
-  tobject->checkModule = check->module;
-  tobject->target = check->target;
-  tobject->name = check->name;
   tobject->available = current->available;
   tobject->state = current->state;
   tobject->duration = current->duration;
   tobject->status = current->status;
-  tobject->timestamp = current->whence.tv_sec * 1000 + (current->whence.tv_usec / 1000);  // Use milliseconds here
 
   _noit_write_bundle_metrics(ls, current, tobject);
 
@@ -319,7 +314,9 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls,
   }
 
   noit_log(ls, &(current->whence), __FILE__, __LINE__,
-                  "B\t%lu\t%.*s\n", buf_len, (unsigned int)buf_len, out_buf);
+                  "B\t%lu.%03lu\t%s\t%s\t%s\t%s\t%.*s\n", SECPART(&(current->whence)), MSECPART(&(current->whence)),
+                       uuid_str, check->name, check->module, check->target,
+                       (unsigned int)buf_len, out_buf);
   free(out_buf);
 
   g_object_unref(protocol);
