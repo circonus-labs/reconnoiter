@@ -203,6 +203,25 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 	]
 )
 
+
+old_LIBS="$LIBS"
+#LIBS="$LIBS `pkg-config --libs thrift_c_glib`"
+LIBS="$LIBS `pkg-config --libs libprotobuf-c`"
+AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size,
+	[
+		AC_DEFINE([HAVE_PROTOBUFS])
+	]
+	[
+    NOIT_OBJS_EXTRA="$NOIT_OBJS_EXTRA bundle.pb-c.o"
+		CFLAGS="$CFLAGS `pkg-config --cflags libprotobuf-c`"
+	],
+	[
+		AC_MSG_WARN([protobuf-c not found, skipping bundled metrics])
+		LIBS=$old_LIBS
+	]
+)
+AC_SUBST(NOIT_OBJS_EXTRA)
+
 old_LIBS=$LIBS
 old_CFLAGS=$CFLAGS
 AC_CHECK_LIB(pq, PQconnectdb,

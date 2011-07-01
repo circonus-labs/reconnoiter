@@ -71,7 +71,7 @@ NOIT_OBJS=noitd.o noit_listener.o \
 	noit_module.o noit_conf.o noit_conf_checks.o noit_tokenizer.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
-        noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o
+        noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o @NOIT_OBJS_EXTRA@
 
 NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
@@ -145,6 +145,7 @@ noit_version.h:
 man/noitd.usage.h:	make-man
 
 man/stratcond.usage.h:	make-man
+
 
 noitd.o:	man/noitd.usage.h
 stratcond.o:	man/stratcond.usage.h
