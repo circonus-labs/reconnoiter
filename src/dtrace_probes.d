@@ -16,4 +16,5 @@ provider stratcon_noit {
 
 provider noit_check {
   probe dispatch(char *, char *, char *, char *);
+  probe status(char *, char *, char *, char *, int, int, char *);
 };

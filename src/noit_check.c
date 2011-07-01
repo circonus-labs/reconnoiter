@@ -42,6 +42,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+#include "dtrace_probes.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
@@ -1123,6 +1124,15 @@ noit_check_set_stats(struct _noit_module *module,
           check->target, check->name,
           noit_check_available_string(check->stats.current.available),
           noit_check_state_string(check->stats.current.state));
+  }
+
+  if(NOIT_CHECK_STATUS_ENABLED()) {
+    char id[UUID_STR_LEN+1];
+    uuid_unparse_lower(check->checkid, id);
+    NOIT_CHECK_STATUS(id, check->module, check->name, check->target,
+                      check->stats.current.available,
+                      check->stats.current.state,
+                      check->stats.current.status);
   }
 
   /* Write out our status */
