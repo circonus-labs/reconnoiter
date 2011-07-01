@@ -31,6 +31,7 @@
  */
 
 #include "noit_defines.h"
+#include "dtrace_probes.h"
 #include "noit_check_tools.h"
 #include "noit_check_tools_shared.h"
 #include "utils/noit_str.h"
@@ -51,8 +52,15 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   noit_check_resolve(rcl->check);
   noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
                            rcl->dispatch);
-  if(NOIT_CHECK_RESOLVED(rcl->check))
+  if(NOIT_CHECK_RESOLVED(rcl->check)) {
+    if(NOIT_CHECK_DISPATCH_ENABLED()) {
+      char id[UUID_STR_LEN+1];
+      uuid_unparse_lower(rcl->check->checkid, id);
+      NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
+                          rcl->check->target);
+    }
     rcl->dispatch(rcl->self, rcl->check);
+  }
   else
     noitL(noit_debug, "skipping %s`%s`%s, unresolved\n",
           rcl->check->target, rcl->check->module, rcl->check->name);

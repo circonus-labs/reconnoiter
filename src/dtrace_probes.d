@@ -13,3 +13,7 @@ provider stratcon_noit {
   probe stream__body(int, char *, char *, char *, int, int, int, int, char *);
   probe stream__checkpoint(int, char *, char *, char *, int, int);
 };
+
+provider noit_check {
+  probe dispatch(char *, char *, char *, char *);
+};

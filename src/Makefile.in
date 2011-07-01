@@ -154,6 +154,7 @@ noitd.o:	man/noitd.usage.h
 stratcond.o:	man/stratcond.usage.h
 
 stratcon_jlog_streamer.o:	@DTRACEHDR@
+noit_check_tools.o:	@DTRACEHDR@
 
 stratcond_@DTRACEOBJ@:    $(STRATCON_OBJS)
 	@-test -n "@DTRACE@" && \
