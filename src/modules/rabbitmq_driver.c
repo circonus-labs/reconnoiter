@@ -83,7 +83,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate() {
 
   pthread_mutex_lock(&driver_lock);
   for(i=0; i<MAX_HOSTS; i++) {
-    if(stats.thread_states[i].owner == NULL) {
+    if(stats.thread_states[i].owner == (pthread_t)NULL) {
       stats.thread_states[i].owner = pthread_self();
       dr = &stats.thread_states[i];
       break;
