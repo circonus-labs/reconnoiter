@@ -1125,6 +1125,8 @@ noit_check_set_stats(struct _noit_module *module,
           noit_check_state_string(check->stats.current.state));
   }
 
+  /* Write out the bundled information */
+  noit_check_log_bundle(check);
   /* Write out our status */
   noit_check_log_status(check);
   /* Write out all metrics */

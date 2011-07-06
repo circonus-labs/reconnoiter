@@ -1,0 +1,21 @@
+message Metric
+{
+  required string name = 1;
+  required int32 metricType = 2;
+  optional double valueDbl = 3;
+  optional int64 valueI64 = 4;
+  optional uint64 valueUI64 = 5;
+  optional int32 valueI32 = 6;
+  optional uint32 valueUI32 = 7;
+  optional string valueStr = 8;
+}
+
+message Bundle
+{
+  required int32 available = 1;
+  required int32 state = 2;
+  required int32 duration = 3;
+  required string status = 4;
+  repeated Metric metrics = 5;
+}
+
