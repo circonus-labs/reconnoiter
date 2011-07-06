@@ -1127,10 +1127,6 @@ noit_check_set_stats(struct _noit_module *module,
 
   /* Write out the bundled information */
   noit_check_log_bundle(check);
-  /* Write out our status */
-  noit_check_log_status(check);
-  /* Write out all metrics */
-  noit_check_log_metrics(check);
   /* count the check as complete */
   check_completion_count++;
 

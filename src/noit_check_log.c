@@ -40,11 +40,9 @@
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
 
-#ifdef HAVE_PROTOBUFS
 #include "bundle.pb-c.h"
 #include <zlib.h>
 #include "utils/noit_b64.h"
-#endif
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
@@ -72,10 +70,7 @@ static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 static noit_log_stream_t delete_log = NULL;
 static noit_log_stream_t bundle_log = NULL;
-
-#ifdef HAVE_PROTOBUFS
 static bool use_compression = true;
-#endif
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
@@ -290,7 +285,6 @@ noit_check_log_metrics(noit_check_t *check) {
 }
 
 
-#ifdef HAVE_PROTOBUFS
 static int
 _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m) {
   metric->metrictype = (int)m->metric_type;
@@ -398,7 +392,7 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   bundle.state = c->state;
   bundle.duration = c->duration;
   bundle.status = c->status;
-  
+
 
   // Just count
   while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
@@ -437,16 +431,10 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   free(bundle.metrics);
   return rv;
 }
-#endif
 
 static int
 _noit_check_log_bundle(noit_log_stream_t ls, noit_check_t *check) {
-#ifdef HAVE_PROTOBUFS
-  _noit_check_log_bundle_serialize(bundle_log, check);
-#else 
-  noitL(noit_error, "Trying to use bundled metrics without libprotobuf-c, recompile with support for libprotobuf-c to use bundled metrics.\n");
-  abort();
-#endif
+  return _noit_check_log_bundle_serialize(bundle_log, check);
 }
 
 void

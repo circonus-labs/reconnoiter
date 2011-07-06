@@ -173,6 +173,9 @@ AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
+AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
+             [AC_MSG_ERROR(libprotobuf-c required)])
+
 AC_CHECK_FUNC(uuid_generate, , [
   AC_MSG_WARN([uuid_generate not available])
   AC_SEARCH_LIBS(uuid_generate, uuid e2fs-uuid, , [AC_MSG_ERROR(*** uuid is required ***)])])
@@ -203,27 +206,8 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 	]
 )
 
-
 old_LIBS="$LIBS"
-#LIBS="$LIBS `pkg-config --libs thrift_c_glib`"
-LIBS="$LIBS `pkg-config --libs libprotobuf-c`"
-AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size,
-	[
-		AC_DEFINE([HAVE_PROTOBUFS])
-	]
-	[
-    NOIT_OBJS_EXTRA="$NOIT_OBJS_EXTRA bundle.pb-c.o"
-		CFLAGS="$CFLAGS `pkg-config --cflags libprotobuf-c`"
-	],
-	[
-		AC_MSG_WARN([protobuf-c not found, skipping bundled metrics])
-		LIBS=$old_LIBS
-	]
-)
-AC_SUBST(NOIT_OBJS_EXTRA)
-
-old_LIBS=$LIBS
-old_CFLAGS=$CFLAGS
+old_CFLAGS="$CFLAGS"
 AC_CHECK_LIB(pq, PQconnectdb,
 	[
 		LIBS="$LIBS -lpq"
@@ -238,7 +222,7 @@ AC_CHECK_LIB(pq, PQconnectdb,
 AC_MSG_CHECKING([libpq includes])
 PQICFLAGS=`pg_config --includedir`
 if test -n "$PQICFLAGS" ; then
-  CFLAGS="$CFLAGS -I$PQICFLAGS"
+  PGCFLAGS="$CFLAGS -I$PQICFLAGS"
 fi
 
 AC_TRY_LINK([
