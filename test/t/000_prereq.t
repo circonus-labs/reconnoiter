@@ -1,7 +1,11 @@
-use Test::More tests => 5;
+use Test::More tests => 8;
 my @progs = qw/pg_ctl initdb psql rm/;
 
 use strict;
+
+use_ok('testconfig');
+use_ok('apiclient');
+use_ok('stomp');
 
 foreach my $prog (@progs) {
   my $found = 0;

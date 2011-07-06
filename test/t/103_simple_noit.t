@@ -45,6 +45,7 @@ my $answer_time_sec = $answer_time->[0] + $answer_time->[1]/1000000.0;
 my $time_error = abs($remote_time - $answer_time_sec);
 cmp_ok($time_error, '<', $request_duration, 'time skew check');
 
+$c = apiclient->new('localhost', $NOIT_API_PORT);
 @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
 is($r[0], 404, 'get checks');
 

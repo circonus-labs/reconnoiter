@@ -143,6 +143,7 @@ sub make_logs_config {
     <feeds>
       <config><extended_id>on</extended_id></config>
       <outlet name="feed"/>
+      <log name="bundle"/>
       <log name="check">
         <outlet name="error"/>
       </log>
