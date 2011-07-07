@@ -61,7 +61,7 @@
  *  'M' TIMESTAMP UUID NAME TYPE VALUE
  *
  * BUNDLE
- *  'B1' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *  'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
  *  
  */
 
@@ -418,9 +418,11 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   // Compress + B64
   _noit_check_compress_b64(buf, size, &out_buf, &out_size);
   noit_log(ls, &(c->whence), __FILE__, __LINE__,
-                "B1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%.*s\n", SECPART(&(c->whence)), MSECPART(&(c->whence)),
-                     uuid_str, check->name, check->module, check->target,
-                     (unsigned int)out_size, out_buf);
+           "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%.*s\n",
+           use_compression ? '1' : '2',
+           SECPART(&(c->whence)), MSECPART(&(c->whence)),
+           uuid_str, check->name, check->module, check->target,
+           (unsigned int)out_size, out_buf);
 
   free(buf);
   free(out_buf);
