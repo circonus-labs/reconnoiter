@@ -42,6 +42,7 @@
 #include "noit_http.h"
 #include "noit_rest.h"
 #include "noit_check.h"
+#include "noit_check_log_helpers.h"
 #include "noit_livestream_listener.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_jlog_streamer.h"
@@ -118,18 +119,17 @@ static void clear_realtime_context(realtime_context *rc) {
   rc->document_domain = NULL;
 }
 int
-stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
-                            u_int32_t inc_id) {
+stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *in_buff,
+                            u_int32_t *inc_id) {
   char buffer[1024];
-  char *scp, *ecp, *token;
-  int len;
+  char *scp, *ecp, *token, *buff;
+  int i, len, cnt;
   const char *v, *cb = NULL;
   noit_hash_table json = NOIT_HASH_EMPTY;
   noit_http_request *req = noit_http_session_request(ctx);
   char s_inc_id[42];
+  char **outrows = NULL;
 
-  snprintf(s_inc_id, sizeof(s_inc_id), "script-%08x", inc_id);
- 
   cb = noit_http_request_querystring(req, "cb"); 
   for(v = cb; v && *v; v++)
     if(!((*v >= '0' && *v <= '9') ||
@@ -142,6 +142,10 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
   if(!cb) cb = "window.parent.plot_iframe_data";
 
 #define BAIL_HTTP_WRITE do { \
+  if(outrows) { \
+    for(i=0;i<cnt;i++) if(outrows[i]) free(outrows[i]); \
+    free(outrows); \
+  } \
   noit_hash_destroy(&json, NULL, free); \
   noitL(noit_error, "javascript emit failed: %s:%s:%d\n", \
         __FILE__, __FUNCTION__, __LINE__); \
@@ -166,107 +170,128 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *buff,
   l = (ecp-scp); \
 } while(0)
 
-  scp = buff;
-  PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
-  if(buff[1] == '\t' && (buff[0] == 'M' || buff[0] == 'S')) {
-    char target[256], module[256], name[256], uuid_str[UUID_STR_LEN+1];
-    noit_http_request *req = noit_http_session_request(ctx);
-    noit_hash_table *qs;
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-    const char *key;
-    int klen, i=0;
-    void *vval;
-    char type[2] = { '\0', '\0' };
-    type[0] = buff[0];
+  noitL(noit_error, "recv(%s)\n", in_buff);
+  if(in_buff[0] == 'B' && in_buff[1] != '\0' && in_buff[2] == '\t') {
+    cnt = noit_check_log_b_to_sm(in_buff, strlen(in_buff), &outrows);
+  }
+  else {
+    cnt = 1;
+    outrows = malloc(sizeof(*outrows));
+    outrows[0] = strdup(in_buff);
+  }
+  for(i=0; i<cnt; i++) {
+    buff = outrows[i];
+    if(!buff) continue;
+    noitL(noit_error, "recv_xlt(%s)\n", buff);
+    scp = buff;
+    PROCESS_NEXT_FIELD(token,len); /* Skip the leader */
+    if(buff[1] == '\t' && (buff[0] == 'M' || buff[0] == 'S')) {
+      char target[256], module[256], name[256], uuid_str[UUID_STR_LEN+1];
+      noit_http_request *req = noit_http_session_request(ctx);
+      noit_hash_table *qs;
+      noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+      const char *key;
+      int klen, i=0;
+      void *vval;
+      char type[2] = { '\0', '\0' };
+      type[0] = buff[0];
 
 #define ra_write(a,b) if(noit_http_response_append(ctx, a, b) == noit_false) BAIL_HTTP_WRITE
 
-    snprintf(buffer, sizeof(buffer), "<script id=\"%s\">%s({", s_inc_id, cb);
-    ra_write(buffer, strlen(buffer));
+      snprintf(s_inc_id, sizeof(s_inc_id), "script-%08x", (*inc_id)++);
+      snprintf(buffer, sizeof(buffer), "<script id=\"%s\">%s({", s_inc_id, cb);
+      ra_write(buffer, strlen(buffer));
 
-    qs = noit_http_request_querystring_table(req);
-    while(noit_hash_next(qs, &iter, &key, &klen, &vval)) {
-      if(!strcmp(key, "cb")) continue;
-      noit_hash_store(&json, key, klen, strdup(vval ?(char *)vval : "true"));
-    }
-    /* Time */
-    noit_hash_store(&json, "script_id", 9, strdup(s_inc_id));
-    noit_hash_store(&json, "type", 4, strdup(type));
-    PROCESS_NEXT_FIELD(token,len);
-    noit_hash_store(&json, "time", 4, noit__strndup(token, len));
-    /* UUID */
-    PROCESS_NEXT_FIELD(token,len);
-    noit_check_extended_id_split(token, len, target, sizeof(target),
-                                 module, sizeof(module), name, sizeof(name),
-                                 uuid_str, sizeof(uuid_str));
-    if(*uuid_str)
-      noit_hash_store(&json, "id", 2,
-                      noit__strndup(uuid_str, strlen(uuid_str)));
-    if(*target)
-      noit_hash_store(&json, "check_target", 12,
-                      noit__strndup(target, strlen(target)));
-    if(*module)
-      noit_hash_store(&json, "check_module", 12,
-                      noit__strndup(module, strlen(module)));
-    if(*name)
-      noit_hash_store(&json, "check_name", 10,
-                      noit__strndup(name, strlen(name)));
-    if(buff[0] == 'M') {
-      /* name */
-      PROCESS_NEXT_FIELD(token,len);
-      noit_hash_store(&json, "metric_name", 11, noit__strndup(token, len));
-      /* type */
-      PROCESS_NEXT_FIELD(token,len);
-      noit_hash_store(&json, "metric_type", 11, noit__strndup(token, len));
-      /* value */
-      PROCESS_LAST_FIELD(token,len); /* value */
-      noit_hash_store(&json, "value", 5, noit__strndup(token, len));
-    }
-    else if(buff[0] == 'S') {
-      /* state */
-      PROCESS_NEXT_FIELD(token,len);
-      noit_hash_store(&json, "check_state", 11, noit__strndup(token, len));
-      /* availability */
-      PROCESS_NEXT_FIELD(token,len);
-      noit_hash_store(&json, "check_availability", 18, noit__strndup(token, len));
-      /* duration */
-      PROCESS_NEXT_FIELD(token,len);
-      noit_hash_store(&json, "check_duration_ms", 17, noit__strndup(token, len));
-      /* status */
-      PROCESS_LAST_FIELD(token,len);
-      noit_hash_store(&json, "status_message", 14, noit__strndup(token, len));
-    }
-
-    memset(&iter, 0, sizeof(iter));
-    while(noit_hash_next(&json, &iter, &key, &klen, &vval)) {
-      char *val = (char *)vval;
-      if(i++) ra_write(",", 1);
-      ra_write("\"", 1);
-      ra_write(key, klen);
-      ra_write("\":\"", 3);
-      while(*val) {
-        if(*val == '\"' || *val == '\\') {
-          ra_write((char *)"\\", 1);
-        }
-        if(isprint(*val)) {
-          ra_write((char *)val, 1);
-        }
-        else {
-          char od[5];
-          snprintf(od, sizeof(od), "\\%03o", *((unsigned char *)val));
-          ra_write(od, strlen(od));
-        }
-        val++;
+      qs = noit_http_request_querystring_table(req);
+      while(noit_hash_next(qs, &iter, &key, &klen, &vval)) {
+        if(!strcmp(key, "cb")) continue;
+        noit_hash_store(&json, key, klen, strdup(vval ?(char *)vval : "true"));
       }
-      ra_write("\"", 1);
-    }
-    snprintf(buffer, sizeof(buffer), "});</script>\n");
-    ra_write(buffer, strlen(buffer));
+      /* Time */
+      noit_hash_store(&json, "script_id", 9, strdup(s_inc_id));
+      noit_hash_store(&json, "type", 4, strdup(type));
+      PROCESS_NEXT_FIELD(token,len);
+      noit_hash_store(&json, "time", 4, noit__strndup(token, len));
+      /* UUID */
+      PROCESS_NEXT_FIELD(token,len);
+      noit_check_extended_id_split(token, len, target, sizeof(target),
+                                   module, sizeof(module), name, sizeof(name),
+                                   uuid_str, sizeof(uuid_str));
+      if(*uuid_str)
+        noit_hash_store(&json, "id", 2,
+                        noit__strndup(uuid_str, strlen(uuid_str)));
+      if(*target)
+        noit_hash_store(&json, "check_target", 12,
+                        noit__strndup(target, strlen(target)));
+      if(*module)
+        noit_hash_store(&json, "check_module", 12,
+                        noit__strndup(module, strlen(module)));
+      if(*name)
+        noit_hash_store(&json, "check_name", 10,
+                        noit__strndup(name, strlen(name)));
+      if(buff[0] == 'M') {
+        /* name */
+        PROCESS_NEXT_FIELD(token,len);
+        noit_hash_store(&json, "metric_name", 11, noit__strndup(token, len));
+        /* type */
+        PROCESS_NEXT_FIELD(token,len);
+        noit_hash_store(&json, "metric_type", 11, noit__strndup(token, len));
+        /* value */
+        PROCESS_LAST_FIELD(token,len); /* value */
+        noit_hash_store(&json, "value", 5, noit__strndup(token, len));
+      }
+      else if(buff[0] == 'S') {
+        /* state */
+        PROCESS_NEXT_FIELD(token,len);
+        noit_hash_store(&json, "check_state", 11, noit__strndup(token, len));
+        /* availability */
+        PROCESS_NEXT_FIELD(token,len);
+        noit_hash_store(&json, "check_availability", 18, noit__strndup(token, len));
+        /* duration */
+        PROCESS_NEXT_FIELD(token,len);
+        noit_hash_store(&json, "check_duration_ms", 17, noit__strndup(token, len));
+        /* status */
+        PROCESS_LAST_FIELD(token,len);
+        noit_hash_store(&json, "status_message", 14, noit__strndup(token, len));
+      }
 
-    if(noit_http_response_flush(ctx, noit_false) == noit_false) BAIL_HTTP_WRITE;
+      memset(&iter, 0, sizeof(iter));
+      while(noit_hash_next(&json, &iter, &key, &klen, &vval)) {
+        char *val = (char *)vval;
+        if(i++) ra_write(",", 1);
+        ra_write("\"", 1);
+        ra_write(key, klen);
+        ra_write("\":\"", 3);
+        while(*val) {
+          if(*val == '\"' || *val == '\\') {
+            ra_write((char *)"\\", 1);
+          }
+          if(isprint(*val)) {
+            ra_write((char *)val, 1);
+          }
+          else {
+            char od[5];
+            snprintf(od, sizeof(od), "\\%03o", *((unsigned char *)val));
+            ra_write(od, strlen(od));
+          }
+          val++;
+        }
+        ra_write("\"", 1);
+      }
+      snprintf(buffer, sizeof(buffer), "});</script>\n");
+      ra_write(buffer, strlen(buffer));
+
+      if(noit_http_response_flush(ctx, noit_false) == noit_false) BAIL_HTTP_WRITE;
+    }
+
+    noit_hash_destroy(&json, NULL, free);
+    memset(&json, 0, sizeof(json));
+  }
+  if(outrows) {
+    for(i=0;i<cnt;i++) if(outrows[i]) free(outrows[i]);
+    free(outrows);
   }
 
-  noit_hash_destroy(&json, NULL, free);
   return 0;
 
  bad_row:
@@ -443,7 +468,7 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
         break;
       case REALTIME_HTTP_WANT_BODY:
         FULLREAD(e, ctx, ctx->body_len);
-        if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer, ctx->hack_inc_id++)) goto socket_error;
+        if(stratcon_line_to_javascript(ctx->ctx, ctx->buffer, &ctx->hack_inc_id)) goto socket_error;
         free(ctx->buffer); ctx->buffer = NULL;
         ctx->state = REALTIME_HTTP_WANT_HEADER;
         break;
