@@ -52,4 +52,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
                                      char *buf_out,
                                      unsigned int len_out);
 
+int
+noit_check_log_b_to_sm(const char *line, int len, char ***out);
+
 #endif

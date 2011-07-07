@@ -423,33 +423,6 @@ noit_check_log_metric(noit_check_t *check, struct timeval *whence,
 }
 
 int
-noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
-  int rv;
-  if(!m->metric_value.s) { /* they are all null */
-    rv = snprintf(b, l, "[[null]]");
-  }
-  else {
-    switch(m->metric_type) {
-      case METRIC_INT32:
-        rv = snprintf(b, l, "%d", *(m->metric_value.i)); break;
-      case METRIC_UINT32:
-        rv = snprintf(b, l, "%u", *(m->metric_value.I)); break;
-      case METRIC_INT64:
-        rv = snprintf(b, l, "%lld", (long long int)*(m->metric_value.l)); break;
-      case METRIC_UINT64:
-        rv = snprintf(b, l, "%llu",
-                      (long long unsigned int)*(m->metric_value.L)); break;
-      case METRIC_DOUBLE:
-        rv = snprintf(b, l, "%.12e", *(m->metric_value.n)); break;
-      case METRIC_STRING:
-        rv = snprintf(b, l, "%s", m->metric_value.s); break;
-      default:
-        return -1;
-    }
-  }
-  return rv;
-}
-int
 noit_stats_snprint_metric(char *b, int l, metric_t *m) {
   int rv, nl;
   nl = snprintf(b, l, "%s[%c] = ", m->metric_name, m->metric_type);
@@ -459,3 +432,4 @@ noit_stats_snprint_metric(char *b, int l, metric_t *m) {
     rv = snprintf(b+nl, l-nl, "[[unknown type]]");
   return rv + nl;
 }
+
