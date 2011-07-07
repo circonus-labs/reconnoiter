@@ -41,8 +41,7 @@
 #include "jlog/jlog.h"
 
 #include "bundle.pb-c.h"
-#include <zlib.h>
-#include "utils/noit_b64.h"
+#include "noit_check_log_helpers.h"
 
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
@@ -315,60 +314,6 @@ _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m)
 }
 
 static int
-_noit_check_compress_b64(char *buf_in,
-                         uLong len_in,
-                         char ** buf_out,
-                         uLong * len_out) {
-  uLong initial_dlen, dlen;
-  char *compbuff, *b64buff;
-
-  // Compress saves 25% of space (ex 470 -> 330)
-  if (use_compression) {
-    /* Compress */
-    initial_dlen = dlen = compressBound(len_in);
-    compbuff = malloc(initial_dlen);
-    if(!compbuff) return -1;
-    if(Z_OK != compress2((Bytef *)compbuff, &dlen,
-                         (Bytef *)buf_in, len_in, 9)) {
-      noitL(noit_error, "Error compressing bundled metrics.\n");
-      free(compbuff);
-      return -1;
-    }
-  } else {
-    // Or don't
-    dlen = len_in;
-    compbuff = buf_in;
-  }
-
-  /* Encode */
-  // Problems with the calculation?
-  initial_dlen = ((dlen + 2) / 3 * 4);
-  b64buff = malloc(initial_dlen);
-  if (!b64buff) {
-    if (use_compression) {
-      // Free only if we malloc'd
-      free(compbuff);
-    }
-    return -1;
-  }
-  dlen = noit_b64_encode((unsigned char *)compbuff, dlen,
-                         (char *)b64buff, initial_dlen);
-  if (use_compression) {
-    // Free only if we malloc'd
-    free(compbuff);
-  }
-  if(dlen == 0) {
-    noitL(noit_error, "Error base64'ing bundled metrics.\n");
-    free(b64buff);
-    return -1;
-  }
-  *buf_out = b64buff;
-  *len_out = dlen;
-  return 0;
-}
-
-
-static int
 _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   char uuid_str[256*3+37];
@@ -376,10 +321,11 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
   const char *key;
   int klen, i=0, size, j;
-  uLong out_size;
+  unsigned int out_size;
   stats_t *c;
   void *vm;
   char *buf, *out_buf;
+  noit_compression_type_t comp;
   Bundle bundle = BUNDLE__INIT;
   SETUP_LOG(bundle, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
@@ -416,12 +362,13 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   bundle__pack(&bundle, (uint8_t*)buf);
 
   // Compress + B64
-  _noit_check_compress_b64(buf, size, &out_buf, &out_size);
+  comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
+  noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
   noit_log(ls, &(c->whence), __FILE__, __LINE__,
-           "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%.*s\n",
+           "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
            use_compression ? '1' : '2',
            SECPART(&(c->whence)), MSECPART(&(c->whence)),
-           uuid_str, check->name, check->module, check->target,
+           uuid_str, check->target, check->module, check->name, size,
            (unsigned int)out_size, out_buf);
 
   free(buf);
