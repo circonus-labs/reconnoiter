@@ -314,7 +314,7 @@ _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m)
 }
 
 static int
-_noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
+noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   char uuid_str[256*3+37];
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
@@ -328,7 +328,7 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   noit_compression_type_t comp;
   Bundle bundle = BUNDLE__INIT;
   SETUP_LOG(bundle, );
-  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
 
   // Get a bundle
   c = &check->stats.current;
@@ -381,17 +381,12 @@ _noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   return rv;
 }
 
-static int
-_noit_check_log_bundle(noit_log_stream_t ls, noit_check_t *check) {
-  return _noit_check_log_bundle_serialize(bundle_log, check);
-}
-
 void
 noit_check_log_bundle(noit_check_t *check) {
-  handle_extra_feeds(check, _noit_check_log_bundle);
+  handle_extra_feeds(check, noit_check_log_bundle_serialize);
   if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
     SETUP_LOG(bundle, return);
-    _noit_check_log_bundle(bundle_log, check);
+    noit_check_log_bundle_serialize(bundle_log, check);
   }
 }
 
