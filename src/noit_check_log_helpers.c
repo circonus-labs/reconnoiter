@@ -170,7 +170,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
   Bundle *bundle = NULL;
   noit_compression_type_t ctype;
   unsigned int ulen;
-  int i, size, cnt = 0;
+  int i, size, cnt = 0, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
   char *timestamp, *uuid_str, *target, *module, *name, *ulen_str;
   unsigned char *raw_protobuf = NULL;
@@ -226,22 +226,26 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
   }
   noitL(noit_error, "ZOMG -> data (%lld metrics)\n",
         (long long int)bundle->n_metrics);
-  cnt = bundle->n_metrics + 1;
-  *out = calloc(sizeof(**out), cnt);
+  has_status = bundle->status ? 1 : 0;
+  cnt = bundle->n_metrics;
+  *out = calloc(sizeof(**out), cnt + has_status);
   if(!*out) { error_str = "memory exhaustion"; goto bad_line; }
-  /* build out status line */
-  size = 2 /* S\t */ + strlen(timestamp) + 1 /* \t */ + strlen(uuid_str) +
-         5 /* \tG\tA\t */ + 11 /* max(strlen(duration)) */ +
-         1 /* \t */ +
-         (bundle->status ? strlen(bundle->status) : 8 /* [[null]] */) +
-         1 /* \0 */;
-  **out = malloc(size);
-  snprintf(**out, size, "S\t%s\t%s\t%c\t%c\t%d\t%s",
-           timestamp, uuid_str, bundle->state, bundle->available,
-           bundle->duration, bundle->status ? bundle->status : "[[null]]");
+  if(has_status) {
+    Status *status = bundle->status;
+    /* build out status line */
+    size = 2 /* S\t */ + strlen(timestamp) + 1 /* \t */ + strlen(uuid_str) +
+           5 /* \tG\tA\t */ + 11 /* max(strlen(duration)) */ +
+           1 /* \t */ +
+           (status->status ? strlen(status->status) : 8 /* [[null]] */) +
+           1 /* \0 */;
+    **out = malloc(size);
+    snprintf(**out, size, "S\t%s\t%s\t%c\t%c\t%d\t%s",
+             timestamp, uuid_str, status->state, status->available,
+             status->duration, status->status ? status->status : "[[null]]");
+  }
   /* build our metric lines */
-  for(i=1; i<cnt; i++) {
-    Metric *metric = bundle->metrics[i-1];
+  for(i=0; i<cnt; i++) {
+    Metric *metric = bundle->metrics[i];
     metric_t m;
     char scratch[64], *value_str;;
     int value_size = 0;
@@ -290,8 +294,8 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
     size = 2 /* M\t */ + strlen(timestamp) + 1 /* \t */ +
            strlen(uuid_str) + 1 /* \t */ + strlen(metric->name) +
            3 /* \t<type>\t */ + value_size + 1 /* \0 */;
-    (*out)[i] = malloc(size);
-    snprintf((*out)[i], size, "M\t%s\t%s\t%s\t%c\t%s",
+    (*out)[i+has_status] = malloc(size);
+    snprintf((*out)[i+has_status], size, "M\t%s\t%s\t%s\t%c\t%s",
              timestamp, uuid_str, metric->name, m.metric_type, value_str);
   }
   goto good_line;
@@ -299,7 +303,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
  bad_line:
   if(*out) {
     int i;
-    for(i=0; i<cnt; i++) if((*out)[i]) free((*out)[i]);
+    for(i=0; i<cnt + has_status; i++) if((*out)[i]) free((*out)[i]);
     free(*out);
     *out = NULL;
   }

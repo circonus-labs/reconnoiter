@@ -53,13 +53,17 @@ public class NoitBundlev2 extends NoitEvent {
     int rawlen = Integer.parseInt(parts[7]);
     CheckStatus.Bundle bundle = decode(parts[8], rawlen);
     if(bundle != null) {
-      char state[] = new char [] { (char)bundle.getState() };
-      char available[] = new char [] { (char) bundle.getAvailable() };
-      items.addLast(new NoitStatus(new java.lang.String[]
-                    { "S", noit, timestamp, parts[3], new String(state),
-                      new String(available),
-                      new Integer(bundle.getDuration()).toString(),
-                      bundle.getStatus() }));
+      CheckStatus.Status status = bundle.getStatus();
+      if(status != null) {
+        char state[] = new char [] { (char)status.getState() };
+        char available[] = new char [] { (char) status.getAvailable() };
+
+        items.addLast(new NoitStatus(new java.lang.String[]
+                      { "S", noit, timestamp, parts[3], new String(state),
+                        new String(available),
+                        new Integer(status.getDuration()).toString(),
+                        status.getStatus() }));
+      }
       for(CheckStatus.Metric metric : bundle.getMetricsList()) {
         char metrictype[] = new char [] { (char)metric.getMetricType() };
         String v_str = null;

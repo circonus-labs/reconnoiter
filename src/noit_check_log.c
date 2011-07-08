@@ -334,10 +334,12 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   c = &check->stats.current;
 
   // Set attributes
-  bundle.available = c->available;
-  bundle.state = c->state;
-  bundle.duration = c->duration;
-  bundle.status = c->status;
+  bundle.status = malloc(sizeof(Status));
+  status__init(bundle.status);
+  bundle.status->available = c->available;
+  bundle.status->state = c->state;
+  bundle.status->duration = c->duration;
+  bundle.status->status = c->status;
 
 
   // Just count

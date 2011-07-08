@@ -10,12 +10,24 @@ message Metric
   optional string valueStr = 8;
 }
 
-message Bundle
+message Status
 {
   required int32 available = 1;
   required int32 state = 2;
   required int32 duration = 3;
   required string status = 4;
-  repeated Metric metrics = 5;
+}
+
+message Metadata
+{
+  required string key = 1;
+  required string value = 2;
+}
+
+message Bundle
+{
+  optional Status status = 1;
+  repeated Metric metrics = 2;
+  repeated Metadata metadata = 3;
 }
 

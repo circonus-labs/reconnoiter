@@ -9,6 +9,8 @@ PROTOBUF_C_BEGIN_DECLS
 
 
 typedef struct _Metric Metric;
+typedef struct _Status Status;
+typedef struct _Metadata Metadata;
 typedef struct _Bundle Bundle;
 
 
@@ -39,19 +41,42 @@ struct  _Metric
     , NULL, 0, 0,0, 0,0, 0,0, 0,0, 0,0, NULL }
 
 
-struct  _Bundle
+struct  _Status
 {
   ProtobufCMessage base;
   int32_t available;
   int32_t state;
   int32_t duration;
   char *status;
+};
+#define STATUS__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&status__descriptor) \
+    , 0, 0, 0, NULL }
+
+
+struct  _Metadata
+{
+  ProtobufCMessage base;
+  char *key;
+  char *value;
+};
+#define METADATA__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&metadata__descriptor) \
+    , NULL, NULL }
+
+
+struct  _Bundle
+{
+  ProtobufCMessage base;
+  Status *status;
   size_t n_metrics;
   Metric **metrics;
+  size_t n_metadata;
+  Metadata **metadata;
 };
 #define BUNDLE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&bundle__descriptor) \
-    , 0, 0, 0, NULL, 0,NULL }
+    , NULL, 0,NULL, 0,NULL }
 
 
 /* Metric methods */
@@ -72,6 +97,44 @@ Metric *
                       const uint8_t       *data);
 void   metric__free_unpacked
                      (Metric *message,
+                      ProtobufCAllocator *allocator);
+/* Status methods */
+void   status__init
+                     (Status         *message);
+size_t status__get_packed_size
+                     (const Status   *message);
+size_t status__pack
+                     (const Status   *message,
+                      uint8_t             *out);
+size_t status__pack_to_buffer
+                     (const Status   *message,
+                      ProtobufCBuffer     *buffer);
+Status *
+       status__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   status__free_unpacked
+                     (Status *message,
+                      ProtobufCAllocator *allocator);
+/* Metadata methods */
+void   metadata__init
+                     (Metadata         *message);
+size_t metadata__get_packed_size
+                     (const Metadata   *message);
+size_t metadata__pack
+                     (const Metadata   *message,
+                      uint8_t             *out);
+size_t metadata__pack_to_buffer
+                     (const Metadata   *message,
+                      ProtobufCBuffer     *buffer);
+Metadata *
+       metadata__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   metadata__free_unpacked
+                     (Metadata *message,
                       ProtobufCAllocator *allocator);
 /* Bundle methods */
 void   bundle__init
@@ -97,6 +160,12 @@ void   bundle__free_unpacked
 typedef void (*Metric_Closure)
                  (const Metric *message,
                   void *closure_data);
+typedef void (*Status_Closure)
+                 (const Status *message,
+                  void *closure_data);
+typedef void (*Metadata_Closure)
+                 (const Metadata *message,
+                  void *closure_data);
 typedef void (*Bundle_Closure)
                  (const Bundle *message,
                   void *closure_data);
@@ -107,6 +176,8 @@ typedef void (*Bundle_Closure)
 /* --- descriptors --- */
 
 extern const ProtobufCMessageDescriptor metric__descriptor;
+extern const ProtobufCMessageDescriptor status__descriptor;
+extern const ProtobufCMessageDescriptor metadata__descriptor;
 extern const ProtobufCMessageDescriptor bundle__descriptor;
 
 PROTOBUF_C_END_DECLS
