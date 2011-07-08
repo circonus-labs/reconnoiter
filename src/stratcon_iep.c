@@ -390,13 +390,16 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   if(driver) {
     int line_len = strlen(job->line);
     int remote_len = strlen(job->remote);
+    const char *toff = strchr(job->line, '\t');
+    int token_off = 2;
+    if(toff) token_off = toff - job->line + 1;
 
     job->doc_str = (char*)calloc(line_len + 1 /* \t */ +
         remote_len + 2, 1);
-    strncpy(job->doc_str, job->line, 2);
+    strncpy(job->doc_str, job->line, token_off);
     strncat(job->doc_str, job->remote, remote_len);
     strncat(job->doc_str, "\t", 1);
-    strncat(job->doc_str, job->line + 2, line_len - 2);
+    strncat(job->doc_str, job->line + token_off, line_len - token_off);
 
     /* Don't need to catch error here, next submit will catch it */
     if(mq_driver->submit(driver, job->doc_str, line_len + remote_len + 1) != 0) {
