@@ -1,4 +1,6 @@
 
+bundle.pb-c.o: bundle.pb-c.c bundle.pb-c.h
+
 noit_capabilities_listener.o: noit_capabilities_listener.c noit_defines.h \
   noit_config.h noitedit/strlcpy.h noit_config.h noit_version.h \
   eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
@@ -35,7 +37,22 @@ noit_check_log.o: noit_check_log.c noit_defines.h noit_config.h \
   noitedit/histedit.h noit_defines.h eventer/eventer.h \
   noit_console_telnet.h  \
   noit_filters.h \
-  utils/noit_log.h jlog/jlog.h jlog/jlog_config.h
+  utils/noit_log.h jlog/jlog.h jlog/jlog_config.h bundle.pb-c.h \
+  noit_check_log_helpers.h
+
+noit_check_log_helpers.o: noit_check_log_helpers.c noit_defines.h \
+  noit_config.h noitedit/strlcpy.h noit_config.h noit_check.h \
+  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
+  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
+  eventer/eventer_SSL_fd_opset.h  \
+  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
+  utils/noit_hash.h utils/noit_skiplist.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noit_console_telnet.h  \
+  noit_check_log_helpers.h  \
+  utils/noit_b64.h noit_config.h \
+  noit_defines.h utils/noit_str.h utils/noit_log.h bundle.pb-c.h
 
 noit_check_resolver.o: noit_check_resolver.c noit_defines.h noit_config.h \
   noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
@@ -346,8 +363,9 @@ stratcon_realtime_http.o: stratcon_realtime_http.c noit_defines.h \
   utils/noit_log.h utils/noit_str.h \
   noit_defines.h jlog/jlog.h jlog/jlog_config.h noit_jlog_listener.h \
   noit_listener.h noit_http.h  \
-  utils/noit_atomic.h noit_rest.h noit_check.h noit_livestream_listener.h \
-  stratcon_realtime_http.h stratcon_jlog_streamer.h stratcon_datastore.h
+  utils/noit_atomic.h noit_rest.h noit_check.h noit_check_log_helpers.h \
+  noit_livestream_listener.h stratcon_realtime_http.h \
+  stratcon_jlog_streamer.h stratcon_datastore.h
 
 stratcond.o: stratcond.c noit_defines.h noit_config.h noitedit/strlcpy.h \
   noit_config.h eventer/eventer.h noit_defines.h utils/noit_log.h \
