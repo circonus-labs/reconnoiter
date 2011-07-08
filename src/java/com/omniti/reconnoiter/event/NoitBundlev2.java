@@ -82,7 +82,8 @@ public class NoitBundlev2 extends NoitEvent {
 
   public int numparts() { return 9; }
   public void handle(EventHandler eh) {
-    for(NoitEvent e : items)
-      eh.getService().getEPRuntime().sendEvent(e);
+    for(NoitEvent e : items) {
+      e.handle(eh);
+    }
   }
 }
