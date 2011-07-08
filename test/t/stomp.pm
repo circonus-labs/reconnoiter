@@ -31,6 +31,7 @@ sub get {
     alarm $opts->{timeout} if $opts->{timeout};
     eval {
         local $SIG{ALRM} = sub { die; };
+        delete $opts->{timeout};
         my $frame = $self->{stomp}->receive_frame();
         if ($frame) {
             $payload = $frame->body;

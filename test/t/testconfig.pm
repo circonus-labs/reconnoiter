@@ -131,7 +131,7 @@ sub make_logs_config {
   }
   foreach(@logtypes) {
     $opts->{logs_error}->{$_} ||= 'false';
-    $opts->{logs_debug}->{$_} ||= 'false';
+    $opts->{logs_debug}->{$_} ||= 'true';
   }
   
   print $o qq{

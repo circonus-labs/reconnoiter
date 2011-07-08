@@ -1,4 +1,4 @@
-use Test::More tests => 26;
+use Test::More tests => 32;
 use WWW::Curl::Easy;
 use JSON;
 use XML::LibXML;
@@ -157,4 +157,6 @@ $json ||= {};
 like($json->{r}->{uuid} || '', $uuid_re, 'numeric match has uuid');
 is($json->{r}->{check_module} || '', 'selfcheck', 'modules is set');
 
+ok(stop_noit, 'shutdown noit');
+ok(stop_stratcon, 'shutdown stratcon');
 1;

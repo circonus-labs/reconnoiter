@@ -1,4 +1,4 @@
-use Test::More tests => 9;
+use Test::More tests => 10;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -63,4 +63,5 @@ is($r[0], 200, 'get checks');
 $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/state/state', $doc), 'good', 'results');
 
+ok(stop_noit, 'stopping noit');
 1;
