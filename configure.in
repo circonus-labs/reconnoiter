@@ -222,7 +222,7 @@ AC_CHECK_LIB(pq, PQconnectdb,
 AC_MSG_CHECKING([libpq includes])
 PQICFLAGS=`pg_config --includedir`
 if test -n "$PQICFLAGS" ; then
-  PGCFLAGS="$CFLAGS -I$PQICFLAGS"
+  CFLAGS="$CFLAGS -I$PQICFLAGS"
 fi
 
 AC_TRY_LINK([
