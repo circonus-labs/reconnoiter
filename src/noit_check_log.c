@@ -69,7 +69,7 @@ static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 static noit_log_stream_t delete_log = NULL;
 static noit_log_stream_t bundle_log = NULL;
-static bool use_compression = true;
+static noit_boolean use_compression = noit_true;
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
@@ -291,19 +291,19 @@ _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m)
   metric->name = m->metric_name;
   switch (m->metric_type) {
     case METRIC_INT32:
-      metric->has_valuei32 = true;
+      metric->has_valuei32 = noit_true;
       metric->valuei32 = *(m->metric_value.i); break;
     case METRIC_UINT32:
-      metric->has_valueui32 = true;
+      metric->has_valueui32 = noit_true;
       metric->valueui32 = *(m->metric_value.I); break;
     case METRIC_INT64:
-      metric->has_valuei64 = true;
+      metric->has_valuei64 = noit_true;
       metric->valuei64 = *(m->metric_value.l); break;
     case METRIC_UINT64:
-      metric->has_valueui64 = true;
+      metric->has_valueui64 = noit_true;
       metric->valueui64 = *(m->metric_value.L); break;
     case METRIC_DOUBLE:
-      metric->has_valuedbl = true;
+      metric->has_valuedbl = noit_true;
       metric->valuedbl = *(m->metric_value.n); break;
     case METRIC_STRING:
       metric->valuestr = m->metric_value.s; break;
