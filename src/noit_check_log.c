@@ -366,12 +366,12 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   // Compress + B64
   comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
   noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-  noit_log(ls, &(c->whence), __FILE__, __LINE__,
-           "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
-           use_compression ? '1' : '2',
-           SECPART(&(c->whence)), MSECPART(&(c->whence)),
-           uuid_str, check->target, check->module, check->name, size,
-           (unsigned int)out_size, out_buf);
+  rv = noit_log(ls, &(c->whence), __FILE__, __LINE__,
+                "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                use_compression ? '1' : '2',
+                SECPART(&(c->whence)), MSECPART(&(c->whence)),
+                uuid_str, check->target, check->module, check->name, size,
+                (unsigned int)out_size, out_buf);
 
   free(buf);
   free(out_buf);
