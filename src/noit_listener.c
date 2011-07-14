@@ -46,6 +46,8 @@
 #include "noit_listener.h"
 #include "noit_conf.h"
 
+static noit_log_stream_t nlerr = NULL;
+static noit_log_stream_t nldeb = NULL;
 static noit_hash_table listener_commands = NOIT_HASH_EMPTY;
 noit_hash_table *
 noit_listener_commands() {
@@ -89,6 +91,9 @@ noit_listener_accept_ssl(eventer_t e, int mask,
       }
     }
     e->closure = ac;
+    noitL(nlerr, "noit_listener[%s] SSL_accept on fd %d [%s]\n",
+          eventer_name_for_callback(e->callback),
+          e->fd, ac->remote_cn ? ac->remote_cn : "anonymous");
     return e->callback(e, mask, e->closure, tv);
   }
   if(errno == EAGAIN) return mask|EVENTER_EXCEPTION;
@@ -123,6 +128,9 @@ noit_listener_acceptor(eventer_t e, int mask,
     conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
     if(conn >= 0) {
       eventer_t newe;
+      noitL(nlerr, "noit_listener[%s] accepted fd %d\n",
+            eventer_name_for_callback(listener_closure->dispatch_callback),
+            conn);
       if(eventer_set_fd_nonblocking(conn)) {
         close(conn);
         free(ac);
@@ -216,7 +224,7 @@ noit_listener(char *host, unsigned short port, int type,
   } s;
   const char *event_name;
 
-  noitL(noit_debug, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
+  noitL(nldeb, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
         host, port, type, backlog,
         (event_name = eventer_name_for_callback(handler))?event_name:"??",
         service_ctx);
@@ -520,6 +528,10 @@ noit_convert_sockaddr_to_buff(char *buff, int blen, struct sockaddr *remote) {
 
 void
 noit_listener_init(const char *toplevel) {
+  nlerr = noit_log_stream_find("error/listener");
+  nldeb = noit_log_stream_find("debug/listener");
+  if(!nlerr) nlerr = noit_error;
+  if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_listener_acceptor", noit_listener_acceptor);
   eventer_name_callback("noit_listener_accept_ssl", noit_listener_accept_ssl);
   eventer_name_callback("control_dispatch", noit_control_dispatch);
