@@ -289,26 +289,28 @@ _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m)
   metric->metrictype = (int)m->metric_type;
 
   metric->name = m->metric_name;
-  switch (m->metric_type) {
-    case METRIC_INT32:
-      metric->has_valuei32 = noit_true;
-      metric->valuei32 = *(m->metric_value.i); break;
-    case METRIC_UINT32:
-      metric->has_valueui32 = noit_true;
-      metric->valueui32 = *(m->metric_value.I); break;
-    case METRIC_INT64:
-      metric->has_valuei64 = noit_true;
-      metric->valuei64 = *(m->metric_value.l); break;
-    case METRIC_UINT64:
-      metric->has_valueui64 = noit_true;
-      metric->valueui64 = *(m->metric_value.L); break;
-    case METRIC_DOUBLE:
-      metric->has_valuedbl = noit_true;
-      metric->valuedbl = *(m->metric_value.n); break;
-    case METRIC_STRING:
-      metric->valuestr = m->metric_value.s; break;
-    default:
-      return -1;
+  if(m->metric_value.vp != NULL) {
+    switch (m->metric_type) {
+      case METRIC_INT32:
+        metric->has_valuei32 = noit_true;
+        metric->valuei32 = *(m->metric_value.i); break;
+      case METRIC_UINT32:
+        metric->has_valueui32 = noit_true;
+        metric->valueui32 = *(m->metric_value.I); break;
+      case METRIC_INT64:
+        metric->has_valuei64 = noit_true;
+        metric->valuei64 = *(m->metric_value.l); break;
+      case METRIC_UINT64:
+        metric->has_valueui64 = noit_true;
+        metric->valueui64 = *(m->metric_value.L); break;
+      case METRIC_DOUBLE:
+        metric->has_valuedbl = noit_true;
+        metric->valuedbl = *(m->metric_value.n); break;
+      case METRIC_STRING:
+        metric->valuestr = m->metric_value.s; break;
+      default:
+        return -1;
+    }
   }
   return 0;
 }
