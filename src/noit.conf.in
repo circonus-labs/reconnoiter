@@ -53,6 +53,7 @@
       <log name="delete"/>
       <log name="status"/>
       <log name="metrics"/>
+      <log name="bundle"/>
       <log name="config"/>
     </feeds>
   </logs>
