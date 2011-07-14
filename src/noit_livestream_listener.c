@@ -232,8 +232,10 @@ socket_error:
 
   if(!ac->service_ctx || !jcl->feed) {
     int len;
-    jcl = ac->service_ctx = noit_livestream_closure_alloc();
+    if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
+    jcl = ac->service_ctx;
     /* Setup logger to this channel */
+    noitL(noit_debug, "livestream initializing on fd %d\n", e->fd);
     if(!jcl->period) {
       u_int32_t nperiod;
       len = e->opset->read(e->fd, &nperiod, sizeof(nperiod), &mask, e);
@@ -244,6 +246,8 @@ socket_error:
         noitL(noit_error, "period of 0 specified in livestream.  not allowed.\n");
         goto socket_error;
       }
+      noitL(noit_debug, "livestream initializing on fd %d [period %d]\n",
+            e->fd, jcl->period);
     }
     while(jcl->uuid_read < 36) {
       len = e->opset->read(e->fd, jcl->uuid_str + jcl->uuid_read, 36 - jcl->uuid_read, &mask, e);
@@ -256,6 +260,8 @@ socket_error:
       noitL(noit_error, "bad uuid received in livestream handler '%s'\n", jcl->uuid_str);
       goto socket_error;
     }
+    noitL(noit_debug, "livestream initializing on fd %d [uuid %s]\n",
+          e->fd, jcl->uuid_str);
 
     jcl->feed = malloc(32);
     snprintf(jcl->feed, 32, "livestream/%d", noit_atomic_inc32(&ls_counter));
