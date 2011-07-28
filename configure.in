@@ -664,6 +664,15 @@ JAVA_LIB_DIR="$prefix/java"
 AC_ARG_WITH(java-libdir,
 	[--with-javalibdir=PFX  prefix to install java libs (optional)],
 	[JAVA_LIB_DIR=$withval],)
+AC_MSG_CHECKING([Resolving javalibdir path...])
+fullpath=$JAVA_LIB_DIR
+while test "x$temppath" != "x$fullpath" ; do
+  temppath=$fullpath
+  fullpath=`eval echo ${fullpath}`
+done
+fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
+JAVA_LIB_DIR=$fullpath
+AC_MSG_RESULT([$fullpath])
 AC_SUBST(JAVA_LIB_DIR)
 
 AC_MSG_CHECKING([Resolving sysconfdir path...])

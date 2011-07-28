@@ -996,7 +996,7 @@ nl_crc32(lua_State *L) {
     inputidx = 2;
   }
   input = lua_tolstring(L, inputidx, &inlen);
-  lua_pushnumber(L, (double)crc32(start, input, inlen));
+  lua_pushnumber(L, (double)crc32(start, (Bytef *)input, inlen));
   return 1;
 }
 static int
