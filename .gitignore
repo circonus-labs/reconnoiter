@@ -11,7 +11,6 @@ config.log
 config.status
 Makefile
 sql/reconnoiter_ddl_dump.sql
-src/dtrace_probes.h
 src/lua/src/lua
 src/noit_version.h
 src/noitd
