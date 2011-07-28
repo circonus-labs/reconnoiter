@@ -690,10 +690,10 @@ AC_DEFINE_UNQUOTED(ETC_DIR, "${fullpath}")
 ETC_DIR=${fullpath}
 AC_SUBST(ETC_DIR)
 
-if test "x$CC" = "xgcc" ; then
-  CFLAGS="$CFLAGS -Werror -Wall"
-else
+if test -n "`$CC -V 2>&1 | grep 'Sun C'`"; then
   CFLAGS="$CFLAGS -errwarn=%all"
+else
+  CFLAGS="$CFLAGS -Werror -Wall"
 fi
 
 AC_OUTPUT([
