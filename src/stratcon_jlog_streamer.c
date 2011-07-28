@@ -1063,7 +1063,7 @@ emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
                              (nctx->retry_event ? "disconnected" :
                                                   "connecting"));
   push_noit_m_u64("last_event_age_ms", last_event_ms);
-  push_noit_m_u64("session_length_ms", last_event_ms);
+  push_noit_m_u64("session_length_ms", session_duration_ms);
 }
 static int
 periodic_noit_metrics(eventer_t e, int mask, void *closure,
