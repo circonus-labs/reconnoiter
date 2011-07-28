@@ -1,4 +1,4 @@
-use Test::More tests => 6;
+use Test::More tests => 5;
 use testconfig;
 use IPC::Open3;
 use IO::File;
@@ -9,7 +9,7 @@ my $conn;
 
 $conn = pg('reconnoiter','reconnoiter');
 SKIP: {
-  skip 'already created user and db', 2 if($conn);
+  skip 'already loaded schema', 1 if($conn);
   my $cmd = "psql -h localhost -p $NOIT_TEST_DB_PORT postgres " .
                 "-f ../../sql/reconnoiter_ddl_dump.sql";
   my $rdr = IO::File->new(">logs/002_psql.out");
@@ -23,7 +23,6 @@ SKIP: {
   close(CHLD_ERR);
   waitpid($pid, 0);
   is($bad, '', 'no errors during schema load');
-  is($?, 0, 'loaded schema');
 }
 $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'connected under new user');

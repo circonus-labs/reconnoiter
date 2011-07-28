@@ -116,6 +116,8 @@ public abstract class StratconMessage {
     StratconMessage.registerType(NoitCheck.class);
     StratconMessage.registerType(NoitStatus.class);
     StratconMessage.registerType(NoitMetric.class);
+    StratconMessage.registerType(NoitBundlev1.class);
+    StratconMessage.registerType(NoitBundlev2.class);
     StratconMessage.registerType(StratconStatement.class);
     StratconMessage.registerType(StratconQuery.class);
     StratconMessage.registerType(StratconQueryStop.class);

@@ -27,10 +27,18 @@ sub unsubscribe {
 sub get {
     my $self = shift;
     my $opts = shift || {};
-    my $frame = $self->{stomp}->receive_frame($opts);
-    return undef unless $frame;
-    my $payload = $frame->body;
-    $self->{stomp}->ack( { frame => $frame } );
+    my $payload;
+    alarm $opts->{timeout} if $opts->{timeout};
+    eval {
+        local $SIG{ALRM} = sub { die; };
+        delete $opts->{timeout};
+        my $frame = $self->{stomp}->receive_frame();
+        if ($frame) {
+            $payload = $frame->body;
+            $self->{stomp}->ack( { frame => $frame } );
+        }
+        alarm 0;
+    };
     return $payload;
 }
 sub disconnect {

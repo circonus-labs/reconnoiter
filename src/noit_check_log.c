@@ -40,6 +40,9 @@
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
 
+#include "bundle.pb-c.h"
+#include "noit_check_log_helpers.h"
+
 /* Log format is tab delimited:
  * NOIT CONFIG (implemented in noit_conf.c):
  *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
@@ -55,12 +58,19 @@
  *
  * METRICS:
  *  'M' TIMESTAMP UUID NAME TYPE VALUE
+ *
+ * BUNDLE
+ *  'B#' TIMESTAMP UUID TARGET MODULE NAME strlen(base64(gzipped(payload))) base64(gzipped(payload))
+ *  
  */
 
 static noit_log_stream_t check_log = NULL;
 static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 static noit_log_stream_t delete_log = NULL;
+static noit_log_stream_t bundle_log = NULL;
+static noit_boolean use_compression = noit_true;
+
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
 #define MAKE_CHECK_UUID_STR(uuid_str, len, ls, check) do { \
@@ -273,6 +283,117 @@ noit_check_log_metrics(noit_check_t *check) {
   }
 }
 
+
+static int
+_noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m) {
+  metric->metrictype = (int)m->metric_type;
+
+  metric->name = m->metric_name;
+  if(m->metric_value.vp != NULL) {
+    switch (m->metric_type) {
+      case METRIC_INT32:
+        metric->has_valuei32 = noit_true;
+        metric->valuei32 = *(m->metric_value.i); break;
+      case METRIC_UINT32:
+        metric->has_valueui32 = noit_true;
+        metric->valueui32 = *(m->metric_value.I); break;
+      case METRIC_INT64:
+        metric->has_valuei64 = noit_true;
+        metric->valuei64 = *(m->metric_value.l); break;
+      case METRIC_UINT64:
+        metric->has_valueui64 = noit_true;
+        metric->valueui64 = *(m->metric_value.L); break;
+      case METRIC_DOUBLE:
+        metric->has_valuedbl = noit_true;
+        metric->valuedbl = *(m->metric_value.n); break;
+      case METRIC_STRING:
+        metric->valuestr = m->metric_value.s; break;
+      default:
+        return -1;
+    }
+  }
+  return 0;
+}
+
+static int
+noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
+  int rv = 0;
+  char uuid_str[256*3+37];
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
+  const char *key;
+  int klen, i=0, size, j;
+  unsigned int out_size;
+  stats_t *c;
+  void *vm;
+  char *buf, *out_buf;
+  noit_compression_type_t comp;
+  Bundle bundle = BUNDLE__INIT;
+  SETUP_LOG(bundle, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
+
+  // Get a bundle
+  c = &check->stats.current;
+
+  // Set attributes
+  bundle.status = malloc(sizeof(Status));
+  status__init(bundle.status);
+  bundle.status->available = c->available;
+  bundle.status->state = c->state;
+  bundle.status->duration = c->duration;
+  bundle.status->status = c->status;
+
+
+  // Just count
+  while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
+    bundle.n_metrics++;
+  }
+
+  bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
+
+  // Now convert
+  while(noit_hash_next(&c->metrics, &iter2, &key, &klen, &vm)) {
+    /* If we apply the filter set and it returns false, we don't log */
+    metric_t *m = (metric_t *)vm;
+    bundle.metrics[i] = malloc(sizeof(Metric));
+    metric__init(bundle.metrics[i]);
+    _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
+    i++;
+  }
+
+  size = bundle__get_packed_size(&bundle);
+  buf = malloc(size);
+  bundle__pack(&bundle, (uint8_t*)buf);
+
+  // Compress + B64
+  comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
+  noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
+  rv = noit_log(ls, &(c->whence), __FILE__, __LINE__,
+                "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                use_compression ? '1' : '2',
+                SECPART(&(c->whence)), MSECPART(&(c->whence)),
+                uuid_str, check->target, check->module, check->name, size,
+                (unsigned int)out_size, out_buf);
+
+  free(buf);
+  free(out_buf);
+  // Free all the resources
+  for (j=0; j<i; j++) {
+    free(bundle.metrics[j]);
+  }
+  free(bundle.metrics);
+  return rv;
+}
+
+void
+noit_check_log_bundle(noit_check_t *check) {
+  handle_extra_feeds(check, noit_check_log_bundle_serialize);
+  if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_STATUS | NP_SUPPRESS_METRICS))) {
+    SETUP_LOG(bundle, return);
+    noit_check_log_bundle_serialize(bundle_log, check);
+  }
+}
+
 void
 noit_check_log_metric(noit_check_t *check, struct timeval *whence,
                       metric_t *m) {
@@ -301,33 +422,6 @@ noit_check_log_metric(noit_check_t *check, struct timeval *whence,
 }
 
 int
-noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
-  int rv;
-  if(!m->metric_value.s) { /* they are all null */
-    rv = snprintf(b, l, "[[null]]");
-  }
-  else {
-    switch(m->metric_type) {
-      case METRIC_INT32:
-        rv = snprintf(b, l, "%d", *(m->metric_value.i)); break;
-      case METRIC_UINT32:
-        rv = snprintf(b, l, "%u", *(m->metric_value.I)); break;
-      case METRIC_INT64:
-        rv = snprintf(b, l, "%lld", (long long int)*(m->metric_value.l)); break;
-      case METRIC_UINT64:
-        rv = snprintf(b, l, "%llu",
-                      (long long unsigned int)*(m->metric_value.L)); break;
-      case METRIC_DOUBLE:
-        rv = snprintf(b, l, "%.12e", *(m->metric_value.n)); break;
-      case METRIC_STRING:
-        rv = snprintf(b, l, "%s", m->metric_value.s); break;
-      default:
-        return -1;
-    }
-  }
-  return rv;
-}
-int
 noit_stats_snprint_metric(char *b, int l, metric_t *m) {
   int rv, nl;
   nl = snprintf(b, l, "%s[%c] = ", m->metric_name, m->metric_type);
@@ -337,3 +431,4 @@ noit_stats_snprint_metric(char *b, int l, metric_t *m) {
     rv = snprintf(b+nl, l-nl, "[[unknown type]]");
   return rv + nl;
 }
+

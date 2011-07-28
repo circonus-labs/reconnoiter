@@ -212,17 +212,25 @@ stratcon_datastore_journal(struct sockaddr *remote,
                            const char *remote_cn, char *line) {
   interim_journal_t *ij = NULL;
   char uuid_str[UUID_STR_LEN+1], *cp1, *cp2;
+  char rtype[256];
   const char *fqdn = NULL, *dsn = NULL;
   int storagenode_id = 0;
   uuid_t checkid;
   if(!line) return;
+  cp1 = strchr(line, '\t');
+  if(cp1 && cp1 - line < sizeof(rtype) - 1) {
+    memcpy(rtype, line, cp1 - line);
+    rtype[cp1 - line] = '\0';
+  }
+  else rtype[0] = '\0';
   /* if it is a UUID based thing, find the storage node */
-  switch(*line) {
+  switch(*rtype) {
     case 'C':
     case 'S':
     case 'M':
     case 'D':
-      if(line[1] == '\t' && (cp1 = strchr(line+2, '\t')) != NULL &&
+    case 'B':
+      if((cp1 = strchr(cp1+1, '\t')) != NULL &&
          (cp2 = strchr(cp1+1, '\t')) != NULL &&
          (cp2-cp1 >= UUID_STR_LEN)) {
         strlcpy(uuid_str, cp2 - UUID_STR_LEN, sizeof(uuid_str));

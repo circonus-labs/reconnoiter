@@ -1,4 +1,4 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -27,5 +27,5 @@ is($r[0], 404, 'get checks');
 <check><attributes><target>127.0.0.1</target><period>5000</period><timeout>1000</timeout><name>selfcheck</name><filterset>allowall</filerset><module>selfcheck</module></attributes><config/></check>});
 
 is($r[0], 403, 'add selfcheck');
-
+ok(stop_noit, 'stopping noit');
 1;

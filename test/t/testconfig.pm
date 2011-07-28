@@ -8,6 +8,16 @@ use Data::Dumper;
 use IO::File;
 use strict;
 use vars qw/@EXPORT/;
+sub mkL {
+  my $fd = $_[0];
+  return sub {} unless $ENV{DEBUG_TESTS};
+  return sub { print $fd "[$$] $_[0]\n"; }
+};
+sub childL {
+  open my $olderr, ">&STDERR";
+  { no warnings 'redefine'; *L = mkL($olderr); }
+}
+*L = mkL(\*STDERR);
 
 my $noit_pid = 0;
 my $noit_log = undef;
@@ -121,7 +131,7 @@ sub make_logs_config {
   }
   foreach(@logtypes) {
     $opts->{logs_error}->{$_} ||= 'false';
-    $opts->{logs_debug}->{$_} ||= 'false';
+    $opts->{logs_debug}->{$_} ||= 'true';
   }
   
   print $o qq{
@@ -143,6 +153,7 @@ sub make_logs_config {
     <feeds>
       <config><extended_id>on</extended_id></config>
       <outlet name="feed"/>
+      <log name="bundle"/>
       <log name="check">
         <outlet name="error"/>
       </log>
@@ -256,7 +267,7 @@ sub make_filtersets_config {
 sub make_noit_config {
   my $name = shift;
   my $options = shift;
-  $options->{cwd} ||= cwd();
+  $options->{cwd} ||= getcwd();
   $options->{modules} = $all_noit_modules unless exists($options->{modules});
   $options->{filtersets} = $default_filterset unless exists($options->{filtersets});
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
@@ -461,13 +472,16 @@ sub make_database_config {
 sub make_stratcon_config {
   my $name = shift;
   my $options = shift;
-  $options->{cwd} ||= cwd();
+  L("make_stratcon_config");
+  $options->{cwd} ||= getcwd();
+  L("make_stratcon_config in $options->{cwd}");
   $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
   $options->{iep}->{mq} ||= { 'stomp' => {} };
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_stratcon.conf";
+  L("make_stratcon_config -> open($file)");
   open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
   print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
   print $o qq{<stratcon>};
@@ -480,6 +494,7 @@ sub make_stratcon_config {
   make_database_config($o, $options);
   make_iep_config($o, $options);
   print $o qq{</stratcon>\n};
+  L("make_stratcon_config -> close($file)");
   close($o);
   return $file;
 }
@@ -495,23 +510,35 @@ sub start_noit {
   my $options = shift;
   $options->{name} = $name;
   return 0 if $noit_pid;
+  L("start_noit -> config");
   my $conf = make_noit_config($name, $options);
   $noit_pid = fork();
+  L("noit_pid -> $noit_pid") if ($noit_pid);
   mkdir "logs";
   $noit_log = "logs/${name}_noit.log";
   if($noit_pid == 0) {
+    L("in child");
+    childL;
     $noit_pid = $$;
     $noit_log = "logs/${name}_noit.log";
+    L("in child -> closing stdin");
     close(STDIN);
+    L("in child -> opening stdin");
     open(STDIN, "</dev/null");
+    L("in child -> closing stdout");
     close(STDOUT);
+    L("in child -> opening stdout");
     open(STDOUT, ">/dev/null");
+    L("in child -> closing stderr");
     close(STDERR);
+    L("in child -> opening err $noit_log");
     open(STDERR, ">$noit_log");
     my @args = ( 'noitd', '-D', '-c', $conf );
+    L("in child -> exec");
     exec { '../../src/noitd' } @args;
     exit(-1);
   }
+  L("in parent -> noitd($noit_pid)");
   return $noit_pid;
 }
 sub get_noit_log {
@@ -529,11 +556,16 @@ sub start_stratcon {
   my $options = shift;
   $options->{name} = $name;
   return 0 if $stratcon_pid;
+  L("start_stratcon -> config");
   my $conf = make_stratcon_config($name, $options);
+  L("start_stratcon -> config($conf)");
   $stratcon_pid = fork();
+  L("stratcon_pid -> $stratcon_pid") if($stratcon_pid);
   mkdir "logs";
   $stratcon_log = "logs/${name}_stratcon.log";
   if($stratcon_pid == 0) {
+    L("in child");
+    childL;
     $stratcon_pid = $$;
     $stratcon_log = "logs/${name}_stratcon.log";
     close(STDIN);
@@ -543,6 +575,7 @@ sub start_stratcon {
     close(STDERR);
     open(STDERR, ">$stratcon_log");
     my @args = ( 'stratcond', '-D', '-c', $conf );
+    L("in child -> exec");
     exec { '../../src/stratcond' } @args;
     exit(-1);
   }

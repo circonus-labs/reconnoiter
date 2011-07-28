@@ -148,6 +148,7 @@ struct bchain *bchain_alloc(size_t size, int line) {
   n = malloc(size + offsetof(struct bchain, _buff));
   /*noitL(noit_error, "bchain_alloc(%p) : %d\n", n, line);*/
   if(!n) return NULL;
+  n->type = BCHAIN_INLINE;
   n->prev = n->next = NULL;
   n->start = n->size = 0;
   n->allocd = size;

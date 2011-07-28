@@ -1,4 +1,4 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -22,5 +22,6 @@ eval {
     @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
 };
 like($@, qr/SSL/, 'request fails with revoked key');
+ok(stop_noit, 'stopping noit');
 
 1;

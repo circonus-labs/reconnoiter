@@ -43,6 +43,7 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
+#include "noit_check_log_helpers.h"
 #include "noit_rest.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -56,6 +57,7 @@
 #include <assert.h>
 #include <errno.h>
 #include "postgres_ingestor.xmlh"
+#include "bundle.pb-c.h"
 
 #define DECL_STMT(codename,confname) \
 static char *codename = NULL; \
@@ -1036,6 +1038,24 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   }
   return info ? info->dsn : NULL;
 }
+static void
+expand_b_record(ds_line_detail **head, ds_line_detail **last,
+                const char *line, int len) {
+  char **outrows;
+  int i, cnt;
+  ds_line_detail *next;
+
+  cnt = noit_check_log_b_to_sm(line, len, &outrows);
+  for(i=0;i<cnt;i++) {
+    if(outrows[i] == NULL) continue;
+    next = calloc(sizeof(*next), 1);
+    next->data = outrows[i];
+    if(!*head) *head = next;
+    if(*last) (*last)->next = next;
+    *last = next;
+  }
+  if(outrows) free(outrows);
+}
 static ds_line_detail *
 build_insert_batch(pg_interim_journal_t *ij) {
   int rv;
@@ -1069,13 +1089,30 @@ build_insert_batch(pg_interim_journal_t *ij) {
     lcp = buff;
     while(lcp < (buff + len) &&
           NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
-      next = calloc(1, sizeof(*next));
-      next->data = malloc(cp - lcp + 1);
-      memcpy(next->data, lcp, cp - lcp);
-      next->data[cp - lcp] = '\0';
-      if(!head) head = next;
-      if(last) last->next = next;
-      last = next;
+      if(lcp[0] == 'B' && lcp[1] != '\0' && lcp[2] == '\t') {
+      /* Bundle records are special and need to be expanded into
+       * traditional records here
+       */
+        noit_compression_type_t ctype = NOIT_COMPRESS_NONE;
+        switch(lcp[1]) {
+          case '1': /* version 1 */
+            ctype = NOIT_COMPRESS_ZLIB; /*no break fall through */
+          case '2': /* version 2 */
+              expand_b_record(&head, &last, lcp, cp - lcp);
+            break;
+          default:
+            noitL(noit_error, "unknown bundle version %c\n", lcp[1]);
+        }
+      }
+      else {
+        next = calloc(1, sizeof(*next));
+        next->data = malloc(cp - lcp + 1);
+        memcpy(next->data, lcp, cp - lcp);
+        next->data[cp - lcp] = '\0';
+        if(!head) head = next;
+        if(last) last->next = next;
+        last = next;
+      }
       lcp = cp + 1;
     }
     munmap((void *)buff, len);

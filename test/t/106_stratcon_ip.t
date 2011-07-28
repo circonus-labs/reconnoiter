@@ -1,4 +1,4 @@
-use Test::More tests => 6;
+use Test::More tests => 7;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -21,5 +21,6 @@ my ($ip) = $s->fetchrow();
 like($ip, qr/^(?:\d+\.){3}\d+$/, 'is an ip');
 isn't($ip, "0.0.0.0", 'is not 0.0.0.0');
 undef $conn;
+ok(stop_stratcon, 'stopping stratcon');
 
 1;
