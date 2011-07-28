@@ -81,6 +81,7 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
 
   if (stat(path, &sb) == 0) {
     if (!S_ISREG(sb.st_mode)) goto out;
+    memset(&id, 0, sizeof(id));
     id.st_dev = sb.st_dev;
     id.st_ino = sb.st_ino;
     if (jlog_hash_retrieve(&jlog_files, (void *)&id, sizeof(jlog_file_id),
