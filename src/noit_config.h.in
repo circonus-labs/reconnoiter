@@ -37,6 +37,9 @@
 #undef inline
 
 #undef DTRACE_ENABLED
+#ifndef DTRACE_ENABLED
+#define DTRACE_PROBES_DISABLED 1
+#endif
 #undef MODULEEXT
 #undef MODULES_DIR
 #undef DEFAULT_EVENTER
