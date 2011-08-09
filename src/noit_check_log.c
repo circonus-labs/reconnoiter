@@ -349,16 +349,18 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
     bundle.n_metrics++;
   }
 
-  bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
+  if(bundle.n_metrics > 0) {
+    bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
 
-  // Now convert
-  while(noit_hash_next(&c->metrics, &iter2, &key, &klen, &vm)) {
-    /* If we apply the filter set and it returns false, we don't log */
-    metric_t *m = (metric_t *)vm;
-    bundle.metrics[i] = malloc(sizeof(Metric));
-    metric__init(bundle.metrics[i]);
-    _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
-    i++;
+    // Now convert
+    while(noit_hash_next(&c->metrics, &iter2, &key, &klen, &vm)) {
+      /* If we apply the filter set and it returns false, we don't log */
+      metric_t *m = (metric_t *)vm;
+      bundle.metrics[i] = malloc(sizeof(Metric));
+      metric__init(bundle.metrics[i]);
+      _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
+      i++;
+    }
   }
 
   size = bundle__get_packed_size(&bundle);
