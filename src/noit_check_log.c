@@ -31,6 +31,7 @@
  */
 
 #include "noit_defines.h"
+#include "dtrace_probes.h"
 
 #include <uuid/uuid.h>
 #include <netinet/in.h>
@@ -359,6 +360,12 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
       bundle.metrics[i] = malloc(sizeof(Metric));
       metric__init(bundle.metrics[i]);
       _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
+      if(NOIT_CHECK_METRIC_ENABLED()) {
+        char buff[256];
+        noit_stats_snprint_metric(buff, sizeof(buff), m);
+        NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
+                          m->metric_name, m->metric_type, buff);
+      }
       i++;
     }
   }
@@ -420,6 +427,12 @@ noit_check_log_metric(noit_check_t *check, struct timeval *whence,
   if(!(check->flags & NP_TRANSIENT)) {
     SETUP_LOG(metrics, return);
     _noit_check_log_metric(metrics_log, check, uuid_str, whence, m);
+    if(NOIT_CHECK_METRIC_ENABLED()) {
+      char buff[256];
+      noit_stats_snprint_metric(buff, sizeof(buff), m);
+      NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
+                        m->metric_name, m->metric_type, buff);
+    }
   }
 }
 

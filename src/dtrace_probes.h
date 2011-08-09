@@ -249,6 +249,16 @@ do { \
 	({ int _r = __dtrace_isenabled$noit_check$dispatch$v1(); \
 		__asm__ volatile(""); \
 		_r; })
+#define	NOIT_CHECK_METRIC(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
+do { \
+	__asm__ volatile(".reference " NOIT_CHECK_TYPEDEFS); \
+	__dtrace_probe$noit_check$metric$v1$63686172202a$63686172202a$63686172202a$63686172202a$63686172202a$696e74$63686172202a(arg0, arg1, arg2, arg3, arg4, arg5, arg6); \
+	__asm__ volatile(".reference " NOIT_CHECK_STABILITY); \
+} while (0)
+#define	NOIT_CHECK_METRIC_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit_check$metric$v1(); \
+		__asm__ volatile(""); \
+		_r; })
 #define	NOIT_CHECK_STATUS(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
 do { \
 	__asm__ volatile(".reference " NOIT_CHECK_TYPEDEFS); \
@@ -263,6 +273,8 @@ do { \
 
 extern void __dtrace_probe$noit_check$dispatch$v1$63686172202a$63686172202a$63686172202a$63686172202a(const char *, const char *, const char *, const char *);
 extern int __dtrace_isenabled$noit_check$dispatch$v1(void);
+extern void __dtrace_probe$noit_check$metric$v1$63686172202a$63686172202a$63686172202a$63686172202a$63686172202a$696e74$63686172202a(const char *, const char *, const char *, const char *, const char *, int, const char *);
+extern int __dtrace_isenabled$noit_check$metric$v1(void);
 extern void __dtrace_probe$noit_check$status$v1$63686172202a$63686172202a$63686172202a$63686172202a$696e74$696e74$63686172202a(const char *, const char *, const char *, const char *, int, int, const char *);
 extern int __dtrace_isenabled$noit_check$status$v1(void);
 
@@ -272,6 +284,10 @@ extern int __dtrace_isenabled$noit_check$status$v1(void);
 do { \
 	} while (0)
 #define	NOIT_CHECK_DISPATCH_ENABLED() (0)
+#define	NOIT_CHECK_METRIC(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
+do { \
+	} while (0)
+#define	NOIT_CHECK_METRIC_ENABLED() (0)
 #define	NOIT_CHECK_STATUS(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
 do { \
 	} while (0)
