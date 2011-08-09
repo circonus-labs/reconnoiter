@@ -46,7 +46,7 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
                                    unsigned int len_in,
                                    char ** buf_out,
                                    unsigned int * len_out) {
-  uLong initial_dlen, dlen;
+  uLong initial_dlen, dlen = 0;
   char *compbuff = NULL, *b64buff;
 
   // Compress saves 25% of space (ex 470 -> 330)
