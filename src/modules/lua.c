@@ -704,7 +704,8 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   return 0;
 }
 static int
-noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
+noit_lua_initiate(noit_module_t *self, noit_check_t *check,
+                  noit_check_t *cause) {
   LMC_DECL(L, self);
   struct nl_intcl *int_cl;
   noit_lua_check_info_t *ci;
@@ -720,6 +721,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
 
   ci->self = self;
   ci->check = check;
+  ci->cause = cause;
   noit_check_stats_clear(&ci->current);
 
   gettimeofday(&__now, NULL);
@@ -752,7 +754,8 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
   noit_lua_setup_check(ci->coro_state, ci->check);
-  noit_lua_resume(ci, 2);
+  lua_pushnil(L);
+  noit_lua_resume(ci, 3);
 
   return 0;
 
@@ -767,7 +770,7 @@ static int
 noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(noit_lua_check_info_t));
-  INITIATE_CHECK(noit_lua_initiate, self, check);
+  INITIATE_CHECK(noit_lua_initiate, self, check, cause);
   return 0;
 }
 static int noit_lua_panic(lua_State *L) {

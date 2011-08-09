@@ -1299,7 +1299,8 @@ static void clear_closure(collectd_closure_t *ccl) {
 
 }
 
-static int collectd_submit(noit_module_t *self, noit_check_t *check) {
+static int collectd_submit(noit_module_t *self, noit_check_t *check,
+                           noit_check_t *cause) {
   collectd_closure_t *ccl;
   struct timeval duration;
   /* We are passive, so we don't do anything for transient checks */
@@ -1470,7 +1471,7 @@ static int noit_collectd_initiate_check(noit_module_t *self,
   /* The idea is to write the collectd stuff to the stats one every period 
    * Then we can warn people if no stats where written in a period of time
    */
-  INITIATE_CHECK(collectd_submit, self, check);
+  INITIATE_CHECK(collectd_submit, self, check, cause);
   return 0;
 }
 

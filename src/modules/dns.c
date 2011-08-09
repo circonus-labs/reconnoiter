@@ -595,7 +595,8 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   __deactivate_ci(ci);
 }
 
-static int dns_check_send(noit_module_t *self, noit_check_t *check) {
+static int dns_check_send(noit_module_t *self, noit_check_t *check,
+                          noit_check_t *cause) {
   void *vnv_pair = NULL;
   struct dns_nameval *nv_pair;
   eventer_t newe;
@@ -757,7 +758,7 @@ static int dns_initiate_check(noit_module_t *self, noit_check_t *check,
   ci = check->closure;
   ci->check = check;
   ci->self = self;
-  INITIATE_CHECK(dns_check_send, self, check);
+  INITIATE_CHECK(dns_check_send, self, check, cause);
   return 0;
 }
 

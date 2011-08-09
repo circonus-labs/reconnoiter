@@ -40,6 +40,7 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
+  noit_check_t *cause;
   dispatch_func_t dispatch;
 } recur_closure_t;
 
@@ -50,9 +51,9 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   noit_check_resolve(rcl->check);
   noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
-                           rcl->dispatch);
+                           rcl->dispatch, NULL);
   if(NOIT_CHECK_RESOLVED(rcl->check))
-    rcl->dispatch(rcl->self, rcl->check);
+    rcl->dispatch(rcl->self, rcl->check, rcl->cause);
   else
     noitL(noit_debug, "skipping %s`%s`%s, unresolved\n",
           rcl->check->target, rcl->check->module, rcl->check->name);
@@ -63,11 +64,13 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
 int
 noit_check_schedule_next(noit_module_t *self,
                          struct timeval *last_check, noit_check_t *check,
-                         struct timeval *now, dispatch_func_t dispatch) {
+                         struct timeval *now, dispatch_func_t dispatch,
+                         noit_check_t *cause) {
   eventer_t newe;
   struct timeval period, earliest;
   recur_closure_t *rcl;
 
+  assert(cause == NULL);
   assert(check->fire_event == NULL);
   if(check->period == 0) return 0;
   if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
@@ -103,6 +106,7 @@ noit_check_schedule_next(noit_module_t *self,
   rcl = calloc(1, sizeof(*rcl));
   rcl->self = self;
   rcl->check = check;
+  rcl->cause = cause;
   rcl->dispatch = dispatch;
   newe->closure = rcl;
 

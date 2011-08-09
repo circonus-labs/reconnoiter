@@ -376,9 +376,9 @@ static int mysql_initiate(noit_module_t *self, noit_check_t *check) {
 }
 
 static int mysql_initiate_check(noit_module_t *self, noit_check_t *check,
-                                   int once, noit_check_t *parent) {
+                                   int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(mysql_check_info_t));
-  INITIATE_CHECK(mysql_initiate, self, check);
+  INITIATE_CHECK(mysql_initiate, self, check, cause);
   return 0;
 }
 

@@ -875,7 +875,8 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   noit_hash_destroy(&check_attrs_hash, NULL, NULL);
   return info->noids;
 }
-static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
+static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
+                          noit_check_t *cause) {
   struct snmp_pdu *req;
   struct target_session *ts;
   struct check_info *info = check->closure;
@@ -957,7 +958,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
 static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  INITIATE_CHECK(noit_snmp_send, self, check);
+  INITIATE_CHECK(noit_snmp_send, self, check, cause);
   return 0;
 }
 

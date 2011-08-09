@@ -160,7 +160,8 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
   return 0;
 }
 
-static int selfcheck_initiate(noit_module_t *self, noit_check_t *check) {
+static int selfcheck_initiate(noit_module_t *self, noit_check_t *check,
+                              noit_check_t *cause) {
   selfcheck_info_t *ci = check->closure;
   struct timeval __now;
 
@@ -182,9 +183,9 @@ static int selfcheck_initiate(noit_module_t *self, noit_check_t *check) {
 }
 
 static int selfcheck_initiate_check(noit_module_t *self, noit_check_t *check,
-                                   int once, noit_check_t *parent) {
+                                   int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(selfcheck_info_t));
-  INITIATE_CHECK(selfcheck_initiate, self, check);
+  INITIATE_CHECK(selfcheck_initiate, self, check, cause);
   return 0;
 }
 
