@@ -120,7 +120,7 @@ noit_check_fake_last_check(noit_check_t *check,
 
   if(start_offset_ms == -1)
     start_offset_ms = drand48() * noit_check_max_initial_stutter();
-  if(!(check->flags & NP_TRANSIENT)) {
+  if(!(check->flags & NP_TRANSIENT) && check->period) {
     max = noit_check_max_initial_stutter();
     offset = start_offset_ms + drand48() * 1000;
     offset = offset % MIN(max, check->period);
@@ -335,20 +335,28 @@ noit_poller_make_causal_map() {
     noit_check_t *check = (noit_check_t *)vcheck, *parent;
     if(check->oncheck) {
       /* This service is causally triggered by another service */
+      uuid_t id;
       char fullcheck[1024];
       char *name = check->oncheck;
       char *target = NULL;
 
       noitL(noit_debug, "Searching for upstream trigger on %s\n", name);
+      parent = NULL;
+      if(uuid_parse(check->oncheck, id) == 0) {
+        target = "";
+        parent = noit_poller_lookup(id);
+      }
       if((target = strchr(check->oncheck, '`')) != NULL) {
-        strlcpy(fullcheck, check->oncheck, target - check->oncheck);
+        strlcpy(fullcheck, check->oncheck, target + 1 - check->oncheck);
         name = target + 1;
         target = fullcheck;
+        parent = noit_poller_lookup_by_name(target, name);
       }
-      else
-       target = check->target;
+      else {
+        target = check->target;
+        parent = noit_poller_lookup_by_name(target, name);
+      }
 
-      parent = noit_poller_lookup_by_name(target, name);
       if(!parent) {
         check->flags |= NP_DISABLED;
         noitL(noit_stderr, "Disabling check %s`%s, can't find oncheck %s`%s\n",
@@ -860,6 +868,29 @@ noit_check_xpath(char *xpath, int len,
   return strlen(xpath);
 }
 
+static int
+bad_check_initiate(noit_module_t *self, noit_check_t *check,
+                   int once, noit_check_t *cause) {
+  /* self is likely null here -- why it is bad, in fact */
+  /* this is only suitable to call in one-offs */
+  stats_t current;
+  char buff[256];
+  if(!once) return -1;
+  if(!check) return -1;
+  assert(!(check->flags & NP_RUNNING));
+  check->flags |= NP_RUNNING;
+  noit_check_stats_clear(&current);
+  gettimeofday(&current.whence, NULL);
+  current.duration = 0;
+  current.available = NP_UNKNOWN;
+  current.state = NP_UNKNOWN;
+  snprintf(buff, sizeof(buff), "check[%s] implementation offline",
+           check->module);
+  current.status = buff;
+  noit_check_set_stats(self, check, &current);
+  check->flags &= ~NP_RUNNING;
+  return 0;
+}
 void
 noit_check_stats_clear(stats_t *s) {
   memset(s, 0, sizeof(*s));
@@ -1133,13 +1164,17 @@ noit_check_set_stats(struct _noit_module *module,
   for(dep = check->causal_checks; dep; dep = dep->next) {
     noit_module_t *mod;
     mod = noit_module_lookup(dep->check->module);
-    assert(mod);
-    noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
-          dep->check->target, dep->check->name,
-          check->target, check->name);
-    if((dep->check->flags & NP_DISABLED) == 0)
-      if(mod->initiate_check)
-        mod->initiate_check(mod, dep->check, 1, check);
+    if(!mod) {
+      bad_check_initiate(mod, dep->check, 1, check);
+    }
+    else {
+      noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
+            dep->check->target, dep->check->name,
+            check->target, check->name);
+      if((dep->check->flags & NP_DISABLED) == 0)
+        if(mod->initiate_check)
+          mod->initiate_check(mod, dep->check, 1, check);
+    }
   }
 }
 
