@@ -11,7 +11,9 @@ config.log
 config.status
 Makefile
 sql/reconnoiter_ddl_dump.sql
+src/*.dSYM
 src/lua/src/lua
+src/modules/*.dSYM
 src/noit_version.h
 src/noitd
 src/noit.conf
