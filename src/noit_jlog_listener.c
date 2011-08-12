@@ -64,6 +64,7 @@ typedef struct {
   jlog_id chkpt;
   jlog_id start;
   jlog_id finish;
+  jlog_feed_stats_t *feed_stats;
   int count;
   int wants_shutdown;
 } noit_jlog_closure_t;
@@ -88,6 +89,31 @@ noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
   free(jcl);
 }
 
+static noit_hash_table feed_stats = NOIT_HASH_EMPTY;
+
+jlog_feed_stats_t *
+noit_jlog_feed_stats(const char *sub) {
+  void *vs = NULL;
+  jlog_feed_stats_t *s = NULL;
+  if(noit_hash_retrieve(&feed_stats, sub, strlen(sub), &vs))
+    return (jlog_feed_stats_t *)vs;
+  s = calloc(1, sizeof(*s));
+  s->feed_name = strdup(sub);
+  noit_hash_store(&feed_stats, s->feed_name, strlen(s->feed_name), s);
+  return s;
+}
+int
+noit_jlog_foreach_feed_stats(int (*f)(jlog_feed_stats_t *, void *),
+                             void *c) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *key;
+  int klen, cnt = 0;
+  void *vs;
+  while(noit_hash_next(&feed_stats, &iter, &key, &klen, &vs)) {
+    cnt += f((jlog_feed_stats_t *)vs, c);
+  }
+  return cnt;
+}
 static int
 __safe_Ewrite(eventer_t e, void *b, int l, int *mask) {
   int w, sofar = 0;
@@ -213,6 +239,7 @@ noit_jlog_thread_main(void *e_vptr) {
               jcl->chkpt.log, jcl->chkpt.marker);
         goto alldone;
       }
+      gettimeofday(&jcl->feed_stats->last_checkpoint, NULL);
       jlog_ctx_read_checkpoint(jcl->jlog, &jcl->chkpt);
     }
     else {
@@ -241,6 +268,7 @@ noit_jlog_thread_main(void *e_vptr) {
 
  alldone:
   e->opset->close(e->fd, &mask, e);
+  noit_atomic_dec32(&jcl->feed_stats->connections);
   if(jcl) noit_jlog_closure_free(jcl);
   if(ac) acceptor_closure_free(ac);
   return NULL;
@@ -309,8 +337,10 @@ socket_error:
         goto socket_error;
       }
       strlcpy(subscriber, ac->remote_cn, sizeof(subscriber));
+      jcl->feed_stats = noit_jlog_feed_stats(subscriber);
     }
     else {
+      jcl->feed_stats = noit_jlog_feed_stats("~");
       snprintf(subscriber, sizeof(subscriber),
                "~%07d", noit_atomic_inc32(&tmpfeedcounter));
     }
@@ -353,6 +383,8 @@ socket_error:
   memcpy(newe, e, sizeof(*e));
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+  gettimeofday(&jcl->feed_stats->last_connection, NULL);
+  noit_atomic_inc32(&jcl->feed_stats->connections);
   if(pthread_create(&tid, &tattr, noit_jlog_thread_main, newe) == 0) {
     return 0;
   }

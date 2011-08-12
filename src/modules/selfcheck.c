@@ -42,6 +42,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_jlog_listener.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
@@ -71,6 +72,28 @@ static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
   if(s32 == 0) return; /* omit if no concurrency */
   snprintf(buffer, sizeof(buffer), "%s_threads", jobq->queue_name);
   noit_stats_set_metric(current, buffer, METRIC_INT32, &s32);
+}
+static int selfcheck_feed_details(jlog_feed_stats_t *s, void *vcurrent) {
+  char buff[256];
+  uint64_t ms;
+  struct timeval now, diff;
+  stats_t *current = (stats_t *)vcurrent;
+  gettimeofday(&now, NULL);
+
+  if(s->last_connection.tv_sec > 0) {
+    sub_timeval(now, s->last_connection, &diff);
+    ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+    snprintf(buff, sizeof(buff), "feed`%s`last_connection_ms", s->feed_name);
+    noit_stats_set_metric(current, buff, METRIC_UINT64, &ms);
+  }
+
+  if(s->last_checkpoint.tv_sec > 0) {
+    sub_timeval(now, s->last_checkpoint, &diff);
+    ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+    snprintf(buff, sizeof(buff), "feed`%s`last_checkpoint_ms", s->feed_name);
+    noit_stats_set_metric(current, buff, METRIC_UINT64, &ms);
+  }
+  return 1;
 }
 static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   char buff[128];
@@ -112,6 +135,8 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   noit_stats_set_metric(&current, "version", METRIC_STRING, buff);
   u64 = noit_check_completion_count();
   noit_stats_set_metric(&current, "checks_run", METRIC_UINT64, &u64);
+  /* feed pull info */
+  noit_jlog_foreach_feed_stats(selfcheck_feed_details, &current);
 
   noit_check_set_stats(self, check, &current);
 }
