@@ -442,7 +442,8 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
     assert_write(fd, ci->envs[i], ci->envlens[i]);
   return 0;
 }
-static int external_invoke(noit_module_t *self, noit_check_t *check) {
+static int external_invoke(noit_module_t *self, noit_check_t *check,
+                           noit_check_t *cause) {
   struct timeval when, p_int;
   external_closure_t *ecl;
   struct check_info *ci = (struct check_info *)check->closure;
@@ -592,7 +593,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check) {
 static int external_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  INITIATE_CHECK(external_invoke, self, check);
+  INITIATE_CHECK(external_invoke, self, check, cause);
   return 0;
 }
 

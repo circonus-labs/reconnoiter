@@ -276,7 +276,8 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
   check->flags &= ~NP_RUNNING;
   return 0;
 }
-static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
+static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
+                         noit_check_t *cause) {
   ssh2_check_info_t *ci = check->closure;
   struct timeval p_int, __now;
   int fd, rv;
@@ -384,9 +385,9 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check) {
 }
 
 static int ssh2_initiate_check(noit_module_t *self, noit_check_t *check,
-                               int once, noit_check_t *parent) {
+                               int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(ssh2_check_info_t));
-  INITIATE_CHECK(ssh2_initiate, self, check);
+  INITIATE_CHECK(ssh2_initiate, self, check, cause);
   return 0;
 }
 

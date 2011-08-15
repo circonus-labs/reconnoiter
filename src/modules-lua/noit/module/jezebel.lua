@@ -160,7 +160,7 @@ function initiate(module, check)
     -- parse the xml doc
     local doc = noit.parsexml(output)
     if doc == nil then
-        noit.log("error", "bad xml: %s\n", output)
+        noit.log("debug", "bad xml: %s\n", output)
         check.status("bad xml from jezebel")
         return
     end

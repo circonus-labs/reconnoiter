@@ -1459,7 +1459,7 @@ stratcon_ingest_sweep_journals_int(char *first, char *second, char *third) {
 #ifdef _PC_NAME_MAX
   size = pathconf(path, _PC_NAME_MAX);
 #endif
-  size = MIN(size, PATH_MAX + 128);
+  size = MAX(size, PATH_MAX + 128);
   de = alloca(size);
   root = opendir(path);
   if(!root) return;

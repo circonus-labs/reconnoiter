@@ -235,8 +235,9 @@ int jlog_file_map_read(jlog_file *f, void **base, size_t *len)
 off_t jlog_file_size(jlog_file *f)
 {
   struct stat sb;
-  if (fstat(f->fd, &sb) != 0)
-    return -1;
+  int rv;
+  while ((rv = fstat(f->fd, &sb) != 0) == -1 && errno == EINTR) ;
+  if (rv != 0) return -1;
   return sb.st_size;
 }
 

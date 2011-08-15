@@ -499,7 +499,8 @@ static void ping_check_cleanup(noit_module_t *self, noit_check_t *check) {
     if(ci->turnaround) free(ci->turnaround);
   }
 }
-static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
+static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
+                          noit_check_t *cause) {
   struct timeval when, p_int;
   struct ping_payload *payload;
   struct ping_closure *pcl;
@@ -625,7 +626,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check) {
 static int ping_icmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  INITIATE_CHECK(ping_icmp_send, self, check);
+  INITIATE_CHECK(ping_icmp_send, self, check, cause);
   return 0;
 }
 
