@@ -151,7 +151,8 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
   return 0;
 }
 
-static int test_abort_initiate(noit_module_t *self, noit_check_t *check) {
+static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
+                               noit_check_t *cause) {
   test_abort_check_info_t *ci = check->closure;
   struct timeval __now;
   const char *v;
@@ -187,9 +188,9 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check) {
 }
 
 static int test_abort_initiate_check(noit_module_t *self, noit_check_t *check,
-                                   int once, noit_check_t *parent) {
+                                   int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(test_abort_check_info_t));
-  INITIATE_CHECK(test_abort_initiate, self, check);
+  INITIATE_CHECK(test_abort_initiate, self, check, cause);
   return 0;
 }
 

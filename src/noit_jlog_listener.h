@@ -39,11 +39,26 @@
 #define NOIT_JLOG_DATA_FEED 0xda7afeed
 #define NOIT_JLOG_DATA_TEMP_FEED 0x7e66feed
 
+typedef struct {
+  char *feed_name;
+  noit_atomic32_t connections;
+  struct timeval last_connection;
+  struct timeval last_checkpoint;
+} jlog_feed_stats_t;
+
 API_EXPORT(void)
   noit_jlog_listener_init(void);
 
 API_EXPORT(int)
   noit_jlog_handler(eventer_t e, int mask, void *closure,
                     struct timeval *now);
+
+/* This API call is only safe from the eventer thread */
+API_EXPORT(jlog_feed_stats_t *)
+  noit_jlog_feed_stats(const char *sub);
+
+API_EXPORT(int)
+  noit_jlog_foreach_feed_stats(int (*f)(jlog_feed_stats_t *, void *),
+                               void *);
 
 #endif

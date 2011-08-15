@@ -145,7 +145,8 @@ static void clear_closure(httptrap_closure_t *ccl) {
   noit_check_stats_clear(&ccl->current);
 }
 
-static int httptrap_submit(noit_module_t *self, noit_check_t *check) {
+static int httptrap_submit(noit_module_t *self, noit_check_t *check,
+                           noit_check_t *cause) {
   httptrap_closure_t *ccl;
   struct timeval duration;
   /* We are passive, so we don't do anything for transient checks */
@@ -381,7 +382,7 @@ static int noit_httptrap_initiate_check(noit_module_t *self,
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));
     ccl->self = self;
   }
-  INITIATE_CHECK(httptrap_submit, self, check);
+  INITIATE_CHECK(httptrap_submit, self, check, cause);
   return 0;
 }
 

@@ -435,6 +435,16 @@ jlog_logio_reopen(noit_log_stream_t ls) {
   
   return 0;
 }
+static void
+noit_log_jlog_err(void *ctx, const char *format, ...) {
+  int rv;
+  struct timeval now;
+  va_list arg;
+  va_start(arg, format);
+  gettimeofday(&now, NULL);
+  rv = noit_vlog(noit_error, &now, "jlog.c", 0, format, arg);
+  va_end(arg);
+}
 static int
 jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub, **subs, *p;
@@ -446,6 +456,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
   log = jlog_new(path);
   if(!log) return -1;
+  jlog_set_error_func(log, noit_log_jlog_err, ls);
   /* Open the writer. */
   if(jlog_ctx_open_writer(log)) {
     /* If that fails, we'll give one attempt at initiailizing it. */
@@ -453,6 +464,7 @@ jlog_logio_open(noit_log_stream_t ls) {
     /* path: close, new, init, close, new, writer, add subscriber */
     jlog_ctx_close(log);
     log = jlog_new(path);
+    jlog_set_error_func(log, noit_log_jlog_err, ls);
     if(jlog_ctx_init(log)) {
       noitL(noit_error, "Cannot init jlog writer: %s\n",
             jlog_ctx_err_string(log));
@@ -462,6 +474,7 @@ jlog_logio_open(noit_log_stream_t ls) {
     /* After it is initialized, we can try to reopen it as a writer. */
     jlog_ctx_close(log);
     log = jlog_new(path);
+    jlog_set_error_func(log, noit_log_jlog_err, ls);
     if(jlog_ctx_open_writer(log)) {
       noitL(noit_error, "Cannot open jlog writer: %s\n",
             jlog_ctx_err_string(log));

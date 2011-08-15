@@ -248,6 +248,17 @@ noit_module_index_func(lua_State *L) {
   return 0;
 }
 static int
+noit_lua_get_available(lua_State *L) {
+  char av[2] = { '\0', '\0' };
+  noit_check_t *check;
+  noit_lua_check_info_t *ci;
+  if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  av[0] = (char)check->stats.current.available;
+  lua_pushstring(L, av);
+  return 1;
+}
+static int
 noit_lua_set_available(lua_State *L) {
   noit_check_t *check;
   noit_lua_check_info_t *ci;
@@ -256,6 +267,17 @@ noit_lua_set_available(lua_State *L) {
   ci = check->closure;
   ci->current.available = lua_tointeger(L, lua_upvalueindex(2));
   return 0;
+}
+static int
+noit_lua_get_state(lua_State *L) {
+  char status[2] = { '\0', '\0' };
+  noit_check_t *check;
+  noit_lua_check_info_t *ci;
+  if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  status[0] = (char)check->stats.current.state;
+  lua_pushstring(L, status);
+  return 1;
 }
 static int
 noit_lua_set_state(lua_State *L) {
@@ -372,6 +394,10 @@ noit_check_index_func(lua_State *L) {
         lua_pushinteger(L, NP_AVAILABLE);
         lua_pushcclosure(L, noit_lua_set_available, 2);
       }
+      else if(!strcmp(k, "availability")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_get_available, 1);
+      }
       else break;
       return 1;
     case 'b':
@@ -422,7 +448,11 @@ noit_check_index_func(lua_State *L) {
       else break;
       return 1;
     case 's':
-      if(!strcmp(k, "status")) {
+      if(!strcmp(k, "state")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_get_state, 1);
+      }
+      else if(!strcmp(k, "status")) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_set_status, 1);
       }
@@ -611,7 +641,10 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   memcpy(&ci->current.whence, &ci->finish_time, sizeof(ci->current.whence));
   ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
 
-  noit_check_set_stats(self, check, &ci->current);
+  /* Only set out stats/log if someone has actually performed a check */
+  if(ci->current.state != NP_UNKNOWN ||
+     ci->current.available != NP_UNKNOWN)
+    noit_check_set_stats(self, check, &ci->current);
   free(ci->current.status);
 }
 int
@@ -704,7 +737,8 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   return 0;
 }
 static int
-noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
+noit_lua_initiate(noit_module_t *self, noit_check_t *check,
+                  noit_check_t *cause) {
   LMC_DECL(L, self);
   struct nl_intcl *int_cl;
   noit_lua_check_info_t *ci;
@@ -720,6 +754,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
 
   ci->self = self;
   ci->check = check;
+  ci->cause = cause;
   noit_check_stats_clear(&ci->current);
 
   gettimeofday(&__now, NULL);
@@ -752,7 +787,9 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check) {
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
   noit_lua_setup_check(ci->coro_state, ci->check);
-  noit_lua_resume(ci, 2);
+  if(cause) noit_lua_setup_check(ci->coro_state, ci->cause);
+  else lua_pushnil(L);
+  noit_lua_resume(ci, 3);
 
   return 0;
 
@@ -767,7 +804,7 @@ static int
 noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(noit_lua_check_info_t));
-  INITIATE_CHECK(noit_lua_initiate, self, check);
+  INITIATE_CHECK(noit_lua_initiate, self, check, cause);
   return 0;
 }
 static int noit_lua_panic(lua_State *L) {
