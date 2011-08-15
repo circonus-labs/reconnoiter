@@ -11,289 +11,297 @@
 extern "C" {
 #endif
 
-#define STRATCON_NOIT_STABILITY "___dtrace_stability$stratcon_noit$v1$1_1_0_1_1_0_1_1_0_1_1_0_1_1_0"
-
-#define STRATCON_NOIT_TYPEDEFS "___dtrace_typedefs$stratcon_noit$v2"
-
-#if !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED
+#if _DTRACE_VERSION
 
 #define	STRATCON_NOIT_CONNECT(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect()
+#else
+#define	STRATCON_NOIT_CONNECT_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__close$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__close(arg0, arg1, arg2, arg3, arg4, arg5)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_CLOSE_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__close$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__close()
+#else
+#define	STRATCON_NOIT_CONNECT_CLOSE_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__close(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_FAILED(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__failed(arg0, arg1, arg2, arg3, arg4)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_FAILED_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__failed$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__failed()
+#else
+#define	STRATCON_NOIT_CONNECT_FAILED_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__failed(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_SSL(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__ssl$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__ssl(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_SSL_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__ssl$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__ssl()
+#else
+#define	STRATCON_NOIT_CONNECT_SSL_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__ssl(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__ssl__failed(arg0, arg1, arg2, arg3, arg4, arg5)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_SSL_FAILED_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__ssl__failed$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__ssl__failed()
+#else
+#define	STRATCON_NOIT_CONNECT_SSL_FAILED_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__ssl__failed(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_SSL_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__ssl__success$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__ssl__success(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_SSL_SUCCESS_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__ssl__success$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__ssl__success()
+#else
+#define	STRATCON_NOIT_CONNECT_SSL_SUCCESS_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__ssl__success(0)
+#endif
 #define	STRATCON_NOIT_CONNECT_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$connect__success$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___connect__success(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	STRATCON_NOIT_CONNECT_SUCCESS_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$connect__success$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___connect__success()
+#else
+#define	STRATCON_NOIT_CONNECT_SUCCESS_ENABLED() \
+	__dtraceenabled_stratcon_noit___connect__success(0)
+#endif
 #define	STRATCON_NOIT_RESCHEDULE(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$reschedule$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___reschedule(arg0, arg1, arg2, arg3, arg4)
+#ifndef	__sparc
 #define	STRATCON_NOIT_RESCHEDULE_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$reschedule$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___reschedule()
+#else
+#define	STRATCON_NOIT_RESCHEDULE_ENABLED() \
+	__dtraceenabled_stratcon_noit___reschedule(0)
+#endif
 #define	STRATCON_NOIT_SHUTDOWN_PERMANENT(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$shutdown__permanent$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___shutdown__permanent(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	STRATCON_NOIT_SHUTDOWN_PERMANENT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$shutdown__permanent$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___shutdown__permanent()
+#else
+#define	STRATCON_NOIT_SHUTDOWN_PERMANENT_ENABLED() \
+	__dtraceenabled_stratcon_noit___shutdown__permanent(0)
+#endif
 #define	STRATCON_NOIT_STREAM_BODY(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$stream__body$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74$696e74$696e74$63686172202a(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___stream__body(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+#ifndef	__sparc
 #define	STRATCON_NOIT_STREAM_BODY_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$stream__body$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___stream__body()
+#else
+#define	STRATCON_NOIT_STREAM_BODY_ENABLED() \
+	__dtraceenabled_stratcon_noit___stream__body(0)
+#endif
 #define	STRATCON_NOIT_STREAM_CHECKPOINT(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$stream__checkpoint$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___stream__checkpoint(arg0, arg1, arg2, arg3, arg4, arg5)
+#ifndef	__sparc
 #define	STRATCON_NOIT_STREAM_CHECKPOINT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$stream__checkpoint$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___stream__checkpoint()
+#else
+#define	STRATCON_NOIT_STREAM_CHECKPOINT_ENABLED() \
+	__dtraceenabled_stratcon_noit___stream__checkpoint(0)
+#endif
 #define	STRATCON_NOIT_STREAM_COUNT(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$stream__count$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___stream__count(arg0, arg1, arg2, arg3, arg4)
+#ifndef	__sparc
 #define	STRATCON_NOIT_STREAM_COUNT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$stream__count$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___stream__count()
+#else
+#define	STRATCON_NOIT_STREAM_COUNT_ENABLED() \
+	__dtraceenabled_stratcon_noit___stream__count(0)
+#endif
 #define	STRATCON_NOIT_STREAM_HEADER(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-do { \
-	__asm__ volatile(".reference " STRATCON_NOIT_TYPEDEFS); \
-	__dtrace_probe$stratcon_noit$stream__header$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74$696e74$696e74$696e74(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); \
-	__asm__ volatile(".reference " STRATCON_NOIT_STABILITY); \
-} while (0)
+	__dtrace_stratcon_noit___stream__header(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
+#ifndef	__sparc
 #define	STRATCON_NOIT_STREAM_HEADER_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon_noit$stream__header$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_stratcon_noit___stream__header()
+#else
+#define	STRATCON_NOIT_STREAM_HEADER_ENABLED() \
+	__dtraceenabled_stratcon_noit___stream__header(0)
+#endif
 
 
-extern void __dtrace_probe$stratcon_noit$connect$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon_noit$connect$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__close$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(int, const char *, const char *, const char *, int, int);
-extern int __dtrace_isenabled$stratcon_noit$connect__close$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon_noit$connect__failed$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__ssl$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon_noit$connect__ssl$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon_noit$connect__ssl__failed$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__ssl__success$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon_noit$connect__ssl__success$v1(void);
-extern void __dtrace_probe$stratcon_noit$connect__success$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon_noit$connect__success$v1(void);
-extern void __dtrace_probe$stratcon_noit$reschedule$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon_noit$reschedule$v1(void);
-extern void __dtrace_probe$stratcon_noit$shutdown__permanent$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon_noit$shutdown__permanent$v1(void);
-extern void __dtrace_probe$stratcon_noit$stream__body$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74$696e74$696e74$63686172202a(int, const char *, const char *, const char *, int, int, int, int, const char *);
-extern int __dtrace_isenabled$stratcon_noit$stream__body$v1(void);
-extern void __dtrace_probe$stratcon_noit$stream__checkpoint$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(int, const char *, const char *, const char *, int, int);
-extern int __dtrace_isenabled$stratcon_noit$stream__checkpoint$v1(void);
-extern void __dtrace_probe$stratcon_noit$stream__count$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon_noit$stream__count$v1(void);
-extern void __dtrace_probe$stratcon_noit$stream__header$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74$696e74$696e74$696e74(int, const char *, const char *, const char *, int, int, int, int, int);
-extern int __dtrace_isenabled$stratcon_noit$stream__header$v1(void);
+extern void __dtrace_stratcon_noit___connect(int, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__close(int, char *, char *, char *, int, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__close(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__close(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__failed(int, char *, char *, char *, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__failed(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__failed(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__ssl(int, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__ssl(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__ssl(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__ssl__failed(int, char *, char *, char *, char *, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__ssl__failed(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__ssl__failed(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__ssl__success(int, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__ssl__success(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__ssl__success(long);
+#endif
+extern void __dtrace_stratcon_noit___connect__success(int, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___connect__success(void);
+#else
+extern int __dtraceenabled_stratcon_noit___connect__success(long);
+#endif
+extern void __dtrace_stratcon_noit___reschedule(int, char *, char *, char *, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___reschedule(void);
+#else
+extern int __dtraceenabled_stratcon_noit___reschedule(long);
+#endif
+extern void __dtrace_stratcon_noit___shutdown__permanent(int, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___shutdown__permanent(void);
+#else
+extern int __dtraceenabled_stratcon_noit___shutdown__permanent(long);
+#endif
+extern void __dtrace_stratcon_noit___stream__body(int, char *, char *, char *, int, int, int, int, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___stream__body(void);
+#else
+extern int __dtraceenabled_stratcon_noit___stream__body(long);
+#endif
+extern void __dtrace_stratcon_noit___stream__checkpoint(int, char *, char *, char *, int, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___stream__checkpoint(void);
+#else
+extern int __dtraceenabled_stratcon_noit___stream__checkpoint(long);
+#endif
+extern void __dtrace_stratcon_noit___stream__count(int, char *, char *, char *, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___stream__count(void);
+#else
+extern int __dtraceenabled_stratcon_noit___stream__count(long);
+#endif
+extern void __dtrace_stratcon_noit___stream__header(int, char *, char *, char *, int, int, int, int, int);
+#ifndef	__sparc
+extern int __dtraceenabled_stratcon_noit___stream__header(void);
+#else
+extern int __dtraceenabled_stratcon_noit___stream__header(long);
+#endif
 
 #else
 
-#define	STRATCON_NOIT_CONNECT(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT(arg0, arg1, arg2, arg3)
 #define	STRATCON_NOIT_CONNECT_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4, arg5)
 #define	STRATCON_NOIT_CONNECT_CLOSE_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_FAILED(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_FAILED(arg0, arg1, arg2, arg3, arg4)
 #define	STRATCON_NOIT_CONNECT_FAILED_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_SSL(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_SSL(arg0, arg1, arg2, arg3)
 #define	STRATCON_NOIT_CONNECT_SSL_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4, arg5)
 #define	STRATCON_NOIT_CONNECT_SSL_FAILED_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_SSL_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_SSL_SUCCESS(arg0, arg1, arg2, arg3)
 #define	STRATCON_NOIT_CONNECT_SSL_SUCCESS_ENABLED() (0)
-#define	STRATCON_NOIT_CONNECT_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_CONNECT_SUCCESS(arg0, arg1, arg2, arg3)
 #define	STRATCON_NOIT_CONNECT_SUCCESS_ENABLED() (0)
-#define	STRATCON_NOIT_RESCHEDULE(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_RESCHEDULE(arg0, arg1, arg2, arg3, arg4)
 #define	STRATCON_NOIT_RESCHEDULE_ENABLED() (0)
-#define	STRATCON_NOIT_SHUTDOWN_PERMANENT(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_SHUTDOWN_PERMANENT(arg0, arg1, arg2, arg3)
 #define	STRATCON_NOIT_SHUTDOWN_PERMANENT_ENABLED() (0)
-#define	STRATCON_NOIT_STREAM_BODY(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_STREAM_BODY(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 #define	STRATCON_NOIT_STREAM_BODY_ENABLED() (0)
-#define	STRATCON_NOIT_STREAM_CHECKPOINT(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_STREAM_CHECKPOINT(arg0, arg1, arg2, arg3, arg4, arg5)
 #define	STRATCON_NOIT_STREAM_CHECKPOINT_ENABLED() (0)
-#define	STRATCON_NOIT_STREAM_COUNT(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_STREAM_COUNT(arg0, arg1, arg2, arg3, arg4)
 #define	STRATCON_NOIT_STREAM_COUNT_ENABLED() (0)
-#define	STRATCON_NOIT_STREAM_HEADER(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-do { \
-	} while (0)
+#define	STRATCON_NOIT_STREAM_HEADER(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 #define	STRATCON_NOIT_STREAM_HEADER_ENABLED() (0)
 
-#endif /* !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED */
+#endif
 
-#define NOIT_CHECK_STABILITY "___dtrace_stability$noit_check$v1$1_1_0_1_1_0_1_1_0_1_1_0_1_1_0"
-
-#define NOIT_CHECK_TYPEDEFS "___dtrace_typedefs$noit_check$v2"
-
-#if !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED
+#if _DTRACE_VERSION
 
 #define	NOIT_CHECK_DISPATCH(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " NOIT_CHECK_TYPEDEFS); \
-	__dtrace_probe$noit_check$dispatch$v1$63686172202a$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " NOIT_CHECK_STABILITY); \
-} while (0)
+	__dtrace_noit___check__dispatch(arg0, arg1, arg2, arg3)
+#ifndef	__sparc
 #define	NOIT_CHECK_DISPATCH_ENABLED() \
-	({ int _r = __dtrace_isenabled$noit_check$dispatch$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_noit___check__dispatch()
+#else
+#define	NOIT_CHECK_DISPATCH_ENABLED() \
+	__dtraceenabled_noit___check__dispatch(0)
+#endif
 #define	NOIT_CHECK_METRIC(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
-do { \
-	__asm__ volatile(".reference " NOIT_CHECK_TYPEDEFS); \
-	__dtrace_probe$noit_check$metric$v1$63686172202a$63686172202a$63686172202a$63686172202a$63686172202a$696e74$63686172202a(arg0, arg1, arg2, arg3, arg4, arg5, arg6); \
-	__asm__ volatile(".reference " NOIT_CHECK_STABILITY); \
-} while (0)
+	__dtrace_noit___check__metric(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+#ifndef	__sparc
 #define	NOIT_CHECK_METRIC_ENABLED() \
-	({ int _r = __dtrace_isenabled$noit_check$metric$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_noit___check__metric()
+#else
+#define	NOIT_CHECK_METRIC_ENABLED() \
+	__dtraceenabled_noit___check__metric(0)
+#endif
 #define	NOIT_CHECK_STATUS(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
-do { \
-	__asm__ volatile(".reference " NOIT_CHECK_TYPEDEFS); \
-	__dtrace_probe$noit_check$status$v1$63686172202a$63686172202a$63686172202a$63686172202a$696e74$696e74$63686172202a(arg0, arg1, arg2, arg3, arg4, arg5, arg6); \
-	__asm__ volatile(".reference " NOIT_CHECK_STABILITY); \
-} while (0)
+	__dtrace_noit___check__status(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+#ifndef	__sparc
 #define	NOIT_CHECK_STATUS_ENABLED() \
-	({ int _r = __dtrace_isenabled$noit_check$status$v1(); \
-		__asm__ volatile(""); \
-		_r; })
+	__dtraceenabled_noit___check__status()
+#else
+#define	NOIT_CHECK_STATUS_ENABLED() \
+	__dtraceenabled_noit___check__status(0)
+#endif
 
 
-extern void __dtrace_probe$noit_check$dispatch$v1$63686172202a$63686172202a$63686172202a$63686172202a(const char *, const char *, const char *, const char *);
-extern int __dtrace_isenabled$noit_check$dispatch$v1(void);
-extern void __dtrace_probe$noit_check$metric$v1$63686172202a$63686172202a$63686172202a$63686172202a$63686172202a$696e74$63686172202a(const char *, const char *, const char *, const char *, const char *, int, const char *);
-extern int __dtrace_isenabled$noit_check$metric$v1(void);
-extern void __dtrace_probe$noit_check$status$v1$63686172202a$63686172202a$63686172202a$63686172202a$696e74$696e74$63686172202a(const char *, const char *, const char *, const char *, int, int, const char *);
-extern int __dtrace_isenabled$noit_check$status$v1(void);
+extern void __dtrace_noit___check__dispatch(char *, char *, char *, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_noit___check__dispatch(void);
+#else
+extern int __dtraceenabled_noit___check__dispatch(long);
+#endif
+extern void __dtrace_noit___check__metric(char *, char *, char *, char *, char *, int, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_noit___check__metric(void);
+#else
+extern int __dtraceenabled_noit___check__metric(long);
+#endif
+extern void __dtrace_noit___check__status(char *, char *, char *, char *, int, int, char *);
+#ifndef	__sparc
+extern int __dtraceenabled_noit___check__status(void);
+#else
+extern int __dtraceenabled_noit___check__status(long);
+#endif
 
 #else
 
-#define	NOIT_CHECK_DISPATCH(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
+#define	NOIT_CHECK_DISPATCH(arg0, arg1, arg2, arg3)
 #define	NOIT_CHECK_DISPATCH_ENABLED() (0)
-#define	NOIT_CHECK_METRIC(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
-do { \
-	} while (0)
+#define	NOIT_CHECK_METRIC(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 #define	NOIT_CHECK_METRIC_ENABLED() (0)
-#define	NOIT_CHECK_STATUS(arg0, arg1, arg2, arg3, arg4, arg5, arg6) \
-do { \
-	} while (0)
+#define	NOIT_CHECK_STATUS(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
 #define	NOIT_CHECK_STATUS_ENABLED() (0)
 
-#endif /* !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED */
+#endif
 
 
 #ifdef	__cplusplus

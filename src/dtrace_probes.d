@@ -14,8 +14,8 @@ provider stratcon_noit {
   probe stream__checkpoint(int, char *, char *, char *, int, int);
 };
 
-provider noit_check {
-  probe dispatch(char *, char *, char *, char *);
-  probe status(char *, char *, char *, char *, int, int, char *);
-  probe metric(char *, char *, char *, char *, char *, int, char *);
+provider noit {
+  probe check__dispatch(char *, char *, char *, char *);
+  probe check__metric(char *, char *, char *, char *, char *, int, char *);
+  probe check__status(char *, char *, char *, char *, int, int, char *);
 };
