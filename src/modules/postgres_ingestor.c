@@ -1436,7 +1436,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ij->storagenode_id = atoi(id_str);
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
-  noitL(noit_error, "ingesting old payload: %s\n", ij->filename);
+  noitL(noit_error, "ingesting payload: %s\n", ij->filename);
   ingest = eventer_alloc();
   ingest->mask = EVENTER_ASYNCH;
   ingest->callback = stratcon_ingest_asynch_execute;
