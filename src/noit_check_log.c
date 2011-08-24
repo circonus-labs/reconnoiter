@@ -45,7 +45,7 @@
  *  'n' TIMESTAMP strlen(xmlconfig) base64(gzip(xmlconfig))
  *
  * DELETE:
- *  'D' TIMESTAMP UUID
+ *  'D' TIMESTAMP UUID NAME
  *
  * CHECK:
  *  'C' TIMESTAMP UUID TARGET MODULE NAME
@@ -117,8 +117,8 @@ _noit_check_log_delete(noit_log_stream_t ls,
 
   c = &check->stats.current;
   return noit_log(ls, &c->whence, __FILE__, __LINE__,
-                  "D\t%lu.%03lu\t%s\n",
-                  SECPART(&c->whence), MSECPART(&c->whence), uuid_str);
+                  "D\t%lu.%03lu\t%s\t%s\n",
+                  SECPART(&c->whence), MSECPART(&c->whence), uuid_str, check->name);
 }
 void
 noit_check_log_delete(noit_check_t *check) {
