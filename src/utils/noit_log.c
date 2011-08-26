@@ -665,6 +665,14 @@ noit_log_stream_set_property(noit_log_stream_t ls,
   noit_hash_replace(ls->config, prop, strlen(prop), (void *)v, free, free);
 }
 
+static void
+noit_log_init_rwlock(noit_log_stream_t ls) {
+  pthread_rwlockattr_t attr;
+  pthread_rwlockattr_init(&attr);
+  pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+  pthread_rwlock_init(ls->lock, &attr);
+}
+
 noit_log_stream_t
 noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   noit_log_stream_t ls;
@@ -675,7 +683,7 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   ls->enabled = 1;
   ls->config = config;
   ls->lock = calloc(1, sizeof(*ls->lock));
-  pthread_rwlock_init(ls->lock, NULL);
+  noit_log_init_rwlock(ls);
   /* This double strdup of ls->name is needed, look for the next one
    * for an explanation.
    */
@@ -738,7 +746,7 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
                        strdup(ls->name), strlen(ls->name), ls) == 0)
       goto freebail;
     ls->lock = calloc(1, sizeof(*ls->lock));
-    pthread_rwlock_init(ls->lock, NULL);
+    noit_log_init_rwlock(ls);
   }
   /* This is for things that don't open on paths */
   if(ctx) ls->op_ctx = ctx;
