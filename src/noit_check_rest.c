@@ -568,7 +568,6 @@ static int
 rest_teststream_check(noit_http_rest_closure_t *restc,
                int npats, char **pats) {
   noit_http_session_ctx *ctx = restc->http_ctx;
-  xmlXPathObjectPtr pobj = NULL;
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr root, attr, config;
   int error_code = 500, complete = 0, mask = 0;
@@ -591,7 +590,6 @@ rest_teststream_check(noit_http_rest_closure_t *restc,
   goto cleanup;
 
  cleanup:
-  if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
 
@@ -784,6 +782,10 @@ noit_teststream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   noit_http_response_ok(ctx, "text/xml");
   noit_http_response_xml(ctx, doc);
   noit_http_response_end(ctx);
+  noit_poller_deschedule(tc->check->checkid);
+  if(tc->restc->call_closure_free) tc->restc->call_closure_free(tc->restc->call_closure);
+  tc->restc->call_closure_free = NULL;
+  tc->restc->call_closure = NULL;
   if(doc) xmlFreeDoc(doc);
   return 0;
 }
