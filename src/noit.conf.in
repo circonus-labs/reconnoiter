@@ -75,6 +75,7 @@
       <config><url>http://127.0.0.1:8083/dispatch</url></config>
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
     </jezebel>
+    <generic image="check_test" name="check_test"/>
   </modules>
   <listeners>
     <sslconfig>

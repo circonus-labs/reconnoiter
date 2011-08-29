@@ -24,7 +24,7 @@ XML2H=@top_srcdir@/buildtools/xml2h
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
+MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	@BUILD_MODULES@
@@ -38,6 +38,8 @@ all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
 selfcheck.lo:	selfcheck.xmlh
+
+check_test.lo:	check_test.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo ../lua/liblua.lo
