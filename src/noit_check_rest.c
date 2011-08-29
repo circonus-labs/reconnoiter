@@ -56,6 +56,26 @@
   } \
 } while(0)
 
+
+typedef struct {
+  char *feed;
+  uuid_t uuid;
+  noit_check_t *check;
+  noit_http_rest_closure_t *restc;
+} noit_teststream_closure_t;
+
+noit_teststream_closure_t *
+noit_teststream_closure_alloc(void) {
+  noit_teststream_closure_t *jcl;
+  jcl = calloc(1, sizeof(*jcl));
+  return jcl;
+}
+
+void
+noit_teststream_closure_free(noit_teststream_closure_t *tc) {
+  free(tc);
+}
+
 xmlNodePtr
 noit_check_state_as_xml(noit_check_t *check) {
   xmlNodePtr state, tmp, metrics;
@@ -475,6 +495,107 @@ rest_delete_check(noit_http_rest_closure_t *restc,
 }
 
 static int
+teststream_schedule_transient_check(noit_http_rest_closure_t *restc, xmlDocPtr doc, xmlNodePtr attr, xmlNodePtr cfg,
+                              const char **error) {
+  char *target, *module, *name, *filterset;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  int flags = NP_TRANSIENT;
+  void *data;
+  uuid_t in = {0};
+  uuid_t out;
+  xmlNodePtr a;
+  xmlChar *tmp;
+  u_int32_t period, timeout;
+  noit_hash_table *configh;
+  noit_teststream_closure_t *tc;
+
+  for(a = attr->children; a; a = a->next) {
+    if(!strcmp((char *)a->name, "target"))
+      target = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "name"))
+      name = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "module"))
+      module = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "filterset"))
+      filterset = (char *)xmlNodeGetContent(a);
+    if(!strcmp((char *)a->name, "period")) {
+      tmp = xmlNodeGetContent(a);
+      period = noit_conf_string_to_int((char *)tmp);
+      xmlFree(tmp);
+      timeout = period - 10;
+    }
+  }
+  configh = noit_conf_get_hash(cfg, "config");
+
+  while(noit_hash_next(configh, &iter, &k, &klen, &data)) {
+    noitL(noit_error, "Key = %s, val = %s\n", k, (char*)data);
+  }
+
+  noit_poller_schedule(target,
+                       module,
+                       name,
+                       filterset,
+                       configh,
+                       period,
+                       timeout,
+                       NULL,
+                       flags,
+                       in,
+                       out);
+
+  xmlFree(target);
+  xmlFree(module);
+  xmlFree(name);
+  xmlFree(filterset);
+  noit_hash_destroy(configh, free, free);
+  free(configh);
+
+  tc = noit_teststream_closure_alloc();
+  tc->restc = restc;
+  tc->feed = malloc(32);
+  snprintf(tc->feed, 32, "teststream/%d", 1);
+  noit_log_stream_new(tc->feed, "noit_teststream", tc->feed,
+                      tc, NULL);
+  tc->check = noit_check_watch(out, period);
+  noit_check_transient_add_feed(tc->check, tc->feed);
+  if(!NOIT_CHECK_LIVE(tc->check)) noit_check_activate(tc->check);
+  return 0;
+}
+
+static int
+rest_teststream_check(noit_http_rest_closure_t *restc,
+               int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr root, attr, config;
+  int error_code = 500, complete = 0, mask = 0;
+  const char *error = "internal error";
+
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) return mask;
+  if(indoc == NULL) FAIL("xml parse error");
+  if(!noit_validate_check_rest_post(indoc, &attr, &config, &error)) goto error;
+  if(!teststream_schedule_transient_check(restc, indoc, attr, config, &error)) goto cleanup;
+
+ error:
+  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  noit_http_response_xml(ctx, doc);
+  noit_http_response_end(ctx);
+  goto cleanup;
+
+ cleanup:
+  if(doc) xmlFreeDoc(doc);
+  return 0;
+
+}
+
+static int
 rest_set_check(noit_http_rest_closure_t *restc,
                int npats, char **pats) {
   noit_http_session_ctx *ctx = restc->http_ctx;
@@ -632,6 +753,60 @@ rest_show_config(noit_http_rest_closure_t *restc,
   return 0;
 }
 
+static int
+noit_teststream_logio_open(noit_log_stream_t ls) {
+  return 0;
+}
+static int
+noit_teststream_logio_reopen(noit_log_stream_t ls) {
+  /* no op */
+  return 0;
+}
+
+static int
+noit_teststream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+  noit_teststream_closure_t *tc;
+  noit_http_session_ctx *ctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root;
+
+  tc = noit_log_stream_get_ctx(ls);
+  ctx = tc->restc->http_ctx;
+  if(!tc) return 0;
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, buf);
+
+  noit_http_response_ok(ctx, "text/xml");
+  noit_http_response_xml(ctx, doc);
+  noit_http_response_end(ctx);
+  noit_poller_deschedule(tc->check->checkid);
+  if(tc->restc->call_closure_free) tc->restc->call_closure_free(tc->restc->call_closure);
+  tc->restc->call_closure_free = NULL;
+  tc->restc->call_closure = NULL;
+  if(doc) xmlFreeDoc(doc);
+  return 0;
+}
+static int
+noit_teststream_logio_close(noit_log_stream_t ls) {
+  noit_teststream_closure_t *tc;
+  tc = noit_log_stream_get_ctx(ls);
+  if(tc) noit_teststream_closure_free(tc);
+  noit_log_stream_set_ctx(ls, NULL);
+  return 0;
+}
+static logops_t noit_teststream_logio_ops = {
+  noit_teststream_logio_open,
+  noit_teststream_logio_reopen,
+  noit_teststream_logio_write,
+  NULL,
+  noit_teststream_logio_close,
+  NULL,
+  NULL
+};
+
 void
 noit_check_rest_init() {
   assert(noit_http_rest_register_auth(
@@ -647,8 +822,15 @@ noit_check_rest_init() {
     rest_set_check, noit_http_rest_client_cert_auth
   ) == 0);
   assert(noit_http_rest_register_auth(
+    "PUT", "/checks/", "^test$",
+    rest_teststream_check, noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
     "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_delete_check, noit_http_rest_client_cert_auth
   ) == 0);
+
+  // Register new log ops
+  noit_register_logops("noit_teststream", &noit_teststream_logio_ops);
 }
 
