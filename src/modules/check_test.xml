@@ -1,0 +1,77 @@
+<module>
+    <name>check_test</name>
+    <description>
+        <para>
+            This module exposes an API endpoint to 
+            allow users to run a check once in transient mode to 
+            return the results inline back to the client.
+        </para>
+        <para>
+            The check runs once however it behaves almost exactly like a /check/set</para></description>
+    <loader>C</loader>
+    <image>check_test.so</image>
+    <moduleconfig>
+    </moduleconfig>
+    <checkconfig />
+    <examples>
+        <example>
+            <title>Loading the check_test module.</title>
+            <para>This example loads the check_test module.</para>
+            <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <generic image="check_test" name="check_test" />
+        </modules>
+      </noit>
+    ]]></programlisting>
+        </example>
+    </examples>
+    <section>
+        <!-- Should this be moved to the wire protocol?  And then linked from here? -->
+        <title>REST Endpoint</title>
+        <section>
+            <title>/checks/test</title>
+            <variablelist>
+                <varlistentry>
+                    <term>method</term>
+                    <listitem><code>POST</code></listitem>
+                </varlistentry>
+                <varlistentry>
+                    <term>uri</term>
+                    <listitem><code>/checks/test</code></listitem>
+                </varlistentry>
+            </variablelist>
+            <para>
+                This call accepts a document describing a check.  In the same request, the check will  
+                execute and return the results back to the user.  The check passes through the same validation
+                as the /check/set PUT REST call.  The check is marked as transient and won't appear 
+                in any persistent log streams.
+            </para>
+            <para>
+                On success, a HTTP 200 is returned and an XML documented that matches the
+                format of the <code>/check/show</code> REST command. It is a simpler set of
+                output as some of the results wouldn't make sense in this context.
+            </para>
+            <example>
+                <title>REST /checks/test XML input.</title>
+                <programlisting><![CDATA[
+<?xml version="1.0" encoding="utf8"?>
+<check>
+  <attributes>
+    <name>http</name>
+    <module>http</module>
+    <target>8.8.38.5</target>
+    <period>60000</period>
+    <timeout>5000</timeout>
+    <filterset>default</filterset>
+  </attributes>
+  <config>
+    <code>200</code>
+    <url>https://labs.omniti.com/</url>
+  </config>
+</check>
+    ]]></programlisting>
+            </example>
+        </section>
+    </section>
+</module>
