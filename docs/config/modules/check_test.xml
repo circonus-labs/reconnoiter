@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<section>
+  <title>check_test</title>
+  <para>
+            This module exposes an API endpoint to 
+            allow users to run a check once in transient mode to 
+            return the results inline back to the client.
+        </para>
+  <para>
+            The check runs once however it behaves almost exactly like a /check/set</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>check_test.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Loading the check_test module.</title>
+    <para>This example loads the check_test module.</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="check_test" name="check_test" /&gt;
+        &lt;/modules&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>
