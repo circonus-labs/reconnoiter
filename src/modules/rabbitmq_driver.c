@@ -331,7 +331,8 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
   body.bytes = (char *)payload;
   if(*payload == 'M' ||
      *payload == 'S' ||
-     *payload == 'C') {
+     *payload == 'C' ||
+     (*payload == 'B' && (payload[1] == '1' || payload[1] == '2'))) {
     char uuid_str[32 * 2 + 1];
     int account_id, check_id;
     if(extract_uuid_from_jlog(payload, payloadlen,
