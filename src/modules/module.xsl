@@ -54,6 +54,11 @@
   <xsl:for-each select="module/examples/example">
     <xsl:copy-of select="."/>
   </xsl:for-each>
+
+  <xsl:for-each select="module/section">
+    <xsl:copy-of select="."/>
+  </xsl:for-each>
+
   </section>
 </xsl:template>
 </xsl:stylesheet>

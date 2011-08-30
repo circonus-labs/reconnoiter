@@ -39,4 +39,56 @@
       &lt;/noit&gt;
     </programlisting>
   </example>
+  <section>
+    <!-- Should this be moved to the wire protocol?  And then linked from here? -->
+    <title>REST Endpoint</title>
+    <section>
+      <title>/checks/test</title>
+      <variablelist>
+        <varlistentry>
+          <term>method</term>
+          <listitem>
+            <code>POST</code>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>uri</term>
+          <listitem>
+            <code>/checks/test</code>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+      <para>
+                This call accepts a document describing a check.  In the same request, the check will  
+                execute and return the results back to the user.  The check passes through the same validation
+                as the /check/set PUT REST call.  The check is marked as transient and won't appear 
+                in any persistent log streams.
+            </para>
+      <para>
+                On success, a HTTP 200 is returned and an XML documented that matches the
+                format of the <code>/check/show</code> REST command. It is a simpler set of
+                output as some of the results wouldn't make sense in this context.
+            </para>
+      <example>
+        <title>REST /checks/test XML input.</title>
+        <programlisting>
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;check&gt;
+  &lt;attributes&gt;
+    &lt;name&gt;http&lt;/name&gt;
+    &lt;module&gt;http&lt;/module&gt;
+    &lt;target&gt;8.8.38.5&lt;/target&gt;
+    &lt;period&gt;60000&lt;/period&gt;
+    &lt;timeout&gt;5000&lt;/timeout&gt;
+    &lt;filterset&gt;default&lt;/filterset&gt;
+  &lt;/attributes&gt;
+  &lt;config&gt;
+    &lt;code&gt;200&lt;/code&gt;
+    &lt;url&gt;https://labs.omniti.com/&lt;/url&gt;
+  &lt;/config&gt;
+&lt;/check&gt;
+    </programlisting>
+      </example>
+    </section>
+  </section>
 </section>
