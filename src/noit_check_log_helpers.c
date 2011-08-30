@@ -224,8 +224,6 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
     noitL(noit_error, "bundle decode: protobuf invalid\n");
     goto bad_line;
   }
-  noitL(noit_error, "ZOMG -> data (%lld metrics)\n",
-        (long long int)bundle->n_metrics);
   has_status = bundle->status ? 1 : 0;
   cnt = bundle->n_metrics;
   *out = calloc(sizeof(**out), cnt + has_status);
