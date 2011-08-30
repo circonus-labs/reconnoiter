@@ -114,8 +114,8 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   const char *actual_remote_cn = NULL;
   if(remote_cn) actual_remote_cn = remote_cn;
   uuid_t id;
-  uuid_parse(uuid_str, id);
-  if(noit_hash_retrieve(&uuid_map, id, UUID_SIZE, &vstr)) {
+  uuid_parse((char *)uuid_str, id);
+  if(noit_hash_retrieve(&uuid_map, (const char *)id, UUID_SIZE, &vstr)) {
     char *str = (char *)vstr;
     if(remote_cn && strcmp(str, remote_cn)) {
       /* replace with new remote */
