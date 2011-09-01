@@ -145,6 +145,9 @@ json-lib/libnoitjson.a:	libnoitjson
 
 .PHONY:	noit_version.h
 
+reversion:
+	@$(top_srcdir)/buildtools/mkversion.sh noit_version.h
+
 noit_version.h:
 	@$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
@@ -171,7 +174,7 @@ noitd_@DTRACEOBJ@:    $(STRATCON_OBJS)
 @DTRACEHDR@:    dtrace_probes.d
 	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
 
-noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
+noitd:	reversion $(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
@@ -186,7 +189,7 @@ noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
 
-stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
+stratcond:	reversion $(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
