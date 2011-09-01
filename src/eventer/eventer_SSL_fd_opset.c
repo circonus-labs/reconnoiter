@@ -365,6 +365,9 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
               (unsigned char *)EVENTER_SSL_DATANAME,
               sizeof(EVENTER_SSL_DATANAME)-1);
     SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_ALL);
+#ifdef SSL_MODE_RELEASE_BUFFERS
+    SSL_CTX_set_mode(ctx->ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
+#endif
     if(certificate &&
        SSL_CTX_use_certificate_chain_file(ctx->ssl_ctx, certificate) != 1)
       goto bail;
