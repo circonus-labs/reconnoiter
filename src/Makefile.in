@@ -143,7 +143,7 @@ eventer/libeventer.a:	libeventer
 utils/libnoit_utils.a:	libnoit_utils
 json-lib/libnoitjson.a:	libnoitjson
 
-.PHONY:	noit_version.h
+.PHONY:	reversion
 
 reversion:
 	@$(top_srcdir)/buildtools/mkversion.sh noit_version.h
