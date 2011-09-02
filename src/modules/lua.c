@@ -680,6 +680,8 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
           const char *err, *nerr;
           err = lua_tostring(ci->coro_state, base);
           nerr = lua_tostring(ci->coro_state, base - 2);
+          if(err) noitL(nldeb, "err -> %s\n", err);
+          if(nerr) noitL(nldeb, "nerr -> %s\n", nerr);
           if(nerr && *nerr == 31) nerr = NULL; // 31? WTF lua?
           if(!nerr && err) {
             nerr = strchr(err, ' '); /* advance past the file */
@@ -787,10 +789,12 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
   noit_lua_setup_check(ci->coro_state, ci->check);
-  if(cause) noit_lua_setup_check(ci->coro_state, ci->cause);
-  else lua_pushnil(L);
-  noit_lua_resume(ci, 3);
-
+  if(cause) {
+    noit_lua_setup_check(ci->coro_state, ci->cause);
+    noit_lua_resume(ci, 3);
+  }
+  else
+    noit_lua_resume(ci, 2);
   return 0;
 
  fail:
