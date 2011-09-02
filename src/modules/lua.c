@@ -658,7 +658,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   noit_module_t *self;
   noit_check_t *check;
 
-  noitL(nldeb, "lua: %p resuming\n", ci->coro_state);
+  noitL(nldeb, "lua: %p resuming(%d)\n", ci->coro_state, nargs);
   result = lua_resume(ci->coro_state, nargs);
   switch(result) {
     case 0: /* success */
@@ -789,12 +789,11 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   SETUP_CALL(ci->coro_state, "initiate", goto fail);
   noit_lua_setup_module(ci->coro_state, ci->self);
   noit_lua_setup_check(ci->coro_state, ci->check);
-  if(cause) {
+  if(cause)
     noit_lua_setup_check(ci->coro_state, ci->cause);
-    noit_lua_resume(ci, 3);
-  }
   else
-    noit_lua_resume(ci, 2);
+    lua_pushnil(ci->coro_state);
+  noit_lua_resume(ci, 3);
   return 0;
 
  fail:
