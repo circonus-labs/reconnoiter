@@ -38,8 +38,8 @@ import java.util.Set;
 import java.util.Hashtable;
 import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
+import java.util.List;
+import java.util.Iterator;
 
 import javax.management.MBeanServerConnection;
 import javax.management.MBeanInfo;
@@ -49,6 +49,15 @@ import javax.management.ObjectInstance;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
+import javax.management.AttributeList;
+import javax.management.Attribute;
+import javax.management.openmbean.CompositeData;
+import javax.management.openmbean.CompositeDataSupport;
+import javax.management.openmbean.CompositeType;
+import javax.management.openmbean.OpenType;
+import javax.management.openmbean.SimpleType;
+import javax.management.openmbean.TabularDataSupport;
+import java.lang.management.MemoryUsage;
 
 import com.omniti.jezebel.ResmonResult;
 import com.omniti.jezebel.JezebelCheck;
@@ -87,8 +96,6 @@ public class jmx implements JezebelCheck {
                 domains = new ArrayList<String>(Arrays.asList(mbean_domains.split("\\s+")));
             }
 
-            Pattern space = Pattern.compile("\\s");
-            
             for (ObjectName objectName : allObjectNames) {
                 if ( ! domains.isEmpty() && ! domains.contains(objectName.getDomain()) ) {
                     continue;
@@ -96,47 +103,20 @@ public class jmx implements JezebelCheck {
 
                 MBeanInfo mbi = mbsc.getMBeanInfo(objectName);
                 MBeanAttributeInfo[] attribs = mbi.getAttributes();
-                String oname = "";
+                String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
 
-                Hashtable<String,String> objectPropList = objectName.getKeyPropertyList();
-                if ( objectPropList.containsKey("name") ) {
-                    oname += objectPropList.get("name");
-                }
-                if ( objectPropList.containsKey("type") ) {
-                    if ( ! oname.equals("") ) {
-                        oname += "`";
-                    }
-                    oname += objectPropList.get("type");
+                String[] attributes = new String[attribs.length];
+                int i = 0;
+                for (MBeanAttributeInfo attr : attribs) {
+                    attributes[i] = attr.getName();
+                    ++i;
                 }
 
-                Matcher m = space.matcher(oname);
-                oname = m.replaceAll("_");
+                AttributeList al = mbsc.getAttributes(objectName, attributes);
+                List<Attribute> aal = al.asList();
 
-                for (MBeanAttributeInfo attr : attribs)
-                {
-                    try {
-                        String mname = attr.getName();
-                        Matcher m2 = space.matcher(mname);
-                        mname = m2.replaceAll("_");
-
-                        if ( attr.getType().equals("java.lang.String") ) {
-                            String val = (String)mbsc.getAttribute(objectName, attr.getName());
-                            if ( val.length() <= 256 ) {
-                                rr.set(oname + "`" + mname, val);
-                            }
-                        }
-                        else if ( attr.getType().equals("int") ) {
-                            rr.set(oname + "`" + mname, (Integer)mbsc.getAttribute(objectName, attr.getName()));
-                        }
-                        else if ( attr.getType().equals("long") ) {
-                            rr.set(oname + "`" + mname, (Long)mbsc.getAttribute(objectName, attr.getName()));
-                        }
-                        else if ( attr.getType().equals("boolean") ) {
-                            Boolean val = (Boolean)mbsc.getAttribute(objectName, attr.getName());
-                            rr.set(oname + "`" + mname, (val)?1:0);
-                        }
-                    }
-                    catch (Exception e) {}
+                for (Attribute a : aal ) {
+                    getMetric(oname, a.getName(), a.getValue(), rr);
                 }
             }
             connector.close();
@@ -145,5 +125,115 @@ public class jmx implements JezebelCheck {
         catch (Exception e) {
             rr.set("jezebel_status", e.getMessage());
         }
+    }
+
+    private void getMetric (String objectName, String metricName, Object value, ResmonResult rr) {
+        try {
+            if ( value == null ) return;
+
+            if ( value instanceof String ) {
+                String val = (String)value;
+                if ( val != null && val.length() <= 256 ) {
+                    rr.set(objectName + "`" + metricName, val);
+                }
+            }
+            else if ( value instanceof Integer ) {
+                rr.set(objectName + "`" + metricName, (Integer)value);
+            }
+            else if ( value instanceof Long ) {
+                rr.set(objectName + "`" + metricName, (Long)value);
+            }
+            else if ( value instanceof Boolean ) {
+                Boolean val = (Boolean)value;
+                rr.set(objectName + "`" + metricName, (val)?1:0);
+            }
+            else if ( value instanceof Double ) {
+                rr.set(objectName + "`" + metricName, (Double)value);
+            }
+            else if ( value instanceof Float ) {
+                rr.set(objectName + "`" + metricName, (Float)value);
+            }
+            else if ( value instanceof CompositeDataSupport ) {
+                CompositeDataSupport data = (CompositeDataSupport)value;
+                CompositeType type = data.getCompositeType();
+                Set keys = type.keySet();
+                for ( Iterator it = keys.iterator(); it.hasNext(); ) {
+                    String key = (String)it.next();
+                    getMetric(objectName, metricName + "`" + key, data.get(key), rr);
+                }
+            }
+            else if ( value instanceof TabularDataSupport ) {
+                TabularDataSupport data = (TabularDataSupport)value;
+                Set keys = data.keySet();
+                for ( Iterator it = keys.iterator(); it.hasNext(); ) {
+                    Object key = it.next();
+                    for ( Iterator ki = ((List) key).iterator(); ki.hasNext(); ) {
+                        Object key2 = ki.next();
+                        CompositeData cd = data.get(new Object[] {key2});
+                        getMetric(objectName, metricName + "`" + key2, cd.get("value"), rr);
+                    }
+                }
+            }
+            else if ( value.getClass().isArray() ) {
+                String t = value.getClass().getName().substring(1,2);
+                if ( t.equals("L") ) {
+                    Object[] vals = (Object[])value;
+                    for ( int i = 0, len = vals.length; i < len; ++i ) {
+                        getMetric(objectName, metricName + "`" + i, vals[i], rr);
+                    }
+                }
+                else {
+                    ArrayList<Object> list = new ArrayList<Object>(0);
+                    if ( t.equals("Z") ) {
+                        boolean[] vals = (boolean[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( boolean v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("B") ) {
+                        byte[] vals = (byte[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( byte v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("C") ) {
+                        char[] vals = (char[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( char v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("D") ) {
+                        double[] vals = (double[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( double v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("F") ) {
+                        float[] vals = (float[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( float v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("I") ) { 
+                        int[] vals = (int[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( int v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("J") ) {
+                        long[] vals = (long[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( long v : vals ) { list.add(v); }
+                    }
+                    else if ( t.equals("S") ) {
+                        short[] vals = (short[])value;
+                        list = new ArrayList<Object>(vals.length);
+                        for ( short v : vals ) { list.add(v); }
+                    }
+
+                    for ( int i = 0, len = list.size(); i < len; ++i ) {
+                        getMetric(objectName, metricName + "`" + i, list.get(i), rr);
+                    }
+                }
+            }
+            else {
+                System.err.println("Error, could not handle. name: " + objectName+"`"+metricName + " type: " + value.getClass().getName());
+            }
+        }
+        catch (Exception e) { System.err.println("Exception: " + objectName+"`"+metricName + " " + e.getMessage()); }
     }
 }
