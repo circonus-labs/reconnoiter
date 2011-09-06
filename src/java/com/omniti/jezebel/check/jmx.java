@@ -153,35 +153,13 @@ public class jmx implements JezebelCheck {
             else if ( value instanceof Float ) {
                 rr.set(objectName + "`" + metricName, (Float)value);
             }
-            else if ( value instanceof CompositeData ) {
-                CompositeType ct = ((CompositeData)value).getCompositeType();
-                Set<String> keys = ct.keySet();
-                for ( String key : keys ) {
-                    getMetric(objectName, metricName + "`" + key, ((CompositeData)value).get(key), rr);
-                }
-            }
-            else if ( value instanceof MemoryUsage ) {
-                rr.set(objectName + "`" + metricName + "`committed", ((MemoryUsage)value).getCommitted());
-                rr.set(objectName + "`" + metricName + "`init", ((MemoryUsage)value).getInit());
-                rr.set(objectName + "`" + metricName + "`max", ((MemoryUsage)value).getMax());
-                rr.set(objectName + "`" + metricName + "`used", ((MemoryUsage)value).getUsed());
-            }
             else if ( value instanceof CompositeDataSupport ) {
                 CompositeDataSupport data = (CompositeDataSupport)value;
                 CompositeType type = data.getCompositeType();
                 Set keys = type.keySet();
                 for ( Iterator it = keys.iterator(); it.hasNext(); ) {
                     String key = (String)it.next();
-                    Object v = data.get(key);
-                    OpenType ot = type.getType(key);
-                    if ( ot instanceof SimpleType ) {
-                        if ( data.containsKey("key") ) {
-                            getMetric(objectName, metricName + "`" + data.get("key"), data.get("value"), rr);
-                        }
-                        else {
-                            getMetric(objectName, metricName + "`" + key, data.get(key), rr);
-                        }
-                    }
+                    getMetric(objectName, metricName + "`" + key, data.get(key), rr);
                 }
             }
             else if ( value instanceof TabularDataSupport ) {
@@ -192,17 +170,8 @@ public class jmx implements JezebelCheck {
                     for ( Iterator ki = ((List) key).iterator(); ki.hasNext(); ) {
                         Object key2 = ki.next();
                         CompositeData cd = data.get(new Object[] {key2});
-                        Object v = cd.get("value");
-                        OpenType ot = cd.getCompositeType().getType("value");
-                        getMetric(objectName, metricName + "`" + key2, v, rr);
+                        getMetric(objectName, metricName + "`" + key2, cd.get("value"), rr);
                     }
-                }
-            }
-            else if ( value instanceof Map ) {
-                for ( Object entry : ((Map)value).entrySet() ) {
-                    Object key = ((Map.Entry<?,?>)entry).getKey();
-                    Object v = ((Map.Entry<?,?>)entry).getValue();
-                    getMetric(objectName, metricName, v, rr);
                 }
             }
             else if ( value.getClass().isArray() ) {
