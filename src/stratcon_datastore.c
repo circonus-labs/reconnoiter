@@ -61,12 +61,25 @@ static noit_log_stream_t ingest_err = NULL;
 static char *basejpath = NULL;
 
 static ingestor_api_t *ingestor = NULL;
+typedef struct ingest_chain_t {
+  ingestor_api_t *ingestor;
+  struct ingest_chain_t *next;
+} ingest_chain_t;
+
+static ingest_chain_t *ingestor_chain;
+
 static int ds_system_enabled = 1;
 int stratcon_datastore_get_enabled() { return ds_system_enabled; }
 void stratcon_datastore_set_enabled(int n) { ds_system_enabled = n; }
 int stratcon_datastore_set_ingestor(ingestor_api_t *ni) {
-  if(ingestor) return -1;
-  ingestor = ni;
+  ingest_chain_t *p, *i = calloc(1, sizeof(*i));
+  i->ingestor = ni;
+  if(!ingestor_chain) ingestor_chain = i;
+  else {
+    for(p = ingestor_chain; p->next; p = p->next);
+    p->next = i;
+  }
+  ingestor = ingestor_chain->ingestor;
   return 0;
 }
 
@@ -91,6 +104,90 @@ interim_journal_free(void *vij) {
   if(ij->remote_cn) free(ij->remote_cn);
   if(ij->fqdn) free(ij->fqdn);
   free(ij);
+}
+
+static void
+stratcon_ingest_sweep_journals_int(char *first, char *second, char *third,
+                                   int (*test)(const char *),
+                                   int (*ingest)(const char *fullpath,
+                                                 const char *remote_str,
+                                                 const char *remote_cn,
+                                                 const char *id_str)) {
+  char path[PATH_MAX];
+  DIR *root;
+  struct dirent *de, *entry;
+  int i = 0, cnt = 0;
+  char **entries;
+  int size = 0;
+
+  snprintf(path, sizeof(path), "%s%s%s%s%s%s%s", basejpath,
+           first ? "/" : "", first ? first : "",
+           second ? "/" : "", second ? second : "",
+           third ? "/" : "", third ? third : "");
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MAX(size, PATH_MAX + 128);
+  de = alloca(size);
+  root = opendir(path);
+  if(!root) return;
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) cnt++;
+  closedir(root);
+  root = opendir(path);
+  if(!root) return;
+  entries = malloc(sizeof(*entries) * cnt);
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
+    if(i < cnt) {
+      entries[i++] = strdup(entry->d_name);
+    }
+  }
+  closedir(root);
+  cnt = i; /* could have changed, directories are fickle */
+  qsort(entries, i, sizeof(*entries),
+        (int (*)(const void *, const void *))strcasecmp);
+  for(i=0; i<cnt; i++) {
+    if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
+    noitL(ds_deb, "Processing L%d entry '%s'\n",
+          third ? 4 : second ? 3 : first ? 2 : 1, entries[i]);
+    if(!first)
+      stratcon_ingest_sweep_journals_int(entries[i], NULL, NULL, test, ingest);
+    else if(!second)
+      stratcon_ingest_sweep_journals_int(first, entries[i], NULL, test, ingest);
+    else if(!third)
+      stratcon_ingest_sweep_journals_int(first, second, entries[i], test, ingest);
+    else if(test(entries[i])) {
+      char fullpath[PATH_MAX];
+      snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", basejpath,
+               first,second,third,entries[i]);
+      ingest(fullpath,first,second,third);
+    }
+  }
+  for(i=0; i<cnt; i++)
+    free(entries[i]);
+  free(entries);
+}
+void
+stratcon_ingest_sweep_journals(int (*test)(const char *),
+                               int (*ingest)(const char *fullpath,
+                                             const char *remote_str,
+                                             const char *remote_cn,
+                                             const char *id_str)) {
+  stratcon_ingest_sweep_journals_int(NULL,NULL,NULL, test, ingest);
+}
+
+static int
+stratcon_ingest(const char *fullpath, const char *remote_str,
+                const char *remote_cn, const char *id_str) {
+  ingest_chain_t *ic;
+  int err = 0;
+  for(ic = ingestor_chain; ic; ic = ic->next)
+    if(ic->ingestor->launch_file_ingestion(fullpath, remote_str,
+                                           remote_cn, id_str))
+      err = -1;
+  if(err == 0) {
+    unlink(fullpath);
+  }
+  return err;
 }
 static int
 stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
@@ -138,8 +235,8 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
     close(ij->fd);
     ij->fd = -1;
     snprintf(id_str, sizeof(id_str), "%d", ij->storagenode_id);
-    ingestor->launch_file_ingestion(ij->filename, ij->remote_str,
-                                    ij->remote_cn, id_str);
+    stratcon_ingest(ij->filename, ij->remote_str,
+                    ij->remote_cn, id_str);
   }
   noit_hash_destroy(syncset->ws, free, interim_journal_free);
   free(syncset->ws);
@@ -367,8 +464,12 @@ stratcon_datastore_saveconfig(void *unused) {
   return ingestor->save_config();
 }
 
+static int is_raw_ingestion_file(const char *file) {
+  return (strlen(file) == 16);
+}
+
 void
-stratcon_datastore_init() {
+stratcon_datastore_core_init() {
   ds_err = noit_log_stream_find("error/datastore");
   ds_deb = noit_log_stream_find("debug/datastore");
   ds_pool_deb = noit_log_stream_find("debug/datastore_pool");
@@ -380,6 +481,13 @@ stratcon_datastore_init() {
     noitL(noit_error, "/stratcon/database/journal/path is unspecified\n");
     exit(-1);
   }
+}
+void
+stratcon_datastore_init() {
+  stratcon_datastore_core_init();
+
+  stratcon_ingest_sweep_journals(is_raw_ingestion_file,
+                                 stratcon_ingest);
 
   assert(noit_http_rest_register_auth(
     "GET", "/noits/", "^config$", rest_get_noit_config,

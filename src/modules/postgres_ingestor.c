@@ -1412,25 +1412,36 @@ stratcon_ingest_saveconfig() {
   return rv;
 }
 
-static void
+static int
 stratcon_ingest_launch_file_ingestion(const char *path,
                                       const char *remote_str,
                                       const char *remote_cn,
                                       const char *id_str) {
   pg_interim_journal_t *ij;
+  char pgfile[PATH_MAX];
   eventer_t ingest;
 
+  if(strcmp(path + strlen(path) - 3, ".pg")) {
+    snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
+    if(link(path, pgfile) < 0) {
+      noitL(noit_error, "cannot link journal: %s\n", strerror(errno));
+      free(ij);
+      return -1;
+    }
+  }
+  else
+    strlcpy(pgfile, path, sizeof(pgfile));
   ij = calloc(1, sizeof(*ij));
-  ij->fd = open(path, O_RDONLY);
+  ij->fd = open(pgfile, O_RDONLY);
   if(ij->fd < 0) {
     noitL(noit_error, "cannot open journal '%s': %s\n",
-          path, strerror(errno));
+          pgfile, strerror(errno));
     free(ij);
-    return;
+    return -1;
   }
   close(ij->fd);
   ij->fd = -1;
-  ij->filename = strdup(path);
+  ij->filename = strdup(pgfile);
   ij->remote_str = strdup(remote_str);
   ij->remote_cn = strdup(remote_cn);
   ij->storagenode_id = atoi(id_str);
@@ -1442,65 +1453,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ingest->callback = stratcon_ingest_asynch_execute;
   ingest->closure = ij;
   eventer_add_asynch(ij->cpool->jobq, ingest);
-}
-static void
-stratcon_ingest_sweep_journals_int(char *first, char *second, char *third) {
-  char path[PATH_MAX];
-  DIR *root;
-  struct dirent *de, *entry;
-  int i = 0, cnt = 0;
-  char **entries;
-  int size = 0;
-
-  snprintf(path, sizeof(path), "%s%s%s%s%s%s%s", basejpath,
-           first ? "/" : "", first ? first : "",
-           second ? "/" : "", second ? second : "",
-           third ? "/" : "", third ? third : "");
-#ifdef _PC_NAME_MAX
-  size = pathconf(path, _PC_NAME_MAX);
-#endif
-  size = MAX(size, PATH_MAX + 128);
-  de = alloca(size);
-  root = opendir(path);
-  if(!root) return;
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) cnt++;
-  closedir(root);
-  root = opendir(path);
-  if(!root) return;
-  entries = malloc(sizeof(*entries) * cnt);
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
-    if(i < cnt) {
-      entries[i++] = strdup(entry->d_name);
-    }
-  }
-  closedir(root);
-  cnt = i; /* could have changed, directories are fickle */
-  qsort(entries, i, sizeof(*entries),
-        (int (*)(const void *, const void *))strcasecmp);
-  for(i=0; i<cnt; i++) {
-    if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
-    noitL(ds_deb, "Processing L%d entry '%s'\n",
-          third ? 4 : second ? 3 : first ? 2 : 1, entries[i]);
-    if(!first)
-      stratcon_ingest_sweep_journals_int(entries[i], NULL, NULL);
-    else if(!second)
-      stratcon_ingest_sweep_journals_int(first, entries[i], NULL);
-    else if(!third)
-      stratcon_ingest_sweep_journals_int(first, second, entries[i]);
-    else if(strlen(entries[i]) == 16) {
-      char fullpath[PATH_MAX];
-      snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", basejpath,
-               first,second,third,entries[i]);
-      stratcon_ingest_launch_file_ingestion(fullpath,first,second,third);
-    }
-  }
-  for(i=0; i<cnt; i++)
-    free(entries[i]);
-  free(entries);
-}
-static void
-stratcon_ingest_sweep_journals() {
-  stratcon_ingest_sweep_journals_int(NULL,NULL,NULL);
+  return 0;
 }
 
 int
@@ -1679,6 +1632,9 @@ static int postgres_ingestor_config(noit_module_generic_t *self, noit_hash_table
 static int postgres_ingestor_onload(noit_image_t *self) {
   return 0;
 }
+static int is_postgres_ingestor_file(const char *file) {
+  return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
+}
 static int postgres_ingestor_init(noit_module_generic_t *self) {
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
@@ -1695,7 +1651,8 @@ static int postgres_ingestor_init(noit_module_generic_t *self) {
   }
   stratcon_ingest_all_check_info();
   stratcon_ingest_all_storagenode_info();
-  stratcon_ingest_sweep_journals();
+  stratcon_ingest_sweep_journals(is_postgres_ingestor_file,
+                                 stratcon_ingest_launch_file_ingestion);
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }
 
