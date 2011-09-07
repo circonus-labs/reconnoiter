@@ -476,9 +476,9 @@ stratcon_datastore_core_init() {
   ingest_err = noit_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;
-  if(!noit_conf_get_string(NULL, "/stratcon/database/journal/path",
+  if(!noit_conf_get_string(NULL, "//database/journal/path",
                            &basejpath)) {
-    noitL(noit_error, "/stratcon/database/journal/path is unspecified\n");
+    noitL(noit_error, "//database/journal/path is unspecified\n");
     exit(-1);
   }
 }
