@@ -72,10 +72,6 @@ static const char *chrootpath = NULL;
 static int foreground = 0;
 static int debug = 0;
 static int strict_module_load = 0;
-static char **enable_logs;
-static int enable_logs_cnt = 0;
-static char **disable_logs;
-static int disable_logs_cnt = 0;
 static char *glider = NULL;
 
 #include "man/noitd.usage.h"
@@ -93,8 +89,6 @@ static void usage(const char *progname) {
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  enable_logs = calloc(argc, sizeof(*enable_logs));
-  disable_logs = calloc(argc, sizeof(*disable_logs));
   while((c = getopt(argc, argv, "Mhc:dDu:g:t:l:L:G:")) != EOF) {
     switch(c) {
       case 'G':
