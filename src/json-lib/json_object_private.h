@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 typedef void (json_object_delete_fn)(struct json_object *o);
 typedef int (json_object_to_json_string_fn)(struct json_object *o,
 					    struct printbuf *pb);
@@ -23,6 +25,7 @@ typedef int (json_object_to_json_string_fn)(struct json_object *o,
 struct json_object
 {
   enum json_type o_type;
+  enum json_int_overflow o_ioverflow;
   json_object_delete_fn *_delete;
   json_object_to_json_string_fn *_to_json_string;
   int _ref_count;
@@ -35,6 +38,10 @@ struct json_object
     struct array_list *c_array;
     char *c_string;
   } o;
+  union {
+    u_int64_t c_uint64;
+    int64_t c_int64;
+  } overflow;
 };
 
 /* CAW: added for ANSI C iteration correctness */

@@ -49,6 +49,12 @@ typedef enum json_type {
   json_type_string
 } json_type;
 
+typedef enum json_int_overflow {
+  json_overflow_int,
+  json_overflow_uint64,
+  json_overflow_int64
+} json_int_overflow;
+
 /* reference counting functions */
 
 /**
@@ -253,6 +259,15 @@ extern boolean json_object_get_boolean(struct json_object *obj);
  * @returns a json_object of type json_type_int
  */
 extern struct json_object* json_object_new_int(int i);
+
+
+extern json_int_overflow json_object_get_int_overflow(struct json_object *jso);
+extern void json_object_set_int_overflow(struct json_object *jso,
+					  json_int_overflow o);
+extern u_int64_t json_object_get_uint64(struct json_object *jso);
+extern int64_t json_object_get_int64(struct json_object *jso);
+extern void json_object_set_uint64(struct json_object *jso, u_int64_t v);
+extern void json_object_set_int64(struct json_object *jso, int64_t v);
 
 /** Get the int value of a json_object
  *

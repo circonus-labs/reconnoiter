@@ -326,9 +326,36 @@ struct json_object* json_object_new_int(int i)
 {
   struct json_object *jso = json_object_new(json_type_int);
   if(!jso) return NULL;
+  jso->o_ioverflow = json_overflow_int;
   jso->_to_json_string = &json_object_int_to_json_string;
   jso->o.c_int = i;
   return jso;
+}
+
+json_int_overflow json_object_get_int_overflow(struct json_object *jso)
+{
+  return jso->o_ioverflow;
+}
+void json_object_set_int_overflow(struct json_object *jso,
+					  json_int_overflow o) {
+  jso->o_ioverflow = o;
+}
+
+u_int64_t json_object_get_uint64(struct json_object *jso)
+{
+  return jso->overflow.c_uint64;
+}
+void json_object_set_uint64(struct json_object *jso, u_int64_t v)
+{
+  jso->overflow.c_uint64 = v;
+}
+int64_t json_object_get_int64(struct json_object *jso)
+{
+  return jso->overflow.c_int64;
+}
+void json_object_set_int64(struct json_object *jso, int64_t v)
+{
+  jso->overflow.c_int64 = v;
 }
 
 int json_object_get_int(struct json_object *jso)

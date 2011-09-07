@@ -1773,7 +1773,27 @@ noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
     case json_type_string: lua_pushstring(L, json_object_get_string(o)); break;
     case json_type_boolean: lua_pushboolean(L, json_object_get_boolean(o)); break;
     case json_type_double: lua_pushnumber(L, json_object_get_double(o)); break;
-    case json_type_int: lua_pushnumber(L, json_object_get_int(o)); break;
+    case json_type_int:
+    {
+      int64_t i64;
+      uint64_t u64;
+      char istr[64];
+      switch(json_object_get_int_overflow(o)) {
+        case json_overflow_int:
+          lua_pushnumber(L, json_object_get_int(o)); break;
+        case json_overflow_int64:
+          i64 = json_object_get_int64(o);
+          snprintf(istr, sizeof(istr), "%lld", i64);
+          lua_pushstring(L, istr);
+          break;
+        case json_overflow_uint64:
+          u64 = json_object_get_uint64(o);
+          snprintf(istr, sizeof(istr), "%llu", u64);
+          lua_pushstring(L, istr);
+          break;
+      }
+      break;
+    }
     case json_type_array:
     {
       int i, cnt;
