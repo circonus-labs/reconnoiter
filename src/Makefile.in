@@ -48,8 +48,8 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noit_version.h \
 	noit_config.h noit_console.h noit_console_telnet.h noit_defines.h \
 	noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
-	noit_livestream_listener.h noit_module.h noit_rest.h noit_tokenizer.h \
-	noit_xml.h \
+	noit_livestream_listener.h noit_main.h noit_module.h noit_rest.h \
+	noit_tokenizer.h noit_xml.h \
 	stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
 	stratcon_realtime_http.h \
 	eventer/OETS_asn1_helper.h eventer/eventer.h \
@@ -67,7 +67,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
 	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h
 
-NOIT_OBJS=noitd.o noit_listener.o \
+NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
 	noit_check_tools_shared.o noit_check_log_helpers.o \
@@ -82,7 +82,7 @@ NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
-STRATCON_OBJS=stratcond.o noit_listener.o \
+STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_xml.o \
 	noit_conf.o noit_http.o noit_rest.o noit_tokenizer.o \

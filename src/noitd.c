@@ -43,6 +43,7 @@
 #include <sys/wait.h>
 #endif
 
+#include "noit_main.h"
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
@@ -90,26 +91,6 @@ static void usage(const char *progname) {
   return;
 }
 
-void cli_log_switches() {
-  int i;
-  noit_log_stream_t ls;
-  for(i=0; i<enable_logs_cnt; i++) {
-    ls = noit_log_stream_find(enable_logs[i]);
-    if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
-    if(ls && !ls->enabled) {
-      noitL(noit_error, "Enabling %s\n", enable_logs[i]);
-      ls->enabled = 1;
-    }
-  }
-  for(i=0; i<disable_logs_cnt; i++) {
-    ls = noit_log_stream_find(disable_logs[i]);
-    if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
-    if(ls && ls->enabled) {
-      noitL(noit_error, "Disabling %s\n", disable_logs[i]);
-      ls->enabled = 0;
-    }
-  }
-}
 void parse_clargs(int argc, char **argv) {
   int c;
   enable_logs = calloc(argc, sizeof(*enable_logs));
@@ -127,10 +108,10 @@ void parse_clargs(int argc, char **argv) {
         exit(1);
         break;
       case 'l':
-        enable_logs[enable_logs_cnt++] = strdup(optarg);
+        noit_main_enable_log(optarg);
         break;
       case 'L':
-        disable_logs[disable_logs_cnt++] = strdup(optarg);
+        noit_main_disable_log(optarg);
         break;
       case 'u':
         droptouser = strdup(optarg);
@@ -154,26 +135,6 @@ void parse_clargs(int argc, char **argv) {
         break;
     }
   }
-}
-
-static
-int configure_eventer() {
-  int rv = 0;
-  noit_hash_table *table;
-  table = noit_conf_get_hash(NULL, "/" APPNAME "/eventer/config");
-  if(table) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-    const char *key, *value;
-    int klen;
-    while(noit_hash_next_str(table, &iter, &key, &klen, &value)) {
-      int subrv;
-      if((subrv = eventer_propset(key, value)) != 0)
-        rv = subrv;
-    }
-    noit_hash_destroy(table, free, free);
-    free(table);
-  }
-  return rv;
 }
 
 static int __reload_needed = 0;
@@ -266,105 +227,7 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  int fd, lockfd;
-  char conf_str[1024];
-  char lockfile[PATH_MAX];
-  char user[32], group[32];
-  char *trace_dir = NULL;
-
   parse_clargs(argc, argv);
-
-  /* First initialize logging, so we can log errors */
-  noit_log_init();
-  noit_log_stream_add_stream(noit_debug, noit_stderr);
-  noit_log_stream_add_stream(noit_error, noit_stderr);
-
-  /* Next load the configs */
-  noit_conf_init(APPNAME);
-  if(noit_conf_load(config_file) == -1) {
-    fprintf(stderr, "Cannot load config: '%s'\n", config_file);
-    exit(-1);
-  }
-
-  /* Reinitialize the logging system now that we have a config */
-  snprintf(user, sizeof(user), "%d", getuid());
-  snprintf(group, sizeof(group), "%d", getgid());
-  if(noit_security_usergroup(droptouser, droptogroup, noit_true)) {
-    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(-1);
-  }
-  noit_conf_log_init(APPNAME);
-  cli_log_switches();
-  if(noit_security_usergroup(user, group, noit_true)) {
-    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
-    exit(-1);
-  }
-  if(debug)
-    noit_debug->enabled = 1;
-
-  if(!glider) noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@glider", &glider);
-  noit_watchdog_glider(glider);
-  noit_conf_get_string(NULL, "/" APPNAME "/watchdog/@tracedir", &trace_dir);
-  if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
-
-  /* Lastly, run through all other system inits */
-  if(!noit_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",
-                              conf_str, sizeof(conf_str))) {
-    noitL(noit_stderr, "Cannot find '%s' in configuration\n",
-          "/" APPNAME "/eventer/@implementation");
-    exit(-1);
-  }
-  if(eventer_choose(conf_str) == -1) {
-    noitL(noit_stderr, "Cannot choose eventer %s\n", conf_str);
-    exit(-1);
-  }
-  if(configure_eventer() != 0) {
-    noitL(noit_stderr, "Cannot configure eventer\n");
-    exit(-1);
-  }
-
-  noit_watchdog_prefork_init();
-
-  if(chdir("/") != 0) {
-    noitL(noit_stderr, "Failed chdir(\"/\"): %s\n", strerror(errno));
-    exit(-1);
-  }
-
-  /* Acquire the lock so that we can throw an error if it doesn't work.
-   * If we've started -D, we'll have the lock.
-   * If not we will daemon and must reacquire the lock.
-   */
-  lockfd = -1;
-  lockfile[0] = '\0';
-  if(noit_conf_get_stringbuf(NULL, "/" APPNAME "/@lockfile",
-                             lockfile, sizeof(lockfile))) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
-    }
-  }
-
-  if(foreground) return child_main();
-
-  /* This isn't inherited across forks... */
-  if(lockfd >= 0) noit_lockfile_release(lockfd);
-
-  fd = open("/dev/null", O_RDWR);
-  dup2(fd, STDIN_FILENO);
-  dup2(fd, STDOUT_FILENO);
-  dup2(fd, STDERR_FILENO);
-  if(fork()) exit(0);
-  setsid();
-  if(fork()) exit(0);
-
-  /* Reacquire the lock */
-  if(*lockfile) {
-    if(noit_lockfile_acquire(lockfile) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
-    }
-  }
-
-  signal(SIGHUP, SIG_IGN);
-  return noit_watchdog_start_child("noitd", child_main, 0);
+  return noit_main(APPNAME, config_file, debug, foreground,
+                   glider, droptouser, droptogroup, child_main);
 }
