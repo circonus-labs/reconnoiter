@@ -130,11 +130,15 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
       // Or don't
       rawlen = (uLong)dlen;
       rawbuff = compbuff;
-      if(rawlen != len_out) return -1;
+      if(rawlen != len_out) {
+        if(compbuff) free(compbuff);
+        return -1;
+      }
       memcpy(buf_out, rawbuff, rawlen);
       break;
   }
 
+  if(compbuff) free(compbuff);
   return 0;
 }
 
