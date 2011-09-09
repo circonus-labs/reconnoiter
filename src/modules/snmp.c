@@ -525,7 +525,7 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
       i++) {
     oid v = o[i + reconnoiter_check_prefix_oid_len];
     if(v < 0 || v > 0xffff) {
-      noitL(nlerr, "trap target oid [%ld] out of range\n", v);
+      noitL(nlerr, "trap target oid [%ld] out of range\n", (long int)v);
       return -1;
     }
     snprintf(cp, 5, "%04x", (unsigned short)(v & 0xffff));
