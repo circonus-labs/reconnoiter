@@ -313,5 +313,5 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);
-  return cnt;
+  return cnt + has_status;
 }
