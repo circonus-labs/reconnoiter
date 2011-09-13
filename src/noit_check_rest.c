@@ -288,7 +288,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           xmlChar *tmp;
           noit_boolean invalid;
           tmp = xmlNodeGetContent(an);
-          invalid = strcmp((char *)tmp, NP_PREFER_IPV4) && strcmp((char *)tmp, NP_PREFER_IPV6) && strcmp((char *)tmp, NP_FORCE_IPV4) && strcmp((char *)tmp, NP_FORCE_IPV6);
+          invalid = strcmp((char *)tmp, PREFER_IPV4) && strcmp((char *)tmp,PREFER_IPV6) && strcmp((char *)tmp, FORCE_IPV4) && strcmp((char *)tmp, FORCE_IPV6);
           xmlFree(tmp);
           if(invalid) {
             *error = "invalid reslove_rtype";

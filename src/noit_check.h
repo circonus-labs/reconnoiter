@@ -72,13 +72,13 @@
 #define NP_SUPPRESS_STATUS  0x00001000
 #define NP_SUPPRESS_METRICS 0x00002000
 
-#define NP_PREFER_IP         0x00004000
-#define NP_TRY_OTHER_RESOLVE 0x00008000
+#define NP_PREFER_IPV6   0x00004000
+#define NP_SINGLE_RESOLVE 0x00008000
 
-#define NP_PREFER_IPV4 "prefer-ipv4"
-#define NP_PREFER_IPV6 "prefer-ipv6"
-#define NP_FORCE_IPV4  "force-ipv4"
-#define NP_FORCE_IPV6  "force-ipv6"
+#define PREFER_IPV4 "prefer-ipv4"
+#define PREFER_IPV6 "prefer-ipv6"
+#define FORCE_IPV4  "force-ipv4"
+#define FORCE_IPV6  "force-ipv6"
 
 #define NP_UNKNOWN '0'             /* stats_t.{available,state} */
 #define NP_AVAILABLE 'A'           /* stats_t.available */
@@ -163,8 +163,8 @@ typedef struct noit_check {
 #define NOIT_CHECK_SHOULD_RESOLVE(a) ((a)->flags & NP_RESOLVE)
 /* It is resolved if it is resolved or never needed to be resolved */
 #define NOIT_CHECK_RESOLVED(a) (((a)->flags & NP_RESOLVED) || (((a)->flags & NP_RESOLVE) == 0))
-#define NOIT_CHECK_PREFER_V4(a) (((a)->flags & NP_PREFER_IP) == 0)
-#define NOIT_CHECK_TRY_OTHER_RESOLVE(a) ((a)->flags & NP_TRY_OTHER_RESOLVE)
+#define NOIT_CHECK_PREFER_V6(a) (((a)->flags & NP_PREFER_IPV6) == NP_PREFER_IPV6)
+#define NOIT_CHECK_SINGLE_RESOLVE(a) (((a)->flags & NP_SINGLE_RESOLVE) == NP_SINGLE_RESOLVE)
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(u_int64_t) noit_check_completion_count();
