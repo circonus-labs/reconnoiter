@@ -75,6 +75,11 @@
 #define NP_PREFER_IP         0x00004000
 #define NP_TRY_OTHER_RESOLVE 0x00008000
 
+#define NP_PREFER_IPV4 "prefer-ipv4"
+#define NP_PREFER_IPV6 "prefer-ipv6"
+#define NP_FORCE_IPV4  "force-ipv4"
+#define NP_FORCE_IPV6  "force-ipv6"
+
 #define NP_UNKNOWN '0'             /* stats_t.{available,state} */
 #define NP_AVAILABLE 'A'           /* stats_t.available */
 #define NP_UNAVAILABLE 'U'         /* stats_t.available */
