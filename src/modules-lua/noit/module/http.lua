@@ -282,7 +282,7 @@ function initiate(module, check)
     if uri == '' then
         uri = '/'
     end
-    if port == '' then
+    if port == '' or port == nil then
         if schema == 'http' then
             port = check.config.port or 80
         elseif schema == 'https' then
