@@ -221,8 +221,10 @@ noit_poller_process_checks(const char *xpath) {
     if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
     else if(disabled) flags |= NP_DISABLED;
 
-    flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 || strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
-    flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 || strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+    flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
+    flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {

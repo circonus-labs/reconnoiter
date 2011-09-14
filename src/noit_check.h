@@ -162,9 +162,12 @@ typedef struct noit_check {
 #define NOIT_CHECK_KILLED(a) ((a)->flags & NP_KILLED)
 #define NOIT_CHECK_SHOULD_RESOLVE(a) ((a)->flags & NP_RESOLVE)
 /* It is resolved if it is resolved or never needed to be resolved */
-#define NOIT_CHECK_RESOLVED(a) (((a)->flags & NP_RESOLVED) || (((a)->flags & NP_RESOLVE) == 0))
-#define NOIT_CHECK_PREFER_V6(a) (((a)->flags & NP_PREFER_IPV6) == NP_PREFER_IPV6)
-#define NOIT_CHECK_SINGLE_RESOLVE(a) (((a)->flags & NP_SINGLE_RESOLVE) == NP_SINGLE_RESOLVE)
+#define NOIT_CHECK_RESOLVED(a) (((a)->flags & NP_RESOLVED) \
+                                || (((a)->flags & NP_RESOLVE) == 0))
+#define NOIT_CHECK_PREFER_V6(a) (((a)->flags & NP_PREFER_IPV6) \
+                                 == NP_PREFER_IPV6)
+#define NOIT_CHECK_SINGLE_RESOLVE(a) (((a)->flags & NP_SINGLE_RESOLVE) \
+                                      == NP_SINGLE_RESOLVE)
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(u_int64_t) noit_check_completion_count();
