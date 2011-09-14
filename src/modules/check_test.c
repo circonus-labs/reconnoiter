@@ -123,14 +123,16 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     goto error;
   }
   conf_hash = calloc(1, sizeof(*conf_hash));
-  for(co = config->children; co; co = co->next) {
-    char *name, *val;
-    xmlChar *tmp_val;
-    name = strdup((char *)co->name);
-    tmp_val = xmlNodeGetContent(co);
-    val = strdup(tmp_val ? (char *)tmp_val : "");
-    noit_hash_replace(conf_hash, name, strlen(name), val, free, free);
-    xmlFree(tmp_val);
+  if(config) {
+    for(co = config->children; co; co = co->next) {
+      char *name, *val;
+      xmlChar *tmp_val;
+      name = strdup((char *)co->name);
+      tmp_val = xmlNodeGetContent(co);
+      val = strdup(tmp_val ? (char *)tmp_val : "");
+      noit_hash_replace(conf_hash, name, strlen(name), val, free, free);
+      xmlFree(tmp_val);
+    }
   }
   if(!m->initiate_check) {
     *error = "that module cannot run checks";
