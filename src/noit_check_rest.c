@@ -246,8 +246,7 @@ int
 noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                               const char **error) {
   xmlNodePtr root, tl, an;
-  int name=0, module=0, target=0, resolve_rtype=0, period=0, timeout=0;
-  int filterset=0;
+  int name=0, module=0, target=0, period=0, timeout=0, filterset=0;
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
   if(!root || strcmp((char *)root->name, "check")) return 0;
@@ -290,7 +289,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           noit_boolean invalid;
           tmp = xmlNodeGetContent(an);
           invalid = strcmp((char *)tmp, PREFER_IPV4) &&
-                    strcmp((char *)tmp,PREFER_IPV6) &&
+                    strcmp((char *)tmp, PREFER_IPV6) &&
                     strcmp((char *)tmp, FORCE_IPV4) &&
                     strcmp((char *)tmp, FORCE_IPV6);
           xmlFree(tmp);
@@ -298,7 +297,6 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
             *error = "invalid reslove_rtype";
             return 0;
           }
-          resolve_rtype = 1;
         }
         else CHECK_N_SET(period) {
           int pint;
