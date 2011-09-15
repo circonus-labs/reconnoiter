@@ -255,6 +255,8 @@ API_EXPORT(const char *)
 API_EXPORT(const char *)
   noit_check_state_string(int16_t state);
 API_EXPORT(int)
+  noit_calc_rtype_flag(char *resolve_rtype);
+API_EXPORT(int)
   noit_stats_snprint_metric_value(char *b, int l, metric_t *m);
 API_EXPORT(int)
   noit_stats_snprint_metric(char *b, int l, metric_t *m);

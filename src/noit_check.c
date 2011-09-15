@@ -106,6 +106,15 @@ static int __watchlist_compare(const void *a, const void *b) {
   return 1;
 }
 int
+noit_calc_rtype_flag(char *resolve_rtype) {
+  int flags = 0;
+  flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
+           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
+  flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
+           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  return flags;
+}
+int
 noit_check_max_initial_stutter() {
   int stutter;
   if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
@@ -221,10 +230,7 @@ noit_poller_process_checks(const char *xpath) {
     if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
     else if(disabled) flags |= NP_DISABLED;
 
-    flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
-             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
-    flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
-             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+    flags |= noit_calc_rtype_flag(resolve_rtype);
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {

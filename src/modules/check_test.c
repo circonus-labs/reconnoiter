@@ -138,10 +138,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     *error = "that module cannot run checks";
     goto error;
   }
-  flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
-           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
-  flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
-           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  flags |= noit_calc_rtype_flag(resolve_rtype);
   c = calloc(1, sizeof(*c));
   noit_check_update(c, target, name, filterset,
                     conf_hash, 0, timeout, NULL, flags);
