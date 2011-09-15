@@ -134,7 +134,7 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
         addrstr = inet_ntop(addr6.sin6_family,
                             &((struct sockaddr_in *)&addr6)->sin_addr,
                             buff, sizeof(buff));
-        memcpy(&port, &((struct sockaddr_in *)&addr6)->sin_port, sizeof(port));
+        memcpy(&port, &(&addr6)->sin6_port, sizeof(port));
         port = ntohs(port);
       }
       else if(addr6.sin6_family == AF_INET6) {
@@ -1261,7 +1261,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
           addrstr = inet_ntop(addr6.sin6_family,
                               &((struct sockaddr_in *)&addr6)->sin_addr,
                               buff, sizeof(buff));
-          memcpy(&port, &((struct sockaddr_in *)&addr6)->sin_port, sizeof(port));
+          memcpy(&port, &(&addr6)->sin6_port, sizeof(port));
           port = ntohs(port);
         }
         else if(addr6.sin6_family == AF_INET6) {
