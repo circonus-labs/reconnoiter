@@ -106,6 +106,15 @@ static int __watchlist_compare(const void *a, const void *b) {
   return 1;
 }
 int
+noit_calc_rtype_flag(char *resolve_rtype) {
+  int flags = 0;
+  flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
+           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
+  flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
+           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  return flags;
+}
+int
 noit_check_max_initial_stutter() {
   int stutter;
   if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
@@ -149,6 +158,7 @@ noit_poller_process_checks(const char *xpath) {
     char name[256] = "";
     char filterset[256] = "";
     char oncheck[1024] = "";
+    char resolve_rtype[16] = "";
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
@@ -182,6 +192,9 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
       filterset[0] = '\0';
+    
+    if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
       strlcpy(name, module, sizeof(name));
@@ -216,6 +229,8 @@ noit_poller_process_checks(const char *xpath) {
     flags = 0;
     if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
     else if(disabled) flags |= NP_DISABLED;
+
+    flags |= noit_calc_rtype_flag(resolve_rtype);
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {
@@ -568,11 +583,10 @@ noit_check_set_ip(noit_check_t *new_check,
     struct in6_addr addr6;
   } a;
 
-
-  family = AF_INET;
+  family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
-  if(rv != 1) {
-    family = AF_INET6;
+  if(rv != 1 && !NOIT_CHECK_SINGLE_RESOLVE(new_check)) {
+    family = family == AF_INET ? AF_INET6 : AF_INET;
     rv = inet_pton(family, ip_str, &a);
     if(rv != 1) {
       family = AF_INET;
@@ -623,6 +637,16 @@ noit_check_update(noit_check_t *new_check,
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
+
+  // apply resolution flags to check.
+  if (flags & NP_PREFER_IPV6)
+    new_check->flags |= NP_PREFER_IPV6;
+  else
+    new_check->flags &= ~NP_PREFER_IPV6;
+  if (flags & NP_SINGLE_RESOLVE)
+    new_check->flags |= NP_SINGLE_RESOLVE;
+  else
+    new_check->flags &= ~NP_SINGLE_RESOLVE;
 
   if(noit_check_set_ip(new_check, target)) {
     noit_boolean should_resolve;

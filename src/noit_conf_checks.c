@@ -65,6 +65,7 @@ static struct _valid_attr_t {
   { "/checks", "timeout", "@timeout", 0 },
   { "/checks", "oncheck", "@oncheck", 0 },
   { "/checks", "disable", "@disable", 0 },
+  { "/checks", "resolve_rtype", "@resolve_rtype", 0 },
   { "/checks", "filterset", "@filterset", 0 },
   { "/checks", "module", "@module", 1 },
   { "/filtersets", "target", "@target", 0 },
@@ -461,6 +462,7 @@ noit_console_show_check(noit_console_closure_t ncct,
       nc_printf(ncct, " name: %s [from module]\n", module ? module : "[undef]");
     nc_attr_show(ncct, "module", node, mnode, module);
     SHOW_ATTR(target);
+    SHOW_ATTR(resolve_rtype);
     SHOW_ATTR(period);
     SHOW_ATTR(timeout);
     SHOW_ATTR(oncheck);
