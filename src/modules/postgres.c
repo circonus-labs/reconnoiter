@@ -120,7 +120,8 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
         snprintf(mname, sizeof(mname), "%s`%s",
                  PQgetvalue(ci->result, i, 0), PQfname(ci->result, j));
         coltype = PQftype(ci->result, j);
-        noitL(nldeb, "postgres:   col %d (%s) type %d:\n", j, mname, coltype);
+        noitL(nldeb, "postgres:   col %d (%s) type %d: %s\n", j, mname, coltype,
+              PQgetisnull(ci->result, i, j) ? "[[null]]" : PQgetvalue(ci->result, i, j));
         switch(coltype) {
           case BOOLOID:
             if(PQgetisnull(ci->result, i, j)) piv = NULL;
@@ -139,6 +140,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
               plv = &lv;
             }
             noit_stats_set_metric(&ci->current, mname, METRIC_INT64, plv);
+            break;
           case FLOAT4OID:
           case FLOAT8OID:
           case NUMERICOID:
@@ -148,6 +150,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
               pdv = &dv;
             }
             noit_stats_set_metric(&ci->current, mname, METRIC_DOUBLE, pdv);
+            break;
           default:
             if(PQgetisnull(ci->result, i, j)) sv = NULL;
             else sv = PQgetvalue(ci->result, i, j);
