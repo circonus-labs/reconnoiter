@@ -181,8 +181,9 @@ function initiate(module, check)
   end
 
   if check.config.send_body ~= nil then
-    if e:write(check.config.send_body) == -1 then
-      check.status("received hangup")
+    if e:write(check.config.send_body) < 0 then
+      check.bad()
+      check.status("send_body: received hangup")
       return
     end
   end
