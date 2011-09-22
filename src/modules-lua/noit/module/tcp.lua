@@ -181,7 +181,10 @@ function initiate(module, check)
   end
 
   if check.config.send_body ~= nil then
-    e:write(check.config.send_body)
+    if e:write(check.config.send_body) == -1 then
+      check.status("received hangup")
+      return
+    end
   end
 
   -- match banner
@@ -213,24 +216,33 @@ function initiate(module, check)
 
   -- match body
   if check.config.body_match ~= nil then
-    local bodybytetime = noit.timeval.now()
     str = e:read(1024)
     if str == nil then
       check.status("bad body length " .. (str and str:len() or "0"))
       return
     end
+    local bodybytetime = noit.timeval.now()
     elapsed(check, "tt_body", starttime, bodybytetime)
 
-    local bodyre = noit.pcre(check.config.body_match)
-    if bodyre ~= nil then
-      local rv = true
-      rv, m = bodyre(str)
+    local exre = noit.pcre(check.config.body_match)
+    local rv = true
+    local found = false
+    local m = nil
+    while rv and m ~= '' do
+      rv, m, key, value = exre(str or '', { limit = pcre_match_limit })
       if rv then
-        status = status .. ',body_match=matched'
-      else
-        good = false
-        status = status .. ',body_match=failed'
+        found = true
+        if key ~= nil then
+          check.metric(key, value)
+        end
       end
+    end
+
+    if found then
+      status = status .. ',body_match=matched'
+    else
+      good = false
+      status = status .. ',body_match=failed'
     end
 
     check.metric_string('body',str)
