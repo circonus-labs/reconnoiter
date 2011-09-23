@@ -73,10 +73,11 @@ public class NoitBundlev2 extends NoitEvent {
           case 'l': v_str = Long.toString(metric.getValueI64()); break;
           case 'L': v_str = Double.toString(metric.getValueUI64()); break;
           case 'n': v_str = Double.toString(metric.getValueDbl()); break;
+          case 's': v_str = metric.getValueStr();
           default:
             break;
         }
-        if(v_str == null) continue;
+        if(v_str == null) v_str = "[[null]]";
         items.addLast(new NoitMetric(new java.lang.String[]
                       { "M", noit, timestamp, parts[3], metric.getName(),
                         new String(metrictype), v_str }));
