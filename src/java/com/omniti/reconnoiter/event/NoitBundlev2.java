@@ -68,11 +68,26 @@ public class NoitBundlev2 extends NoitEvent {
         char metrictype[] = new char [] { (char)metric.getMetricType() };
         String v_str = null;
         switch(metrictype[0]) {
-          case 'i': v_str = Integer.toString(metric.getValueI32()); break;
-          case 'I': v_str = Long.toString(metric.getValueUI32()); break;
-          case 'l': v_str = Long.toString(metric.getValueI64()); break;
-          case 'L': v_str = Double.toString(metric.getValueUI64()); break;
-          case 'n': v_str = Double.toString(metric.getValueDbl()); break;
+          case 'i':
+            if(metric.hasValueI32())
+              v_str = Integer.toString(metric.getValueI32());
+            break;
+          case 'I':
+            if(metric.hasValueUI32())
+              v_str = Long.toString(metric.getValueUI32());
+            break;
+          case 'l':
+            if(metric.hasValueI64())
+              v_str = Long.toString(metric.getValueI64());
+            break;
+          case 'L':
+            if(metric.hasValueUI64())
+              v_str = Double.toString(metric.getValueUI64());
+            break;
+          case 'n':
+            if(metric.hasValueDbl())
+              v_str = Double.toString(metric.getValueDbl());
+            break;
           case 's': v_str = metric.getValueStr();
           default:
             break;
