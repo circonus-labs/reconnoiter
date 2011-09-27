@@ -108,10 +108,12 @@ static int __watchlist_compare(const void *a, const void *b) {
 int
 noit_calc_rtype_flag(char *resolve_rtype) {
   int flags = 0;
-  flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
-           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
-  flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
-           strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  if(resolve_rtype) {
+    flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
+    flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  }
   return flags;
 }
 int
