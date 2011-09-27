@@ -50,17 +50,20 @@
 #include "utils/noit_lockfile.h"
 #include "eventer/eventer.h"
 
-static char **enable_logs;
+#define MAX_CLI_LOGS 128
+static char *enable_logs[MAX_CLI_LOGS];
 static int enable_logs_cnt = 0;
-static char **disable_logs;
+static char *disable_logs[MAX_CLI_LOGS];
 static int disable_logs_cnt = 0;
 
 void
 noit_main_enable_log(const char *name) {
+  if(enable_logs_cnt >= MAX_CLI_LOGS) return;
   enable_logs[enable_logs_cnt++] = strdup(name);
 }
 void
 noit_main_disable_log(const char *name) {
+  if(disable_logs_cnt >= MAX_CLI_LOGS) return;
   disable_logs[disable_logs_cnt++] = strdup(name);
 }
 static int
