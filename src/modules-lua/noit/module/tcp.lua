@@ -43,6 +43,10 @@ function onload(image)
                allowed="\d+">Specifies the port on which the management interface can be reached.</parameter>
     <parameter name="banner_match" required="optional"
               allowed=".+">This regular expression is matched against the response banner.  If a match is not found, the check will be marked as bad.</parameter>
+  <parameter name="send_body" required="optional"
+            allowed=".+">Data to send on the socket once connected and optionally SSL is negotiated, but before the body match is tested.</parameter>
+  <parameter name="body_match" required="optional"
+            allowed=".+">This regular expression is matched against the body (the leftover data up to 1024 bytes) after the banner.</parameter>
     <parameter name="use_ssl" required="optional" allowed="^(?:true|false|on|off)$" default="false">Upgrade TCP connection to use SSL.</parameter>
     <parameter name="ca_chain"
                required="optional"
@@ -176,6 +180,13 @@ function initiate(module, check)
     end
   end
 
+  if check.config.send_body ~= nil then
+    if e:write(check.config.send_body) < 0 then
+      check.bad()
+      check.status("send_body: received hangup")
+      return
+    end
+  end
 
   -- match banner
   if check.config.banner_match ~= nil then
@@ -202,6 +213,40 @@ function initiate(module, check)
       str = string.sub(str,1,max_len)
     end
     check.metric_string('banner',str)
+  end
+
+  -- match body
+  if check.config.body_match ~= nil then
+    str = e:read(1024)
+    if str == nil then
+      check.status("bad body length " .. (str and str:len() or "0"))
+      return
+    end
+    local bodybytetime = noit.timeval.now()
+    elapsed(check, "tt_body", starttime, bodybytetime)
+
+    local exre = noit.pcre(check.config.body_match)
+    local rv = true
+    local found = false
+    local m = nil
+    while rv and m ~= '' do
+      rv, m, key, value = exre(str or '', { limit = pcre_match_limit })
+      if rv then
+        found = true
+        if key ~= nil then
+          check.metric(key, value)
+        end
+      end
+    end
+
+    if found then
+      status = status .. ',body_match=matched'
+    else
+      good = false
+      status = status .. ',body_match=failed'
+    end
+
+    check.metric_string('body',str)
   end
 
   -- turnaround time
