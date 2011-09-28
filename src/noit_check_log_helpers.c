@@ -158,7 +158,8 @@ noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
         rv = snprintf(b, l, "%lld", (long long int)*(m->metric_value.l)); break;
       case METRIC_UINT64:
         rv = snprintf(b, l, "%llu",
-                      (long long unsigned int)*(m->metric_value.L)); break;      case METRIC_DOUBLE:
+                      (long long unsigned int)*(m->metric_value.L)); break;
+      case METRIC_DOUBLE:
         rv = snprintf(b, l, "%.12e", *(m->metric_value.n)); break;
       case METRIC_STRING:
         rv = snprintf(b, l, "%s", m->metric_value.s); break;
