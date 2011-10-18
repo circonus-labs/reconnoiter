@@ -385,10 +385,13 @@ jlog_logio_asynch_writer(void *vls) {
     lock = ls->lock;
     if(lock) pthread_rwlock_rdlock(lock);
     while(max > 0 && NULL != (line = jlog_asynch_pop(actx, &iter))) {
-      jlog_ctx_write(actx->log, line->buf_dynamic ?
-                                  line->buf_dynamic :
-                                  line->buf_static,
-                     line->len);
+      if(jlog_ctx_write(actx->log, line->buf_dynamic ?
+                                     line->buf_dynamic :
+                                     line->buf_static,
+                        line->len) == -1) {
+        noitL(noit_error, "jlog_ctx_write failed: fatal\n");
+        abort();
+      }
       if(line->buf_dynamic != NULL) free(line->buf_dynamic);
       free(line);
       fast = 1;
