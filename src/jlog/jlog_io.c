@@ -81,6 +81,7 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
 
   if (stat(path, &sb) == 0) {
     if (!S_ISREG(sb.st_mode)) goto out;
+    memset(&id, 0, sizeof(id));
     id.st_dev = sb.st_dev;
     id.st_ino = sb.st_ino;
     if (jlog_hash_retrieve(&jlog_files, (void *)&id, sizeof(jlog_file_id),
@@ -234,8 +235,9 @@ int jlog_file_map_read(jlog_file *f, void **base, size_t *len)
 off_t jlog_file_size(jlog_file *f)
 {
   struct stat sb;
-  if (fstat(f->fd, &sb) != 0)
-    return -1;
+  int rv;
+  while ((rv = fstat(f->fd, &sb) != 0) == -1 && errno == EINTR) ;
+  if (rv != 0) return -1;
   return sb.st_size;
 }
 

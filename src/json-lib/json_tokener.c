@@ -473,6 +473,20 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
         double numd;
         if(!tok->is_double && sscanf(tok->pb->buf, "%d", &numi) == 1) {
           current = json_object_new_int(numi);
+          if(tok->pb->buf[0] == '-') {
+            int64_t i64;
+            i64 = strtoll(tok->pb->buf, NULL, 10);
+            json_object_set_int64(current, i64);
+            if(i64 != numi)
+              json_object_set_int_overflow(current, json_overflow_int64);
+          }
+          else {
+            u_int64_t u64;
+            u64 = strtoll(tok->pb->buf, NULL, 10);
+            json_object_set_uint64(current, u64);
+            if(u64 != numi)
+              json_object_set_int_overflow(current, json_overflow_uint64);
+          }
         } else if(tok->is_double && sscanf(tok->pb->buf, "%lf", &numd) == 1) {
           current = json_object_new_double(numd);
         } else {

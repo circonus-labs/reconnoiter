@@ -24,12 +24,13 @@ XML2H=@top_srcdir@/buildtools/xml2h
 
 top_srcdir=@top_srcdir@
 
-MODULES=ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
+MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@
+SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
+	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
@@ -37,6 +38,8 @@ all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
 selfcheck.lo:	selfcheck.xmlh
+
+check_test.lo:	check_test.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo ../lua/liblua.lo
@@ -70,11 +73,21 @@ postgres_ingestor.@MODULEEXT@:	postgres_ingestor.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ postgres_ingestor.lo $(PGLIBS) -lz -lssl -lcrypto
 	@echo "- linking $@"
 
-postgres_ingestor.lo: postgres_ingestor.c
+postgres_ingestor.lo: postgres_ingestor.c postgres_ingestor.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
-stomp_driver.lo:	stomp_driver.c
+handoff_ingestor.lo:	handoff_ingestor.c handoff_ingestor.xmlh
+
+handoff_ingestor.@MODULEEXT@:	handoff_ingestor.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ handoff_ingestor.lo
+	@echo "- linking $@"
+
+handoff_ingestor.lo: handoff_ingestor.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
+
+stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 	@echo "- compiling $<"
 
@@ -84,6 +97,18 @@ libstomp.lo:	libstomp.c
 
 stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
+	@echo "- linking $@"
+
+RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
+	librabbitmq/amqp_api.lo librabbitmq/amqp_connection.lo \
+	librabbitmq/amqp_debug.lo librabbitmq/amqp_framing.lo \
+	librabbitmq/amqp_mem.lo librabbitmq/amqp_socket.lo \
+	librabbitmq/amqp_table.lo
+
+rabbitmq_driver.lo:	rabbitmq_driver.c rabbitmq_driver.xmlh
+
+rabbitmq_driver.@MODULEEXT@:    $(RABBITMQ_DRIVER_OBJS)
+	@$(MODULELD) $(LDFLAGS) -o $@ $(RABBITMQ_DRIVER_OBJS)
 	@echo "- linking $@"
 
 mysql.@MODULEEXT@:	mysql.lo
@@ -172,14 +197,14 @@ install-smodules:	$(SMODULES)
 	done
 
 clean:
-	rm -f *.lo *.@MODULEEXT@ *.xmlh
+	rm -f *.lo *.@MODULEEXT@ *.xmlh $(RABBITMQ_DRIVER_OBJS)
 
 distclean:	clean
 	rm -f Makefile
 
 Makefile.dep:
 	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) -I$(top_srcdir)/src/lua/src @APRCFLAGS@ \
-			$(DEPFLAGS) -c *.c > Makefile.dep
+		$(DEPFLAGS) -c *.c | sed -e 's/\.o:/\.lo:/' > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep

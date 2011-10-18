@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<section>
+  <title>rabbitmq_driver</title>
+  <para>The rabbitmq_driver module allows publishing of metrics and status messages over the AMQP protocol for use powering the IEP system.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>rabbitmq_driver.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Loading the rabbitmq_driver.</title>
+    <para>This example loads the rabbitmq_driver and configures it.</para>
+    <programlisting>
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="rabbitmq_driver" name="rabbitmq_driver" /&gt;
+        &lt;/modules&gt;
+        &lt;iep&gt;
+          &lt;mq type="rabbitmq"&gt;
+            &lt;hostname&gt;mq1,mq2&lt;/hostname&gt;
+            &lt;exchange&gt;noit.firehose&lt;/exchange&gt;
+            &lt;exchangetype&gt;topic&lt;/exchangetype&gt;
+            &lt;routingkey&gt;check&lt;/routingkey&gt;
+            &lt;username&gt;stratcon&lt;/username&gt;
+            &lt;password&gt;youllneverguess&lt;/password&gt;
+          &lt;/mq&gt;
+        &lt;/iep&gt;
+      &lt;/stratcon&gt;
+    </programlisting>
+  </example>
+</section>

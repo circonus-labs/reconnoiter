@@ -1,5 +1,5 @@
 
-collectd.o: collectd.c ../noit_defines.h ../noit_config.h \
+collectd.lo: collectd.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h  \
   ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
@@ -14,7 +14,7 @@ collectd.o: collectd.c ../noit_defines.h ../noit_config.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_hash.h collectd.xmlh
 
-dns.o: dns.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
+dns.lo: dns.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_module.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -28,7 +28,7 @@ dns.o: dns.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_atomic.h ../udns/udns.h dns.xmlh
 
-external.o: external.c ../noit_defines.h ../noit_config.h \
+external.lo: external.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h  \
   ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
@@ -44,7 +44,7 @@ external.o: external.c ../noit_defines.h ../noit_config.h \
   ../eventer/eventer.h ../utils/noit_atomic.h ../utils/noit_hash.h \
   external.xmlh
 
-external_proc.o: external_proc.c ../noit_defines.h ../noit_config.h \
+external_proc.lo: external_proc.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_skiplist.h \
   ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h external_proc.h ../eventer/eventer.h ../noit_defines.h \
@@ -54,7 +54,7 @@ external_proc.o: external_proc.c ../noit_defines.h ../noit_config.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_atomic.h \
   ../utils/noit_hash.h
 
-httptrap.o: httptrap.c ../noit_defines.h ../noit_config.h \
+httptrap.lo: httptrap.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -73,10 +73,10 @@ httptrap.o: httptrap.c ../noit_defines.h ../noit_config.h \
   ../json-lib/json_object.h ../json-lib/json_tokener.h \
   ../utils/noit_log.h ../utils/noit_hash.h httptrap.xmlh
 
-libstomp.o: libstomp.c  \
+libstomp.lo: libstomp.c  \
   libstomp.h \
 
-lua.o: lua.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
+lua.lo: lua.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_conf.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h ../noit_console.h ../eventer/eventer.h \
   ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
@@ -92,7 +92,7 @@ lua.o: lua.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../../src/lua/src/lauxlib.h ../../src/lua/src/lua.h \
   ../../src/lua/src/lualib.h lua.xmlh
 
-lua_dns.o: lua_dns.c ../noit_defines.h ../noit_config.h \
+lua_dns.lo: lua_dns.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_conf.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_console.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -108,7 +108,7 @@ lua_dns.o: lua_dns.c ../noit_defines.h ../noit_config.h \
   ../../src/lua/src/lauxlib.h ../../src/lua/src/lua.h \
   ../../src/lua/src/lualib.h ../udns/udns.h
 
-lua_lpack.o: lua_lpack.c lua_noit.h ../noit_defines.h ../noit_config.h \
+lua_lpack.lo: lua_lpack.c lua_noit.h ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_conf.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_console.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -124,7 +124,7 @@ lua_lpack.o: lua_lpack.c lua_noit.h ../noit_defines.h ../noit_config.h \
   ../../src/lua/src/lauxlib.h ../../src/lua/src/lua.h \
   ../../src/lua/src/lualib.h
 
-lua_noit.o: lua_noit.c ../noit_defines.h ../noit_config.h \
+lua_noit.lo: lua_noit.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h  \
   ../noit_conf.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h \
@@ -146,7 +146,7 @@ lua_noit.o: lua_noit.c ../noit_defines.h ../noit_config.h \
   ../../src/lua/src/luaconf.h ../../src/lua/src/lauxlib.h \
   ../../src/lua/src/lua.h ../../src/lua/src/lualib.h
 
-mysql.o: mysql.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
+mysql.lo: mysql.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_module.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -161,7 +161,7 @@ mysql.o: mysql.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../utils/noit_hash.h  \
   mysql.xmlh
 
-ping_icmp.o: ping_icmp.c ../noit_defines.h ../noit_config.h \
+ping_icmp.lo: ping_icmp.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -175,7 +175,7 @@ ping_icmp.o: ping_icmp.c ../noit_defines.h ../noit_config.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ping_icmp.xmlh
 
-postgres.o: postgres.c ../noit_defines.h ../noit_config.h \
+postgres.lo: postgres.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -190,7 +190,7 @@ postgres.o: postgres.c ../noit_defines.h ../noit_config.h \
   ../utils/noit_hash.h  \
   postgres.xmlh
 
-postgres_ingestor.o: postgres_ingestor.c ../noit_defines.h \
+postgres_ingestor.lo: postgres_ingestor.c ../noit_defines.h \
   ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
   ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
@@ -209,7 +209,7 @@ postgres_ingestor.o: postgres_ingestor.c ../noit_defines.h \
   ../noit_conf.h ../noit_check.h ../noit_rest.h ../noit_listener.h \
   ../noit_http.h  \
 
-selfcheck.o: selfcheck.c ../noit_defines.h ../noit_config.h \
+selfcheck.lo: selfcheck.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_version.h \
   ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
   ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
@@ -223,7 +223,7 @@ selfcheck.o: selfcheck.c ../noit_defines.h ../noit_config.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_hash.h selfcheck.xmlh
 
-snmp.o: snmp.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
+snmp.lo: snmp.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_module.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -237,7 +237,7 @@ snmp.o: snmp.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_hash.h snmp.xmlh snmptrap.xmlh
 
-ssh2.o: ssh2.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
+ssh2.lo: ssh2.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_module.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -251,7 +251,7 @@ ssh2.o: ssh2.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_hash.h  ssh2.xmlh
 
-stomp_driver.o: stomp_driver.c ../noit_defines.h ../noit_config.h \
+stomp_driver.lo: stomp_driver.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
@@ -266,7 +266,7 @@ stomp_driver.o: stomp_driver.c ../noit_defines.h ../noit_config.h \
   ../stratcon_jlog_streamer.h ../utils/noit_atomic.h ../jlog/jlog.h \
   ../jlog/jlog_config.h ../noit_conf.h libstomp.h \
 
-test_abort.o: test_abort.c ../noit_defines.h ../noit_config.h \
+test_abort.lo: test_abort.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
   ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
   ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \

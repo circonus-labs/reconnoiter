@@ -65,6 +65,7 @@ static struct _valid_attr_t {
   { "/checks", "timeout", "@timeout", 0 },
   { "/checks", "oncheck", "@oncheck", 0 },
   { "/checks", "disable", "@disable", 0 },
+  { "/checks", "resolve_rtype", "@resolve_rtype", 0 },
   { "/checks", "filterset", "@filterset", 0 },
   { "/checks", "module", "@module", 1 },
   { "/filtersets", "target", "@target", 0 },
@@ -383,6 +384,12 @@ noit_console_watch_check(noit_console_closure_t ncct,
   return 0;
 }
 static int
+_qsort_string_compare(const void *i1, const void *i2) {
+        const char *s1 = ((const char **)i1)[0];
+        const char *s2 = ((const char **)i2)[0];
+        return strcasecmp(s1, s2);
+}
+static int
 noit_console_show_check(noit_console_closure_t ncct,
                         int argc, char **argv,
                         noit_console_state_t *state, void *closure) {
@@ -455,6 +462,7 @@ noit_console_show_check(noit_console_closure_t ncct,
       nc_printf(ncct, " name: %s [from module]\n", module ? module : "[undef]");
     nc_attr_show(ncct, "module", node, mnode, module);
     SHOW_ATTR(target);
+    SHOW_ATTR(resolve_rtype);
     SHOW_ATTR(period);
     SHOW_ATTR(timeout);
     SHOW_ATTR(oncheck);
@@ -487,7 +495,12 @@ noit_console_show_check(noit_console_closure_t ncct,
       }
       else {
         stats_t *c = &check->stats.current;
+        int mcount=0;
+        const char **sorted_keys;
+        char buff[256];
         struct timeval now, diff;
+        noit_boolean filtered;
+
         gettimeofday(&now, NULL);
         sub_timeval(now, c->whence, &diff);
         nc_printf(ncct, " last run: %0.3f seconds ago\n",
@@ -498,12 +511,28 @@ noit_console_show_check(noit_console_closure_t ncct,
         nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
         nc_printf(ncct, " metrics:\n");
         memset(&iter, 0, sizeof(iter));
+        sorted_keys = alloca(c->metrics.size * sizeof(*sorted_keys));
         while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
-          char buff[256];
-          noit_boolean filtered;
-          noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
-          filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
-          nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
+          if(sorted_keys) sorted_keys[mcount++] = k;
+          else {
+            noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
+            filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+            nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
+          }
+        }
+        if(sorted_keys) {
+          int j;
+          qsort(sorted_keys, mcount, sizeof(*sorted_keys),
+                _qsort_string_compare);
+          for(j=0;j<mcount;j++) {
+            if(noit_hash_retrieve(&c->metrics,
+                                  sorted_keys[j], strlen(sorted_keys[j]),
+                                  &data)) {
+              noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
+              filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+              nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
+            }
+          }
         }
       }
     }

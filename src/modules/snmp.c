@@ -525,7 +525,7 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
       i++) {
     oid v = o[i + reconnoiter_check_prefix_oid_len];
     if(v < 0 || v > 0xffff) {
-      noitL(nlerr, "trap target oid [%ld] out of range\n", v);
+      noitL(nlerr, "trap target oid [%ld] out of range\n", (long int)v);
       return -1;
     }
     snprintf(cp, 5, "%04x", (unsigned short)(v & 0xffff));
@@ -875,7 +875,8 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   noit_hash_destroy(&check_attrs_hash, NULL, NULL);
   return info->noids;
 }
-static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
+static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
+                          noit_check_t *cause) {
   struct snmp_pdu *req;
   struct target_session *ts;
   struct check_info *info = check->closure;
@@ -957,7 +958,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check) {
 static int noit_snmp_initiate_check(noit_module_t *self, noit_check_t *check,
                                     int once, noit_check_t *cause) {
   if(!check->closure) check->closure = calloc(1, sizeof(struct check_info));
-  INITIATE_CHECK(noit_snmp_send, self, check);
+  INITIATE_CHECK(noit_snmp_send, self, check, cause);
   return 0;
 }
 

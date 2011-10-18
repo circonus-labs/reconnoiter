@@ -42,8 +42,8 @@
 #include <sys/socket.h>
 
 typedef struct {
-  void (*launch_file_ingestion)(const char *file, const char *ip,
-                                const char *cn, const char *store);
+  int (*launch_file_ingestion)(const char *file, const char *ip,
+                               const char *cn, const char *store);
   void (*iep_check_preload)();
   int (*storage_node_lookup)(const char *uuid_str, const char *remote_cn,
                              int *sid_out, int *storagenode_id_out,
@@ -82,6 +82,9 @@ API_EXPORT(void)
                                                  const char *, void *));
 
 API_EXPORT(void)
+  stratcon_datastore_core_init();
+
+API_EXPORT(void)
   stratcon_datastore_init();
 
 API_EXPORT(int)
@@ -97,4 +100,10 @@ API_EXPORT(int)
 API_EXPORT(void)
   stratcon_datastore_set_enabled(int);
 
+API_EXPORT(void)
+  stratcon_ingest_sweep_journals(int (*test)(const char *),
+                                 int (*ingest)(const char *fullpath,
+                                               const char *remote_str,
+                                               const char *remote_cn,
+                                               const char *id_str));
 #endif

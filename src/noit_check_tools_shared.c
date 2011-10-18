@@ -137,11 +137,12 @@ noit_check_extended_id_split(const char *in, int len,
                              char *module, int module_len,
                              char *name, int name_len,
                              char *uuid, int uuid_len) {
+  if(!in || len == 0) return;
   if(target) *target = '\0';
   if(module) *module = '\0';
   if(name) *name = '\0';
   if(uuid) *uuid = '\0';
-  if(len >= UUID_STR_LEN) {
+  if(uuid && len >= UUID_STR_LEN) {
     memcpy(uuid, in + len - UUID_STR_LEN, UUID_STR_LEN);
     uuid[UUID_STR_LEN] = '\0';
   }
@@ -152,7 +153,7 @@ noit_check_extended_id_split(const char *in, int len,
     mcp = strchr(tcp,'`');
     if(!mcp) return;
     /* copy in the target */
-    if(target_len > mcp-tcp) {
+    if(target && target_len > mcp-tcp) {
       memcpy(target,tcp,mcp-tcp);
       target[mcp-tcp] = '\0';
     }
@@ -160,7 +161,7 @@ noit_check_extended_id_split(const char *in, int len,
     ncp = strchr(mcp,'`');
     if(!ncp) return;
     /* copy in the module */
-    if(module_len > ncp-mcp) {
+    if(module && module_len > ncp-mcp) {
       memcpy(module,mcp,ncp-mcp);
       module[ncp-mcp] = '\0';
     }
@@ -168,7 +169,7 @@ noit_check_extended_id_split(const char *in, int len,
     /* copy in the name */
     ucp = in + len - UUID_STR_LEN - 1;
     if(ncp < ucp) {
-      if(name_len > ucp-ncp) {
+      if(name && name_len > ucp-ncp) {
         memcpy(name, ncp, ucp-ncp);
         name[ucp-ncp] = '\0';
       }

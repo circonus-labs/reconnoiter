@@ -1,4 +1,4 @@
-use Test::More tests => 26;
+use Test::More tests => 32;
 use WWW::Curl::Easy;
 use JSON;
 use XML::LibXML;
@@ -45,6 +45,7 @@ my $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, 'saved');
 
 sleep(1);
+
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 200, 'get checks');
 $doc = $xp->parse_string($r[1]);
@@ -138,18 +139,24 @@ my $payload;
 my $json;
 
 $stomp = stomp->new();
-$stomp->subscribe('/queue/noit.firehose');
+ok($stomp, 'stomp connection');
+ok($stomp->subscribe('/queue/noit.firehose'), 'subscribed');
 $payload = $stomp->get({timeout => 6});
 undef $stomp;
 ok($payload, 'firehose traffic');
 
 $stomp = stomp->new();
-$stomp->subscribe('/topic/noit.alerts.numeric');
+ok($stomp, 'stomp connection');
+ok($stomp->subscribe('/topic/noit.alerts.numeric'), 'subscribed');
 $payload = $stomp->get({timeout => 6});
-eval { $json = from_json($payload); };
+eval { die "no data" unless defined($payload);
+       $json = from_json($payload); };
 is($@, '', 'json numeric payload');
 undef $stomp;
+$json ||= {};
 like($json->{r}->{uuid} || '', $uuid_re, 'numeric match has uuid');
 is($json->{r}->{check_module} || '', 'selfcheck', 'modules is set');
 
+ok(stop_noit, 'shutdown noit');
+ok(stop_stratcon, 'shutdown stratcon');
 1;

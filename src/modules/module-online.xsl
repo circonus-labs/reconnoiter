@@ -60,11 +60,17 @@
 <xsl:param name="example" select="0"/>
 <xsl:template match="/">= <xsl:value-of select="module/name"/> =
 
-<xsl:call-template name="wrap-string">
-  <xsl:with-param name="str" select="module/description/*"/>
-  <xsl:with-param name="break-mark" select="'    '"/>
-  <xsl:with-param name="wrap-col" select="'70'"/>
-</xsl:call-template>
+<xsl:for-each select="module/description/*">
+  <xsl:text xml:spacing="preserve">    </xsl:text>
+  <xsl:call-template name="wrap-string">
+    <xsl:with-param name="str" select="."/>
+    <xsl:with-param name="break-mark" select="'    '"/>
+    <xsl:with-param name="wrap-col" select="'70'"/>
+  </xsl:call-template>
+  <xsl:text xml:spacing="preserve">
+
+</xsl:text>
+</xsl:for-each>
 
   loader: <xsl:value-of select="module/loader"/>
   <xsl:if test="module/image">, image: <xsl:value-of select="module/image"/> </xsl:if>

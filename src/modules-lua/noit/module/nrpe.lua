@@ -149,7 +149,7 @@ function initiate(module, check)
   e:write(packet)
   local response = e:read(1036)
   if response == nil or response:len() ~= 1036 then
-    check.status("bad packet length " .. response:len());
+    check.status("bad packet length " .. (response and response:len() or "0"))
     return
   end
 

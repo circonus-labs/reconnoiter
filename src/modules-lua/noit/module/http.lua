@@ -282,15 +282,17 @@ function initiate(module, check)
     if uri == '' then
         uri = '/'
     end
-    if port == '' then
+    if port == '' or port == nil then
         if schema == 'http' then
             port = check.config.port or 80
         elseif schema == 'https' then
             port = check.config.port or 443
-            use_ssl = true
         else
             error(schema .. " not supported")
         end 
+    end
+    if schema == 'https' then
+        use_ssl = true
     end
 
     local output = ''

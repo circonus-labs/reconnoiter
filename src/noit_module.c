@@ -334,6 +334,15 @@ noit_module_options(noit_console_closure_t ncct,
         i++;
       }
     }
+    memset(&iter, 0, sizeof(iter));
+    while(noit_hash_next(&generics, &iter, (const char **)&name, &klen,
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;
+      if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(hdr->name);
+        i++;
+      }
+    }
     return NULL;
   }
   if(argc == 2) {
@@ -353,7 +362,7 @@ noit_module_help(noit_console_closure_t ncct,
     int klen;
     void *vhdr;
 
-    nc_printf(ncct, "= Loaders and Modules =\n");
+    nc_printf(ncct, "= Loaders, Modules, and Generics =\n");
     while(noit_hash_next(&loaders, &iter, (const char **)&name, &klen,
                          &vhdr)) {
       noit_image_t *hdr = (noit_image_t *)vhdr;;
@@ -365,6 +374,12 @@ noit_module_help(noit_console_closure_t ncct,
       noit_image_t *hdr = (noit_image_t *)vhdr;;
       nc_printf(ncct, "  %s\n", hdr->name);
     }
+    memset(&iter, 0, sizeof(iter));
+    while(noit_hash_next(&generics, &iter, (const char **)&name, &klen,
+                         &vhdr)) {
+      noit_image_t *hdr = (noit_image_t *)vhdr;;
+      nc_printf(ncct, "  %s\n", hdr->name);
+    }
     return 0;
   } 
   else if(argc == 1 || 
@@ -372,6 +387,7 @@ noit_module_help(noit_console_closure_t ncct,
     /* help for a specific module */ 
     noit_module_t *mod; 
     mod = noit_module_lookup(argv[0]); 
+    if(!mod) mod = (noit_module_t *)noit_module_generic_lookup(argv[0]);
     noit_module_print_help(ncct, mod, argc == 2); 
     return 0; 
   } 

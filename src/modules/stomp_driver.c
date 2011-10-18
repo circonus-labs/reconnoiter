@@ -37,6 +37,7 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "libstomp.h"
+#include "stomp_driver.xmlh"
 
 struct stomp_driver {
   stomp_connection *connection;
@@ -184,7 +185,7 @@ noit_module_generic_t stomp_driver = {
     NOIT_GENERIC_ABI_VERSION,
     "stomp_driver",
     "STOMP driver for IEP MQ submission",
-    "",
+    stomp_driver_xml_description,
     noit_stomp_driver_onload
   },
   noit_stomp_driver_config,

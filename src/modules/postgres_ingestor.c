@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2009, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007-2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 #include "stratcon_iep.h"
 #include "noit_conf.h"
 #include "noit_check.h"
+#include "noit_check_log_helpers.h"
 #include "noit_rest.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -55,6 +56,8 @@
 #include <zlib.h>
 #include <assert.h>
 #include <errno.h>
+#include "postgres_ingestor.xmlh"
+#include "bundle.pb-c.h"
 
 #define DECL_STMT(codename,confname) \
 static char *codename = NULL; \
@@ -692,6 +695,8 @@ stratcon_ingest_execute(conn_q *cq, const char *r, const char *remote_cn,
         DECLARE_PARAM_STR(final_buff, final_len);
         free(final_buff);
         break;
+      case 'D':
+        break;
       case 'C':
         DECLARE_PARAM_STR(raddr, strlen(raddr));
         PROCESS_NEXT_FIELD(token,len);
@@ -769,6 +774,8 @@ stratcon_ingest_execute(conn_q *cq, const char *r, const char *remote_cn,
       GET_QUERY(status_insert);
       PG_TM_EXEC(status_insert, d->whence);
       PQclear(d->res);
+      break;
+    case 'D':
       break;
     case 'M':
       switch(d->metric_type) {
@@ -1031,6 +1038,24 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   }
   return info ? info->dsn : NULL;
 }
+static void
+expand_b_record(ds_line_detail **head, ds_line_detail **last,
+                const char *line, int len) {
+  char **outrows;
+  int i, cnt;
+  ds_line_detail *next;
+
+  cnt = noit_check_log_b_to_sm(line, len, &outrows);
+  for(i=0;i<cnt;i++) {
+    if(outrows[i] == NULL) continue;
+    next = calloc(sizeof(*next), 1);
+    next->data = outrows[i];
+    if(!*head) *head = next;
+    if(*last) (*last)->next = next;
+    *last = next;
+  }
+  if(outrows) free(outrows);
+}
 static ds_line_detail *
 build_insert_batch(pg_interim_journal_t *ij) {
   int rv;
@@ -1064,13 +1089,30 @@ build_insert_batch(pg_interim_journal_t *ij) {
     lcp = buff;
     while(lcp < (buff + len) &&
           NULL != (cp = strnstrn("\n", 1, lcp, len - (lcp-buff)))) {
-      next = calloc(1, sizeof(*next));
-      next->data = malloc(cp - lcp + 1);
-      memcpy(next->data, lcp, cp - lcp);
-      next->data[cp - lcp] = '\0';
-      if(!head) head = next;
-      if(last) last->next = next;
-      last = next;
+      if(lcp[0] == 'B' && lcp[1] != '\0' && lcp[2] == '\t') {
+      /* Bundle records are special and need to be expanded into
+       * traditional records here
+       */
+        noit_compression_type_t ctype = NOIT_COMPRESS_NONE;
+        switch(lcp[1]) {
+          case '1': /* version 1 */
+            ctype = NOIT_COMPRESS_ZLIB; /*no break fall through */
+          case '2': /* version 2 */
+              expand_b_record(&head, &last, lcp, cp - lcp);
+            break;
+          default:
+            noitL(noit_error, "unknown bundle version %c\n", lcp[1]);
+        }
+      }
+      else {
+        next = calloc(1, sizeof(*next));
+        next->data = malloc(cp - lcp + 1);
+        memcpy(next->data, lcp, cp - lcp);
+        next->data[cp - lcp] = '\0';
+        if(!head) head = next;
+        if(last) last->next = next;
+        last = next;
+      }
       lcp = cp + 1;
     }
     munmap((void *)buff, len);
@@ -1370,95 +1412,48 @@ stratcon_ingest_saveconfig() {
   return rv;
 }
 
-static void
+static int
 stratcon_ingest_launch_file_ingestion(const char *path,
                                       const char *remote_str,
                                       const char *remote_cn,
                                       const char *id_str) {
   pg_interim_journal_t *ij;
+  char pgfile[PATH_MAX];
   eventer_t ingest;
 
+  if(strcmp(path + strlen(path) - 3, ".pg")) {
+    snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
+    if(link(path, pgfile) < 0) {
+      noitL(noit_error, "cannot link journal: %s\n", strerror(errno));
+      free(ij);
+      return -1;
+    }
+  }
+  else
+    strlcpy(pgfile, path, sizeof(pgfile));
   ij = calloc(1, sizeof(*ij));
-  ij->fd = open(path, O_RDONLY);
+  ij->fd = open(pgfile, O_RDONLY);
   if(ij->fd < 0) {
     noitL(noit_error, "cannot open journal '%s': %s\n",
-          path, strerror(errno));
+          pgfile, strerror(errno));
     free(ij);
-    return;
+    return -1;
   }
   close(ij->fd);
   ij->fd = -1;
-  ij->filename = strdup(path);
+  ij->filename = strdup(pgfile);
   ij->remote_str = strdup(remote_str);
   ij->remote_cn = strdup(remote_cn);
   ij->storagenode_id = atoi(id_str);
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
-  noitL(noit_error, "ingesting old payload: %s\n", ij->filename);
+  noitL(noit_error, "ingesting payload: %s\n", ij->filename);
   ingest = eventer_alloc();
   ingest->mask = EVENTER_ASYNCH;
   ingest->callback = stratcon_ingest_asynch_execute;
   ingest->closure = ij;
   eventer_add_asynch(ij->cpool->jobq, ingest);
-}
-static void
-stratcon_ingest_sweep_journals_int(char *first, char *second, char *third) {
-  char path[PATH_MAX];
-  DIR *root;
-  struct dirent *de, *entry;
-  int i = 0, cnt = 0;
-  char **entries;
-  int size = 0;
-
-  snprintf(path, sizeof(path), "%s%s%s%s%s%s%s", basejpath,
-           first ? "/" : "", first ? first : "",
-           second ? "/" : "", second ? second : "",
-           third ? "/" : "", third ? third : "");
-#ifdef _PC_NAME_MAX
-  size = pathconf(path, _PC_NAME_MAX);
-#endif
-  size = MIN(size, PATH_MAX + 128);
-  de = alloca(size);
-  root = opendir(path);
-  if(!root) return;
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) cnt++;
-  closedir(root);
-  root = opendir(path);
-  if(!root) return;
-  entries = malloc(sizeof(*entries) * cnt);
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
-    if(i < cnt) {
-      entries[i++] = strdup(entry->d_name);
-    }
-  }
-  closedir(root);
-  cnt = i; /* could have changed, directories are fickle */
-  qsort(entries, i, sizeof(*entries),
-        (int (*)(const void *, const void *))strcasecmp);
-  for(i=0; i<cnt; i++) {
-    if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
-    noitL(ds_deb, "Processing L%d entry '%s'\n",
-          third ? 4 : second ? 3 : first ? 2 : 1, entries[i]);
-    if(!first)
-      stratcon_ingest_sweep_journals_int(entries[i], NULL, NULL);
-    else if(!second)
-      stratcon_ingest_sweep_journals_int(first, entries[i], NULL);
-    else if(!third)
-      stratcon_ingest_sweep_journals_int(first, second, entries[i]);
-    else if(strlen(entries[i]) == 16) {
-      char fullpath[PATH_MAX];
-      snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", basejpath,
-               first,second,third,entries[i]);
-      stratcon_ingest_launch_file_ingestion(fullpath,first,second,third);
-    }
-  }
-  for(i=0; i<cnt; i++)
-    free(entries[i]);
-  free(entries);
-}
-static void
-stratcon_ingest_sweep_journals() {
-  stratcon_ingest_sweep_journals_int(NULL,NULL,NULL);
+  return 0;
 }
 
 int
@@ -1637,6 +1632,9 @@ static int postgres_ingestor_config(noit_module_generic_t *self, noit_hash_table
 static int postgres_ingestor_onload(noit_image_t *self) {
   return 0;
 }
+static int is_postgres_ingestor_file(const char *file) {
+  return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
+}
 static int postgres_ingestor_init(noit_module_generic_t *self) {
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
@@ -1653,7 +1651,8 @@ static int postgres_ingestor_init(noit_module_generic_t *self) {
   }
   stratcon_ingest_all_check_info();
   stratcon_ingest_all_storagenode_info();
-  stratcon_ingest_sweep_journals();
+  stratcon_ingest_sweep_journals(is_postgres_ingestor_file,
+                                 stratcon_ingest_launch_file_ingestion);
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }
 
@@ -1663,7 +1662,7 @@ noit_module_generic_t postgres_ingestor = {
     NOIT_GENERIC_ABI_VERSION,
     "postgres_ingestor",
     "postgres drive for data ingestion",
-    "", 
+    postgres_ingestor_xml_description,
     postgres_ingestor_onload,
   },  
   postgres_ingestor_config,

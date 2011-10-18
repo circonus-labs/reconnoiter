@@ -1,0 +1,32 @@
+<module>
+  <name>rabbitmq_driver</name>
+  <description><para>The rabbitmq_driver module allows publishing of metrics and status messages over the AMQP protocol for use powering the IEP system.</para></description>
+  <loader>C</loader>
+  <image>rabbitmq_driver.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Loading the rabbitmq_driver.</title>
+      <para>This example loads the rabbitmq_driver and configures it.</para>
+      <programlisting><![CDATA[
+      <stratcon>
+        <modules>
+          <module image="rabbitmq_driver" name="rabbitmq_driver" />
+        </modules>
+        <iep>
+          <mq type="rabbitmq">
+            <hostname>mq1,mq2</hostname>
+            <exchange>noit.firehose</exchange>
+            <exchangetype>topic</exchangetype>
+            <routingkey>check</routingkey>
+            <username>stratcon</username>
+            <password>youllneverguess</password>
+          </mq>
+        </iep>
+      </stratcon>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

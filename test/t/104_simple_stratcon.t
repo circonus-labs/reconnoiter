@@ -1,4 +1,4 @@
-use Test::More tests => 9;
+use Test::More tests => 10;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -32,4 +32,5 @@ $doc = $xp->parse_string($r[1]);
 @nonoits = $xpc->findnodes("/noits/noit", $doc);
 is(@nonoits, 0, 'removed noit');
 
+ok(stop_stratcon, 'stopping stratcon');
 1;

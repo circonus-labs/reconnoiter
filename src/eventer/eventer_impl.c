@@ -90,9 +90,9 @@ int eventer_impl_propset(const char *key, const char *value) {
     }
     return 0;
   }
-  else if(!strcasecmp(key, "debugging")) {
+  else if(!strcasecmp(key, "rlim_nofiles")) {
     desired_limit = atoi(value);
-    if(__default_queue_threads < 256) {
+    if(desired_limit < 256) {
       noitL(noit_error, "rlim_nofiles must be >= 256\n");
       return -1;
     }
@@ -107,6 +107,10 @@ int eventer_impl_propset(const char *key, const char *value) {
   }
   else if(!strcasecmp(key, "default_ca_chain")) {
     /* used by eventer consumers */
+    return 0;
+  }
+  else if(!strcasecmp(key, "ssl_ctx_cache_expiry")) {
+    eventer_ssl_set_ssl_ctx_cache_expiry(atoi(value));
     return 0;
   }
   noitL(noit_error, "Warning: unknown eventer config '%s'\n", key);

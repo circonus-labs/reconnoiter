@@ -106,6 +106,13 @@ void noit_hash_init(noit_hash_table *h) {
   h->buckets = calloc(h->table_size, sizeof(noit_hash_bucket *));
 }
 
+void noit_hash_init_size(noit_hash_table *h, int size) {
+  memset(h, 0, sizeof(noit_hash_table));
+  h->initval = lrand48();
+  h->table_size = size;
+  h->buckets = calloc(h->table_size, sizeof(noit_hash_bucket *));
+}
+
 noit_hash_bucket *noit_hash__new_bucket(const char *k, int klen, void *data) {
   noit_hash_bucket *b;
   b = calloc(1, sizeof(noit_hash_bucket));

@@ -196,6 +196,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
 
   SHOW_ATTR(attr,node,module);
   SHOW_ATTR(attr,node,target);
+  SHOW_ATTR(attr,node,resolve_rtype);
   SHOW_ATTR(attr,node,period);
   SHOW_ATTR(attr,node,timeout);
   SHOW_ATTR(attr,node,oncheck);
@@ -283,6 +284,20 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           }
           target = 1;
         }
+        else CHECK_N_SET(resolve_rtype) {
+          xmlChar *tmp;
+          noit_boolean invalid;
+          tmp = xmlNodeGetContent(an);
+          invalid = strcmp((char *)tmp, PREFER_IPV4) &&
+                    strcmp((char *)tmp, PREFER_IPV6) &&
+                    strcmp((char *)tmp, FORCE_IPV4) &&
+                    strcmp((char *)tmp, FORCE_IPV6);
+          xmlFree(tmp);
+          if(invalid) {
+            *error = "invalid reslove_rtype";
+            return 0;
+          }
+        }
         else CHECK_N_SET(period) {
           int pint;
           xmlChar *tmp;
@@ -355,6 +370,7 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
 } while(0)
     ATTR2PROP(name);
     ATTR2PROP(target);
+    ATTR2PROP(resolve_rtype);
     ATTR2PROP(module);
     ATTR2PROP(period);
     ATTR2PROP(timeout);

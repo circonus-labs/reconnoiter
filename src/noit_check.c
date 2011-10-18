@@ -42,6 +42,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+#include "dtrace_probes.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
@@ -105,6 +106,17 @@ static int __watchlist_compare(const void *a, const void *b) {
   return 1;
 }
 int
+noit_calc_rtype_flag(char *resolve_rtype) {
+  int flags = 0;
+  if(resolve_rtype) {
+    flags |= strcmp(resolve_rtype, PREFER_IPV6) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_PREFER_IPV6 : 0;
+    flags |= strcmp(resolve_rtype, FORCE_IPV4) == 0 ||
+             strcmp(resolve_rtype, FORCE_IPV6) == 0 ? NP_SINGLE_RESOLVE : 0;
+  }
+  return flags;
+}
+int
 noit_check_max_initial_stutter() {
   int stutter;
   if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
@@ -120,7 +132,7 @@ noit_check_fake_last_check(noit_check_t *check,
 
   if(start_offset_ms == -1)
     start_offset_ms = drand48() * noit_check_max_initial_stutter();
-  if(!(check->flags & NP_TRANSIENT)) {
+  if(!(check->flags & NP_TRANSIENT) && check->period) {
     max = noit_check_max_initial_stutter();
     offset = start_offset_ms + drand48() * 1000;
     offset = offset % MIN(max, check->period);
@@ -148,6 +160,7 @@ noit_poller_process_checks(const char *xpath) {
     char name[256] = "";
     char filterset[256] = "";
     char oncheck[1024] = "";
+    char resolve_rtype[16] = "";
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
@@ -181,6 +194,9 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
       filterset[0] = '\0';
+    
+    if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
+      strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
       strlcpy(name, module, sizeof(name));
@@ -215,6 +231,8 @@ noit_poller_process_checks(const char *xpath) {
     flags = 0;
     if(busted) flags |= (NP_UNCONFIG|NP_DISABLED);
     else if(disabled) flags |= NP_DISABLED;
+
+    flags |= noit_calc_rtype_flag(resolve_rtype);
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {
@@ -335,20 +353,28 @@ noit_poller_make_causal_map() {
     noit_check_t *check = (noit_check_t *)vcheck, *parent;
     if(check->oncheck) {
       /* This service is causally triggered by another service */
+      uuid_t id;
       char fullcheck[1024];
       char *name = check->oncheck;
       char *target = NULL;
 
       noitL(noit_debug, "Searching for upstream trigger on %s\n", name);
+      parent = NULL;
+      if(uuid_parse(check->oncheck, id) == 0) {
+        target = "";
+        parent = noit_poller_lookup(id);
+      }
       if((target = strchr(check->oncheck, '`')) != NULL) {
-        strlcpy(fullcheck, check->oncheck, target - check->oncheck);
+        strlcpy(fullcheck, check->oncheck, target + 1 - check->oncheck);
         name = target + 1;
         target = fullcheck;
+        parent = noit_poller_lookup_by_name(target, name);
       }
-      else
-       target = check->target;
+      else {
+        target = check->target;
+        parent = noit_poller_lookup_by_name(target, name);
+      }
 
-      parent = noit_poller_lookup_by_name(target, name);
       if(!parent) {
         check->flags |= NP_DISABLED;
         noitL(noit_stderr, "Disabling check %s`%s, can't find oncheck %s`%s\n",
@@ -559,11 +585,10 @@ noit_check_set_ip(noit_check_t *new_check,
     struct in6_addr addr6;
   } a;
 
-
-  family = AF_INET;
+  family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
-  if(rv != 1) {
-    family = AF_INET6;
+  if(rv != 1 && !NOIT_CHECK_SINGLE_RESOLVE(new_check)) {
+    family = family == AF_INET ? AF_INET6 : AF_INET;
     rv = inet_pton(family, ip_str, &a);
     if(rv != 1) {
       family = AF_INET;
@@ -614,6 +639,16 @@ noit_check_update(noit_check_t *new_check,
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
+
+  // apply resolution flags to check.
+  if (flags & NP_PREFER_IPV6)
+    new_check->flags |= NP_PREFER_IPV6;
+  else
+    new_check->flags &= ~NP_PREFER_IPV6;
+  if (flags & NP_SINGLE_RESOLVE)
+    new_check->flags |= NP_SINGLE_RESOLVE;
+  else
+    new_check->flags &= ~NP_SINGLE_RESOLVE;
 
   if(noit_check_set_ip(new_check, target)) {
     noit_boolean should_resolve;
@@ -777,6 +812,8 @@ noit_poller_deschedule(uuid_t in) {
   checker = (noit_check_t *)vcheck;
   checker->flags |= (NP_DISABLED|NP_KILLED);
 
+  noit_check_log_delete(checker);
+
   noit_skiplist_remove(&polls_by_name, checker, NULL);
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
 
@@ -858,6 +895,29 @@ noit_check_xpath(char *xpath, int len,
   return strlen(xpath);
 }
 
+static int
+bad_check_initiate(noit_module_t *self, noit_check_t *check,
+                   int once, noit_check_t *cause) {
+  /* self is likely null here -- why it is bad, in fact */
+  /* this is only suitable to call in one-offs */
+  stats_t current;
+  char buff[256];
+  if(!once) return -1;
+  if(!check) return -1;
+  assert(!(check->flags & NP_RUNNING));
+  check->flags |= NP_RUNNING;
+  noit_check_stats_clear(&current);
+  gettimeofday(&current.whence, NULL);
+  current.duration = 0;
+  current.available = NP_UNKNOWN;
+  current.state = NP_UNKNOWN;
+  snprintf(buff, sizeof(buff), "check[%s] implementation offline",
+           check->module);
+  current.status = buff;
+  noit_check_set_stats(self, check, &current);
+  check->flags &= ~NP_RUNNING;
+  return 0;
+}
 void
 noit_check_stats_clear(stats_t *s) {
   memset(s, 0, sizeof(*s));
@@ -1123,23 +1183,34 @@ noit_check_set_stats(struct _noit_module *module,
           noit_check_state_string(check->stats.current.state));
   }
 
-  /* Write out our status */
-  noit_check_log_status(check);
-  /* Write out all metrics */
-  noit_check_log_metrics(check);
+  if(NOIT_CHECK_STATUS_ENABLED()) {
+    char id[UUID_STR_LEN+1];
+    uuid_unparse_lower(check->checkid, id);
+    NOIT_CHECK_STATUS(id, check->module, check->name, check->target,
+                      check->stats.current.available,
+                      check->stats.current.state,
+                      check->stats.current.status);
+  }
+
+  /* Write out the bundled information */
+  noit_check_log_bundle(check);
   /* count the check as complete */
   check_completion_count++;
 
   for(dep = check->causal_checks; dep; dep = dep->next) {
     noit_module_t *mod;
     mod = noit_module_lookup(dep->check->module);
-    assert(mod);
-    noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
-          dep->check->target, dep->check->name,
-          check->target, check->name);
-    if((dep->check->flags & NP_DISABLED) == 0)
-      if(mod->initiate_check)
-        mod->initiate_check(mod, dep->check, 1, check);
+    if(!mod) {
+      bad_check_initiate(mod, dep->check, 1, check);
+    }
+    else {
+      noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
+            dep->check->target, dep->check->name,
+            check->target, check->name);
+      if((dep->check->flags & NP_DISABLED) == 0)
+        if(mod->initiate_check)
+          mod->initiate_check(mod, dep->check, 1, check);
+    }
   }
 }
 

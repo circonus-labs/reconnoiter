@@ -56,6 +56,7 @@ typedef struct lua_module_closure {
 typedef struct noit_lua_check_info {
   noit_module_t *self;
   noit_check_t *check;
+  noit_check_t *cause;
   int timed_out;
   eventer_t timeout_event;
   lua_module_closure_t *lmc;

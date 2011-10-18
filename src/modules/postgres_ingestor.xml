@@ -1,0 +1,104 @@
+<module>
+  <name>postgres_ingestor</name>
+  <description><para>This module imports noitd data into postgres.</para></description>
+  <loader>C</loader>
+  <image>postgres_ingestor.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Using the postgres_ingestor.</title>
+      <para>This example loads the postgres_ingestor and configures it.</para>
+      <programlisting><![CDATA[
+      <stratcon>
+        <modules>
+          <module image="postgres_ingestor" name="postgres_ingestor" />
+        </modules>
+        <database>
+          <journal>
+            <path>/var/log/stratcon.persist</path>
+          </journal>
+          <dbconfig>
+            <host>db1</host>
+            <dbname>reconnoiter</dbname>
+            <user>stratcon</user>
+            <password>unguessable</password>
+          </dbconfig>
+          <statements>
+            <!-- These are optional and used for stuff like setting search paths -->
+            <!--
+            <metanodepostconnect>
+              SELECT do_some_magic();
+            </metanodepostconnect>
+            <storagepostconnect>
+              SELECT do_some_magic($1,$2);
+            </storagepostconnect>
+            -->
+            <allchecks>
+              SELECT remote_address, id, target, module, name
+                FROM check_currently
+            </allchecks>
+            <findcheck>
+              SELECT remote_address, id, target, module, name
+                FROM check_currently
+               WHERE sid = $1
+            </findcheck>
+            <allstoragenodes>
+              SELECT storage_node_id, fqdn, dsn
+                FROM stratcon.storage_node
+            </allstoragenodes>
+            <findstoragenode>
+              SELECT fqdn, dsn
+                FROM stratcon.storage_node
+               WHERE storage_node_id = $1
+            </findstoragenode>
+            <mapallchecks>
+              SELECT id, sid, noit as remote_cn, storage_node_id, fqdn, dsn
+                FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
+            </mapallchecks>
+            <mapchecktostoragenode>
+              SELECT o_storage_node_id as storage_node_id, o_sid as sid,
+                     o_fqdn as fqdn, o_dsn as dsn, o_noit as remote_cn
+                FROM stratcon.map_uuid_to_sid($1,$2)
+            </mapchecktostoragenode>
+            <check>
+              INSERT INTO check_archive_%Y%m%d
+                          (remote_address, whence, sid, id, target, module, name)
+                   VALUES ($1, 'epoch'::timestamptz + ($2 || ' seconds')::interval,
+                           $3, $4, $5, $6, $7)
+            </check>
+            <status>
+              INSERT INTO check_status_archive_%Y%m%d
+                          (whence, sid, state, availability, duration, status)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4, $5, $6)
+            </status>
+            <metric_numeric>
+              INSERT INTO metric_numeric_archive_%Y%m%d
+                          (whence, sid, name, value)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4)
+            </metric_numeric>
+            <metric_text>
+              INSERT INTO metric_text_archive_%Y%m%d
+                          ( whence, sid, name,value)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4)
+            </metric_text>
+            <config>
+              SELECT stratcon.update_config
+                     ($1, $2, $3,
+                      'epoch'::timestamptz + ($4 || ' seconds')::interval,
+                      $5)
+            </config>
+            <findconfig>
+              SELECT config FROM stratcon.current_node_config WHERE remote_cn = $1
+            </findconfig>
+          </statements>
+        </database>
+      </stratcon>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>

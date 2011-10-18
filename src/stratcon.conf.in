@@ -42,14 +42,21 @@
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
     <mq type="stomp">
-      <!-- (for RabbitMQ, leave type="stomp" in the line above, but set the following)
-      <username>guest</username>
-      <password>guest</password>
-      <exchange>noit.firehose</exchange>
-      -->
     </mq>
-    <!-- For RabbitMQ 
-    <broker adapter="rabbitmq" />
+    <!-- For RabbitMQ
+    <broker adapter="rabbitmq">
+      <hostname>mq1.int.circonus.net,mq2.int.circonus.net</hostname>
+      <username>stratcon</username>
+      <password>youllneverguess</password>
+    </broker>
+    <mq type="rabbitmq">
+      <hostname>mq1.int.circonus.net,mq2.int.circonus.net</hostname>
+      <exchange>noit.firehose</exchange>
+      <exchangetype>topic</exchangetype>
+      <routingkey>check</routingkey>
+      <username>stratcon</username>
+      <password>youllneverguess</password>
+    </mq>
     -->
     <queries master="iep">
       <statement id="6cc613a4-7f9c-11de-973f-db7e8ccb2e5c" provides="CheckDetails-ddl">

@@ -505,14 +505,14 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
   noit_lua_check_info_t *ci;
   struct nl_slcl *cl = vcl;
   int rv;
-  
+
   rv = eventer_SSL_connect(e, &mask);
   if(rv <= 0 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
 
   ci = get_ci(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
-  
+
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
@@ -529,6 +529,7 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
   struct timeval now;
+  int tmpmask, rv;
 
   ci = get_ci(L);
   assert(ci);
@@ -550,15 +551,20 @@ noit_lua_socket_connect_ssl(lua_State *L) {
 
   eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert, NULL);
   EVENTER_ATTACH_SSL(e, sslctx);
-  e->callback = noit_lua_ssl_upgrade;
-  gettimeofday(&now, NULL);
-  e->mask = e->callback(e, EVENTER_READ|EVENTER_WRITE, e->closure, &now);
-  if(e->mask & (EVENTER_READ|EVENTER_WRITE)) {
+
+  /* We need do the ssl connect and register a completion if
+   * it comes back with an EAGAIN.
+   */
+  tmpmask = EVENTER_READ|EVENTER_WRITE;
+  rv = eventer_SSL_connect(e, &tmpmask);
+  if(rv <= 0 && errno == EAGAIN) {
     /* Need completion */
+    e->mask = tmpmask | EVENTER_EXCEPTION;
+    e->callback = noit_lua_ssl_upgrade;
     eventer_add(e);
     return noit_lua_yield(ci, 0);
   }
-  lua_pushinteger(L, 0);
+  lua_pushinteger(L, (rv > 0) ? 0 : -1);
   return 1;
 }
 
@@ -996,7 +1002,7 @@ nl_crc32(lua_State *L) {
     inputidx = 2;
   }
   input = lua_tolstring(L, inputidx, &inlen);
-  lua_pushnumber(L, (double)crc32(start, input, inlen));
+  lua_pushnumber(L, (double)crc32(start, (Bytef *)input, inlen));
   return 1;
 }
 static int
@@ -1773,7 +1779,27 @@ noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
     case json_type_string: lua_pushstring(L, json_object_get_string(o)); break;
     case json_type_boolean: lua_pushboolean(L, json_object_get_boolean(o)); break;
     case json_type_double: lua_pushnumber(L, json_object_get_double(o)); break;
-    case json_type_int: lua_pushnumber(L, json_object_get_int(o)); break;
+    case json_type_int:
+    {
+      int64_t i64;
+      uint64_t u64;
+      char istr[64];
+      switch(json_object_get_int_overflow(o)) {
+        case json_overflow_int:
+          lua_pushnumber(L, json_object_get_int(o)); break;
+        case json_overflow_int64:
+          i64 = json_object_get_int64(o);
+          snprintf(istr, sizeof(istr), "%lld", i64);
+          lua_pushstring(L, istr);
+          break;
+        case json_overflow_uint64:
+          u64 = json_object_get_uint64(o);
+          snprintf(istr, sizeof(istr), "%llu", u64);
+          lua_pushstring(L, istr);
+          break;
+      }
+      break;
+    }
     case json_type_array:
     {
       int i, cnt;

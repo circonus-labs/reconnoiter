@@ -249,7 +249,8 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
         break;
       }
       else {
-        if(ttl == 0) ttl = rr.dnsrr_ttl;
+        if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
+          ttl = rr.dnsrr_ttl;
         dns_dntodn(p.dnsp_dnbuf, idn, sizeof(idn));
       }
     }
@@ -266,7 +267,8 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
     if (!dns_dnequal(idn, rr.dnsrr_dn)) continue;
     if (p.dnsp_rrl && !rr.dnsrr_dn[0] && rr.dnsrr_typ == DNS_T_OPT) continue;
     if (rtype == rr.dnsrr_typ) {
-      if (ttl == 0) ttl = rr.dnsrr_ttl;
+      if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
+        ttl = rr.dnsrr_ttl;
       switch(rr.dnsrr_typ) {
         case DNS_T_A:
           if(rr.dnsrr_dsz != 4) continue;

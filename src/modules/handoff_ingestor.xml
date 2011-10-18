@@ -1,0 +1,28 @@
+<module>
+  <name>handoff_ingestor</name>
+  <description><para>This module exposes the consolidated noitd journal files from stratcon to an external process. There is no configuration and one must write an external journal ingestor to have this module be of any use.</para>
+    <para>The files stored in the database journal path are not deleted by stratcond and as they are added, their names are streamed using chunked HTTP to the external program currently requesting /handoff/jounrals from the wire protocol API via HTTP GET.  It is the external program's responsibility to delete the files once it has consumed them.</para></description>
+  <loader>C</loader>
+  <image>handoff_ingestor.so</image>
+  <moduleconfig>
+  </moduleconfig>
+  <checkconfig />
+  <examples>
+    <example>
+      <title>Loading the handoff_ingestor.</title>
+      <para>This example loads the handoff_ingestor.</para>
+      <programlisting><![CDATA[
+      <stratcon>
+        <modules>
+          <module image="handoff_ingestor" name="handoff_ingestor" />
+        </modules>
+        <database>
+          <journal>
+            <path>/var/log/stratcon.persist</path>
+          </journal>
+        </database>
+      </stratcon>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
