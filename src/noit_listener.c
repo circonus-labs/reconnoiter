@@ -128,7 +128,7 @@ noit_listener_acceptor(eventer_t e, int mask,
     conn = e->opset->accept(e->fd, &ac->remote.remote_addr, &salen, &newmask, e);
     if(conn >= 0) {
       eventer_t newe;
-      noitL(nlerr, "noit_listener[%s] accepted fd %d\n",
+      noitL(nldeb, "noit_listener[%s] accepted fd %d\n",
             eventer_name_for_callback(listener_closure->dispatch_callback),
             conn);
       if(eventer_set_fd_nonblocking(conn)) {
