@@ -508,9 +508,9 @@ void noit_module_init() {
             loader_name, module_name);
       continue;
     }
-    config = noit_conf_get_hash(sections[i], "config");
     if(module->config) {
       int rv;
+      config = noit_conf_get_hash(sections[i], "config");
       rv = module->config(module, config);
       if(rv == 0) {
         /* Not an error,

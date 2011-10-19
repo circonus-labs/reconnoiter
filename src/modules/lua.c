@@ -574,13 +574,14 @@ noit_lua_module_onload(noit_image_t *i) {
     failure; \
   } \
 } while(0)
-#define RETURN_INT(L, func) do { \
+#define RETURN_INT(L, func, expr) do { \
   int base = lua_gettop(L); \
   assert(base == 1); \
   if(lua_isnumber(L, -1)) { \
     int rv; \
     rv = lua_tointeger(L, -1); \
     lua_pop(L, 1); \
+    expr \
     return rv; \
   } \
   lua_pop(L,1); \
@@ -595,9 +596,13 @@ noit_lua_module_config(noit_module_t *mod,
 
   noit_lua_setup_module(L, mod);
   noit_lua_hash_to_table(L, options);
+  noit_hash_destroy(options, free, free);
+  free(options);
   lua_pcall(L, 2, 1, 0);
 
-  RETURN_INT(L, "config");
+  /* If rv == 0, the caller will free options. We've
+   * already freed options, that would be bad. fudge -> 1 */
+  RETURN_INT(L, "config", { rv = (rv == 0) ? 1 : rv; });
   return -1;
 }
 static int
@@ -608,7 +613,7 @@ noit_lua_module_init(noit_module_t *mod) {
   noit_lua_setup_module(L, mod);
   lua_pcall(L, 1, 1, 0);
 
-  RETURN_INT(L, "init");
+  RETURN_INT(L, "init", );
   return -1;
 }
 static void

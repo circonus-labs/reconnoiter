@@ -306,6 +306,7 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
       strlcat(infile, "/", PATH_MAX);
       strlcat(infile, path, PATH_MAX);
     }
+    xmlFree(path);
     config_include_nodes[i].doc = xmlParseFile(infile);
     if(config_include_nodes[i].doc) {
       xmlNodePtr n;
@@ -459,6 +460,7 @@ void noit_conf_get_into_hash(noit_conf_section_t section,
   if(inheritid) {
     snprintf(xpath_expr, sizeof(xpath_expr), "//*[@id=\"%s\"]", inheritid);
     noit_conf_get_into_hash(NULL, xpath_expr, table);
+    xmlFree(inheritid);
   }
   /* 3. */
   noit_conf_get_elements_into_hash(node, "*", table);

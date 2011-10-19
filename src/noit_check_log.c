@@ -391,6 +391,7 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
     free(bundle.metrics[j]);
   }
   free(bundle.metrics);
+  free(bundle.status);
   return rv;
 }
 
