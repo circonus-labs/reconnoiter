@@ -80,7 +80,7 @@ static void dns_ctx_handle_free(void *vh) {
   dns_close(h->ctx);
   dns_free(h->ctx);
 }
-static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
+static dns_ctx_handle_t *dns_ctx_alloc(const char *ns, int port) {
   void *vh;
   dns_ctx_handle_t *h = NULL;
   pthread_mutex_lock(&dns_ctx_store_lock);
@@ -104,6 +104,9 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     if(ns) {
       if(dns_add_serv(h->ctx, NULL) < 0) failed++;
       if(dns_add_serv(h->ctx, ns) < 0) failed++;
+    }
+    if(port && port != DNS_PORT) {
+      dns_set_opt(h->ctx, DNS_OPT_PORT, port);
     }
     if(dns_open(h->ctx) < 0) failed++;
     if(failed) {
@@ -304,7 +307,7 @@ static int dns_module_init(noit_module_t *self) {
     return -1;
   }
   dns_free(pctx);
-  if(dns_ctx_alloc(NULL) == NULL) {
+  if(dns_ctx_alloc(NULL, 0) == NULL) {
     noitL(nlerr, "Error setting up default dns resolver context.\n");
     return -1;
   }
@@ -605,6 +608,8 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   const char *config_val;
   const char *rtype = NULL;
   const char *nameserver = NULL;
+  int port = 0;
+  const char *port_str = NULL;
   const char *want_sort = NULL;
   const char *ctype = "IN";
   const char *query = NULL;
@@ -638,6 +643,12 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     rtype = "A";
     query = "%[name]";
   }
+
+  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+                        &port_str)) {
+    port = atoi(port_str);
+  }
+
 #define CONFIG_OVERRIDE(a) \
   if(noit_hash_retr_str(check->config, #a, strlen(#a), \
                         &config_val) && \
@@ -687,7 +698,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     ci->h = NULL;
   }
   /* use the cached one, unless we don't have one */
-  if(!ci->h) ci->h = dns_ctx_alloc(nameserver);
+  if(!ci->h) ci->h = dns_ctx_alloc(nameserver, port);
   if(!ci->h) ci->error = strdup("bad nameserver");
 
   /* Lookup out class */

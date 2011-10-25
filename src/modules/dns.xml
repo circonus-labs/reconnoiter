@@ -11,6 +11,10 @@
                required="optional"
                default="%[target_ip] or determined from underlying system"
                allowed=".+">The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target_ip] of the the check.  If set to the string "default" the underlying system default nameserver is used.</parameter>
+    <parameter name="port"
+               required="optional"
+               default="53"
+               allowed="\d+">The port on which the remote server's DNS service is running.</parameter>
     <parameter name="ctype"
                required="optional"
                default="IN"
