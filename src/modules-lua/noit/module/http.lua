@@ -91,6 +91,10 @@ function onload(image)
                required="optional"
                default="10000"
                allowed="\d+">This sets the PCRE internal match limit (see pcreapi documentation).</parameter>
+    <parameter name="read_limit"
+               required="optional"
+               default="102400"
+               allowed="\d+">Sets the limit on the data read.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -269,6 +273,7 @@ function initiate(module, check)
     local max_len = 80
     local pcre_match_limit = check.config.pcre_match_limit or 10000
     local redirects = check.config.redirects or 0
+    local read_limit = check.config.read_limit or 10
 
     -- expect the worst
     check.bad()
@@ -353,7 +358,7 @@ function initiate(module, check)
             headers_firstpass[k] = v
         end
         client:do_request(method, uri, headers_firstpass)
-        client:get_response()
+        client:get_response(read_limit)
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
             check.status("expected digest challenge, got " .. client.code)
@@ -396,7 +401,7 @@ function initiate(module, check)
             return
         end
         optclient:do_request(method, uri, headers, payload)
-        optclient:get_response()
+        optclient:get_response(read_limit)
 
         redirects = redirects - 1
         client = optclient
