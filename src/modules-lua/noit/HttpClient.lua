@@ -131,6 +131,7 @@ end
 
 function te_length(self, content_enc_func)
     local len = tonumber(self.headers["content-length"])
+    len = len > 102400 and 102400 or len
     repeat
         local str = self.e:read(len)
         if str ~= nil then
@@ -163,6 +164,9 @@ function te_chunked(self, content_enc_func)
         -- each chunk ('cept a 0 size one) is followed by a \r\n
         str = self.e:read("\n")
         if str ~= "\r\n" and str ~= "\n" then error("short chunked boundary read") end
+        if string.len(self.content_bytes) > 102400 then
+          break
+        end
     end
     -- read trailers
     while true do
