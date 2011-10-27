@@ -131,7 +131,7 @@ end
 
 function te_length(self, content_enc_func, read_limit)
     local len = tonumber(self.headers["content-length"])
-    if read_limit > 0 and len > read_limit then
+    if read_limit and read_limit > 0 and len > read_limit then
       len = read_limit
     end
     repeat
@@ -163,7 +163,7 @@ function te_chunked(self, content_enc_func, read_limit)
         local decoded = content_enc_func(str)
         self.content_bytes = self.content_bytes + string.len(decoded)
         if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
-        if read_limit > 0 then
+        if read_limit and read_limit > 0 then
           if string.len(self.content_bytes) > read_limit then
             return
           end
