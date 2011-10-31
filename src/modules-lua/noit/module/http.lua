@@ -91,6 +91,12 @@ function onload(image)
                required="optional"
                default="10000"
                allowed="\d+">This sets the PCRE internal match limit (see pcreapi documentation).</parameter>
+    <parameter name="include_body"
+               required="optional"
+               allowed="^(?:true|false|on|off)$"
+               default="false"
+               allowed="\d+">Include whole response body as a metric with the key 'body'.</parameter>
+
   </checkconfig>
   <examples>
     <example>
@@ -269,6 +275,7 @@ function initiate(module, check)
     local max_len = 80
     local pcre_match_limit = check.config.pcre_match_limit or 10000
     local redirects = check.config.redirects or 0
+    local include_body = false
 
     -- expect the worst
     check.bad()
@@ -293,6 +300,11 @@ function initiate(module, check)
     end
     if schema == 'https' then
         use_ssl = true
+    end
+
+    -- Include body as a metric
+    if check.config.include_body == "true" or check.config.include_body == "on" then
+        include_body = true
     end
 
     local output = ''
@@ -483,6 +495,11 @@ function initiate(module, check)
         check.metric_string('body_match', nil)
         good = false
       end
+    end
+
+    -- Include body
+    if include_body then
+        check.metric_string('body', output or '')
     end
 
     -- ssl ctx
