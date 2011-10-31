@@ -43,6 +43,7 @@ function HttpClient:connect(target, port, ssl)
     self.e = noit.socket(target)
     self.target = target
     self.port = port
+    self.truncated = nil
     local rv, err = self.e:connect(self.target, self.port)
     if rv ~= 0 then
         return rv, err
@@ -133,6 +134,7 @@ function te_length(self, content_enc_func, read_limit)
     local len = tonumber(self.headers["content-length"])
     if read_limit and read_limit > 0 and len > read_limit then
       len = read_limit
+      self.truncated = true
     end
     repeat
         local str = self.e:read(len)
@@ -165,6 +167,7 @@ function te_chunked(self, content_enc_func, read_limit)
         if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
         if read_limit and read_limit > 0 then
           if string.len(self.content_bytes) > read_limit then
+            self.truncated = true
             return
           end
         end

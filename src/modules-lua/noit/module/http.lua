@@ -273,7 +273,7 @@ function initiate(module, check)
     local max_len = 80
     local pcre_match_limit = check.config.pcre_match_limit or 10000
     local redirects = check.config.redirects or 0
-    local read_limit = check.config.read_limit or 102400
+    local read_limit = tonumber(check.config.read_limit) or 102400
 
     -- expect the worst
     check.bad()
@@ -450,6 +450,9 @@ function initiate(module, check)
     if codere ~= nil and codere(client.code) then
       good = true
     end
+
+    -- truncated response
+    check.metric_uint32("truncated", client.truncated and 1 or 0)
 
     -- turnaround time
     local seconds = elapsed(check, "duration", starttime, endtime)
