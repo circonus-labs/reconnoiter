@@ -459,7 +459,8 @@ function initiate(module, check)
     if check.config.extract ~= nil then
       local exre = noit.pcre(check.config.extract)
       local rv = true
-      while rv do
+      local m = nil
+      while rv and m ~= '' do
         rv, m, key, value = exre(output or '', { limit = pcre_match_limit })
         if rv and key ~= nil then
           check.metric(key, value)
