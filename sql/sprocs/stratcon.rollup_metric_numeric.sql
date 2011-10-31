@@ -14,17 +14,16 @@ DECLARE
     v_stored_rollup_tm TIMESTAMPTZ;
     v_offset        INTEGER;
     v_init          BOOLEAN := FALSE;
-    v_i             SMALLINT;
+    v_i             SMALLINT := 0;
     v_temprec       RECORD;
     v_count         INTEGER;
+    v_max_segs      INTEGER := 12; -- maximum number of segments to process in one go
 BEGIN
-
-    v_i := 0;
 
     -- Get rollup config based on given name, and fail if its wrong name.
     SELECT * FROM metric_numeric_rollup_config WHERE rollup = in_roll INTO v_conf;
     IF NOT FOUND THEN
-        raise exception 'Given rollup name is invalid! [%]', in_roll;
+        RAISE EXCEPTION 'Given rollup name is invalid! [%]', in_roll;
     END IF;
 
     -- Get task id - used for locking - based on given roll name
@@ -41,11 +40,12 @@ BEGIN
         RETURN 0;
     END IF;
 
-   v_current_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_conf.seconds * floor(extract( epoch FROM now() ) / v_conf.seconds);
+    v_current_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_conf.seconds * floor(extract( epoch FROM now() ) / v_conf.seconds);
 
     LOOP
-        IF v_i > 12 THEN
-            perform pg_advisory_unlock(43191, v_taskid);
+        IF v_i > v_max_segs THEN
+            PERFORM pg_advisory_unlock(43191, v_taskid);
+            RAISE NOTICE 'processed % segments, exiting', v_i - 1;
             RETURN 1;
         END IF;
 
@@ -61,7 +61,7 @@ BEGIN
             -- The unit has to be given in seconds, AND provided as v_temprec.seconds
             v_temprec.use_whence := 'epoch'::timestamptz + '1 second'::INTERVAL * v_temprec.seconds * floor(extract( epoch FROM v_temprec.use_whence ) / v_temprec.seconds);
 
-RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence; 
+            RAISE NOTICE 'queueing for rollup: interval = %, whence = %',v_temprec.rollup, v_temprec.use_whence;  
             -- Poor mans UPSERT :)
             INSERT INTO metric_numeric_rollup_queue ("interval", whence)
                 SELECT v_temprec.rollup, v_temprec.use_whence
@@ -70,6 +70,7 @@ RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence;
                 );
         END LOOP;
 
+        RAISE NOTICE 'processing: interval = %, whence = %', in_roll, v_min_whence;
         IF in_roll = '5m' THEN
             v_sql := 'SELECT * FROM stratcon.window_robust_derive('||quote_literal(v_min_whence)||')';
         ELSE
@@ -81,7 +82,7 @@ RAISE NOTICE '(%,%)',v_temprec.rollup, v_temprec.use_whence;
             v_sql := v_sql || quote_literal(v_min_whence + (v_conf.seconds - 1) * '1 second'::interval) || ',' || quote_literal(v_conf.dependent_on) ||')';
             v_sql := v_sql || ' GROUP BY sid, name';  
         END IF;
-RAISE NOTICE 'v_sql was (%)',v_sql; 
+        RAISE DEBUG 'v_sql was (%)',v_sql; 
 
         FOR v_rec IN EXECUTE v_sql LOOP 
             v_stored_rollup := floor( extract('epoch' from v_rec.rollup_time) / v_conf.span ) * v_conf.span;
@@ -96,7 +97,7 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
             IF v_count = 0 THEN
                 v_segment := stratcon.init_metric_numeric_rollup( in_roll );
                 v_init := true;
-                RAISE NOTICE 'didnt find sid %, name %, rollup_time %, offset %', v_rec.sid, v_rec.name, v_stored_rollup_tm, v_offset;
+                RAISE DEBUG 'didn''t find, inserting: sid = %, name = %, rollup_time = %, offset = %', v_rec.sid, v_rec.name, v_stored_rollup_tm, v_offset;
             END IF;
 
             v_segment.sid                   := v_rec.sid;
@@ -123,7 +124,8 @@ RAISE NOTICE 'v_sql was (%)',v_sql;
 
         -- Delete from whence log table
         DELETE FROM metric_numeric_rollup_queue WHERE whence=v_min_whence AND "interval"=in_roll;
-
+        RAISE NOTICE 'done, removed from queue: interval = %, whence = %', in_roll, v_min_whence;
+        
         v_min_whence := NULL;
     END LOOP;
 
