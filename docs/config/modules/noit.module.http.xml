@@ -397,6 +397,34 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>include_body</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>false</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^(?:true|false|on|off)$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Include whole response body as a metric with the key 'body'.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <example>
     <title>Checking an HTTP and HTTPS URL.</title>

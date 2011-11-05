@@ -94,8 +94,7 @@ function onload(image)
     <parameter name="include_body"
                required="optional"
                allowed="^(?:true|false|on|off)$"
-               default="false"
-               allowed="\d+">Include whole response body as a metric with the key 'body'.</parameter>
+               default="false">Include whole response body as a metric with the key 'body'.</parameter>
 
   </checkconfig>
   <examples>
