@@ -101,7 +101,7 @@
           &lt;/loader&gt;
           &lt;jezebel&gt;
             &lt;config&gt;
-              &lt;url&gt;http://127.0.0.1:8083/dispatch/&lt;/url&gt;
+              &lt;url&gt;http://127.0.0.1:8083/dispatch&lt;/url&gt;
             &lt;/config&gt;
             &lt;module loader="lua" name="com.omniti.jezebel.SampleCheck"
                     object="noit.module.jezebel"/&gt;

@@ -63,7 +63,7 @@ function onload(image)
           </loader>
           <jezebel>
             <config>
-              <url>http://127.0.0.1:8083/dispatch/</url>
+              <url>http://127.0.0.1:8083/dispatch</url>
             </config>
             <module loader="lua" name="com.omniti.jezebel.SampleCheck"
                     object="noit.module.jezebel"/>
