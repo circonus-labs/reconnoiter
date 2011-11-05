@@ -37,10 +37,10 @@ function onload(image)
   image.xml_description([=[
 <module>
   <name>nginx</name>
-  <desccription><para>The nginx module gathers information from the nginx stub_status module</para>
+  <description><para>The nginx module gathers information from the nginx stub_status module</para>
   </description>
   <loader>lua</loader>
-  <object>noit.module.nginx</module>
+  <object>noit.module.nginx</object>
   <checkconfig>
     <parameter name="url"
                required="required"
@@ -48,7 +48,7 @@ function onload(image)
   </checkconfig>
   <examples>
     <example>
-      <title>Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</status>
+      <title>Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</title>
       <para>The following example pulls metrics from Nginx's status module (http://wiki.nginx.org/HttpStubStatusModule) from http://10.1.2.3/nginx_status</para>
       <programlisting><![CDATA[
       <noit>
@@ -65,7 +65,7 @@ function onload(image)
            </config>
         </checks>
       </noit>
-      ]]</programlisting>
+      ]]></programlisting>
     </example>
   </examples>
 </module>

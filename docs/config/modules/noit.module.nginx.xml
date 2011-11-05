@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<section>
+  <title>nginx</title>
+  <para>The nginx module gathers information from the nginx stub_status module</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>lua</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>object</term>
+      <listitem>
+        <para>noit.module.nginx</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>url</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The URL including schema and hostname for the status output from nginx.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <example>
+    <title>Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</title>
+    <para>The following example pulls metrics from Nginx's status module (http://wiki.nginx.org/HttpStubStatusModule) from http://10.1.2.3/nginx_status</para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="nginx" object="noit.module.nginx"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+         &lt;check uuid="CAC1A58F-1670-4F71-8D15-21461D3F6624" name="nginx_10123" module="nginx" target="10.1.2.3"&gt;
+           &lt;config&gt;
+             &lt;url&gt;http://10.1.2.3/nginx_status&lt;/url&gt;
+           &lt;/config&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </programlisting>
+  </example>
+</section>
