@@ -40,6 +40,7 @@ else
   DEPFLAGS="-xM1"
 fi
 
+CFLAGS="$CFLAGS "'-I$(top_srcdir)/deps/libcidr/include'
 CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
 
 case $host in

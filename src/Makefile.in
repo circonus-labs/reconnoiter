@@ -93,6 +93,7 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	stratcon_iep.o \
 	bundle.pb-c.o
 
+DEPS_LIBS= ../deps/libcidr/src/libcidr.a
 STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
 STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
@@ -176,7 +177,7 @@ noitd_@DTRACEOBJ@:    $(STRATCON_OBJS)
 
 noitd:	reversion $(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
-	@$(CC) -o $@ $(NOIT_OBJS) \
+	@$(CC) -o $@ $(NOIT_OBJS) $(DEPS_LIBS) \
 		udns/libudns.o \
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
