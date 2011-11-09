@@ -47,7 +47,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noit_check_tools.h noit_conf.h noit_conf_checks.h noit_conf_private.h \
 	noit_version.h \
 	noit_config.h noit_console.h noit_console_telnet.h noit_defines.h \
-	noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
+	noit_acl.h noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
 	noit_livestream_listener.h noit_main.h noit_module.h noit_rest.h \
 	noit_tokenizer.h noit_xml.h \
 	stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
@@ -74,7 +74,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf.o noit_conf_checks.o noit_tokenizer.o \
 	noit_capabilities_listener.o noit_xml.o \
-	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
+	noit_jlog_listener.o noit_livestream_listener.o noit_acl.o noit_filters.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
 	bundle.pb-c.o
 
