@@ -43,6 +43,7 @@ function HttpClient:connect(target, port, ssl)
     self.e = noit.socket(target)
     self.target = target
     self.port = port
+    self.truncated = nil
     local rv, err = self.e:connect(self.target, self.port)
     if rv ~= 0 then
         return rv, err
@@ -129,8 +130,12 @@ function te_close(self, content_enc_func)
     until str == nil or string.len(str) ~= len
 end
 
-function te_length(self, content_enc_func)
+function te_length(self, content_enc_func, read_limit)
     local len = tonumber(self.headers["content-length"])
+    if read_limit and read_limit > 0 and len > read_limit then
+      len = read_limit
+      self.truncated = true
+    end
     repeat
         local str = self.e:read(len)
         if str ~= nil then
@@ -143,7 +148,7 @@ function te_length(self, content_enc_func)
     until str == nil or len == 0
 end
 
-function te_chunked(self, content_enc_func)
+function te_chunked(self, content_enc_func, read_limit)
     while true do
         local str = self.e:read("\n")
         if str == nil then error("bad chunk transfer") end
@@ -160,6 +165,12 @@ function te_chunked(self, content_enc_func)
         local decoded = content_enc_func(str)
         self.content_bytes = self.content_bytes + string.len(decoded)
         if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
+        if read_limit and read_limit > 0 then
+          if self.content_bytes > read_limit then
+            self.truncated = true
+            return
+          end
+        end
         -- each chunk ('cept a 0 size one) is followed by a \r\n
         str = self.e:read("\n")
         if str ~= "\r\n" and str ~= "\n" then error("short chunked boundary read") end
@@ -172,7 +183,7 @@ function te_chunked(self, content_enc_func)
     end
 end
 
-function HttpClient:get_body()
+function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
     local ce = self.headers["content-encoding"]
     if ce ~= nil then
@@ -187,16 +198,16 @@ function HttpClient:get_body()
     local te = self.headers["transfer-encoding"]
     local cl = self.headers["content-length"]
     if te ~= nil and te == "chunked" then
-        return te_chunked(self, cefunc)
+        return te_chunked(self, cefunc, read_limit)
     elseif cl ~= nil and tonumber(cl) ~= nil then
-        return te_length(self, cefunc)
+        return te_length(self, cefunc, read_limit)
     end
     return te_close(self, cefunc)
 end
 
-function HttpClient:get_response()
+function HttpClient:get_response(read_limit)
     self:get_headers()
-    return self:get_body()
+    return self:get_body(read_limit)
 end
 
 return HttpClient
