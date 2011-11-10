@@ -3,8 +3,6 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
 #include "noit_conf.h"
-#include "noit_check.h"
-#include "noit_conf_checks.h"
 #include "noit_acl.h"
 #include "libcidr.h"
 
