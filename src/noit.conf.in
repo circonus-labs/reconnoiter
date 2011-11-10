@@ -162,9 +162,15 @@
       <rule type="allow"/>
     </filterset>
   </filtersets>
-  <acl name="ip" type="deny">
+  <acl name="whitelist" type="allow">
+    <network ip="0.0.0.0/0"/>
+    <network ip="::/0"/>
+  </acl>
+  <!--
+  <acl name="blacklist" type="deny">
     <network ip="127.0.0.1/8"/>
   </acl>
+  -->
   <config_templates>
     <include file="config_templates.conf"/>
   </config_templates>
