@@ -589,8 +589,8 @@ noit_check_set_ip(noit_check_t *new_check,
 
   noit_acl_check_ip(ip_str, &acl);
   if (acl == ACL_DENY) {
-    noitL(noit_error, "Blocking IP %s due to ACL", ip_str);
-    failed = -1;
+    noitL(noit_error, "Blocking IP %s due to ACL\n", ip_str);
+    failed = -2;
     return failed;
   }
 
@@ -645,6 +645,7 @@ noit_check_update(noit_check_t *new_check,
                   const char *oncheck,
                   int flags) {
   int mask = NP_DISABLED | NP_UNCONFIG;
+  int rc;
 
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
@@ -660,7 +661,8 @@ noit_check_update(noit_check_t *new_check,
   else
     new_check->flags &= ~NP_SINGLE_RESOLVE;
 
-  if(noit_check_set_ip(new_check, target)) {
+  rc = noit_check_set_ip(new_check, target);
+  if(rc < 0) {
     noit_boolean should_resolve;
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
@@ -668,7 +670,9 @@ noit_check_update(noit_check_t *new_check,
                              &should_resolve) && should_resolve == noit_false)
       
       flags |= NP_DISABLED | NP_UNCONFIG;
-    noit_check_resolve(new_check);
+    // check for ACL deny
+    if (rc == -2) flags |= NP_DISABLED | NP_UNCONFIG;
+    else noit_check_resolve(new_check);
   }
 
   if(new_check->name) free(new_check->name);
