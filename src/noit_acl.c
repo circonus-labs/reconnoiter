@@ -134,22 +134,19 @@ noit_acl_check_ip(const char *ip, aclaccess_t *access) {
   int klen;
   void *data;
   CIDR *incoming_cidr;
-  noit_boolean found = noit_false;
 
   assert(ip != NULL);
   assert(access != NULL);
 
   incoming_cidr = cidr_from_str(ip);
-  *access = ACL_ALLOW;
+  *access = ACL_DENY;
 
-  while(noit_hash_next(aclsets, &iter, &k, &klen, &data) && found == noit_false) {
+  while(noit_hash_next(aclsets, &iter, &k, &klen, &data)) {
     aclset_t *set = data;
     aclcidr_t *cidr = set->cidrs;
     while(cidr) {
       if(cidr_contains(cidr->c, incoming_cidr) == 0) {
         *access = set->type;
-        found = noit_true;
-        break;
       }
       cidr = cidr->next;
     }
