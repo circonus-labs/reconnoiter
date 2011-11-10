@@ -277,8 +277,9 @@ noit_check_activate(noit_check_t *check) {
       return 1;
     }
     else
-      noitL(noit_debug, "Skipping %s`%s, disabled.\n",
-            check->target, check->name);
+      noitL(noit_debug, "Skipping %s`%s, disabled. %s\n",
+            check->target, check->name,
+            (check->flags & NP_ACL) == 0 ? "" : "(ACL Denied)");
   }
   else {
     if(!mod) {
@@ -671,7 +672,7 @@ noit_check_update(noit_check_t *new_check,
       
       flags |= NP_DISABLED | NP_UNCONFIG;
     // check for ACL deny
-    if (rc == -2) flags |= NP_DISABLED | NP_UNCONFIG;
+    if (rc == -2) flags |= NP_DISABLED | NP_UNCONFIG | NP_ACL;
     else noit_check_resolve(new_check);
   }
 
