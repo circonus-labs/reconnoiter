@@ -46,6 +46,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
+#include "noit_acl.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_module.h"
@@ -584,6 +585,14 @@ noit_check_set_ip(noit_check_t *new_check,
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
+  aclaccess_t acl;
+
+  noit_acl_check_ip(ip_str, &acl);
+  if (acl == ACL_DENY) {
+    noitL(noit_error, "Blocking IP %s due to ACL", ip_str);
+    failed = -1;
+    return failed;
+  }
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);

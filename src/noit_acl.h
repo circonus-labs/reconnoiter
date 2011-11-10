@@ -34,8 +34,12 @@
 #define _NOIT_ACL_H
 
 #include "noit_defines.h"
-#include "utils/noit_hash.h"
 #include "noit_conf.h"
+
+typedef enum {
+  ACL_ALLOW = 0,
+  ACL_DENY
+} aclaccess_t;
 
 API_EXPORT(void)
   noit_acl_init();
@@ -46,7 +50,7 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_acl_add(noit_conf_section_t setinfo);
 
-API_EXPORT(noit_boolean)
-  noit_acl_check_ip(const char *ip);
+API_EXPORT(int)
+  noit_acl_check_ip(const char *ip, aclaccess_t *access);
 
 #endif

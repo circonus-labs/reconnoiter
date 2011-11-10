@@ -8,24 +8,17 @@
 #include "noit_acl.h"
 #include "libcidr.h"
 
-#include <pcre.h>
 #include <assert.h>
-#include <libxml/tree.h>
-
-typedef enum {
-  ACL_ALLOW = 0,
-  ACL_DENY
-} acltype_t;
 
 typedef struct _aclcidr_t {
-  CIDR *cidr;
+  CIDR *c;
   struct _aclcidr_t *next;
 } aclcidr_t;
 
 typedef struct {
   noit_atomic32_t ref_cnt;
   char *name;
-  acltype_t type;
+  aclaccess_t type;
   aclcidr_t *cidrs;
 } aclset_t;
 
@@ -33,16 +26,16 @@ static noit_hash_table *aclsets = NULL;
 
 static void
 noit_aclcidr_free(void *vp) {
-  aclcidr_t *n = vp;
-  cidr_free(n->cidr);
-  free(n);
+  aclcidr_t *cidr = vp;
+  cidr_free(cidr->c);
+  free(cidr);
 }
 
 static aclcidr_t*
 noit_aclcidr_create(const char *range) {
-  aclcidr_t *c = calloc(1, sizeof(*c));
-  c->cidr = cidr_from_str(range);
-  return c;
+  aclcidr_t *cidr = calloc(1, sizeof(*cidr));
+  cidr->c= cidr_from_str(range);
+  return cidr;
 }
 
 static void
@@ -134,8 +127,35 @@ noit_acl_add(noit_conf_section_t setinfo) {
   noit_hash_replace(aclsets, set->name, strlen(set->name), (void *)set,
                     NULL, aclset_free);
 }
-noit_boolean
-noit_acl_check_ip(const char *ip) {
-  // check networks
-  return noit_false;
+int
+noit_acl_check_ip(const char *ip, aclaccess_t *access) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+  CIDR *incoming_cidr;
+  noit_boolean found = noit_false;
+
+  assert(ip != NULL);
+  assert(access != NULL);
+
+  incoming_cidr = cidr_from_str(ip);
+  *access = ACL_ALLOW;
+
+  while(noit_hash_next(aclsets, &iter, &k, &klen, &data) && found == noit_false) {
+    aclset_t *set = data;
+    aclcidr_t *cidr = set->cidrs;
+    while(cidr) {
+      if(cidr_contains(cidr->c, incoming_cidr) == 0) {
+        *access = set->type;
+        found = noit_true;
+        break;
+      }
+      cidr = cidr->next;
+    }
+  }
+
+  cidr_free(incoming_cidr);
+
+  return 0;
 }
