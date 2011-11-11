@@ -190,7 +190,8 @@ rest_test_check_result(struct check_test_closure *cl) {
     noit_http_response_end(ctx);
   
     if(conne) {
-      eventer_add(conne);
+      // The event already exists, why re-add it?  Did we want to update it?
+      //eventer_add(conne);
       eventer_trigger(conne, EVENTER_READ | EVENTER_WRITE);
     }
   }
