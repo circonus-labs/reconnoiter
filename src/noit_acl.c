@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -16,7 +16,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -35,44 +35,79 @@
 #include "utils/noit_atomic.h"
 #include "noit_conf.h"
 #include "noit_acl.h"
-#include "libcidr.h"
+#include "btrie.h"
 
 #include <assert.h>
 
-typedef struct _aclcidr_t {
-  CIDR *c;
-  struct _aclcidr_t *next;
-} aclcidr_t;
+typedef struct _acl_btrie_t {
+  int family;
+  aclaccess_t allow_deny;
+  btrie tree;
+  struct _acl_btrie_t *next;
+} acl_btrie_t;
 
 typedef struct {
-  noit_atomic32_t ref_cnt;
   char *name;
-  aclaccess_t type;
-  aclcidr_t *cidrs;
+  acl_btrie_t *cidrs;
 } aclset_t;
 
 static noit_hash_table *aclsets = NULL;
 
 static void
 noit_aclcidr_free(void *vp) {
-  aclcidr_t *cidr = vp;
-  cidr_free(cidr->c);
+  acl_btrie_t *cidr = vp;
   free(cidr);
 }
 
-static aclcidr_t*
-noit_aclcidr_create(const char *range) {
-  aclcidr_t *cidr = calloc(1, sizeof(*cidr));
-  cidr->c= cidr_from_str(range);
-  return cidr;
+static int
+noit_btrie_create(acl_btrie_t **b, const char *range, aclaccess_t allow_deny) {
+  char *ip, *prefix;
+  int prefix_len;
+  int family, rv, rc = 0;
+  union {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+  } a;
+
+  ip = strdup(range);
+  prefix = strrchr(ip, '/');
+  if (prefix == NULL) {
+    rc = -1;
+    goto done;
+  }
+
+  *(prefix++) = '\0';
+  prefix_len = strtoul(prefix, NULL, 10);
+
+  family = AF_INET;
+  rv = inet_pton(family, ip, &a);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, ip, &a);
+    if(rv != 1) {
+      rc = -1;
+      goto done;
+    }
+  }
+
+  *b = calloc(1, sizeof(*b));
+  (*b)->allow_deny = allow_deny;
+  (*b)->family = family;
+
+  if(family == AF_INET)
+    add_route_ipv4(&(*b)->tree, &a.addr4, prefix_len, (void*)1);
+  else
+    add_route_ipv6(&(*b)->tree, &a.addr6, prefix_len, (void*)1);
+
+done:
+  free(ip);
+  return rc;
 }
 
 static void
 aclset_free(void *vp) {
   aclset_t *as = vp;
-  aclcidr_t *n;
-  if(noit_atomic_dec32(&as->ref_cnt) != 0) return;
-  noitL(noit_error, "Freeing acl [%d]: %s\n", as->ref_cnt, as->name);
+  acl_btrie_t *n;
   while(as->cidrs) {
     n = as->cidrs->next;
     noit_aclcidr_free(as->cidrs);
@@ -83,11 +118,9 @@ aclset_free(void *vp) {
 }
 
 static aclset_t*
-noit_acl_create(const char *name, const char *type) {
+noit_aclset_create(const char *name) {
   aclset_t *set = calloc(1, sizeof(*set));
-  set->ref_cnt = 1;
   set->name = strdup(name);
-  set->type = strcasecmp(type, "deny") == 0 ? ACL_DENY : ACL_ALLOW;
   return set;
 }
 
@@ -103,10 +136,12 @@ noit_acl_from_conf() {
   free(sets);
 }
 void
-noit_acl_add_cidr(aclset_t *set, const char *range) {
-  aclcidr_t *cidr = noit_aclcidr_create(range);
-  cidr->next = set->cidrs;
-  set->cidrs = cidr;
+noit_acl_add_cidr(aclset_t *set, const char *range, aclaccess_t allow_deny) {
+  acl_btrie_t *cidr;
+  if (!noit_btrie_create(&cidr, range, allow_deny)) {
+    cidr->next = set->cidrs;
+    set->cidrs = cidr;
+  }
 }
 void
 noit_acl_init() {
@@ -120,7 +155,6 @@ void
 noit_acl_add(noit_conf_section_t setinfo) {
   noit_conf_section_t *networks;
   char acl_name[256];
-  char acl_type[256];
   aclset_t *set;
   int fcnt, j;
 
@@ -131,26 +165,26 @@ noit_acl_add(noit_conf_section_t setinfo) {
     return;
   }
 
-  if(!noit_conf_get_stringbuf(setinfo, "@type",
-                              acl_type, sizeof(acl_type))) {
-    noitL(noit_error,
-          "acl with no type, skipping as it cannot be referenced.\n");
-    return;
-  }
+  noitL(noit_debug, "loaded ACL (name=%s)\n", acl_name);
 
-  noitL(noit_debug, "loaded ACL (name=%s, type=%s)\n", acl_name, acl_type);
-
-  set = noit_acl_create(acl_name, acl_type);
+  set = noit_aclset_create(acl_name);
   networks = noit_conf_get_sections(setinfo, "network", &fcnt);
 
   for(j=fcnt-1; j>=0; j--) {
-    char buffer[256];
-    if(!noit_conf_get_stringbuf(networks[j], "@ip", buffer, sizeof(buffer))) {
+    char range_buffer[256];
+    char type_buffer[256];
+    aclaccess_t type;
+    if(!noit_conf_get_stringbuf(networks[j], "@ip", range_buffer, sizeof(range_buffer))) {
       noitL(noit_error, "ip or ip range not specified\n");
       continue;
     }
-    noitL(noit_debug, "  %s\n", buffer);
-    noit_acl_add_cidr(set, buffer);
+    if(!noit_conf_get_stringbuf(networks[j], "@type", type_buffer, sizeof(type_buffer))) {
+      noitL(noit_error, "type not specified\n");
+      continue;
+    }
+    noitL(noit_debug, "  range=%s type=%s\n", range_buffer, type_buffer);
+    type = strcasecmp(type_buffer, "allow") == 0 ? NOIT_IP_ACL_ALLOW : NOIT_IP_ACL_DENY;
+    noit_acl_add_cidr(set, range_buffer, type);
   }
 
   noit_hash_replace(aclsets, set->name, strlen(set->name), (void *)set,
@@ -160,28 +194,49 @@ int
 noit_acl_check_ip(const char *ip, aclaccess_t *access) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
-  int klen;
   void *data;
-  CIDR *incoming_cidr;
+  int family, rv, klen;
+  unsigned char pl;
+  union {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+  } a;
 
   assert(ip != NULL);
   assert(access != NULL);
 
-  incoming_cidr = cidr_from_str(ip);
-  *access = ACL_DENY;
+  *access = NOIT_IP_ACL_DENY;
+
+  family = AF_INET;
+  rv = inet_pton(family, ip, &a);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, ip, &a);
+    if(rv != 1) {
+      return -1;
+    }
+  }
 
   while(noit_hash_next(aclsets, &iter, &k, &klen, &data)) {
     aclset_t *set = data;
-    aclcidr_t *cidr = set->cidrs;
+    acl_btrie_t *cidr = set->cidrs;
+
     while(cidr) {
-      if(cidr_contains(cidr->c, incoming_cidr) == 0) {
-        *access = set->type;
+      if(family == AF_INET && cidr->family == AF_INET) {
+        if (find_bpm_route_ipv4(&cidr->tree, &a.addr4, &pl)) {
+          *access = cidr->allow_deny;
+          break;
+        }
+      }
+      else if(family == AF_INET6 && cidr->family == AF_INET6) {
+        if (find_bpm_route_ipv6(&cidr->tree, &a.addr6, &pl)) {
+          *access = cidr->allow_deny;
+          break;
+        }
       }
       cidr = cidr->next;
     }
   }
-
-  cidr_free(incoming_cidr);
 
   return 0;
 }

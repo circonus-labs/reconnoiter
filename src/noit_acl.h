@@ -37,8 +37,8 @@
 #include "noit_conf.h"
 
 typedef enum {
-  ACL_ALLOW = 0,
-  ACL_DENY
+  NOIT_IP_ACL_ALLOW = 0,
+  NOIT_IP_ACL_DENY
 } aclaccess_t;
 
 API_EXPORT(void)

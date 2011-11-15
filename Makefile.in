@@ -1,5 +1,4 @@
 all:
-	(cd deps/libcidr && make)
 	(cd src && make)
 	(cd sql && make)
 	(cd test && make)
@@ -15,7 +14,6 @@ clean:
 
 distclean: 	clean
 	rm -f Makefile config.status config.log
-	(cd deps/libcidr && make clean)
 	(cd src && make distclean)
 	(cd sql && make distclean)
 	(cd test && make distclean)
