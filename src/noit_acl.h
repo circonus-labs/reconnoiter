@@ -45,9 +45,6 @@ API_EXPORT(void)
   noit_acl_init();
 
 API_EXPORT(void)
-  noit_refresh_acl();
-
-API_EXPORT(void)
   noit_acl_add(noit_conf_section_t setinfo);
 
 API_EXPORT(int)
