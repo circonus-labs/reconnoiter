@@ -621,14 +621,13 @@ noit_check_set_ip(noit_check_t *new_check,
   new_check->target_family = family;
   memcpy(&new_check->target_addr, &a, sizeof(a));
   new_check->target_ip[0] = '\0';
-  if(failed == 0) {
+  if(failed == 0)
     if(inet_ntop(new_check->target_family,
                  &new_check->target_addr,
                  new_check->target_ip,
                  sizeof(new_check->target_ip)) == NULL) {
       noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
-  }
   return failed;
 }
 int
