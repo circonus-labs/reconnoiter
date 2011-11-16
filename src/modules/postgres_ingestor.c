@@ -1423,8 +1423,8 @@ stratcon_ingest_launch_file_ingestion(const char *path,
 
   if(strcmp(path + strlen(path) - 3, ".pg")) {
     snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
-    if(link(path, pgfile) < 0) {
-      noitL(noit_error, "cannot link journal: %s\n", strerror(errno));
+    if(link(path, pgfile) < 0 && errno != EEXIST) {
+      noitL(noit_error, "cannot link journal %s: %s\n", path, strerror(errno));
       free(ij);
       return -1;
     }

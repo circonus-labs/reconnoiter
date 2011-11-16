@@ -182,8 +182,8 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   char msg[PATH_MAX + 7], hfile[PATH_MAX]; /*file:\r\n*/
   if(strcmp(path + strlen(path) - 2, ".h")) {
     snprintf(hfile, sizeof(hfile), "%s.h", path);
-    if(link(path, hfile) < 0) {
-      noitL(noit_error, "cannot link journal: %s\n", strerror(errno));
+    if(link(path, hfile) < 0 && errno != EEXIST) {
+      noitL(noit_error, "cannot link journal %s: %s\n", path, strerror(errno));
       return -1;
     }
   }
