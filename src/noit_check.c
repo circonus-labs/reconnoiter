@@ -656,7 +656,6 @@ noit_check_update(noit_check_t *new_check,
                   const char *oncheck,
                   int flags) {
   int mask = NP_DISABLED | NP_UNCONFIG;
-  int rc;
   aclaccess_t acl;
 
   new_check->generation = __config_load_generation;
@@ -673,8 +672,7 @@ noit_check_update(noit_check_t *new_check,
   else
     new_check->flags &= ~NP_SINGLE_RESOLVE;
 
-  rc = noit_check_set_ip(new_check, target);
-  if(rc < 0) {
+  if(noit_check_set_ip(new_check, target)) {
     noit_boolean should_resolve;
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
