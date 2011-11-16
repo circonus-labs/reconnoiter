@@ -52,8 +52,9 @@ int mkdir_for_file(const char *file, mode_t m) {
   }
   *eos = '\0';
   rv = mkdir(path, m);
-  if(rv == 0) return 0;
+  if(rv == 0 || errno == EEXIST) return 0;
   if(errno == ENOENT) if(mkdir_for_file(path, m) != 0) return -1;
   rv = mkdir(path, m);
+  if(rv < 0 && errno == EEXIST) rv = 0;
   return rv;
 }
