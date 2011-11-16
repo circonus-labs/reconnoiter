@@ -17,7 +17,7 @@ my $xpc = XML::LibXML::XPathContext->new();
 my $iep_queries = [
   { id => '52f1f2ec-0275-11e0-a846-b757d1de0f4a',
     topic => 'numeric',
-    epl => 'select * from NoitMetricNumeric as r'
+    epl => "select * from NoitMetricNumeric(check_module='selfcheck') as r"
   },
   { id => '8f04d54c-0275-11e0-b62c-6fdd90cb8bde',
     topic => 'text',

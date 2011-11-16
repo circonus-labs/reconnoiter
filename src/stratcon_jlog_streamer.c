@@ -1132,8 +1132,19 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   int klen, n = 0, i;
   char str[1024];
   char uuid_str[UUID_STR_LEN+1];
+  struct timeval epoch, diff;
+  u_int64_t uptime = 0;
 
   uuid_unparse_lower(self_stratcon_id, uuid_str);
+
+#define PUSH_BOTH(type, str) do { \
+  stratcon_datastore_push(type, \
+                          (struct sockaddr *)&self_stratcon_ip, \
+                          self_stratcon_hostname, str, NULL); \
+  stratcon_iep_line_processor(type, \
+                              (struct sockaddr *)&self_stratcon_ip, \
+                              self_stratcon_hostname, str, NULL); \
+} while(0)
 
   if(closure == NULL) {
     /* Only do this the first time we get called */
@@ -1144,12 +1155,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
              (long unsigned int)now->tv_sec,
              (long unsigned int)now->tv_usec/1000UL, uuid_str, ip_str,
              self_stratcon_hostname);
-    stratcon_datastore_push(DS_OP_INSERT,
-                            (struct sockaddr *)&self_stratcon_ip,
-                            self_stratcon_hostname, strdup(str), NULL);
-    stratcon_iep_line_processor(DS_OP_INSERT,
-                                (struct sockaddr *)&self_stratcon_ip,
-                                self_stratcon_hostname, strdup(str), NULL);
+    PUSH_BOTH(DS_OP_INSERT, strdup(str));
   }
 
   pthread_mutex_lock(&noits_lock);
@@ -1162,26 +1168,28 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   }
   pthread_mutex_unlock(&noits_lock);
 
-  snprintf(str, sizeof(str), "S\t%lu.%03lu\t%s\tG\tA\t0\tok\n",
+  snprintf(str, sizeof(str), "S\t%lu.%03lu\t%s\tG\tA\t0\tok %d noits\n",
            (long unsigned int)now->tv_sec,
-           (long unsigned int)now->tv_usec/1000UL, uuid_str);
-  stratcon_datastore_push(DS_OP_INSERT,
-                          (struct sockaddr *)&self_stratcon_ip,
-                          self_stratcon_hostname, strdup(str), NULL);
-  stratcon_iep_line_processor(DS_OP_INSERT, \
-                              (struct sockaddr *)&self_stratcon_ip, \
-                              self_stratcon_hostname, strdup(str), NULL); \
+           (long unsigned int)now->tv_usec/1000UL, uuid_str, n);
+  PUSH_BOTH(DS_OP_INSERT, strdup(str));
+
+  if(eventer_get_epoch(&epoch) != 0)
+    memcpy(&epoch, now, sizeof(epoch));
+  sub_timeval(*now, epoch, &diff);
+  uptime = diff.tv_sec;
+  snprintf(str, sizeof(str), "M\t%lu.%03lu\t%s\tuptime\tL\t%llu\n",
+           (long unsigned int)now->tv_sec,
+           (long unsigned int)now->tv_usec/1000UL,
+           uuid_str, uptime);
+noitL(noit_error, "HERE --> %llu\n", uptime);
+  PUSH_BOTH(DS_OP_INSERT, strdup(str));
+
   for(i=0; i<n; i++) {
     emit_noit_info_metrics(now, uuid_str, ctxs[i]);
     noit_connection_ctx_deref(ctxs[i]);
   }
   free(ctxs);
-  stratcon_datastore_push(DS_OP_CHKPT,
-                          (struct sockaddr *)&self_stratcon_ip,
-                          self_stratcon_hostname, NULL, NULL);
-  stratcon_iep_line_processor(DS_OP_CHKPT, \
-                              (struct sockaddr *)&self_stratcon_ip, \
-                              self_stratcon_hostname, NULL, NULL); \
+  PUSH_BOTH(DS_OP_CHKPT, NULL);
 
   add_timeval(e->whence, whence, &whence);
   eventer_add_at(periodic_noit_metrics, (void *)0x1, whence);

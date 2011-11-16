@@ -484,7 +484,7 @@ sub make_stratcon_config {
   L("make_stratcon_config -> open($file)");
   open (my $o, ">$file") || BAIL_OUT("can't write config: $file");
   print $o qq{<?xml version="1.0" encoding="utf8" standalone="yes"?>\n};
-  print $o qq{<stratcon>};
+  print $o qq{<stratcon id="8325581c-1068-11e1-ac63-db8546d81c8b" metric_period="1000">};
   make_eventer_config($o, $options);
   make_rest_acls($o, $options);
   make_stratcon_noits_config($o, $options);
