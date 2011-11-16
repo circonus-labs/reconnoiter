@@ -277,9 +277,8 @@ noit_check_activate(noit_check_t *check) {
       return 1;
     }
     else
-      noitL(noit_debug, "Skipping %s`%s, disabled. %s\n",
-            check->target, check->name,
-            (check->flags & NP_ACL) == 0 ? "" : "(ACL Denied)");
+      noitL(noit_debug, "Skipping %s`%s, disabled.\n",
+            check->target, check->name);
   }
   else {
     if(!mod) {
