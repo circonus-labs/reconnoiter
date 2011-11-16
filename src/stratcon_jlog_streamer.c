@@ -1181,7 +1181,6 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
            (long unsigned int)now->tv_sec,
            (long unsigned int)now->tv_usec/1000UL,
            uuid_str, uptime);
-noitL(noit_error, "HERE --> %llu\n", uptime);
   PUSH_BOTH(DS_OP_INSERT, strdup(str));
 
   for(i=0; i<n; i++) {
