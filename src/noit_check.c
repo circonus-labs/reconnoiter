@@ -577,6 +577,26 @@ noit_check_is_valid_target(const char *target) {
   }
   return noit_true;
 }
+static void
+noit_acl_set_stat(noit_check_t *check) {
+  noit_module_t *mod;
+  stats_t current;
+  char buff[256];
+
+  mod = noit_module_lookup(check->module);
+
+  noit_check_stats_clear(&current);
+  gettimeofday(&current.whence, NULL);
+  current.duration = 0;
+  current.available = NP_UNKNOWN;
+  current.state = NP_UNKNOWN;
+  snprintf(buff, sizeof(buff), "Check disabled by Access Control List");
+  noitL(noit_error, "Check %s`%s disabled due to ACL\n", 
+        check->target, check->name);
+  current.status = buff;
+
+  noit_check_set_stats(mod, check, &current);
+}
 int
 noit_check_set_ip(noit_check_t *new_check,
                   const char *ip_str) {
@@ -586,14 +606,6 @@ noit_check_set_ip(noit_check_t *new_check,
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
-  aclaccess_t acl;
-
-  noit_acl_check_ip(ip_str, &acl);
-  if (acl == ACL_DENY) {
-    noitL(noit_error, "Blocking IP %s due to ACL\n", ip_str);
-    failed = -2;
-    return failed;
-  }
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -647,6 +659,7 @@ noit_check_update(noit_check_t *new_check,
                   int flags) {
   int mask = NP_DISABLED | NP_UNCONFIG;
   int rc;
+  aclaccess_t acl;
 
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
@@ -671,9 +684,7 @@ noit_check_update(noit_check_t *new_check,
                              &should_resolve) && should_resolve == noit_false)
       
       flags |= NP_DISABLED | NP_UNCONFIG;
-    // check for ACL deny
-    if (rc == -2) flags |= NP_DISABLED | NP_UNCONFIG | NP_ACL;
-    else noit_check_resolve(new_check);
+    noit_check_resolve(new_check);
   }
 
   if(new_check->name) free(new_check->name);
@@ -712,6 +723,14 @@ noit_check_update(noit_check_t *new_check,
       new_check->flags |= NP_DISABLED;
     }
   }
+
+  // Check the ACLs on this target
+  noit_acl_check_ip(target, &acl);
+  if (acl == NOIT_IP_ACL_DENY) {
+    noit_acl_set_stat(new_check);
+    new_check->flags |= NP_DISABLED;
+  }
+
   noit_check_log_check(new_check);
   return 0;
 }
