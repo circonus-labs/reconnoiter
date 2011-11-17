@@ -101,13 +101,13 @@ noit_event_dispose(void *ev) {
   eventer_t *value = ev;
   eventer_t removed, e = *value;
   noitL(nldeb, "lua check cleanup: dropping (%p)->fd (%d)\n", e, e->fd);
+  removed = eventer_remove(e);
+  noitL(nldeb, "    remove from eventer system %s\n",
+        removed ? "succeeded" : "failed");
   if(e->mask & (EVENTER_READ|EVENTER_WRITE|EVENTER_EXCEPTION)) {
     noitL(nldeb, "    closing down fd %d\n", e->fd);
     e->opset->close(e->fd, &mask, e);
   }
-  removed = eventer_remove(e);
-  noitL(nldeb, "    remove from eventer system %s\n",
-        removed ? "succeeded" : "failed");
   if(e->closure) {
     struct nl_generic_cl *cl;
     cl = e->closure;
