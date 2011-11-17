@@ -182,7 +182,7 @@ noitd:	reversion $(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACE
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
-		-Leventer -leventer \
+		eventer/*.o \
 		utils/*.o \
 		json-lib/*.o \
 		-Ljlog -ljlog \
@@ -197,7 +197,7 @@ stratcond:	reversion $(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOB
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(WHOLE_ARCHIVE) \
-		-Leventer -leventer \
+		eventer/*.o \
 		utils/*.o \
 		json-lib/*.o \
 		-Ljlog -ljlog \
