@@ -34,6 +34,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_atomic.h"
 #include "eventer/eventer.h"
+#include "eventer/dtrace_probes.h"
 #include <errno.h>
 #include <setjmp.h>
 #include <assert.h>
@@ -262,9 +263,14 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
          * Uncooperative plugins/third-party libs can truly suck
          * one's soul out.
          */
-        if(my_precious)
+        if(my_precious) {
+          EVENTER_CALLBACK_ENTRY(my_precious->callback, NULL,
+                                 my_precious->fd, my_precious->mask,
+                                 EVENTER_ASYNCH_CLEANUP);
           my_precious->callback(my_precious, EVENTER_ASYNCH_CLEANUP,
                                 my_precious->closure, &job->finish_time);
+          EVENTER_CALLBACK_RETURN(my_precious->callback, NULL, -1);
+        }
       }
       jobcopy = malloc(sizeof(*jobcopy));
       memcpy(jobcopy, job, sizeof(*jobcopy));
@@ -289,8 +295,12 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
   assert(jobq && !jobq->backq);
   while((job = eventer_jobq_dequeue_nowait(jobq)) != NULL) {
     int newmask;
+    EVENTER_CALLBACK_ENTRY(job->fd_event->callback, NULL,
+                           job->fd_event->fd, job->fd_event->mask,
+                           job->fd_event->mask);
     newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
                                       job->fd_event->closure, now);
+    EVENTER_CALLBACK_RETURN(job->fd_event->callback, NULL, newmask);
     if(!newmask) eventer_free(job->fd_event);
     else {
       job->fd_event->mask = newmask;
@@ -361,8 +371,12 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
             (float)diff.tv_sec + (float)diff.tv_usec/1000000.0,
             (float)diff2.tv_sec + (float)diff2.tv_usec/1000000.0);
       pthread_mutex_unlock(&job->lock);
+      EVENTER_CALLBACK_ENTRY(job->fd_event->callback, NULL,
+                             job->fd_event->fd, job->fd_event->mask,
+                             EVENTER_ASYNCH_CLEANUP);
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
+      EVENTER_CALLBACK_RETURN(job->fd_event->callback, NULL, -1);
       eventer_jobq_enqueue(jobq->backq, job);
       continue;
     }

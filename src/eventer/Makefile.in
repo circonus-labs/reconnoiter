@@ -18,11 +18,23 @@ OBJS=	eventer.o eventer_impl.o \
 
 all:	libeventer.a
 
-libeventer.a:	$(OBJS)
+@DTRACEOBJ@:    $(OBJS)
+	@-test -n "@DTRACE@" && \
+		@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o @DTRACEOBJ@ $(OBJS)
+
+noit_log.o:     @DTRACEHDR@
+
+@DTRACEHDR@:    dtrace_probes.d
+	@-test -z "@DTRACE@" && cp ./@DTRACEHDR@.stock ./@DTRACEHDR@
+	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
+
+libeventer.a:	$(OBJS) @DTRACEOBJ@
 	@rm -f $@
-	@$(AR) cq $@ $(OBJS)
+	@$(AR) cq $@ $(OBJS) @DTRACEOBJ@
 	@echo "- archiving $@"
 	@$(RANLIB) $@
+
+$(OBJS):	@DTRACEHDR@
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

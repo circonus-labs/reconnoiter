@@ -35,6 +35,7 @@
 #include "utils/noit_atomic.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_log.h"
+#include "eventer/dtrace_probes.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -203,7 +204,9 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   cbname = eventer_name_for_callback(e->callback);
   noitLT(eventer_deb, &__now, "ports: fire on %d/%x to %s(%p)\n",
          fd, mask, cbname?cbname:"???", e->callback);
+  EVENTER_CALLBACK_ENTRY(e->callback, cbname, fd, e->mask, mask);
   newmask = e->callback(e, mask, e->closure, &__now);
+  EVENTER_CALLBACK_RETURN(e->callback, cbname, newmask);
 
   if(newmask) {
     alter_fd(e, newmask);

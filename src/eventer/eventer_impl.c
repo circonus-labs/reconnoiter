@@ -34,6 +34,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
+#include "eventer/dtrace_probes.h"
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
@@ -247,6 +248,7 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
   max_timed_events_to_process = timed_events->size;
   while(max_timed_events_to_process-- > 0) {
     int newmask;
+    const char *cbname = NULL;
     eventer_t timed_event;
 
     gettimeofday(now, NULL);
@@ -266,15 +268,19 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
     }
     pthread_mutex_unlock(&te_lock);
     if(timed_event == NULL) break;
-    if(EVENTER_DEBUGGING) {
-      const char *cbname;
+    if(EVENTER_DEBUGGING ||
+       EVENTER_CALLBACK_ENTRY_ENABLED() ||
+       EVENTER_CALLBACK_RETURN_ENABLED()) {
       cbname = eventer_name_for_callback(timed_event->callback);
       noitLT(eventer_deb, now, "debug: timed dispatch(%s)\n",
              cbname ? cbname : "???");
     }
     /* Make our call */
+    EVENTER_CALLBACK_ENTRY(timed_event->callback, cbname, -1,
+                           timed_event->mask, EVENTER_TIMER);
     newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                     timed_event->closure, now);
+    EVENTER_CALLBACK_RETURN(timed_event->callback, cbname, newmask);
     if(newmask)
       eventer_add_timed(timed_event);
     else
