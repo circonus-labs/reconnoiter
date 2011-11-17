@@ -657,6 +657,7 @@ void eventer_ssl_init() {
 
   SSL_load_error_strings();
   SSL_library_init();
+  OpenSSL_add_all_ciphers();
   return;
 }
 
