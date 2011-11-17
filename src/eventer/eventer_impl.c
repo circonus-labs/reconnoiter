@@ -276,11 +276,11 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
              cbname ? cbname : "???");
     }
     /* Make our call */
-    EVENTER_CALLBACK_ENTRY(timed_event->callback, cbname, -1,
+    EVENTER_CALLBACK_ENTRY((void *)timed_event->callback, (char *)cbname, -1,
                            timed_event->mask, EVENTER_TIMER);
     newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                     timed_event->closure, now);
-    EVENTER_CALLBACK_RETURN(timed_event->callback, cbname, newmask);
+    EVENTER_CALLBACK_RETURN((void *)timed_event->callback, (char *)cbname, newmask);
     if(newmask)
       eventer_add_timed(timed_event);
     else
