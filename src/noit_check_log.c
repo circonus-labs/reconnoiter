@@ -70,7 +70,6 @@ static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 static noit_log_stream_t delete_log = NULL;
 static noit_log_stream_t bundle_log = NULL;
-static noit_boolean use_compression = noit_true;
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
@@ -332,6 +331,10 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   Bundle bundle = BUNDLE__INIT;
   SETUP_LOG(bundle, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
+  noit_boolean use_compression = noit_true;
+  const char *v_comp;
+  v_comp = noit_log_stream_get_property(ls, "compressed");
+  if(v_comp && !strcmp(v_comp, "off")) use_compression = noit_false;
 
   // Get a bundle
   c = &check->stats.current;
