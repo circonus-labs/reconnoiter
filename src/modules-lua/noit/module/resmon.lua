@@ -248,17 +248,17 @@ function initiate(module, check)
     local jsondoc = nil
     if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
        string.find(hdrs_in["content-type"] or '', 'javascript') ~= nil then
-        jsondoc = noit.parsejson(output)
-        if jsondoc == nil then
-            noit.log("debug", "bad json: %s", output)
-            check.status("json parse error")
-            return
-        end
-    end
-
-    if jsondoc ~= nil then
-        json_to_metrics(check, jsondoc)
-        return
+      services = check.metric_json(output)
+      if(services >= 0) then
+        check.available()
+        check.metric_uint32("services", services)
+        if services > 0 then check.good() else check.bad() end
+        check.status("services=" .. services)
+      else
+        noit.log("debug", "bad json: %s", output)
+        check.status("json parse error")
+      end
+      return
     end
 
     -- try xml by "default" (assuming no json-specific content header)

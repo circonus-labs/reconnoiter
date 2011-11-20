@@ -35,6 +35,7 @@
 #include "noit_check_tools.h"
 #include "noit_check_tools_shared.h"
 #include "utils/noit_str.h"
+#include "json-lib/json.h"
 
 #include <assert.h>
 
@@ -152,3 +153,126 @@ noit_check_tools_init() {
   eventer_name_callback("noit_check_recur_handler", noit_check_recur_handler);
 }
 
+static int
+populate_stats_from_resmon_formatted_json(stats_t *s, struct json_object *o,
+                                          const char *prefix) {
+  int count = 0;
+  char keybuff[256];
+#define MKKEY(fmt, arg) do { \
+  if(prefix) snprintf(keybuff, sizeof(keybuff), "%s`" fmt, prefix, arg); \
+  else snprintf(keybuff, sizeof(keybuff), fmt, arg); \
+} while(0)
+  switch(json_object_get_type(o)) {
+    /* sub callers */
+    case json_type_array:
+    {
+      int i, alen = json_object_array_length(o);
+      for(i=0;i<alen;i++) {
+        struct json_object *item = json_object_array_get_idx(o, i);
+        MKKEY("%d", i);
+        count += populate_stats_from_resmon_formatted_json(s, item, keybuff);
+      }
+    }
+    break;
+    case json_type_object:
+    {
+      struct lh_table *lh;
+      struct lh_entry *el;
+      struct json_object *has_type = NULL, *has_value = NULL;
+      lh = json_object_get_object(o);
+      lh_foreach(lh, el) {
+        if(!strcmp(el->k, "_type")) has_type = (struct json_object *)el->v;
+        else if(!strcmp(el->k, "_value")) has_value = (struct json_object *)el->v;
+        else {
+          struct json_object *item = (struct json_object *)el->v;
+          MKKEY("%s", (const char *)el->k);
+          count += populate_stats_from_resmon_formatted_json(s, item, keybuff);
+        }
+      }
+      if(prefix && has_type && has_value &&
+         json_object_is_type(has_type, json_type_string) &&
+         json_object_is_type(has_value, json_type_string)) {
+        const char *type_str = json_object_get_string(has_type);
+        const char *value_str = json_object_get_string(has_value);
+        switch(*type_str) {
+          case METRIC_INT32:
+          case METRIC_UINT32:
+          case METRIC_INT64:
+          case METRIC_UINT64:
+          case METRIC_DOUBLE:
+          case METRIC_STRING:
+            noit_stats_set_metric_coerce(s, prefix,
+                                         (metric_type_t)*type_str, value_str);
+            count++;
+          default:
+            break;
+        }
+      }
+      break;
+    }
+
+    /* directs */
+    case json_type_string:
+      if(prefix) {
+        noit_stats_set_metric(s, prefix, METRIC_GUESS,
+                              (char *)json_object_get_string(o));
+        count++;
+      }
+      break;
+    case json_type_boolean:
+      if(prefix) {
+        int val = json_object_get_boolean(o) ? 1 : 0;
+        noit_stats_set_metric(s, prefix, METRIC_INT32, &val);
+        count++;
+      }
+      break;
+    case json_type_null:
+      if(prefix) {
+        noit_stats_set_metric(s, prefix, METRIC_STRING, NULL);
+        count++;
+      }
+      break;
+    case json_type_double:
+      if(prefix) {
+        double val = json_object_get_double(o);
+        noit_stats_set_metric(s, prefix, METRIC_DOUBLE, &val);
+        count++;
+      }
+      break;
+    case json_type_int:
+      if(prefix) {
+        int64_t i64;
+        uint64_t u64;
+        switch(json_object_get_int_overflow(o)) {
+          case json_overflow_int:
+            i64 = json_object_get_int(o);
+            noit_stats_set_metric(s, prefix, METRIC_INT64, &i64);
+            count++;
+            break;
+          case json_overflow_int64:
+            i64 = json_object_get_int64(o);
+            noit_stats_set_metric(s, prefix, METRIC_INT64, &i64);
+            count++;
+            break;
+          case json_overflow_uint64:
+            u64 = json_object_get_uint64(o);
+            noit_stats_set_metric(s, prefix, METRIC_UINT64, &u64);
+            count++;
+            break;
+        }
+      }
+  }
+  return count;
+}
+int
+noit_check_stats_from_json_str(stats_t *s, const char *json_str, int len) {
+  int rv = -1;
+  struct json_tokener *tok = NULL;
+  struct json_object *root = NULL;
+  tok = json_tokener_new();
+  root = json_tokener_parse_ex(tok, json_str, len);
+  if(root) rv = populate_stats_from_resmon_formatted_json(s, root, NULL);
+  if(tok) json_tokener_free(tok);
+  if(root) json_object_put(root);
+  return rv;
+}

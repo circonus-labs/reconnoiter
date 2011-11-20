@@ -939,7 +939,7 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
 }
 
 static size_t
-noit_metric_sizes(metric_type_t type, void *value) {
+noit_metric_sizes(metric_type_t type, const void *value) {
   switch(type) {
     case METRIC_INT32:
     case METRIC_UINT32:
@@ -1075,7 +1075,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
 }
 int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
-                           void *value) {
+                           const void *value) {
   void *replacement = NULL;
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
@@ -1095,13 +1095,71 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
 }
 void
 noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
-                      void *value) {
+                      const void *value) {
   metric_t *m = calloc(1, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
   }
   __stats_add_metric(newstate, m);
+}
+void
+noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
+                             const char *v) {
+  char *endptr;
+  if(v == NULL) {
+   bogus:
+    noit_stats_set_metric(stat, name, t, NULL);
+    return;
+  }
+  switch(t) {
+    case METRIC_STRING:
+      noit_stats_set_metric(stat, name, t, v);
+      break;
+    case METRIC_INT32:
+    {
+      int32_t val;
+      val = strtol(v, &endptr, 10);
+      if(endptr == v) goto bogus;
+      noit_stats_set_metric(stat, name, t, &val);
+      break;
+    }
+    case METRIC_UINT32:
+    {
+      u_int32_t val;
+      val = strtoul(v, &endptr, 10);
+      if(endptr == v) goto bogus;
+      noit_stats_set_metric(stat, name, t, &val);
+      break;
+    }
+    case METRIC_INT64:
+    {
+      int64_t val;
+      val = strtoll(v, &endptr, 10);
+      if(endptr == v) goto bogus;
+      noit_stats_set_metric(stat, name, t, &val);
+      break;
+    }
+    case METRIC_UINT64:
+    {
+      u_int64_t val;
+      val = strtoull(v, &endptr, 10);
+      if(endptr == v) goto bogus;
+      noit_stats_set_metric(stat, name, t, &val);
+      break;
+    }
+    case METRIC_DOUBLE:
+    {
+      double val;
+      val = strtod(v, &endptr);
+      if(endptr == v) goto bogus;
+      noit_stats_set_metric(stat, name, t, &val);
+      break;
+    }
+    case METRIC_GUESS:
+      noit_stats_set_metric(stat, name, t, v);
+      break;
+  }
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,

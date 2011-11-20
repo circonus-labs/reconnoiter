@@ -304,6 +304,23 @@ noit_lua_set_status(lua_State *L) {
   return 0;
 }
 static int
+noit_lua_set_metric_json(lua_State *L) {
+  noit_check_t *check;
+  noit_lua_check_info_t *ci;
+  const char *json;
+  size_t jsonlen;
+  int rv;
+
+  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  ci = check->closure;
+  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  json = lua_tolstring(L, 1, &jsonlen);
+  rv = noit_check_stats_from_json_str(&ci->current, json, (int)jsonlen);
+  lua_pushinteger(L, rv);
+  return 1;
+}
+static int
 noit_lua_set_metric(lua_State *L) {
   noit_check_t *check;
   noit_lua_check_info_t *ci;
@@ -437,6 +454,10 @@ noit_check_index_func(lua_State *L) {
       else IF_METRIC_BLOCK("metric_int64", METRIC_INT64)
       else IF_METRIC_BLOCK("metric_uint64", METRIC_UINT64)
       else IF_METRIC_BLOCK("metric_double", METRIC_DOUBLE)
+      else if(!strcmp(k, "metric_json")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_set_metric_json, 1);
+      }
       else break;
       return 1;
     case 'n':

@@ -243,7 +243,11 @@ API_EXPORT(void)
                         stats_t *newstate);
 
 API_EXPORT(void)
-  noit_stats_set_metric(stats_t *, const char *, metric_type_t, void *);
+  noit_stats_set_metric(stats_t *, const char *, metric_type_t, const void *);
+
+API_EXPORT(void)
+  noit_stats_set_metric_coerce(stats_t *, const char *, metric_type_t,
+                               const char *);
 
 API_EXPORT(void)
   noit_stats_log_immediate_metric(noit_check_t *check,

@@ -58,6 +58,9 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback);
 
+API_EXPORT(int)
+  noit_check_stats_from_json_str(stats_t *s, const char *json_str, int len);
+
 #define INITIATE_CHECK(func, self, check, cause) do { \
   if(once) { \
     func(self, check, cause); \
