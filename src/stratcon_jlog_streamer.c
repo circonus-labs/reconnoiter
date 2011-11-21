@@ -1180,7 +1180,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   snprintf(str, sizeof(str), "M\t%lu.%03lu\t%s\tuptime\tL\t%llu\n",
            (long unsigned int)now->tv_sec,
            (long unsigned int)now->tv_usec/1000UL,
-           uuid_str, uptime);
+           uuid_str, (long long unsigned int)uptime);
   PUSH_BOTH(DS_OP_INSERT, strdup(str));
 
   for(i=0; i<n; i++) {

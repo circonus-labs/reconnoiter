@@ -1790,12 +1790,12 @@ noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
           lua_pushnumber(L, json_object_get_int(o)); break;
         case json_overflow_int64:
           i64 = json_object_get_int64(o);
-          snprintf(istr, sizeof(istr), "%lld", i64);
+          snprintf(istr, sizeof(istr), "%lld", (long long int)i64);
           lua_pushstring(L, istr);
           break;
         case json_overflow_uint64:
           u64 = json_object_get_uint64(o);
-          snprintf(istr, sizeof(istr), "%llu", u64);
+          snprintf(istr, sizeof(istr), "%llu", (long long unsigned int)u64);
           lua_pushstring(L, istr);
           break;
       }
