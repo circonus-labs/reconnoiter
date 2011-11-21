@@ -587,12 +587,16 @@ noit_check_set_ip(noit_check_t *new_check,
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
-  if(rv != 1 && !NOIT_CHECK_SINGLE_RESOLVE(new_check)) {
-    family = family == AF_INET ? AF_INET6 : AF_INET;
-    rv = inet_pton(family, ip_str, &a);
-    if(rv != 1) {
-      family = AF_INET;
-      memset(&a, 0, sizeof(a));
+  if(rv != 1) {
+    if (!NOIT_CHECK_SINGLE_RESOLVE(new_check)) {
+      family = family == AF_INET ? AF_INET6 : AF_INET;
+      rv = inet_pton(family, ip_str, &a);
+      if(rv != 1) {
+        family = AF_INET;
+        memset(&a, 0, sizeof(a));
+        failed = -1;
+      }
+    } else {
       failed = -1;
     }
   }
