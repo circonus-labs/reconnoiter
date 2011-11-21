@@ -559,6 +559,7 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   rv = eventer_SSL_connect(e, &tmpmask);
   if(rv <= 0 && errno == EAGAIN) {
     /* Need completion */
+    eventer_remove_fd(e->fd);
     e->mask = tmpmask | EVENTER_EXCEPTION;
     e->callback = noit_lua_ssl_upgrade;
     eventer_add(e);
