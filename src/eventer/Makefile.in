@@ -7,6 +7,7 @@ AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
 INSTALL=@INSTALL@
+DTRACEOBJ=@DTRACEOBJ@
 
 top_srcdir=@top_srcdir@
 
@@ -18,19 +19,27 @@ OBJS=	eventer.o eventer_impl.o \
 
 all:	libeventer.a
 
-@DTRACEOBJ@:    $(OBJS)
-	@-test -n "@DTRACE@" && \
-		@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o @DTRACEOBJ@ $(OBJS)
+EVENTER_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=eventer_%dtrace_stub.o)
+
+eventer_@DTRACEOBJ@:    $(OBJS)
+	-test -n "@DTRACE@" && \
+	echo "- assembling $@" && \
+	@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o $(EVENTER_DTRACEOBJ) $(OBJS)
 
 noit_log.o:     @DTRACEHDR@
 
 @DTRACEHDR@:    dtrace_probes.d
-	@-test -z "@DTRACE@" && cp ./@DTRACEHDR@.stock ./@DTRACEHDR@
-	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
+	@if test -z "@DTRACE@" ; then \
+		echo "- faking dtrace header" ; \
+		cp ./@DTRACEHDR@.stock ./@DTRACEHDR@ ; \
+	else \
+		echo "- building dtrace header" ; \
+		@DTRACE@ -h -s dtrace_probes.d ; \
+	fi
 
-libeventer.a:	$(OBJS) @DTRACEOBJ@
+libeventer.a:	$(OBJS) $(EVENTER_DTRACEOBJ)
 	@rm -f $@
-	@$(AR) cq $@ $(OBJS) @DTRACEOBJ@
+	@$(AR) cq $@ $(OBJS) $(EVENTER_DTRACEOBJ)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
 

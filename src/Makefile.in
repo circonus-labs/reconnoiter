@@ -97,7 +97,7 @@ STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
 STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
 	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
 
-all:	$(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
+all:	reversion $(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
 
 make-man:
 	@(cd man && $(MAKE) -s)
@@ -164,18 +164,23 @@ noit_check_tools.o:	@DTRACEHDR@
 noit_check.o:	@DTRACEHDR@
 
 stratcond_@DTRACEOBJ@:    $(STRATCON_OBJS)
-	@-test -n "@DTRACE@" && \
+	@echo "- assembling $@" && \
 	@DTRACE@ @DTRACEFLAGS@ -Z -G -s dtrace_probes.d -o stratcond_@DTRACEOBJ@ $(STRATCON_OBJS)
 
 noitd_@DTRACEOBJ@:    $(STRATCON_OBJS)
-	@-test -n "@DTRACE@" && \
+	@echo "- assembling $@" && \
 	@DTRACE@ @DTRACEFLAGS@ -Z -G -s dtrace_probes.d -o noitd_@DTRACEOBJ@ $(NOIT_OBJS)
 
 @DTRACEHDR@:    dtrace_probes.d
-	@-test -z "@DTRACE@" && cp ./@DTRACEHDR@.stock ./@DTRACEHDR@
-	@-test -n "@DTRACE@" && @DTRACE@ -h -s dtrace_probes.d
+	@if test -z "@DTRACE@" ; then \
+		echo "- faking dtrace header" ; \
+		cp ./@DTRACEHDR@.stock ./@DTRACEHDR@ ; \
+	else \
+		echo "- building dtrace header" ; \
+		@DTRACE@ -h -s dtrace_probes.d ; \
+	fi
 
-noitd:	reversion $(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
+noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
 	@$(CC) -o $@ $(NOIT_OBJS) \
 		udns/libudns.o \
@@ -190,7 +195,7 @@ noitd:	reversion $(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACE
 		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
 
-stratcond:	reversion $(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
+stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
 	@$(CC) -o $@ $(STRATCON_OBJS) \
 		udns/libudns.o \
@@ -276,7 +281,7 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-noitd:	install-dirs noitd noit.conf java-bits jlog/jlogctl
+install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
@@ -287,7 +292,7 @@ install-noitd:	install-dirs noitd noit.conf java-bits jlog/jlogctl
 	(cd modules-lua && $(MAKE) install DESTDIR=$(DESTDIR))
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
-install-stratcond:	install-dirs stratcond stratcon.conf java-bits
+install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	(cd modules && $(MAKE) install-smodules DESTDIR=$(DESTDIR))
