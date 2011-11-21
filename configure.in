@@ -41,11 +41,11 @@ else
 fi
 
 CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
+DTRACEHDR=dtrace_probes.h
 
 case $host in
 *-*-darwin*)
 	DTRACE=/usr/sbin/dtrace
-	DTRACEHDR=dtrace_probes.h
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
@@ -55,7 +55,6 @@ case $host in
 	;;
 *-*-solaris*)
 	DTRACE=/usr/sbin/dtrace
-	DTRACEHDR=dtrace_probes.h
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
