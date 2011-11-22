@@ -154,6 +154,8 @@ int configure_eventer() {
 static int child_main() {
   char conf_str[1024];
 
+  noit_watchdog_child_heartbeat();
+
   /* Next (re)load the configs */
   if(noit_conf_load(config_file) == -1) {
     fprintf(stderr, "Cannot load config: '%s'\n", config_file);
