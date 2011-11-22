@@ -62,6 +62,7 @@ noit_hash_table noit_ip_by_cn = NOIT_HASH_EMPTY;
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
 static struct sockaddr_in self_stratcon_ip;
+static noit_boolean stratcon_selfcheck_extended_id = true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
@@ -1131,11 +1132,21 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   void *vconn;
   int klen, n = 0, i;
   char str[1024];
-  char uuid_str[UUID_STR_LEN+1];
+  char uuid_str[1024], tmp_uuid_str[UUID_STR_LEN+1];
   struct timeval epoch, diff;
   u_int64_t uptime = 0;
+  char ip_str[128];
 
-  uuid_unparse_lower(self_stratcon_id, uuid_str);
+  inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
+            sizeof(ip_str));
+
+  uuid_str[0] = '\0';
+  uuid_unparse_lower(self_stratcon_id, tmp_uuid_str);
+  if(stratcon_selfcheck_extended_id) {
+    strlcat(uuid_str, ip_str, sizeof(uuid_str)-37);
+    strlcat(uuid_str, "`selfcheck`selfcheck`", sizeof(uuid_str)-37);
+  }
+  strlcat(uuid_str, tmp_uuid_str, sizeof(uuid_str));
 
 #define PUSH_BOTH(type, str) do { \
   stratcon_datastore_push(type, \
@@ -1148,9 +1159,6 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
 
   if(closure == NULL) {
     /* Only do this the first time we get called */
-    char ip_str[128];
-    inet_ntop(AF_INET, &self_stratcon_ip.sin_addr, ip_str,
-              sizeof(ip_str));
     snprintf(str, sizeof(str), "C\t%lu.%03lu\t%s\t%s\tstratcon\t%s\n",
              (long unsigned int)now->tv_sec,
              (long unsigned int)now->tv_usec/1000UL, uuid_str, ip_str,
@@ -1626,6 +1634,8 @@ stratcon_jlog_streamer_init(const char *toplevel) {
                              uuid_str, sizeof(uuid_str)) &&
      uuid_parse(uuid_str, self_stratcon_id) == 0) {
     int period;
+    noit_conf_get_boolean(NULL, "/stratcon/@extended_id",
+                          &stratcon_selfcheck_extended_id);
     /* If a UUID was provided for stratcon itself, we will report metrics
      * on a large variety of things (including all noits).
      */
