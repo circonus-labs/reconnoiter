@@ -470,6 +470,9 @@ static int is_raw_ingestion_file(const char *file) {
 
 void
 stratcon_datastore_core_init() {
+  static int initialized = 0;
+  if(initialized) return;
+  initialized = 1;
   ds_err = noit_log_stream_find("error/datastore");
   ds_deb = noit_log_stream_find("debug/datastore");
   ds_pool_deb = noit_log_stream_find("debug/datastore_pool");
@@ -484,6 +487,9 @@ stratcon_datastore_core_init() {
 }
 void
 stratcon_datastore_init() {
+  static int initialized = 0;
+  if(initialized) return;
+  initialized = 1;
   stratcon_datastore_core_init();
 
   stratcon_ingest_sweep_journals(is_raw_ingestion_file,
