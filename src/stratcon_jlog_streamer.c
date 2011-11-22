@@ -62,7 +62,7 @@ noit_hash_table noit_ip_by_cn = NOIT_HASH_EMPTY;
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
 static struct sockaddr_in self_stratcon_ip;
-static noit_boolean stratcon_selfcheck_extended_id = true;
+static noit_boolean stratcon_selfcheck_extended_id = noit_true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
