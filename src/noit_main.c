@@ -116,13 +116,14 @@ noit_main(const char *appname,
           const char *_glider,
           const char *drop_to_user, const char *drop_to_group,
           int (*passed_child_main)(void)) {
-  int fd, lockfd;
+  int fd, lockfd, watchdog_timeout = 0;
   char conf_str[1024];
   char lockfile[PATH_MAX];
   char user[32], group[32];
   char *trace_dir = NULL;
   char appscratch[1024];
   char *glider = (char *)_glider;
+  char *watchdog_timeout_str;
    
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -198,6 +199,13 @@ noit_main(const char *appname,
 
   if(foreground) return passed_child_main();
 
+  watchdog_timeout_str = getenv("WATCHDOG_TIMEOUT");
+  if(watchdog_timeout_str) {
+    watchdog_timeout = atoi(watchdog_timeout_str);
+    noitL(noit_error, "Setting watchdog timeout to %d\n",
+          watchdog_timeout);
+  }
+
   /* This isn't inherited across forks... */
   if(lockfd >= 0) noit_lockfile_release(lockfd);
 
@@ -218,5 +226,5 @@ noit_main(const char *appname,
   }
 
   signal(SIGHUP, SIG_IGN);
-  return noit_watchdog_start_child("noitd", passed_child_main, 0);
+  return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout);
 }
