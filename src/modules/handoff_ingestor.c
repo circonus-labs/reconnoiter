@@ -190,7 +190,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   else
     strlcpy(hfile, path, sizeof(hfile));
 
-  noitL(noit_error, " handoff -> %s\n", hfile);
+  noitL(noit_debug, " handoff -> %s\n", hfile);
   if(the_one_and_only) {
     noit_http_session_ctx *ctx = the_one_and_only;
     snprintf(msg, sizeof(msg), "file:%s\r\n", hfile);
