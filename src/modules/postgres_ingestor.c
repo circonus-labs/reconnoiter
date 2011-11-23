@@ -38,6 +38,7 @@
 #include "utils/noit_str.h"
 #include "utils/noit_mkdir.h"
 #include "utils/noit_getip.h"
+#include "utils/noit_watchdog.h"
 #include "stratcon_datastore.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_iep.h"
@@ -1447,7 +1448,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ij->storagenode_id = atoi(id_str);
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
-  noitL(noit_error, "ingesting payload: %s\n", ij->filename);
+  noitL(noit_debug, "ingesting payload: %s\n", ij->filename);
   ingest = eventer_alloc();
   ingest->mask = EVENTER_ASYNCH;
   ingest->callback = stratcon_ingest_asynch_execute;
@@ -1495,6 +1496,7 @@ stratcon_ingest_all_storagenode_info() {
             info->storagenode_id,
             info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
+    noit_watchdog_child_heartbeat();
   }
   PQclear(d->res);
  bad_row:
@@ -1558,6 +1560,7 @@ stratcon_ingest_all_check_info() {
             info->storagenode_id,
             info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
+    noit_watchdog_child_heartbeat();
   }
   PQclear(d->res);
  bad_row:
@@ -1633,9 +1636,11 @@ static int postgres_ingestor_onload(noit_image_t *self) {
   return 0;
 }
 static int is_postgres_ingestor_file(const char *file) {
+  noit_watchdog_child_heartbeat();
   return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
 }
 static int postgres_ingestor_init(noit_module_generic_t *self) {
+  stratcon_datastore_core_init();
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
   ds_err = noit_log_stream_find("error/datastore");
