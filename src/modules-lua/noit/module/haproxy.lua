@@ -93,7 +93,7 @@ local HttpClient = require 'noit.HttpClient'
 
 
 function initiate(module, check)
-  local host = check.config.host or check.target or check.target_ip
+  local host = check.config.host or check.target_ip or check.target
   local port = check.config.port or 80
   local uri  = check.config.uri or "/admin?stats;csv"
 
