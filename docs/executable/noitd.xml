@@ -40,7 +40,7 @@
     <title>Description</title>
 <para>
   <command>noitd</command> is the daemon that performs all health and metric
-  checks.  Generally, one is run in each environment (secured submet).
+  checks.  Generally, one is run in each environment (secured subnet).
 </para>
 
 <variablelist>
