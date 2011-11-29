@@ -30,7 +30,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "noit_defines.h"
 #include "noit_xml.h"
+#include "utils/noit_log.h"
+#include "utils/noit_mkdir.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #include <assert.h>
 
 struct noit_xml_buffer_ptr {
@@ -84,3 +90,62 @@ noit_xmlSaveToBuffer(xmlDocPtr doc) {
   return buf.buff;
 }
 
+int
+noit_xmlSaveToFile(xmlDocPtr doc, const char *filename) {
+  int rv = -1, fd, have_backup = 0, once;
+  char tmpfile[PATH_MAX], bakfile[PATH_MAX];
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+
+  snprintf(tmpfile, sizeof(tmpfile), "%s.tmp", filename);
+  snprintf(bakfile, sizeof(bakfile), "%s.bak", filename);
+  once = 1;
+ mkbkup:
+  if(link(filename, bakfile) == 0) {
+    unlink(filename);
+    have_backup = 1;
+  }
+  else if (errno != ENOENT) {
+    if(!once) return -1;
+    once = 0;
+    if(errno == EEXIST) {
+      unlink(bakfile);
+      goto mkbkup;
+    }
+    noitL(noit_error, "Cannot create backup for %s: %s\n",
+          filename, strerror(errno));
+    return -1;
+  }
+  else {
+    noitL(noit_debug, "link(%s,%s) -> %s\n", filename, bakfile, strerror(errno));
+  }
+
+ retry:
+  fd = open(tmpfile, O_WRONLY | O_CREAT | O_EXCL, 0640);
+  if(fd < 0) {
+    if(!once) return -1;
+    once = 0;
+    if(errno == ENOENT) {
+      if(mkdir_for_file(tmpfile, 0750) == 0) goto retry;
+    }
+    if(errno == EEXIST) {
+      unlink(tmpfile);
+      goto retry;
+    }
+    return -1;
+  }
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateFd(fd, enc);
+  assert(out);
+  xmlSaveFormatFileTo(out, doc, "utf8", 1);
+  close(fd);
+  rv = 0;
+  if(link(tmpfile, filename)) {
+    rv = -1;
+    if(link(bakfile, filename) != 0) have_backup = 0;
+  }
+  unlink(tmpfile);
+  if(have_backup)
+    unlink(bakfile);
+  return rv;
+}

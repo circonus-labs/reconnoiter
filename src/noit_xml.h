@@ -39,4 +39,7 @@
 API_EXPORT(char *)
   noit_xmlSaveToBuffer(xmlDocPtr doc);
 
+API_EXPORT(int)
+  noit_xmlSaveToFile(xmlDocPtr doc, const char *filename);
+
 #endif

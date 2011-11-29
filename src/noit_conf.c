@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <errno.h>
 #include <assert.h>
 #include <libxml/parser.h>
@@ -45,6 +46,7 @@
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_console.h"
+#include "noit_xml.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
@@ -62,12 +64,28 @@ static noit_log_stream_t xml_debug = NULL;
 static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
 static int config_include_cnt = -1;
+static int backingstore_include_cnt = -1;
+
 static struct {
   xmlNodePtr insertion_point;
   xmlNodePtr old_children;
   xmlDocPtr doc;
   xmlNodePtr root;
-} *config_include_nodes = NULL;
+} *config_include_nodes = NULL,
+  *backingstore_include_nodes = NULL;
+
+typedef struct noit_xml_userdata {
+  char       *name;
+  char       *path;
+  u_int64_t   dirty_time;
+  struct noit_xml_userdata *freelist;
+} noit_xml_userdata_t;
+
+static noit_xml_userdata_t *backingstore_freelist = NULL;
+static u_int64_t last_config_flush = 0;
+
+#define is_stopnode_name(n) ((n) && (!strcmp((char *)(n), "check") || !strcmp((char *)(n), "config")))
+#define is_stopnode(node) ((node) && is_stopnode_name((node)->name))
 
 static char *root_node_name = NULL;
 static char master_config_file[PATH_MAX] = "";
@@ -80,6 +98,7 @@ static xmlXPathContextPtr xpath_ctxt = NULL;
 static u_int32_t __config_gen = 0;
 static u_int32_t __config_coalesce = 0;
 static u_int32_t __config_coalesce_time = 0;
+static u_int64_t max_gen_count = 0;
 void noit_conf_coalesce_changes(u_int32_t seconds) {
   __config_coalesce_time = seconds;
 }
@@ -95,6 +114,13 @@ struct recurrent_journaler {
   int (*journal_config)(void *);
   void *jc_closure;
 };
+
+static void
+noit_xml_userdata_free(noit_xml_userdata_t *n) {
+  if(n->name) free(n->name);
+  if(n->path) free(n->path);
+}
+
 static int
 noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
@@ -238,6 +264,24 @@ noit_conf_magic_separate(xmlDocPtr doc) {
   }
   config_include_nodes = NULL;
   config_include_cnt = -1;
+
+  if(backingstore_include_nodes) {
+    int i;
+    for(i=0; i<backingstore_include_cnt; i++) {
+      if(backingstore_include_nodes[i].doc) {
+        xmlNodePtr n;
+        for(n=backingstore_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = backingstore_include_nodes[i].root;
+        backingstore_include_nodes[i].insertion_point->children =
+          backingstore_include_nodes[i].old_children;
+        xmlFreeDoc(backingstore_include_nodes[i].doc);
+      }
+    }
+    free(backingstore_include_nodes);
+  }
+  backingstore_include_nodes = NULL;
+  backingstore_include_cnt = -1;
 }
 void
 noit_conf_kansas_city_shuffle_redo(xmlDocPtr doc) {
@@ -271,6 +315,269 @@ noit_conf_kansas_city_shuffle_undo(xmlDocPtr doc) {
     }
   }
 }
+static u_int64_t
+usec_now() {
+  u_int64_t usec;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  usec = tv.tv_sec * 1000000UL;
+  usec += tv.tv_usec;
+  return usec;
+}
+void
+noit_conf_backingstore_remove(noit_conf_section_t vnode) {
+  xmlNodePtr node = vnode;
+  noit_xml_userdata_t *subctx = node->_private;
+  if(subctx) {
+    noitL(noit_debug, "marking %s for removal\n", subctx->path);
+    if(!backingstore_freelist) backingstore_freelist = subctx;
+    else {
+      noit_xml_userdata_t *fl = backingstore_freelist;
+      while(fl->freelist) fl = fl->freelist;
+      fl->freelist = subctx;
+    }
+    node->_private = NULL;
+  }
+  /* If we're deleted, we'll mark the parent as dirty */
+  if(node->parent) noit_conf_backingstore_dirty(node->parent);
+}
+void
+noit_conf_backingstore_dirty(noit_conf_section_t vnode) {
+  xmlNodePtr node = vnode;
+  noit_xml_userdata_t *subctx = node->_private;
+  if(subctx) {
+    subctx->dirty_time = usec_now();
+    return;
+  }
+  if(node->parent) noit_conf_backingstore_dirty(node->parent);
+}
+int
+noit_conf_backingstore_write(noit_xml_userdata_t *ctx, noit_boolean skip,
+                             xmlAttrPtr attrs, xmlNodePtr node) {
+  int failure = 0;
+  char newpath[PATH_MAX];
+  xmlNodePtr n;
+  snprintf(newpath, sizeof(newpath), "%s/.attrs", ctx->path);
+  if(attrs) {
+    xmlDocPtr tmpdoc;
+    xmlNodePtr tmpnode;
+    noitL(noit_debug, " **> %s\n", newpath);
+    tmpdoc = xmlNewDoc((xmlChar *)"1.0");
+    tmpnode = xmlNewNode(NULL, ctx->name ? (xmlChar *)ctx->name : (xmlChar *)"stub");
+    xmlDocSetRootElement(tmpdoc, tmpnode);
+    tmpnode->properties = attrs;
+    failure = noit_xmlSaveToFile(tmpdoc, newpath);
+    tmpnode->properties = NULL;
+    xmlFreeDoc(tmpdoc);
+    if(failure) return -1;
+  }
+  else if(!skip) {
+    unlink(newpath);
+  }
+  for(n = node; n; n = n->next) {
+    int leaf;
+    noit_xml_userdata_t *subctx;
+    subctx = n->_private;
+    leaf = is_stopnode(n);
+    if(!subctx) { /* This has never been written out */
+      subctx = calloc(1, sizeof(*subctx));
+      subctx->name = strdup((char *)n->name);
+      snprintf(newpath, sizeof(newpath), "%s/%s#%llu", ctx->path, n->name, ++max_gen_count);
+      if(leaf) strlcat(newpath, ".xml", sizeof(newpath));
+      subctx->path = strdup(newpath);
+      subctx->dirty_time = usec_now();
+      n->_private = subctx;
+      noitL(noit_debug, " !!> %s\n", subctx->path);
+    }
+    if(leaf) {
+      xmlDocPtr tmpdoc;
+      xmlNodePtr tmpnode;
+      if(subctx->dirty_time > last_config_flush) {
+        tmpdoc = xmlNewDoc((xmlChar *)"1.0");
+        tmpnode = xmlNewNode(NULL, n->name);
+        xmlDocSetRootElement(tmpdoc, tmpnode);
+        tmpnode->properties = n->properties;
+        tmpnode->children = n->children;
+        failure = noit_xmlSaveToFile(tmpdoc, subctx->path);
+        tmpnode->properties = NULL;
+        tmpnode->children = NULL;
+        xmlFreeDoc(tmpdoc);
+        noitL(noit_debug, " ==> %s\n", subctx->path);
+        if(failure) return -1;
+      }
+    }
+    else {
+      noit_boolean skip_attrs;
+      skip_attrs = leaf || (subctx->dirty_time <= last_config_flush);
+      noitL(noit_debug, " --> %s\n", subctx->path);
+      if(noit_conf_backingstore_write(subctx, skip_attrs, skip_attrs ? NULL : n->properties, n->children))
+        return -1;
+    }
+  }
+  return 0;
+}
+void
+noit_conf_shatter_write(xmlDocPtr doc) {
+  if(backingstore_freelist) {
+    noit_xml_userdata_t *fl, *last;
+    for(fl = backingstore_freelist; fl; ) {
+      last = fl;
+      fl = fl->freelist;
+      /* If it is a file, we'll unlink it, otherwise,
+       * we need to delete the attributes and the directory.
+       */
+      if(unlink(last->path)) {
+        char attrpath[PATH_MAX];
+        snprintf(attrpath, sizeof(attrpath), "%s/.attrs", last->path);
+        unlink(attrpath);
+        if(rmdir(last->path) && errno != ENOENT) {
+          /* This shouldn't happen, but if it does we risk
+           * leaving a mess. Don't do that.
+           */
+          noitL(noit_error, "backingstore mess %s: %s\n",
+                last->path, strerror(errno));
+        }
+      }
+      noit_xml_userdata_free(last);
+    }
+    backingstore_freelist = NULL;
+  }
+  if(backingstore_include_nodes) {
+    int i;
+    for(i=0; i<backingstore_include_cnt; i++) {
+      if(backingstore_include_nodes[i].doc) {
+        xmlNodePtr n;
+        noit_xml_userdata_t *what = backingstore_include_nodes[i].doc->_private;
+
+        for(n=backingstore_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = backingstore_include_nodes[i].root;
+        backingstore_include_nodes[i].insertion_point->children =
+          backingstore_include_nodes[i].old_children;
+        noit_conf_backingstore_write(what, noit_false, NULL, backingstore_include_nodes[i].root->children);
+      }
+    }
+    last_config_flush = usec_now();
+  }
+}
+void
+noit_conf_shatter_postwrite(xmlDocPtr doc) {
+  if(backingstore_include_nodes) {
+    int i;
+    for(i=0; i<backingstore_include_cnt; i++) {
+      if(backingstore_include_nodes[i].doc) {
+        xmlNodePtr n;
+        backingstore_include_nodes[i].insertion_point->children =
+          backingstore_include_nodes[i].root->children;
+        for(n=backingstore_include_nodes[i].insertion_point->children;
+            n; n = n->next)
+          n->parent = backingstore_include_nodes[i].insertion_point;
+      }
+    }
+  }
+}
+
+int
+noit_conf_read_into_node(xmlNodePtr node, const char *path) {
+  DIR *dirroot;
+  struct dirent *de, *entry;
+  char filepath[PATH_MAX];
+  xmlDocPtr doc;
+  xmlNodePtr root = NULL;
+  xmlAttrPtr a;
+  struct stat sb;
+  int size, rv;
+
+  noitL(noit_debug, "read backing store: %s\n", path);
+  snprintf(filepath, sizeof(filepath), "%s/.attrs", path);
+  while((rv = stat(filepath, &sb)) < 0 && errno == EINTR);
+  if(rv == 0) {
+    doc = xmlParseFile(filepath);
+    if(doc) root = xmlDocGetRootElement(doc);
+    if(doc && root) {
+      node->properties = root->properties;
+      for(a = node->properties; a; a = a->next) {
+        a->parent = node;
+        a->doc = node->doc;
+      }
+      root->properties = NULL;
+      xmlFreeDoc(doc);
+      doc = NULL;
+    }
+  }
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MAX(size, PATH_MAX + 128);
+  de = alloca(size);
+  dirroot = opendir(path);
+  if(!dirroot) return -1;
+  while(portable_readdir_r(dirroot, de, &entry) == 0 && entry != NULL) {
+    noit_xml_userdata_t *udata;
+    char name[PATH_MAX];
+    char *sep;
+    xmlNodePtr child;
+    u_int64_t gen;
+
+    sep = strchr(entry->d_name, '#');
+    if(!sep) continue;
+    snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+    while((rv = stat(filepath, &sb)) < 0 && errno == EINTR);
+    if(rv == 0) {
+      strlcpy(name, entry->d_name, sizeof(name));
+      name[sep - entry->d_name] = '\0';
+      gen = strtoull(sep+1, NULL, 10);
+      if(gen > max_gen_count) max_gen_count = gen;
+
+      if(S_ISDIR(sb.st_mode)) {
+        noitL(noit_debug, "<DIR< %s\n", entry->d_name);
+        child = xmlNewNode(NULL, (xmlChar *)name);
+        noit_conf_read_into_node(child, filepath);
+        udata = calloc(1, sizeof(*udata));
+        udata->name = strdup(name);
+        udata->path = strdup(filepath);
+        child->_private = udata;
+        xmlAddChild(node, child);
+      }
+      else if(S_ISREG(sb.st_mode)) {
+        xmlDocPtr cdoc;
+        xmlNodePtr cnode = NULL;
+        noitL(noit_debug, "<FILE< %s\n", entry->d_name);
+        cdoc = xmlParseFile(filepath);
+        if(cdoc) {
+          cnode = xmlDocGetRootElement(cdoc);
+          xmlDocSetRootElement(cdoc, xmlNewNode(NULL, (xmlChar *)"dummy"));
+          if(cnode) {
+            udata = calloc(1, sizeof(*udata));
+            udata->name = strdup(name);
+            udata->path = strdup(filepath);
+            cnode->_private = udata;
+            xmlAddChild(node, cnode);
+          }
+          xmlFreeDoc(cdoc);
+        }
+      }
+    }
+  }
+  closedir(dirroot);
+  return 0;
+}
+
+xmlDocPtr
+noit_conf_read_backing_store(const char *path) {
+  xmlDocPtr doc;
+  xmlNodePtr root;
+  noit_xml_userdata_t *what;
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  what = calloc(1, sizeof(*what));
+  what->path = strdup(path);
+  doc->_private = what;
+  root = xmlNewNode(NULL, (xmlChar *)"stub");
+  xmlDocSetRootElement(doc, root);
+  noit_conf_read_into_node(root, path);
+  return doc;
+}
 int
 noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
   xmlXPathContextPtr mix_ctxt = NULL;
@@ -279,9 +586,73 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
   int i, cnt, rv = 0;
 
   assert(config_include_cnt == -1);
+  assert(backingstore_include_cnt == -1);
 
-  config_include_cnt = 0;
+  backingstore_include_cnt = 0;
   mix_ctxt = xmlXPathNewContext(doc);
+  pobj = xmlXPathEval((xmlChar *)"//*[@backingstore]", mix_ctxt);
+  if(!pobj) goto includes;
+  if(pobj->type != XPATH_NODESET) goto includes;
+  if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto includes;
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if(cnt > 0)
+    backingstore_include_nodes = calloc(cnt, sizeof(*backingstore_include_nodes));
+  for(i=0; i<cnt; i++) {
+    char *path, *infile;
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    path = (char *)xmlGetProp(node, (xmlChar *)"backingstore");
+    if(!path) continue;
+    if(*path == '/') infile = strdup(path);
+    else {
+      char *cp;
+      infile = malloc(PATH_MAX);
+      strlcpy(infile, parentfile, PATH_MAX);
+      for(cp = infile + strlen(infile) - 1; cp > infile; cp--) {
+        if(*cp == '/') { *cp = '\0'; break; }
+        else *cp = '\0';
+      }
+      strlcat(infile, "/", PATH_MAX);
+      strlcat(infile, path, PATH_MAX);
+    }
+    xmlFree(path);
+    backingstore_include_nodes[i].doc = noit_conf_read_backing_store(infile);
+    if(backingstore_include_nodes[i].doc) {
+      xmlNodePtr n, lchild;
+      backingstore_include_nodes[i].insertion_point = node;
+      backingstore_include_nodes[i].root = xmlDocGetRootElement(backingstore_include_nodes[i].doc);
+      /* for backing store, they are permanently reattached under the backing store.
+       * so for any children, we need to glue them into the new parent document.
+       */
+      lchild = backingstore_include_nodes[i].root->children;
+      while(lchild && lchild->next) lchild = lchild->next;
+      if(lchild) {
+        lchild->next = node->children;
+        if(node->children) node->children->prev = lchild;
+      }
+      else
+        backingstore_include_nodes[i].root->children = node->children;
+      for(n=node->children; n; n = n->next) {
+        n->parent = backingstore_include_nodes[i].root; /* this gets mapped right back, just for clarity */
+        n->doc = backingstore_include_nodes[i].doc;
+      }
+      backingstore_include_nodes[i].old_children = NULL;
+      node->children = backingstore_include_nodes[i].root->children;
+      for(n=node->children; n; n = n->next)
+        n->parent = backingstore_include_nodes[i].insertion_point;
+    }
+    else {
+      noitL(noit_error, "Could not load: '%s'\n", infile);
+      rv = -1;
+    }
+    free(infile);
+  }
+  mix_ctxt = xmlXPathNewContext(doc);
+  backingstore_include_cnt = cnt;
+  noitL(noit_debug, "Processed %d backing stores.\n", backingstore_include_cnt);
+  if(pobj) xmlXPathFreeObject(pobj);
+
+ includes:
+  config_include_cnt = 0;
   pobj = xmlXPathEval((xmlChar *)"//include[@file]", mix_ctxt);
   if(!pobj) goto out;
   if(pobj->type != XPATH_NODESET) goto out;
@@ -825,7 +1196,9 @@ noit_conf_write_file(char **err) {
     return -1;
   }
   noit_conf_kansas_city_shuffle_undo(master_config);
+  noit_conf_shatter_write(master_config);
   len = xmlSaveFormatFileTo(out, master_config, "utf8", 1);
+  noit_conf_shatter_postwrite(master_config);
   noit_conf_kansas_city_shuffle_redo(master_config);
   close(fd);
   if(len <= 0) {
@@ -1190,6 +1563,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   }
   if(delete) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    CONF_REMOVE(node);
     xmlUnlinkNode(node);
     noit_conf_mark_changed();
     return 0;
