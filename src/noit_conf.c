@@ -1251,12 +1251,24 @@ noit_conf_write_log() {
   xmlOutputBufferPtr out;
   xmlCharEncodingHandlerPtr enc;
   struct config_line_vstr *clv;
+  noit_boolean notify_only = noit_false;
+  const char *v;
   SETUP_LOG(config, return -1);
+  v = noit_log_stream_get_property(config_log, "notify_only");
+  if(v && !strcmp(v, "on")) notify_only = noit_true;
 
   /* We know we haven't changed */
   if(last_write_gen == __config_gen) return 0;
-
   gettimeofday(&__now, NULL);
+
+  if(notify_only) {
+    noitL(config_log, "n\t%lu.%03lu\t%d\t\n",
+          (unsigned long int)__now.tv_sec,
+          (unsigned long int)__now.tv_usec / 1000UL, 0);
+    last_write_gen = __config_gen;
+    return 0;
+  }
+
   clv = calloc(1, sizeof(*clv));
   clv->target = CONFIG_B64;
   enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
