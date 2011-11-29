@@ -84,7 +84,10 @@ typedef struct noit_xml_userdata {
 static noit_xml_userdata_t *backingstore_freelist = NULL;
 static u_int64_t last_config_flush = 0;
 
-#define is_stopnode_name(n) ((n) && (!strcmp((char *)(n), "check") || !strcmp((char *)(n), "config")))
+#define is_stopnode_name(n) ((n) && \
+    (!strcmp((char *)(n), "check") || \
+     !strcmp((char *)(n), "config") || \
+     !strcmp((char *)(n), "filterset")))
 #define is_stopnode(node) ((node) && is_stopnode_name((node)->name))
 
 static char *root_node_name = NULL;
