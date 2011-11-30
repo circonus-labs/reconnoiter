@@ -487,6 +487,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
 
  cleanup:
   if(pobj) xmlXPathFreeObject(pobj);
+  (void)error;
   return 0;
 }
 

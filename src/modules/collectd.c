@@ -1417,9 +1417,6 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
   unsigned int from_len;
   char ip_p[INET6_ADDRSTRLEN];
   noit_module_t *self = (noit_module_t *)closure;
-  collectd_mod_config_t *conf;
-  conf = noit_module_get_userdata(self);
-
 
   // Get the username and password of the string
 

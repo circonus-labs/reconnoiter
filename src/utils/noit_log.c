@@ -219,7 +219,7 @@ posix_logio_rename(noit_log_stream_t ls, const char *name) {
   if(lock) pthread_rwlock_rdlock(lock);
   rv = rename(ls->path, name);
   if(lock) pthread_rwlock_unlock(lock);
-  return -1;
+  return rv;
 }
 static logops_t posix_logio_ops = {
   posix_logio_open,
@@ -440,12 +440,11 @@ jlog_logio_reopen(noit_log_stream_t ls) {
 }
 static void
 noit_log_jlog_err(void *ctx, const char *format, ...) {
-  int rv;
   struct timeval now;
   va_list arg;
   va_start(arg, format);
   gettimeofday(&now, NULL);
-  rv = noit_vlog(noit_error, &now, "jlog.c", 0, format, arg);
+  (void)noit_vlog(noit_error, &now, "jlog.c", 0, format, arg);
   va_end(arg);
 }
 static int
