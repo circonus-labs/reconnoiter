@@ -13,6 +13,7 @@ ok(-r '../../sql/reconnoiter_ddl_dump.sql', 'SQL to load');
 ok(`initdb -A trust $NOIT_TEST_DB`);
 open (F, ">>$NOIT_TEST_DB/postgresql.conf");
 print F "listen_addresses = 'localhost'\n";
+print F "unix_socket_directory = '$NOIT_TEST_DB'\n";
 print F "port = $NOIT_TEST_DB_PORT\n";
 close(F);
 `pg_ctl -D $NOIT_TEST_DB -l $NOIT_TEST_DB/serverlog -s -w start`;
