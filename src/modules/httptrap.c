@@ -412,7 +412,6 @@ static int noit_httptrap_onload(noit_image_t *self) {
 
 static int noit_httptrap_init(noit_module_t *self) {
   const char *config_val;
-  int sockaddr_len;
   httptrap_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
 

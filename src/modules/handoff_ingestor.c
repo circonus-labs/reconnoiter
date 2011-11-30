@@ -58,7 +58,6 @@
 static noit_http_session_ctx *the_one_and_only = NULL;
 static noit_log_stream_t ds_err = NULL;
 static noit_log_stream_t ds_deb = NULL;
-static noit_log_stream_t ds_pool_deb = NULL;
 static noit_log_stream_t ingest_err = NULL;
 
 static int storage_node_quick_lookup(const char *uuid_str,

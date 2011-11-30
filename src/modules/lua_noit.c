@@ -528,7 +528,6 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   eventer_ssl_ctx_t *sslctx;
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
-  struct timeval now;
   int tmpmask, rv;
 
   ci = get_ci(L);

@@ -251,7 +251,6 @@ static int
 noit_lua_get_available(lua_State *L) {
   char av[2] = { '\0', '\0' };
   noit_check_t *check;
-  noit_lua_check_info_t *ci;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
   av[0] = (char)check->stats.current.available;
@@ -272,7 +271,6 @@ static int
 noit_lua_get_state(lua_State *L) {
   char status[2] = { '\0', '\0' };
   noit_check_t *check;
-  noit_lua_check_info_t *ci;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
   status[0] = (char)check->stats.current.state;
