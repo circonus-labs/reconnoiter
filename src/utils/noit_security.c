@@ -53,10 +53,10 @@ noit_security_chroot(const char *path) {
   return 0;
 }
 
-static inline int isinteger(const char *user) {
+static inline int isuinteger(const char *user) {
   char *cp;
   if (user == NULL || *user == '\0' || isblank(*user)) return 0;
-  strtod (user, &cp);
+  if (strtol (user, &cp, 10) < 0) return 0;
   return (cp == '\0');
 }
 static struct passwd *
@@ -111,7 +111,7 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
 #endif
 
   if(user) {
-    if(isinteger(user)) uid = atoi(user);
+    if(isuinteger(user)) uid = atoi(user);
     else {
       struct passwd *pw, _pw;
       char *buf;
@@ -123,7 +123,7 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
   }
 
   if(group) {
-    if(isinteger(group)) gid = atoi(group);
+    if(isuinteger(group)) gid = atoi(group);
     else {
       struct group *gr, _gr;
       char *buf;
