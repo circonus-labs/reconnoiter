@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <pwd.h>
 #include <grp.h>
@@ -53,18 +54,10 @@ noit_security_chroot(const char *path) {
 }
 
 static inline int isinteger(const char *user) {
-  const char *cp = user;
-  while(*cp) {
-    switch(cp == user) {
-      case 0:
-        if(*cp < '0' || *cp > '9') return 0;
-        break;
-      default:
-        if(*cp != '-' && (*cp < '0' || *cp > '9')) return 0;
-    }
-    cp++;
-  }
-  return (cp != user);
+  char *cp;
+  if (user == NULL || *user == '\0' || isblank(*user)) return 0;
+  strtod (user, &cp);
+  return (cp == '\0');
 }
 static struct passwd *
 __getpwnam_r(const char *user, struct passwd *pw,
