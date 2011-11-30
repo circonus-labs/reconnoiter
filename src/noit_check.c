@@ -721,7 +721,7 @@ noit_check_update(noit_check_t *new_check,
   }
 
   // Check the ACLs on this target
-  noit_acl_check_ip(target, &acl);
+  noit_acl_check_ip(new_check, target, &acl);
   if (acl == NOIT_IP_ACL_DENY) {
     noit_acl_set_stat(new_check);
     new_check->flags |= NP_DISABLED;

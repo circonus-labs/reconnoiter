@@ -42,6 +42,7 @@
 typedef struct _acl_btrie_t {
   int family;
   aclaccess_t allow_deny;
+  char *module;
   btrie tree;
   struct _acl_btrie_t *next;
 } acl_btrie_t;
@@ -54,13 +55,14 @@ typedef struct {
 static noit_hash_table *aclsets = NULL;
 
 static void
-noit_aclcidr_free(void *vp) {
+acl_btrie_free(void *vp) {
   acl_btrie_t *cidr = vp;
+  free(cidr->module);
   free(cidr);
 }
 
 static int
-noit_btrie_create(acl_btrie_t **b, const char *range, aclaccess_t allow_deny) {
+noit_btrie_create(acl_btrie_t **b, const char *range, aclaccess_t allow_deny, const char *module) {
   char *ip, *prefix;
   int prefix_len;
   int family, rv, rc = 0;
@@ -93,6 +95,7 @@ noit_btrie_create(acl_btrie_t **b, const char *range, aclaccess_t allow_deny) {
   *b = calloc(1, sizeof(*b));
   (*b)->allow_deny = allow_deny;
   (*b)->family = family;
+  (*b)->module = strdup(module);
 
   if(family == AF_INET)
     add_route_ipv4(&(*b)->tree, &a.addr4, prefix_len, (void*)1);
@@ -110,7 +113,7 @@ aclset_free(void *vp) {
   acl_btrie_t *n;
   while(as->cidrs) {
     n = as->cidrs->next;
-    noit_aclcidr_free(as->cidrs);
+    acl_btrie_free(as->cidrs);
     as->cidrs = n;
   }
   if(as->name) free(as->name);
@@ -136,9 +139,9 @@ noit_acl_from_conf() {
   free(sets);
 }
 void
-noit_acl_add_cidr(aclset_t *set, const char *range, aclaccess_t allow_deny) {
+noit_acl_add_cidr(aclset_t *set, const char *range, aclaccess_t allow_deny, const char *module) {
   acl_btrie_t *cidr;
-  if (!noit_btrie_create(&cidr, range, allow_deny)) {
+  if (!noit_btrie_create(&cidr, range, allow_deny, module)) {
     cidr->next = set->cidrs;
     set->cidrs = cidr;
   }
@@ -173,7 +176,9 @@ noit_acl_add(noit_conf_section_t setinfo) {
   for(j=fcnt-1; j>=0; j--) {
     char range_buffer[256];
     char type_buffer[256];
+    char module_buffer[256];
     aclaccess_t type;
+
     if(!noit_conf_get_stringbuf(networks[j], "@ip", range_buffer, sizeof(range_buffer))) {
       noitL(noit_error, "ip or ip range not specified\n");
       continue;
@@ -182,16 +187,20 @@ noit_acl_add(noit_conf_section_t setinfo) {
       noitL(noit_error, "type not specified\n");
       continue;
     }
-    noitL(noit_debug, "  range=%s type=%s\n", range_buffer, type_buffer);
+    if(!noit_conf_get_stringbuf(networks[j], "@module", module_buffer, sizeof(module_buffer))) {
+      module_buffer[0] = '\0';
+    }
+
+    noitL(noit_debug, "  range=%s type=%s module=%s\n", range_buffer, type_buffer, module_buffer);
     type = strcasecmp(type_buffer, "allow") == 0 ? NOIT_IP_ACL_ALLOW : NOIT_IP_ACL_DENY;
-    noit_acl_add_cidr(set, range_buffer, type);
+    noit_acl_add_cidr(set, range_buffer, type, module_buffer);
   }
 
   noit_hash_replace(aclsets, set->name, strlen(set->name), (void *)set,
                     NULL, aclset_free);
 }
 int
-noit_acl_check_ip(const char *ip, aclaccess_t *access) {
+noit_acl_check_ip(noit_check_t *check, const char *ip, aclaccess_t *access) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
   void *data;
@@ -224,14 +233,28 @@ noit_acl_check_ip(const char *ip, aclaccess_t *access) {
     while(cidr) {
       if(family == AF_INET && cidr->family == AF_INET) {
         if (find_bpm_route_ipv4(&cidr->tree, &a.addr4, &pl)) {
-          *access = cidr->allow_deny;
-          break;
+          if (cidr->module[0]) {
+            if (strcasecmp(check->module, cidr->module) == 0) {
+              *access = cidr->allow_deny;
+              break;
+            }
+          } else {
+            *access = cidr->allow_deny;
+            break;
+          }
         }
       }
       else if(family == AF_INET6 && cidr->family == AF_INET6) {
         if (find_bpm_route_ipv6(&cidr->tree, &a.addr6, &pl)) {
-          *access = cidr->allow_deny;
-          break;
+          if (cidr->module[0]) {
+            if (strcasecmp(check->module, cidr->module) == 0) {
+              *access = cidr->allow_deny;
+              break;
+            }
+          } else {
+            *access = cidr->allow_deny;
+            break;
+          }
         }
       }
       cidr = cidr->next;

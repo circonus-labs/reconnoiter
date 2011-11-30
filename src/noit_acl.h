@@ -35,6 +35,7 @@
 
 #include "noit_defines.h"
 #include "noit_conf.h"
+#include "noit_check.h"
 
 typedef enum {
   NOIT_IP_ACL_ALLOW = 0,
@@ -48,6 +49,6 @@ API_EXPORT(void)
   noit_acl_add(noit_conf_section_t setinfo);
 
 API_EXPORT(int)
-  noit_acl_check_ip(const char *ip, aclaccess_t *access);
+  noit_acl_check_ip(noit_check_t *check, const char *ip, aclaccess_t *access);
 
 #endif
