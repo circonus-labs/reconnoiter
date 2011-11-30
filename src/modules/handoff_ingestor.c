@@ -149,7 +149,7 @@ stratcon_ingest_saveconfig() {
   struct in_addr r, l;
   size_t len;
 
-  r.s_addr = htonl((4 << 24) || (2 << 16) || (2 << 8) || 1);
+  r.s_addr = htonl((4 << 24) | (2 << 16) | (2 << 8) | 1);
   memset(&l, 0, sizeof(l));
   noit_getip_ipv4(r, &l);
   /* Ignore the error.. what are we going to do anyway */
