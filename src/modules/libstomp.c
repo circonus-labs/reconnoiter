@@ -312,7 +312,7 @@ APR_DECLARE(apr_status_t) stomp_write(stomp_connection *connection, stomp_frame 
          CHECK_SUCCESS;  
       }
 
-	  if(frame->body_length >= 0) {
+	  if(frame->body_length > 0) {
 		  apr_pool_t *length_pool;
 		  char *length_string;
 

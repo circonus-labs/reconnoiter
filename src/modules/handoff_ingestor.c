@@ -58,7 +58,6 @@
 static noit_http_session_ctx *the_one_and_only = NULL;
 static noit_log_stream_t ds_err = NULL;
 static noit_log_stream_t ds_deb = NULL;
-static noit_log_stream_t ds_pool_deb = NULL;
 static noit_log_stream_t ingest_err = NULL;
 
 static int storage_node_quick_lookup(const char *uuid_str,
@@ -149,7 +148,7 @@ stratcon_ingest_saveconfig() {
   struct in_addr r, l;
   size_t len;
 
-  r.s_addr = htonl((4 << 24) || (2 << 16) || (2 << 8) || 1);
+  r.s_addr = htonl((4 << 24) | (2 << 16) | (2 << 8) | 1);
   memset(&l, 0, sizeof(l));
   noit_getip_ipv4(r, &l);
   /* Ignore the error.. what are we going to do anyway */

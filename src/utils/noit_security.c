@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <pwd.h>
 #include <grp.h>
@@ -52,19 +53,11 @@ noit_security_chroot(const char *path) {
   return 0;
 }
 
-static inline int isinteger(const char *user) {
-  const char *cp = user;
-  while(*cp) {
-    switch(cp == user) {
-      case 0:
-        if(*cp < '0' || *cp > '9') return 0;
-        break;
-      default:
-        if(*cp != '-' && (*cp < '0' || *cp > '9')) return 0;
-    }
-    cp++;
-  }
-  return (cp != user);
+static inline int isuinteger(const char *user) {
+  char *cp;
+  if (user == NULL || *user == '\0' || isblank(*user)) return 0;
+  if (strtol (user, &cp, 10) < 0) return 0;
+  return (cp == '\0');
 }
 static struct passwd *
 __getpwnam_r(const char *user, struct passwd *pw,
@@ -118,7 +111,7 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
 #endif
 
   if(user) {
-    if(isinteger(user)) uid = atoi(user);
+    if(isuinteger(user)) uid = atoi(user);
     else {
       struct passwd *pw, _pw;
       char *buf;
@@ -130,7 +123,7 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
   }
 
   if(group) {
-    if(isinteger(group)) gid = atoi(group);
+    if(isuinteger(group)) gid = atoi(group);
     else {
       struct group *gr, _gr;
       char *buf;

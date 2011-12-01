@@ -140,7 +140,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       m->version_minor = D_8(encoded, offset);
       offset++;
       table_result = amqp_decode_table(encoded, pool, &(m->server_properties), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       m->mechanisms.len = D_32(encoded, offset);
       offset += 4;
       m->mechanisms.bytes = D_BYTES(encoded, offset, m->mechanisms.len);
@@ -155,7 +155,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
     case AMQP_CONNECTION_START_OK_METHOD: {
       amqp_connection_start_ok_t *m = (amqp_connection_start_ok_t *) amqp_pool_alloc(pool, sizeof(amqp_connection_start_ok_t));
       table_result = amqp_decode_table(encoded, pool, &(m->client_properties), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       m->mechanism.len = D_8(encoded, offset);
       offset++;
       m->mechanism.bytes = D_BYTES(encoded, offset, m->mechanism.len);
@@ -308,7 +308,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       m->reply_text.bytes = D_BYTES(encoded, offset, m->reply_text.len);
       offset += m->reply_text.len;
       table_result = amqp_decode_table(encoded, pool, &(m->details), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -375,7 +375,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       m->internal = (bit_buffer & (1 << 3)) ? 1 : 0;
       m->nowait = (bit_buffer & (1 << 4)) ? 1 : 0;
       table_result = amqp_decode_table(encoded, pool, &(m->arguments), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -420,7 +420,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       m->auto_delete = (bit_buffer & (1 << 3)) ? 1 : 0;
       m->nowait = (bit_buffer & (1 << 4)) ? 1 : 0;
       table_result = amqp_decode_table(encoded, pool, &(m->arguments), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -457,7 +457,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       offset++;
       m->nowait = (bit_buffer & (1 << 0)) ? 1 : 0;
       table_result = amqp_decode_table(encoded, pool, &(m->arguments), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -527,7 +527,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
       m->routing_key.bytes = D_BYTES(encoded, offset, m->routing_key.len);
       offset += m->routing_key.len;
       table_result = amqp_decode_table(encoded, pool, &(m->arguments), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -1097,7 +1097,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
     case AMQP_TUNNEL_REQUEST_METHOD: {
       amqp_tunnel_request_t *m = (amqp_tunnel_request_t *) amqp_pool_alloc(pool, sizeof(amqp_tunnel_request_t));
       table_result = amqp_decode_table(encoded, pool, &(m->meta_data), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       *decoded = m;
       return 0;
     }
@@ -1150,7 +1150,7 @@ int amqp_decode_method(amqp_method_number_t methodNumber,
     case AMQP_TEST_TABLE_METHOD: {
       amqp_test_table_t *m = (amqp_test_table_t *) amqp_pool_alloc(pool, sizeof(amqp_test_table_t));
       table_result = amqp_decode_table(encoded, pool, &(m->table), &offset);
-      AMQP_CHECK_RESULT(table_result);
+      (void)AMQP_CHECK_RESULT(table_result);
       m->integer_op = D_8(encoded, offset);
       offset++;
       m->string_op = D_8(encoded, offset);
@@ -1252,7 +1252,7 @@ int amqp_decode_properties(uint16_t class_id,
       }
       if (flags & AMQP_BASIC_HEADERS_FLAG) {
         table_result = amqp_decode_table(encoded, pool, &(p->headers), &offset);
-        AMQP_CHECK_RESULT(table_result);
+        (void)AMQP_CHECK_RESULT(table_result);
       }
       if (flags & AMQP_BASIC_DELIVERY_MODE_FLAG) {
         p->delivery_mode = D_8(encoded, offset);
@@ -1334,7 +1334,7 @@ int amqp_decode_properties(uint16_t class_id,
       }
       if (flags & AMQP_FILE_HEADERS_FLAG) {
         table_result = amqp_decode_table(encoded, pool, &(p->headers), &offset);
-        AMQP_CHECK_RESULT(table_result);
+        (void)AMQP_CHECK_RESULT(table_result);
       }
       if (flags & AMQP_FILE_PRIORITY_FLAG) {
         p->priority = D_8(encoded, offset);
@@ -1388,7 +1388,7 @@ int amqp_decode_properties(uint16_t class_id,
       }
       if (flags & AMQP_STREAM_HEADERS_FLAG) {
         table_result = amqp_decode_table(encoded, pool, &(p->headers), &offset);
-        AMQP_CHECK_RESULT(table_result);
+        (void)AMQP_CHECK_RESULT(table_result);
       }
       if (flags & AMQP_STREAM_PRIORITY_FLAG) {
         p->priority = D_8(encoded, offset);
@@ -1418,7 +1418,7 @@ int amqp_decode_properties(uint16_t class_id,
       p->_flags = flags;
       if (flags & AMQP_TUNNEL_HEADERS_FLAG) {
         table_result = amqp_decode_table(encoded, pool, &(p->headers), &offset);
-        AMQP_CHECK_RESULT(table_result);
+        (void)AMQP_CHECK_RESULT(table_result);
       }
       if (flags & AMQP_TUNNEL_PROXY_NAME_FLAG) {
         p->proxy_name.len = D_8(encoded, offset);

@@ -521,6 +521,7 @@ noit_console_state_initial() {
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
     noit_console_state_add_cmd(show_state, &console_command_version);
+    (void)no_state;
 
     evdeb = noit_console_mksubdelegate(
               noit_console_mksubdelegate(show_state,

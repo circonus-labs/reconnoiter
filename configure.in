@@ -386,7 +386,7 @@ AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h lim
                  ctype.h unistd.h time.h pty.h sys/stat.h sys/event.h libkern/OSAtomic.h \
                  termio.h termios.h curses.h sys/cdefs.h grp.h netinet/in_systm.h \
                  sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
-                 sys/ioctl.h stropts.h sys/stream.h alloca.h sys/wait.h libutil.h)
+                 sys/ioctl.h stropts.h sys/stream.h alloca.h sys/wait.h bsd/libutil.h libutil.h)
 AC_CHECK_HEADERS([term.h], [], [],
      [[#ifdef HAVE_CURSES_H
      # include <curses.h>
@@ -403,7 +403,9 @@ AC_CHECK_DECLS([openpty], [], [],
 		 #if defined(HAVE_TERMIOS_H)
 		 # include <termios.h>
 		 #endif
-		 #if defined(HAVE_LIBUTIL_H)
+		 #if defined(HAVE_BSD_LIBUTIL_H)
+		 # include <bsd/libutil.h>
+		 #elif defined(HAVE_LIBUTIL_H)
 		 # include <libutil.h>
 		 #endif
 		 #if defined(HAVE_UTIL_H)
