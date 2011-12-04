@@ -82,7 +82,10 @@ noit_check_schedule_next(noit_module_t *self,
   assert(cause == NULL);
   assert(check->fire_event == NULL);
   if(check->period == 0) return 0;
-  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) return 0;
+  if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) {
+    if(!(check->flags & NP_TRANSIENT)) check_slots_dec_tv(last_check);
+    return 0;
+  }
 
   /* If we have an event, we know when we intended it to fire.  This means
    * we should schedule that point + period.

@@ -108,7 +108,7 @@
       <rule type="allow" />
     </acl>
   </rest>
-  <checks max_initial_stutter="30000" filterset="default"
+  <checks filterset="default"
           resolve_rtype="prefer-ipv4"
           transient_min_period="1000" transient_period_granularity="500">
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="10.80.117.90" period="5000" timeout="4000"/>
