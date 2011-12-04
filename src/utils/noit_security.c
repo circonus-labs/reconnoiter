@@ -57,7 +57,7 @@ static inline int isuinteger(const char *user) {
   char *cp;
   if (user == NULL || *user == '\0' || isblank(*user)) return 0;
   if (strtol (user, &cp, 10) < 0) return 0;
-  return (cp == '\0');
+  return (*cp == '\0');
 }
 static struct passwd *
 __getpwnam_r(const char *user, struct passwd *pw,
