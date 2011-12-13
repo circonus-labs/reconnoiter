@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -16,7 +16,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -261,7 +261,7 @@ static int ssh2_connect_timeout(eventer_t e, int mask, void *closure,
   eventer_t fde;
   ssh2_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
-  
+
   ci->timeout_event = NULL; /* This is us, return 0 will free this */
   ci->error = strdup("ssh connect timeout");
   if(ci->synch_fd_event) {
@@ -289,13 +289,23 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   socklen_t sockaddr_len;
   unsigned short ssh_port = DEFAULT_SSH_PORT;
   const char *port_str = NULL;
+  char error_buffer[512];
 
   /* We cannot be running */
   assert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
 
+
   ci->self = self;
   ci->check = check;
+
+  if (noit_module_hooks_run_all("module-acl-prehook", self, check)
+      == NOIT_IP_ACL_DENY) {
+    snprintf(error_buffer, sizeof(error_buffer), "%s`%s Denied by ACL for module %s\n",
+             check->target, check->name, check->module);
+    ci->error = strdup(error_buffer);
+    goto fail;
+  }
 
   ci->timed_out = 1;
   if(ci->timeout_event) {

@@ -34,6 +34,7 @@
 #define _NOIT_MODULE_H
 
 #include "noit_defines.h"
+#include "noit_acl.h"
 #include "utils/noit_hash.h"
 #include "noit_check.h"
 

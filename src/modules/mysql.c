@@ -252,6 +252,13 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   unsigned long client_flag = CLIENT_IGNORE_SIGPIPE;
   unsigned int timeout;
 
+  if (noit_module_hooks_run_all("module-acl-prehook", ci->self, check)
+      == NOIT_IP_ACL_DENY) {
+    ci->timed_out = 0;
+    ci->error = strdup("Denied by ACL");
+    return 0;
+  }
+
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
     /* this case is impossible from the eventer.  It is called as
      * such on the synchronous completion of the event.
