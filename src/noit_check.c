@@ -46,7 +46,6 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
-#include "noit_acl.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_module.h"
@@ -576,25 +575,6 @@ noit_check_is_valid_target(const char *target) {
   }
   return noit_true;
 }
-#if 0
-static void
-noit_acl_set_stat(noit_check_t *check) {
-  noit_module_t *mod;
-  stats_t current;
-  char buff[256];
-
-  mod = noit_module_lookup(check->module);
-
-  noit_check_stats_clear(&current);
-  gettimeofday(&current.whence, NULL);
-  current.duration = 0;
-  current.available = NP_UNKNOWN;
-  current.state = NP_UNKNOWN;
-  current.status = buff;
-
-  noit_check_set_stats(mod, check, &current);
-}
-#endif
 int
 noit_check_set_ip(noit_check_t *new_check,
                   const char *ip_str) {
