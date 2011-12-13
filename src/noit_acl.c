@@ -214,7 +214,7 @@ noit_acl_check_ip(noit_check_t *check, const char *ip, aclaccess_t *access) {
   assert(ip != NULL);
   assert(access != NULL);
 
-  *access = NOIT_IP_ACL_DENY;
+  *access = NOIT_IP_ACL_ALLOW;
 
   family = AF_INET;
   rv = inet_pton(family, ip, &a);
