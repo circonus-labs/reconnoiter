@@ -47,6 +47,7 @@
 #include <libxml/tree.h>
 #include <openssl/md5.h>
 
+#include "noit_acl.h"
 #include "noit_conf.h"
 #include "noit_module.h"
 #include "noit_check.h"
@@ -480,6 +481,14 @@ noit_lua_socket_connect(lua_State *L) {
   else {
     a.sin4.sin_family = family;
     a.sin4.sin_port = htons(port);
+  }
+
+  if (noit_module_hooks_run_all("module-acl-prehook", ci->self, ci->check)
+      == NOIT_IP_ACL_DENY) {
+    memset(&a, 0, sizeof(a));
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "IP restricted by ACL '%s'", target);
+    return 2;
   }
 
   rv = connect(e->fd, (struct sockaddr *)&a,

@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -16,7 +16,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -110,6 +110,9 @@ API_EXPORT(noit_module_t *)
   noit_blank_module();
 API_EXPORT(int)
   noit_register_module(noit_module_t *mod);
+API_EXPORT(int)
+  noit_module_hooks_run_all(const char *name, noit_module_t *self,
+                            noit_check_t *check);
 
 API_EXPORT(void *)
   noit_image_get_userdata(noit_image_t *mod);
