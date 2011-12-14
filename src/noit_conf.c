@@ -274,10 +274,16 @@ noit_conf_magic_separate(xmlDocPtr doc) {
       if(backingstore_include_nodes[i].doc) {
         xmlNodePtr n;
         for(n=backingstore_include_nodes[i].insertion_point->children;
-            n; n = n->next)
+            n; n = n->next) {
           n->parent = backingstore_include_nodes[i].root;
+          n->parent->last = n;
+        }
         backingstore_include_nodes[i].insertion_point->children =
           backingstore_include_nodes[i].old_children;
+        for(n=backingstore_include_nodes[i].insertion_point->children;
+            n; n = n->next) {
+          n->parent->last = n; /* sets it to the last child */
+        }
         xmlFreeDoc(backingstore_include_nodes[i].doc);
       }
     }
@@ -453,10 +459,16 @@ noit_conf_shatter_write(xmlDocPtr doc) {
         noit_xml_userdata_t *what = backingstore_include_nodes[i].doc->_private;
 
         for(n=backingstore_include_nodes[i].insertion_point->children;
-            n; n = n->next)
+            n; n = n->next) {
           n->parent = backingstore_include_nodes[i].root;
+          n->parent->last = n;
+        }
         backingstore_include_nodes[i].insertion_point->children =
           backingstore_include_nodes[i].old_children;
+        for(n=backingstore_include_nodes[i].insertion_point->children;
+            n; n = n->next) {
+          n->parent->last = n; /* sets it to the last child */
+        }
         noit_conf_backingstore_write(what, noit_false, NULL, backingstore_include_nodes[i].root->children);
       }
     }
@@ -473,8 +485,10 @@ noit_conf_shatter_postwrite(xmlDocPtr doc) {
         backingstore_include_nodes[i].insertion_point->children =
           backingstore_include_nodes[i].root->children;
         for(n=backingstore_include_nodes[i].insertion_point->children;
-            n; n = n->next)
+            n; n = n->next) {
           n->parent = backingstore_include_nodes[i].insertion_point;
+          n->parent->last = n;
+        }
       }
     }
   }
@@ -640,8 +654,10 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
       }
       backingstore_include_nodes[i].old_children = NULL;
       node->children = backingstore_include_nodes[i].root->children;
-      for(n=node->children; n; n = n->next)
+      for(n=node->children; n; n = n->next) {
         n->parent = backingstore_include_nodes[i].insertion_point;
+        n->parent->last = n;
+      }
     }
     else {
       noitL(noit_error, "Could not load: '%s'\n", infile);
