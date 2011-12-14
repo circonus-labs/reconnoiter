@@ -463,6 +463,8 @@ noit_conf_shatter_write(xmlDocPtr doc) {
           n->parent = backingstore_include_nodes[i].root;
           n->parent->last = n;
         }
+        backingstore_include_nodes[i].root->children =
+          backingstore_include_nodes[i].insertion_point->children;
         backingstore_include_nodes[i].insertion_point->children =
           backingstore_include_nodes[i].old_children;
         for(n=backingstore_include_nodes[i].insertion_point->children;
