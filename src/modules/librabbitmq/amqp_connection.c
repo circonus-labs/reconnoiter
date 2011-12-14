@@ -209,7 +209,7 @@ int amqp_handle_input(amqp_connection_state_t state,
 
 	  decoded_frame->frame_type = AMQP_FRAME_METHOD;
 	  decoded_frame->payload.method.id = D_32(state->inbound_buffer, HEADER_SIZE);
-	  AMQP_CHECK_RESULT(amqp_decode_method(decoded_frame->payload.method.id,
+	  (void)AMQP_CHECK_RESULT(amqp_decode_method(decoded_frame->payload.method.id,
 					       &state->decoding_pool,
 					       encoded,
 					       &decoded_frame->payload.method.decoded));
@@ -226,7 +226,7 @@ int amqp_handle_input(amqp_connection_state_t state,
 	  decoded_frame->frame_type = AMQP_FRAME_HEADER;
 	  decoded_frame->payload.properties.class_id = D_16(state->inbound_buffer, HEADER_SIZE);
 	  decoded_frame->payload.properties.body_size = D_64(state->inbound_buffer, HEADER_SIZE+4);
-	  AMQP_CHECK_RESULT(amqp_decode_properties(decoded_frame->payload.properties.class_id,
+	  (void)AMQP_CHECK_RESULT(amqp_decode_properties(decoded_frame->payload.properties.class_id,
 						   &state->decoding_pool,
 						   encoded,
 						   &decoded_frame->payload.properties.decoded));
@@ -381,18 +381,18 @@ int amqp_send_frame(amqp_connection_state_t state,
   separate_body = inner_send_frame(state, frame, &encoded, &payload_len);
   switch (separate_body) {
     case 0:
-      AMQP_CHECK_RESULT(write(state->sockfd,
+      (void)AMQP_CHECK_RESULT(write(state->sockfd,
 			      state->outbound_buffer.bytes,
 			      payload_len + (HEADER_SIZE + FOOTER_SIZE)));
       return 0;
 
     case 1:
-      AMQP_CHECK_RESULT(write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
-      AMQP_CHECK_RESULT(write(state->sockfd, encoded.bytes, payload_len));
+      (void)AMQP_CHECK_RESULT(write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
+      (void)AMQP_CHECK_RESULT(write(state->sockfd, encoded.bytes, payload_len));
       {
 	assert(FOOTER_SIZE == 1);
 	unsigned char frame_end_byte = AMQP_FRAME_END;
-	AMQP_CHECK_RESULT(write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
+	(void)AMQP_CHECK_RESULT(write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
       }
       return 0;
 
@@ -413,18 +413,18 @@ int amqp_send_frame_to(amqp_connection_state_t state,
   separate_body = inner_send_frame(state, frame, &encoded, &payload_len);
   switch (separate_body) {
     case 0:
-      AMQP_CHECK_RESULT(fn(context,
+      (void)AMQP_CHECK_RESULT(fn(context,
 			   state->outbound_buffer.bytes,
 			   payload_len + (HEADER_SIZE + FOOTER_SIZE)));
       return 0;
 
     case 1:
-      AMQP_CHECK_RESULT(fn(context, state->outbound_buffer.bytes, HEADER_SIZE));
-      AMQP_CHECK_RESULT(fn(context, encoded.bytes, payload_len));
+      (void)AMQP_CHECK_RESULT(fn(context, state->outbound_buffer.bytes, HEADER_SIZE));
+      (void)AMQP_CHECK_RESULT(fn(context, encoded.bytes, payload_len));
       {
 	assert(FOOTER_SIZE == 1);
 	unsigned char frame_end_byte = AMQP_FRAME_END;
-	AMQP_CHECK_RESULT(fn(context, &frame_end_byte, FOOTER_SIZE));
+	(void)AMQP_CHECK_RESULT(fn(context, &frame_end_byte, FOOTER_SIZE));
       }
       return 0;
 

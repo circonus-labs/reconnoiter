@@ -478,7 +478,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
   exp_size = 3 * sizeof (uint16_t)
     + pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
-  if ((buffer_len < 0) || (buffer_len < exp_size))
+  if (buffer_len < exp_size)
   {
     noitL(noit_error, "collectd: parse_part_values: "
         "Packet too short: "
@@ -563,7 +563,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
   uint16_t pkg_length;
 
-  if ((buffer_len < 0) || ((size_t) buffer_len < exp_size))
+  if ((size_t) buffer_len < exp_size)
   {
     noitL(noit_error, "collectd: parse_part_number: "
         "Packet too short: "
@@ -601,7 +601,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 
   uint16_t pkg_length;
 
-  if ((buffer_len < 0) || (buffer_len < header_size))
+  if (buffer_len < header_size)
   {
     noitL(noit_error, "collectd: parse_part_string: "
         "Packet too short: "
@@ -1417,9 +1417,6 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
   unsigned int from_len;
   char ip_p[INET6_ADDRSTRLEN];
   noit_module_t *self = (noit_module_t *)closure;
-  collectd_mod_config_t *conf;
-  conf = noit_module_get_userdata(self);
-
 
   // Get the username and password of the string
 

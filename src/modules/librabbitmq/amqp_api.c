@@ -54,7 +54,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
 
   amqp_basic_properties_t default_properties;
 
-  AMQP_CHECK_RESULT(amqp_send_method(state, channel, AMQP_BASIC_PUBLISH_METHOD, &m));
+  (void)AMQP_CHECK_RESULT(amqp_send_method(state, channel, AMQP_BASIC_PUBLISH_METHOD, &m));
 
   if (properties == NULL) {
     memset(&default_properties, 0, sizeof(default_properties));
@@ -66,7 +66,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
   f.payload.properties.class_id = AMQP_BASIC_CLASS;
   f.payload.properties.body_size = body.len;
   f.payload.properties.decoded = (void *) properties;
-  AMQP_CHECK_RESULT(amqp_send_frame(state, &f));
+  (void)AMQP_CHECK_RESULT(amqp_send_frame(state, &f));
 
   body_offset = 0;
   while (1) {
@@ -86,7 +86,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
     }
 
     body_offset += f.payload.body_fragment.len;
-    AMQP_CHECK_RESULT(amqp_send_frame(state, &f));
+    (void)AMQP_CHECK_RESULT(amqp_send_frame(state, &f));
   }
 
   return 0;
@@ -223,7 +223,7 @@ int amqp_basic_ack(amqp_connection_state_t state,
       .delivery_tag = delivery_tag,
       .multiple = multiple
     };
-  AMQP_CHECK_RESULT(amqp_send_method(state, channel, AMQP_BASIC_ACK_METHOD, &m));
+  (void)AMQP_CHECK_RESULT(amqp_send_method(state, channel, AMQP_BASIC_ACK_METHOD, &m));
   return 0;
 }
 

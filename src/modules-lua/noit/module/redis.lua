@@ -80,7 +80,7 @@ function config(module, options)
 end
 
 function initiate(module, check)
-  local host = check.config.host or check.target or check.target_ip
+  local host = check.config.host or check.target_ip or check.target
   local port = check.config.port or 6379
 
   -- default to bad

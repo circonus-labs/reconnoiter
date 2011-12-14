@@ -1571,53 +1571,32 @@ stratcon_ingest_all_check_info() {
   return loaded;
 }
 
-static int
-rest_get_noit_config(noit_http_rest_closure_t *restc,
-                     int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+static char *
+stratcon_get_noit_config(const char *cn) {
   ds_single_detail *d;
   int row_count = 0;
   const char *xml = NULL;
+  char *xmlcopy = NULL;
   conn_q *cq = NULL;
 
-  if(npats != 0) {
-    noit_http_response_server_error(ctx, "text/xml");
-    noit_http_response_end(ctx);
-    return 0;
-  }
   d = calloc(1, sizeof(*d));
   GET_QUERY(config_get);
   cq = get_conn_q_for_metanode();
-  if(!cq) {
-    noit_http_response_server_error(ctx, "text/xml");
-    goto bad_row;
-  }
+  if(!cq) goto bad_row;
 
-  DECLARE_PARAM_STR(restc->remote_cn,
-                    restc->remote_cn ? strlen(restc->remote_cn) : 0);
+  DECLARE_PARAM_STR(cn, cn ? strlen(cn) : 0);
   PG_EXEC(config_get);
   row_count = PQntuples(d->res);
   if(row_count == 1) PG_GET_STR_COL(xml, 0, "config");
 
-  if(xml == NULL) {
-    char buff[1024];
-    snprintf(buff, sizeof(buff), "<error><remote_cn>%s</remote_cn>"
-                                 "<row_count>%d</row_count></error>\n",
-             restc->remote_cn, row_count);
-    noit_http_response_append(ctx, buff, strlen(buff));
-    noit_http_response_not_found(ctx, "text/xml");
-  }
-  else {
-    noit_http_response_append(ctx, xml, strlen(xml));
-    noit_http_response_ok(ctx, "text/xml");
-  }
+  if(xml) xmlcopy = strdup(xml);
+
  bad_row:
   free_params((ds_single_detail *)d);
   d->nparams = 0;
   if(cq) release_conn_q(cq);
 
-  noit_http_response_end(ctx);
-  return 0;
+  return xmlcopy;
 }
 
 static ingestor_api_t postgres_ingestor_api = {
@@ -1625,7 +1604,7 @@ static ingestor_api_t postgres_ingestor_api = {
   .iep_check_preload = stratcon_ingest_iep_check_preload,
   .storage_node_lookup = storage_node_quick_lookup,
   .submit_realtime_lookup = stratcon_ingestor_submit_lookup,
-  .get_noit_config = NULL,
+  .get_noit_config = stratcon_get_noit_config,
   .save_config = stratcon_ingest_saveconfig
 };
 

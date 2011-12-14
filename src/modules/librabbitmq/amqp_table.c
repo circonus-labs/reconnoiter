@@ -78,7 +78,7 @@ int amqp_decode_table(amqp_bytes_t encoded,
 	offset += 8;
 	break;
       case 'F':
-	AMQP_CHECK_RESULT(amqp_decode_table(encoded, pool, &(entry->value.table), &offset));
+	(void)AMQP_CHECK_RESULT(amqp_decode_table(encoded, pool, &(entry->value.table), &offset));
 	break;
       default:
 	free(entries);
@@ -141,7 +141,7 @@ int amqp_encode_table(amqp_bytes_t encoded,
 	offset += 8;
 	break;
       case 'F':
-	AMQP_CHECK_RESULT(amqp_encode_table(encoded, &(entry->value.table), &offset));
+	(void)AMQP_CHECK_RESULT(amqp_encode_table(encoded, &(entry->value.table), &offset));
 	break;
       default:
 	return -EINVAL;

@@ -164,7 +164,7 @@ static int wait_frame_inner(amqp_connection_state_t state,
       amqp_bytes_t buffer;
       buffer.len = state->sock_inbound_limit - state->sock_inbound_offset;
       buffer.bytes = ((char *) state->sock_inbound_buffer.bytes) + state->sock_inbound_offset;
-      AMQP_CHECK_RESULT((result = amqp_handle_input(state, buffer, decoded_frame)));
+      (void)AMQP_CHECK_RESULT((result = amqp_handle_input(state, buffer, decoded_frame)));
       state->sock_inbound_offset += result;
 
       if (decoded_frame->frame_type != 0) {
@@ -215,7 +215,7 @@ int amqp_simple_wait_method(amqp_connection_state_t state,
 {
   amqp_frame_t frame;
 
-  AMQP_CHECK_EOF_RESULT(amqp_simple_wait_frame(state, &frame));
+  (void)AMQP_CHECK_EOF_RESULT(amqp_simple_wait_frame(state, &frame));
   amqp_assert(frame.channel == expected_channel,
 	      "Expected 0x%08X method frame on channel %d, got frame on channel %d",
 	      expected_method,
@@ -351,7 +351,7 @@ static int amqp_login_inner(amqp_connection_state_t state,
 
   amqp_send_header(state);
 
-  AMQP_CHECK_EOF_RESULT(amqp_simple_wait_method(state, 0, AMQP_CONNECTION_START_METHOD, &method));
+  (void)AMQP_CHECK_EOF_RESULT(amqp_simple_wait_method(state, 0, AMQP_CONNECTION_START_METHOD, &method));
   {
     amqp_connection_start_t *s = (amqp_connection_start_t *) method.decoded;
     if ((s->version_major != AMQP_PROTOCOL_VERSION_MAJOR) ||
@@ -373,12 +373,12 @@ static int amqp_login_inner(amqp_connection_state_t state,
 	.response = response_bytes,
 	.locale = {.len = 5, .bytes = "en_US"}
       };
-    AMQP_CHECK_RESULT(amqp_send_method(state, 0, AMQP_CONNECTION_START_OK_METHOD, &s));
+    (void)AMQP_CHECK_RESULT(amqp_send_method(state, 0, AMQP_CONNECTION_START_OK_METHOD, &s));
   }
 
   amqp_release_buffers(state);
 
-  AMQP_CHECK_EOF_RESULT(amqp_simple_wait_method(state, 0, AMQP_CONNECTION_TUNE_METHOD, &method));
+  (void)AMQP_CHECK_EOF_RESULT(amqp_simple_wait_method(state, 0, AMQP_CONNECTION_TUNE_METHOD, &method));
   {
     amqp_connection_tune_t *s = (amqp_connection_tune_t *) method.decoded;
     server_channel_max = s->channel_max;
@@ -403,7 +403,7 @@ static int amqp_login_inner(amqp_connection_state_t state,
     setsockopt(state->sockfd, SOL_SOCKET, SO_SNDTIMEO, &hb, sizeof(hb));
   }
 
-  AMQP_CHECK_RESULT(amqp_tune_connection(state, channel_max, frame_max, heartbeat));
+  (void)AMQP_CHECK_RESULT(amqp_tune_connection(state, channel_max, frame_max, heartbeat));
 
   {
     amqp_connection_tune_ok_t s =
@@ -412,7 +412,7 @@ static int amqp_login_inner(amqp_connection_state_t state,
 	.frame_max = frame_max,
 	.heartbeat = heartbeat
       };
-    AMQP_CHECK_RESULT(amqp_send_method(state, 0, AMQP_CONNECTION_TUNE_OK_METHOD, &s));
+    (void)AMQP_CHECK_RESULT(amqp_send_method(state, 0, AMQP_CONNECTION_TUNE_OK_METHOD, &s));
   }
 
   amqp_release_buffers(state);

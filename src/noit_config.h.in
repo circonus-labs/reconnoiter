@@ -59,6 +59,7 @@
 #undef HAVE_STROPTS_H
 #undef HAVE_SYS_STREAM_H
 #undef HAVE_UTIL_H
+#undef HAVE_BSD_LIBUTIL_H
 #undef HAVE_LIBUTIL_H
 #undef HAVE_CURSES_H
 #undef HAVE_DIRENT_H

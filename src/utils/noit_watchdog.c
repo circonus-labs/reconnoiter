@@ -109,6 +109,7 @@ void run_glider(int pid) {
              glider_path, pid, trace_dir, appname, pid);
     unused = system(cmd);
   }
+  (void)unused;
 }
 
 void glideme(int sig) {

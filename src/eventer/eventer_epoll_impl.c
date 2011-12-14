@@ -184,7 +184,7 @@ static eventer_t eventer_epoll_impl_find_fd(int fd) {
 
 static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
   struct timeval __now;
-  int fd, oldmask, newmask;
+  int fd, newmask;
   const char *cbname;
   ev_lock_state_t lockstate;
 
@@ -195,7 +195,6 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
   assert(lockstate == EV_OWNED);
 
   gettimeofday(&__now, NULL);
-  oldmask = e->mask;
   cbname = eventer_name_for_callback(e->callback);
   noitLT(eventer_deb, &__now, "epoll: fire on %d/%x to %s(%p)\n",
          fd, mask, cbname?cbname:"???", e->callback);

@@ -129,10 +129,9 @@ static int noit_rabbimq_disconnect(iep_thread_driver_t *d) {
 }
 static void noit_rabbimq_deallocate(iep_thread_driver_t *d) {
   struct amqp_driver *dr = (struct amqp_driver *)d;
-  int i;
   noit_rabbimq_disconnect(d);
   pthread_mutex_lock(&driver_lock);
-  memset(dr, 0, sizeof(dr));
+  memset(dr, 0, sizeof(*dr));
   pthread_mutex_unlock(&driver_lock);
   noit_atomic_dec64(&stats.concurrency);
   free(dr);
@@ -413,7 +412,9 @@ noit_console_show_rabbitmq(noit_console_closure_t ncct,
       nc_printf(ncct, "     not connected\n");
   }
   pthread_mutex_unlock(&driver_lock);
+  return 1;
 }
+
 static void
 register_console_rabbitmq_commands() {
   noit_console_state_t *tl;
