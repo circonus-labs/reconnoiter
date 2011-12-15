@@ -83,7 +83,10 @@ function onload(image)
                allowed="\d+">The maximum number of Location header redirects to follow.</parameter>
     <parameter name="body"
                required="optional"
-               allowed=".+">This regular expression is matched against the body of the response.  If a match is not found, the check will be marked as "bad."</parameter>
+               allowed=".+">This regular expression is matched against the body of the response. If a match is not found, the check will be marked as "bad."</parameter>
+    <parameter name="body_match_*"
+               required="optional"
+               allowed=".+">This regular expression is matched against the body of the response. If a match is found it is captured and added as a metric. For example, if setting is named 'body_match_foo_bar' and a match is found new metric called 'foo_bar' will be added.</parameter>
     <parameter name="extract"
                required="optional"
                allowed=".+">This regular expression is matched against the body of the response globally.  The first capturing match is the key and the second capturing match is the value.  Each key/value extracted is registered as a metric for the check.</parameter>
@@ -140,6 +143,8 @@ function config(module, options)
 end
 
 local HttpClient = require 'noit.HttpClient'
+
+local BODY_MATCHES_PREFIX = 'body_match_'
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
@@ -209,7 +214,7 @@ function auth_digest(method, uri, user, pass, challenge)
     if p.opaque then o.opaque = p.opaque end
     local hdr = ''
     for k,v in pairs(o) do
-      if hdr == '' then hdr = k .. '="' .. v .. '"' 
+      if hdr == '' then hdr = k .. '="' .. v .. '"'
       else hdr = hdr .. ', ' .. k .. '="' .. v .. '"' end
     end
     hdr = hdr .. ', nc=' .. nc
@@ -299,7 +304,7 @@ function initiate(module, check)
             port = check.config.port or 443
         else
             error(schema .. " not supported")
-        end 
+        end
     end
     if schema == 'https' then
         use_ssl = true
@@ -354,7 +359,7 @@ function initiate(module, check)
         local password = check.config.auth_password or ''
         local encoded = noit.base64_encode(user .. ':' .. password)
         headers["Authorization"] = "Basic " .. encoded
-    elseif check.config.auth_method == "Digest" or 
+    elseif check.config.auth_method == "Digest" or
            check.config.auth_method == "Auto" then
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
@@ -405,7 +410,7 @@ function initiate(module, check)
         starttime = noit.timeval.now()
         local optclient = HttpClient:new(callbacks)
         local rv, err = optclient:connect(target, port, use_ssl)
-       
+
         if rv ~= 0 then
             check.status(err or "unknown error")
             return
@@ -429,7 +434,7 @@ function initiate(module, check)
                 port = prev_port
                 host = prev_host
                 uri = next_location
-            elseif schema == 'http' then 
+            elseif schema == 'http' then
                 use_ssl = false
                 if port == "" then port = 80 end
             elseif schema == 'https' then
@@ -502,6 +507,36 @@ function initiate(module, check)
         check.metric_string('body_match', nil)
         good = false
       end
+    end
+
+    -- check body matches
+    local matches = 0
+    has_body_matches = false
+    for key, value in pairs(check.config) do
+      m = string.find(key, BODY_MATCHES_PREFIX)
+
+      if m then
+        has_body_matches = true
+        key = string.gsub(key, BODY_MATCHES_PREFIX, '')
+
+        local bodyre = noit.pcre(value)
+        local rv, m, m1 = bodyre(output or '')
+
+        if rv then
+          matches = matches + 1
+          m = m1 or m or output
+          if string.len(m) > max_len then
+            m = string.sub(m,1,max_len)
+          end
+          check.metric_string('body_match_' .. key, m)
+        else
+          check.metric_string('body_match_' .. key, nil)
+        end
+      end
+    end
+
+    if has_body_matches then
+      status = status .. ',body_matches=' .. tostring(matches) .. ' matches'
     end
 
     -- Include body
