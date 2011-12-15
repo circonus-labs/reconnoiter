@@ -52,7 +52,7 @@ class Reconnoiter_GraphTemplate {
     }
     if(count($texts)) {
       $db = Reconnoiter_DB::getDB();
-      $sth = $db->prepare("select value from stratcon.current_metric_text
+      $sth = $db->prepare("select value from noit.metric_text_currently
                             where sid = ? and name = ?");
       $__rgt_replace_set = array();
       foreach($texts as $key => $binds) {
