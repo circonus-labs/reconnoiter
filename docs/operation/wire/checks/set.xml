@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<section>
+<title>/checks/set/</title>
+  <variablelist>
+    <varlistentry>
+      <term>method</term>
+      <listitem><code>PUT</code></listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>uri</term>
+      <listitem><code>/checks/set/&lt;path/&gt;&lt;checkid&gt;</code></listitem>
+    </varlistentry>
+  </variablelist>
+  <para>
+  This call accepts a document describing a check.  That check is
+  instantiated with the <code>checkid</code> specified in the URL.  If the
+  check exists, but is not under the provided optional <code>path</code> a
+  HTTP 403 code is returned.  If the check already exists under the specified
+  <code>path</code>, the check is updated to reflect the new configuration.
+  The <code>module</code> cannot be changed for existing checks.  All other
+  fields can be changed.  All fields are required except the
+  <code>disable</code> field; if disable is omitted, it will inherit the
+  disable attribute from parents in the tree (use the default setting).
+  On success, a HTTP 200 is returned and an XML documented that matches the
+  format of the <code>/check/show</code> REST command.
+  The input is as follows:
+  </para>
+
+  <example>
+    <title>REST /checks/set XML input.</title>
+    <programlisting><![CDATA[
+<?xml version="1.0" encoding="utf8"?>
+<check>
+  <attributes>
+    <name>http</name>
+    <module>http</module>
+    <target>8.8.38.5</target>
+    <period>60000</period>
+    <timeout>5000</timeout>
+    <filterset>default</filterset>
+  </attributes>
+  <config>
+    <code>200</code>
+    <url>https://labs.omniti.com/</url>
+  </config>
+</check>
+    ]]></programlisting>
+  </example>
+</section>

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<section>
+<title>/filters/show/</title>
+  <variablelist>
+    <varlistentry>
+      <term>method</term>
+      <listitem><code>GET</code></listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>uri</term>
+      <listitem><code>/filters/show/&lt;path/&gt;&lt;filterset&gt;</code></listitem>
+    </varlistentry>
+  </variablelist>
+  <para>
+  This call returns an XML document describing the current configuration 
+  of the specified filterset.  The <code>filterset</code> specified is located
+  under the optional <code>path</code>.  If the check exists, but it under
+  another path, a HTTP 403 code is returned.  If the check does not exist,
+  a HTTP 404 code is returned.
+  </para>
+
+  <example>
+    <title>REST /filters/show XML output.</title>
+    <para>Output from an HTTP GET of <code>/filters/show/default</code></para>
+    <programlisting><![CDATA[
+<?xml version="1.0" encoding="utf8"?>
+<filterset>
+  <rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$"/>
+</filterset>
+    ]]></programlisting>
+  </example>
+</section>

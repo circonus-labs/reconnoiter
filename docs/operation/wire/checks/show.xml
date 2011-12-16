@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<section>
+<title>/checks/show/</title>
+  <variablelist>
+    <varlistentry>
+      <term>method</term>
+      <listitem><code>GET</code></listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>uri</term>
+      <listitem><code>/checks/show/&lt;path/&gt;&lt;checkid&gt;</code></listitem>
+    </varlistentry>
+  </variablelist>
+  <para>
+  This call returns an XML document describing the current configuration and
+  state of the specific check.  The <code>checkid</code> specified is located
+  under the optional <code>path</code>.  If the check exists, but it under
+  another path, a HTTP 403 code is returned.  If the check does not exist,
+  a HTTP 404 code is returned.
+  </para>
+
+  <example>
+    <title>REST /checks/show XML output.</title>
+    <para>Output from an HTTP GET of <code>/checks/show/1b4e28ba-2fa1-11d2-883f-b9a761bde3aa</code></para>
+    <programlisting><![CDATA[
+<?xml version="1.0" encoding="utf8"?>
+<check>
+  <attributes>
+    <uuid>1b4e28ba-2fa1-11d2-883f-b9a761bde3aa</uuid>
+    <name>http</name>
+    <module inherited="/dc1/web/@module">http</module>
+    <target>8.8.38.5</target>
+    <period inherited="/dc1/@period">60000</period>
+    <timeout inherited="/dc1/@timeout">5000</timeout>
+    <filterset inherited="/@filterset">default</filterset>
+  </attributes>
+  <config>
+    <code>200</code>
+    <url>https://labs.omniti.com/</url>
+  </config>
+  <state>
+    <running>false</running>
+    <killed>false</killed>
+    <configured>true</configured>
+    <disabled>false</disabled>
+    <last_run now="1253124365.131">1253124339.270</last_run>
+    <runtime>4.408</runtime>
+    <availability>available</availability>
+    <state>good</state>
+    <status>code=200,rt=4.409s,bytes=8958</status>
+    <metrics>
+      <duration type="I">4408</duration>
+      <code type="s">200</code>
+      <bytes type="i">8958</bytes>
+    </metrics>
+  </state>
+</check>
+    ]]></programlisting>
+  </example>
+</section>

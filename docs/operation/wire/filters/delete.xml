@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<section>
+<title>/filters/delete/</title>
+  <variablelist>
+    <varlistentry>
+      <term>method</term>
+      <listitem><code>DELETE</code></listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>uri</term>
+      <listitem><code>/filters/delete/&lt;path/&gt;&lt;filterset&gt;</code></listitem>
+    </varlistentry>
+  </variablelist>
+  <para>
+  This call returns deletes the specified filterset.  If the filterset does
+  not exist, then a HTTP 404 code is returned.  If the filterset exists, but
+  is outside of the optional <code>path</code>, then a HTTP 403 code is
+  returned.  Otherwise, the specified filterset is removed from the system
+  and a HTTP 200 is returned.  Any response payload returned should be
+  ignored by the client.
+  </para>
+</section>

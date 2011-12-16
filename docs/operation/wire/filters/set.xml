@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<section>
+<title>/filters/set/</title>
+  <variablelist>
+    <varlistentry>
+      <term>method</term>
+      <listitem><code>PUT</code></listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>uri</term>
+      <listitem><code>/filters/set/&lt;path/&gt;&lt;filterset&gt;</code></listitem>
+    </varlistentry>
+  </variablelist>
+  <para>
+  This call accepts a document describing a filterset.  That filterset is
+  instantiated with the name <code>filterset</code> specified in the URL.
+  If the filterset exists, but is not under the provided optional
+  <code>path</code> a HTTP 403 code is returned.  If the filterset already
+  exists under the specified <code>path</code>, the filterset is replaced
+  with the configuration submitted.
+  On success, a HTTP 200 is returned and an XML documented that matches the
+  format of the <code>/check/show</code> REST command.
+  The input is as follows:
+  </para>
+
+  <example>
+    <title>REST /filtert/set XML input.</title>
+    <programlisting><![CDATA[
+<?xml version="1.0" encoding="utf8"?>
+<filterset>
+  <rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$"/>
+</filterset>
+    ]]></programlisting>
+  </example>
+</section>
