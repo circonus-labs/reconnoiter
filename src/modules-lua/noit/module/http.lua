@@ -515,7 +515,7 @@ function initiate(module, check)
     for key, value in pairs(check.config) do
       m = string.find(key, BODY_MATCHES_PREFIX)
 
-      if m then
+      if m == 1 then
         has_body_matches = true
         key = string.gsub(key, BODY_MATCHES_PREFIX, '')
 
