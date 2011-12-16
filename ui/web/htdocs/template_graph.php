@@ -47,8 +47,14 @@ function createGraphsFromCombos($combo, $var_vals, $i, $sid_vars, $genesis_base,
 	    $graph_json = $template->getNewGraphJSON($rparams);
 	    $graph_json = stripslashes($graph_json);
 	    $graph_json = json_decode($graph_json, true);
-	    $graph_json['title'] = $graph_json['title'].$graph_num;
 	    $graph_json['genesis'] = $genesis;
+
+        // Check to see if this title exists
+        $titlerow = $db->getGraphByTitle($title);
+        // if it does, append $graph_num to it
+        if ($titlerow['graphid']) {
+           $graph_json['title'] = $graph_json['title'].$graph_num;
+        }
 
 	    $grow = $db->getGraphByGenesis($genesis);
 	    if($grow['graphid']) {
