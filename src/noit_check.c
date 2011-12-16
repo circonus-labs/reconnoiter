@@ -701,6 +701,7 @@ noit_check_update(noit_check_t *new_check,
       new_check->flags |= NP_DISABLED;
     }
   }
+
   noit_check_log_check(new_check);
   return 0;
 }

@@ -522,6 +522,12 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
                         &config_val))
     count = atoi(config_val);
 
+  if (noit_module_hooks_run_all("module-acl-prehook", self, check)
+      == NOIT_IP_ACL_DENY) {
+    noitL(noit_error, "%s`%s Denied by ACL for module %s\n", check->target, check->name, check->module);
+    return 0;
+  }
+
   check->flags |= NP_RUNNING;
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));

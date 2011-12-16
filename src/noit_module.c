@@ -40,9 +40,11 @@
 #include <libxslt/xsltInternals.h>
 #include <libxslt/transform.h>
 
+#include "noit_acl.h"
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_hooks.h"
 #include "utils/noit_log.h"
 
 static noit_module_t *
@@ -69,6 +71,7 @@ struct __extended_image_data {
 static noit_hash_table loaders = NOIT_HASH_EMPTY;
 static noit_hash_table modules = NOIT_HASH_EMPTY;
 static noit_hash_table generics = NOIT_HASH_EMPTY;
+static noit_hooks_t *hooks = NULL;
 static int noit_module_load_failure_count = 0;
 
 int noit_module_load_failures() {
@@ -395,9 +398,41 @@ noit_module_help(noit_console_closure_t ncct,
   return -1;
 }
 
+typedef struct _noit_hooks_baton {
+  noit_module_t *module;
+  noit_check_t *check;
+} noit_hooks_baton_t;
+
+static int
+acl_hook(void *baton) {
+  aclaccess_t acl;
+  noit_hooks_baton_t *data = baton;
+  noit_acl_check_ip(data->check, data->check->target_ip, &acl);
+  return acl;
+}
+
+int
+noit_module_hooks_run_all(const char *name, noit_module_t *self, noit_check_t *check) {
+  noit_hook_t *hk;
+  noit_hooks_baton_t baton = { self, check };
+  if (noit_hooks_retrieve(hooks, name, &hk)) {
+    while (hk) {
+      int rv = hk->func(&baton);
+      if (rv != NOIT_HOOK_OK) {
+        return rv;
+      }
+      hk = hk->next;
+    }
+  }
+  return 0;
+}
+
 void noit_module_init() {
   noit_conf_section_t *sections;
   int i, cnt = 0;
+
+  noit_hooks_create(&hooks);
+  noit_hooks_add(hooks, "module-acl-prehook", acl_hook);
 
   noit_console_add_help("module", noit_module_help, noit_module_options);
 

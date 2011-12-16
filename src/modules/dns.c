@@ -616,6 +616,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   char interpolated_nameserver[1024];
   char interpolated_query[1024];
   noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  char error_buffer[512];
 
   gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));
@@ -624,6 +625,13 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   ci->timed_out = 1;
   ci->nrr = 0;
   ci->sort = 1;
+
+  if (noit_module_hooks_run_all("module-acl-prehook", self, check)
+      == NOIT_IP_ACL_DENY) {
+    snprintf(error_buffer, sizeof(error_buffer), "%s`%s Denied by ACL for module %s\n", check->target, check->name, check->module);
+    if(ci->error) free(ci->error);
+    ci->error = strdup(error_buffer);
+  }
 
   if(!strcmp(check->name, "in-addr.arpa") ||
      (strlen(check->name) >= sizeof("::in-addr.arpa") - 1 &&

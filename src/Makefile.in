@@ -47,7 +47,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noit_check_tools.h noit_conf.h noit_conf_checks.h noit_conf_private.h \
 	noit_version.h \
 	noit_config.h noit_console.h noit_console_telnet.h noit_defines.h \
-	noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
+	noit_acl.h noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
 	noit_livestream_listener.h noit_main.h noit_module.h noit_rest.h \
 	noit_tokenizer.h noit_xml.h \
 	stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
@@ -65,9 +65,10 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noitedit/map.h noitedit/parse.h noitedit/prompt.h noitedit/refresh.h \
 	noitedit/search.h noitedit/sig.h noitedit/strlcpy.h noitedit/sys.h \
 	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
-	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h
+	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h \
+	btrie.h
 
-NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
+NOIT_OBJS=noitd.o noit_main.o noit_listener.o noit_acl.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
 	noit_check_tools_shared.o noit_check_log_helpers.o \
@@ -76,7 +77,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
-	bundle.pb-c.o
+	bundle.pb-c.o btrie.o
 
 NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
@@ -86,7 +87,7 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_xml.o \
 	noit_conf.o noit_http.o noit_rest.o noit_tokenizer.o \
-	noit_capabilities_listener.o noit_module.o \
+	noit_capabilities_listener.o btrie.o noit_acl.o noit_module.o \
 	noit_check_tools_shared.o noit_check_log_helpers.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
