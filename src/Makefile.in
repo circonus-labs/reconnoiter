@@ -211,12 +211,12 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
 		$(LIBS)
 
 stratcon_datastore.o:	stratcon_datastore.c
-	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
 	@echo "- compiling $<"
+	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
 
 .c.o:
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 	@echo "- compiling $<"
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 noit_module.o:	module-online.h
 
@@ -225,8 +225,8 @@ module-online.h:	modules/module-online.xsl
 	@$(XML2H) helpStyleXML < modules/module-online.xsl > $@
 
 noit_tokenizer.c:
-	@re2c -o $@ noit_tokenizer.re
 	@echo "- re2c noit_tokenizer.re"
+	@re2c -o $@ noit_tokenizer.re
 
 test-noit.conf:	noit.conf.in Makefile
 	@sed -e "s^%sysconfdir%^`pwd`^g;" \
