@@ -7,6 +7,9 @@ install:	all
 	(cd src && make install DESTDIR=$(DESTDIR))
 	(cd sql && make install DESTDIR=$(DESTDIR))
 
+dev-docs:
+	./buildtools/mkcodedocs.pl ./src ./docs/development/docs
+
 clean:
 	(cd src && make clean)
 	(cd sql && make clean)

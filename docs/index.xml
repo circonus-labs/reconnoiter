@@ -36,6 +36,10 @@
     <title>Operation</title>
     &operation.all;
   </part>
+  <part id="development">
+    <title>Development</title>
+    &development.all;
+  </part>
   <part id="reference">
     <title>Reference</title>
     <reference id="exe">
