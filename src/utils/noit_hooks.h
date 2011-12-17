@@ -40,12 +40,12 @@
  * somewhat arbitrary hook points after the software is designed
  * and the noit_hooks system is what satisfies this need.</para>
  * <para>The design goals here are somewhat specific in that we
- * would like to allow for a large number of hook points at low cost
+ * would like to allow for a large number of hook points at a low cost
  * when not instrumented.  As such, a hash lookup of registered hooks
- * would be considered to expensive.  Additionally, we want to provide
- * strong, compile-time type safety as it can be all to easy to hook
- * something with a function with a slightly incorrect protoype that
- * could result in disasterous corruption or crashes (or perhaps worse
+ * would be considered too expensive.  Additionally, we want to provide
+ * strong, compile-time type-safety as it can be all to easy to hook
+ * something with a function with a incorrect protoype that
+ * could result in disasterous corruption or crashes (or perhaps worse:
  * daftly subtle bugs that are punishing to troubleshoot).</para>
  * <para>The hooks system is simple a set of two macros; one allowing
  * for the declaration of function prototypes for registering and invoking
@@ -59,7 +59,7 @@
  *   Declaring hooks is done by calling the NOIT_HOOK_PROTO macro with
  *   the name of the hook (a term that composes a valid C function name),
  *   the arguments it expects, the type of closure (usually a void *),
- *   and some variations on those themes that provide CPP enough info
+ *   and some variations on those themes that provide CPP enough information
  *   to construct an implementation with no programmer "programming."
  *   </para>
  *   <para>The declaration of a hook "foo" will yield in two functions:
@@ -74,7 +74,7 @@
  *   </example>
  *   <example>
  *   <title>Implementing a foobarquux hook in source.</title>
- *   <para>A foobarquux hok implementation that takes a struct timeval * argument.</para>
+ *   <para>A foobarquux hook implementation that takes a struct timeval * argument.</para>
  *   <programlisting>
  *     NOIT_HOOK_IMPL(foobarquux, (struct timeval *now),
  *                    void *, closure, (void *closure, struct timeval *now),
@@ -99,13 +99,12 @@
  *   <programlisting><![CDATA[
  *     struct timeval now;
  *     gettimeofday(&now, NULL);
- *     if(NOIT_HOOK_CONTINUE ==
- *        foobarquux_hook_invoke(&now))
+ *     if(NOIT_HOOK_CONTINUE == foobarquux_hook_invoke(&now))
  *       foobarquux_work();
  *   ]]></programlisting>
  *   </example>
  *   <para>If the hook should not conditionally cause or prevent code
- *   to run, the invoke function's return value can be ignored.</para>
+ *   to run, the invoke function's return value should be ignored.</para>
  *   <para>In order to register a function that allows the above execution
  *   on every other subsequent execution one would provide the following:
  *   </para>
