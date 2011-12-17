@@ -1,0 +1,29 @@
+ <section><title>Check Hooks</title>
+   <section><title>check_preflight</title>
+   <programlisting>
+     noit_hook_return_t (*f)(void *closure, noit_module_t *self,
+                             noit_check_t *check, noit_check_t *cause);
+   </programlisting>
+   <para>the check_preflight hook is invoked immediately prior to every
+   check being performed.  The actual invocation of the check can be
+   avoided by returning NOIT_HOOK_DONE instead of NOIT_HOOK_CONTINUE.
+   </para>
+   <para>The arguments to this function are the module of the check
+   the check itself and the causal check (NULL if this check was not
+   induced by the completion of another check), respectively.</para>
+   <para>This instrumentation point can be used to audit intended check
+   activity or prevent a check from running (such as an ACL).</para>
+   </section>
+   <section><title>check_postflight</title>
+   <para>The check_postflight hook is invoked immediately subsequent to
+   a check being commenced.  Note that due to the asynchronous nature
+   of Reconnoiter, it is highly unlikely that the check will have 
+   completed by this time.</para>
+   <para>The arguments to this function are the module of the check,
+   the check itself and the causal check (NULL if this check was not
+   induced by the completion of another check), respectively.</para>
+   <para>Returning NOIT_HOOK_CONTINUE and NOIT_HOOK_DONE have the same
+   effect for this instrumentation point.</para>
+   </section>
+ </section>
+ 

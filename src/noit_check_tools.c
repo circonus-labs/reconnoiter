@@ -39,6 +39,18 @@
 
 #include <assert.h>
 
+NOIT_HOOK_IMPL(check_preflight,
+  (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
+  void *, closure,
+  (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
+  (closure,self,check,cause));
+NOIT_HOOK_IMPL(check_postflight,
+  (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
+  void *, closure,
+  (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
+  (closure,self,check,cause));
+
+
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
@@ -55,13 +67,17 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
                            rcl->dispatch, NULL);
   if(NOIT_CHECK_RESOLVED(rcl->check)) {
-    if(NOIT_CHECK_DISPATCH_ENABLED()) {
-      char id[UUID_STR_LEN+1];
-      uuid_unparse_lower(rcl->check->checkid, id);
-      NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
-                          rcl->check->target);
+    if(NOIT_HOOK_CONTINUE ==
+       check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
+      if(NOIT_CHECK_DISPATCH_ENABLED()) {
+        char id[UUID_STR_LEN+1];
+        uuid_unparse_lower(rcl->check->checkid, id);
+        NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
+                            rcl->check->target);
+      }
+      rcl->dispatch(rcl->self, rcl->check, rcl->cause);
     }
-    rcl->dispatch(rcl->self, rcl->check, rcl->cause);
+    check_postflight_hook_invoke(rcl->self, rcl->check, rcl->cause);
   }
   else
     noitL(noit_debug, "skipping %s`%s`%s, unresolved\n",

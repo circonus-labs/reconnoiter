@@ -13,9 +13,9 @@ sub xlate {
   my $a = <F>;
   close(F);
   unlink($out) if(-f $out);
-  if($a =~ /\/\*\*\s*DOCBOOK(.+)\*\//sm) {
+  if($a =~ /\/\*\#\*\s*DOCBOOK(.+)\*\//sm) {
     my $b = $1;
-    $b =~ s/^\s+\*//gm;
+    $b =~ s/^\s+(?:\#\s*)?\*//gm;
     print "Appending to $out\n";
     open(F, ">>$out");
     print F $b;

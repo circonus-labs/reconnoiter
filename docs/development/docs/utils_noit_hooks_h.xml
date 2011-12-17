@@ -1,0 +1,91 @@
+ <section><title>Abitrary Hooks</title>
+ <para>Building a callout API makes sense for common, structured
+ features in software, but occassionlly there is a need to provide
+ somewhat arbitrary hook points after the software is designed
+ and the noit_hooks system is what satisfies this need.</para>
+ <para>The design goals here are somewhat specific in that we
+ would like to allow for a large number of hook points at low cost
+ when not instrumented.  As such, a hash lookup of registered hooks
+ would be considered to expensive.  Additionally, we want to provide
+ strong, compile-time type safety as it can be all to easy to hook
+ something with a function with a slightly incorrect protoype that
+ could result in disasterous corruption or crashes (or perhaps worse
+ daftly subtle bugs that are punishing to troubleshoot).</para>
+ <para>The hooks system is simple a set of two macros; one allowing
+ for the declaration of function prototypes for registering and invoking
+ a specific programmer-specifiec instrumentation point and the other
+ providing an implementation of the registration and invocation
+ routines.  Due to the nature of C, the macro calling conventions are
+ less than elegant, but ultimately require no complicated implementation
+ by the programmer.</para>
+   <section><title>Hook Declaration</title>
+   <para>
+   Declaring hooks is done by calling the NOIT_HOOK_PROTO macro with
+   the name of the hook (a term that composes a valid C function name),
+   the arguments it expects, the type of closure (usually a void *),
+   and some variations on those themes that provide CPP enough info
+   to construct an implementation with no programmer "programming."
+   </para>
+   <para>The declaration of a hook "foo" will yield in two functions:
+   foo_hook_invoke and foo_hook_register.</para>
+   <example>
+   <title>Declaring a foobarquux hook in a header.</title>
+   <para>A foobarquux hook prototype that takes a struct timeval * argument.</para>
+   <programlisting>
+     NOIT_HOOK_PROTO(foobarquux, (struct timeval *now),
+                     void *, closure, (void *closure, struct timeval *now));
+   </programlisting>
+   </example>
+   <example>
+   <title>Implementing a foobarquux hook in source.</title>
+   <para>A foobarquux hok implementation that takes a struct timeval * argument.</para>
+   <programlisting>
+     NOIT_HOOK_IMPL(foobarquux, (struct timeval *now),
+                    void *, closure, (void *closure, struct timeval *now),
+                    (closure,now));
+   </programlisting>
+   </example>
+   </section>
+   <section><title>Hook Usage</title>
+   <para>Once the hook is implemented, it can be used by the application
+   and instrumented by code at runtime. In the below example, we'll
+   invoke the foobarquux instrumentation and assuming no issues arise,
+   we'll invoke the original foobarquux_work() function.</para>
+   <example>
+   <title>Instrumenting a function conditionally.</title>
+   <para>Before we instrument, suppose we have:</para>
+   <programlisting>
+     foobarquux_work();
+   </programlisting>
+   <para>Now we wish to allow programmers to add instrumentation
+   immediately before this code that can conditionally prevent its
+   executation:</para>
+   <programlisting><![CDATA[
+     struct timeval now;
+     gettimeofday(&now, NULL);
+     if(NOIT_HOOK_CONTINUE ==
+        foobarquux_hook_invoke(&now))
+       foobarquux_work();
+   ]]></programlisting>
+   </example>
+   <para>If the hook should not conditionally cause or prevent code
+   to run, the invoke function's return value can be ignored.</para>
+   <para>In order to register a function that allows the above execution
+   on every other subsequent execution one would provide the following:
+   </para>
+   <example>
+   <title>A sample instrumentation of foobarquux</title>
+   <programlisting>
+     static my_sample_hook(void *closure, struct timeval *now) {
+       static int alt = 0;
+       return (alt++ % 2) ? NOIT_HOOK_CONTINUE : NOIT_HOOK_DONE;
+     }
+
+     ...
+       foobarquux_hook_register("sample", my_sample_hook, NULL);
+     ...
+   </programlisting>
+   </example>
+   </section>
+ </section>
+ 
