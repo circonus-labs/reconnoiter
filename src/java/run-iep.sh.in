@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -- `getopt D: $*`
+
 JAVA=@JAVA@
 if [ ! -x $JAVA ]; then
 	JAVA=/usr/bin/java
@@ -20,6 +22,16 @@ JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
 
 DIRS=". lib @prefix@/java/lib @prefix@/java"
 CP=
+
+for i in $*
+do
+	case $i in
+	-D)	DIRS="$2 $DIRS"
+		shift 2
+		;;
+	--)	shift; break;;
+	esac
+done
 
 for jar in $JARS
 do
