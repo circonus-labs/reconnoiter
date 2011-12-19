@@ -84,7 +84,6 @@ __RCSID("$NetBSD: term.c,v 1.32 2001/01/23 15:55:31 jdolecek Exp $");
 			    el->el_term.t_str[a][0] != '\0')
 #define	Str(a)		el->el_term.t_str[a]
 #define	Val(a)		el->el_term.t_val[a]
-extern char *tgoto(const char *, int, int);
 #ifdef __SUNPRO_C
 extern char *tgetstr(char *id, char **area);
 #endif
