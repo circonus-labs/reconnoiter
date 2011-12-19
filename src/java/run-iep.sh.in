@@ -18,7 +18,7 @@ JARS="reconnoiter.jar activemq-all-5.2.0.jar antlr-runtime-3.1.1.jar \
 	commons-io-1.2.jar commons-cli-1.1.jar commons-logging-1.1.1.jar \
 	commons-codec-1.5.jar protobuf-java-2.4.1.jar"
 
-DIRS=". lib @prefix@/java/lib @prefix@/java"
+DIRS=". lib @prefix@/java/lib @prefix@/java @prefix@/share/java/lib @prefix@/share/java @prefix@/local/share/java/lib"
 CP=
 
 for jar in $JARS
