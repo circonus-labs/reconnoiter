@@ -110,14 +110,13 @@ jezebel.jar:	$(J_JAVA)
 
 install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)/lib
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 
 install-iep:	install-dirs all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(localstatedir)/db/noit-iep
 	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
 	for jar in $(R_SUPPORT) ; do \
-		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
+		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/`echo $$jar | sed -e 's#^lib/##'` ; \
 	done
 	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
 	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(localstatedir)/db/noit-iep/log4j.xml
@@ -125,7 +124,7 @@ install-iep:	install-dirs all
 install-jezebel:	install-dirs all
 	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
 	for jar in $(J_SUPPORT) ; do \
-		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/$$jar ; \
+		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/`echo $$jar | sed -e 's#^lib/##'` ; \
 	done
 	$(INSTALL) -m 0755 jezebel $(DESTDIR)$(bindir)/jezebel
 
