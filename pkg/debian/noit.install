@@ -6,10 +6,10 @@ usr/bin/jezebel
 usr/lib/noit/
 usr/sbin/noitd
 usr/share/java/jezebel.jar
-usr/share/java/lib/log4j-1.2.15.jar
-usr/share/java/lib/jetty-6.1.20.jar
-usr/share/java/lib/servlet-api-2.5-20081211.jar
-usr/share/java/lib/jetty-util-6.1.20.jar
-usr/share/java/lib/commons-cli-1.1.jar
-usr/share/java/lib/commons-logging-1.1.1.jar
+usr/share/java/log4j-1.2.15.jar
+usr/share/java/jetty-6.1.20.jar
+usr/share/java/servlet-api-2.5-20081211.jar
+usr/share/java/jetty-util-6.1.20.jar
+usr/share/java/commons-cli-1.1.jar
+usr/share/java/commons-logging-1.1.1.jar
 usr/share/man/man8/noitd.8
