@@ -99,11 +99,11 @@ API_EXPORT(int)
 NOIT_HOOK_PROTO(check_preflight,
                 (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
                 void *, closure,
-                (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause));
+                (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
 NOIT_HOOK_PROTO(check_postflight,
                 (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
                 void *, closure,
-                (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause));
+                (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
 
 #define INITIATE_CHECK(func, self, check, cause) do { \
   if(once) { \

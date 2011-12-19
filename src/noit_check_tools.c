@@ -43,12 +43,12 @@ NOIT_HOOK_IMPL(check_preflight,
   (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   void *, closure,
   (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
-  (closure,self,check,cause));
+  (closure,self,check,cause))
 NOIT_HOOK_IMPL(check_postflight,
   (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   void *, closure,
   (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
-  (closure,self,check,cause));
+  (closure,self,check,cause))
 
 
 typedef struct {
