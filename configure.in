@@ -84,8 +84,10 @@ case $host in
 	fi
 	if test "x$CC" != "xgcc" ; then
 		CFLAGS="$CFLAGS -mt"
+		PICFLAGS="-Kpic"
+	else
+		PICFLAGS="-fPIC"
 	fi
-	PICFLAGS="-Kpic"
 	MODULELD="$CC -G"
 	SHLD="$CC -G"
 	MODULEEXT=so
