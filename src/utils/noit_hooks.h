@@ -145,15 +145,15 @@ struct noit_hook_##HOOKNAME##_list { \
   CDEF CNAME; \
   struct noit_hook_##HOOKNAME##_list *next; \
 }; \
-static volatile struct noit_hook_##HOOKNAME##_list *nh_##HOOKNAME##_list = NULL; \
+static volatile void *nh_##HOOKNAME##_list = NULL; \
  \
 noit_hook_return_t \
 HOOKNAME##_hook_invoke HOOKPROTO_NC { \
   noit_hook_return_t rv = NOIT_HOOK_CONTINUE; \
   struct noit_hook_##HOOKNAME##_list *h; \
-  for(h = (struct noit_hook_##HOOKNAME##_list *)nh_##HOOKNAME##_list; \
-      h; \
-      h = h->next) { \
+  struct noit_hook_##HOOKNAME##_list *list = \
+    (struct noit_hook_##HOOKNAME##_list *)nh_##HOOKNAME##_list; \
+  for(h = list; h; h = h->next) { \
     if(h->func) { \
       noit_hook_return_t trv; \
       CDEF CNAME = h->CNAME; \
