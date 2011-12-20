@@ -1505,10 +1505,11 @@ static int noit_collectd_init(noit_module_t *self) {
   int portint = 0;
   struct sockaddr_in skaddr;
   struct sockaddr_in6 skaddr6;
-  struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
+  struct in6_addr in6addr_any;
   const char *host;
   unsigned short port;
 
+  memset(&in6addr_any, 0, sizeof(in6addr_any));
   conf->support_notifications = noit_true;
   if(noit_hash_retr_str(conf->options,
                         "notifications", strlen("notifications"),
