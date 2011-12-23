@@ -38,7 +38,7 @@ AC_PATH_PROGS(JAR, jar, , $JAVA_HOME/bin)
 AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
-if test "x$CC" = "xgcc" ; then
+if test "x$GCC" = "xyes" ; then
   CFLAGS="$CFLAGS -g"
   DEPFLAGS="-MM"
 else
@@ -63,8 +63,9 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
+	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
-	if test -n "`echo $CFLAGS | grep m64`"; then
+	if test -n "`echo $CFLAGS | grep m64`" ; then
 		DTRACEFLAGS=-64
 		if test -n "`isalist | grep sparc`"; then
 			AC_MSG_RESULT([sparc 64])
@@ -82,14 +83,17 @@ case $host in
 			ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
 		fi
 	fi
-	if test "x$CC" != "xgcc" ; then
+	fi
+	if test "x$GCC" != "xyes" ; then
 		CFLAGS="$CFLAGS -mt"
 		PICFLAGS="-Kpic"
+		MODULELD="$CC -G"
+		SHLD="$CC -G"
 	else
 		PICFLAGS="-fPIC"
+		MODULELD="$CC -shared"
+		SHLD="$CC -shared"
 	fi
-	MODULELD="$CC -G"
-	SHLD="$CC -G"
 	MODULEEXT=so
 	RLDFLAG="-R"
 	WHOLE_ARCHIVE="-Wl,-z -Wl,allextract"
