@@ -281,10 +281,11 @@ json_parse_descent(noit_check_t *check, noit_boolean immediate,
       }
       break;
     case json_type_int: {
-      if(!key || !*key) break;
-      int32_t value = json_object_get_int(o);
-      setstat(key, METRIC_INT32, &value);
-    }
+        if(!key || !*key) break;
+        int32_t value = json_object_get_int(o);
+        setstat(key, METRIC_INT32, &value);
+      }
+      break;
     case json_type_string: {
         if(!key || !*key) break;
         const char *val = json_object_get_string(o);
