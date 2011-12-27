@@ -445,6 +445,18 @@ AC_EGREP_CPP([tputs.*[(][       ]*char[         ]*[)]],
 		 AC_DEFINE(TPUTS_TAKES_CHAR)],
 		[AC_MSG_RESULT(not char)])
 
+AC_MSG_CHECKING(for tgoto() function final argument type)
+AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*[)]],
+		[#if defined(HAVE_TERM_H)
+		 #include <term.h>
+		 #endif
+		 #if defined(HAVE_CURSES_H)
+		 #include <curses.h>
+		 #endif],
+		[AC_MSG_RESULT(char)
+		 AC_DEFINE(TGOTO_TAKES_CHAR)],
+		[AC_MSG_RESULT(not char)])
+
 AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 	AC_TRY_LINK(
 		[ #include <sys/types.h> ],
