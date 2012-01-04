@@ -82,7 +82,7 @@ noit_console_opt_delegate(noit_console_closure_t ncct,
   i = 0;
   while(next) {
     cmd = next->data;
-    if(strncasecmp(cmd->name, argv[0], strlen(argv[0])) == 0) {
+    if(cmd && strncasecmp(cmd->name, argv[0], strlen(argv[0])) == 0) {
       if(idx == i) return strdup(cmd->name);
       i++;
     }
