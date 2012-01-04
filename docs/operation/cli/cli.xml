@@ -376,7 +376,6 @@
         noit(conf:/)# cd checks
         noit(conf:/checks)# ls
         == Section Settings ==
-        @max_initial_stutter: 30000
         @filterset: default
         @transient_min_period: 1000
         @transient_period_granularity: 500

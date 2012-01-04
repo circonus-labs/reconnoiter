@@ -109,7 +109,7 @@
       <rule type="allow" />
     </acl>
   </rest>
-  <checks max_initial_stutter="30000" filterset="default"
+  <checks filterset="default"
           resolve_rtype="prefer-ipv4"
           transient_min_period="1000" transient_period_granularity="500">
     <config xmlns:ip_acl="noit://module/ip_acl">

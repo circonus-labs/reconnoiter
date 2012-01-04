@@ -179,7 +179,6 @@ API_EXPORT(void) noit_poller_make_causal_map();
 API_EXPORT(void)
   noit_check_fake_last_check(noit_check_t *check,
                              struct timeval *lc, struct timeval *_now);
-API_EXPORT(int) noit_check_max_initial_stutter();
 
 API_EXPORT(int)
   noit_poller_schedule(const char *target,
@@ -323,5 +322,8 @@ API_EXPORT(char *)
                                noit_console_state_stack_t *stack,
                                noit_console_state_t *dstate,
                                int argc, char **argv, int idx);
+
+API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
+API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
 
 #endif

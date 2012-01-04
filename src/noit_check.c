@@ -54,8 +54,8 @@
 #include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
-/* 60 seconds of possible stutter */
-#define MAX_INITIAL_STUTTER 60000
+/* 10 ms slots over 60 second for distribution */
+#define SCHEDULE_GRANULARITY 20
 #define MAX_MODULE_REGISTRATIONS 64
 
 /* used to manage per-check generic module metadata */
@@ -72,6 +72,8 @@ static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
+static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
+                      check_slots_seconds_count[60] = { 0 };
 
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
@@ -80,6 +82,40 @@ static void register_console_check_commands();
 static int check_recycle_bin_processor(eventer_t, int, void *,
                                        struct timeval *);
 
+static int
+check_slots_find_smallest(int sec) {
+  int i, j, jbase = 0, mini = 0, minj = 0;
+  unsigned short min_running_i = 0xffff, min_running_j = 0xffff;
+  for(i=0;i<60;i++) {
+    int adj_i = (i + sec) % 60;
+    if(check_slots_seconds_count[adj_i] < min_running_i) {
+      min_running_i = check_slots_seconds_count[adj_i];
+      mini = adj_i;
+    }
+  }
+  jbase = mini * (1000/SCHEDULE_GRANULARITY);
+  for(j=jbase;j<jbase+(1000/SCHEDULE_GRANULARITY);j++) {
+    if(check_slots_count[j] < min_running_j) {
+      min_running_j = check_slots_count[j];
+      minj = j;
+    }
+  }
+  return (minj * SCHEDULE_GRANULARITY) + drand48() * SCHEDULE_GRANULARITY;
+}
+static void
+check_slots_adjust_tv(struct timeval *tv, short adj) {
+  int offset_ms, idx;
+  offset_ms = (tv->tv_sec % 60) * 1000 + (tv->tv_usec / 1000);
+  idx = offset_ms / SCHEDULE_GRANULARITY;
+  check_slots_count[idx] += adj;
+  check_slots_seconds_count[offset_ms / 1000] += adj;
+}
+void check_slots_inc_tv(struct timeval *tv) {
+  check_slots_adjust_tv(tv, 1);
+}
+void check_slots_dec_tv(struct timeval *tv) {
+  check_slots_adjust_tv(tv, -1);
+}
 const char *
 noit_check_available_string(int16_t available) {
   switch(available) {
@@ -126,35 +162,37 @@ noit_calc_rtype_flag(char *resolve_rtype) {
   }
   return flags;
 }
-int
-noit_check_max_initial_stutter() {
-  int stutter;
-  if(!noit_conf_get_int(NULL, "/noit/checks/@max_initial_stutter", &stutter))
-    stutter = MAX_INITIAL_STUTTER;
-  return stutter;
-}
 void
 noit_check_fake_last_check(noit_check_t *check,
                            struct timeval *lc, struct timeval *_now) {
   struct timeval now, period;
-  static int start_offset_ms = -1;
-  int offset = 0, max;
+  int balance_ms;
 
-  if(start_offset_ms == -1)
-    start_offset_ms = drand48() * noit_check_max_initial_stutter();
-  if(!(check->flags & NP_TRANSIENT) && check->period) {
-    max = noit_check_max_initial_stutter();
-    offset = start_offset_ms + drand48() * 1000;
-    offset = offset % MIN(max, check->period);
-    start_offset_ms += 1000;
-  }
-  period.tv_sec = (check->period - offset) / 1000;
-  period.tv_usec = ((check->period - offset) % 1000) * 1000;
   if(!_now) {
     gettimeofday(&now, NULL);
     _now = &now;
   }
+  period.tv_sec = check->period / 1000;
+  period.tv_usec = (check->period % 1000) * 1000;
   sub_timeval(*_now, period, lc);
+
+  if(!(check->flags & NP_TRANSIENT) && check->period) {
+    balance_ms = check_slots_find_smallest(_now->tv_sec+1);
+    lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
+    lc->tv_usec = (balance_ms % 1000) * 1000;
+    if(compare_timeval(*_now, *lc) < 0)
+      sub_timeval(*lc, period, lc);
+    else {
+      struct timeval test;
+      while(1) {
+        add_timeval(*lc, period, &test);
+        if(compare_timeval(*_now, test) < 0) break;
+        memcpy(lc, &test, sizeof(test));
+      }
+    }
+  }
+  /* now, we're going to do an even distribution using the slots */
+  if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(lc);
 }
 void
 noit_poller_process_checks(const char *xpath) {
