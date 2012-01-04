@@ -1462,6 +1462,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
                        free, free);
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
     }
+    CONF_REMOVE(noit_configs[i]);
     xmlUnlinkNode(noit_configs[i]);
     xmlFreeNode(noit_configs[i]);
     n = 0;

@@ -487,6 +487,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
 
   /* delete this here */
   noit_poller_deschedule(check->checkid);
+  CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
   if(noit_conf_write_file(NULL) != 0)

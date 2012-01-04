@@ -147,6 +147,7 @@ rest_delete_filter(noit_http_rest_closure_t *restc,
   node = noit_conf_get_section(NULL, xpath);
   if(!node) goto not_found;
   if(noit_filter_remove(node) == 0) goto not_found;
+  CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
 

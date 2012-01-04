@@ -172,6 +172,7 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
     xmlUnsetProp(node, (xmlChar *)attrinfo->name);
     if(val)
       xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)val);
+    CONF_DIRTY(node);
     noit_conf_mark_changed();
   }
   return error;
@@ -211,6 +212,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
       xmlUnlinkNode(newnode);
     }
     else {
+      CONF_DIRTY(newnode);
       noit_conf_mark_changed();
       rv = 0;
     }
@@ -585,9 +587,11 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
         int j;
         for(j=1;j<argc;j++)
           xmlUnsetProp(node, (xmlChar *)argv[j]);
+        CONF_DIRTY(node);
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
         noit_poller_deschedule(checkid);
+        CONF_REMOVE(node);
         xmlUnlinkNode(node);
       }
       noit_conf_mark_changed();
@@ -903,6 +907,7 @@ replace_config(noit_console_closure_t ncct,
   if(xmlXPathNodeSetGetLength(pobj->nodesetval) > 0) {
     xmlNodePtr toremove;
     toremove = xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    CONF_REMOVE(toremove);
     xmlUnlinkNode(toremove);
   }
   /* TODO: if there are no more children of config, remove config? */
@@ -933,6 +938,7 @@ replace_config(noit_console_closure_t ncct,
     assert(confignode);
     /* Now we create a child */
     xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
+    CONF_DIRTY(confignode);
   }
   noit_conf_mark_changed();
   rv = 0;
@@ -1005,6 +1011,7 @@ replace_attr(noit_console_closure_t ncct,
   xmlUnsetProp(node, (xmlChar *)attrinfo->name);
   if(value)
     xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
+  CONF_DIRTY(node);
   noit_conf_mark_changed();
   rv = 0;
  out:
