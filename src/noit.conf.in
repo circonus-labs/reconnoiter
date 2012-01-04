@@ -76,6 +76,7 @@
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
     </jezebel>
     <generic image="check_test" name="check_test"/>
+    <generic image="ip_acl" name="ip_acl"/>
   </modules>
   <listeners>
     <sslconfig>
@@ -111,6 +112,9 @@
   <checks max_initial_stutter="30000" filterset="default"
           resolve_rtype="prefer-ipv4"
           transient_min_period="1000" transient_period_granularity="500">
+    <config xmlns:ip_acl="noit://module/ip_acl">
+      <ip_acl:global/>
+    </config>
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="10.80.117.90" period="5000" timeout="4000"/>
     <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="10.80.116.4" period="15000" timeout="14000"/>
     <dc1 timeout="30000" period="60000" transient_min_period="10000">
@@ -118,6 +122,9 @@
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fb" target="66.225.209.7"/>
       </icmp>
       <web module="http">
+        <config xmlns:ip_acl="noit://module/ip_acl">
+          <ip_acl:sample/>
+        </config>
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fc" target="66.225.209.31">
           <config>
             <url>http://ngm.nationalgeographic.com/ngm/ngm.html</url>
@@ -165,4 +172,12 @@
   <config_templates>
     <include file="config_templates.conf"/>
   </config_templates>
+  <acls>
+    <acl name="global">
+      <rule type="deny">8.8.38.0/24</rule>
+    </acl>
+    <acl name="sample">
+      <rule type="deny">66.225.209.0/24</rule>
+    </acl>
+  </acls>
 </noit>

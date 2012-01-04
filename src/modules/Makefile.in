@@ -27,6 +27,7 @@ top_srcdir=@top_srcdir@
 MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	lua.@MODULEEXT@ dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
+	ip_acl.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
@@ -40,6 +41,8 @@ all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 selfcheck.lo:	selfcheck.xmlh
 
 check_test.lo:	check_test.xmlh
+
+ip_acl.lo:	ip_acl.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo ../lua/liblua.lo

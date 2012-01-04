@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<section>
+  <title>ip_acl</title>
+  <para>
+          This module exposes hooks the pre-flight execution of
+          checks and applies user-specified ACLs to possible
+          prevent the execution of the check.
+        </para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>ip_acl.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
+  <example>
+    <title>Loading the ip_acl module.</title>
+    <para>This example loads the ip_acl module and creates a "global" ACL that denies
+             any check running against the host 4.2.2.1 and the entier 10.0.0.0 RFC1819 space.
+             </para>
+    <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="ip_acl" name="ip_acl" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config xmlns:ip_acl="noit://module/ip_acl"&gt;
+            &lt;ip_acl:global/&gt;
+          &lt;/config&gt;
+        &lt;/checks&gt;
+        &lt;acls&gt;
+          &lt;acl name="global"&gt;
+            &lt;rule type="deny"&gt;4.2.2.1/32&lt;/rule&gt;
+            &lt;rule type="deny"&gt;10.0.0.0/8&lt;/rule&gt;
+          &lt;/acl&gt;
+        &lt;/acls&gt;
+      &lt;/noit&gt;
+    </programlisting>
+  </example>
+</section>
