@@ -348,7 +348,7 @@ noit_module_generic_t check_test = {
     NOIT_GENERIC_ABI_VERSION,
     "check_test",
     "Check Tester",
-    "",
+    check_test_xml_description,
     check_test_onload
   },
   check_test_config,
