@@ -54,7 +54,7 @@
 #include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
-/* 10 ms slots over 60 second for distribution */
+/* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
 #define MAX_MODULE_REGISTRATIONS 64
 
