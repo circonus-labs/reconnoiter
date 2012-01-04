@@ -47,14 +47,15 @@
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
-#define NODE_CONTENT(parent, k, v) do { \
+#define NS_NODE_CONTENT(parent, ns, k, v) do { \
   xmlNodePtr tmp; \
   if(v) { \
-    tmp = xmlNewNode(NULL, (xmlChar *)(k)); \
+    tmp = xmlNewNode(ns, (xmlChar *)(k)); \
     xmlNodeAddContent(tmp, (xmlChar *)(v)); \
     xmlAddChild(parent, tmp); \
   } \
 } while(0)
+#define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v)
 
 xmlNodePtr
 noit_check_state_as_xml(noit_check_t *check) {
@@ -127,7 +128,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   uuid_t checkid;
   noit_check_t *check;
   char xpath[1024], *uuid_conf, *module, *value;
-  int rv, cnt, error_code = 500;
+  int rv, mod, mod_cnt, cnt, error_code = 500;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
   int klen;
@@ -210,6 +211,21 @@ rest_show_check(noit_http_rest_closure_t *restc,
     NODE_CONTENT(config, k, data);
   noit_hash_destroy(configh, free, free);
   free(configh);
+  mod_cnt = noit_check_registered_module_cnt();
+  for(mod=0; mod<mod_cnt; mod++) {
+    xmlNsPtr ns;
+    const char *nsname;
+    char buff[256];
+    nsname = noit_check_registered_module(mod);
+    snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
+    ns = xmlNewNs(config, (xmlChar *)buff, (xmlChar *)nsname);
+    if(NULL != (configh = noit_conf_get_namespaced_hash(node, "config", nsname))) {
+      while(noit_hash_next(configh, &iter, &k, &klen, &data))
+        NS_NODE_CONTENT(config, ns, k, data);
+      noit_hash_destroy(configh, free, free);
+      free(configh);
+    }
+  }
   xmlAddChild(root, config);
 
   /* Add the state */
@@ -386,8 +402,13 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
         inherit->children && inherit->children->content)
       xmlSetProp(config, (xmlChar *)"inherit", inherit->children->content);
     for(n = c->children; n; n = n->next) {
+      xmlNsPtr targetns = NULL;
       xmlChar *v = xmlNodeGetContent(n);
-      xmlNodePtr co = xmlNewNode(NULL, n->name);
+      if(n->ns) {
+        targetns = xmlSearchNs(check->doc, config, n->ns->prefix);
+        if(!targetns) targetns = xmlNewNs(config, n->ns->href, n->ns->prefix);
+      }
+      xmlNodePtr co = xmlNewNode(targetns, n->name);
       xmlNodeAddContent(co, v);
       xmlFree(v);
       xmlAddChild(config, co);

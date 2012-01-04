@@ -97,11 +97,12 @@ noit_check_t *
 noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   char *target = NULL, *name = NULL, *module = NULL, *filterset = NULL;
   char *resolve_rtype = NULL;
-  int timeout = 0, flags = NP_TRANSIENT;
+  int timeout = 0, flags = NP_TRANSIENT, i, mod_cnt;
   noit_module_t *m;
   noit_check_t *c = NULL;
   xmlNodePtr a, co;
   noit_hash_table *conf_hash = NULL;
+  noit_hash_table **moptions = NULL;
 
   for(a = attr->children; a; a = a->next) {
     if(!strcmp((char *)a->name, "target"))
@@ -136,6 +137,18 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
       xmlFree(tmp_val);
     }
   }
+  mod_cnt = noit_check_registered_module_cnt();
+  if(mod_cnt > 0) {
+    moptions = alloca(mod_cnt * sizeof(*moptions));
+    memset(moptions, 0, mod_cnt * sizeof(*moptions));
+    for(i=0; i<mod_cnt; i++) {
+      const char *name;
+      noit_conf_section_t checks;
+      name = noit_check_registered_module(i);
+      checks = noit_conf_get_section(NULL, "/noit/checks");
+      if(name) moptions[i] = noit_conf_get_namespaced_hash(checks, "config", name);
+    }
+  }
   if(!m->initiate_check) {
     *error = "that module cannot run checks";
     goto error;
@@ -143,7 +156,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   flags |= noit_calc_rtype_flag(resolve_rtype);
   c = calloc(1, sizeof(*c));
   noit_check_update(c, target, name, filterset,
-                    conf_hash, 0, timeout, NULL, flags);
+                    conf_hash, moptions, 0, timeout, NULL, flags);
   c->module = strdup(module);
   uuid_generate(c->checkid);
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
@@ -154,6 +167,14 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   if(conf_hash) {
     noit_hash_destroy(conf_hash, free, free);
     free(conf_hash);
+  }
+  if(moptions) {
+    for(i=0; i<mod_cnt; i++) {
+      if(moptions[i]) {
+        noit_hash_destroy(moptions[i], free, free);
+        free(moptions[i]);
+      }
+    }
   }
   if(target) xmlFree(target);
   if(name) xmlFree(name);

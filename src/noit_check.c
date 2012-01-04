@@ -56,7 +56,17 @@
 
 /* 60 seconds of possible stutter */
 #define MAX_INITIAL_STUTTER 60000
+#define MAX_MODULE_REGISTRATIONS 64
 
+/* used to manage per-check generic module metadata */
+struct vp_w_free {
+  void *ptr;
+  void (*freefunc)(void *);
+};
+
+static int reg_module_id = 0;
+static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
+static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
@@ -161,12 +171,20 @@ noit_poller_process_checks(const char *xpath) {
     char filterset[256] = "";
     char oncheck[1024] = "";
     char resolve_rtype[16] = "";
+    int ridx;
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
     noit_boolean disabled = noit_false, busted = noit_false;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
+    noit_hash_table **moptions = NULL;
+    noit_boolean moptions_used = noit_false;
+
+    if(reg_module_id > 0) {
+      moptions = alloca(reg_module_id * sizeof(noit_hash_table *));
+      memset(moptions, 0, reg_module_id * sizeof(noit_hash_table *));
+    }
 
 #define NEXT(...) noitL(noit_stderr, __VA_ARGS__); continue
 #define MYATTR(type,a,...) noit_conf_get_##type(sec[i], "@" #a, __VA_ARGS__)
@@ -226,6 +244,11 @@ noit_poller_process_checks(const char *xpath) {
       timeout = period/2;
     }
     options = noit_conf_get_hash(sec[i], "config");
+    for(ridx=0; ridx<reg_module_id; ridx++) {
+      moptions[ridx] = noit_conf_get_namespaced_hash(sec[i], "config",
+                                                     reg_module_names[ridx]);
+      if(moptions[ridx]) moptions_used = noit_true;
+    }
 
     INHERIT(boolean, disable, &disabled);
     flags = 0;
@@ -248,17 +271,25 @@ noit_poller_process_checks(const char *xpath) {
         existing_check->module = strdup(module);
       }
       noit_check_update(existing_check, target, name, filterset, options,
+                           moptions_used ? moptions : NULL,
                            period, timeout, oncheck[0] ? oncheck : NULL,
                            flags);
       noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
     }
     else {
       noit_poller_schedule(target, module, name, filterset, options,
+                           moptions_used ? moptions : NULL,
                            period, timeout, oncheck[0] ? oncheck : NULL,
                            flags, uuid, out_uuid);
       noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
     }
 
+    for(ridx=0; ridx<reg_module_id; ridx++) {
+      if(moptions[ridx]) {
+        noit_hash_destroy(moptions[ridx], free, free);
+        free(moptions[ridx]);
+      }
+    }
     noit_hash_destroy(options, free, free);
     free(options);
   }
@@ -634,6 +665,7 @@ noit_check_update(noit_check_t *new_check,
                   const char *name,
                   const char *filterset,
                   noit_hash_table *config,
+                  noit_hash_table **mconfigs,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
@@ -681,6 +713,16 @@ noit_check_update(noit_check_t *new_check,
       noit_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
     }
   }
+  if(mconfigs != NULL) {
+    int i;
+    for(i=0; i<reg_module_id; i++) {
+      if(mconfigs[i]) {
+        noit_hash_table *t = calloc(1, sizeof(*new_check->config));
+        noit_hash_merge_as_dict(t, mconfigs[i]);
+        noit_check_set_module_config(new_check, i, t);
+      }
+    }
+  }
   if(new_check->oncheck) free(new_check->oncheck);
   new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
   new_check->period = period;
@@ -710,6 +752,7 @@ noit_poller_schedule(const char *target,
                      const char *name,
                      const char *filterset,
                      noit_hash_table *config,
+                     noit_hash_table **mconfigs,
                      u_int32_t period,
                      u_int32_t timeout,
                      const char *oncheck,
@@ -727,7 +770,7 @@ noit_poller_schedule(const char *target,
   else
     uuid_copy(new_check->checkid, in);
 
-  noit_check_update(new_check, target, name, filterset, config,
+  noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, flags);
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
@@ -777,6 +820,26 @@ noit_poller_free_check(noit_check_t *checker) {
     noit_hash_destroy(checker->config, free, free);
     free(checker->config);
     checker->config = NULL;
+  }
+  if(checker->module_metadata) {
+    int i;
+    for(i=0; i<reg_module_id; i++) {
+      struct vp_w_free *tuple;
+      tuple = checker->module_metadata[i];
+      if(tuple && tuple->freefunc) tuple->freefunc(tuple->ptr);
+      free(tuple);
+    }
+    free(checker->module_metadata);
+  }
+  if(checker->module_configs) {
+    int i;
+    for(i=0; i<reg_module_id; i++) {
+      if(checker->module_configs[i]) {
+        noit_hash_destroy(checker->module_configs[i], free, free);
+        free(checker->module_configs[i]);
+      }
+    }
+    free(checker->module_metadata);
   }
   free(checker);
 }
@@ -1423,3 +1486,62 @@ register_console_check_commands() {
     NCSCMD("watches", noit_console_show_watchlist, NULL, NULL, NULL));
 }
 
+int
+noit_check_register_module(const char *name) {
+  int i;
+  for(i=0; i<reg_module_id; i++)
+    if(!strcmp(reg_module_names[i], name)) return i;
+  if(reg_module_id >= MAX_MODULE_REGISTRATIONS) return -1;
+  noitL(noit_debug, "Registered module %s as %d\n", name, i);
+  i = reg_module_id++;
+  reg_module_names[i] = strdup(name);
+  return i;
+}
+int
+noit_check_registered_module_cnt() {
+  return reg_module_id;
+}
+const char *
+noit_check_registered_module(int idx) {
+  if(reg_module_used < 0) reg_module_used = reg_module_id;
+  assert(reg_module_used == reg_module_id);
+  if(idx >= reg_module_id || idx < 0) return NULL;
+  return reg_module_names[idx];
+}
+
+void
+noit_check_set_module_metadata(noit_check_t *c, int idx, void *md, void (*freefunc)(void *)) {
+  struct vp_w_free *tuple;
+  if(reg_module_used < 0) reg_module_used = reg_module_id;
+  assert(reg_module_used == reg_module_id);
+  if(idx >= reg_module_id || idx < 0) return;
+  if(!c->module_metadata) c->module_metadata = calloc(reg_module_id, sizeof(void *));
+  c->module_metadata[idx] = calloc(1, sizeof(struct vp_w_free));
+  tuple = c->module_metadata[idx];
+  tuple->ptr = md;
+  tuple->freefunc = freefunc;
+}
+void
+noit_check_set_module_config(noit_check_t *c, int idx, noit_hash_table *config) {
+  if(reg_module_used < 0) reg_module_used = reg_module_id;
+  assert(reg_module_used == reg_module_id);
+  if(idx >= reg_module_id || idx < 0) return;
+  if(!c->module_configs) c->module_configs = calloc(reg_module_id, sizeof(noit_hash_table *));
+  c->module_configs[idx] = config;
+}
+void *
+noit_check_get_module_metadata(noit_check_t *c, int idx) {
+  struct vp_w_free *tuple;
+  if(reg_module_used < 0) reg_module_used = reg_module_id;
+  assert(reg_module_used == reg_module_id);
+  if(idx >= reg_module_id || idx < 0 || !c->module_metadata) return NULL;
+  tuple = c->module_metadata[idx];
+  return tuple ? tuple->ptr : NULL;
+}
+noit_hash_table *
+noit_check_get_module_config(noit_check_t *c, int idx) {
+  if(reg_module_used < 0) reg_module_used = reg_module_id;
+  assert(reg_module_used == reg_module_id);
+  if(idx >= reg_module_id || idx < 0 || !c->module_configs) return NULL;
+  return c->module_configs[idx];
+}

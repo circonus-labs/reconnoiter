@@ -385,7 +385,8 @@ int noit_conf_save(const char *path) {
 
 void noit_conf_get_elements_into_hash(noit_conf_section_t section,
                                       const char *path,
-                                      noit_hash_table *table) {
+                                      noit_hash_table *table,
+                                      const char *namespace) {
   int i, cnt;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
@@ -405,11 +406,20 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
   for(i=0; i<cnt; i++) {
     char *value;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
-    value = (char *)xmlXPathCastNodeToString(node);
-    noit_hash_replace(table,
-                      strdup((char *)node->name), strlen((char *)node->name),
-                      strdup(value), free, free);
-    xmlFree(value);
+    if(namespace && node->ns && !strcmp((char *)node->ns->prefix, namespace)) {
+      value = (char *)xmlXPathCastNodeToString(node);
+      noit_hash_replace(table,
+                        strdup((char *)node->name), strlen((char *)node->name),
+                        strdup(value), free, free);
+      xmlFree(value);
+    }
+    else if(!namespace && !node->ns) {
+      value = (char *)xmlXPathCastNodeToString(node);
+      noit_hash_replace(table,
+                        strdup((char *)node->name), strlen((char *)node->name),
+                        strdup(value), free, free);
+      xmlFree(value);
+    }
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -418,7 +428,8 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
 }
 void noit_conf_get_into_hash(noit_conf_section_t section,
                              const char *path,
-                             noit_hash_table *table) {
+                             noit_hash_table *table,
+                             const char *namespace) {
   unsigned int cnt;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
@@ -453,29 +464,42 @@ void noit_conf_get_into_hash(noit_conf_section_t section,
   if(cnt > 1 && node) {
     parent_node = xmlXPathNodeSetItem(pobj->nodesetval, cnt-2);
     if(parent_node != current_node)
-      noit_conf_get_into_hash(parent_node, (const char *)node->name, table);
+      noit_conf_get_into_hash(parent_node, (const char *)node->name, table, namespace);
   }
   /* 2. */
   inheritid = (char *)xmlGetProp(node, (xmlChar *)"inherit");
   if(inheritid) {
     snprintf(xpath_expr, sizeof(xpath_expr), "//*[@id=\"%s\"]", inheritid);
-    noit_conf_get_into_hash(NULL, xpath_expr, table);
+    noit_conf_get_into_hash(NULL, xpath_expr, table, namespace);
     xmlFree(inheritid);
   }
   /* 3. */
-  noit_conf_get_elements_into_hash(node, "*", table);
+  noit_conf_get_elements_into_hash(node, "*", table, namespace);
 
  out:
   if(pobj) xmlXPathFreeObject(pobj);
   if(current_ctxt && current_ctxt != xpath_ctxt)
     xmlXPathFreeContext(current_ctxt);
 }
+noit_hash_table *noit_conf_get_namespaced_hash(noit_conf_section_t section,
+                                               const char *path, const char *ns) {
+  noit_hash_table *table = NULL;
+
+  table = calloc(1, sizeof(*table));
+  noit_conf_get_into_hash(section, path, table, ns);
+  if(table->size == 0) {
+    noit_hash_destroy(table, free, free);
+    free(table);
+    table = NULL;
+  }
+  return table;
+}
 noit_hash_table *noit_conf_get_hash(noit_conf_section_t section,
                                     const char *path) {
   noit_hash_table *table = NULL;
 
   table = calloc(1, sizeof(*table));
-  noit_conf_get_into_hash(section, path, table);
+  noit_conf_get_into_hash(section, path, table, NULL);
   return table;
 }
 noit_conf_section_t noit_conf_get_section(noit_conf_section_t section,

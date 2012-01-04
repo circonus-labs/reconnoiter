@@ -153,6 +153,8 @@ typedef struct noit_check {
 
   noit_skiplist *feeds;
   char target_ip[INET6_ADDRSTRLEN];
+  void **module_metadata;
+  noit_hash_table **module_configs;
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -185,6 +187,7 @@ API_EXPORT(int)
                        const char *name,
                        const char *filterset,
                        noit_hash_table *config,
+                       noit_hash_table **mconfig,
                        u_int32_t period,
                        u_int32_t timeout,
                        const char *oncheck,
@@ -201,6 +204,7 @@ API_EXPORT(int)
                     const char *name,
                     const char *filterset,
                     noit_hash_table *config,
+                    noit_hash_table **mconfig,
                     u_int32_t period,
                     u_int32_t timeout,
                     const char *oncheck,
@@ -277,6 +281,22 @@ API_EXPORT(void)
   noit_check_transient_add_feed(noit_check_t *check, const char *feed);
 API_EXPORT(void)
   noit_check_transient_remove_feed(noit_check_t *check, const char *feed);
+
+API_EXPORT(int)
+  noit_check_register_module(const char *);
+API_EXPORT(int)
+  noit_check_registered_module_cnt();
+API_EXPORT(const char *)
+  noit_check_registered_module(int);
+
+API_EXPORT(void)
+  noit_check_set_module_metadata(noit_check_t *, int, void *, void (*freefunc)(void *));
+API_EXPORT(void)
+  noit_check_set_module_config(noit_check_t *, int, noit_hash_table *);
+API_EXPORT(void *)
+  noit_check_get_module_metadata(noit_check_t *, int);
+API_EXPORT(noit_hash_table *)
+  noit_check_get_module_config(noit_check_t *, int);
 
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);

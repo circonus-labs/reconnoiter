@@ -76,6 +76,9 @@ API_EXPORT(noit_conf_section_t *)
 
 API_EXPORT(noit_hash_table *)
   noit_conf_get_hash(noit_conf_section_t section, const char *path);
+API_EXPORT(noit_hash_table *)
+  noit_conf_get_namespaced_hash(noit_conf_section_t section,
+                                const char *path, const char *ns);
 
 API_EXPORT(int) noit_conf_get_string(noit_conf_section_t section,
                                      const char *path, char **value);
