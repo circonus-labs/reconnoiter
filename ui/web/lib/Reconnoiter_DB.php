@@ -107,6 +107,7 @@ class Reconnoiter_DB {
       $sql = "$sql where templateid = ?";
       $binds[] = $templateid;
     }
+    $sql = "$sql order by title";
     $sth = $this->db->prepare($sql);
     $sth->execute($binds);
     $a = array();
