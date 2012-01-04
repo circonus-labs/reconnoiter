@@ -13,7 +13,7 @@ top_srcdir=@top_srcdir@
 
 OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
 	noit_b64.o noit_b32.o noit_security.o noit_watchdog.o noit_mkdir.o \
-	noit_getip.o noit_lockfile.o \
+	noit_getip.o noit_lockfile.o noit_btrie.o \
 	@ATOMIC_OBJS@
 
 all:	libnoit_utils.a
