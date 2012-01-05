@@ -209,7 +209,7 @@ class Reconnoiter_DB {
          join metric_name_summary m using (sid),
               (select ? ::text as query) q
         where active = true and (query = '' or fts_data @@ to_tsquery(query))
-     order by target, module, name, remote_address",
+     order by target, module, name, remote_address, metric_name",
       $offset, $limit);
   }
   function get_sources($want, $fixate, $active = true) {
