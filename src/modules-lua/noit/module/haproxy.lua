@@ -142,7 +142,6 @@ function initiate(module, check)
   local state    = 0
   local pos      = 3
   local column   = 0
-  local selectre = noit.pcre(check.config.select or '.*')
   local rowname  = ''
   local count    = 0
  
@@ -162,12 +161,15 @@ function initiate(module, check)
         rowname = rowname .. "`" .. field
       elseif state == 0 then -- collecting header line
         hdr[column] = field
-      elseif selectre == nil or selectre(rowname) then
-        local cname = rowname .. "`" .. hdr[column]
-        if is_string[hdr[column]] then
-          check.metric(cname,field)
-        elseif field ~= '' then
-          check.metric_uint64(cname,field)
+      else
+        local selectre = noit.pcre(check.config.select or '.*')
+        if selectre == nil or selectre(rowname) then
+          local cname = rowname .. "`" .. hdr[column]
+          if is_string[hdr[column]] then
+            check.metric(cname,field)
+          elseif field ~= '' then
+            check.metric_uint64(cname,field)
+          end
         end
       end
       if char == '\n' then
