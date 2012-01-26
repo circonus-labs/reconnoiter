@@ -181,6 +181,13 @@ populate_stats_from_resmon_formatted_json(stats_t *s, struct json_object *o,
   if(prefix) snprintf(keybuff, sizeof(keybuff), "%s`" fmt, prefix, arg); \
   else snprintf(keybuff, sizeof(keybuff), fmt, arg); \
 } while(0)
+  if(o == NULL) {
+    if(prefix) {
+      noit_stats_set_metric(s, prefix, METRIC_STRING, NULL);
+      count++;
+    }
+    return count;
+  }
   switch(json_object_get_type(o)) {
     /* sub callers */
     case json_type_array:
