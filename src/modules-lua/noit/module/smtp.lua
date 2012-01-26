@@ -145,7 +145,7 @@ local function mkaction(e, check)
     check.metric(phase .. "_time",  elapsed_ms)
 
     if phase == 'ehlo' and message ~= nil then
-      local fields = string.split(message, "\r\n")
+      local fields = noit.extras.split(message, "\r\n")
       if fields ~= nil then
         local response = ""
         local extensions = ""
@@ -158,7 +158,7 @@ local function mkaction(e, check)
           for line, value in pairs(fields) do
             if value ~= nil and value ~= "" then
               value = value:gsub("^%s*(.-)%s*$", "%1")
-              local subfields = string.split(value, "%s+", 1)
+              local subfields = noit.extras.split(value, "%s+", 1)
               if subfields ~= nil and subfields[1] ~= nil then
                 local header = subfields[1]
                 if subfields[2] ~= nil then
@@ -240,32 +240,5 @@ function initiate(module, check)
   local elapsed = noit.timeval.now() - starttime
   local elapsed_ms = math.floor(tostring(elapsed) * 1000)
   check.metric("duration",  elapsed_ms)
-end
-
--- from http://www.wellho.net/resources/ex.php4?item=u108/split
--- modified to split up to 'max' times
-function string:split(delimiter, max)
-  local result = { }
-  local from  = 1
-  local delim_from, delim_to = string.find( self, delimiter, from  )
-  local nb = 0
-  if max == nil then
-    max = 0
-  end
-  while delim_from do
-    local insert_string = string.sub( self, from , delim_from-1 )
-    nb = nb + 1
-    table.insert( result, insert_string )
-    from  = delim_to + 1
-    delim_from, delim_to = string.find( self, delimiter, from  )
-    if nb == max then
-      break
-    end
-  end
-  local last_res = string.sub (self, from)
-  if last_res ~= nil and last_res ~= "" then
-    table.insert( result, last_res )
-  end
-  return result
 end
 
