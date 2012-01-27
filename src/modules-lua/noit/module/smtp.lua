@@ -63,6 +63,22 @@ function onload(image)
     <parameter name="ciphers"
                required="optional"
                allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
+    <parameter name="sasl_authentication"
+               required="optional"
+               default="off"
+               allowed="(?:off|login|plain)">Specifies the type of SASL Authentication to use</parameter>
+    <parameter name="sasl_user"
+               required="optional"
+               default=""
+               allowed=".+">The SASL Authentication username</parameter>
+    <parameter name="sasl_password"
+               required="optional"
+               default=""
+               allowed=".+">The SASL Authentication password</parameter>
+    <parameter name="sasl_auth_id"
+               required="optional"
+               default=""
+               allowed=".+">The SASL Authorization Identity</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -176,6 +192,67 @@ local function mkaction(e, check)
   end
 end
 
+local function mk_sasllogin(e, check)
+  return function (username, password) 
+    local start_time = noit.timeval.now()
+    local actual_code = 0
+    local message = ""
+    local success = "true"
+    write_cmd(e, "AUTH LOGIN")
+    actual_code, message = read_cmd(e)
+    if actual_code ~= 334 then
+      success = "false"
+    end
+    if success == "true" then
+      write_cmd(e, username)
+      actual_code, message = read_cmd(e)
+      if actual_code ~= 334 then
+        success = "false"
+      end
+    end
+    if success == "true" then
+      write_cmd(e, password)
+      actual_code, message = read_cmd(e)
+      if actual_code ~= 235 then
+        success = "false"
+      end
+    end
+    local elapsed = noit.timeval.now() - start_time
+    local elapsed_ms = math.floor(tostring(elapsed) * 1000)
+    check.metric("sasl_login_time",  elapsed_ms)
+    check.metric("sasl_login_success", success)
+    check.metric("sasl_login_response", message)
+    return success
+  end
+end
+
+local function mk_saslplain(e, check)
+  return function (cmd_string)
+    local start_time = noit.timeval.now()
+    local actual_code = 0
+    local message = ""
+    local success = "true"
+    write_cmd(e, "AUTH PLAIN")
+    actual_code, message = read_cmd(e)
+    if actual_code ~= 334 then
+      success = "false"
+    end
+    if success == "true" then
+      write_cmd(e, cmd_string)
+      actual_code, message = read_cmd(e)
+      if actual_code ~= 235 then
+        success = "false"
+      end
+    end
+    local elapsed = noit.timeval.now() - start_time
+    local elapsed_ms = math.floor(tostring(elapsed) * 1000)
+    check.metric("sasl_plain_time",  elapsed_ms)
+    check.metric("sasl_plain_success", success)
+    check.metric("sasl_plain_response", message)
+    return success
+  end
+end
+
 function initiate(module, check)
   local starttime = noit.timeval.now()
   local e = noit.socket(check.target_ip)
@@ -197,6 +274,8 @@ function initiate(module, check)
   payload = payload:gsub("\n", "\r\n")
   local status = 'connected'
   local action = mkaction(e, check)
+  local sasl_login = mk_sasllogin(e, check)
+  local sasl_plain = mk_saslplain(e, check)
 
   if     not action("banner", nil, 220)
       or not action("ehlo", ehlo, 250) then return end
@@ -222,6 +301,14 @@ function initiate(module, check)
     end
 
     if not action("ehlo", ehlo, 250) then return end
+  end
+
+  if check.config.sasl_authentication ~= nil then
+    if check.config.sasl_authentication == "login" then
+      sasl_login(noit.base64_encode(check.config.sasl_user or ""), noit.base64_encode(check.config.sasl_password or ""))
+    elseif check.config.sasl_authentication == "plain" then
+      sasl_plain(noit.base64_encode((check.config.sasl_auth_id or "") .. "\0" .. (check.config.sasl_user or "") .. "\0" .. (check.config.sasl_password or "")))
+    end
   end
 
   if     action("mailfrom", mailfrom, 250)
