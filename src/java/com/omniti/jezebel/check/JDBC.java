@@ -46,20 +46,50 @@ public abstract class JDBC implements JezebelCheck {
   public JDBC() { }
   protected abstract String jdbcConnectUrl(String host, String port, String db);
   protected abstract String defaultPort();
+  protected abstract Map<String,String> setupBasicSSL();
 
   public void perform(Map<String,String> check,
                       Map<String,String> config,
                       ResmonResult rr) {
+    String dsn = config.remove("dsn");
+    if (dsn != null) {
+      String[] split = dsn.split("[ ]+");
+      for (String s : split) {
+        String[] kv = s.split("=");
+        if (kv[0] != null && 2 == kv.length && kv[1] != null) {
+          if (kv[0].equals("dbname")) {
+            kv[0] = "database";
+          }
+          config.put(kv[0],kv[1]);
+        }
+      }
+    }
     String database = config.remove("database");
     String username = config.remove("user");
     String password = config.remove("password");
-    String port = config.remove("port");
+    String port     = config.remove("port");
     if(port == null) port = defaultPort();
+
     String sql = config.remove("sql");
     String url = jdbcConnectUrl(check.get("target_ip"), port, database);
     Properties props = new Properties();
     props.setProperty("user", username == null ? "" : username);
     props.setProperty("password", password == null ? "" : password);
+    if (config.containsKey("sslmode")) {
+      String sslmode = config.remove("sslmode");
+      if (sslmode != null && ! sslmode.equals("disable")) {
+        Map<String,String> sslprops = setupBasicSSL();
+        Set<Map.Entry<String,String>> set;
+        set = sslprops.entrySet();
+        if (set != null) {
+          Iterator<Map.Entry<String,String>> i = set.iterator();
+          while(i.hasNext()) {
+            Map.Entry<String,String> e = i.next();
+            props.setProperty(e.getKey(), e.getValue());
+          }
+        }
+      }
+    }
     Set<Map.Entry<String,String>> set;
     set = config.entrySet();
     if(set != null) {
@@ -73,6 +103,7 @@ public abstract class JDBC implements JezebelCheck {
         }
       }
     }
+
     sql = JezebelTools.interpolate(sql, check, config);
 
     Connection conn = null;

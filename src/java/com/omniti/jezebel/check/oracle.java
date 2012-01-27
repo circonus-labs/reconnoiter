@@ -31,6 +31,8 @@
  */
 
 package com.omniti.jezebel.check;
+import java.util.Map;
+import java.util.HashMap;
 import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
 public class oracle extends JDBC implements JezebelCheck {
@@ -39,5 +41,10 @@ public class oracle extends JDBC implements JezebelCheck {
   protected String defaultPort() { return "1521"; }
   protected String jdbcConnectUrl(String host, String port, String db) {
     return "jdbc:oracle:thin:@" + host + ":" + port + ":" + db;
+  }
+  protected Map<String,String> setupBasicSSL() {
+    HashMap<String,String> props = new HashMap<String,String>();
+    props.put("oracle.net.ssl_cipher_suites", "(SSL_DH_anon_WITH_3DES_EDE_CBC_SHA, SSL_DH_anon_WITH_RC4_128_MD5,SSL_DH_anon_WITH_DES_CBC_SHA)");
+    return props;
   }
 }
