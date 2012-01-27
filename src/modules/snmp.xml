@@ -16,6 +16,9 @@
     <parameter name="oid_.+"
                required="optional"
                allowed=".+">Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</parameter>
+    <parameter name="type_.+"
+               required="optional"
+               allowed=".+">Defines a coercion for a metric type.  The name of the metric must identically match one of the oid_(.+) patterns. The value can be either one of the single letter codes in the metric_type_t enum or the following string variants: guess, int32, uint32, int64, uint64, double, string.</parameter>
   </checkconfig>
   <examples>
     <example>

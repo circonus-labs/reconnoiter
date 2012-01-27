@@ -144,6 +144,8 @@ struct check_info {
      char *oidname;
      oid oid[MAX_OID_LEN];
      size_t oidlen;
+     metric_type_t type_override;
+     noit_boolean type_should_override;
   } *oids;
   int noids;
   eventer_t timeoutevent;
@@ -256,54 +258,64 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
       nresults++;
       continue;
     }
-    
+
 #define SETM(a,b) noit_stats_set_metric(&current, \
                                         info->oids[oid_idx].confname, a, b)
-    switch(vars->type) {
-      case ASN_OCTET_STR:
-        sp = malloc(1 + vars->val_len);
-        memcpy(sp, vars->val.string, vars->val_len);
-        sp[vars->val_len] = '\0';
-        SETM(METRIC_STRING, sp);
-        free(sp);
-        break;
-      case ASN_INTEGER:
-      case ASN_GAUGE:
-        SETM(METRIC_INT32, vars->val.integer);
-        break;
-      case ASN_TIMETICKS:
-      case ASN_COUNTER:
-        SETM(METRIC_UINT32, vars->val.integer);
-        break;
-      case ASN_INTEGER64:
-        printI64(varbuff, vars->val.counter64);
-        i64 = strtoll(varbuff, &endptr, 10);
-        SETM(METRIC_INT64, (varbuff == endptr) ? NULL : &i64);
-        break;
-      case ASN_COUNTER64:
-        printU64(varbuff, vars->val.counter64);
-        u64 = strtoull(varbuff, &endptr, 10);
-        SETM(METRIC_UINT64, (varbuff == endptr) ? NULL : &u64);
-        break;
-      case ASN_FLOAT:
-        if(vars->val.floatVal) float_conv = *(vars->val.floatVal);
-        SETM(METRIC_DOUBLE, vars->val.floatVal ? &float_conv : NULL);
-        break;
-      case ASN_DOUBLE:
-        SETM(METRIC_DOUBLE, vars->val.doubleVal);
-        break;
-      case SNMP_NOSUCHOBJECT:
-      case SNMP_NOSUCHINSTANCE:
-        SETM(METRIC_STRING, NULL);
-        break;
-      default:
-        snprint_variable(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
-        /* Advance passed the first space and use that unless there
-         * is no space or we have no more string left.
-         */
-        sp = strchr(varbuff, ' ');
-        if(sp) sp++;
-        SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
+    if(info->oids[oid_idx].type_should_override) {
+      snprint_value(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
+      sp = strchr(varbuff, ' ');
+      if(sp) sp++;
+      noit_stats_set_metric_coerce(&current, info->oids[oid_idx].confname,
+                                   info->oids[oid_idx].type_override,
+                                   sp);
+    }
+    else {
+      switch(vars->type) {
+        case ASN_OCTET_STR:
+          sp = malloc(1 + vars->val_len);
+          memcpy(sp, vars->val.string, vars->val_len);
+          sp[vars->val_len] = '\0';
+          SETM(METRIC_STRING, sp);
+          free(sp);
+          break;
+        case ASN_INTEGER:
+        case ASN_GAUGE:
+          SETM(METRIC_INT32, vars->val.integer);
+          break;
+        case ASN_TIMETICKS:
+        case ASN_COUNTER:
+          SETM(METRIC_UINT32, vars->val.integer);
+          break;
+        case ASN_INTEGER64:
+          printI64(varbuff, vars->val.counter64);
+          i64 = strtoll(varbuff, &endptr, 10);
+          SETM(METRIC_INT64, (varbuff == endptr) ? NULL : &i64);
+          break;
+        case ASN_COUNTER64:
+          printU64(varbuff, vars->val.counter64);
+          u64 = strtoull(varbuff, &endptr, 10);
+          SETM(METRIC_UINT64, (varbuff == endptr) ? NULL : &u64);
+          break;
+        case ASN_FLOAT:
+          if(vars->val.floatVal) float_conv = *(vars->val.floatVal);
+          SETM(METRIC_DOUBLE, vars->val.floatVal ? &float_conv : NULL);
+          break;
+        case ASN_DOUBLE:
+          SETM(METRIC_DOUBLE, vars->val.doubleVal);
+          break;
+        case SNMP_NOSUCHOBJECT:
+        case SNMP_NOSUCHINSTANCE:
+          SETM(METRIC_STRING, NULL);
+          break;
+        default:
+          snprint_variable(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
+          /* Advance passed the first space and use that unless there
+           * is no space or we have no more string left.
+           */
+          sp = strchr(varbuff, ' ');
+          if(sp) sp++;
+          SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
+      }
     }
     nresults++;
   }
@@ -856,7 +868,8 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   i = 0;
   while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
-      char oidbuff[128];
+      const char *type_override;
+      char oidbuff[128], typestr[256];
       name += 4;
       info->oids[i].confname = strdup(name);
       noit_check_interpolate(oidbuff, sizeof(oidbuff), value,
@@ -867,6 +880,36 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
         read_objid(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
       else
         get_node(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
+      snprintf(typestr, sizeof(typestr), "type_%s", name);
+      if(noit_hash_retr_str(check->config, typestr, strlen(typestr),
+                            &type_override)) {
+        int type_enum_fake = *type_override;
+
+        if(!strcasecmp(type_override, "guess"))
+          type_enum_fake = METRIC_GUESS;
+        else if(!strcasecmp(type_override, "int32"))
+          type_enum_fake = METRIC_INT32;
+        else if(!strcasecmp(type_override, "uint32"))
+          type_enum_fake = METRIC_UINT32;
+        else if(!strcasecmp(type_override, "int64"))
+          type_enum_fake = METRIC_INT64;
+        else if(!strcasecmp(type_override, "uint64"))
+          type_enum_fake = METRIC_UINT64;
+        else if(!strcasecmp(type_override, "double"))
+          type_enum_fake = METRIC_DOUBLE;
+        else if(!strcasecmp(type_override, "string"))
+          type_enum_fake = METRIC_STRING;
+
+        switch(type_enum_fake) {
+          case METRIC_GUESS:
+          case METRIC_INT32: case METRIC_UINT32:
+          case METRIC_INT64: case METRIC_UINT64:
+          case METRIC_DOUBLE: case METRIC_STRING:
+            info->oids[i].type_override = *type_override;
+            info->oids[i].type_should_override = noit_true;
+          default: break;
+        }
+      }
       snmp_add_null_var(req, info->oids[i].oid, info->oids[i].oidlen);
       i++;
     }
