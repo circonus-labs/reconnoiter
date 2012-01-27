@@ -891,6 +891,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 } while(0)
 
   require(noit.timeval);
+  require(noit.extras);
 
   lua_gc(L, LUA_GCRESTART, 0);
 
