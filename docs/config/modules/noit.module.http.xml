@@ -343,7 +343,29 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>This regular expression is matched against the body of the response.  If a match is not found, the check will be marked as "bad."</para>
+          <para>This regular expression is matched against the body of the response. If a match is not found, the check will be marked as "bad."</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>body_match_*</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>This regular expression is matched against the body of the response. If a match is found it is captured and added as a metric. For example, if setting is named 'body_match_foo_bar' and a match is found new metric called 'foo_bar' will be added.</para>
         </listitem>
       </varlistentry>
     </variablelist>
