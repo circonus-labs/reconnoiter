@@ -31,6 +31,8 @@
  */
 
 package com.omniti.jezebel.check;
+import java.util.Map;
+import java.util.HashMap;
 import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
 public class postgres extends JDBC implements JezebelCheck {
@@ -39,5 +41,11 @@ public class postgres extends JDBC implements JezebelCheck {
   protected String defaultPort() { return "5432"; }
   protected String jdbcConnectUrl(String host, String port, String db) {
     return "jdbc:postgresql://" + host + ":" + port + "/" + db;
+  }
+  protected Map<String,String> setupBasicSSL() {
+    HashMap<String,String> props = new HashMap<String,String>();
+    props.put("ssl", "true");
+    props.put("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
+    return props;
   }
 }
