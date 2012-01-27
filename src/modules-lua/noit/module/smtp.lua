@@ -143,6 +143,35 @@ local function mkaction(e, check)
     local elapsed = noit.timeval.now() - start_time
     local elapsed_ms = math.floor(tostring(elapsed) * 1000)
     check.metric(phase .. "_time",  elapsed_ms)
+
+    if phase == 'ehlo' and message ~= nil then
+      local fields = noit.extras.split(message, "\r\n")
+      if fields ~= nil then
+        local response = ""
+        local extensions = ""
+        if fields[1] ~= nil then
+          response = fields[1]
+          check.metric("ehlo_response_banner", response)
+        end
+        if expected_code == actual_code and fields[1] ~= nil then
+          table.remove(fields, 1)
+          for line, value in pairs(fields) do
+            if value ~= nil and value ~= "" then
+              value = value:gsub("^%s*(.-)%s*$", "%1")
+              local subfields = noit.extras.split(value, "%s+", 1)
+              if subfields ~= nil and subfields[1] ~= nil then
+                local header = subfields[1]
+                if subfields[2] ~= nil then
+                  check.metric("ehlo_response_" .. string.lower(header), subfields[2])
+                else
+                  check.metric("ehlo_response_" .. string.lower(header), 'true')
+                end
+              end
+            end
+          end
+        end
+      end
+    end
     return success
   end
 end
