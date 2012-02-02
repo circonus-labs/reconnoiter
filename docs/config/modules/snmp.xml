@@ -79,6 +79,34 @@
     </variablelist>
     <variablelist>
       <varlistentry>
+        <term>version</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>2c</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(1|2c|3)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SNMP version used for queries.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
         <term>oid_.+</term>
         <listitem>
           <variablelist>
