@@ -123,6 +123,7 @@ typedef struct _mod_config {
 struct target_session {
   void *sess_handle;
   noit_module_t *self;
+  char *key;
   char *target;
   eventer_t timeoutevent;
   int fd;
@@ -152,6 +153,7 @@ struct check_info {
   noit_module_t *self;
   noit_check_t *check;
   struct target_session *ts;
+  int version;
 };
 
 /* We hold struct check_info's in there key's by their reqid.
@@ -177,21 +179,24 @@ static void remove_check(struct check_info *c) {
 }
 
 struct target_session *
-_get_target_session(noit_module_t *self, char *target) {
+_get_target_session(noit_module_t *self, char *target, int version) {
+  char key[128];
   void *vts;
   struct target_session *ts;
   snmp_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
+  snprintf(key, sizeof(key), "%s:v%d", target, version);
   if(!noit_hash_retrieve(&conf->target_sessions,
-                         target, strlen(target), &vts)) {
+                         key, strlen(key), &vts)) {
     ts = calloc(1, sizeof(*ts));
     ts->self = self;
     ts->fd = -1;
     ts->refcnt = 0;
     ts->target = strdup(target);
+    ts->key = strdup(key);
     ts->in_table = 1;
     noit_hash_store(&conf->target_sessions,
-                    ts->target, strlen(ts->target), ts);
+                    ts->key, strlen(ts->key), ts);
     vts = ts;
   }
   return (struct target_session *)vts;
@@ -817,8 +822,9 @@ static void noit_snmp_sess_open(struct target_session *ts,
                                 noit_check_t *check) {
   const char *community;
   struct snmp_session sess;
+  struct check_info *info = check->closure;
   snmp_sess_init(&sess);
-  sess.version = SNMP_VERSION_2c;
+  sess.version = info->version;
   sess.peername = ts->target;
   if(!noit_hash_retr_str(check->config, "community", strlen("community"),
                          &community)) {
@@ -924,9 +930,10 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   struct target_session *ts;
   struct check_info *info = check->closure;
   int port = 161;
-  const char *portstr;
+  const char *portstr, *versstr;
   char target_port[64];
 
+  info->version = SNMP_VERSION_2c;
   info->self = self;
   info->check = check;
   info->timedout = 0;
@@ -937,8 +944,14 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
                         &portstr)) {
     port = atoi(portstr);
   }
+  if(noit_hash_retr_str(check->config, "version", strlen("version"),
+                        &versstr)) {
+    /* We don't care about 2c or others... as they all default to 2c */
+    if(!strcmp(versstr, "1")) info->version = SNMP_VERSION_1;
+    if(!strcmp(versstr, "3")) info->version = SNMP_VERSION_3;
+  }
   snprintf(target_port, sizeof(target_port), "%s:%d", check->target_ip, port);
-  ts = _get_target_session(self, target_port);
+  ts = _get_target_session(self, target_port, info->version);
   gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
@@ -967,6 +980,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
 
   req = snmp_pdu_create(SNMP_MSG_GET);
   if(req) noit_snmp_fill_req(req, check);
+  req->version = info->version;
   /* Setup out snmp requests */
   if(ts->sess_handle && req &&
      (info->reqid = snmp_sess_send(ts->sess_handle, req)) != 0) {
@@ -1134,7 +1148,7 @@ static int noit_snmp_init(noit_module_t *self) {
       noitL(nlerr, "cannot open netsnmp transport for trap daemon\n");
       return -1;
     }
-    ts = _get_target_session(self, "snmptrapd");
+    ts = _get_target_session(self, "snmptrapd", SNMP_DEFAULT_VERSION);
     snmp_sess_init(session);
     session->peername = SNMP_DEFAULT_PEERNAME;
     session->version = SNMP_DEFAULT_VERSION;
