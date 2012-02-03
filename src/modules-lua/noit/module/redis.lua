@@ -125,15 +125,12 @@ function build_redis_command(command)
   return redis_comm
 end
 
-metric_names = {}
-hash_key = nil
-need_key = 0
-metric_name = nil
-
 function get_info_metrics(conn, check)
   local count = 0
   local redis_result
   local result_len = conn:read("\r\n")
+  local metric_data = {}
+  metric_data["metric_name"] = nil
   result_len = string.sub(result_len, 2, -2)
   redis_result = conn:read(result_len)
 
@@ -151,8 +148,8 @@ function get_info_metrics(conn, check)
       for idx in pairs(db_metrics) do
         count = count + 1
         met = string.split(db_metrics[idx], "=")
-        metric_name = kv[1] .. "`" .. met[1]
-        add_check_metric(met[2], check)
+        metric_data["metric_name"] = kv[1] .. "`" .. met[1]
+        add_check_metric(met[2], check, metric_data)
       end
     elseif ( string.find(kv[1], "^allocation_stats$") ) then
       alloc_metrics = string.split(kv[2], ",")
@@ -167,8 +164,8 @@ function get_info_metrics(conn, check)
       end
     else
       count = count + 1
-      metric_name = kv[1]
-      add_check_metric(kv[2], check)
+      metric_data["metric_name"] = kv[1]
+      add_check_metric(kv[2], check, metric_data)
     end
   end
 
@@ -177,41 +174,46 @@ end
 
 function get_command_metrics(conn, check)
   -- the only metric name we know is what we are sending to redis
-  metric_names = {}
+  local metric_data = {}
+  metric_data["hash_key"] = nil
+  metric_data["metric_name"] = nil
+  metric_data["need_key"] = 0
+  metric_data["names"] = {}
+
   local cs = string.split(check.config.command, "%s+")
   if ( string.find(cs[1]:upper(), "HGET") ) then
-    hash_key = cs[2]
+    metric_data["hash_key"] = cs[2]
   elseif ( string.find(cs[1]:upper(), "MGET") ) then
     for idx in pairs(cs) do
       if ( idx > 1 ) then
         if ( string.find(cs[1]:upper(), "HMGET") and idx > 2 ) then
-          metric_names[idx-3] = cs[2] .. '`' .. cs[idx]
+          metric_data["metric_names"][idx-3] = cs[2] .. '`' .. cs[idx]
         else
-          metric_names[idx-2] = cs[idx]
+          metric_data["metric_names"][idx-2] = cs[idx]
         end
       end
     end
   end
-  metric_name = cs[2]
-  return read_redis_response(conn, check)
+  metric_data["metric_name"] = cs[2]
+  return read_redis_response(conn, check, metric_data)
 end
 
-function read_redis_response(conn, check)
+function read_redis_response(conn, check, metric_data)
   local response_type = conn:read(1);
   if ( response_type == "+" ) then
-    return redis_response_string(conn, check)
+    return redis_response_string(conn, check, metric_data)
   elseif ( response_type == "-" ) then
-    return redis_response_error(conn, check)
+    return redis_response_error(conn, check, metric_data)
   elseif ( response_type == ":" ) then
-    return redis_response_integer(conn, check)
+    return redis_response_integer(conn, check, metric_data)
   elseif ( response_type == "$" ) then
-    return redis_bulk_response(conn, check)
+    return redis_bulk_response(conn, check, metric_data)
   elseif ( response_type == "*" ) then
-    return redis_multibulk_response(conn, check)
+    return redis_multibulk_response(conn, check, metric_data)
   end
 end
 
-function redis_bulk_response(conn, check)
+function redis_bulk_response(conn, check, metric_data)
   local response
   local response_len = conn:read("\r\n")
   response_len = string.sub(response_len, 1, -2)
@@ -219,10 +221,10 @@ function redis_bulk_response(conn, check)
     return redis_response_null(check)
   else
     response = conn:read(response_len)
-    if ( 1 == need_key ) then
-      metric_name = hash_key .. '`' .. response
+    if ( 1 == metric_data["need_key"] ) then
+      metric_data["metric_name"] = metric_data["hash_key"] .. '`' .. response
     else
-      add_check_metric(response, check)
+      add_check_metric(response, check, metric_data)
     end
     -- clean out rest of response
     conn:read("\r\n")
@@ -230,35 +232,35 @@ function redis_bulk_response(conn, check)
   end
 end
 
-function redis_multibulk_response(conn, check)
+function redis_multibulk_response(conn, check, metric_data)
   local responses = conn:read("\r\n")
   responses = string.sub(responses, 1, -2)
 
   for i = 1, responses, 1 do
-    if ( hash_key ~= nil ) then
-      need_key = (need_key + 1) % 2
+    if ( metric_data["hash_key"] ~= nil ) then
+      metric_data["need_key"] = (metric_data["need_key"] + 1) % 2
     else
-      metric_name = metric_name .. '`' .. (i-1)
-      if ( metric_names[i-1] ) then
-        metric_name = metric_names[i-1]
+      metric_data["metric_name"] = metric_data["metric_name"] .. '`' .. (i-1)
+      if ( metric_data["metric_names"][i-1] ) then
+        metric_data["metric_name"] = metric_data["metric_names"][i-1]
       end
     end
-    read_redis_response(conn, check)
+    read_redis_response(conn, check, metric_data)
   end
   return tonumber(responses)
 end
 
-function redis_response_integer(conn, check)
+function redis_response_integer(conn, check, metric_data)
   local response = conn:read("\r\n")
   response = string.sub(response, 1, -2)
-  add_check_metric(response, check)
+  add_check_metric(response, check, metric_data)
   return 1
 end
 
-function redis_response_string(conn, check)
+function redis_response_string(conn, check, metric_data)
   local response = conn:read("\r\n")
   response = string.sub(response, 1, -2)
-  add_check_metric(response, check)
+  add_check_metric(response, check, metric_data)
   return 1
 end
 
@@ -270,18 +272,18 @@ function redis_response_error(conn, check)
   return 0
 end
 
-function redis_response_null(check)
-  check.metric_string(metric_name, nil)
+function redis_response_null(check, metric_data)
+  check.metric_string(metric_data["metric_name"], nil)
   return 1
 end
 
-function add_check_metric(value, check)
+function add_check_metric(value, check, metric_data)
   if ( string.find(value, "^%d+$") ) then
-    check.metric_uint64(metric_name, value)
+    check.metric_uint64(metric_data["metric_name"], value)
   elseif ( string.find(value, "^%d+?.%d+$") ) then
-    check.metric_double(metric_name, value)
+    check.metric_double(metric_data["metric_name"], value)
   else
-    check.metric(metric_name, value)
+    check.metric(metric_data["metric_name"], value)
   end
 end
 
