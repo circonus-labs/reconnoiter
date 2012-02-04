@@ -126,6 +126,7 @@ struct target_session {
   char *key;
   char *target;
   eventer_t timeoutevent;
+  int version;
   int fd;
   int in_table;
   int refcnt;
@@ -190,6 +191,7 @@ _get_target_session(noit_module_t *self, char *target, int version) {
                          key, strlen(key), &vts)) {
     ts = calloc(1, sizeof(*ts));
     ts->self = self;
+    ts->version = version;
     ts->fd = -1;
     ts->refcnt = 0;
     ts->target = strdup(target);
@@ -1069,14 +1071,20 @@ nc_printf_snmpts_brief(noit_console_closure_t ncct,
                        struct target_session *ts) {
   char fd[32];
   struct timeval now, diff;
+  const char *snmpvers = "v(unknown)";
   gettimeofday(&now, NULL);
   sub_timeval(now, ts->last_open, &diff);
   if(ts->fd < 0)
     snprintf(fd, sizeof(fd), "%s", "(closed)");
   else
     snprintf(fd, sizeof(fd), "%d", ts->fd);
-  nc_printf(ncct, "[%s]\n\topened: %0.3fs ago\n\tFD: %s\n\trefcnt: %d\n",
-            ts->target, diff.tv_sec + (float)diff.tv_usec/1000000,
+  switch(ts->version) {
+    case SNMP_VERSION_1: snmpvers = "v1"; break;
+    case SNMP_VERSION_2c: snmpvers = "v2c"; break;
+    case SNMP_VERSION_3: snmpvers = "v3"; break;
+  }
+  nc_printf(ncct, "[%s %s]\n\topened: %0.3fs ago\n\tFD: %s\n\trefcnt: %d\n",
+            ts->target, snmpvers, diff.tv_sec + (float)diff.tv_usec/1000000,
             fd, ts->refcnt);
 }
 
