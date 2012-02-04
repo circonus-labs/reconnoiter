@@ -331,7 +331,9 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
 
 static int noit_snmp_session_cleanse(struct target_session *ts) {
   if(ts->refcnt == 0 && ts->sess_handle) {
-    eventer_remove_fd(ts->fd);
+    eventer_t e;
+    e = eventer_remove_fd(ts->fd);
+    if(e) eventer_free(e);
     ts->fd = -1;
     if(ts->timeoutevent) {
       eventer_remove(ts->timeoutevent);

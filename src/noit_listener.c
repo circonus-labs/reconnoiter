@@ -94,6 +94,7 @@ noit_listener_accept_ssl(eventer_t e, int mask,
     noitL(nlerr, "noit_listener[%s] SSL_accept on fd %d [%s]\n",
           eventer_name_for_callback(e->callback),
           e->fd, ac->remote_cn ? ac->remote_cn : "anonymous");
+    if(listener_closure) free(listener_closure);
     return e->callback(e, mask, e->closure, tv);
   }
   if(errno == EAGAIN) return mask|EVENTER_EXCEPTION;

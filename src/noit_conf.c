@@ -670,9 +670,9 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
   mix_ctxt = xmlXPathNewContext(doc);
   backingstore_include_cnt = cnt;
   noitL(noit_debug, "Processed %d backing stores.\n", backingstore_include_cnt);
-  if(pobj) xmlXPathFreeObject(pobj);
 
  includes:
+  if(pobj) xmlXPathFreeObject(pobj);
   config_include_cnt = 0;
   pobj = xmlXPathEval((xmlChar *)"//include[@file]", mix_ctxt);
   if(!pobj) goto out;
