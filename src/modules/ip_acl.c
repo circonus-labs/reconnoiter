@@ -51,7 +51,7 @@ static void
 free_btrie(void *vb) {
   btrie *acl = vb;
   if(acl) {
-    btrie_del_tree(acl);
+    noit_drop_tree(acl, NULL);
     free(acl);
   }
 }
