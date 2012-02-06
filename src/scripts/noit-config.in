@@ -47,9 +47,9 @@ unless ($worked) {
 __END__
 cc=@CC@
 cppflags=@CPPFLAGS@
-cflags=@CFLAGS@ @PGCFLAGS@
+cflags=@CFLAGS@
 ldflags=@LDFLAGS@
-libs=@LIBS@ @PGLIBS@
+libs=@LIBS@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
