@@ -2,7 +2,15 @@
 
 set -- `getopt l:p:fj:dD: $*`
 
-JAVA=@JAVA@
+if [ ! -x "$JAVA" ]; then
+	JAVA=@JAVA@
+fi
+if [ ! -x $JAVA ]; then
+	JAVA=/opt/local/bin/java
+fi
+if [ ! -x $JAVA ]; then
+	JAVA=/usr/local/bin/java
+fi
 if [ ! -x $JAVA ]; then
 	JAVA=/usr/bin/java
 fi
@@ -71,6 +79,8 @@ elif [ "$FOREGROUND" = "1" ]; then
 else
         $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS < /dev/null > $LOGFILE 2>&1 &
 	PID=$!
-	echo $PID > $PIDFILE
+	if [ -n "$PIDFILE" ]; then
+		echo $PID > $PIDFILE
+  fi
 fi
 
