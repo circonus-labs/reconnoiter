@@ -211,6 +211,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
     NODE_CONTENT(config, k, data);
   noit_hash_destroy(configh, free, free);
   free(configh);
+
   mod_cnt = noit_check_registered_module_cnt();
   for(mod=0; mod<mod_cnt; mod++) {
     xmlNsPtr ns;
@@ -419,6 +420,7 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
     xmlFreeNode(oldconfig);
   }
   else xmlAddChild(check, config);
+  CONF_DIRTY(config);
 }
 static xmlNodePtr
 make_conf_path(char *path) {
@@ -441,6 +443,7 @@ make_conf_path(char *path) {
     if(!tmp) {
       tmp = xmlNewNode(NULL, (xmlChar *)tok);
       xmlAddChild(start, tmp);
+      CONF_DIRTY(tmp);
     }
     start = tmp;
   }
@@ -490,9 +493,9 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
+  noit_conf_mark_changed();
   if(noit_conf_write_file(NULL) != 0)
     noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
   noit_http_response_ok(ctx, "text/html");
   noit_http_response_end(ctx);
   goto cleanup;
@@ -576,6 +579,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
       xmlAddChild(parent, newcheck);
+      CONF_DIRTY(newcheck);
     }
   }
   if(exists) {
@@ -612,11 +616,12 @@ rest_set_check(noit_http_rest_closure_t *restc,
     if(!parent) FAIL("invalid path");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
+    CONF_DIRTY(node);
   }
 
+  noit_conf_mark_changed();
   if(noit_conf_write_file(NULL) != 0)
     noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
   noit_poller_reload(xpath);
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
   restc->call_closure_free = NULL;

@@ -107,6 +107,7 @@ make_conf_path(char *path) {
     if(!tmp) {
       tmp = xmlNewNode(NULL, (xmlChar *)tok);
       xmlAddChild(start, tmp);
+      CONF_DIRTY(tmp);
     }
     start = tmp;
   }
@@ -208,10 +209,11 @@ rest_set_filter(noit_http_rest_closure_t *restc,
   }
   xmlUnlinkNode(newfilter);
   xmlAddChild(parent, newfilter);
+  CONF_DIRTY(newfilter);
 
+  noit_conf_mark_changed();
   if(noit_conf_write_file(NULL) != 0)
     noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
   noit_filter_compile_add(newfilter);
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
   restc->call_closure_free = NULL;
