@@ -11,22 +11,24 @@
 package com.omniti.reconnoiter.esper;
 
 import com.omniti.reconnoiter.esper.DeriveView;
-import com.espertech.esper.core.StatementContext;
 import com.espertech.esper.epl.expression.ExprNode;
 import com.espertech.esper.view.View;
+import com.espertech.esper.client.EventType;
+import com.espertech.esper.core.context.util.AgentInstanceContext;
+import com.espertech.esper.view.stat.StatViewAdditionalProps;
 
 /**
  * This view is a moving window extending the specified number of elements into the past.
  */
 public class CounterView extends DeriveView
 {
-    public CounterView(StatementContext statementContext, ExprNode expressionX, ExprNode expressionY)
+    public CounterView(AgentInstanceContext agentInstanceContext, ExprNode expressionX, ExprNode expressionY, EventType eventType, StatViewAdditionalProps additionalProps)
     {
-        super(statementContext, expressionX, expressionY);
+        super(agentInstanceContext, expressionX, expressionY, eventType, additionalProps);
     }
-    public View cloneView(StatementContext statementContext)
+    public View cloneView()
     {
-        return new CounterView(statementContext, this.expressionX, this.expressionY);
+        return new CounterView(this.agentInstanceContext, this.expressionX, this.expressionY, this.eventType, this.additionalProps);
     }
     protected NoitDerivePoint subtract(NoitDerivePoint a, NoitDerivePoint b)
     {

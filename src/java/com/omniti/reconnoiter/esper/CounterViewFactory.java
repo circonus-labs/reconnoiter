@@ -16,13 +16,18 @@ import com.espertech.esper.view.ViewFactorySupport;
 import com.espertech.esper.view.ViewFactoryContext;
 import com.espertech.esper.view.ViewFactory;
 import com.espertech.esper.view.View;
-import com.espertech.esper.core.StatementContext;
+import com.espertech.esper.view.stat.StatViewAdditionalProps;
+import com.espertech.esper.core.service.StatementContext;
+import com.espertech.esper.core.context.util.AgentInstanceViewFactoryChainContext;
 
 public class CounterViewFactory extends ViewFactorySupport {
     private ViewFactoryContext viewFactoryContext;
     private List<ExprNode> viewParameters;
+    private int streamNumber;
     private ExprNode timestampExpression;
     private ExprNode valueExpression;
+    protected EventType eventType;
+    protected StatViewAdditionalProps additionalProps;
 
     public void setViewParameters(ViewFactoryContext viewFactoryContext, 
                                   List<ExprNode> viewParameters) throws ViewParameterException {
@@ -32,6 +37,7 @@ public class CounterViewFactory extends ViewFactorySupport {
                 "View requires a two parameters: x, y");
         }
         this.viewParameters = viewParameters;
+        this.streamNumber = viewFactoryContext.getStreamNum();
     }
 
     public void attach(EventType parentEventType, 
@@ -57,9 +63,13 @@ public class CounterViewFactory extends ViewFactorySupport {
             throw new ViewParameterException(
                 "View requires long-typed or double-typed values for in parameter 2");
         }
+
+        additionalProps = StatViewAdditionalProps.make(validatedNodes, 2, parentEventType);
+        eventType = ExactRegressionLinestView.createEventType(statementContext, additionalProps, streamNumber);
     }
-    public View makeView(StatementContext statementContext) {
-        return new CounterView(statementContext, timestampExpression, valueExpression);
+
+    public View makeView(AgentInstanceViewFactoryChainContext agentInstanceViewFactoryContext) {
+        return new CounterView(agentInstanceViewFactoryContext.getAgentInstanceContext(), timestampExpression, valueExpression, eventType, additionalProps);
     }
 
     public EventType getEventType() {

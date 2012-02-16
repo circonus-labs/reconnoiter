@@ -12,7 +12,7 @@
 package com.omniti.reconnoiter.esper;
 
 import com.espertech.esper.collection.SingleEventIterator;
-import com.espertech.esper.core.StatementContext;
+import com.espertech.esper.core.service.StatementContext;
 import com.espertech.esper.epl.expression.ExprNode;
 import com.espertech.esper.client.EventBean;
 import com.espertech.esper.client.EventType;
@@ -20,6 +20,8 @@ import com.espertech.esper.view.CloneableView;
 import com.espertech.esper.view.DataWindowView;
 import com.espertech.esper.view.View;
 import com.espertech.esper.view.ViewSupport;
+import com.espertech.esper.core.context.util.AgentInstanceContext;
+import com.espertech.esper.view.stat.StatViewAdditionalProps;
 
 import java.util.Iterator;
 import java.util.Arrays;
@@ -31,11 +33,14 @@ import java.lang.ArithmeticException;
 public class DeriveView extends ViewSupport implements DataWindowView, CloneableView
 {
     private StatementContext statementContext;
+    protected AgentInstanceContext agentInstanceContext;
     protected ExprNode expressionX;
     protected ExprNode expressionY;
+    protected final EventType eventType;
     private boolean isDouble;
     private WeightedValueBean lastWVBean;
     private NoitDerivePoint lastpoint;
+    protected final StatViewAdditionalProps additionalProps;
 
     /**
      * Constructor creates a moving window extending the specified number of elements into the past.
@@ -43,17 +48,20 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
      * @param viewUpdatedCollection is a collection that the view must update when receiving events
      * @param deriveViewFactory for copying this view in a group-by
      */
-    public DeriveView(StatementContext statementContext, ExprNode expressionX, ExprNode expressionY)
+    public DeriveView(AgentInstanceContext agentInstanceContext, ExprNode expressionX, ExprNode expressionY, EventType eventType, StatViewAdditionalProps additionalProps)
     {
-        this.statementContext = statementContext;
+        this.agentInstanceContext = agentInstanceContext;
+        this.statementContext = agentInstanceContext.getStatementContext();
         this.expressionX = expressionX;
         this.expressionY = expressionY;
+        this.eventType = eventType;
+        this.additionalProps = additionalProps;
         isDouble = (expressionY.getExprEvaluator().getType() != double.class || expressionY.getExprEvaluator().getType() != Double.class);
     }
 
-    public View cloneView(StatementContext statementContext)
+    public View cloneView()
     {
-        return new DeriveView(statementContext, this.expressionX, this.expressionY);
+        return new DeriveView(this.agentInstanceContext, this.expressionX, this.expressionY, this.eventType, this.additionalProps);
     }
 
     public boolean isEmpty()
@@ -87,9 +95,9 @@ public class DeriveView extends ViewSupport implements DataWindowView, Cloneable
                 derivedWorking = new EventBean[derivedsize];
             for ( EventBean pointb : newData ) {
                 EventBean eventsPerStream[] = { pointb };
-                Number NX = (Number) expressionX.getExprEvaluator().evaluate(eventsPerStream, true, statementContext);
+                Number NX = (Number) expressionX.getExprEvaluator().evaluate(eventsPerStream, true, agentInstanceContext);
                 if(NX == null) continue;
-                Number NY = (Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, statementContext);
+                Number NY = (Number) expressionY.getExprEvaluator().evaluate(eventsPerStream, true, agentInstanceContext);
                 if(NY == null) continue;
                 NoitDerivePoint point = new NoitDerivePoint();
                 point.X = NX.longValue();
