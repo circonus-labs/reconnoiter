@@ -44,8 +44,8 @@ check_test.lo:	check_test.xmlh
 
 ip_acl.lo:	ip_acl.xmlh
 
-lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo ../lua/liblua.lo
+lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo lua_bit.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo ../lua/liblua.lo
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
@@ -58,6 +58,10 @@ lua_noit.lo:	lua_noit.c
 
 lua_dns.lo:	lua_dns.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_dns.c -o $@
+	@echo "- compiling $<"
+
+lua_bit.lo:	lua_bit.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_bit.c -o $@
 	@echo "- compiling $<"
 
 lua_lpack.lo:	lua_lpack.c
