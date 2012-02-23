@@ -30,7 +30,7 @@
 
 
 rc = 0
-
+bit = { }
 function extract(file, outfile)
   local module = file:gsub('.lua$', ''):gsub('/', '.')
   local M = require(module)
