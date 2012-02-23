@@ -21,6 +21,62 @@
   </section>
   <section>
     <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>port</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>^123$</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The port to which we will attempt to speak NTP.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>control</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>^false$</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^(?:true|on|false|off)$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Use the NTP control protocol to learn about the other end.  If thise ois not true/on, then this check will determine the NTP telemetry of the target relative to the agent's local time.  If it is true/on, then the agent will request the NTP telemetry of the target regarding it's preferred peer.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <example>
     <title>Monitor an NTP service</title>
