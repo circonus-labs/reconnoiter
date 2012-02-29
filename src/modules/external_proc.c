@@ -248,7 +248,6 @@ int external_child(external_data_t *data) {
     return -1;
   }
 
-  signal(SIGCHLD, external_sigchld);
   noit_skiplist_init(&active_procs);
   noit_skiplist_set_compare(&active_procs, __proc_state_check_no,
                             __proc_state_check_no_key);
@@ -264,6 +263,8 @@ int external_child(external_data_t *data) {
     int64_t check_no;
     int16_t argcnt, *arglens, envcnt, *envlens;
     int i;
+
+    signal(SIGCHLD, external_sigchld);
 
     /* We poll here so that we can be interrupted by the SIGCHLD */
     pfd.fd = in_fd;
