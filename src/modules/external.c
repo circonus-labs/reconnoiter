@@ -241,12 +241,13 @@ static int external_handler(eventer_t e, int mask,
 
       while (1)
       {
-        ret = read(e->fd, (char*)(&h)+inlen, expectlen - inlen);
+        ret = read(e->fd, ((char*)(&h))+inlen, expectlen - inlen);
         if (ret == -1)
         {
           if (errno == EAGAIN)
           {
-            return EVENTER_READ | EVENTER_EXCEPTION;
+            if (inlen == 0)
+              return EVENTER_READ | EVENTER_EXCEPTION;
           }
           else if (errno != EINTR)
           {
@@ -272,8 +273,10 @@ static int external_handler(eventer_t e, int mask,
       r.exit_code = h.exit_code;
       r.stdoutlen = h.stdoutlen;
       data->cr = calloc(sizeof(*data->cr), 1);
+      memset(data->cr, 0, sizeof(data->cr));
       memcpy(data->cr, &r, sizeof(r));
       data->cr->stdoutbuff = malloc(data->cr->stdoutlen);
+      memset(data->cr->stdoutbuff, 0, data->cr->stdoutlen);
     }
     if(data->cr) {
       while(data->cr->stdoutlen_sofar < data->cr->stdoutlen) {
