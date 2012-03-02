@@ -136,14 +136,49 @@ static void fetch_and_kill_by_check(int64_t check_no) {
 
 #define assert_read(fd, d, l) do { \
   int len; \
-  while((len = read(fd,d,l)) == -1 && errno == EINTR) finish_procs(); \
-  assert(len == l); \
-} while(0)
+  int read_bytes = 0; \
+  if (l == 0) break; \
+  while (1) { \
+    len = read(fd,(char*)d+read_bytes,l); \
+    if (len == -1) { \
+      if (errno == EINTR) { \
+        finish_procs(); \
+      } \
+      else break; \
+    } \
+    else if (len == 0) { \
+      break; \
+    } \
+    else { \
+      read_bytes += len; \
+      if (read_bytes >= l) break; \
+    } \
+  } \
+  assert(read_bytes == l); \
+} while (0)
+
 #define assert_write(fd, s, l) do { \
   int len; \
-  while((len = write(fd,s,l)) == -1 && errno == EINTR) finish_procs(); \
-  assert(len == l); \
-} while(0)
+  int written_bytes = 0; \
+  if (l == 0) break; \
+  while (1) { \
+    len = write(fd,(char*)s+written_bytes,l); \
+    if (len == -1) { \
+      if (errno == EINTR) { \
+        finish_procs(); \
+      } \
+      else break; \
+    } \
+    else if (len == 0) { \
+      break; \
+    } \
+    else { \
+      written_bytes += len; \
+      if (written_bytes >= l) break; \
+    } \
+  } \
+  assert(written_bytes == l); \
+} while (0)
 
 int write_out_backing_fd(int ofd, int bfd) {
   char *mmap_buf;
