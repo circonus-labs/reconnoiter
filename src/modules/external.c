@@ -228,34 +228,49 @@ static int external_handler(eventer_t e, int mask,
     noit_check_t *check;
     struct check_info *ci;
     void *vci;
+    int ret;
 
     if(!data->cr) {
       struct external_response r;
-      struct msghdr msg;
-      struct iovec v[3];
-      memset(&r, 0, sizeof(r));
-      v[0].iov_base = (char *)&r.check_no;
-      v[0].iov_len = sizeof(r.check_no);
-      v[1].iov_base = (char *)&r.exit_code;
-      v[1].iov_len = sizeof(r.exit_code);
-      v[2].iov_base = (char *)&r.stdoutlen;
-      v[2].iov_len = sizeof(r.stdoutlen);
-      expectlen = v[0].iov_len + v[1].iov_len + v[2].iov_len;
+      external_header h;
 
-      /* Make this into a recv'ble message so we can PEEK */
-      memset(&msg, 0, sizeof(msg));
-      msg.msg_iov = v;
-      msg.msg_iovlen = 3;
-      inlen = recvmsg(e->fd, &msg, MSG_PEEK);
-      if(inlen == 0) goto widowed;
-      if((inlen == -1 && errno == EAGAIN) ||
-         (inlen > 0 && inlen < expectlen))
-        return EVENTER_READ | EVENTER_EXCEPTION;
-      if(inlen == -1)
-        noitL(noit_error, "recvmsg() failed: %s\n", strerror(errno));
+      memset(&r, 0, sizeof(r));
+      memset(&h, 0, sizeof(h));
+      expectlen = sizeof(h);
+      inlen = 0;
+
+      while (1)
+      {
+        ret = read(e->fd, (char*)(&h)+inlen, expectlen - inlen);
+        if (ret == -1)
+        {
+          if (errno == EAGAIN)
+          {
+            return EVENTER_READ | EVENTER_EXCEPTION;
+          }
+          else if (errno != EINTR)
+          {
+            break;
+          }
+        }
+        else if (ret == 0)
+        {
+          goto widowed;
+        }
+        else
+        {
+          inlen += ret;
+          if (inlen >= 14)
+          {
+            break;
+          }
+        }
+      }
+
       assert(inlen == expectlen);
-      while(-1 == (inlen = recvmsg(e->fd, &msg, 0)) && errno == EINTR);
-      assert(inlen == expectlen);
+      r.check_no = h.check_no;
+      r.exit_code = h.exit_code;
+      r.stdoutlen = h.stdoutlen;
       data->cr = calloc(sizeof(*data->cr), 1);
       memcpy(data->cr, &r, sizeof(r));
       data->cr->stdoutbuff = malloc(data->cr->stdoutlen);

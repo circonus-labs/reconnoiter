@@ -62,6 +62,12 @@ typedef struct {
   struct external_response *cr;
 } external_data_t;
 
+typedef struct {
+  int64_t check_no;
+  int32_t exit_code;
+  u_int16_t stdoutlen;
+} __attribute__((packed)) external_header;
+
 int external_child(external_data_t *);
 
 #endif
