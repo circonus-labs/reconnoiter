@@ -79,10 +79,10 @@ else if($want == 'targetname') {
 		 $target_sid_map = array();
 
 		 foreach ($valid_sids[$sv] as $match) {
-  	    	   if(!isset($target_sid_map[$match[target]])) {
-	    	     $target_sid_map[$match[target]] = array();
+  	    	   if(!isset($target_sid_map[$match['target']])) {
+	    	     $target_sid_map[$match['target']] = array();
 	           }
-	           $target_sid_map[$match[target]][] = $match[sid];
+	           $target_sid_map[$match['target']][] = $match['sid'];
                  }
 
 	 	 foreach ($target_sid_map as $target_name => $sid_list) {
