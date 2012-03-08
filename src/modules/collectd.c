@@ -1224,16 +1224,16 @@ static int queue_notifications(collectd_closure_t *ccl,
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  noit_check_stats_clear(&current);
+  noit_check_stats_clear(check, &current);
   gettimeofday(&current.whence, NULL);
 
   // Concat all the names together so they fit into the flat noitd model 
   concat_metrics(buffer, n->plugin, n->plugin_instance, n->type, n->type_instance);
-  noit_stats_set_metric(&ccl->current, buffer, METRIC_STRING, n->message);
+  noit_stats_set_metric(check, &ccl->current, buffer, METRIC_STRING, n->message);
   immediate = noit_collects_check_aynsch(self,check);
   if(immediate)
     noit_stats_log_immediate_metric(check, buffer, METRIC_STRING, n->message);
-  noit_check_passive_set_stats(self, check, &current);
+  noit_check_passive_set_stats(check, &current);
   noitL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
   return 0;
 }
@@ -1261,22 +1261,22 @@ static int queue_values(collectd_closure_t *ccl,
     switch (vl->types[i])
     {
       case DS_TYPE_COUNTER:
-        noit_stats_set_metric(&ccl->current, buffer, METRIC_UINT64, &vl->values[i].counter);
+        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_UINT64, &vl->values[i].counter);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_UINT64, &vl->values[i].counter);
         break;
 
       case DS_TYPE_GAUGE:
-        noit_stats_set_metric(&ccl->current, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
+        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
         break;
 
       case DS_TYPE_DERIVE:
-        noit_stats_set_metric(&ccl->current, buffer, METRIC_INT64, &vl->values[i].derive);
+        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_INT64, &vl->values[i].derive);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].derive);
         break;
 
       case DS_TYPE_ABSOLUTE:
-        noit_stats_set_metric(&ccl->current, buffer, METRIC_INT64, &vl->values[i].absolute);
+        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_INT64, &vl->values[i].absolute);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].absolute);
         break;
 
@@ -1290,12 +1290,12 @@ static int queue_values(collectd_closure_t *ccl,
     noitL(nldeb, "collectd: queue_values(%s, %s)\n", buffer, check->target);
   }
   return 0;
-} 
+}
 
-static void clear_closure(collectd_closure_t *ccl) {
+static void clear_closure(noit_check_t *check, collectd_closure_t *ccl) {
   ccl->stats_count = 0;
   ccl->ntfy_count = 0;
-  noit_check_stats_clear(&ccl->current);
+  noit_check_stats_clear(check, &ccl->current);
 
 }
 
@@ -1329,11 +1329,11 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check,
     ccl->current.state = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
         NP_GOOD : NP_BAD;
     ccl->current.status = human_buffer;
-    noit_check_passive_set_stats(self, check, &ccl->current);
+    noit_check_passive_set_stats(check, &ccl->current);
 
     memcpy(&check->last_fire_time, &ccl->current.whence, sizeof(duration));
   }
-  clear_closure(ccl);
+  clear_closure(check, ccl);
   return 0;
 }
 

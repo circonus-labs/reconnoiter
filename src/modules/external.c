@@ -125,7 +125,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   stats_t current;
   struct timeval duration;
 
-  noit_check_stats_clear(&current);
+  noit_check_stats_clear(check, &current);
 
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
@@ -166,7 +166,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
          pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
                                    "value", value, sizeof(value)) > 0) {
         /* We're able to extract something... */
-        noit_stats_set_metric(&current, metric, METRIC_GUESS, value);
+        noit_stats_set_metric(check, &current, metric, METRIC_GUESS, value);
       }
       noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
@@ -174,7 +174,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   }
 
   current.status = ci->output;
-  noit_check_set_stats(self, check, &current);
+  noit_check_set_stats(check, &current);
 
   /* If we didn't exit normally, or we core, or we have stderr to report...
    * provide a full report.

@@ -1011,7 +1011,7 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   if(!check) return -1;
   assert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
-  noit_check_stats_clear(&current);
+  noit_check_stats_clear(check, &current);
   gettimeofday(&current.whence, NULL);
   current.duration = 0;
   current.available = NP_UNKNOWN;
@@ -1019,12 +1019,12 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   snprintf(buff, sizeof(buff), "check[%s] implementation offline",
            check->module);
   current.status = buff;
-  noit_check_set_stats(self, check, &current);
+  noit_check_set_stats(check, &current);
   check->flags &= ~NP_RUNNING;
   return 0;
 }
 void
-noit_check_stats_clear(stats_t *s) {
+noit_check_stats_clear(noit_check_t *check, stats_t *s) {
   memset(s, 0, sizeof(*s));
   s->state = NP_UNKNOWN;
   s->available = NP_UNKNOWN;
@@ -1199,7 +1199,8 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   return 0;
 }
 void
-noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
+noit_stats_set_metric(noit_check_t *check,
+                      stats_t *newstate, const char *name, metric_type_t type,
                       const void *value) {
   metric_t *m = calloc(1, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
@@ -1209,24 +1210,25 @@ noit_stats_set_metric(stats_t *newstate, const char *name, metric_type_t type,
   __stats_add_metric(newstate, m);
 }
 void
-noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
+noit_stats_set_metric_coerce(noit_check_t *check,
+                             stats_t *stat, const char *name, metric_type_t t,
                              const char *v) {
   char *endptr;
   if(v == NULL) {
    bogus:
-    noit_stats_set_metric(stat, name, t, NULL);
+    noit_stats_set_metric(check, stat, name, t, NULL);
     return;
   }
   switch(t) {
     case METRIC_STRING:
-      noit_stats_set_metric(stat, name, t, v);
+      noit_stats_set_metric(check, stat, name, t, v);
       break;
     case METRIC_INT32:
     {
       int32_t val;
       val = strtol(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(stat, name, t, &val);
+      noit_stats_set_metric(check, stat, name, t, &val);
       break;
     }
     case METRIC_UINT32:
@@ -1234,7 +1236,7 @@ noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
       u_int32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(stat, name, t, &val);
+      noit_stats_set_metric(check, stat, name, t, &val);
       break;
     }
     case METRIC_INT64:
@@ -1242,7 +1244,7 @@ noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
       int64_t val;
       val = strtoll(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(stat, name, t, &val);
+      noit_stats_set_metric(check, stat, name, t, &val);
       break;
     }
     case METRIC_UINT64:
@@ -1250,7 +1252,7 @@ noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
       u_int64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(stat, name, t, &val);
+      noit_stats_set_metric(check, stat, name, t, &val);
       break;
     }
     case METRIC_DOUBLE:
@@ -1258,11 +1260,11 @@ noit_stats_set_metric_coerce(stats_t *stat, const char *name, metric_type_t t,
       double val;
       val = strtod(v, &endptr);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(stat, name, t, &val);
+      noit_stats_set_metric(check, stat, name, t, &val);
       break;
     }
     case METRIC_GUESS:
-      noit_stats_set_metric(stat, name, t, v);
+      noit_stats_set_metric(check, stat, name, t, v);
       break;
   }
 }
@@ -1282,15 +1284,14 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 }
 
 void
-noit_check_passive_set_stats(struct _noit_module *module, 
-                             noit_check_t *check, stats_t *newstate) {
+noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
   noit_skiplist_node *next;
   noit_check_t n;
 
   uuid_copy(n.checkid, check->checkid);
   n.period = 0;
 
-  noit_check_set_stats(module,check,newstate);
+  noit_check_set_stats(check,newstate);
   noit_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
   while(next && next->data) {
     stats_t backup;
@@ -1311,8 +1312,7 @@ noit_check_passive_set_stats(struct _noit_module *module,
   }
 }
 void
-noit_check_set_stats(struct _noit_module *module,
-                     noit_check_t *check, stats_t *newstate) {
+noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
   int report_change = 0;
   char *cp;
   dep_list_t *dep;

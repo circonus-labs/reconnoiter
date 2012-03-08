@@ -233,23 +233,25 @@ API_EXPORT(int)
                    const char *base, const char *arg);
 
 API_EXPORT(void)
-  noit_check_stats_clear(stats_t *s);
+  noit_check_stats_clear(noit_check_t *check, stats_t *s);
 
 struct _noit_module;
 /* This if for modules (passive) than cannot be watched... */
 API_EXPORT(void)
-  noit_check_passive_set_stats(struct _noit_module *self, noit_check_t *check,
+  noit_check_passive_set_stats(noit_check_t *check,
                                stats_t *newstate);
 /* This is for normal (active) modules... */
 API_EXPORT(void)
-  noit_check_set_stats(struct _noit_module *self, noit_check_t *check,
+  noit_check_set_stats(noit_check_t *check,
                         stats_t *newstate);
 
 API_EXPORT(void)
-  noit_stats_set_metric(stats_t *, const char *, metric_type_t, const void *);
+  noit_stats_set_metric(noit_check_t *check,
+                        stats_t *, const char *, metric_type_t, const void *);
 
 API_EXPORT(void)
-  noit_stats_set_metric_coerce(stats_t *, const char *, metric_type_t,
+  noit_stats_set_metric_coerce(noit_check_t *check,
+                               stats_t *, const char *, metric_type_t,
                                const char *);
 
 API_EXPORT(void)

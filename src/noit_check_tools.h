@@ -60,7 +60,8 @@ API_EXPORT(void)
   noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback);
 
 API_EXPORT(int)
-  noit_check_stats_from_json_str(stats_t *s, const char *json_str, int len);
+  noit_check_stats_from_json_str(noit_check_t *check, stats_t *s,
+                                 const char *json_str, int len);
 
 /*#* DOCBOOK
  * <section><title>Check Hooks</title>

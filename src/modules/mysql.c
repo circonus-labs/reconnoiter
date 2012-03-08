@@ -115,7 +115,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               iv = strtol(row[j], NULL, 10);
               piv = &iv;
             }
-            noit_stats_set_metric(&ci->current, mname, METRIC_INT32, piv);
+            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT32, piv);
             break;
           case FIELD_TYPE_INT24:
           case FIELD_TYPE_LONGLONG:
@@ -124,7 +124,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               lv = strtoll(row[j], NULL, 10);
               plv = &lv;
             }
-            noit_stats_set_metric(&ci->current, mname, METRIC_INT64, plv);
+            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT64, plv);
             break;
           case FIELD_TYPE_DECIMAL:
           case FIELD_TYPE_FLOAT:
@@ -134,12 +134,12 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               dv = atof(row[j]);
               pdv = &dv;
             }
-            noit_stats_set_metric(&ci->current, mname, METRIC_DOUBLE, pdv);
+            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_DOUBLE, pdv);
             break;
           default:
             if(!row[j]) sv = NULL;
             else sv = row[j];
-            noit_stats_set_metric(&ci->current, mname, METRIC_GUESS, sv);
+            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_GUESS, sv);
             break;
         }
       }
@@ -169,15 +169,15 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
   }
 
   if(ci->rv >= 0)
-    noit_stats_set_metric(&ci->current, "row_count", METRIC_INT32, &ci->rv);
+    noit_stats_set_metric(check, &ci->current, "row_count", METRIC_INT32, &ci->rv);
   if(ci->connect_duration)
-    noit_stats_set_metric(&ci->current, "connect_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(check, &ci->current, "connect_duration", METRIC_DOUBLE,
                           ci->connect_duration);
   if(ci->query_duration)
-    noit_stats_set_metric(&ci->current, "query_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(check, &ci->current, "query_duration", METRIC_DOUBLE,
                           ci->query_duration);
 
-  noit_check_set_stats(self, check, &ci->current);
+  noit_check_set_stats(check, &ci->current);
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
@@ -263,7 +263,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      noit_check_stats_clear(&ci->current);
+      noit_check_stats_clear(ci->check, &ci->current);
       ci->connect_duration = NULL;
       ci->query_duration = NULL;
 

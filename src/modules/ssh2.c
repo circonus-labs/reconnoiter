@@ -114,7 +114,7 @@ static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   ssh2_check_info_t *ci = check->closure;
 
-  noit_check_stats_clear(&current);
+  noit_check_stats_clear(check, &current);
 
   gettimeofday(&current.whence, NULL);
   sub_timeval(current.whence, check->last_fire_time, &duration);
@@ -129,11 +129,11 @@ static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
 
   if(ci->fingerprint[0]) {
     u_int32_t mduration = current.duration;
-    noit_stats_set_metric(&current, "duration", METRIC_UINT32, &mduration);
-    noit_stats_set_metric(&current, "fingerprint", METRIC_STRING,
+    noit_stats_set_metric(check, &current, "duration", METRIC_UINT32, &mduration);
+    noit_stats_set_metric(check, &current, "fingerprint", METRIC_STRING,
                           ci->fingerprint);
   }
-  noit_check_set_stats(self, check, &current);
+  noit_check_set_stats(check, &current);
 }
 static int ssh2_drive_session(eventer_t e, int mask, void *closure,
                               struct timeval *now) {

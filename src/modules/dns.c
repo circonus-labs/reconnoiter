@@ -210,11 +210,11 @@ static void dns_check_log_results(struct dns_check_info *ci) {
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
     ci->current.status = strdup(buff);
-    noit_stats_set_metric(&ci->current, "rtt", METRIC_DOUBLE,
+    noit_stats_set_metric(ci->check, &ci->current, "rtt", METRIC_DOUBLE,
                           ci->timed_out ? NULL : &rtt);
   }
 
-  noit_check_set_stats(ci->self, ci->check, &ci->current);
+  noit_check_set_stats(ci->check, &ci->current);
   if(ci->error) free(ci->error);
   if(ci->current.status) free(ci->current.status);
   ci->error = NULL;
@@ -406,7 +406,7 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
         dns_typename(rr->dnsrr_typ));
 
   ttl = rr->dnsrr_ttl;
-  noit_stats_set_metric(&ci->current, "ttl", METRIC_UINT32, &ttl);
+  noit_stats_set_metric(ci->check, &ci->current, "ttl", METRIC_UINT32, &ttl);
 
   switch(rr->dnsrr_typ) {
    case DNS_T_A:
@@ -443,26 +443,26 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
    case DNS_T_SOA:
      if(dns_getdn(pkt, &dptr, end, dn, DNS_MAXDN) <= 0) goto decode_err;
      dns_dntop(dn, buff, sizeof(buff));
-     noit_stats_set_metric(&ci->current, "name-server", METRIC_STRING, buff);
+     noit_stats_set_metric(ci->check, &ci->current, "name-server", METRIC_STRING, buff);
      if(dns_getdn(pkt, &dptr, end, dn, DNS_MAXDN) <= 0) goto decode_err;
      dns_dntop(dn, buff, sizeof(buff));
-     noit_stats_set_metric(&ci->current, "email-addr", METRIC_STRING, buff);
+     noit_stats_set_metric(ci->check, &ci->current, "email-addr", METRIC_STRING, buff);
      if(dptr + 5 * sizeof(u_int32_t) != dend) goto decode_err;
      vu = dns_get32(dptr); dptr += sizeof(u_int32_t);
-     noit_stats_set_metric(&ci->current, "serial", METRIC_UINT32, &vu);
+     noit_stats_set_metric(ci->check, &ci->current, "serial", METRIC_UINT32, &vu);
      /* the serial is what we elect to store as the "answer" as text...
       * because it rarely changes and that seems the most interesting thing
       * to track change-log-style.
       */
      snprintf(buff, sizeof(buff), "%u", vu);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(&ci->current, "refresh", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, &ci->current, "refresh", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(&ci->current, "retry", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, &ci->current, "retry", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(&ci->current, "expiry", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, &ci->current, "expiry", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(&ci->current, "minimum", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, &ci->current, "minimum", METRIC_UINT32, &vs);
      break;
 
    case DNS_T_CNAME:
@@ -547,7 +547,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
         int32_t on = 1;
         /* This actually updates what we're looking for */
         dns_dntodn(p.dnsp_dnbuf, ci->dn, sizeof(dn));
-        noit_stats_set_metric(&ci->current, "cname", METRIC_INT32, &on);
+        noit_stats_set_metric(ci->check, &ci->current, "cname", METRIC_INT32, &on);
 
         /* Now follow the leader */
         noitL(nldeb, "%s. CNAME %s.\n", dns_dntosp(dn),
@@ -584,7 +584,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
     result_combined[len] = '\0';
     free(result_str[i]); /* free as we go */
   }
-  noit_stats_set_metric(&ci->current, "answer", METRIC_STRING, result_combined);
+  noit_stats_set_metric(ci->check, &ci->current, "answer", METRIC_STRING, result_combined);
 
  cleanup:
   if(result) free(result);

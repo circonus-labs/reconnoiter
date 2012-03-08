@@ -140,9 +140,9 @@ noit_httptrap_check_aynsch(noit_module_t *self,
   return is_asynch;
 }
 
-static void clear_closure(httptrap_closure_t *ccl) {
+static void clear_closure(noit_check_t *check, httptrap_closure_t *ccl) {
   ccl->stats_count = 0;
-  noit_check_stats_clear(&ccl->current);
+  noit_check_stats_clear(check, &ccl->current);
 }
 
 static int httptrap_submit(noit_module_t *self, noit_check_t *check,
@@ -156,6 +156,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t)); 
     memset(ccl, 0, sizeof(httptrap_closure_t));
+    ccl->self = self;
   } else {
     // Don't count the first run
     char human_buffer[256];
@@ -176,11 +177,11 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
         NP_GOOD : NP_BAD;
     ccl->current.status = human_buffer;
     if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(self, check, &ccl->current);
+      noit_check_passive_set_stats(check, &ccl->current);
 
     memcpy(&check->last_fire_time, &ccl->current.whence, sizeof(duration));
   }
-  clear_closure(ccl);
+  clear_closure(check, ccl);
   return 0;
 }
 
@@ -193,7 +194,7 @@ json_parse_descent(noit_check_t *check, noit_boolean immediate,
 
 #define setstat(key, mt, v) do { \
   cnt++; \
-  noit_stats_set_metric(&ccl->current, key, mt, v); \
+  noit_stats_set_metric(check, &ccl->current, key, mt, v); \
   if(immediate) noit_stats_log_immediate_metric(check, key, mt, v); \
 } while(0)
 

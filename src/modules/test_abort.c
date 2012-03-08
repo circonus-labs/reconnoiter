@@ -99,11 +99,11 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
      * such on the synchronous completion of the event.
      */
     stats_t current;
-    noit_check_stats_clear(&current);
+    noit_check_stats_clear(check, &current);
     current.available = NP_AVAILABLE;
     current.state = ci->timed_out ? NP_BAD : NP_GOOD;
     noitL(nlerr, "test_abort: EVENTER_READ | EVENTER_WRITE\n");
-    noit_check_set_stats(ci->self, check, &current);
+    noit_check_set_stats(check, &current);
     check->flags &= ~NP_RUNNING;
     return 0;
   }
@@ -112,7 +112,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
       noitL(nlerr, "test_abort: EVENTER_ASYNCH_WORK\n");
       r = modf(ci->timeout, &i);
       ci->timed_out = 1;
-      
+
       if(ci->ignore_signals) { /* compuational loop */
         double trash = 1.0;
         gettimeofday(&now, NULL);
