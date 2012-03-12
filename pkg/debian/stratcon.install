@@ -8,7 +8,7 @@ usr/share/java/commons-codec-1.5.jar
 usr/share/java/commons-dbcp-1.2.2.jar
 usr/share/java/commons-io-1.2.jar
 usr/share/java/commons-pool-1.4.jar
-usr/share/java/esper-4.1.0.jar
+usr/share/java/esper-4.5.0.jar
 usr/share/java/protobuf-java-2.4.1.jar
 usr/share/java/postgresql-8.3-604.jdbc3.jar
 usr/share/java/rabbitmq-client-2.4.1.jar
