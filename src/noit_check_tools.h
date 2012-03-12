@@ -104,6 +104,22 @@ API_EXPORT(int)
  *   <para>Returning NOIT_HOOK_CONTINUE and NOIT_HOOK_DONE have the same
  *   effect for this instrumentation point.</para>
  *   </section>
+ *   <section><title>check_log_stats</title>
+ *   <programlisting>
+ *     noit_hook_return_t (*f)(void *closure, noit_check_t *check);
+ *   </programlisting>
+ *   <para>The check_log_stats is called when a check logs a metrics
+ *   bundle.</para>
+ *   <para>If NOIT_HOOK_DONE is returned, normal logging is averted.</para>
+ *   </section>
+ *   <section><title>check_passive_log_stats</title>
+ *   <programlisting>
+ *     noit_hook_return_t (*f)(void *closure, noit_check_t *check);
+ *   </programlisting>
+ *   <para>The check_passive_log_stats is called when a check logs a
+ *   metric immediately.</para>
+ *   <para>If NOIT_HOOK_DONE is returned, normal logging is averted.</para>
+ *   </section>
  * </section>
  */
 NOIT_HOOK_PROTO(check_preflight,

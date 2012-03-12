@@ -334,4 +334,14 @@ NOIT_HOOK_PROTO(check_stats_set_metric,
                 void *, closure,
                 (void *closure, noit_check_t *check, stats_t *stats, metric_t *m))
 
+NOIT_HOOK_PROTO(check_passive_log_stats,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check))
+
+NOIT_HOOK_PROTO(check_log_stats,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check))
+
 #endif

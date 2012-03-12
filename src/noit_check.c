@@ -60,6 +60,18 @@ NOIT_HOOK_IMPL(check_stats_set_metric,
   (void *closure, noit_check_t *check, stats_t *stats, metric_t *m),
   (closure,check,stats,m))
 
+NOIT_HOOK_IMPL(check_passive_log_stats,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
+NOIT_HOOK_IMPL(check_log_stats,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
 /* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
 #define MAX_MODULE_REGISTRATIONS 64
@@ -508,6 +520,7 @@ noit_poller_transient_check_count() {
 
 noit_check_t *
 noit_check_clone(uuid_t in) {
+  int i;
   noit_check_t *checker, *new_check;
   void *vcheck;
   if(noit_hash_retrieve(&polls,
@@ -532,6 +545,15 @@ noit_check_clone(uuid_t in) {
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
   noit_hash_merge_as_dict(new_check->config, checker->config);
+  for(i=0; i<reg_module_id; i++) {
+    noit_hash_table *src_mconfig;
+    src_mconfig = noit_check_get_module_config(checker, i);
+    if(src_mconfig) {
+      noit_hash_table *t = calloc(1, sizeof(*new_check->config));
+      noit_hash_merge_as_dict(t, src_mconfig);
+      noit_check_set_module_config(new_check, i, t);
+    }
+  }
   return new_check;
 }
 
@@ -1308,10 +1330,13 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     /* Swap the real check's stats into place */
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
     memcpy(&wcheck->stats.current, newstate, sizeof(stats_t));
-    /* Write out our status */
-    noit_check_log_status(wcheck);
-    /* Write out all metrics */
-    noit_check_log_metrics(wcheck);
+
+    if(check_passive_log_stats_hook_invoke(check) == NOIT_HOOK_CONTINUE) {
+      /* Write out our status */
+      noit_check_log_status(wcheck);
+      /* Write out all metrics */
+      noit_check_log_metrics(wcheck);
+    }
     /* Swap them back out */
     memcpy(&wcheck->stats.current, &backup, sizeof(stats_t));
 
@@ -1362,8 +1387,10 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
                       check->stats.current.status);
   }
 
-  /* Write out the bundled information */
-  noit_check_log_bundle(check);
+  if(check_log_stats_hook_invoke(check) == NOIT_HOOK_CONTINUE) {
+    /* Write out the bundled information */
+    noit_check_log_bundle(check);
+  }
   /* count the check as complete */
   check_completion_count++;
 
