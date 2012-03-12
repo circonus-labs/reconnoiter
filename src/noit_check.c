@@ -54,6 +54,12 @@
 #include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
+NOIT_HOOK_IMPL(check_stats_set_metric,
+  (noit_check_t *check, stats_t *stats, metric_t *m),
+  void *, closure,
+  (void *closure, noit_check_t *check, stats_t *stats, metric_t *m),
+  (closure,check,stats,m))
+
 /* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
 #define MAX_MODULE_REGISTRATIONS 64
@@ -1207,6 +1213,7 @@ noit_stats_set_metric(noit_check_t *check,
     free_metric(m);
     return;
   }
+  check_stats_set_metric_hook_invoke(check, newstate, m);
   __stats_add_metric(newstate, m);
 }
 void

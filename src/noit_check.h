@@ -41,6 +41,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
+#include "utils/noit_hooks.h"
 #include "noit_conf.h"
 #include "noit_console.h"
 
@@ -327,5 +328,10 @@ API_EXPORT(char *)
 
 API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
+
+NOIT_HOOK_PROTO(check_stats_set_metric,
+                (noit_check_t *check, stats_t *stats, metric_t *m),
+                void *, closure,
+                (void *closure, noit_check_t *check, stats_t *stats, metric_t *m))
 
 #endif

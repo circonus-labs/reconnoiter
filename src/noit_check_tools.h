@@ -65,6 +65,15 @@ API_EXPORT(int)
 
 /*#* DOCBOOK
  * <section><title>Check Hooks</title>
+ *   <section><title>check_stats_set_metric</title>
+ *   <programlisting>
+ *     noit_hook_return_t (*f)(void *closure, noit_check_t *check, metric_t *m);
+ *   </programlisting>
+ *   <para>the check_stats_set_metric hook is invoked each time a check is
+ *   run and an individual metric is identified and inserted into
+ *   the running status.
+ *   </para>
+ *   </section>
  *   <section><title>check_preflight</title>
  *   <programlisting>
  *     noit_hook_return_t (*f)(void *closure, noit_module_t *self,
