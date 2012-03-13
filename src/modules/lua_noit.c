@@ -53,6 +53,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_xml.h"
+#include "utils/noit_misc.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
 #include "utils/noit_b32.h"
@@ -1207,6 +1208,7 @@ nl_gunzip_deflate(lua_State *L) {
   uLong outlen = 0;
   int limit = 1024*1024;
   int err, n = lua_gettop(L);
+  int disable_deflate_size_limit = get_disable_deflate_size_limit();
 
   if(n < 1 || n > 2) {
     lua_pushnil(L);
@@ -1232,9 +1234,11 @@ nl_gunzip_deflate(lua_State *L) {
       /* got some data */
       int size_read = DEFLATE_CHUNK_SIZE - stream->avail_out;
       uLong newoutlen = outlen + size_read;
-      if(newoutlen > limit) {
-        err = Z_MEM_ERROR;
-        break;
+      if (!disable_deflate_size_limit) {
+        if(newoutlen > limit) {
+          err = Z_MEM_ERROR;
+          break;
+        }
       }
       if(newoutlen > outlen) {
         Bytef *newdata;
