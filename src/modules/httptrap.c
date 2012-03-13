@@ -81,6 +81,7 @@ struct rest_json_payload {
   metric_type_t last_type;
   struct value_list *last_value;
   int cnt;
+  noit_boolean immediate;
 };
 
 #define NEW_LV(json,a) do { \
@@ -89,6 +90,27 @@ struct rest_json_payload {
   nlv->next = json->last_value; \
   json->last_value = nlv; \
 } while(0)
+
+static noit_boolean
+noit_httptrap_check_aynsch(noit_module_t *self,
+                           noit_check_t *check) {
+  const char *config_val;
+  httptrap_mod_config_t *conf;
+  if(!self) return noit_true;
+  conf = noit_module_get_userdata(self);
+  if(!conf) return noit_true;
+  noit_boolean is_asynch = conf->asynch_metrics;
+  if(noit_hash_retr_str(check->config,
+                        "asynch_metrics", strlen("asynch_metrics"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      is_asynch = noit_false;
+  }
+
+  if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
+  else check->flags &= ~NP_SUPPRESS_METRICS;
+  return is_asynch;
+}
 
 static void
 set_array_key(struct rest_json_payload *json) {
@@ -127,6 +149,9 @@ httptrap_yajl_cb_null(void *ctx) {
   if(json->last_special_key) return 0;
   noit_stats_set_metric(json->check, json->stats,
       json->keys[json->depth], METRIC_INT32, NULL);
+  if(json->immediate)
+    noit_stats_log_immediate_metric(json->check,
+        json->keys[json->depth], METRIC_INT32, NULL);
   json->cnt++;
   return 1;
 }
@@ -143,6 +168,9 @@ httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
   ival = boolVal ? 1 : 0;
   noit_stats_set_metric(json->check, json->stats,
       json->keys[json->depth], METRIC_INT32, &ival);
+  if(json->immediate)
+    noit_stats_log_immediate_metric(json->check,
+        json->keys[json->depth], METRIC_INT32, &ival);
   json->cnt++;
   return 1;
 }
@@ -166,6 +194,9 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
   val[numberLen] = '\0';
   noit_stats_set_metric(json->check, json->stats,
       json->keys[json->depth], METRIC_GUESS, val);
+  if(json->immediate)
+    noit_stats_log_immediate_metric(json->check,
+        json->keys[json->depth], METRIC_GUESS, val);
   json->cnt++;
   return 1;
 }
@@ -200,6 +231,9 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
   val[stringLen] = '\0';
   noit_stats_set_metric(json->check, json->stats,
       json->keys[json->depth], METRIC_GUESS, val);
+  if(json->immediate)
+    noit_stats_log_immediate_metric(json->check,
+        json->keys[json->depth], METRIC_GUESS, val);
   json->cnt++;
   return 1;
 }
@@ -220,6 +254,9 @@ httptrap_yajl_cb_end_map(void *ctx) {
     for(p=json->last_value;p;p=p->next) {
       noit_stats_set_metric_coerce(json->check, json->stats,
           json->keys[json->depth], json->last_type, p->v);
+      if(json->immediate)
+        noit_stats_log_immediate_metric(json->check,
+            json->keys[json->depth], json->last_type, p->v);
       json->cnt++;
     }
   }
@@ -320,6 +357,7 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
   content_length = noit_http_request_content_length(req);
   rxc = restc->call_closure;
   ccl = rxc->check->closure;
+  rxc->immediate = noit_httptrap_check_aynsch(ccl->self, rxc->check);
   while(!rxc->complete) {
     int len;
     len = noit_http_session_req_consume(
@@ -352,24 +390,6 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
 
   *complete = 1;
   return rxc;
-}
-
-static noit_boolean
-noit_httptrap_check_aynsch(noit_module_t *self,
-                           noit_check_t *check) {
-  const char *config_val;
-  httptrap_mod_config_t *conf = noit_module_get_userdata(self);
-  noit_boolean is_asynch = conf->asynch_metrics;
-  if(noit_hash_retr_str(check->config,
-                        "asynch_metrics", strlen("asynch_metrics"),
-                        (const char **)&config_val)) {
-    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      is_asynch = noit_false;
-  }
-
-  if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
-  else check->flags &= ~NP_SUPPRESS_METRICS;
-  return is_asynch;
 }
 
 static void clear_closure(noit_check_t *check, httptrap_closure_t *ccl) {
@@ -417,118 +437,6 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-/*
-static int
-json_parse_descent(noit_check_t *check, noit_boolean immediate,
-                   json_object *o, char *key) {
-  char subkey[256];
-  httptrap_closure_t *ccl;
-  int cnt = 0;
-
-#define setstat(key, mt, v) do { \
-  cnt++; \
-  noit_stats_set_metric(check, &ccl->current, key, mt, v); \
-  if(immediate) noit_stats_log_immediate_metric(check, key, mt, v); \
-} while(0)
-
-  ccl = check->closure;
-  switch(json_object_get_type(o)) {
-    case json_type_array: {
-        int i, alen = json_object_array_length(o);
-        for(i=0;i<alen;i++) {
-          snprintf(subkey, sizeof(subkey), "%s%s%d", key ? key : "",
-                   (key && *key) ? "`" : "", i);
-          cnt += json_parse_descent(check, immediate,
-                                    json_object_array_get_idx(o,i), subkey);
-        }
-      }
-      break;
-
-    case json_type_object: {
-        char *ekey;
-        struct lh_table *table;
-        struct lh_entry *entry;
-        struct json_object *val;
-        table = json_object_get_object(o);
-        if(table->count == 2) {
-          json_object *type;
-          type = json_object_object_get(o, "_type");
-          val = json_object_object_get(o, "_value");
-          if(type && json_object_is_type(type, json_type_string) &&
-             val && (json_object_is_type(val, json_type_string) ||
-                     json_object_is_type(val, json_type_null))) {
-            const char *type_str = json_object_get_string(type);
-            const char *val_str = json_object_is_type(val, json_type_null) ? NULL : json_object_get_string(val);
-            if(type_str[1] == '\0') {
-              int32_t __i, *i = &__i;
-              u_int32_t __I, *I = &__I;
-              int64_t __l, *l = &__l;
-              u_int64_t __L, *L = &__L;
-              double __n, *n = &__n;
-              if(val_str == NULL)
-                i = NULL, I = NULL, l = NULL, L = NULL, n = NULL;
-              switch(*type_str) {
-                case 'i': if(val_str) __i = strtol(val_str, NULL, 10);
-                          setstat(key, METRIC_INT32, i); break;
-                case 'I': if(val_str) __I = strtoul(val_str, NULL, 10);
-                          setstat(key, METRIC_UINT32, I); break;
-                case 'l': if(val_str) __l = strtoll(val_str, NULL, 10);
-                          setstat(key, METRIC_INT64, I); break;
-                case 'L': if(val_str) __L = strtoull(val_str, NULL, 10);
-                          setstat(key, METRIC_UINT64, I); break;
-                case 'n': if(val_str) __n = strtod(val_str, NULL);
-                          setstat(key, METRIC_DOUBLE, n); break;
-                case 's': setstat(key, METRIC_STRING, (void *)val_str); break;
-                default: break;
-              }
-            }
-            break;
-          }
-        }
-        for(entry = table->head;
-            (entry ? (ekey = (char*)entry->k,
-               val = (struct json_object*)entry->v, entry) : 0);
-            entry = entry->next) {
-          snprintf(subkey, sizeof(subkey), "%s%s%s", key ? key : "",
-                   (key && *key) ? "`" : "", ekey);
-          cnt += json_parse_descent(check, immediate, val, subkey);
-        }
-      }
-      break;
-
-    case json_type_null: {
-        if(!key || !*key) break;
-        break;
-      }
-      break;
-    case json_type_boolean: {
-        if(!key || !*key) break;
-        int32_t value = json_object_get_boolean(o) ? 1 : 0;
-        setstat(key, METRIC_INT32, &value);
-      }
-      break;
-    case json_type_double: {
-        if(!key || !*key) break;
-        double value = json_object_get_double(o);
-        setstat(key, METRIC_DOUBLE, &value);
-      }
-      break;
-    case json_type_int: {
-        if(!key || !*key) break;
-        int32_t value = json_object_get_int(o);
-        setstat(key, METRIC_INT32, &value);
-      }
-      break;
-    case json_type_string: {
-        if(!key || !*key) break;
-        const char *val = json_object_get_string(o);
-        setstat(key, METRIC_GUESS, (void *)val);
-      }
-      break;
-  }
-  return cnt;
-}
-*/
 static int
 push_payload_at_check(struct rest_json_payload *rxc) {
   httptrap_closure_t *ccl;
