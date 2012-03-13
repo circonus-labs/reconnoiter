@@ -328,12 +328,12 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
             mask);
     if(len > 0) {
       yajl_status status;
-      status = yajl_parse(rxc->parser, buffer, len);
+      status = yajl_parse(rxc->parser, (unsigned char *)buffer, len);
       if(status != yajl_status_ok) {
         unsigned char *err;
         *complete = 1;
-        err = yajl_get_error(rxc->parser, 0, buffer, len);
-        rxc->error = strdup(err);
+        err = yajl_get_error(rxc->parser, 0, (unsigned char *)buffer, len);
+        rxc->error = strdup((char *)err);
         yajl_free_error(rxc->parser, err);
         return rxc;
       }
