@@ -812,6 +812,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
         in = ctx->req.last_input = in->next;
       }
       /* pull next chunk */
+      if(ctx->conn.e == NULL) return -1;
       rlen = ctx->conn.e->opset->read(ctx->conn.e->fd,
                                       in->buff + in->start + in->size,
                                       in->allocd - in->size - in->start,
