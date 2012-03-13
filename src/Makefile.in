@@ -78,9 +78,9 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
 	bundle.pb-c.o
 
-NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
+NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
-	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
+	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a yajl-lib/libnoityajl.a
 
 STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
@@ -93,9 +93,9 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	stratcon_iep.o \
 	bundle.pb-c.o
 
-STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson
+STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
 STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
-	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a
+	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a yajl-lib/libnoityajl.a
 
 all:	reversion $(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
 
@@ -136,12 +136,16 @@ libnoit_utils:
 libnoitjson:
 	@(cd json-lib && $(MAKE) -s libnoitjson.a)
 
+libnoityajl:
+	@(cd yajl-lib && $(MAKE) -s libnoityajl.a)
+
 jlog/libjlog.a:	libjlog
 udns/libudns.o:	libudns
 noitedit/libnoitedit.a:	libnoitedit
 eventer/libeventer.a:	libeventer
 utils/libnoit_utils.a:	libnoit_utils
 json-lib/libnoitjson.a:	libnoitjson
+yajl-lib/libnoityajl.a:	libnoityajl
 
 .PHONY:	reversion
 
@@ -190,6 +194,7 @@ noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		eventer/*.o \
 		utils/*.o \
 		json-lib/*.o \
+		yajl-lib/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
@@ -205,6 +210,7 @@ stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
 		eventer/*.o \
 		utils/*.o \
 		json-lib/*.o \
+		yajl-lib/*.o \
 		-Ljlog -ljlog \
 		-Lnoitedit -lnoitedit \
 		$(NOWHOLE_ARCHIVE) \
@@ -314,6 +320,7 @@ clean:
 	(cd noitedit && $(MAKE) clean)
 	(cd utils && $(MAKE) clean)
 	(cd json-lib && $(MAKE) clean)
+	(cd yajl-lib && $(MAKE) clean)
 	(cd lua && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 
@@ -324,7 +331,7 @@ Makefile.dep:
 include Makefile.dep
 
 distclean-subdirs:
-	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib lua java ; do \
+	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib lua java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 

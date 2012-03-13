@@ -42,10 +42,11 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_rest.h"
-#include "json-lib/json.h"
+#include "yajl-lib/yajl_parse.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
+#define MAX_DEPTH 32
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
@@ -61,21 +62,249 @@ typedef struct httptrap_closure_s {
   int stats_count;
 } httptrap_closure_t;
 
+struct value_list {
+  char *v;
+  struct value_list *next;
+};
 struct rest_json_payload {
-  struct json_tokener *tok;
-  struct json_object *root;
+  noit_check_t *check;
+  stats_t *stats;
+  yajl_handle parser;
   int len;
   int complete;
   char *error;
-  int nput;
+  int depth;
+  char *keys[MAX_DEPTH];
+  char array_depth[MAX_DEPTH];
+  unsigned char last_special_key;
+  unsigned char saw_complex_type;
+  metric_type_t last_type;
+  struct value_list *last_value;
+  int cnt;
+};
+
+#define NEW_LV(json,a) do { \
+  struct value_list *nlv = malloc(sizeof(*nlv)); \
+  nlv->v = a; \
+  nlv->next = json->last_value; \
+  json->last_value = nlv; \
+} while(0)
+
+static void
+set_array_key(struct rest_json_payload *json) {
+  if(json->array_depth[json->depth] > 0) {
+    char str[256];
+    int strLen;
+    snprintf(str, sizeof(str), "%d", json->array_depth[json->depth] - 1);
+    json->array_depth[json->depth]++;
+    strLen = strlen(str);
+    if(json->keys[json->depth]) free(json->keys[json->depth]);
+    json->keys[json->depth] = NULL;
+    if(json->depth == 0) {
+      json->keys[json->depth] = malloc(strLen+1);
+      memcpy(json->keys[json->depth], str, strLen);
+      json->keys[json->depth][strLen] = '\0';
+    }
+    else {
+      int uplen = strlen(json->keys[json->depth-1]);
+      if(uplen + 1 + strLen > 255) return;
+      json->keys[json->depth] = malloc(uplen + 1 + strLen + 1);
+      memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
+      json->keys[json->depth][uplen] = '`';
+      memcpy(json->keys[json->depth] + uplen + 1, str, strLen);
+      json->keys[json->depth][uplen + 1 + strLen] = '\0';
+    }
+  }
+}
+static int
+httptrap_yajl_cb_null(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  set_array_key(json);
+  if(json->last_special_key == 0x2) {
+    NEW_LV(json, NULL);
+    return 1;
+  }
+  if(json->last_special_key) return 0;
+  noit_stats_set_metric(json->check, json->stats,
+      json->keys[json->depth], METRIC_INT32, NULL);
+  json->cnt++;
+  return 1;
+}
+static int
+httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
+  int ival;
+  struct rest_json_payload *json = ctx;
+  set_array_key(json);
+  if(json->last_special_key == 0x2) {
+    NEW_LV(json, strdup(boolVal ? "1" : "0"));
+    return 1;
+  }
+  if(json->last_special_key) return 0;
+  ival = boolVal ? 1 : 0;
+  noit_stats_set_metric(json->check, json->stats,
+      json->keys[json->depth], METRIC_INT32, &ival);
+  json->cnt++;
+  return 1;
+}
+static int
+httptrap_yajl_cb_number(void *ctx, const char * numberVal,
+                        size_t numberLen) {
+  char val[128];
+  struct rest_json_payload *json = ctx;
+  set_array_key(json);
+  if(json->last_special_key == 0x2) {
+    char *str;
+    str = malloc(numberLen+1);
+    memcpy(str, numberVal, numberLen);
+    str[numberLen] = '\0';
+    NEW_LV(json, str);
+    return 1;
+  }
+  if(json->last_special_key) return 0;
+  if(numberLen > sizeof(val)-1) numberLen = sizeof(val)-1;
+  memcpy(val, numberVal, numberLen);
+  val[numberLen] = '\0';
+  noit_stats_set_metric(json->check, json->stats,
+      json->keys[json->depth], METRIC_GUESS, val);
+  json->cnt++;
+  return 1;
+}
+static int
+httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
+                        size_t stringLen) {
+  struct rest_json_payload *json = ctx;
+  char val[4096];
+  set_array_key(json);
+  if(json->last_special_key == 0x1) {
+    if(stringLen != 1) return 0;
+    if(*stringVal == 'L' || *stringVal == 'l' ||
+        *stringVal == 'I' || *stringVal == 'i' ||
+        *stringVal == 'n' || *stringVal == 's') {
+      json->last_type = *stringVal;
+      json->saw_complex_type |= 0x1;
+      return 1;
+    }
+    return 0;
+  }
+  else if(json->last_special_key == 0x2) {
+    char *str;
+    str = malloc(stringLen+1);
+    memcpy(str, stringVal, stringLen);
+    str[stringLen] = '\0';
+    NEW_LV(json, str);
+    json->saw_complex_type |= 0x2;
+    return 1;
+  }
+  if(stringLen > sizeof(val)-1) stringLen = sizeof(val)-1;
+  memcpy(val, stringVal, stringLen);
+  val[stringLen] = '\0';
+  noit_stats_set_metric(json->check, json->stats,
+      json->keys[json->depth], METRIC_GUESS, val);
+  json->cnt++;
+  return 1;
+}
+static int
+httptrap_yajl_cb_start_map(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  set_array_key(json);
+  json->depth++;
+  if(json->depth >= MAX_DEPTH) return 0;
+  return 1;
+}
+static int
+httptrap_yajl_cb_end_map(void *ctx) {
+  struct value_list *p;
+  struct rest_json_payload *json = ctx;
+  json->depth--;
+  if(json->saw_complex_type == 0x3) {
+    for(p=json->last_value;p;p=p->next) {
+      noit_stats_set_metric_coerce(json->check, json->stats,
+          json->keys[json->depth], json->last_type, p->v);
+      json->cnt++;
+    }
+  }
+  json->saw_complex_type = 0;
+  for(p=json->last_value;p;) {
+    struct value_list *savenext;
+    savenext = p->next;
+    if(p->v) free(p->v);
+    savenext = p->next;
+    free(p);
+    p = savenext;
+  }
+  json->last_value = NULL;
+  return 1;
+}
+static int
+httptrap_yajl_cb_start_array(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  json->depth++;
+  json->array_depth[json->depth]++;
+  return 1;
+}
+static int
+httptrap_yajl_cb_end_array(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  json->array_depth[json->depth] = 0;
+  json->depth--;
+  return 1;
+}
+static int
+httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
+                         size_t stringLen) {
+  struct rest_json_payload *json = ctx;
+  if(stringLen > 255) return 0;
+  if(json->keys[json->depth]) free(json->keys[json->depth]);
+  json->keys[json->depth] = NULL;
+  if(stringLen == 5 && memcmp(key, "_type", 5) == 0) {
+    json->last_special_key = 0x1;
+    if(json->depth > 0) json->keys[json->depth] = strdup(json->keys[json->depth-1]);
+    return 1;
+  }
+  if(stringLen == 6 && memcmp(key, "_value", 6) == 0) {
+    if(json->depth > 0) json->keys[json->depth] = strdup(json->keys[json->depth-1]);
+    json->last_special_key = 0x2;
+    json->saw_complex_type |= 0x2;
+    return 1;
+  }
+  json->last_special_key = 0;
+  if(json->depth == 0) {
+    json->keys[json->depth] = malloc(stringLen+1);
+    memcpy(json->keys[json->depth], key, stringLen);
+    json->keys[json->depth][stringLen] = '\0';
+  }
+  else {
+    int uplen = strlen(json->keys[json->depth-1]);
+    if(uplen + 1 + stringLen > 255) return 0;
+    json->keys[json->depth] = malloc(uplen + 1 + stringLen + 1);
+    memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
+    json->keys[json->depth][uplen] = '`';
+    memcpy(json->keys[json->depth] + uplen + 1, key, stringLen);
+    json->keys[json->depth][uplen + 1 + stringLen] = '\0';
+  }
+  return 1;
+}
+static yajl_callbacks httptrap_yajl_callbacks = {
+  .yajl_null = httptrap_yajl_cb_null,
+  .yajl_boolean = httptrap_yajl_cb_boolean,
+  .yajl_number = httptrap_yajl_cb_number,
+  .yajl_string = httptrap_yajl_cb_string,
+  .yajl_start_map = httptrap_yajl_cb_start_map,
+  .yajl_map_key = httptrap_yajl_cb_map_key,
+  .yajl_end_map = httptrap_yajl_cb_end_map,
+  .yajl_start_array = httptrap_yajl_cb_start_array,
+  .yajl_end_array = httptrap_yajl_cb_end_array
 };
 
 static void
 rest_json_payload_free(void *f) {
+  int i;
   struct rest_json_payload *json = f;
-  if(json->tok) json_tokener_free(json->tok);
-  if(json->root) json_object_put(json->root);
+  if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);
+  for(i=0;i<MAX_DEPTH;i++)
+    if(json->keys[i]) free(json->keys[i]);
+  if(json->last_value) free(json->last_value);
   free(json);
 }
 
@@ -84,16 +313,13 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_json_payload *rxc;
   noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  httptrap_closure_t *ccl;
   int content_length;
   char buffer[32768];
 
   content_length = noit_http_request_content_length(req);
-  if(restc->call_closure == NULL) {
-    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
-    rxc->tok = json_tokener_new();
-    restc->call_closure_free = rest_json_payload_free;
-  }
   rxc = restc->call_closure;
+  ccl = rxc->check->closure;
   while(!rxc->complete) {
     int len;
     len = noit_http_session_req_consume(
@@ -101,12 +327,17 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
             MIN(content_length - rxc->len, sizeof(buffer)),
             mask);
     if(len > 0) {
-      struct json_object *o;
-      o = json_tokener_parse_ex(rxc->tok, buffer, len);
-      rxc->len += len;
-      if(!is_error(o)) {
-        rxc->root = o;
+      yajl_status status;
+      status = yajl_parse(rxc->parser, buffer, len);
+      if(status != yajl_status_ok) {
+        unsigned char *err;
+        *complete = 1;
+        err = yajl_get_error(rxc->parser, 0, buffer, len);
+        rxc->error = strdup(err);
+        yajl_free_error(rxc->parser, err);
+        return rxc;
       }
+      rxc->len += len;
     }
     if(len < 0 && errno == EAGAIN) return NULL;
     else if(len < 0) {
@@ -115,6 +346,7 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
     }
     if(rxc->len == content_length) {
       rxc->complete = 1;
+      yajl_complete_parse(rxc->parser);
     }
   }
 
@@ -185,6 +417,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
+/*
 static int
 json_parse_descent(noit_check_t *check, noit_boolean immediate,
                    json_object *o, char *key) {
@@ -218,7 +451,6 @@ json_parse_descent(noit_check_t *check, noit_boolean immediate,
         struct json_object *val;
         table = json_object_get_object(o);
         if(table->count == 2) {
-          /* this is the special key: { _type: , _value: } notation */
           json_object *type;
           type = json_object_object_get(o, "_type");
           val = json_object_object_get(o, "_value");
@@ -296,23 +528,21 @@ json_parse_descent(noit_check_t *check, noit_boolean immediate,
   }
   return cnt;
 }
+*/
 static int
-push_payload_at_check(noit_check_t *check, json_object *root) {
+push_payload_at_check(struct rest_json_payload *rxc) {
   httptrap_closure_t *ccl;
   noit_boolean immediate;
   char key[256];
-  int cnt;
 
-  if (check->closure == NULL) return 0;
-  ccl = check->closure;
-  if (!check || strcmp(check->module, "httptrap")) return 0;
-  immediate = noit_httptrap_check_aynsch(ccl->self,check);
+  if (!rxc->check || strcmp(rxc->check->module, "httptrap")) return 0;
+  if (rxc->check->closure == NULL) return 0;
+  ccl = rxc->check->closure;
+  immediate = noit_httptrap_check_aynsch(ccl->self,rxc->check);
 
   /* do it here */
-  key[0] = '\0';
-  cnt = json_parse_descent(check, immediate, root, key);
-  ccl->stats_count += cnt;
-  return cnt;
+  ccl->stats_count = rxc->cnt;
+  return rxc->cnt;
 }
 
 static int
@@ -335,29 +565,43 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
     goto error;
   }
 
+  if(restc->call_closure == NULL) {
+    httptrap_closure_t *ccl;
+    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    check = noit_poller_lookup(check_id);
+    if(!check || strcmp(check->module, "httptrap")) {
+      error = "no such httptrap check";
+      goto error;
+    }
+    noit_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
+    if(!secret) secret = "";
+    if(strcmp(pats[1], secret)) {
+      error = "secret mismatch";
+      goto error;
+    }
+    rxc->check = check;
+    ccl = check->closure;
+    if(!ccl) {
+      error = "noitd is booting, try again in a bit";
+      goto error;
+    }
+    rxc->stats = &ccl->current;
+    rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
+    rxc->depth = -1;
+    yajl_config(rxc->parser, yajl_allow_comments, 1);
+    yajl_config(rxc->parser, yajl_dont_validate_strings, 1);
+    yajl_config(rxc->parser, yajl_allow_trailing_garbage, 1);
+    yajl_config(rxc->parser, yajl_allow_partial_values, 1);
+    restc->call_closure_free = rest_json_payload_free;
+  }
+
   rxc = rest_get_json_upload(restc, &mask, &complete);
   if(rxc == NULL && !complete) return mask;
 
-  check = noit_poller_lookup(check_id);
-  if(!check || strcmp(check->module, "httptrap")) {
-    error = "no such httptrap check";
-    goto error;
-  }
-  noit_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
-  if(!secret) secret = "";
-  if(strcmp(pats[1], secret)) {
-    error = "secret mismatch";
-    goto error;
-  }
-
   if(!rxc) goto error;
-  if(!rxc->root) {
-    error = "parse failure";
-    goto error;
-  }
   if(rxc->error) goto error;
 
-  cnt = push_payload_at_check(check, rxc->root);
+  cnt = push_payload_at_check(rxc);
 
   noit_http_response_ok(ctx, "application/json");
   snprintf(json_out, sizeof(json_out),
@@ -429,7 +673,7 @@ static int noit_httptrap_init(noit_module_t *self) {
 
   /* register rest handler */
   noit_http_rest_register("PUT", "/module/httptrap/",
-                          "^(" UUID_REGEX ")/([^/]*)$",
+                          "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_handler);
   return 0;
 }

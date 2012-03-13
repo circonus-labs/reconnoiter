@@ -1,0 +1,24 @@
+
+yajl.o: yajl.c yajl_parse.h yajl_lex.h yajl_common.h yajl_parser.h \
+  yajl_bytestack.h yajl_buf.h yajl_alloc.h
+
+yajl_alloc.o: yajl_alloc.c yajl_alloc.h yajl_common.h
+
+yajl_buf.o: yajl_buf.c yajl_buf.h yajl_common.h yajl_alloc.h
+
+yajl_encode.o: yajl_encode.c yajl_encode.h yajl_buf.h yajl_common.h \
+  yajl_alloc.h yajl_gen.h
+
+yajl_gen.o: yajl_gen.c yajl_gen.h yajl_buf.h yajl_common.h yajl_alloc.h \
+  yajl_encode.h
+
+yajl_lex.o: yajl_lex.c yajl_lex.h yajl_common.h yajl_buf.h yajl_alloc.h
+
+yajl_parser.o: yajl_parser.c yajl_parse.h yajl_lex.h yajl_common.h \
+  yajl_parser.h yajl_bytestack.h yajl_buf.h yajl_alloc.h yajl_encode.h \
+  yajl_gen.h
+
+yajl_tree.o: yajl_tree.c yajl_tree.h yajl_parse.h yajl_parser.h \
+  yajl_bytestack.h yajl_common.h yajl_buf.h yajl_alloc.h yajl_lex.h
+
+yajl_version.o: yajl_version.c
