@@ -1461,7 +1461,7 @@ noit_conf_misc_init(const char* appname) {
   noit_hash_table *table;
   char appscratch[1024];
 
-  set_disable_deflate_size_limit(0);
+  set_deflate_limit(1024*1024);
 
   snprintf(appscratch, sizeof(appscratch), "/%s/misc", appname);
   table = noit_conf_get_hash(NULL, appscratch);
@@ -1470,12 +1470,10 @@ noit_conf_misc_init(const char* appname) {
     const char *key, *value;
     int klen;
     while(noit_hash_next_str(table, &iter, &key, &klen, &value)) {
-      if (strcmp(key, "disable_deflate_size_limit") == 0) {
-        if (strcmp(value, "true") == 0) {
-          set_disable_deflate_size_limit(1);
-        }
-        else {
-          set_disable_deflate_size_limit(0);
+      if (strcmp(key, "deflate_limit") == 0) {
+        if (value != NULL) {
+          unsigned int val = atoi(value);
+          set_deflate_limit(val);
         }
       }
     }

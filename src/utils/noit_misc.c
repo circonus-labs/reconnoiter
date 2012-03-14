@@ -35,13 +35,13 @@
 #include "utils/noit_log.h"
 #include "errno.h"
 
-static int disable_deflate_size_limit = 0;
+static unsigned int deflate_limit = 1024*1024;
 
-void set_disable_deflate_size_limit (int value) {
-  disable_deflate_size_limit = value;
+void set_deflate_limit (unsigned int value) {
+  deflate_limit = value;
 }
 
-int get_disable_deflate_size_limit () {
-  return disable_deflate_size_limit;
+unsigned int get_deflate_limit () {
+  return deflate_limit;
 }
 

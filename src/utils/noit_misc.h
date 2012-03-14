@@ -37,7 +37,7 @@
 #include "noit_defines.h"
 #include <sys/stat.h>
 
-API_EXPORT(void) set_disable_deflate_size_limit(int value);
-API_EXPORT(int)  get_disable_deflate_size_limit();
+API_EXPORT(void) set_deflate_limit(unsigned int value);
+API_EXPORT(unsigned int)  get_deflate_limit();
 
 #endif
