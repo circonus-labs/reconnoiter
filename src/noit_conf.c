@@ -49,6 +49,7 @@
 #include "noit_xml.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
+#include "utils/noit_misc.h"
 #include "utils/noit_b64.h"
 
 /* tmp hash impl, replace this with something nice */
@@ -1454,6 +1455,34 @@ noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
   free(log_configs);
   return rv;
 }
+int
+noit_conf_misc_init(const char* appname) {
+  int rv = 0;
+  noit_hash_table *table;
+  char appscratch[1024];
+
+  set_deflate_limit(1024*1024);
+
+  snprintf(appscratch, sizeof(appscratch), "/%s/misc", appname);
+  table = noit_conf_get_hash(NULL, appscratch);
+  if(table) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *key, *value;
+    int klen;
+    while(noit_hash_next_str(table, &iter, &key, &klen, &value)) {
+      if (strcmp(key, "deflate_limit") == 0) {
+        if (value != NULL) {
+          unsigned int val = atoi(value);
+          set_deflate_limit(val);
+        }
+      }
+    }
+    noit_hash_destroy(table, free, free);
+    free(table);
+  }
+  return rv;
+}
+
 void
 noit_conf_log_init(const char *toplevel) {
   int i, cnt = 0, o, ocnt = 0;

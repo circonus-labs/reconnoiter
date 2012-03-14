@@ -145,6 +145,7 @@ noit_main(const char *appname,
     exit(-1);
   }
   noit_conf_log_init(appname);
+  noit_conf_misc_init(appname);
   cli_log_switches();
   if(noit_security_usergroup(user, group, noit_true)) {
     noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
