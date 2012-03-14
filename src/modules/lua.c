@@ -707,7 +707,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
           if(err) noitL(nldeb, "err -> %s\n", err);
           if(nerr) noitL(nldeb, "nerr -> %s\n", nerr);
           if(nerr && *nerr == 31) nerr = NULL; // 31? WTF lua?
-          if(!nerr && err) {
+          if(err) {
             nerr = strchr(err, ' '); /* advance past the file */
             if(nerr) nerr += 1;
           }
