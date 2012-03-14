@@ -47,6 +47,10 @@ function onload(image)
     <parameter name="port"
                required="optional"
                allowed="\d+">The TCP port can be specified to overide the default of 81.</parameter>
+    <parameter name="read_limit"
+               required="optional"
+               default="0"
+               allowed="\d+">Sets an approximate limit on the data read (0 means no limit).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -195,6 +199,7 @@ function initiate(module, check)
     local codere = noit.pcre(check.config.code or '^200$')
     local good = false
     local starttime = noit.timeval.now()
+    local read_limit = tonumber(check.config.read_limit) or nil
 
     local user = check.config.auth_user or nil
     local pass = check.config.auth_password or nil
@@ -243,7 +248,7 @@ function initiate(module, check)
         headers["Authorization"] = "Basic " .. encoded
     end
     client:do_request("GET", uri, headers)
-    client:get_response()
+    client:get_response(read_limit)
 
     local jsondoc = nil
     if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or

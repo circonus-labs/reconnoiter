@@ -283,7 +283,7 @@ function initiate(module, check)
     local pcre_match_limit = check.config.pcre_match_limit or 10000
     local redirects = check.config.redirects or 0
     local include_body = false
-    local read_limit = tonumber(check.config.read_limit) or 0
+    local read_limit = tonumber(check.config.read_limit) or nil
 
     -- expect the worst
     check.bad()

@@ -1221,7 +1221,7 @@ nl_gunzip_deflate(lua_State *L) {
     lua_pushnil(L);
     return 1;
   }
-  if(n == 2)
+  if(n == 2 && !lua_isnil(L, 2))
     limit = lua_tointeger(L, 2);
 
   stream->next_in = (Bytef *)input;
@@ -1232,7 +1232,7 @@ nl_gunzip_deflate(lua_State *L) {
       /* got some data */
       int size_read = DEFLATE_CHUNK_SIZE - stream->avail_out;
       uLong newoutlen = outlen + size_read;
-      if(newoutlen > limit) {
+      if(limit && newoutlen > limit) {
         err = Z_MEM_ERROR;
         break;
       }

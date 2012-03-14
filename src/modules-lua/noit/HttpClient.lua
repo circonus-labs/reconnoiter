@@ -187,12 +187,16 @@ function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
     local ce = self.headers["content-encoding"]
     if ce ~= nil then
+        local deflater
         if ce == "gzip" then
-            cefunc = noit.gunzip()
+            deflater = noit.gunzip()
         elseif ce == "deflate" then
-            cefunc = noit.gunzip()
+            deflater = noit.gunzip()
         else
             error("unknown content-encoding: " .. ce)
+        end
+        cefunc = function(str)
+          return deflater(str, read_limit)
         end
     end
     local te = self.headers["transfer-encoding"]
