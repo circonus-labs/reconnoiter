@@ -214,4 +214,71 @@ function HttpClient:get_response(read_limit)
     return self:get_body(read_limit)
 end
 
+function HttpClient:auth_digest(method, uri, user, pass, challenge)
+    local c = ', ' .. challenge
+    local nc = '00000001'
+    local function rand_string(t, l)
+        local n = table.getn(t)
+        local o = ''
+        while l > 0 do
+          o = o .. t[math.random(1,n)]
+          l = l - 1
+        end
+        return o
+    end
+    local cnonce =
+        rand_string({'a','b','c','d','e','f','g','h','i','j','k','l','m',
+                     'n','o','p','q','r','s','t','u','v','x','y','z','A',
+                     'B','C','D','E','F','G','H','I','J','K','L','M','N',
+                     'O','P','Q','R','S','T','U','V','W','X','Y','Z','0',
+                     '1','2','3','4','5','6','7','8','9'}, 8)
+    local p = {}
+    for k,v in string.gmatch(c, ',%s+(%a+)="([^"]+)"') do p[k] = v end
+    for k,v in string.gmatch(c, ',%s+(%a+)=([^",][^,]*)') do p[k] = v end
+
+    -- qop can be a list
+    for q in string.gmatch(p.qop, '([^,]+)') do
+        if q == "auth" then p.qop = "auth" end
+    end
+
+    -- calculate H(A1)
+    local ha1 = noit.md5_hex(user .. ':' .. p.realm .. ':' .. pass)
+    if string.lower(p.qop or '') == 'md5-sess' then
+        ha1 = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. cnonce)
+    end
+    -- calculate H(A2)
+    local ha2 = ''
+    if p.qop == "auth" or p.qop == nil then
+        ha2 = noit.md5_hex(method .. ':' .. uri)
+    else
+        -- we don't support auth-int
+        error("qop=" .. p.qop .. " is unsupported")
+    end
+    local resp = ''
+    if p.qop == "auth" then
+        resp = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. nc
+                                .. ':' .. cnonce .. ':' .. p.qop
+                                .. ':' .. ha2)
+    else
+        resp = noit.md5_hex(ha1 .. ':' .. p.nonce .. ':' .. ha2)
+    end
+    local o = {}
+    o.username = user
+    o.realm = p.realm
+    o.nonce = p.nonce
+    o.uri = uri
+    o.cnonce = cnonce
+    o.qop = p.qop
+    o.response = resp
+    o.algorithm = p.algorithm
+    if p.opaque then o.opaque = p.opaque end
+    local hdr = ''
+    for k,v in pairs(o) do
+      if hdr == '' then hdr = k .. '="' .. v .. '"'
+      else hdr = hdr .. ', ' .. k .. '="' .. v .. '"' end
+    end
+    hdr = hdr .. ', nc=' .. nc
+    return hdr
+end
+
 return HttpClient
