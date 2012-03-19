@@ -201,13 +201,6 @@ function initiate(module, check)
     local starttime = noit.timeval.now()
     local read_limit = tonumber(check.config.read_limit) or nil
 
-    local user = check.config.auth_user or nil
-    local pass = check.config.auth_password or nil
-    local encoded = nil
-    if (user ~= nil and pass ~= nil) then
-        encoded = noit.base64_encode(user .. ':' .. pass)
-    end
-
     -- assume the worst.
     check.bad()
     check.unavailable()
@@ -233,20 +226,70 @@ function initiate(module, check)
     local hdrs_in = { }
     callbacks.consume = function (str) output = output .. str end
     callbacks.headers = function (t) hdrs_in = t end
+   
+    -- perform the request
+    local headers = {}
+    headers.Host = host
+
+    if check.config.auth_method == "Basic" or
+        (check.config.auth_method == nil and
+            check.config.auth_user ~= nil and
+            check.config.auth_password ~= nil) then
+        local user = check.config.auth_user or nil
+        local pass = check.config.auth_password or nil
+        local encoded = nil
+        if (user ~= nil and pass ~= nil) then
+            encoded = noit.base64_encode(user .. ':' .. pass)
+            headers["Authorization"] = "Basic " .. encoded
+        end
+    elseif check.config.auth_method == "Digest" or
+           check.config.auth_method == "Auto" then
+
+        -- this is handled later as we need our challenge.
+        local client = HttpClient:new()
+        local rv, err = client:connect(check.target_ip, port, use_ssl)
+        if rv ~= 0 then
+            check.status(str or "unknown error")
+            return
+        end
+        local headers_firstpass = {}
+        for k,v in pairs(headers) do
+            headers_firstpass[k] = v
+        end
+        client:do_request("GET", uri, headers_firstpass)
+        client:get_response(read_limit)
+        if client.code ~= 401 or
+           client.headers["www-authenticate"] == nil then
+            check.status("expected digest challenge, got " .. client.code)
+            return
+        end
+        local user = check.config.auth_user or ''
+        local password = check.config.auth_password or ''
+        local ameth, challenge =
+            string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
+        if check.config.auth_method == "Auto" and ameth == "Basic" then
+            local encoded = noit.base64_encode(user .. ':' .. password)
+            headers["Authorization"] = "Basic " .. encoded
+        elseif ameth == "Digest" then
+            headers["Authorization"] =
+                "Digest " .. client:auth_digest("GET", uri,
+                                         user, password, challenge)
+        else
+            check.status("Unexpected auth '" .. ameth .. "' in challenge")
+            return
+        end
+    elseif check.config.auth_method ~= nil then
+        check.status("Unknown auth method: " .. check.config.auth_method)
+        return
+    end
+
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(check.target_ip, port, use_ssl)
-   
     if rv ~= 0 then
         check.status(err or "unknown error")
         return
     end
 
-    -- perform the request
-    local headers = {}
-    headers.Host = host
-    if encoded ~= nil then
-        headers["Authorization"] = "Basic " .. encoded
-    end
     client:do_request("GET", uri, headers)
     client:get_response(read_limit)
 
