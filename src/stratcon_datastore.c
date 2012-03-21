@@ -327,6 +327,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
     case 'M':
     case 'D':
     case 'B':
+    case 'H':
       if((cp1 = strchr(cp1+1, '\t')) != NULL &&
          (cp2 = strchr(cp1+1, '\t')) != NULL &&
          (cp2-cp1 >= UUID_STR_LEN)) {
