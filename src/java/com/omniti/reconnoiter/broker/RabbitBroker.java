@@ -28,7 +28,7 @@ public class RabbitBroker implements IMQBroker  {
   private int cidx;
   private Connection conn;
   private Channel channel;
-  private boolean noAck = false;
+  private boolean noAck = true;
   private String userName;
   private String password;
   private String virtualHost;
@@ -173,7 +173,8 @@ public class RabbitBroker implements IMQBroker  {
         // TODO Auto-generated catch block
         e.printStackTrace();
       }
-      channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+      if(!noAck)
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
     }
   }
 
