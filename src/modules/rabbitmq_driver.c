@@ -340,8 +340,9 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
         char *replace;
         int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
         replace = alloca(newlen);
-        snprintf(replace, newlen, "%s.%d.%d%s", driver->routingkey,
-                 account_id, check_id, uuid_str);
+        snprintf(replace, newlen, "%s.%x.%x.%d.%d%s", driver->routingkey,
+                 account_id%16, (account_id/16)%16, account_id,
+                 check_id, uuid_str);
         routingkey = replace;
       }
     }
