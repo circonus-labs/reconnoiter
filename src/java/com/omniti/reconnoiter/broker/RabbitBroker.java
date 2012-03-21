@@ -147,6 +147,7 @@ public class RabbitBroker implements IMQBroker  {
     returnedQueueName = channel.queueDeclare(queueName, durableQueue,
                                              exclusiveQueue, autoDelete, null).getQueue();
     for (String rk : routingKey.split(",")) {
+        if ( rk.equalsIgnoreCase("null") ) rk = "";
         channel.queueBind(returnedQueueName, exchangeName, rk);
     }
   }
