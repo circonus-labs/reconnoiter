@@ -1,3 +1,10 @@
+reconnoiter (20120322114634) precise; urgency=low
+
+  * HEAD a2f3c05 need a placeholder to be able to bind to the 'empty'
+    routingkey
+
+ -- Brad Marshall <bradm@bradm-laptop>  Thu, 22 Mar 2012 11:46:34 +1000
+
 reconnoiter (20110609153158) lucid; urgency=low
 
   * HEAD d3e7ae2 buildtools: fix == bashism in mkversion.sh
