@@ -3,6 +3,7 @@ etc/reconnoiter/noit.conf
 usr/bin/noit-config
 usr/bin/noittrap
 usr/bin/jezebel
+usr/bin/noit_jlogctl
 usr/lib/noit/
 usr/sbin/noitd
 usr/share/java/jezebel.jar
