@@ -53,7 +53,7 @@
       <hostname>mq1.int.circonus.net,mq2.int.circonus.net</hostname>
       <exchange>noit.firehose</exchange>
       <exchangetype>topic</exchangetype>
-      <routingkey>check,</routingkey>
+      <routingkey>check,null</routingkey>
       <username>stratcon</username>
       <password>youllneverguess</password>
     </mq>
