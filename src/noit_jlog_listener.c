@@ -40,7 +40,6 @@
 #include "noit_jlog_listener.h"
 
 #include <unistd.h>
-#define __USE_XOPEN
 #include <poll.h>
 #define MAX_ROWS_AT_ONCE 1000
 #define DEFAULT_SECONDS_BETWEEN_BATCHES 10

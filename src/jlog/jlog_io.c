@@ -34,8 +34,6 @@
  * We want the single unix spec, so this define is needed on
  * the identity crisis that is Linux. pread()/pwrite()
  */
-#define _XOPEN_SOURCE 500
-
 #include "jlog_config.h"
 #include "jlog_hash.h"
 #include "jlog_io.h"

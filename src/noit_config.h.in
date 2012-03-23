@@ -88,6 +88,7 @@
 #undef HAVE_U_INT
 #undef HAVE_U_INT64_T
 #undef HAVE_U_INTXX_T
+#undef HAVE_SIG_T
 #undef HAVE_UUID_UNPARSE_LOWER
 #define IFS_CH '/'
 #undef WORKING_SEM_INIT

@@ -44,6 +44,8 @@
 #ifndef _h_sys
 #define	_h_sys
 
+#include "noit_config.h"
+
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -80,6 +82,9 @@ typedef void	*ioctl_t;
 # undef REGEX
 # undef REGEXP
 # include <malloc.h>
+#endif
+#ifndef HAVE_SIG_T
+#define HAVE_SIG_T
 typedef void (*sig_t)(int);
 #endif
 

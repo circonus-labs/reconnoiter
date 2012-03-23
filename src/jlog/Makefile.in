@@ -2,7 +2,7 @@
 .SUFFIXES: .lo
 
 CC=@CC@
-CPPFLAGS=@CPPFLAGS@
+CPPFLAGS=@CPPFLAGS@ -D_BSD_SOURCE=1
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 AR=@AR@
@@ -34,7 +34,7 @@ AOBJS= \
 SOOBJS= \
 	jlog.lo jlog_hash.lo jlog_io.lo
 
-all:	libjlog.$(DOTSO) libjlog.a jlogctl test jlogperl
+all:	libjlog.$(DOTSO) libjlog.a jlogctl test
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
@@ -58,7 +58,7 @@ libjlog.$(DOTSO): $(SOOBJS)
 	$(SHLD) -o libjlog.$(DOTSO) $(SOOBJS) $(LDFLAGS) $(LIBS)
 
 libjlog.a:	$(AOBJS)
-	$(AR) cq libjlog.a $(AOBJS)
+	$(AR) cr libjlog.a $(AOBJS)
 	$(RANLIB) libjlog.a
 
 install:

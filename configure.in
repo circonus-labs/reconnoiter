@@ -39,14 +39,14 @@ AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
 if test "x$GCC" = "xyes" ; then
-  CFLAGS="$CFLAGS -g"
+  CFLAGS="$CFLAGS -g -std=c99"
   DEPFLAGS="-MM"
 else
-  CFLAGS="$CFLAGS -g"
+  CFLAGS="$CFLAGS -g -xc99=all"
   DEPFLAGS="-xM1"
 fi
 
-CPPFLAGS="$CPPFLAGS "'-I$(top_srcdir)/src'
+CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200112L "'-I$(top_srcdir)/src'
 DTRACEHDR=dtrace_probes.h
 
 case $host in
@@ -54,6 +54,7 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
+	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
 	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
 	MODULEEXT=bundle
@@ -63,6 +64,7 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
+	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
@@ -113,7 +115,7 @@ case $host in
 	;;
 *-*-linux*)
 	LDFLAGS="$LDFLAGS -Wl,-E"
-	CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE"
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	SHLD="$CC -shared"
@@ -460,7 +462,7 @@ AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*[)]],
 AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 	AC_TRY_LINK(
 		[ #include <sys/types.h> ],
-		[ u_int a; a = epoll_create(); ],
+		[ int a; a = epoll_create(); ],
 		[ ac_cv_have_epoll="yes" ],
 		[ ac_cv_have_epoll="no" ]
 	)
@@ -515,6 +517,19 @@ AC_CACHE_CHECK([for posix_readdir_r], ac_cv_have_posix_readdir_r, [
 if test "x$ac_cv_have_posix_readdir_r" = "xyes" ; then
 	AC_DEFINE(HAVE_POSIX_READDIR_R)
 	have_posix_readdir_r=1
+fi
+
+AC_CACHE_CHECK([for sig_t type], ac_cv_have_sig_t, [
+	AC_TRY_COMPILE(
+		[ #include <signal.h> ], 
+		[ sig_t a; (void)a;], 
+		[ ac_cv_have_sig_t="yes" ],
+		[ ac_cv_have_sig_t="no" ]
+	)
+])
+if test "x$ac_cv_have_sig_t" = "xyes" ; then
+	AC_DEFINE(HAVE_SIG_T)
+	have_sig_t=1
 fi
 
 AC_CACHE_CHECK([for u_int type], ac_cv_have_u_int, [
