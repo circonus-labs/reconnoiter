@@ -166,6 +166,7 @@
 #endif
 
 #ifndef HAVE_U_INT
+#define HAVE_U_INT
 typedef unsigned int u_int;
 #endif
 
