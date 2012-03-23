@@ -878,7 +878,7 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
       const char *type_override;
-      char oidbuff[128], typestr[256];
+      char oidbuff[2048], typestr[256];
       name += 4;
       info->oids[i].confname = strdup(name);
       noit_check_interpolate(oidbuff, sizeof(oidbuff), value,
