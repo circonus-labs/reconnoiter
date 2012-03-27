@@ -47,15 +47,16 @@
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
-#define NS_NODE_CONTENT(parent, ns, k, v) do { \
+#define NS_NODE_CONTENT(parent, ns, k, v, followup) do { \
   xmlNodePtr tmp; \
   if(v) { \
     tmp = xmlNewNode(ns, (xmlChar *)(k)); \
     xmlNodeAddContent(tmp, (xmlChar *)(v)); \
+    followup \
     xmlAddChild(parent, tmp); \
   } \
 } while(0)
-#define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v)
+#define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
 xmlNodePtr
 noit_check_state_as_xml(noit_check_t *check) {
@@ -220,9 +221,14 @@ rest_show_check(noit_http_rest_closure_t *restc,
     nsname = noit_check_registered_module(mod);
     snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
     ns = xmlNewNs(config, (xmlChar *)buff, (xmlChar *)nsname);
-    if(NULL != (configh = noit_conf_get_namespaced_hash(node, "config", nsname))) {
-      while(noit_hash_next(configh, &iter, &k, &klen, &data))
-        NS_NODE_CONTENT(config, ns, k, data);
+    configh = noit_conf_get_namespaced_hash(node, "config", nsname);
+    if(configh) {
+      memset(&iter, 0, sizeof(iter));
+      while(noit_hash_next(configh, &iter, &k, &klen, &data)) {
+        NS_NODE_CONTENT(config, ns, "value", data,
+          xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)k);
+        );
+      }
       noit_hash_destroy(configh, free, free);
       free(configh);
     }
@@ -410,6 +416,10 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
         if(!targetns) targetns = xmlNewNs(config, n->ns->href, n->ns->prefix);
       }
       xmlNodePtr co = xmlNewNode(targetns, n->name);
+      if(n->ns && !strcmp((char *)n->name, "value")) {
+        xmlChar *name = xmlGetProp(n, (xmlChar *)"name");
+        if(name) xmlSetProp(co, (xmlChar *)"name", name);
+      }
       xmlNodeAddContent(co, v);
       xmlFree(v);
       xmlAddChild(config, co);
