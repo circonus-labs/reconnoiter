@@ -126,7 +126,7 @@ function next_sequence()
 end
 
 function make_ntp_control(req)
-    req.version = req.version or 4 -- NTP version
+    req.version = req.version or 2 -- NTP version
     req.mode = req.mode or 6 -- control
     req.leap = req.leap or 0
     -- contruct
