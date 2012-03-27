@@ -1567,6 +1567,7 @@ noit_check_register_module(const char *name) {
   noitL(noit_debug, "Registered module %s as %d\n", name, i);
   i = reg_module_id++;
   reg_module_names[i] = strdup(name);
+  noit_conf_set_namespace(reg_module_names[i]);
   return i;
 }
 int

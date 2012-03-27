@@ -135,6 +135,8 @@ API_EXPORT(int) noit_conf_log_init_rotate(const char *, noit_boolean);
 API_EXPORT(void) noit_conf_backingstore_remove(noit_conf_section_t node);
 API_EXPORT(void) noit_conf_backingstore_dirty(noit_conf_section_t node);
 
+API_EXPORT(void) noit_conf_set_namespace(const char *ns);
+
 #define CONF_REMOVE(n) do { \
   noit_conf_backingstore_remove(n); \
 } while(0)

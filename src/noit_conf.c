@@ -124,6 +124,19 @@ noit_xml_userdata_free(noit_xml_userdata_t *n) {
   if(n->path) free(n->path);
 }
 
+void
+noit_conf_set_namespace(const char *ns) {
+  xmlNsPtr nsptr;
+  xmlNodePtr root;
+  root = xmlDocGetRootElement(master_config);
+  nsptr = xmlSearchNs(master_config, root, (xmlChar *)ns);
+  if(!nsptr) {
+    char url[128];
+    snprintf(url, sizeof(url), "noit://module/%s", ns);
+    nsptr = xmlNewNs(root, (xmlChar *)url, (xmlChar *)ns);
+  }
+}
+
 static int
 noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
