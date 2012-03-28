@@ -215,22 +215,29 @@ rest_show_check(noit_http_rest_closure_t *restc,
 
   mod_cnt = noit_check_registered_module_cnt();
   for(mod=0; mod<mod_cnt; mod++) {
+    noit_conf_section_t toplevel;
+    xmlNodePtr nodeptr;
     xmlNsPtr ns;
     const char *nsname;
     char buff[256];
+    toplevel = noit_conf_get_section(NULL, "/*");
     nsname = noit_check_registered_module(mod);
+ 
+    nodeptr = (xmlNodePtr)toplevel; 
     snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
-    ns = xmlNewNs(config, (xmlChar *)buff, (xmlChar *)nsname);
-    configh = noit_conf_get_namespaced_hash(node, "config", nsname);
-    if(configh) {
-      memset(&iter, 0, sizeof(iter));
-      while(noit_hash_next(configh, &iter, &k, &klen, &data)) {
-        NS_NODE_CONTENT(config, ns, "value", data,
-          xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)k);
-        );
+    ns = xmlSearchNs(nodeptr->doc, nodeptr, (xmlChar *)nsname);
+    if(ns) {
+      configh = noit_conf_get_namespaced_hash(node, "config", nsname);
+      if(configh) {
+        memset(&iter, 0, sizeof(iter));
+        while(noit_hash_next(configh, &iter, &k, &klen, &data)) {
+          NS_NODE_CONTENT(config, ns, "value", data,
+            xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)k);
+          );
+        }
+        noit_hash_destroy(configh, free, free);
+        free(configh);
       }
-      noit_hash_destroy(configh, free, free);
-      free(configh);
     }
   }
   xmlAddChild(root, config);
@@ -380,7 +387,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   return 0;
 }
 static void
-configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
+configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
   xmlNodePtr n, config, oldconfig;
   for(n = a->children; n; n = n->next) {
 #define ATTR2PROP(attr) do { \
@@ -412,7 +419,9 @@ configure_xml_check(xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
       xmlNsPtr targetns = NULL;
       xmlChar *v = xmlNodeGetContent(n);
       if(n->ns) {
-        targetns = xmlSearchNs(check->doc, config, n->ns->prefix);
+        targetns = xmlSearchNs(parent->doc, xmlDocGetRootElement(parent->doc),
+                               n->ns->prefix);
+noitL(noit_error,"Setting a config value in a namespace (%p)\n", targetns);
         if(!targetns) targetns = xmlNewNs(config, n->ns->href, n->ns->prefix);
       }
       xmlNodePtr co = xmlNewNode(targetns, n->name);
@@ -585,9 +594,9 @@ rest_set_check(noit_http_rest_closure_t *restc,
       /* create a check here */
       newcheck = xmlNewNode(NULL, (xmlChar *)"check");
       xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
-      configure_xml_check(newcheck, attr, config);
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
+      configure_xml_check(parent, newcheck, attr, config);
       xmlAddChild(parent, newcheck);
       CONF_DIRTY(newcheck);
     }
@@ -621,9 +630,9 @@ rest_set_check(noit_http_rest_closure_t *restc,
     xmlFree(module);
     if(ocheck && ocheck != check) FAIL("new target`name would collide");
     if(module_change) FAIL("cannot change module");
-    configure_xml_check(node, attr, config);
     parent = make_conf_path(pats[0]);
     if(!parent) FAIL("invalid path");
+    configure_xml_check(parent, node, attr, config);
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
     CONF_DIRTY(node);
