@@ -220,9 +220,10 @@ rest_show_check(noit_http_rest_closure_t *restc,
     xmlNsPtr ns;
     const char *nsname;
     char buff[256];
-    toplevel = noit_conf_get_section(NULL, "/*");
+
     nsname = noit_check_registered_module(mod);
  
+    toplevel = noit_conf_get_section(NULL, "/*");
     nodeptr = (xmlNodePtr)toplevel; 
     snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
     ns = xmlSearchNs(nodeptr->doc, nodeptr, (xmlChar *)nsname);
@@ -272,13 +273,30 @@ rest_show_check(noit_http_rest_closure_t *restc,
   return 0;
 }
 
+static int
+missing_namespaces(xmlNodePtr ctx, xmlNodePtr q) {
+  xmlNodePtr n;
+  if(q->ns && !xmlSearchNs(ctx->doc, ctx, q->ns->prefix)) return 1;
+  for(n=q->next; n; n=n->next) return missing_namespaces(ctx, n);
+  for(n=q->children; n; n=n->next) return missing_namespaces(ctx, n);
+  return 0;
+}
 int
 noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                               const char **error) {
-  xmlNodePtr root, tl, an;
+  noit_conf_section_t toplevel;
+  xmlNodePtr root, tl, an, master_config_root;
   int name=0, module=0, target=0, period=0, timeout=0, filterset=0;
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
+  /* Make sure any present namespaces are in the master document already */
+  toplevel = noit_conf_get_section(NULL, "/*");
+  master_config_root = (xmlNodePtr)toplevel; 
+  if(missing_namespaces(master_config_root, root)) {
+    *error = "invalid namespace provided";
+    return 0;
+  }
+      
   if(!root || strcmp((char *)root->name, "check")) return 0;
   for(tl = root->children; tl; tl = tl->next) {
     if(!strcmp((char *)tl->name, "attributes")) {
