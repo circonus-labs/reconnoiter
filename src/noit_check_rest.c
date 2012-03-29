@@ -215,18 +215,15 @@ rest_show_check(noit_http_rest_closure_t *restc,
 
   mod_cnt = noit_check_registered_module_cnt();
   for(mod=0; mod<mod_cnt; mod++) {
-    noit_conf_section_t toplevel;
-    xmlNodePtr nodeptr;
     xmlNsPtr ns;
     const char *nsname;
     char buff[256];
 
     nsname = noit_check_registered_module(mod);
  
-    toplevel = noit_conf_get_section(NULL, "/*");
-    nodeptr = (xmlNodePtr)toplevel; 
     snprintf(buff, sizeof(buff), "noit://module/%s", nsname);
-    ns = xmlSearchNs(nodeptr->doc, nodeptr, (xmlChar *)nsname);
+    ns = xmlSearchNs(root->doc, root, (xmlChar *)nsname);
+    if(!ns) ns = xmlNewNs(root, (xmlChar *)buff, (xmlChar *)nsname);
     if(ns) {
       configh = noit_conf_get_namespaced_hash(node, "config", nsname);
       if(configh) {
