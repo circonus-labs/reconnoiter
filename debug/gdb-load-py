@@ -1,0 +1,2 @@
+source gdb-stratcon.py
+run  -D -d -c stratcon.conf
