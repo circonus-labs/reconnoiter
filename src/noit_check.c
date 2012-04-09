@@ -74,6 +74,7 @@ NOIT_HOOK_IMPL(check_log_stats,
 
 /* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
+#define SLOTS_PER_SECOND (1000/SCHEDULE_GRANULARITY)
 #define MAX_MODULE_REGISTRATIONS 64
 
 /* used to manage per-check generic module metadata */
@@ -122,7 +123,7 @@ static int check_recycle_bin_processor(eventer_t, int, void *,
 
 static int
 check_slots_find_smallest(int sec) {
-  int i, j, jbase = 0, mini = 0, minj = 0;
+  int i, j, cyclic, random_offset, jbase = 0, mini = 0, minj = 0;
   unsigned short min_running_i = 0xffff, min_running_j = 0xffff;
   for(i=0;i<60;i++) {
     int adj_i = (i + sec) % 60;
@@ -132,7 +133,9 @@ check_slots_find_smallest(int sec) {
     }
   }
   jbase = mini * (1000/SCHEDULE_GRANULARITY);
-  for(j=jbase;j<jbase+(1000/SCHEDULE_GRANULARITY);j++) {
+  random_offset = drand48() * SLOTS_PER_SECOND;
+  for(cyclic=0;cyclic<SLOTS_PER_SECOND;cyclic++) {
+    j = jbase + ((random_offset + cyclic) % SLOTS_PER_SECOND);
     if(check_slots_count[j] < min_running_j) {
       min_running_j = check_slots_count[j];
       minj = j;

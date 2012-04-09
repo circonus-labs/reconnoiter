@@ -156,6 +156,7 @@ typedef struct noit_check {
   char target_ip[INET6_ADDRSTRLEN];
   void **module_metadata;
   noit_hash_table **module_configs;
+  struct timeval initial_schedule_time;
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)

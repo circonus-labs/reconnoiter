@@ -61,10 +61,11 @@ static int
 noit_check_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   recur_closure_t *rcl = closure;
+  int ms;
   rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   noit_check_resolve(rcl->check);
-  noit_check_schedule_next(rcl->self, &e->whence, rcl->check, now,
-                           rcl->dispatch, NULL);
+  ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
+                                rcl->dispatch, NULL);
   if(NOIT_CHECK_RESOLVED(rcl->check)) {
     if(NOIT_HOOK_CONTINUE ==
        check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
@@ -74,7 +75,12 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
         NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
                             rcl->check->target);
       }
-      rcl->dispatch(rcl->self, rcl->check, rcl->cause);
+      if(ms < rcl->check->timeout)
+        noitL(noit_error, "skipping %s, can't finish in %dms (timeout %dms)\n",
+              rcl->check->name, ms, rcl->check->timeout);
+      else {
+        rcl->dispatch(rcl->self, rcl->check, rcl->cause);
+      }
     }
     check_postflight_hook_invoke(rcl->self, rcl->check, rcl->cause);
   }
@@ -91,14 +97,23 @@ noit_check_schedule_next(noit_module_t *self,
                          struct timeval *now, dispatch_func_t dispatch,
                          noit_check_t *cause) {
   eventer_t newe;
-  struct timeval period, earliest;
+  struct timeval period, earliest, diff;
+  u_int64_t diffms, periodms, offsetms;
   recur_closure_t *rcl;
 
   assert(cause == NULL);
   assert(check->fire_event == NULL);
   if(check->period == 0) return 0;
+
+  /* if last_check is not passed, we use the initial_schedule_time
+   * otherwise, we set the initial_schedule_time
+   */
+  if(!last_check) last_check = &check->initial_schedule_time;
+  else memcpy(&check->initial_schedule_time, last_check, sizeof(*last_check));
+
   if(NOIT_CHECK_DISABLED(check) || NOIT_CHECK_KILLED(check)) {
     if(!(check->flags & NP_TRANSIENT)) check_slots_dec_tv(last_check);
+    memset(&check->initial_schedule_time, 0, sizeof(struct timeval));
     return 0;
   }
 
@@ -122,12 +137,24 @@ noit_check_schedule_next(noit_module_t *self,
     period.tv_sec = check->period / 1000;
     period.tv_usec = (check->period % 1000) * 1000;
   }
+  periodms = period.tv_sec * 1000 + period.tv_usec / 1000;
 
   newe = eventer_alloc();
+  sub_timeval(earliest, *last_check, &diff);
+  /* calculat the differnet between the initial schedule time and "now" */
+  diffms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  /* determine the offset from initial schedule time that would place
+   * us at the next period-aligned point past "now" */
+  offsetms = ((diffms / periodms) + 1) * periodms;
+  diff.tv_sec = offsetms / 1000;
+  diff.tv_usec = (offsetms % 1000) * 1000;
+ 
   memcpy(&newe->whence, last_check, sizeof(*last_check));
-  add_timeval(newe->whence, period, &newe->whence);
-  if(compare_timeval(newe->whence, earliest) < 0)
-    memcpy(&newe->whence, &earliest, sizeof(earliest));
+  add_timeval(newe->whence, diff, &newe->whence);
+
+  sub_timeval(newe->whence, earliest, &diff);
+  diffms = (int)diff.tv_sec * 1000 + (int)diff.tv_usec / 1000;
+  assert(compare_timeval(newe->whence, earliest) > 0);
   newe->mask = EVENTER_TIMER;
   newe->callback = noit_check_recur_handler;
   rcl = calloc(1, sizeof(*rcl));
@@ -139,7 +166,7 @@ noit_check_schedule_next(noit_module_t *self,
 
   eventer_add(newe);
   check->fire_event = newe;
-  return 0;
+  return diffms;
 }
 
 void
