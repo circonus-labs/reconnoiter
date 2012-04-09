@@ -159,7 +159,7 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
 
   noitL(nlerr, "test_abort_initiate\n");
   /* We cannot be running */
-  assert(!(check->flags & NP_RUNNING));
+  BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
   ci->self = self;

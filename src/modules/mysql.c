@@ -359,7 +359,7 @@ static int mysql_initiate(noit_module_t *self, noit_check_t *check,
   struct timeval __now;
 
   /* We cannot be running */
-  assert(!(check->flags & NP_RUNNING));
+  BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
   ci->self = self;
