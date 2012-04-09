@@ -93,6 +93,29 @@ static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 
+void
+debug_print_slots(noit_console_closure_t ncct) {
+}
+static int
+noit_console_show_timing_slots(noit_console_closure_t ncct,
+                               int argc, char **argv,
+                               noit_console_state_t *dstate,
+                               void *closure) {
+  int i, j;
+  const int upl = (60000 / SCHEDULE_GRANULARITY) / 60;
+  for(i=0;i<60;i++) {
+    nc_printf(ncct, "[%02d] %04d: ", i, check_slots_seconds_count[i]);
+    for(j=i*upl;j<(i+1)*upl;j++) {
+      char cp = '!';
+      if(check_slots_count[j] < 10) cp = '0' + check_slots_count[j];
+      else if(check_slots_count[j] < 36) cp = 'a' + (check_slots_count[j] - 10);
+      nc_printf(ncct, "%c", cp);
+    }
+    nc_printf(ncct, "\n");
+  }
+  return 0;
+}
+
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
 }
@@ -1550,6 +1573,9 @@ register_console_check_commands() {
   tl = noit_console_state_initial();
   showcmd = noit_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("timing_slots", noit_console_show_timing_slots, NULL, NULL, NULL));
 
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));
