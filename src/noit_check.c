@@ -93,9 +93,6 @@ static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 
-void
-debug_print_slots(noit_console_closure_t ncct) {
-}
 static int
 noit_console_show_timing_slots(noit_console_closure_t ncct,
                                int argc, char **argv,
