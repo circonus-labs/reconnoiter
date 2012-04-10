@@ -75,12 +75,10 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
         NOIT_CHECK_DISPATCH(id, rcl->check->module, rcl->check->name,
                             rcl->check->target);
       }
-      if(ms < rcl->check->timeout)
-        noitL(noit_error, "skipping %s, can't finish in %dms (timeout %dms)\n",
+      if(ms < rcl->check->timeout && !(rcl->check->flags & NP_TRANSIENT))
+        noitL(noit_error, "%s might not finish in %dms (timeout %dms)\n",
               rcl->check->name, ms, rcl->check->timeout);
-      else {
-        rcl->dispatch(rcl->self, rcl->check, rcl->cause);
-      }
+      rcl->dispatch(rcl->self, rcl->check, rcl->cause);
     }
     check_postflight_hook_invoke(rcl->self, rcl->check, rcl->cause);
   }
