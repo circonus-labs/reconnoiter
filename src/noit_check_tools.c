@@ -100,6 +100,7 @@ noit_check_schedule_next(noit_module_t *self,
   struct timeval period, earliest, diff;
   u_int64_t diffms, periodms, offsetms;
   recur_closure_t *rcl;
+  int initial = last_check ? 1 : 0;
 
   assert(cause == NULL);
   assert(check->fire_event == NULL);
@@ -127,9 +128,11 @@ noit_check_schedule_next(noit_module_t *self,
 
   /* If the check is unconfigured and needs resolving, we'll set the
    * period down a bit lower so we can pick up the resolution quickly.
+   * The one exception is if this is the initial run.
    */
-  if(!NOIT_CHECK_RESOLVED(check) && NOIT_CHECK_SHOULD_RESOLVE(check) &&
-      check->period > 1000) {
+  if(!initial &&
+     !NOIT_CHECK_RESOLVED(check) && NOIT_CHECK_SHOULD_RESOLVE(check) &&
+     check->period > 1000) {
     period.tv_sec = 1;
     period.tv_usec = 0;
   }
