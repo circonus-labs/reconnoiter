@@ -1309,8 +1309,10 @@ raw_finalize_encoding(noit_http_response *res) {
     res->gzip = NULL;
   }
 }
-noit_boolean
-noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
+static noit_boolean
+_noit_http_response_flush(noit_http_session_ctx *ctx,
+                          noit_boolean final,
+                          noit_boolean update_eventer) {
   struct bchain *o, *r;
   int mask, rv;
 
@@ -1370,7 +1372,7 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
   }
 
   rv = _http_perform_write(ctx, &mask);
-  if(ctx->conn.e) {
+  if(update_eventer && ctx->conn.e) {
     eventer_update(ctx->conn.e, mask);
   }
   if(rv < 0) return noit_false;
@@ -1378,6 +1380,17 @@ noit_http_response_flush(noit_http_session_ctx *ctx, noit_boolean final) {
    * the following should not trigger the false case.
    */
   return ctx->conn.e ? noit_true : noit_false;
+}
+
+noit_boolean
+noit_http_response_flush(noit_http_session_ctx *ctx,
+                         noit_boolean final) {
+  _noit_http_response_flush(ctx, final, noit_true);
+}
+noit_boolean
+noit_http_response_flush_asynch(noit_http_session_ctx *ctx,
+                                noit_boolean final) {
+  _noit_http_response_flush(ctx, final, noit_false);
 }
 
 noit_boolean

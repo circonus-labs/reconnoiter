@@ -166,6 +166,8 @@ API_EXPORT(noit_boolean)
                                  int fd, size_t len, int flags, off_t offset);
 API_EXPORT(noit_boolean)
   noit_http_response_flush(noit_http_session_ctx *, noit_boolean);
+API_EXPORT(noit_boolean)
+  noit_http_response_flush_asynch(noit_http_session_ctx *, noit_boolean);
 API_EXPORT(noit_boolean) noit_http_response_end(noit_http_session_ctx *);
 
 #define noit_http_response_server_error(ctx, type) \
