@@ -435,7 +435,7 @@ const ProtobufCMessageDescriptor metadata__descriptor =
   (ProtobufCMessageInit) metadata__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor bundle__field_descriptors[5] =
+static const ProtobufCFieldDescriptor bundle__field_descriptors[6] =
 {
   {
     "status",
@@ -497,10 +497,23 @@ static const ProtobufCFieldDescriptor bundle__field_descriptors[5] =
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "module",
+    6,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Bundle, module),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned bundle__field_indices_by_name[] = {
   2,   /* field[2] = metadata */
   1,   /* field[1] = metrics */
+  5,   /* field[5] = module */
   3,   /* field[3] = period */
   0,   /* field[0] = status */
   4,   /* field[4] = timeout */
@@ -508,7 +521,7 @@ static const unsigned bundle__field_indices_by_name[] = {
 static const ProtobufCIntRange bundle__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 5 }
+  { 0, 6 }
 };
 const ProtobufCMessageDescriptor bundle__descriptor =
 {
@@ -518,7 +531,7 @@ const ProtobufCMessageDescriptor bundle__descriptor =
   "Bundle",
   "",
   sizeof(Bundle),
-  5,
+  6,
   bundle__field_descriptors,
   bundle__field_indices_by_name,
   1,  bundle__number_ranges,
