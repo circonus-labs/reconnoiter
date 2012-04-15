@@ -64,6 +64,9 @@ public class NoitBundlev2 extends NoitEvent {
                         new Integer(status.getDuration()).toString(),
                         status.getStatus() }));
       }
+      items.addLast(new NoitCheck(new java.lang.String[] {
+              "C", noit, timestamp, parts[3], target, module, name
+      }));
       for(CheckStatus.Metric metric : bundle.getMetricsList()) {
         char metrictype[] = new char [] { (char)metric.getMetricType() };
         String v_str = null;

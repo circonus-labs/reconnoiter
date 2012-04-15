@@ -1,3 +1,7 @@
+option java_outer_classname = "CheckStatus";
+option java_package = "com.omniti.reconnoiter";
+
+
 message Metric
 {
   required string name = 1;
@@ -29,5 +33,7 @@ message Bundle
   optional Status status = 1;
   repeated Metric metrics = 2;
   repeated Metadata metadata = 3;
+  optional uint32 period = 4;
+  optional uint32 timeout = 5;
 }
 
