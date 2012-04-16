@@ -290,10 +290,18 @@ noit_rest_request_dispatcher(noit_http_session_ctx *ctx) {
   rest_request_handler handler = restc->fastpath;
   if(!handler) handler = noit_http_get_handler(restc);
   if(handler) {
+    void *old_closure = restc, *new_closure;
     noit_http_response *res = noit_http_session_response(ctx);
     int rv;
     rv = handler(restc, restc->nparams, restc->params);
-    if(noit_http_response_closed(res)) noit_http_rest_clean_request(restc);
+    /* If the request is closed, we need to cleanup.  However
+     * if the dispatch closure has changed, the callee has done
+     * something (presumably freeing the restc in the process)
+     * and it would be unsafe for us to free it as well.
+     */
+    new_closure = noit_http_session_dispatcher_closure(ctx);
+    if(old_closure == new_closure &&
+       noit_http_response_closed(res)) noit_http_rest_clean_request(restc);
     return rv;
   }
   noit_http_response_status_set(ctx, 404, "NOT FOUND");
