@@ -64,17 +64,16 @@ public class JezebelDispatch extends HttpServlet {
     static ClassLoader cl =
       new JezebelClassLoader(JezebelDispatch.class.getClassLoader());
 
-    DocumentBuilder builder;
-
     public JezebelDispatch() {
-      try { builder = builderfactory.newDocumentBuilder(); }
-      catch (Exception e) { throw new RuntimeException(e); }
     }
     public void doPost(HttpServletRequest request,
                        HttpServletResponse response) {
       Document postDoc;
       Hashtable<String,String> info, config;
+      DocumentBuilder builder;
 
+      try { builder = builderfactory.newDocumentBuilder(); }
+      catch (Exception e) { throw new RuntimeException(e); }
       try {
         postDoc = builder.parse(request.getInputStream());
         info = constructCheckInfo(postDoc);
