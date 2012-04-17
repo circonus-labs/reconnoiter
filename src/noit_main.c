@@ -124,6 +124,10 @@ noit_main(const char *appname,
   char appscratch[1024];
   char *glider = (char *)_glider;
   char *watchdog_timeout_str;
+  int retry_val;
+  int span_val;
+  int ret;
+  
    
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -159,6 +163,17 @@ noit_main(const char *appname,
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@tracedir", appname);
   noit_conf_get_string(NULL, appscratch, &trace_dir);
   if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
+
+  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@retries", appname);
+  ret = noit_conf_get_int(NULL, appscratch, &retry_val);
+  if((ret == 0) || (retry_val == 0)){
+    retry_val = 5;
+  }
+  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@span", appname);
+  ret = noit_conf_get_int(NULL, appscratch, &span_val);
+  if((ret == 0) || (span_val == 0)){
+    span_val = 60;
+  }
 
   /* Lastly, run through all other system inits */
   snprintf(appscratch, sizeof(appscratch), "/%s/eventer/@implementation", appname);
@@ -226,5 +241,5 @@ noit_main(const char *appname,
   }
 
   signal(SIGHUP, SIG_IGN);
-  return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout);
+  return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout, retry_val, span_val);
 }
