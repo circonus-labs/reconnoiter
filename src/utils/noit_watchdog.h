@@ -62,7 +62,7 @@ API_EXPORT(int)
 API_EXPORT(int)
   update_retries(int* offset, time_t times[]);
 
-/*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout, int retries, int span)
+/*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout)
     \brief Starts a function as a separate child under close watch.
     \param app The name of the application (for error output).
     \param func The function that will be the child process.
