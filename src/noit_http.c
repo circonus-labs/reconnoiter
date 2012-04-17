@@ -1385,12 +1385,12 @@ _noit_http_response_flush(noit_http_session_ctx *ctx,
 noit_boolean
 noit_http_response_flush(noit_http_session_ctx *ctx,
                          noit_boolean final) {
-  _noit_http_response_flush(ctx, final, noit_true);
+  return _noit_http_response_flush(ctx, final, noit_true);
 }
 noit_boolean
 noit_http_response_flush_asynch(noit_http_session_ctx *ctx,
                                 noit_boolean final) {
-  _noit_http_response_flush(ctx, final, noit_false);
+  return _noit_http_response_flush(ctx, final, noit_false);
 }
 
 noit_boolean
