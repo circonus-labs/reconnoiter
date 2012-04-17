@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <time.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -52,6 +53,8 @@
 const char *appname = "unknown";
 const char *glider_path = NULL;
 const char *trace_dir = "/var/tmp";
+int retries = 5;
+int span = 60;
 
 void noit_watchdog_glider(const char *path) {
   glider_path = path;
@@ -60,6 +63,10 @@ void noit_watchdog_glider(const char *path) {
 }
 void noit_watchdog_glider_trace_dir(const char *path) {
   trace_dir = path;
+}
+void noit_watchdog_ratelimit(int retry_val, int span_val) {
+    retries = retry_val;
+    span = span_val;
 }
 
 /* Watchdog stuff */
@@ -121,6 +128,11 @@ void glideme(int sig) {
 int noit_watchdog_start_child(const char *app, int (*func)(),
                               int child_watchdog_timeout) {
   int child_pid;
+  time_t time_data[retries];
+  int offset = 0;
+
+  memset(time_data, 0, sizeof(time_data));
+
   appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
@@ -155,9 +167,15 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         }
         else if (rv == child_pid) {
           /* We died!... we need to relaunch, unless the status was a requested exit (2) */
+          int quit;
           sig = WTERMSIG(status);
           exit_val = WEXITSTATUS(status);
-          if(sig == SIGINT || sig == SIGQUIT ||
+          quit = update_retries(&offset, time_data);
+          if (quit) {
+            noitL(noit_error, "noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
+            exit(0);
+          }
+          else if(sig == SIGINT || sig == SIGQUIT ||
              (sig == 0 && (exit_val == 2 || exit_val < 0))) {
             noitL(noit_error, "%s shutdown acknowledged.\n", app);
             exit(0);
@@ -181,6 +199,23 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
             app, exit_val, sig);
     }
   }
+}
+
+int update_retries(int* offset, time_t times[]) {
+  int i;
+  time_t currtime = time(NULL);
+  time_t cutoff = currtime - span;
+
+  times[*offset % retries] = currtime;
+  *offset = *offset + 1;
+
+  for (i=0; i < retries; i++) {
+    if (times[i] < cutoff) {
+      return 0;
+    }
+  }
+
+  return 1;
 }
 
 static int watchdog_tick(eventer_t e, int mask, void *unused, struct timeval *now) {
