@@ -50,8 +50,6 @@ API_EXPORT(int)
 
 /*! \fn int update_retries(int retries, int span, retry_data** data)
     \brief Updates the list of retries and signals to quit if the limit is exceeded
-    \param retries The number of times to attempt to restart the task with a certain span of time
-    \param span The amount of time in seconds to measure attempts to restart the task over
     \param offset The current location in the data array to place the new time in
     \param times An array of times used to determine if there have been too many restarts
     \return Returns 1 to signal a quit, 0 otherwise
@@ -62,22 +60,20 @@ API_EXPORT(int)
  */
 
 API_EXPORT(int)
-  update_retries(int retries, int span, int* offset, time_t times[]);
+  update_retries(int* offset, time_t times[]);
 
 /*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout, int retries, int span)
     \brief Starts a function as a separate child under close watch.
     \param app The name of the application (for error output).
     \param func The function that will be the child process.
     \param timeout The number of seconds of lifelessness before the parent reaps and restarts the child.
-    \param retries The number of times to attempt to restart the task with a certain span of time
-    \param span The amount of time in seconds to measure attempts to restart the task over
     \return Returns on program termination.
 .
     
     noit_watchdog_start_child will fork and run the specified function in the child process.  The parent will watch.  The child process must initialize the eventer system and then call noit_watchdog_child_hearbeat to let the parent know it is alive.  If the eventer system is being used to drive the child process, noit_watchdog_child_eventer_heartbeat may be called once after the eventer is initalized.  This will induce a regular heartbeat.
  */
 API_EXPORT(int)
-  noit_watchdog_start_child(const char *app, int (*func)(), int timeout, int retries, int span);
+  noit_watchdog_start_child(const char *app, int (*func)(), int timeout);
 
 /*! \fn int noit_watchdog_child_heartbeat()
     \return Returns zero on success
@@ -100,5 +96,8 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   noit_watchdog_glider_trace_dir(const char *path);
+
+API_EXPORT(void)
+  noit_watchdog_ratelimit(int retry_val, int span_val);
 
 #endif

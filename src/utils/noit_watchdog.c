@@ -53,6 +53,8 @@
 const char *appname = "unknown";
 const char *glider_path = NULL;
 const char *trace_dir = "/var/tmp";
+int retries = 5;
+int span = 60;
 
 void noit_watchdog_glider(const char *path) {
   glider_path = path;
@@ -61,6 +63,10 @@ void noit_watchdog_glider(const char *path) {
 }
 void noit_watchdog_glider_trace_dir(const char *path) {
   trace_dir = path;
+}
+void noit_watchdog_ratelimit(int retry_val, int span_val) {
+    retries = retry_val;
+    span = span_val;
 }
 
 /* Watchdog stuff */
@@ -120,9 +126,7 @@ void glideme(int sig) {
 }
 
 int noit_watchdog_start_child(const char *app, int (*func)(),
-                              int child_watchdog_timeout, 
-                              int retries, 
-                              int span) {
+                              int child_watchdog_timeout) {
   int child_pid;
   time_t time_data[retries];
   int offset = 0;
@@ -166,7 +170,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
           int quit;
           sig = WTERMSIG(status);
           exit_val = WEXITSTATUS(status);
-          quit = update_retries(retries, span, &offset, time_data);
+          quit = update_retries(&offset, time_data);
           if (quit) {
             noitL(noit_error, "noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
             exit(0);
@@ -197,7 +201,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   }
 }
 
-int update_retries(int retries, int span, int* offset, time_t times[]) {
+int update_retries(int* offset, time_t times[]) {
   int i;
   time_t currtime = time(NULL);
   time_t cutoff = currtime - span;

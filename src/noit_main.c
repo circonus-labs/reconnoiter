@@ -175,6 +175,8 @@ noit_main(const char *appname,
     span_val = 60;
   }
 
+  noit_watchdog_ratelimit(retry_val, span_val);
+
   /* Lastly, run through all other system inits */
   snprintf(appscratch, sizeof(appscratch), "/%s/eventer/@implementation", appname);
   if(!noit_conf_get_stringbuf(NULL, appscratch, conf_str, sizeof(conf_str))) {
@@ -241,5 +243,5 @@ noit_main(const char *appname,
   }
 
   signal(SIGHUP, SIG_IGN);
-  return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout, retry_val, span_val);
+  return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout);
 }
