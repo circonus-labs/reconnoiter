@@ -124,7 +124,11 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                               int retries, 
                               int span) {
   int child_pid;
-  retry_data* retry_head = NULL;
+  time_t time_data[retries];
+  int offset = 0;
+
+  memset(time_data, 0, sizeof(time_data));
+
   appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
@@ -162,7 +166,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
           int quit;
           sig = WTERMSIG(status);
           exit_val = WEXITSTATUS(status);
-          quit = update_retries(retries, span, &retry_head);
+          quit = update_retries(retries, span, &offset, time_data);
           if (quit) {
             noitL(noit_error, "noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
             exit(0);
@@ -193,43 +197,21 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   }
 }
 
-int update_retries(int retries, int span, retry_data** data) {
-  int count = 0;
-  retry_data* iter;
-  retry_data* prev = NULL;
-  retry_data* new_data = NULL;
-  retry_data* temp = NULL;
-  time_t curr_time = time(NULL);
+int update_retries(int retries, int span, int* offset, time_t times[]) {
+  int i;
+  time_t currtime = time(NULL);
+  time_t cutoff = currtime - span;
 
-  /* Allocate the new entry and set it to the head of the list */
-  new_data = (retry_data*)malloc(sizeof(retry_data));
-  new_data->event_time = curr_time;
-  new_data->next = *data;
-  *data = new_data;
+  times[*offset % retries] = currtime;
+  *offset = *offset + 1;
 
-  /* We always want to count the first one, so start on the second element */
-  count = 1;
-  iter = (retry_data*)new_data->next;
-  prev = new_data;
-
-  while (iter != NULL) {
-    int diff = curr_time - iter->event_time;
-    if (diff <= span) { /* Count it, since it's not too old */
-      prev = iter;
-      iter = (retry_data*)iter->next;
-      count++;
-    }
-    else { /* Remove node */
-      temp = iter;
-      prev->next = iter->next;
-      iter = iter->next;
-      free(temp);
+  for (i=0; i < retries; i++) {
+    if (times[i] < cutoff) {
+      return 0;
     }
   }
-  if (count >= retries) {
-    return 1;
-  }
-  return 0;
+
+  return 1;
 }
 
 static int watchdog_tick(eventer_t e, int mask, void *unused, struct timeval *now) {

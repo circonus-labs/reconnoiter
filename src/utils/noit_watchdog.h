@@ -33,13 +33,9 @@
 #ifndef _NOIT_WATCHDOG_H
 #define _NOIT_WATCHDOG_H
 
+#include <time.h>
 #include "noit_config.h"
 #include "noit_defines.h"
-
-typedef struct{
-    time_t event_time;
-    void* next;
-} __attribute__ ((packed)) retry_data;
 
 /*! \fn int noit_watchdog_prefork_init()
     \brief Prepare the program to split into a child/parent-monitor relationship.
@@ -56,7 +52,8 @@ API_EXPORT(int)
     \brief Updates the list of retries and signals to quit if the limit is exceeded
     \param retries The number of times to attempt to restart the task with a certain span of time
     \param span The amount of time in seconds to measure attempts to restart the task over
-    \param data A pointer to the list of event data
+    \param offset The current location in the data array to place the new time in
+    \param times An array of times used to determine if there have been too many restarts
     \return Returns 1 to signal a quit, 0 otherwise
 
 .
@@ -65,7 +62,7 @@ API_EXPORT(int)
  */
 
 API_EXPORT(int)
-  update_retries(int retries, int span, retry_data** data);
+  update_retries(int retries, int span, int* offset, time_t times[]);
 
 /*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout, int retries, int span)
     \brief Starts a function as a separate child under close watch.
