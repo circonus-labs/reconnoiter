@@ -50,11 +50,11 @@
 #include "utils/noit_watchdog.h"
 
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
-const char *appname = "unknown";
-const char *glider_path = NULL;
-const char *trace_dir = "/var/tmp";
-int retries = 5;
-int span = 60;
+const static char *appname = "unknown";
+const static char *glider_path = NULL;
+const static char *trace_dir = "/var/tmp";
+static int retries = 5;
+static int span = 60;
 
 void noit_watchdog_glider(const char *path) {
   glider_path = path;
