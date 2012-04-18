@@ -376,7 +376,7 @@ function initiate(module, check)
             if host ~= nil then
                 headers.Host = host
                 local r = dns:lookup(host)
-                if r.a == nil then
+                if not r or r.a == nil then
                     check.status("failed to resolve " + host)
                     return
                 end
