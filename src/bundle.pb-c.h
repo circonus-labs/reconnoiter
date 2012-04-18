@@ -77,11 +77,10 @@ struct  _Bundle
   uint32_t period;
   protobuf_c_boolean has_timeout;
   uint32_t timeout;
-  char *module;
 };
 #define BUNDLE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&bundle__descriptor) \
-    , NULL, 0,NULL, 0,NULL, 0,0, 0,0, NULL }
+    , NULL, 0,NULL, 0,NULL, 0,0, 0,0 }
 
 
 /* Metric methods */

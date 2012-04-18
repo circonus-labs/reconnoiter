@@ -31,6 +31,5 @@ message Bundle
   repeated Metadata metadata = 3;
   optional uint32 period = 4;
   optional uint32 timeout = 5;
-  optional string module = 6;
 }
 
