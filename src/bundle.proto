@@ -1,4 +1,5 @@
 option java_outer_classname = "CheckStatus";
+option java_package = "com.omniti.reconnoiter";
 
 
 message Metric
