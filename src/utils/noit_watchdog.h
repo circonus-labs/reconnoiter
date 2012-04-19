@@ -33,6 +33,7 @@
 #ifndef _NOIT_WATCHDOG_H
 #define _NOIT_WATCHDOG_H
 
+#include <time.h>
 #include "noit_config.h"
 #include "noit_defines.h"
 
@@ -46,6 +47,20 @@ child to instrument watchdogs.
  */
 API_EXPORT(int)
   noit_watchdog_prefork_init();
+
+/*! \fn int update_retries(int retries, int span, retry_data** data)
+    \brief Updates the list of retries and signals to quit if the limit is exceeded
+    \param offset The current location in the data array to place the new time in
+    \param times An array of times used to determine if there have been too many restarts
+    \return Returns 1 to signal a quit, 0 otherwise
+
+.
+
+    update_retries will iterate through a list of times the task has restarted. If it determines that the system has been restarted too many times in too short a period, it will return 1 and reconnoiter will terminate. Otherwise, it will return 0 and reconnoiter will restart.
+ */
+
+API_EXPORT(int)
+  update_retries(int* offset, time_t times[]);
 
 /*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout)
     \brief Starts a function as a separate child under close watch.
@@ -81,5 +96,8 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   noit_watchdog_glider_trace_dir(const char *path);
+
+API_EXPORT(void)
+  noit_watchdog_ratelimit(int retry_val, int span_val);
 
 #endif

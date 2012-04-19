@@ -617,6 +617,8 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   char interpolated_query[1024];
   noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
 
+  BAIL_ON_RUNNING_CHECK(check);
+
   gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));
   ci->current.state = NP_BAD;

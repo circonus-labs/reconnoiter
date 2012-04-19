@@ -131,6 +131,13 @@ NOIT_HOOK_PROTO(check_postflight,
                 void *, closure,
                 (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
 
+#define BAIL_ON_RUNNING_CHECK(check) do { \
+  if(check->flags & NP_RUNNING) { \
+    noitL(noit_error, "Check %s is still running!\n", check->name); \
+    return -1; \
+  } \
+} while(0)
+
 #define INITIATE_CHECK(func, self, check, cause) do { \
   if(once) { \
     if(NOIT_HOOK_CONTINUE == \

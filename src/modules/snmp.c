@@ -941,6 +941,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   info->check = check;
   info->timedout = 0;
 
+  BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
   if(noit_hash_retr_str(check->config, "port", strlen("port"),

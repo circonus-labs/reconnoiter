@@ -291,7 +291,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   const char *port_str = NULL;
 
   /* We cannot be running */
-  assert(!(check->flags & NP_RUNNING));
+  BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
   ci->self = self;

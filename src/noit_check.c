@@ -74,6 +74,7 @@ NOIT_HOOK_IMPL(check_log_stats,
 
 /* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
+#define SLOTS_PER_SECOND (1000/SCHEDULE_GRANULARITY)
 #define MAX_MODULE_REGISTRATIONS 64
 
 /* used to manage per-check generic module metadata */
@@ -93,6 +94,26 @@ static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
 
+static int
+noit_console_show_timing_slots(noit_console_closure_t ncct,
+                               int argc, char **argv,
+                               noit_console_state_t *dstate,
+                               void *closure) {
+  int i, j;
+  const int upl = (60000 / SCHEDULE_GRANULARITY) / 60;
+  for(i=0;i<60;i++) {
+    nc_printf(ncct, "[%02d] %04d: ", i, check_slots_seconds_count[i]);
+    for(j=i*upl;j<(i+1)*upl;j++) {
+      char cp = '!';
+      if(check_slots_count[j] < 10) cp = '0' + check_slots_count[j];
+      else if(check_slots_count[j] < 36) cp = 'a' + (check_slots_count[j] - 10);
+      nc_printf(ncct, "%c", cp);
+    }
+    nc_printf(ncct, "\n");
+  }
+  return 0;
+}
+
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
 }
@@ -102,7 +123,7 @@ static int check_recycle_bin_processor(eventer_t, int, void *,
 
 static int
 check_slots_find_smallest(int sec) {
-  int i, j, jbase = 0, mini = 0, minj = 0;
+  int i, j, cyclic, random_offset, jbase = 0, mini = 0, minj = 0;
   unsigned short min_running_i = 0xffff, min_running_j = 0xffff;
   for(i=0;i<60;i++) {
     int adj_i = (i + sec) % 60;
@@ -112,7 +133,9 @@ check_slots_find_smallest(int sec) {
     }
   }
   jbase = mini * (1000/SCHEDULE_GRANULARITY);
-  for(j=jbase;j<jbase+(1000/SCHEDULE_GRANULARITY);j++) {
+  random_offset = drand48() * SLOTS_PER_SECOND;
+  for(cyclic=0;cyclic<SLOTS_PER_SECOND;cyclic++) {
+    j = jbase + ((random_offset + cyclic) % SLOTS_PER_SECOND);
     if(check_slots_count[j] < min_running_j) {
       min_running_j = check_slots_count[j];
       minj = j;
@@ -1550,6 +1573,9 @@ register_console_check_commands() {
   tl = noit_console_state_initial();
   showcmd = noit_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("timing_slots", noit_console_show_timing_slots, NULL, NULL, NULL));
 
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));

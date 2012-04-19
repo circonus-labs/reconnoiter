@@ -515,6 +515,8 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   int interval = PING_INTERVAL;
   int count = PING_COUNT;
 
+  BAIL_ON_RUNNING_CHECK(check);
+
   if(noit_hash_retr_str(check->config, "interval", strlen("interval"),
                         &config_val))
     interval = atoi(config_val);

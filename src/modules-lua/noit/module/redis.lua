@@ -137,35 +137,37 @@ function get_info_metrics(conn, check)
   local list = string.split(redis_result, "\r\n")
 
   for line in pairs(list) do
-    if ( list[line] == "" or list[line] == nil) then
+    if ( list[line] == nil) then
       break
     end
-    kv = string.split(list[line], ":")
+    if ( list[line] ~= "" and string.sub(list[line], 1, 1) ~= "#" ) then
+      kv = string.split(list[line], ":")
 
-    -- see if this is db* data
-    if ( string.find(kv[1], "^db%d+$") ) then
-      db_metrics = string.split(kv[2], ",")
-      for idx in pairs(db_metrics) do
-        count = count + 1
-        met = string.split(db_metrics[idx], "=")
-        metric_data["metric_name"] = kv[1] .. "`" .. met[1]
-        add_check_metric(met[2], check, metric_data)
-      end
-    elseif ( string.find(kv[1], "^allocation_stats$") ) then
-      alloc_metrics = string.split(kv[2], ",")
-      for idx in pairs(alloc_metrics) do
-        count = count + 1
-        met = string.split(alloc_metrics[idx], "=")
-        if ( 3 == table.getn(met) ) then
-            check.metric_int32("allocation_stats`" .. met[2], met[3])
-        else
-            check.metric_int32("allocation_stats`" .. met[1], met[2])
+      -- see if this is db* data
+      if ( string.find(kv[1], "^db%d+$") ) then
+        db_metrics = string.split(kv[2], ",")
+        for idx in pairs(db_metrics) do
+          count = count + 1
+          met = string.split(db_metrics[idx], "=")
+          metric_data["metric_name"] = kv[1] .. "`" .. met[1]
+          add_check_metric(met[2], check, metric_data)
         end
+      elseif ( string.find(kv[1], "^allocation_stats$") ) then
+        alloc_metrics = string.split(kv[2], ",")
+        for idx in pairs(alloc_metrics) do
+          count = count + 1
+          met = string.split(alloc_metrics[idx], "=")
+          if ( 3 == table.getn(met) ) then
+              check.metric_int32("allocation_stats`" .. met[2], met[3])
+          else
+              check.metric_int32("allocation_stats`" .. met[1], met[2])
+          end
+        end
+      else
+        count = count + 1
+        metric_data["metric_name"] = kv[1]
+        add_check_metric(kv[2], check, metric_data)
       end
-    else
-      count = count + 1
-      metric_data["metric_name"] = kv[1]
-      add_check_metric(kv[2], check, metric_data)
     end
   end
 

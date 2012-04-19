@@ -475,6 +475,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
 
   data = noit_module_get_userdata(self);
 
+  BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
   noitL(data->nldeb, "external_invoke(%p,%s)\n",
         self, check->target);
