@@ -492,6 +492,17 @@ noit_console_show_check(noit_console_closure_t ncct,
       if(NOIT_CHECK_DISABLED(check)) nc_printf(ncct, "%sdisabled", idx++?",":"");
       if(!idx) nc_printf(ncct, "idle");
       nc_write(ncct, "\n", 1);
+      if (check->fire_event != NULL) {
+        struct timeval now, diff;
+        gettimeofday(&now, NULL);
+        sub_timeval(check->fire_event->whence, now, &diff);
+        nc_printf(ncct, " next run: %0.3f seconds\n",
+                diff.tv_sec + (diff.tv_usec / 1000000.0));
+      }
+      else {
+        nc_printf(ncct, " next run: unscheduled\n");
+      }
+
       if(check->stats.current.whence.tv_sec == 0) {
         nc_printf(ncct, " last run: never\n");
       }
