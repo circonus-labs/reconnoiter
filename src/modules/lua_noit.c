@@ -1304,6 +1304,7 @@ noit_lua_gunzip_gc(lua_State *L) {
   crutch = (struct gunzip_crutch *)lua_touserdata(L,1);
   if(crutch->scratch_buffer) free(crutch->scratch_buffer);
   inflateEnd(crutch->stream);
+  free(crutch->stream);
   return 0;
 }
 
