@@ -96,7 +96,7 @@ static char *
 noitedit_completion_function(EditLine *el, const char *text, int state) {
   noit_console_closure_t ncct;
   const LineInfo *li;
-  char **cmds, *curstr;
+  char **cmds, *curstr, *rv = NULL;
   int len, cnt = 32;
 
   li = el_line(el);
@@ -106,17 +106,20 @@ noitedit_completion_function(EditLine *el, const char *text, int state) {
   curstr[len] = '\0';
 
   cmds = alloca(32 * sizeof(*cmds));
+  cmds[0] = NULL;
   (void) noit_tokenize(curstr, cmds, &cnt);
 
   el_get(el, EL_USERDATA, (void *)&ncct);
 
   if(!strlen(text)) {
-    cmds[cnt++] = "";
+    cmds[cnt++] = strdup("");
   }
-  if(cnt == 32) return NULL;
-  return noit_console_opt_delegate(ncct, ncct->state_stack,
+  if(cnt != 32)
+    rv = noit_console_opt_delegate(ncct, ncct->state_stack,
                                    ncct->state_stack->state,
                                    cnt, cmds, state);
+  if(cmds[0]) while(cnt > 0) free(cmds[--cnt]);
+  return rv;
 }
 static int
 _edit_qsort_string_compare(i1, i2)
