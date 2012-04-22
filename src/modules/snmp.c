@@ -329,9 +329,11 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
   noit_check_set_stats(check, &current);
 }
 
-static int noit_snmp_session_cleanse(struct target_session *ts) {
+static int noit_snmp_session_cleanse(struct target_session *ts,
+                                     int needs_free) {
   if(ts->refcnt == 0 && ts->sess_handle) {
-    eventer_remove_fd(ts->fd);
+    eventer_t e = eventer_remove_fd(ts->fd);
+    if(needs_free) eventer_free(e);
     ts->fd = -1;
     if(ts->timeoutevent) {
       eventer_remove(ts->timeoutevent);
@@ -351,7 +353,7 @@ static int noit_snmp_session_timeout(eventer_t e, int mask, void *closure,
                                      struct timeval *now) {
   struct target_session *ts = closure;
   snmp_sess_timeout(ts->sess_handle);
-  noit_snmp_session_cleanse(ts);
+  noit_snmp_session_cleanse(ts, 1);
   if(ts->timeoutevent == e)
     ts->timeoutevent = NULL; /* this will be freed on return */
   return 0;
@@ -363,7 +365,7 @@ static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
   info->timedout = 1;
   if(info->ts) {
     info->ts->refcnt--;
-    noit_snmp_session_cleanse(info->ts);
+    noit_snmp_session_cleanse(info->ts, 1);
     info->ts = NULL;
   }
   remove_check(info);
@@ -402,7 +404,7 @@ static int noit_snmp_handler(eventer_t e, int mask, void *closure,
   FD_SET(e->fd, &fdset);
   fds = e->fd + 1;
   snmp_sess_read(ts->sess_handle, &fdset);
-  if(noit_snmp_session_cleanse(ts))
+  if(noit_snmp_session_cleanse(ts, 0))
     return 0;
   snmp_sess_select_info(ts->sess_handle, &fds, &fdset, &timeout, &block);
   _set_ts_timeout(ts, block ? &timeout : NULL);
@@ -1006,7 +1008,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   else {
     ts->refcnt--;
     noitL(nlerr, "Error sending snmp get request.\n");
-    noit_snmp_session_cleanse(ts);
+    noit_snmp_session_cleanse(ts, 1);
     /* Error */
     if(req) snmp_free_pdu(req);
     /* Log our findings */
