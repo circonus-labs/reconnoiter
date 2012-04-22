@@ -123,7 +123,7 @@ void parse_clargs(int argc, char **argv) {
         debug++;
         break;
       case 'D':
-        foreground = 1;
+        foreground++;
         break;
       default:
         break;

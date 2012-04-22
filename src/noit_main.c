@@ -214,7 +214,7 @@ noit_main(const char *appname,
     }
   }
 
-  if(foreground) return passed_child_main();
+  if(foreground == 1) return passed_child_main();
 
   watchdog_timeout_str = getenv("WATCHDOG_TIMEOUT");
   if(watchdog_timeout_str) {
@@ -223,22 +223,24 @@ noit_main(const char *appname,
           watchdog_timeout);
   }
 
-  /* This isn't inherited across forks... */
-  if(lockfd >= 0) noit_lockfile_release(lockfd);
+  if(foreground < 1) {
+    /* This isn't inherited across forks... */
+    if(lockfd >= 0) noit_lockfile_release(lockfd);
 
-  fd = open("/dev/null", O_RDWR);
-  dup2(fd, STDIN_FILENO);
-  dup2(fd, STDOUT_FILENO);
-  dup2(fd, STDERR_FILENO);
-  if(fork()) exit(0);
-  setsid();
-  if(fork()) exit(0);
+    fd = open("/dev/null", O_RDWR);
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    if(fork()) exit(0);
+    setsid();
+    if(fork()) exit(0);
 
-  /* Reacquire the lock */
-  if(*lockfile) {
-    if(noit_lockfile_acquire(lockfile) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
+    /* Reacquire the lock */
+    if(*lockfile) {
+      if(noit_lockfile_acquire(lockfile) < 0) {
+        noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+        exit(-1);
+      }
     }
   }
 

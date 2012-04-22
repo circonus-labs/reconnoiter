@@ -120,7 +120,7 @@ void parse_clargs(int argc, char **argv) {
         config_file = strdup(optarg);
         break;
       case 'D':
-        foreground = 1;
+        foreground++;
         break;
       case 'd':
         debug++;
