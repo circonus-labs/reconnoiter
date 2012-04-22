@@ -495,6 +495,7 @@ history_end(History *h)
 
 	if (h->h_next == history_def_next)
 		history_def_clear(h->h_ref, &ev);
+  h_free(h->h_ref);
 }
 
 

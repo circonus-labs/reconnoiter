@@ -677,6 +677,7 @@ noit_log_init_rwlock(noit_log_stream_t ls) {
 
 noit_log_stream_t
 noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
+  char *lsname;
   noit_log_stream_t ls;
   ls = calloc(1, sizeof(*ls));
   ls->name = strdup(name);
@@ -689,8 +690,10 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   /* This double strdup of ls->name is needed, look for the next one
    * for an explanation.
    */
+  lsname = strdup(ls->name);
   if(noit_hash_store(&noit_loggers,
-                     strdup(ls->name), strlen(ls->name), ls) == 0) {
+                     lsname, strlen(ls->name), ls) == 0) {
+    free(lsname);
     free(ls->name);
     free(ls);
     return NULL;
@@ -744,9 +747,13 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
      * noit_log_stream_free up there will sweep our key right our from
      * under us.
      */
+    char *lsname;
+    lsname = strdup(ls->name);
     if(noit_hash_store(&noit_loggers,
-                       strdup(ls->name), strlen(ls->name), ls) == 0)
+                       lsname, strlen(ls->name), ls) == 0) {
+      free(lsname);
       goto freebail;
+    }
     ls->lock = calloc(1, sizeof(*ls->lock));
     noit_log_init_rwlock(ls);
   }
@@ -775,7 +782,7 @@ noit_log_stream_find(const char *name) {
 
 void
 noit_log_stream_remove(const char *name) {
-  noit_hash_delete(&noit_loggers, name, strlen(name), NULL, NULL);
+  noit_hash_delete(&noit_loggers, name, strlen(name), free, NULL);
 }
 
 void
@@ -849,6 +856,7 @@ noit_log_stream_free(noit_log_stream_t ls) {
     struct _noit_log_stream_outlet_list *node;
     if(ls->name) free(ls->name);
     if(ls->path) free(ls->path);
+    if(ls->type) free(ls->type);
     while(ls->outlets) {
       node = ls->outlets->next;
       free(ls->outlets);

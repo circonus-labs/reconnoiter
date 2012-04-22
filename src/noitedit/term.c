@@ -375,6 +375,8 @@ term_end(EditLine *el)
 	el_free((ptr_t) el->el_term.t_cap);
 	el->el_term.t_cap = NULL;
 	el->el_term.t_loc = 0;
+	el_free((ptr_t) el->el_term.t_fkey);
+	el->el_term.t_fkey = NULL;
 	el_free((ptr_t) el->el_term.t_str);
 	el->el_term.t_str = NULL;
 	el_free((ptr_t) el->el_term.t_val);

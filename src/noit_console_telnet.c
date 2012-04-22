@@ -1419,6 +1419,7 @@ clientstat(noit_console_closure_t ncct, int code, int parm1, int parm2)
 	     * Change window size as requested by client.
 	     */
 
+	    memset(&ws, 0, sizeof(ws));
 	    ws.ws_col = parm1;
 	    ws.ws_row = parm2;
 	    ioctl(pty, TIOCSWINSZ, (char *)&ws);
