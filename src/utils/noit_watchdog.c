@@ -137,14 +137,14 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
   while(1) {
+    /* This sets up things so we start alive */
+    it_ticks_zero();
     child_pid = fork();
     if(child_pid == -1) {
       noitL(noit_error, "fork failed: %s\n", strerror(errno));
       exit(-1);
     }
     if(child_pid == 0) {
-      /* This sets up things so we start alive */
-      it_ticks_zero();
       /* trace handlers */
       noit_monitored_child_pid = getpid();
       if(glider_path) {
@@ -194,6 +194,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
           run_glider(child_pid);
           kill(child_pid, SIGKILL);
         }
+        noitL(noit_debug, "last_tick_time -> %lu\n", ltt);
       }
       noitL(noit_error, "%s child died [%d/%d], restarting.\n",
             app, exit_val, sig);
