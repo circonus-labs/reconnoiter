@@ -96,7 +96,7 @@ noit_check_schedule_next(noit_module_t *self,
                          noit_check_t *cause) {
   eventer_t newe;
   struct timeval period, earliest, diff;
-  u_int64_t diffms, periodms, offsetms;
+  int64_t diffms, periodms, offsetms;
   recur_closure_t *rcl;
   int initial = last_check ? 1 : 0;
 
@@ -141,15 +141,21 @@ noit_check_schedule_next(noit_module_t *self,
   periodms = period.tv_sec * 1000 + period.tv_usec / 1000;
 
   newe = eventer_alloc();
-  sub_timeval(earliest, *last_check, &diff);
-  /* calculat the differnet between the initial schedule time and "now" */
-  diffms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  /* calculate the differnet between the initial schedule time and "now" */
+  if(compare_timeval(earliest, *last_check) >= 0) {
+    sub_timeval(earliest, *last_check, &diff);
+    diffms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  }
+  else {
+    noitL(noit_error, "time is going backwards. abort.\n");
+    abort();
+  }
   /* determine the offset from initial schedule time that would place
    * us at the next period-aligned point past "now" */
   offsetms = ((diffms / periodms) + 1) * periodms;
   diff.tv_sec = offsetms / 1000;
   diff.tv_usec = (offsetms % 1000) * 1000;
- 
+
   memcpy(&newe->whence, last_check, sizeof(*last_check));
   add_timeval(newe->whence, diff, &newe->whence);
 

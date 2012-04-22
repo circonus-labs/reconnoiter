@@ -221,8 +221,11 @@ noit_check_fake_last_check(noit_check_t *check,
     balance_ms = check_slots_find_smallest(_now->tv_sec+1);
     lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
     lc->tv_usec = (balance_ms % 1000) * 1000;
-    if(compare_timeval(*_now, *lc) < 0)
-      sub_timeval(*lc, period, lc);
+    if(compare_timeval(*_now, *lc) < 0) {
+      do {
+        sub_timeval(*lc, period, lc);
+      } while(compare_timeval(*_now, *lc) < 0);
+    }
     else {
       struct timeval test;
       while(1) {
