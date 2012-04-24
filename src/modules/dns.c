@@ -344,10 +344,14 @@ static int dns_invoke_timeouts(eventer_t e, int mask, void *closure,
 static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
   dns_ctx_handle_t *h = data;
   eventer_t e = NULL, newe = NULL;
-  if(ctx == NULL) e = eventer_remove(h->timeout);
+  if(ctx == NULL) {
+    if(h->timeout) e = eventer_remove(h->timeout);
+  }
   else {
     assert(h->ctx == ctx);
-    if(timeout < 0) e = eventer_remove(h->timeout);
+    if(timeout < 0) {
+      if(h->timeout) e = eventer_remove(h->timeout);
+    }
     else {
       newe = eventer_alloc();
       newe->mask = EVENTER_TIMER;
