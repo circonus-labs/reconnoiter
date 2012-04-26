@@ -251,11 +251,15 @@ function initiate(module, check)
     local connecttime, firstbytetime
     local next_location
     local cookies = { }
+    local setfirstbyte = 1
 
     -- callbacks from the HttpClient
     local callbacks = { }
     callbacks.consume = function (str)
-        if firstbytetime == nil then firstbytetime = noit.timeval.now() end
+        if setfirstbyte == 1 then
+            firstbytetime = noit.timeval.now()
+            setfirstbyte = 0
+        end
         output = output .. (str or '')
     end
     callbacks.headers = function (hdrs)
@@ -338,8 +342,8 @@ function initiate(module, check)
     local payload = check.config.payload
     -- artificially increase redirects as the initial request counts
     redirects = redirects + 1
+    starttime = noit.timeval.now()
     repeat
-        starttime = noit.timeval.now()
         local optclient = HttpClient:new(callbacks)
         local rv, err = optclient:connect(target, port, use_ssl)
 
@@ -349,6 +353,7 @@ function initiate(module, check)
         end
         optclient:do_request(method, uri, headers, payload)
         optclient:get_response(read_limit)
+        setfirstbyte = 1
 
         redirects = redirects - 1
         client = optclient
