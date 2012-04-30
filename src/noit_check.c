@@ -931,7 +931,7 @@ noit_poller_free_check(noit_check_t *checker) {
         free(checker->module_configs[i]);
       }
     }
-    free(checker->module_metadata);
+    free(checker->module_configs);
   }
   free(checker);
 }
