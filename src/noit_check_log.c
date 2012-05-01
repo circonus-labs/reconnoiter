@@ -346,6 +346,10 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   bundle.status->state = c->state;
   bundle.status->duration = c->duration;
   bundle.status->status = c->status;
+  bundle.has_period = noit_true;
+  bundle.period = check->period;
+  bundle.has_timeout = noit_true;
+  bundle.timeout = check->timeout;
 
 
   // Just count

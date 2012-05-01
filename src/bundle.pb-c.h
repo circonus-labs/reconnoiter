@@ -73,10 +73,14 @@ struct  _Bundle
   Metric **metrics;
   size_t n_metadata;
   Metadata **metadata;
+  protobuf_c_boolean has_period;
+  uint32_t period;
+  protobuf_c_boolean has_timeout;
+  uint32_t timeout;
 };
 #define BUNDLE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&bundle__descriptor) \
-    , NULL, 0,NULL, 0,NULL }
+    , NULL, 0,NULL, 0,NULL, 0,0, 0,0 }
 
 
 /* Metric methods */
