@@ -545,6 +545,11 @@ function exportCanvasAsPNG(startfrom) {
                         if (data[mat] && (data[mat].metric_type == 'numeric') && data[mat].data[i][1]) 
                             return data[mat].data[i][1];
                         else 
+                            // If we have numeric dataset, but a blank value, we probably don't want to throw an error, but
+                            // instead return a zero
+                            if (data[mat] && (data[mat].metric_type == 'numeric') && (data[mat].data[i][1] == "")) {
+                                return 0;
+                            }
                             return "BAD";
                     });
                     if (nexpr.match(/BAD/)) 
