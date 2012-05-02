@@ -448,8 +448,11 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   }
 
   if(info) {
+    char *xmlpath = NULL;
     if(info->path) free(info->path);
-    info->path = strdup((char *)xmlGetNodePath(fsnode) + strlen("/noit"));
+    xmlpath = (char *)xmlGetNodePath(fsnode);
+    info->path = strdup(xmlpath + strlen("/noit"));
+    free(xmlpath);
     strlcpy(info->filter_name, argv[0], sizeof(info->filter_name));
     if(state) {
       noit_console_state_push_state(ncct, state);

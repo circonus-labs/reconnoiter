@@ -1789,7 +1789,7 @@ noit_console_config_cd(noit_console_closure_t ncct,
                        int argc, char **argv,
                        noit_console_state_t *state, void *closure) {
   const char *err = "internal error";
-  char *path, xpath[1024];
+  char *path = NULL, xpath[1024];
   noit_conf_t_userdata_t *info;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
@@ -1846,13 +1846,19 @@ noit_console_config_cd(noit_console_closure_t ncct,
   free(info->path);
   if(!strcmp(path + 1, root_node_name))
     info->path = strdup("/");
-  else
-    info->path = strdup((char *)xmlGetNodePath(node) + 1 +
+  else {
+    char *xmlpath = (char *)xmlGetNodePath(node);
+    info->path = strdup(xmlpath + 1 +
                         strlen(root_node_name));
+    free(xmlpath);
+  }
+
+  if(path) free(path);
   if(pobj) xmlXPathFreeObject(pobj);
   if(closure) noit_console_state_pop(ncct, argc, argv, NULL, NULL);
   return 0;
  bad:
+  if(path) free(path);
   if(pobj) xmlXPathFreeObject(pobj);
   nc_printf(ncct, "%s [%s]\n", err, xpath);
   return -1;

@@ -231,7 +231,7 @@ noit_console_check(noit_console_closure_t ncct,
   int cnt;
   noit_conf_t_userdata_t *info;
   char xpath[1024], newuuid_str[37];
-  char *uuid_conf, *wanted;
+  char *uuid_conf = NULL, *wanted;
   uuid_t checkid;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
@@ -302,8 +302,11 @@ noit_console_check(noit_console_closure_t ncct,
       nc_printf(ncct, "Partially successful, error setting some attributes\n");
 
   if(info) {
+    char *xmlpath;
     if(info->path) free(info->path);
-    info->path = strdup((char *)xmlGetNodePath(node) + strlen("/noit"));
+    xmlpath = (char *)xmlGetNodePath(node);
+    info->path = strdup(xmlpath + strlen("/noit"));
+    free(xmlpath);
     uuid_copy(info->current_check, checkid);
     if(argc > 1) refresh_subchecks(ncct, info);
     if(state) {
@@ -313,6 +316,7 @@ noit_console_check(noit_console_closure_t ncct,
     goto out;
   }
  out:
+  if(uuid_conf) free(uuid_conf);
   if(pobj) xmlXPathFreeObject(pobj);
   return 0;
 }
@@ -462,8 +466,10 @@ noit_console_show_check(noit_console_closure_t ncct,
 } while(0)
 
     if(!INHERIT(module, mnode, module)) module = NULL;
-    if(MYATTR(name, anode, value))
+    if(MYATTR(name, anode, value)) {
       nc_printf(ncct, " name: %s\n", value);
+      free(value);
+    }
     else
       nc_printf(ncct, " name: %s [from module]\n", module ? module : "[undef]");
     nc_attr_show(ncct, "module", node, mnode, module);
@@ -698,9 +704,13 @@ noit_console_config_show(noit_console_closure_t ncct,
     if(!strcmp((char *)node->name, "check")) continue;
     if(node->children && node->children == xmlGetLastChild(node) &&
       xmlNodeIsText(node->children)) {
+      char *node_str, *xmlpath;
+      node_str = (char *)xmlXPathCastNodeToString(node->children);
+      xmlpath = (char *)xmlGetNodePath(node);
       if(!titled++) nc_printf(ncct, "== Section Settings ==\n");
-      nc_printf(ncct, "%s: %s\n", xmlGetNodePath(node) + cliplen,
-                xmlXPathCastNodeToString(node->children));
+      nc_printf(ncct, "%s: %s\n", xmlpath + cliplen, node_str);
+      free(xmlpath);
+      free(node_str);
     }
   }
   xmlXPathFreeObject(pobj);
@@ -742,15 +752,19 @@ noit_console_config_show(noit_console_closure_t ncct,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   titled = 0;
   for(i=0; i<cnt; i++) {
+    char *xmlpath;
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
     if(!strcmp((char *)node->name, "filterset")) continue;
-    if(!strcmp((char *)xmlGetNodePath(node) + cliplen, "config")) continue;
-    if(!(node->children && node->children == xmlGetLastChild(node) &&
-         xmlNodeIsText(node->children))) {
-      if(!titled++) nc_printf(ncct, "== Subsections ==\n");
-      nc_printf(ncct, "%s\n", xmlGetNodePath(node) + cliplen);
+    xmlpath = (char *)xmlGetNodePath(node);
+    if(strcmp(xmlpath + cliplen, "config")) {
+      if(!(node->children && node->children == xmlGetLastChild(node) &&
+           xmlNodeIsText(node->children))) {
+        if(!titled++) nc_printf(ncct, "== Subsections ==\n");
+        nc_printf(ncct, "%s\n", xmlpath + cliplen);
+      }
     }
+    free(xmlpath);
   }
 
   titled = 0;
@@ -772,28 +786,27 @@ noit_console_config_show(noit_console_closure_t ncct,
     else if(!strcmp((char *)node->name, "check")) {
       int busted = 1;
       xmlAttr *attr;
-      char *uuid_str = "undefined";
+      char *uuid_str = NULL;
+      uuid_t checkid;
 
       if(!titled++) nc_printf(ncct, "== Checks ==\n");
 
       for(attr=node->properties; attr; attr = attr->next) {
-        if(!strcmp((char *)attr->name, "uuid"))
+        if(!strcmp((char *)attr->name, "uuid")) {
           uuid_str = (char *)xmlXPathCastNodeToString(attr->children);
-      }
-      if(uuid_str) {
-        uuid_t checkid;
-        nc_printf(ncct, "check[@uuid=\"%s\"] ", uuid_str);
-        if(uuid_parse(uuid_str, checkid) == 0) {
-          noit_check_t *check;
-          check = noit_poller_lookup(checkid);
-          if(check) {
-            busted = 0;
-            nc_printf(ncct, "%s`%s`%s", check->target, check->module, check->name);
-          }
+          break;
         }
       }
-      else
-        nc_printf(ncct, "%s ", xmlGetNodePath(node) + cliplen);
+      nc_printf(ncct, "check[@uuid=\"%s\"] ", uuid_str ? uuid_str : "undefined");
+      if(uuid_str && uuid_parse(uuid_str, checkid) == 0) {
+        noit_check_t *check;
+        check = noit_poller_lookup(checkid);
+        if(check) {
+          busted = 0;
+          nc_printf(ncct, "%s`%s`%s", check->target, check->module, check->name);
+        }
+      }
+      if(uuid_str) free(uuid_str);
       if(busted) nc_printf(ncct, "[check not in running system]");
       nc_write(ncct, "\n", 1);
     }
