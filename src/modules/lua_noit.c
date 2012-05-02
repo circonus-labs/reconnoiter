@@ -62,6 +62,7 @@
 #include "lua_noit.h"
 
 #define DEFLATE_CHUNK_SIZE 32768
+#define ON_STACK_LUA_STRLEN 2048
 
 #define LUA_DISPATCH(n, f) \
      if(!strcmp(k, #n)) { \
@@ -1058,15 +1059,23 @@ nl_base64_encode(lua_State *L) {
   size_t inlen, encoded_len;
   const unsigned char *message;
   char *encoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.encode");
 
   message = (const unsigned char *)lua_tolstring(L, 1, &inlen);
   encoded_len = (((inlen + 2) / 3) * 4) + 1;
-  encoded = malloc(encoded_len);
+  if(encoded_len <= ON_STACK_LUA_STRLEN) {
+    encoded = alloca(encoded_len);
+  }
+  else {
+    encoded = malloc(encoded_len);
+    needs_free = 1;
+  }
   if(!encoded) luaL_error(L, "out-of-memory");
   encoded_len = noit_b64_encode(message, inlen, encoded, encoded_len);
   lua_pushlstring(L, (char *)encoded, encoded_len);
+  if(needs_free) free(encoded);
   return 1;
 }
 static int
@@ -1074,11 +1083,10 @@ nl_hmac_sha1_encode(lua_State *L) {
   size_t messagelen, keylen, encoded_len;
   const unsigned char *message, *key;
   unsigned char* result;
-  char* encoded;
+  char encoded[29];
 
   if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.hmac_sha1_encode");
   encoded_len = 28; /* the length of the base64 encoded HMAC-SHA1 result will always be 28 */
-  encoded = malloc(encoded_len);
 
   message = (const unsigned char *)lua_tolstring(L, 1, &messagelen);
   key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
@@ -1565,6 +1573,7 @@ noit_lua_xmlnode_contents(lua_State *L) {
     const char *data = lua_tostring(L,2);
     xmlChar *enc = xmlEncodeEntitiesReentrant((*nodeptr)->doc, (xmlChar *)data);
     xmlNodeSetContent(*nodeptr, (xmlChar *)enc);
+    xmlFree(enc);
     return 0;
   }
   if(lua_gettop(L) == 1) {
