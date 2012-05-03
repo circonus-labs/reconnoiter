@@ -555,13 +555,11 @@ function exportCanvasAsPNG(startfrom) {
                     if (nexpr.match(/BAD/))  {
                         return false;
                     }
-                    // null values should be 0 for calculating the composite graph
+                    // any nulls that were returned should be replaced with a 0 for calculation
                     else if (nexpr.match(/null/)) {
-                        val = 0;
+                        nexpr = nexpr.replace(/null/g,'0.0');
                     }
-                    else {
-                        val = my_rpn_eval(nexpr, {});
-                    }
+                    val = my_rpn_eval(nexpr, {});
                     data[cindex].data.push([data[nindex].data[i][0], val]);
                 }
                 return true;
