@@ -544,17 +544,24 @@ function exportCanvasAsPNG(startfrom) {
                         //if the expression refers to a dataset that isnt numeric, throw an error and dont plot this dataset
                         if (data[mat] && (data[mat].metric_type == 'numeric') && data[mat].data[i][1]) 
                             return data[mat].data[i][1];
-                        else 
-                            // If we have numeric dataset, but a blank value, we probably don't want to throw an error, but
-                            // instead return a zero
-                            if (data[mat] && (data[mat].metric_type == 'numeric') && (data[mat].data[i][1] == "")) {
-                                return 0;
-                            }
+                        //If it is a numeric dataset but contains a null value, return the null
+                        else if (data[mat] && (data[mat].metric_type == 'numeric') && (data[mat].data[i][1] == "")) 
+                            return null;
+                        else
                             return "BAD";
                     });
-                    if (nexpr.match(/BAD/)) 
+
+                    var val;
+                    if (nexpr.match(/BAD/))  {
                         return false;
-                    var val = my_rpn_eval(nexpr, {});
+                    }
+                    // null values should be 0 for calculating the composite graph
+                    else if (nexpr.match(/null/)) {
+                        val = 0;
+                    }
+                    else {
+                        val = my_rpn_eval(nexpr, {});
+                    }
                     data[cindex].data.push([data[nindex].data[i][0], val]);
                 }
                 return true;
