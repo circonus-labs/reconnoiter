@@ -18,6 +18,7 @@ function graph_locked(warning) {
 }
 
 function lock_forms() {
+	$("input[name='lines']").attr("disabled", "true");
 	$("input[name='math1']").attr("disabled", "true");
 	$("input[name='math2']").attr("disabled", "true");
         $("input[name='view']").attr("disabled", "true");
@@ -33,6 +34,7 @@ function lock_forms() {
 
 function unlock_forms() {
 
+	$("input[name='lines']").removeAttr("disabled");
 	$("input[name='math1']").removeAttr("disabled");
 	$("input[name='math2']").removeAttr("disabled");
         $("input[name='view']").removeAttr("disabled");
@@ -325,8 +327,13 @@ function gtool_add_datapoint(d) {
   });
 
   if(d.metric_type == 'text') {
-    o.find('tr.mathbox').remove();
+//    o.find('tr.mathbox').remove();
     o.find('select[name="derive"]').val('false');
+    o.find('input[name="lines"]').attr('checked', d.math1=='lines');
+    o.find('input[name="lines"]').change(function(){
+      d.math1 = $(this).is(':checked') ? 'lines':'' ;
+      update_current_graph(true);
+    });
   }
   else {
     if(d.derive){
@@ -757,6 +764,13 @@ $(document).ready(function(){
 		<td>&nbsp;</td>
 		<td><span class="axis axisl"> L</span> <span class="axis axisr"> R</span></td>
 		<td><a href="#" class="deletedatapoint"><span>delete</span></a></td>
+	</tr>
+	<tr class="mathbox">
+		<td colspan="7">
+		<div>
+			<label for="math">Draw vertical lines</label> <input type="checkbox" name="lines" />
+		</div>
+		</td>
 	</tr>
 	</tbody>
         </table>

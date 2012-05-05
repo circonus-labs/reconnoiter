@@ -3,6 +3,9 @@
 require_once 'Reconnoiter_DataContainer.php';
 
 class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
+  
+  const MAX_MARKINGS_RATIO = 10;
+  
   function __construct($start, $end, $cnt, $type) {
     parent::__construct($start, $end, $cnt, $type);
   }
@@ -109,4 +112,36 @@ class Reconnoiter_flot_Driver extends Reconnoiter_DataContainer {
     return $a;
   }
 
+  // create an array of grid markings in case the user wants them
+  function getmarkings() {
+    $ticks = array();
+    foreach ($this->sets as $name => $set) {
+      // it should work only for text metrics and only in case the
+      // display math contains "lines"
+      if(get_class($set) == "Reconnoiter_ChangeSet" && $this->sets_config[$name]['expression'] == 'lines') {
+         $points = $set->points();
+      }
+      if (!empty($points)) {
+        foreach ($points as $point) {
+          $point *= 1000;
+          // each tick is added only once
+          if (array_search($point, $ticks)===false) $ticks[] = $point;
+        }
+      }
+    }
+    sort($ticks);
+    $markings = array();
+
+    // construct the markings object for flot grid data
+    foreach($ticks as $tick) {
+      $markings[] = array( 'color' => '#000', 'lineWidth' => 0.5, 'xaxis' => array ( 'from' => $tick, 'to' => $tick) );
+    }
+    
+    // if there are too many markings it would clutter the graph
+    // so if the ratio between datapoints and number of generated
+    // markings is too low, just discard the markings
+    if (sizeof($markings)>$this->cnt/self::MAX_MARKINGS_RATIO) $markings=array();
+
+    return $markings;
+  }
 }
