@@ -111,7 +111,8 @@ $options = array(
   'legend' => array ( 'noColumns' => 4, 'position' => 'sw' ),
   'selection' => array ( 'mode' => 'x' ),
   'shadowSize' => 0,
-  'colors' => $driver->graphcolors()
+  'colors' => $driver->graphcolors(),
+  'grid' => array( 'markings' => $driver->getmarkings() )
 );
 
 // Export the data in CSV format
