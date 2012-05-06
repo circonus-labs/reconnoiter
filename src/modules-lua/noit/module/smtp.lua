@@ -45,8 +45,8 @@ function onload(image)
                allowed=".+">Specifies the EHLO parameter.</parameter>
     <parameter name="from" required="optional" default=""
                allowed=".+">Specifies the envelope sender.</parameter>
-    <parameter name="to" required="required"
-               allowed=".+">Specifies the envelope recipient.</parameter>
+    <parameter name="to" required="optional"
+               allowed=".+">Specifies the envelope recipient, if blank issue quit.</parameter>
     <parameter name="payload" required="optional" default="Subject: Testing"
                allowed=".+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
     <parameter name="starttls" required="optional" default="false"
@@ -311,16 +311,22 @@ function initiate(module, check)
     end
   end
 
-  if     action("mailfrom", mailfrom, 250)
-     and action("rcptto", rcptto, 250)
-     and action("data", "DATA", 354)
-     and action("body", payload .. "\r\n.", 250)
-     and action("quit", "QUIT", 221)
-  then
-    status = status .. ',sent'
+  -- Only send a quit if no "to" address is specified
+  if not check.config.to then
+    action("quit", "QUIT", 221)
   else
-    return
+    if     action("mailfrom", mailfrom, 250)
+       and action("rcptto", rcptto, 250)
+       and action("data", "DATA", 354)
+       and action("body", payload .. "\r\n.", 250)
+       and action("quit", "QUIT", 221)
+    then
+      status = status .. ',sent'
+    else
+      return
+    end
   end
+
   check.status(status)
   if good then check.good() end
 
