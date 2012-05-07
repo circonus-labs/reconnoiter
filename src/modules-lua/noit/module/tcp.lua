@@ -207,6 +207,7 @@ function initiate(module, check)
       else
         good = false
         status = status .. ',banner_match=failed'
+        check.metric_string('banner_match','')
       end
     end
     if string.len(str) > max_len then
