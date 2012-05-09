@@ -552,9 +552,9 @@ function initiate(module, check)
     local matches = 0
     has_body_matches = false
     for key, value in pairs(check.config) do
-      m = string.find(key, BODY_MATCHES_PREFIX)
+      local match = string.find(key, BODY_MATCHES_PREFIX)
 
-      if m == 1 then
+      if match == 1 then
         has_body_matches = true
         key = string.gsub(key, BODY_MATCHES_PREFIX, '')
 
