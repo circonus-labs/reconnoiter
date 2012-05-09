@@ -264,6 +264,8 @@ function ex_actions(action, check, mailfrom, rcptto, payload)
 
   if check.config.to then
      action("rcptto", rcptto, 250)
+  else
+     return status
   end
 
   -- Since the way the protocol works, the to address may be in the payload...
