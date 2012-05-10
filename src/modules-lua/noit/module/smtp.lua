@@ -45,8 +45,8 @@ function onload(image)
                allowed=".+">Specifies the EHLO parameter.</parameter>
     <parameter name="from" required="optional" default=""
                allowed=".+">Specifies the envelope sender.</parameter>
-    <parameter name="to" required="required"
-               allowed=".+">Specifies the envelope recipient.</parameter>
+    <parameter name="to" required="optional"
+               allowed=".+">Specifies the envelope recipient, if blank issue quit.</parameter>
     <parameter name="payload" required="optional" default="Subject: Testing"
                allowed=".+">Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</parameter>
     <parameter name="starttls" required="optional" default="false"
@@ -253,10 +253,35 @@ local function mk_saslplain(e, check)
   end
 end
 
+function ex_actions(action, check, mailfrom, rcptto, payload)
+  local status = ''
+  -- Only proceed if from is present, empty or not
+  if check.config.from == "" or check.config.from then
+    action("mailfrom", mailfrom, 250)
+  else
+     return status
+  end
+
+  if check.config.to then
+     action("rcptto", rcptto, 250)
+  else
+     return status
+  end
+
+  -- Since the way the protocol works, the to address may be in the payload...
+  if payload then
+     action("data", "DATA", 354)
+     action("body", payload .. "\r\n.", 250)
+     status = ',sent'
+  end
+  return status
+end
+
 function initiate(module, check)
   local starttime = noit.timeval.now()
   local e = noit.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, check.config.port or 25)
+  local action_result
   check.unavailable()
 
   if rv ~= 0 then
@@ -311,16 +336,12 @@ function initiate(module, check)
     end
   end
 
-  if     action("mailfrom", mailfrom, 250)
-     and action("rcptto", rcptto, 250)
-     and action("data", "DATA", 354)
-     and action("body", payload .. "\r\n.", 250)
-     and action("quit", "QUIT", 221)
-  then
-    status = status .. ',sent'
-  else
-    return
-  end
+  action_result = ex_actions(action, check, mailfrom, rcptto, payload)
+  -- Always issue quit
+  action("quit", "QUIT", 221)
+
+  status = status .. action_result
+
   check.status(status)
   if good then check.good() end
 
