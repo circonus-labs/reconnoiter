@@ -297,7 +297,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
         AVAIL_BAIL(mysql_error(ci->conn));
 
 #if MYSQL_VERSION_ID >= 50000
-      if (!strcmp(sslmode, "require")) {
+      if (sslmode && !strcmp(sslmode, "require")) {
         /* mysql has a bad habit of silently failing to establish ssl and
          * falling back to unencrypted, so after making the connection, let's 
          * check that we're actually using SSL by checking for a non-NULL 
