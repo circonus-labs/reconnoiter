@@ -2,8 +2,7 @@
 
 require_once('Reconnoiter_DB.php');
 
-$json = stripslashes($_POST['json']);
-$graph = json_decode($json, true);
+$graph = json_decode($_POST['json'], true);
 $saved_id = $graph['id'];
 $db = Reconnoiter_DB::getDB();
 
