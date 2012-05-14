@@ -96,7 +96,7 @@ public class EventHandler {
   }
   public boolean stopProcessing(StratconMessage m, String source) {
     for ( MessageHandler mh : alternates )
-      if(mh.stopProcessing(m, source) == false)
+      if(mh.observe(m) == false)
         return false;
     return true;
   }

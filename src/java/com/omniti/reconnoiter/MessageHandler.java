@@ -4,5 +4,4 @@ import com.omniti.reconnoiter.StratconMessage;
 
 public interface MessageHandler {
   public boolean observe(StratconMessage m);
-  public boolean stopProcessing(StratconMessage m, String source);
 }
