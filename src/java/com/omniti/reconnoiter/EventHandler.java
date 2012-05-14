@@ -69,7 +69,7 @@ public class EventHandler {
 
   public void processMessage(StratconMessage m) throws Exception {
     for ( MessageHandler mh : alternates )
-      if(mh.observe(m) == true)
+      if(mh.observe(m, null) == true)
         return;
     long start = System.nanoTime();
     m.handle(this);
@@ -96,7 +96,7 @@ public class EventHandler {
   }
   public boolean stopProcessing(StratconMessage m, String source) {
     for ( MessageHandler mh : alternates )
-      if(mh.observe(m) == false)
+      if(mh.observe(m, source) == false)
         return false;
     return true;
   }
