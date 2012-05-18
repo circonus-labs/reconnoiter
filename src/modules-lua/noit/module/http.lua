@@ -156,7 +156,7 @@ end
 function populate_cookie_jar(cookies, host, hdr)
     if hdr ~= nil then
         local name, value, trailer =
-            string.match(hdr, "([^=]+)=([^;]+)\;?%s*(.*)")
+            string.match(hdr, "([^=]+)=([^;]+);?%s*(.*)")
         if name ~= nil then
             local jar = { }
             jar.name = name;
