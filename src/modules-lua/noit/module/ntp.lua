@@ -156,61 +156,73 @@ end
 function ntp_control(s, req)
     local f = { }
     local req_packet = make_ntp_control(req)
+    local error = nil
     s:send(req_packet)
 
     f.num_frags = 0
     f.offsets = {}
     local done = false
     repeat
+        local lerr = nil
         local rv, buf = s:recv(480) -- max packet
         local offset, count, cnt
         -- need at least a header
-        if buf:len() < 12 then return "short packet" end
+        if buf:len() < 12 then lerr = "short packet" end
+        if lerr == nil then
+          f.hdr = buf:sub(1,12)
+          f.buf = buf:sub(13,buf:len())
+          cnt, f.li_vn_mode, f.r_m_e_op, f.sequence,
+              f.status, f.associd, offset, count = string.unpack(f.hdr, '>bbHHHHH')
 
-        f.hdr = buf:sub(1,12)
-        f.buf = buf:sub(13,buf:len())
-        cnt, f.li_vn_mode, f.r_m_e_op, f.sequence,
-            f.status, f.associd, offset, count = string.unpack(f.hdr, '>bbHHHHH')
+          f.mode = band(f.li_vn_mode, 0x7)
+          f.version = band(rshift(f.li_vn_mode, 3), 0x7)
+          f.leap = band(rshift(f.li_vn_mode, 6), 0x3)
+          f.op = band(f.r_m_e_op, 0x1f)
+          f.is_more = band(f.r_m_e_op, 0x20) ~= 0
+          f.is_error = band(f.r_m_e_op, 0x40) ~= 0
+          f.is_response = band(f.r_m_e_op, 0x80) ~= 0
 
-        f.mode = band(f.li_vn_mode, 0x7)
-        f.version = band(rshift(f.li_vn_mode, 3), 0x7)
-        f.leap = band(rshift(f.li_vn_mode, 6), 0x3)
-        f.op = band(f.r_m_e_op, 0x1f)
-        f.is_more = band(f.r_m_e_op, 0x20) ~= 0
-        f.is_error = band(f.r_m_e_op, 0x40) ~= 0
-        f.is_response = band(f.r_m_e_op, 0x80) ~= 0
-
-        -- validate
-        if f.version > 4 or f.version < 1 then return "bad version" end
-        if f.mode ~= 6 then return "not a control packet" end
-        if not f.is_response then return "not a response packet" end
-        if req.sequence ~= f.sequence then return "sequence mismatch" end
-        if req.op ~= f.op then return "opcode mismatch " .. req.op .. " != " .. f.op  end
-        if f.is_error then
-            return "error: "
-                .. bit.tohex(band(rshift(f.status, 8), 0xff), 2)
+          -- validate
+          if f.version > 4 or f.version < 1 then lerr = "bad version" end
+          if f.mode ~= 6 then lerr = "not a control packet" end
+          if not f.is_response then lerr = "not a response packet" end
+          if req.sequence ~= f.sequence then lerr = "sequence mismatch" end
+          if req.op ~= f.op then lerr = "opcode mismatch " .. req.op .. " != " .. f.op  end
+          if f.is_error then
+              return "error: "
+                  .. bit.tohex(band(rshift(f.status, 8), 0xff), 2)
+          end
         end
-        local expect = band(band(12 + count + 3, bnot(3)),0xffff)
-        -- must be aligned on a word boundary
-        if band(buf:len(), 3) ~= 0 then return "bad padding" end
-        if expect > buf:len() then
-            return "bad payload size " .. expect .. " vs. " .. buf:len()
-        end
-        if expect < buf:len() then
+
+        if lerr == nil then
+          local expect = band(band(12 + count + 3, bnot(3)),0xffff)
+          -- must be aligned on a word boundary
+          if band(buf:len(), 3) ~= 0 then lerr = "bad padding" end
+          if expect > buf:len() then
+            lerr = "bad payload size " .. expect .. " vs. " .. buf:len()
+          end
+          if expect < buf:len() then
             -- auth
             return "auth unsupported " .. expect .. " vs. " .. buf:len()
+          end
         end
-        if f.num_frags > 23 then return "too many fragments" end
-        if count < f.buf:len() then
+        if lerr == nil then
+          if f.num_frags > 23 then return "too many fragments" end
+          if count < f.buf:len() then
             f.buf = f.buf:sub(1,count)
+          end
+          f.offsets[offset] = f.buf
+          done = not f.is_more
         end
-        f.offsets[offset] = f.buf
-        done = not f.is_more
+        if lerr ~= nil then
+          noit.log("debug", "ntp error:%s\n", lerr)
+        end
+        error = lerr
     until done
 
     f.data = ''
     for i, buf in pairs(f.offsets) do f.data = f.data .. buf end
-    return nil, f
+    return error, f
 end
 
 
