@@ -3,6 +3,7 @@
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+LUACFLAGS=@LUACFLAGS@
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
 DEPFLAGS=@DEPFLAGS@
@@ -103,11 +104,11 @@ all:	reversion $(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules m
 make-man:
 	@(cd man && $(MAKE) -s)
 
-lua/liblua.lo:
+LuaJIT/src/libluajit.a:
 	@echo "- building lua bits"
-	@(cd lua && $(MAKE) -s liblua.lo)
+	@(cd LuaJIT && $(MAKE) HOST_CC="$(CC) $(LUACFLAGS)")
 
-make-modules:	lua/liblua.lo
+make-modules:	LuaJIT/src/libluajit.a
 	@for dir in $(MODDIR) ; do \
 		(cd $$dir && $(MAKE) -s) ; \
 	done
@@ -322,7 +323,7 @@ clean:
 	(cd utils && $(MAKE) clean)
 	(cd json-lib && $(MAKE) clean)
 	(cd yajl-lib && $(MAKE) clean)
-	(cd lua && $(MAKE) clean)
+	(cd LuaJIT && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 
 Makefile.dep:
@@ -332,7 +333,7 @@ Makefile.dep:
 include Makefile.dep
 
 distclean-subdirs:
-	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib lua java ; do \
+	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib LuaJIT java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 

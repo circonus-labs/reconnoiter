@@ -42,6 +42,15 @@ src/noit_config.h
 src/scripts/noit-config
 src/udns/udns_codes.c
 src/utils/dtrace_probes.h
+src/LuaJIT/lib/vmdef.lua
+src/LuaJIT/src/buildvm
+src/LuaJIT/src/lj_bcdef.h
+src/LuaJIT/src/lj_ffdef.h
+src/LuaJIT/src/lj_folddef.h
+src/LuaJIT/src/lj_libdef.h
+src/LuaJIT/src/lj_recdef.h
+src/LuaJIT/src/lj_vm.s
+src/LuaJIT/src/luajit
 test/00.pem
 test/01.pem
 test/02.pem

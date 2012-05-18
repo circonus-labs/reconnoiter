@@ -39,12 +39,15 @@ AC_PATH_PROG(NROFF, nroff)
 AC_SUBST(PERL)
 
 if test "x$GCC" = "xyes" ; then
-  CFLAGS="$CFLAGS -g -std=c99"
+  C99FLAG="-std=c99"
+  CFLAGS="$CFLAGS -g $C99FLAG"
   DEPFLAGS="-MM"
 else
-  CFLAGS="$CFLAGS -g -xc99=all"
+  C99FLAG="-xc99=all"
+  CFLAGS="$CFLAGS -g $C99FLAG"
   DEPFLAGS="-xM1"
 fi
+SHLDFLAGS="$LDFLAGS"
 
 CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200112L "'-I$(top_srcdir)/src'
 DTRACEHDR=dtrace_probes.h
@@ -59,6 +62,8 @@ case $host in
 	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
 	MODULEEXT=bundle
 	RLDFLAG="-Wl,--rpath="
+	# This is needed for luajit on Mac OS X
+	LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
 	;;
 *-*-solaris*)
 	DTRACE=/usr/sbin/dtrace
@@ -203,6 +208,7 @@ AC_CHECK_LIB(curses, clear, , [AC_MSG_ERROR([curses not found, but required])])
 
 CPPFLAGS="$CPPFLAGS `pcre-config --cflags`"
 LDFLAGS="$LDFLAGS `pcre-config --libs`"
+SHLDFLAGS="$SHLDFLAGS `pcre-config --libs`"
 AC_CHECK_LIB(pcre, pcre_compile, ,
 	[
 		AC_MSG_ERROR([libpcre not found, but required])
@@ -686,6 +692,8 @@ AC_SUBST(docdir)
 AC_SUBST(mansubdir)
 SHCFLAGS="$PICFLAGS $CFLAGS"
 AC_SUBST(SHCFLAGS)
+AC_SUBST(LD)
+AC_SUBST(SHLDFLAGS)
 
 SUBPREFIX="$prefix"
 if test "x$prefix" = "xNONE"; then
@@ -741,6 +749,9 @@ else
   fi
 fi
 
+LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g;"`
+AC_SUBST(LUACFLAGS)
+
 AC_OUTPUT([
 Makefile
 src/Makefile
@@ -755,7 +766,6 @@ src/modules/Makefile
 src/modules-lua/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
-src/lua/Makefile
 src/java/Makefile
 src/java/run-iep.sh
 src/java/jezebel
