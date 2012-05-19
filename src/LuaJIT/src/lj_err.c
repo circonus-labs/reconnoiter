@@ -60,10 +60,12 @@
 ** EXT is mandatory on POSIX/x64 since the interpreter doesn't save r12/r13.
 */
 
+#if !defined(LUAJIT_UNWIND_INTERNAL)
 #if defined(__GNUC__) && (LJ_TARGET_X64 || defined(LUAJIT_UNWIND_EXTERNAL))
 #define LJ_UNWIND_EXT	1
 #elif LJ_TARGET_X64 && LJ_TARGET_WINDOWS
 #define LJ_UNWIND_EXT	1
+#endif
 #endif
 
 /* -- Error messages ------------------------------------------------------ */
