@@ -6195,7 +6195,11 @@ static void emit_asm_debug(BuildCtx *ctx)
 	".LEFDE1:\n\n", (int)ctx->codesz - fcofs);
 #endif
 #if (defined(__sun__) && defined(__svr4__)) || defined(__solaris_)
+#if defined(__GNUC__)
+    fprintf(ctx->fp, "\t.section .eh_frame,\"a\",@unwind\n");
+#else
     fprintf(ctx->fp, "\t.section .eh_frame,\"aw\",@progbits\n");
+#endif
 #else
     fprintf(ctx->fp, "\t.section .eh_frame,\"a\",@progbits\n");
 #endif
