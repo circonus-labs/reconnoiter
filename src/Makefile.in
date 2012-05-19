@@ -3,7 +3,7 @@
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
-LUACFLAGS=@LUACFLAGS@
+LUACFLAGS=@LUACFLAGS@ -DLUAJIT_UNWIND_INTERNAL
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
 DEPFLAGS=@DEPFLAGS@
@@ -69,6 +69,24 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
 	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h
 
+LUADIR=LuaJIT
+LUAJIT=lj_vm.o lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o lj_str.o \
+	lj_tab.o lj_func.o lj_udata.o lj_meta.o lj_debug.o lj_state.o \
+	lj_dispatch.o lj_vmevent.o lj_vmmath.o lj_api.o lj_lex.o \
+	lj_parse.o lj_bcread.o lj_bcwrite.o lj_ir.o lj_opt_mem.o \
+	lj_opt_fold.o lj_opt_narrow.o lj_opt_dce.o lj_opt_loop.o \
+	lj_opt_split.o lj_mcode.o lj_snap.o lj_record.o lj_crecord.o \
+	lj_ffrecord.o lj_asm.o lj_trace.o lj_gdbjit.o lj_ctype.o \
+	lj_cdata.o lj_cconv.o lj_ccall.o lj_ccallback.o lj_carith.o \
+	lj_clib.o lj_cparse.o lj_lib.o lj_alloc.o lib_aux.o lib_base.o \
+	lib_math.o lib_bit.o lib_string.o lib_table.o lib_io.o lib_os.o \
+	lib_package.o lib_debug.o lib_jit.o lib_ffi.o lib_init.o
+
+LUAJITO=$(LUAJIT:%=$(LUADIR)/src/%)
+
+$(LUADIR)/src/%.o:
+	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="$(CC) $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
+
 NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
@@ -78,7 +96,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
-	bundle.pb-c.o
+	bundle.pb-c.o $(LUAJITO)
 
 NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
@@ -104,11 +122,7 @@ all:	reversion $(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules m
 make-man:
 	@(cd man && $(MAKE) -s)
 
-LuaJIT/src/libluajit.a:
-	@echo "- building lua bits"
-	@(cd LuaJIT && $(MAKE) HOST_CC="$(CC) $(LUACFLAGS)")
-
-make-modules:	LuaJIT/src/libluajit.a
+make-modules:
 	@for dir in $(MODDIR) ; do \
 		(cd $$dir && $(MAKE) -s) ; \
 	done
