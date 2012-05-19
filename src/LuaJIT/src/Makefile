@@ -315,9 +315,6 @@ else
   ifneq (,$(findstring stack-protector,$(shell $(TARGET_CC) -dumpspecs)))
     TARGET_XCFLAGS+= -fno-stack-protector
   endif
-  ifneq (SunOS,$(TARGET_SYS))
-    TARGET_XLDFLAGS+= -Wl,-E
-  endif
   ifeq (Linux,$(TARGET_SYS))
     TARGET_XLIBS+= -ldl
   endif
