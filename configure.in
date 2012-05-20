@@ -448,7 +448,7 @@ AC_EGREP_CPP([tputs.*[(][       ]*char[         ]*[)]],
 		[AC_MSG_RESULT(not char)])
 
 AC_MSG_CHECKING(for tgoto() function final argument type)
-AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*[)]],
+AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*],
 		[#if defined(HAVE_TERM_H)
 		 #include <term.h>
 		 #endif
