@@ -1252,6 +1252,16 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   }
   return 0;
 }
+
+metric_t *
+noit_stats_get_metric(noit_check_t *check,
+                      stats_t *newstate, const char *name) {
+  void *v;
+  if(noit_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
+    return (metric_t *)v;
+  return NULL;
+}
+
 void
 noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
