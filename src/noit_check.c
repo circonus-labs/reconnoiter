@@ -998,14 +998,14 @@ noit_poller_lookup_by_name(char *target, char *name) {
   return check;
 }
 int
-noit_poller_target_do(char *target, int (*f)(noit_check_t *, void *),
+noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
   int count = 0;
   noit_check_t pivot;
   noit_skiplist_node *next;
 
   memset(&pivot, 0, sizeof(pivot));
-  pivot.target = target;
+  pivot.target = (char *)target;
   pivot.name = "";
   noit_skiplist_find_neighbors(&polls_by_name, &pivot, NULL, NULL, &next);
   while(next && next->data) {
@@ -1015,6 +1015,29 @@ noit_poller_target_do(char *target, int (*f)(noit_check_t *, void *),
     noit_skiplist_next(&polls_by_name, &next);
   }
   return count;
+}
+struct ip_module_collector_crutch {
+  noit_check_t **array;
+  const char *module;
+  int idx;
+  int allocd;
+};
+static int ip_module_collector(noit_check_t *check, void *cl) {
+  struct ip_module_collector_crutch *c = cl;
+  if(c->idx >= c->allocd) return 0;
+  if(strcmp(check->module, c->module)) return 0;
+  c->array[c->idx++] = check;
+  return 1;
+}
+int
+noit_poller_lookup_by_ip_module(const char *ip, const char *mod,
+                                noit_check_t **checks, int nchecks) {
+  struct ip_module_collector_crutch crutch;
+  crutch.array = checks;
+  crutch.allocd = nchecks;
+  crutch.idx = 0;
+  crutch.module = mod;
+  return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
 int

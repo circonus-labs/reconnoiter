@@ -45,7 +45,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
-#define MAX_DEPTH 32
+#define MAX_CHECKS 3
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
@@ -152,10 +152,10 @@ update_check(noit_check_t *check, const char *key, char type,
 
   /* Next the actual data */
   snprintf(buff, sizeof(buff), "%s`%s", key,
-           (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
+           (type == 'c') ? "rate" : (type == 'g') ? "gauge" : "timing");
   m = noit_stats_get_metric(check, &ccl->current, buff);
   if(type == 'c') {
-    double v = diff * (1.0 / sample);
+    double v = diff * (1.0 / sample) / (check->period / 1000.0);
     if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
       (*m->metric_value.n) += v;
       check_stats_set_metric_hook_invoke(check, &ccl->current, m);
@@ -175,13 +175,13 @@ update_check(noit_check_t *check, const char *key, char type,
 }
 
 static void
-statsd_handle_payload(noit_check_t *parent, noit_check_t *single,
+statsd_handle_payload(noit_check_t **checks, int nchecks,
                       char *payload, int len) {
   char *cp, *ecp, *endptr;
   cp = ecp = payload;
   endptr = payload + len - 1;
   while(ecp != NULL && ecp < endptr) {
-    int idx = 0, last_space = 0;
+    int i, idx = 0, last_space = 0;
     char key[256], *value;
     const char *type = NULL;
     ecp = memchr(ecp, '\n', len - (ecp - payload));
@@ -239,8 +239,8 @@ statsd_handle_payload(noit_check_t *parent, noit_check_t *single,
         case 'g':
         case 'c':
         case 'm':
-          if(parent) update_check(parent, key, *type, diff, sampleRate);
-          if(single) update_check(single, key, *type, diff, sampleRate);
+          for(i=0;i<nchecks;i++)
+            update_check(checks[i], key, *type, diff, sampleRate);
           break;
         default:
           break;
@@ -258,13 +258,15 @@ statsd_handler(eventer_t e, int mask, void *closure,
   noit_module_t *self = (noit_module_t *)closure;
   int packets_per_cycle;
   statsd_mod_config_t *conf;
-  noit_check_t *check = NULL, *parent = NULL;
+  noit_check_t *parent = NULL;
 
   conf = noit_module_get_userdata(self);
   if(conf->primary_active) parent = noit_poller_lookup(conf->primary);
 
   packets_per_cycle = MAX(conf->packets_per_cycle, 1);
   for( ; packets_per_cycle > 0; packets_per_cycle--) {
+    noit_check_t *checks[MAX_CHECKS];
+    int nchecks = 0;
     char ip[INET6_ADDRSTRLEN];
     union {
       struct sockaddr_in in;
@@ -276,7 +278,7 @@ statsd_handler(eventer_t e, int mask, void *closure,
     len = recvfrom(e->fd, conf->payload, conf->payload_len-1, 0,
                    (struct sockaddr *)&addr, &addrlen);
     if(len < 0) {
-      if(errno == EAGAIN)
+      if(errno != EAGAIN)
         noitL(nlerr, "statsd: recvfrom() -> %s\n", strerror(errno));
       break;
     }
@@ -293,9 +295,13 @@ statsd_handler(eventer_t e, int mask, void *closure,
         ip[0] = '\0';
     }
     conf->payload[len] = '\0';
-    check = *ip ? noit_poller_lookup_by_name(ip, "statsd") : NULL;
-    if(parent || check)
-      statsd_handle_payload(parent, check, conf->payload, len);
+    nchecks = 0;
+    if(*ip)
+      nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
+                                                checks, MAX_CHECKS-1);
+    if(parent) checks[nchecks++] = parent;
+    if(nchecks)
+      statsd_handle_payload(checks, nchecks, conf->payload, len);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
