@@ -85,7 +85,8 @@ public class StratconQuery extends StratconQueryBase {
     return l;
   }
 
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler ieh) {
+    EventHandler eh = (EventHandler)ieh;
     eh.deregisterQuery(getUUID());
 
     EPStatement statement = eh.getService().getEPAdministrator().createEPL(getExpression());

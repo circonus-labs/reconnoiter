@@ -9,7 +9,7 @@
 package com.omniti.reconnoiter.event;
 
 import java.util.LinkedList;
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.event.NoitEvent;
 import com.omniti.reconnoiter.event.NoitStatus;
 import com.omniti.reconnoiter.event.NoitMetric;
@@ -101,7 +101,7 @@ public class NoitBundlev2 extends NoitEvent {
   }
 
   public int numparts() { return 9; }
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler eh) {
     for(NoitEvent e : items) {
       if (eh.stopProcessing(e, getPrefix()) == false)
         e.handle(eh);

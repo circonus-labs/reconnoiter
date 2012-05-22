@@ -8,7 +8,7 @@
 
 package com.omniti.reconnoiter.event;
 
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconMessage;
 import com.omniti.reconnoiter.event.NoitMetricNumeric;
 import com.omniti.reconnoiter.event.NoitMetricText;
@@ -33,7 +33,7 @@ public class NoitMetric extends NoitEvent {
       nmt = null;
     }
   }
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler eh) {
     long start = System.nanoTime();
     if(nmn != null) eh.sendEvent(nmn);
     if(nmt != null) eh.sendEvent(nmt);

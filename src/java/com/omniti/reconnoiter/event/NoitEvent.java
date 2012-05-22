@@ -8,7 +8,7 @@
 
 package com.omniti.reconnoiter.event;
 
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconMessage;
 
 public abstract class NoitEvent extends StratconMessage {
@@ -32,7 +32,7 @@ public abstract class NoitEvent extends StratconMessage {
     parts[2] = id.substring(p2+1,id.length()-37);
     return parts;
   }
-  public void handle(EventHandler eh) {
-    eh.getService().getEPRuntime().sendEvent(this);
+  public void handle(IEventHandler eh) {
+    eh.sendEvent(this);
   }
 }
