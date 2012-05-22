@@ -131,7 +131,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
-  u_int32_t count = 1;
+  u_int32_t one = 1;
   char buff[256];
   statsd_closure_t *ccl;
   metric_t *m;
@@ -142,21 +142,35 @@ update_check(noit_check_t *check, const char *key, char type,
   /* First key counts */
   snprintf(buff, sizeof(buff), "%s`count", key);
   m = noit_stats_get_metric(check, &ccl->current, buff);
-  if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL)
-    count = *m->metric_value.I + 1;
-  noit_stats_set_metric(check, &ccl->current, buff, METRIC_UINT32, &count);
+  if(!m) ccl->stats_count++;
+  if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL) {
+    (*m->metric_value.I)++;
+    check_stats_set_metric_hook_invoke(check, &ccl->current, m);
+  }
+  else
+    noit_stats_set_metric(check, &ccl->current, buff, METRIC_UINT32, &one);
 
   /* Next the actual data */
-  m = noit_stats_get_metric(check, &ccl->current, key);
+  snprintf(buff, sizeof(buff), "%s`%s", key,
+           (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
+  m = noit_stats_get_metric(check, &ccl->current, buff);
   if(type == 'c') {
     double v = diff * (1.0 / sample);
-    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL)
-      v += (*m->metric_value.n);
-    noit_stats_set_metric(check, &ccl->current, key, METRIC_DOUBLE, &v);
+    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
+      (*m->metric_value.n) += v;
+      check_stats_set_metric_hook_invoke(check, &ccl->current, m);
+    }
+    else
+      noit_stats_set_metric(check, &ccl->current, buff, METRIC_DOUBLE, &v);
   }
   else if(type == 'g' || type == 'm') {
     double v = diff;
-    noit_stats_set_metric(check, &ccl->current, key, METRIC_DOUBLE, &v);
+    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
+      (*m->metric_value.n) = v;
+      check_stats_set_metric_hook_invoke(check, &ccl->current, m);
+    }
+    else
+      noit_stats_set_metric(check, &ccl->current, buff, METRIC_DOUBLE, &v);
   }
 }
 
@@ -217,7 +231,7 @@ statsd_handle_payload(noit_check_t *parent, noit_check_t *single,
             type = NULL;
           }
         }
-        diff = atoi(value);
+        diff = strtod(value, NULL);
       }
       if(type == NULL) type = COUNTER_STRING;
 
