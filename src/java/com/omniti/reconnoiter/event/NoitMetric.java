@@ -35,8 +35,8 @@ public class NoitMetric extends NoitEvent {
   }
   public void handle(EventHandler eh) {
     long start = System.nanoTime();
-    if(nmn != null) eh.getService().getEPRuntime().sendEvent(nmn);
-    if(nmt != null) eh.getService().getEPRuntime().sendEvent(nmt);
+    if(nmn != null) eh.sendEvent(nmn);
+    if(nmt != null) eh.sendEvent(nmt);
     long nanos = System.nanoTime() - start;
     logger.debug("sendEvent("+getUuid()+"-"+getName()+") took "+(nanos/1000)+"us");
   }

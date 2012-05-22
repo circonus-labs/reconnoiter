@@ -13,26 +13,22 @@ import com.omniti.reconnoiter.MessageHandler;
 import com.omniti.reconnoiter.event.*;
 import java.lang.Runnable;
 
-import com.espertech.esper.client.EPServiceProvider;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
 public class MQListener implements Runnable {
-    private EPServiceProvider epService;
-    private ConcurrentHashMap<UUID,StratconQueryBase> queries;
     private IMQBroker broker;
     private LinkedList<StratconMessage> preproc;
     private LinkedList<StratconMessage> queries_toload;
     private LinkedList<MessageHandler>  alternates;
     private boolean booted = false;
-    private EventHandler eh = null;
+    private IEventHandler eh = null;
 
-    public MQListener(EPServiceProvider epService, IMQBroker broker) {
-      this.queries = new ConcurrentHashMap<UUID,StratconQueryBase>();
-      this.epService = epService;
+    public MQListener(IEventHandler eh, IMQBroker broker) {
       this.broker = broker;
+      this.eh = eh;
       preproc = new LinkedList<StratconMessage>();
       queries_toload = new LinkedList<StratconMessage>();
       alternates = new LinkedList<MessageHandler>();
@@ -49,7 +45,7 @@ public class MQListener implements Runnable {
         preproc.add(m);
     }
 
-    protected void process(EventHandler eh, List<StratconMessage> l) {
+    protected void process(IEventHandler eh, List<StratconMessage> l) {
       for (StratconMessage m : l) {
         try { eh.processMessage(m); }
         catch (Exception e) {
@@ -61,10 +57,9 @@ public class MQListener implements Runnable {
     public void booted() {
       booted = true;
     }
-    public EventHandler getEventHandler() { return eh; }
+    public IEventHandler getEventHandler() { return eh; }
     public IMQBroker getBroker() { return broker; }
     public void run() {
-      eh = new EventHandler(queries, this.epService, broker);
       for ( MessageHandler mh : alternates ) eh.addObserver(mh);
       process(eh, preproc);
       booted();

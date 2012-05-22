@@ -24,6 +24,7 @@ top_srcdir=@top_srcdir@
 
 R_JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/EventHandler.java \
+	com/omniti/reconnoiter/IEventHandler.java \
 	com/omniti/reconnoiter/MessageHandler.java \
 	com/omniti/reconnoiter/CheckStatus.java \
 	com/omniti/reconnoiter/broker/NoitListener.java \
