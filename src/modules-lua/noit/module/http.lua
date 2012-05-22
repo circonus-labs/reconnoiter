@@ -410,7 +410,10 @@ function initiate(module, check)
     local seconds = elapsed(check, "duration", starttime, endtime)
     status = status .. ',rt=' .. seconds .. 's'
     elapsed(check, "tt_connect", starttime, connecttime)
-    elapsed(check, "tt_firstbyte", starttime, firstbytetime)
+
+    if firstbytetime ~= nil then
+      elapsed(check, "tt_firstbyte", starttime, firstbytetime)
+    end
 
     -- size
     status = status .. ',bytes=' .. client.content_bytes
