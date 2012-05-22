@@ -412,7 +412,7 @@ function initiate(module, check)
     elapsed(check, "tt_connect", starttime, connecttime)
 
     if firstbytetime ~= nil then
-        elapsed(check, "tt_firstbyte", starttime, firstbytetime)
+      elapsed(check, "tt_firstbyte", starttime, firstbytetime)
     end
 
     -- size
