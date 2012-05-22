@@ -37,6 +37,7 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -48,6 +49,7 @@
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
+static const char *COUNTER_STRING = "c";
 
 typedef struct _mod_config {
   noit_hash_table *options;
@@ -126,16 +128,114 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int
-push_payload_at_check(noit_check_t *check, int len, char *payload) {
+static void
+update_check(noit_check_t *check, const char *key, char type,
+             double diff, double sample) {
+  u_int32_t count = 1;
+  char buff[256];
   statsd_closure_t *ccl;
-  char key[256];
+  metric_t *m;
 
-  if (check->closure == NULL) return 0;
+  if (check->closure == NULL) return;
   ccl = check->closure;
 
-  /* do it here */
-  return ccl->stats_count;
+  /* First key counts */
+  snprintf(buff, sizeof(buff), "%s`count", key);
+  m = noit_stats_get_metric(check, &ccl->current, buff);
+  if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL)
+    count = *m->metric_value.I + 1;
+  noit_stats_set_metric(check, &ccl->current, buff, METRIC_UINT32, &count);
+
+  /* Next the actual data */
+  m = noit_stats_get_metric(check, &ccl->current, key);
+  if(type == 'c') {
+    double v = diff * (1.0 / sample);
+    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL)
+      v += (*m->metric_value.n);
+    noit_stats_set_metric(check, &ccl->current, key, METRIC_DOUBLE, &v);
+  }
+  else if(type == 'g' || type == 'm') {
+    double v = diff;
+    noit_stats_set_metric(check, &ccl->current, key, METRIC_DOUBLE, &v);
+  }
+}
+
+static void
+statsd_handle_payload(noit_check_t *parent, noit_check_t *single,
+                      char *payload, int len) {
+  char *cp, *ecp, *endptr;
+  cp = ecp = payload;
+  endptr = payload + len - 1;
+  while(ecp != NULL && ecp < endptr) {
+    int idx = 0, last_space = 0;
+    char key[256], *value;
+    const char *type = NULL;
+    ecp = memchr(ecp, '\n', len - (ecp - payload));
+    if(ecp) *ecp++ = '\0';
+    while(idx < sizeof(key) - 2 && *cp != '\0' && *cp != ':') {
+      if(isspace(*cp)) {
+        if(!last_space) key[idx++] = '_';
+        cp++;
+        last_space = 1;
+        continue;
+      }
+      else if(*cp == '/') key[idx++] = '-';
+      else if((*cp >= 'a' && *cp <= 'z') ||
+              (*cp >= 'A' && *cp <= 'Z') ||
+              (*cp >= '0' && *cp <= '9') ||
+              *cp == '.' || *cp == '_' || *cp == '-') {
+        key[idx++] = *cp;
+      }
+      last_space = 0;
+      cp++;
+    }
+    key[idx] = '\0';
+
+    while((NULL != cp) && NULL != (value = strchr(cp, ':'))) {
+      double sampleRate = 1.0;
+      double diff = 1.0;
+      if(value) {
+        *value++ = '\0';
+        cp = strchr(value, '|');
+        if(cp) {
+          char *sample_string;
+          *cp++ = '\0';
+          type = cp;
+          sample_string = strchr(type, '|');
+          if(sample_string) {
+            *sample_string++ = '\0';
+            if(*sample_string == '@')
+              sampleRate = strtod(sample_string + 1, NULL);
+          }
+          if(*type == 'g') {
+            diff = 0.0;
+          }
+          else if(0 == strcmp(type, "ms")) {
+            diff = 0.0;
+          }
+          else {
+            type = NULL;
+          }
+        }
+        diff = atoi(value);
+      }
+      if(type == NULL) type = COUNTER_STRING;
+
+      switch(*type) {
+        case 'g':
+        case 'c':
+        case 'm':
+          if(parent) update_check(parent, key, *type, diff, sampleRate);
+          if(single) update_check(single, key, *type, diff, sampleRate);
+          break;
+        default:
+          break;
+      }
+      cp = value;
+    }
+
+    cp = ecp;
+  }
 }
 
 static int
@@ -144,23 +244,46 @@ statsd_handler(eventer_t e, int mask, void *closure,
   noit_module_t *self = (noit_module_t *)closure;
   int packets_per_cycle;
   statsd_mod_config_t *conf;
+  noit_check_t *check = NULL, *parent = NULL;
 
   conf = noit_module_get_userdata(self);
+  if(conf->primary_active) parent = noit_poller_lookup(conf->primary);
+
   packets_per_cycle = MAX(conf->packets_per_cycle, 1);
   for( ; packets_per_cycle > 0; packets_per_cycle--) {
+    char ip[INET6_ADDRSTRLEN];
     union {
       struct sockaddr_in in;
       struct sockaddr_in6 in6;
     } addr;
     socklen_t addrlen = sizeof(addr);
     ssize_t len;
-    noit_check_t *check;
     uuid_t check_id;
-    len = recvfrom(e->fd, conf->payload, conf->payload_len, 0,
+    len = recvfrom(e->fd, conf->payload, conf->payload_len-1, 0,
                    (struct sockaddr *)&addr, &addrlen);
-    if(len < 0 && errno == EAGAIN) return -1;
+    if(len < 0) {
+      if(errno == EAGAIN)
+        noitL(nlerr, "statsd: recvfrom() -> %s\n", strerror(errno));
+      break;
+    }
+    switch(addr.in.sin_family) {
+      case AF_INET:
+        addrlen = sizeof(struct sockaddr_in);
+        inet_ntop(AF_INET, &((struct sockaddr_in *)&addr)->sin_addr, ip, addrlen);
+        break;
+      case AF_INET6:
+        addrlen = sizeof(struct sockaddr_in6);
+        inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr, ip, addrlen);
+        break;
+      default:
+        ip[0] = '\0';
+    }
+    conf->payload[len] = '\0';
+    check = *ip ? noit_poller_lookup_by_name(ip, "statsd") : NULL;
+    if(parent || check)
+      statsd_handle_payload(parent, check, conf->payload, len);
   }
-  return 0;
+  return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
 static int noit_statsd_initiate_check(noit_module_t *self,
