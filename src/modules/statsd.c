@@ -151,11 +151,10 @@ update_check(noit_check_t *check, const char *key, char type,
     noit_stats_set_metric(check, &ccl->current, buff, METRIC_UINT32, &one);
 
   /* Next the actual data */
-  snprintf(buff, sizeof(buff), "%s`%s", key,
-           (type == 'c') ? "rate" : (type == 'g') ? "gauge" : "timing");
-  m = noit_stats_get_metric(check, &ccl->current, buff);
   if(type == 'c') {
     double v = diff * (1.0 / sample) / (check->period / 1000.0);
+    snprintf(buff, sizeof(buff), "%s`rate", key);
+    m = noit_stats_get_metric(check, &ccl->current, buff);
     if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
       (*m->metric_value.n) += v;
       check_stats_set_metric_hook_invoke(check, &ccl->current, m);
@@ -163,15 +162,16 @@ update_check(noit_check_t *check, const char *key, char type,
     else
       noit_stats_set_metric(check, &ccl->current, buff, METRIC_DOUBLE, &v);
   }
-  else if(type == 'g' || type == 'm') {
-    double v = diff;
-    if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
-      (*m->metric_value.n) = v;
-      check_stats_set_metric_hook_invoke(check, &ccl->current, m);
-    }
-    else
-      noit_stats_set_metric(check, &ccl->current, buff, METRIC_DOUBLE, &v);
+
+  snprintf(buff, sizeof(buff), "%s`%s", key,
+           (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
+  m = noit_stats_get_metric(check, &ccl->current, buff);
+  if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
+    (*m->metric_value.n) = diff;
+    check_stats_set_metric_hook_invoke(check, &ccl->current, m);
   }
+  else
+    noit_stats_set_metric(check, &ccl->current, buff, METRIC_DOUBLE, &diff);
 }
 
 static void
