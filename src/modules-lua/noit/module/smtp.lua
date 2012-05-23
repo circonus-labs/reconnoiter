@@ -294,7 +294,7 @@ function initiate(module, check)
   local good = true
   local ehlo = string.format("EHLO %s", check.config.ehlo or "noit.local")
   local mailfrom = string.format("MAIL FROM:<%s>", check.config.from or "")
-  local rcptto = string.format("RCPT TO:<%s>", check.config.to)
+  local rcptto = string.format("RCPT TO:<%s>", check.config.to or "")
   local payload = check.config.payload or "Subject: Test\n\nHello."
   payload = payload:gsub("\n", "\r\n")
   local status = 'connected'
