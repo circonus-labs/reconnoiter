@@ -40,7 +40,6 @@ public class AMQBroker implements IMQBroker {
       this.listenerClass = Class.forName(className);
     }
     catch(java.lang.ClassNotFoundException e) {
-      throw new RuntimeException("Cannot find class: " + className);
     }
   }
 

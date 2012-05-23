@@ -64,7 +64,7 @@ public class RabbitBroker implements IMQBroker  {
       this.listenerClass = Class.forName(className);
     }
     catch(java.lang.ClassNotFoundException e) {
-      throw new RuntimeException("Cannot find class: " + className);
+      logger.warn("Class " + className + " not found.");
     }
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
