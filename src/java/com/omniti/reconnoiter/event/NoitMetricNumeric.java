@@ -16,8 +16,8 @@ public class NoitMetricNumeric extends NoitEvent {
     private String check_module;
     private String check_name;
     private String name;
-    private long time;
-    private Double value;
+    public long time;
+    public Double value;
     private String noit;
 
   public String getPrefix() {

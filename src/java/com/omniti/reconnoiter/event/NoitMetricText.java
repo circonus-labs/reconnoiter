@@ -11,14 +11,14 @@ package com.omniti.reconnoiter.event;
 import com.omniti.reconnoiter.event.NoitEvent;
 
 public class NoitMetricText extends NoitEvent {
-   String uuid;
-   Long time;
-   String name;
-   String message;
-   String noit;
-   String check_target;
-   String check_module;
-   String check_name;
+   public long time;
+   public String message;
+   private String uuid;
+   private String name;
+   private String noit;
+   private String check_target;
+   private String check_module;
+   private String check_name;
 
    public String getPrefix() {
      return "M";
@@ -40,7 +40,7 @@ public class NoitMetricText extends NoitEvent {
       time = timeToLong(parts[2]);
     }
     public String getUuid() { return uuid; }
-    public Long getTime() { return time; }
+    public long getTime() { return time; }
     public String getName() { return name; }
     public String getMessage() { return message; }
     public String getNoit() { return noit; }
