@@ -4,12 +4,6 @@
   <loader>C</loader>
   <image>statsd.so</image>
   <moduleconfig>
-    <parameter name="asynch_metrics"
-               required="optional"
-               default="true"
-               allowed="(?:true|on|false|off)">Specify whether statsd metrics are logged immediately or help until the status message is to be emitted.</parameter>
-  </moduleconfig>
-  <checkconfig>
     <parameter name="port"
                required="optional"
                default="8125"
@@ -18,6 +12,9 @@
                required="optional"
                default="100"
                allowed="^\d+$">The number of packets to recv() during each eventer cycle.</parameter>
+    <parameter name="check"
+               required="optional"
+               allowed="^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$">A specific check to which all statsd data will be delegated.</parameter>
   </checkconfig>
   <examples>
     <example>
