@@ -354,7 +354,7 @@ static int noit_statsd_init(noit_module_t *self) {
 
   if(noit_hash_retr_str(conf->options, "check", strlen("check"),
                         (const char **)&config_val)) {
-    if(uuid_parse(config_val, conf->primary) != 0)
+    if(uuid_parse((char *)config_val, conf->primary) != 0)
       noitL(noit_error, "statsd check isn't a UUID\n");
     conf->primary_active = 1;
     conf->check = NULL;
