@@ -252,7 +252,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
   json->depth--;
   if(json->saw_complex_type == 0x3) {
     long double total = 0, cnt = 0;
-    bool use_avg = false;
+    noit_boolean use_avg = noit_false;
     for(p=json->last_value;p;p=p->next) {
       noit_stats_set_metric_coerce(json->check, json->stats,
           json->keys[json->depth], json->last_type, p->v);
@@ -262,7 +262,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
          json->last_type == 'n') {
         total += strtold(p->v, NULL);
         cnt = cnt + 1;
-        use_avg = true;
+        use_avg = noit_true;
       }
       json->cnt++;
     }
