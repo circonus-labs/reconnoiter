@@ -382,7 +382,7 @@ function initiate(module, check)
                 headers.Host = host
                 local r = dns:lookup(host)
                 if not r or r.a == nil then
-                    check.status("failed to resolve " + host)
+                    check.status("failed to resolve " .. host)
                     return
                 end
                 target = r.a
