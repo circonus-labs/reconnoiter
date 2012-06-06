@@ -15,7 +15,7 @@
     <parameter name="check"
                required="optional"
                allowed="^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$">A specific check to which all statsd data will be delegated.</parameter>
-  </checkconfig>
+  </moduleconfig>
   <examples>
     <example>
       <title>A sample statsd configuration.</title>

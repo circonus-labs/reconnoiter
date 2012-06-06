@@ -1,26 +1,23 @@
 <?xml version="1.0"?>
 <section>
-  <title>ntp</title>
-  <para>Determine clock skew from an NTP source.</para>
+  <title>statsd</title>
+  <para>The statsd module provides a simple way to push data into reconnoiter from other applications.  See https://github.com/etsy/statsd for more details.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
       <listitem>
-        <para>lua</para>
+        <para>C</para>
       </listitem>
     </varlistentry>
     <varlistentry>
-      <term>object</term>
+      <term>image</term>
       <listitem>
-        <para>noit.module.ntp</para>
+        <para>statsd.so</para>
       </listitem>
     </varlistentry>
   </variablelist>
   <section>
     <title>Module Configuration</title>
-  </section>
-  <section>
-    <title>Check Configuration</title>
     <variablelist>
       <varlistentry>
         <term>port</term>
@@ -35,23 +32,23 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>123</para>
+                <para>8125</para>
               </listitem>
             </varlistentry>
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>\d+</para>
+                <para>^\d+$</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The port to which we will attempt to speak NTP.</para>
+          <para>The port on which to listen for statsd packets.</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>control</term>
+        <term>packets_per_cycle</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -63,34 +60,58 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>^false$</para>
+                <para>100</para>
               </listitem>
             </varlistentry>
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>^(?:true|on|false|off)$</para>
+                <para>^\d+$</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>Use the NTP control protocol to learn about the other end.  If thise ois not true/on, then this check will determine the NTP telemetry of the target relative to the agent's local time.  If it is true/on, then the agent will request the NTP telemetry of the target regarding it's preferred peer.</para>
+          <para>The number of packets to recv() during each eventer cycle.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>check</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A specific check to which all statsd data will be delegated.</para>
         </listitem>
       </varlistentry>
     </variablelist>
   </section>
+  <section>
+    <title>Check Configuration</title>
+  </section>
   <example>
-    <title>Monitor an NTP service</title>
-    <para>The following example monitors an NTP services on 10.1.2.3.</para>
+    <title>A sample statsd configuration.</title>
     <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
-          &lt;loader image="lua" name="lua"&gt;
-            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
-          &lt;/loader&gt;
-          &lt;module loader="lua" name="ntp" object="noit.module.ntp"/&gt;
+          &lt;module image="statsd" name="statsd"/&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
-          &lt;check uuid="4ee1a1e2-1e60-11df-8e99-bf796ca462ef" module="ntp" target="10.1.2.3" period="60000" timeout="5000"/&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="statsd"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;port&gt;8125&lt;/port&gt;&lt;/config&gt;
+          &lt;/check&gt;
         &lt;/checks&gt;
       &lt;/noit&gt;
       </programlisting>

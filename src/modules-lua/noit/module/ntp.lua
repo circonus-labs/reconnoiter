@@ -44,7 +44,7 @@ function onload(image)
   <checkconfig>
     <parameter name="port"
                required="optional"
-               default="^123$"
+               default="123"
                allowed="\d+">The port to which we will attempt to speak NTP.</parameter>
     <parameter name="control"
                required="optional"
