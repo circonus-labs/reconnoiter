@@ -154,21 +154,33 @@ function elapsed(check, name, starttime, endtime)
 end
 
 function populate_cookie_jar(cookies, host, hdr)
+    local path = nil
     if hdr ~= nil then
         local name, value, trailer =
             string.match(hdr, "([^=]+)=([^;]+);?%s*(.*)")
         if name ~= nil then
             local jar = { }
-            jar.name = name;
-            jar.value = value;
-            for k, v in string.gmatch(trailer, "%s*(%w+)(=%w+)?;?") do
-                if v == nil then jar[string.lower(k)] = true
-                else jar[string.lower(k)] = v:sub(2)
+            local fields = noit.extras.split(trailer, ";")
+            if fields ~= nil then
+                for k, v in pairs(fields) do
+                    local pair = noit.extras.split(v, "=", 1);
+                    if pair ~= nil and pair[1] ~= nil and pair[2] ~= nil then
+                        local name = (string.gsub(pair[1], "^%s*(.-)%s*$", "%1"));
+                        local setting = (string.gsub(pair[2], "^%s*(.-)%s*$", "%1"));
+                        if name == "path" then
+                            path = setting
+                        end
+                    end
                 end
             end
-            if jar.domain ~= nil then host = jar.domain end
-            if cookies[host] == nil then cookies[host] = { } end
-            table.insert(cookies[host], jar)
+            if string.sub(name, 1, 1) ~= ";" and string.sub(value, 1, 1) ~= ";" then
+                if path == nil then path = "/" end
+                if cookies[host] == nil then cookies[host] = { } end
+                if cookies[host][path] == nil then cookies[host][path] = { } end
+                jar.name = name
+                jar.value = value
+                table.insert(cookies[host][path], jar)
+            end
         end
     end
 end
@@ -186,21 +198,101 @@ function has_host(pat, host)
 end
 
 function apply_cookies(headers, cookies, host, uri)
-    for h, jars in pairs(cookies) do
+    local use_cookies = { }
+    for h, paths in pairs(cookies) do
         if has_host(h, host) then
-            for i, jar in ipairs(jars) do
-                if jar.path == nil or
-                   uri:sub(1, jar.path:len()) == jar.path then
-                    if headers["Cookie"] == nil then
-                        headers["Cookie"] = jar.name .. "=" .. jar.value
-                    else
-                        headers["Cookie"] = headers["Cookie"] .. "; " ..
-                                            jar.name .. "=" .. jar.value
+            local split_uri = noit.extras.split(uri, "/")
+            if split_uri ~= nil then
+                local path = ""
+                for i, val in pairs(split_uri) do
+                    local append = true
+                    if val == nil then val = "" end
+                    if #split_uri == i and string.find(val, "%.") ~= nil then append = false end
+                    if append == true then
+                        path = path .. "/" .. val
+                        if string.len(path) >= 2 and string.sub(path, 1, 2) == "//" then
+                            path = string.sub(path, 2)
+                        end
+                    end
+                    if path == "" then path = "/" end
+                    local rindex = string.match(path, '.*()'..'%?')
+                    if rindex ~= nil then
+                        path = string.sub(path, 1, rindex-1)
+                    end
+                    if path ~= "/" then
+                        while string.find(path, "/", -1) ~= nil do
+                            path = string.sub(path, 1, -2)
+                        end
+                    end
+                    if paths[path] ~= nil then
+                        local jars = paths[path]
+                        for index, jar in ipairs(jars) do
+                            use_cookies[jar.name] = jar.value
+                        end
                     end
                 end
             end
         end
     end
+    for name, value in pairs(use_cookies) do
+        if headers["Cookie"] == nil then
+            headers["Cookie"] = name .. "=" .. value
+        else
+            headers["Cookie"] = headers["Cookie"] .. "; " .. name .. "=" .. value
+        end
+    end
+end
+
+function get_new_uri(old_uri, new_uri)
+    if new_uri == nil then return "/" end
+    if new_uri == "/" then return new_uri end
+    local toReturn = old_uri
+    while string.find(toReturn, "/", -1) ~= nil do
+        toReturn = string.sub(toReturn, 1, -2)
+    end
+    if string.sub(new_uri, 1, 1) == '?' then
+        local rindex = string.match(toReturn, '.*()'.."/")
+        toReturn = string.sub(toReturn, 1, rindex-1)
+        toReturn = toReturn .. new_uri
+    elseif string.sub(new_uri, 1, 1) ~= "." then 
+        toReturn = new_uri
+    else
+        toReturn = string.gsub(toReturn, "%/%?", "?")
+        while string.sub(new_uri, 1, 1) == "." do
+            if string.find(new_uri, "%./") == 1 then
+                new_uri = string.gsub("%./", "", 1)
+            elseif string.find(new_uri, "%.%./") == 1 then
+                --strip out last bit from toReturn
+                local rindex = string.match(toReturn, '.*()'.."/")
+                toReturn = string.sub(toReturn, 1, rindex-1)
+                new_uri = string.gsub(new_uri, "../", "", 1)
+            else
+                -- bad URI... just return /
+                return "/"
+            end
+        end
+        toReturn = toReturn .. "/" .. new_uri
+    end
+    return toReturn
+end
+
+function get_absolute_path(uri)
+    if uri == nil then return "/" end
+    local toReturn = uri
+    local go_back = string.find(toReturn, "%.%./")
+    while go_back ~= nil do
+        local tojoin = go_back + 3
+        go_back = go_back - 2
+        local back_substring = string.sub(toReturn, 1, go_back)
+        local forward_substring = string.sub(toReturn, tojoin)
+        local rindex = string.match(back_substring, '.*()' .. "/")
+        if rindex ~= nil then
+            toReturn = string.sub(toReturn, 1, rindex) .. forward_substring
+        end
+        go_back = string.find(toReturn, "%.%./")
+    end
+    toReturn = string.gsub(toReturn, "%./", "")
+    return toReturn
 end
 
 function initiate(module, check)
@@ -262,10 +354,11 @@ function initiate(module, check)
         end
         output = output .. (str or '')
     end
-    callbacks.headers = function (hdrs)
+    callbacks.headers = function (hdrs, setcookies)
         next_location = hdrs.location
-        populate_cookie_jar(cookies, host, hdrs["set-cookie"])
-        populate_cookie_jar(cookies, hdrs["set-cookie2"])
+        for key, value in pairs(setcookies) do
+            populate_cookie_jar(cookies, host, value)
+        end
     end
 
     callbacks.connected = function () connecttime = noit.timeval.now() end
@@ -362,6 +455,7 @@ function initiate(module, check)
             -- reset some stuff for the redirect
             local prev_port = port
             local prev_host = host
+            local prev_uri = uri
             method = 'GET'
             payload = nil
             schema, host, port, uri =
@@ -370,7 +464,7 @@ function initiate(module, check)
             if schema == nil then
                 port = prev_port
                 host = prev_host
-                uri = next_location
+                uri = get_new_uri(prev_uri, next_location)
             elseif schema == 'http' then
                 use_ssl = false
                 if port == "" then port = 80 end
@@ -378,6 +472,7 @@ function initiate(module, check)
                 use_ssl = true
                 if port == "" then port = 443 end
             end
+            uri = get_absolute_path(uri)
             if host ~= nil then
                 headers.Host = host
                 local r = dns:lookup(host)
@@ -386,6 +481,9 @@ function initiate(module, check)
                     return
                 end
                 target = r.a
+            end
+            while string.find(host, "/", -1) ~= nil do
+                host = string.sub(host, 1, -2)
             end
             headers["Cookie"] = check.config["header_Cookie"]
             apply_cookies(headers, cookies, host, uri)
