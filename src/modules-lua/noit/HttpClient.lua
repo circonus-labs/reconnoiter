@@ -85,11 +85,13 @@ end
 function HttpClient:get_headers()
     local lasthdr
     local str = self.e:read("\n");
+    local cookie_count = 1;
     if str == nil then error("no response") end
     self.protocol, self.code = string.match(str, "^HTTP/(%d.%d)%s+(%d+)%s+")
     if self.protocol == nil then error("malformed HTTP response") end
     self.code = tonumber(self.code)
     self.headers = {}
+    self.cookies = {}
     while true do
         local str = self.e:read("\n")
         if str == nil or str == "\r\n" or str == "\n" then break end
@@ -103,11 +105,16 @@ function HttpClient:get_headers()
             self.headers[hdr] = self.headers[hdr] .. " " .. val
         else
             hdr = string.lower(hdr)
-            self.headers[hdr] = val
+            if hdr == "set-cookie" then
+                self.cookies[cookie_count] = val;
+                cookie_count = cookie_count + 1;
+            else
+                self.headers[hdr] = val
+            end
             lasthdr = hdr
         end
     end
-    if self.hooks.headers ~= nil then self.hooks.headers(self.headers) end
+    if self.hooks.headers ~= nil then self.hooks.headers(self.headers, self.cookies) end
 end
 
 function ce_passthru(str) 
