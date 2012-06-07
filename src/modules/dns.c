@@ -210,9 +210,9 @@ static void dns_check_log_results(struct dns_check_info *ci) {
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
     ci->current.status = strdup(buff);
-    noit_stats_set_metric(ci->check, &ci->current, "rtt", METRIC_DOUBLE,
-                          ci->timed_out ? NULL : &rtt);
   }
+  noit_stats_set_metric(ci->check, &ci->current, "rtt", METRIC_DOUBLE,
+                        ci->timed_out ? NULL : &rtt);
 
   noit_check_set_stats(ci->check, &ci->current);
   if(ci->error) free(ci->error);
