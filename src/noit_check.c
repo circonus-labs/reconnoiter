@@ -593,6 +593,12 @@ noit_check_watch(uuid_t in, int period) {
   noit_check_t n, *f;
 
   uuid_unparse_lower(in, uuid_str);
+
+  noitL(noit_error, "noit_check_watch(%s,%d)\n", uuid_str, period);
+  if(period == 0) {
+    return noit_poller_lookup(in);
+  }
+
   /* Find the check */
   snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
   check_node = noit_conf_get_section(NULL, xpath);
