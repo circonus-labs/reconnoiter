@@ -1031,6 +1031,7 @@ static int noit_snmptrap_initiate_check(noit_module_t *self,
   /* We don't do anything for snmptrap checks.  Not intuitive... but they
    * never "run."  We accept input out-of-band via snmp traps.
    */
+  check->flags |= NP_PASSIVE_COLLECTION;
   return 0;
 }
 

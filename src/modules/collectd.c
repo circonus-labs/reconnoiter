@@ -1468,6 +1468,7 @@ static int noit_collectd_initiate_check(noit_module_t *self,
   /* The idea is to write the collectd stuff to the stats one every period 
    * Then we can warn people if no stats where written in a period of time
    */
+  check->flags |= NP_PASSIVE_COLLECTION;
   INITIATE_CHECK(collectd_submit, self, check, cause);
   return 0;
 }

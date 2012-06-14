@@ -62,19 +62,32 @@
  *   closure
  */
 
-#define NP_RUNNING   0x00000001
-#define NP_KILLED    0x00000002
-#define NP_DISABLED  0x00000004
-#define NP_UNCONFIG  0x00000008
-#define NP_TRANSIENT 0x00000010
-#define NP_RESOLVE   0x00000020
-#define NP_RESOLVED  0x00000040
-
-#define NP_SUPPRESS_STATUS  0x00001000
-#define NP_SUPPRESS_METRICS 0x00002000
-
-#define NP_PREFER_IPV6   0x00004000
-#define NP_SINGLE_RESOLVE 0x00008000
+/* The check is currently in-flight (running) */
+#define NP_RUNNING               0x00000001
+/* The check has been killed by the scheduling system */
+#define NP_KILLED                0x00000002
+/* The check is disable and should not be run */
+#define NP_DISABLED              0x00000004
+/* The check is not sufficiently configured to operate */
+#define NP_UNCONFIG              0x00000008
+/* The check is a transient copy of another check */
+#define NP_TRANSIENT             0x00000010
+/* The check requires name service resolution */
+#define NP_RESOLVE               0x00000020
+/* Name service resolution has been compelted for the check */
+#define NP_RESOLVED              0x00000040
+/* This check should have 'S' lines suppressed from logging */
+#define NP_SUPPRESS_STATUS       0x00001000
+/* This check should have 'M' lines suppressed from logging */
+#define NP_SUPPRESS_METRICS      0x00002000
+/* The check should lookup IPv6 records before IPv4 */
+#define NP_PREFER_IPV6           0x00004000
+/* Do no fallback to IPv6 from IPv4 and vice versa */
+#define NP_SINGLE_RESOLVE        0x00008000
+/* Indicates that the check is receiving data passively
+ * and it does not do anything during invocation to collect metrics
+ */
+#define NP_PASSIVE_COLLECTION    0x00010000
 
 #define PREFER_IPV4 "prefer-ipv4"
 #define PREFER_IPV6 "prefer-ipv6"

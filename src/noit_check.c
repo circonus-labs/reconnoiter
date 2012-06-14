@@ -1386,6 +1386,11 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     noit_check_t *wcheck = next->data;
     if(uuid_compare(n.checkid, wcheck->checkid)) break;
 
+    /* We advance before we use because the functions below could
+     * destroy the watchlist item we're looking at right now
+     */
+    noit_skiplist_next(&watchlist, &next);
+
     /* Swap the real check's stats into place */
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
     memcpy(&wcheck->stats.current, newstate, sizeof(stats_t));
@@ -1398,8 +1403,6 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     }
     /* Swap them back out */
     memcpy(&wcheck->stats.current, &backup, sizeof(stats_t));
-
-    noit_skiplist_next(&watchlist, &next);
   }
 }
 void

@@ -549,6 +549,7 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
 static int noit_httptrap_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
+  check->flags |= NP_PASSIVE_COLLECTION;
   if (check->closure == NULL) {
     httptrap_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));
