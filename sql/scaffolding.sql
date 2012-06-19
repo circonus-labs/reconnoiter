@@ -20,6 +20,7 @@ grant usage on schema prism to prism;
 \i sprocs/stratcon.parent_empty.sql
 \i sprocs/stratcon.archive_part_maint.sql
 
+\i tables/stratcon.register.sql
 \i tables/noit.check_status_changelog.sql
 \i tables/noit.metric_numeric_rollup_config.sql
 \i tables/noit.metric_numeric_rollup_1day.sql
