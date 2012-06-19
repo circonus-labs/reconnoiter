@@ -783,6 +783,10 @@ noit_check_update(noit_check_t *new_check,
     new_check->flags |= NP_SINGLE_RESOLVE;
   else
     new_check->flags &= ~NP_SINGLE_RESOLVE;
+  if (flags & NP_RESOLVE)
+    new_check->flags |= NP_RESOLVE;
+  else
+    new_check->flags &= ~NP_RESOLVE;
 
   if(noit_check_set_ip(new_check, target)) {
     noit_boolean should_resolve;
