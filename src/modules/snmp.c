@@ -438,6 +438,11 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
    *   or constructing this from the PDU enterprise & specific trap fields
    */
   if(template_v1pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
+    if(template_v1pdu->enterprise_length + 2 > MAX_OID_LEN) {
+      noitL(nlerr, "send_trap: enterprise_length too large\n");
+      snmp_free_pdu(template_v2pdu);
+      return NULL;
+    }
     memcpy(enterprise, template_v1pdu->enterprise,
            template_v1pdu->enterprise_length*sizeof(oid));
     enterprise_len = template_v1pdu->enterprise_length;
