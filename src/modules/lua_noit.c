@@ -180,6 +180,8 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
   ci = get_ci(cl->L);
   assert(ci);
 
+  noitL(noit_error, "HAVE MOVED ON TO RECV_COMPLETE\n");
+
   if(mask & EVENTER_EXCEPTION) {
     lua_pushinteger(cl->L, -1);
     args = 1;
@@ -446,6 +448,8 @@ noit_lua_socket_connect(lua_State *L) {
   unsigned short port;
   int8_t family;
   int rv;
+  int to_bind;
+  int n;
   union {
     struct sockaddr_in sin4;
     struct sockaddr_in6 sin6;
@@ -454,6 +458,8 @@ noit_lua_socket_connect(lua_State *L) {
   ci = get_ci(L);
   assert(ci);
 
+  n = lua_gettop(L); /* number of arguments */
+
   eptr = lua_touserdata(L, lua_upvalueindex(1));
   if(eptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
@@ -461,6 +467,17 @@ noit_lua_socket_connect(lua_State *L) {
   target = lua_tostring(L, 2);
   if(!target) target = "";
   port = lua_tointeger(L, 3);
+  if ((n >= 4) && lua_isstring(L, 4)) {
+    if (!strcmp(lua_tostring(L, 4), "bind")) {
+      to_bind = 1;
+    }
+    else {
+      to_bind = 0;
+    }
+  }
+  else {
+    to_bind = 0;
+  }
 
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
@@ -480,12 +497,22 @@ noit_lua_socket_connect(lua_State *L) {
     }
   }
   else {
+    if (to_bind) {
+      a.sin4.sin_addr.s_addr = INADDR_ANY;
+      memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
+    }
     a.sin4.sin_family = family;
     a.sin4.sin_port = htons(port);
   }
 
-  rv = connect(e->fd, (struct sockaddr *)&a,
-               family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  if (to_bind) {
+    rv = bind(e->fd, (struct sockaddr *)&a,
+                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  }
+  else {
+    rv = connect(e->fd, (struct sockaddr *)&a,
+                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  }
   if(rv == 0) {
     lua_pushinteger(L, 0);
     return 1;
@@ -1137,9 +1164,17 @@ nl_socket_internal(lua_State *L, int family, int proto) {
   socklen_t optlen;
   int fd;
   eventer_t e;
+  int flag;
 
   fd = socket(family, proto, 0);
   if(fd < 0) {
+    lua_pushnil(L);
+    return 1;
+  }
+  flag = 1;
+  if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
+    noitL(noit_error, "Cannot set socket to SO_REUSEADDR");
+    close(fd);
     lua_pushnil(L);
     return 1;
   }
@@ -1158,7 +1193,10 @@ nl_socket_internal(lua_State *L, int family, int proto) {
 
   optlen = sizeof(cl->send_size);
   if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &cl->send_size, &optlen) != 0)
+  {
+    noitL(noit_error, "IN HERE!!!\n");
     cl->send_size = 4096;
+  }
 
   e = eventer_alloc();
   e->fd = fd;
