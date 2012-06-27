@@ -479,6 +479,17 @@ noit_lua_socket_connect(lua_State *L) {
     to_bind = 0;
   }
 
+  /* Set socket to reusable if we need to bind it - otherwise, we get errors */
+  if (to_bind)
+  {
+    int flag = 1;
+    if (setsockopt (e->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
+      noitL(noit_error, "Cannot set socket to SO_REUSEADDR");
+      lua_pushnil(L);
+      return 1;
+    }
+  }
+
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
   if(rv != 1) {
@@ -1164,17 +1175,9 @@ nl_socket_internal(lua_State *L, int family, int proto) {
   socklen_t optlen;
   int fd;
   eventer_t e;
-  int flag;
 
   fd = socket(family, proto, 0);
   if(fd < 0) {
-    lua_pushnil(L);
-    return 1;
-  }
-  flag = 1;
-  if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
-    noitL(noit_error, "Cannot set socket to SO_REUSEADDR");
-    close(fd);
     lua_pushnil(L);
     return 1;
   }
@@ -1193,10 +1196,7 @@ nl_socket_internal(lua_State *L, int family, int proto) {
 
   optlen = sizeof(cl->send_size);
   if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &cl->send_size, &optlen) != 0)
-  {
-    noitL(noit_error, "IN HERE!!!\n");
     cl->send_size = 4096;
-  }
 
   e = eventer_alloc();
   e->fd = fd;

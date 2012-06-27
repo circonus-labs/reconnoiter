@@ -170,7 +170,7 @@ function make_dhcp_request(host_ip, hardware_addr)
     return packet
 end
 
-function parse_option(options, dhcp_option_names, dhcp_message_types)
+function parse_option(options, dhcp_option_names, dhcp_message_types, check)
   if options:len() <= 1 then
     return 0
   end
@@ -219,9 +219,9 @@ function parse_option(options, dhcp_option_names, dhcp_message_types)
   return 3+length
 end
 
-function parse_buffer(buf, dhcp_option_names, dhcp_message_types)
+function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
   --First, unpack the buffer
-  local pos, op, htype, hlen, hops, xid, secs, flags, ciaddr, yiaddr, siaddr, giaddr = string.unpack(buf, ">bbbbIHHIIII")
+  local pos, op, htype, hlen, hops, xid, secs, flags = string.unpack(buf, ">bbbbIHH")
   local ciaddr = convert_binary_string_to_ip(string.sub(buf, 13, 16))
   local yiaddr = convert_binary_string_to_ip(string.sub(buf, 17, 20))
   local siaddr = convert_binary_string_to_ip(string.sub(buf, 21, 24))
@@ -232,14 +232,18 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types)
   -- Now, parse the options
   local done = false
   while done == false do
-    local tomove = parse_option(options_data, dhcp_option_names, dhcp_message_types)
+    local tomove = parse_option(options_data, dhcp_option_names, dhcp_message_types, check)
     if tomove == 0 then
       done = true
     else
       options_data = string.sub(options_data, tomove)
     end
   end
-
+  check.metric_string("client_ip_address", ciaddr)
+  check.metric_string("your_ip_address", yiaddr)
+  check.metric_string("server_ip_address", siaddr)
+  check.metric_string("gateway_ip_address", giaddr)
+  check.metric_string("client_hardware_address", chaddr)
 end
 
 function initiate(module, check)
@@ -272,7 +276,7 @@ function initiate(module, check)
   if buf:len() < 240 then
     status = "invalid buffer"
   else
-    parse_buffer(buf, dhcp_option_names, dhcp_message_types)
+    parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
     status = "connected"
     check.available()
     good = true
