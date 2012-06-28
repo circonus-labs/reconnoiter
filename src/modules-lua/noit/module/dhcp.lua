@@ -39,13 +39,13 @@ function onload(image)
   <object>noit.module.dhcp</object>
   <moduleconfig />
   <checkconfig>
-    <parameter name="send_port" required="required"
+    <parameter name="send_port" required="required" default="67"
                allowed="\d+">Specifies the port to send DHCP request packets to</parameter>
-    <parameter name="recv_port" required="required"
+    <parameter name="recv_port" required="required" default="68"
                allowed="\d+">Specifies the port to receive DHCP response packets to</parameter>
-    <parameter name="hardware_addr" required="required"
+    <parameter name="hardware_addr" required="required" default="00:00:00:00:00:00"
                allowed=".+">The hardware address of the host computer</parameter>
-    <parameter name="host_ip" required="required"
+    <parameter name="host_ip" required="required" default="0.0.0.0"
                allowed=".+">The IP address of the host computer</parameter>
   </checkconfig>
   <examples>
