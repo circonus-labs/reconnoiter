@@ -45,7 +45,7 @@ function onload(image)
                allowed="\d+">Specifies the port to receive DHCP response packets to</parameter>
     <parameter name="hardware_addr" required="required" default="00:00:00:00:00:00"
                allowed=".+">The hardware address of the host computer</parameter>
-    <parameter name="host_ip" required="required" default="0.0.0.0"
+    <parameter name="host_ip" required="optional" default="0.0.0.0"
                allowed=".+">The IP address of the host computer</parameter>
   </checkconfig>
   <examples>
@@ -156,14 +156,13 @@ function make_dhcp_request(host_ip, hardware_addr)
     packet = packet .. string.pack(">bbbb", 1, 1, 6, 0)
     packet = packet .. string.pack(">I", math.random(0, 99999999))
     packet = packet .. string.pack(">HH", 0, 0x0000)
-    packet = packet .. string.pack(">I", host_ip_number) -- Client IP Address - not required for this to work
-    packet = packet .. string.pack(">III", 0, 0, 0)
+    packet = packet .. string.pack(">IIII", 0, 0, 0, 0)
     packet = packet .. pack_hardware_address(hardware_addr) -- Client MAC address
     packet = packet .. string.rep(string.char(0), 192) -- Not used - just fill in zeroes
     packet = packet .. string.pack(">bbbb", 99, 130, 83, 99) -- Magic Cookie - required for this to work
     packet = packet .. string.pack(">bbb", 53, 1, 1)
     if host_ip_number ~= 0 then
-      packet = packet .. string.pack(">bbI", 50, 4, noit.extras.iptonumber(host_ip))
+      packet = packet .. string.pack(">bbI", 50, 4, host_ip_number)
     end
     packet = packet .. string.pack(">b", 0xFF)
     return packet

@@ -113,7 +113,7 @@
             <varlistentry>
               <term>required</term>
               <listitem>
-                <para>required</para>
+                <para>optional</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -136,7 +136,7 @@
   </section>
   <example>
     <title>Monitor a DHCP service</title>
-    <para>The following example monitors a DHCP services on 10.1.2.3 and sends the results to 10.80.2.34.</para>
+    <para>The following example monitors a DHCP services on 10.1.2.3</para>
     <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
@@ -151,7 +151,6 @@
               &lt;send_port&gt;67&lt;/send_port&gt;
               &lt;recv_port&gt;68&lt;/recv_port&gt;
               &lt;hardware_addr&gt;00:00:00:00:00:00&lt;/hardware_addr&gt;
-              &lt;host_ip&gt;10.80.2.34&lt;/host_ip&gt;
             &lt;/config&gt;
           &lt;/config&gt;
         &lt;/checks&gt;
