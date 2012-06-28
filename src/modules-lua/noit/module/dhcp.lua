@@ -269,7 +269,7 @@ function initiate(module, check)
 
   local starttime = noit.timeval.now()
   local s = noit.socket(check.target_ip, 'udp')
-  s:connect(check.target_ip, recv_port, "bind")
+  s:connect(check.target_ip, recv_port, 'broadcast')
   local req = make_dhcp_request(host_ip, hardware_addr)
   local sent = s:sendto(req, check.target_ip, send_port)
   local rv, buf = s:recv(1000)

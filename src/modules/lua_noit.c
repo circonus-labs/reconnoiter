@@ -446,7 +446,7 @@ noit_lua_socket_connect(lua_State *L) {
   unsigned short port;
   int8_t family;
   int rv;
-  int to_bind;
+  int broadcast;
   int n;
   union {
     struct sockaddr_in sin4;
@@ -466,22 +466,28 @@ noit_lua_socket_connect(lua_State *L) {
   if(!target) target = "";
   port = lua_tointeger(L, 3);
   if ((n >= 4) && lua_isstring(L, 4)) {
-    if (!strcmp(lua_tostring(L, 4), "bind")) {
-      to_bind = 1;
+    if (!strcmp(lua_tostring(L, 4), "broadcast")) {
+      broadcast = 1;
     }
     else {
-      to_bind = 0;
+      broadcast = 0;
     }
   }
   else {
-    to_bind = 0;
+    broadcast = 0;
   }
 
-  /* Set socket to reusable if we need to bind it - otherwise, we get errors */
-  if (to_bind)
+  /* Set socket to reusable and sets broadcast option */
+  if (broadcast)
   {
     int flag = 1;
     if (setsockopt (e->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
+      return 2;
+    }
+    flag = 1;
+    if (setsockopt (e->fd, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof flag) < 0) {
       lua_pushinteger(L, -1);
       lua_pushfstring(L, "Cannot set socket to reusable\n", target);
       return 2;
@@ -506,7 +512,7 @@ noit_lua_socket_connect(lua_State *L) {
     }
   }
   else {
-    if (to_bind) {
+    if (broadcast) {
       a.sin4.sin_addr.s_addr = INADDR_ANY;
       memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
     }
@@ -514,7 +520,7 @@ noit_lua_socket_connect(lua_State *L) {
     a.sin4.sin_port = htons(port);
   }
 
-  if (to_bind) {
+  if (broadcast) {
     rv = bind(e->fd, (struct sockaddr *)&a,
                  family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
   }
