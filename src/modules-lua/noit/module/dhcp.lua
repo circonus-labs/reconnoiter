@@ -39,9 +39,9 @@ function onload(image)
   <object>noit.module.dhcp</object>
   <moduleconfig />
   <checkconfig>
-    <parameter name="send_port" required="required" default="67"
+    <parameter name="send_port" required="optional" default="67"
                allowed="\d+">Specifies the port to send DHCP request packets to</parameter>
-    <parameter name="recv_port" required="required" default="68"
+    <parameter name="recv_port" required="optional" default="68"
                allowed="\d+">Specifies the port to receive DHCP response packets to</parameter>
     <parameter name="hardware_addr" required="required" default="00:00:00:00:00:00"
                allowed=".+">The hardware address of the host computer</parameter>
@@ -63,9 +63,8 @@ function onload(image)
         <checks>
             <check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="dhcp">
               <config>
-                <send_port>67</send_port>
-                <recv_port>68</recv_port>
                 <hardware_addr>00:00:00:00:00:00</hardware_addr>
+                <host_ip>10.80.1.2</host_ip>
               </config>
             </check>
         </checks>
