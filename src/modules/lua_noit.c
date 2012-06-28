@@ -180,8 +180,6 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
   ci = get_ci(cl->L);
   assert(ci);
 
-  noitL(noit_error, "HAVE MOVED ON TO RECV_COMPLETE\n");
-
   if(mask & EVENTER_EXCEPTION) {
     lua_pushinteger(cl->L, -1);
     args = 1;
@@ -484,9 +482,9 @@ noit_lua_socket_connect(lua_State *L) {
   {
     int flag = 1;
     if (setsockopt (e->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
-      noitL(noit_error, "Cannot set socket to SO_REUSEADDR");
-      lua_pushnil(L);
-      return 1;
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
+      return 2;
     }
   }
 

@@ -45,7 +45,7 @@ function onload(image)
                allowed="\d+">Specifies the port to receive DHCP response packets to</parameter>
     <parameter name="hardware_addr" required="required"
                allowed=".+">The hardware address of the host computer</parameter>
-    <parameter name="host_ip" required="optional"
+    <parameter name="host_ip" required="required"
                allowed=".+">The IP address of the host computer</parameter>
   </checkconfig>
   <examples>
@@ -227,6 +227,8 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
   local siaddr = convert_binary_string_to_ip(string.sub(buf, 21, 24))
   local giaddr = convert_binary_string_to_ip(string.sub(buf, 25, 28))
   local chaddr = convert_binary_string_to_mac(string.sub(buf, 29, 44))
+  local sname = string.sub(buf, 45, 108) .. '\0'
+  local file = string.sub(buf, 109, 236) .. '\0'
   local magic_data = convert_binary_string_to_ip(string.sub(buf, 237, 240))
   local options_data = string.sub(buf, 241)
   -- Now, parse the options
@@ -244,13 +246,14 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
   check.metric_string("server_ip_address", siaddr)
   check.metric_string("gateway_ip_address", giaddr)
   check.metric_string("client_hardware_address", chaddr)
+  check.metric_string("server_name", sname)
+  check.metric_string("boot_filename", file)
 end
 
 function initiate(module, check)
-  local starttime = noit.timeval.now()
   local send_port = check.config.send_port or 67
   local recv_port = check.config.recv_port or 68
-  local host_ip = check.config.host_ip or "127.0.0.1"
+  local host_ip = check.config.host_ip or "0.0.0.0"
   local hardware_addr = check.config.hardware_addr or "00:00:00:00:00:00"
   local good = false
   local status = ""
@@ -266,18 +269,18 @@ function initiate(module, check)
     return
   end
 
-  local req = make_dhcp_request(host_ip, hardware_addr)
+  local starttime = noit.timeval.now()
   local s = noit.socket(check.target_ip, 'udp')
   s:connect(check.target_ip, recv_port, "bind")
+  local req = make_dhcp_request(host_ip, hardware_addr)
   local sent = s:sendto(req, check.target_ip, send_port)
-  noit.sleep(0.1)
   local rv, buf = s:recv(1000)
 
   if buf:len() < 240 then
     status = "invalid buffer"
   else
     parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
-    status = "connected"
+    status = "successful read"
     check.available()
     good = true
   end
