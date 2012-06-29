@@ -207,9 +207,11 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
     args = 2;
   }
   else {
+    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    args = 2;
+    lua_pushinteger(cl->L, addr);
+    args = 3;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
 
@@ -260,9 +262,11 @@ noit_lua_socket_recv(lua_State *L) {
     args = 2;
   }
   else {
+    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    args = 2;
+    lua_pushinteger(cl->L, addr);
+    args = 3;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
   free(inbuff);

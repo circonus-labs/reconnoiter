@@ -124,6 +124,11 @@ function get_dhcp_message_types()
   return dhcp_message_types
 end
 
+function convert_integer_to_ip(int)
+  return string.format("%d.%d.%d.%d", bit.rshift(bit.band(int, 0xFF000000), 24), bit.rshift(bit.band(int, 0x00FF0000), 16), 
+    bit.rshift(bit.band(int, 0x0000FF00), 8), bit.band(int, 0x000000FF))
+end
+
 function convert_binary_string_to_ip(str)
   local pos, first, second, third, fourth = string.unpack(str, "<bbbb")
   return string.format("%d.%d.%d.%d", first, second, third, fourth)
@@ -169,18 +174,20 @@ function make_dhcp_request(host_ip, hardware_addr)
 end
 
 function parse_option(options, dhcp_option_names, dhcp_message_types, check)
+  local data_type = 'string'
   if options:len() <= 1 then
     return 0
   end
   local pos, type, length = string.unpack(options, "<bb")
   local data = ''
+  local result
   if length > 0 then
     data = string.sub(options, 3, 3+length)
   end
   -- Lua doesn't do switch, so time for a lengthy if statement
   if type == 1 or type == 3 or type == 6 or type == 28 or type == 42 or type == 54  then
     -- IP Address data types
-    local result = ''
+    result = ''
     while data:len() >= 4 do
       local ip = convert_binary_string_to_ip(string.sub(data, 1, 4))
       if result == '' then
@@ -194,30 +201,29 @@ function parse_option(options, dhcp_option_names, dhcp_message_types, check)
         data = ''
       end
     end
-    check.metric_string(dhcp_option_names[type], result)
   elseif type == 2 or type == 51 or type == 58 or type == 59 then
     -- Integer data types
-    local pos, result = string.unpack(data, ">I")
-    check.metric_int32(dhcp_option_names[type], result)
+    pos, result = string.unpack(data, ">I")
+    data_type = 'int32'
   elseif type == 15 or type == 119 then
     -- String data types
-    local result = string.sub(data, 1, length) .. '\0'
-    check.metric_string(dhcp_option_names[type], result)
+    result = string.sub(data, 1, length) .. '\0'
   elseif type == 53 then
     -- Message type
     local pos, dhcp_type = string.unpack(data, "<b")
-    local result = ''
+    result = ''
     if dhcp_type >= 1 and dhcp_type <= 8 then
       result = dhcp_type .. " (" .. dhcp_message_types[dhcp_type] .. ")"
     else
       result = dhcp_type .. "(UNKNOWN)"
     end
-    check.metric_string(dhcp_option_names[type], result)
   end
-  return 3+length
+  return 3+length, dhcp_option_names[type], result, data_type
 end
 
-function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
+function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, target_ip, hardware_addr, readaddr)
+  local option_strings = { }
+  local option_ints = { }
   --First, unpack the buffer
   local pos, op, htype, hlen, hops, xid, secs, flags = string.unpack(buf, ">bbbbIHH")
   local ciaddr = convert_binary_string_to_ip(string.sub(buf, 13, 16))
@@ -229,15 +235,47 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
   local file = string.sub(buf, 109, 236) .. '\0'
   local magic_data = convert_binary_string_to_ip(string.sub(buf, 237, 240))
   local options_data = string.sub(buf, 241)
+  -- First, verify that we got this from the hardware address that we were supposed to - otherwise, we may use
+  -- packets intended for other checks
+  if chaddr ~= hardware_addr then
+    return 0
+  end
   -- Now, parse the options
   local done = false
   while done == false do
-    local tomove = parse_option(options_data, dhcp_option_names, dhcp_message_types, check)
+    local tomove, option_name, option_result, option_type = parse_option(options_data, dhcp_option_names, dhcp_message_types, check)
     if tomove == 0 then
       done = true
     else
+      if option_type == 'int32' then
+        option_ints[option_name] = option_result
+      else
+        option_strings[option_name] = option_result
+      end
       options_data = string.sub(options_data, tomove)
     end
+  end
+  -- Now, verify that we got a result from a trusted source - otherwise, bail and try again
+  local server_addr = ''
+  if readaddr == nil then
+    server_addr = siaddr
+  else
+    server_addr=convert_integer_to_ip(readaddr)
+  end
+  if server_addr ~= target_ip then
+    -- We didn't get it from the target - So, check to see if we got it from the broadcast ip
+    -- If the server didn't return the broadcast IP, we can't verify that we got it from the
+    -- right source, so we'll have to bail.
+    if option_strings['broadcast_address'] == nil or option_strings['broadcast_address'] ~= target_ip then
+      return 0
+    end
+  end
+  -- We're good - set all the metrics and return that we're done
+  for k,v in pairs(option_ints) do
+    check.metric_int32(k, v)
+  end
+  for k,v in pairs(option_strings) do
+    check.metric_string(k, v)
   end
   check.metric_string("client_ip_address", ciaddr)
   check.metric_string("your_ip_address", yiaddr)
@@ -246,6 +284,7 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
   check.metric_string("client_hardware_address", chaddr)
   check.metric_string("server_name", sname)
   check.metric_string("boot_filename", file)
+  return 1
 end
 
 function initiate(module, check)
@@ -257,6 +296,9 @@ function initiate(module, check)
   local status = ""
   local dhcp_option_names = get_dhcp_option_names()
   local dhcp_message_types = get_dhcp_message_types()
+  local rv = 0
+  local buf = ''
+  local done = 0
 
   check.bad()
   check.unavailable()
@@ -272,15 +314,18 @@ function initiate(module, check)
   s:connect(check.target_ip, recv_port, 'broadcast')
   local req = make_dhcp_request(host_ip, hardware_addr)
   local sent = s:sendto(req, check.target_ip, send_port)
-  local rv, buf = s:recv(1000)
 
-  if buf:len() < 240 then
-    status = "invalid buffer"
-  else
-    parse_buffer(buf, dhcp_option_names, dhcp_message_types, check)
-    status = "successful read"
-    check.available()
-    good = true
+  while done == 0 do
+    rv, buf, readaddr = s:recv(1000)
+
+    if buf:len() < 240 then
+      status = "invalid buffer"
+    else
+      done = parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, check.target_ip, hardware_addr, readaddr)
+      status = "successful read"
+      check.available()
+      good = true
+    end
   end
 
   -- turnaround time
