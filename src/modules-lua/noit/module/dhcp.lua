@@ -282,8 +282,16 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, target_
   check.metric_string("server_ip_address", siaddr)
   check.metric_string("gateway_ip_address", giaddr)
   check.metric_string("client_hardware_address", chaddr)
-  check.metric_string("server_name", sname)
-  check.metric_string("boot_filename", file)
+
+  local first
+  pos, first = string.unpack(sname, ">b")
+  if first ~= 0 then
+    check.metric_string("server_name", sname)
+  end
+  pos, first = string.unpack(file, ">b")
+  if first ~= 0 then
+    check.metric_string("boot_filename", file)
+  end
   return 1
 end
 
