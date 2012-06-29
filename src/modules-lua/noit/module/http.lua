@@ -394,7 +394,7 @@ function initiate(module, check)
         local client = HttpClient:new()
         local rv, err = client:connect(check.target_ip, port, use_ssl)
         if rv ~= 0 then
-            check.status(str or "unknown error")
+            check.status(err or "unknown error")
             return
         end
         local headers_firstpass = {}
