@@ -169,6 +169,7 @@ function make_dhcp_request(host_ip, hardware_addr)
     if host_ip_number ~= 0 then
       packet = packet .. string.pack(">bbI", 50, 4, host_ip_number)
     end
+    packet = packet .. string.pack(">bbbbbbbbbbbbbbb", 55, 13, 1, 2, 3, 6, 15, 28, 42, 51, 53, 54, 58, 59, 119)
     packet = packet .. string.pack(">b", 0xFF)
     return packet
 end
