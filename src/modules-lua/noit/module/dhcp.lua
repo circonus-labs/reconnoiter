@@ -48,7 +48,7 @@ function onload(image)
     <parameter name="host_ip" required="optional" default="0.0.0.0"
                allowed=".+">The IP address of the host computer</parameter>
     <parameter name="request_type" required="optional" default="1"
-               allowed="^(?:1|3|8)">The type of DHCP request message to send</parameter>
+               allowed="^(?:1|8)">The type of DHCP request message to send</parameter>
   </checkconfig>
   <examples>
     <example>
