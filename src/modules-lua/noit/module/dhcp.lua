@@ -47,6 +47,8 @@ function onload(image)
                allowed=".+">The hardware address of the host computer</parameter>
     <parameter name="host_ip" required="optional" default="0.0.0.0"
                allowed=".+">The IP address of the host computer</parameter>
+    <parameter name="request_type" required="optional" default="1"
+               allowed="^(?:1|3|8)">The type of DHCP request message to send</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -154,7 +156,7 @@ function pack_hardware_address(hardware_addr)
   return ret
 end
 
-function make_dhcp_request(host_ip, hardware_addr)
+function make_dhcp_request(host_ip, hardware_addr, request_type)
     local packet = ''
     local host_ip_number = noit.extras.iptonumber(host_ip)
 
@@ -165,7 +167,7 @@ function make_dhcp_request(host_ip, hardware_addr)
     packet = packet .. pack_hardware_address(hardware_addr) -- Client MAC address
     packet = packet .. string.rep(string.char(0), 192) -- Not used - just fill in zeroes
     packet = packet .. string.pack(">bbbb", 99, 130, 83, 99) -- Magic Cookie - required for this to work
-    packet = packet .. string.pack(">bbb", 53, 1, 1)
+    packet = packet .. string.pack(">bbb", 53, 1, request_type)
     if host_ip_number ~= 0 then
       packet = packet .. string.pack(">bbI", 50, 4, host_ip_number)
     end
@@ -301,6 +303,7 @@ function initiate(module, check)
   local recv_port = check.config.recv_port or 68
   local host_ip = check.config.host_ip or "0.0.0.0"
   local hardware_addr = check.config.hardware_addr or "00:00:00:00:00:00"
+  local request_type = check.config.request_type or 1
   local good = false
   local status = ""
   local dhcp_option_names = get_dhcp_option_names()
@@ -321,7 +324,7 @@ function initiate(module, check)
   local starttime = noit.timeval.now()
   local s = noit.socket(check.target_ip, 'udp')
   s:connect(check.target_ip, recv_port, 'broadcast')
-  local req = make_dhcp_request(host_ip, hardware_addr)
+  local req = make_dhcp_request(host_ip, hardware_addr, request_type)
   local sent = s:sendto(req, check.target_ip, send_port)
 
   while done == 0 do
