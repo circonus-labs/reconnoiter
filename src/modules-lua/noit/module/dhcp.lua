@@ -342,7 +342,7 @@ function initiate(module, check)
 
   -- turnaround time
   local endtime = noit.timeval.now()
-  local seconds = elapsed(check, "duration", starttime, endtime)
+  local seconds = elapsed(check, "duration_ms", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end
   check.status(status)
