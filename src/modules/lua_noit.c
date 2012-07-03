@@ -207,11 +207,9 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
     args = 2;
   }
   else {
-    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    lua_pushinteger(cl->L, addr);
-    args = 3;
+    args = 2;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
 
@@ -262,11 +260,9 @@ noit_lua_socket_recv(lua_State *L) {
     args = 2;
   }
   else {
-    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    lua_pushinteger(cl->L, addr);
-    args = 3;
+    args = 2;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
   free(inbuff);
@@ -443,15 +439,14 @@ noit_lua_socket_sendto(lua_State *L) {
   return 1;
 }
 static int
-noit_lua_socket_connect(lua_State *L) {
+noit_lua_socket_bind(lua_State *L) {
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
   const char *target;
   unsigned short port;
   int8_t family;
   int rv;
-  int broadcast;
-  int n;
+  int flag;
   union {
     struct sockaddr_in sin4;
     struct sockaddr_in6 sin6;
@@ -460,8 +455,6 @@ noit_lua_socket_connect(lua_State *L) {
   ci = get_ci(L);
   assert(ci);
 
-  n = lua_gettop(L); /* number of arguments */
-
   eptr = lua_touserdata(L, lua_upvalueindex(1));
   if(eptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
@@ -469,34 +462,6 @@ noit_lua_socket_connect(lua_State *L) {
   target = lua_tostring(L, 2);
   if(!target) target = "";
   port = lua_tointeger(L, 3);
-  if ((n >= 4) && lua_isstring(L, 4)) {
-    if (!strcmp(lua_tostring(L, 4), "broadcast")) {
-      broadcast = 1;
-    }
-    else {
-      broadcast = 0;
-    }
-  }
-  else {
-    broadcast = 0;
-  }
-
-  /* Set socket to reusable and sets broadcast option */
-  if (broadcast)
-  {
-    int flag = 1;
-    if (setsockopt (e->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
-      lua_pushinteger(L, -1);
-      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
-      return 2;
-    }
-    flag = 1;
-    if (setsockopt (e->fd, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof flag) < 0) {
-      lua_pushinteger(L, -1);
-      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
-      return 2;
-    }
-  }
 
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
@@ -516,22 +481,132 @@ noit_lua_socket_connect(lua_State *L) {
     }
   }
   else {
-    if (broadcast) {
-      a.sin4.sin_addr.s_addr = INADDR_ANY;
-      memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
+    a.sin4.sin_family = family;
+    a.sin4.sin_port = htons(port);
+    a.sin4.sin_addr.s_addr = INADDR_ANY;
+    memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
+  }
+
+  rv = bind(e->fd, (struct sockaddr *)&a,
+            family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  if(rv == 0) {
+    lua_pushinteger(L, 0);
+    return 1;
+  }
+  lua_pushinteger(L, -1);
+  lua_pushstring(L, strerror(errno));
+  return 2;
+}
+static int
+noit_lua_socket_setsockopt(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  int rv;
+  const char *type;
+  int type_val;
+  int value;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  if(lua_gettop(L) != 3) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "setsockopt(type, value) wrong arguments");
+    return 2;
+  }
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  type = lua_tostring(L, 2);
+  value = lua_tointeger(L, 3);
+
+  if (strcmp(type, "SO_BROADCAST") == 0)
+    type_val = SO_BROADCAST;
+  else if (strcmp(type, "SO_REUSEADDR") == 0)
+    type_val = SO_REUSEADDR;
+  else if (strcmp(type, "SO_KEEPALIVE") == 0)
+    type_val = SO_KEEPALIVE;
+  else if (strcmp(type, "SO_LINGER") == 0)
+    type_val = SO_LINGER;
+  else if (strcmp(type, "SO_OOBINLINE") == 0)
+    type_val = SO_OOBINLINE;
+  else if (strcmp(type, "SO_SNDBUF") == 0)
+    type_val = SO_REUSEADDR;
+  else if (strcmp(type, "SO_RCVBUF") == 0)
+    type_val = SO_REUSEADDR;
+  else if (strcmp(type, "SO_DONTROUTE") == 0)
+    type_val = SO_DONTROUTE;
+  else if (strcmp(type, "SO_RCVLOWAT") == 0)
+    type_val = SO_RCVLOWAT;
+  else if (strcmp(type, "SO_RCVTIMEO") == 0)
+    type_val = SO_RCVTIMEO;
+  else if (strcmp(type, "SO_SNDLOWAT") == 0)
+    type_val = SO_SNDLOWAT;
+  else if (strcmp(type, "SO_SNDTIMEO") == 0)
+    type_val = SO_SNDTIMEO;
+  else {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "Socket  operation '%s' not supported\n", type);
+    return 2;
+  }
+
+  if (setsockopt(e->fd, SOL_SOCKET, type_val, (char*)&value, sizeof(value)) < 0) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, strerror(errno));
+    return 2;
+  }
+  lua_pushinteger(L, 0);
+  return 1;
+}
+static int
+noit_lua_socket_connect(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  const char *target;
+  unsigned short port;
+  int8_t family;
+  int rv;
+  union {
+    struct sockaddr_in sin4;
+    struct sockaddr_in6 sin6;
+  } a;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  target = lua_tostring(L, 2);
+  if(!target) target = "";
+  port = lua_tointeger(L, 3);
+
+  family = AF_INET;
+  rv = inet_pton(family, target, &a.sin4.sin_addr);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, target, &a.sin6.sin6_addr);
+    if(rv != 1) {
+      memset(&a, 0, sizeof(a));
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
+      return 2;
     }
+    else {
+      /* We've IPv6 */
+      a.sin6.sin6_family = AF_INET6;
+      a.sin6.sin6_port = htons(port);
+    }
+  }
+  else {
     a.sin4.sin_family = family;
     a.sin4.sin_port = htons(port);
   }
 
-  if (broadcast) {
-    rv = bind(e->fd, (struct sockaddr *)&a,
-                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
-  }
-  else {
-    rv = connect(e->fd, (struct sockaddr *)&a,
-                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
-  }
+  rv = connect(e->fd, (struct sockaddr *)&a,
+               family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
   if(rv == 0) {
     lua_pushinteger(L, 0);
     return 1;
@@ -894,6 +969,9 @@ noit_eventer_index_func(lua_State *L) {
   }
   k = lua_tostring(L, 2);
   switch(*k) {
+    case 'b':
+     LUA_DISPATCH(bind, noit_lua_socket_bind);
+     break;
     case 'c':
      LUA_DISPATCH(connect, noit_lua_socket_connect);
      break;
@@ -904,6 +982,7 @@ noit_eventer_index_func(lua_State *L) {
     case 's':
      LUA_DISPATCH(send, noit_lua_socket_send);
      LUA_DISPATCH(sendto, noit_lua_socket_sendto);
+     LUA_DISPATCH(setsockopt, noit_lua_socket_setsockopt);
      LUA_DISPATCH(ssl_upgrade_socket, noit_lua_socket_connect_ssl);
      LUA_DISPATCH(ssl_ctx, noit_lua_socket_ssl_ctx);
      break;
@@ -961,6 +1040,95 @@ noit_ssl_ctx_index_func(lua_State *L) {
   luaL_error(L, "noit.eventer.ssl_ctx no such element: %s", k);
   return 0;
 }
+
+static int
+nl_waitfor_notify(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl;
+  void *vptr;
+  const char *key;
+  int nargs;
+
+  ci = get_ci(L);
+  assert(ci);
+  nargs = lua_gettop(L);
+  if(nargs < 1) {
+    return 0;
+  }
+  key = lua_tostring(L, 1);
+  if(!noit_hash_retrieve(ci->lmc->pending, key, strlen(key), &vptr)) {
+    return 0;
+  }
+  noit_hash_delete(ci->lmc->pending, key, strlen(key), free, NULL);
+  cl = vptr;
+  lua_xmove(L, cl->L, nargs);
+
+  ci = get_ci(cl->L);
+  assert(ci);
+  eventer_remove(cl->pending_event);
+  noit_lua_check_deregister_event(ci, cl->pending_event, 0);
+  noit_lua_resume(ci, nargs);
+  lua_pushinteger(L, nargs);
+  return 0;
+}
+
+static int
+nl_waitfor_timeout(eventer_t e, int mask, void *vcl, struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  struct timeval diff;
+  double p_int;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+  noit_lua_check_deregister_event(ci, e, 0);
+  noit_hash_delete(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), free, NULL);
+  free(cl);
+  noit_lua_resume(ci, 0);
+  return 0;
+}
+
+static int
+nl_waitfor(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  const char *key;
+  struct nl_slcl *cl;
+  struct timeval diff;
+  eventer_t e;
+  double p_int;
+
+  ci = get_ci(L);
+  assert(ci);
+  if(lua_gettop(L) != 2) {
+    luaL_error(L, "waitfor(key, timeout) wrong arguments");
+  }
+  p_int = lua_tonumber(L, 2);
+  cl = calloc(1, sizeof(*cl));
+  cl->free = nl_extended_free;
+  cl->L = L;
+  gettimeofday(&cl->start, NULL);
+
+  key = lua_tostring(L, 1);
+  if(!key) luaL_error(L, "waitfor called without key");
+  cl->inbuff = strdup(key);
+  if(!noit_hash_store(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), cl)) {
+    nl_extended_free(cl);
+    luaL_error(L, "waitfor called with duplicate key");
+  }
+
+  cl->pending_event = e = eventer_alloc();
+  e->mask = EVENTER_TIMER;
+  e->callback = nl_waitfor_timeout;
+  e->closure = cl;
+  memcpy(&e->whence, &cl->start, sizeof(cl->start));
+  diff.tv_sec = floor(p_int);
+  diff.tv_usec = (p_int - floor(p_int)) * 1000000;
+  add_timeval(e->whence, diff, &e->whence);
+  noit_lua_check_register_event(ci, e);
+  eventer_add(e);
+  return noit_lua_yield(ci, 0);
+}
+
 
 static int
 nl_sleep_complete(eventer_t e, int mask, void *vcl, struct timeval *now) {
@@ -1971,6 +2139,8 @@ noit_json_index_func(lua_State *L) {
   return 0;
 }
 static const luaL_Reg noitlib[] = {
+  { "waitfor", nl_waitfor },
+  { "notify", nl_waitfor_notify },
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },

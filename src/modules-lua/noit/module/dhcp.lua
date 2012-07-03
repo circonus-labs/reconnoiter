@@ -41,8 +41,6 @@ function onload(image)
   <checkconfig>
     <parameter name="send_port" required="optional" default="67"
                allowed="\d+">Specifies the port to send DHCP request packets to</parameter>
-    <parameter name="recv_port" required="optional" default="68"
-               allowed="\d+">Specifies the port to receive DHCP response packets to</parameter>
     <parameter name="hardware_addr" required="required" default="00:00:00:00:00:00"
                allowed=".+">The hardware address of the host computer</parameter>
     <parameter name="host_ip" required="optional" default="0.0.0.0"
@@ -79,7 +77,38 @@ function onload(image)
   return 0
 end
 
+function get_id_out_of_buffer(buf)
+  local post, op, htype, hlen, hops, id = string.unpack(buf, ">bbbbI")
+  return id
+end
+
+function sockets_and_stuff()
+  local e = noit.socket('inet', 'udp')
+  local err, errno = e:setsockopt("SO_REUSEADDR", 1)
+  if err ~= 0 then
+    noit.log("error", "cannot set socket to reusable -> " .. errno)
+    return
+  end 
+  err, errno = e:setsockopt("SO_BROADCAST", 1)
+  if err ~= 0 then
+    noit.log("error", "cannot set socket to broadcast -> " .. errno)
+    return
+  end 
+  err, errno = e:bind('0.0.0.0', 68)
+  if err ~= 0 then
+    noit.log("error", "binding error -> " .. errno)
+    return
+  end 
+  while true do
+    local len, pkt = e:recv(2048)
+    local id = get_id_out_of_buffer(pkt)
+    noit.notify(id, len, pkt)
+  end 
+end
+
 function init(module)
+  co = coroutine.create(sockets_and_stuff)
+  coroutine.resume(co)
   return 0
 end
 
@@ -159,9 +188,10 @@ end
 function make_dhcp_request(host_ip, hardware_addr, request_type)
     local packet = ''
     local host_ip_number = noit.extras.iptonumber(host_ip)
+    local id = math.random(0, 99999999)
 
     packet = packet .. string.pack(">bbbb", 1, 1, 6, 0)
-    packet = packet .. string.pack(">I", math.random(0, 99999999))
+    packet = packet .. string.pack(">I", id)
     packet = packet .. string.pack(">HH", 0, 0x0000)
     packet = packet .. string.pack(">IIII", 0, 0, 0, 0)
     packet = packet .. pack_hardware_address(hardware_addr) -- Client MAC address
@@ -173,7 +203,7 @@ function make_dhcp_request(host_ip, hardware_addr, request_type)
     end
     packet = packet .. string.pack(">bbbbbbbbbbbbbbb", 55, 13, 1, 2, 3, 6, 15, 28, 42, 51, 53, 54, 58, 59, 119)
     packet = packet .. string.pack(">b", 0xFF)
-    return packet
+    return packet, id
 end
 
 function parse_option(options, dhcp_option_names, dhcp_message_types, check)
@@ -238,11 +268,6 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, target_
   local file = string.sub(buf, 109, 236) .. '\0'
   local magic_data = convert_binary_string_to_ip(string.sub(buf, 237, 240))
   local options_data = string.sub(buf, 241)
-  -- First, verify that we got this from the hardware address that we were supposed to - otherwise, we may use
-  -- packets intended for other checks
-  if chaddr ~= hardware_addr then
-    return 0
-  end
   -- Now, parse the options
   local done = false
   while done == false do
@@ -258,22 +283,7 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, target_
       options_data = string.sub(options_data, tomove)
     end
   end
-  -- Now, verify that we got a result from a trusted source - otherwise, bail and try again
-  local server_addr = ''
-  if readaddr == nil then
-    server_addr = siaddr
-  else
-    server_addr=convert_integer_to_ip(readaddr)
-  end
-  if server_addr ~= target_ip then
-    -- We didn't get it from the target - So, check to see if we got it from the broadcast ip
-    -- If the server didn't return the broadcast IP, we can't verify that we got it from the
-    -- right source, so we'll have to bail.
-    if option_strings['broadcast_address'] == nil or option_strings['broadcast_address'] ~= target_ip then
-      return 0
-    end
-  end
-  -- We're good - set all the metrics and return that we're done
+  -- Set all the metrics and return that we're done
   for k,v in pairs(option_ints) do
     check.metric_int32(k, v)
   end
@@ -300,7 +310,6 @@ end
 
 function initiate(module, check)
   local send_port = check.config.send_port or 67
-  local recv_port = check.config.recv_port or 68
   local host_ip = check.config.host_ip or "0.0.0.0"
   local hardware_addr = check.config.hardware_addr or "00:00:00:00:00:00"
   local request_type = check.config.request_type or 1
@@ -323,20 +332,21 @@ function initiate(module, check)
 
   local starttime = noit.timeval.now()
   local s = noit.socket(check.target_ip, 'udp')
-  s:connect(check.target_ip, recv_port, 'broadcast')
-  local req = make_dhcp_request(host_ip, hardware_addr, request_type)
+  local req, id = make_dhcp_request(host_ip, hardware_addr, request_type)
   local sent = s:sendto(req, check.target_ip, send_port)
 
   while done == 0 do
-    rv, buf, readaddr = s:recv(1000)
-
-    if buf:len() < 240 then
-      status = "invalid buffer"
-    else
-      done = parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, check.target_ip, hardware_addr, readaddr)
-      status = "successful read"
-      check.available()
-      good = true
+    local ret, len, buf = noit.waitfor(id, check.timeout / 1000)
+    if ret ~= nil then
+      done = 1
+      if len < 240 then
+        status = "invalid buffer"
+      else
+        parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, check.target_ip, hardware_addr, readaddr)
+        status = "successful read"
+        check.available()
+        good = true
+      end
     end
   end
 

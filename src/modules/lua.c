@@ -85,10 +85,21 @@ cancel_coro(noit_lua_check_info_t *ci) {
 
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  lua_module_closure_t *lmc;
   void *v = NULL;
   if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v))
     return (noit_lua_check_info_t *)v;
-  return NULL;
+  ci = calloc(1, sizeof(*ci));
+  ci->coro_state = L;
+  lua_getglobal(L, "noit_internal_lmc");;
+  ci->lmc = lua_touserdata(L, lua_gettop(L));
+  lua_pop(L, 1);
+  noitL(noit_error, "lmc -> %p\n", ci->lmc);
+  noit_hash_store(&noit_coros,
+                  (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                  ci);
+  return ci;
 }
 static void
 int_cl_free(void *vcl) {
@@ -695,6 +706,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       goto done;
     default: /* Errors */
       noitL(nldeb, "lua resume returned: %d\n", result);
+      if(ci->current.status) free(ci->current.status);
       ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error");
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
@@ -723,10 +735,13 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   self = ci->self;
   check = ci->check;
   cancel_coro(ci);
-  noit_lua_log_results(self, check);
-  noit_lua_module_cleanup(self, check);
-  ci = NULL; /* we freed it... explode if someone uses it before we return */
-  check->flags &= ~NP_RUNNING;
+  if(check) {
+    noitL(noit_error, "log results\n");
+    noit_lua_log_results(self, check);
+    noit_lua_module_cleanup(self, check);
+    ci = NULL; /* we freed it... explode if someone uses it before we return */
+    check->flags &= ~NP_RUNNING;
+  }
 
  done:
   return result;
@@ -847,7 +862,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lua_State *L;
   lua_module_closure_t *lmc;
   char *object;
-  
+
   noitL(nldeb, "Loading lua module: %s\n", module_name);
   if(noit_conf_get_string(section, "@object", &object) == 0) {
     noitL(nlerr, "Lua module %s require object attribute.\n", module_name);
@@ -862,6 +877,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->hdr.onload = noit_lua_module_onload;
   lmc = calloc(1, sizeof(*lmc));
   lmc->object = object;
+  lmc->pending = calloc(1, sizeof(*lmc->pending));
 
   L = lmc->lua_state = lua_open();
   lua_atpanic(L, &noit_lua_panic);
@@ -874,6 +890,9 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 
   lua_newtable(L);
   lua_setglobal(L, "noit_coros");
+
+  lua_pushlightuserdata(L, lmc);
+  lua_setglobal(L, "noit_internal_lmc");
 
   lua_getfield(L, LUA_GLOBALSINDEX, "package");
   lua_pushfstring(L, "%s", noit_lua_loader_get_directory(loader));
