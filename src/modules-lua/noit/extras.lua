@@ -59,3 +59,11 @@ function split(str, delimiter, max)
   return result
 end
 
+function iptonumber(str)
+  local num = 0
+  for elem in str:gmatch("%d+") do
+    num = (num * 256) + elem
+  end
+  return num
+end
+

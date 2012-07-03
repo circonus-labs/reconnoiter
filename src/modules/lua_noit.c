@@ -446,6 +446,7 @@ noit_lua_socket_bind(lua_State *L) {
   unsigned short port;
   int8_t family;
   int rv;
+  int flag;
   union {
     struct sockaddr_in sin4;
     struct sockaddr_in6 sin6;
@@ -482,6 +483,8 @@ noit_lua_socket_bind(lua_State *L) {
   else {
     a.sin4.sin_family = family;
     a.sin4.sin_port = htons(port);
+    a.sin4.sin_addr.s_addr = INADDR_ANY;
+    memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
   }
 
   rv = bind(e->fd, (struct sockaddr *)&a,
@@ -493,6 +496,68 @@ noit_lua_socket_bind(lua_State *L) {
   lua_pushinteger(L, -1);
   lua_pushstring(L, strerror(errno));
   return 2;
+}
+static int
+noit_lua_socket_setsockopt(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  int rv;
+  const char *type;
+  int type_val;
+  int value;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  if(lua_gettop(L) != 3) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "setsockopt(type, value) wrong arguments");
+    return 2;
+  }
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  type = lua_tostring(L, 2);
+  value = lua_tointeger(L, 3);
+
+  if (strcmp(type, "SO_BROADCAST") == 0)
+    type_val = SO_BROADCAST;
+  else if (strcmp(type, "SO_REUSEADDR") == 0)
+    type_val = SO_REUSEADDR;
+  else if (strcmp(type, "SO_KEEPALIVE") == 0)
+    type_val = SO_KEEPALIVE;
+  else if (strcmp(type, "SO_LINGER") == 0)
+    type_val = SO_LINGER;
+  else if (strcmp(type, "SO_OOBINLINE") == 0)
+    type_val = SO_OOBINLINE;
+  else if (strcmp(type, "SO_SNDBUF") == 0)
+    type_val = SO_SNDBUF;
+  else if (strcmp(type, "SO_RCVBUF") == 0)
+    type_val = SO_RCVBUF;
+  else if (strcmp(type, "SO_DONTROUTE") == 0)
+    type_val = SO_DONTROUTE;
+  else if (strcmp(type, "SO_RCVLOWAT") == 0)
+    type_val = SO_RCVLOWAT;
+  else if (strcmp(type, "SO_RCVTIMEO") == 0)
+    type_val = SO_RCVTIMEO;
+  else if (strcmp(type, "SO_SNDLOWAT") == 0)
+    type_val = SO_SNDLOWAT;
+  else if (strcmp(type, "SO_SNDTIMEO") == 0)
+    type_val = SO_SNDTIMEO;
+  else {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "Socket  operation '%s' not supported\n", type);
+    return 2;
+  }
+
+  if (setsockopt(e->fd, SOL_SOCKET, type_val, (char*)&value, sizeof(value)) < 0) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, strerror(errno));
+    return 2;
+  }
+  lua_pushinteger(L, 0);
+  return 1;
 }
 static int
 noit_lua_socket_connect(lua_State *L) {
@@ -917,6 +982,7 @@ noit_eventer_index_func(lua_State *L) {
     case 's':
      LUA_DISPATCH(send, noit_lua_socket_send);
      LUA_DISPATCH(sendto, noit_lua_socket_sendto);
+     LUA_DISPATCH(setsockopt, noit_lua_socket_setsockopt);
      LUA_DISPATCH(ssl_upgrade_socket, noit_lua_socket_connect_ssl);
      LUA_DISPATCH(ssl_ctx, noit_lua_socket_ssl_ctx);
      break;
