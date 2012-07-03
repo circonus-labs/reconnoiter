@@ -207,9 +207,11 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
     args = 2;
   }
   else {
+    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    args = 2;
+    lua_pushinteger(cl->L, addr);
+    args = 3;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
 
@@ -260,9 +262,11 @@ noit_lua_socket_recv(lua_State *L) {
     args = 2;
   }
   else {
+    int addr=ntohl(cl->address.sin4.sin_addr.s_addr);
     lua_pushinteger(cl->L, rv);
     lua_pushlstring(cl->L, inbuff, rv);
-    args = 2;
+    lua_pushinteger(cl->L, addr);
+    args = 3;
     args += lua_push_inet_ntop(cl->L, (struct sockaddr *)&cl->address);
   }
   free(inbuff);
@@ -502,6 +506,8 @@ noit_lua_socket_connect(lua_State *L) {
   unsigned short port;
   int8_t family;
   int rv;
+  int broadcast;
+  int n;
   union {
     struct sockaddr_in sin4;
     struct sockaddr_in6 sin6;
@@ -510,6 +516,8 @@ noit_lua_socket_connect(lua_State *L) {
   ci = get_ci(L);
   assert(ci);
 
+  n = lua_gettop(L); /* number of arguments */
+
   eptr = lua_touserdata(L, lua_upvalueindex(1));
   if(eptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
@@ -517,6 +525,34 @@ noit_lua_socket_connect(lua_State *L) {
   target = lua_tostring(L, 2);
   if(!target) target = "";
   port = lua_tointeger(L, 3);
+  if ((n >= 4) && lua_isstring(L, 4)) {
+    if (!strcmp(lua_tostring(L, 4), "broadcast")) {
+      broadcast = 1;
+    }
+    else {
+      broadcast = 0;
+    }
+  }
+  else {
+    broadcast = 0;
+  }
+
+  /* Set socket to reusable and sets broadcast option */
+  if (broadcast)
+  {
+    int flag = 1;
+    if (setsockopt (e->fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof flag) < 0) {
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
+      return 2;
+    }
+    flag = 1;
+    if (setsockopt (e->fd, SOL_SOCKET, SO_BROADCAST, (char *)&flag, sizeof flag) < 0) {
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot set socket to reusable\n", target);
+      return 2;
+    }
+  }
 
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
@@ -536,12 +572,22 @@ noit_lua_socket_connect(lua_State *L) {
     }
   }
   else {
+    if (broadcast) {
+      a.sin4.sin_addr.s_addr = INADDR_ANY;
+      memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
+    }
     a.sin4.sin_family = family;
     a.sin4.sin_port = htons(port);
   }
 
-  rv = connect(e->fd, (struct sockaddr *)&a,
-               family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  if (broadcast) {
+    rv = bind(e->fd, (struct sockaddr *)&a,
+                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  }
+  else {
+    rv = connect(e->fd, (struct sockaddr *)&a,
+                 family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  }
   if(rv == 0) {
     lua_pushinteger(L, 0);
     return 1;
