@@ -532,9 +532,9 @@ noit_lua_socket_setsockopt(lua_State *L) {
   else if (strcmp(type, "SO_OOBINLINE") == 0)
     type_val = SO_OOBINLINE;
   else if (strcmp(type, "SO_SNDBUF") == 0)
-    type_val = SO_REUSEADDR;
+    type_val = SO_SNDBUF;
   else if (strcmp(type, "SO_RCVBUF") == 0)
-    type_val = SO_REUSEADDR;
+    type_val = SO_RCVBUF;
   else if (strcmp(type, "SO_DONTROUTE") == 0)
     type_val = SO_DONTROUTE;
   else if (strcmp(type, "SO_RCVLOWAT") == 0)
