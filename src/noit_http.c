@@ -369,7 +369,7 @@ noit_http_log_request(noit_http_session_ctx *ctx) {
   tm = gmtime_r(&now, &tbuf);
   strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
   sub_timeval(end_time, ctx->req.start_time, &diff);
-  time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  time_ms = diff.tv_sec * 1000 + (double)diff.tv_usec / 1000.0;
   noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
   noitL(http_access, "%s - - [%s] \"%s %s%s%s %s\" %d %llu %.3f\n",
         ip, timestr,
