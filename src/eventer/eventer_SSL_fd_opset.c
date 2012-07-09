@@ -42,6 +42,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/engine.h>
+#include <openssl/x509v3.h>
 
 #define EVENTER_SSL_DATANAME "eventer_ssl"
 
@@ -66,6 +67,7 @@ struct eventer_ssl_ctx_t {
   time_t   start_time;
   time_t   end_time;
   char    *cert_error;
+  char    *san_list;
   eventer_ssl_verify_func_t verify_cb;
   void    *verify_cb_closure;
   unsigned no_more_negotiations:1;
@@ -143,7 +145,51 @@ eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
   if(X509_cmp_time(t, &now) < 0) return 1;
   return 0;
 }
+int
+eventer_ssl_get_san_values(eventer_ssl_ctx_t *ctx,
+                        X509_STORE_CTX *x509ctx) {
+  STACK_OF(GENERAL_NAME) * altnames;
+  X509 *peer;
+  int pos = 0;
 
+  if(!x509ctx) return 0;
+  peer = X509_STORE_CTX_get_current_cert(x509ctx);
+  altnames = X509_get_ext_d2i(peer, NID_subject_alt_name, NULL, NULL);
+  if (altnames) {
+    int i;
+    int numalts = sk_GENERAL_NAME_num(altnames);
+    char cn[4096];
+
+    memset(cn, 0, 4096);
+    for (i = 0; i < numalts; i++) {
+      const GENERAL_NAME *check = sk_GENERAL_NAME_value(altnames, i);
+      if (check->type != GEN_DNS) {
+        continue;
+      }
+      ASN1_STRING *data = check->d.dNSName;
+      if ((data->length + pos) > (int)sizeof(cn) - 1) {
+        continue;
+      }
+      memcpy(cn+pos, data->data, data->length);
+      cn[data->length+pos] = ',';
+      cn[data->length+pos+1] = ' ';
+      cn[data->length+pos+2] = '\0';
+      pos = strlen(cn);
+    }
+    if (pos > 0) {
+      cn[pos-1]=0;
+      cn[pos-2]=0;
+      pos--;
+    }
+    if (pos > 0) {
+      if (ctx->san_list != NULL) {
+        free(ctx->san_list);
+      }
+      ctx->san_list = strdup(cn);
+    }
+  }
+  return 1;
+}
 int
 eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
                         X509_STORE_CTX *x509ctx, void *closure) {
@@ -159,12 +205,12 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
   if(!noit_hash_retr_str(options, "ignore_dates", strlen("ignore_dates"),
                          &ignore_dates))
     ignore_dates = "false";
-
   if(options == NULL) {
     /* Don't care about anything */
     opt_no_ca = "true";
     ignore_dates = "true";
   }
+  eventer_ssl_get_san_values(ctx, x509ctx);
   X509_STORE_CTX_get_ex_data(x509ctx,
                              SSL_get_ex_data_X509_STORE_CTX_idx());
   v_res = X509_STORE_CTX_get_error(x509ctx);
@@ -228,6 +274,10 @@ const char *
 eventer_ssl_get_peer_error(eventer_ssl_ctx_t *ctx) {
   return ctx->cert_error;
 }
+const char *
+eventer_ssl_get_peer_san_list(eventer_ssl_ctx_t *ctx) {
+  return ctx->san_list;
+}
 
 static int
 verify_cb(int ok, X509_STORE_CTX *x509ctx) {
@@ -264,6 +314,7 @@ eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx) {
   if(ctx->issuer) free(ctx->issuer);
   if(ctx->subject) free(ctx->subject);
   if(ctx->cert_error) free(ctx->cert_error);
+  if(ctx->san_list) free(ctx->san_list);
   free(ctx);
 }
 

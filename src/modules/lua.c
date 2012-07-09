@@ -736,7 +736,6 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   check = ci->check;
   cancel_coro(ci);
   if(check) {
-    noitL(noit_error, "log results\n");
     noit_lua_log_results(self, check);
     noit_lua_module_cleanup(self, check);
     ci = NULL; /* we freed it... explode if someone uses it before we return */
