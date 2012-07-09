@@ -295,6 +295,52 @@ function get_absolute_path(uri)
     return toReturn
 end
 
+function san_list_check(array, value)
+  for i, line in ipairs(array) do
+    if line == value then
+      return true
+    else
+      line = string.gsub(line, '%.', "%%%.")
+      line = string.gsub(line, "%*", "[^\.]*")
+      local match = string.match(value, line)
+      if match == value then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+function check_host_header_against_certificate(host_header, cert_subject, san_list)
+  -- First, check for SAN values if they exist - if they do, check for a match
+  local san_array = { }
+  if san_list ~= nil then
+    san_array = noit.extras.split(san_list, ", ")
+  end
+  if san_list_check(san_array, host_header) then
+    -- The host header was in the SAN list, so we're done
+    return nil
+  end
+  -- Next, pull out the CN value
+  local cn = string.sub(cert_subject, string.find(cert_subject, 'CN=[^/\n]*'))
+  if cn == nil or cn == '' then
+    -- no common name given, give an error
+    return 'CN not found in certificate'
+  end
+  cn = string.sub(cn, 4)
+  if cn == host_header then
+    -- CN and host_header match exactly, so no error
+    return nil
+  end
+  cn = string.gsub(cn, '%.', "%%%.")
+  cn = string.gsub(cn, "%*", "[^\.]*")
+  local match = string.match(host_header, cn)
+  if match == host_header then
+    return nil
+  end
+  return 'host header does not match CN or SANs in certificate'
+end
+
 function initiate(module, check)
     local url = check.config.url or 'http:///'
     local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
@@ -308,6 +354,7 @@ function initiate(module, check)
     local redirects = check.config.redirects or 0
     local include_body = false
     local read_limit = tonumber(check.config.read_limit) or nil
+    local host_header = check.config.header_Host or ''
 
     -- expect the worst
     check.bad()
@@ -585,10 +632,20 @@ function initiate(module, check)
     -- ssl ctx
     local ssl_ctx = client:ssl_ctx()
     if ssl_ctx ~= nil then
+      local header_match_error = check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
       if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
-      check.metric_string("cert_error", ssl_ctx.error)
+      if header_match_error == nil then
+        check.metric_string("cert_error", ssl_ctx.error)
+      elseif ssl_ctx.error == nil then
+        check.metric_string("cert_error", header_match_error)
+      else
+        check.metric_string("cert_error", ssl_ctx.error .. ', ' .. header_match_error)
+      end
       check.metric_string("cert_issuer", ssl_ctx.issuer)
       check.metric_string("cert_subject", ssl_ctx.subject)
+      if ssl_ctx.san_list ~= nil then
+        check.metric_string("cert_subject_alternative_names", ssl_ctx.san_list)
+      end
       check.metric_uint32("cert_start", ssl_ctx.start_time)
       check.metric_uint32("cert_end", ssl_ctx.end_time)
       check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
