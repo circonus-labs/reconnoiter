@@ -67,6 +67,9 @@ SL checks).</parameter>
     <parameter name="ciphers"
                required="optional"
                allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
+    <parameter name="header_Host"
+               required="optional"
+               allowed=".+">The host header to validate against the SSL certificate (for SSL checks).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -162,6 +165,7 @@ function initiate(module, check)
   local use_ssl = false
   local _tok = 0
   local last_msg = 0
+  local host_header = check.config.header_Host or ''
 
   if check.target_ip == nil then
     check.status("dns resolution failure")
@@ -190,10 +194,17 @@ function initiate(module, check)
     return
   end
 
+  local ca_chain = 
+     noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+
+  if check.config.ca_chain ~= nil and check.config.ca_chain ~= '' then
+    ca_chain = check.config.ca_chain
+  end
+
   if use_ssl == true then
     rv, err = e:ssl_upgrade_socket(check.config.certificate_file,
                                         check.config.key_file,
-                                        check.config.ca_chain,
+                                        ca_chain,
                                         check.config.ciphers)
   end 
 
@@ -211,10 +222,23 @@ function initiate(module, check)
   -- ssl metrics
   local ssl_ctx = e:ssl_ctx()
   if ssl_ctx ~= nil then
+    local header_match_error = nil
+    if host_header ~= '' then
+      header_match_error = noit.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
+    end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
-    check.metric_string("cert_error", ssl_ctx.error)
+    if header_match_error == nil then
+      check.metric_string("cert_error", ssl_ctx.error)
+    elseif ssl_ctx.error == nil then
+      check.metric_string("cert_error", header_match_error)
+    else
+      check.metric_string("cert_error", ssl_ctx.error .. ', ' .. header_match_error)
+    end
     check.metric_string("cert_issuer", ssl_ctx.issuer)
     check.metric_string("cert_subject", ssl_ctx.subject)
+    if ssl_ctx.san_list ~= nil then
+      check.metric_string("cert_subject_alternative_names", ssl_ctx.san_list)
+    end
     check.metric_uint32("cert_start", ssl_ctx.start_time)
     check.metric_uint32("cert_end", ssl_ctx.end_time)
     if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
