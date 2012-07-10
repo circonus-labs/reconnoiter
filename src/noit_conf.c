@@ -1177,7 +1177,7 @@ noit_config_log_close_xml(void *vstr) {
   if(clv->encoded == clv->target) return 0;
 
   /* Encode */
-  initial_dlen = ((clv->len + 2) / 3) * 4;
+  initial_dlen = ((clv->len + 2) / 3) * 4 + 1;
   b64buff = malloc(initial_dlen);
   dlen = noit_b64_encode((unsigned char *)clv->buff, clv->len,
                          b64buff, initial_dlen);
