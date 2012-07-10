@@ -46,6 +46,12 @@
 #define HEADER_CONTENT_LENGTH "content-length"
 #define HEADER_EXPECT "expect"
 
+NOIT_HOOK_IMPL(http_request_log,
+  (noit_http_session_ctx *ctx),
+  void *, closure,
+  (void *closure, noit_http_session_ctx *ctx),
+  (closure,ctx))
+
 struct noit_http_connection {
   eventer_t e;
   int needs_close;
@@ -364,6 +370,8 @@ noit_http_log_request(noit_http_session_ctx *ctx) {
   struct timeval end_time, diff;
 
   if(ctx->req.start_time.tv_sec == 0) return;
+  if(http_request_log_hook_invoke(ctx) != NOIT_HOOK_CONTINUE) return;
+
   gettimeofday(&end_time, NULL);
   now = end_time.tv_sec;
   tm = gmtime_r(&now, &tbuf);

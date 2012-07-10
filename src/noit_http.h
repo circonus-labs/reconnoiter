@@ -38,6 +38,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
+#include "utils/noit_hooks.h"
 #include "noit_listener.h"
 
 typedef enum {
@@ -192,5 +193,10 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   noit_http_init();
+
+NOIT_HOOK_PROTO(http_request_log,
+                (noit_http_session_ctx *ctx),
+                void *, closure,
+                (void *closure, noit_http_session_ctx *ctx))
 
 #endif
