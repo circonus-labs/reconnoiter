@@ -269,6 +269,9 @@ noit_boolean noit_http_response_closed(noit_http_response *res) {
 noit_boolean noit_http_response_complete(noit_http_response *res) {
   return res->complete;
 }
+size_t noit_http_response_bytes_written(noit_http_response *res) {
+  return res->bytes_written;
+}
 
 static noit_http_method
 _method_enum(const char *s) {
