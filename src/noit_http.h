@@ -117,6 +117,8 @@ API_EXPORT(void)
 API_EXPORT(eventer_t)
   noit_http_connection_event(noit_http_connection *);
 
+API_EXPORT(void)
+  noit_http_request_start_time(noit_http_request *, struct timeval *);
 API_EXPORT(const char *)
   noit_http_request_uri_str(noit_http_request *);
 API_EXPORT(const char *)

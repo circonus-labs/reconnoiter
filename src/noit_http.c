@@ -235,6 +235,9 @@ uint32_t noit_http_session_ref_inc(noit_http_session_ctx *ctx) {
 eventer_t noit_http_connection_event(noit_http_connection *conn) {
   return conn->e;
 }
+void noit_http_request_start_time(noit_http_request *req, struct timeval *t) {
+  memcpy(t, &req->start_time, sizeof(*t));
+}
 const char *noit_http_request_uri_str(noit_http_request *req) {
   return req->uri_str;
 }
