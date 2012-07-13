@@ -345,7 +345,7 @@ static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
   dns_ctx_handle_t *h = data;
   eventer_t e = NULL, newe = NULL;
   if(ctx == NULL) {
-    if(h->timeout) e = eventer_remove(h->timeout);
+    if(h && h->timeout) e = eventer_remove(h->timeout);
   }
   else {
     assert(h->ctx == ctx);
@@ -363,7 +363,7 @@ static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
   }
   if(e) eventer_free(e);
   if(newe) eventer_add(newe);
-  h->timeout = newe;
+  if(h) h->timeout = newe;
 }
 
 static char *encode_txt(char *dst, const unsigned char *src, int len) {
