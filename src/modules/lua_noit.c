@@ -121,6 +121,16 @@ static void
 inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
   int newsize = 0;
   char *newbuf;
+
+  if (cl->inbuff_len < 0 || l < 0) {
+    noitL(nldeb, "Invalid Argument: An argument was negative");
+    abort();
+  }
+  if (cl->inbuff_len + l < 0) {
+    noitL(nldeb, "Error: Addition Overflow");
+    abort();
+  }
+
   if(cl->inbuff_len + l > cl->inbuff_allocd)
     newsize = cl->inbuff_len + l;
   if(newsize) {

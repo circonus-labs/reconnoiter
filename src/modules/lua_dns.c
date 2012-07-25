@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #ifdef HAVE_SYS_FILIO_H
@@ -274,6 +275,8 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
     const unsigned char *dend = rr.dnsrr_dend;
     unsigned char *dn = rr.dnsrr_dn;
     const unsigned char *tmp;
+
+    memset(buff, 0, sizeof(buff));
 
     if (!dns_dnequal(dn, rr.dnsrr_dn)) continue;
     if ((dlc->query_ctype == DNS_C_ANY || dlc->query_ctype == rr.dnsrr_cls) &&
