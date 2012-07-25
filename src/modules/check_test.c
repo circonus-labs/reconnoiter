@@ -155,9 +155,9 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   }
   flags |= noit_calc_rtype_flag(resolve_rtype);
   c = calloc(1, sizeof(*c));
+  c->module = strdup(module);
   noit_check_update(c, target, name, filterset,
                     conf_hash, moptions, 0, timeout, NULL, flags);
-  c->module = strdup(module);
   uuid_generate(c->checkid);
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
   if(NOIT_CHECK_SHOULD_RESOLVE(c))
