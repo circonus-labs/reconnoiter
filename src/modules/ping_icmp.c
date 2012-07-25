@@ -284,7 +284,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       continue;
     }
     check = NULL;
-    k.addr_of_check = payload->addr_of_check ^ random_num;
+    k.addr_of_check = payload->addr_of_check;
     uuid_copy(k.checkid, payload->checkid);
     if(noit_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
@@ -444,7 +444,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
 
   data = noit_module_get_userdata(pcl->self);
   payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);
-  k.addr_of_check = payload->addr_of_check ^ random_num;
+  k.addr_of_check = payload->addr_of_check;
   uuid_copy(k.checkid, payload->checkid);
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
