@@ -48,6 +48,7 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <openssl/rand.h>
 #include <math.h>
 #ifndef MAXFLOAT
 #include <float.h>
@@ -96,6 +97,8 @@ struct ping_closure {
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static int in_cksum(u_short *addr, int len);
+static void * random_num;
+
 
 typedef struct  {
   int ipv4_fd;
@@ -188,7 +191,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   data->timeout_event = NULL;
   pcl->check->flags &= ~NP_RUNNING;
   ping_data = noit_module_get_userdata(pcl->self);
-  k.addr_of_check = pcl->check;
+  k.addr_of_check = pcl->check ^ (*random_num);
   uuid_copy(k.checkid, pcl->check->checkid);
   noit_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                    free, NULL);
@@ -281,7 +284,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       continue;
     }
     check = NULL;
-    k.addr_of_check = payload->addr_of_check;
+    k.addr_of_check = payload->addr_of_check ^ (*random_num);
     uuid_copy(k.checkid, payload->checkid);
     if(noit_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
@@ -324,7 +327,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       eventer_free(data->timeout_event);
       data->timeout_event = NULL;
       check->flags &= ~NP_RUNNING;
-      k.addr_of_check = check;
+      k.addr_of_check = check ^ (*random_num);
       uuid_copy(k.checkid, check->checkid);
       noit_hash_delete(ping_data->in_flight, (const char *)&k,
                        sizeof(k), free, NULL);
@@ -345,6 +348,8 @@ static int ping_icmp_init(noit_module_t *self) {
   socklen_t on;
   struct protoent *proto;
   ping_icmp_data_t *data;
+
+  RAND_pseudo_bytes(&random_num, sizeof(void*));
 
   data = malloc(sizeof(*data));
   data->in_flight = calloc(1, sizeof(*data->in_flight));
@@ -439,7 +444,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
 
   data = noit_module_get_userdata(pcl->self);
   payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);
-  k.addr_of_check = payload->addr_of_check;
+  k.addr_of_check = payload->addr_of_check ^ (*random_num);
   uuid_copy(k.checkid, payload->checkid);
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
@@ -527,7 +532,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   check->flags |= NP_RUNNING;
   ping_data = noit_module_get_userdata(self);
   k = calloc(1, sizeof(*k));
-  k->addr_of_check = check;
+  k->addr_of_check = check ^ (*random_num);
   uuid_copy(k->checkid, check->checkid);
   if(!noit_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
@@ -592,7 +597,7 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
       icp6->icmp6_id = (((vpsized_uint)self) & 0xffff);
     }
 
-    payload->addr_of_check = check;
+    payload->addr_of_check = check ^ (*random_num);
     uuid_copy(payload->checkid, check->checkid);
     payload->generation = check->generation & 0xffff;
     payload->check_no = ci->check_no;
