@@ -487,6 +487,7 @@ void noit_check_resolver_init() {
      dns_open(dns_ctx) < 0) {
     noitL(noit_error, "dns initialization failed.\n");
   }
+  eventer_name_callback("dns_cache_callback", dns_cache_callback);
   dns_set_tmcbck(dns_ctx, dns_cache_utm_fn, dns_ctx);
   e = eventer_alloc();
   e->mask = EVENTER_READ | EVENTER_EXCEPTION;
