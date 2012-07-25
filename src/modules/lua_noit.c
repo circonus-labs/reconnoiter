@@ -1439,6 +1439,7 @@ nl_gunzip_deflate(lua_State *L) {
   Bytef *data = NULL;
   uLong outlen = 0;
   int limit = 1024*1024;
+  int allow_restart = 1;
   int err, n = lua_gettop(L);
 
   if(n < 1 || n > 2) {
@@ -1464,6 +1465,7 @@ nl_gunzip_deflate(lua_State *L) {
     if(err == Z_OK || err == Z_STREAM_END) {
       /* got some data */
       int size_read = DEFLATE_CHUNK_SIZE - stream->avail_out;
+      allow_restart = 0;
       uLong newoutlen = outlen + size_read;
       if(limit && newoutlen > limit) {
         err = Z_MEM_ERROR;
@@ -1488,7 +1490,25 @@ nl_gunzip_deflate(lua_State *L) {
         break;
       }
     }
-    else break;
+    else if(allow_restart && err == Z_DATA_ERROR) {
+      /* Rarely seen, but on the internet, some IIS servers seem
+       * to not generate 'correct' deflate streams, so we use
+       * inflateInit2 here to manually configure the stream.
+       */
+      inflateEnd(stream);
+      err = inflateInit2(stream, -MAX_WBITS);
+      if (err != Z_OK) {
+        break;
+      }
+      stream->next_in = (Bytef *)input;
+      stream->avail_in = inlen;
+      allow_restart = 0;
+      continue;
+    }
+    else {
+      break;
+    }
+
     if(stream->avail_in == 0) break;
   }
   if(err == Z_OK || err == Z_STREAM_END) {
