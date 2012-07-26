@@ -277,7 +277,7 @@ function get_new_uri(old_uri, new_uri)
 end
 
 function get_absolute_path(uri)
-    if uri == nil then return "/" end
+    if uri == nil or #uri == 0 then return "/" end
     local toReturn = uri
     local go_back = string.find(toReturn, "%.%./")
     while go_back ~= nil do
