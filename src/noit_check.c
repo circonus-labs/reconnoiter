@@ -90,6 +90,7 @@ static u_int64_t check_completion_count = 0;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
+static noit_skiplist polls_by_target_ip = { 0 };
 static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
@@ -191,6 +192,18 @@ static int __watchlist_compare(const void *a, const void *b) {
   if(ac->period < bc->period) return -1;
   if(ac->period == bc->period) return 0;
   return 1;
+}
+static int __check_target_ip_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
+  int rv;
+  if (ac->target_ip == NULL) return 1;
+  if (bc->target_ip == NULL) return -1;
+  if((rv = strcmp(ac->target_ip, bc->target_ip)) != 0) return rv;
+  if (ac->name == NULL) return 1;
+  if (bc->name == NULL) return -1;
+  if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
+  return 0;
 }
 int
 noit_calc_rtype_flag(char *resolve_rtype) {
@@ -527,6 +540,9 @@ noit_poller_init() {
   noit_skiplist_init(&watchlist);
   noit_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
+  noit_skiplist_init(&polls_by_target_ip);
+  noit_skiplist_set_compare(&polls_by_target_ip, __check_target_ip_compare,
+                            __check_target_ip_compare);
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
@@ -542,6 +558,11 @@ noit_poller_check_count() {
 int
 noit_poller_transient_check_count() {
   return watchlist.size;
+}
+
+int
+noit_poller_check_by_target_ip_count() {
+  return polls_by_target_ip.size;
 }
 
 noit_check_t *
@@ -752,6 +773,8 @@ noit_check_resolve(noit_check_t *check) {
                                family_pref) >= 0) {
     check->flags |= NP_RESOLVED;
     noit_check_set_ip(check, ipaddr);
+    noit_skiplist_remove(&polls_by_target_ip, check, NULL);
+    noit_skiplist_insert(&polls_by_target_ip, check);
     return 0;
   }
   check->flags &= ~NP_RESOLVED;
@@ -843,6 +866,10 @@ noit_check_update(noit_check_t *new_check,
       noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
+    }
+    if ((!(new_check->flags & NP_RESOLVE)) || (new_check->flags & NP_RESOLVED)) {
+      noit_skiplist_remove(&polls_by_target_ip, new_check, NULL);
+      noit_skiplist_insert(&polls_by_target_ip, new_check);
     }
   }
   noit_check_log_check(new_check);
@@ -984,6 +1011,7 @@ noit_poller_deschedule(uuid_t in) {
   noit_check_log_delete(checker);
 
   noit_skiplist_remove(&polls_by_name, checker, NULL);
+  noit_skiplist_remove(&polls_by_target_ip, checker, NULL);
   noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
 
   noit_poller_free_check(checker);
@@ -1015,14 +1043,15 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   noit_skiplist_node *next;
 
   memset(&pivot, 0, sizeof(pivot));
-  pivot.target = (char *)target;
+  memcpy(pivot.target_ip, (char*)target, strlen((char*)target));
   pivot.name = "";
-  noit_skiplist_find_neighbors(&polls_by_name, &pivot, NULL, NULL, &next);
+  pivot.target = "";
+  noit_skiplist_find_neighbors(&polls_by_target_ip, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
-    if(strcmp(check->target, target)) break;
+    if(strcmp(check->target_ip, target)) break;
     count += f(check,closure);
-    noit_skiplist_next(&polls_by_name, &next);
+    noit_skiplist_next(&polls_by_target_ip, &next);
   }
   return count;
 }
