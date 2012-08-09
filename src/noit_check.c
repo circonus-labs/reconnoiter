@@ -113,6 +113,22 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
   }
   return 0;
 }
+static int
+noit_check_add_to_list(noit_check_t *new_check) {
+  if(!(new_check->flags & NP_TRANSIENT)) {
+    /* This remove could fail -- no big deal */
+    noit_skiplist_remove(&polls_by_name, new_check, NULL);
+
+    /* This insert could fail.. which means we have a conflict on
+     * target`name.  That should result in the check being disabled. */
+    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
+      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+            new_check->target, new_check->name);
+      new_check->flags |= NP_DISABLED;
+    }
+  }
+  return 1;
+}
 
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
@@ -190,6 +206,18 @@ static int __watchlist_compare(const void *a, const void *b) {
   if((rv = memcmp(ac->checkid, bc->checkid, sizeof(ac->checkid))) != 0) return rv;
   if(ac->period < bc->period) return -1;
   if(ac->period == bc->period) return 0;
+  return 1;
+}
+static int __check_target_ip_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
+  int rv;
+  if (ac->target_ip == NULL) return 1;
+  if (bc->target_ip == NULL) return -1;
+  if((rv = strcmp(ac->target_ip, bc->target_ip)) != 0) return rv;
+  if (ac->name == NULL) return 1;
+  if (bc->name == NULL) return -1;
+  if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
   return 1;
 }
 int
@@ -524,6 +552,8 @@ noit_poller_init() {
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
+  noit_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
+                            __check_target_ip_compare);
   noit_skiplist_init(&watchlist);
   noit_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
@@ -709,10 +739,14 @@ noit_check_set_ip(noit_check_t *new_check,
                   const char *ip_str) {
   int8_t family;
   int rv, failed = 0;
+  char old_target_ip[INET6_ADDRSTRLEN];
   union {
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
+
+  memset(old_target_ip, 0, INET6_ADDRSTRLEN);
+  strlcpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip));
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -740,6 +774,9 @@ noit_check_set_ip(noit_check_t *new_check,
                  sizeof(new_check->target_ip)) == NULL) {
       noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
+  if ((failed == 0) && (new_check->name != NULL) && (strcmp(old_target_ip, new_check->target_ip) != 0)) {
+    noit_check_add_to_list(new_check);
+  }
   return failed;
 }
 int
@@ -833,18 +870,7 @@ noit_check_update(noit_check_t *new_check,
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
 
-  if(!(new_check->flags & NP_TRANSIENT)) {
-    /* This remove could fail -- no big deal */
-    noit_skiplist_remove(&polls_by_name, new_check, NULL);
-
-    /* This insert could fail.. which means we have a conflict on
-     * target`name.  That should result in the check being disabled. */
-    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
-            new_check->target, new_check->name);
-      new_check->flags |= NP_DISABLED;
-    }
-  }
+  noit_check_add_to_list(new_check);
   noit_check_log_check(new_check);
   return 0;
 }
@@ -1012,15 +1038,21 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
   int count = 0;
   noit_check_t pivot;
+  noit_skiplist *tlist;
   noit_skiplist_node *next;
+  noit_skiplist_node *sn;
+
+  sn = noit_skiplist_getlist(polls_by_name.index);
+  tlist = sn->data;
 
   memset(&pivot, 0, sizeof(pivot));
-  pivot.target = (char *)target;
+  strlcpy(pivot.target_ip, (char*)target, sizeof(pivot.target_ip));
   pivot.name = "";
-  noit_skiplist_find_neighbors(&polls_by_name, &pivot, NULL, NULL, &next);
+  pivot.target = "";
+  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
-    if(strcmp(check->target, target)) break;
+    if(strcmp(check->target_ip, target)) break;
     count += f(check,closure);
     noit_skiplist_next(&polls_by_name, &next);
   }
