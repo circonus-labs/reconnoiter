@@ -1046,8 +1046,7 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   tlist = sn->data;
 
   memset(&pivot, 0, sizeof(pivot));
-  if (strlen((char*)target) < sizeof(pivot.target_ip))
-    memcpy(pivot.target_ip, (char*)target, strlen((char*)target));
+  strlcpy(pivot.target_ip, (char*)target, sizeof(pivot.target_ip));
   pivot.name = "";
   pivot.target = "";
   noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
