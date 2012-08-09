@@ -113,6 +113,22 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
   }
   return 0;
 }
+static int
+noit_check_add_to_list(noit_check_t *new_check) {
+  if(!(new_check->flags & NP_TRANSIENT)) {
+    /* This remove could fail -- no big deal */
+    noit_skiplist_remove(&polls_by_name, new_check, NULL);
+
+    /* This insert could fail.. which means we have a conflict on
+     * target`name.  That should result in the check being disabled. */
+    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
+      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+            new_check->target, new_check->name);
+      new_check->flags |= NP_DISABLED;
+    }
+  }
+  return 1;
+}
 
 u_int64_t noit_check_completion_count() {
   return check_completion_count;
@@ -730,8 +746,7 @@ noit_check_set_ip(noit_check_t *new_check,
   } a;
 
   memset(old_target_ip, 0, INET6_ADDRSTRLEN);
-  if (strlen(new_check->target_ip) < INET6_ADDRSTRLEN)
-    memcpy(old_target_ip, new_check->target_ip, strlen(new_check->target_ip));
+  strlcpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip));
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -763,22 +778,6 @@ noit_check_set_ip(noit_check_t *new_check,
     noit_check_add_to_list(new_check);
   }
   return failed;
-}
-int
-noit_check_add_to_list(noit_check_t *new_check) {
-  if(!(new_check->flags & NP_TRANSIENT)) {
-    /* This remove could fail -- no big deal */
-    noit_skiplist_remove(&polls_by_name, new_check, NULL);
-
-    /* This insert could fail.. which means we have a conflict on
-     * target`name.  That should result in the check being disabled. */
-    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
-            new_check->target, new_check->name);
-      new_check->flags |= NP_DISABLED;
-    }
-  }
-  return 1;
 }
 int
 noit_check_resolve(noit_check_t *check) {

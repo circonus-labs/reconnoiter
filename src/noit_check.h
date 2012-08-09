@@ -210,9 +210,6 @@ API_EXPORT(int)
                        uuid_t out);
 
 API_EXPORT(int)
-  noit_check_add_to_list(noit_check_t *new_check);
-
-API_EXPORT(int)
   noit_check_resolve(noit_check_t *check);
 
 API_EXPORT(int)
