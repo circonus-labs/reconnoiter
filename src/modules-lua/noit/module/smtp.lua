@@ -122,6 +122,9 @@ local function read_cmd(e)
   final_status, out = 0, ""
   repeat
     local str = e:read("\r\n")
+    if not str then
+      return 421, "[internal error]"
+    end
     local status, c, message = string.match(str, "^(%d+)([-%s])(.+)$")
     if not status then
       return 421, "[internal error]"
@@ -302,20 +305,33 @@ function initiate(module, check)
   local sasl_login = mk_sasllogin(e, check)
   local sasl_plain = mk_saslplain(e, check)
 
+  -- setup SSL info
+  local default_ca_chain =
+      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+  local certfile = check.config.certificate_file or ''
+  local keyfile = check.config.key_file or ''
+  local cachain = check.config.ca_chain or default_ca_chain
+  local ciphers = check.config.ciphers or ''
+
   if     not action("banner", nil, 220)
       or not action("ehlo", ehlo, 250) then return end
 
   if try_starttls then
     local starttls  = action("starttls", "STARTTLS", 220)
-    e:ssl_upgrade_socket(check.config.certificate_file, check.config.key_file,
-                         check.config.ca_chain, check.config.ciphers)
-
+    if not starttls then
+      check.status("Could not start TLS for this target")
+      return
+    end
+    e:ssl_upgrade_socket(certfile, keyfile, cachain, ciphers)
     local ssl_ctx = e:ssl_ctx()
     if ssl_ctx ~= nil then
       if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
       check.metric_string("cert_error", ssl_ctx.error)
       check.metric_string("cert_issuer", ssl_ctx.issuer)
       check.metric_string("cert_subject", ssl_ctx.subject)
+      if ssl_ctx.san_list ~= nil then
+        check.metric_string("cert_subject_alternative_names", ssl_ctx.san_list)
+      end
       check.metric_uint32("cert_start", ssl_ctx.start_time)
       check.metric_uint32("cert_end", ssl_ctx.end_time)
       check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
