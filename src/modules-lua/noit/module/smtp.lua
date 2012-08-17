@@ -319,6 +319,7 @@ function initiate(module, check)
   if try_starttls then
     local starttls  = action("starttls", "STARTTLS", 220)
     if not starttls then
+      check.unavailable()
       check.status("Could not start TLS for this target")
       return
     end
