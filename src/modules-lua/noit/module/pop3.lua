@@ -61,9 +61,9 @@ SL checks).</parameter>
     <parameter name="ciphers"
                required="optional"
                allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
-    <parameter name="header_Host"
+    <parameter name="expected_certificate_name"
                required="optional"
-               allowed=".+">The host header to validate against the SSL certificate (for SSL checks).</parameter>
+               allowed=".+">The expected certificate name to validate against the SSL certificate (for SSL checks).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -145,7 +145,7 @@ function initiate(module, check)
   local good = false
   local status = ""
   local use_ssl = false
-  local host_header = check.config.header_Host or ''
+  local expected_certificate_name = check.config.expected_certificate_name or ''
 
   if check.target_ip == nil then
     check.status("dns resolution failure")
@@ -199,8 +199,8 @@ function initiate(module, check)
   local ssl_ctx = e:ssl_ctx()
   if ssl_ctx ~= nil then
     local header_match_error = nil
-    if host_header ~= '' then
-      header_match_error = noit.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
+    if expected_certificate_name ~= '' then
+      header_match_error = noit.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
     end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
     if header_match_error == nil then

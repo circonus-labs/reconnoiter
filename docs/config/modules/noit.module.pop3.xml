@@ -208,7 +208,7 @@ SL checks).</para>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>header_Host</term>
+        <term>expected_certificate_name</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -224,13 +224,13 @@ SL checks).</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The host header to validate against the SSL certificate (for SSL checks).</para>
+          <para>The expected certificate name to validate against the SSL certificate (for SSL checks).</para>
         </listitem>
       </varlistentry>
     </variablelist>
   </section>
   <example>
-    <title>Checking IMAP connection.</title>
+    <title>Checking POP3 connection.</title>
     <para>This example checks the POP3 connection.</para>
     <programlisting>
       &lt;noit&gt;
