@@ -183,12 +183,13 @@ function initiate(module, check)
                                         check.config.ciphers)
   end 
 
-  local connecttime = noit.timeval.now()
-  elapsed(check, "tt_connect", starttime, connecttime)
   if rv ~= 0 then
     check.status(err or "connection failed")
     return
   end
+
+  local connecttime = noit.timeval.now()
+  elapsed(check, "tt_connect", starttime, connecttime)
 
   status = "connected"
   check.available()
