@@ -238,7 +238,9 @@ function initiate(module, check)
   -- login
   local lstart = noit.timeval.now()
   state, line = issue_cmd(e, "USER " .. check.config.auth_user)
-  if state ~= "OK" then good = false
+  if state ~= "OK" then 
+    good = false
+    check.metric_string("login`status", line)
   else
     state, line = issue_cmd(e, "PASS " .. check.config.auth_password)
     elapsed(check, "login`duration", lstart, noit.timeval.now())
