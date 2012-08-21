@@ -256,8 +256,13 @@ function initiate(module, check)
     if state ~= "OK" then good = false
     else
       local subfields = noit.extras.split(line, "%s+")
-      if subfields ~= nil and subfields[2] ~= nil then
-        check.metric_uint32("message_count", subfields[2])
+      if subfields ~= nil then 
+        if subfields[2] ~= nil then
+          check.metric_uint32("stat`message_count", subfields[2])
+        end
+        if subfields[3] ~= nil then
+          check.metric_uint32("stat`message_size", subfields[3])
+        end
       end
     end
   end
