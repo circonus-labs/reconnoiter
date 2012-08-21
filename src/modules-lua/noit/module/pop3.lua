@@ -238,9 +238,12 @@ function initiate(module, check)
   -- login
   local lstart = noit.timeval.now()
   state, line = issue_cmd(e, "USER " .. check.config.auth_user)
-  state, line = issue_cmd(e, "PASS " .. check.config.auth_password)
-  elapsed(check, "login`duration", lstart, noit.timeval.now())
-  check.metric_string("login`status", line)
+  if state ~= "OK" then good = false
+  else
+    state, line = issue_cmd(e, "PASS " .. check.config.auth_password)
+    elapsed(check, "login`duration", lstart, noit.timeval.now())
+    check.metric_string("login`status", line)
+  end
   if state ~= "OK" then good = false
   else
     -- Run a STAT command and parse it into metrics
@@ -256,14 +259,12 @@ function initiate(module, check)
       end
     end
   end
-
   -- quit 
   if state ~= "OK" then good = false
   else
     state, line = issue_cmd(e, "QUIT")
     check.metric_string('quit', state)
   end
-
   -- turnaround time
   local endtime = noit.timeval.now()
   local seconds = elapsed(check, "duration", starttime, endtime)
