@@ -60,10 +60,11 @@ function HttpClient:ssl_ctx()
    return self.e:ssl_ctx()
 end
 
-function HttpClient:do_request(method, uri, headers, payload)
+function HttpClient:do_request(method, uri, headers, payload, http_version)
+    local version = http_version or "1.1"
     self.raw_bytes = 0
     self.content_bytes = 0
-    local sstr = method .. " " .. uri .. " " .. "HTTP/1.1\r\n"
+    local sstr = method .. " " .. uri .. " " .. "HTTP/" ..  version .. "\r\n"
     headers["Content-Length"] = nil
     if payload ~= nil and string.len(payload) > 0 then
       headers["Content-Length"] = string.len(payload)
