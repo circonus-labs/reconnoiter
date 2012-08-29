@@ -194,17 +194,31 @@ function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
     local ce = self.headers["content-encoding"]
     if ce ~= nil then
-        local deflater
-        if ce == "gzip" then
+      local deflater
+      if ce == 'gzip' then
+        deflater = noit.gunzip()
+      elseif ce == 'deflate' then
+        deflater = noit.gunzip()
+      elseif ce:find(',') then
+        local tokens = noit.extras.split(ce, ",")
+        for _, token in pairs(tokens) do
+          if token:gsub("^%s*(.-)%s*$", "%1") == "gzip" then
             deflater = noit.gunzip()
-        elseif ce == "deflate" then
+            break
+          elseif token:gsub("^%s*(.-)%s*$", "%1") == "deflate" then
             deflater = noit.gunzip()
-        else
-            error("unknown content-encoding: " .. ce)
+            break
+          end
         end
-        cefunc = function(str)
-          return deflater(str, read_limit)
-        end
+      end
+
+      if deflater == nil then
+        error("unknown content-encoding: " .. ce)
+      end
+
+      cefunc = function(str)
+        return deflater(str, read_limit)
+      end
     end
     local te = self.headers["transfer-encoding"]
     local cl = self.headers["content-length"]
