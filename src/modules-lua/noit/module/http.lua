@@ -102,6 +102,10 @@ function onload(image)
                required="optional"
                default="0"
                allowed="\d+">Sets an approximate limit on the data read (0 means no limit).</parameter>
+    <parameter name="http_version"
+               required="optional"
+               default="1.1"
+               allowed="\d+\.\d+)?$">Sets the HTTP version for the check to use.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -309,6 +313,7 @@ function initiate(module, check)
     local include_body = false
     local read_limit = tonumber(check.config.read_limit) or nil
     local host_header = check.config.header_Host or ''
+    local http_version = check.config.http_version or '1.1'
 
     -- expect the worst
     check.bad()
@@ -402,7 +407,7 @@ function initiate(module, check)
         for k,v in pairs(headers) do
             headers_firstpass[k] = v
         end
-        client:do_request(method, uri, headers_firstpass)
+        client:do_request(method, uri, headers_firstpass, http_version)
         client:get_response(read_limit)
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
@@ -445,7 +450,7 @@ function initiate(module, check)
             check.status(err or "unknown error")
             return
         end
-        optclient:do_request(method, uri, headers, payload)
+        optclient:do_request(method, uri, headers, payload, http_version)
         optclient:get_response(read_limit)
         setfirstbyte = 1
 
