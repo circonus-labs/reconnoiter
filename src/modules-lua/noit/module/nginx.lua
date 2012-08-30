@@ -45,6 +45,21 @@ function onload(image)
     <parameter name="url"
                required="required"
                allowed=".+">The URL including schema and hostname for the status output from nginx.</parameter>
+    <parameter name="ca_chain"
+               required="optional"
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validat
+e the remote certificate (for SSL checks).</parameter>
+    <parameter name="certificate_file"
+               required="optional"
+               allowed=".+">A path to a file containing the client certificate that will be presented to the remote serv
+er (for SSL checks).</parameter>
+    <parameter name="key_file"
+               required="optional"
+               allowed=".+">A path to a file containing key to be used in conjunction with the cilent certificate (for S
+SL checks).</parameter>
+    <parameter name="ciphers"
+               required="optional"
+               allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -92,9 +107,21 @@ local HttpClient = require 'noit.HttpClient'
 
 function initiate(module, check)
   local url = check.config.url
-  local host, port, uri = string.match(url, "^http://([^:/]*):?([0-9]*)(/?.*)$");
+  local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
+  local use_ssl = false
 
-  local good = false
+  if schema == nil then
+    local temp_url = "http://" .. url
+    schema, host, port, uri = string.match(temp_url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
+    if port ~= nil and port == "443" then
+      url = "https://" .. url
+      schema = "https"
+    else
+      url = temp_url
+    end
+  end
+
+  local expected_certificate_name = host or ''
   local starttime = noit.timeval.now()
 
   check.bad()
@@ -107,20 +134,47 @@ function initiate(module, check)
   end
 
   if host == nil then host = check.target end
-  if uri == '' then
-    uri = '/'
+  if schema == nil then
+      schema = 'http'
+      uri = '/'
   end
-  if (port == nil or port == '') then port = 80 end
+  if uri == '' then
+      uri = '/'
+  end
+  if port == '' or port == nil then
+      if schema == 'http' then
+          port = 80
+      elseif schema == 'https' then
+          port = 443
+      else
+          error(schema .. " not supported")
+      end
+  end
+  if schema == 'https' then
+      use_ssl = true
+  else
+      use_ssl = false
+  end
 
   local method = "GET"
   local headers = {}
   headers.Host = host
 
+  -- setup SSL info
+  local default_ca_chain =
+      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+  callbacks.certfile = function () return check.config.certificate_file end
+  callbacks.keyfile = function () return check.config.key_file end
+  callbacks.cachain = function ()
+      return check.config.ca_chain and check.config.ca_chain
+                                    or default_ca_chain
+  end
+  callbacks.ciphers = function () return check.config.ciphers end
 
   local client = HttpClient:new(callbacks)
   local target = check.target_ip
 
-  local rv, err = client:connect(target, port)
+  local rv, err = client:connect(target, port, use_ssl)
 
   if rv ~= 0 then
     check.status(string.format("Failed to connect to %s on %d: %s", target, port, err))
@@ -136,7 +190,6 @@ function initiate(module, check)
   end
 
   local endtime = noit.timeval.now()
-  check.available()
 
   local active, accepted, handled, requests, reading, writing, waiting = string.match(output, "^Active connections: (%d*) %D*(%d*)%s-(%d*)%s-(%d*)%s-Reading: (%d*) Writing: (%d*) Waiting: (%d*)")
   check.metric("active", active)
@@ -148,7 +201,44 @@ function initiate(module, check)
   check.metric("waiting", waiting)
 
   local seconds = elapsed(check, "duration", starttime, endtime)
+  local status = string.format("retrieved stats in %d seconds", seconds)
+  local good = true
+  -- ssl ctx
+  local ssl_ctx = client:ssl_ctx()
+  if ssl_ctx ~= nil then
+    local header_match_error = nil
+    if expected_certificate_name ~= '' then
+      header_match_error = noit.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
+    end
+    if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
+    if header_match_error == nil then
+      check.metric_string("cert_error", ssl_ctx.error)
+    elseif ssl_ctx.error == nil then
+      check.metric_string("cert_error", header_match_error)
+    else
+      check.metric_string("cert_error", ssl_ctx.error .. ', ' .. header_match_error)
+    end
+    check.metric_string("cert_issuer", ssl_ctx.issuer)
+    check.metric_string("cert_subject", ssl_ctx.subject)
+    if ssl_ctx.san_list ~= nil then
+      check.metric_string("cert_subject_alternative_names", ssl_ctx.san_list)
+    end
+    check.metric_uint32("cert_start", ssl_ctx.start_time)
+    check.metric_uint32("cert_end", ssl_ctx.end_time)
+    check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
+    if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+      good = false
+      status = status .. ',ssl=expired'
+    end
+  end
   
-  check.status(string.format("retrieved stats in %d seconds", seconds))
-  check.good()
+  check.available()
+
+  if good == false then
+    check.bad()
+  else
+    check.good()
+  end
+
+  check.status(status)
 end
