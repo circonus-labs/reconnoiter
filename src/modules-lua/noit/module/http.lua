@@ -400,7 +400,7 @@ function initiate(module, check)
         local client = HttpClient:new()
         local rv, err = client:connect(check.target_ip, port, use_ssl, host_header)
         if rv ~= 0 then
-            check.status(err or "unknown error")
+            check.status(err or "unknown error in HTTP connect for Auth")
             return
         end
         local headers_firstpass = {}
@@ -447,7 +447,7 @@ function initiate(module, check)
         local rv, err = optclient:connect(target, port, use_ssl, host_header)
 
         if rv ~= 0 then
-            check.status(err or "unknown error")
+            check.status(err or "unknown error in HTTP connect")
             return
         end
         optclient:do_request(method, uri, headers, payload, http_version)
