@@ -682,7 +682,7 @@ noit_lua_socket_connect_ssl(lua_State *L) {
     return 1;
   }
 
-  if (snihost != NULL) {
+  if (snihost != NULL && strlen(snihost) >= 1) {
     eventer_ssl_ctx_set_sni(sslctx, snihost);
   }
 
