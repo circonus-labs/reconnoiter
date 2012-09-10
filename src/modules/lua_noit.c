@@ -657,7 +657,7 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
 }
 static int
 noit_lua_socket_connect_ssl(lua_State *L) {
-  const char *ca, *ciphers, *cert, *key;
+  const char *ca, *ciphers, *cert, *key, *snihost;
   eventer_ssl_ctx_t *sslctx;
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
@@ -674,11 +674,16 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   key = lua_tostring(L, 3);
   ca = lua_tostring(L, 4);
   ciphers = lua_tostring(L, 5);
+  snihost = lua_tostring(L, 6);
 
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) {
     lua_pushinteger(L, -1);
     return 1;
+  }
+
+  if (snihost != NULL) {
+    eventer_ssl_ctx_set_sni(sslctx, snihost);
   }
 
   eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert, NULL);

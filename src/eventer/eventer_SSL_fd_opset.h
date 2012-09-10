@@ -78,6 +78,9 @@ API_EXPORT(void)
 #define EVENTER_ATTACH_SSL(e,ctx) eventer_set_eventer_ssl_ctx(e,ctx)
 
 API_EXPORT(void)
+  eventer_ssl_ctx_set_sni(eventer_ssl_ctx_t *ctx, const char *snivalue);
+
+API_EXPORT(void)
   eventer_ssl_ctx_set_verify(eventer_ssl_ctx_t *ctx,
                              eventer_ssl_verify_func_t f, void *c);
 

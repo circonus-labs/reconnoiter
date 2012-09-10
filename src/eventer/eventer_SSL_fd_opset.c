@@ -503,6 +503,13 @@ eventer_set_eventer_ssl_ctx(eventer_t e, eventer_ssl_ctx_t *ctx) {
 }
 
 void
+eventer_ssl_ctx_set_sni(eventer_ssl_ctx_t *ctx, const char *snivalue) {
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  SSL_set_tlsext_host_name(ctx->ssl, snivalue);
+#endif
+}
+
+void
 eventer_ssl_ctx_set_verify(eventer_ssl_ctx_t *ctx,
                            eventer_ssl_verify_func_t f, void *c) {
   ctx->verify_cb = f;

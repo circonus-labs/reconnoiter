@@ -38,7 +38,7 @@ function HttpClient:new(hooks)
     return obj
 end
 
-function HttpClient:connect(target, port, ssl)
+function HttpClient:connect(target, port, ssl, ssl_host)
     if ssl == nil then ssl = false end
     self.e = noit.socket(target)
     self.target = target
@@ -53,7 +53,8 @@ function HttpClient:connect(target, port, ssl)
     return self.e:ssl_upgrade_socket(self.hooks.certfile and self.hooks.certfile(),
                                      self.hooks.keyfile and self.hooks.keyfile(),
                                      self.hooks.cachain and self.hooks.cachain(),
-                                     self.hooks.ciphers and self.hooks.ciphers())
+                                     self.hooks.ciphers and self.hooks.ciphers(),
+                                     ssl_host)
 end
 
 function HttpClient:ssl_ctx()
