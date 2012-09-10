@@ -398,7 +398,7 @@ function initiate(module, check)
            check.config.auth_method == "Auto" then
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
-        local rv, err = client:connect(check.target_ip, port, use_ssl)
+        local rv, err = client:connect(check.target_ip, port, use_ssl, host_header)
         if rv ~= 0 then
             check.status(err or "unknown error")
             return
@@ -444,7 +444,7 @@ function initiate(module, check)
     starttime = noit.timeval.now()
     repeat
         local optclient = HttpClient:new(callbacks)
-        local rv, err = optclient:connect(target, port, use_ssl)
+        local rv, err = optclient:connect(target, port, use_ssl, host_header)
 
         if rv ~= 0 then
             check.status(err or "unknown error")
@@ -481,6 +481,7 @@ function initiate(module, check)
             uri = get_absolute_path(uri)
             if host ~= nil then
                 headers.Host = host
+                host_header = host
                 local r = dns:lookup(host)
                 if not r or r.a == nil then
                     check.status("failed to resolve " .. host)
