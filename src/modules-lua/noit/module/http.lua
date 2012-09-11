@@ -312,7 +312,7 @@ function initiate(module, check)
     local redirects = check.config.redirects or 0
     local include_body = false
     local read_limit = tonumber(check.config.read_limit) or nil
-    local host_header = check.config.header_Host or ''
+    local host_header = check.config.header_Host
     local http_version = check.config.http_version or '1.1'
 
     -- expect the worst
@@ -320,6 +320,7 @@ function initiate(module, check)
     check.unavailable()
 
     if host == nil then host = check.target end
+    if host_header == nil then host_header = host end
     if schema == nil then
         schema = 'http'
         uri = '/'
@@ -445,7 +446,6 @@ function initiate(module, check)
     repeat
         local optclient = HttpClient:new(callbacks)
         local rv, err = optclient:connect(target, port, use_ssl, host_header)
-
         if rv ~= 0 then
             check.status(err or "unknown error")
             return
