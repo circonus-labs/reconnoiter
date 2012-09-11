@@ -111,17 +111,28 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns, int port) {
     h = calloc(1, sizeof(*h));
     h->ns = ns ? strdup(ns) : NULL;
     h->ctx = dns_new(NULL);
-    if(dns_init(h->ctx, 0) != 0) failed++;
+    if(dns_init(h->ctx, 0) != 0) {
+      noitL(nlerr, "dns_init failed\n");
+      failed++;
+    }
     if(ns) {
-      if(dns_add_serv(h->ctx, NULL) < 0) failed++;
-      if(dns_add_serv(h->ctx, ns) < 0) failed++;
+      if(dns_add_serv(h->ctx, NULL) < 0) {
+        noitL(nlerr, "dns_add_serv(NULL) failed\n");
+        failed++;
+      }
+      if(dns_add_serv(h->ctx, ns) < 0) {
+        noitL(nlerr, "dns_add_serv(%s) failed\n", ns);
+        failed++;
+      }
     }
     if(port && port != DNS_PORT) {
       dns_set_opt(h->ctx, DNS_OPT_PORT, port);
     }
-    if(dns_open(h->ctx) < 0) failed++;
-    if(failed) {
+    if(dns_open(h->ctx) < 0) {
       noitL(nlerr, "dns_open failed\n");
+      failed++;
+    }
+    if(failed) {
       free(h->ns);
       free(h);
       free(hk);
