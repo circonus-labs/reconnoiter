@@ -781,7 +781,7 @@ noit_check_set_ip(noit_check_t *new_check,
 }
 int
 noit_check_resolve(noit_check_t *check) {
-  uint8_t family_pref = AF_INET;
+  uint8_t family_pref = NOIT_CHECK_PREFER_V6(check) ? AF_INET6 : AF_INET;
   char ipaddr[INET6_ADDRSTRLEN];
   if(!NOIT_CHECK_SHOULD_RESOLVE(check)) return 1; /* success, not required */
   noit_check_resolver_remind(check->target);
