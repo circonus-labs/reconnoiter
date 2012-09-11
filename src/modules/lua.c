@@ -707,7 +707,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
     default: /* Errors */
       noitL(nldeb, "lua resume returned: %d\n", result);
       if(ci->current.status) free(ci->current.status);
-      ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error");
+      ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error from lua");
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
       base = lua_gettop(ci->coro_state);

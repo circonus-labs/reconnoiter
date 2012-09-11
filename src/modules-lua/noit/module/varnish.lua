@@ -88,7 +88,7 @@ function initiate(module, check)
   if rv ~= 0 or not str then
     check.bad()
     check.unavailable()
-    check.status(err or str or "unknown error")
+    check.status(err or str or "unknown error in varnish connect")
     return
   end
 
