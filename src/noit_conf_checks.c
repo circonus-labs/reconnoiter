@@ -496,7 +496,7 @@ noit_console_show_check(noit_console_closure_t ncct,
     else {
       int idx = 0;
       nc_printf(ncct, " target_ip: %s\n", check->target_ip);
-      nc_printf(ncct, " currently: ");
+      nc_printf(ncct, " currently: %08x ", check->flags);
       if(NOIT_CHECK_RUNNING(check)) nc_printf(ncct, "%srunning", idx++?",":"");
       if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
       if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
