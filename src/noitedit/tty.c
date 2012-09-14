@@ -451,7 +451,7 @@ private const ttymodes_t ttymodes[] = {
 
 
 #define	tty_getty(el, td)	tcgetattr((el)->el_infd, (td))
-#define	tty_setty(el, mode, td)	tcsetattr((el)->el_infd, (mode), (td))
+#define	tty_setty(el, td)	tcsetattr((el)->el_infd, TCSADRAIN, (td))
 
 #define	tty__gettabs(td)	((((td)->c_oflag & TAB3) == TAB3) ? 0 : 1)
 #define	tty__geteightbit(td)	(((td)->c_cflag & CSIZE) == CS8)
@@ -525,7 +525,7 @@ tty_setup(EditLine *el)
 					    el->el_tty.t_c[TS_IO][rst];
 		}
 		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
-		if (tty_setty(el, TCSADRAIN, &el->el_tty.t_ex) == -1) {
+		if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
 			(void) el->el_err_printf(el,
 			    "tty_setup: tty_setty: %s\r\n",
@@ -943,7 +943,7 @@ tty_rawmode(EditLine *el)
 			}
 		}
 	}
-	if (tty_setty(el, TCSANOW, &el->el_tty.t_ed) == -1) {
+	if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
 		(void) el->el_err_printf(el, "tty_rawmode: tty_setty: %s\r\n",
 		    strerror(errno));
@@ -968,7 +968,7 @@ tty_cookedmode(EditLine *el)
 	if (el->el_flags & EDIT_DISABLED)
 		return (0);
 
-	if (tty_setty(el, TCSANOW, &el->el_tty.t_ex) == -1) {
+	if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
 		(void) el->el_err_printf(el,
 		    "tty_cookedmode: tty_setty: %s\r\n",
@@ -1004,7 +1004,7 @@ tty_quotemode(EditLine *el)
 	el->el_tty.t_qu.c_lflag &= ~el->el_tty.t_t[QU_IO][MD_LIN].t_clrmask;
 	el->el_tty.t_qu.c_lflag |= el->el_tty.t_t[QU_IO][MD_LIN].t_setmask;
 
-	if (tty_setty(el, TCSANOW, &el->el_tty.t_qu) == -1) {
+	if (tty_setty(el, &el->el_tty.t_qu) == -1) {
 #ifdef DEBUG_TTY
 		(void) el_err_printf(el, "QuoteModeOn: tty_setty: %s\r\n",
 		    strerror(errno));
@@ -1025,7 +1025,7 @@ tty_noquotemode(EditLine *el)
 
 	if (el->el_tty.t_mode != QU_IO)
 		return (0);
-	if (tty_setty(el, TCSANOW, &el->el_tty.t_ed) == -1) {
+	if (tty_setty(el, &el->el_tty.t_ed) == -1) {
 #ifdef DEBUG_TTY
 		(void) el->el_err_printf(el, "QuoteModeOff: tty_setty: %s\r\n",
 		    strerror(errno));
