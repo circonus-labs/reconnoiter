@@ -154,9 +154,16 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
                         &config_val))
     avail_needed = atoi(config_val);
 
-  snprintf(human_buffer, sizeof(human_buffer),
-           "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
-           (int)cnt, 100.0*avail, min, max, avg);
+  if(avail > 0.0) {
+    snprintf(human_buffer, sizeof(human_buffer),
+             "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
+             (int)cnt, 100.0*avail, min, max, avg);
+  }
+  else {
+    snprintf(human_buffer, sizeof(human_buffer),
+        "%d packets transmitted, %d packets received, %0.2f%% packet loss",
+        (int)cnt, points, (100.0-100.0*avail));
+  }
   noitL(nldeb, "ping_icmp(%s) [%s]\n", check->target_ip, human_buffer);
 
   gettimeofday(&current.whence, NULL);
