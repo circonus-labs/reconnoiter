@@ -54,7 +54,7 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
-	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE"
+	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
 	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
 	MODULEEXT=bundle
