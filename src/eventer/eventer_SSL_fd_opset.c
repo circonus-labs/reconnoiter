@@ -68,6 +68,7 @@ struct eventer_ssl_ctx_t {
   time_t   end_time;
   char    *cert_error;
   char    *san_list;
+  char    *last_error;
   eventer_ssl_verify_func_t verify_cb;
   void    *verify_cb_closure;
   unsigned no_more_negotiations:1;
@@ -80,20 +81,56 @@ struct eventer_ssl_ctx_t {
 /* Static function prototypes */
 static void SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx);
 static eventer_ssl_ctx_t *SSL_get_eventer_ssl_ctx(const SSL *ssl);
-static void _eventer_ssl_error();
 static RSA *tmp_rsa_cb(SSL *ssl, int export, int keylen);
+static void
+_eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
+                                const char *file, int line);
 
-#define eventer_ssl_error() _eventer_ssl_error(__FILE__,__LINE__)
+#define eventer_ssl_ctx_save_last_error(a,b) \
+  _eventer_ssl_ctx_save_last_error((a),(b),__FILE__,__LINE__)
+#define MAX_ERR_UNWIND 10
 
 static void
-_eventer_ssl_error(const char *f, int l) {
-  unsigned long err;
-  char buf[120]; /* ERR_error_string(3): buf must be at least 120 bytes */
-  noitL(eventer_deb, "%s:%d: errno: [%d] %s\n", f, l, errno, strerror(errno));
+_eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
+                                const char *file, int line) {
+  /* ERR_error_string(3): buf must be at least 120 bytes...
+   * no strerrno is more than 120 bytes...
+   * file:line:code is never more than 80.
+   * So, no line will be longer than 200.
+   */
+  int used, i = 0, allocd = 0;
+  unsigned long err = 0, errors[MAX_ERR_UNWIND] = { 0 };
+  char errstr[200], scratch[200];
+  errstr[0] = '\0';
+  if(note_errno && errno)
+    snprintf(errstr, sizeof(errstr), "[%s:%d:%d] %s, ",
+             file, line, errno, strerror(errno));
+  /* Unwind all, storing up to MAX_ERR_UNWIND */
   while((err = ERR_get_error()) != 0) {
-    ERR_error_string(err, buf);
-    noitL(eventer_deb, "%s:%d: write error[%08lx] %s\n", f, l, err, buf);
+    if(i < MAX_ERR_UNWIND) errors[i] = err;
+    i++;
   }
+  used = (i > MAX_ERR_UNWIND) ? MAX_ERR_UNWIND : i;
+
+  if(ctx->last_error) {
+    free(ctx->last_error);
+    ctx->last_error = NULL;
+  }
+  allocd = 120 * (((errstr[0] == '\0') ? 0 : 1) + used);
+  if(allocd == 0) return;
+  ctx->last_error = malloc(allocd);
+  ctx->last_error[0] = '\0';
+  if(errstr[0] != '\0')
+    strlcat(ctx->last_error, errstr, allocd);
+  for(i=0;i<used;i++) {
+    ERR_error_string(errors[i], scratch);
+    snprintf(errstr, sizeof(errstr), "[%s:%d:%08lx] %s, ",
+             file, line, errors[i], scratch);
+    strlcat(ctx->last_error, errstr, allocd);
+  }
+  /* now clip off the last ", " */
+  i = strlen(ctx->last_error);
+  if(i>=2) ctx->last_error[i-2] = '\0';
 }
 
 /*
@@ -275,6 +312,10 @@ eventer_ssl_get_peer_error(eventer_ssl_ctx_t *ctx) {
   return ctx->cert_error;
 }
 const char *
+eventer_ssl_get_last_error(eventer_ssl_ctx_t *ctx) {
+  return ctx->last_error;
+}
+const char *
 eventer_ssl_get_peer_san_list(eventer_ssl_ctx_t *ctx) {
   return ctx->san_list;
 }
@@ -314,6 +355,7 @@ eventer_ssl_ctx_free(eventer_ssl_ctx_t *ctx) {
   if(ctx->issuer) free(ctx->issuer);
   if(ctx->subject) free(ctx->subject);
   if(ctx->cert_error) free(ctx->cert_error);
+  if(ctx->last_error) free(ctx->last_error);
   if(ctx->san_list) free(ctx->san_list);
   free(ctx);
 }
@@ -447,7 +489,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   return ctx;
 
  bail:
-  eventer_ssl_error();
+  eventer_ssl_ctx_save_last_error(ctx, 1);
   eventer_ssl_ctx_free(ctx);
   return NULL;
 }
@@ -463,7 +505,7 @@ eventer_ssl_use_crl(eventer_ssl_ctx_t *ctx, const char *crl_file) {
   ret = X509_load_crl_file(lookup, crl_file, X509_FILETYPE_PEM); 
   X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK |
                               X509_V_FLAG_CRL_CHECK_ALL);
-  if(!ret) eventer_ssl_error();
+  if(!ret) eventer_ssl_ctx_save_last_error(ctx, 1);
   else ctx->ssl_ctx_crl_loaded = 1;
   return ret;
 }
@@ -585,6 +627,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
       if((rv = sslop(ctx->ssl)) > 0) {
         if(eventer_SSL_setup(ctx)) {
           errno = EIO;
+          eventer_ssl_ctx_save_last_error(ctx, 1);
           return -1;
         }
         ctx->no_more_negotiations = 1;
@@ -601,6 +644,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
   if(ctx->renegotiated) {
     noitL(eventer_err, "SSL renogotiation attempted on %d\n", fd);
     errno = EIO;
+    eventer_ssl_ctx_save_last_error(ctx, 1);
     return -1;
   }
 
@@ -616,7 +660,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
     default:
       noitL(eventer_deb, "SSL[%s of %d] rw error: %d\n", opstr,
             (int)len, sslerror);
-      eventer_ssl_error();
+      eventer_ssl_ctx_save_last_error(ctx, 1);
       errno = EIO;
   }
   return -1;

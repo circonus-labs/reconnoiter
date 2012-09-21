@@ -637,7 +637,7 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
                      struct timeval *now) {
   noit_lua_check_info_t *ci;
   struct nl_slcl *cl = vcl;
-  int rv;
+  int rv, nargs;
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv <= 0 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
@@ -650,14 +650,26 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
 
-  /* Upgrade completed successfully */
+  /* Upgrade completed (successfully???) */
+  nargs = 1;
   lua_pushinteger(cl->L, (rv > 0) ? 0 : -1);
-  noit_lua_resume(ci, 1);
+  if(rv <= 0) {
+    eventer_ssl_ctx_t *ctx;
+    const char *err = NULL;
+    ctx = eventer_get_eventer_ssl_ctx(e);
+    if(ctx) err = eventer_ssl_get_last_error(ctx);
+    lua_pushinteger(cl->L, -1);
+    if(err) {
+      lua_pushlstring(cl->L, err, strlen(err));
+      nargs++;
+    }
+  }
+  noit_lua_resume(ci, nargs);
   return 0;
 }
 static int
 noit_lua_socket_connect_ssl(lua_State *L) {
-  const char *ca, *ciphers, *cert, *key, *snihost;
+  const char *ca, *ciphers, *cert, *key, *snihost, *err;
   eventer_ssl_ctx_t *sslctx;
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
@@ -679,7 +691,8 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) {
     lua_pushinteger(L, -1);
-    return 1;
+    lua_pushstring(L, "ssl_client context creation failed");
+    return 2;
   }
 
   if (snihost != NULL && strlen(snihost) >= 1) {
@@ -703,6 +716,13 @@ noit_lua_socket_connect_ssl(lua_State *L) {
     return noit_lua_yield(ci, 0);
   }
   lua_pushinteger(L, (rv > 0) ? 0 : -1);
+  if(rv <= 0) {
+    err = eventer_ssl_get_last_error(sslctx);
+    if(err) {
+      lua_pushstring(L, err);
+      return 2;
+    }
+  }
   return 1;
 }
 
