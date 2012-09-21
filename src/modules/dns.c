@@ -76,11 +76,11 @@ static int cstring_cmp(const void *a, const void *b) {
 static dns_ctx_handle_t *default_ctx_handle = NULL;
 static void dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
-  assert(h->timeout == NULL);
   free(h->ns);
   free(h->hkey);
   dns_close(h->ctx);
   dns_free(h->ctx);
+  assert(h->timeout == NULL);
 }
 static dns_ctx_handle_t *dns_ctx_alloc(const char *ns, int port) {
   void *vh;
@@ -213,6 +213,8 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
   assert(noit_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
+  dns_ctx_release(ci->h);
+  ci->h = NULL;
 }
 
 static void dns_check_log_results(struct dns_check_info *ci) {
