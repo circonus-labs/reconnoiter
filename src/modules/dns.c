@@ -157,19 +157,22 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns, int port) {
   pthread_mutex_unlock(&dns_ctx_store_lock);
   return h;
 }
-static void dns_ctx_release(dns_ctx_handle_t *h) {
+static int dns_ctx_release(dns_ctx_handle_t *h) {
+  int rv = 0;
   if(h->ns == NULL) {
     /* Special case for the default */
     noit_atomic_dec32(&h->refcnt);
-    return;
+    return rv;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
   if(noit_atomic_dec32(&h->refcnt) == 0) {
     /* I was the last one */
     assert(noit_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
                             NULL, dns_ctx_handle_free));
+    rv = 1;
   }
   pthread_mutex_unlock(&dns_ctx_store_lock);
+  return rv;
 }
 
 static noit_hash_table active_events = NOIT_HASH_EMPTY;
@@ -346,7 +349,12 @@ static void dns_check_cleanup(noit_module_t *self, noit_check_t *check) {
 static int dns_eventer_callback(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
   dns_ctx_handle_t *h = closure;
+  noit_atomic_inc32(&h->refcnt);
   dns_ioevent(h->ctx, now->tv_sec);
+  if(dns_ctx_release(h)) {
+    /* We've neeb closed */
+    return 0;
+  }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
