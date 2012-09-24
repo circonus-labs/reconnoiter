@@ -457,7 +457,7 @@ function initiate(module, check)
         redirects = redirects - 1
         client = optclient
 
-        if next_location ~= nil then
+        if redirects > 0 and next_location ~= nil then
             -- reset some stuff for the redirect
             local prev_port = port
             local prev_host = host
