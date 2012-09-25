@@ -216,8 +216,10 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
   assert(noit_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
-  dns_ctx_release(ci->h);
-  ci->h = NULL;
+  if(ci->h != NULL) {
+    dns_ctx_release(ci->h);
+    ci->h = NULL;
+  }
 }
 
 static void dns_check_log_results(struct dns_check_info *ci) {
