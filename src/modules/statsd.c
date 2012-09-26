@@ -299,6 +299,8 @@ statsd_handler(eventer_t e, int mask, void *closure,
     if(*ip)
       nchecks = noit_poller_lookup_by_ip_module(ip, self->hdr.name,
                                                 checks, MAX_CHECKS-1);
+    noitL(nldeb, "statsd(%d bytes) from '%s' -> %d checks%s\n", (int)len,
+          ip, (int)nchecks, parent ? " + a parent" : "");
     if(parent) checks[nchecks++] = parent;
     if(nchecks)
       statsd_handle_payload(checks, nchecks, conf->payload, len);
