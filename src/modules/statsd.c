@@ -355,6 +355,8 @@ static int noit_statsd_init(noit_module_t *self) {
   statsd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
 
+  eventer_name_callback("statsd/statsd_handler", statsd_handler);
+
   if(noit_hash_retr_str(conf->options, "check", strlen("check"),
                         (const char **)&config_val)) {
     if(uuid_parse((char *)config_val, conf->primary) != 0)
