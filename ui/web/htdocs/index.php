@@ -7,6 +7,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>Reconnoiter</title>
+
 <link href="css/style.css" rel="stylesheet" type="text/css" />
 <link href="css/datepicker.css" rel="stylesheet" type="text/css" />
 <link href="css/colorpicker.css" rel="stylesheet" type="text/css" />
@@ -39,22 +40,6 @@ recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
 -->
 </script>
 
-<!-- color picker -->
-<link rel="stylesheet" href="css/colorpicker.css">
-<script type="text/javascript" src="js/colorpicker.js"></script>
-
-<!-- Import jQuery and SimpleModal source files -->
-
-<script src='js/jquery.simplemodal.js' type='text/javascript'></script>
-
-<!-- Confirm JS and CSS files -->
-<script src='js/confirm.js' type='text/javascript'></script>
-<link type='text/css' href='css/confirm.css' rel='stylesheet' media='screen' />
-
-<!-- IE 6 hacks -->
-<!--[if lt IE 7]>
-<link type='text/css' href='css/confirm_ie.css' rel='stylesheet' media='screen' />
-<![endif]-->
 
 </head>
 
@@ -64,10 +49,18 @@ recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
 	<ul>
 		<li><a href="https://labs.omniti.com/docs/reconnoiter/">Documentation</a></li>
 		<li><a href="https://labs.omniti.com/trac/reconnoiter/">Support</a></li>
-		<li><a href="#">Username</a></li>
+		<!--
+                <li><a href="#">Username</a></li>
 		<li class="xx"><a href="#">Logout</a></li>
+                -->
+
+                <li><a href=#>Username</a></li>
+		<li><a href="http://localhost/Logout.php">Logout</a></li>
+
 	</ul>
 </div><!-- end header -->
+
+
 <div id="left">
 	<div class="accordion">
 	<?php include('worksheet_controls.inc') ?>
@@ -76,11 +69,13 @@ recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
 </div><!-- end left -->
 <div id="container">
 	<div id="content">
+
 		<div id="worksheet_controls_panel">
 		<?php include('worksheet_panel.inc') ?>
 		</div><!-- end main -->
 		<div id="graph_controls_panel">
 		<?php include('graph_panel.inc') ?>
+
 		</div><!-- end main -->
 	</div><!-- end content -->
 </div><!-- end container -->
