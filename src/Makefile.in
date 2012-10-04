@@ -85,6 +85,8 @@ NOITEDIT_LIB_OBJS=noitedit/chared.o noitedit/common.o noitedit/el.o \
 JLOG_LIB_OBJS=jlog/jlog.o jlog/jlog_hash.o jlog/jlog_io.o
 EVENTER_OBJS=@EVENTER_OBJS@
 EVENTER_IMPL_OBJS=$(EVENTER_OBJS:%.o=eventer/%.o)
+ATOMIC_REL_OBJS=@ATOMIC_OBJS@
+ATOMIC_OBJS=$(ATOMIC_REL_OBJS:%.o=utils/%.o)
 EVENTER_LIB_OBJS=eventer/OETS_asn1_helper.o eventer/eventer.o \
 	eventer/eventer_POSIX_fd_opset.o eventer/eventer_SSL_fd_opset.o \
 	eventer/eventer_impl.o eventer/eventer_jobq.o $(EVENTER_IMPL_OBJS)
@@ -92,7 +94,7 @@ NOIT_UTILS_OBJS=utils/noit_b32.o utils/noit_b64.o utils/noit_btrie.o \
 	utils/noit_getip.o utils/noit_hash.o utils/noit_lockfile.o \
 	utils/noit_log.o utils/noit_mkdir.o utils/noit_security.o \
 	utils/noit_sem.o utils/noit_skiplist.o utils/noit_str.o \
-	utils/noit_watchdog.o
+	utils/noit_watchdog.o $(ATOMIC_OBJS)
 YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
 	yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
 	yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
@@ -192,7 +194,7 @@ noit_@DTRACEHDR@:    noit_dtrace_probes.d
 		cp ./noit_@DTRACEHDR@.stock ./noit_@DTRACEHDR@ ; \
 	else \
 		echo "- building dtrace header $@" ; \
-		@DTRACE@ -h -s $< ; \
+		@DTRACE@ -h -s noit_dtrace_probes.d ; \
 	fi
 
 stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
@@ -201,7 +203,7 @@ stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
 		cp ./stratcon_@DTRACEHDR@.stock ./stratcon_@DTRACEHDR@ ; \
 	else \
 		echo "- building dtrace header $@" ; \
-		@DTRACE@ -h -s $< ; \
+		@DTRACE@ -h -s stratcon_dtrace_probes.d ; \
 	fi
 
 noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
