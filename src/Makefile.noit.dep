@@ -6,6 +6,8 @@ noit-objs/eventer/eventer_SSL_fd_opset.o: eventer/eventer_SSL_fd_opset.o
 noit-objs/eventer/eventer_impl.o: eventer/eventer_impl.o
 noit-objs/eventer/eventer_jobq.o: eventer/eventer_jobq.o
 noit-objs/eventer/eventer_kqueue_impl.o: eventer/eventer_kqueue_impl.o
+noit-objs/eventer/eventer_ports_impl.o: eventer/eventer_ports_impl.o
+noit-objs/eventer/eventer_epoll_impl.o: eventer/eventer_epoll_impl.o
 noit-objs/jlog/jlog.o: jlog/jlog.o
 noit-objs/jlog/jlog_hash.o: jlog/jlog_hash.o
 noit-objs/jlog/jlog_io.o: jlog/jlog_io.o

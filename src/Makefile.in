@@ -130,12 +130,12 @@ FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
-$(FINAL_NOIT_OBJS):	$(@:noit-objs/%.o=%.o)
+$(FINAL_NOIT_OBJS):
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:noit-objs/%.o=%.o) $@
 
-$(FINAL_STRATCON_OBJS):	$(@:stratcon-objs/%.o=%.o)
+$(FINAL_STRATCON_OBJS):
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:stratcon-objs/%.o=%.o) $@
@@ -323,6 +323,7 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 clean:
 	rm -f *.o $(TARGETS)
 	rm -f module-online.h
+	rm -rf noit-objs stratcon-objs
 	(cd jlog && $(MAKE) clean)
 	(cd eventer && $(MAKE) clean)
 	(cd udns && $(MAKE) clean)
