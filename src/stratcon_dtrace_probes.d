@@ -1,4 +1,4 @@
-provider stratcon_noit {
+provider stratcon {
   probe reschedule (int, char *, char *, char *, int);
   probe shutdown__permanent (int, char *, char *, char *);
   probe connect (int, char *, char *, char *);
@@ -13,9 +13,10 @@ provider stratcon_noit {
   probe stream__body(int, char *, char *, char *, int, int, int, int, char *);
   probe stream__checkpoint(int, char *, char *, char *, int, int);
 };
-
-provider noit {
-  probe check__dispatch(char *, char *, char *, char *);
-  probe check__metric(char *, char *, char *, char *, char *, int, char *);
-  probe check__status(char *, char *, char *, char *, int, int, char *);
+provider noit_log {
+  probe log (char *, char *, int, char *);
+};
+provider eventer {
+  probe callback__entry (void *, char *, int, int, int);
+  probe callback__return (void *, char *, int);
 };

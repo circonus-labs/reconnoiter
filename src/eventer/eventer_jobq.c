@@ -34,7 +34,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_atomic.h"
 #include "eventer/eventer.h"
-#include "eventer/dtrace_probes.h"
+#include "dtrace_probes.h"
 #include <errno.h>
 #include <setjmp.h>
 #include <assert.h>

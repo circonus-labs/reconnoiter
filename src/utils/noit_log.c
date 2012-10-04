@@ -53,7 +53,7 @@
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
 #ifdef DTRACE_ENABLED
-#include "utils/dtrace_probes.h"
+#include "dtrace_probes.h"
 #else
 #define NOIT_LOG_LOG(a,b,c,d)
 #define NOIT_LOG_LOG_ENABLED() 0

@@ -7,7 +7,6 @@ AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
 INSTALL=@INSTALL@
-DTRACEOBJ=@DTRACEOBJ@
 
 top_srcdir=@top_srcdir@
 
@@ -18,27 +17,9 @@ OBJS=noit_hash.o noit_skiplist.o noit_log.o noit_sem.o noit_str.o \
 
 all:	libnoit_utils.a
 
-UTILS_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=utils_%dtrace_stub.o)
-
-utils_@DTRACEOBJ@:	$(OBJS)
-	@-test -n "@DTRACE@" && \
-	echo "- assembling $@" && \
-	@DTRACE@ @DTRACEFLAGS@ -G -s dtrace_probes.d -o $(UTILS_DTRACEOBJ) $(OBJS)
-
-noit_log.o:	@DTRACEHDR@
-
-@DTRACEHDR@:	dtrace_probes.d
-	@if test -z "@DTRACE@" ; then \
-		echo "- faking dtrace header" ; \
-		cp ./@DTRACEHDR@.stock ./@DTRACEHDR@ ; \
-	else \
-		echo "- building dtrace header" ; \
-		@DTRACE@ -h -s dtrace_probes.d ; \
-	fi
-
-libnoit_utils.a:	$(OBJS) $(UTILS_DTRACEOBJ)
+libnoit_utils.a:	$(OBJS)
 	@rm -f $@
-	@$(AR) cq $@ $(OBJS) $(UTILS_DTRACEOBJ)
+	@$(AR) cq $@ $(OBJS)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
 

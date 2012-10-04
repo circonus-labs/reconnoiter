@@ -34,7 +34,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
-#include "eventer/dtrace_probes.h"
+#include "dtrace_probes.h"
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>

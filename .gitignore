@@ -12,8 +12,6 @@ config.status
 Makefile
 sql/reconnoiter_ddl_dump.sql
 src/*.dSYM
-src/dtrace_probes.h
-src/eventer/dtrace_probes.h
 src/lua/src/lua
 src/modules/*.dSYM
 src/noit_version.h
@@ -41,7 +39,8 @@ src/module-online.h
 src/noit_config.h
 src/scripts/noit-config
 src/udns/udns_codes.c
-src/utils/dtrace_probes.h
+src/noit_dtrace_probes.h
+src/stratcon_dtrace_probes.h
 test/00.pem
 test/01.pem
 test/02.pem
