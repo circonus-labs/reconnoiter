@@ -35,6 +35,7 @@ src/jlog/perl/Makefile.PL
 src/jlog/jlogctl
 src/man/*.8
 src/man/*.h
+src/Makefile.objs
 src/module-online.h
 src/noit_config.h
 src/scripts/noit-config

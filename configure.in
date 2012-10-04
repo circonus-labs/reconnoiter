@@ -744,6 +744,7 @@ fi
 AC_OUTPUT([
 Makefile
 src/Makefile
+src/Makefile.objs
 src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL

@@ -68,36 +68,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
 	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h
 
-UDNS_LIB_OBJS=udns/udns_dn.o udns/udns_dntosp.o udns/udns_parse.o \
-	udns/udns_resolver.o udns/udns_init.o udns/udns_misc.o \
-	udns/udns_XtoX.o udns/udns_rr_a.o udns/udns_rr_ptr.o udns/udns_rr_mx.o \
-	udns/udns_rr_txt.o udns/udns_bl.o udns/udns_rr_srv.o \
-	udns/udns_rr_naptr.o udns/udns_codes.o
-JSON_LIB_OBJS=json-lib/arraylist.o json-lib/debug.o json-lib/json_object.o \
-	json-lib/json_tokener.o json-lib/json_util.o json-lib/linkhash.o \
-	json-lib/printbuf.o
-NOITEDIT_LIB_OBJS=noitedit/chared.o noitedit/common.o noitedit/el.o \
-	noitedit/emacs.o noitedit/fcns.o noitedit/fgetln.o noitedit/help.o \
-	noitedit/hist.o noitedit/history.o noitedit/key.o noitedit/map.o \
-	noitedit/parse.o noitedit/prompt.o noitedit/read.o noitedit/readline.o \
-	noitedit/refresh.o noitedit/search.o noitedit/sig.o noitedit/strlcpy.o \
-	noitedit/term.o noitedit/tokenizer.o noitedit/tty.o noitedit/vi.o
-JLOG_LIB_OBJS=jlog/jlog.o jlog/jlog_hash.o jlog/jlog_io.o
-EVENTER_OBJS=@EVENTER_OBJS@
-EVENTER_IMPL_OBJS=$(EVENTER_OBJS:%.o=eventer/%.o)
-ATOMIC_REL_OBJS=@ATOMIC_OBJS@
-ATOMIC_OBJS=$(ATOMIC_REL_OBJS:%.o=utils/%.o)
-EVENTER_LIB_OBJS=eventer/OETS_asn1_helper.o eventer/eventer.o \
-	eventer/eventer_POSIX_fd_opset.o eventer/eventer_SSL_fd_opset.o \
-	eventer/eventer_impl.o eventer/eventer_jobq.o $(EVENTER_IMPL_OBJS)
-NOIT_UTILS_OBJS=utils/noit_b32.o utils/noit_b64.o utils/noit_btrie.o \
-	utils/noit_getip.o utils/noit_hash.o utils/noit_lockfile.o \
-	utils/noit_log.o utils/noit_mkdir.o utils/noit_security.o \
-	utils/noit_sem.o utils/noit_skiplist.o utils/noit_str.o \
-	utils/noit_watchdog.o $(ATOMIC_OBJS)
-YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
-	yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
-	yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
+include Makefile.objs
 
 NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
