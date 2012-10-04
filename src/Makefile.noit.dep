@@ -82,6 +82,10 @@ noit-objs/udns/udns_rr_naptr.o: udns/udns_rr_naptr.o
 noit-objs/udns/udns_rr_ptr.o: udns/udns_rr_ptr.o
 noit-objs/udns/udns_rr_srv.o: udns/udns_rr_srv.o
 noit-objs/udns/udns_rr_txt.o: udns/udns_rr_txt.o
+noit-objs/utils/noit_atomic_sol_x86_sparcv8plus.o: utils/noit_atomic_sol_x86_sparcv8plus.o
+noit-objs/utils/noit_atomic_sol_x86_sparcv9.o: utils/noit_atomic_sol_x86_sparcv9.o
+noit-objs/utils/noit_atomic_sol_x86_32.o: utils/noit_atomic_sol_x86_32.o
+noit-objs/utils/noit_atomic_sol_x86_64.o: utils/noit_atomic_sol_x86_64.o
 noit-objs/utils/noit_b32.o: utils/noit_b32.o
 noit-objs/utils/noit_b64.o: utils/noit_b64.o
 noit-objs/utils/noit_btrie.o: utils/noit_btrie.o

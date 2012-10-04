@@ -76,6 +76,10 @@ stratcon-objs/udns/udns_rr_naptr.o: udns/udns_rr_naptr.o
 stratcon-objs/udns/udns_rr_ptr.o: udns/udns_rr_ptr.o
 stratcon-objs/udns/udns_rr_srv.o: udns/udns_rr_srv.o
 stratcon-objs/udns/udns_rr_txt.o: udns/udns_rr_txt.o
+stratcon-objs/utils/noit_atomic_sol_x86_sparcv8plus.o: utils/noit_atomic_sol_x86_sparcv8plus.o
+stratcon-objs/utils/noit_atomic_sol_x86_sparcv9.o: utils/noit_atomic_sol_x86_sparcv9.o
+stratcon-objs/utils/noit_atomic_sol_x86_32.o: utils/noit_atomic_sol_x86_32.o
+stratcon-objs/utils/noit_atomic_sol_x86_64.o: utils/noit_atomic_sol_x86_64.o
 stratcon-objs/utils/noit_b32.o: utils/noit_b32.o
 stratcon-objs/utils/noit_b64.o: utils/noit_b64.o
 stratcon-objs/utils/noit_btrie.o: utils/noit_btrie.o

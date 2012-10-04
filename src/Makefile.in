@@ -206,6 +206,18 @@ stratcon_datastore.o:	stratcon_datastore.c
 udns/udns_codes.c:
 	@(cd udns && make udns_codes.c)
 
+utils/noit_atomic_sol_sparcv8plus.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_sparcv8plus.o)
+
+utils/noit_atomic_sol_sparcv9.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_sparcv9.o)
+
+utils/noit_atomic_sol_x86_32.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_x86_32.o)
+
+utils/noit_atomic_sol_x86_64.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_x86_64.o)
+
 noit_module.o:	module-online.h
 
 module-online.h:	modules/module-online.xsl
