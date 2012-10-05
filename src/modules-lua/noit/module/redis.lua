@@ -43,7 +43,10 @@ function onload(image)
         Specifies the port on which redis is running.
     </parameter>
     <parameter name="command" required="required" default="INFO" allowed=".+">
-            Command to send to redis server.
+        Command to send to redis server.
+    </parameter>
+    <parameter name="dbindex" required="optional" default="0" allowed="\d+">
+        Index of the database the command will run against
     </parameter>
   </checkconfig>
   <examples>
@@ -94,6 +97,16 @@ function initiate(module, check)
   if ( rv ~= 0 ) then
     check.status(err or "connect error")
     return
+  end
+
+  if ( check.config.dbindex ~= nil and check.config.dbindex ~= 0 ) then
+    conn:write(build_redis_command("SELECT " .. check.config.dbindex))
+    conn:read(1)
+    local status = string.sub(conn:read("\r\n"), 1, -3)
+    if ( status ~= "OK" ) then
+      check.status("could not select dbindex " .. check.config.dbindex .. " (" .. status .. ")")
+      return
+    end
   end
 
   conn:write(redis_comm)
