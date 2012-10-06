@@ -82,6 +82,9 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_free(h->ctx);
   assert(h->timeout == NULL);
 }
+static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
+  noit_atomic_inc32(&h->refcnt);
+}
 static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   void *vh;
   char *hk = NULL;
@@ -90,7 +93,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   if(ns == NULL && default_ctx_handle != NULL) {
     /* special case -- default context */
     h = default_ctx_handle;
-    noit_atomic_inc32(&h->refcnt);
+    dns_module_dns_ctx_acquire(h);
     goto bail;
   }
 
@@ -103,7 +106,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   if(ns &&
      noit_hash_retrieve(&dns_ctx_store, hk, strlen(hk), &vh)) {
     h = (dns_ctx_handle_t *)vh;
-    noit_atomic_inc32(&h->refcnt);
+    dns_module_dns_ctx_acquire(h);
     free(hk);
   }
   else {
@@ -158,14 +161,15 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   return h;
 }
 static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
-  int rv = 0;
+  int rv = 0, last;
   if(h->ns == NULL) {
     /* Special case for the default */
     noit_atomic_dec32(&h->refcnt);
     return rv;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
-  if(noit_atomic_dec32(&h->refcnt) == 0) {
+  last = noit_atomic_dec32(&h->refcnt);
+  if(last == 0) {
     /* I was the last one */
     assert(noit_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
                             NULL, dns_module_dns_ctx_handle_free));
@@ -351,7 +355,7 @@ static void dns_check_cleanup(noit_module_t *self, noit_check_t *check) {
 static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
                                        struct timeval *now) {
   dns_ctx_handle_t *h = closure;
-  noit_atomic_inc32(&h->refcnt);
+  dns_module_dns_ctx_acquire(h);
   dns_ioevent(h->ctx, now->tv_sec);
   if(dns_module_dns_ctx_release(h)) {
     /* We've neeb closed */
@@ -386,10 +390,8 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
   }
   else {
     assert(h->ctx == ctx);
-    if(timeout < 0) {
-      if(h->timeout) e = eventer_remove(h->timeout);
-    }
-    else {
+    if(h->timeout) e = eventer_remove(h->timeout);
+    if(timeout > 0) {
       newe = eventer_alloc();
       newe->mask = EVENTER_TIMER;
       newe->callback = dns_module_invoke_timeouts;
