@@ -197,7 +197,7 @@ statsd_handle_payload(noit_check_t **checks, int nchecks,
       else if((*cp >= 'a' && *cp <= 'z') ||
               (*cp >= 'A' && *cp <= 'Z') ||
               (*cp >= '0' && *cp <= '9') ||
-              *cp == '.' || *cp == '_' || *cp == '-') {
+              *cp == '`' || *cp == '.' || *cp == '_' || *cp == '-') {
         key[idx++] = *cp;
       }
       last_space = 0;
