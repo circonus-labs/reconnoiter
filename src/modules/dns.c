@@ -51,6 +51,7 @@
 
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *, int, void *);
 static int dns_module_eventer_callback(eventer_t, int, void *, struct timeval *);
+static void register_console_dns_commands();
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
@@ -315,6 +316,53 @@ static int dns_interpolate_reverse_ip(char *buff, int len, const char *ip) {
   return strlen(buff);
 }
 
+static void
+nc_printf_dns_handle_brief(noit_console_closure_t ncct,
+                           dns_ctx_handle_t *h) {
+  nc_printf(ncct, "== %s ==\n", h->hkey);
+  nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, h->refcnt);
+  nc_printf(ncct, " e: %d\n", h->e ? h->e->fd : -1);
+  if(h->timeout) {
+    struct timeval now, diff;
+    gettimeofday(&now, NULL);
+    sub_timeval(h->timeout->whence, now, &diff);
+    nc_printf(ncct, " timeout: %f\n",
+              diff.tv_sec + (double)diff.tv_usec/1000000.0);
+  }
+}
+static int
+noit_console_show_dns(noit_console_closure_t ncct,
+                      int argc, char **argv,
+                      noit_console_state_t *dstate,
+                      void *closure) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  void *vts;
+
+  pthread_mutex_lock(&dns_ctx_store_lock);
+  while(noit_hash_next(&dns_ctx_store, &iter,
+                       (const char **)key_id, &klen,
+                       &vts)) {
+    dns_ctx_handle_t *h = vts;
+    nc_printf_dns_handle_brief(ncct, h);
+  }
+  pthread_mutex_unlock(&dns_ctx_store_lock);
+  return 0;
+}
+
+static void
+register_console_dns_commands() {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("dns_module", noit_console_show_dns, NULL, NULL, NULL));
+}
+
 static int dns_module_init(noit_module_t *self) {
   const struct dns_nameval *nv;
   struct dns_ctx *pctx;
@@ -346,6 +394,7 @@ static int dns_module_init(noit_module_t *self) {
     noitL(nlerr, "Error setting up default dns resolver context.\n");
     return -1;
   }
+  register_console_dns_commands();
   return 0;
 }
 
@@ -358,7 +407,7 @@ static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
   dns_module_dns_ctx_acquire(h);
   dns_ioevent(h->ctx, now->tv_sec);
   if(dns_module_dns_ctx_release(h)) {
-    /* We've neeb closed */
+    /* We've been closed */
     return 0;
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
@@ -379,6 +428,7 @@ static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
                                       struct timeval *now) {
   dns_ctx_handle_t *h = closure;
   dns_timeouts(h->ctx, 0, now->tv_sec);
+  dns_module_dns_ctx_release(h);
   return 0;
 }
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
@@ -400,9 +450,17 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
       newe->whence.tv_sec += timeout;
     }
   }
-  if(e) eventer_free(e);
-  if(newe) eventer_add(newe);
-  if(h) h->timeout = newe;
+  if(e) {
+    eventer_free(e);
+    if(h) dns_module_dns_ctx_release(h);
+  }
+  if(newe) {
+    dns_module_dns_ctx_acquire(h);
+    eventer_add(newe);
+  }
+  if(h) {
+    h->timeout = newe;
+  }
 }
 
 static char *encode_txt(char *dst, const unsigned char *src, int len) {
