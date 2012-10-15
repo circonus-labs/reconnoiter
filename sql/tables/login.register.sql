@@ -14,7 +14,8 @@ SET default_with_oids = false;
 CREATE TABLE login.register (
     Username varchar(40),
     Password varchar(150),
-    E_mail varchar(50)
+    E_mail varchar(50),
+    salt varchar(40)
 );
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE login.register TO login;

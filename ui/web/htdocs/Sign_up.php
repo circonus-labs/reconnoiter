@@ -3,9 +3,7 @@
 <?php
     session_start();
      require_once('db.php');
-    $token_login = Signup_token();
-
-    
+    $token_login = Signup_token();   
 ?>
 
 

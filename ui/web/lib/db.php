@@ -21,33 +21,40 @@ function Signup_token()
 
 function connect()
 {
-   $db = pg_connect('host=localhost dbname=reconnoiter user=login password=authenticate'); 
+	    	
+		   $db = pg_connect('host=localhost dbname=reconnoiter user=login password=authenticate');
 }
 
 
 function sign_in($username,$password,$email)
 {
-	  
-      $query="select * from login.register where e_mail= '".$email."'";
-      $result = pg_query($query);
-			
-      if(pg_num_rows($result)>0)
-      {
-	echo "no_mail";
-      }
-      else
-      {
-	  try
-	      {
-		$query = "INSERT INTO login.register VALUES ('$username','$password','$email')";
-                $result = pg_query($query);
-	        echo "success";
-	      }
-	  catch(PDOException $e)
-	      {
-		echo $e->getMessage();
-	      }
-      }
+	     
+	   
+	    $query="select * from login.register where e_mail= '".$email."'";
+ 	    $result = pg_query($query);
+				
+		 if(pg_num_rows($result)>0)
+			{
+				echo "no_mail";
+			}
+		else
+			{
+		
+	  	     try
+		      {
+					
+				$salt = substr(md5(uniqid(rand(), true)), 0, SALT_LENGTH);
+                $pwd=hash('sha256', $salt.$password);
+			    $sql='INSERT INTO login.register VALUES ($1,$2,$3,$4)';
+                $result = pg_query_params($sql, array($username,$password,$email,$salt));		
+			    echo "success";
+		      }
+		catch(PDOException $e)
+		{
+			echo $e->getMessage();
+		}
+		
+	  }
 	
 }
 
@@ -56,8 +63,10 @@ function login($email,$password)
 
   try
     {
-            $query = "SELECT * FROM login.register";
+            
+            $query = "SELECT * FROM login.register where e_mail='$email'";
             $result = pg_query($query);
+            
             if (!$result) 
             {
 	         echo "Problem with query " . $query . "<br/>";
@@ -66,32 +75,31 @@ function login($email,$password)
             }
        
 	   
-	   while($myrow = pg_fetch_row($result)) 
-           {
-    	      	$uname=$myrow[0];
-         	$p_word=$myrow[1];
-         	$e_mail=$myrow[2];
-       	    
-                $msg="failure";
-      	   
-      	   	if($email==$e_mail)
+	        while($myrow = pg_fetch_row($result)) 
+            {
+            $msg="failure";
+      			
+											
+			$pword=$myrow[1];
+			$salt1= $myrow[3];
+		    $check=hash('sha256', $salt1.$password);
+			      	   	
+      	   	if($check==$pword)
         	{
-        		if($password==$p_word)
-        		{
-        			$_SESSION["shet"]=$uname;
-            		$msg="success";
-        			break;	        		
-        		}
+        		$msg="success";
+				break;
         	}
-          }
+			
+        }
 		
 		return $msg;
+
     }
 
-  catch(PDOException $e)
-    {
-	echo $e->getMessage();
-    }
+   catch(PDOException $e)
+		{
+			echo $e->getMessage();
+		}
 }
 
 ?>
