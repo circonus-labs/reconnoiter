@@ -3,6 +3,7 @@ create database reconnoiter with owner = reconnoiter;
 create user stratcon with encrypted password 'stratcon';
 alter user stratcon set search_path to noit,public;
 create user prism with encrypted password 'prism';
+create user login with encrypted password 'authenticate';
 alter user prism set search_path to noit,public;
 \c reconnoiter reconnoiter;
 begin;
@@ -11,12 +12,16 @@ create language plpgsql;
 create schema noit;
 create schema stratcon;
 create schema prism;
+create schema login;
+
+grant usage on schema login to login;
 grant usage on schema stratcon to stratcon;
 grant usage on schema stratcon to prism;
 grant usage on schema noit to stratcon;
 grant usage on schema noit to prism;
 grant usage on schema prism to prism;
 
+\i tables/login.register.sql
 \i sprocs/stratcon.parent_empty.sql
 \i sprocs/stratcon.archive_part_maint.sql
 
@@ -84,6 +89,7 @@ grant usage on schema prism to prism;
 \i tables/prism.saved_graphs_dep.sql
 \i tables/prism.saved_worksheets.sql
 \i tables/prism.saved_worksheets_dep.sql
+
 
 select stratcon.archive_part_maint('noit.metric_numeric_archive', 'whence', 'day', 7);
 select stratcon.archive_part_maint('noit.metric_text_archive', 'whence', 'day', 7);
