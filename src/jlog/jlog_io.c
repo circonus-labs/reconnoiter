@@ -145,7 +145,7 @@ int jlog_file_lock(jlog_file *f)
   fl.l_len = 0;
 
   if (pthread_mutex_lock(&(f->lock)) != 0) return 0;
-  while ((frv = fcntl(f->fd, F_SETLKW, &fl)) == -1 && errno == EINTR) ;
+  while ((frv = fcntl(f->fd, F_SETLKW, &fl)) == -1 && (errno == EINTR || errno == EAGAIN)) ;
   if (frv != 0) {
     int save = errno;
     pthread_mutex_unlock(&(f->lock));
@@ -169,7 +169,7 @@ int jlog_file_unlock(jlog_file *f)
   fl.l_start = 0;
   fl.l_len = 0;
 
-  while ((frv = fcntl(f->fd, F_SETLKW, &fl)) == -1 && errno == EINTR) ;
+  while ((frv = fcntl(f->fd, F_SETLKW, &fl)) == -1 && (errno == EINTR || errno == EAGAIN)) ;
   if (frv != 0) return 0;
   f->locked = 0;
   pthread_mutex_unlock(&(f->lock));
