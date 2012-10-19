@@ -389,7 +389,8 @@ jlog_logio_asynch_writer(void *vls) {
                                      line->buf_dynamic :
                                      line->buf_static,
                         line->len) == -1) {
-        noitL(noit_error, "jlog_ctx_write failed: %s\n", jlog_ctx_err_string(actx->log));
+        noitL(noit_error, "jlog_ctx_write failed(%d): %s\n",
+              jlog_ctx_errno(actx->log), jlog_ctx_err_string(actx->log));
         abort();
       }
       if(line->buf_dynamic != NULL) free(line->buf_dynamic);
