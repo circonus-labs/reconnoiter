@@ -293,20 +293,35 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
         case ASN_COUNTER:
           SETM(METRIC_UINT32, vars->val.integer);
           break;
+#ifdef ASN_OPAQUE_I64
+        case ASN_OPAQUE_I64:
+#endif
         case ASN_INTEGER64:
           printI64(varbuff, vars->val.counter64);
           i64 = strtoll(varbuff, &endptr, 10);
           SETM(METRIC_INT64, (varbuff == endptr) ? NULL : &i64);
           break;
+#ifdef ASN_OPAQUE_U64
+        case ASN_OPAQUE_U64:
+#endif
+#ifdef ASN_OPAQUE_COUNTER64
+        case ASN_OPAQUE_COUNTER64:
+#endif
         case ASN_COUNTER64:
           printU64(varbuff, vars->val.counter64);
           u64 = strtoull(varbuff, &endptr, 10);
           SETM(METRIC_UINT64, (varbuff == endptr) ? NULL : &u64);
           break;
+#ifdef ASN_OPAQUE_FLOAT
+        case ASN_OPAQUE_FLOAT:
+#endif
         case ASN_FLOAT:
           if(vars->val.floatVal) float_conv = *(vars->val.floatVal);
           SETM(METRIC_DOUBLE, vars->val.floatVal ? &float_conv : NULL);
           break;
+#ifdef ASN_OPAQUE_DOUBLE
+        case ASN_OPAQUE_DOUBLE:
+#endif
         case ASN_DOUBLE:
           SETM(METRIC_DOUBLE, vars->val.doubleVal);
           break;
