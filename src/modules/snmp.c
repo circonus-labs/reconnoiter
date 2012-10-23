@@ -337,6 +337,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
           sp = strchr(varbuff, ' ');
           if(sp) sp++;
           SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
+          noitL(nlerr, "snmp: unknown type[%d] %s\n", vars->type, varbuff);
       }
     }
     nresults++;
