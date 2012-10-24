@@ -60,6 +60,14 @@ NOIT_HOOK_IMPL(check_stats_set_metric,
   (void *closure, noit_check_t *check, stats_t *stats, metric_t *m),
   (closure,check,stats,m))
 
+NOIT_HOOK_IMPL(check_stats_set_metric_coerce,
+  (noit_check_t *check, stats_t *stats, const char *name,
+   metric_type_t type, const char *v, noit_boolean success),
+  void *, closure,
+  (void *closure, noit_check_t *check, stats_t *stats, const char *name,
+   metric_type_t type, const char *v, noit_boolean success),
+  (closure,check,stats,name,type,v,success))
+
 NOIT_HOOK_IMPL(check_passive_log_stats,
   (noit_check_t *check),
   void *, closure,
@@ -1346,6 +1354,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   char *endptr;
   if(v == NULL) {
    bogus:
+    check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_false);
     noit_stats_set_metric(check, stat, name, t, NULL);
     return;
   }
@@ -1397,6 +1406,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       noit_stats_set_metric(check, stat, name, t, v);
       break;
   }
+  check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_true);
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,

@@ -355,6 +355,13 @@ NOIT_HOOK_PROTO(check_stats_set_metric,
                 void *, closure,
                 (void *closure, noit_check_t *check, stats_t *stats, metric_t *m))
 
+NOIT_HOOK_PROTO(check_stats_set_metric_coerce,
+                (noit_check_t *check, stats_t *stats, const char *name,
+                 metric_type_t type, const char *v, noit_boolean success),
+                void *, closure,
+                (void *closure, noit_check_t *check, stats_t *stats, const char *name,
+                 metric_type_t type, const char *v, noit_boolean success))
+
 NOIT_HOOK_PROTO(check_passive_log_stats,
                 (noit_check_t *check),
                 void *, closure,
