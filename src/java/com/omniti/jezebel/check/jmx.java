@@ -108,21 +108,34 @@ public class jmx implements JezebelCheck {
                 String[] attributes = new String[attribs.length];
                 int i = 0;
                 for (MBeanAttributeInfo attr : attribs) {
-                    attributes[i] = attr.getName();
-                    ++i;
+                        attributes[i] = attr.getName();
+                        ++i;
                 }
 
-                AttributeList al = mbsc.getAttributes(objectName, attributes);
-                List<Attribute> aal = al.asList();
-
-                for (Attribute a : aal ) {
-                    getMetric(oname, a.getName(), a.getValue(), rr);
+                // Some servers will give back attributes that aren't serializable and will
+                // throw errors when we try to get their values.  if we can't get all the values
+                // in one pass, try to get them individually
+                try {
+                    AttributeList al = mbsc.getAttributes(objectName, attributes);
+                    for (Attribute a : al.asList()) {
+                        getMetric(oname, a.getName(), a.getValue(), rr);
+                    }
+                }
+                catch (Exception e) {
+                    for (String attr : attributes) {
+                        try {
+                            Object o = mbsc.getAttribute(objectName, attr);
+                            getMetric(oname, attr, o, rr);
+                        }
+                        catch (Exception ignore) {}
+                    }
                 }
             }
             connector.close();
 
         }
         catch (Exception e) {
+            Jezebel.exceptionTraceLogger(e);
             rr.set("jezebel_status", e.getMessage());
         }
     }
@@ -231,9 +244,12 @@ public class jmx implements JezebelCheck {
                 }
             }
             else {
-                System.err.println("Error, could not handle. name: " + objectName+"`"+metricName + " type: " + value.getClass().getName());
+                Jezebel.log("Error, could not handle. name: " + objectName+"`"+metricName + " type: " + value.getClass().getName(), "error");
             }
         }
-        catch (Exception e) { System.err.println("Exception: " + objectName+"`"+metricName + " " + e.getMessage()); }
+        catch (Exception e) { 
+            Jezebel.log("Exception: " + objectName+"`"+metricName, "error");
+            Jezebel.exceptionTraceLogger(e);
+        }
     }
 }
