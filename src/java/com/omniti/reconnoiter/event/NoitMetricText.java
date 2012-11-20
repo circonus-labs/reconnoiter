@@ -9,8 +9,10 @@
 package com.omniti.reconnoiter.event;
 
 import com.omniti.reconnoiter.event.NoitEvent;
+import com.omniti.reconnoiter.event.NoitMetricGeneric;
 
-public class NoitMetricText extends NoitEvent {
+public class NoitMetricText extends NoitEvent 
+       implements NoitMetricGeneric {
    public long time;
    public String message;
    private String uuid;
