@@ -14,7 +14,8 @@ import com.omniti.reconnoiter.event.NoitMetricNumeric;
 import com.omniti.reconnoiter.event.NoitMetricText;
 import org.apache.log4j.Logger;
 
-public class NoitMetric extends NoitEvent {
+public class NoitMetric extends NoitEvent 
+       implements NoitMetricGeneric {
   static Logger logger = Logger.getLogger(NoitMetric.class.getName());
   public final static String METRIC_STRING = "s";
 
