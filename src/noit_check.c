@@ -292,7 +292,7 @@ noit_poller_process_checks(const char *xpath) {
     int ridx;
     int no_period = 0;
     int no_oncheck = 0;
-    int period = 0, timeout = 0;
+    int period = 0, timeout = 0, text_size_limit = 0;
     noit_boolean disabled = noit_false, busted = noit_false;
     uuid_t uuid, out_uuid;
     noit_hash_table *options;
@@ -339,6 +339,9 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(int, period, &period) || period == 0)
       no_period = 1;
+
+    if(!INHERIT(int, text_size_limit, &text_size_limit) || text_size_limit == 0)
+      text_size_limit = 512;
 
     if(!INHERIT(stringbuf, oncheck, oncheck, sizeof(oncheck)) || !oncheck[0])
       no_oncheck = 1;
@@ -391,14 +394,14 @@ noit_poller_process_checks(const char *xpath) {
       noit_check_update(existing_check, target, name, filterset, options,
                            moptions_used ? moptions : NULL,
                            period, timeout, oncheck[0] ? oncheck : NULL,
-                           flags);
+                           flags, text_size_limit);
       noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
     }
     else {
       noit_poller_schedule(target, module, name, filterset, options,
                            moptions_used ? moptions : NULL,
                            period, timeout, oncheck[0] ? oncheck : NULL,
-                           flags, uuid, out_uuid);
+                           flags, uuid, out_uuid, text_size_limit);
       noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
     }
 
@@ -812,7 +815,8 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
-                  int flags) {
+                  int flags,
+                  u_int32_t text_size_limit ) {
   int mask = NP_DISABLED | NP_UNCONFIG;
 
   new_check->generation = __config_load_generation;
@@ -874,6 +878,7 @@ noit_check_update(noit_check_t *new_check,
   new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
   new_check->period = period;
   new_check->timeout = timeout;
+  new_check->text_size_limit = text_size_limit;
 
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
@@ -894,7 +899,8 @@ noit_poller_schedule(const char *target,
                      const char *oncheck,
                      int flags,
                      uuid_t in,
-                     uuid_t out) {
+                     uuid_t out,
+                     u_int32_t text_size_limit) {
   noit_check_t *new_check;
   new_check = calloc(1, sizeof(*new_check));
   if(!new_check) return -1;
@@ -907,7 +913,7 @@ noit_poller_schedule(const char *target,
     uuid_copy(new_check->checkid, in);
 
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
-                    period, timeout, oncheck, flags);
+                    period, timeout, oncheck, flags, text_size_limit);
   assert(noit_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
@@ -1307,8 +1313,10 @@ noit_metric_guess_type(const char *s, void **replacement) {
 }
 int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
-                           const void *value) {
+                           const void *value, u_int32_t text_size_limit) {
   void *replacement = NULL;
+  if (!text_size_limit)
+    text_size_limit = 512;
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
   if(type == METRIC_GUESS) return -1;
@@ -1320,6 +1328,13 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
+    if (type == METRIC_STRING) {
+        if (len > text_size_limit) {
+            char* temp = (char*)value;
+            temp[text_size_limit] = 0;
+            len = text_size_limit+1;
+        }
+    }
     m->metric_value.vp = calloc(1, len);
     memcpy(m->metric_value.vp, value, len);
   }
@@ -1340,7 +1355,7 @@ noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
                       const void *value) {
   metric_t *m = calloc(1, sizeof(*m));
-  if(noit_stats_populate_metric(m, name, type, value)) {
+  if(noit_stats_populate_metric(m, name, type, value, check->text_size_limit)) {
     free_metric(m);
     return;
   }
@@ -1414,7 +1429,7 @@ noit_stats_log_immediate_metric(noit_check_t *check,
                                 void *value) {
   struct timeval now;
   metric_t *m = calloc(1, sizeof(*m));
-  if(noit_stats_populate_metric(m, name, type, value)) {
+  if(noit_stats_populate_metric(m, name, type, value, check->text_size_limit)) {
     free_metric(m);
     return;
   }

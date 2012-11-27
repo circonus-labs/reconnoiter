@@ -97,7 +97,7 @@ noit_check_t *
 noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   char *target = NULL, *name = NULL, *module = NULL, *filterset = NULL;
   char *resolve_rtype = NULL;
-  int timeout = 0, flags = NP_TRANSIENT, i, mod_cnt;
+  int timeout = 0, flags = NP_TRANSIENT, i, mod_cnt, text_size_limit = 512;
   noit_module_t *m;
   noit_check_t *c = NULL;
   xmlNodePtr a, co;
@@ -117,6 +117,10 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
       char *timeout_str = (char *)xmlNodeGetContent(a);
       timeout = atoi(timeout_str);
       free(timeout_str);
+    } else if(!strcmp((char *)a->name, "text_size_limit")) {
+      char *size_limit_str = (char *)xmlNodeGetContent(a);
+      text_size_limit = atoi(size_limit_str);
+      free(size_limit_str);
     } else if(!strcmp((char *)a->name, "resolve_rtype")) 
       resolve_rtype = (char *)xmlNodeGetContent(a);
   }
@@ -157,7 +161,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   c = calloc(1, sizeof(*c));
   c->module = strdup(module);
   noit_check_update(c, target, name, filterset,
-                    conf_hash, moptions, 0, timeout, NULL, flags);
+                    conf_hash, moptions, 0, timeout, NULL, flags, text_size_limit);
   uuid_generate(c->checkid);
   c->flags |= NP_DISABLED; /* this is hack to know we haven't run it yet */
   if(NOIT_CHECK_SHOULD_RESOLVE(c))

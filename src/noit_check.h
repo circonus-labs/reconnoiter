@@ -170,6 +170,7 @@ typedef struct noit_check {
   void **module_metadata;
   noit_hash_table **module_configs;
   struct timeval initial_schedule_time;
+  u_int32_t text_size_limit;   /* Maximum size of a text data field before truncating */
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -207,7 +208,8 @@ API_EXPORT(int)
                        const char *oncheck,
                        int flags,
                        uuid_t in,
-                       uuid_t out);
+                       uuid_t out,
+                       u_int32_t text_size_limit);
 
 API_EXPORT(int)
   noit_check_resolve(noit_check_t *check);
@@ -222,7 +224,8 @@ API_EXPORT(int)
                     u_int32_t period,
                     u_int32_t timeout,
                     const char *oncheck,
-                    int flags);
+                    int flags,
+                    u_int32_t text_size_limit);
 
 API_EXPORT(noit_boolean)
   noit_check_is_valid_target(const char *str);
