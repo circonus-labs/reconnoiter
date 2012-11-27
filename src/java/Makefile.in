@@ -42,6 +42,7 @@ R_JAVA=com/omniti/reconnoiter/MQListener.java \
 	com/omniti/reconnoiter/event/NoitMetric.java \
 	com/omniti/reconnoiter/event/NoitMetricText.java \
 	com/omniti/reconnoiter/event/NoitMetricNumeric.java \
+	com/omniti/reconnoiter/event/NoitMetricGeneric.java \
 	com/omniti/reconnoiter/event/StratconStatement.java \
 	com/omniti/reconnoiter/event/StratconQueryBase.java \
 	com/omniti/reconnoiter/event/StratconQuery.java \

@@ -436,6 +436,11 @@ noit_check_index_func(lua_State *L) {
       return 1;
     case 'c':
       if(!strcmp(k, "config")) noit_lua_hash_to_table(L, check->config);
+      else if(!strcmp(k, "checkid")) {
+        char uuid_str[UUID_STR_LEN + 1];
+        uuid_unparse_lower(check->checkid, uuid_str);
+        lua_pushstring(L, uuid_str);
+      }
       else break;
       return 1;
     case 'g':

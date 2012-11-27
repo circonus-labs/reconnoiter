@@ -52,6 +52,30 @@ import com.omniti.jezebel.JezebelDispatch;
 public class Jezebel {
   static Logger logger = Logger.getLogger(Jezebel.class.getName());
 
+  public static void exceptionTraceLogger (Exception e) {
+    String trace = new String();
+    trace += e.toString() + "\n";
+    StackTraceElement[] elements = e.getStackTrace();
+    for ( StackTraceElement se : elements ) {
+        trace += se.toString() + "\n";
+    }
+    logger.error(trace);
+  }
+
+  public static void log (String s, String level) {
+    if ( s == null || level == null ) return;
+
+    if ( level.equalsIgnoreCase("error") ) {
+        logger.error(s);
+    }
+    else if ( level.equalsIgnoreCase("info") ) {
+        logger.info(s);
+    }
+    else if ( level.equalsIgnoreCase("debug") ) {
+        logger.debug(s);
+    }
+  }
+
   static final public void main(String args[]) {
     String port;
     Server server;
