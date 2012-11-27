@@ -554,7 +554,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
-  srand48((getpid() << 16) & time(NULL));
+  srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
   noit_skiplist_init(&polls_by_name);
