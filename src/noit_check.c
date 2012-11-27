@@ -557,7 +557,6 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
-  char stringbuf[255];
   srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
@@ -573,14 +572,9 @@ noit_poller_init() {
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, 60, 0);
-  if (noit_conf_get_stringbuf(NULL, "noit/@text_size_limit", stringbuf, sizeof(stringbuf)) >= 0) {
-    text_size_limit = atoi(stringbuf);
-    if (text_size_limit <= 0) {
-      text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
-    }
-  }
-  else {
-      text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+  noit_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
+  if (text_size_limit <= 0) {
+    text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
   noit_poller_reload(NULL);
 }
