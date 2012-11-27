@@ -54,6 +54,8 @@
 #include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
+#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
+
 NOIT_HOOK_IMPL(check_stats_set_metric,
   (noit_check_t *check, stats_t *stats, metric_t *m),
   void *, closure,
@@ -91,6 +93,7 @@ struct vp_w_free {
   void (*freefunc)(void *);
 };
 
+static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
@@ -554,6 +557,7 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
+  char stringbuf[255];
   srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
@@ -569,6 +573,15 @@ noit_poller_init() {
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, 60, 0);
+  if (noit_conf_get_stringbuf(NULL, "noit/@text_size_limit", stringbuf, sizeof(stringbuf)) >= 0) {
+    text_size_limit = atoi(stringbuf);
+    if (text_size_limit <= 0) {
+      text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+    }
+  }
+  else {
+      text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+  }
   noit_poller_reload(NULL);
 }
 
@@ -1181,8 +1194,10 @@ noit_metric_sizes(metric_type_t type, const void *value) {
       return sizeof(int64_t);
     case METRIC_DOUBLE:
       return sizeof(double);
-    case METRIC_STRING:
-      return strlen((char *)value) + 1;
+    case METRIC_STRING: {
+      int len = strlen((char*)value) + 1;
+      return ((len >= text_size_limit) ? text_size_limit+1 : len);
+    }
     case METRIC_GUESS:
       break;
   }
@@ -1322,6 +1337,9 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
     len = noit_metric_sizes(type, value);
     m->metric_value.vp = calloc(1, len);
     memcpy(m->metric_value.vp, value, len);
+    if (type == METRIC_STRING) {
+      m->metric_value.s[len-1] = 0;
+    }
   }
   return 0;
 }
