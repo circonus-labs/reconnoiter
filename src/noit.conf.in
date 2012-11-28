@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf8" standalone="yes"?>
-<noit lockfile="/var/run/noitd.lock">
+<noit lockfile="/var/run/noitd.lock" text_size_limit="512">
   <!-- <watchdog glider="/opt/gimli/bin/glider" tracedir="/var/log/noitd.crash"/> -->
   <eventer>
     <config>
