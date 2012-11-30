@@ -27,6 +27,7 @@
       <arg choice="opt">-u <replaceable>user</replaceable></arg>
       <arg choice="opt">-g <replaceable>group</replaceable></arg>
       <arg choice="opt">-t <replaceable>path</replaceable></arg>
+      <arg choice="opt">-p <replaceable>priority</replaceable></arg>
       <arg choice="opt">-d</arg>
       <arg choice="opt">-D</arg>
       <arg choice="opt">-l <replaceable>logstream</replaceable></arg>
@@ -64,6 +65,13 @@
         Optionally specifies a path to chroot(2) for operation.  Measures
         must be taken to ensure that log files can be accessed in the
         chrooted environment.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-p</option></term>
+    <listitem>
+      <para>
+        Optionally specifies a priority for the processes to be scheduled.
       </para>
     </listitem>
   </varlistentry>

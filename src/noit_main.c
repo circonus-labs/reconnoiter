@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <signal.h>
+#include <sys/resource.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -115,6 +116,7 @@ noit_main(const char *appname,
           const char *config_filename, int debug, int foreground,
           const char *_glider,
           const char *drop_to_user, const char *drop_to_group,
+          const char *pgrp_prio,
           int (*passed_child_main)(void)) {
   int fd, lockfd, watchdog_timeout = 0;
   char conf_str[1024];
@@ -127,7 +129,8 @@ noit_main(const char *appname,
   int retry_val;
   int span_val;
   int ret;
-  
+  int prio = 0;
+  long lprio;
    
   /* First initialize logging, so we can log errors */
   noit_log_init();
@@ -214,13 +217,21 @@ noit_main(const char *appname,
     }
   }
 
-  if(foreground == 1) return passed_child_main();
-
-  watchdog_timeout_str = getenv("WATCHDOG_TIMEOUT");
-  if(watchdog_timeout_str) {
-    watchdog_timeout = atoi(watchdog_timeout_str);
-    noitL(noit_error, "Setting watchdog timeout to %d\n",
-          watchdog_timeout);
+  if(pgrp_prio) {
+    errno = 0;
+    lprio = strtol(pgrp_prio, NULL, 10);
+    if(lprio != 0 || errno == 0 || errno == ERANGE) {
+      if(lprio < -20) {
+        prio = -20;
+      } else if(lprio > 19) {
+        prio = 19;
+      } else {
+        prio = lprio;
+      }
+      noitL(noit_error, "Setting process group priority to %d\n", prio);
+    } else {
+      noitL(noit_stderr, "Could not set process group priority.\n");
+    }
   }
 
   if(foreground < 1) {
@@ -233,6 +244,8 @@ noit_main(const char *appname,
     dup2(fd, STDERR_FILENO);
     if(fork()) exit(0);
     setsid();
+    /* Set process group priority after creating new session/process group */
+    setpriority(PRIO_PGRP, getpgrp(), prio);
     if(fork()) exit(0);
 
     /* Reacquire the lock */
@@ -243,7 +256,22 @@ noit_main(const char *appname,
       }
     }
   }
+  else {
+    /* If we aren't creating a new session then create a new process group instead */
+    setpgrp();
+    setpriority(PRIO_PGRP, getpgrp(), prio);
+  }
+
+  if(foreground == 1) return passed_child_main();
 
   signal(SIGHUP, SIG_IGN);
+
+  watchdog_timeout_str = getenv("WATCHDOG_TIMEOUT");
+  if(watchdog_timeout_str) {
+    watchdog_timeout = atoi(watchdog_timeout_str);
+    noitL(noit_error, "Setting watchdog timeout to %d\n",
+          watchdog_timeout);
+  }
+
   return noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout);
 }

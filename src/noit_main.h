@@ -38,6 +38,7 @@ API_EXPORT(int)
             const char *config_filename, int debug, int foreground,
             const char *glider,
             const char *drop_to_user, const char *drop_to_group,
+            const char *pgrp_prio,
             int (*passed_child_main)(void));
 
 API_EXPORT(void)

@@ -63,6 +63,7 @@ static char *config_file = ETC_DIR "/" APPNAME ".conf";
 static const char *droptouser = NULL;
 static const char *droptogroup = NULL;
 static const char *chrootpath = NULL;
+static const char *priority = NULL;
 static int foreground = 0;
 static int debug = 0;
 static int strict_module_load = 0;
@@ -83,7 +84,7 @@ static void usage(const char *progname) {
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "Mrshc:dDu:g:t:l:L:G:")) != EOF) {
+  while((c = getopt(argc, argv, "Mrshc:dDu:g:t:l:L:G:p:")) != EOF) {
     switch(c) {
       case 'M':
         strict_module_load = 1;
@@ -124,6 +125,9 @@ void parse_clargs(int argc, char **argv) {
         break;
       case 'D':
         foreground++;
+        break;
+      case 'p':
+        priority = strdup(optarg);
         break;
       default:
         break;
@@ -235,5 +239,5 @@ static int child_main() {
 int main(int argc, char **argv) {
   parse_clargs(argc, argv);
   return noit_main(APPNAME, config_file, debug, foreground,
-                   glider, droptouser, droptogroup, child_main);
+                   glider, droptouser, droptogroup, priority, child_main);
 }
