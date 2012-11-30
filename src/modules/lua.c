@@ -95,7 +95,6 @@ get_ci(lua_State *L) {
   lua_getglobal(L, "noit_internal_lmc");;
   ci->lmc = lua_touserdata(L, lua_gettop(L));
   lua_pop(L, 1);
-  noitL(noit_error, "lmc -> %p\n", ci->lmc);
   noit_hash_store(&noit_coros,
                   (const char *)&ci->coro_state, sizeof(ci->coro_state),
                   ci);
@@ -884,6 +883,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lmc->pending = calloc(1, sizeof(*lmc->pending));
 
   L = lmc->lua_state = lua_open();
+  noitL(nldeb, "lua_state[%s]: %p\n", module_name, L);
   lua_atpanic(L, &noit_lua_panic);
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
@@ -926,6 +926,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
     free(m->hdr.name);
     free(m->hdr.description);
     free(lmc->object);
+    free(lmc->pending);
     free(lmc);
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);
@@ -937,7 +938,10 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->initiate_check = noit_lua_module_initiate_check;
   m->cleanup = noit_lua_module_cleanup;
 
-  noit_register_module(m);
+  if(noit_register_module(m)) {
+    noitL(noit_error, "lua failed to register '%s' as a module\n", m->hdr.name);
+    goto load_failed;
+  }
   return m;
 }
 
