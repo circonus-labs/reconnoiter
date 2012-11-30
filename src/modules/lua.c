@@ -728,7 +728,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
             if(nerr) nerr += 1;
           }
           if(nerr) {
-            free(ci->current.status);
+            if(ci->current.status) free(ci->current.status);
             ci->current.status = strdup(nerr);
           }
         }
@@ -769,6 +769,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
      */
     cancel_coro(ci);
   }
+  if(ci->current.status) free(ci->current.status);
   ci->current.status = strdup("timeout");
   ci->current.available = NP_UNAVAILABLE;
   ci->current.state = NP_BAD;
