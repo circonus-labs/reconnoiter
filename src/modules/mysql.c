@@ -198,6 +198,7 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
   } \
   ci->timed_out = 0; \
   ci->error = strdup(str); \
+  noit_hash_destroy(&dsn_h, free, free); \
   return 0; \
 } while(0)
 
@@ -341,6 +342,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
         mysql_close(conn_swap);
       }
       ci->timed_out = 0;
+      noit_hash_destroy(&dsn_h, free, free);
       return 0;
       break;
     case EVENTER_ASYNCH_CLEANUP:
