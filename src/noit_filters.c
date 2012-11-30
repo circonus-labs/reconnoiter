@@ -87,7 +87,7 @@ filterset_free(void *vp) {
   filterset_t *fs = vp;
   filterrule_t *r;
   if(noit_atomic_dec32(&fs->ref_cnt) != 0) return;
-  noitL(noit_error, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
+  noitL(noit_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
   while(fs->rules) {
     r = fs->rules->next;
     filterrule_free(fs->rules);
@@ -139,7 +139,7 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     int erroffset; \
     rule->rname = pcre_compile(longre, 0, &error, &erroffset, NULL); \
     if(!rule->rname) { \
-      noitL(noit_error, "set '%s' rule '%s: %s' compile failed: %s\n", \
+      noitL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
     } \
     else { \
