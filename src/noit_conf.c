@@ -680,6 +680,7 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
     }
     free(infile);
   }
+  if(mix_ctxt) xmlXPathFreeContext(mix_ctxt);
   mix_ctxt = xmlXPathNewContext(doc);
   backingstore_include_cnt = cnt;
   noitL(noit_debug, "Processed %d backing stores.\n", backingstore_include_cnt);
