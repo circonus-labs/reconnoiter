@@ -164,7 +164,7 @@ tmp_rsa_cb(SSL *ssl, int export, int keylen) {
   return tmpkey;
 }
 
-int
+static int
 eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
                          X509_STORE_CTX *x509ctx, void *closure) {
   time_t now;
@@ -234,7 +234,14 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
   const char *opt_no_ca, *ignore_dates;
   int v_res;
 
-  if(!x509ctx) return 0;
+  /* Clear any previous error */
+  if(ctx->cert_error) free(ctx->cert_error);
+  ctx->cert_error = NULL;
+
+  if(!x509ctx) {
+    ctx->cert_error = strdup("No certificate present.");
+    return 0;
+  }
 
   if(!noit_hash_retr_str(options, "optional_no_ca", strlen("optional_no_ca"),
                          &opt_no_ca))
@@ -272,6 +279,9 @@ eventer_ssl_verify_cert(eventer_ssl_ctx_t *ctx, int ok,
     else {
       noitL(eventer_deb, "SSL client cert is %s valid.\n",
             (v_res < 0) ? "not yet" : "no longer");
+      ctx->cert_error = strdup((v_res < 0) ?
+                               "Certificate not yet valid." :
+                               "Certificate expired.");
       ok = 0;
       goto set_out;
     }

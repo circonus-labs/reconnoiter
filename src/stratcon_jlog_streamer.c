@@ -558,19 +558,21 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   noit_connection_ctx_t *nctx = closure;
   int rv;
   const char *error = NULL, *cn_expected, *feedtype;
+  eventer_ssl_ctx_t *sslctx = NULL;
 
   GET_EXPECTED_CN(nctx, cn_expected);
   GET_FEEDTYPE(nctx, feedtype);
   STRATCON_CONNECT_SSL(e->fd, (char *)feedtype, nctx->remote_str,
                             (char *)cn_expected);
   rv = eventer_SSL_connect(e, &mask);
+  sslctx = eventer_get_eventer_ssl_ctx(e);
+
   if(rv > 0) {
-    eventer_ssl_ctx_t *sslctx;
     e->callback = nctx->consumer_callback;
     /* We must make a copy of the acceptor_closure_t for each new
      * connection.
      */
-    if((sslctx = eventer_get_eventer_ssl_ctx(e)) != NULL) {
+    if(sslctx != NULL) {
       const char *cn, *end;
       cn = eventer_ssl_get_peer_subject(sslctx);
       if(cn && (cn = strstr(cn, "CN=")) != NULL) {
@@ -583,7 +585,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
       }
       if(cn_expected && (!nctx->remote_cn ||
                          strcmp(nctx->remote_cn, cn_expected))) {
-        error = "jlog connect CN mismatch\n";
+        error = "jlog connect CN mismatch";
         goto error;
       }
     }
@@ -592,13 +594,14 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
     return e->callback(e, mask, e->closure, now);
   }
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+  if(sslctx) error = eventer_ssl_get_last_error(sslctx);
   noitL(noit_debug, "jlog streamer SSL upgrade failed.\n");
 
  error:
   STRATCON_CONNECT_SSL_FAILED(e->fd, (char *)feedtype,
                                    nctx->remote_str, (char *)cn_expected,
                                    (char *)error, errno);
-  if(error) noitL(noit_error, "%s", error);
+  if(error) noitL(noit_error, "%s\n", error);
   eventer_remove_fd(e->fd);
   nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
