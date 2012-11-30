@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <dlfcn.h>
+#include <assert.h>
 
 #include <libxml/parser.h>
 #include <libxslt/xslt.h>
@@ -174,10 +175,14 @@ int noit_load_image(const char *file, const char *name,
   obj->opaque_handle = calloc(1, sizeof(struct __extended_image_data));
 
   if(obj->onload && obj->onload(obj)) {
+    free(obj->opaque_handle);
     free(obj);
     return -1;
   }
-  noit_hash_store(registry, obj->name, strlen(obj->name), obj);
+  if(!noit_hash_store(registry, obj->name, strlen(obj->name), obj)) {
+    noitL(noit_error, "Attempted to load module %s more than once.\n", obj->name);
+    return -1;
+  }
   return 0;
 }
 
