@@ -1263,14 +1263,22 @@ nl_base32_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
   unsigned char *decoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
 
   message = lua_tolstring(L, 1, &inlen);
-  decoded = malloc(MAX(1,inlen));
+  if(MAX(1,inlen) <= ON_STACK_LUA_STRLEN) {
+    decoded = alloca(MAX(1,inlen));
+  }
+  else {
+    decoded = malloc(MAX(1,inlen));
+    needs_free = 1;
+  }
   if(!decoded) luaL_error(L, "out-of-memory");
   decoded_len = noit_b32_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
+  if(needs_free) free(decoded);
   return 1;
 }
 static int
@@ -1278,15 +1286,23 @@ nl_base32_encode(lua_State *L) {
   size_t inlen, encoded_len;
   const unsigned char *message;
   char *encoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.encode");
 
   message = (const unsigned char *)lua_tolstring(L, 1, &inlen);
   encoded_len = (((inlen + 7) / 5) * 8) + 1;
-  encoded = malloc(encoded_len);
+  if(encoded_len <= ON_STACK_LUA_STRLEN) {
+    encoded = alloca(encoded_len);
+  }
+  else {
+    encoded = malloc(encoded_len);
+    needs_free = 1;
+  }
   if(!encoded) luaL_error(L, "out-of-memory");
   encoded_len = noit_b32_encode(message, inlen, encoded, encoded_len);
   lua_pushlstring(L, (char *)encoded, encoded_len);
+  if(needs_free) free(encoded);
   return 1;
 }
 static int
@@ -1294,14 +1310,22 @@ nl_base64_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
   unsigned char *decoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
 
   message = lua_tolstring(L, 1, &inlen);
-  decoded = malloc(MAX(1,inlen));
+  if(MAX(1,inlen) <= ON_STACK_LUA_STRLEN) {
+    decoded = alloca(MAX(1,inlen));
+  }
+  else {
+    decoded = malloc(MAX(1,inlen));
+    needs_free = 1;
+  }
   if(!decoded) luaL_error(L, "out-of-memory");
   decoded_len = noit_b64_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
+  if(needs_free) free(decoded);
   return 1;
 }
 static int
