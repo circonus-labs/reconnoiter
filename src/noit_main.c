@@ -129,7 +129,7 @@ noit_main(const char *appname,
   int retry_val;
   int span_val;
   int ret;
-  int prio = 0;
+  int prio = 20;
   long lprio;
    
   /* First initialize logging, so we can log errors */
@@ -230,7 +230,7 @@ noit_main(const char *appname,
       }
       noitL(noit_error, "Setting process group priority to %d\n", prio);
     } else {
-      noitL(noit_stderr, "Could not set process group priority.\n");
+      noitL(noit_error, "Invalid priority value: %s\n", pgrp_prio);
     }
   }
 
@@ -244,8 +244,13 @@ noit_main(const char *appname,
     dup2(fd, STDERR_FILENO);
     if(fork()) exit(0);
     setsid();
-    /* Set process group priority after creating new session/process group */
-    setpriority(PRIO_PGRP, getpgrp(), prio);
+    if(prio < 20) {
+      /* Set process group priority after creating new session/process group */
+      ret = setpriority(PRIO_PGRP, getpgrp(), prio);
+      if(ret < 0) {
+        noitL(noit_error, "Could not set priority value.\n");
+      }
+    }
     if(fork()) exit(0);
 
     /* Reacquire the lock */
@@ -259,7 +264,12 @@ noit_main(const char *appname,
   else {
     /* If we aren't creating a new session then create a new process group instead */
     setpgrp();
-    setpriority(PRIO_PGRP, getpgrp(), prio);
+    if(prio < 20) {
+      ret = setpriority(PRIO_PGRP, getpgrp(), prio);
+      if(ret < 0) {
+        noitL(noit_error, "Could not set priority value.\n");
+      }
+    }
   }
 
   if(foreground == 1) return passed_child_main();
