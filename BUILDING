@@ -18,6 +18,7 @@ PostgreSQL 8.4 is required.
 # portmaster -g /usr/ports/textproc/libxslt
 # portmaster -g /usr/ports/www/apache22
 # portmaster -g /usr/ports/lang/php5
+# portmaster -g /usr/ports/devel/protobuf-c
 # cd /usr/local/src
 # svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
 # cd reconnoiter
