@@ -248,7 +248,7 @@ noit_main(const char *appname,
       /* Set process group priority after creating new session/process group */
       ret = setpriority(PRIO_PGRP, getpgrp(), prio);
       if(ret < 0) {
-        noitL(noit_error, "Could not set priority value.\n");
+        noitL(noit_error, "Could not set priority value. [%d] %s\n", errno, strerror(errno));
       }
     }
     if(fork()) exit(0);
@@ -267,7 +267,7 @@ noit_main(const char *appname,
     if(prio < 20) {
       ret = setpriority(PRIO_PGRP, getpgrp(), prio);
       if(ret < 0) {
-        noitL(noit_error, "Could not set priority value.\n");
+        noitL(noit_error, "Could not set priority value. [%d] %s\n", errno, strerror(errno));
       }
     }
   }
