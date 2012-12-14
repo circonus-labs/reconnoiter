@@ -431,6 +431,7 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
     len = noit_http_session_req_consume(restc->http_ctx,
                                         rxc->buffer + rxc->len,
                                         rxc->allocd - rxc->len,
+                                        rxc->allocd - rxc->len,
                                         mask);
     if(len > 0) rxc->len += len;
     if(len < 0 && errno == EAGAIN) return NULL;

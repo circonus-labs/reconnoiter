@@ -127,6 +127,8 @@ API_EXPORT(const char *)
   noit_http_request_protocol_str(noit_http_request *);
 API_EXPORT(size_t)
   noit_http_request_content_length(noit_http_request *);
+API_EXPORT(noit_boolean)
+  noit_http_request_payload_chunked(noit_http_request *);
 API_EXPORT(const char *)
   noit_http_request_querystring(noit_http_request *, const char *);
 API_EXPORT(noit_hash_table *)
@@ -154,7 +156,7 @@ API_EXPORT(noit_boolean)
   noit_http_session_prime_input(noit_http_session_ctx *, const void *, size_t);
 API_EXPORT(int)
   noit_http_session_req_consume(noit_http_session_ctx *ctx,
-                                void *buf, size_t len, int *mask);
+                                void *buf, size_t len, size_t blen, int *mask);
 API_EXPORT(noit_boolean)
   noit_http_response_status_set(noit_http_session_ctx *, int, const char *);
 API_EXPORT(noit_boolean)

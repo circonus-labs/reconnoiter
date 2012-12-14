@@ -381,6 +381,7 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
     len = noit_http_session_req_consume(
             restc->http_ctx, buffer,
             MIN(content_length - rxc->len, sizeof(buffer)),
+            sizeof(buffer),
             mask);
     if(len > 0) {
       yajl_status status;
@@ -400,7 +401,9 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    if(rxc->len == content_length) {
+    content_length = noit_http_request_content_length(req);
+    if((noit_http_request_payload_chunked(req) && len == 0) ||
+       (rxc->len == content_length)) {
       rxc->complete = 1;
       yajl_complete_parse(rxc->parser);
     }
