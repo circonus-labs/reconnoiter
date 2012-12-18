@@ -48,6 +48,7 @@
 #include "utils/noit_hash.h"
 
 #include <libssh2.h>
+#include <gcrypt.h>
 
 #define DEFAULT_SSH_PORT 22
 
@@ -103,7 +104,11 @@ static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
     memset(ci, 0, sizeof(*ci));
   }
 }
+
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+
 static int ssh2_init(noit_module_t *self) {
+  gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
   return 0;
 }
 static int ssh2_config(noit_module_t *self, noit_hash_table *options) {
