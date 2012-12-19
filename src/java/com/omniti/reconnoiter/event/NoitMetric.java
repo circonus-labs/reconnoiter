@@ -51,6 +51,8 @@ public class NoitMetric extends NoitEvent
 
   public boolean isNumeric() { return nmn != null; }
   public boolean isText() { return nmt != null; }
+  public NoitMetricNumeric getNumeric() { return nmn; }
+  public NoitMetricText getText() { return nmt; }
   public String getPrefix() { return "M"; }
   public int numparts() { return 7; }
 }
