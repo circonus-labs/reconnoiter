@@ -40,6 +40,7 @@
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
+#include <dlfcn.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -48,7 +49,9 @@
 #include "utils/noit_hash.h"
 
 #include <libssh2.h>
+#ifdef HAVE_GCRYPT_H
 #include <gcrypt.h>
+#endif
 
 #define DEFAULT_SSH_PORT 22
 
@@ -105,10 +108,16 @@ static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
   }
 }
 
+#ifdef HAVE_GCRYPT_H
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
+#endif
 
 static int ssh2_init(noit_module_t *self) {
-  gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+#ifdef HAVE_GCRYPT_H
+  gcry_error_t (*control)(enum gcry_ctl_cmds CMD, ...);
+  control = dlsym(RTLD_DEFAULT, "gcry_control");
+  if(control) control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+#endif
   return 0;
 }
 static int ssh2_config(noit_module_t *self, noit_hash_table *options) {
