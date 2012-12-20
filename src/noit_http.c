@@ -73,7 +73,7 @@ struct noit_http_request {
   int64_t content_length;
   int64_t content_length_read;
   int32_t next_chunk;
-  int32_t next_chunk_read;;
+  int32_t next_chunk_read;
   char *method_str;
   char *uri_str;
   char *protocol_str;
