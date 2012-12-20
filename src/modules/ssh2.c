@@ -115,6 +115,9 @@ GCRY_THREAD_OPTION_PTHREAD_IMPL;
 static int ssh2_init(noit_module_t *self) {
 #ifdef HAVE_GCRYPT_H
   gcry_error_t (*control)(enum gcry_ctl_cmds CMD, ...);
+#ifndef RTLD_DEFAULT
+#define RTLD_DEFAULT ((void *)0)
+#endif
   control = dlsym(RTLD_DEFAULT, "gcry_control");
   if(control) control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
 #endif
