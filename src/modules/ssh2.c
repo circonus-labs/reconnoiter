@@ -297,7 +297,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
                          noit_check_t *cause) {
   ssh2_check_info_t *ci = check->closure;
   struct timeval p_int, __now;
-  int fd, rv;
+  int fd = -1, rv = -1;
   eventer_t e;
   union {
     struct sockaddr_in sin;
