@@ -104,6 +104,21 @@ public abstract class JDBC implements JezebelCheck {
       }
     }
 
+    // For MySQL and Postgres, make this act just like the C lib by default.
+    // i.e. append the column name to the metric name (if not already set)
+    if ( check.get("module").equals("mysql") || check.get("module").equals("postgres") ) {
+      if ( ! config.containsKey("append_column_name") ) {
+        config.put("append_column_name","true");
+      }
+    }
+
+    // MySQL "show" queries need auto typing on or all you get is strings.
+    if ( check.get("module").equals("mysql") ) {
+      if ( sql.toLowerCase().startsWith("show") ) {
+        config.put("autotype", "true");
+      }
+    }
+
     sql = JezebelTools.interpolate(sql, check, config);
 
     Connection conn = null;
