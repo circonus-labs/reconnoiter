@@ -48,6 +48,9 @@ function onload(image)
     <parameter name="dbindex" required="optional" default="0" allowed="\d+">
         Index of the database the command will run against
     </parameter>
+    <parameter name="password" required="optional" default="nil" allowed=".+">
+        Auth password for redis
+    </parameter>
   </checkconfig>
   <examples>
     <example>
@@ -97,6 +100,16 @@ function initiate(module, check)
   if ( rv ~= 0 ) then
     check.status(err or "connect error")
     return
+  end
+
+  if ( check.config.password ~= nil ) then
+    conn:write(build_redis_command("AUTH " .. check.config.password))
+    conn:read(1)
+    local status = string.sub(conn:read("\r\n"), 1, -3)
+    if ( status ~= "OK" ) then
+      check.status("could not authenticate " .. " (" .. status .. ")")
+      return
+    end
   end
 
   if ( check.config.dbindex ~= nil and check.config.dbindex ~= 0 ) then
