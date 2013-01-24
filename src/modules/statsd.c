@@ -167,7 +167,8 @@ update_check(noit_check_t *check, const char *key, char type,
            (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
   m = noit_stats_get_metric(check, &ccl->current, buff);
   if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
-    (*m->metric_value.n) = diff;
+    if(type == 'c') (*m->metric_value.n) += diff;
+    else (*m->metric_value.n) = diff;
     check_stats_set_metric_hook_invoke(check, &ccl->current, m);
   }
   else
