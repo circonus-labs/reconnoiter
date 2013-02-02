@@ -64,6 +64,9 @@ struct noit_http_rest_closure {
 
 API_EXPORT(void) noit_http_rest_init();
 
+API_EXPORT(void)
+  noit_http_rest_clean_request(noit_http_rest_closure_t *restc);
+
 API_EXPORT(noit_boolean)
   noit_http_rest_access(noit_http_rest_closure_t *restc,
                         int npats, char **pats) ;
@@ -83,7 +86,11 @@ API_EXPORT(int)
 
 API_EXPORT(xmlDocPtr)
   rest_get_xml_upload(noit_http_rest_closure_t *restc,
-                      int *mask, int *complete) ;
+                      int *mask, int *complete);
+
+API_EXPORT(void *)
+  rest_get_raw_upload(noit_http_rest_closure_t *restc,
+                      int *mask, int *complete, int *size);
 
 API_EXPORT(int)
   noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,

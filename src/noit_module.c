@@ -46,6 +46,12 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 
+NOIT_HOOK_IMPL(module_post_init,
+  (),
+  void *, closure,
+  (void *closure),
+  (closure))
+
 static noit_module_t *
 noit_load_module_image(noit_module_loader_t *loader,
                        char *module_name,
@@ -539,6 +545,11 @@ void noit_module_init() {
     noitL(noit_stderr, "Module %s successfully loaded.\n", module_name);
   }
   free(sections);
+
+  if(module_post_init_hook_invoke() == NOIT_HOOK_ABORT) {
+    noitL(noit_stderr, "Module post initialization phase failed.\n");
+    noit_module_load_failure_count++;
+  }
 }
 
 #define userdata_accessors(type, field) \

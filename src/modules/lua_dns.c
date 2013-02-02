@@ -62,7 +62,7 @@ typedef struct dns_ctx_handle {
 } dns_ctx_handle_t;
 
 typedef struct dns_lookup_ctx {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   dns_ctx_handle_t *h;
   char *error;
   unsigned char dn[DNS_MAXDN];
@@ -208,9 +208,9 @@ void lookup_ctx_release(dns_lookup_ctx_t *v) {
 int nl_dns_lookup(lua_State *L) {
   dns_lookup_ctx_t *dlc, **holder;
   const char *nameserver = NULL;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
   if(lua_gettop(L) > 0)
     nameserver = lua_tostring(L, 1);
@@ -358,7 +358,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
 
  cleanup:
   if(result) free(result);
-  if(dlc->active) noit_lua_resume(dlc->ci, nrr);
+  if(dlc->active) dlc->ci->lmc->resume(dlc->ci, nrr);
   lookup_ctx_release(dlc);
 }
 
@@ -367,9 +367,9 @@ static int noit_lua_dns_lookup(lua_State *L) {
   const char *c, *query = "", *ctype = "IN", *rtype = "A";
   char *ctype_up, *rtype_up, *d;
   void *vnv_pair;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   holder = (dns_lookup_ctx_t **)lua_touserdata(L, lua_upvalueindex(1));

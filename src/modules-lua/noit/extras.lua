@@ -29,6 +29,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 local ipairs = ipairs
+local pairs = pairs
+local type = type
+local tonumber = tonumber
 local string = require("string")
 local table = require("table")
 module("noit.extras")
@@ -111,4 +114,71 @@ function check_host_header_against_certificate(host_header, cert_subject, san_li
     return nil
   end
   return 'host header does not match CN or SANs in certificate'
+end
+
+function decode_form(req, desired_key)
+  if(req:headers("content-type") ~= "application/x-www-form-urlencoded") then return nil end
+  local p = req:payload()
+  local form = {}
+  if(p ~= nil) then
+    for i, item in pairs(split(p,'&')) do
+      local parts = split(item, '=', 2)
+      local key = parts[1]:gsub("%%(%x%x)", function(s) return string.char(tonumber(s,16)) end)
+      local val = parts[2]
+      if val == nil then form[key] = true
+      else
+        val = val:gsub("%%(%x%x)", function(s) return string.char(tonumber(s,16)) end)
+        form[key] = val
+      end
+    end
+  end
+  if desired_key ~= nil then return form[desired_key] end
+  return form
+end
+
+function decode_cookie(req, desired_key)
+  local c = req:headers('cookie')
+  local jar = {}
+  if(c ~= nil) then
+    for i, item in pairs(split(c,'; ')) do
+      local parts = split(item, '=', 2)
+      local key = parts[1]:gsub("%%(%x%x)", function(s) return string.char(tonumber(s,16)) end)
+      local val = parts[2]
+      if val == nil then jar[key] = true
+      else
+        val = val:gsub("%%(%x%x)", function(s) return string.char(tonumber(s,16)) end)
+        jar[key] = val
+      end
+    end
+  end
+  if desired_key ~= nil then return jar[desired_key] end
+  return jar
+end
+
+function url_encode(str, str2)
+  return str:gsub("([^-_%.~A-Za-z0-9])", function(c) return string.format("%%%02x", string.byte(c)) end)
+end
+function url_decode(str, str2)
+  return str:gsub("%%(%x%x)", function(s) return string.char(tonumber(s,16)) end)
+end
+
+function set_cookie(http, key, value, attrs)
+  if(attrs == nil) then attrs = {} end
+  local lattrs = {}
+  for k,v in pairs(attrs) do lattrs[string.lower(k)] = v end
+  local urlkey = key:gsub("([^-%w])", function(c) return string.format("%%%02x", string.byte(c)) end)
+  local urlvalue = value:gsub("([^-%w])", function(c) return string.format("%%%02x", string.byte(c)) end)
+  local hdrval = urlkey .. "=" .. urlvalue
+  if(lattrs['expires']) then
+    hdrval = hdrval .. "; Expires=" .. os.date("%a, %d-%b-%Y %H:%M:%S GMT", os.time() + lattrs['expires'])
+  end
+  if(lattrs['domain']) then
+    hdrval = hdrval .. "; Domain=" .. lattrs['domain']
+  end
+  if(lattrs['path']) then
+    hdrval = hdrval .. "; Path=" .. lattrs['path']
+  end
+  if(lattrs['secure']) then hdrval = hdrval .. "; Secure" end
+  if(lattrs['httponly']) then hdrval = hdrval .. "; HttpOnly" end
+  http:header('Set-Cookie', hdrval)
 end

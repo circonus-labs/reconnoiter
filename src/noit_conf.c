@@ -61,7 +61,6 @@ static noit_log_stream_t xml_debug = NULL;
   xmlSetGenericErrorFunc(ncct, noit_conf_xml_console_error_func); \
   xmlSetStructuredErrorFunc(ncct, noit_conf_xml_console_error_ext_func); \
 } while(0)
-static noit_hash_table _tmp_config = NOIT_HASH_EMPTY;
 static xmlDocPtr master_config = NULL;
 static int config_include_cnt = -1;
 static int backingstore_include_cnt = -1;
@@ -1044,9 +1043,25 @@ int noit_conf_get_stringbuf(noit_conf_section_t section,
 }
 int noit_conf_set_string(noit_conf_section_t section,
                          const char *path, const char *value) {
-  noit_hash_replace(&_tmp_config,
-                    strdup(path), strlen(path), (void *)strdup(value),
-                    free, free);
+  xmlNodePtr current_node = (xmlNodePtr)section;
+  if(strchr(path, '/')) return 0;
+  if(path[0] == '@') {
+    xmlSetProp(current_node, (xmlChar *)path+1, (xmlChar *)value);
+    CONF_DIRTY(current_node);
+  }
+  else {
+    xmlNodePtr child_node;
+    if(value) {
+      child_node = xmlNewTextChild(current_node, NULL, (xmlChar *)path, (xmlChar *)value);
+    }
+    else {
+      child_node = xmlNewChild(current_node, NULL, (xmlChar *)path, NULL);
+    }
+    CONF_DIRTY(child_node);
+  }
+  noit_conf_mark_changed();
+  if(noit_conf_write_file(NULL) != 0)
+    noitL(noit_error, "local config write failed\n");
   return 1;
 }
 int noit_conf_string_to_int(const char *str) {

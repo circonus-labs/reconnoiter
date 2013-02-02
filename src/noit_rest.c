@@ -50,6 +50,13 @@ struct rest_xml_payload {
   int complete;
 };
 
+struct rest_raw_payload {
+  char *buffer;
+  int len;
+  int allocd;
+  int complete;
+};
+
 struct rest_url_dispatcher {
   char *method;
   pcre *expression;
@@ -262,7 +269,7 @@ noit_http_rest_closure_alloc() {
   restc = calloc(1, sizeof(*restc));
   return restc;
 }
-static void
+void
 noit_http_rest_clean_request(noit_http_rest_closure_t *restc) {
   int i;
   if(restc->nparams) {
@@ -448,6 +455,58 @@ rest_get_xml_upload(noit_http_rest_closure_t *restc,
   *complete = 1;
   return rxc->indoc;
 }
+
+static void
+rest_raw_payload_free(void *f) {
+  free(f);
+}
+
+void *
+rest_get_raw_upload(noit_http_rest_closure_t *restc,
+                    int *mask, int *complete, int *size) {
+  struct rest_raw_payload *rxc;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+
+  *size = 0;
+  if(restc->call_closure == NULL) {
+    restc->call_closure = calloc(1, sizeof(*rxc));
+    restc->call_closure_free = rest_raw_payload_free;
+  }
+  rxc = restc->call_closure;
+  while(!rxc->complete) {
+    int len;
+    if(rxc->len == rxc->allocd) {
+      char *b;
+      rxc->allocd += 32768;
+      b = rxc->buffer ? realloc(rxc->buffer, rxc->allocd) :
+                        malloc(rxc->allocd);
+      if(!b) {
+        *complete = 1;
+        return NULL;
+      }
+      rxc->buffer = b;
+    }
+    len = noit_http_session_req_consume(restc->http_ctx,
+                                        rxc->buffer + rxc->len,
+                                        rxc->allocd - rxc->len,
+                                        rxc->allocd - rxc->len,
+                                        mask);
+    if(len > 0) rxc->len += len;
+    if(len < 0 && errno == EAGAIN) return NULL;
+    else if(len < 0) {
+      *complete = 1;
+      return NULL;
+    }
+    if(rxc->len == noit_http_request_content_length(req)) {
+      *size = rxc->len;
+      rxc->complete = 1;
+    }
+  }
+
+  *complete = 1;
+  return rxc->buffer;
+}
+
 int
 noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
                               int npats, char **pats) {

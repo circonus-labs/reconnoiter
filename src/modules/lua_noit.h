@@ -47,26 +47,40 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+typedef struct noit_lua_resume_info noit_lua_resume_info_t;
+
 typedef struct lua_module_closure {
   char *object;
   lua_State *lua_state;
   int object_ref;
   noit_hash_table *pending;
+  int (*resume)(noit_lua_resume_info_t *ci, int nargs);
 } lua_module_closure_t;
 
-typedef struct noit_lua_check_info {
+struct noit_lua_resume_info {
+  lua_module_closure_t *lmc;
+  lua_State *coro_state;
+  int coro_state_ref;
+  noit_hash_table *events; /* Any eventers we need to cleanup */
+  int context_magic;
+  void *context_data;
+};
+
+typedef struct noit_lua_resume_check_info {
   noit_module_t *self;
   noit_check_t *check;
   noit_check_t *cause;
   int timed_out;
   eventer_t timeout_event;
-  lua_module_closure_t *lmc;
-  lua_State *coro_state;
-  int coro_state_ref;
-  struct timeval finish_time;
   stats_t current;
-  noit_hash_table *events; /* Any eventers we need to cleanup */
-} noit_lua_check_info_t;
+  struct timeval finish_time;
+} noit_lua_resume_check_info_t;
+#define LUA_CHECK_INFO_MAGIC 0x22113322
+
+typedef struct noit_lua_resume_rest_info {
+
+} noit_lua_resume_rest_info_t;
+#define LUA_REST_INFO_MAGIC 0x80443000
 
 struct nl_generic_cl {
   void (*free)(void *);
@@ -74,7 +88,7 @@ struct nl_generic_cl {
 
 struct nl_intcl {
   void (*free)(void *);
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ri;
 };
 
 struct nl_slcl {
@@ -103,18 +117,24 @@ struct nl_slcl {
 };
 
 void noit_lua_init();
+lua_State *noit_lua_open(const char *module_name, void *lmc,
+                         const char *script_dir);
+void noit_lua_cancel_coro(noit_lua_resume_info_t *ci);
+void noit_lua_resume_clean_events(noit_lua_resume_info_t *ci);
+void noit_lua_pushmodule(lua_State *L, const char *m);
 void noit_lua_init_dns();
+void noit_lua_hash_to_table(lua_State *L, noit_hash_table *t);
 int noit_lua_dns_gc(lua_State *L);
 int noit_lua_dns_index_func(lua_State *L);
 int nl_dns_lookup(lua_State *L);
 int luaopen_noit(lua_State *L);
 int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 int luaopen_bit(lua_State *L); /* from lua_bit.c */
-noit_lua_check_info_t *get_ci(lua_State *L);
-int noit_lua_yield(noit_lua_check_info_t *ci, int nargs);
-int noit_lua_resume(noit_lua_check_info_t *ci, int nargs);
-void noit_lua_check_register_event(noit_lua_check_info_t *ci, eventer_t e);
-void noit_lua_check_deregister_event(noit_lua_check_info_t *ci, eventer_t e,
+noit_lua_resume_info_t *noit_lua_get_resume_info(lua_State *L);
+void noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri);
+int noit_lua_yield(noit_lua_resume_info_t *ci, int nargs);
+void noit_lua_check_register_event(noit_lua_resume_info_t *ci, eventer_t e);
+void noit_lua_check_deregister_event(noit_lua_resume_info_t *ci, eventer_t e,
                                      int tofree);
 
 #endif

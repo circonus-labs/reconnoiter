@@ -70,6 +70,12 @@ struct noit_http_request {
   struct bchain *current_request_chain;
   noit_boolean has_payload;
   noit_boolean payload_chunked;
+  struct {
+    int64_t size;
+    void *data;
+    void (*freefunc)(void *data, int64_t size, void *closure);
+    void *freeclosure;
+  } upload;  /* This is optionally set */
   int64_t content_length;
   int64_t content_length_read;
   int32_t next_chunk;
@@ -257,6 +263,9 @@ size_t noit_http_request_content_length(noit_http_request *req) {
 noit_boolean noit_http_request_payload_chunked(noit_http_request *req) {
   return req->payload_chunked;
 }
+noit_boolean noit_http_request_has_payload(noit_http_request *req) {
+  return req->has_payload;
+}
 const char *noit_http_request_querystring(noit_http_request *req, const char *k) {
   void *vv;
   const char *v = NULL;
@@ -270,6 +279,25 @@ noit_hash_table *noit_http_request_querystring_table(noit_http_request *req) {
 noit_hash_table *noit_http_request_headers_table(noit_http_request *req) {
   return &req->headers;
 }
+void
+noit_http_request_set_upload(noit_http_request *req,
+                             void *data, int64_t size,
+                             void (*freefunc)(void *, int64_t, void *),
+                             void *closure) {
+  if(req->upload.freefunc)
+    req->upload.freefunc(req->upload.data, req->upload.size,
+                             req->upload.freeclosure);
+  req->upload.freefunc = freefunc;
+  req->upload.freeclosure = closure;
+  req->upload.data = data;
+  req->upload.size = size;
+}
+const void *
+noit_http_request_get_upload(noit_http_request *req, int64_t *size) {
+  if(size) *size = req->upload.size;
+  return req->upload.data;
+}
+
 noit_boolean noit_http_response_closed(noit_http_response *res) {
   return res->closed;
 }
@@ -766,6 +794,12 @@ noit_http_request_release(noit_http_session_ctx *ctx) {
   if(ctx->req.orig_qs) free(ctx->req.orig_qs);
   memset(&ctx->req.state, 0,
          sizeof(ctx->req) - (unsigned long)&(((noit_http_request *)0)->state));
+  /* If someone has jammed in a payload, clean that up too */
+  if(ctx->req.upload.freefunc) {
+    ctx->req.upload.freefunc(ctx->req.upload.data, ctx->req.upload.size,
+                             ctx->req.upload.freeclosure);
+  }
+  memset(&ctx->req.upload, 0, sizeof(ctx->req.upload));
 }
 void
 noit_http_response_release(noit_http_session_ctx *ctx) {
@@ -1284,7 +1318,7 @@ static int memgzip2(noit_http_response *res, Bytef *dest, uLongf *destLen,
   err = deflate(res->gzip, deflate_option);
 
   if(deflate_option == Z_FINISH) expect = Z_STREAM_END;
-  if (err != expect) {
+  if (err != Z_OK && err != expect) {
     noitL(noit_error, "memgzip2() -> deflate: got %d, need %d\n", err, expect);
     deflateEnd(res->gzip);
     free(res->gzip);

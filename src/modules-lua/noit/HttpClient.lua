@@ -28,6 +28,28 @@
 -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+function Headers()
+  local map = {}
+  local mt = {
+    __index = function(t,k)
+      local K = map[string.lower(k)]
+      if K ~= nil then
+        return rawget(t,K)
+      end
+      return nil
+    end,
+    __newindex = function(t,k,v)
+      local kl = string.lower(k)
+      if map[kl] ~= nil then
+         rawset(t,map[kl],nil)
+      end
+      map[kl] = k
+      rawset(t,k,v)
+    end
+  }
+  return setmetatable({},mt)
+end
+
 local HttpClient = {};
 HttpClient.__index = HttpClient;
 
@@ -61,8 +83,10 @@ function HttpClient:ssl_ctx()
    return self.e:ssl_ctx()
 end
 
-function HttpClient:do_request(method, uri, headers, payload, http_version)
+function HttpClient:do_request(method, uri, _headers, payload, http_version)
     local version = http_version or "1.1"
+    local headers = Headers()
+    for k,v in pairs(_headers) do headers[k] = v end
     self.raw_bytes = 0
     self.content_bytes = 0
     local sstr = method .. " " .. uri .. " " .. "HTTP/" ..  version .. "\r\n"
@@ -92,7 +116,7 @@ function HttpClient:get_headers()
     self.protocol, self.code = string.match(str, "^HTTP/(%d.%d)%s+(%d+)%s+")
     if self.protocol == nil then error("malformed HTTP response") end
     self.code = tonumber(self.code)
-    self.headers = {}
+    self.headers = Headers()
     self.cookies = {}
     while true do
         local str = self.e:read("\n")
@@ -106,8 +130,7 @@ function HttpClient:get_headers()
             if val == nil then error("malformed header line") end
             self.headers[hdr] = self.headers[hdr] .. " " .. val
         else
-            hdr = string.lower(hdr)
-            if hdr == "set-cookie" then
+            if string.lower(hdr) == "set-cookie" then
                 self.cookies[cookie_count] = val;
                 cookie_count = cookie_count + 1;
             else
@@ -121,6 +144,11 @@ end
 
 function ce_passthru(str) 
     return str
+end
+
+function te_none(self)
+    self.content_bytes = ''
+    if self.hooks.consume ~= nil then self.hooks.consume('') end
 end
 
 function te_close(self, content_enc_func)
@@ -140,7 +168,7 @@ function te_close(self, content_enc_func)
 end
 
 function te_length(self, content_enc_func, read_limit)
-    local len = tonumber(self.headers["content-length"])
+    local len = tonumber(self.headers["Content-Length"])
     if read_limit and read_limit > 0 and len > read_limit then
       len = read_limit
       self.truncated = true
@@ -194,7 +222,7 @@ end
 
 function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
-    local ce = self.headers["content-encoding"]
+    local ce = self.headers["Content-Encoding"]
     if ce ~= nil then
       local deflater
       if ce == 'gzip' then
@@ -222,12 +250,15 @@ function HttpClient:get_body(read_limit)
         return deflater(str, read_limit)
       end
     end
-    local te = self.headers["transfer-encoding"]
-    local cl = self.headers["content-length"]
+    local te = self.headers["Transfer-Encoding"]
+    local cl = self.headers["Content-Length"]
     if te ~= nil and te == "chunked" then
         return te_chunked(self, cefunc, read_limit)
     elseif cl ~= nil and tonumber(cl) ~= nil then
         return te_length(self, cefunc, read_limit)
+    elseif self.headers["Connection"] == "keep-alive"
+       and (self.code == 204 or self.code == 304) then
+        return te_none(self)
     end
     return te_close(self, cefunc)
 end

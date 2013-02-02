@@ -80,6 +80,12 @@
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
     </jezebel>
     <generic image="check_test" name="check_test"/>
+    <generic image="lua" name="lua_web">
+      <config>
+        <directory>%modulesluadir%/?.lua</directory>
+        <dispatch>%modulesluadir%/web.lua</dispatch>
+      </config>
+    </generic>
     <generic image="ip_acl" name="ip_acl"/>
   </modules>
   <listeners>
