@@ -210,36 +210,42 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
   if(!((mask & EVENTER_ASYNCH_WORK) == EVENTER_ASYNCH_WORK)) return 0;
 
   noitL(ds_deb, "Syncing journal sets...\n");
-  while(noit_hash_next(syncset->ws, &iter, &k, &klen, &vij)) {
-    char tmppath[PATH_MAX], id_str[32];
-    int suffix_idx;
-    ij = vij;
-    noitL(ds_deb, "Syncing journal set [%s,%s,%s]\n",
-          ij->remote_str, ij->remote_cn, ij->fqdn);
-    strlcpy(tmppath, ij->filename, sizeof(tmppath));
-    suffix_idx = strlen(ij->filename) - 4; /* . t m p */
-    ij->filename[suffix_idx] = '\0';
-    if(rename(tmppath, ij->filename) != 0) {
-      if(errno == EEXIST) {
-        unlink(ij->filename);
-        if(rename(tmppath, ij->filename) != 0) goto rename_failed;
+  if (syncset->ws) {
+    while(noit_hash_next(syncset->ws, &iter, &k, &klen, &vij)) {
+      char tmppath[PATH_MAX], id_str[32];
+      int suffix_idx;
+      ij = vij;
+      noitL(ds_deb, "Syncing journal set [%s,%s,%s]\n",
+            ij->remote_str, ij->remote_cn, ij->fqdn);
+      strlcpy(tmppath, ij->filename, sizeof(tmppath));
+      suffix_idx = strlen(ij->filename) - 4; /* . t m p */
+      ij->filename[suffix_idx] = '\0';
+      if(rename(tmppath, ij->filename) != 0) {
+        if(errno == EEXIST) {
+          unlink(ij->filename);
+          if(rename(tmppath, ij->filename) != 0) goto rename_failed;
+        }
+        else {
+         rename_failed:
+          noitL(noit_error, "rename failed(%s): (%s->%s)\n", strerror(errno),
+                tmppath, ij->filename);
+          exit(-1);
+        }
       }
-      else {
-       rename_failed:
-        noitL(noit_error, "rename failed(%s): (%s->%s)\n", strerror(errno),
-              tmppath, ij->filename);
-        exit(-1);
-      }
+      fsync(ij->fd);
+      close(ij->fd);
+      ij->fd = -1;
+      snprintf(id_str, sizeof(id_str), "%d", ij->storagenode_id);
+      stratcon_ingest(ij->filename, ij->remote_str,
+                      ij->remote_cn, id_str);
     }
-    fsync(ij->fd);
-    close(ij->fd);
-    ij->fd = -1;
-    snprintf(id_str, sizeof(id_str), "%d", ij->storagenode_id);
-    stratcon_ingest(ij->filename, ij->remote_str,
-                    ij->remote_cn, id_str);
+    noit_hash_destroy(syncset->ws, free, interim_journal_free);
+    free(syncset->ws);
   }
-  noit_hash_destroy(syncset->ws, free, interim_journal_free);
-  free(syncset->ws);
+  else {
+    noitL(noit_error, "attempted to sync non-existing working set\n");
+  }
+
   return 0;
 }
 static interim_journal_t *
@@ -313,7 +319,10 @@ stratcon_datastore_journal(struct sockaddr *remote,
   const char *fqdn = NULL, *dsn = NULL;
   int storagenode_id = 0;
   uuid_t checkid;
-  if(!line) return;
+  if(!line) {
+    noitL(noit_error, "Error: Line not found for %s in stratcon_datastore_journal\n", remote_cn);
+    return;
+  }
   cp1 = strchr(line, '\t');
   if(cp1 && cp1 - line < sizeof(rtype) - 1) {
     memcpy(rtype, line, cp1 - line);
@@ -344,6 +353,7 @@ stratcon_datastore_journal(struct sockaddr *remote,
       ij = interim_journal_get(remote,remote_cn,0,NULL);
       break;
     default:
+      noitL(noit_error, "Error: Line has bad type for %s in stratcon_datastore_journal (%s)\n", remote_cn, line);
       break;
   }
   if(!ij) {
@@ -371,7 +381,6 @@ stratcon_datastore_journal_remove(struct sockaddr *remote,
   else {
     noitL(noit_error, "attempted checkpoint on non-existing workingset: '%s'\n",
           remote_cn);
-    abort();
   }
   return vhash;
 }
