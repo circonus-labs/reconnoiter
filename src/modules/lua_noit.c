@@ -1228,7 +1228,7 @@ nl_open(lua_State *L) {
     luaL_error(L, "bad call to noit.open");
   file = lua_tostring(L, 1);
   flags = lua_tointeger(L, 2);
-  if(lua_gettop(L) == 3)
+  if(lua_gettop(L) == 2)
     fd = open(file, flags);
   else
     fd = open(file, flags, lua_tointeger(L, 3));
