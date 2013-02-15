@@ -68,7 +68,6 @@ static lua_web_conf_t *get_config(noit_module_generic_t *self) {
 static void
 rest_lua_ctx_free(void *cl) {
   noit_lua_resume_info_t *ri = cl;
-noitL(noit_error, "in rest_lua_ctx_free(%p)\n", ri);
   if(ri) {
     noit_lua_cancel_coro(ri);
     noit_lua_resume_clean_events(ri);
@@ -86,7 +85,6 @@ lua_web_restc_fastpath(noit_http_rest_closure_t *restc,
   noit_lua_resume_info_t *ri = restc->call_closure;
   noit_http_response *res = noit_http_session_response(restc->http_ctx);
   lua_resume_rest_info_t *ctx = ri->context_data;
-noitL(noit_error, "in lua_web_restc_fastpath\n");
 
   if(noit_http_response_complete(res) != noit_true) {
     noit_http_response_standard(restc->http_ctx,
@@ -110,7 +108,6 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
   eventer_t conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
 
   status = lua_resume(ri->coro_state, nargs);
-noitL(noit_error, "lua_web_resume(%p) -> %d\n", ri->coro_state, status);
 
   switch(status) {
     case 0: break;
