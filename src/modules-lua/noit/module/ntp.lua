@@ -122,6 +122,7 @@ end
 local _sequence = 0
 function next_sequence()
   _sequence = _sequence + 1
+  _sequence = band(_sequence, 0xFFFF)
   return _sequence
 end
 
@@ -183,10 +184,10 @@ function ntp_control(s, req)
           f.is_response = band(f.r_m_e_op, 0x80) ~= 0
 
           -- validate
-          if f.version > 4 or f.version < 1 then lerr = "bad version" end
-          if f.mode ~= 6 then lerr = "not a control packet" end
+          if f.version > 4 or f.version < 1 then lerr = "bad version: " .. f.version end
+          if f.mode ~= 6 then lerr = "not a control packet: mode " .. f.mode end
           if not f.is_response then lerr = "not a response packet" end
-          if req.sequence ~= f.sequence then lerr = "sequence mismatch" end
+          if req.sequence ~= f.sequence then lerr = "sequence mismatch" .. req.sequence .. " != " .. f.sequence end
           if req.op ~= f.op then lerr = "opcode mismatch " .. req.op .. " != " .. f.op  end
           if f.is_error then
               return "error: "
