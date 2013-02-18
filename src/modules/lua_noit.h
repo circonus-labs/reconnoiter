@@ -66,6 +66,8 @@ struct noit_lua_resume_info {
   void *context_data;
 };
 
+#define LUA_GENERAL_INFO_MAGIC 0x918243fa
+
 typedef struct noit_lua_resume_check_info {
   noit_module_t *self;
   noit_check_t *check;

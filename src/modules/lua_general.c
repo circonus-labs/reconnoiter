@@ -99,7 +99,7 @@ static noit_lua_resume_info_t *
 lua_general_new_resume_info(lua_module_closure_t *lmc) {
   noit_lua_resume_info_t *ri;
   ri = calloc(1, sizeof(*ri));
-  ri->context_magic = 0;
+  ri->context_magic = LUA_GENERAL_INFO_MAGIC;
   ri->lmc = lmc;
   lua_getglobal(lmc->lua_state, "noit_coros");
   ri->coro_state = lua_newthread(lmc->lua_state);

@@ -78,9 +78,9 @@ noit_lua_cancel_coro(noit_lua_resume_info_t *ci) {
   luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
   lua_pop(ci->lmc->lua_state, 1);
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
-  noit_hash_delete(&noit_coros,
-                   (const char *)&ci->coro_state, sizeof(ci->coro_state),
-                   NULL, NULL);
+  assert(noit_hash_delete(&noit_coros,
+                          (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                          NULL, NULL));
 }
 
 void
@@ -91,6 +91,86 @@ noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri) {
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri); 
 }
+static void
+describe_lua_context(noit_console_closure_t ncct,
+                     noit_lua_resume_info_t *ri) {
+  switch(ri->context_magic) {
+    case LUA_CHECK_INFO_MAGIC:
+    {
+      char uuid_str[UUID_STR_LEN+1];
+      noit_lua_resume_check_info_t *ci = ri->context_data;
+      nc_printf(ncct, "lua_check(state:%p)\n", ri->coro_state);
+      uuid_unparse_lower(ci->check->checkid, uuid_str);
+      nc_printf(ncct, "\tcheck: %s\n", uuid_str);
+      nc_printf(ncct, "\tname: %s\n", ci->check->name);
+      nc_printf(ncct, "\tmodule: %s\n", ci->check->module);
+      nc_printf(ncct, "\ttarget: %s\n", ci->check->target);
+      break;
+    }
+    case LUA_GENERAL_INFO_MAGIC:
+      nc_printf(ncct, "lua_general(state:%p)\n", ri->coro_state);
+      break;
+    case 0:
+      nc_printf(ncct, "lua_native(state:%p)\n", ri->coro_state);
+      break;
+    default:
+      nc_printf(ncct, "Unknown lua context(state:%p)\n", ri->coro_state);
+  }
+}
+static int
+noit_console_show_lua(noit_console_closure_t ncct,
+                      int argc, char **argv,
+                      noit_console_state_t *dstate,
+                      void *closure) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *key;
+  int klen;
+  void *vri;
+
+  while(noit_hash_next(&noit_coros, &iter, &key, &klen, &vri)) {
+    noit_lua_resume_info_t *ri;
+    int level = 1;
+    lua_Debug ar;
+    lua_State *L;
+    assert(klen == sizeof(L));
+    L = *((lua_State **)key);
+    ri = vri;
+    describe_lua_context(ncct, ri);
+    nc_printf(ncct, "stack\n");
+    while (lua_getstack(L, level++, &ar));
+    level--;
+    while (level > 0 && lua_getstack(L, --level, &ar)) {
+      lua_getinfo(L, "Sl", &ar);
+      lua_getinfo(L, "n", &ar);
+      if (ar.currentline > 0) {
+        const char *cp = ar.source;
+        if(cp) {
+          cp = cp + strlen(cp) - 1;
+          while(cp >= ar.source && *cp != '/') cp--;
+          cp++;
+        }
+        else cp = "???";
+        if(ar.name == NULL) ar.name = "???";
+        nc_printf(ncct, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
+      }
+    }
+    nc_printf(ncct, "\n");
+  }
+  return 0;
+}
+
+static void
+register_console_lua_commands() {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("lua", noit_console_show_lua, NULL, NULL, NULL));
+}
+
 noit_lua_resume_info_t *
 noit_lua_get_resume_info(lua_State *L) {
   noit_lua_resume_info_t *ri;
@@ -1004,6 +1084,7 @@ noit_lua_loader_onload(noit_image_t *self) {
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("lua/check_timeout", noit_lua_check_timeout);
+  register_console_lua_commands();
   return 0;
 }
 
