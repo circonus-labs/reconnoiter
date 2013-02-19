@@ -27,7 +27,9 @@ XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
 MODULES_DIR=@MODULES_DIR@
 
-LUA=noit/timeval.lua \
+LUA=\
+	json.lua \
+	noit/timeval.lua \
 	noit/HttpClient.lua \
 	noit/extras.lua \
 	noit/module/varnish.lua \
