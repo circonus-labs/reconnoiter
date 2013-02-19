@@ -1302,7 +1302,6 @@ nl_stat(lua_State *L) {
   SET_STAT(gid);
   SET_STAT(rdev);
   SET_STAT(size);
-  SET_STAT(flags);
   return 1;
 }
 
@@ -1558,7 +1557,7 @@ nl_utf8tohtml(lua_State *L) {
         needs_free = 1;
       }
     }
-    lua_pushlstring(L, out, out_len);
+    lua_pushlstring(L, (const char *)out, out_len);
     if(needs_free) free(out);
     return 1;
   }
@@ -2528,8 +2527,8 @@ int nl_spawn(lua_State *L) {
   const char *path;
   const char **argv, **envp = NULL;
   struct spawn_info *spawn_info;
-  posix_spawnattr_t attr;
-  posix_spawn_file_actions_t filea;
+  posix_spawnattr_t *attr;
+  posix_spawn_file_actions_t *filea;
   noit_lua_resume_info_t *ri;
 
   ri = noit_lua_get_resume_info(L);
@@ -2573,7 +2572,7 @@ int nl_spawn(lua_State *L) {
     envp[0] = NULL;
   }
 
-  filea = alloca(sizeof(*filea));
+  filea = (posix_spawn_file_actions_t *)alloca(sizeof(*filea));
   if(posix_spawn_file_actions_init(filea)) {
     spawn_info->last_errno = errno;
     noitL(noit_error, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
@@ -2592,7 +2591,7 @@ int nl_spawn(lua_State *L) {
   PIPE_SAFE(in, 0, 0);
   PIPE_SAFE(out, 1, 1);
   PIPE_SAFE(err, 1, 2);
-  attr = alloca(sizeof(*attr));
+  attr = (posix_spawnattr_t *)alloca(sizeof(*attr));
   if(posix_spawnattr_init(attr)) {
     spawn_info->last_errno = errno;
     noitL(noit_error, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
