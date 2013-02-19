@@ -2527,7 +2527,7 @@ struct spawn_info {
 
 int nl_spawn(lua_State *L) {
   int in[2] = {-1,-1}, out[2] = {-1,-1}, err[2] = {-1,-1};
-  int arg_count, rv, i;
+  int arg_count = 0, rv, i;
   const char *path;
   const char **argv, **envp = NULL;
   struct spawn_info *spawn_info;
