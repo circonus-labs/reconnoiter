@@ -1282,6 +1282,10 @@ nl_stat(lua_State *L) {
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.stat");
   if(lua_isstring(L,1)) err = lstat(lua_tostring(L,1), &st);
   else if(lua_isnumber(L,1)) err = fstat(lua_tointeger(L,1), &st);
+  else if(lua_isnil(L,1)) {
+    lua_pushnil(L);
+    return 1;
+  }
   else luaL_error(L, "noit.stat expects a filename or descriptor");
   if(err < 0) {
     lua_pushnil(L);
