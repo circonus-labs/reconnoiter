@@ -39,6 +39,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_rest.h"
 #include "utils/noit_log.h"
 
 #include <assert.h>
@@ -80,7 +81,9 @@ typedef struct noit_lua_resume_check_info {
 #define LUA_CHECK_INFO_MAGIC 0x22113322
 
 typedef struct noit_lua_resume_rest_info {
-
+  noit_http_rest_closure_t *restc;
+  char *err;
+  int httpcode;
 } noit_lua_resume_rest_info_t;
 #define LUA_REST_INFO_MAGIC 0x80443000
 
