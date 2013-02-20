@@ -246,7 +246,6 @@ noit_load_module_image(noit_module_loader_t *loader,
   if(noit_load_image(module_file, module_name, &modules,
                      noit_module_validate_magic, sizeof(noit_module_t))) {
     noitL(noit_stderr, "Could not load module %s:%s\n", module_file, module_name);
-abort();
     return NULL;
   }
   return noit_module_lookup(module_name);
