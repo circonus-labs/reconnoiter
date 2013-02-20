@@ -454,7 +454,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   jlog_asynch_ctx *actx;
   jlog_ctx *log = NULL;
   pthread_attr_t tattr;
-  int i, listed, found;
+  int i, listed, found, allow_unmatched = 0;
 
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
   log = jlog_new(path);
@@ -497,6 +497,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   if(sub) {
     /* Match all configured subscribers against jlog's list. */
     for(p=strtok(sub, ",");p;p=strtok(NULL, ",")) {
+      if(!strcmp(p,"*")) allow_unmatched = 1;
       for(i=0;i<listed;i++) {
         if((subs[i]) && (strcmp(p, subs[i]) == 0)) {
           free(subs[i]);
@@ -504,13 +505,14 @@ jlog_logio_open(noit_log_stream_t ls) {
           break;
         }
       }
-      if(i == listed)
+      if(i == listed && strcmp(p,"*"))
         jlog_ctx_add_subscriber(log, p, JLOG_BEGIN);
     }
 
     /* Remove all unmatched subscribers. */
     for(i=0;i<listed;i++) {
-      if(subs[i]) {
+      if(subs[i] &&
+         (!allow_unmatched || subs[i][0] == '~')) {
         jlog_ctx_remove_subscriber(log, subs[i]);
         free(subs[i]);
         subs[i] = NULL;

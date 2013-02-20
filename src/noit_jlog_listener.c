@@ -303,6 +303,7 @@ socket_error:
   if(!ac->service_ctx) {
     noit_log_stream_t ls;
     const char *logname, *type;
+    int first_attempt = 1;
     char path[PATH_MAX], subscriber[256], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
     if(!noit_hash_retr_str(ac->config,
@@ -351,12 +352,13 @@ socket_error:
       char *esub = strchr(sub, ')');
       if(esub) {
         *esub = '\0';
-        *sub = '\0';
+        *sub++ = '\0';
       }
     }
 
     jcl->jlog = jlog_new(path);
-    if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
+    if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED) {
+ add_sub:
       if(jlog_ctx_add_subscriber(jcl->jlog, jcl->subscriber, JLOG_END) == -1) {
         snprintf(errbuff, sizeof(errbuff),
                  "jlog reader[%s] error: %s", jcl->subscriber,
@@ -364,7 +366,16 @@ socket_error:
         errstr = errbuff;
         noitL(noit_error, "%s\n", errstr);
       }
+    }
     if(jlog_ctx_open_reader(jcl->jlog, jcl->subscriber) == -1) {
+      if(sub && !strcmp(sub, "*")) {
+        if(first_attempt) {
+          jlog_ctx_close(jcl->jlog);
+          jcl->jlog = jlog_new(path);
+          first_attempt = 0;
+          goto add_sub;
+        }
+      }
       snprintf(errbuff, sizeof(errbuff),
                "jlog reader[%s] error: %s", jcl->subscriber,
                jlog_ctx_err_string(jcl->jlog));

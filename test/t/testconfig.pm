@@ -142,7 +142,7 @@ sub make_logs_config {
       <log name="debug" disabled="$opts->{logs_debug}->{''}" timestamps="true"/>
     </console_output>
     <feeds>
-      <log name="feed" type="jlog" path="$cwd/logs/$opts->{name}.feed(stratcon)"/>
+      <log name="feed" type="jlog" path="$cwd/logs/$opts->{name}.feed(*)"/>
     </feeds>
     <components>
 };
