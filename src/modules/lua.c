@@ -239,7 +239,7 @@ noit_lua_resume_clean_events(noit_lua_resume_info_t *ci) {
 
 void
 noit_lua_pushmodule(lua_State *L, const char *m) {
-  int stack_pos = LUA_GLOBALSINDEX;
+  int stack_pos = 0;
   char *copy, *part, *brkt;
   copy = alloca(strlen(m)+1);
   assert(copy);
@@ -248,7 +248,8 @@ noit_lua_pushmodule(lua_State *L, const char *m) {
   for(part = strtok_r(copy, ".", &brkt);
       part;
       part = strtok_r(NULL, ".", &brkt)) {
-    lua_getfield(L, stack_pos, part);
+    if(stack_pos) lua_getfield(L, stack_pos, part);
+    else lua_getglobal(L, part);
     if(stack_pos == -1) lua_remove(L, -2);
     else stack_pos = -1;
   }
@@ -801,7 +802,7 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
   noit_lua_resume_check_info_t *ci = ri->context_data;
 
   noitL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
-  result = lua_resume(ri->coro_state, nargs);
+  result = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
   switch(result) {
     case 0: /* success */
       break;
@@ -969,10 +970,20 @@ static int noit_lua_panic(lua_State *L) {
   return 0;
 }
 
+static void *l_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
+  (void)ud; (void)osize;  /* not used */
+  if (nsize == 0) {
+    free(ptr);
+    return NULL;
+  }
+  else
+    return realloc(ptr, nsize);
+}
+
 lua_State *
 noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   int rv;
-  lua_State *L = lua_open();
+  lua_State *L = lua_newstate(l_alloc, NULL);
   noitL(nldeb, "lua_state[%s]: %p\n", module_name, L);
   lua_atpanic(L, &noit_lua_panic);
 
@@ -990,7 +1001,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
     lua_setglobal(L, "noit_internal_lmc");
   }
 
-  lua_getfield(L, LUA_GLOBALSINDEX, "package");
+  lua_getglobal(L, "package");
   lua_pushfstring(L, "%s", script_dir);
   lua_setfield(L, -2, "path");
   lua_pop(L, 1);
@@ -1000,7 +1011,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   lua_pushstring(L, #a); \
   rv = lua_pcall(L, 1, 1, 0); \
   if(rv != 0) { \
-    noitL(noit_stderr, "Loading: %d\n", rv); \
+    noitL(noit_stderr, "Loading %s: %d (%s)\n", #a, rv, lua_tostring(L,-1)); \
     lua_close(L); \
     return NULL; \
   } \

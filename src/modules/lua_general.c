@@ -33,6 +33,7 @@
 #include "noit_module.h"
 #include "noit_http.h"
 #include "noit_rest.h"
+#define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 #include "lua_http.h"
 #include <assert.h>
@@ -73,7 +74,7 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
 
-  status = lua_resume(ri->coro_state, nargs);
+  status = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
 
   switch(status) {
     case 0: break;
@@ -188,7 +189,6 @@ lua_general_coroutine_spawn(lua_State *Lp) {
   ri = lua_general_new_resume_info(ri_parent->lmc);
   L = ri->coro_state;
   lua_xmove(Lp, L, nargs);
-  lua_setlevel(Lp, L);
   ri->lmc->resume(ri, nargs-1);
   return 0;
 }
@@ -213,7 +213,7 @@ noit_lua_general_config(noit_module_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 
-static const luaL_reg general_lua_funcs[] =
+static const luaL_Reg general_lua_funcs[] =
 {
   {"coroutine_spawn", lua_general_coroutine_spawn },
   {NULL,  NULL}
@@ -233,11 +233,11 @@ noit_lua_general_init(noit_module_generic_t *self) {
   lmc->resume = lua_general_resume;
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
   noitL(noit_error, "lua_general opening state -> %p\n", lmc->lua_state);
-  luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
   if(lmc->lua_state == NULL) {
-   noitL(noit_error, "lua_general could not add general functions\n");
+    noitL(noit_error, "lua_general could not add general functions\n");
     return -1;
   }
+  luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
   lmc->pending = calloc(1, sizeof(*lmc->pending));
   eventer_add_in_s_us(dispatch_general, self, 0, 0);
   return 0;

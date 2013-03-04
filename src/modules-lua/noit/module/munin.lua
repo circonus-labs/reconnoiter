@@ -116,8 +116,8 @@ function initiate(module, check)
   local i = 0
   for p in string.gmatch(plugins, "%s*(%S+)%s*") do
     e:write("fetch " .. p .. "\r\n")
-    local rawstats = e:read("\.\n")
-    for k, v in string.gmatch(rawstats, "\n?(%S+)\.value%s+([^\r\n]+)") do
+    local rawstats = e:read("\n")
+    for k, v in string.gmatch(rawstats, "\n?(%S+)%.value%s+([^\r\n]+)") do
       if v == "U" then
         check.metric_double(p .. "`" .. k,nil)
       else
