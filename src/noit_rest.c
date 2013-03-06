@@ -106,9 +106,7 @@ noit_http_get_handler(noit_http_rest_closure_t *restc) {
   const char *uri_str;
   const char *eoq, *eob;
   uri_str = noit_http_request_uri_str(req);
-  eoq = strchr(uri_str, '?');
-  if(!eoq)
-    eoq = uri_str + strlen(uri_str);
+  eoq = uri_str + strlen(uri_str);
   eob = eoq - 1;
 
   /* find the right base */
