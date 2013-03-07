@@ -303,10 +303,11 @@ noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
   }
   ctx->consumer_free(ctx->consumer_ctx);
   if (ctx->e) {
-    if (ctx->e->fd) {
-        close(ctx->e->fd);
+    if (ctx->e->fd >= 0) {
+        int mask = 0;
+        eventer_remove_fd(ctx->e->fd);
+        ctx->e->opset->close(ctx->e->fd, &mask, ctx->e);
     }
-    eventer_remove_fd(ctx->e->fd);
     ctx->e->fd = 0;
     eventer_remove(ctx->e);
     eventer_free(ctx->e);
