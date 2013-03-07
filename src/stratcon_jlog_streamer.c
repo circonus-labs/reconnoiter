@@ -302,12 +302,19 @@ noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
     eventer_free(ctx->timeout_event);
   }
   ctx->consumer_free(ctx->consumer_ctx);
+  if (ctx->e) {
+    int mask = 0;
+    eventer_remove_fd(ctx->e->fd);
+    ctx->e->opset->close(ctx->e->fd, &mask, ctx->e);
+    eventer_free(ctx->e);
+  }
   free(ctx);
 }
 void
 noit_connection_ctx_deref(noit_connection_ctx_t *ctx) {
-  if(noit_atomic_dec32(&ctx->refcnt) == 0)
+  if(noit_atomic_dec32(&ctx->refcnt) == 0) {
     noit_connection_ctx_free(ctx);
+  }
 }
 void
 noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx) {
@@ -1254,10 +1261,15 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
     /* If the user requested a specific type and we're not it, skip. */
-    if(type && strcmp(feedtype, type)) continue;
+    if(type && strcmp(feedtype, type)) {
+        noit_connection_ctx_deref(ctx);
+        continue;
+    }
     /* If the user wants a specific CN... limit to that. */
-    if(want_cn && (!ctx->remote_cn || strcmp(want_cn, ctx->remote_cn)))
-      continue;
+    if(want_cn && (!ctx->remote_cn || strcmp(want_cn, ctx->remote_cn))) {
+        noit_connection_ctx_deref(ctx);
+        continue;
+    }
 
     node = xmlNewNode(NULL, (xmlChar *)"noit");
     snprintf(buff, sizeof(buff), "%llu.%06d",
