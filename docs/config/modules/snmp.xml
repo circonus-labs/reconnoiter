@@ -291,7 +291,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>(0-9a-fA-F)+</para>
+                <para>[0-9a-fA-F]+</para>
               </listitem>
             </varlistentry>
           </variablelist>
@@ -313,7 +313,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>(0-9a-fA-F)+</para>
+                <para>[0-9a-fA-F]+</para>
               </listitem>
             </varlistentry>
           </variablelist>
