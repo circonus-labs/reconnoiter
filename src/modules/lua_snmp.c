@@ -30,12 +30,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "lua_noit.h"
 #include "noit_defines.h"
 
 #include <string.h>
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
+#include "lua_noit.h"
 
 static int
 nl_convert_mib(lua_State *L) {
