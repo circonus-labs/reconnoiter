@@ -84,6 +84,7 @@ function onload(image)
 end
 
 function init(module)
+  snmp.init_snmp()
   return 0
 end
 
@@ -108,8 +109,22 @@ function constructXml(check)
   root:attr("period", check.period)
   root:attr("timeout", check.timeout)
   local config = root:addchild("config")
-  for key, value in pairs(check.config) do
-    config:addchild(key):contents(value)
+  if check.module == "snmp" then
+    for key, value in pairs(check.config) do
+      if string.sub(key, 1, 3) == "oid" then
+        local converted = snmp.convert_mib(value)
+        -- we want to add even if there's an error
+        -- since we want to preserve the name of
+        -- the metric
+        config:addchild(key):contents(converted)
+      else
+        config:addchild(key):contents(value)
+      end
+    end
+  else
+    for key, value in pairs(check.config) do
+      config:addchild(key):contents(value)
+    end
   end
   return doc:tostring()
 end
