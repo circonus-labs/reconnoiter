@@ -79,7 +79,8 @@ J_JAVA = com/omniti/jezebel/Jezebel.java \
 	com/omniti/jezebel/check/sqlserver.java \
 	com/omniti/jezebel/check/postgres.java \
 	com/omniti/jezebel/check/jmx.java \
-        com/omniti/jezebel/check/ldap.java
+        com/omniti/jezebel/check/ldap.java \
+        com/omniti/jezebel/check/snmp.java
 
 J_CLASS = $(J_JAVA:.java=*.class)
 
@@ -93,7 +94,8 @@ R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-4.5.0
 J_SUPPORT=lib/log4j-1.2.15.jar \
 	lib/jetty-6.1.20.jar lib/servlet-api-2.5-20081211.jar \
 	lib/jetty-util-6.1.20.jar lib/commons-logging-1.1.1.jar \
-	lib/commons-cli-1.1.jar lib/postgresql-8.3-604.jdbc3.jar
+	lib/commons-cli-1.1.jar lib/postgresql-8.3-604.jdbc3.jar \
+	lib/snmp4j-2.1.0.jar
 
 all:	reconnoiter.jar jezebel.jar
 	@chmod 755 run-iep.sh

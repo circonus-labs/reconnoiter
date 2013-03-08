@@ -64,7 +64,6 @@
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
     <module image="dns" name="dns"/>
-    <module image="snmp" name="snmp"/>
     <module image="ssh2" name="ssh2"/>
     <module image="httptrap" name="httptrap"/>
     <module image="statsd" name="statsd"/>
@@ -78,6 +77,7 @@
     <jezebel>
       <config><url>http://127.0.0.1:8083/dispatch</url></config>
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
+      <module loader="lua" name="snmp" object="noit.module.jezebel"/>
     </jezebel>
     <generic image="check_test" name="check_test"/>
     <generic image="lua" name="lua_web">
