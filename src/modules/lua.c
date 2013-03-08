@@ -978,6 +978,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
   luaL_openlibs(L);  /* open libraries */
+  luaopen_snmp(L);
   luaopen_pack(L);
   luaopen_bit(L);
   luaopen_noit(L);
