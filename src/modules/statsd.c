@@ -131,7 +131,7 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
 static void
 update_check(noit_check_t *check, const char *key, char type,
              double diff, double sample) {
-  u_int32_t one = 1;
+  u_int32_t one = 1, cnt = 1;
   char buff[256];
   statsd_closure_t *ccl;
   metric_t *m;
@@ -145,6 +145,7 @@ update_check(noit_check_t *check, const char *key, char type,
   if(!m) ccl->stats_count++;
   if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL) {
     (*m->metric_value.I)++;
+    cnt = *m->metric_value.I;
     check_stats_set_metric_hook_invoke(check, &ccl->current, m);
   }
   else
@@ -168,7 +169,10 @@ update_check(noit_check_t *check, const char *key, char type,
   m = noit_stats_get_metric(check, &ccl->current, buff);
   if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
     if(type == 'c') (*m->metric_value.n) += diff;
-    else (*m->metric_value.n) = diff;
+    else {
+      double new_avg = ((double)(cnt - 1) * (*m->metric_value.n) + diff) / (double)cnt;
+      (*m->metric_value.n) = new_avg;
+    }
     check_stats_set_metric_hook_invoke(check, &ccl->current, m);
   }
   else

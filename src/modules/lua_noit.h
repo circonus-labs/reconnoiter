@@ -135,6 +135,7 @@ int nl_dns_lookup(lua_State *L);
 int luaopen_noit(lua_State *L);
 int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 int luaopen_bit(lua_State *L); /* from lua_bit.c */
+int luaopen_snmp(lua_State *L); /* from lua_snmp.c */
 noit_lua_resume_info_t *noit_lua_get_resume_info(lua_State *L);
 void noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri);
 int noit_lua_yield(noit_lua_resume_info_t *ci, int nargs);
