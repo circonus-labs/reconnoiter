@@ -29,3 +29,5 @@ YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
         yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
         yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
 
+LUADIR=lua
+LUA_OBJS=lua/liblua.lo
