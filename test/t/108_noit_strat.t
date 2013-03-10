@@ -44,7 +44,7 @@ is($r[0], 200, 'add selfcheck');
 my $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, 'saved');
 
-sleep(1);
+sleep(2);
 
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 200, 'get checks');

@@ -129,4 +129,9 @@ API_EXPORT(void)
   noit_module_print_help(noit_console_closure_t ncct,
                          noit_module_t *module, int examples);
 
+NOIT_HOOK_PROTO(module_post_init,
+                (),
+                void *, closure,
+                (void *closure))
+
 #endif

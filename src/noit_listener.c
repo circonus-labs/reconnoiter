@@ -422,17 +422,21 @@ int
 noit_control_dispatch(eventer_t e, int mask, void *closure,
                       struct timeval *now) {
   u_int32_t cmd;
-  int len;
+  int len = 0;
   void *vdelegation_table;
   noit_hash_table *delegation_table = NULL;
   acceptor_closure_t *ac = closure;
 
-  len = e->opset->read(e->fd, &cmd, sizeof(cmd), &mask, e);
+  while(len >= 0 && ac->rlen < sizeof(cmd)) {
+    len = e->opset->read(e->fd, ((char *)&cmd) + ac->rlen,
+                         sizeof(cmd) - ac->rlen, &mask, e);
+    if(len == -1 && errno == EAGAIN)
+      return EVENTER_READ | EVENTER_EXCEPTION;
 
-  if(len == -1 && errno == EAGAIN)
-    return EVENTER_READ | EVENTER_EXCEPTION;
+    if(len > 0) ac->rlen += len;
+  }
 
-  if(mask & EVENTER_EXCEPTION || len != sizeof(cmd)) {
+  if(mask & EVENTER_EXCEPTION || ac->rlen != sizeof(cmd)) {
     int newmask;
 socket_error:
     /* Exceptions cause us to simply snip the connection */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007-2013, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,66 +30,71 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NOIT_LISTENER_H
-#define _NOIT_LISTENER_H
-
 #include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_hash.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#ifdef HAVE_SYS_FILIO_H
-#include <sys/filio.h>
-#endif
-#include <netinet/in.h>
+#include <string.h>
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include "lua_noit.h"
 
-typedef struct {
-  union {
-    struct sockaddr remote_addr;
-    struct sockaddr_in remote_addr4;
-    struct sockaddr_in6 remote_addr6;
-  } remote;
-  char *remote_cn;
-  noit_hash_table *config;
-  void *service_ctx;
-  eventer_func_t dispatch;
-  u_int32_t cmd;
-  int rlen;
-  void (*service_ctx_free)(void *);
-} acceptor_closure_t;
+static int
+nl_convert_mib(lua_State *L) {
+  const char *in;
+  size_t inlen = 0;
+  oid theoid[MAX_OID_LEN];
+  size_t theSize = MAX_OID_LEN;
+  int ret;
+  int i;
 
-typedef struct {
-  int8_t family;
-  unsigned short port;
-  eventer_func_t dispatch_callback;
-  acceptor_closure_t *dispatch_closure;
-  noit_hash_table *sslconfig;
-} * listener_closure_t;
+  memset(theoid, 0, sizeof(theoid));
+  if(lua_gettop(L) != 1) {
+    luaL_error(L, "convert_mib requires one argument"); 
+  }
+  in = lua_tolstring(L, 1, &inlen);
+  if (in[0] == '.') {
+    lua_pushstring(L, in);
+  }
+  else {
+    int maxsize = MAX_OID_LEN*4;
+    char outbuff[maxsize];
+    memset(outbuff, 0, maxsize);
+    ret = get_node(in, theoid, &theSize);
+    if (!ret) {
+      lua_pushstring(L, "error");
+      return 1;
+    }
+    for (i=0; i < theSize; i++) {
+      sprintf(outbuff, "%s.%d", outbuff, theoid[i]);
+      if (strlen(outbuff) > maxsize-5) {
+        lua_pushstring(L, "error");
+        return 1;
+      }
+    }
+    lua_pushstring(L, outbuff);
+  }
+  return 1;
+}
 
-API_EXPORT(void) noit_listener_init(const char *toplevel);
+static int 
+nl_init_mib(lua_State *L) {
+  register_mib_handlers();
+  read_premib_configs();
+  read_configs();
+  init_snmp("lua_snmp");
+  lua_pushnil(L);
+  return 1;
+}
 
-API_EXPORT(int)
-  noit_listener(char *host, unsigned short port, int type,
-                int backlog, noit_hash_table *sslconfig,
-                noit_hash_table *config,
-                eventer_func_t handler, void *service_ctx);
+static const luaL_reg snmp_funcs[] =
+{
+  { "convert_mib", nl_convert_mib },
+  { "init_snmp", nl_init_mib },
+  { NULL, NULL }
+};
 
-API_EXPORT(void)
-  acceptor_closure_free(acceptor_closure_t *ac);
+int luaopen_snmp(lua_State *L)
+{
+ luaL_register(L, "snmp", snmp_funcs);
+ return 0;
+}
 
-API_EXPORT(void)
-  noit_control_dispatch_delegate(eventer_func_t listener_dispatch,
-                                 u_int32_t cmd,
-                                 eventer_func_t delegate_dispatch);
-
-API_EXPORT(int)
-  noit_control_dispatch(eventer_t, int, void *, struct timeval *);
-
-API_EXPORT(int)
-  noit_convert_sockaddr_to_buff(char *, int, struct sockaddr *);
-
-API_EXPORT(noit_hash_table *)
-  noit_listener_commands();
-
-#endif

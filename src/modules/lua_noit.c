@@ -36,6 +36,10 @@
 #include <math.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <spawn.h>
+#include <dirent.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #ifdef HAVE_SYS_FILIO_H
@@ -45,6 +49,7 @@
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
 #include <libxml/tree.h>
+#include <libxml/HTMLparser.h>
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 
@@ -146,12 +151,12 @@ inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
 static int
 noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
                                  struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int args = 0, aerrno;
   socklen_t aerrno_len = sizeof(aerrno);
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
 
@@ -175,19 +180,19 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
     lua_pushstring(cl->L, strerror(aerrno));
     args = 2;
   }
-  noit_lua_resume(ci, args);
+  ci->lmc->resume(ci, args);
   return 0;
 }
 static int
 noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
                               struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int rv, args = 0;
   void *inbuff = NULL;
   socklen_t alen;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
   if(mask & EVENTER_EXCEPTION) {
@@ -230,19 +235,19 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
-  noit_lua_resume(ci, args);
+  ci->lmc->resume(ci, args);
   return 0;
 }
 static int
 noit_lua_socket_recv(lua_State *L) {
   int args, rv;
   struct nl_slcl *cl;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   void *inbuff;
   socklen_t alen;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -281,12 +286,12 @@ noit_lua_socket_recv(lua_State *L) {
 static int
 noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
                               struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int sbytes;
   int args = 0;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
   if(mask & EVENTER_EXCEPTION) {
@@ -328,18 +333,18 @@ noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
-  noit_lua_resume(ci, args);
+  ci->lmc->resume(ci, args);
   return 0;
 }
 static int
 noit_lua_socket_send(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   const void *bytes;
   size_t nbytes;
   ssize_t sbytes;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -374,7 +379,7 @@ noit_lua_socket_send(lua_State *L) {
 
 static int
 noit_lua_socket_sendto(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   const char *target;
   unsigned short port;
@@ -388,7 +393,7 @@ noit_lua_socket_sendto(lua_State *L) {
     struct sockaddr_in6 sin6;
   } a;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -450,7 +455,7 @@ noit_lua_socket_sendto(lua_State *L) {
 }
 static int
 noit_lua_socket_bind(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   const char *target;
   unsigned short port;
@@ -462,7 +467,7 @@ noit_lua_socket_bind(lua_State *L) {
     struct sockaddr_in6 sin6;
   } a;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -509,14 +514,14 @@ noit_lua_socket_bind(lua_State *L) {
 }
 static int
 noit_lua_socket_setsockopt(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   int rv;
   const char *type;
   int type_val;
   int value;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   if(lua_gettop(L) != 3) {
@@ -571,7 +576,7 @@ noit_lua_socket_setsockopt(lua_State *L) {
 }
 static int
 noit_lua_socket_connect(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   const char *target;
   unsigned short port;
@@ -582,7 +587,7 @@ noit_lua_socket_connect(lua_State *L) {
     struct sockaddr_in6 sin6;
   } a;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -635,14 +640,14 @@ noit_lua_socket_connect(lua_State *L) {
 static int
 noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
                      struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int rv, nargs;
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv <= 0 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
 
@@ -664,18 +669,18 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
       nargs++;
     }
   }
-  noit_lua_resume(ci, nargs);
+  ci->lmc->resume(ci, nargs);
   return 0;
 }
 static int
 noit_lua_socket_connect_ssl(lua_State *L) {
   const char *ca, *ciphers, *cert, *key, *snihost, *err;
   eventer_ssl_ctx_t *sslctx;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
   int tmpmask, rv;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -781,12 +786,12 @@ noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
 static int
 noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
                               struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int len;
   int args = 0;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
   len = noit_lua_socket_do_read(e, &mask, cl, &args);
@@ -805,7 +810,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
-  noit_lua_resume(ci, args);
+  ci->lmc->resume(ci, args);
   return 0;
 }
 
@@ -813,10 +818,10 @@ static int
 noit_lua_socket_read(lua_State *L) {
   int args, mask, len;
   struct nl_slcl *cl;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -881,12 +886,12 @@ noit_lua_socket_read(lua_State *L) {
 static int
 noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
                                struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int rv;
   int args = 0;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
   if(mask & EVENTER_EXCEPTION) {
@@ -924,17 +929,17 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
-  noit_lua_resume(ci, args);
+  ci->lmc->resume(ci, args);
   return 0;
 }
 static int
 noit_lua_socket_write(lua_State *L) {
   int rv, mask;
   struct nl_slcl *cl;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -1079,13 +1084,13 @@ noit_ssl_ctx_index_func(lua_State *L) {
 
 static int
 nl_waitfor_notify(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl;
   void *vptr;
   const char *key;
   int nargs;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
   nargs = lua_gettop(L);
   if(nargs < 1) {
@@ -1099,41 +1104,41 @@ nl_waitfor_notify(lua_State *L) {
   cl = vptr;
   lua_xmove(L, cl->L, nargs);
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   eventer_remove(cl->pending_event);
   noit_lua_check_deregister_event(ci, cl->pending_event, 0);
-  noit_lua_resume(ci, nargs);
+  ci->lmc->resume(ci, nargs);
   lua_pushinteger(L, nargs);
   return 0;
 }
 
 static int
 nl_waitfor_timeout(eventer_t e, int mask, void *vcl, struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   struct timeval diff;
   double p_int;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
   noit_hash_delete(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), free, NULL);
   free(cl);
-  noit_lua_resume(ci, 0);
+  ci->lmc->resume(ci, 0);
   return 0;
 }
 
 static int
 nl_waitfor(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   const char *key;
   struct nl_slcl *cl;
   struct timeval diff;
   eventer_t e;
   double p_int;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
   if(lua_gettop(L) != 2) {
     luaL_error(L, "waitfor(key, timeout) wrong arguments");
@@ -1168,12 +1173,12 @@ nl_waitfor(lua_State *L) {
 
 static int
 nl_sleep_complete(eventer_t e, int mask, void *vcl, struct timeval *now) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   struct timeval diff;
   double p_int;
 
-  ci = get_ci(cl->L);
+  ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
 
@@ -1181,19 +1186,19 @@ nl_sleep_complete(eventer_t e, int mask, void *vcl, struct timeval *now) {
   p_int = diff.tv_sec + diff.tv_usec / 1000000.0;
   lua_pushnumber(cl->L, p_int);
   free(cl);
-  noit_lua_resume(ci, 1);
+  ci->lmc->resume(ci, 1);
   return 0;
 }
 
 static int
 nl_sleep(lua_State *L) {
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   struct nl_slcl *cl;
   struct timeval diff;
   eventer_t e;
   double p_int;
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   p_int = lua_tonumber(L, 1);
@@ -1215,6 +1220,148 @@ nl_sleep(lua_State *L) {
   return noit_lua_yield(ci, 0);
 }
 
+static int
+nl_open(lua_State *L) {
+  const char *file;
+  int fd, flags;
+  if(lua_gettop(L) < 2 || lua_gettop(L) > 3)
+    luaL_error(L, "bad call to noit.open");
+  file = lua_tostring(L, 1);
+  flags = lua_tointeger(L, 2);
+  if(lua_gettop(L) == 2)
+    fd = open(file, flags);
+  else
+    fd = open(file, flags, lua_tointeger(L, 3));
+  lua_pushinteger(L, fd);
+  if(fd >= 0) return 1;
+  lua_pushinteger(L, errno);
+  lua_pushstring(L, strerror(errno));
+  return 3;
+}
+
+static int
+nl_write(lua_State *L) {
+  int fd, rv;
+  size_t len;
+  const char *str;
+  if(lua_gettop(L) != 2 || !lua_isnumber(L,1) || !lua_isstring(L,2))
+    luaL_error(L, "bad parameters to noit.write(fd, str)");
+  fd = lua_tointeger(L,1);
+  str = lua_tolstring(L,2,&len);
+  rv = write(fd, str, len);
+  lua_pushinteger(L,rv);
+  if(rv < 0) lua_pushinteger(L,errno);
+  else lua_pushnil(L);
+  return 2;
+}
+
+static int
+nl_close(lua_State *L) {
+  if(lua_gettop(L) != 1 || !lua_isnumber(L, 1))
+    luaL_error(L, "bad call to noit.close");
+  close(lua_tointeger(L,1));
+  return 0;
+}
+
+static int
+nl_chmod(lua_State *L) {
+  int rv;
+  if(lua_gettop(L) != 2 || !lua_isstring(L, 1) || !lua_isnumber(L, 2))
+    luaL_error(L, "bad call to noit.chmod(file, mode)");
+  rv = chmod(lua_tostring(L,1), lua_tointeger(L,2));
+  lua_pushinteger(L, rv);
+  if(rv<0) lua_pushinteger(L, errno);
+  else lua_pushnil(L);
+  return 2;
+}
+
+static int
+nl_stat(lua_State *L) {
+  struct stat st;
+  int err;
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.stat");
+  if(lua_isstring(L,1)) err = lstat(lua_tostring(L,1), &st);
+  else if(lua_isnumber(L,1)) err = fstat(lua_tointeger(L,1), &st);
+  else if(lua_isnil(L,1)) {
+    lua_pushnil(L);
+    return 1;
+  }
+  else luaL_error(L, "noit.stat expects a filename or descriptor");
+  if(err < 0) {
+    lua_pushnil(L);
+    lua_pushinteger(L, errno);
+    lua_pushstring(L, strerror(errno));
+    return 3;
+  }
+#define SET_STAT(attr) do { \
+  lua_pushinteger(L, (int)st.st_##attr); \
+  lua_setfield(L, -2, #attr); \
+} while(0)
+  lua_createtable(L, 0, 9);
+  SET_STAT(dev);
+  SET_STAT(ino);
+  SET_STAT(mode);
+  SET_STAT(nlink);
+  SET_STAT(uid);
+  SET_STAT(gid);
+  SET_STAT(rdev);
+  SET_STAT(size);
+  return 1;
+}
+
+static int
+nl_readdir(lua_State *L) {
+  const char *path;
+  DIR *root;
+  struct dirent *de, *entry;
+  int size = 0, cnt = 1;
+  int use_filter = 1;
+  if(lua_gettop(L) < 1 || lua_gettop(L) < 2)
+    luaL_error(L, "bad call to noit.readdir");
+  path = lua_tostring(L, 1);
+  if(lua_gettop(L) == 2) {
+    if(!lua_isfunction(L, 2))
+      luaL_error(L, "noit.readdir second argument must be a function");
+    use_filter = 1;
+  }
+
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MAX(size, PATH_MAX + 128);
+  de = alloca(size);
+  root = opendir(path);
+  if(!root) {
+    lua_pushnil(L);
+    return 1;
+  }
+  lua_newtable(L);
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
+    int use_value = 1;
+    lua_pushstring(L, entry->d_name);
+    if(use_filter) {
+      lua_pushvalue(L,2);   /* func */
+      lua_pushvalue(L,-2);  /* arg  */
+      if(lua_pcall(L,1,1,0) != 0) {
+        closedir(root);
+        luaL_error(L, lua_tostring(L,-1));
+      }
+      use_value = lua_toboolean(L,-1);
+      lua_pop(L, 1);
+    }
+    if(use_value) {
+      lua_pushinteger(L, cnt++);
+      lua_insert(L, -2);
+      lua_settable(L, -3);
+    }
+    else {
+      lua_pop(L,1);
+    }
+  }
+  closedir(root);
+
+  return 1;
+}
 static int
 nl_log(lua_State *L) {
   int i, n;
@@ -1353,6 +1500,77 @@ nl_base64_encode(lua_State *L) {
   return 1;
 }
 static int
+nl_utf8tohtml(lua_State *L) {
+  int in_idx = 1, tags_idx = 2;
+  const unsigned char *in;
+  unsigned char *out;
+  size_t in_len_size_t;
+  int rv, out_alloc, out_len, in_len, needs_free = 0;
+
+  if(lua_gettop(L) < 1)
+    luaL_error(L, "bad arguments to noit.utf8tohtml");
+  /* We might be called a method. cope. */
+  if(lua_isuserdata(L,1)) {
+    in_idx++; tags_idx++;
+  }
+  if(lua_gettop(L) < in_idx || lua_gettop(L) > tags_idx ||
+     !lua_isstring(L,in_idx))
+    luaL_error(L, "bad arguments to noit.utf8tohtml");
+
+  in = (const unsigned char *)lua_tolstring(L, in_idx, &in_len_size_t);
+  in_len = (int)in_len_size_t;
+  if((size_t)in_len != (size_t)in_len_size_t)
+    luaL_error(L, "overflow");
+  out_alloc = out_len = in_len * 6 + 1;
+  if(out_len <= ON_STACK_LUA_STRLEN) {
+    out = alloca(out_len);
+  }
+  else {
+    out = malloc(out_len);
+  }
+  if(!out) luaL_error(L, "out-of-memory");
+  rv = UTF8ToHtml(out, &out_len, in, &in_len);
+  if(rv >= 0) {
+    if(lua_toboolean(L,tags_idx)) {
+      int i = 0, tagcnt = 0;
+      for(i=0;i<out_len;i++) if(out[i] == '<' || out[i] == '>') tagcnt++;
+      if(tagcnt) {
+        unsigned char *newout, *outcp;
+        /* each tag goes from 1 char to 4, (+3) */
+        outcp = newout = malloc(out_len + (tagcnt * 3) + 1);
+        if(!newout) {
+          if(needs_free) free(out);
+          luaL_error(L, "out-of-memory");
+        }
+        for(i=0;i<out_len;i++) {
+          if(out[i] == '<') {
+            memcpy(outcp, "&lt;", 4);
+            outcp += 4;
+          }
+          else if(out[i] == '>') {
+            memcpy(outcp, "&gt;", 4);
+            outcp += 4;
+          }
+          else {
+            *outcp++ = out[i];
+          }
+        }
+        if(needs_free) free(out);
+        out = newout;
+        out_len += tagcnt * 3;
+        needs_free = 1;
+      }
+    }
+    lua_pushlstring(L, (const char *)out, out_len);
+    if(needs_free) free(out);
+    return 1;
+  }
+  if(needs_free) free(out);
+  if(rv == -2) luaL_error(L, "utf8tohtml transcoding failure");
+  luaL_error(L, "utf8tohtml failure");
+  return 0;
+}
+static int
 nl_hmac_sha1_encode(lua_State *L) {
   size_t messagelen, keylen, encoded_len;
   const unsigned char *message, *key;
@@ -1405,9 +1623,18 @@ nl_gettimeofday(lua_State *L) {
   return 2;
 }
 static int
+nl_uuid(lua_State *L) {
+  uuid_t out;
+  char uuid_str[UUID_STR_LEN+1];
+  uuid_generate(out);
+  uuid_unparse_lower(out, uuid_str);
+  lua_pushstring(L, uuid_str);
+  return 1;
+}
+static int
 nl_socket_internal(lua_State *L, int family, int proto) {
   struct nl_slcl *cl;
-  noit_lua_check_info_t *ci;
+  noit_lua_resume_info_t *ci;
   socklen_t optlen;
   int fd;
   eventer_t e;
@@ -1423,7 +1650,7 @@ nl_socket_internal(lua_State *L, int family, int proto) {
     return 1;
   }
 
-  ci = get_ci(L);
+  ci = noit_lua_get_resume_info(L);
   assert(ci);
 
   cl = calloc(1, sizeof(*cl));
@@ -1473,6 +1700,14 @@ nl_socket(lua_State *L) {
   }
   luaL_error(L, "noit.socket called with invalid arguments");
   return 0;
+}
+
+static int
+nl_valid_ip(lua_State *L) {
+  if(lua_gettop(L) != 1 || !lua_isstring(L,1))
+    luaL_error(L, "bad parameters to noit.valid_ip");
+  lua_pushboolean(L, noit_check_is_valid_target(lua_tostring(L,1)));
+  return 1;
 }
 
 struct gunzip_crutch {
@@ -1701,10 +1936,34 @@ noit_lua_pcre_gc(lua_State *L) {
   return 0;
 }
 
+#define SPLIT_PATH(path, base, element) do { \
+  char *endp; \
+  element = NULL; \
+  base = alloca(strlen(path)+1); \
+  memcpy(base, path, strlen(path)+1); \
+  endp = base + strlen(path); \
+  while(endp > base && *endp != '/') endp--; \
+  if(*endp == '/') *endp = '\0'; \
+  element = endp + 1; \
+} while(0)
+
 static int
 nl_conf_get_string(lua_State *L) {
   char *val;
   const char *path = lua_tostring(L,1);
+  if(path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    
+    section = noit_conf_get_section(NULL, base);
+    if(!section || !element) lua_pushboolean(L, 0);
+    else {
+      noit_conf_set_string(section, element, lua_tostring(L,2));
+      lua_pushboolean(L, 1);
+    }
+    return 1;
+  }
   if(path &&
      noit_conf_get_string(NULL, path, &val)) {
     lua_pushstring(L,val);
@@ -1717,6 +1976,19 @@ static int
 nl_conf_get_integer(lua_State *L) {
   int val;
   const char *path = lua_tostring(L,1);
+  if(path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    
+    section = noit_conf_get_section(NULL, base);
+    if(!section || !element) lua_pushboolean(L, 0);
+    else {
+      noit_conf_set_string(section, element, lua_tostring(L,2));
+      lua_pushboolean(L, 1);
+    }
+    return 1;
+  }
   if(path &&
      noit_conf_get_int(NULL, path, &val)) {
     lua_pushinteger(L,val);
@@ -1728,6 +2000,19 @@ static int
 nl_conf_get_boolean(lua_State *L) {
   noit_boolean val;
   const char *path = lua_tostring(L,1);
+  if(path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    
+    section = noit_conf_get_section(NULL, base);
+    if(!section || !element) lua_pushboolean(L, 0);
+    else {
+      noit_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
+      lua_pushboolean(L, 1);
+    }
+    return 1;
+  }
   if(path &&
      noit_conf_get_boolean(NULL, path, &val)) {
     lua_pushboolean(L,val);
@@ -1739,6 +2024,19 @@ static int
 nl_conf_get_float(lua_State *L) {
   float val;
   const char *path = lua_tostring(L,1);
+  if(path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    
+    section = noit_conf_get_section(NULL, base);
+    if(!section || !element) lua_pushboolean(L, 0);
+    else {
+      noit_conf_set_string(section, element, lua_tostring(L,2));
+      lua_pushboolean(L, 1);
+    }
+    return 1;
+  }
   if(path &&
      noit_conf_get_float(NULL, path, &val)) {
     lua_pushnumber(L,val);
@@ -2218,30 +2516,242 @@ noit_json_index_func(lua_State *L) {
   luaL_error(L, "noit.json no such element: %s", k);
   return 0;
 }
+
+struct spawn_info {
+  pid_t pid;
+  int last_errno;
+  eventer_t in;
+  eventer_t out;
+  eventer_t err;
+};
+
+int nl_spawn(lua_State *L) {
+  int in[2] = {-1,-1}, out[2] = {-1,-1}, err[2] = {-1,-1};
+  int arg_count = 0, rv, i;
+  const char *path;
+  const char **argv, **envp = NULL;
+  struct spawn_info *spawn_info;
+  posix_spawnattr_t *attr;
+  posix_spawn_file_actions_t *filea;
+  noit_lua_resume_info_t *ri;
+
+  ri = noit_lua_get_resume_info(L);
+  assert(ri);
+  spawn_info = (struct spawn_info *)lua_newuserdata(L, sizeof(*spawn_info));
+  memset(spawn_info, 0, sizeof(*spawn_info));
+  spawn_info->pid = -1;
+  luaL_getmetatable(L, "noit.process");
+  lua_setmetatable(L, -2);
+
+  path = lua_tostring(L,1);
+
+  /* argv */
+  lua_pushnil(L);  /* first key */
+  while (lua_next(L, 2) != 0) arg_count++, lua_pop(L, 1);
+  argv = alloca(sizeof(*argv) * (arg_count + 1));
+  lua_pushnil(L);  /* first key */
+  arg_count = 0;
+  while (lua_next(L, 2) != 0) {
+    argv[arg_count++] = lua_tostring(L, -1);
+    lua_pop(L, 1);
+  }
+  argv[arg_count] = NULL;
+
+  /* envp */
+  arg_count = 0;
+  if(!lua_isnil(L,3)) {
+    lua_pushnil(L);  /* first key */
+    while (lua_next(L, 3) != 0) arg_count++, lua_pop(L, 1);
+    envp = alloca(sizeof(*envp) * (arg_count + 1));
+    lua_pushnil(L);  /* first key */
+    arg_count = 0;
+    while (lua_next(L, 3) != 0) {
+      envp[arg_count++] = lua_tostring(L, -1);
+      lua_pop(L, 1);
+    }
+    envp[arg_count] = NULL;
+  }
+  if(arg_count == 0) {
+    envp = alloca(sizeof(*envp));
+    envp[0] = NULL;
+  }
+
+  filea = (posix_spawn_file_actions_t *)alloca(sizeof(*filea));
+  if(posix_spawn_file_actions_init(filea)) {
+    spawn_info->last_errno = errno;
+    noitL(noit_error, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
+    goto err;
+  }
+#define PIPE_SAFE(p, idx, tfd) do { \
+  if(pipe(p) < 0) { \
+    spawn_info->last_errno = errno; \
+    noitL(noit_error, "pipe -> %s\n", strerror(spawn_info->last_errno)); \
+    goto err; \
+  } \
+  posix_spawn_file_actions_adddup2(filea, p[idx], tfd); \
+  posix_spawn_file_actions_addclose(filea, p[idx ? 0 : 1]); \
+} while(0)
+
+  PIPE_SAFE(in, 0, 0);
+  PIPE_SAFE(out, 1, 1);
+  PIPE_SAFE(err, 1, 2);
+  attr = (posix_spawnattr_t *)alloca(sizeof(*attr));
+  if(posix_spawnattr_init(attr)) {
+    spawn_info->last_errno = errno;
+    noitL(noit_error, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
+    goto err;
+  }
+  rv = posix_spawnp(&spawn_info->pid, path, filea, attr,
+                   (char * const *)argv, (char * const *)envp);
+  if(rv != 0) {
+    spawn_info->last_errno = errno;
+    noitL(noit_error, "posix_spawn(%d) -> %s\n", errno, strerror(errno));
+    goto err;
+  }
+  /* Cleanup the parent half */
+  if(filea) posix_spawn_file_actions_destroy(filea);
+  if(attr) posix_spawnattr_destroy(attr);
+  close(in[0]); close(out[1]); close(err[1]);
+
+#define NEWEVENT(e, ourfd, L, ri) do { \
+  struct nl_slcl *cl; \
+  cl = calloc(1, sizeof(*cl)); \
+  cl->free = nl_extended_free; \
+  cl->L = L; \
+  e = eventer_alloc(); \
+  e->fd = ourfd; \
+  e->mask = EVENTER_EXCEPTION; \
+  e->callback = NULL; \
+  cl->eptr = noit_lua_event(L, e); \
+  e->closure = cl; \
+  noit_lua_check_register_event(ri, e); \
+} while(0)
+
+  NEWEVENT(spawn_info->in,  in[1],  L, ri);
+  NEWEVENT(spawn_info->out, out[0], L, ri);
+  NEWEVENT(spawn_info->err, err[0], L, ri);
+  return 4;
+
+ err:
+  noitL(noit_error, "nl_spawn -> %s\n", strerror(spawn_info->last_errno));
+  if(in[0] != -1) close(in[0]);
+  if(in[1] != -1) close(in[1]);
+  if(out[0] != -1) close(out[0]);
+  if(out[1] != -1) close(out[1]);
+  if(err[0] != -1) close(err[0]);
+  if(err[1] != -1) close(err[1]);
+  if(filea) posix_spawn_file_actions_destroy(filea);
+  if(attr) posix_spawnattr_destroy(attr);
+  lua_pushinteger(L, spawn_info->last_errno);
+  return 2;
+}
+
+static int
+noit_lua_process_wait(lua_State *L) {
+  int rv, status;
+  struct spawn_info *spawn_info;
+  /* the first arg is implicitly self (it's a method) */
+  spawn_info = lua_touserdata(L, lua_upvalueindex(1));
+  if(spawn_info != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  if(spawn_info->pid == -1) {
+    lua_pushnil(L);
+    lua_pushinteger(L, EINVAL);
+    return 1;
+  }
+  while((rv = waitpid(spawn_info->pid, &status, 0)) == -1 && errno == EINTR);
+  if(rv == spawn_info->pid) {
+    lua_pushinteger(L, status);
+    return 1;
+  }
+  lua_pushnil(L);
+  lua_pushinteger(L, errno);
+  return 2;
+}
+
+static int
+noit_lua_process_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  struct spawn_info *udata;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "noit.process")) {
+    luaL_error(L, "metatable error, arg1 not a noit.process!");
+  }
+  udata = lua_touserdata(L, 1);
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'w':
+      LUA_DISPATCH(wait, noit_lua_process_wait);
+      break;
+    default:
+      break;
+  }
+  luaL_error(L, "noit.process no such element: %s", k);
+  return 0;
+}
+
+static int
+noit_lua_process_gc(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  struct spawn_info *spawn_info;
+
+  ci = noit_lua_get_resume_info(L);
+  spawn_info = (struct spawn_info *)lua_touserdata(L,1);
+  if(spawn_info->pid != -1) {
+    int status;
+    if(spawn_info->pid != waitpid(spawn_info->pid, &status, WNOHANG)) {
+      kill(spawn_info->pid, SIGKILL);
+      while(waitpid(spawn_info->pid, &status, 0) == -1 && errno == EINTR);
+    }
+    spawn_info->pid = -1;
+  }
+  return 0;
+}
+
 static const luaL_Reg noitlib[] = {
   { "waitfor", nl_waitfor },
   { "notify", nl_waitfor_notify },
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
+  { "uuid", nl_uuid },
   { "socket", nl_socket },
   { "dns", nl_dns_lookup },
+  { "valid_ip", nl_valid_ip },
   { "log", nl_log },
+  { "open", nl_open },
+  { "write", nl_write },
+  { "close", nl_close },
+  { "chmod", nl_chmod },
+  { "stat", nl_stat },
+  { "readdir", nl_readdir },
   { "crc32", nl_crc32 },
   { "base32_decode", nl_base32_decode },
   { "base32_encode", nl_base32_encode },
   { "base64_decode", nl_base64_decode },
   { "base64_encode", nl_base64_encode },
+  { "utf8tohtml", nl_utf8tohtml },
   { "hmac_sha1_encode", nl_hmac_sha1_encode },
   { "md5_hex", nl_md5_hex },
   { "pcre", nl_pcre },
   { "gunzip", nl_gunzip },
+  { "conf", nl_conf_get_string },
   { "conf_get", nl_conf_get_string },
   { "conf_get_string", nl_conf_get_string },
+  { "conf_string", nl_conf_get_string },
   { "conf_get_integer", nl_conf_get_integer },
+  { "conf_integer", nl_conf_get_integer },
   { "conf_get_boolean", nl_conf_get_boolean },
+  { "conf_boolean", nl_conf_get_boolean },
   { "conf_get_number", nl_conf_get_float },
+  { "conf_number", nl_conf_get_float },
   { "parsexml", nl_parsexml },
   { "parsejson", nl_parsejson },
+  { "spawn", nl_spawn },
   { NULL, NULL }
 };
 
@@ -2252,6 +2762,13 @@ int luaopen_noit(lua_State *L) {
 
   luaL_newmetatable(L, "noit.eventer.ssl_ctx");
   lua_pushcclosure(L, noit_ssl_ctx_index_func, 0);
+  lua_setfield(L, -2, "__index");
+
+  luaL_newmetatable(L, "noit.process");
+  lua_pushcfunction(L, noit_lua_process_gc);
+  lua_setfield(L, -2, "__gc");
+  luaL_newmetatable(L, "noit.process");
+  lua_pushcfunction(L, noit_lua_process_index_func);
   lua_setfield(L, -2, "__index");
 
   luaL_newmetatable(L, "noit.dns");
@@ -2292,6 +2809,29 @@ int luaopen_noit(lua_State *L) {
   lua_setfield(L, -2, "__gc");
 
   luaL_register(L, "noit", noitlib);
+
+#define LUA_DEFINE_INT(L, name) do { \
+  lua_pushinteger(L, name); \
+  lua_setglobal(L, #name); \
+} while(0)
+  LUA_DEFINE_INT(L, S_IFIFO);
+  LUA_DEFINE_INT(L, S_IFCHR);
+  LUA_DEFINE_INT(L, S_IFDIR);
+  LUA_DEFINE_INT(L, S_IFBLK);
+  LUA_DEFINE_INT(L, S_IFREG);
+  LUA_DEFINE_INT(L, S_IFLNK);
+  LUA_DEFINE_INT(L, S_IFSOCK);
+  LUA_DEFINE_INT(L, O_RDONLY);
+  LUA_DEFINE_INT(L, O_WRONLY);
+  LUA_DEFINE_INT(L, O_RDWR);
+  LUA_DEFINE_INT(L, O_APPEND);
+  LUA_DEFINE_INT(L, O_SYNC);
+#ifdef O_NOFOLLOW
+  LUA_DEFINE_INT(L, O_NOFOLLOW);
+#endif
+  LUA_DEFINE_INT(L, O_CREAT);
+  LUA_DEFINE_INT(L, O_TRUNC);
+  LUA_DEFINE_INT(L, O_EXCL);
   return 0;
 }
 

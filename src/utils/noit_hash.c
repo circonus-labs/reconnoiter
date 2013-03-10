@@ -109,7 +109,10 @@ void noit_hash_init(noit_hash_table *h) {
 void noit_hash_init_size(noit_hash_table *h, int size) {
   memset(h, 0, sizeof(noit_hash_table));
   h->initval = lrand48();
-  h->table_size = size;
+  if (size > 0)
+    h->table_size = size;
+  else
+    h->table_size = NoitHASH_INITIAL_SIZE;
   h->buckets = calloc(h->table_size, sizeof(noit_hash_bucket *));
 }
 

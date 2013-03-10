@@ -46,6 +46,12 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 
+NOIT_HOOK_IMPL(module_post_init,
+  (),
+  void *, closure,
+  (void *closure),
+  (closure))
+
 static noit_module_t *
 noit_load_module_image(noit_module_loader_t *loader,
                        char *module_name,
@@ -199,7 +205,7 @@ noit_load_generic_image(noit_module_loader_t *loader,
   if(noit_load_image(g_file, g_name, &generics,
                      noit_module_generic_validate_magic,
                      sizeof(noit_module_generic_t))) {
-    noitL(noit_stderr, "Could not load %s:%s\n", g_file, g_name);
+    noitL(noit_stderr, "Could not load generic %s:%s\n", g_file, g_name);
     return NULL;
   }
   return noit_module_generic_lookup(g_name);
@@ -219,7 +225,7 @@ noit_load_loader_image(noit_module_loader_t *loader,
   if(noit_load_image(loader_file, loader_name, &loaders,
                      noit_module_loader_validate_magic,
                      sizeof(noit_module_loader_t))) {
-    noitL(noit_stderr, "Could not load %s:%s\n", loader_file, loader_name);
+    noitL(noit_stderr, "Could not load loader %s:%s\n", loader_file, loader_name);
     noit_module_load_failure_count++;
     return NULL;
   }
@@ -239,7 +245,7 @@ noit_load_module_image(noit_module_loader_t *loader,
   }
   if(noit_load_image(module_file, module_name, &modules,
                      noit_module_validate_magic, sizeof(noit_module_t))) {
-    noitL(noit_stderr, "Could not load %s:%s\n", module_file, module_name);
+    noitL(noit_stderr, "Could not load module %s:%s\n", module_file, module_name);
     return NULL;
   }
   return noit_module_lookup(module_name);
@@ -435,8 +441,10 @@ void noit_module_init() {
         continue;
       }
     }
-    if(gen->init && gen->init(gen))
+    if(gen->init && gen->init(gen)) {
       noitL(noit_stderr, "Failed to init generic %s\n", g_name);
+      noit_module_load_failure_count++;
+    }
     else
       noitL(noit_stderr, "Generic module %s successfully loaded.\n", g_name);
   }
@@ -470,6 +478,7 @@ void noit_module_init() {
       }
       else if(rv < 0) {
         noitL(noit_stderr, "Failed to config loader %s\n", loader_name);
+        noit_module_load_failure_count++;
         continue;
       }
     }
@@ -480,7 +489,7 @@ void noit_module_init() {
 
   /* Load the modules (these *are* specific to the /noit/ root) */
   sections = noit_conf_get_sections(NULL, "/noit/modules//module", &cnt);
-  if(!sections) return;
+  if(!sections) cnt = 0;
   for(i=0; i<cnt; i++) {
     noit_module_loader_t *loader = &__noit_image_loader;
     noit_hash_table *config;
@@ -538,7 +547,12 @@ void noit_module_init() {
     }
     noitL(noit_stderr, "Module %s successfully loaded.\n", module_name);
   }
-  free(sections);
+  if(cnt) free(sections);
+
+  if(module_post_init_hook_invoke() == NOIT_HOOK_ABORT) {
+    noitL(noit_stderr, "Module post initialization phase failed.\n");
+    noit_module_load_failure_count++;
+  }
 }
 
 #define userdata_accessors(type, field) \

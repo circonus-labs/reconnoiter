@@ -104,6 +104,27 @@ public abstract class JDBC implements JezebelCheck {
       }
     }
 
+    // For MySQL and Postgres, make this act just like the C lib by default.
+    // i.e. append the column name to the metric name (if not already set)
+    if ( check.get("module").equals("mysql") || check.get("module").equals("postgres") ) {
+      if ( ! config.containsKey("append_column_name") ) {
+        config.put("append_column_name","true");
+      }
+    }
+
+    // MySQL "show" queries need auto typing on or all you get is strings.
+    if ( check.get("module").equals("mysql") ) {
+      String sqllc = sql.toLowerCase();
+      if ( sqllc.startsWith("show") ) {
+        config.put("autotype", "true");
+        config.put("mysql_show", "true");
+
+        if ( sqllc.contains("slave status") || sqllc.contains("master status") ) {
+          config.put("mysql_show_useonlycolname", "true");
+        }
+      }
+    }
+
     sql = JezebelTools.interpolate(sql, check, config);
 
     Connection conn = null;
@@ -125,12 +146,21 @@ public abstract class JDBC implements JezebelCheck {
   protected void queryToResmon(Connection conn, Map<String,String> config,
                                String sql, ResmonResult rr) {
     int nrows = 0;
-    boolean auto = false;
-    boolean append = false;
-    String autotype = config.get("autotype");
-    String append_column_name = config.get("append_column_name");
-    if(autotype != null && autotype.equals("true")) auto = true;
-    if(append_column_name != null && append_column_name.equals("true")) append = true;
+    boolean auto                      = false;
+    boolean append                    = false;
+    boolean show_query                = false;
+    boolean show_useonlycolname       = false;
+
+    String autotype                   = config.get("autotype");
+    String append_column_name         = config.get("append_column_name");
+    String mysql_show                 = config.get("mysql_show");
+    String mysql_show_useonlycolname  = config.get("mysql_show_useonlycolname");
+
+    if(autotype                   != null && autotype.equals("true"))                   auto = true;
+    if(append_column_name         != null && append_column_name.equals("true"))         append = true;
+    if(mysql_show                 != null && mysql_show.equals("true"))                 show_query = true;
+    if(mysql_show_useonlycolname  != null && mysql_show_useonlycolname.equals("true"))  show_useonlycolname = true;
+
     Statement st = null;
     ResultSet rs = null;
     try {
@@ -139,13 +169,29 @@ public abstract class JDBC implements JezebelCheck {
       while (rs.next()) {
         ResultSetMetaData rsmd = rs.getMetaData();
         int ncols = rsmd.getColumnCount();
+        int idx = (show_query && show_useonlycolname) ? 1 : 2;
   
         nrows++;
         if(ncols < 2) continue;
         String prefix = rs.getString(1);
-        for(int i = 2; i <= ncols; i++) {
-          String name = prefix;
-          if(ncols > 2 || append) name = name + '`' + rsmd.getColumnName(i);
+        for(int i = idx; i <= ncols; i++) {
+          String name     = prefix;
+          String colname  = rsmd.getColumnName(i);
+
+          // at some point (>5.1?) mysql started returning the colname as VARIABLE_VALUE
+          // for various show * queries, to remain consistent with older versions and to mimic
+          // what show actually shows to the user, convert this name to just Value.
+          if (show_query && colname.equals("VARIABLE_VALUE")) colname = "Value";
+
+          if(ncols > 2 || append) {
+            if (show_query && show_useonlycolname) {
+              name = colname;
+            }
+            else {
+              name = name + '`' + colname;
+            }
+          }
+          
           try {
             switch(rsmd.getColumnType(i)) {
               case Types.BOOLEAN:

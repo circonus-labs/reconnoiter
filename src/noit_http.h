@@ -129,12 +129,22 @@ API_EXPORT(size_t)
   noit_http_request_content_length(noit_http_request *);
 API_EXPORT(noit_boolean)
   noit_http_request_payload_chunked(noit_http_request *);
+API_EXPORT(noit_boolean)
+  noit_http_request_has_payload(noit_http_request *);
 API_EXPORT(const char *)
   noit_http_request_querystring(noit_http_request *, const char *);
 API_EXPORT(noit_hash_table *)
   noit_http_request_querystring_table(noit_http_request *);
 API_EXPORT(noit_hash_table *)
   noit_http_request_headers_table(noit_http_request *);
+API_EXPORT(void)
+  noit_http_request_set_upload(noit_http_request *,
+                               void *data, int64_t size,
+                               void (*freefunc)(void *, int64_t, void *),
+                               void *closure);
+API_EXPORT(const void *)
+  noit_http_request_get_upload(noit_http_request *, int64_t *size);
+
 
 API_EXPORT(noit_boolean)
   noit_http_response_closed(noit_http_response *);

@@ -46,7 +46,8 @@ check_test.lo:	check_test.xmlh
 
 ip_acl.lo:	ip_acl.xmlh
 
-lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo $(LUAJITO)
+lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
+	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
 	@echo "- linking $@"
 	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo
 
@@ -64,6 +65,22 @@ lua_dns.lo:	lua_dns.c
 
 lua_lpack.lo:	lua_lpack.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_lpack.c -o $@
+	@echo "- compiling $<"
+
+lua_web.lo:	lua_web.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_web.c -o $@
+	@echo "- compiling $<"
+
+lua_http.lo:	lua_http.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_http.c -o $@
+	@echo "- compiling $<"
+
+lua_general.lo:	lua_general.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_general.c -o $@
+	@echo "- compiling $<"
+
+lua_snmp.lo:	lua_snmp.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_snmp.c -o $@
 	@echo "- compiling $<"
 
 postgres.@MODULEEXT@:	postgres.lo
