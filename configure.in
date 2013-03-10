@@ -761,6 +761,7 @@ src/Makefile.objs
 src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL
+src/lua/Makefile
 src/udns/Makefile
 src/json-lib/Makefile
 src/yajl-lib/Makefile

@@ -186,7 +186,7 @@ HOST_RM= rm -f
 # You DO NOT NEED an installed copy of (plain) Lua 5.1 to run DynASM unless
 # you want to MODIFY the corresponding *.dasc file. You can also use LuaJIT
 # itself (bootstrapped from a pre-generated file) to run DynASM of course.
-HOST_LUA= lua
+HOST_LUA= ../../lua/src/lua
 
 HOST_XCFLAGS=
 HOST_XLDFLAGS=

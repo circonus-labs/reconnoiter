@@ -84,7 +84,7 @@ LUAJIT=lj_vm.o lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o lj_str.o \
 
 LUAJITO=$(LUAJIT:%=$(LUADIR)/src/%)
 
-$(LUADIR)/src/%.o:
+$(LUADIR)/src/%.o:	lua/src/lua
 	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="$(CC) $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 
 include Makefile.objs
@@ -125,7 +125,10 @@ FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
-$(FINAL_NOIT_OBJS):
+lua/src/lua:
+	(cd lua/src && make lua)
+
+$(FINAL_NOIT_OBJS):	$(NOIT_OBJS)
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:noit-objs/%.o=%.o) $@
@@ -324,7 +327,7 @@ install-docs:
 install:	install-dirs install-docs install-headers install-noitd install-stratcond
 
 clean:
-	rm -f *.o $(TARGETS)
+	rm -f *.o $(TARGETS) $(LUAJITO)
 	rm -f module-online.h
 	rm -rf noit-objs stratcon-objs
 	(cd jlog && $(MAKE) clean)
@@ -336,7 +339,6 @@ clean:
 	(cd utils && $(MAKE) clean)
 	(cd json-lib && $(MAKE) clean)
 	(cd yajl-lib && $(MAKE) clean)
-	(cd LuaJIT && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 
 Makefile.noit.dep:
