@@ -304,11 +304,18 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   noit_skiplist_insert(&nc_dns_cache, n);
+  noitL(noit_debug, "Resolved %s/%s -> %d records\n", n->target,
+        (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")),
+        acnt);
+  if(result) free(result);
   return;
 
  blank:
   if(rtype == DNS_T_A) blank_update_v4(n);
   if(rtype == DNS_T_AAAA) blank_update_v6(n);
+  noitL(noit_debug, "Resolved %s/%s -> blank\n", n->target,
+        (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")));
+  if(result) free(result);
   return;
 }
 static void dns_cache_resolve_v4(struct dns_ctx *ctx, void *result, void *data) {
@@ -487,6 +494,7 @@ void noit_check_resolver_init() {
      dns_open(dns_ctx) < 0) {
     noitL(noit_error, "dns initialization failed.\n");
   }
+  eventer_name_callback("dns_cache_callback", dns_cache_callback);
   dns_set_tmcbck(dns_ctx, dns_cache_utm_fn, dns_ctx);
   e = eventer_alloc();
   e->mask = EVENTER_READ | EVENTER_EXCEPTION;

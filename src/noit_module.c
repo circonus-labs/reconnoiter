@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <dlfcn.h>
+#include <assert.h>
 
 #include <libxml/parser.h>
 #include <libxslt/xslt.h>
@@ -124,8 +125,7 @@ noit_module_t *noit_blank_module() {
 }
 
 int noit_register_module(noit_module_t *mod) {
-  noit_hash_store(&modules, mod->hdr.name, strlen(mod->hdr.name), mod);
-  return 0;
+  return !noit_hash_store(&modules, mod->hdr.name, strlen(mod->hdr.name), mod);
 }
 
 int noit_load_image(const char *file, const char *name,
@@ -174,10 +174,14 @@ int noit_load_image(const char *file, const char *name,
   obj->opaque_handle = calloc(1, sizeof(struct __extended_image_data));
 
   if(obj->onload && obj->onload(obj)) {
+    free(obj->opaque_handle);
     free(obj);
     return -1;
   }
-  noit_hash_store(registry, obj->name, strlen(obj->name), obj);
+  if(!noit_hash_store(registry, obj->name, strlen(obj->name), obj)) {
+    noitL(noit_error, "Attempted to load module %s more than once.\n", obj->name);
+    return -1;
+  }
   return 0;
 }
 
@@ -196,7 +200,6 @@ noit_load_generic_image(noit_module_loader_t *loader,
                      noit_module_generic_validate_magic,
                      sizeof(noit_module_generic_t))) {
     noitL(noit_stderr, "Could not load %s:%s\n", g_file, g_name);
-    noit_module_load_failure_count++;
     return NULL;
   }
   return noit_module_generic_lookup(g_name);
@@ -237,7 +240,6 @@ noit_load_module_image(noit_module_loader_t *loader,
   if(noit_load_image(module_file, module_name, &modules,
                      noit_module_validate_magic, sizeof(noit_module_t))) {
     noitL(noit_stderr, "Could not load %s:%s\n", module_file, module_name);
-    noit_module_load_failure_count++;
     return NULL;
   }
   return noit_module_lookup(module_name);
@@ -416,6 +418,7 @@ void noit_module_init() {
                                   sections[i]);
     if(!gen) {
       noitL(noit_stderr, "Failed to load generic %s\n", g_name);
+      noit_module_load_failure_count++;
       continue;
     }
     if(gen->config) {
@@ -453,6 +456,7 @@ void noit_module_init() {
                                     sections[i]);
     if(!loader) {
       noitL(noit_stderr, "Failed to load loader %s\n", loader_name);
+      noit_module_load_failure_count++;
       continue;
     }
     if(loader->config) {
@@ -496,6 +500,7 @@ void noit_module_init() {
       loader = noit_loader_lookup(loader_name);
       if(!loader) {
         noitL(noit_stderr, "No '%s' loader found.\n", loader_name);
+        noit_module_load_failure_count++;
         continue;
       }
     } else {
@@ -506,6 +511,7 @@ void noit_module_init() {
     if(!module) {
       noitL(noit_stderr, "Loader '%s' failed to load '%s'.\n",
             loader_name, module_name);
+      noit_module_load_failure_count++;
       continue;
     }
     if(module->config) {
@@ -537,10 +543,10 @@ void noit_module_init() {
 
 #define userdata_accessors(type, field) \
 void *noit_##type##_get_userdata(noit_##type##_t *mod) { \
-  return ((struct __extended_image_data *)mod->field)->userdata; \
+  return mod->field->userdata; \
 } \
 void noit_##type##_set_userdata(noit_##type##_t *mod, void *newdata) { \
-  ((struct __extended_image_data *)mod->field)->userdata = newdata; \
+  mod->field->userdata = newdata; \
 }
 
 userdata_accessors(image, opaque_handle)

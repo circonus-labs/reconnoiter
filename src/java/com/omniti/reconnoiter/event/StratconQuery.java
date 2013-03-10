@@ -8,11 +8,14 @@
 
 package com.omniti.reconnoiter.event;
 
-
+import java.lang.reflect.Constructor;
 import com.omniti.reconnoiter.event.StratconQueryBase;
 import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
+import com.omniti.reconnoiter.broker.IMQBroker;
 import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
+import com.espertech.esper.client.EPServiceProvider;
 import java.util.UUID;
 
 public class StratconQuery extends StratconQueryBase {
@@ -62,11 +65,32 @@ public class StratconQuery extends StratconQueryBase {
 
   public int numparts() { return 5; }
 
-  public void handle(EventHandler eh) {
+  @SuppressWarnings("unchecked")
+  public UpdateListener getListener(EventHandler eh, StratconQuery sq) {
+    UpdateListener l = null;
+    try {
+      Constructor<UpdateListener> con;
+      IMQBroker broker = eh.getBroker();
+      con = broker.getListenerClass().getDeclaredConstructor(
+            new Class[] { EPServiceProvider.class, StratconQuery.class, broker.getClass(),
+                          String.class, String.class }
+        );
+      l = con.newInstance(eh.getService(), sq, broker,
+                          broker.getAlertExchangeName(), broker.getAlertRoutingKey());
+    }
+    catch(java.lang.NoSuchMethodException e) {}
+    catch(java.lang.InstantiationException ie) { }
+    catch(java.lang.IllegalAccessException ie) { }
+    catch(java.lang.reflect.InvocationTargetException ie) { }
+    return l;
+  }
+
+  public void handle(IEventHandler ieh) {
+    EventHandler eh = (EventHandler)ieh;
     eh.deregisterQuery(getUUID());
 
     EPStatement statement = eh.getService().getEPAdministrator().createEPL(getExpression());
-    UpdateListener o = eh.getBroker().getListener(eh.getService(), this);
+    UpdateListener o = getListener(eh, this);
 
     statement.addListener(o);
     setStatement(statement);

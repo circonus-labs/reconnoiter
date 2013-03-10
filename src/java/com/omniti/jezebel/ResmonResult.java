@@ -98,11 +98,23 @@ public class ResmonResult {
         synchronized(metrics) {
             for (Map.Entry<String,ResmonMetricData> e : metrics.entrySet()) {
                 ResmonMetricData d = e.getValue();
+                char valueChars[] = d.value.toCharArray();
+                boolean containsControl = false;
+
+                // characters() is happy to accept control chars that will lead to invalid XML, skip them
+                if ( d.type.equalsIgnoreCase("s") ) {
+                    for (char c : valueChars) {
+                        if ( Character.isISOControl((int)c) ) {
+                            containsControl = true;
+                        }
+                    }
+                }
+                if ( containsControl ) continue;
+                
                 atts.clear();
                 atts.addAttribute("","","name","CDATA",e.getKey());
                 atts.addAttribute("","","type","CDATA",d.type);
                 hd.startElement("","","metric",atts);
-                char valueChars[] = d.value.toCharArray();
                 hd.characters(valueChars, 0, valueChars.length);
                 hd.endElement("","","metric");
             }

@@ -247,17 +247,35 @@ httptrap_yajl_cb_start_map(void *ctx) {
 }
 static int
 httptrap_yajl_cb_end_map(void *ctx) {
-  struct value_list *p;
+  struct value_list *p, *last_p = NULL;
   struct rest_json_payload *json = ctx;
   json->depth--;
   if(json->saw_complex_type == 0x3) {
+    long double total = 0, cnt = 0;
+    noit_boolean use_avg = noit_false;
     for(p=json->last_value;p;p=p->next) {
       noit_stats_set_metric_coerce(json->check, json->stats,
           json->keys[json->depth], json->last_type, p->v);
-      if(json->immediate)
-        noit_stats_log_immediate_metric(json->check,
-            json->keys[json->depth], json->last_type, p->v);
+      last_p = p;
+      if(json->last_type == 'L' || json->last_type == 'l' ||
+         json->last_type == 'I' || json->last_type == 'i' ||
+         json->last_type == 'n') {
+        total += strtold(p->v, NULL);
+        cnt = cnt + 1;
+        use_avg = noit_true;
+      }
       json->cnt++;
+    }
+    if(json->immediate && last_p != NULL) {
+      if(use_avg) {
+        double avg = total / cnt;
+        noit_stats_log_immediate_metric(json->check,
+            json->keys[json->depth], 'n', &avg);
+      }
+      else {
+        noit_stats_log_immediate_metric(json->check,
+            json->keys[json->depth], json->last_type, last_p->v);
+      }
     }
   }
   json->saw_complex_type = 0;
@@ -363,6 +381,7 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
     len = noit_http_session_req_consume(
             restc->http_ctx, buffer,
             MIN(content_length - rxc->len, sizeof(buffer)),
+            sizeof(buffer),
             mask);
     if(len > 0) {
       yajl_status status;
@@ -382,7 +401,9 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    if(rxc->len == content_length) {
+    content_length = noit_http_request_content_length(req);
+    if((noit_http_request_payload_chunked(req) && len == 0) ||
+       (rxc->len == content_length)) {
       rxc->complete = 1;
       yajl_complete_parse(rxc->parser);
     }
@@ -531,6 +552,7 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
 static int noit_httptrap_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
+  check->flags |= NP_PASSIVE_COLLECTION;
   if (check->closure == NULL) {
     httptrap_closure_t *ccl;
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t));

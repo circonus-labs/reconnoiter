@@ -40,6 +40,8 @@
 #define NOIT_LOADER_MAGIC         0xA7AD7104
 #define NOIT_LOADER_ABI_VERSION   4
 
+struct __extended_image_data;
+
 typedef struct _noit_image {
   uint32_t magic;
   uint32_t version;
@@ -47,7 +49,7 @@ typedef struct _noit_image {
   char *description;
   char *xml_description;
   int (*onload)(struct _noit_image *);
-  void *opaque_handle;
+  struct __extended_image_data *opaque_handle;
 } noit_image_t;
 
 /* onload: is called immediately after the module is loaded and before it

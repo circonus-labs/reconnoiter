@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf8" standalone="yes"?>
-<noit lockfile="/var/run/noitd.lock">
+<noit lockfile="/var/run/noitd.lock" text_size_limit="512">
   <!-- <watchdog glider="/opt/gimli/bin/glider" tracedir="/var/log/noitd.crash"/> -->
   <eventer>
     <config>
@@ -67,10 +67,14 @@
     <module image="snmp" name="snmp"/>
     <module image="ssh2" name="ssh2"/>
     <module image="httptrap" name="httptrap"/>
+    <module image="statsd" name="statsd"/>
     <module loader="lua" name="varnish" object="noit.module.varnish"/>
     <module loader="lua" name="http" object="noit.module.http"/>
     <module loader="lua" name="resmon" object="noit.module.resmon"/>
     <module loader="lua" name="smtp" object="noit.module.smtp"/>
+    <module loader="lua" name="ntp" object="noit.module.ntp"/>
+    <module loader="lua" name="dhcp" object="noit.module.dhcp"/>
+    <module loader="lua" name="pop3" object="noit.module.pop3"/>
     <jezebel>
       <config><url>http://127.0.0.1:8083/dispatch</url></config>
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
@@ -115,8 +119,8 @@
     <config xmlns:ip_acl="noit://module/ip_acl">
       <ip_acl:global/>
     </config>
-    <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="10.80.117.90" period="5000" timeout="4000"/>
-    <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="10.80.116.4" period="15000" timeout="14000"/>
+    <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="127.0.0.1" period="5000" timeout="4000"/>
+    <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="8.8.8.8" period="15000" timeout="14000"/>
     <dc1 timeout="30000" period="60000" transient_min_period="10000">
       <icmp module="ping_icmp">
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fb" target="66.225.209.7"/>
@@ -125,19 +129,13 @@
         <config xmlns:ip_acl="noit://module/ip_acl">
           <ip_acl:sample/>
         </config>
-        <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fc" target="66.225.209.31">
-          <config>
-            <url>http://ngm.nationalgeographic.com/ngm/ngm.html</url>
-            <code>302</code>
-          </config>
-        </check>
-        <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3aa" target="8.8.38.5">
+        <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3aa" target="labs.omniti.com">
           <config>
             <url>https://labs.omniti.com/</url>
             <code>200</code>
           </config>
         </check>
-        <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3ff" target="8.8.38.59">
+        <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3ff" target="taskman.omniti.com">
           <config>
             <url>https://taskman.omniti.com/</url>
             <code>200</code>
@@ -161,7 +159,8 @@
         <check target="127.0.0.1" uuid="16eb9194-cbf4-11de-8fba-031dd96e4057" name="disk::1" />
       </disk>
     </dc1>
-    <check uuid="002d58ff-20ff-4db0-9420-782fc1748dc4" module="ssh2" target="10.80.117.2" period="60000" timeout="4000"/>
+    <check uuid="002d58ff-20ff-4db0-9420-782fc1748dc4" module="ssh2" target="git.github.com" period="60000" timeout="4000"/>
+    <check uuid="ff4f1de8-a405-11e1-8770-9347de0fce85" module="statsd" target="127.0.0.1" period="60000" timeout="59999"/>
   </checks>
   <filtersets>
     <filterset name="default">

@@ -51,6 +51,7 @@ typedef struct lua_module_closure {
   char *object;
   lua_State *lua_state;
   int object_ref;
+  noit_hash_table *pending;
 } lua_module_closure_t;
 
 typedef struct noit_lua_check_info {
@@ -90,6 +91,7 @@ struct nl_slcl {
   size_t write_sofar;
   size_t write_goal;
   eventer_t *eptr;
+  eventer_t pending_event;
 
   int sendto; /* whether this send is a sendto call */
   union {

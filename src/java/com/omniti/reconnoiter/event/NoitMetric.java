@@ -8,13 +8,14 @@
 
 package com.omniti.reconnoiter.event;
 
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconMessage;
 import com.omniti.reconnoiter.event.NoitMetricNumeric;
 import com.omniti.reconnoiter.event.NoitMetricText;
 import org.apache.log4j.Logger;
 
-public class NoitMetric extends NoitEvent {
+public class NoitMetric extends NoitEvent 
+       implements NoitMetricGeneric {
   static Logger logger = Logger.getLogger(NoitMetric.class.getName());
   public final static String METRIC_STRING = "s";
 
@@ -33,10 +34,10 @@ public class NoitMetric extends NoitEvent {
       nmt = null;
     }
   }
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler eh) {
     long start = System.nanoTime();
-    if(nmn != null) eh.getService().getEPRuntime().sendEvent(nmn);
-    if(nmt != null) eh.getService().getEPRuntime().sendEvent(nmt);
+    if(nmn != null) eh.sendEvent(nmn);
+    if(nmt != null) eh.sendEvent(nmt);
     long nanos = System.nanoTime() - start;
     logger.debug("sendEvent("+getUuid()+"-"+getName()+") took "+(nanos/1000)+"us");
   }
@@ -50,6 +51,8 @@ public class NoitMetric extends NoitEvent {
 
   public boolean isNumeric() { return nmn != null; }
   public boolean isText() { return nmt != null; }
+  public NoitMetricNumeric getNumeric() { return nmn; }
+  public NoitMetricText getText() { return nmt; }
   public String getPrefix() { return "M"; }
   public int numparts() { return 7; }
 }

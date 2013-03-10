@@ -9,12 +9,9 @@
 package com.omniti.reconnoiter.broker;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 
 import org.apache.log4j.Logger;
-import com.espertech.esper.client.EPServiceProvider;
-import com.espertech.esper.client.UpdateListener;
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.event.StratconQuery;
 import com.rabbitmq.client.Connection;
@@ -49,9 +46,7 @@ public class RabbitBroker implements IMQBroker  {
   private boolean exclusiveQueue;
   private boolean durableQueue;
   private boolean durableExchange;
-  private Constructor<UpdateListener> con;
 
-  @SuppressWarnings("unchecked") 
   public RabbitBroker(StratconConfig config) {
     this.conn = null;
     this.cidx = 0;
@@ -63,20 +58,13 @@ public class RabbitBroker implements IMQBroker  {
     this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
     this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
-    
+
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
     try {
       this.listenerClass = Class.forName(className);
-      this.con = this.listenerClass.getDeclaredConstructor(
-          new Class[] { EPServiceProvider.class, StratconQuery.class, RabbitBroker.class,
-                        String.class, String.class }
-      );
     }
     catch(java.lang.ClassNotFoundException e) {
-      throw new RuntimeException("Cannot find class: " + className);
-    }
-    catch(java.lang.NoSuchMethodException e) {
-      throw new RuntimeException("Cannot find constructor for class: " + className);
+      logger.warn("Class " + className + " not found.");
     }
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
@@ -153,7 +141,7 @@ public class RabbitBroker implements IMQBroker  {
   }
   public Channel getChannel() { return channel; }
   
-  public void consume(EventHandler eh) throws IOException {
+  public void consume(IEventHandler eh) throws IOException {
     QueueingConsumer consumer = new QueueingConsumer(channel);
 
     channel.basicConsume(returnedQueueName, noAck, consumer);
@@ -179,14 +167,7 @@ public class RabbitBroker implements IMQBroker  {
     }
   }
 
-  public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    UpdateListener l = null;
-    try {
-      l = con.newInstance(epService, sq, this, alertExchangeName, alertRoutingKey);
-    }
-    catch(java.lang.InstantiationException ie) { }
-    catch(java.lang.IllegalAccessException ie) { }
-    catch(java.lang.reflect.InvocationTargetException ie) { }
-    return l;
-  }
+  public Class getListenerClass() { return listenerClass; }
+  public String getAlertExchangeName() { return alertExchangeName; }
+  public String getAlertRoutingKey() { return alertRoutingKey; }
 }

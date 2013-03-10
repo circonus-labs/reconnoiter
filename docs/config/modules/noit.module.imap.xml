@@ -284,6 +284,28 @@ SL checks).</para>
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>header_Host</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The host header to validate against the SSL certificate (for SSL checks).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <example>
     <title>Checking IMAP connection.</title>

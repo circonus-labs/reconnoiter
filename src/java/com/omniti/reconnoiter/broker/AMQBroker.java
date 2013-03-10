@@ -21,7 +21,7 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 
 import com.espertech.esper.client.EPServiceProvider;
 import com.espertech.esper.client.UpdateListener;
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.event.StratconQuery;
 
@@ -38,17 +38,9 @@ public class AMQBroker implements IMQBroker {
     String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.AMQListener");
     try {
       this.listenerClass = Class.forName(className);
-      this.con = this.listenerClass.getDeclaredConstructor(
-          new Class[] { EPServiceProvider.class, StratconQuery.class, String.class }
-      );
     }
     catch(java.lang.ClassNotFoundException e) {
-      throw new RuntimeException("Cannot find class: " + className);
     }
-    catch(java.lang.NoSuchMethodException e) {
-      throw new RuntimeException("Cannot find constructor for class: " + className);
-    }
-
   }
 
   private MessageConsumer consumer;
@@ -67,7 +59,7 @@ public class AMQBroker implements IMQBroker {
     consumer = session.createConsumer(destination);
   }
   
-  public void consume(EventHandler eh) {
+  public void consume(IEventHandler eh) {
     while (true) {
       Message message = null;
       try {
@@ -85,15 +77,8 @@ public class AMQBroker implements IMQBroker {
       }
     }
   }
-  
-  public UpdateListener getListener(EPServiceProvider epService, StratconQuery sq) {
-    UpdateListener l = null;
-    try {
-      l = con.newInstance(epService, sq, "vm://localhost");
-    }
-    catch(java.lang.InstantiationException ie) { }
-    catch(java.lang.IllegalAccessException ie) { }
-    catch(java.lang.reflect.InvocationTargetException ie) { }
-    return l;
-  }
+
+  public Class getListenerClass() { return listenerClass; }
+  public String getAlertRoutingKey() { return "vm://localhost"; }
+  public String getAlertExchangeName() { return ""; }
 }

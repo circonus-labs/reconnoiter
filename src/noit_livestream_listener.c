@@ -52,6 +52,7 @@ struct log_entry {
 
 typedef struct {
   u_int32_t period;
+  noit_boolean period_read;
   struct log_entry *lqueue;
   struct log_entry *lqueue_end;
   sem_t lqueue_sem;
@@ -237,16 +238,13 @@ socket_error:
     jcl = ac->service_ctx;
     /* Setup logger to this channel */
     noitL(noit_debug, "livestream initializing on fd %d\n", e->fd);
-    if(!jcl->period) {
+    if(!jcl->period_read) {
       u_int32_t nperiod;
       len = e->opset->read(e->fd, &nperiod, sizeof(nperiod), &mask, e);
       if(len == -1 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
       if(len != sizeof(nperiod)) goto socket_error;
       jcl->period = ntohl(nperiod);
-      if(!jcl->period) {
-        noitL(noit_error, "period of 0 specified in livestream.  not allowed.\n");
-        goto socket_error;
-      }
+      jcl->period_read = noit_true;
       noitL(noit_debug, "livestream initializing on fd %d [period %d]\n",
             e->fd, jcl->period);
     }

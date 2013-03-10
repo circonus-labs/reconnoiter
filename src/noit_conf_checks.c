@@ -496,7 +496,7 @@ noit_console_show_check(noit_console_closure_t ncct,
     else {
       int idx = 0;
       nc_printf(ncct, " target_ip: %s\n", check->target_ip);
-      nc_printf(ncct, " currently: ");
+      nc_printf(ncct, " currently: %08x ", check->flags);
       if(NOIT_CHECK_RUNNING(check)) nc_printf(ncct, "%srunning", idx++?",":"");
       if(NOIT_CHECK_KILLED(check)) nc_printf(ncct, "%skilled", idx++?",":"");
       if(!NOIT_CHECK_CONFIGURED(check)) nc_printf(ncct, "%sunconfig", idx++?",":"");
@@ -533,6 +533,7 @@ noit_console_show_check(noit_console_closure_t ncct,
                   noit_check_available_string(c->available),
                   noit_check_state_string(c->state));
         nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
+        nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
         nc_printf(ncct, " metrics:\n");
         memset(&iter, 0, sizeof(iter));
         sorted_keys = alloca(c->metrics.size * sizeof(*sorted_keys));

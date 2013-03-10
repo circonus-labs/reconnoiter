@@ -16,11 +16,15 @@ import com.omniti.reconnoiter.MQListener;
 import com.omniti.reconnoiter.broker.BrokerFactory;
 import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.StratconMessage;
+import com.omniti.reconnoiter.event.*;
 import com.espertech.esper.client.*;
 import com.omniti.reconnoiter.esper.ExactStatViewFactory;
 import com.omniti.reconnoiter.esper.DeriveViewFactory;
 import com.omniti.reconnoiter.esper.CounterViewFactory;
 import org.apache.log4j.BasicConfigurator;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import com.omniti.reconnoiter.broker.IMQBroker;
 
 class IEPEngine {
   private MQListener mql;
@@ -35,7 +39,11 @@ class IEPEngine {
     config.getEngineDefaults().getThreading().setInsertIntoDispatchPreserveOrder(false);
     EPServiceProvider epService = EPServiceProviderManager.getDefaultProvider(config);
 
-    mql = new MQListener(epService, BrokerFactory.getBroker(sconf));
+    IMQBroker broker = BrokerFactory.getBroker(sconf);
+    EventHandler eh = new EventHandler(
+        new ConcurrentHashMap<UUID,StratconQueryBase>(),
+        epService, broker);
+    mql = new MQListener(eh, broker);
     try {
       List<StratconMessage> mlist = sconf.getQueries();
       for ( StratconMessage m : mlist ) {

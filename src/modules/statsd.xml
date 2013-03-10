@@ -1,0 +1,37 @@
+<module>
+  <name>statsd</name>
+  <description><para>The statsd module provides a simple way to push data into reconnoiter from other applications.  See https://github.com/etsy/statsd for more details.</para></description>
+  <loader>C</loader>
+  <image>statsd.so</image>
+  <moduleconfig>
+    <parameter name="port"
+               required="optional"
+               default="8125"
+               allowed="^\d+$">The port on which to listen for statsd packets.</parameter>
+    <parameter name="packets_per_cycle"
+               required="optional"
+               default="100"
+               allowed="^\d+$">The number of packets to recv() during each eventer cycle.</parameter>
+    <parameter name="check"
+               required="optional"
+               allowed="^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$">A specific check to which all statsd data will be delegated.</parameter>
+  </moduleconfig>
+  <examples>
+    <example>
+      <title>A sample statsd configuration.</title>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="statsd" name="statsd"/>
+        </modules>
+        <checks>
+          <check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="statsd"
+            target="127.0.0.1" period="60000" timeout="30000">
+            <config><port>8125</port></config>
+          </check>
+        </checks>
+      </noit>
+      ]]></programlisting>
+    </example>
+  </examples>
+</module>

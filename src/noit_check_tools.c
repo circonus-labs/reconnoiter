@@ -250,22 +250,35 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
         }
       }
       if(prefix && has_type && has_value &&
-         json_object_is_type(has_type, json_type_string) &&
-         json_object_is_type(has_value, json_type_string)) {
+         json_object_is_type(has_type, json_type_string)) {
         const char *type_str = json_object_get_string(has_type);
-        const char *value_str = json_object_get_string(has_value);
-        switch(*type_str) {
-          case METRIC_INT32:
-          case METRIC_UINT32:
-          case METRIC_INT64:
-          case METRIC_UINT64:
-          case METRIC_DOUBLE:
-          case METRIC_STRING:
-            noit_stats_set_metric_coerce(check, s, prefix,
-                                         (metric_type_t)*type_str, value_str);
-            count++;
-          default:
-            break;
+
+#define COERCE_JSON_OBJECT(type, item) do { \
+  const char *value_str = NULL; \
+  if(json_object_is_type(item, json_type_string)) \
+    value_str = json_object_get_string(item); \
+  else if(!json_object_is_type(item, json_type_null)) \
+    value_str = json_object_to_json_string(item); \
+  switch(type) { \
+    case METRIC_INT32: case METRIC_UINT32: case METRIC_INT64: \
+    case METRIC_UINT64: case METRIC_DOUBLE: case METRIC_STRING: \
+      noit_stats_set_metric_coerce(check, s, prefix, \
+                                   (metric_type_t)type, value_str); \
+      count++; \
+    default: \
+      break; \
+  } \
+} while(0)
+
+        if(json_object_is_type(has_value, json_type_array)) {
+          int i, alen = json_object_array_length(has_value);
+          for(i=0;i<alen;i++) {
+            struct json_object *item = json_object_array_get_idx(has_value, i);
+            COERCE_JSON_OBJECT(*type_str, item);
+          }
+        }
+        else {
+          COERCE_JSON_OBJECT(*type_str, has_value);
         }
       }
       break;

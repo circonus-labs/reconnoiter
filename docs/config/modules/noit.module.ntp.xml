@@ -35,7 +35,7 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>^123$</para>
+                <para>123</para>
               </listitem>
             </varlistentry>
             <varlistentry>

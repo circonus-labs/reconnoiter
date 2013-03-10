@@ -44,7 +44,7 @@ function onload(image)
   <checkconfig>
     <parameter name="port"
                required="optional"
-               default="^123$"
+               default="123"
                allowed="\d+">The port to which we will attempt to speak NTP.</parameter>
     <parameter name="control"
                required="optional"
@@ -338,7 +338,8 @@ function initiate_control(module, check, s)
     local poll = math.pow(2, math.max(math.min(vars.ppoll or 17, vars.hpoll or 17), 3))
     check.metric_uint32('poll', poll)
     check.metric_double('delay', tonumber(vars.delay))
-    check.metric_double('offset', tonumber(vars.offset))
+    check.metric_double('offset', tonumber(vars.offset) / 1000)
+    check.metric_double('offset_ms', tonumber(vars.offset))
     check.metric_double('jitter', tonumber(vars.jitter))
     check.metric_double('dispersion', tonumber(vars.dispersion))
     check.metric_double('xleave', tonumber(vars.xleave))
@@ -390,6 +391,7 @@ function initiate(module, check)
 
     if # status.offset > 0 then
         check.metric_double('offset', status.avg_offset)
+        check.metric_double('offset_ms', status.avg_offset * 1000.0)
         check.metric_uint32('requests', cnt)
         check.metric_uint32('responses', status.responses)
         check.metric_uint32('stratum', status.stratum)

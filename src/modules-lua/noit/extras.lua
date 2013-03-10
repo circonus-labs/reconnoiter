@@ -28,6 +28,7 @@
 -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+local ipairs = ipairs
 local string = require("string")
 local table = require("table")
 module("noit.extras")
@@ -59,3 +60,55 @@ function split(str, delimiter, max)
   return result
 end
 
+function iptonumber(str)
+  local num = 0
+  for elem in str:gmatch("%d+") do
+    num = (num * 256) + elem
+  end
+  return num
+end
+
+function check_host_header_against_certificate(host_header, cert_subject, san_list)
+  local san_list_check = function (array, value)
+    for i, line in ipairs(array) do
+      if line == value then
+        return true
+      else
+        line = string.gsub(line, '%.', "%%%.")
+        line = string.gsub(line, "%*", "[^\.]*")
+        local match = string.match(value, line)
+        if match == value then
+          return true
+        end
+      end
+    end
+    return false
+  end
+  -- First, check for SAN values if they exist - if they do, check for a match
+  local san_array = { }
+  if san_list ~= nil then
+    san_array = split(san_list, ", ")
+  end
+  if san_list_check(san_array, host_header) then
+    -- The host header was in the SAN list, so we're done
+    return nil
+  end
+  -- Next, pull out the CN value
+  local cn = string.sub(cert_subject, string.find(cert_subject, 'CN=[^/\n]*'))
+  if cn == nil or cn == '' then
+    -- no common name given, give an error
+    return 'CN not found in certificate'
+  end
+  cn = string.sub(cn, 4)
+  if cn == host_header then
+    -- CN and host_header match exactly, so no error
+    return nil
+  end
+  cn = string.gsub(cn, '%.', "%%%.")
+  cn = string.gsub(cn, "%*", "[^\.]*")
+  local match = string.match(host_header, cn)
+  if match == host_header then
+    return nil
+  end
+  return 'host header does not match CN or SANs in certificate'
+end

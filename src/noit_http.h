@@ -38,6 +38,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
+#include "utils/noit_hooks.h"
 #include "noit_listener.h"
 
 typedef enum {
@@ -116,6 +117,8 @@ API_EXPORT(void)
 API_EXPORT(eventer_t)
   noit_http_connection_event(noit_http_connection *);
 
+API_EXPORT(void)
+  noit_http_request_start_time(noit_http_request *, struct timeval *);
 API_EXPORT(const char *)
   noit_http_request_uri_str(noit_http_request *);
 API_EXPORT(const char *)
@@ -124,6 +127,8 @@ API_EXPORT(const char *)
   noit_http_request_protocol_str(noit_http_request *);
 API_EXPORT(size_t)
   noit_http_request_content_length(noit_http_request *);
+API_EXPORT(noit_boolean)
+  noit_http_request_payload_chunked(noit_http_request *);
 API_EXPORT(const char *)
   noit_http_request_querystring(noit_http_request *, const char *);
 API_EXPORT(noit_hash_table *)
@@ -135,6 +140,8 @@ API_EXPORT(noit_boolean)
   noit_http_response_closed(noit_http_response *);
 API_EXPORT(noit_boolean)
   noit_http_response_complete(noit_http_response *);
+API_EXPORT(size_t)
+  noit_http_response_bytes_written(noit_http_response *);
 
 API_EXPORT(void)
   noit_http_ctx_acceptor_free(void *); /* just calls noit_http_session_ctx_release */
@@ -149,7 +156,7 @@ API_EXPORT(noit_boolean)
   noit_http_session_prime_input(noit_http_session_ctx *, const void *, size_t);
 API_EXPORT(int)
   noit_http_session_req_consume(noit_http_session_ctx *ctx,
-                                void *buf, size_t len, int *mask);
+                                void *buf, size_t len, size_t blen, int *mask);
 API_EXPORT(noit_boolean)
   noit_http_response_status_set(noit_http_session_ctx *, int, const char *);
 API_EXPORT(noit_boolean)
@@ -192,5 +199,10 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   noit_http_init();
+
+NOIT_HOOK_PROTO(http_request_log,
+                (noit_http_session_ctx *ctx),
+                void *, closure,
+                (void *closure, noit_http_session_ctx *ctx))
 
 #endif

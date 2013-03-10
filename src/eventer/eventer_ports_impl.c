@@ -35,7 +35,7 @@
 #include "utils/noit_atomic.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_log.h"
-#include "eventer/dtrace_probes.h"
+#include "dtrace_probes.h"
 
 #include <errno.h>
 #include <stdio.h>

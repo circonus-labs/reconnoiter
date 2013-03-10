@@ -49,8 +49,9 @@
 
 #define MAX_RR 256
 
-static void eventer_dns_utm_fn(struct dns_ctx *, int, void *);
-static int dns_eventer_callback(eventer_t, int, void *, struct timeval *);
+static void dns_module_eventer_dns_utm_fn(struct dns_ctx *, int, void *);
+static int dns_module_eventer_callback(eventer_t, int, void *, struct timeval *);
+static void register_console_dns_commands();
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
@@ -61,8 +62,9 @@ static noit_hash_table dns_ctypes = NOIT_HASH_EMPTY;
 static noit_hash_table dns_ctx_store = NOIT_HASH_EMPTY;
 static pthread_mutex_t dns_ctx_store_lock;
 typedef struct dns_ctx_handle {
-  char *ns;
-  struct dns_ctx *ctx;
+  char *ns; /* name server */
+  char *hkey; /* hash key - ns plus the port number */
+  struct dns_ctx *ctx;  
   noit_atomic32_t refcnt;
   eventer_t e; /* evetner handling UDP traffic */
   eventer_t timeout; /* the timeout managed by libudns */
@@ -73,79 +75,109 @@ static int cstring_cmp(const void *a, const void *b) {
 }
 
 static dns_ctx_handle_t *default_ctx_handle = NULL;
-static void dns_ctx_handle_free(void *vh) {
+static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_ctx_handle_t *h = vh;
-  assert(h->timeout == NULL);
   free(h->ns);
+  free(h->hkey);
   dns_close(h->ctx);
   dns_free(h->ctx);
+  assert(h->timeout == NULL);
 }
-static dns_ctx_handle_t *dns_ctx_alloc(const char *ns, int port) {
+static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
+  noit_atomic_inc32(&h->refcnt);
+}
+static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   void *vh;
+  char *hk = NULL;
   dns_ctx_handle_t *h = NULL;
   pthread_mutex_lock(&dns_ctx_store_lock);
   if(ns == NULL && default_ctx_handle != NULL) {
     /* special case -- default context */
     h = default_ctx_handle;
-    noit_atomic_inc32(&h->refcnt);
+    dns_module_dns_ctx_acquire(h);
     goto bail;
   }
+
+  if (ns != NULL) {
+    int len = snprintf(NULL, 0, "%s:%d", ns, port); 
+    hk = (char *)malloc(len+1);
+    snprintf(hk, len+1, "%s:%d", ns, port);
+  }
+
   if(ns &&
-     noit_hash_retrieve(&dns_ctx_store, ns, strlen(ns), &vh)) {
+     noit_hash_retrieve(&dns_ctx_store, hk, strlen(hk), &vh)) {
     h = (dns_ctx_handle_t *)vh;
-    noit_atomic_inc32(&h->refcnt);
+    dns_module_dns_ctx_acquire(h);
+    free(hk);
   }
   else {
     int failed = 0;
     h = calloc(1, sizeof(*h));
     h->ns = ns ? strdup(ns) : NULL;
     h->ctx = dns_new(NULL);
-    if(dns_init(h->ctx, 0) != 0) failed++;
+    if(dns_init(h->ctx, 0) != 0) {
+      noitL(nlerr, "dns_init failed\n");
+      failed++;
+    }
     if(ns) {
-      if(dns_add_serv(h->ctx, NULL) < 0) failed++;
-      if(dns_add_serv(h->ctx, ns) < 0) failed++;
+      if(dns_add_serv(h->ctx, NULL) < 0) {
+        noitL(nlerr, "dns_add_serv(NULL) failed\n");
+        failed++;
+      }
+      if(dns_add_serv(h->ctx, ns) < 0) {
+        noitL(nlerr, "dns_add_serv(%s) failed\n", ns);
+        failed++;
+      }
     }
     if(port && port != DNS_PORT) {
       dns_set_opt(h->ctx, DNS_OPT_PORT, port);
     }
-    if(dns_open(h->ctx) < 0) failed++;
-    if(failed) {
+    if(dns_open(h->ctx) < 0) {
       noitL(nlerr, "dns_open failed\n");
+      failed++;
+    }
+    if(failed) {
       free(h->ns);
       free(h);
+      free(hk);
       h = NULL;
       goto bail;
     }
-    dns_set_tmcbck(h->ctx, eventer_dns_utm_fn, h);
+    h->hkey = hk;
+    dns_set_tmcbck(h->ctx, dns_module_eventer_dns_utm_fn, h);
     h->e = eventer_alloc();
     h->e->mask = EVENTER_READ | EVENTER_EXCEPTION;
     h->e->closure = h;
-    h->e->callback = dns_eventer_callback;
+    h->e->callback = dns_module_eventer_callback;
     h->e->fd = dns_sock(h->ctx);
     eventer_add(h->e);
     h->refcnt = 1;
     if(!ns)
       default_ctx_handle = h;
     else
-      noit_hash_store(&dns_ctx_store, h->ns, strlen(h->ns), h);
+      noit_hash_store(&dns_ctx_store, h->hkey, strlen(h->hkey), h);
   }
  bail:
   pthread_mutex_unlock(&dns_ctx_store_lock);
   return h;
 }
-static void dns_ctx_release(dns_ctx_handle_t *h) {
+static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
+  int rv = 0, last;
   if(h->ns == NULL) {
     /* Special case for the default */
     noit_atomic_dec32(&h->refcnt);
-    return;
+    return rv;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
-  if(noit_atomic_dec32(&h->refcnt) == 0) {
+  last = noit_atomic_dec32(&h->refcnt);
+  if(last == 0) {
     /* I was the last one */
-    assert(noit_hash_delete(&dns_ctx_store, h->ns, strlen(h->ns),
-                            NULL, dns_ctx_handle_free));
+    assert(noit_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
+                            NULL, dns_module_dns_ctx_handle_free));
+    rv = 1;
   }
   pthread_mutex_unlock(&dns_ctx_store_lock);
+  return rv;
 }
 
 static noit_hash_table active_events = NOIT_HASH_EMPTY;
@@ -189,6 +221,10 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
   assert(noit_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
+  if(ci->h != NULL) {
+    dns_module_dns_ctx_release(ci->h);
+    ci->h = NULL;
+  }
 }
 
 static void dns_check_log_results(struct dns_check_info *ci) {
@@ -210,9 +246,9 @@ static void dns_check_log_results(struct dns_check_info *ci) {
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
     ci->current.status = strdup(buff);
-    noit_stats_set_metric(ci->check, &ci->current, "rtt", METRIC_DOUBLE,
-                          ci->timed_out ? NULL : &rtt);
   }
+  noit_stats_set_metric(ci->check, &ci->current, "rtt", METRIC_DOUBLE,
+                        ci->timed_out ? NULL : &rtt);
 
   noit_check_set_stats(ci->check, &ci->current);
   if(ci->error) free(ci->error);
@@ -280,6 +316,53 @@ static int dns_interpolate_reverse_ip(char *buff, int len, const char *ip) {
   return strlen(buff);
 }
 
+static void
+nc_printf_dns_handle_brief(noit_console_closure_t ncct,
+                           dns_ctx_handle_t *h) {
+  nc_printf(ncct, "== %s ==\n", h->hkey);
+  nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, h->refcnt);
+  nc_printf(ncct, " e: %d\n", h->e ? h->e->fd : -1);
+  if(h->timeout) {
+    struct timeval now, diff;
+    gettimeofday(&now, NULL);
+    sub_timeval(h->timeout->whence, now, &diff);
+    nc_printf(ncct, " timeout: %f\n",
+              diff.tv_sec + (double)diff.tv_usec/1000000.0);
+  }
+}
+static int
+noit_console_show_dns(noit_console_closure_t ncct,
+                      int argc, char **argv,
+                      noit_console_state_t *dstate,
+                      void *closure) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  uuid_t key_id;
+  int klen;
+  void *vts;
+
+  pthread_mutex_lock(&dns_ctx_store_lock);
+  while(noit_hash_next(&dns_ctx_store, &iter,
+                       (const char **)key_id, &klen,
+                       &vts)) {
+    dns_ctx_handle_t *h = vts;
+    nc_printf_dns_handle_brief(ncct, h);
+  }
+  pthread_mutex_unlock(&dns_ctx_store_lock);
+  return 0;
+}
+
+static void
+register_console_dns_commands() {
+  noit_console_state_t *tl;
+  cmd_info_t *showcmd;
+
+  tl = noit_console_state_initial();
+  showcmd = noit_console_state_get_cmd(tl, "show");
+  assert(showcmd && showcmd->dstate);
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("dns_module", noit_console_show_dns, NULL, NULL, NULL));
+}
+
 static int dns_module_init(noit_module_t *self) {
   const struct dns_nameval *nv;
   struct dns_ctx *pctx;
@@ -307,25 +390,31 @@ static int dns_module_init(noit_module_t *self) {
     return -1;
   }
   dns_free(pctx);
-  if(dns_ctx_alloc(NULL, 0) == NULL) {
+  if(dns_module_dns_ctx_alloc(NULL, 0) == NULL) {
     noitL(nlerr, "Error setting up default dns resolver context.\n");
     return -1;
   }
+  register_console_dns_commands();
   return 0;
 }
 
 static void dns_check_cleanup(noit_module_t *self, noit_check_t *check) {
 }
 
-static int dns_eventer_callback(eventer_t e, int mask, void *closure,
-                                struct timeval *now) {
+static int dns_module_eventer_callback(eventer_t e, int mask, void *closure,
+                                       struct timeval *now) {
   dns_ctx_handle_t *h = closure;
+  dns_module_dns_ctx_acquire(h);
   dns_ioevent(h->ctx, now->tv_sec);
+  if(dns_module_dns_ctx_release(h)) {
+    /* We've been closed */
+    return 0;
+  }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
-static int dns_check_timeout(eventer_t e, int mask, void *closure,
-                             struct timeval *now) {
+static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
+                                    struct timeval *now) {
   struct dns_check_info *ci;
   ci = closure;
   ci->timeout_event = NULL;
@@ -335,35 +424,43 @@ static int dns_check_timeout(eventer_t e, int mask, void *closure,
   return 0;
 }
 
-static int dns_invoke_timeouts(eventer_t e, int mask, void *closure,
-                               struct timeval *now) {
+static int dns_module_invoke_timeouts(eventer_t e, int mask, void *closure,
+                                      struct timeval *now) {
   dns_ctx_handle_t *h = closure;
   dns_timeouts(h->ctx, 0, now->tv_sec);
+  dns_module_dns_ctx_release(h);
   return 0;
 }
-static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
+static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
+                                          int timeout, void *data) {
   dns_ctx_handle_t *h = data;
   eventer_t e = NULL, newe = NULL;
   if(ctx == NULL) {
-    if(h->timeout) e = eventer_remove(h->timeout);
+    if(h && h->timeout) e = eventer_remove(h->timeout);
   }
   else {
     assert(h->ctx == ctx);
-    if(timeout < 0) {
-      if(h->timeout) e = eventer_remove(h->timeout);
-    }
-    else {
+    if(h->timeout) e = eventer_remove(h->timeout);
+    if(timeout > 0) {
       newe = eventer_alloc();
       newe->mask = EVENTER_TIMER;
-      newe->callback = dns_invoke_timeouts;
+      newe->callback = dns_module_invoke_timeouts;
       newe->closure = h;
       gettimeofday(&newe->whence, NULL);
       newe->whence.tv_sec += timeout;
     }
   }
-  if(e) eventer_free(e);
-  if(newe) eventer_add(newe);
-  h->timeout = newe;
+  if(e) {
+    eventer_free(e);
+    if(h) dns_module_dns_ctx_release(h);
+  }
+  if(newe) {
+    dns_module_dns_ctx_acquire(h);
+    eventer_add(newe);
+  }
+  if(h) {
+    h->timeout = newe;
+  }
 }
 
 static char *encode_txt(char *dst, const unsigned char *src, int len) {
@@ -700,11 +797,11 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
      ((ci->h->ns == NULL && nameserver != NULL) ||
       (ci->h->ns != NULL && nameserver == NULL) ||
       (ci->h->ns && strcmp(ci->h->ns, nameserver)))) {
-    dns_ctx_release(ci->h);
+    dns_module_dns_ctx_release(ci->h);
     ci->h = NULL;
   }
   /* use the cached one, unless we don't have one */
-  if(!ci->h) ci->h = dns_ctx_alloc(nameserver, port);
+  if(!ci->h) ci->h = dns_module_dns_ctx_alloc(nameserver, port);
   if(!ci->h) ci->error = strdup("bad nameserver");
 
   /* Lookup out class */
@@ -760,7 +857,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(now, p_int, &newe->whence);
   newe->closure = ci;
-  newe->callback = dns_check_timeout;
+  newe->callback = dns_module_check_timeout;
   ci->timeout_event = newe;
   eventer_add(newe);
 
@@ -788,9 +885,9 @@ static int dns_onload(noit_image_t *self) {
   nldeb = noit_log_stream_find("debug/dns");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
-  eventer_name_callback("dns/dns_eventer_callback", dns_eventer_callback);
-  eventer_name_callback("dns/dns_check_timeout", dns_check_timeout);
-  eventer_name_callback("dns/dns_invoke_timeouts", dns_invoke_timeouts);
+  eventer_name_callback("dns/dns_eventer_callback", dns_module_eventer_callback);
+  eventer_name_callback("dns/dns_check_timeout", dns_module_check_timeout);
+  eventer_name_callback("dns/dns_invoke_timeouts", dns_module_invoke_timeouts);
   return 0;
 }
 

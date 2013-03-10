@@ -124,7 +124,7 @@ yajl_render_error_string(yajl_handle hand, const unsigned char * jsonText,
                 text[i] = ' ';
             }
         }
-        assert(i <= 71);
+        assert(i <= 70);
         text[i++] = '\n';
         text[i] = 0;
         {

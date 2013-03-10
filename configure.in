@@ -57,7 +57,7 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
-	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE"
+	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
 	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
 	MODULEEXT=bundle
@@ -255,6 +255,8 @@ PGCFLAGS=$CFLAGS
 AC_SUBST(PGCFLAGS)
 LIBS=$old_LIBS
 CFLAGS=$old_CFLAGS
+
+AC_CHECK_HEADERS(gcrypt.h)
 
 AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 
@@ -454,7 +456,7 @@ AC_EGREP_CPP([tputs.*[(][       ]*char[         ]*[)]],
 		[AC_MSG_RESULT(not char)])
 
 AC_MSG_CHECKING(for tgoto() function final argument type)
-AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*[)]],
+AC_EGREP_CPP([tgoto.*[(][       ]*char[         ]*],
 		[#if defined(HAVE_TERM_H)
 		 #include <term.h>
 		 #endif
@@ -755,6 +757,7 @@ AC_SUBST(LUACFLAGS)
 AC_OUTPUT([
 Makefile
 src/Makefile
+src/Makefile.objs
 src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL

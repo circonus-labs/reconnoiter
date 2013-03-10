@@ -9,15 +9,17 @@
 package com.omniti.reconnoiter.event;
 
 import com.omniti.reconnoiter.event.NoitEvent;
+import com.omniti.reconnoiter.event.NoitMetricGeneric;
 
-public class NoitMetricNumeric extends NoitEvent {
+public class NoitMetricNumeric extends NoitEvent 
+       implements NoitMetricGeneric {
     private String uuid;
     private String check_target;
     private String check_module;
     private String check_name;
     private String name;
-    private long time;
-    private Double value;
+    public long time;
+    public Double value;
     private String noit;
 
   public String getPrefix() {

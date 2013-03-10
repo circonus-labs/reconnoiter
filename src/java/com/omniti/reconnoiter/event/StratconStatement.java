@@ -10,6 +10,7 @@ package com.omniti.reconnoiter.event;
 
 import com.omniti.reconnoiter.event.StratconQueryBase;
 import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.espertech.esper.client.EPStatement;
 import com.espertech.esper.client.UpdateListener;
 
@@ -35,7 +36,8 @@ public class StratconStatement extends StratconQueryBase {
 
   public int numparts() { return 4; }
 
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler ieh) {
+    EventHandler eh = (EventHandler)ieh;
     eh.deregisterQuery(getUUID());
     EPStatement statement = eh.getService().getEPAdministrator().createEPL(getExpression());
     setStatement(statement);  

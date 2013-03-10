@@ -34,7 +34,7 @@ public class AMQListener extends NoitListener implements Runnable {
     private MessageProducer producer;
     private StratconQuery sq;
 
-    public AMQListener(EPServiceProvider epService, StratconQuery sq, String binding) {
+    public AMQListener(EPServiceProvider epService, StratconQuery sq, AMQBroker broker, String binding, String unused) {
       super();
       try {
         // we just need it started up

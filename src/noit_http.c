@@ -44,7 +44,14 @@
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
 #define HEADER_CONTENT_LENGTH "content-length"
+#define HEADER_TRANSFER_ENCODING "transfer-encoding"
 #define HEADER_EXPECT "expect"
+
+NOIT_HOOK_IMPL(http_request_log,
+  (noit_http_session_ctx *ctx),
+  void *, closure,
+  (void *closure, noit_http_session_ctx *ctx),
+  (closure,ctx))
 
 struct noit_http_connection {
   eventer_t e;
@@ -62,8 +69,11 @@ struct noit_http_request {
          NOIT_HTTP_REQ_PAYLOAD } state;
   struct bchain *current_request_chain;
   noit_boolean has_payload;
+  noit_boolean payload_chunked;
   int64_t content_length;
   int64_t content_length_read;
+  int32_t next_chunk;
+  int32_t next_chunk_read;
   char *method_str;
   char *uri_str;
   char *protocol_str;
@@ -229,6 +239,9 @@ uint32_t noit_http_session_ref_inc(noit_http_session_ctx *ctx) {
 eventer_t noit_http_connection_event(noit_http_connection *conn) {
   return conn->e;
 }
+void noit_http_request_start_time(noit_http_request *req, struct timeval *t) {
+  memcpy(t, &req->start_time, sizeof(*t));
+}
 const char *noit_http_request_uri_str(noit_http_request *req) {
   return req->uri_str;
 }
@@ -240,6 +253,9 @@ const char *noit_http_request_protocol_str(noit_http_request *req) {
 }
 size_t noit_http_request_content_length(noit_http_request *req) {
   return req->content_length;
+}
+noit_boolean noit_http_request_payload_chunked(noit_http_request *req) {
+  return req->payload_chunked;
 }
 const char *noit_http_request_querystring(noit_http_request *req, const char *k) {
   void *vv;
@@ -259,6 +275,9 @@ noit_boolean noit_http_response_closed(noit_http_response *res) {
 }
 noit_boolean noit_http_response_complete(noit_http_response *res) {
   return res->complete;
+}
+size_t noit_http_response_bytes_written(noit_http_response *res) {
+  return res->bytes_written;
 }
 
 static noit_http_method
@@ -364,12 +383,14 @@ noit_http_log_request(noit_http_session_ctx *ctx) {
   struct timeval end_time, diff;
 
   if(ctx->req.start_time.tv_sec == 0) return;
+  if(http_request_log_hook_invoke(ctx) != NOIT_HOOK_CONTINUE) return;
+
   gettimeofday(&end_time, NULL);
   now = end_time.tv_sec;
   tm = gmtime_r(&now, &tbuf);
   strftime(timestr, sizeof(timestr), "%d/%b/%Y:%H:%M:%S -0000", tm);
   sub_timeval(end_time, ctx->req.start_time, &diff);
-  time_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  time_ms = diff.tv_sec * 1000 + (double)diff.tv_usec / 1000.0;
   noit_convert_sockaddr_to_buff(ip, sizeof(ip), &ctx->ac->remote.remote_addr);
   noitL(http_access, "%s - - [%s] \"%s %s%s%s %s\" %d %llu %.3f\n",
         ip, timestr,
@@ -583,6 +604,13 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
 
   /* headers are done... we could need to read a payload */
   if(noit_hash_retrieve(&req->headers,
+                        HEADER_TRANSFER_ENCODING,
+                        sizeof(HEADER_TRANSFER_ENCODING)-1, &vval)) {
+    req->has_payload = noit_true;
+    req->payload_chunked = noit_true;
+    req->content_length = 0;
+  }
+  else if(noit_hash_retrieve(&req->headers,
                         HEADER_CONTENT_LENGTH,
                         sizeof(HEADER_CONTENT_LENGTH)-1, &vval)) {
     const char *val = vval;
@@ -599,7 +627,7 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     req->state = NOIT_HTTP_REQ_EXPECT;
     return noit_false;
   }
-  if(req->content_length > 0) {
+  if(req->has_payload) {
     /* switch modes... let's go read the payload */
     req->state = NOIT_HTTP_REQ_PAYLOAD;
     return noit_false;
@@ -731,7 +759,7 @@ noit_http_request_release(noit_http_session_ctx *ctx) {
     int drained, mask;
     ctx->drainage = ctx->req.content_length - ctx->req.content_length_read;
     /* best effort, we'll drain it before the next request anyway */
-    drained = noit_http_session_req_consume(ctx, NULL, ctx->drainage, &mask);
+    drained = noit_http_session_req_consume(ctx, NULL, ctx->drainage, 0, &mask);
     ctx->drainage -= drained;
   }
   RELEASE_BCHAIN(ctx->req.current_request_chain);
@@ -765,16 +793,134 @@ void
 noit_http_ctx_acceptor_free(void *v) {
   noit_http_ctx_session_release((noit_http_session_ctx *)v);
 }
-int
-noit_http_session_req_consume(noit_http_session_ctx *ctx,
-                              void *buf, size_t len, int *mask) {
-  size_t bytes_read = 0;
+static int
+noit_http_session_req_consume_chunked(noit_http_session_ctx *ctx,
+                                      int *mask) {
+  /* chunked encoding read */
+  int next_chunk = -1;
   /* We attempt to consume from the first_input */
   struct bchain *in, *tofree;
+  while(1) {
+    const char *str_in_f;
+    int rlen;
+    in = ctx->req.first_input;
+    if(!in)
+      in = ctx->req.first_input = ctx->req.last_input =
+          ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
+    _fixup_bchain(in);
+    str_in_f = strnstrn("\r\n", 2, in->buff + in->start, in->size);
+    if(str_in_f && ctx->req.next_chunk_read) {
+      if(str_in_f != (in->buff + in->start)) {
+        noitL(http_debug, "HTTP chunked encoding error, no trailing CRLF.\n");
+        return -1;
+      }
+      in->start += 2;
+      in->size -= 2;
+      ctx->req.next_chunk_read = 0;
+      ctx->req.next_chunk = 0;
+      str_in_f = strnstrn("\r\n", 2, in->buff + in->start, in->size);
+    }
+    if(str_in_f) {
+      unsigned int clen = 0;
+      const char *cp = in->buff + in->start;
+      while(cp <= str_in_f) {
+  noitL(http_debug, "Looking at character: '%c'\n", *cp);
+        if(*cp >= '0' && *cp <= '9') clen = (clen << 4) | (*cp - '0');
+        else if(*cp >= 'a' && *cp <= 'f') clen = (clen << 4) | (*cp - 'a' + 10);
+        else if(*cp >= 'A' && *cp <= 'F') clen = (clen << 4) | (*cp - 'A' + 10);
+        else if(*cp == '\r' && cp[1] == '\n') {
+          noitL(http_debug, "Found for chunk length(%d)\n", clen);
+          next_chunk = clen;
+          in->start += 2;
+          in->size -= 2;
+          goto successful_chunk_size;
+        }
+        else {
+          noitL(http_debug, "chunked input encoding error: '%02x'\n", *cp);
+          return -1;
+        }
+        in->start++;
+        in->size--;
+        cp++;
+      }
+    }
+
+    in = ctx->req.last_input;
+    if(!in)
+      in = ctx->req.first_input = ctx->req.last_input =
+          ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
+    else if(in->start + in->size >= in->allocd) {
+      in->next = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
+      in = ctx->req.last_input = in->next;
+    }
+    /* pull next chunk */
+    if(ctx->conn.e == NULL) return -1;
+    rlen = ctx->conn.e->opset->read(ctx->conn.e->fd,
+                                    in->buff + in->start + in->size,
+                                    in->allocd - in->size - in->start,
+                                    mask, ctx->conn.e);
+    noitL(http_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, rlen);
+    noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, rlen, rlen, in->buff + in->start + in->size);
+    if(rlen == -1 && errno == EAGAIN) {
+      /* We'd block to read more, but we have data,
+       * so do a short read */
+      if(ctx->req.first_input && ctx->req.first_input->size) break;
+      /* We've got nothing... */
+      noitL(http_debug, " ... noit_http_session_req_consume = -1 (EAGAIN)\n");
+      return -1;
+    }
+    if(rlen <= 0) {
+      noitL(http_debug, " ... noit_http_session_req_consume = -1 (error)\n");
+      return -1;
+    }
+    in->size += rlen;
+  }
+
+ successful_chunk_size:
+  if(in->size == 0) {
+    tofree = in;
+    ctx->req.first_input = in = in->next;
+    tofree->next = NULL;
+    RELEASE_BCHAIN(tofree);
+  }
+
+  return next_chunk;
+}
+int
+noit_http_session_req_consume(noit_http_session_ctx *ctx,
+                              void *buf, size_t len, size_t blen,
+                              int *mask) {
+  size_t bytes_read = 0,
+         expected = ctx->req.content_length - ctx->req.content_length_read;
+  /* We attempt to consume from the first_input */
+  struct bchain *in, *tofree;
+  if(ctx->req.payload_chunked) {
+    if(ctx->req.next_chunk_read >= ctx->req.next_chunk) {
+      int needed;
+      needed = noit_http_session_req_consume_chunked(ctx, mask);
+      noitL(http_debug, " ... noit_http_session_req_consume(%d) chunked -> %d\n",
+            ctx->conn.e->fd, (int)needed);
+      if(needed == 0) {
+        ctx->req.content_length = ctx->req.content_length_read;
+        return 0;
+      }
+      else if(needed < 0) {
+        noitL(http_debug, " ... couldn't read chunk size\n");
+        return -1;
+      }
+      else {
+        ctx->req.next_chunk_read = 0;
+        ctx->req.next_chunk = needed;
+      }
+      len = blen;
+    }
+    expected = ctx->req.next_chunk - ctx->req.next_chunk_read;
+    noitL(http_debug, " ... need to read %d/%d more of a chunk\n", (int)expected,
+          (int)ctx->req.next_chunk);
+  }
   noitL(http_debug, " ... noit_http_session_req_consume(%d) %d of %d\n",
-        ctx->conn.e->fd, (int)len,
-        (int)(ctx->req.content_length - ctx->req.content_length_read));
-  len = MIN(len, ctx->req.content_length - ctx->req.content_length_read);
+        ctx->conn.e->fd, (int)len, (int)expected);
+  len = MIN(len, expected);
   while(bytes_read < len) {
     int crlen = 0;
     in = ctx->req.first_input;
@@ -783,6 +929,7 @@ noit_http_session_req_consume(noit_http_session_ctx *ctx,
       if(buf) memcpy((char *)buf+bytes_read, in->buff+in->start, partial_len);
       bytes_read += partial_len;
       ctx->req.content_length_read += partial_len;
+      if(ctx->req.payload_chunked) ctx->req.next_chunk_read += partial_len;
       noitL(http_debug, " ... filling %d bytes (read through %d/%d)\n",
             (int)bytes_read, (int)ctx->req.content_length_read,
             (int)ctx->req.content_length);
@@ -857,7 +1004,7 @@ noit_http_session_drive(eventer_t e, int origmask, void *closure,
   while(ctx->drainage > 0) {
     int len;
     noitL(http_debug, "   ... draining last request(%d)\n", e->fd);
-    len = noit_http_session_req_consume(ctx, NULL, ctx->drainage, &mask);
+    len = noit_http_session_req_consume(ctx, NULL, ctx->drainage, 0, &mask);
     if(len == -1 && errno == EAGAIN) {
       noitL(http_debug, " <- noit_http_session_drive(%d) [%x]\n", e->fd, mask);
       return mask;

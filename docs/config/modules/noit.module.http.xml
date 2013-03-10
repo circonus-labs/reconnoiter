@@ -475,6 +475,34 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>http_version</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>1.1</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+\.\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Sets the HTTP version for the check to use.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <example>
     <title>Checking an HTTP and HTTPS URL.</title>

@@ -457,11 +457,19 @@ rest_get_noit_config(noit_http_rest_closure_t *restc,
 
 void
 stratcon_datastore_iep_check_preload() {
+  if(!ingestor) {
+    noitL(noit_error, "No ingestor!\n");
+    exit(2);
+  }
   ingestor->iep_check_preload();
 }
 
 int
 stratcon_datastore_saveconfig(void *unused) {
+  if(!ingestor) {
+    noitL(noit_error, "No ingestor!\n");
+    exit(2);
+  }
   return ingestor->save_config();
 }
 

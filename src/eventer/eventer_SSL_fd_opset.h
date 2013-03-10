@@ -78,6 +78,9 @@ API_EXPORT(void)
 #define EVENTER_ATTACH_SSL(e,ctx) eventer_set_eventer_ssl_ctx(e,ctx)
 
 API_EXPORT(void)
+  eventer_ssl_ctx_set_sni(eventer_ssl_ctx_t *ctx, const char *snivalue);
+
+API_EXPORT(void)
   eventer_ssl_ctx_set_verify(eventer_ssl_ctx_t *ctx,
                              eventer_ssl_verify_func_t f, void *c);
 
@@ -106,6 +109,9 @@ API_EXPORT(const char *) \
 GET_SET_X509_NAME_PROTO(issuer);
 GET_SET_X509_NAME_PROTO(subject);
 GET_SET_X509_NAME_PROTO(error);
+GET_SET_X509_NAME_PROTO(san_list);
+API_EXPORT(const char *)
+  eventer_ssl_get_last_error(eventer_ssl_ctx_t *ctx);
 API_EXPORT(time_t)
   eventer_ssl_get_peer_start_time(eventer_ssl_ctx_t *ctx);
 API_EXPORT(time_t)

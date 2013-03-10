@@ -92,7 +92,7 @@ function initiate(module, check)
     -- something went horribly wrong, die with error
     check.bad()
     check.unavailable()
-    check.status(err or str or "unknown error")
+    check.status(err or str or "unknown error in memcached connect")
     return
   end
 

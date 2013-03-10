@@ -87,6 +87,8 @@ LUAJITO=$(LUAJIT:%=$(LUADIR)/src/%)
 $(LUADIR)/src/%.o:
 	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="$(CC) $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 
+include Makefile.objs
+
 NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
@@ -96,7 +98,10 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
-	bundle.pb-c.o $(LUAJITO)
+	bundle.pb-c.o \
+	$(UDNS_LIB_OBJS) $(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
+	$(JLOG_LIB_OBJS) $(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS) \
+	$(LUAJITO)
 
 NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
@@ -111,13 +116,24 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o \
-	bundle.pb-c.o
+	bundle.pb-c.o \
+	$(UDNS_LIB_OBJS) $(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
+	$(JLOG_LIB_OBJS) $(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS)
 
-STRATCON_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
-STRATCON_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
-	jlog/libjlog.a utils/libnoit_utils.a json-lib/libnoitjson.a yajl-lib/libnoityajl.a
+FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
+FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 
-all:	reversion $(NOIT_LIBS) $(STRATCON_LIBS) $(TARGETS) java-bits make-modules make-man
+all:	reversion $(TARGETS) java-bits make-modules make-man
+
+$(FINAL_NOIT_OBJS):
+	@mkdir -p "`dirname $@`"
+	@echo "- making private $@"
+	@cp $(@:noit-objs/%.o=%.o) $@
+
+$(FINAL_STRATCON_OBJS):
+	@mkdir -p "`dirname $@`"
+	@echo "- making private $@"
+	@cp $(@:stratcon-objs/%.o=%.o) $@
 
 make-man:
 	@(cd man && $(MAKE) -s)
@@ -130,38 +146,9 @@ make-modules:
 java-bits:
 	@-test -n "@JAVAPARTS@" && (cd java && $(MAKE) -s)
 
-libjlog:
-	@(cd jlog && $(MAKE) -s libjlog.a)
-
 jlog/jlogctl:
 	@echo "- building jlogctl"
 	@(cd jlog && $(MAKE) -s jlogctl)
-
-libudns:
-	@(cd udns && $(MAKE) -s libudns.o)
-
-libnoitedit:
-	@(cd noitedit && $(MAKE) -s libnoitedit.a)
-
-libeventer:
-	@(cd eventer && $(MAKE) -s libeventer.a)
-
-libnoit_utils:
-	@(cd utils && $(MAKE) -s libnoit_utils.a)
-
-libnoitjson:
-	@(cd json-lib && $(MAKE) -s libnoitjson.a)
-
-libnoityajl:
-	@(cd yajl-lib && $(MAKE) -s libnoityajl.a)
-
-jlog/libjlog.a:	libjlog
-udns/libudns.o:	libudns
-noitedit/libnoitedit.a:	libnoitedit
-eventer/libeventer.a:	libeventer
-utils/libnoit_utils.a:	libnoit_utils
-json-lib/libnoitjson.a:	libnoitjson
-yajl-lib/libnoityajl.a:	libnoityajl
 
 .PHONY:	reversion
 
@@ -179,57 +166,49 @@ man/stratcond.usage.h:	make-man
 noitd.o:	man/noitd.usage.h
 stratcond.o:	man/stratcond.usage.h
 
-stratcon_jlog_streamer.o:	@DTRACEHDR@
-noit_check_tools.o:	@DTRACEHDR@
-noit_check.o:	@DTRACEHDR@
+stratcon_jlog_streamer.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
+noit_check_tools.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
+noit_check.o:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
+dtrace_probes.h:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@
 
-stratcond_@DTRACEOBJ@:    $(STRATCON_OBJS)
+stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@" && \
-	@DTRACE@ @DTRACEFLAGS@ -Z -G -s dtrace_probes.d -o stratcond_@DTRACEOBJ@ $(STRATCON_OBJS)
+	@DTRACE@ @DTRACEFLAGS@ -Z -G -s stratcon_dtrace_probes.d -o stratcond_@DTRACEOBJ@ $(FINAL_STRATCON_OBJS)
 
-noitd_@DTRACEOBJ@:    $(STRATCON_OBJS)
+noitd_@DTRACEOBJ@:    $(FINAL_NOIT_OBJS)
 	@echo "- assembling $@" && \
-	@DTRACE@ @DTRACEFLAGS@ -Z -G -s dtrace_probes.d -o noitd_@DTRACEOBJ@ $(NOIT_OBJS)
+	@DTRACE@ @DTRACEFLAGS@ -Z -G -s noit_dtrace_probes.d -o noitd_@DTRACEOBJ@ $(FINAL_NOIT_OBJS)
 
-@DTRACEHDR@:    dtrace_probes.d
+noit_@DTRACEHDR@:    noit_dtrace_probes.d
 	@if test -z "@DTRACE@" ; then \
 		echo "- faking dtrace header" ; \
-		cp ./@DTRACEHDR@.stock ./@DTRACEHDR@ ; \
+		cp ./noit_@DTRACEHDR@.stock ./noit_@DTRACEHDR@ ; \
 	else \
-		echo "- building dtrace header" ; \
-		@DTRACE@ -h -s dtrace_probes.d ; \
+		echo "- building dtrace header $@" ; \
+		@DTRACE@ -h -s noit_dtrace_probes.d ; \
 	fi
 
-noitd:	$(NOIT_OBJS) $(NOIT_LIB_FILES) man/noitd.usage.h $(NOITD_DTRACEOBJ)
+stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
+	@if test -z "@DTRACE@" ; then \
+		echo "- faking dtrace header" ; \
+		cp ./stratcon_@DTRACEHDR@.stock ./stratcon_@DTRACEHDR@ ; \
+	else \
+		echo "- building dtrace header $@" ; \
+		@DTRACE@ -h -s stratcon_dtrace_probes.d ; \
+	fi
+
+noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
-	@$(CC) -o $@ $(NOIT_OBJS) \
-		udns/libudns.o \
+	@$(CC) -o $@ $(FINAL_NOIT_OBJS) \
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
-		$(WHOLE_ARCHIVE) \
-		eventer/*.o \
-		utils/*.o \
-		json-lib/*.o \
-		yajl-lib/*.o \
-		-Ljlog -ljlog \
-		-Lnoitedit -lnoitedit \
-		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
 
-stratcond:	$(STRATCON_OBJS) $(STRATCON_LIB_FILES) $(STRATCOND_DTRACEOBJ)
+stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
-	@$(CC) -o $@ $(STRATCON_OBJS) \
-		udns/libudns.o \
+	@$(CC) -o $@ $(FINAL_STRATCON_OBJS) \
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
-		$(WHOLE_ARCHIVE) \
-		eventer/*.o \
-		utils/*.o \
-		json-lib/*.o \
-		yajl-lib/*.o \
-		-Ljlog -ljlog \
-		-Lnoitedit -lnoitedit \
-		$(NOWHOLE_ARCHIVE) \
 		$(LIBS)
 
 stratcon_datastore.o:	stratcon_datastore.c
@@ -237,8 +216,27 @@ stratcon_datastore.o:	stratcon_datastore.c
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
 
 .c.o:
-	@echo "- compiling $<"
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
+	@if [ "`dirname $@`" != "." ] ; then \
+		(cd "`dirname $@`" && make "`basename $@`") ; \
+	else \
+		echo "- compiling $<" ; \
+		$(CC) $(CPPFLAGS) $(CFLAGS) -c $< ; \
+	fi
+
+udns/udns_codes.c:
+	@(cd udns && make udns_codes.c)
+
+utils/noit_atomic_sol_sparcv8plus.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_sparcv8plus.o)
+
+utils/noit_atomic_sol_sparcv9.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_sparcv9.o)
+
+utils/noit_atomic_sol_x86_32.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_x86_32.o)
+
+utils/noit_atomic_sol_x86_64.o:	utils/noit_atomic_sol.s
+	@(cd utils && make noit_atomic_sol_x86_64.o)
 
 noit_module.o:	module-online.h
 
@@ -328,6 +326,7 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 clean:
 	rm -f *.o $(TARGETS)
 	rm -f module-online.h
+	rm -rf noit-objs stratcon-objs
 	(cd jlog && $(MAKE) clean)
 	(cd eventer && $(MAKE) clean)
 	(cd udns && $(MAKE) clean)
@@ -340,11 +339,19 @@ clean:
 	(cd LuaJIT && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 
+Makefile.noit.dep:
+	find noit-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
+
+Makefile.stratcon.dep:
+	find stratcon-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
+
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep
+include Makefile.noit.dep
+include Makefile.stratcon.dep
 
 distclean-subdirs:
 	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib LuaJIT java ; do \

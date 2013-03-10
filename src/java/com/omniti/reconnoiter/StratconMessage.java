@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.event.*;
 
 public abstract class StratconMessage {
@@ -68,7 +69,7 @@ public abstract class StratconMessage {
 
   public int numparts() { return 0; }
 
-  public abstract void handle(EventHandler eh);
+  public abstract void handle(IEventHandler eh);
 
   public StratconMessage() {}
   // Check and make sure

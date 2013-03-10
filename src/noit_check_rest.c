@@ -166,10 +166,10 @@ rest_show_check(noit_http_rest_closure_t *restc,
   INHERIT(node, a, anode, value); \
   if(value != NULL) { \
     int clen, plen;\
-    const char *cpath, *apath; \
+    char *cpath, *apath; \
     xmlNodePtr child; \
-    cpath = node ? (char *)xmlGetNodePath(node) : ""; \
-    apath = anode ? (char *)xmlGetNodePath(anode) : ""; \
+    cpath = node ? (char *)xmlGetNodePath(node) : strdup(""); \
+    apath = anode ? (char *)xmlGetNodePath(anode) : strdup(""); \
     clen = strlen(cpath); \
     plen = strlen("/noit/checks"); \
     child = xmlNewNode(NULL, (xmlChar *)#a); \
@@ -180,6 +180,9 @@ rest_show_check(noit_http_rest_closure_t *restc,
       xmlSetProp(child, (xmlChar *)"inherited", (xmlChar *)apath+plen); \
     } \
     xmlAddChild(parent, child); \
+    free(cpath); \
+    free(apath); \
+    free(value); \
   } \
 } while(0)
 
@@ -195,6 +198,8 @@ rest_show_check(noit_http_rest_closure_t *restc,
     xmlNodeAddContent(tmp, (xmlChar *)value);
   else if(module)
     xmlNodeAddContent(tmp, (xmlChar *)module);
+  if(value) free(value);
+  if(module) free(module);
 
   SHOW_ATTR(attr,node,module);
   SHOW_ATTR(attr,node,target);

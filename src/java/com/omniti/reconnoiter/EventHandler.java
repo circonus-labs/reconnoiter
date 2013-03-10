@@ -18,11 +18,12 @@ import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.*;
 import com.omniti.reconnoiter.MessageHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class EventHandler {
+public class EventHandler implements IEventHandler {
   private LinkedList<MessageHandler> alternates;
   private EPServiceProvider epService;
   private ConcurrentHashMap<UUID, StratconQueryBase> queries;
@@ -99,5 +100,8 @@ public class EventHandler {
       if(mh.observe(m, source) == true)
         return true;
     return false;
+  }
+  public void sendEvent(StratconMessage m) {
+    getService().getEPRuntime().sendEvent(m);
   }
 }

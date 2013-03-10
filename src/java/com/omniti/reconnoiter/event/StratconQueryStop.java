@@ -11,6 +11,7 @@ package com.omniti.reconnoiter.event;
 import java.util.UUID;
 import com.omniti.reconnoiter.StratconMessage;
 import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 
 public class StratconQueryStop extends StratconQueryBase {
 
@@ -30,7 +31,8 @@ public class StratconQueryStop extends StratconQueryBase {
 
   public int numparts() { return 3; }
 
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler ieh) {
+    EventHandler eh = (EventHandler)ieh;
     eh.deregisterQuery(getUUID());
   }
 }

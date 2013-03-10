@@ -293,20 +293,35 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
         case ASN_COUNTER:
           SETM(METRIC_UINT32, vars->val.integer);
           break;
+#ifdef ASN_OPAQUE_I64
+        case ASN_OPAQUE_I64:
+#endif
         case ASN_INTEGER64:
           printI64(varbuff, vars->val.counter64);
           i64 = strtoll(varbuff, &endptr, 10);
           SETM(METRIC_INT64, (varbuff == endptr) ? NULL : &i64);
           break;
+#ifdef ASN_OPAQUE_U64
+        case ASN_OPAQUE_U64:
+#endif
+#ifdef ASN_OPAQUE_COUNTER64
+        case ASN_OPAQUE_COUNTER64:
+#endif
         case ASN_COUNTER64:
           printU64(varbuff, vars->val.counter64);
           u64 = strtoull(varbuff, &endptr, 10);
           SETM(METRIC_UINT64, (varbuff == endptr) ? NULL : &u64);
           break;
+#ifdef ASN_OPAQUE_FLOAT
+        case ASN_OPAQUE_FLOAT:
+#endif
         case ASN_FLOAT:
           if(vars->val.floatVal) float_conv = *(vars->val.floatVal);
           SETM(METRIC_DOUBLE, vars->val.floatVal ? &float_conv : NULL);
           break;
+#ifdef ASN_OPAQUE_DOUBLE
+        case ASN_OPAQUE_DOUBLE:
+#endif
         case ASN_DOUBLE:
           SETM(METRIC_DOUBLE, vars->val.doubleVal);
           break;
@@ -322,6 +337,7 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
           sp = strchr(varbuff, ' ');
           if(sp) sp++;
           SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
+          noitL(nlerr, "snmp: unknown type[%d] %s\n", vars->type, varbuff);
       }
     }
     nresults++;
@@ -438,6 +454,11 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
    *   or constructing this from the PDU enterprise & specific trap fields
    */
   if(template_v1pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
+    if(template_v1pdu->enterprise_length + 2 > MAX_OID_LEN) {
+      noitL(nlerr, "send_trap: enterprise_length too large\n");
+      snmp_free_pdu(template_v2pdu);
+      return NULL;
+    }
     memcpy(enterprise, template_v1pdu->enterprise,
            template_v1pdu->enterprise_length*sizeof(oid));
     enterprise_len = template_v1pdu->enterprise_length;
@@ -1031,6 +1052,7 @@ static int noit_snmptrap_initiate_check(noit_module_t *self,
   /* We don't do anything for snmptrap checks.  Not intuitive... but they
    * never "run."  We accept input out-of-band via snmp traps.
    */
+  check->flags |= NP_PASSIVE_COLLECTION;
   return 0;
 }
 

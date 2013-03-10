@@ -85,10 +85,20 @@ cancel_coro(noit_lua_check_info_t *ci) {
 
 noit_lua_check_info_t *
 get_ci(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  lua_module_closure_t *lmc;
   void *v = NULL;
   if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v))
     return (noit_lua_check_info_t *)v;
-  return NULL;
+  ci = calloc(1, sizeof(*ci));
+  ci->coro_state = L;
+  lua_getglobal(L, "noit_internal_lmc");;
+  ci->lmc = lua_touserdata(L, lua_gettop(L));
+  lua_pop(L, 1);
+  noit_hash_store(&noit_coros,
+                  (const char *)&ci->coro_state, sizeof(ci->coro_state),
+                  ci);
+  return ci;
 }
 static void
 int_cl_free(void *vcl) {
@@ -425,6 +435,11 @@ noit_check_index_func(lua_State *L) {
       return 1;
     case 'c':
       if(!strcmp(k, "config")) noit_lua_hash_to_table(L, check->config);
+      else if(!strcmp(k, "checkid")) {
+        char uuid_str[UUID_STR_LEN + 1];
+        uuid_unparse_lower(check->checkid, uuid_str);
+        lua_pushstring(L, uuid_str);
+      }
       else break;
       return 1;
     case 'g':
@@ -695,7 +710,8 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
       goto done;
     default: /* Errors */
       noitL(nldeb, "lua resume returned: %d\n", result);
-      ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error");
+      if(ci->current.status) free(ci->current.status);
+      ci->current.status = strdup(ci->timed_out ? "timeout" : "unknown error from lua");
       ci->current.available = NP_UNAVAILABLE;
       ci->current.state = NP_BAD;
       base = lua_gettop(ci->coro_state);
@@ -712,7 +728,7 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
             if(nerr) nerr += 1;
           }
           if(nerr) {
-            free(ci->current.status);
+            if(ci->current.status) free(ci->current.status);
             ci->current.status = strdup(nerr);
           }
         }
@@ -723,10 +739,12 @@ noit_lua_resume(noit_lua_check_info_t *ci, int nargs) {
   self = ci->self;
   check = ci->check;
   cancel_coro(ci);
-  noit_lua_log_results(self, check);
-  noit_lua_module_cleanup(self, check);
-  ci = NULL; /* we freed it... explode if someone uses it before we return */
-  check->flags &= ~NP_RUNNING;
+  if(check) {
+    noit_lua_log_results(self, check);
+    noit_lua_module_cleanup(self, check);
+    ci = NULL; /* we freed it... explode if someone uses it before we return */
+    check->flags &= ~NP_RUNNING;
+  }
 
  done:
   return result;
@@ -751,6 +769,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
      */
     cancel_coro(ci);
   }
+  if(ci->current.status) free(ci->current.status);
   ci->current.status = strdup("timeout");
   ci->current.available = NP_UNAVAILABLE;
   ci->current.state = NP_BAD;
@@ -847,7 +866,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   lua_State *L;
   lua_module_closure_t *lmc;
   char *object;
-  
+
   noitL(nldeb, "Loading lua module: %s\n", module_name);
   if(noit_conf_get_string(section, "@object", &object) == 0) {
     noitL(nlerr, "Lua module %s require object attribute.\n", module_name);
@@ -862,8 +881,10 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->hdr.onload = noit_lua_module_onload;
   lmc = calloc(1, sizeof(*lmc));
   lmc->object = object;
+  lmc->pending = calloc(1, sizeof(*lmc->pending));
 
   L = lmc->lua_state = lua_open();
+  noitL(nldeb, "lua_state[%s]: %p\n", module_name, L);
   lua_atpanic(L, &noit_lua_panic);
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
@@ -874,6 +895,9 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 
   lua_newtable(L);
   lua_setglobal(L, "noit_coros");
+
+  lua_pushlightuserdata(L, lmc);
+  lua_setglobal(L, "noit_internal_lmc");
 
   lua_getfield(L, LUA_GLOBALSINDEX, "package");
   lua_pushfstring(L, "%s", noit_lua_loader_get_directory(loader));
@@ -903,6 +927,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
     free(m->hdr.name);
     free(m->hdr.description);
     free(lmc->object);
+    free(lmc->pending);
     free(lmc);
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);
@@ -914,7 +939,10 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->initiate_check = noit_lua_module_initiate_check;
   m->cleanup = noit_lua_module_cleanup;
 
-  noit_register_module(m);
+  if(noit_register_module(m)) {
+    noitL(noit_error, "lua failed to register '%s' as a module\n", m->hdr.name);
+    goto load_failed;
+  }
   return m;
 }
 

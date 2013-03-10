@@ -54,11 +54,21 @@
 #include "noit_check_resolver.h"
 #include "eventer/eventer.h"
 
+#define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
+
 NOIT_HOOK_IMPL(check_stats_set_metric,
   (noit_check_t *check, stats_t *stats, metric_t *m),
   void *, closure,
   (void *closure, noit_check_t *check, stats_t *stats, metric_t *m),
   (closure,check,stats,m))
+
+NOIT_HOOK_IMPL(check_stats_set_metric_coerce,
+  (noit_check_t *check, stats_t *stats, const char *name,
+   metric_type_t type, const char *v, noit_boolean success),
+  void *, closure,
+  (void *closure, noit_check_t *check, stats_t *stats, const char *name,
+   metric_type_t type, const char *v, noit_boolean success),
+  (closure,check,stats,name,type,v,success))
 
 NOIT_HOOK_IMPL(check_passive_log_stats,
   (noit_check_t *check),
@@ -83,6 +93,7 @@ struct vp_w_free {
   void (*freefunc)(void *);
 };
 
+static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
@@ -112,6 +123,22 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
     nc_printf(ncct, "\n");
   }
   return 0;
+}
+static int
+noit_check_add_to_list(noit_check_t *new_check) {
+  if(!(new_check->flags & NP_TRANSIENT)) {
+    /* This remove could fail -- no big deal */
+    noit_skiplist_remove(&polls_by_name, new_check, NULL);
+
+    /* This insert could fail.. which means we have a conflict on
+     * target`name.  That should result in the check being disabled. */
+    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
+      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+            new_check->target, new_check->name);
+      new_check->flags |= NP_DISABLED;
+    }
+  }
+  return 1;
 }
 
 u_int64_t noit_check_completion_count() {
@@ -190,6 +217,18 @@ static int __watchlist_compare(const void *a, const void *b) {
   if((rv = memcmp(ac->checkid, bc->checkid, sizeof(ac->checkid))) != 0) return rv;
   if(ac->period < bc->period) return -1;
   if(ac->period == bc->period) return 0;
+  return 1;
+}
+static int __check_target_ip_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
+  int rv;
+  if (ac->target_ip == NULL) return 1;
+  if (bc->target_ip == NULL) return -1;
+  if((rv = strcmp(ac->target_ip, bc->target_ip)) != 0) return rv;
+  if (ac->name == NULL) return 1;
+  if (bc->name == NULL) return -1;
+  if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
   return 1;
 }
 int
@@ -518,12 +557,14 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_poller_init() {
-  srand48((getpid() << 16) & time(NULL));
+  srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
   noit_skiplist_init(&polls_by_name);
   noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
+  noit_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
+                            __check_target_ip_compare);
   noit_skiplist_init(&watchlist);
   noit_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
@@ -531,6 +572,10 @@ noit_poller_init() {
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, 60, 0);
+  noit_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
+  if (text_size_limit <= 0) {
+    text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
+  }
   noit_poller_reload(NULL);
 }
 
@@ -593,6 +638,12 @@ noit_check_watch(uuid_t in, int period) {
   noit_check_t n, *f;
 
   uuid_unparse_lower(in, uuid_str);
+
+  noitL(noit_error, "noit_check_watch(%s,%d)\n", uuid_str, period);
+  if(period == 0) {
+    return noit_poller_lookup(in);
+  }
+
   /* Find the check */
   snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
   check_node = noit_conf_get_section(NULL, xpath);
@@ -703,10 +754,14 @@ noit_check_set_ip(noit_check_t *new_check,
                   const char *ip_str) {
   int8_t family;
   int rv, failed = 0;
+  char old_target_ip[INET6_ADDRSTRLEN];
   union {
     struct in_addr addr4;
     struct in6_addr addr6;
   } a;
+
+  memset(old_target_ip, 0, INET6_ADDRSTRLEN);
+  strlcpy(old_target_ip, new_check->target_ip, sizeof(old_target_ip));
 
   family = NOIT_CHECK_PREFER_V6(new_check) ? AF_INET6 : AF_INET;
   rv = inet_pton(family, ip_str, &a);
@@ -734,11 +789,14 @@ noit_check_set_ip(noit_check_t *new_check,
                  sizeof(new_check->target_ip)) == NULL) {
       noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
+  if ((failed == 0) && (new_check->name != NULL) && (strcmp(old_target_ip, new_check->target_ip) != 0)) {
+    noit_check_add_to_list(new_check);
+  }
   return failed;
 }
 int
 noit_check_resolve(noit_check_t *check) {
-  uint8_t family_pref = AF_INET;
+  uint8_t family_pref = NOIT_CHECK_PREFER_V6(check) ? AF_INET6 : AF_INET;
   char ipaddr[INET6_ADDRSTRLEN];
   if(!NOIT_CHECK_SHOULD_RESOLVE(check)) return 1; /* success, not required */
   noit_check_resolver_remind(check->target);
@@ -777,6 +835,10 @@ noit_check_update(noit_check_t *new_check,
     new_check->flags |= NP_SINGLE_RESOLVE;
   else
     new_check->flags &= ~NP_SINGLE_RESOLVE;
+  if (flags & NP_RESOLVE)
+    new_check->flags |= NP_RESOLVE;
+  else
+    new_check->flags &= ~NP_RESOLVE;
 
   if(noit_check_set_ip(new_check, target)) {
     noit_boolean should_resolve;
@@ -823,18 +885,7 @@ noit_check_update(noit_check_t *new_check,
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
 
-  if(!(new_check->flags & NP_TRANSIENT)) {
-    /* This remove could fail -- no big deal */
-    noit_skiplist_remove(&polls_by_name, new_check, NULL);
-
-    /* This insert could fail.. which means we have a conflict on
-     * target`name.  That should result in the check being disabled. */
-    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
-            new_check->target, new_check->name);
-      new_check->flags |= NP_DISABLED;
-    }
-  }
+  noit_check_add_to_list(new_check);
   noit_check_log_check(new_check);
   return 0;
 }
@@ -998,23 +1049,52 @@ noit_poller_lookup_by_name(char *target, char *name) {
   return check;
 }
 int
-noit_poller_target_do(char *target, int (*f)(noit_check_t *, void *),
+noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
   int count = 0;
   noit_check_t pivot;
+  noit_skiplist *tlist;
   noit_skiplist_node *next;
+  noit_skiplist_node *sn;
+
+  sn = noit_skiplist_getlist(polls_by_name.index);
+  tlist = sn->data;
 
   memset(&pivot, 0, sizeof(pivot));
-  pivot.target = target;
+  strlcpy(pivot.target_ip, (char*)target, sizeof(pivot.target_ip));
   pivot.name = "";
-  noit_skiplist_find_neighbors(&polls_by_name, &pivot, NULL, NULL, &next);
+  pivot.target = "";
+  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
-    if(strcmp(check->target, target)) break;
+    if(strcmp(check->target_ip, target)) break;
     count += f(check,closure);
     noit_skiplist_next(&polls_by_name, &next);
   }
   return count;
+}
+struct ip_module_collector_crutch {
+  noit_check_t **array;
+  const char *module;
+  int idx;
+  int allocd;
+};
+static int ip_module_collector(noit_check_t *check, void *cl) {
+  struct ip_module_collector_crutch *c = cl;
+  if(c->idx >= c->allocd) return 0;
+  if(strcmp(check->module, c->module)) return 0;
+  c->array[c->idx++] = check;
+  return 1;
+}
+int
+noit_poller_lookup_by_ip_module(const char *ip, const char *mod,
+                                noit_check_t **checks, int nchecks) {
+  struct ip_module_collector_crutch crutch;
+  crutch.array = checks;
+  crutch.allocd = nchecks;
+  crutch.idx = 0;
+  crutch.module = mod;
+  return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
 int
@@ -1108,8 +1188,10 @@ noit_metric_sizes(metric_type_t type, const void *value) {
       return sizeof(int64_t);
     case METRIC_DOUBLE:
       return sizeof(double);
-    case METRIC_STRING:
-      return strlen((char *)value) + 1;
+    case METRIC_STRING: {
+      int len = strlen((char*)value) + 1;
+      return ((len >= text_size_limit) ? text_size_limit+1 : len);
+    }
     case METRIC_GUESS:
       break;
   }
@@ -1249,9 +1331,22 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
     len = noit_metric_sizes(type, value);
     m->metric_value.vp = calloc(1, len);
     memcpy(m->metric_value.vp, value, len);
+    if (type == METRIC_STRING) {
+      m->metric_value.s[len-1] = 0;
+    }
   }
   return 0;
 }
+
+metric_t *
+noit_stats_get_metric(noit_check_t *check,
+                      stats_t *newstate, const char *name) {
+  void *v;
+  if(noit_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
+    return (metric_t *)v;
+  return NULL;
+}
+
 void
 noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
@@ -1271,6 +1366,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   char *endptr;
   if(v == NULL) {
    bogus:
+    check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_false);
     noit_stats_set_metric(check, stat, name, t, NULL);
     return;
   }
@@ -1322,6 +1418,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       noit_stats_set_metric(check, stat, name, t, v);
       break;
   }
+  check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_true);
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,
@@ -1353,6 +1450,11 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     noit_check_t *wcheck = next->data;
     if(uuid_compare(n.checkid, wcheck->checkid)) break;
 
+    /* We advance before we use because the functions below could
+     * destroy the watchlist item we're looking at right now
+     */
+    noit_skiplist_next(&watchlist, &next);
+
     /* Swap the real check's stats into place */
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
     memcpy(&wcheck->stats.current, newstate, sizeof(stats_t));
@@ -1365,8 +1467,6 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     }
     /* Swap them back out */
     memcpy(&wcheck->stats.current, &backup, sizeof(stats_t));
-
-    noit_skiplist_next(&watchlist, &next);
   }
 }
 void

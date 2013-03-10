@@ -121,6 +121,16 @@ static void
 inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
   int newsize = 0;
   char *newbuf;
+
+  if (cl->inbuff_len < 0 || l < 0) {
+    noitL(noit_debug, "Invalid Argument: An argument was negative");
+    abort();
+  }
+  if (cl->inbuff_len + l < 0) {
+    noitL(noit_debug, "Error: Addition Overflow");
+    abort();
+  }
+
   if(cl->inbuff_len + l > cl->inbuff_allocd)
     newsize = cl->inbuff_len + l;
   if(newsize) {
@@ -439,6 +449,127 @@ noit_lua_socket_sendto(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_socket_bind(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  const char *target;
+  unsigned short port;
+  int8_t family;
+  int rv;
+  int flag;
+  union {
+    struct sockaddr_in sin4;
+    struct sockaddr_in6 sin6;
+  } a;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  target = lua_tostring(L, 2);
+  if(!target) target = "";
+  port = lua_tointeger(L, 3);
+
+  family = AF_INET;
+  rv = inet_pton(family, target, &a.sin4.sin_addr);
+  if(rv != 1) {
+    family = AF_INET6;
+    rv = inet_pton(family, target, &a.sin6.sin6_addr);
+    if(rv != 1) {
+      memset(&a, 0, sizeof(a));
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
+      return 2;
+    }
+    else {
+      /* We've IPv6 */
+      a.sin6.sin6_family = AF_INET6;
+      a.sin6.sin6_port = htons(port);
+    }
+  }
+  else {
+    a.sin4.sin_family = family;
+    a.sin4.sin_port = htons(port);
+    a.sin4.sin_addr.s_addr = INADDR_ANY;
+    memset (a.sin4.sin_zero, 0, sizeof (a.sin4.sin_zero));
+  }
+
+  rv = bind(e->fd, (struct sockaddr *)&a,
+            family==AF_INET ? sizeof(a.sin4) : sizeof(a.sin6));
+  if(rv == 0) {
+    lua_pushinteger(L, 0);
+    return 1;
+  }
+  lua_pushinteger(L, -1);
+  lua_pushstring(L, strerror(errno));
+  return 2;
+}
+static int
+noit_lua_socket_setsockopt(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  eventer_t e, *eptr;
+  int rv;
+  const char *type;
+  int type_val;
+  int value;
+
+  ci = get_ci(L);
+  assert(ci);
+
+  if(lua_gettop(L) != 3) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "setsockopt(type, value) wrong arguments");
+    return 2;
+  }
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  type = lua_tostring(L, 2);
+  value = lua_tointeger(L, 3);
+
+  if (strcmp(type, "SO_BROADCAST") == 0)
+    type_val = SO_BROADCAST;
+  else if (strcmp(type, "SO_REUSEADDR") == 0)
+    type_val = SO_REUSEADDR;
+  else if (strcmp(type, "SO_KEEPALIVE") == 0)
+    type_val = SO_KEEPALIVE;
+  else if (strcmp(type, "SO_LINGER") == 0)
+    type_val = SO_LINGER;
+  else if (strcmp(type, "SO_OOBINLINE") == 0)
+    type_val = SO_OOBINLINE;
+  else if (strcmp(type, "SO_SNDBUF") == 0)
+    type_val = SO_SNDBUF;
+  else if (strcmp(type, "SO_RCVBUF") == 0)
+    type_val = SO_RCVBUF;
+  else if (strcmp(type, "SO_DONTROUTE") == 0)
+    type_val = SO_DONTROUTE;
+  else if (strcmp(type, "SO_RCVLOWAT") == 0)
+    type_val = SO_RCVLOWAT;
+  else if (strcmp(type, "SO_RCVTIMEO") == 0)
+    type_val = SO_RCVTIMEO;
+  else if (strcmp(type, "SO_SNDLOWAT") == 0)
+    type_val = SO_SNDLOWAT;
+  else if (strcmp(type, "SO_SNDTIMEO") == 0)
+    type_val = SO_SNDTIMEO;
+  else {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, "Socket  operation '%s' not supported\n", type);
+    return 2;
+  }
+
+  if (setsockopt(e->fd, SOL_SOCKET, type_val, (char*)&value, sizeof(value)) < 0) {
+    lua_pushinteger(L, -1);
+    lua_pushfstring(L, strerror(errno));
+    return 2;
+  }
+  lua_pushinteger(L, 0);
+  return 1;
+}
+static int
 noit_lua_socket_connect(lua_State *L) {
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
@@ -506,7 +637,7 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
                      struct timeval *now) {
   noit_lua_check_info_t *ci;
   struct nl_slcl *cl = vcl;
-  int rv;
+  int rv, nargs;
 
   rv = eventer_SSL_connect(e, &mask);
   if(rv <= 0 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
@@ -519,14 +650,26 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
   memcpy(*cl->eptr, e, sizeof(*e));
   noit_lua_check_register_event(ci, *cl->eptr);
 
-  /* Upgrade completed successfully */
+  /* Upgrade completed (successfully???) */
+  nargs = 1;
   lua_pushinteger(cl->L, (rv > 0) ? 0 : -1);
-  noit_lua_resume(ci, 1);
+  if(rv <= 0) {
+    eventer_ssl_ctx_t *ctx;
+    const char *err = NULL;
+    ctx = eventer_get_eventer_ssl_ctx(e);
+    if(ctx) err = eventer_ssl_get_last_error(ctx);
+    lua_pushinteger(cl->L, -1);
+    if(err) {
+      lua_pushlstring(cl->L, err, strlen(err));
+      nargs++;
+    }
+  }
+  noit_lua_resume(ci, nargs);
   return 0;
 }
 static int
 noit_lua_socket_connect_ssl(lua_State *L) {
-  const char *ca, *ciphers, *cert, *key;
+  const char *ca, *ciphers, *cert, *key, *snihost, *err;
   eventer_ssl_ctx_t *sslctx;
   noit_lua_check_info_t *ci;
   eventer_t e, *eptr;
@@ -543,11 +686,17 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   key = lua_tostring(L, 3);
   ca = lua_tostring(L, 4);
   ciphers = lua_tostring(L, 5);
+  snihost = lua_tostring(L, 6);
 
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
   if(!sslctx) {
     lua_pushinteger(L, -1);
-    return 1;
+    lua_pushstring(L, "ssl_client context creation failed");
+    return 2;
+  }
+
+  if (snihost != NULL && strlen(snihost) >= 1) {
+    eventer_ssl_ctx_set_sni(sslctx, snihost);
   }
 
   eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert, NULL);
@@ -567,6 +716,13 @@ noit_lua_socket_connect_ssl(lua_State *L) {
     return noit_lua_yield(ci, 0);
   }
   lua_pushinteger(L, (rv > 0) ? 0 : -1);
+  if(rv <= 0) {
+    err = eventer_ssl_get_last_error(sslctx);
+    if(err) {
+      lua_pushstring(L, err);
+      return 2;
+    }
+  }
   return 1;
 }
 
@@ -848,6 +1004,9 @@ noit_eventer_index_func(lua_State *L) {
   }
   k = lua_tostring(L, 2);
   switch(*k) {
+    case 'b':
+     LUA_DISPATCH(bind, noit_lua_socket_bind);
+     break;
     case 'c':
      LUA_DISPATCH(connect, noit_lua_socket_connect);
      break;
@@ -858,6 +1017,7 @@ noit_eventer_index_func(lua_State *L) {
     case 's':
      LUA_DISPATCH(send, noit_lua_socket_send);
      LUA_DISPATCH(sendto, noit_lua_socket_sendto);
+     LUA_DISPATCH(setsockopt, noit_lua_socket_setsockopt);
      LUA_DISPATCH(ssl_upgrade_socket, noit_lua_socket_connect_ssl);
      LUA_DISPATCH(ssl_ctx, noit_lua_socket_ssl_ctx);
      break;
@@ -906,6 +1066,7 @@ noit_ssl_ctx_index_func(lua_State *L) {
       LUA_RETSTRING(issuer, eventer_ssl_get_peer_issuer(ssl_ctx));
       break;
     case 's':
+      LUA_RETSTRING(san_list, eventer_ssl_get_peer_san_list(ssl_ctx));
       LUA_RETSTRING(subject, eventer_ssl_get_peer_subject(ssl_ctx));
       LUA_RETINTEGER(start_time, eventer_ssl_get_peer_start_time(ssl_ctx));
       break;
@@ -915,6 +1076,95 @@ noit_ssl_ctx_index_func(lua_State *L) {
   luaL_error(L, "noit.eventer.ssl_ctx no such element: %s", k);
   return 0;
 }
+
+static int
+nl_waitfor_notify(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl;
+  void *vptr;
+  const char *key;
+  int nargs;
+
+  ci = get_ci(L);
+  assert(ci);
+  nargs = lua_gettop(L);
+  if(nargs < 1) {
+    return 0;
+  }
+  key = lua_tostring(L, 1);
+  if(!noit_hash_retrieve(ci->lmc->pending, key, strlen(key), &vptr)) {
+    return 0;
+  }
+  noit_hash_delete(ci->lmc->pending, key, strlen(key), free, NULL);
+  cl = vptr;
+  lua_xmove(L, cl->L, nargs);
+
+  ci = get_ci(cl->L);
+  assert(ci);
+  eventer_remove(cl->pending_event);
+  noit_lua_check_deregister_event(ci, cl->pending_event, 0);
+  noit_lua_resume(ci, nargs);
+  lua_pushinteger(L, nargs);
+  return 0;
+}
+
+static int
+nl_waitfor_timeout(eventer_t e, int mask, void *vcl, struct timeval *now) {
+  noit_lua_check_info_t *ci;
+  struct nl_slcl *cl = vcl;
+  struct timeval diff;
+  double p_int;
+
+  ci = get_ci(cl->L);
+  assert(ci);
+  noit_lua_check_deregister_event(ci, e, 0);
+  noit_hash_delete(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), free, NULL);
+  free(cl);
+  noit_lua_resume(ci, 0);
+  return 0;
+}
+
+static int
+nl_waitfor(lua_State *L) {
+  noit_lua_check_info_t *ci;
+  const char *key;
+  struct nl_slcl *cl;
+  struct timeval diff;
+  eventer_t e;
+  double p_int;
+
+  ci = get_ci(L);
+  assert(ci);
+  if(lua_gettop(L) != 2) {
+    luaL_error(L, "waitfor(key, timeout) wrong arguments");
+  }
+  p_int = lua_tonumber(L, 2);
+  cl = calloc(1, sizeof(*cl));
+  cl->free = nl_extended_free;
+  cl->L = L;
+  gettimeofday(&cl->start, NULL);
+
+  key = lua_tostring(L, 1);
+  if(!key) luaL_error(L, "waitfor called without key");
+  cl->inbuff = strdup(key);
+  if(!noit_hash_store(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), cl)) {
+    nl_extended_free(cl);
+    luaL_error(L, "waitfor called with duplicate key");
+  }
+
+  cl->pending_event = e = eventer_alloc();
+  e->mask = EVENTER_TIMER;
+  e->callback = nl_waitfor_timeout;
+  e->closure = cl;
+  memcpy(&e->whence, &cl->start, sizeof(cl->start));
+  diff.tv_sec = floor(p_int);
+  diff.tv_usec = (p_int - floor(p_int)) * 1000000;
+  add_timeval(e->whence, diff, &e->whence);
+  noit_lua_check_register_event(ci, e);
+  eventer_add(e);
+  return noit_lua_yield(ci, 0);
+}
+
 
 static int
 nl_sleep_complete(eventer_t e, int mask, void *vcl, struct timeval *now) {
@@ -1013,14 +1263,22 @@ nl_base32_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
   unsigned char *decoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
 
   message = lua_tolstring(L, 1, &inlen);
-  decoded = malloc(MAX(1,inlen));
+  if(MAX(1,inlen) <= ON_STACK_LUA_STRLEN) {
+    decoded = alloca(MAX(1,inlen));
+  }
+  else {
+    decoded = malloc(MAX(1,inlen));
+    needs_free = 1;
+  }
   if(!decoded) luaL_error(L, "out-of-memory");
   decoded_len = noit_b32_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
+  if(needs_free) free(decoded);
   return 1;
 }
 static int
@@ -1028,15 +1286,23 @@ nl_base32_encode(lua_State *L) {
   size_t inlen, encoded_len;
   const unsigned char *message;
   char *encoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.encode");
 
   message = (const unsigned char *)lua_tolstring(L, 1, &inlen);
   encoded_len = (((inlen + 7) / 5) * 8) + 1;
-  encoded = malloc(encoded_len);
+  if(encoded_len <= ON_STACK_LUA_STRLEN) {
+    encoded = alloca(encoded_len);
+  }
+  else {
+    encoded = malloc(encoded_len);
+    needs_free = 1;
+  }
   if(!encoded) luaL_error(L, "out-of-memory");
   encoded_len = noit_b32_encode(message, inlen, encoded, encoded_len);
   lua_pushlstring(L, (char *)encoded, encoded_len);
+  if(needs_free) free(encoded);
   return 1;
 }
 static int
@@ -1044,14 +1310,22 @@ nl_base64_decode(lua_State *L) {
   size_t inlen, decoded_len;
   const char *message;
   unsigned char *decoded;
+  int needs_free = 0;
 
   if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.decode");
 
   message = lua_tolstring(L, 1, &inlen);
-  decoded = malloc(MAX(1,inlen));
+  if(MAX(1,inlen) <= ON_STACK_LUA_STRLEN) {
+    decoded = alloca(MAX(1,inlen));
+  }
+  else {
+    decoded = malloc(MAX(1,inlen));
+    needs_free = 1;
+  }
   if(!decoded) luaL_error(L, "out-of-memory");
   decoded_len = noit_b64_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
+  if(needs_free) free(decoded);
   return 1;
 }
 static int
@@ -1214,6 +1488,7 @@ nl_gunzip_deflate(lua_State *L) {
   Bytef *data = NULL;
   uLong outlen = 0;
   int limit = 1024*1024;
+  int allow_restart = 1;
   int err, n = lua_gettop(L);
 
   if(n < 1 || n > 2) {
@@ -1239,6 +1514,7 @@ nl_gunzip_deflate(lua_State *L) {
     if(err == Z_OK || err == Z_STREAM_END) {
       /* got some data */
       int size_read = DEFLATE_CHUNK_SIZE - stream->avail_out;
+      allow_restart = 0;
       uLong newoutlen = outlen + size_read;
       if(limit && newoutlen > limit) {
         err = Z_MEM_ERROR;
@@ -1263,7 +1539,25 @@ nl_gunzip_deflate(lua_State *L) {
         break;
       }
     }
-    else break;
+    else if(allow_restart && err == Z_DATA_ERROR) {
+      /* Rarely seen, but on the internet, some IIS servers seem
+       * to not generate 'correct' deflate streams, so we use
+       * inflateInit2 here to manually configure the stream.
+       */
+      inflateEnd(stream);
+      err = inflateInit2(stream, -MAX_WBITS);
+      if (err != Z_OK) {
+        break;
+      }
+      stream->next_in = (Bytef *)input;
+      stream->avail_in = inlen;
+      allow_restart = 0;
+      continue;
+    }
+    else {
+      break;
+    }
+
     if(stream->avail_in == 0) break;
   }
   if(err == Z_OK || err == Z_STREAM_END) {
@@ -1925,6 +2219,8 @@ noit_json_index_func(lua_State *L) {
   return 0;
 }
 static const luaL_Reg noitlib[] = {
+  { "waitfor", nl_waitfor },
+  { "notify", nl_waitfor_notify },
   { "sleep", nl_sleep },
   { "gettimeofday", nl_gettimeofday },
   { "socket", nl_socket },

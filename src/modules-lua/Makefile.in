@@ -43,7 +43,9 @@ LUA=noit/timeval.lua \
 	noit/module/ntp.lua \
 	noit/module/nrpe.lua \
 	noit/module/redis.lua \
-	noit/module/nginx.lua
+	noit/module/nginx.lua \
+	noit/module/dhcp.lua \
+	noit/module/pop3.lua
 
 all:
 

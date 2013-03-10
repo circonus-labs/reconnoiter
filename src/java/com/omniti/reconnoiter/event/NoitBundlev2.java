@@ -9,7 +9,7 @@
 package com.omniti.reconnoiter.event;
 
 import java.util.LinkedList;
-import com.omniti.reconnoiter.EventHandler;
+import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.event.NoitEvent;
 import com.omniti.reconnoiter.event.NoitStatus;
 import com.omniti.reconnoiter.event.NoitMetric;
@@ -18,6 +18,12 @@ import org.apache.commons.codec.binary.Base64;
 
 public class NoitBundlev2 extends NoitEvent {
   LinkedList<NoitEvent> items;
+  private long time;
+  private String noit;
+  private String uuid;
+  private String check_target;
+  private String check_module;
+  private String check_name;
 
   public String getPrefix() {
     return "B2";
@@ -44,9 +50,13 @@ public class NoitBundlev2 extends NoitEvent {
     super(parts);
     items = new LinkedList<NoitEvent>();
     String id[] = extended_id_split(parts[3]);
-    String noit = parts[1];
+    noit = parts[1];
     String timestamp = parts[2];
-    String uuid = id[3];
+    time = timeToLong(timestamp);
+    check_target = id[0];
+    check_module = id[1];
+    check_name = id[2];
+    uuid = id[3];
     String target = parts[4];
     String module = parts[5];
     String name = parts[6];
@@ -100,8 +110,15 @@ public class NoitBundlev2 extends NoitEvent {
     }
   }
 
+  public String getUuid() { return uuid; }
+  public long getTime() { return time; }
+  public String getNoit() { return noit; }
+  public String getCheck_target() { return check_target; }
+  public String getCheck_module() { return check_module; }
+  public String getCheck_name() { return check_name; }
+
   public int numparts() { return 9; }
-  public void handle(EventHandler eh) {
+  public void handle(IEventHandler eh) {
     for(NoitEvent e : items) {
       if (eh.stopProcessing(e, getPrefix()) == false)
         e.handle(eh);

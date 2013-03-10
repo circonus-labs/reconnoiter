@@ -38,7 +38,7 @@ function HttpClient:new(hooks)
     return obj
 end
 
-function HttpClient:connect(target, port, ssl)
+function HttpClient:connect(target, port, ssl, ssl_host)
     if ssl == nil then ssl = false end
     self.e = noit.socket(target)
     self.target = target
@@ -53,17 +53,19 @@ function HttpClient:connect(target, port, ssl)
     return self.e:ssl_upgrade_socket(self.hooks.certfile and self.hooks.certfile(),
                                      self.hooks.keyfile and self.hooks.keyfile(),
                                      self.hooks.cachain and self.hooks.cachain(),
-                                     self.hooks.ciphers and self.hooks.ciphers())
+                                     self.hooks.ciphers and self.hooks.ciphers(),
+                                     ssl_host)
 end
 
 function HttpClient:ssl_ctx()
    return self.e:ssl_ctx()
 end
 
-function HttpClient:do_request(method, uri, headers, payload)
+function HttpClient:do_request(method, uri, headers, payload, http_version)
+    local version = http_version or "1.1"
     self.raw_bytes = 0
     self.content_bytes = 0
-    local sstr = method .. " " .. uri .. " " .. "HTTP/1.1\r\n"
+    local sstr = method .. " " .. uri .. " " .. "HTTP/" ..  version .. "\r\n"
     headers["Content-Length"] = nil
     if payload ~= nil and string.len(payload) > 0 then
       headers["Content-Length"] = string.len(payload)
@@ -85,11 +87,13 @@ end
 function HttpClient:get_headers()
     local lasthdr
     local str = self.e:read("\n");
+    local cookie_count = 1;
     if str == nil then error("no response") end
     self.protocol, self.code = string.match(str, "^HTTP/(%d.%d)%s+(%d+)%s+")
     if self.protocol == nil then error("malformed HTTP response") end
     self.code = tonumber(self.code)
     self.headers = {}
+    self.cookies = {}
     while true do
         local str = self.e:read("\n")
         if str == nil or str == "\r\n" or str == "\n" then break end
@@ -103,11 +107,16 @@ function HttpClient:get_headers()
             self.headers[hdr] = self.headers[hdr] .. " " .. val
         else
             hdr = string.lower(hdr)
-            self.headers[hdr] = val
+            if hdr == "set-cookie" then
+                self.cookies[cookie_count] = val;
+                cookie_count = cookie_count + 1;
+            else
+                self.headers[hdr] = val
+            end
             lasthdr = hdr
         end
     end
-    if self.hooks.headers ~= nil then self.hooks.headers(self.headers) end
+    if self.hooks.headers ~= nil then self.hooks.headers(self.headers, self.cookies) end
 end
 
 function ce_passthru(str) 
@@ -187,17 +196,31 @@ function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
     local ce = self.headers["content-encoding"]
     if ce ~= nil then
-        local deflater
-        if ce == "gzip" then
+      local deflater
+      if ce == 'gzip' then
+        deflater = noit.gunzip()
+      elseif ce == 'deflate' then
+        deflater = noit.gunzip()
+      elseif ce:find(',') then
+        local tokens = noit.extras.split(ce, ",")
+        for _, token in pairs(tokens) do
+          if token:gsub("^%s*(.-)%s*$", "%1") == "gzip" then
             deflater = noit.gunzip()
-        elseif ce == "deflate" then
+            break
+          elseif token:gsub("^%s*(.-)%s*$", "%1") == "deflate" then
             deflater = noit.gunzip()
-        else
-            error("unknown content-encoding: " .. ce)
+            break
+          end
         end
-        cefunc = function(str)
-          return deflater(str, read_limit)
-        end
+      end
+
+      if deflater == nil then
+        error("unknown content-encoding: " .. ce)
+      end
+
+      cefunc = function(str)
+        return deflater(str, read_limit)
+      end
     end
     local te = self.headers["transfer-encoding"]
     local cl = self.headers["content-length"]
