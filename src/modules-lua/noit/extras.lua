@@ -78,7 +78,7 @@ function check_host_header_against_certificate(host_header, cert_subject, san_li
         return true
       else
         line = string.gsub(line, '%.', "%%%.")
-        line = string.gsub(line, "%*", "[^\.]*")
+        line = string.gsub(line, "%*", "[^%.]*")
         local match = string.match(value, line)
         if match == value then
           return true
@@ -108,7 +108,7 @@ function check_host_header_against_certificate(host_header, cert_subject, san_li
     return nil
   end
   cn = string.gsub(cn, '%.', "%%%.")
-  cn = string.gsub(cn, "%*", "[^\.]*")
+  cn = string.gsub(cn, "%*", "[^%.]*")
   local match = string.match(host_header, cn)
   if match == host_header then
     return nil

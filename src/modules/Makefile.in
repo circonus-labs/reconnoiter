@@ -69,19 +69,19 @@ lua_lpack.lo:	lua_lpack.c
 	@echo "- compiling $<"
 
 lua_web.lo:	lua_web.c
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_web.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_web.c -o $@
 	@echo "- compiling $<"
 
 lua_http.lo:	lua_http.c
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_http.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_http.c -o $@
 	@echo "- compiling $<"
 
 lua_general.lo:	lua_general.c
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_general.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_general.c -o $@
 	@echo "- compiling $<"
 
 lua_snmp.lo:	lua_snmp.c
-	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/lua/src -c lua_snmp.c -o $@
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_snmp.c -o $@
 	@echo "- compiling $<"
 
 postgres.@MODULEEXT@:	postgres.lo

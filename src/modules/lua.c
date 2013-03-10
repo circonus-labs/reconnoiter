@@ -1001,7 +1001,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   lua_pushstring(L, #a); \
   rv = lua_pcall(L, 1, 1, 0); \
   if(rv != 0) { \
-    noitL(noit_stderr, "Loading: %d\n", rv); \
+    noitL(noit_stderr, "lua require " #a ": %s\n", lua_tostring(L,-1)); \
     lua_close(L); \
     return NULL; \
   } \

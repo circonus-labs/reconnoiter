@@ -188,7 +188,9 @@ lua_general_coroutine_spawn(lua_State *Lp) {
   ri = lua_general_new_resume_info(ri_parent->lmc);
   L = ri->coro_state;
   lua_xmove(Lp, L, nargs);
+#ifndef LUA_JITLIBNAME
   lua_setlevel(Lp, L);
+#endif
   ri->lmc->resume(ri, nargs-1);
   return 0;
 }
@@ -233,11 +235,11 @@ noit_lua_general_init(noit_module_generic_t *self) {
   lmc->resume = lua_general_resume;
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
   noitL(noit_error, "lua_general opening state -> %p\n", lmc->lua_state);
-  luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
   if(lmc->lua_state == NULL) {
    noitL(noit_error, "lua_general could not add general functions\n");
     return -1;
   }
+  luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
   lmc->pending = calloc(1, sizeof(*lmc->pending));
   eventer_add_in_s_us(dispatch_general, self, 0, 0);
   return 0;
