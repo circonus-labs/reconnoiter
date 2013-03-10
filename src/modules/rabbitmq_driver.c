@@ -83,7 +83,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate() {
 
   pthread_mutex_lock(&driver_lock);
   for(i=0; i<MAX_HOSTS; i++) {
-    if(stats.thread_states[i].owner == (pthread_t)NULL) {
+    if(stats.thread_states[i].owner == (pthread_t)(vpsized_int)NULL) {
       stats.thread_states[i].owner = pthread_self();
       dr = &stats.thread_states[i];
       break;
@@ -404,7 +404,7 @@ noit_console_show_rabbitmq(noit_console_closure_t ncct,
     struct amqp_driver *dr;
     if(!stats.thread_states[i].owner) continue;
     dr = &stats.thread_states[i];
-    nc_printf(ncct, "   == connection: %p ==\n", (void *)dr->owner);
+    nc_printf(ncct, "   == connection: %p ==\n", (void *)(vpsized_int)dr->owner);
     if(dr->connection)
       nc_printf(ncct, "     %s@%s:%d (vhost: %s, exchange: %s)\n",
                 dr->username, dr->hostname[dr->hostidx], dr->port, dr->vhost,

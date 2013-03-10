@@ -210,7 +210,7 @@ release_conn_q_forceable(conn_q *cq, int forcefree) {
     cq->pool->in_pool++;
   }
   pthread_mutex_unlock(&cq->pool->lock);
-  noitL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)pthread_self(),
+  noitL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)(vpsized_int)pthread_self(),
         putback ? "to pool" : "and destroy", cq->pool->queue_name);
   pthread_cond_signal(&cq->pool->cv);
   if(putback) return;
@@ -324,7 +324,7 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
-  noitL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)pthread_self(),
+  noitL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)(vpsized_int)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
  again:
@@ -340,10 +340,10 @@ get_conn_q_for_remote(const char *remote_str,
   }
   if(cpool->in_pool + cpool->outstanding >= cpool->max_allocated) {
     noitL(ds_pool_deb, "[%p] over-subscribed, waiting [%s]\n",
-          (void *)pthread_self(), cpool->queue_name);
+          (void *)(vpsized_int)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
     noitL(ds_pool_deb, "[%p] waking up and trying again [%s]\n",
-          (void *)pthread_self(), cpool->queue_name);
+          (void *)(vpsized_int)pthread_self(), cpool->queue_name);
     goto again;
   }
   else {
