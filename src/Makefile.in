@@ -126,7 +126,7 @@ FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
 lua/src/lua:
-	(cd lua/src && make lua)
+	(cd lua/src && $(MAKE) lua)
 
 $(FINAL_NOIT_OBJS):	$(NOIT_OBJS)
 	@mkdir -p "`dirname $@`"

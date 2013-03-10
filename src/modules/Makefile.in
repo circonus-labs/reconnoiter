@@ -63,6 +63,10 @@ lua_dns.lo:	lua_dns.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_dns.c -o $@
 	@echo "- compiling $<"
 
+lua_bit.lo:	lua_bit.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_bit.c -o $@
+	@echo "- compiling $<"
+
 lua_lpack.lo:	lua_lpack.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_lpack.c -o $@
 	@echo "- compiling $<"
