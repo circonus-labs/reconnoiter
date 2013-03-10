@@ -88,7 +88,7 @@ static void alter_fd(eventer_t e, int mask) {
     if(mask & EVENTER_READ) events |= POLLIN;
     if(mask & EVENTER_WRITE) events |= POLLOUT;
     if(mask & EVENTER_EXCEPTION) events |= POLLERR;
-    if(port_associate(port_fd, PORT_SOURCE_FD, e->fd, events, (void *)e->fd) == -1) {
+    if(port_associate(port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
       noitL(eventer_err,
             "eventer port_associate failed: %s\n", strerror(errno));
       abort();
@@ -191,7 +191,7 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   ev_lock_state_t lockstate;
   const char *cbname;
   struct timeval __now;
-  int fd, oldmask, newmask;
+  int fd, newmask;
 
   fd = e->fd;
   if(e != master_fds[fd].e) return;
@@ -200,7 +200,6 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   assert(lockstate == EV_OWNED);
 
   gettimeofday(&__now, NULL);
-  oldmask = e->mask;
   cbname = eventer_name_for_callback(e->callback);
   noitLT(eventer_deb, &__now, "ports: fire on %d/%x to %s(%p)\n",
          fd, mask, cbname?cbname:"???", e->callback);
@@ -308,7 +307,7 @@ static int eventer_ports_impl_loop() {
         pe = &pevents[idx];
         if(pe->portev_source != PORT_SOURCE_FD) continue;
         fd = (int)pe->portev_object;
-        assert((int)pe->portev_user == fd);
+        assert((vpsized_int)pe->portev_user == fd);
         e = master_fds[fd].e;
         mask = 0;
         if(pe->portev_events & (POLLIN | POLLHUP))

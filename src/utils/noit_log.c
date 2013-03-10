@@ -377,7 +377,7 @@ jlog_logio_asynch_writer(void *vls) {
   int gen;
   gen = noit_atomic_inc32(&actx->gen);
   noitL(noit_error, "starting asynchronous jlog writer[%d/%p]\n",
-        (int)getpid(), (void *)pthread_self());
+        (int)getpid(), (void *)(vpsized_int)pthread_self());
   while(gen == actx->gen) {
     pthread_rwlock_t *lock;
     int fast = 0, max = 1000;
@@ -406,7 +406,7 @@ jlog_logio_asynch_writer(void *vls) {
     }
   }
   noitL(noit_error, "stopping asynchronous jlog writer[%d/%p]\n",
-        (int)getpid(), (void *)pthread_self());
+        (int)getpid(), (void *)(vpsized_int)pthread_self());
   pthread_exit((void *)0);
 }
 static int

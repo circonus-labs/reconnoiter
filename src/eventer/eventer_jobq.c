@@ -44,7 +44,7 @@
 #define JOBQ_SIGNAL SIGALRM
 #endif
 
-#define pthread_self_ptr() ((void *)pthread_self())
+#define pthread_self_ptr() ((void *)(vpsized_int)pthread_self())
 
 static noit_atomic32_t threads_jobq_inited = 0;
 static pthread_key_t threads_jobq;
