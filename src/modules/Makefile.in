@@ -49,7 +49,6 @@ ip_acl.lo:	ip_acl.xmlh
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
 	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
 	@echo "- linking $@"
-	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_lpack.lo
 
 lua.lo:	lua.c lua.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua.c -o $@

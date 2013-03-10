@@ -1,22 +1,22 @@
 all:
-	(cd src && make)
-	(cd sql && make)
-	(cd test && make)
+	(cd src && $(MAKE))
+	(cd sql && $(MAKE))
+	(cd test && $(MAKE))
 
 install:	all
-	(cd src && make install DESTDIR=$(DESTDIR))
-	(cd sql && make install DESTDIR=$(DESTDIR))
+	(cd src && $(MAKE) install DESTDIR=$(DESTDIR))
+	(cd sql && $(MAKE) install DESTDIR=$(DESTDIR))
 
 dev-docs:
 	./buildtools/mkcodedocs.pl ./src ./docs/development/docs
 
 clean:
-	(cd src && make clean)
-	(cd sql && make clean)
-	(cd test && make clean)
+	(cd src && $(MAKE) clean)
+	(cd sql && $(MAKE) clean)
+	(cd test && $(MAKE) clean)
 
 distclean: 	clean
 	rm -f Makefile config.status config.log
-	(cd src && make distclean)
-	(cd sql && make distclean)
-	(cd test && make distclean)
+	(cd src && $(MAKE) distclean)
+	(cd sql && $(MAKE) distclean)
+	(cd test && $(MAKE) distclean)
