@@ -44,3 +44,5 @@ LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
 	lj_carith.o lj_clib.o lj_cparse.o \
 	lj_lib.o lj_alloc.o lib_aux.o \
 	lib_init.o
+LUADIR=LuaJIT
+LUA_OBJS=$(LUAJIT:%=$(LUADIR)/src/%)

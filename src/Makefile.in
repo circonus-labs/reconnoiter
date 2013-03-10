@@ -71,9 +71,6 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 
 include Makefile.objs
 
-LUADIR=LuaJIT
-LUAJITO=$(LUAJIT:%=$(LUADIR)/src/%)
-
 $(LUADIR)/src/%.o:	lua/src/lua
 	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="$(CC) $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 
@@ -89,7 +86,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	bundle.pb-c.o \
 	$(UDNS_LIB_OBJS) $(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
 	$(JLOG_LIB_OBJS) $(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS) \
-	$(LUAJITO)
+	$(LUA_OBJS)
 
 NOIT_LIBS=libudns libnoitedit libeventer libjlog libnoit_utils libnoitjson libnoityajl
 NOIT_LIB_FILES=udns/libudns.o noitedit/libnoitedit.a eventer/libeventer.a \
@@ -315,7 +312,7 @@ install-docs:
 install:	install-dirs install-docs install-headers install-noitd install-stratcond
 
 clean:
-	rm -f *.o $(TARGETS) $(LUAJITO)
+	rm -f *.o $(TARGETS) $(LUA_OBJS)
 	rm -f module-online.h
 	rm -rf noit-objs stratcon-objs
 	(cd jlog && $(MAKE) clean)
