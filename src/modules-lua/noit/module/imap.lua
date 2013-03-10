@@ -147,7 +147,7 @@ function issue_cmd(e, tok, str)
       table.insert(t,p1.." "..p2)
       return p1, t, bad
     end
-    o,eidx,p1 = line:find("\*%s+(.+)")
+    o,eidx,p1 = line:find("%*%s+(.+)")
     if o == 1 then table.insert(t,p1) else table.insert(bad,line) end
   end
   return nil, t, bad
