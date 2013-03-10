@@ -42,6 +42,7 @@ src/scripts/noit-config
 src/udns/udns_codes.c
 src/utils/dtrace_probes.h
 src/LuaJIT/lib/vmdef.lua
+src/LuaJIT/src/jit/vmdef.lua
 src/LuaJIT/src/buildvm
 src/LuaJIT/src/lj_bcdef.h
 src/LuaJIT/src/lj_ffdef.h
