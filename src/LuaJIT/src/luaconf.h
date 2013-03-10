@@ -1,6 +1,6 @@
 /*
 ** Configuration header.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef luaconf_h
@@ -22,16 +22,20 @@
 #define LUA_CPATH_DEFAULT \
   ".\\?.dll;" LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
 #else
+/*
+** Note to distribution maintainers: do NOT patch the following line!
+** Please read ../doc/install.html#distro and pass PREFIX=/usr instead.
+*/
 #define LUA_ROOT	"/usr/local/"
 #define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
 #define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
 #ifdef LUA_XROOT
-#define LUA_JDIR	LUA_XROOT "share/luajit-2.0.0-beta10/"
+#define LUA_JDIR	LUA_XROOT "share/luajit-2.0.1/"
 #define LUA_XPATH \
   ";" LUA_XROOT "share/lua/5.1/?.lua;" LUA_XROOT "share/lua/5.1/?/init.lua"
 #define LUA_XCPATH	LUA_XROOT "lib/lua/5.1/?.so;"
 #else
-#define LUA_JDIR	LUA_ROOT "share/luajit-2.0.0-beta10/"
+#define LUA_JDIR	LUA_ROOT "share/luajit-2.0.1/"
 #define LUA_XPATH
 #define LUA_XCPATH
 #endif
@@ -86,7 +90,12 @@
 /* Note: changing the following defines breaks the Lua 5.1 ABI. */
 #define LUA_INTEGER	ptrdiff_t
 #define LUA_IDSIZE	60	/* Size of lua_Debug.short_src. */
-#define LUAL_BUFFERSIZE	BUFSIZ	/* Size of lauxlib and io.* buffers. */
+/*
+** Size of lauxlib and io.* on-stack buffers. Weird workaround to avoid using
+** unreasonable amounts of stack space, but still retain ABI compatibility.
+** Blame Lua for depending on BUFSIZ in the ABI, blame **** for wrecking it.
+*/
+#define LUAL_BUFFERSIZE	(BUFSIZ > 16384 ? 8192 : BUFSIZ)
 
 /* The following defines are here only for compatibility with luaconf.h
 ** from the standard Lua distribution. They must not be changed for LuaJIT.
@@ -98,7 +107,6 @@
 #define LUA_NUMBER_FMT		"%.14g"
 #define lua_number2str(s, n)	sprintf((s), LUA_NUMBER_FMT, (n))
 #define LUAI_MAXNUMBER2STR	32
-#define lua_str2number(s, p)	strtod((s), (p))
 #define LUA_INTFRMLEN		"l"
 #define LUA_INTFRM_T		long
 

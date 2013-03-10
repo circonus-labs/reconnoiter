@@ -1,6 +1,6 @@
 /*
 ** C type management.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef _LJ_CTYPE_H
@@ -155,7 +155,7 @@ typedef struct CType {
 #define CCALL_MAX_GPR		8
 #define CCALL_MAX_FPR		8
 
-typedef LJ_ALIGN(8) union FPRCBArg { double d; float f; } FPRCBArg;
+typedef LJ_ALIGN(8) union FPRCBArg { double d; float f[2]; } FPRCBArg;
 
 /* C callback state. Defined here, to avoid dragging in lj_ccall.h. */
 
@@ -441,8 +441,10 @@ LJ_FUNC CTypeID lj_ctype_intern(CTState *cts, CTInfo info, CTSize size);
 LJ_FUNC void lj_ctype_addname(CTState *cts, CType *ct, CTypeID id);
 LJ_FUNC CTypeID lj_ctype_getname(CTState *cts, CType **ctp, GCstr *name,
 				 uint32_t tmask);
-LJ_FUNC CType *lj_ctype_getfield(CTState *cts, CType *ct, GCstr *name,
-				 CTSize *ofs);
+LJ_FUNC CType *lj_ctype_getfieldq(CTState *cts, CType *ct, GCstr *name,
+				  CTSize *ofs, CTInfo *qual);
+#define lj_ctype_getfield(cts, ct, name, ofs) \
+  lj_ctype_getfieldq((cts), (ct), (name), (ofs), NULL)
 LJ_FUNC CType *lj_ctype_rawref(CTState *cts, CTypeID id);
 LJ_FUNC CTSize lj_ctype_size(CTState *cts, CTypeID id);
 LJ_FUNC CTSize lj_ctype_vlsize(CTState *cts, CType *ct, CTSize nelem);

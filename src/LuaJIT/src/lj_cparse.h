@@ -1,6 +1,6 @@
 /*
 ** C declaration parser.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef _LJ_CPARSE_H
@@ -48,6 +48,7 @@ typedef struct CPState {
   SBuf sb;		/* String buffer for tokens. */
   lua_State *L;		/* Lua state. */
   CTState *cts;		/* C type state. */
+  TValue *param;	/* C type parameters. */
   const char *srcname;	/* Current source name. */
   BCLine linenumber;	/* Input line counter. */
   int depth;		/* Recursive declaration depth. */

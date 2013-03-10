@@ -1,6 +1,6 @@
 /*
 ** C type conversions.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef _LJ_CCONV_H
@@ -61,7 +61,7 @@ LJ_FUNC int lj_cconv_tv_bf(CTState *cts, CType *s, TValue *o, uint8_t *sp);
 LJ_FUNC void lj_cconv_ct_tv(CTState *cts, CType *d,
 			    uint8_t *dp, TValue *o, CTInfo flags);
 LJ_FUNC void lj_cconv_bf_tv(CTState *cts, CType *d, uint8_t *dp, TValue *o);
-LJ_FUNC int lj_cconv_multi_init(CType *d, TValue *o);
+LJ_FUNC int lj_cconv_multi_init(CTState *cts, CType *d, TValue *o);
 LJ_FUNC void lj_cconv_ct_init(CTState *cts, CType *d, CTSize sz,
 			      uint8_t *dp, TValue *o, MSize len);
 

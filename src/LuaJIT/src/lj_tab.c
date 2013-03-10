@@ -1,6 +1,6 @@
 /*
 ** Table handling.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Major portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2008 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -545,6 +545,8 @@ static uint32_t keyindex(lua_State *L, GCtab *t, cTValue *key)
 	return t->asize + (uint32_t)(n - noderef(t->node));
 	/* Hash key indexes: [t->asize..t->asize+t->nmask] */
     } while ((n = nextnode(n)));
+    if (key->u32.hi == 0xfffe7fff)  /* ITERN was despecialized while running. */
+      return key->u32.lo - 1;
     lj_err_msg(L, LJ_ERR_NEXTIDX);
     return 0;  /* unreachable */
   }

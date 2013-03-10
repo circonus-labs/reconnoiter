@@ -1,6 +1,6 @@
 /*
 ** LuaJIT VM builder.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 **
 ** This is a tool to build the hand-tuned assembler code required for
 ** LuaJIT's bytecode interpreter. It supports a variety of output formats
@@ -54,32 +54,23 @@ static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type);
 /* Avoid trouble if cross-compiling for an x86 target. Speed doesn't matter. */
 #define DASM_ALIGNED_WRITES	1
 
-/* Embed architecture-specific DynASM encoder and backend. */
-#if LJ_TARGET_X86
+/* Embed architecture-specific DynASM encoder. */
+#if LJ_TARGET_X86ORX64
 #include "../dynasm/dasm_x86.h"
-#include "buildvm_x86.h"
-#elif LJ_TARGET_X64
-#include "../dynasm/dasm_x86.h"
-#if LJ_ABI_WIN
-#include "buildvm_x64win.h"
-#else
-#include "buildvm_x64.h"
-#endif
 #elif LJ_TARGET_ARM
 #include "../dynasm/dasm_arm.h"
-#include "buildvm_arm.h"
 #elif LJ_TARGET_PPC
 #include "../dynasm/dasm_ppc.h"
-#include "buildvm_ppc.h"
 #elif LJ_TARGET_PPCSPE
 #include "../dynasm/dasm_ppc.h"
-#include "buildvm_ppcspe.h"
 #elif LJ_TARGET_MIPS
 #include "../dynasm/dasm_mips.h"
-#include "buildvm_mips.h"
 #else
 #error "No support for this architecture (yet)"
 #endif
+
+/* Embed generated architecture-specific backend. */
+#include "buildvm_arch.h"
 
 /* ------------------------------------------------------------------------ */
 
@@ -109,6 +100,8 @@ static const char *sym_decorate(BuildCtx *ctx,
   char *p;
 #if LJ_64
   const char *symprefix = ctx->mode == BUILD_machasm ? "_" : "";
+#elif LJ_TARGET_XBOX360
+  const char *symprefix = "";
 #else
   const char *symprefix = ctx->mode != BUILD_elfasm ? "_" : "";
 #endif
@@ -145,7 +138,11 @@ static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type)
   ctx->reloc[ctx->nreloc].sym = relocmap[idx];
   ctx->reloc[ctx->nreloc].type = type;
   ctx->nreloc++;
+#if LJ_TARGET_XBOX360
+  return (int)(ctx->code - addr) + 4;  /* Encode symbol offset of .text. */
+#else
   return 0;  /* Encode symbol offset of 0. */
+#endif
 }
 
 /* Naive insertion sort. Performance doesn't matter here. */
@@ -254,7 +251,7 @@ IRDEF(IRNAME)
 };
 
 const char *const irt_names[] = {
-#define IRTNAME(name)	#name,
+#define IRTNAME(name, size)	#name,
 IRTDEF(IRTNAME)
 #undef IRTNAME
   NULL
@@ -433,7 +430,7 @@ int main(int argc, char **argv)
 
   if (sizeof(void *) != 4*LJ_32+8*LJ_64) {
     fprintf(stderr,"Error: pointer size mismatch in cross-build.\n");
-    fprintf(stderr,"Try: make HOST_CC=\"gcc -m32\" CROSS=... TARGET=...\n\n");
+    fprintf(stderr,"Try: make HOST_CC=\"gcc -m32\" CROSS=...\n\n");
     return 1;
   }
 

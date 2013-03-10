@@ -1,6 +1,6 @@
 /*
 ** State and stack handling.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2008 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -243,16 +243,16 @@ LUA_API void lua_close(lua_State *L)
   G2J(g)->state = LJ_TRACE_IDLE;
   lj_dispatch_update(g);
 #endif
-  for (i = 0; i < 10; ) {
+  for (i = 0;;) {
     hook_enter(g);
     L->status = 0;
     L->cframe = NULL;
     L->base = L->top = tvref(L->stack) + 1;
     if (lj_vm_cpcall(L, NULL, NULL, cpfinalize) == 0) {
+      if (++i >= 10) break;
       lj_gc_separateudata(g, 1);  /* Separate udata again. */
       if (gcref(g->gc.mmudata) == NULL)  /* Until nothing is left to do. */
 	break;
-      i++;
     }
   }
   close_state(L);

@@ -1,6 +1,6 @@
 /*
 ** VM event handling.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #include <stdio.h>
@@ -46,8 +46,9 @@ void lj_vmevent_call(lua_State *L, ptrdiff_t argbase)
   if (LJ_UNLIKELY(status)) {
     /* Really shouldn't use stderr here, but where else to complain? */
     L->top--;
-    fprintf(stderr, "VM handler failed: %s\n",
-	    tvisstr(L->top) ? strVdata(L->top) : "?");
+    fputs("VM handler failed: ", stderr);
+    fputs(tvisstr(L->top) ? strVdata(L->top) : "?", stderr);
+    fputc('\n', stderr);
   }
   hook_restore(g, oldh);
   if (g->vmevmask != VMEVENT_NOCACHE)

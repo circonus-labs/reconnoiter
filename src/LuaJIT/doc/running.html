@@ -4,7 +4,7 @@
 <title>Running LuaJIT</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <meta name="Author" content="Mike Pall">
-<meta name="Copyright" content="Copyright (C) 2005-2012, Mike Pall">
+<meta name="Copyright" content="Copyright (C) 2005-2013, Mike Pall">
 <meta name="Language" content="en">
 <link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
 <link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
@@ -42,6 +42,8 @@ td.param_default {
 <ul><li>
 <a href="luajit.html">LuaJIT</a>
 <ul><li>
+<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+</li><li>
 <a href="install.html">Installation</a>
 </li><li>
 <a class="current" href="running.html">Running</a>
@@ -72,9 +74,9 @@ td.param_default {
 </li><li>
 <a href="http://luajit.org/performance.html">Performance <span class="ext">&raquo;</span></a>
 </li><li>
-<a href="http://luajit.org/download.html">Download <span class="ext">&raquo;</span></a>
+<a href="http://wiki.luajit.org/">Wiki <span class="ext">&raquo;</span></a>
 </li><li>
-<a href="http://luajit.org/list.html">Mailing List&nbsp;<span style="font-size: 6pt; background: #ff8000; color: #ffffff; vertical-align: middle;">&nbsp;NEW&nbsp;</span> <span class="ext">&raquo;</span></a>
+<a href="http://luajit.org/list.html">Mailing List <span class="ext">&raquo;</span></a>
 </li></ul>
 </div>
 <div id="main">
@@ -83,19 +85,6 @@ LuaJIT has only a single stand-alone executable, called <tt>luajit</tt> on
 POSIX systems or <tt>luajit.exe</tt> on Windows. It can be used to run simple
 Lua statements or whole Lua applications from the command line. It has an
 interactive mode, too.
-</p>
-<p class="indent" style="color: #c00000;">
-Note: the beta test releases only install under the versioned name on
-POSIX systems (to avoid overwriting a previous version). You either need
-to type <tt>luajit-2.0.0-beta10</tt> to start it or create a symlink
-with a command like this:
-</p>
-<pre class="code" style="color: #c00000;">
-sudo ln -sf luajit-2.0.0-beta10&nbsp;/usr/local/bin/luajit
-</pre>
-<p>
-Unlike previous versions <b>optimization is turned on by default</b> in
-LuaJIT 2.0!<br>It's no longer necessary to use <tt>luajit&nbsp;-O</tt>.
 </p>
 
 <h2 id="options">Command Line Options</h2>
@@ -197,7 +186,7 @@ itself. For a description of their options and output format, please
 read the comment block at the start of their source.
 They can be found in the <tt>lib</tt> directory of the source
 distribution or installed under the <tt>jit</tt> directory. By default
-this is <tt>/usr/local/share/luajit-2.0.0-beta10/jit</tt> on POSIX
+this is <tt>/usr/local/share/luajit-2.0.1/jit</tt> on POSIX
 systems.
 </p>
 
@@ -261,6 +250,8 @@ are enabled:
 <tr class="even">
 <td class="flag_name">abc</td><td class="flag_level">&nbsp;</td><td class="flag_level">&nbsp;</td><td class="flag_level">&bull;</td><td class="flag_desc">Array Bounds Check Elimination</td></tr>
 <tr class="odd">
+<td class="flag_name">sink</td><td class="flag_level">&nbsp;</td><td class="flag_level">&nbsp;</td><td class="flag_level">&bull;</td><td class="flag_desc">Allocation/Store Sinking</td></tr>
+<tr class="even">
 <td class="flag_name">fuse</td><td class="flag_level">&nbsp;</td><td class="flag_level">&nbsp;</td><td class="flag_level">&bull;</td><td class="flag_desc">Fusion of operands into instructions</td></tr>
 </table>
 <p>
@@ -305,7 +296,7 @@ Here are the parameters and their default settings:
 </div>
 <div id="foot">
 <hr class="hide">
-Copyright &copy; 2005-2012 Mike Pall
+Copyright &copy; 2005-2013 Mike Pall
 <span class="noprint">
 &middot;
 <a href="contact.html">Contact</a>

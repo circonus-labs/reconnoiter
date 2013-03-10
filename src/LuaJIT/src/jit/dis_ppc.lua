@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------
 -- LuaJIT PPC disassembler module.
 --
--- Copyright (C) 2005-2012 Mike Pall. All rights reserved.
+-- Copyright (C) 2005-2013 Mike Pall. All rights reserved.
 -- Released under the MIT/X license. See Copyright Notice in luajit.h
 ----------------------------------------------------------------------------
 -- This is a helper module used by the LuaJIT machine code dumper module.
@@ -57,7 +57,7 @@ local map_rld = {
   [0] = "rldiclRR~HM.", "rldicrRR~HM.", "rldicRR~HM.", "rldimiRR~HM.",
   {
     shift = 1, mask = 1,
-    [0] = "rldclRR~HM.", "rldcrRR~HM.",
+    [0] = "rldclRR~RM.", "rldcrRR~RM.",
   },
 }
 

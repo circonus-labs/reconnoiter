@@ -1,6 +1,6 @@
 /*
 ** C type management.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #include "lj_obj.h"
@@ -132,7 +132,11 @@ CTKWDEF(CTKWNAMEDEF)
 ;
 
 #define CTTYPEINFO_NUM		(sizeof(lj_ctype_typeinfo)/sizeof(CTInfo)-1)
+#ifdef LUAJIT_CTYPE_CHECK_ANCHOR
+#define CTTYPETAB_MIN		CTTYPEINFO_NUM
+#else
 #define CTTYPETAB_MIN		128
+#endif
 
 /* -- C type interning ---------------------------------------------------- */
 
@@ -148,7 +152,16 @@ CTypeID lj_ctype_new(CTState *cts, CType **ctp)
   lua_assert(cts->L);
   if (LJ_UNLIKELY(id >= cts->sizetab)) {
     if (id >= CTID_MAX) lj_err_msg(cts->L, LJ_ERR_TABOV);
+#ifdef LUAJIT_CTYPE_CHECK_ANCHOR
+    ct = lj_mem_newvec(cts->L, id+1, CType);
+    memcpy(ct, cts->tab, id*sizeof(CType));
+    memset(cts->tab, 0, id*sizeof(CType));
+    lj_mem_freevec(cts->g, cts->tab, cts->sizetab, CType);
+    cts->tab = ct;
+    cts->sizetab = id+1;
+#else
     lj_mem_growvec(cts->L, cts->tab, cts->sizetab, CTID_MAX, CType);
+#endif
   }
   cts->top = id+1;
   *ctp = ct = &cts->tab[id];
@@ -221,7 +234,8 @@ CTypeID lj_ctype_getname(CTState *cts, CType **ctp, GCstr *name, uint32_t tmask)
 }
 
 /* Get a struct/union/enum/function field by name. */
-CType *lj_ctype_getfield(CTState *cts, CType *ct, GCstr *name, CTSize *ofs)
+CType *lj_ctype_getfieldq(CTState *cts, CType *ct, GCstr *name, CTSize *ofs,
+			  CTInfo *qual)
 {
   while (ct->sib) {
     ct = ctype_get(cts, ct->sib);
@@ -230,8 +244,15 @@ CType *lj_ctype_getfield(CTState *cts, CType *ct, GCstr *name, CTSize *ofs)
       return ct;
     }
     if (ctype_isxattrib(ct->info, CTA_SUBTYPE)) {
-      CType *fct = lj_ctype_getfield(cts, ctype_child(cts, ct), name, ofs);
+      CType *fct, *cct = ctype_child(cts, ct);
+      CTInfo q = 0;
+      while (ctype_isattrib(cct->info)) {
+	if (ctype_attrib(cct->info) == CTA_QUAL) q |= cct->size;
+	cct = ctype_child(cts, cct);
+      }
+      fct = lj_ctype_getfieldq(cts, cct, name, ofs, qual);
       if (fct) {
+	if (qual) *qual |= q;
 	*ofs += ct->size;
 	return fct;
       }
@@ -453,6 +474,10 @@ static void ctype_repr(CTRepr *ctr, CTypeID id)
       ctype_preptype(ctr, ct, qual, (info & CTF_UNION) ? "union" : "struct");
       return;
     case CT_ENUM:
+      if (id == CTID_CTYPEID) {
+	ctype_preplit(ctr, "ctype");
+	return;
+      }
       ctype_preptype(ctr, ct, qual, "enum");
       return;
     case CT_ATTRIB:
@@ -577,6 +602,7 @@ CTState *lj_ctype_init(lua_State *L)
     CTInfo info = lj_ctype_typeinfo[id];
     ct->size = (CTSize)((int32_t)(info << 16) >> 26);
     ct->info = info & 0xffff03ffu;
+    ct->sib = 0;
     if (ctype_type(info) == CT_KW || ctype_istypedef(info)) {
       size_t len = strlen(name);
       GCstr *str = lj_str_new(L, name, len);
@@ -585,6 +611,7 @@ CTState *lj_ctype_init(lua_State *L)
       lj_ctype_addname(cts, ct, id);
     } else {
       setgcrefnull(ct->name);
+      ct->next = 0;
       if (!ctype_isenum(info)) ctype_addtype(cts, ct, id);
     }
   }

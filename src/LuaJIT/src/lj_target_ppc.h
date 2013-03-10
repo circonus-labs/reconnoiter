@@ -1,6 +1,6 @@
 /*
 ** Definitions for PPC CPUs.
-** Copyright (C) 2005-2012 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2013 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef _LJ_TARGET_PPC_H
@@ -263,6 +263,7 @@ typedef enum PPCIns {
   PPCI_FSUB = 0xfc000028,
   PPCI_FMUL = 0xfc000032,
   PPCI_FDIV = 0xfc000024,
+  PPCI_FSQRT = 0xfc00002c,
 
   PPCI_FMADD = 0xfc00003a,
   PPCI_FMSUB = 0xfc000038,
