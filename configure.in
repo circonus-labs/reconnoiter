@@ -64,6 +64,7 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	# This is needed for luajit on Mac OS X
 	LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
+	SHLDFLAGS="$SHLDFLAGS -image_base 100000000"
 	;;
 *-*-solaris*)
 	DTRACE=/usr/sbin/dtrace

@@ -47,7 +47,7 @@ check_test.lo:	check_test.xmlh
 ip_acl.lo:	ip_acl.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
+	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
@@ -167,7 +167,7 @@ httptrap.@MODULEEXT@:	httptrap.lo
 httptrap.lo:	httptrap.xmlh
 
 statsd.@MODULEEXT@:	statsd.lo
-	@$(MODULELD) $(LDFLAGS) -o $@ statsd.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ statsd.lo
 	@echo "- linking $@"
 
 statsd.lo:	statsd.xmlh
