@@ -33,6 +33,8 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
+include ../Makefile.objs
+
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
 .xml.xmlh:
