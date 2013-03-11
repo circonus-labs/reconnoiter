@@ -5,6 +5,7 @@
 
 #define luaall_c
 #define lobject_c
+#define ltable_c
 
 #define LUA_CORE
 #define LUA_COMPAT_MODULE
