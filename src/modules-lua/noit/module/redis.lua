@@ -142,7 +142,7 @@ function build_redis_command(command)
   local redis_comm = "*"
   local comm_list = string.split(command, "%s+")
 
-  redis_comm = redis_comm .. table.getn(comm_list) .. "\r\n"
+  redis_comm = redis_comm .. #comm_list .. "\r\n"
 
   for c in ipairs(comm_list) do
     redis_comm = redis_comm .. "$" .. comm_list[c]:len() .. "\r\n" .. comm_list[c] .. "\r\n"
@@ -183,7 +183,7 @@ function get_info_metrics(conn, check)
         for idx in pairs(alloc_metrics) do
           count = count + 1
           met = string.split(alloc_metrics[idx], "=")
-          if ( 3 == table.getn(met) ) then
+          if ( 3 == #met ) then
               check.metric_int32("allocation_stats`" .. met[2], met[3])
           else
               check.metric_int32("allocation_stats`" .. met[1], met[2])
