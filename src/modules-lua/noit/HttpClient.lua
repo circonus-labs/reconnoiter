@@ -272,7 +272,7 @@ function HttpClient:auth_digest(method, uri, user, pass, challenge)
     local c = ', ' .. challenge
     local nc = '00000001'
     local function rand_string(t, l)
-        local n = table.getn(t)
+        local n = #t
         local o = ''
         while l > 0 do
           o = o .. t[math.random(1,n)]
