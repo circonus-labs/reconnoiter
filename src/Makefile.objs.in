@@ -29,7 +29,6 @@ YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
         yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
         yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
 
-
 LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
 	lib_io.o lib_os.o lib_package.o lib_debug.o lib_jit.o lib_ffi.o \
 	lj_vm.o lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o \
