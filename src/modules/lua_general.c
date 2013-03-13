@@ -189,6 +189,9 @@ lua_general_coroutine_spawn(lua_State *Lp) {
   ri = lua_general_new_resume_info(ri_parent->lmc);
   L = ri->coro_state;
   lua_xmove(Lp, L, nargs);
+#ifndef LUA_JITLIBNAME
+  lua_setlevel(Lp, L);
+#endif
   ri->lmc->resume(ri, nargs-1);
   return 0;
 }

@@ -403,7 +403,8 @@ noit_conf_backingstore_write(noit_xml_userdata_t *ctx, noit_boolean skip,
     if(!subctx) { /* This has never been written out */
       subctx = calloc(1, sizeof(*subctx));
       subctx->name = strdup((char *)n->name);
-      snprintf(newpath, sizeof(newpath), "%s/%s#%llu", ctx->path, n->name, ++max_gen_count);
+      snprintf(newpath, sizeof(newpath), "%s/%s#%llu", ctx->path, n->name,
+               (unsigned long long)++max_gen_count);
       if(leaf) strlcat(newpath, ".xml", sizeof(newpath));
       subctx->path = strdup(newpath);
       subctx->dirty_time = usec_now();
