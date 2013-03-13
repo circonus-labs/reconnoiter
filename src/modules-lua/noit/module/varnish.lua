@@ -83,6 +83,7 @@ function initiate(module, check)
   local rv, err = e:connect(check.target_ip, check.config.port or 8081)
 
   e:write("stats\r\n")
+  e:write("quit\r\n")
   str = e:read("\n")
 
   if rv ~= 0 or not str then
@@ -102,14 +103,16 @@ function initiate(module, check)
     return
   end
 
-  local rawstats = e:read(len)
+  local rawstats = e:read("Closing CLI connection")
   local i = 0
   for v, k in string.gmatch(rawstats, "%s*(%d+)%s+([^\r\n]+)") do
-    k = string.gsub(k, "^%s*", "")
-    k = string.gsub(k, "%s*$", "")
-    k = string.gsub(k, "%s", "_")
-    check.metric(k,v)
-    i = i + 1
+    if string.find(k, "^[a-zA-Z]") then
+       k = string.gsub(k, "^%s*", "")
+       k = string.gsub(k, "%s*$", "")
+       k = string.gsub(k, "%s", "_")
+       print(k .. " - " .. v)
+       i = i + 1
+     end
   end
   check.status(string.format("%d stats", i))
   check.good()
