@@ -77,42 +77,68 @@ function onload(image)
   return 0
 end
 
+local configs = nil
+
 function get_id_out_of_buffer(buf)
   local post, op, htype, hlen, hops, id = string.unpack(buf, ">bbbbI")
   return id
 end
 
-function sockets_and_stuff()
+function create_dhcp_socket(port)
   local e = noit.socket('inet', 'udp')
   local err, errno = e:setsockopt("SO_REUSEADDR", 1)
   if err ~= 0 then
     noit.log("error", "cannot set socket to reusable -> " .. errno)
-    return
+    return nil
   end 
   err, errno = e:setsockopt("SO_BROADCAST", 1)
   if err ~= 0 then
     noit.log("error", "cannot set socket to broadcast -> " .. errno)
-    return
+    return nil
   end 
-  err, errno = e:bind('0.0.0.0', 68)
+  err, errno = e:bind('0.0.0.0', port)
   if err ~= 0 then
     noit.log("error", "binding error -> " .. errno)
-    return
+    return nil
   end 
-  while true do
-    local len, pkt = e:recv(2048)
-    local id = get_id_out_of_buffer(pkt)
-    noit.notify(id, len, pkt)
-  end 
+  return e
+end
+
+function dhcp_reader(internal_port)
+  local dhcp_read_sock = create_dhcp_socket(68)
+  if (dhcp_read_sock ~= nil) then
+    writer_co = coroutine.create(dhcp_writer)
+    coroutine.resume(writer_co, dhcp_read_sock, internal_port)
+    while true do
+      local len, pkt = dhcp_read_sock:recv(2048)
+      local id = get_id_out_of_buffer(pkt)
+      noit.notify(id, len, pkt)
+    end
+  end
+end
+
+function dhcp_writer(out_sock, internal_port)
+  local in_sock = create_dhcp_socket(internal_port)
+  if (in_sock ~= nil) then
+    while true do
+      local len, pkt = in_sock:recv(2048)
+      if len == 33 then
+        local req, target_ip, send_port = make_dhcp_request(pkt)
+        out_sock:sendto(req, target_ip, send_port)
+      end
+    end 
+  end
 end
 
 function init(module)
-  co = coroutine.create(sockets_and_stuff)
-  coroutine.resume(co)
+  local internal_port = configs.internal_port or 55000
+  reader_co = coroutine.create(dhcp_reader)
+  coroutine.resume(reader_co, internal_port)
   return 0
 end
 
 function config(module, options)
+  configs = options
   return 0
 end
 
@@ -174,7 +200,7 @@ function pack_hardware_address(hardware_addr)
   local ret = ''
   local count = 0
   for elem in hardware_addr:gmatch("%x+") do
-    elem = tonumber("0x" .. elem, 10)
+    elem = tonumber(elem, 16)
     ret = ret .. string.pack(">b", elem)
     count = count + 1
   end
@@ -185,11 +211,21 @@ function pack_hardware_address(hardware_addr)
   return ret
 end
 
-function make_dhcp_request(host_ip, hardware_addr, request_type)
-    local packet = ''
-    local host_ip_number = noit.extras.iptonumber(host_ip)
-    local id = math.random(0, 99999999)
+function pack_dhcp_info(host_ip, hardware_addr, request_type, target_ip, send_port)
+  local packet = ''
+  local host_ip_number = noit.extras.iptonumber(host_ip)
+  local target_ip_number = noit.extras.iptonumber(target_ip)
+  local id = math.random(0, 99999999)
+  packet = packet .. string.pack(">IIbII", id, send_port, request_type, host_ip_number, target_ip_number)
+  packet = packet .. pack_hardware_address(hardware_addr) -- Client MAC address
+  return packet, id
+end
 
+function make_dhcp_request(pkt)
+    local packet = ''
+    local pos, id, send_port, request_type, host_ip_number, target_ip_number = string.unpack(pkt, ">IIbII")
+    local target_ip     = convert_binary_string_to_ip(string.sub(pkt, 14, 17))
+    local hardware_addr = convert_binary_string_to_mac(string.sub(pkt, 18, 33))
     packet = packet .. string.pack(">bbbb", 1, 1, 6, 0)
     packet = packet .. string.pack(">I", id)
     packet = packet .. string.pack(">HH", 0, 0x0000)
@@ -203,7 +239,7 @@ function make_dhcp_request(host_ip, hardware_addr, request_type)
     end
     packet = packet .. string.pack(">bbbbbbbbbbbbbbb", 55, 13, 1, 2, 3, 6, 15, 28, 42, 51, 53, 54, 58, 59, 119)
     packet = packet .. string.pack(">b", 0xFF)
-    return packet, id
+    return packet, target_ip, send_port
 end
 
 function parse_option(options, dhcp_option_names, dhcp_message_types, check)
@@ -312,6 +348,7 @@ function initiate(module, check)
   local send_port = check.config.send_port or 67
   local host_ip = check.config.host_ip or "0.0.0.0"
   local hardware_addr = check.config.hardware_addr or "00:00:00:00:00:00"
+  local internal_port = configs.internal_port or 55000
   local request_type = check.config.request_type or 1
   local good = false
   local status = ""
@@ -331,9 +368,9 @@ function initiate(module, check)
   end
 
   local starttime = noit.timeval.now()
-  local s = noit.socket(check.target_ip, 'udp')
-  local req, id = make_dhcp_request(host_ip, hardware_addr, request_type)
-  local sent = s:sendto(req, check.target_ip, send_port)
+  local s = noit.socket('inet', 'udp')
+  local req, id = pack_dhcp_info(host_ip, hardware_addr, request_type, check.target_ip, send_port)
+  local sent = s:sendto(req, '127.0.0.1', internal_port)
 
   while done == 0 do
     local ret, len, buf = noit.waitfor(id, check.timeout / 1000)
