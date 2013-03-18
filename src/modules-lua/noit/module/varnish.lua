@@ -110,7 +110,7 @@ function initiate(module, check)
        k = string.gsub(k, "^%s*", "")
        k = string.gsub(k, "%s*$", "")
        k = string.gsub(k, "%s", "_")
-       print(k .. " - " .. v)
+       check.metric(k, v)
        i = i + 1
      end
   end
