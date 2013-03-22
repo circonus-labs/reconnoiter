@@ -361,6 +361,9 @@ AC_MSG_RESULT([$XSLTLIBS])
 AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
 
 APRPREFIX="`apr-1-config --prefix`"
+if [ $? -eq 0 ]; then
+	BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
+fi
 AC_SUBST(APRPREFIX)
 AC_MSG_RESULT([$APRPREFIX])
 
@@ -688,6 +691,7 @@ if test "x$ac_cv_have_ssize_t" = "xyes" ; then
 fi
 
 AC_SUBST(BUILD_MODULES)
+AC_SUBST(BUILD_SMODULES)
 
 docdir="docs"
 mansubdir="man"
