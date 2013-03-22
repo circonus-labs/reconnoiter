@@ -45,6 +45,7 @@
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
+#include <sys/wait.h>
 #include <zlib.h>
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
@@ -2828,6 +2829,10 @@ int luaopen_noit(lua_State *L) {
   LUA_DEFINE_INT(L, O_SYNC);
 #ifdef O_NOFOLLOW
   LUA_DEFINE_INT(L, O_NOFOLLOW);
+#else
+#define O_NOFOLLOW 0
+  LUA_DEFINE_INT(L, O_NOFOLLOW);
+#undef O_NOFOLLOW
 #endif
   LUA_DEFINE_INT(L, O_CREAT);
   LUA_DEFINE_INT(L, O_TRUNC);
