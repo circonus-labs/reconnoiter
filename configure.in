@@ -18,6 +18,12 @@ AC_ARG_ENABLE(strict,
                     enable_strict="$enableval",
                     enable_strict=no)
 
+AC_ARG_ENABLE(lua,
+    [AC_HELP_STRING([--enable-lua],
+                    [Choose a lua implementation: (no, yes)])],
+                    enable_lua="$enableval",
+                    enable_lua=yes)
+
 AC_PROG_CC
 AC_C_INLINE
 AC_C_BIGENDIAN
@@ -157,6 +163,12 @@ AC_SUBST(NOWHOLE_ARCHIVE)
 AC_SUBST(ATOMIC_OBJS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])
+
+LUA_MODULE=lua.$MODULEEXT
+if test "$enable_lua" = "no"; then
+  LUA_MODULE=
+fi
+
 
 if test -z "$ac_cv_path_JAVA" \
 	-o -z "$ac_cv_path_JAVAC" \
@@ -301,20 +313,23 @@ fi
 ########
 
 # Should we build snmp checks?
+HAS_NETSNMP="no"
 AC_CHECK_HEADERS(net-snmp/net-snmp-config.h)
 if test "$ac_cv_header_net_snmp_net_snmp_config_h" = "yes" ; then
 SAVELIBS="$LIBS"
 AC_CHECK_LIB(netsnmp, snmp_sess_open,
 	[
 		BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
-	],
-	[
-		AC_MSG_WARN([No libnetsnmp, skipping snmp module])
+		HAS_NETSNMP="yes"
 	]
 )
 LIBS="$SAVELIBS"
-else
+fi
+if test "x$HAS_NETSNMP" = "xno"; then
 	AC_MSG_WARN([No libnetsnmp, skipping snmp module])
+	if test -n "$LUA_MODULE"; then
+		AC_MSG_ERROR([*** lua specified, but no SNMP ***])
+	fi
 fi
 
 # Should we build ssh2 checks?
@@ -682,6 +697,8 @@ AC_CACHE_CHECK([for ssize_t], ac_cv_have_ssize_t, [
 if test "x$ac_cv_have_ssize_t" = "xyes" ; then
 	AC_DEFINE(HAVE_SSIZE_T)
 fi
+
+BUILD_MODULES="$BUILD_MODULES $LUA_MODULE"
 
 AC_SUBST(BUILD_MODULES)
 AC_SUBST(BUILD_SMODULES)
