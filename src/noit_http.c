@@ -1553,8 +1553,9 @@ _noit_http_response_flush(noit_http_session_ctx *ctx,
   }
 
   rv = _http_perform_write(ctx, &mask);
-  if(update_eventer && ctx->conn.e) {
-    eventer_update(ctx->conn.e, mask);
+  if(update_eventer && ctx->conn.e &&
+     eventer_find_fd(ctx->conn.e->fd) == ctx->conn.e) {
+      eventer_update(ctx->conn.e, mask);
   }
   if(rv < 0) return noit_false;
   /* If the write fails completely, the event will not be closed,
