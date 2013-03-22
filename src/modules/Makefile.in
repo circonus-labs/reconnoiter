@@ -30,7 +30,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-SMODULES=stomp_driver.@MODULEEXT@ postgres_ingestor.@MODULEEXT@ \
+SMODULES=@BUILD_SMODULES@ postgres_ingestor.@MODULEEXT@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
 include ../Makefile.objs
