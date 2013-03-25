@@ -16,7 +16,7 @@ print F "listen_addresses = 'localhost'\n";
 print F "unix_socket_directory = '$NOIT_TEST_DB'\n";
 print F "port = $NOIT_TEST_DB_PORT\n";
 close(F);
-`pg_ctl -D $NOIT_TEST_DB -l $NOIT_TEST_DB/serverlog -s -w start`;
+system("pg_ctl", "-D", "$NOIT_TEST_DB", "-l", "$NOIT_TEST_DB/serverlog", "-s", "-w", "start");
 SKIP: {
   # This is failing on my Mac which is OBNOXIOUS
   skip "pg_ctl and \$? issues on darwin", 1 if $^O eq 'darwin';
