@@ -414,9 +414,15 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
-    noit_connection_ctx_dealloc(nctx);
+    /* We close the event here and null it in the context
+     * because the noit_connection_ctx_dealloc() will both close
+     * it and free it (which our caller will double free) and
+     * we consider double frees to be harmful.
+     */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &mask, e);
+    nctx->e = NULL;
+    noit_connection_ctx_dealloc(nctx);
     return 0;
   }
 
