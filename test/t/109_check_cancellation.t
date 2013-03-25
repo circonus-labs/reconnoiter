@@ -19,10 +19,6 @@ sub boot($) {
      "$name starting noit");
 }
 
-boot("default");
-sleep(1);
-$c = apiclient->new('localhost', $NOIT_API_PORT);
-
 sub check_def($$;$$) {
     my $method = shift;
     my $is = shift;
@@ -32,6 +28,13 @@ sub check_def($$;$$) {
     my $name = rand();
     return qq{<?xml version="1.0" encoding="utf8"?><check><attributes><target>127.0.0.1</target><period>$period</period><timeout>$timeout</timeout><name>$name</name><filterset>allowall</filterset><module>test_abort</module></attributes><config><method>$method</method><ignore_signals>$is</ignore_signals></config></check>};
 }
+
+SKIP: {
+  skip "$^O doesn't support iterruptable", 12
+    if $^O =~ /^(?:solaris)$/;
+boot("default");
+sleep(1);
+$c = apiclient->new('localhost', $NOIT_API_PORT);
 
 $uuid = '6bbdf85c-3c86-11e0-9160-4fdcf11a743f';
 $prefix = 'default, interruptable';
@@ -71,7 +74,11 @@ while(<$fh>) {
 }
 if($fh->opened) { $fh->close; ok(0, "$prefix: found assertion"); }
 ok(0 == stop_noit(), "$prefix shutdown (already happened)");
+}
 
+SKIP: {
+  skip "$^O doesn't support uniterruptable", 6
+    if $^O =~ /^(?:solaris)$/;
 boot("pending_abort");
 sleep(1);
 $c = apiclient->new('localhost', $NOIT_API_PORT);
@@ -99,7 +106,11 @@ while(<$fh>) {
 }
 if($fh->opened) { $fh->close; ok(0, "$prefix: found pending_cancels failure"); }
 ok(0 == stop_noit(), "$prefix shutdown (already happened)");
+}
 
+SKIP: {
+  skip "$^O doesn't support deferred", 12
+    if $^O =~ /^(?:solaris)$/;
 boot("deferred");
 sleep(1);
 $c = apiclient->new('localhost', $NOIT_API_PORT);
@@ -141,6 +152,7 @@ while(<$fh>) {
 }
 if($fh->opened) { $fh->close; ok(0, "$prefix: found assertion"); }
 ok(0 == stop_noit(), "$prefix shutdown (already happened)");
+}
 
 boot("evil");
 sleep(1);
