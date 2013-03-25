@@ -312,14 +312,14 @@ APR_DECLARE(apr_status_t) stomp_write(stomp_connection *connection, stomp_frame 
          CHECK_SUCCESS;  
       }
 
-	  if(frame->body_length > 0) {
+	  if((long long int)frame->body_length > 0) {
 		  apr_pool_t *length_pool;
 		  char *length_string;
 
 		  apr_pool_create(&length_pool, pool);
 		  rc = stomp_write_buffer(connection, "content-length:", 15);
 		  CHECK_SUCCESS;
-		  
+		 
 		  length_string = apr_itoa(length_pool, frame->body_length);
 		  rc = stomp_write_buffer(connection, length_string, strlen(length_string));
 		  CHECK_SUCCESS;
