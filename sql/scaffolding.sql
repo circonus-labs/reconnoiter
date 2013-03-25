@@ -7,7 +7,6 @@ alter user prism set search_path to noit,public;
 \c reconnoiter reconnoiter;
 begin;
 
-create language plpgsql;
 create schema noit;
 create schema stratcon;
 create schema prism;
