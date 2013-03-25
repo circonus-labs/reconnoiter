@@ -1,4 +1,4 @@
-use Test::More tests => 8;
+use Test::More tests => 10;
 my @progs = qw/pg_ctl initdb psql rm/;
 
 use strict;
@@ -6,6 +6,8 @@ use strict;
 use_ok('testconfig');
 use_ok('apiclient');
 use_ok('stomp');
+use_ok('XML::LibXML');
+use_ok('JSON');
 
 foreach my $prog (@progs) {
   my $found = 0;
