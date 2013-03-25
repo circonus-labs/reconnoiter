@@ -194,7 +194,7 @@ noit_main(const char *appname,
 
   noit_watchdog_prefork_init();
 
-  if(chdir("/") != 0) {
+  if(foreground != 1 && chdir("/") != 0) {
     noitL(noit_stderr, "Failed chdir(\"/\"): %s\n", strerror(errno));
     exit(-1);
   }
