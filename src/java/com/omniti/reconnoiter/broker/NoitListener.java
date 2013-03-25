@@ -18,7 +18,6 @@ public class NoitListener implements UpdateListener {
         queue = new LinkedBlockingQueue<EventBean>();
     }
     public void update(EventBean[] newEvents, EventBean[] oldEvents) {
-        System.err.println("AMQOutput -> dispatch");
         for(int i = 0; i < newEvents.length; i++) {
             boolean done = false;
             while(!done) {

@@ -79,6 +79,6 @@ public class AMQBroker implements IMQBroker {
   }
 
   public Class getListenerClass() { return listenerClass; }
-  public String getAlertRoutingKey() { return "vm://localhost"; }
-  public String getAlertExchangeName() { return ""; }
+  public String getAlertRoutingKey() { return ""; }
+  public String getAlertExchangeName() { return "vm://localhost"; }
 }

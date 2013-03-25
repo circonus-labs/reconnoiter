@@ -55,7 +55,8 @@ public class AMQListener extends NoitListener implements Runnable {
         sq.setThread(thr);
         thr.start();
       } catch(Exception e) {
-        System.err.println("Cannot broker messages");
+        System.err.println("Cannot broker messages:");
+        e.printStackTrace();
       }
     }
     public void processEvent(EventBean event) {
