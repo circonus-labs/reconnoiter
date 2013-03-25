@@ -375,8 +375,9 @@ AC_MSG_RESULT([$XSLTLIBS])
 
 AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
 
-APRPREFIX="`apr-1-config --prefix`"
-if [ $? -eq 0 ]; then
+AC_MSG_CHECKING([api-1-config for needed for stomp support])
+APRPREFIX=`apr-1-config --prefix`
+if test $? -eq "0"; then
 	BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
 fi
 AC_SUBST(APRPREFIX)
