@@ -3,6 +3,7 @@ use WWW::Curl::Easy;
 use JSON;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
+use Time::HiRes qw/usleep/;
 use testconfig;
 use apiclient;
 use stomp;
@@ -31,7 +32,7 @@ my $iep_queries = [
 
 ok(start_noit("108", { logs_debug => { '' => 'false' } }), 'starting noit');
 ok(start_stratcon("108", { noits => [ { address => "127.0.0.1", port => "$NOIT_API_PORT" } ], iep => { queries => $iep_queries } }), 'starting stratcon');
-sleep(1);
+usleep(1000000);
 my $c = apiclient->new('localhost', $NOIT_API_PORT);
 my @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, 'get checks');
@@ -44,7 +45,7 @@ is($r[0], 200, 'add selfcheck');
 my $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, 'saved');
 
-sleep(2);
+usleep(2000000);
 
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 200, 'get checks');
@@ -52,7 +53,7 @@ $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/state/state', $doc), 'good', 'results');
 
 ok(1, 'going to sleep 1 seconds for mapping');
-sleep(1);
+usleep(1000000);
 
 my $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'data store connection');
@@ -81,7 +82,7 @@ sub do_counts {
 my($st_t, $st_n) = do_counts();
 
 ok(1, 'going to sleep 7 seconds for data to stream');
-sleep(7);
+usleep(70000000);
 my $sc = apiclient->new('localhost', $STRATCON_API_PORT);
 @r = $sc->get('/noits/show');
 is($r[0], '200', 'get noits');
@@ -90,7 +91,7 @@ cmp_ok($xpc->findvalue('/noits/noit[@type="durable/storage"]/@session_events', $
 cmp_ok($xpc->findvalue('/noits/noit[@type="transient/iep"]/@session_events', $doc), '>', 0, 'iep connection (events)');
 
 ok(1, 'going to wait 2 more seconds for load into postgres');
-sleep(2);
+usleep(2000000);
 my($f_t, $f_n) = do_counts();
 cmp_ok($st_t, '<', $f_t, 'text metrics loaded');
 cmp_ok($st_n, '<', $f_n, 'numeric metrics loaded');

@@ -2,7 +2,7 @@ use Test::More tests => 10;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
-use Time::HiRes qw/gettimeofday tv_interval/;
+use Time::HiRes qw/gettimeofday tv_interval usleep/;
 use apiclient;
 
 use strict;
@@ -13,7 +13,7 @@ my $doc;
 my $codes = {};
 
 ok(start_noit("103", { logs_debug => { '' => 'false' } }), 'starting noit');
-sleep(1);
+usleep(1000000);
 my $c = apiclient->new('localhost', $NOIT_API_PORT);
 my $req_time = [gettimeofday];
 @r = $c->capabilities();
@@ -57,7 +57,7 @@ is($r[0], 200, 'add selfcheck');
 $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), 'f7cea020-f19d-11dd-85a6-cb6d3a2207dc', 'saved');
 
-sleep(2);
+usleep(2000000);
 @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
 is($r[0], 200, 'get checks');
 $doc = $xp->parse_string($r[1]);
