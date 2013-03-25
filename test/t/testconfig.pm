@@ -51,7 +51,7 @@ our $all_noit_modules = {
   'tcp' => { 'loader' => 'lua', 'object' => 'noit.module.tcp' },
 };
 
-our $NOIT_TEST_DB = "/tmp/noit-test-db";
+our $NOIT_TEST_DB = "/tmp/noit-test-db-$>";
 our $NOIT_TEST_DB_PORT = 23816;
 our $NOIT_API_PORT = 42364;
 our $NOIT_CLI_PORT = 42365;
