@@ -50,7 +50,7 @@ sub do {
     if ($retcode == 0) {
         return ($response_code, $response_body);
     }
-    die $self->{curl}->strerror($retcode);
+    return ($response_code, $self->{curl}->strerror($retcode));
 }
 sub capabilities { shift->do('CAPA', @_); }
 sub get { shift->do('GET', @_); }
