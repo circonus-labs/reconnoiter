@@ -52,8 +52,8 @@ is($r[0], 200, 'get checks');
 $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/state/state', $doc), 'good', 'results');
 
-ok(1, 'going to sleep 1 seconds for mapping');
-usleep(1000000);
+ok(1, 'going to sleep 2 seconds for mapping');
+usleep(2000000);
 
 my $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'data store connection');
@@ -82,7 +82,7 @@ sub do_counts {
 my($st_t, $st_n) = do_counts();
 
 ok(1, 'going to sleep 7 seconds for data to stream');
-usleep(70000000);
+usleep(7000000);
 my $sc = apiclient->new('localhost', $STRATCON_API_PORT);
 @r = $sc->get('/noits/show');
 is($r[0], '200', 'get noits');
