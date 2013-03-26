@@ -31,7 +31,7 @@ sub check_def($$;$$) {
 
 SKIP: {
   skip "$^O doesn't support iterruptable", 12
-    if $^O =~ /^(?:solaris)$/;
+    if $^O =~ /^(?:solaris|linux)$/;
 boot("default");
 usleep(1000000);
 $c = apiclient->new('localhost', $NOIT_API_PORT);
@@ -61,7 +61,7 @@ $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, "$prefix saved");
 usleep(4000000);
 # Shall have exploded by now.
-eval { @r = $c->get("/checks/show/$uuid"); };
+eval { @r = $c->get("/checks/show/$uuid"); die $r[1] unless $r[0] == 200; };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
 while(<$fh>) {
@@ -92,9 +92,9 @@ foreach $uuid ('10e23ee2-3ca5-11e0-8049-c77271aac681',
 usleep(4000000);
 # Shall have exploded by now.
 $uuid = '5d2e9042-3ca6-11e0-be34-d3dd9fd294cc';
-eval { @r = $c->put("/checks/set/$uuid", check_def("deferred", 1, 10000, 500)); };
+eval { @r = $c->put("/checks/set/$uuid", check_def("deferred", 1, 10000, 500)); die $r[1] unless $r[0] == 200; };
 $uuid = '32aeb706-3cac-11e0-b130-9be389e1121e';
-eval { @r = $c->put("/checks/set/$uuid", check_def("deferred", 1, 10000, 500)); };
+eval { @r = $c->put("/checks/set/$uuid", check_def("deferred", 1, 10000, 500)); die $r[1] unless $r[0] == 200; };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
 while(<$fh>) {
@@ -110,7 +110,7 @@ ok(0 == stop_noit(), "$prefix shutdown (already happened)");
 
 SKIP: {
   skip "$^O doesn't support deferred", 12
-    if $^O =~ /^(?:solaris)$/;
+    if $^O =~ /^(?:solaris|linux)$/;
 boot("deferred");
 usleep(1000000);
 $c = apiclient->new('localhost', $NOIT_API_PORT);
@@ -131,6 +131,9 @@ is($r[0], 200, "$prefix delete");
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, "$prefix gone");
 
+SKIP: {
+  skip "$^O doesn't support deferred, uninterruptable", 5
+    if $^O =~ /^(?:linux)$/;
 $uuid = '766fb7a0-3ca3-11e0-a725-37c58e6f62dd';
 $prefix = 'deferred, uninterruptable';
 @r = $c->put("/checks/set/$uuid", check_def("default", 1));
@@ -139,7 +142,7 @@ $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, "$prefix saved");
 usleep(4000000);
 # Shall have exploded by now.
-eval { @r = $c->get("/checks/show/$uuid"); };
+eval { @r = $c->get("/checks/show/$uuid"); die $r[1] unless $r[0] == 200; };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
 while(<$fh>) {
@@ -151,6 +154,7 @@ while(<$fh>) {
   }
 }
 if($fh->opened) { $fh->close; ok(0, "$prefix: found assertion"); }
+}
 ok(0 == stop_noit(), "$prefix shutdown (already happened)");
 }
 
@@ -183,7 +187,7 @@ is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, "$prefix saved");
 usleep(4000000);
 # Evil "works"...
 # while dangerous it should reliably work for the test_abort module
-eval { @r = $c->get("/checks/show/$uuid"); };
+@r = $c->get("/checks/show/$uuid");
 is($r[0], 200, "$prefix get checks");
 $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/state/state', $doc), 'bad', "$prefix result");
@@ -224,13 +228,13 @@ SKIP: {
   $doc = $xp->parse_string($r[1]);
   is($xpc->findvalue('/check/attributes/uuid', $doc), $uuid, "$prefix saved");
   usleep(4000000);
-  eval { @r = $c->get("/checks/show/$uuid"); };
+  @r = $c->get("/checks/show/$uuid");
   is($r[0], 200, "$prefix get checks");
   $doc = $xp->parse_string($r[1]);
   is($xpc->findvalue('/check/state/state', $doc), 'bad', "$prefix result");
-  eval { @r = $c->delete("/checks/delete/$uuid"); };
+  @r = $c->delete("/checks/delete/$uuid");
   is($r[0], 200, "$prefix delete");
-  eval { @r = $c->get("/checks/show/$uuid"); };
+  @r = $c->get("/checks/show/$uuid");
   is($r[0], 404, "$prefix gone");
 };
 ok(stop_noit(), "$prefix shutdown");
