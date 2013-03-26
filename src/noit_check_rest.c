@@ -677,7 +677,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  noit_http_response_standard(ctx, error_code, "ERROR", "text/xml");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
   xmlDocSetRootElement(doc, root);
