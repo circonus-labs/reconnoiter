@@ -19,10 +19,8 @@ is($r[0], 404, 'request works with usable key');
 $c = apiclient->new('localhost', $NOIT_API_PORT,
                     { 'key' => '../badclient.key',
                       'cert' => '../badclient.crt' });
-eval {
-    @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
-};
-like($@, qr/SSL/, 'request fails with revoked key');
+@r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
+like($r[1], qr/SSL/, 'request fails with revoked key');
 ok(stop_noit, 'stopping noit');
 
 1;
