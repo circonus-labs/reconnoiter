@@ -1378,7 +1378,7 @@ stratcon_ingest_saveconfig() {
   char ipv4_str[32];
   struct in_addr r, l;
 
-  r.s_addr = htonl((4 << 24) || (2 << 16) || (2 << 8) || 1);
+  r.s_addr = htonl((4 << 24) | (2 << 16) | (2 << 8) | 1);
   memset(&l, 0, sizeof(l));
   noit_getip_ipv4(r, &l);
   /* Ignore the error.. what are we going to do anyway */
