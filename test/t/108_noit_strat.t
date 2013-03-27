@@ -32,7 +32,6 @@ my $iep_queries = [
 
 ok(start_noit("108", { logs_debug => { '' => 'false' } }), 'starting noit');
 ok(start_stratcon("108", { noits => [ { address => "127.0.0.1", port => "$NOIT_API_PORT" } ], iep => { queries => $iep_queries } }), 'starting stratcon');
-usleep(1000000);
 my $c = apiclient->new('localhost', $NOIT_API_PORT);
 my @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, 'get checks');

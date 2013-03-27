@@ -13,7 +13,6 @@ my $doc;
 my $codes = {};
 
 ok(start_noit("103", { logs_debug => { '' => 'false' } }), 'starting noit');
-usleep(1000000);
 my $c = apiclient->new('localhost', $NOIT_API_PORT);
 my $req_time = [gettimeofday];
 @r = $c->capabilities();

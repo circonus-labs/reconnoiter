@@ -1,7 +1,6 @@
 use Test::More tests => 7;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
-use Time::HiRes qw/usleep/;
 use testconfig;
 use apiclient;
 
@@ -11,7 +10,6 @@ my $xpc = XML::LibXML::XPathContext->new();
 my $doc;
 
 ok(start_stratcon("106"), 'starting stratcon');
-usleep(1000000);
 
 my $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'connected to db');

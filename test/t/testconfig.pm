@@ -6,6 +6,7 @@ use Cwd;
 use Exporter 'import';
 use Data::Dumper;
 use IO::File;
+use Time::HiRes qw/gettimeofday tv_interval usleep/;
 use strict;
 use vars qw/@EXPORT/;
 sub mkL {
@@ -23,6 +24,8 @@ my $noit_pid = 0;
 my $noit_log = undef;
 my $stratcon_pid = 0;
 my $stratcon_log = undef;
+my $killsig = 3;
+my $boot_timeout = 5;
 
 
 @EXPORT = qw($NOIT_TEST_DB $NOIT_TEST_DB_PORT
@@ -31,8 +34,19 @@ my $stratcon_log = undef;
              $STRATCON_WEB_PORT
              pg make_noit_config start_noit stop_noit get_noit_log
              make_stratcon_config start_stratcon stop_stratcon get_stratcon_log
-             $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules);
+             $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules
+             safe_usleep);
 
+sub safe_usleep {
+  my $micros = shift;
+  my $start = [gettimeofday];
+  while(1) {
+    my $elapsed = tv_interval($start, [gettimeofday]) * 1000000.0;
+    my $tosleep = $micros - $elapsed;
+    last if ($tosleep < 0);
+    usleep($tosleep);
+  }
+}
 our $default_filterset = {
   allowall => [ { type => "allow" } ],
 };
@@ -51,13 +65,15 @@ our $all_noit_modules = {
   'tcp' => { 'loader' => 'lua', 'object' => 'noit.module.tcp' },
 };
 
+# Jitter the ports up (in blocks of 5 for 10k ports)
+my $jitter = int(rand() * 10000 / 5) * 5;
 our $NOIT_TEST_DB = "/tmp/noit-test-db-$>";
 our $NOIT_TEST_DB_PORT = 23816;
-our $NOIT_API_PORT = 42364;
-our $NOIT_CLI_PORT = 42365;
-our $STRATCON_API_PORT = 42366;
-our $STRATCON_CLI_PORT = 42367;
-our $STRATCON_WEB_PORT = 42368;
+our $NOIT_API_PORT = 42364 + $jitter;
+our $NOIT_CLI_PORT = 42365 + $jitter;
+our $STRATCON_API_PORT = 42366 + $jitter;
+our $STRATCON_CLI_PORT = 42367 + $jitter;
+our $STRATCON_WEB_PORT = 42368 + $jitter;
 
 our ($MODULES_DIR, $LUA_DIR);
 
@@ -109,7 +125,7 @@ sub make_rest_acls {
 sub make_log_section {
   my ($o, $type, $dis) = @_;
   print $o qq{      <$type>
-        <outlet name="$type"/>
+        <outlet name="error"/>
 };
   while (my ($t, $d) = each %$dis) {
     next unless length($t);
@@ -121,7 +137,7 @@ sub make_logs_config {
   my ($o, $opts) = @_;
   my $cwd = $opts->{cwd};
   my @logtypes = qw/collectd dns eventer external lua mysql ping_icmp postgres
-                    selfcheck snmp ssh2/;
+                    selfcheck snmp ssh2 listener/;
   # These are disabled attrs, so they look backwards
   if(!exists($opts->{logs_error})) {
     $opts->{logs_error}->{''} ||= 'false';
@@ -129,6 +145,8 @@ sub make_logs_config {
   if(!exists($opts->{logs_debug})) {
     $opts->{logs_debug}->{''} ||= 'true';
   }
+  # Listener is special, we need that for boot availability detection
+  $opts->{logs_debug}->{listener} ||= 'false';
   foreach(@logtypes) {
     $opts->{logs_error}->{$_} ||= 'false';
     $opts->{logs_debug}->{$_} ||= 'true';
@@ -505,6 +523,18 @@ $SIG{CHLD} = sub {
   $stratcon_pid = 0 if($pid == $stratcon_pid);
 };
 
+sub find_in_log {
+  my $logfile = shift;
+  my $re = shift;
+  my $f = IO::File->new("<$logfile");
+  return 0 unless $f;
+  while(<$f>) {
+    chomp;
+    return $1 if($_ =~ $re);
+  }
+  return 0;
+}
+
 sub start_noit {
   my $name = shift;
   my $options = shift;
@@ -516,11 +546,11 @@ sub start_noit {
   L("noit_pid -> $noit_pid") if ($noit_pid);
   mkdir "logs";
   $noit_log = "logs/${name}_noit.log";
+  unlink($noit_log);
   if($noit_pid == 0) {
     L("in child");
     childL;
     $noit_pid = $$;
-    $noit_log = "logs/${name}_noit.log";
     L("in child -> closing stdin");
     close(STDIN);
     L("in child -> opening stdin");
@@ -534,11 +564,26 @@ sub start_noit {
     L("in child -> opening err $noit_log");
     open(STDERR, ">$noit_log");
     my @args = ( 'noitd', '-D', '-c', $conf );
+    my $prog = '../../src/noitd';
+    if($ENV{TRACE}) {
+      shift @args;
+      unshift @args, $ENV{TRACE}, '-o', "logs/${name}_noit.trace", $prog;
+      $prog = $ENV{TRACE};
+    }
     L("in child -> exec");
-    exec { '../../src/noitd' } @args;
+    { exec { $prog } @args; }
+    print STDERR "ERROR: $!\n";
     exit(-1);
   }
   L("in parent -> noitd($noit_pid)");
+  my $start = [gettimeofday];
+  while($noit_pid != 0 &&
+        tv_interval($start, [gettimeofday]) < $boot_timeout &&
+        !find_in_log($noit_log, qr/noit_listener\([^,]+,\s(\d+).*control_dispatch/)) {
+    usleep(100000);
+  }
+  my $pid = find_in_log($noit_log, qr/process starting: (\d+)/);
+  $noit_pid = $pid if($pid);
   return $noit_pid;
 }
 sub get_noit_log {
@@ -563,11 +608,11 @@ sub start_stratcon {
   L("stratcon_pid -> $stratcon_pid") if($stratcon_pid);
   mkdir "logs";
   $stratcon_log = "logs/${name}_stratcon.log";
+  unlink($stratcon_log);
   if($stratcon_pid == 0) {
     L("in child");
     childL;
     $stratcon_pid = $$;
-    $stratcon_log = "logs/${name}_stratcon.log";
     close(STDIN);
     open(STDIN, "</dev/null");
     close(STDOUT);
@@ -576,23 +621,48 @@ sub start_stratcon {
     open(STDERR, ">$stratcon_log");
     my @args = ( 'stratcond', '-D', '-c', $conf );
     L("in child -> exec");
-    exec { '../../src/stratcond' } @args;
+    my $prog = '../../src/stratcond';
+    if($ENV{TRACE}) {
+      shift @args;
+      unshift @args, $ENV{TRACE}, '-o', "logs/${name}_stratcon.trace", $prog;
+      $killsig = 3;
+      $prog = $ENV{TRACE};
+    }
+    { exec { $prog } @args; }
+    print STDERR "ERROR: $!\n";
     exit(-1);
   }
+  my $start = [gettimeofday];
+  while($stratcon_pid != 0 &&
+        tv_interval($start, [gettimeofday]) < $boot_timeout &&
+        !find_in_log($stratcon_log, qr/noit_listener\([^,]+,\s(\d+).*control_dispatch/)) {
+    usleep(100000);
+  }
+  my $pid = find_in_log($stratcon_log, qr/process starting: (\d+)/);
+  $stratcon_pid = $pid if($pid);
   return $stratcon_pid;
 }
 sub get_stratcon_log {
   return IO::File->new("<$stratcon_log");
 }
 sub stop_stratcon {
+  my $tryfor = 5;
   return 0 unless ($stratcon_pid && kill 0, $stratcon_pid);
+  if($killsig != 0) {
+    my $start = [gettimeofday];
+    kill $killsig, $stratcon_pid;
+    while(kill 0, $stratcon_pid &&
+          tv_interval($start, [gettimeofday]) < $tryfor) {
+      usleep(100000);
+    }
+  }
   kill 9, $stratcon_pid;
   $stratcon_pid = 0;
   return 1;
 }
 
 END {
-  kill 9, $noit_pid if($noit_pid && kill 1, $noit_pid);
-  kill 9, $stratcon_pid if($stratcon_pid && kill 1, $stratcon_pid);
+  stop_noit();
+  stop_stratcon();
 }
 1;

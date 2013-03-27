@@ -1,7 +1,6 @@
 use Test::More tests => 10;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
-use Time::HiRes qw/usleep/;
 use testconfig;
 use apiclient;
 
@@ -11,7 +10,6 @@ my $xpc = XML::LibXML::XPathContext->new();
 my $doc;
 
 ok(start_stratcon("104"), 'starting stratcon');
-usleep(1000000);
 my $c = apiclient->new('localhost', $STRATCON_API_PORT);
 my @r = $c->get("/noits/show");
 is($r[0], 200, 'show noits');
