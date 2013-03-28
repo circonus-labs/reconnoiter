@@ -72,7 +72,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 include Makefile.objs
 
 $(LUADIR)/src/%.o:	lua/src/lua
-	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="$(CC) $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
+	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 
 NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \

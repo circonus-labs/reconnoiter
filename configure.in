@@ -774,7 +774,7 @@ else
   fi
 fi
 
-LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g;"`
+LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
 AC_SUBST(LUACFLAGS)
 
 AC_OUTPUT([
