@@ -71,6 +71,7 @@ import org.snmp4j.smi.Address;
 import org.snmp4j.smi.GenericAddress;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.OID;
+import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
@@ -147,7 +148,8 @@ public class snmp implements JezebelCheck {
         }
       }
 
-      Snmp snmp = new Snmp(new DefaultUdpTransportMapping());
+      UdpAddress udpAddr = new UdpAddress(UdpAddress.ANY_IPADDRESS, 0);
+      Snmp snmp = new Snmp(new DefaultUdpTransportMapping(udpAddr));
       /* the snmp connection is open... add a seprate try/catch so we can make sure we close it */
       try {
         if ((version.equals("1")) || (version.equals("2c"))) {
