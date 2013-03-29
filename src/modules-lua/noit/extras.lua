@@ -117,7 +117,10 @@ function check_host_header_against_certificate(host_header, cert_subject, san_li
 end
 
 function decode_form(req, desired_key)
-  if(req:headers("content-type") ~= "application/x-www-form-urlencoded") then return nil end
+  if string.find(req:headers("content-type") or "",
+                 "application/x-www-form-urlencoded", 1, true) == nil then
+    return nil
+  end
   local p = req:payload()
   local form = {}
   if(p ~= nil) then
