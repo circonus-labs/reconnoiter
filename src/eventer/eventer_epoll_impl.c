@@ -209,7 +209,12 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
     if(newmask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
     if(newmask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
     if(newmask & EVENTER_EXCEPTION) _ev.events |= (EPOLLERR|EPOLLHUP);
-    assert(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
+    if(master_fds[fd].e == NULL) {
+      noitL(noit_error, "eventer %s(%p) epoll asked to modify descheduled fd: %d\n",
+            cbname?cbname:"???", e->callback, fd);
+    } else {
+      assert(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
+    }
     /* Set our mask */
     e->mask = newmask;
   }
