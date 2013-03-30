@@ -52,7 +52,7 @@
 #define EVENTER_CANCEL_ASYNCH   0x400
 #define EVENTER_CANCEL          (EVENTER_CANCEL_DEFERRED|EVENTER_CANCEL_ASYNCH)
 
-#define EVENTER_DEFAULT_ASYNCH_ABORT EVENTER_CANCEL_DEFERRED
+#define EVENTER_DEFAULT_ASYNCH_ABORT EVENTER_EVIL_BRUTAL
 
 /* All of these functions act like their POSIX couterparts with two
  * additional arguments.  The first is the mask they require to be active
