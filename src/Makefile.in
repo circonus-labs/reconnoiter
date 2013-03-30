@@ -114,12 +114,12 @@ all:	reversion $(TARGETS) java-bits make-modules make-man
 lua/src/lua:
 	(cd lua/src && $(MAKE) lua)
 
-$(FINAL_NOIT_OBJS):	$(NOIT_OBJS)
+noit-objs/%.o:
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:noit-objs/%.o=%.o) $@
 
-$(FINAL_STRATCON_OBJS):
+stratcon-objs/%.o:
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:stratcon-objs/%.o=%.o) $@
@@ -336,6 +336,11 @@ Makefile.stratcon.dep:
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
+	for d in utils jlog udns eventer noitedit json-lib yajl-lib; do \
+		$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) $$d/*.c | \
+		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#'$$d'/$$1#;' >> \
+		Makefile.dep ; \
+	done
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep

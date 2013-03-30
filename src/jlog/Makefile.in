@@ -82,3 +82,5 @@ distclean: 	clean
 	rm -f Makefile jlog_config.h perl/Makefile.PL
 
 .SUFFIXES: .c .o .lo
+
+include Makefile.dep
