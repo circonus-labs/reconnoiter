@@ -62,6 +62,7 @@ typedef struct _noit_log_stream {
   unsigned enabled:1;
   unsigned debug:1;
   unsigned timestamps:1;
+  unsigned facility:1;
   /* totally private type, don't even think about it */
 } * noit_log_stream_t;
 #endif
@@ -69,9 +70,10 @@ typedef struct _noit_log_stream {
 extern noit_log_stream_t noit_stderr;
 extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
+extern noit_log_stream_t noit_notice;
 
 API_EXPORT(int) noit_log_global_enabled();
-API_EXPORT(void) noit_log_init();
+API_EXPORT(void) noit_log_init(int debug_on);
 API_EXPORT(int) noit_log_reopen_all();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
 API_EXPORT(void *) noit_log_stream_get_ctx(noit_log_stream_t);

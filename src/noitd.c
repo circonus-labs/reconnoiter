@@ -160,7 +160,7 @@ static int child_main() {
   }
 
   noit_log_reopen_all();
-  noitL(noit_error, "process starting: %d\n", (int)getpid());
+  noitL(noit_notice, "process starting: %d\n", (int)getpid());
 
   signal(SIGHUP, request_conf_reload);
 

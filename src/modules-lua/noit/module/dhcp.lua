@@ -98,7 +98,7 @@ function create_dhcp_socket(port)
   end 
   err, errno = e:bind('0.0.0.0', port)
   if err ~= 0 then
-    noit.log("error", "binding error -> " .. errno)
+    noit.log("error", "binding error -> " .. errno .. "\n")
     return nil
   end 
   return e

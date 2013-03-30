@@ -163,7 +163,7 @@ static int child_main() {
   }
 
   noit_log_reopen_all();
-  noitL(noit_error, "process starting: %d\n", (int)getpid());
+  noitL(noit_notice, "process starting: %d\n", (int)getpid());
 
   /* Lastly, run through all other system inits */
   if(!noit_conf_get_stringbuf(NULL, "/" APPNAME "/eventer/@implementation",

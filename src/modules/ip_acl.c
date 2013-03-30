@@ -102,7 +102,7 @@ ip_acl_onload(noit_image_t *self) {
               arcnt++;
             }
           }
-          noitL(noit_error, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
+          noitL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
           noit_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
           free(rule_c);
         }

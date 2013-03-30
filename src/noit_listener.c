@@ -243,7 +243,7 @@ noit_listener(char *host, unsigned short port, int type,
           family = AF_INET;
           a.addr4.s_addr = INADDR_ANY;
         } else {
-          noitL(noit_stderr, "Cannot translate '%s' to IP\n", host);
+          noitL(noit_error, "Cannot translate '%s' to IP\n", host);
           return -1;
         }
       }
@@ -252,13 +252,13 @@ noit_listener(char *host, unsigned short port, int type,
 
   fd = socket(family, type, 0);
   if(fd < 0) {
-    noitL(noit_stderr, "Cannot create socket: %s\n", strerror(errno));
+    noitL(noit_error, "Cannot create socket: %s\n", strerror(errno));
     return -1;
   }
 
   if(eventer_set_fd_nonblocking(fd)) {
     close(fd);
-    noitL(noit_stderr, "Cannot make socket non-blocking: %s\n",
+    noitL(noit_error, "Cannot make socket non-blocking: %s\n",
           strerror(errno));
     return -1;
   }
@@ -267,7 +267,7 @@ noit_listener(char *host, unsigned short port, int type,
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                  (void*)&reuse, sizeof(reuse)) != 0) {
     close(fd);
-    noitL(noit_stderr, "Cannot set SO_REUSEADDR: %s\n", strerror(errno));
+    noitL(noit_error, "Cannot set SO_REUSEADDR: %s\n", strerror(errno));
     return -1;
   }
 
@@ -277,7 +277,7 @@ noit_listener(char *host, unsigned short port, int type,
     /* unlink the path if it is a socket */
     if(stat(host, &sb) == -1) {
       if(errno != ENOENT) {
-        noitL(noit_stderr, "%s: %s\n", host, strerror(errno));
+        noitL(noit_error, "%s: %s\n", host, strerror(errno));
         close(fd);
         return -1;
       }
@@ -286,7 +286,7 @@ noit_listener(char *host, unsigned short port, int type,
       if(sb.st_mode & S_IFSOCK)
         unlink(host);
       else {
-        noitL(noit_stderr, "unlink %s failed: %s\n", host, strerror(errno));
+        noitL(noit_error, "unlink %s failed: %s\n", host, strerror(errno));
         close(fd);
         return -1;
       }
@@ -309,7 +309,7 @@ noit_listener(char *host, unsigned short port, int type,
     sockaddr_len = (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6);
   }
   if(bind(fd, (struct sockaddr *)&s, sockaddr_len) < 0) {
-    noitL(noit_stderr, "bind failed[%s]: %s\n", host, strerror(errno));
+    noitL(noit_error, "bind failed[%s]: %s\n", host, strerror(errno));
     close(fd);
     return -1;
   }
@@ -353,7 +353,7 @@ noit_listener_reconfig(const char *toplevel) {
   snprintf(path, sizeof(path), "/%s/listeners//listener",
            toplevel ? toplevel : "*");
   listener_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_stderr, "Found %d %s stanzas\n", cnt, path);
+  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char address[256];
     char type[256];
@@ -367,12 +367,12 @@ noit_listener_reconfig(const char *toplevel) {
     if(!noit_conf_get_stringbuf(listener_configs[i],
                                 "ancestor-or-self::node()/@type",
                                 type, sizeof(type))) {
-      noitL(noit_stderr, "No type specified in listener stanza %d\n", i+1);
+      noitL(noit_error, "No type specified in listener stanza %d\n", i+1);
       continue;
     }
     f = eventer_callback_for_name(type);
     if(!f) {
-      noitL(noit_stderr,
+      noitL(noit_error,
             "Cannot find handler for listener type: '%s'\n", type);
       continue;
     }
@@ -388,7 +388,7 @@ noit_listener_reconfig(const char *toplevel) {
     port = (unsigned short) portint;
     if(address[0] != '/' && (portint == 0 || (port != portint))) {
       /* UNIX sockets don't require a port (they'll ignore it if specified */
-      noitL(noit_stderr,
+      noitL(noit_error,
             "Invalid port [%d] specified in stanza %d\n", port, i+1);
       continue;
     }

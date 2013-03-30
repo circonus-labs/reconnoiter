@@ -96,7 +96,7 @@ void cli_log_switches() {
     ls = noit_log_stream_find(enable_logs[i]);
     if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
     if(ls && !ls->enabled) {
-      noitL(noit_error, "Enabling %s\n", enable_logs[i]);
+      noitL(noit_notice, "Enabling %s\n", enable_logs[i]);
       ls->enabled = 1;
     }
   }
@@ -104,7 +104,7 @@ void cli_log_switches() {
     ls = noit_log_stream_find(disable_logs[i]);
     if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
     if(ls && ls->enabled) {
-      noitL(noit_error, "Disabling %s\n", disable_logs[i]);
+      noitL(noit_notice, "Disabling %s\n", disable_logs[i]);
       ls->enabled = 0;
     }
   }
@@ -130,9 +130,10 @@ noit_main(const char *appname,
   
    
   /* First initialize logging, so we can log errors */
-  noit_log_init();
+  noit_log_init(debug);
   noit_log_stream_add_stream(noit_debug, noit_stderr);
   noit_log_stream_add_stream(noit_error, noit_stderr);
+  noit_log_stream_add_stream(noit_notice, noit_error);
 
   /* Next load the configs */
   noit_conf_init(appname);

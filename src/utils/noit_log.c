@@ -75,6 +75,7 @@ struct _noit_log_stream {
   unsigned enabled:1;
   unsigned debug:1;
   unsigned timestamps:1;
+  unsigned facility:1;
   /* Above is exposed... */
   char *type;
   char *name;
@@ -89,6 +90,7 @@ struct _noit_log_stream {
   unsigned deps_materialized:1;
   unsigned debug_below:1;
   unsigned timestamps_below:1;
+  unsigned facility_below:1;
 };
 
 static noit_hash_table noit_loggers = NOIT_HASH_EMPTY;
@@ -96,6 +98,7 @@ static noit_hash_table noit_logops = NOIT_HASH_EMPTY;
 noit_log_stream_t noit_stderr = NULL;
 noit_log_stream_t noit_error = NULL;
 noit_log_stream_t noit_debug = NULL;
+noit_log_stream_t noit_notice = NULL;
 
 int noit_log_global_enabled() {
   return NOIT_LOG_LOG_ENABLED();
@@ -109,13 +112,15 @@ static void materialize_deps(noit_log_stream_t ls) {
   if(ls->deps_materialized) return;
   if(ls->debug) ls->debug_below = 1;
   if(ls->timestamps) ls->timestamps_below = 1;
-  if(ls->debug_below == 0 || ls->timestamps_below == 0) {
+  if(ls->facility) ls->facility_below = 1;
+  if(ls->debug_below == 0 || ls->timestamps_below == 0 || ls->facility_below) {
     /* we might have children than need these */
     struct _noit_log_stream_outlet_list *node;
     for(node = ls->outlets; node; node = node->next) {
       MATERIALIZE_DEPS(node->outlet);
       if(!ls->debug) ls->debug_below = node->outlet->debug_below;
       if(!ls->timestamps) ls->timestamps_below = node->outlet->timestamps_below;
+      if(!ls->facility) ls->facility_below = node->outlet->facility_below;
     }
   }
   ls->deps_materialized = 1;
@@ -608,15 +613,18 @@ static logops_t jlog_logio_ops = {
 };
 
 void
-noit_log_init() {
+noit_log_init(int debug_on) {
   noit_hash_init(&noit_loggers);
   noit_hash_init(&noit_logops);
   noit_register_logops("file", &posix_logio_ops);
   noit_register_logops("jlog", &jlog_logio_ops);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2, NULL);
   noit_stderr->timestamps = 1;
+  noit_stderr->facility = 1;
   noit_error = noit_log_stream_new("error", NULL, NULL, NULL, NULL);
   noit_debug = noit_log_stream_new("debug", NULL, NULL, NULL, NULL);
+  noit_notice = noit_log_stream_new("notice", NULL, NULL, NULL, NULL);
+  noit_debug->enabled = debug_on;
 }
 
 void
@@ -904,21 +912,42 @@ noit_log_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
 }
 
 static int
-noit_log_line(noit_log_stream_t ls,
+noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
               const char *timebuf, int timebuflen,
               const char *debugbuf, int debugbuflen,
               const char *buffer, size_t len) {
   int rv = 0;
   struct _noit_log_stream_outlet_list *node;
+  struct _noit_log_stream bitor_onstack;
+  if(!bitor) {
+    bitor = &bitor_onstack;
+    memcpy(bitor, ls, sizeof(bitor_onstack));
+  }
+  else {
+    bitor->timestamps |= ls->timestamps;
+    bitor->debug |= ls->debug;
+    bitor->facility |= ls->facility;
+  }
   if(ls->ops) {
     int iovcnt = 0;
-    struct iovec iov[3];
-    if(ls->timestamps) {
+    struct iovec iov[6];
+    if(ls->timestamps || (bitor && bitor->timestamps)) {
       iov[iovcnt].iov_base = (void *)timebuf;
       iov[iovcnt].iov_len = timebuflen;
       iovcnt++;
     }
-    if(ls->debug) {
+    if(ls->facility || (bitor && bitor->facility)) {
+      iov[iovcnt].iov_base = (void *)"[";
+      iov[iovcnt].iov_len = 1;
+      iovcnt++;
+      iov[iovcnt].iov_base = (void *)bitor->name;
+      iov[iovcnt].iov_len = strlen(bitor->name);
+      iovcnt++;
+      iov[iovcnt].iov_base = (void *)"] ";
+      iov[iovcnt].iov_len = 2;
+      iovcnt++;
+    }
+    if(ls->debug || (bitor && bitor->debug)) {
       iov[iovcnt].iov_base = (void *)debugbuf;
       iov[iovcnt].iov_len = debugbuflen;
       iovcnt++;
@@ -931,7 +960,8 @@ noit_log_line(noit_log_stream_t ls,
   for(node = ls->outlets; node; node = node->next) {
     int srv = 0;
     debug_printf(" %s -> %s\n", ls->name, node->outlet->name);
-    srv = noit_log_line(node->outlet, timebuf, timebuflen, debugbuf, debugbuflen, buffer, len);
+    srv = noit_log_line(node->outlet, bitor, timebuf,
+                        timebuflen, debugbuf, debugbuflen, buffer, len);
     if(srv) rv = srv;
   }
   return rv;
@@ -990,13 +1020,13 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       }
       NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
       if(ls->enabled)
-        rv = noit_log_line(ls, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
+        rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
       free(dynbuff);
     }
     else {
       NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
       if(ls->enabled)
-        rv = noit_log_line(ls, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
+        rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
     }
     if(rv == len) return 0;
     return -1;

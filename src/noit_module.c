@@ -446,7 +446,7 @@ void noit_module_init() {
       noit_module_load_failure_count++;
     }
     else
-      noitL(noit_stderr, "Generic module %s successfully loaded.\n", g_name);
+      noitL(noit_debug, "Generic module %s successfully loaded.\n", g_name);
   }
   if(sections) free(sections);
   /* Load our module loaders */
@@ -545,7 +545,7 @@ void noit_module_init() {
             "Initialized failed on %s\n", module_name);
       continue;
     }
-    noitL(noit_stderr, "Module %s successfully loaded.\n", module_name);
+    noitL(noit_debug, "Module %s successfully loaded.\n", module_name);
   }
   if(cnt) free(sections);
 

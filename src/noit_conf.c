@@ -1497,7 +1497,7 @@ noit_conf_log_init(const char *toplevel) {
     noit_log_stream_t ls;
     char name[256], type[256], path[256];
     noit_hash_table *config;
-    noit_boolean disabled, debug, timestamps;
+    noit_boolean disabled, debug, timestamps, facility;
 
     if(!noit_conf_get_stringbuf(log_configs[i],
                                 "ancestor-or-self::node()/@name",
@@ -1538,6 +1538,11 @@ noit_conf_log_init(const char *toplevel) {
                              "ancestor-or-self::node()/@timestamps",
                              &timestamps))
       ls->timestamps = timestamps ? 1 : 0;
+  
+    if(noit_conf_get_boolean(log_configs[i],
+                             "ancestor-or-self::node()/@facility",
+                             &facility))
+      ls->facility = facility ? 1 : 0;
   
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);
