@@ -58,6 +58,7 @@
 
 eventer_jobq_t iep_jobq;
 static noit_log_stream_t noit_iep = NULL;
+static noit_log_stream_t noit_iep_debug = NULL;
 static noit_spinlock_t iep_conn_cnt = 0;
 
 static pthread_key_t iep_connection;
@@ -136,7 +137,7 @@ submit_statement_node(struct statement_node *stmt) {
     if(*cp == '\n') *cp = ' ';
     cp++;
   }
-  noitL(noit_error, "submitting statement: %s\n", line);
+  noitL(noit_iep, "submitting statement: %s\n", line);
   stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   stmt->marked = 1;
 }
@@ -183,13 +184,13 @@ void stratcon_iep_submit_statements() {
     stmt->statement = statement;
     stmt->provides = provides[0] ? strdup(provides) : NULL;
     if(!noit_hash_store(&stmt_by_id, stmt->id, strlen(stmt->id), stmt)) {
-      noitL(noit_error, "Duplicate statement id: %s\n", stmt->id);
+      noitL(noit_iep, "Duplicate statement id: %s\n", stmt->id);
       exit(-1);
     }
     if(stmt->provides) {
       if(!noit_hash_store(&stmt_by_provider, stmt->provides,
                           strlen(stmt->provides), stmt)) {
-        noitL(noit_error, "Two statements provide: '%s'\n", stmt->provides);
+        noitL(noit_iep, "Two statements provide: '%s'\n", stmt->provides);
         exit(-1);
       }
     }
@@ -209,7 +210,7 @@ void stratcon_iep_submit_statements() {
       continue;
     }
     if(!noit_hash_retrieve(&stmt_by_id, id, strlen(id), &vstmt)) {
-      noitL(noit_error, "Cannot find statement: %s\n", id);
+      noitL(noit_iep, "Cannot find statement: %s\n", id);
       exit(-1);
     }
     stmt = vstmt;
@@ -225,7 +226,7 @@ void stratcon_iep_submit_statements() {
         }
         if(!noit_hash_retrieve(&stmt_by_provider, requires, strlen(requires),
                                &vrstmt)) {
-          noitL(noit_error,
+          noitL(noit_iep,
                 "Statement %s requires %s which no one provides.\n",
                 stmt->id, requires);
           exit(-1);
@@ -241,7 +242,7 @@ void stratcon_iep_submit_statements() {
   while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
     stmt = vstmt;
     if(stmt_mark_dag(stmt, ++mgen) < 0) {
-      noitL(noit_error, "Statement %s has a cyclic requirement\n", stmt->id);
+      noitL(noit_iep, "Statement %s has a cyclic requirement\n", stmt->id);
       exit(-1);
     }
   }
@@ -509,10 +510,10 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
    read_error:
     kill(info->child, SIGKILL);
     if(waitpid(info->child, &rv, 0) != info->child) {
-      noitL(noit_error, "Failed to reap IEP daemon\n");
+      noitL(noit_iep, "Failed to reap IEP daemon\n");
       exit(-1);
     }
-    noitL(noit_error, "IEP daemon is done, starting a new one\n");
+    noitL(noit_iep, "IEP daemon is done, starting a new one\n");
     start_iep_daemon();
     eventer_remove_fd(e->fd);
     iep_daemon_info_free(info);
@@ -525,7 +526,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     if(len <= 0) goto read_error;
     assert(len < sizeof(buff));
     buff[len] = '\0';
-    noitL(noit_iep, "%s", buff);
+    noitL(noit_iep_debug, "%s", buff);
   }
 }
 
@@ -537,7 +538,7 @@ start_iep_daemon() {
 
   if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@command",
                            &cmd)) {
-    noitL(noit_error, "No IEP start command provided.  You're on your own.\n");
+    noitL(noit_iep, "No IEP start command provided.  You're on your own.\n");
     setup_iep_connection_later(0);
     return;
   }
@@ -552,12 +553,12 @@ start_iep_daemon() {
     info->directory = strdup(".");
   if(pipe(info->stdin_pipe) != 0 ||
      pipe(info->stderr_pipe) != 0) {
-    noitL(noit_error, "pipe: %s\n", strerror(errno));
+    noitL(noit_iep, "pipe: %s\n", strerror(errno));
     goto bail;
   }
   info->child = fork();
   if(info->child == -1) {
-    noitL(noit_error, "fork: %s\n", strerror(errno));
+    noitL(noit_iep, "fork: %s\n", strerror(errno));
     goto bail;
   }
   if(info->child == 0) {
@@ -567,7 +568,7 @@ start_iep_daemon() {
     argv[1] = noit_conf_config_filename();
 
     if(chdir(info->directory) != 0) {
-      noitL(noit_error, "Starting IEP daemon, chdir failed: %s\n",
+      noitL(noit_iep, "Starting IEP daemon, chdir failed: %s\n",
             strerror(errno));
       exit(-1);
     }
@@ -606,7 +607,7 @@ start_iep_daemon() {
   if(info) {
     iep_daemon_info_free(info);
   }
-  noitL(noit_error, "Failed to start IEP daemon\n");
+  noitL(noit_iep, "Failed to start IEP daemon\n");
   exit(-1);
   return;
 }
@@ -622,27 +623,29 @@ stratcon_iep_init() {
   char mq_type[128] = "stomp";
   void *vdriver;
 
+  noit_iep = noit_log_stream_find("error/iep");
+  noit_iep_debug = noit_log_stream_find("debug/iep");
+  if(!noit_iep) noit_iep = noit_error;
+  if(!noit_iep_debug) noit_iep_debug = noit_debug;
+
   if(noit_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
      disabled == noit_true) {
-    noitL(noit_error, "IEP system is disabled!\n");
+    noitL(noit_iep, "IEP system is disabled!\n");
     return;
   }
 
   if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/mq/@type",
                               mq_type, sizeof(mq_type))) {
-    noitL(noit_error, "You must specify an <mq type=\"...\"> that is valid.\n");
+    noitL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");
     exit(-2);
   }
   if(!noit_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
      vdriver == NULL) {
-    noitL(noit_error, "Cannot find MQ driver type: %s\n", mq_type);
-    noitL(noit_error, "Did you forget to load a module?\n");
+    noitL(noit_iep, "Cannot find MQ driver type: %s\n", mq_type);
+    noitL(noit_iep, "Did you forget to load a module?\n");
     exit(-2);
   }
   mq_driver = (mq_driver_t *)vdriver;
-
-  noit_iep = noit_log_stream_find("error/iep");
-  if(!noit_iep) noit_iep = noit_error;
 
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
   eventer_name_callback("stratcon_iep_err_handler", stratcon_iep_err_handler);
