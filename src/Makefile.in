@@ -3,6 +3,7 @@
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+CLINKFLAGS=@CLINKFLAGS@
 LUACFLAGS=@LUACFLAGS@ -DLUAJIT_UNWIND_INTERNAL
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
@@ -187,14 +188,14 @@ stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
 
 noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@echo "- linking $@"
-	@$(CC) -o $@ $(FINAL_NOIT_OBJS) \
+	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_NOIT_OBJS) \
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(LIBS)
 
 stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
-	@$(CC) -o $@ $(FINAL_STRATCON_OBJS) \
+	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_STRATCON_OBJS) \
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(LIBS)
@@ -325,6 +326,7 @@ clean:
 	(cd json-lib && $(MAKE) clean)
 	(cd yajl-lib && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
+	(cd LuaJIT && $(MAKE) clean)
 
 Makefile.noit.dep:
 	find noit-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@

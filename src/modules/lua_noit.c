@@ -67,6 +67,9 @@
 #include "json-lib/json.h"
 #include "lua_noit.h"
 
+static noit_log_stream_t nlerr = NULL;
+static noit_log_stream_t nldeb = NULL;
+
 #define DEFLATE_CHUNK_SIZE 32768
 #define ON_STACK_LUA_STRLEN 2048
 
@@ -129,11 +132,11 @@ inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
   char *newbuf;
 
   if (cl->inbuff_len < 0 || l < 0) {
-    noitL(noit_debug, "Invalid Argument: An argument was negative");
+    noitL(nldeb, "Invalid Argument: An argument was negative");
     abort();
   }
   if (cl->inbuff_len + l < 0) {
-    noitL(noit_debug, "Error: Addition Overflow");
+    noitL(nldeb, "Error: Addition Overflow");
     abort();
   }
 
@@ -1866,7 +1869,7 @@ noit_lua_pcre_match(lua_State *L) {
   }
   if(lua_gettop(L) > 1) {
     if(!lua_istable(L, 2)) {
-      noitL(noit_error, "pcre match called with second argument that is not a table\n");
+      noitL(nldeb, "pcre match called with second argument that is not a table\n");
     }
     else {
       lua_pushstring(L, "limit");
@@ -2580,13 +2583,13 @@ int nl_spawn(lua_State *L) {
   filea = (posix_spawn_file_actions_t *)alloca(sizeof(*filea));
   if(posix_spawn_file_actions_init(filea)) {
     spawn_info->last_errno = errno;
-    noitL(noit_error, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
+    noitL(nlerr, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
     goto err;
   }
 #define PIPE_SAFE(p, idx, tfd) do { \
   if(pipe(p) < 0) { \
     spawn_info->last_errno = errno; \
-    noitL(noit_error, "pipe -> %s\n", strerror(spawn_info->last_errno)); \
+    noitL(nlerr, "pipe -> %s\n", strerror(spawn_info->last_errno)); \
     goto err; \
   } \
   posix_spawn_file_actions_adddup2(filea, p[idx], tfd); \
@@ -2599,14 +2602,14 @@ int nl_spawn(lua_State *L) {
   attr = (posix_spawnattr_t *)alloca(sizeof(*attr));
   if(posix_spawnattr_init(attr)) {
     spawn_info->last_errno = errno;
-    noitL(noit_error, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
+    noitL(nlerr, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
     goto err;
   }
   rv = posix_spawnp(&spawn_info->pid, path, filea, attr,
                    (char * const *)argv, (char * const *)envp);
   if(rv != 0) {
     spawn_info->last_errno = errno;
-    noitL(noit_error, "posix_spawn(%d) -> %s\n", errno, strerror(errno));
+    noitL(nlerr, "posix_spawn(%d) -> %s\n", errno, strerror(errno));
     goto err;
   }
   /* Cleanup the parent half */
@@ -2634,7 +2637,7 @@ int nl_spawn(lua_State *L) {
   return 4;
 
  err:
-  noitL(noit_error, "nl_spawn -> %s\n", strerror(spawn_info->last_errno));
+  noitL(nlerr, "nl_spawn -> %s\n", strerror(spawn_info->last_errno));
   if(in[0] != -1) close(in[0]);
   if(in[1] != -1) close(in[1]);
   if(out[0] != -1) close(out[0]);
@@ -2851,5 +2854,9 @@ void noit_lua_init() {
   eventer_name_callback("lua/socket_connect",
                         noit_lua_socket_connect_complete);
   eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);
+  nlerr = noit_log_stream_find("error/lua");
+  nldeb = noit_log_stream_find("debug/lua");
+  if(!nlerr) nlerr = noit_stderr;
+  if(!nldeb) nldeb = noit_debug;
   noit_lua_init_dns();
 }

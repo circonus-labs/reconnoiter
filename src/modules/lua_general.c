@@ -37,6 +37,9 @@
 #include "lua_http.h"
 #include <assert.h>
 
+static noit_log_stream_t nlerr = NULL;
+static noit_log_stream_t nldeb = NULL;
+
 #define lua_general_xml_description  ""
 static const char *script_dir = "";
 
@@ -60,7 +63,7 @@ static void
 lua_general_ctx_free(void *cl) {
   noit_lua_resume_info_t *ri = cl;
   if(ri) {
-    noitL(noit_error, "lua_general(%p) -> stopping job (%p)\n",
+    noitL(nldeb, "lua_general(%p) -> stopping job (%p)\n",
           ri->lmc->lua_state, ri->coro_state);
     noit_lua_cancel_coro(ri);
     noit_lua_resume_clean_events(ri);
@@ -85,7 +88,7 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
       if(base>=0) {
         if(lua_isstring(ri->coro_state, base-1)) {
           err = lua_tostring(ri->coro_state, base-1);
-          noitL(noit_error, "err -> %s\n", err);
+          noitL(nlerr, "err -> %s\n", err);
         }
       }
       rv = -1;
@@ -106,7 +109,7 @@ lua_general_new_resume_info(lua_module_closure_t *lmc) {
   ri->coro_state_ref = luaL_ref(lmc->lua_state, -2);
   noit_lua_set_resume_info(lmc->lua_state, ri);
   lua_pop(lmc->lua_state, 1); /* pops noit_coros */
-  noitL(noit_error, "lua_general(%p) -> starting new job (%p)\n",
+  noitL(nldeb, "lua_general(%p) -> starting new job (%p)\n",
         lmc->lua_state, ri->coro_state);
   return ri;
 }
@@ -132,14 +135,14 @@ lua_general_handler(noit_module_generic_t *self) {
   rv = lua_pcall(L, 1, 1, 0);
   if(rv) {
     int i;
-    noitL(noit_error, "lua: require %s failed\n", conf->module);
+    noitL(nlerr, "lua: require %s failed\n", conf->module);
     i = lua_gettop(L);
     if(i>0) {
       if(lua_isstring(L, i)) {
         const char *err;
         size_t len;
         err = lua_tolstring(L, i, &len);
-        noitL(noit_error, "lua: %s\n", err);
+        noitL(nlerr, "lua: %s\n", err);
       }
     }
     lua_pop(L,i);
@@ -166,10 +169,13 @@ lua_general_handler(noit_module_generic_t *self) {
 
   status = lmc->resume(ri, 0);
   if(status == 0) return 0;
+  /* If we've failed, resume has freed ri, so we should just return. */
+  noitL(nlerr, "lua dispatch error: %d\n", status);
+  return 0;
 
  boom:
+  if(err) noitL(nlerr, "lua dispatch error: %s\n", err);
   if(ri) lua_general_ctx_free(ri);
-  if(err) noitL(noit_error, "lua dispatch error: %s\n", err);
   return 0;
 }
 
@@ -228,15 +234,15 @@ noit_lua_general_init(noit_module_generic_t *self) {
   lua_module_closure_t *lmc = &conf->lmc;
 
   if(!conf->module || !conf->function) {
-    noitL(noit_error, "lua_general cannot be used without module and function config\n");
+    noitL(nlerr, "lua_general cannot be used without module and function config\n");
     return -1;
   }
 
   lmc->resume = lua_general_resume;
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
-  noitL(noit_error, "lua_general opening state -> %p\n", lmc->lua_state);
+  noitL(nldeb, "lua_general opening state -> %p\n", lmc->lua_state);
   if(lmc->lua_state == NULL) {
-   noitL(noit_error, "lua_general could not add general functions\n");
+   noitL(nlerr, "lua_general could not add general functions\n");
     return -1;
   }
   luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
@@ -247,6 +253,10 @@ noit_lua_general_init(noit_module_generic_t *self) {
 
 static int
 noit_lua_general_onload(noit_image_t *self) {
+  nlerr = noit_log_stream_find("error/lua");
+  nldeb = noit_log_stream_find("debug/lua");
+  if(!nlerr) nlerr = noit_stderr;
+  if(!nldeb) nldeb = noit_debug;
   return 0;
 }
 

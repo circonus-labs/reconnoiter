@@ -76,6 +76,8 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
+	CLINKFLAGS="-shared-libgcc"
+        CFLAGS="$CFLAGS"
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
@@ -159,6 +161,7 @@ fi
 AC_SUBST(DTRACEOBJ)
 AC_SUBST(DTRACEHDR)
 AC_SUBST(DTRACEFLAGS)
+AC_SUBST(CLINKFLAGS)
 AC_SUBST(SHLD)
 AC_SUBST(RLDFLAG)
 AC_SUBST(DEPFLAGS)

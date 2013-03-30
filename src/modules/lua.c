@@ -78,6 +78,7 @@ noit_lua_cancel_coro(noit_lua_resume_info_t *ci) {
   luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
   lua_pop(ci->lmc->lua_state, 1);
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
+  noitL(nldeb, "coro_store <- %p\n", ci->coro_state);
   assert(noit_hash_delete(&noit_coros,
                           (const char *)&ci->coro_state, sizeof(ci->coro_state),
                           NULL, NULL));
@@ -87,6 +88,7 @@ void
 noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri) {
   lua_getglobal(L, "noit_internal_lmc");;
   ri->lmc = lua_touserdata(L, lua_gettop(L));
+  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri); 
@@ -183,6 +185,7 @@ noit_lua_get_resume_info(lua_State *L) {
   lua_getglobal(L, "noit_internal_lmc");;
   ri->lmc = lua_touserdata(L, lua_gettop(L));
   lua_pop(L, 1);
+  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
@@ -936,6 +939,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ri->coro_state = lua_newthread(L);
   ri->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
+  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
@@ -1065,7 +1069,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   m->cleanup = noit_lua_module_cleanup;
 
   if(noit_register_module(m)) {
-    noitL(noit_error, "lua failed to register '%s' as a module\n", m->hdr.name);
+    noitL(nlerr, "lua failed to register '%s' as a module\n", m->hdr.name);
     goto load_failed;
   }
   return m;
