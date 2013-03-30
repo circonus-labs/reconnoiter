@@ -95,17 +95,17 @@ void cli_log_switches() {
   for(i=0; i<enable_logs_cnt; i++) {
     ls = noit_log_stream_find(enable_logs[i]);
     if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
-    if(ls && !ls->enabled) {
+    if(ls && !N_L_S_ON(ls)) {
       noitL(noit_notice, "Enabling %s\n", enable_logs[i]);
-      ls->enabled = 1;
+      noit_log_stream_set_flags(ls, noit_log_stream_get_flags(ls) | NOIT_LOG_STREAM_ENABLED);
     }
   }
   for(i=0; i<disable_logs_cnt; i++) {
     ls = noit_log_stream_find(disable_logs[i]);
     if(!ls) noitL(noit_error, "No such log: '%s'\n", enable_logs[i]);
-    if(ls && ls->enabled) {
+    if(ls && N_L_S_ON(ls)) {
       noitL(noit_notice, "Disabling %s\n", disable_logs[i]);
-      ls->enabled = 0;
+      noit_log_stream_set_flags(ls, noit_log_stream_get_flags(ls) & ~NOIT_LOG_STREAM_ENABLED);
     }
   }
 }
@@ -155,8 +155,9 @@ noit_main(const char *appname,
     noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
     exit(-1);
   }
-  if(debug)
-    noit_debug->enabled = 1;
+  if(debug) {
+    noit_log_stream_set_flags(noit_debug, noit_log_stream_get_flags(noit_debug) | NOIT_LOG_STREAM_ENABLED);
+  }
 
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@glider", appname);
   if(!glider) noit_conf_get_string(NULL, appscratch, &glider);
