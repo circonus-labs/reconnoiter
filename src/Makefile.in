@@ -329,10 +329,16 @@ clean:
 	(cd LuaJIT && $(MAKE) clean)
 
 Makefile.noit.dep:
-	find noit-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
+	find noit-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
+	for impl in kqueue ports epoll; do \
+		echo "noit-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
+	done
 
 Makefile.stratcon.dep:
-	find stratcon-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
+	find stratcon-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
+	for impl in kqueue ports epoll; do \
+		echo "stratcon-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
+	done
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep

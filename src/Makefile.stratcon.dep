@@ -5,7 +5,6 @@ stratcon-objs/eventer/eventer_POSIX_fd_opset.o: eventer/eventer_POSIX_fd_opset.o
 stratcon-objs/eventer/eventer_SSL_fd_opset.o: eventer/eventer_SSL_fd_opset.o
 stratcon-objs/eventer/eventer_impl.o: eventer/eventer_impl.o
 stratcon-objs/eventer/eventer_jobq.o: eventer/eventer_jobq.o
-stratcon-objs/eventer/eventer_kqueue_impl.o: eventer/eventer_kqueue_impl.o
 stratcon-objs/jlog/jlog.o: jlog/jlog.o
 stratcon-objs/jlog/jlog_hash.o: jlog/jlog_hash.o
 stratcon-objs/jlog/jlog_io.o: jlog/jlog_io.o
@@ -96,3 +95,6 @@ stratcon-objs/yajl-lib/yajl_lex.o: yajl-lib/yajl_lex.o
 stratcon-objs/yajl-lib/yajl_parser.o: yajl-lib/yajl_parser.o
 stratcon-objs/yajl-lib/yajl_tree.o: yajl-lib/yajl_tree.o
 stratcon-objs/yajl-lib/yajl_version.o: yajl-lib/yajl_version.o
+stratcon-objs/eventer/eventer_kqueue_impl.o: eventer/eventer_kqueue_impl.o
+stratcon-objs/eventer/eventer_ports_impl.o: eventer/eventer_ports_impl.o
+stratcon-objs/eventer/eventer_epoll_impl.o: eventer/eventer_epoll_impl.o
