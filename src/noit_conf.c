@@ -1494,6 +1494,7 @@ noit_conf_log_init(const char *toplevel) {
   log_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
+    int flags;
     noit_log_stream_t ls;
     char name[256], type[256], path[256];
     noit_hash_table *config;
@@ -1524,26 +1525,33 @@ noit_conf_log_init(const char *toplevel) {
       exit(-1);
     }
 
+    flags = noit_log_stream_get_flags(ls);
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@disabled",
-                             &disabled) && disabled)
-      ls->enabled = 0;
-      
+                             &disabled)) {
+      if(disabled) flags &= ~NOIT_LOG_STREAM_ENABLED;
+      else         flags |= NOIT_LOG_STREAM_ENABLED;
+    }
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@debug",
-                             &debug) && debug)
-      ls->debug = 1;
-      
+                             &debug)) {
+      if(debug) flags |= NOIT_LOG_STREAM_DEBUG;
+      else      flags &= ~NOIT_LOG_STREAM_DEBUG;
+    }
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@timestamps",
-                             &timestamps))
-      ls->timestamps = timestamps ? 1 : 0;
-  
+                             &timestamps)) {
+      if(timestamps) flags |= NOIT_LOG_STREAM_TIMESTAMPS;
+      else           flags &= ~NOIT_LOG_STREAM_TIMESTAMPS;
+    }
     if(noit_conf_get_boolean(log_configs[i],
                              "ancestor-or-self::node()/@facility",
-                             &facility))
-      ls->facility = facility ? 1 : 0;
-  
+                             &facility)) {
+      if(facility) flags |= NOIT_LOG_STREAM_FACILITY;
+      else         flags &= ~NOIT_LOG_STREAM_FACILITY;
+    }
+    noit_log_stream_set_flags(ls, flags);
+
     outlets = noit_conf_get_sections(log_configs[i],
                                      "ancestor-or-self::node()/outlet", &ocnt);
     noitL(noit_debug, "Found %d outlets for log '%s'\n", ocnt, name);

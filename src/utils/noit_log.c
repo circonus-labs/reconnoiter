@@ -72,11 +72,8 @@ static int DEBUG_LOG_ENABLED() {
 } while(0)
 
 struct _noit_log_stream {
-  unsigned enabled:1;
-  unsigned debug:1;
-  unsigned timestamps:1;
-  unsigned facility:1;
-  /* Above is exposed... */
+  unsigned flags;
+  /* Above is exposed... 'do not change it... dragons' */
   char *type;
   char *name;
   int mode;
@@ -88,10 +85,17 @@ struct _noit_log_stream {
   pthread_rwlock_t *lock;
   noit_atomic32_t written;
   unsigned deps_materialized:1;
-  unsigned debug_below:1;
-  unsigned timestamps_below:1;
-  unsigned facility_below:1;
+  unsigned flags_below;
 };
+
+#define IS_ENABLED_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_ENABLED)
+#define IS_TIMESTAMPS_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_TIMESTAMPS)
+#define IS_DEBUG_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_DEBUG)
+#define IS_FACILITY_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_FACILITY)
+#define IS_ENABLED_BELOW(ls) ((ls)->flags_below & NOIT_LOG_STREAM_ENABLED)
+#define IS_TIMESTAMPS_BELOW(ls) ((ls)->flags_below & NOIT_LOG_STREAM_TIMESTAMPS)
+#define IS_DEBUG_BELOW(ls) ((ls)->flags_below & NOIT_LOG_STREAM_DEBUG)
+#define IS_FACILITY_BELOW(ls) ((ls)->flags_below & NOIT_LOG_STREAM_FACILITY)
 
 static noit_hash_table noit_loggers = NOIT_HASH_EMPTY;
 static noit_hash_table noit_logops = NOIT_HASH_EMPTY;
@@ -104,25 +108,47 @@ int noit_log_global_enabled() {
   return NOIT_LOG_LOG_ENABLED();
 }
 
-#define MATERIALIZE_DEPS(ls) do { \
-  if(!(ls)->deps_materialized) materialize_deps(ls); \
+static void
+noit_log_dematerialize() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    noit_log_stream_t ls = data;
+    ls->deps_materialized = 0;
+    ls->flags &= ~NOIT_LOG_STREAM_RECALCULATE;
+    debug_printf("dematerializing(%s)\n", ls->name);
+  }
+}
+
+#define MATERIALIZE_DEPS(lstream) do { \
+  if(lstream->flags & NOIT_LOG_STREAM_RECALCULATE) noit_log_dematerialize(); \
+  if(!(lstream)->deps_materialized) materialize_deps(lstream); \
 } while(0)
 
 static void materialize_deps(noit_log_stream_t ls) {
-  if(ls->deps_materialized) return;
-  if(ls->debug) ls->debug_below = 1;
-  if(ls->timestamps) ls->timestamps_below = 1;
-  if(ls->facility) ls->facility_below = 1;
-  if(ls->debug_below == 0 || ls->timestamps_below == 0 || ls->facility_below) {
-    /* we might have children than need these */
-    struct _noit_log_stream_outlet_list *node;
-    for(node = ls->outlets; node; node = node->next) {
-      MATERIALIZE_DEPS(node->outlet);
-      if(!ls->debug) ls->debug_below = node->outlet->debug_below;
-      if(!ls->timestamps) ls->timestamps_below = node->outlet->timestamps_below;
-      if(!ls->facility) ls->facility_below = node->outlet->facility_below;
-    }
+  struct _noit_log_stream_outlet_list *node;
+  if(ls->deps_materialized) {
+    debug_printf("materialize(%s) [already done]\n", ls->name);
+    return;
   }
+  /* pass forward all but enabled */
+  ls->flags_below |= (ls->flags & NOIT_LOG_STREAM_FEATURES);
+
+  /* we might have children than need these */
+  for(node = ls->outlets; node; node = node->next) {
+    MATERIALIZE_DEPS(node->outlet);
+    /* our flags_below should be augments with our outlets flags_below
+       unless we have them in our flags already */
+    ls->flags_below |= (~(ls->flags) & NOIT_LOG_STREAM_FEATURES) &
+                       node->outlet->flags_below;
+    debug_printf("materialize(%s) |= (%s) %x\n", ls->name,
+                 node->outlet->name,
+                 node->outlet->flags_below & NOIT_LOG_STREAM_FEATURES);
+  }
+  debug_printf("materialize(%s) -> %x\n", ls->name, ls->flags_below);
   ls->deps_materialized = 1;
 }
 static int
@@ -619,12 +645,13 @@ noit_log_init(int debug_on) {
   noit_register_logops("file", &posix_logio_ops);
   noit_register_logops("jlog", &jlog_logio_ops);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2, NULL);
-  noit_stderr->timestamps = 1;
-  noit_stderr->facility = 1;
+  noit_stderr->flags |= NOIT_LOG_STREAM_TIMESTAMPS;
+  noit_stderr->flags |= NOIT_LOG_STREAM_FACILITY;
   noit_error = noit_log_stream_new("error", NULL, NULL, NULL, NULL);
   noit_debug = noit_log_stream_new("debug", NULL, NULL, NULL, NULL);
   noit_notice = noit_log_stream_new("notice", NULL, NULL, NULL, NULL);
-  noit_debug->enabled = debug_on;
+  noit_debug->flags = (noit_debug->flags & ~NOIT_LOG_STREAM_DEBUG) |
+                      (debug_on ? NOIT_LOG_STREAM_DEBUG : 0);
 }
 
 void
@@ -640,6 +667,18 @@ noit_log_stream_get_ctx(noit_log_stream_t ls) {
 void
 noit_log_stream_set_ctx(noit_log_stream_t ls, void *nctx) {
   ls->op_ctx = nctx;
+}
+
+int
+noit_log_stream_get_flags(noit_log_stream_t ls) {
+  return ls->flags;
+}
+
+int
+noit_log_stream_set_flags(noit_log_stream_t ls, int new_flags) {
+  int previous_flags = ls->flags;
+  ls->flags = new_flags | NOIT_LOG_STREAM_RECALCULATE;
+  return previous_flags;
 }
 
 const char *
@@ -694,7 +733,7 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   ls->name = strdup(name);
   ls->ops = &posix_logio_ops;
   ls->op_ctx = (void *)(vpsized_int)fd;
-  ls->enabled = 1;
+  ls->flags |= NOIT_LOG_STREAM_ENABLED;
   ls->config = config;
   ls->lock = calloc(1, sizeof(*ls->lock));
   noit_log_init_rwlock(ls);
@@ -728,7 +767,7 @@ noit_log_stream_new(const char *name, const char *type, const char *path,
   ls->name = strdup(name);
   ls->path = path ? strdup(path) : NULL;
   ls->type = type ? strdup(type) : NULL;
-  ls->enabled = 1;
+  ls->flags |= NOIT_LOG_STREAM_ENABLED;
   ls->config = config;
   if(!type)
     ls->ops = NULL;
@@ -803,6 +842,7 @@ noit_log_stream_add_stream(noit_log_stream_t ls, noit_log_stream_t outlet) {
   newnode->outlet = outlet;
   newnode->next = ls->outlets;
   ls->outlets = newnode;
+  ls->flags |= NOIT_LOG_STREAM_RECALCULATE;
 }
 
 noit_log_stream_t
@@ -815,6 +855,7 @@ noit_log_stream_remove_stream(noit_log_stream_t ls, const char *name) {
     ls->outlets = node->next;
     outlet = node->outlet;
     free(node);
+    ls->flags |= NOIT_LOG_STREAM_RECALCULATE;
     return outlet;
   }
   for(node = ls->outlets; node->next; node = node->next) {
@@ -827,6 +868,7 @@ noit_log_stream_remove_stream(noit_log_stream_t ls, const char *name) {
       /* shed */
       free(tmp);
       /* return */
+      ls->flags |= NOIT_LOG_STREAM_RECALCULATE;
       return outlet;
     }
   }
@@ -919,24 +961,18 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
   int rv = 0;
   struct _noit_log_stream_outlet_list *node;
   struct _noit_log_stream bitor_onstack;
-  if(!bitor) {
-    bitor = &bitor_onstack;
-    memcpy(bitor, ls, sizeof(bitor_onstack));
-  }
-  else {
-    bitor->timestamps |= ls->timestamps;
-    bitor->debug |= ls->debug;
-    bitor->facility |= ls->facility;
-  }
+  memcpy(&bitor_onstack, ls, sizeof(bitor_onstack));
+  if(bitor) bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_FACILITY;
+  bitor = &bitor_onstack;
   if(ls->ops) {
     int iovcnt = 0;
     struct iovec iov[6];
-    if(ls->timestamps || (bitor && bitor->timestamps)) {
+    if(IS_TIMESTAMPS_ON(bitor)) {
       iov[iovcnt].iov_base = (void *)timebuf;
       iov[iovcnt].iov_len = timebuflen;
       iovcnt++;
     }
-    if(ls->facility || (bitor && bitor->facility)) {
+    if(IS_FACILITY_ON(bitor)) {
       iov[iovcnt].iov_base = (void *)"[";
       iov[iovcnt].iov_len = 1;
       iovcnt++;
@@ -947,7 +983,7 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
       iov[iovcnt].iov_len = 2;
       iovcnt++;
     }
-    if(ls->debug || (bitor && bitor->debug)) {
+    if(IS_DEBUG_ON(bitor)) {
       iov[iovcnt].iov_base = (void *)debugbuf;
       iov[iovcnt].iov_len = debugbuflen;
       iovcnt++;
@@ -976,12 +1012,12 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   va_list copy;
 #endif
 
-  if(ls->enabled || NOIT_LOG_LOG_ENABLED()) {
+  if(IS_ENABLED_ON(ls) || NOIT_LOG_LOG_ENABLED()) {
     int len;
     char tbuf[48], dbuf[80];
     int tbuflen = 0, dbuflen = 0;
     MATERIALIZE_DEPS(ls);
-    if(ls->timestamps_below) {
+    if(IS_TIMESTAMPS_BELOW(ls)) {
       struct tm _tm, *tm;
       char tempbuf[32];
       time_t s = (time_t)now->tv_sec;
@@ -991,7 +1027,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       tbuflen = strlen(tbuf);
     }
     else tbuf[0] = '\0';
-    if(ls->debug_below) {
+    if(IS_DEBUG_BELOW(ls)) {
       snprintf(dbuf, sizeof(dbuf), "[%s:%d] ", file, line);
       dbuflen = strlen(dbuf);
     }
@@ -1019,13 +1055,13 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
 #endif
       }
       NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
-      if(ls->enabled)
+      if(IS_ENABLED_ON(ls))
         rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
       free(dynbuff);
     }
     else {
       NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
-      if(ls->enabled)
+      if(IS_ENABLED_ON(ls))
         rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
     }
     if(rv == len) return 0;

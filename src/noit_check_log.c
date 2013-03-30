@@ -192,7 +192,7 @@ _noit_check_log_metric(noit_log_stream_t ls, noit_check_t *check,
   char our_uuid_str[256*3+37];
   int srv = 0;
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
-  if(!ls->enabled) return 0;
+  if(!N_L_S_ON(ls)) return 0;
 
   if(!uuid_str) {
     MAKE_CHECK_UUID_STR(our_uuid_str, sizeof(our_uuid_str), metrics_log, check);

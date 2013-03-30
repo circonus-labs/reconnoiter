@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2005-2009, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2013, Circonus, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,37 +41,40 @@
 #include <sys/time.h>
 #include "utils/noit_hash.h"
 
+#ifdef noit_log_impl
+typedef struct _noit_log_stream * noit_log_stream_t;
+#else
+typedef void * noit_log_stream_t;
+#endif
+
 struct _noit_log_stream_outlet_list {
-  struct _noit_log_stream *outlet;
+  noit_log_stream_t outlet;
   struct _noit_log_stream_outlet_list *next;
 };
 
 typedef struct {
-  int (*openop)(struct _noit_log_stream *);
-  int (*reopenop)(struct _noit_log_stream *);
-  int (*writeop)(struct _noit_log_stream *, const void *, size_t);
-  int (*writevop)(struct _noit_log_stream *, const struct iovec *iov, int iovcnt);
-  int (*closeop)(struct _noit_log_stream *);
-  size_t (*sizeop)(struct _noit_log_stream *);
-  int (*renameop)(struct _noit_log_stream *, const char *);
+  int (*openop)(noit_log_stream_t);
+  int (*reopenop)(noit_log_stream_t);
+  int (*writeop)(noit_log_stream_t, const void *, size_t);
+  int (*writevop)(noit_log_stream_t, const struct iovec *iov, int iovcnt);
+  int (*closeop)(noit_log_stream_t);
+  size_t (*sizeop)(noit_log_stream_t);
+  int (*renameop)(noit_log_stream_t, const char *);
 } logops_t;
 
-#ifdef noit_log_impl
-typedef struct _noit_log_stream * noit_log_stream_t;
-#else
-typedef struct _noit_log_stream {
-  unsigned enabled:1;
-  unsigned debug:1;
-  unsigned timestamps:1;
-  unsigned facility:1;
-  /* totally private type, don't even think about it */
-} * noit_log_stream_t;
-#endif
+#define	NOIT_LOG_STREAM_ENABLED		0x01
+#define	NOIT_LOG_STREAM_DEBUG		0x02
+#define	NOIT_LOG_STREAM_TIMESTAMPS	0x04
+#define NOIT_LOG_STREAM_FACILITY	0x08
+#define NOIT_LOG_STREAM_RECALCULATE     0x10
+#define NOIT_LOG_STREAM_FEATURES        (NOIT_LOG_STREAM_DEBUG|NOIT_LOG_STREAM_TIMESTAMPS|NOIT_LOG_STREAM_FACILITY)
 
 extern noit_log_stream_t noit_stderr;
 extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 extern noit_log_stream_t noit_notice;
+
+#define N_L_S_ON(ls) (*((unsigned *)ls) & NOIT_LOG_STREAM_ENABLED)
 
 API_EXPORT(int) noit_log_global_enabled();
 API_EXPORT(void) noit_log_init(int debug_on);
@@ -78,6 +82,8 @@ API_EXPORT(int) noit_log_reopen_all();
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
 API_EXPORT(void *) noit_log_stream_get_ctx(noit_log_stream_t);
 API_EXPORT(void) noit_log_stream_set_ctx(noit_log_stream_t, void *);
+API_EXPORT(int) noit_log_stream_get_flags(noit_log_stream_t);
+API_EXPORT(int) noit_log_stream_set_flags(noit_log_stream_t, int);
 API_EXPORT(const char *) noit_log_stream_get_type(noit_log_stream_t);
 API_EXPORT(const char *) noit_log_stream_get_name(noit_log_stream_t);
 API_EXPORT(const char *) noit_log_stream_get_path(noit_log_stream_t);
@@ -121,11 +127,11 @@ API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
   ;
 
 #define noitLT(ls, t, args...) do { \
-  if((ls) && (noit_log_global_enabled() || (ls)->enabled)) \
+  if((ls) && (noit_log_global_enabled() || N_L_S_ON(ls))) \
     noit_log(ls, t, __FILE__, __LINE__, args); \
 } while(0)
 #define noitL(ls, args...) do { \
-  if((ls) && (noit_log_global_enabled() || (ls)->enabled)) { \
+  if((ls) && (noit_log_global_enabled() || N_L_S_ON(ls))) { \
     struct timeval __noitL_now; \
     gettimeofday(&__noitL_now, NULL); \
     noit_log(ls, &__noitL_now, __FILE__, __LINE__, args); \
