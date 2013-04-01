@@ -44,6 +44,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pcre.h>
+#include <errno.h>
+#include <sys/utsname.h>
 
 int cmd_info_comparek(const void *akv, const void *bv) {
   char *ak = (char *)akv;
@@ -149,8 +151,21 @@ static int
 noit_console_version(noit_console_closure_t ncct, int argc, char **argv,
                      noit_console_state_t *dstate, void *unused) {
   char buff[256];
+  struct utsname utsn;
+  nc_printf(ncct,   "build sysname:\t%s\nbuild nodename:\t%s\n"
+                    "build release:\t%s\nbuild version:\t%s\n"
+                    "build machine:\t%s\n",
+            UNAME_S, UNAME_N, UNAME_R, UNAME_V, UNAME_M);
+  if(uname(&utsn))
+    nc_printf(ncct, "run:\terror; %s\n", strerror(errno));
+  else
+    nc_printf(ncct, "run sysname:\t%s\nrun nodename:\t%s\n"
+                    "run release:\t%s\nrun version:\t%s\n"
+                    "run machine:\t%s\n",
+              utsn.sysname, utsn.nodename, utsn.release, utsn.version, utsn.machine);
+  nc_printf(ncct, "bitwidth:\t%dbit\n", (int)sizeof(void *)*8);
   noit_build_version(buff, sizeof(buff));
-  nc_printf(ncct, "version: %s\n", buff);
+  nc_printf(ncct, "version:\t%s\n", buff);
   return 0;
 }
 cmd_info_t console_command_version = {

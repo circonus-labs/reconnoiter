@@ -45,6 +45,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <sys/utsname.h>
 
 #include <libxml/xmlsave.h>
 #include <libxml/tree.h>
@@ -65,7 +66,8 @@ noit_capabilities_listener_init() {
 
 static void
 noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
-    char vbuff[128];
+    struct utsname utsn;
+    char vbuff[128], bwstr[4];
     noit_hash_table *lc;
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *k;
@@ -74,7 +76,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     struct timeval now;
 
     xmlDocPtr xmldoc;
-    xmlNodePtr root, cmds;
+    xmlNodePtr root, cmds, bi, ri;
 
     /* fill out capabilities */
 
@@ -86,6 +88,31 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     /* Fill in the document */
     noit_build_version(vbuff, sizeof(vbuff));
     xmlNewTextChild(root, NULL, (xmlChar *)"version", (xmlChar *)vbuff);
+
+    snprintf(bwstr, sizeof(bwstr), "%d", (int)sizeof(void *)*8);
+    /* Build info */
+    bi = xmlNewNode(NULL, (xmlChar *)"unameBuild");
+    xmlSetProp(bi, (xmlChar *)"bitwidth", (xmlChar *)bwstr);
+    xmlAddChild(root, bi);
+    xmlNewTextChild(bi, NULL, (xmlChar *)"sysname", (xmlChar *)UNAME_S);
+    xmlNewTextChild(bi, NULL, (xmlChar *)"nodename", (xmlChar *)UNAME_N);
+    xmlNewTextChild(bi, NULL, (xmlChar *)"release", (xmlChar *)UNAME_R);
+    xmlNewTextChild(bi, NULL, (xmlChar *)"version", (xmlChar *)UNAME_V);
+    xmlNewTextChild(bi, NULL, (xmlChar *)"machine", (xmlChar *)UNAME_M);
+
+    /* Run info */
+    ri = xmlNewNode(NULL, (xmlChar *)"unameRun");
+    xmlSetProp(ri, (xmlChar *)"bitwidth", (xmlChar *)bwstr);
+    xmlAddChild(root, ri);
+    if(uname(&utsn)) {
+      xmlNewTextChild(ri, NULL, (xmlChar *)"error", (xmlChar *)strerror(errno));
+    } else {
+      xmlNewTextChild(ri, NULL, (xmlChar *)"sysname", (xmlChar *)utsn.sysname);
+      xmlNewTextChild(ri, NULL, (xmlChar *)"nodename", (xmlChar *)utsn.nodename);
+      xmlNewTextChild(ri, NULL, (xmlChar *)"release", (xmlChar *)utsn.release);
+      xmlNewTextChild(ri, NULL, (xmlChar *)"version", (xmlChar *)utsn.version);
+      xmlNewTextChild(ri, NULL, (xmlChar *)"machine", (xmlChar *)utsn.machine);
+    }
 
     /* time (poor man's time check) */
     gettimeofday(&now, NULL);

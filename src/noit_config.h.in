@@ -282,4 +282,11 @@ typedef int32_t vpsized_int;
 
 typedef enum { noit_false = 0, noit_true } noit_boolean;
 
+#undef UNAME_V
+#undef UNAME_R
+#undef UNAME_S
+#undef UNAME_M
+#undef UNAME_N
+#undef UNAME_P
+
 #endif

@@ -780,6 +780,19 @@ fi
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
 AC_SUBST(LUACFLAGS)
 
+UNAME_V=`uname -v`
+UNAME_R=`uname -r`
+UNAME_S=`uname -s`
+UNAME_M=`uname -m`
+UNAME_N=`uname -n`
+UNAME_P=`uname -p`
+AC_DEFINE_UNQUOTED(UNAME_V, "$UNAME_V")
+AC_DEFINE_UNQUOTED(UNAME_R, "$UNAME_R")
+AC_DEFINE_UNQUOTED(UNAME_S, "$UNAME_S")
+AC_DEFINE_UNQUOTED(UNAME_M, "$UNAME_M")
+AC_DEFINE_UNQUOTED(UNAME_N, "$UNAME_N")
+AC_DEFINE_UNQUOTED(UNAME_P, "$UNAME_P")
+
 AC_OUTPUT([
 Makefile
 src/Makefile
