@@ -962,7 +962,10 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
   struct _noit_log_stream_outlet_list *node;
   struct _noit_log_stream bitor_onstack;
   memcpy(&bitor_onstack, ls, sizeof(bitor_onstack));
-  if(bitor) bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_FACILITY;
+  if(bitor) {
+    bitor_onstack.name = bitor->name;
+    bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_FACILITY;
+  }
   bitor = &bitor_onstack;
   if(ls->ops) {
     int iovcnt = 0;
