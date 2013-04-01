@@ -47,17 +47,27 @@
 #define EVENTER_SSL_DATANAME "eventer_ssl"
 
 #define SSL_CTX_KEYLEN (PATH_MAX * 4 + 5)
+struct cache_finfo {
+  ino_t ino;
+  time_t mtime;
+};
+
 typedef struct {
   char *key;
   SSL_CTX *internal_ssl_ctx;
   time_t creation_time;
+  time_t last_stat_time;
   unsigned crl_loaded:1;
+  struct cache_finfo cert_finfo;
+  struct cache_finfo key_finfo;
+  struct cache_finfo ca_finfo;
   noit_atomic32_t refcnt;
 } ssl_ctx_cache_node;
 
 static noit_hash_table ssl_ctx_cache;
 static pthread_mutex_t ssl_ctx_cache_lock;
 static int ssl_ctx_cache_expiry = 3600;
+static int ssl_ctx_cache_finfo_expiry = 5;
 
 struct eventer_ssl_ctx_t {
   ssl_ctx_cache_node *ssl_ctx_cn;
@@ -89,6 +99,23 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
 #define eventer_ssl_ctx_save_last_error(a,b) \
   _eventer_ssl_ctx_save_last_error((a),(b),__FILE__,__LINE__)
 #define MAX_ERR_UNWIND 10
+
+static void
+populate_finfo(struct cache_finfo *f, const char *path) {
+  struct stat sb;
+  memset(&sb, 0, sizeof(sb));
+  if(path) while(stat(path, &sb) == -1 && errno == EINTR);
+  f->ino = sb.st_ino;
+  f->mtime = sb.st_mtime;
+}
+static int
+validate_finfo(const struct cache_finfo *f, const char *path) {
+  struct stat sb;
+  memset(&sb, 0, sizeof(sb));
+  if(path) while(stat(path, &sb) == -1 && errno == EINTR);
+  if(f->ino == sb.st_ino && f->mtime == sb.st_mtime) return 0;
+  return -1;
+}
 
 static void
 _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
@@ -397,6 +424,7 @@ ssl_ctx_key_write(char *b, int blen, eventer_ssl_orientation_t type,
 
 static void
 ssl_ctx_cache_remove(const char *key) {
+  noitL(eventer_deb, "ssl_ctx_cache->remove(%s)\n", key);
   pthread_mutex_lock(&ssl_ctx_cache_lock);
   noit_hash_delete(&ssl_ctx_cache, key, strlen(key),
                    NULL, (void (*)(void *))ssl_ctx_cache_node_free);
@@ -413,6 +441,7 @@ ssl_ctx_cache_get(const char *key) {
     noit_atomic_inc32(&node->refcnt);
   }
   pthread_mutex_unlock(&ssl_ctx_cache_lock);
+  noitL(eventer_deb, "ssl_ctx_cache->get(%s) -> %p\n", key, node);
   return node;
 }
 
@@ -448,7 +477,12 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                     type, certificate, key, ca, ciphers);
   ctx->ssl_ctx_cn = ssl_ctx_cache_get(ssl_ctx_key);
   if(ctx->ssl_ctx_cn) {
-    if(now - ctx->ssl_ctx_cn->creation_time > ssl_ctx_cache_expiry) {
+    if(now - ctx->ssl_ctx_cn->creation_time > ssl_ctx_cache_expiry ||
+       (now - ctx->ssl_ctx_cn->last_stat_time > ssl_ctx_cache_finfo_expiry &&
+           (validate_finfo(&ctx->ssl_ctx_cn->cert_finfo, certificate) ||
+            validate_finfo(&ctx->ssl_ctx_cn->key_finfo, key) ||
+            validate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca) || 
+            (ctx->ssl_ctx_cn->last_stat_time = now) == 0))) { /* assignment */
       noit_atomic_dec32(&ctx->ssl_ctx_cn->refcnt);
       ssl_ctx_cache_remove(ssl_ctx_key);
       ctx->ssl_ctx_cn = NULL;
@@ -460,6 +494,10 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     ctx->ssl_ctx_cn->key = strdup(ssl_ctx_key);
     ctx->ssl_ctx_cn->refcnt = 1;
     ctx->ssl_ctx_cn->creation_time = now;
+    ctx->ssl_ctx_cn->last_stat_time = now;
+    populate_finfo(&ctx->ssl_ctx_cn->cert_finfo, certificate);
+    populate_finfo(&ctx->ssl_ctx_cn->key_finfo, key);
+    populate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca);
     ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                SSLv23_server_method() : SSLv23_client_method());
     if(!ctx->ssl_ctx) return NULL;
