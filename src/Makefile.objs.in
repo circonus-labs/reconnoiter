@@ -29,6 +29,9 @@ YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
         yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
         yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
 
+ENABLE_LUA=@ENABLE_LUA@
+
+ifeq (LuaJIT,$(ENABLE_LUA))
 LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
 	lib_io.o lib_os.o lib_package.o lib_debug.o lib_jit.o lib_ffi.o \
 	lj_vm.o lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o \
@@ -44,4 +47,23 @@ LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
 	lj_lib.o lj_alloc.o lib_aux.o \
 	lib_init.o
 LUADIR=LuaJIT
+LUACFLAGS+=-DLUAJIT_UNWIND_INTERNAL
 LUA_OBJS=$(LUAJIT:%=$(LUADIR)/src/%)
+$(LUADIR)/src/%.o:
+	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
+else
+ifeq (lua52,$(ENABLE_LUA))
+LUA52= lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
+	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
+	ltm.o lundump.o lvm.o lzio.o \
+	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
+	lmathlib.o loslib.o lstrlib.o ltablib.o loadlib.o linit.o
+LUADIR=lua
+LUACFLAGS+=-DLUA_COMPAT_ALL -DLUA_USE_POSIX -DLUA_USE_DLOPEN
+LUA_OBJS=$(LUA52:%=$(LUADIR)/src/%)
+$(LUADIR)/src/%.o:
+	@echo "- compiling $<"
+	@(cd $(LUADIR)/src && $(CC) $(LUACFLAGS) -o $(@:$(LUADIR)/src/%.o=%.o) -c $(@:$(LUADIR)/src/%.o=%.c))
+else
+endif
+endif

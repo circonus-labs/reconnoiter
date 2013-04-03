@@ -805,7 +805,11 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
   noit_lua_resume_check_info_t *ci = ri->context_data;
 
   noitL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
+#if LUA_VERSION_NUM >= 502
   result = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
+#else
+  result = lua_resume(ri->coro_state, nargs);
+#endif
   switch(result) {
     case 0: /* success */
       break;
@@ -987,7 +991,7 @@ static void *l_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
 lua_State *
 noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   int rv;
-  lua_State *L = lua_newstate(l_alloc, NULL);
+  lua_State *L = luaL_newstate();
   noitL(nldeb, "lua_state[%s]: %p\n", module_name, L);
   lua_atpanic(L, &noit_lua_panic);
 

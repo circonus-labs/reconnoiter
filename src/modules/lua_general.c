@@ -77,7 +77,11 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
 
+#if LUA_VERSION_NUM >= 502
   status = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
+#else
+  status = lua_resume(ri->coro_state, nargs);
+#endif
 
   switch(status) {
     case 0: break;
@@ -195,7 +199,7 @@ lua_general_coroutine_spawn(lua_State *Lp) {
   ri = lua_general_new_resume_info(ri_parent->lmc);
   L = ri->coro_state;
   lua_xmove(Lp, L, nargs);
-#ifndef LUA_JITLIBNAME
+#if !defined(LUA_JITLIBNAME) && LUA_VERSION_NUM < 502
   lua_setlevel(Lp, L);
 #endif
   ri->lmc->resume(ri, nargs-1);

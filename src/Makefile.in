@@ -4,7 +4,7 @@ CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
 CLINKFLAGS=@CLINKFLAGS@
-LUACFLAGS=@LUACFLAGS@ -DLUAJIT_UNWIND_INTERNAL
+LUACFLAGS=@LUACFLAGS@
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
 DEPFLAGS=@DEPFLAGS@
@@ -72,9 +72,6 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 
 include Makefile.objs
 
-$(LUADIR)/src/%.o:	lua/src/lua
-	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
-
 NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
@@ -114,12 +111,12 @@ all:	reversion $(TARGETS) java-bits make-modules make-man
 lua/src/lua:
 	(cd lua/src && $(MAKE) lua)
 
-noit-objs/%.o:
+noit-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:noit-objs/%.o=%.o) $@
 
-stratcon-objs/%.o:
+stratcon-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:stratcon-objs/%.o=%.o) $@
@@ -206,26 +203,26 @@ stratcon_datastore.o:	stratcon_datastore.c
 
 .c.o:
 	@if [ "`dirname $@`" != "." ] ; then \
-		(cd "`dirname $@`" && make "`basename $@`") ; \
+		(cd "`dirname $@`" && $(MAKE) "`basename $@`") ; \
 	else \
 		echo "- compiling $<" ; \
 		$(CC) $(CPPFLAGS) $(CFLAGS) -c $< ; \
 	fi
 
 udns/udns_codes.c:
-	@(cd udns && make udns_codes.c)
+	@(cd udns && $(MAKE) udns_codes.c)
 
 utils/noit_atomic_sol_sparcv8plus.o:	utils/noit_atomic_sol.s
-	@(cd utils && make noit_atomic_sol_sparcv8plus.o)
+	@(cd utils && $(MAKE) noit_atomic_sol_sparcv8plus.o)
 
 utils/noit_atomic_sol_sparcv9.o:	utils/noit_atomic_sol.s
-	@(cd utils && make noit_atomic_sol_sparcv9.o)
+	@(cd utils && $(MAKE) noit_atomic_sol_sparcv9.o)
 
 utils/noit_atomic_sol_x86_32.o:	utils/noit_atomic_sol.s
-	@(cd utils && make noit_atomic_sol_x86_32.o)
+	@(cd utils && $(MAKE) noit_atomic_sol_x86_32.o)
 
 utils/noit_atomic_sol_x86_64.o:	utils/noit_atomic_sol.s
-	@(cd utils && make noit_atomic_sol_x86_64.o)
+	@(cd utils && $(MAKE) noit_atomic_sol_x86_64.o)
 
 noit_module.o:	module-online.h
 
@@ -327,6 +324,7 @@ clean:
 	(cd yajl-lib && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 	(cd LuaJIT && $(MAKE) clean)
+	(cd lua/src && $(MAKE) clean)
 
 Makefile.noit.dep:
 	find noit-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
@@ -354,7 +352,7 @@ include Makefile.noit.dep
 include Makefile.stratcon.dep
 
 distclean-subdirs:
-	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib LuaJIT java ; do \
+	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib LuaJIT lua/src java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 
