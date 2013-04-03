@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <string.h>
 
+#define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 
 static void badcode(lua_State *L, int c)
@@ -249,7 +250,7 @@ static int l_pack(lua_State *L) 		/** pack(f,...) */
  return 1;
 }
 
-static const luaL_reg R[] =
+static const luaL_Reg R[] =
 {
 	{"pack",	l_pack},
 	{"unpack",	l_unpack},
@@ -258,7 +259,7 @@ static const luaL_reg R[] =
 
 int luaopen_pack(lua_State *L)
 {
- luaL_openlib(L, LUA_STRLIBNAME, R, 0);
- return 0;
+  luaL_openlib(L, LUA_STRLIBNAME, R, 0);
+  return 0;
 }
 

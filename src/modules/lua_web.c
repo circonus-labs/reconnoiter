@@ -101,7 +101,7 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
   noit_http_response *res = noit_http_session_response(restc->http_ctx);
   eventer_t conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
 
-  status = lua_resume(ri->coro_state, nargs);
+  status = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
 
   switch(status) {
     case 0: break;

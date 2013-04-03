@@ -35,6 +35,7 @@
 #include <string.h>
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
+#define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 
 static int
@@ -85,7 +86,7 @@ nl_init_mib(lua_State *L) {
   return 1;
 }
 
-static const luaL_reg snmp_funcs[] =
+static const luaL_Reg snmp_funcs[] =
 {
   { "convert_mib", nl_convert_mib },
   { "init_snmp", nl_init_mib },
@@ -94,7 +95,7 @@ static const luaL_reg snmp_funcs[] =
 
 int luaopen_snmp(lua_State *L)
 {
- luaL_register(L, "snmp", snmp_funcs);
- return 0;
+  luaL_openlib(L, "snmp", snmp_funcs, 0);
+  return 0;
 }
 

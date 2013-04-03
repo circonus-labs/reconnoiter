@@ -123,7 +123,7 @@ noit_lua_http_request_form(lua_State *L) {
   if(lua_gettop(L) > 2)
     luaL_error(L, "invalid arguments to noit_http_request:form()");
 
-  lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+  lua_getglobal(L, "noit");
   lua_getfield(L, -1, "extras");
   lua_remove(L, -2);  /* pop noit */
   lua_getfield(L, -1, "decode_form");
@@ -141,7 +141,7 @@ noit_lua_http_request_cookie(lua_State *L) {
   if(lua_gettop(L) > 2)
     luaL_error(L, "invalid arguments to noit_http_request:cookie()");
 
-  lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+  lua_getglobal(L, "noit");
   lua_getfield(L, -1, "extras");
   lua_remove(L, -2);  /* pop noit */
   lua_getfield(L, -1, "decode_cookie");
@@ -306,7 +306,7 @@ noit_lua_http_set_cookie(lua_State *L) {
   if(n < 3 || n > 4)
     luaL_error(L, "invalid arguments to noit_http_session:set_cookie()");
 
-  lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+  lua_getglobal(L, "noit");
   lua_getfield(L, -1, "extras");
   lua_remove(L, -2);  /* pop noit */
   lua_getfield(L, -1, "set_cookie");
@@ -328,7 +328,7 @@ static int
 noit_lua_http_url_encode(lua_State *L) {
   if(lua_gettop(L) != 2)
     luaL_error(L, "noit_http_session:url_encode bad arguments");
-  lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+  lua_getglobal(L, "noit");
   lua_getfield(L, -1, "extras");
   lua_remove(L, -2);  /* pop noit */
   lua_getfield(L, -1, "url_encode");
@@ -341,7 +341,7 @@ static int
 noit_lua_http_url_decode(lua_State *L) {
   if(lua_gettop(L) != 2)
     luaL_error(L, "noit_http_session:url_decode bad arguments");
-  lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+  lua_getglobal(L, "noit");
   lua_getfield(L, -1, "extras");
   lua_remove(L, -2);  /* pop noit */
   lua_getfield(L, -1, "url_decode");
@@ -390,7 +390,7 @@ noit_http_ctx_index_func(lua_State *L) {
       break;
     case 'h':
       if(!strcmp(k, "htmlentities")) {
-        lua_getfield(L, LUA_GLOBALSINDEX, "noit");
+        lua_getglobal(L, "noit");
         lua_getfield(L, -1, "utf8tohtml");
         lua_remove(L, -2);  /* pop noit */
         return 1;

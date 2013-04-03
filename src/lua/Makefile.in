@@ -17,7 +17,7 @@ INSTALL=@INSTALL@
 top_srcdir=@top_srcdir@
 
 liblua.lo:	liblua.c
-	$(CC) $(SHCFLAGS) -I./src -o $@ -c liblua.c
+	$(CC) $(CPPFLAGS) $(SHCFLAGS) -DLUA_USE_POSIX -DLUA_USE_DLOPEN -I./src -o $@ -c liblua.c
 
 clean:
 	rm -f liblua.lo

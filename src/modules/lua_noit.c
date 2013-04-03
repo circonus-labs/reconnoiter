@@ -65,6 +65,7 @@
 #include "utils/noit_b64.h"
 #include "eventer/eventer.h"
 #include "json-lib/json.h"
+#define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 
 static noit_log_stream_t nlerr = NULL;
@@ -1382,8 +1383,7 @@ nl_log(lua_State *L) {
   }
 
   n = lua_gettop(L);
-  lua_pushstring(L, "string");
-  lua_gettable(L, LUA_GLOBALSINDEX);
+  lua_getglobal(L, "string");
   lua_pushstring(L, "format");
   lua_gettable(L, -1);
   for(i=2;i<=n;i++)
@@ -2812,7 +2812,7 @@ int luaopen_noit(lua_State *L) {
   lua_pushcfunction(L, noit_lua_xpathiter_gc);
   lua_setfield(L, -2, "__gc");
 
-  luaL_register(L, "noit", noitlib);
+  luaL_openlib(L, "noit", noitlib, 0);
 
 #define LUA_DEFINE_INT(L, name) do { \
   lua_pushinteger(L, name); \

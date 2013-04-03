@@ -4,6 +4,16 @@
 */
 
 #define luaall_c
+#define lobject_c
+#define ltable_c
+
+#define LUA_CORE
+#define LUA_COMPAT_MODULE
+
+extern void luai_writestring(const char *, int);
+extern void luai_writeline();
+
+#include "luaconf.h"
 
 #include "lapi.c"
 #include "lcode.c"
@@ -35,4 +45,7 @@
 #include "loslib.c"
 #include "lstrlib.c"
 #include "ltablib.c"
+#include "lbitlib.c"
+#include "lcorolib.c"
+#include "lctype.c"
 
