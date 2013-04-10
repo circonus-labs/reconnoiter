@@ -38,6 +38,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
+#include <netinet/in.h>
 
 static struct timeval *eventer_impl_epoch = NULL;
 static int EVENTER_DEBUGGING = 0;
