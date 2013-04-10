@@ -128,11 +128,26 @@ int eventer_get_epoch(struct timeval *epoch) {
   return 0;
 }
 
+int NE_SOCK_CLOEXEC = 0;
+int NE_O_CLOEXEC = 0;
+
 int eventer_impl_init() {
   struct rlimit rlim;
   int i, try;
   eventer_t e;
   char *evdeb;
+
+#ifdef SOCK_CLOEXEC
+  /* We can test, still might not work */
+  try = socket(AF_INET, SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
+  if(try >= 0) {
+    close(try);
+    NE_SOCK_CLOEXEC = SOCK_CLOEXEC;
+  }
+#endif
+#ifdef O_CLOEXEC
+  NE_O_CLOEXEC = O_CLOEXEC;
+#endif
 
   evdeb = getenv("EVENTER_DEBUGGING");
   if(evdeb) {

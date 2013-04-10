@@ -715,7 +715,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
     return;
   }
   /* Open a socket */
-  fd = socket(nctx->r.remote.sa_family, SOCK_STREAM, 0);
+  fd = socket(nctx->r.remote.sa_family, NE_SOCK_CLOEXEC|SOCK_STREAM, 0);
   if(fd < 0) goto reschedule;
 
   /* Make it non-blocking */

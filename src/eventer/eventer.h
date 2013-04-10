@@ -102,6 +102,12 @@ API_EXPORT(const char *)
 API_EXPORT(eventer_func_t)
                       eventer_callback_for_name(const char *name);
 
+/* These values are set on initialization and are safe to use
+ * on any platform.  They will be set to zero on platforms that
+ * do not support them.  As such, you can always bit-or them.
+ */
+API_EXPORT(int) NE_SOCK_CLOEXEC;
+API_EXPORT(int) NE_O_CLOEXEC;
 
 typedef struct _eventer_impl {
   const char         *name;

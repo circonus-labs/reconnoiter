@@ -37,6 +37,8 @@
 #include <string.h>
 #include "udns.h"
 
+extern int NE_O_CLOEXEC;
+
 #define ISSPACE(x) (x == ' ' || x == '\t' || x == '\r' || x == '\n')
 
 static const char space[] = " \t\r\n";
@@ -147,7 +149,7 @@ static int dns_init_resolvconf(struct dns_ctx *ctx) {
   int has_srch = 0;
 
   /* read resolv.conf... */
-  { int fd = open("/etc/resolv.conf", O_RDONLY);
+  { int fd = open("/etc/resolv.conf", O_RDONLY|NE_O_CLOEXEC);
     if (fd >= 0) {
       int l = read(fd, buf, sizeof(buf) - 1);
       close(fd);
