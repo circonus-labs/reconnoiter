@@ -245,6 +245,14 @@ uint32_t noit_http_session_ref_inc(noit_http_session_ctx *ctx) {
 eventer_t noit_http_connection_event(noit_http_connection *conn) {
   return conn->e;
 }
+eventer_t noit_http_connection_event_float(noit_http_connection *conn) {
+  eventer_t e = conn->e;
+  if(e) {
+    conn->e = eventer_alloc();
+    memcpy(conn->e, e, sizeof(*e));
+  }
+  return e;
+}
 void noit_http_request_start_time(noit_http_request *req, struct timeval *t) {
   memcpy(t, &req->start_time, sizeof(*t));
 }
