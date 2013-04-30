@@ -11,6 +11,7 @@
 #include "amqp_framing.h"
 #include "amqp_private.h"
 
+#include <eventer/eventer.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -38,7 +39,7 @@ int amqp_open_socket(char const *hostname,
   addr.sin_port = htons(portnumber);
   addr.sin_addr.s_addr = * (uint32_t *) he->h_addr_list[0];
 
-  sockfd = socket(PF_INET, SOCK_STREAM, 0);
+  sockfd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, 0);
   if(((flags = fcntl(sockfd, F_GETFL, 0)) == -1) ||
      (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)) {
     result = -errno;

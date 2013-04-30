@@ -1543,7 +1543,7 @@ static int noit_collectd_init(noit_module_t *self) {
 
   conf->ipv4_fd = conf->ipv6_fd = -1;
 
-  conf->ipv4_fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
     noitL(noit_error, "collectd: socket failed: %s\n",
           strerror(errno));
@@ -1578,7 +1578,7 @@ static int noit_collectd_init(noit_module_t *self) {
     eventer_add(newe);
   }
 
-  conf->ipv6_fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+  conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv6_fd < 0) {
     noitL(noit_error, "collectd: IPv6 socket failed: %s\n",
           strerror(errno));

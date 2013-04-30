@@ -55,6 +55,8 @@
 #include <stddef.h>
 #include "udns.h"
 
+extern int NE_SOCK_CLOEXEC;
+
 #ifndef EAFNOSUPPORT
 # define EAFNOSUPPORT EINVAL
 #endif
@@ -540,11 +542,11 @@ int dns_open(struct dns_ctx *ctx) {
     sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
 
   if (have_inet6)
-    sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+    sock = socket(PF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   else
-    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    sock = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
 #else /* !HAVE_IPv6 */
-  sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  sock = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   ctx->dnsc_salen = sizeof(struct sockaddr_in);
 #endif /* HAVE_IPv6 */
 

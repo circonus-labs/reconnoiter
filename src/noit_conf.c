@@ -1265,7 +1265,7 @@ noit_conf_write_file(char **err) {
   snprintf(master_file_tmp, sizeof(master_file_tmp),
            "%s.tmp", master_config_file);
   unlink(master_file_tmp);
-  fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY, mode);
+  fd = open(master_file_tmp, O_CREAT|O_EXCL|O_WRONLY|NE_O_CLOEXEC, mode);
   if(fd < 0) {
     snprintf(errstr, sizeof(errstr), "Failed to open tmp file: %s",
              strerror(errno));

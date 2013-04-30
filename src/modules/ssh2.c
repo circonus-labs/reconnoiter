@@ -329,7 +329,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
     goto fail;
   }
   /* Open a socket */
-  fd = socket(check->target_family, SOCK_STREAM, 0);
+  fd = socket(check->target_family, NE_SOCK_CLOEXEC|SOCK_STREAM, 0);
   if(fd < 0) goto fail;
 
   /* Make it non-blocking */

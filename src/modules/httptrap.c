@@ -105,6 +105,8 @@ noit_httptrap_check_aynsch(noit_module_t *self,
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       is_asynch = noit_false;
+    else if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      is_asynch = noit_true;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;

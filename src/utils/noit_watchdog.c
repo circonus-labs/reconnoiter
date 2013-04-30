@@ -70,6 +70,7 @@ void noit_watchdog_ratelimit(int retry_val, int span_val) {
 }
 
 /* Watchdog stuff */
+static pid_t watcher = -1;
 static int *lifeline = NULL;
 static unsigned long last_tick_time() {
   static struct timeval lastchange = { 0, 0 };
@@ -97,6 +98,7 @@ int noit_watchdog_child_heartbeat() {
   return 0;
 }
 int noit_watchdog_prefork_init() {
+  watcher = getpid();
   lifeline = (int *)mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE,
                          MAP_SHARED|MAP_ANON, -1, 0);
   if(lifeline == (void *)-1) {
@@ -119,9 +121,23 @@ void run_glider(int pid) {
   (void)unused;
 }
 
+void glidechild(int sig) {
+  signal(sig, SIG_DFL);
+  if(noit_monitored_child_pid > 0) {
+    run_glider(noit_monitored_child_pid);
+    kill(noit_monitored_child_pid, SIGCONT);
+  }
+  signal(SIGUSR2, glidechild);
+}
 void glideme(int sig) {
   signal(sig, SIG_DFL);
-  run_glider(noit_monitored_child_pid);
+  if(getpid() == watcher) {
+    run_glider(noit_monitored_child_pid);
+  }
+  else {
+    kill(getppid(), SIGUSR2);
+    kill(noit_monitored_child_pid, SIGSTOP);
+  }
   kill(noit_monitored_child_pid, sig);
 }
 
@@ -136,6 +152,9 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
+  if(glider_path) {
+    signal(SIGUSR2, glidechild);
+  }
   while(1) {
     /* This sets up things so we start alive */
     it_ticks_zero();
@@ -157,6 +176,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     }
     else {
       int sig = -1, exit_val = -1;
+      noit_monitored_child_pid = child_pid;
       while(1) {
         unsigned long ltt;
         int status, rv;
@@ -168,6 +188,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         else if (rv == child_pid) {
           /* We died!... we need to relaunch, unless the status was a requested exit (2) */
           int quit;
+          noit_monitored_child_pid = -1;
           sig = WTERMSIG(status);
           exit_val = WEXITSTATUS(status);
           quit = update_retries(&offset, time_data);
@@ -191,8 +212,10 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
           noitL(noit_error,
                 "Watchdog timeout (%lu s)... terminating child\n",
                 ltt);
+          kill(child_pid, SIGSTOP);
           run_glider(child_pid);
           kill(child_pid, SIGKILL);
+          noit_monitored_child_pid = -1;
         }
         noitL(noit_debug, "last_tick_time -> %lu\n", ltt);
       }

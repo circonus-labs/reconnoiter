@@ -360,7 +360,7 @@ static int ping_icmp_init(noit_module_t *self) {
     return -1;
   }
 
-  data->ipv4_fd = socket(AF_INET, SOCK_RAW, proto->p_proto);
+  data->ipv4_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_RAW, proto->p_proto);
   if(data->ipv4_fd < 0) {
     noitL(noit_error, "ping_icmp: socket failed: %s\n",
           strerror(errno));
@@ -401,7 +401,7 @@ static int ping_icmp_init(noit_module_t *self) {
   }
 
   if ((proto = getprotobyname("ipv6-icmp")) != NULL) {
-    data->ipv6_fd = socket(AF_INET6, SOCK_RAW, proto->p_proto);
+    data->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_RAW, proto->p_proto);
     if(data->ipv6_fd < 0) {
       noitL(noit_error, "ping_icmp: socket failed: %s\n",
             strerror(errno));

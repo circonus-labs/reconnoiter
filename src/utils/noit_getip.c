@@ -32,6 +32,7 @@
 
 #include "noit_config.h"
 #include "utils/noit_getip.h"
+#include <eventer/eventer.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -42,7 +43,7 @@ noit_getip_ipv4(struct in_addr remote, struct in_addr *local) {
   int s;
   struct sockaddr_in r, l;
   socklen_t llen;
-  s = socket(PF_INET, SOCK_DGRAM, 17); /* 17 is UDP */
+  s = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, 17); /* 17 is UDP */
   if(s < 0) return -1;
   memset(&r, 0, sizeof(r));
   r.sin_port = htons(53); /* DNS port, it's fairly standard. */

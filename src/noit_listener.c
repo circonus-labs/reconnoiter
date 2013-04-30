@@ -250,7 +250,7 @@ noit_listener(char *host, unsigned short port, int type,
     }
   }
 
-  fd = socket(family, type, 0);
+  fd = socket(family, NE_SOCK_CLOEXEC|type, 0);
   if(fd < 0) {
     noitL(noit_error, "Cannot create socket: %s\n", strerror(errno));
     return -1;
