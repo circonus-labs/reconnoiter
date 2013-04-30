@@ -156,7 +156,7 @@ noit_console_version(noit_console_closure_t ncct, int argc, char **argv,
                     "build release:\t%s\nbuild version:\t%s\n"
                     "build machine:\t%s\n",
             UNAME_S, UNAME_N, UNAME_R, UNAME_V, UNAME_M);
-  if(uname(&utsn))
+  if(uname(&utsn) < 0)
     nc_printf(ncct, "run:\terror; %s\n", strerror(errno));
   else
     nc_printf(ncct, "run sysname:\t%s\nrun nodename:\t%s\n"
