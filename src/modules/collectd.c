@@ -41,12 +41,17 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_rest.h"
+#include "yajl-lib/yajl_parse.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_b64.h"
 
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
+static noit_log_stream_t nldebp = NULL;
+static noit_module_t *global_collectd = NULL;
 
 typedef struct _mod_config {
   noit_hash_table *options;
@@ -490,7 +495,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
   if (pkg_length != exp_size)
   {
-    noitL(noit_debug, "collectd: parse_part_values: "
+    noitL(nldeb, "collectd: parse_part_values: "
         "Length and number of values "
         "in the packet don't match.\n");
     return (-1);
@@ -532,7 +537,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
         break;
 
       default:
-        noitL(noit_debug, "collectd: parse_part_values: "
+        noitL(nldeb, "collectd: parse_part_values: "
       "Don't know how to handle data source type %"PRIu8 "\n",
       pkg_types[i]);
         sfree (pkg_types);
@@ -709,14 +714,14 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
 
   if (ccl->username == NULL)
   {
-    noitL(noit_debug, "collectd: Received signed network packet but can't verify "
+    noitL(nldeb, "collectd: Received signed network packet but can't verify "
         "it because no user has been configured. Will accept it.\n");
     return (0);
   }
 
   if (ccl->secret == NULL)
   {
-    noitL(noit_debug, "collectd: Received signed network packet but can't verify "
+    noitL(nldeb, "collectd: Received signed network packet but can't verify "
         "it because no secret has been configured. Will accept it.\n");
     return (0);
   }
@@ -817,7 +822,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Make sure at least the header if available. */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE)
   {
-    noitL(noit_debug, "collectd: parse_part_encr_aes256: "
+    noitL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding short packet.\n");
     return (-1);
   }
@@ -833,7 +838,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE)
       || (part_size > buffer_len))
   {
-    noitL(noit_debug, "collectd: parse_part_encr_aes256: "
+    noitL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding part with invalid size.\n");
     return (-1);
   }
@@ -845,7 +850,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((username_len <= 0)
       || (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1))))
   {
-    noitL(noit_debug, "collectd: parse_part_encr_aes256: "
+    noitL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding part with invalid username length.\n");
     return (-1);
   }
@@ -988,7 +993,7 @@ static int parse_packet (/* {{{ */
     {
       if (printed_ignore_warning == 0)
       {
-        noitL(noit_debug, "collectd: Unencrypted packet or "
+        noitL(nldeb, "collectd: Unencrypted packet or "
             "part has been ignored.\n");
         printed_ignore_warning = 1;
       }
@@ -1013,7 +1018,7 @@ static int parse_packet (/* {{{ */
     {
       if (printed_ignore_warning == 0)
       {
-        noitL(noit_debug, "collectd: Unsigned packet or "
+        noitL(nldeb, "collectd: Unsigned packet or "
             "part has been ignored.\n");
         printed_ignore_warning = 1;
       }
@@ -1188,7 +1193,7 @@ static int infer_type(char *buffer, int buffer_len, value_list_t *vl, int index)
     char buf[20];
     snprintf(buf, sizeof(buf), "%d", index);
     strcat(buffer, buf);
-    noitL(noit_debug, "collectd: parsing multiple values" 
+    noitL(nldeb, "collectd: parsing multiple values" 
         " and guessing on the type for plugin[%s] and type[%s]"
         , vl->plugin, vl->type);
   }
@@ -1281,7 +1286,7 @@ static int queue_values(collectd_closure_t *ccl,
         break;
 
       default:
-        noitL(noit_debug, "collectd: parse_part_values: "
+        noitL(nldeb, "collectd: parse_part_values: "
               "Don't know how to handle data source type %"PRIu8 "\n",
               vl->types[i]);
         return (-1);
@@ -1455,7 +1460,7 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
     pkt.self = self;
     pkt.payload = packet;
     pkt.len = inlen;
-    check_cnt = noit_poller_target_do(ip_p, push_packet_at_check ,&pkt);
+    check_cnt = noit_poller_target_ip_do(ip_p, push_packet_at_check ,&pkt);
     if(check_cnt == 0)
       noitL(nlerr, "collectd: No defined check from ip [%s].\n", ip_p);
   }
@@ -1492,9 +1497,537 @@ static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
 static int noit_collectd_onload(noit_image_t *self) {
   if(!nlerr) nlerr = noit_log_stream_find("error/collectd");
   if(!nldeb) nldeb = noit_log_stream_find("debug/collectd");
+  if(!nldebp) nldebp = noit_log_stream_find("debug/collectd_yajl");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_collectd/handler", noit_collectd_handler);
+  return 0;
+}
+
+struct cd_object {
+  char host[DATA_MAX_NAME_LEN];
+  char plugin[DATA_MAX_NAME_LEN];
+  char plugin_instance[DATA_MAX_NAME_LEN];
+  char type[DATA_MAX_NAME_LEN];
+  char type_instance[DATA_MAX_NAME_LEN];
+  time_t time;
+  metric_t *metrics;
+  int nvalues;
+  int nnames;
+  int allocmetrics;
+};
+
+void cd_object_free(struct cd_object *o) {
+  int i;
+  if(!o) return;
+  if(o->metrics) {
+    for(i=0; i<MAX(o->nvalues,o->nnames); i++) {
+      if(o->metrics[i].metric_name) free(o->metrics[i].metric_name);
+      if(o->metrics[i].metric_value.i) free(o->metrics[i].metric_value.i);
+    }
+    free(o->metrics);
+  }
+  free(o);
+}
+
+enum cd_state { CD_NONE, CD_LIST, CD_OBJECT,
+                CD_NAMES, CD_VALUES,
+                CD_HOST, CD_PLUGIN, CD_PLUGIN_INST,
+                CD_TYPE, CD_TYPE_INST, CD_TIME, CD_DONTCARE };
+
+const char *cd_state_name(enum cd_state s) {
+  switch(s) {
+    case CD_NONE: return "none";
+    case CD_LIST: return "list";
+    case CD_OBJECT: return "object";
+    case CD_NAMES: return "dsnames";
+    case CD_VALUES: return "values";
+    case CD_HOST: return "host";
+    case CD_PLUGIN: return "plugin";
+    case CD_PLUGIN_INST: return "plugin_inst";
+    case CD_TYPE: return "type";
+    case CD_TYPE_INST: return "type_inst";
+    case CD_TIME: return "time";
+    case CD_DONTCARE: return "dontcare";
+  }
+  return "unknown";
+}
+
+struct rest_json_payload {
+  yajl_handle parser;
+  int len;
+  int complete;
+  char *error;
+  char *user;
+  const char *pass;
+  enum cd_state state;
+  enum cd_state pstate;
+  int metric_idx;
+  int depth;
+  struct cd_object *o;
+  int hits;
+  int misses;
+  int access_failures;
+  int nchecks;
+};
+
+int cd_object_on_check(noit_check_t *check, void *rxc) {
+  int i;
+  const char *user, *pass;
+  struct rest_json_payload *json = rxc;
+  collectd_closure_t *ccl;
+  noit_boolean immediate;
+
+  if(strcmp(check->module, "collectd")) return 0;
+  if(!noit_hash_retr_str(check->config, "secret", 6, &pass) ||
+     !noit_hash_retr_str(check->config, "username", 8, &user)) {
+    json->access_failures += json->o->nnames;
+    return 0;
+  }
+
+  if(strcmp(json->user, user) || strcmp(json->pass, pass)) {
+    json->access_failures += json->o->nnames;
+    return 0;
+  }
+
+  if(check->flags & NP_TRANSIENT) return 0;
+
+  immediate = noit_collects_check_aynsch(global_collectd, check);
+  if(!check->closure) {
+    ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t));
+    memset(ccl, 0, sizeof(collectd_closure_t));
+  }
+  else {
+    ccl = check->closure;
+  }
+
+  for(i=0; i<json->o->nnames; i++) {
+    metric_t *m = &json->o->metrics[i];
+    noitL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
+    noit_stats_set_metric(check, &ccl->current, m->metric_name,
+			  m->metric_type, m->metric_value.vp);
+    if(immediate)
+      noit_stats_log_immediate_metric(check, m->metric_name,
+				      m->metric_type, m->metric_value.vp);
+    json->hits++;
+  }
+  return 1;
+}
+
+void cd_object_process(struct rest_json_payload *rxc) {
+  int i, cnt;
+  char metric_name[256];
+
+  /* First validate the object */
+  if(!(*rxc->o->host && *rxc->o->plugin && *rxc->o->type)) return;
+  if(rxc->o->nnames != rxc->o->nvalues) return;
+  if(rxc->o->nnames == 0) return;
+
+  /* Fix up the metric names */
+  snprintf(metric_name, sizeof(metric_name),
+	   "%s%s%s%s" "%s%s%s%s",
+	   rxc->o->plugin, *(rxc->o->plugin) ? "`" : "",
+	   rxc->o->plugin_instance, *(rxc->o->plugin_instance) ? "`" : "",
+	   rxc->o->type, *(rxc->o->type) ? "`" : "",
+	   rxc->o->type_instance, *(rxc->o->type_instance) ? "`" : "");
+  for(i=0;i<rxc->o->nnames;i++) {
+    char *cp;
+    cp = rxc->o->metrics[i].metric_name;
+    if(!cp) rxc->o->metrics[i].metric_name = strdup(metric_name);
+    else {
+      int len = strlen(metric_name) + strlen(cp) + 1; // ab\0
+      rxc->o->metrics[i].metric_name = malloc(len);
+      snprintf(rxc->o->metrics[i].metric_name, len, "%s%s", metric_name, cp);
+      free(cp);
+    }
+  }
+
+  /* Pass this into the checks that match */
+  cnt = noit_poller_target_do(rxc->o->host, cd_object_on_check, rxc);
+  if(cnt == 0) rxc->misses += rxc->o->nnames;
+  rxc->nchecks += cnt;
+}
+
+#define EXTEND_METRICS_FOR(o, i) do { \
+  if(!(o)->allocmetrics) { \
+    (o)->metrics = calloc(4, sizeof(metric_t)); \
+    (o)->allocmetrics = 4; \
+  } \
+  if((i) >= (o)->allocmetrics) { \
+    int pcnt = (o)->allocmetrics; \
+    while((i) >= (o)->allocmetrics) (o)->allocmetrics *= 2; \
+    (o)->metrics = realloc((o)->metrics, sizeof(metric_t)*(o)->allocmetrics); \
+    memset((o)->metrics + pcnt, 0, sizeof(metric_t)*pcnt); \
+  } \
+} while(0)
+
+static void
+rest_json_payload_free(void *f) {
+  struct rest_json_payload *json = f;
+  if(json->user) free(json->user);
+  if(json->parser) yajl_free(json->parser);
+  if(json->error) free(json->error);
+  free(json);
+}
+
+static int
+collectd_yajl_cb_null(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> null\n");
+  switch(json->state) {
+    case CD_OBJECT:
+    case CD_DONTCARE:
+      return 1;
+    case CD_VALUES:
+      EXTEND_METRICS_FOR(json->o, json->metric_idx+1);
+      json->o->metrics[json->metric_idx].metric_type = METRIC_INT64;
+      json->metric_idx++;
+      json->o->nvalues = MAX(json->o->nvalues, json->metric_idx);
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl null in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_boolean(void *ctx, int boolVal) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> boolean(%s)\n", boolVal ? "true" : "false");
+  switch(json->state) {
+    case CD_OBJECT:
+    case CD_DONTCARE:
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl boolean in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_number(void *ctx, const char * numberValu,
+                        size_t numberLen) {
+  struct rest_json_payload *json = ctx;
+  char numberVal[128];
+  if(numberLen > 127) return 0;
+  memcpy(numberVal, numberValu, numberLen);
+  numberVal[numberLen] = '\0';
+  noitL(nldebp, "-> number(%s)\n", numberVal);
+  switch(json->state) {
+    case CD_OBJECT:
+    case CD_DONTCARE: return 1;
+    case CD_TIME:
+      json->o->time = strtoul(numberVal, NULL, 10);
+      json->state = CD_OBJECT;
+      return 1;
+    case CD_VALUES:
+      EXTEND_METRICS_FOR(json->o, json->metric_idx+1);
+      if(strchr(numberVal, '.')) {
+	double *n = malloc(sizeof(*n));
+	*n = atof(numberVal);
+	json->o->metrics[json->metric_idx].metric_value.n = n;
+        json->o->metrics[json->metric_idx].metric_type = METRIC_DOUBLE;
+      }
+      else {
+	int64_t *l;
+	l = malloc(sizeof(*l));
+	*l = strtoll(numberVal, NULL, 10);
+	json->o->metrics[json->metric_idx].metric_value.l = l;
+        json->o->metrics[json->metric_idx].metric_type = METRIC_INT64;
+      }
+      json->metric_idx++;
+      json->o->nvalues = MAX(json->o->nvalues, json->metric_idx);
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl number in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
+                        size_t stringLen) {
+  char *stringVal = (char *)stringValu;
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> string(%.*s)\n", (int)stringLen, stringVal);
+  switch(json->state) {
+    case CD_OBJECT:
+    case CD_DONTCARE: return 1;
+    case CD_VALUES:
+      /* A string value for a numeric is treated as null */
+      EXTEND_METRICS_FOR(json->o, json->metric_idx+1);
+      json->o->metrics[json->metric_idx].metric_type = METRIC_INT64;
+      json->metric_idx++;
+      json->o->nvalues = MAX(json->o->nvalues, json->metric_idx);
+      return 1;
+    case CD_NAMES:
+      EXTEND_METRICS_FOR(json->o, json->metric_idx+1);
+      if(json->o->metrics[json->metric_idx].metric_name)
+	free(json->o->metrics[json->metric_idx].metric_name);
+      json->o->metrics[json->metric_idx].metric_name =
+	strndup(stringVal, stringLen);
+      json->metric_idx++;
+      json->o->nnames = MAX(json->o->nnames, json->metric_idx);
+      return 1;
+#define STRING_CASE(c, attr) \
+    case c: \
+      strlcpy(json->o->attr, stringVal, MIN(DATA_MAX_NAME_LEN, stringLen+1)); \
+      json->state = CD_OBJECT; \
+      return 1
+    STRING_CASE(CD_HOST, host);
+    STRING_CASE(CD_PLUGIN, plugin);
+    STRING_CASE(CD_PLUGIN_INST, plugin_instance);
+    STRING_CASE(CD_TYPE, type);
+    STRING_CASE(CD_TYPE_INST, type_instance);
+    default: break;
+  }
+  noitL(nldebp, "yajl string in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_start_map(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> start_map\n");
+  switch(json->state) {
+    case CD_LIST:
+      json->state = CD_OBJECT;
+      if(json->o) return 0;
+      json->o = calloc(1, sizeof(*json->o));
+      return 1;
+    case CD_OBJECT:
+      json->pstate = json->state;
+      json->state = CD_DONTCARE;
+    case CD_DONTCARE:
+      json->depth++;
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl start_map in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_end_map(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> end_map\n");
+  switch(json->state) {
+    case CD_OBJECT:
+      json->state = CD_LIST;
+      if(json->o) {
+	/* do the dirty work here */
+	cd_object_process(json);
+	cd_object_free(json->o);
+	json->o = NULL;
+      }
+      return 1;
+    case CD_DONTCARE:
+      json->depth--;
+      if(json->depth == 0) {
+	json->state = json->pstate;
+	json->pstate = CD_NONE;
+      }
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl end_map in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_start_array(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> start_array\n");
+  switch(json->state) {
+    case CD_NONE:
+      json->state = CD_LIST;
+      return 1;
+    case CD_VALUES:
+    case CD_NAMES:
+      json->metric_idx = 0;
+      return 1;
+    case CD_OBJECT:
+      json->pstate = json->state;
+      json->state = CD_DONTCARE;
+    case CD_DONTCARE:
+      json->depth++;
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl start_array in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_end_array(void *ctx) {
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> end_array\n");
+  switch(json->state) {
+    case CD_LIST: json->state = CD_NONE; return 1;
+    case CD_DONTCARE:
+      json->depth--;
+      if(json->depth == 0) {
+        json->state = json->pstate;
+        json->pstate = CD_NONE;
+      }
+      return 1;
+    case CD_VALUES:
+    case CD_NAMES:
+      json->state = CD_OBJECT;
+      return 1;
+    default: break;
+  }
+  noitL(nldebp, "yajl end_array in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static int
+collectd_yajl_cb_map_key(void *ctx, const unsigned char * keyu,
+                         size_t keyLen) {
+  char *key = (char *)keyu;
+  struct rest_json_payload *json = ctx;
+  noitL(nldebp, "-> map_key(%.*s)\n", (int)keyLen, key);
+  if(json->state == CD_DONTCARE) return 1;
+  if(json->state == CD_OBJECT) {
+#define MAP_NAME(str, st) \
+  if(strlen(str)==keyLen && !memcmp(key,str,keyLen)) json->state = (st)
+    MAP_NAME("dsnames", CD_NAMES);
+    else MAP_NAME("values", CD_VALUES);
+    else MAP_NAME("host", CD_HOST);
+    else MAP_NAME("plugin", CD_PLUGIN);
+    else MAP_NAME("plugin_instance", CD_PLUGIN_INST);
+    else MAP_NAME("type", CD_TYPE);
+    else MAP_NAME("type_instance", CD_TYPE_INST);
+    else MAP_NAME("time", CD_TIME);
+    else json->state = CD_OBJECT;
+    return 1;
+  }
+  noitL(nldebp, "yajl map_key in state %s\n", cd_state_name(json->state));
+  return 0;
+}
+static yajl_callbacks collectd_yajl_callbacks = {
+  .yajl_null = collectd_yajl_cb_null,
+  .yajl_boolean = collectd_yajl_cb_boolean,
+  .yajl_number = collectd_yajl_cb_number,
+  .yajl_string = collectd_yajl_cb_string,
+  .yajl_start_map = collectd_yajl_cb_start_map,
+  .yajl_map_key = collectd_yajl_cb_map_key,
+  .yajl_end_map = collectd_yajl_cb_end_map,
+  .yajl_start_array = collectd_yajl_cb_start_array,
+  .yajl_end_array = collectd_yajl_cb_end_array
+};
+
+static struct rest_json_payload *
+rest_get_json_upload(noit_http_rest_closure_t *restc,
+                    int *mask, int *complete) {
+  struct rest_json_payload *rxc;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  int content_length;
+  char buffer[32768];
+
+  content_length = noit_http_request_content_length(req);
+  rxc = restc->call_closure;
+  while(!rxc->complete) {
+    int len;
+    len = noit_http_session_req_consume(
+            restc->http_ctx, buffer,
+            MIN(content_length - rxc->len, sizeof(buffer)),
+            sizeof(buffer),
+            mask);
+    if(len > 0) {
+      yajl_status status;
+      status = yajl_parse(rxc->parser, (unsigned char *)buffer, len);
+      if(status != yajl_status_ok) {
+        unsigned char *err;
+        *complete = 1;
+        err = yajl_get_error(rxc->parser, 0, (unsigned char *)buffer, len);
+	if(!rxc->error) rxc->error = strdup((char *)err);
+        yajl_free_error(rxc->parser, err);
+        return rxc;
+      }
+      rxc->len += len;
+    }
+    if(len < 0 && errno == EAGAIN) return NULL;
+    else if(len < 0) {
+      *complete = 1;
+      return NULL;
+    }
+    content_length = noit_http_request_content_length(req);
+    if((noit_http_request_payload_chunked(req) && len == 0) ||
+       (rxc->len == content_length)) {
+      rxc->complete = 1;
+      yajl_complete_parse(rxc->parser);
+    }
+  }
+
+  *complete = 1;
+  return rxc;
+}
+
+static int
+rest_collectd_handler(noit_http_rest_closure_t *restc,
+                      int npats, char **pats) {
+  int mask, complete = 0, len;
+  char json_out[128], *cp;
+  struct rest_json_payload *rxc = NULL;
+  const char *error = "internal error";
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  noit_http_request *req;
+  noit_hash_table *hdrs;
+  const char *v;
+
+
+  if(restc->call_closure == NULL) {
+    rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    rxc->state = CD_NONE;
+    rxc->parser = yajl_alloc(&collectd_yajl_callbacks, NULL, rxc);
+    yajl_config(rxc->parser, yajl_allow_comments, 1);
+    yajl_config(rxc->parser, yajl_dont_validate_strings, 1);
+    yajl_config(rxc->parser, yajl_allow_trailing_garbage, 1);
+    yajl_config(rxc->parser, yajl_allow_partial_values, 1);
+    restc->call_closure_free = rest_json_payload_free;
+  }
+
+  req = noit_http_session_request(ctx);
+  hdrs = noit_http_request_headers_table(req);
+  if(!noit_hash_retr_str(hdrs, "authorization", 13, &v)) goto unauth;
+
+  if(strncmp(v, "Basic ", 6)) goto unauth;
+  rxc->user = strdup(v);
+  len = noit_b64_decode(v+6, strlen(v)-6,
+                        (unsigned char *)rxc->user, strlen(v));
+  if(len < 0) goto unauth;
+	rxc->user[len] = '\0';
+	cp = strchr(rxc->user, ':');
+  if(!cp) goto denied;
+  *cp++ = '\0';
+  rxc->pass = cp;
+
+  rxc = rest_get_json_upload(restc, &mask, &complete);
+  if(rxc == NULL && !complete) return mask;
+
+  if(!rxc) goto error;
+  if(rxc->error) goto error;
+
+  noit_http_response_ok(ctx, "application/json");
+  snprintf(json_out, sizeof(json_out),
+           "{ \"metrics\": %d, \"checks\": %d, \"misses\": %d, \"access_failures\": %d }",
+	   rxc->hits, rxc->nchecks, rxc->misses, rxc->access_failures);
+  noit_http_response_append(ctx, json_out, strlen(json_out));
+  noit_http_response_end(ctx);
+  return 0;
+
+ unauth:
+	noit_http_response_header_set(ctx, "WWW-Authenticate", "Basic realm=\"collectd\"");
+  noit_http_response_standard(ctx, 401, "AUTH", "text/plain");
+  noit_http_response_append(ctx, "Must Auth\r\n", strlen("Must Auth\r\n"));
+  noit_http_response_end(ctx);
+  return 0;
+
+ denied:
+  noit_http_response_denied(ctx, "text/plain");
+  noit_http_response_end(ctx);
+  return 0;
+
+ error:
+  noit_http_response_server_error(ctx, "application/json");
+  noit_http_response_append(ctx, "{ error: \"", 10);
+  if(rxc && rxc->error) error = rxc->error;
+  noit_http_response_append(ctx, error, strlen(error));
+  noit_http_response_append(ctx, "\" }", 3);
+  noit_http_response_end(ctx);
   return 0;
 }
 
@@ -1510,6 +2043,7 @@ static int noit_collectd_init(noit_module_t *self) {
   const char *host;
   unsigned short port;
 
+  if(global_collectd) return -1;
   memset(&in6addr_any, 0, sizeof(in6addr_any));
   conf->support_notifications = noit_true;
   if(noit_hash_retr_str(conf->options,
@@ -1615,6 +2149,12 @@ static int noit_collectd_init(noit_module_t *self) {
   }
 
   noit_module_set_userdata(self, conf);
+
+  /* register rest handler */
+  noit_http_rest_register("POST", "/module/collectd/",
+                          "^(.*)$",
+                          rest_collectd_handler);
+  global_collectd = self;
   return 0;
 }
 
