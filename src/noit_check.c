@@ -1505,7 +1505,7 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
 
     /* Swap the real check's stats into place */
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
-    memcpy(&wcheck->stats.current, newstate, sizeof(stats_t));
+    memcpy(&wcheck->stats.current, &check->stats.current, sizeof(stats_t));
 
     if(check_passive_log_stats_hook_invoke(check) == NOIT_HOOK_CONTINUE) {
       /* Write out our status */
@@ -1527,7 +1527,8 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
   noit_hash_destroy(&check->stats.previous.metrics, NULL,
                     (void (*)(void *))free_metric);
   memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
-  memcpy(&check->stats.current, newstate, sizeof(stats_t));
+  if(newstate)
+    memcpy(&check->stats.current, newstate, sizeof(stats_t));
   if(check->stats.current.status)
     check->stats.current.status = strdup(check->stats.current.status);
   for(cp = check->stats.current.status; cp && *cp; cp++)
