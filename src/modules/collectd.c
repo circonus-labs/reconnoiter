@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013, Circonus, Inc.
  * Copyright (c) 2005-2009  Florian Forster
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * Copyright (c) 2009, Dan Di Spaltro
@@ -1553,6 +1554,11 @@ const char *cd_state_name(enum cd_state s) {
   return "unknown";
 }
 
+struct check_list {
+  noit_check_t *check;
+  struct check_list *next;
+};
+
 struct rest_json_payload {
   yajl_handle parser;
   int len;
@@ -1569,6 +1575,7 @@ struct rest_json_payload {
   int misses;
   int access_failures;
   int nchecks;
+  struct check_list *immediate_checks;
 };
 
 int cd_object_on_check(noit_check_t *check, void *rxc) {
@@ -1576,7 +1583,7 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
   const char *user, *pass;
   struct rest_json_payload *json = rxc;
   collectd_closure_t *ccl;
-  noit_boolean immediate;
+  noit_boolean immediate, needs_immediate = noit_false;
 
   if(strcmp(check->module, "collectd")) return 0;
   if(!noit_hash_retr_str(check->config, "secret", 6, &pass) ||
@@ -1605,11 +1612,25 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
     metric_t *m = &json->o->metrics[i];
     noitL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
     noit_stats_set_metric(check, &ccl->current, m->metric_name,
-			  m->metric_type, m->metric_value.vp);
-    if(immediate)
+                          m->metric_type, m->metric_value.vp);
+    if(immediate) needs_immediate = noit_true;
       noit_stats_log_immediate_metric(check, m->metric_name,
-				      m->metric_type, m->metric_value.vp);
+                                      m->metric_type, m->metric_value.vp);
+    ccl->stats_count++;
     json->hits++;
+  }
+
+  if(needs_immediate) {
+    struct check_list *p;
+    for(p=json->immediate_checks;p;p=p->next) {
+      if(p->check == check) break;
+    }
+    if(p == NULL) {
+      p = malloc(sizeof(*p));
+      p->next = json->immediate_checks;
+      p->check = check;
+      json->immediate_checks = p;
+    }
   }
   return 1;
 }
@@ -1663,10 +1684,15 @@ void cd_object_process(struct rest_json_payload *rxc) {
 
 static void
 rest_json_payload_free(void *f) {
+  struct check_list *p;
   struct rest_json_payload *json = f;
   if(json->user) free(json->user);
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);
+  while((p = json->immediate_checks) != NULL) {
+    json->immediate_checks = p->next;
+    free(p);
+  }
   free(json);
 }
 
@@ -1999,6 +2025,12 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
   if(rxc == NULL && !complete) return mask;
 
   if(!rxc) goto error;
+  if(rxc->immediate_checks) {
+    struct check_list *p;
+    for(p=rxc->immediate_checks;p;p=p->next) {
+      collectd_submit(global_collectd, p->check, NULL);
+    }
+  }
   if(rxc->error) goto error;
 
   noit_http_response_ok(ctx, "application/json");
