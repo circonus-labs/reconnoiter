@@ -65,8 +65,10 @@ noit_check_state_as_xml(noit_check_t *check) {
   const char *k;
   int klen;
   void *data;
+  struct timeval now;
   stats_t *c = &check->stats.current;
 
+  gettimeofday(&now, NULL);
   state = xmlNewNode(NULL, (xmlChar *)"state");
   NODE_CONTENT(state, "running", NOIT_CHECK_RUNNING(check)?"true":"false");
   NODE_CONTENT(state, "killed", NOIT_CHECK_KILLED(check)?"true":"false");
@@ -77,11 +79,9 @@ noit_check_state_as_xml(noit_check_t *check) {
   xmlAddChild(state, (tmp = xmlNewNode(NULL, (xmlChar *)"last_run")));
   if(check->stats.current.whence.tv_sec) {
     struct timeval f = check->stats.current.whence;
-    struct timeval n;
     char timestr[20];
-    gettimeofday(&n, NULL);
     snprintf(timestr, sizeof(timestr), "%0.3f",
-             n.tv_sec + (n.tv_usec / 1000000.0));
+             now.tv_sec + (now.tv_usec / 1000000.0));
     xmlSetProp(tmp, (xmlChar *)"now", (xmlChar *)timestr);
     snprintf(timestr, sizeof(timestr), "%0.3f",
              f.tv_sec + (f.tv_usec / 1000000.0));
@@ -99,6 +99,14 @@ noit_check_state_as_xml(noit_check_t *check) {
   NODE_CONTENT(state, "status", c->status ? c->status : "");
   memset(&iter, 0, sizeof(iter));
   xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+  if(c->metrics.size == 0 && check->stats.previous.metrics.size > 0) {
+    c = &check->stats.previous;
+    struct timeval f = check->stats.previous.whence;
+    char timestr[20];
+    snprintf(timestr, sizeof(timestr), "%0.3f",
+             f.tv_sec + (f.tv_usec / 1000000.0));
+    xmlSetProp(metrics, (xmlChar *)"outdated", (xmlChar *)timestr);
+  }
   while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
@@ -128,7 +136,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   xmlNodePtr node, root, attr, config, state, tmp, anode;
   uuid_t checkid;
   noit_check_t *check;
-  char xpath[1024], *uuid_conf, *module, *value;
+  char xpath[1024], *uuid_conf, *module = NULL, *value = NULL;
   int rv, mod, mod_cnt, cnt, error_code = 500;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
@@ -161,28 +169,27 @@ rest_show_check(noit_http_rest_closure_t *restc,
 #define INHERIT(node,a,n,b) \
   _noit_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
 #define SHOW_ATTR(parent, node, a) do { \
-  xmlNodePtr anode = NULL; \
-  char *value = NULL; \
-  INHERIT(node, a, anode, value); \
-  if(value != NULL) { \
+  char *_value = NULL; \
+  INHERIT(node, a, anode, _value); \
+  if(_value != NULL) { \
     int clen, plen;\
-    char *cpath, *apath; \
+    char *_cpath, *_apath; \
     xmlNodePtr child; \
-    cpath = node ? (char *)xmlGetNodePath(node) : strdup(""); \
-    apath = anode ? (char *)xmlGetNodePath(anode) : strdup(""); \
-    clen = strlen(cpath); \
+    _cpath = node ? (char *)xmlGetNodePath(node) : strdup(""); \
+    _apath = anode ? (char *)xmlGetNodePath(anode) : strdup(""); \
+    clen = strlen(_cpath); \
     plen = strlen("/noit/checks"); \
     child = xmlNewNode(NULL, (xmlChar *)#a); \
-    xmlNodeAddContent(child, (xmlChar *)value); \
-    if(!strncmp(cpath, apath, clen) && apath[clen] == '/') { \
+    xmlNodeAddContent(child, (xmlChar *)_value); \
+    if(!strncmp(_cpath, _apath, clen) && _apath[clen] == '/') { \
     } \
     else { \
-      xmlSetProp(child, (xmlChar *)"inherited", (xmlChar *)apath+plen); \
+      xmlSetProp(child, (xmlChar *)"inherited", (xmlChar *)_apath+plen); \
     } \
     xmlAddChild(parent, child); \
-    free(cpath); \
-    free(apath); \
-    free(value); \
+    free(_cpath); \
+    free(_apath); \
+    free(_value); \
   } \
 } while(0)
 

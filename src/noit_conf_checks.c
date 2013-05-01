@@ -535,6 +535,10 @@ noit_console_show_check(noit_console_closure_t ncct,
         nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
         nc_printf(ncct, " metrics:\n");
+        if(c->metrics.size == 0 && check->stats.previous.metrics.size > 0) {
+          nc_printf(ncct, " metrics (previous):\n");
+          c = &check->stats.previous;
+        }
         memset(&iter, 0, sizeof(iter));
         sorted_keys = alloca(c->metrics.size * sizeof(*sorted_keys));
         while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
