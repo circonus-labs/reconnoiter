@@ -394,8 +394,8 @@ noit_collects_check_aynsch(noit_module_t *self,
   if(noit_hash_retr_str(check->config,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
-    if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
-      is_asynch = noit_true;
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      is_asynch = noit_false;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
@@ -1305,22 +1305,35 @@ static void clear_closure(noit_check_t *check, collectd_closure_t *ccl) {
 
 }
 
-static int collectd_submit(noit_module_t *self, noit_check_t *check,
-                           noit_check_t *cause) {
+static int
+collectd_submit_internal(noit_module_t *self, noit_check_t *check,
+                         noit_check_t *cause, noit_boolean direct) {
   collectd_closure_t *ccl;
-  struct timeval duration;
+  struct timeval now, duration, age;
+  noit_boolean immediate;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  noit_collects_check_aynsch(self, check);
+  gettimeofday(&now, NULL);
+
+  /* If we're imemdiately logging things and we've done so within the
+   * check's period... we've no reason to passively log now.
+   */
+  immediate = noit_collects_check_aynsch(self, check);
+  sub_timeval(now, check->stats.current.whence, &age);
+  if(!direct && immediate &&
+     (age.tv_sec * 1000 + age.tv_usec / 1000) < check->period)
+    return 0;
+
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
     memset(ccl, 0, sizeof(collectd_closure_t));
+    memcpy(&ccl->current.whence, &now, sizeof(now));
   } else {
     // Don't count the first run
     char human_buffer[256];
     ccl = (collectd_closure_t*)check->closure; 
-    gettimeofday(&ccl->current.whence, NULL);
+    memcpy(&ccl->current.whence, &now, sizeof(now));
     sub_timeval(ccl->current.whence, check->last_fire_time, &duration);
     ccl->current.duration = duration.tv_sec; // + duration.tv_usec / (1000 * 1000);
 
@@ -1341,6 +1354,12 @@ static int collectd_submit(noit_module_t *self, noit_check_t *check,
   }
   clear_closure(check, ccl);
   return 0;
+}
+
+static int
+collectd_submit(noit_module_t *self, noit_check_t *check,
+                noit_check_t *cause) {
+  return collectd_submit_internal(self, check, cause, noit_false);
 }
 
 struct collectd_pkt {
@@ -1584,10 +1603,13 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
   struct rest_json_payload *json = rxc;
   collectd_closure_t *ccl;
   noit_boolean immediate, needs_immediate = noit_false;
+  collectd_mod_config_t *conf = noit_module_get_userdata(global_collectd);
 
   if(strcmp(check->module, "collectd")) return 0;
-  if(!noit_hash_retr_str(check->config, "secret", 6, &pass) ||
-     !noit_hash_retr_str(check->config, "username", 8, &user)) {
+  if(!(noit_hash_retr_str(check->config, "secret", 6, &pass) ||
+       noit_hash_retr_str(conf->options, "secret", 6, &pass)) ||
+     !(noit_hash_retr_str(check->config, "username", 8, &user) ||
+       noit_hash_retr_str(conf->options, "username", 8, &user))) {
     json->access_failures += json->o->nnames;
     return 0;
   }
@@ -2028,7 +2050,7 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
   if(rxc->immediate_checks) {
     struct check_list *p;
     for(p=rxc->immediate_checks;p;p=p->next) {
-      collectd_submit(global_collectd, p->check, NULL);
+      collectd_submit_internal(global_collectd, p->check, NULL, noit_true);
     }
   }
   if(rxc->error) goto error;
@@ -2084,12 +2106,12 @@ static int noit_collectd_init(noit_module_t *self) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       conf->support_notifications = noit_false;
   }
-  conf->asynch_metrics = noit_false;
+  conf->asynch_metrics = noit_true;
   if(noit_hash_retr_str(conf->options,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
-    if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
-      conf->asynch_metrics = noit_true;
+    if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
+      conf->asynch_metrics = noit_false;
   }
 
   /* Default Collectd port */
@@ -2183,8 +2205,8 @@ static int noit_collectd_init(noit_module_t *self) {
   noit_module_set_userdata(self, conf);
 
   /* register rest handler */
-  noit_http_rest_register("POST", "/module/collectd/",
-                          "^(.*)$",
+  noit_http_rest_register("POST", "/module/",
+                          "^collectd/?(.*)$",
                           rest_collectd_handler);
   global_collectd = self;
   return 0;

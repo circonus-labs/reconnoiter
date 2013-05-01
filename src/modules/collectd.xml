@@ -1,6 +1,7 @@
 <module>
   <name>collectd</name>
-  <description><para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para></description>
+  <description><para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para>
+    <para>Additionally, this module registers a REST handler to support collectd's write_http output plugin.  This exposes a REST endpoint at /module/collectd.</para></description>
   <loader>C</loader>
   <image>collectd.so</image>
   <moduleconfig>
@@ -19,10 +20,10 @@
                allowed="\d+">An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</parameter>
     <parameter name="username"
                required="optional"
-               allowed=".+">The collectd username for authenticating signed and encrypted packets</parameter>
+               allowed=".+">The collectd username for authenticating signed and encrypted packets. Also the username used for HTTP authentication when using the write_http ingestion method.</parameter>
     <parameter name="password"
                required="optional"
-               allowed=".+">The collectd password for authenticating signed and encrypted packets</parameter>
+               allowed=".+">The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -42,6 +43,18 @@
           Username "us3rname"
           Password "s3cr3t"
         </Server>
+      </Plugin>
+
+      <Plugin write_http>
+        <URL "https://127.0.0.1:43191/module/collectd/">
+          User "us3rname"
+          Password "s3cr3t"
+          VerifyPeer false
+          VerifyHost false
+          CACert "/etc/ssl/ca.crt"
+          Format "JSON"
+          StoreRates false
+        </URL>
       </Plugin>
       ]]></programlisting>
 
