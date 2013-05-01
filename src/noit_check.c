@@ -231,6 +231,18 @@ static int __check_target_ip_compare(const void *a, const void *b) {
   if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
   return 1;
 }
+static int __check_target_compare(const void *a, const void *b) {
+  const noit_check_t *ac = a;
+  const noit_check_t *bc = b;
+  int rv;
+  if (ac->target == NULL) return 1;
+  if (bc->target == NULL) return -1;
+  if((rv = strcmp(ac->target, bc->target)) != 0) return rv;
+  if (ac->name == NULL) return 1;
+  if (bc->name == NULL) return -1;
+  if((rv = strcmp(ac->name, bc->name)) != 0) return rv;
+  return 1;
+}
 int
 noit_calc_rtype_flag(char *resolve_rtype) {
   int flags = 0;
@@ -565,6 +577,8 @@ noit_poller_init() {
                             __check_name_compare);
   noit_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
                             __check_target_ip_compare);
+  noit_skiplist_add_index(&polls_by_name, __check_target_compare,
+                            __check_target_compare);
   noit_skiplist_init(&watchlist);
   noit_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
@@ -1049,25 +1063,48 @@ noit_poller_lookup_by_name(char *target, char *name) {
   return check;
 }
 int
+noit_poller_target_ip_do(const char *target_ip,
+                         int (*f)(noit_check_t *, void *),
+                         void *closure) {
+  int count = 0;
+  noit_check_t pivot;
+  noit_skiplist *tlist;
+  noit_skiplist_node *next;
+
+  tlist = noit_skiplist_find(polls_by_name.index,
+                             __check_target_ip_compare, NULL);
+
+  memset(&pivot, 0, sizeof(pivot));
+  strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
+  pivot.name = "";
+  pivot.target = "";
+  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  while(next && next->data) {
+    noit_check_t *check = next->data;
+    if(strcmp(check->target_ip, target_ip)) break;
+    count += f(check,closure);
+    noit_skiplist_next(&polls_by_name, &next);
+  }
+  return count;
+}
+int
 noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
   int count = 0;
   noit_check_t pivot;
   noit_skiplist *tlist;
   noit_skiplist_node *next;
-  noit_skiplist_node *sn;
 
-  sn = noit_skiplist_getlist(polls_by_name.index);
-  tlist = sn->data;
+  tlist = noit_skiplist_find(polls_by_name.index,
+                             __check_target_compare, NULL);
 
   memset(&pivot, 0, sizeof(pivot));
-  strlcpy(pivot.target_ip, (char*)target, sizeof(pivot.target_ip));
   pivot.name = "";
-  pivot.target = "";
+  pivot.target = (char *)target;
   noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
-    if(strcmp(check->target_ip, target)) break;
+    if(strcmp(check->target, target)) break;
     count += f(check,closure);
     noit_skiplist_next(&polls_by_name, &next);
   }
@@ -1094,8 +1131,19 @@ noit_poller_lookup_by_ip_module(const char *ip, const char *mod,
   crutch.allocd = nchecks;
   crutch.idx = 0;
   crutch.module = mod;
+  return noit_poller_target_ip_do(ip, ip_module_collector, &crutch);
+}
+int
+noit_poller_lookup_by_module(const char *ip, const char *mod,
+                             noit_check_t **checks, int nchecks) {
+  struct ip_module_collector_crutch crutch;
+  crutch.array = checks;
+  crutch.allocd = nchecks;
+  crutch.idx = 0;
+  crutch.module = mod;
   return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
+
 
 int
 noit_check_xpath(char *xpath, int len,

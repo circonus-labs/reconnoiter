@@ -244,7 +244,13 @@ API_EXPORT(int)
                                   noit_check_t **checks, int nchecks);
 
 API_EXPORT(int)
-   noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
+   noit_poller_target_ip_do(const char *target,
+                            int (*f)(noit_check_t *, void *),
+                            void *closure);
+
+API_EXPORT(int)
+   noit_poller_target_do(const char *target,
+                         int (*f)(noit_check_t *, void *),
                          void *closure);
 
 API_EXPORT(int)
