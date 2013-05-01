@@ -752,7 +752,10 @@ noit_http_complete_request(noit_http_session_ctx *ctx, int mask) {
                                    in->allocd - in->size - in->start,
                                    &mask, ctx->conn.e);
     noitL(http_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, len);
-    noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, len, len, in->buff + in->start + in->size);
+    if(len > 0)
+      noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, len, len, in->buff + in->start + in->size);
+    else
+      noitL(http_io, " noit_http:read(%d) => %d\n", ctx->conn.e->fd, len);
     if(len == -1 && errno == EAGAIN) return mask;
     if(len <= 0) goto full_error;
     if(len > 0) in->size += len;
@@ -902,7 +905,10 @@ noit_http_session_req_consume_chunked(noit_http_session_ctx *ctx,
                                     in->allocd - in->size - in->start,
                                     mask, ctx->conn.e);
     noitL(http_debug, " noit_http -> read(%d) = %d\n", ctx->conn.e->fd, rlen);
-    noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, rlen, rlen, in->buff + in->start + in->size);
+    if(rlen > 0)
+      noitL(http_io, " noit_http:read(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd, rlen, rlen, in->buff + in->start + in->size);
+    else
+      noitL(http_io, " noit_http:read(%d) => %d\n", ctx->conn.e->fd, rlen);
     if(rlen == -1 && errno == EAGAIN) {
       /* We'd block to read more, but we have data,
        * so do a short read */
