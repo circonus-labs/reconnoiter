@@ -111,7 +111,8 @@ function constructXml(check)
   local config = root:addchild("config")
   if check.module == "snmp" then
     for key, value in pairs(check.config) do
-      if string.sub(key, 1, 3) == "oid" then
+      value = check.interpolate(value);
+      if string.sub(key, 1, 4) == "oid_" then
         local converted = snmp.convert_mib(value)
         -- we want to add even if there's an error
         -- since we want to preserve the name of

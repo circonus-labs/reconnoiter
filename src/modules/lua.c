@@ -499,6 +499,47 @@ noit_lua_set_metric(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_interpolate(lua_State *L) {
+  noit_check_t *check;
+  noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  char buff[2048];
+
+  if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  if(!lua_isstring(L,1) && !lua_istable(L,1)) {
+    luaL_error(L, "noit.check.interpolate(<string|table>)");
+  }
+
+  noit_check_make_attrs(check, &check_attrs_hash);
+  if(lua_isstring(L,1)) {
+    const char *ns = lua_tostring(L, 1);
+    noit_check_interpolate(buff, sizeof(buff), ns,
+                           &check_attrs_hash, check->config);
+    lua_pushstring(L, buff);
+  }
+  else {
+    /* We have a table */
+	  /* And we need a new table to return */
+    lua_createtable(L, 0, 0);
+
+    /* push a blank key to prep for lua_next calls */
+    lua_pushnil(L);
+    while(lua_next(L, -3)) { /* src table is -3 */
+      const char *key = lua_tostring(L, -2);
+      if(lua_isstring(L, -1)) {
+				const char *ns = lua_tostring(L,-1);
+        noit_check_interpolate(buff, sizeof(buff), ns,
+                               &check_attrs_hash, check->config);
+				lua_pop(L,1);
+        lua_pushstring(L, buff);
+			}
+			lua_setfield(L, -3, key); /* tgt table is -3 */
+    }
+  }
+  noit_hash_destroy(&check_attrs_hash, NULL, NULL);
+  return 1;
+}
+static int
 noit_check_index_func(lua_State *L) {
   int n;
   const char *k;
@@ -552,6 +593,13 @@ noit_check_index_func(lua_State *L) {
       }
       else break;
       return 1;
+    case 'i':
+      if(!strcmp(k, "interpolate")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_interpolate, 1);
+      }
+      else break;
+			return 1;
     case 'm':
       if(!strcmp(k, "module")) lua_pushstring(L, check->module);
 
