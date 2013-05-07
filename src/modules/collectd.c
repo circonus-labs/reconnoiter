@@ -23,6 +23,7 @@
  */
 
 #include "noit_defines.h"
+#include "utils/noit_str.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -1810,7 +1811,7 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
       if(json->o->metrics[json->metric_idx].metric_name)
 	free(json->o->metrics[json->metric_idx].metric_name);
       json->o->metrics[json->metric_idx].metric_name =
-	strndup(stringVal, stringLen);
+	noit__strndup(stringVal, stringLen);
       json->metric_idx++;
       json->o->nnames = MAX(json->o->nnames, json->metric_idx);
       return 1;
