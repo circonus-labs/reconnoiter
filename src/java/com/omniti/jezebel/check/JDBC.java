@@ -213,11 +213,13 @@ public abstract class JDBC implements JezebelCheck {
               default:
                 if(auto) {
                   String s = rs.getString(i);
-                  try { Long l = Long.decode(s); rr.set(name, l); }
-                  catch (NumberFormatException nfe) {
-                    try { Double d = Double.valueOf(s); rr.set(name, d); }
-                    catch (NumberFormatException nfe2) {
-                      rr.set(name, s);
+                  if (s != null) {
+                    try { Long l = Long.decode(s); rr.set(name, l); }
+                    catch (NumberFormatException nfe) {
+                      try { Double d = Double.valueOf(s); rr.set(name, d); }
+                      catch (NumberFormatException nfe2) {
+                        rr.set(name, s);
+                      }
                     }
                   }
                 } else {
