@@ -98,7 +98,7 @@ public class ResmonResult {
         synchronized(metrics) {
             for (Map.Entry<String,ResmonMetricData> e : metrics.entrySet()) {
                 ResmonMetricData d = e.getValue();
-                char valueChars[] = {'[','[','N','U','L','L',']',']'};
+                char valueChars[] = {'[','[','n','u','l','l',']',']'};
                 if ( d.value != null ) {
                   valueChars = d.value.toCharArray();
                 }
