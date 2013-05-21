@@ -66,17 +66,18 @@ noit_capabilities_listener_init() {
 
 static void
 noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
+    const char **mod_names;
     struct utsname utsn;
     char vbuff[128], bwstr[4];
     noit_hash_table *lc;
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *k;
-    int klen;
+    int klen, i, nmods;
     void *data;
     struct timeval now;
 
     xmlDocPtr xmldoc;
-    xmlNodePtr root, cmds, bi, ri;
+    xmlNodePtr root, cmds, bi, ri, mods;
 
     /* fill out capabilities */
 
@@ -160,6 +161,24 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
         free(name_copy);
       }
     }
+
+    mods = xmlNewNode(NULL, (xmlChar *)"modules");
+    xmlAddChild(root, mods);
+
+#define list_modules(func, name) do { \
+    nmods = func(&mod_names); \
+    for(i=0; i<nmods; i++) { \
+      xmlNodePtr pnode; \
+      pnode = xmlNewNode(NULL, (xmlChar *)"module"); \
+      xmlSetProp(pnode, (xmlChar *)"type", (xmlChar *)name); \
+      xmlSetProp(pnode, (xmlChar *)"name", (xmlChar *)mod_names[i]); \
+      xmlAddChild(mods, pnode); \
+    } \
+    if(mod_names) free(mod_names); \
+} while(0)
+    list_modules(noit_module_list_loaders, "loader");
+    list_modules(noit_module_list_modules, "module");
+    list_modules(noit_module_list_generics, "generic");
 
     /* Write it out to a buffer and copy it for writing */
     cl->buff = noit_xmlSaveToBuffer(xmldoc);

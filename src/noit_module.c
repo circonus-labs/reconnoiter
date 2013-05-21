@@ -89,6 +89,42 @@ noit_module_loader_t * noit_loader_lookup(const char *name) {
   return NULL;
 }
 
+static int
+noit_module_list(noit_hash_table *t, const char ***f) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *name;
+  int klen, i = 0;
+  void *vhdr;
+
+  if(t->size == 0) {
+    *f = NULL;
+    return 0;
+  }
+
+  *f = calloc(t->size, sizeof(*f));
+  while(noit_hash_next(t, &iter, (const char **)&name, &klen,
+                       &vhdr)) {
+    noit_image_t *hdr = (noit_image_t *)vhdr;
+    (*f)[i++] = hdr->name;
+  }
+  return i;
+}
+
+int
+noit_module_list_loaders(const char ***f) {
+  return noit_module_list(&loaders, f);
+}
+
+int
+noit_module_list_modules(const char ***f) {
+  return noit_module_list(&modules, f);
+}
+
+int
+noit_module_list_generics(const char ***f) {
+  return noit_module_list(&generics, f);
+}
+
 noit_module_t * noit_module_lookup(const char *name) {
   void *vmodule;
 
