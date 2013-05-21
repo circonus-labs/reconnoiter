@@ -89,7 +89,7 @@ static void usage(const char *progname) {
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "Mhc:dDu:g:t:l:L:G:")) != EOF) {
+  while((c = getopt(argc, argv, "Mhc:dDu:g:n:t:l:L:G:")) != EOF) {
     switch(c) {
       case 'G':
         glider = strdup(optarg);
@@ -106,6 +106,17 @@ void parse_clargs(int argc, char **argv) {
         break;
       case 'L':
         noit_main_disable_log(optarg);
+        break;
+      case 'n':
+        {
+          char *cp = strchr(optarg, ':');
+          if(!cp) noit_listener_skip(optarg, 0);
+          else {
+            if(cp == optarg) optarg = NULL;
+            *cp++ = '\0';
+            noit_listener_skip(optarg, atoi(cp));
+          }
+        }
         break;
       case 'u':
         droptouser = strdup(optarg);

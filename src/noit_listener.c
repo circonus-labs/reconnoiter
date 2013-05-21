@@ -62,6 +62,30 @@ acceptor_closure_free(acceptor_closure_t *ac) {
   free(ac);
 }
 
+static struct avoid_listener {
+  char *address;
+  int port;
+  struct avoid_listener *next;
+} *listener_avoid_list;
+void
+noit_listener_skip(const char *address, int port) {
+  struct avoid_listener *al;
+  al = calloc(1, sizeof(*al));
+  al->address = address ? strdup(address) : NULL;
+  al->port = port;
+  al->next = listener_avoid_list;
+  listener_avoid_list = al;
+}
+static noit_boolean
+noit_listener_should_skip(const char *address, int port) {
+  struct avoid_listener *al;
+  for(al = listener_avoid_list; al; al = al->next)
+    if(al->port == port &&
+       (al->address == NULL || !strcmp(address, al->address)))
+      return noit_true;
+  return noit_false;
+}
+
 static int
 noit_listener_accept_ssl(eventer_t e, int mask,
                          void *closure, struct timeval *tv) {
@@ -390,6 +414,13 @@ noit_listener_reconfig(const char *toplevel) {
       /* UNIX sockets don't require a port (they'll ignore it if specified */
       noitL(noit_error,
             "Invalid port [%d] specified in stanza %d\n", port, i+1);
+      continue;
+    }
+    if(noit_listener_should_skip(address, port)) {
+      if(port)
+        noitL(noit_error, "Operator forced skipping listener %s:%d\n", address, port);
+      else
+        noitL(noit_error, "Operator forced skipping listener %s\n", address);
       continue;
     }
     if(!noit_conf_get_int(listener_configs[i],

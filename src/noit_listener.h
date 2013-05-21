@@ -69,6 +69,8 @@ typedef struct {
 
 API_EXPORT(void) noit_listener_init(const char *toplevel);
 
+API_EXPORT(void) noit_listener_skip(const char *address, int port);
+
 API_EXPORT(int)
   noit_listener(char *host, unsigned short port, int type,
                 int backlog, noit_hash_table *sslconfig,

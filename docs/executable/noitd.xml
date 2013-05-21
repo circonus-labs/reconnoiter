@@ -27,6 +27,7 @@
       <arg choice="opt">-u <replaceable>user</replaceable></arg>
       <arg choice="opt">-g <replaceable>group</replaceable></arg>
       <arg choice="opt">-t <replaceable>path</replaceable></arg>
+      <arg choice="opt">-n <replaceable>address:port</replaceable></arg>
       <arg choice="opt">-d</arg>
       <arg choice="opt">-D</arg>
       <arg choice="opt">-l <replaceable>logstream</replaceable></arg>
@@ -64,6 +65,17 @@
         Optionally specifies a path to chroot(2) for operation.  Measures
         must be taken to ensure that log files can be accessed in the
         chrooted environment.
+      </para>
+    </listitem>
+  </varlistentry>
+  <varlistentry><term><option>-n</option></term>
+    <listitem>
+      <para>
+        Optionally specifies an address to *not* listen on. It can be
+        a unix path (:port omitted), just a port (:port), or a complete
+        address (IP:port).  The parameter can be specified multiple times.
+        It will cause any listener configured on such an address to be
+        skipped during boot.
       </para>
     </listitem>
   </varlistentry>
