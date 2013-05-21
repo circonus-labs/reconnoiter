@@ -1011,7 +1011,6 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     snprintf(fullpath, sizeof(fullpath), "%s/%s", (char *)xmlGetNodePath(current_node), path);
     interest = fullpath;
   }
-  noitL(noit_error, "Looking up %s\n", interest);
   if(noit_hash_retr_str(&_compiled_fallback,
                         interest, strlen(interest), &str)) {
     *value = (char *)xmlStrdup((xmlChar *)str);
