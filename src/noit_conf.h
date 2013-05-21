@@ -62,6 +62,8 @@ API_EXPORT(void) noit_conf_watch_and_journal_watchdog(int (*f)(void *), void *c)
 API_EXPORT(void) noit_conf_mark_changed();
 
 API_EXPORT(void) noit_conf_init(const char *toplevel);
+API_EXPORT(void)
+  noit_conf_poke(const char *toplevel, const char *key, const char *val);
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
 API_EXPORT(char *) noit_conf_config_filename();

@@ -239,21 +239,25 @@ void noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
 }
 
 
+void
+noit_conf_poke(const char *toplevel, const char *key, const char *val) {
+  char keystr[256];
+  snprintf(keystr, sizeof(keystr), key, toplevel);
+  noit_hash_store(&_compiled_fallback,
+                  strdup(keystr), strlen(keystr),
+                  (void *)strdup(val));
+}
+
 DECLARE_CHECKER(name)
 void noit_conf_init(const char *toplevel) {
   int i;
-  char keystr[256];
 
   xml_debug = noit_log_stream_find("debug/xml");
 
   COMPILE_CHECKER(name, "^[-_\\.:/a-zA-Z0-9]+$");
   XML2LOG(noit_error);
-  for(i = 0; config_info[i].key != NULL; i++) {
-    snprintf(keystr, sizeof(keystr), config_info[i].key, toplevel);
-    noit_hash_store(&_compiled_fallback,
-                    strdup(keystr), strlen(keystr),
-                    (void *)strdup(config_info[i].val));
-  }
+  for(i = 0; config_info[i].key != NULL; i++)
+    noit_conf_poke(toplevel, config_info[i].key, config_info[i].val);
   xmlKeepBlanksDefault(0);
   xmlInitParser();
   xmlXPathInit();
@@ -972,7 +976,8 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
 }
 int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
-  const char *str;
+  const char *str, *interest;
+  char fullpath[1024];
   int rv = 1;
   unsigned int i;
   xmlXPathObjectPtr pobj = NULL;
@@ -1001,8 +1006,14 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
     goto found;
   }
  fallback:
+  interest = path;
+  if(*interest != '/' && current_node) {
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", (char *)xmlGetNodePath(current_node), path);
+    interest = fullpath;
+  }
+  noitL(noit_error, "Looking up %s\n", interest);
   if(noit_hash_retr_str(&_compiled_fallback,
-                        path, strlen(path), &str)) {
+                        interest, strlen(interest), &str)) {
     *value = (char *)xmlStrdup((xmlChar *)str);
     goto found;
   }
