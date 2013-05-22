@@ -193,7 +193,7 @@ end
 
 function initiate(module, check)
     local url = check.config.url or 'http:///'
-    local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
+    local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
     local port
     local use_ssl = false
     local codere = noit.pcre(check.config.code or '^200$')
@@ -208,6 +208,8 @@ function initiate(module, check)
     if host == nil then host = check.target end
     if schema == nil then
         schema = 'http'
+    end
+    if uri == nil or uri == '' then
         uri = '/'
     end
     if schema == 'http' then
