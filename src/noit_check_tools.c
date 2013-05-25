@@ -236,11 +236,11 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
     break;
     case json_type_object:
     {
-      struct lh_table *lh;
-      struct lh_entry *el;
+      struct jl_lh_table *lh;
+      struct jl_lh_entry *el;
       struct json_object *has_type = NULL, *has_value = NULL;
       lh = json_object_get_object(o);
-      lh_foreach(lh, el) {
+      jl_lh_foreach(lh, el) {
         if(!strcmp(el->k, "_type")) has_type = (struct json_object *)el->v;
         else if(!strcmp(el->k, "_value")) has_value = (struct json_object *)el->v;
         else {

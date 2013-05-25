@@ -30,9 +30,9 @@ extern const char *json_hex_chars;
 /* forward structure definitions */
 
 typedef int boolean;
-typedef struct printbuf printbuf;
-typedef struct lh_table lh_table;
-typedef struct array_list array_list;
+typedef struct jl_printbuf jl_printbuf;
+typedef struct jl_lh_table jl_lh_table;
+typedef struct jl_array_list jl_array_list;
 typedef struct json_object json_object;
 typedef struct json_object_iter json_object_iter;
 typedef struct json_tokener json_tokener;
@@ -115,7 +115,7 @@ extern struct json_object* json_object_new_object(void);
  * @param obj the json_object instance
  * @returns a linkhash
  */
-extern struct lh_table* json_object_get_object(struct json_object *obj);
+extern struct jl_lh_table* json_object_get_object(struct json_object *obj);
 
 /** Add an object field to a json_object of type json_type_object
  *
@@ -156,12 +156,12 @@ extern void json_object_object_del(struct json_object* obj, const char *key);
 
 # define json_object_object_foreach(obj,key,val) \
  char *key; struct json_object *val; \
- for(struct lh_entry *entry = json_object_get_object(obj)->head; ({ if(entry) { key = (char*)entry->k; val = (struct json_object*)entry->v; } ; entry; }); entry = entry->next )
+ for(struct jl_lh_entry *entry = json_object_get_object(obj)->head; ({ if(entry) { key = (char*)entry->k; val = (struct json_object*)entry->v; } ; entry; }); entry = entry->next )
 
 #else /* ANSI C or MSC */
 
 # define json_object_object_foreach(obj,key,val) \
- char *key; struct json_object *val; struct lh_entry *entry; \
+ char *key; struct json_object *val; struct jl_lh_entry *entry; \
  for(entry = json_object_get_object(obj)->head; (entry ? (key = (char*)entry->k, val = (struct json_object*)entry->v, entry) : 0); entry = entry->next)
 
 #endif /* defined(__GNUC__) && !defined(__STRICT_ANSI__) */
@@ -184,7 +184,7 @@ extern struct json_object* json_object_new_array(void);
  * @param obj the json_object instance
  * @returns an arraylist
  */
-extern struct array_list* json_object_get_array(struct json_object *obj);
+extern struct jl_array_list* json_object_get_array(struct json_object *obj);
 
 /** Get the length of a json_object of type json_type_array
  * @param obj the json_object instance

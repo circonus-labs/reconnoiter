@@ -26,11 +26,11 @@
 #include "debug.h"
 #include "printbuf.h"
 
-struct printbuf* printbuf_new(void)
+struct jl_printbuf* jl_printbuf_new(void)
 {
-  struct printbuf *p;
+  struct jl_printbuf *p;
 
-  p = (struct printbuf*)calloc(1, sizeof(struct printbuf));
+  p = (struct jl_printbuf*)calloc(1, sizeof(struct jl_printbuf));
   if(!p) return NULL;
   p->size = 32;
   p->bpos = 0;
@@ -42,7 +42,7 @@ struct printbuf* printbuf_new(void)
 }
 
 
-int printbuf_memappend(struct printbuf *p, const char *buf, int size)
+int jl_printbuf_memappend(struct jl_printbuf *p, const char *buf, int size)
 {
   char *t;
   if(p->size - p->bpos <= size) {
@@ -97,7 +97,7 @@ static int vasprintf(char **buf, const char *fmt, va_list ap)
 }
 #endif /* !HAVE_VASPRINTF */
 
-int sprintbuf(struct printbuf *p, const char *msg, ...)
+int jl_sprintbuf(struct jl_printbuf *p, const char *msg, ...)
 {
   va_list ap;
   char *t;
@@ -116,22 +116,22 @@ int sprintbuf(struct printbuf *p, const char *msg, ...)
     va_start(ap, msg);
     if((size = vasprintf(&t, msg, ap)) == -1) { va_end(ap); return -1; }
     va_end(ap);
-    printbuf_memappend(p, t, size);
+    jl_printbuf_memappend(p, t, size);
     free(t);
     return size;
   } else {
-    printbuf_memappend(p, buf, size);
+    jl_printbuf_memappend(p, buf, size);
     return size;
   }
 }
 
-void printbuf_reset(struct printbuf *p)
+void jl_printbuf_reset(struct jl_printbuf *p)
 {
   p->buf[0] = '\0';
   p->bpos = 0;
 }
 
-void printbuf_free(struct printbuf *p)
+void jl_printbuf_free(struct jl_printbuf *p)
 {
   if(p) {
     free(p->buf);

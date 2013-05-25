@@ -74,7 +74,7 @@ struct json_tokener_srec
 struct json_tokener
 {
   char *str;
-  struct printbuf *pb;
+  struct jl_printbuf *pb;
   int depth, is_double, st_pos, char_offset;
   ptrdiff_t err;
   unsigned int ucs_char;
