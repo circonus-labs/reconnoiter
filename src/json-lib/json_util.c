@@ -54,7 +54,7 @@
 
 struct json_object* json_object_from_file(char *filename)
 {
-  struct printbuf *pb;
+  struct jl_printbuf *pb;
   struct json_object *obj;
   char buf[JSON_FILE_BUF_SIZE];
   int fd, ret;
@@ -64,22 +64,22 @@ struct json_object* json_object_from_file(char *filename)
 	     filename, strerror(errno));
     return (struct json_object*)error_ptr(-1);
   }
-  if(!(pb = printbuf_new())) {
-    MC_ERROR("json_object_from_file: printbuf_new failed%s\n", "");
+  if(!(pb = jl_printbuf_new())) {
+    MC_ERROR("json_object_from_file: jl_printbuf_new failed%s\n", "");
     return (struct json_object*)error_ptr(-1);
   }
   while((ret = read(fd, buf, JSON_FILE_BUF_SIZE)) > 0) {
-    printbuf_memappend(pb, buf, ret);
+    jl_printbuf_memappend(pb, buf, ret);
   }
   close(fd);
   if(ret < 0) {
     MC_ABORT("json_object_from_file: error reading file %s: %s\n",
 	     filename, strerror(errno));
-    printbuf_free(pb);
+    jl_printbuf_free(pb);
     return (struct json_object*)error_ptr(-1);
   }
   obj = json_tokener_parse(pb->buf);
-  printbuf_free(pb);
+  jl_printbuf_free(pb);
   return obj;
 }
 

@@ -2395,11 +2395,11 @@ noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
     case json_type_null: lua_pushnil(L); break;
     case json_type_object:
     {
-      struct lh_table *lh;
-      struct lh_entry *el;
+      struct jl_lh_table *lh;
+      struct jl_lh_entry *el;
       lh = json_object_get_object(o);
       lua_createtable(L, 0, lh->count);
-      lh_foreach(lh, el) {
+      jl_lh_foreach(lh, el) {
         noit_json_object_to_luatype(L, (struct json_object *)el->v);
         lua_setfield(L, -2, el->k);
       }
@@ -2432,12 +2432,12 @@ noit_json_object_to_luatype(lua_State *L, struct json_object *o) {
     case json_type_array:
     {
       int i, cnt;
-      struct array_list *al;
+      struct jl_array_list *al;
       al = json_object_get_array(o);
-      cnt = al ? array_list_length(al) : 0;
+      cnt = al ? jl_array_list_length(al) : 0;
       lua_createtable(L, 0, cnt);
       for(i=0;i<cnt;i++) {
-        noit_json_object_to_luatype(L, (struct json_object *)array_list_get_idx(al, i));
+        noit_json_object_to_luatype(L, (struct json_object *)jl_array_list_get_idx(al, i));
         lua_rawseti(L, -2, i);
       }
       break;

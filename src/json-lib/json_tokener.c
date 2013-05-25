@@ -56,7 +56,7 @@ struct json_tokener* json_tokener_new(void)
 
   tok = (struct json_tokener*)calloc(1, sizeof(struct json_tokener));
   if (!tok) return NULL;
-  tok->pb = printbuf_new();
+  tok->pb = jl_printbuf_new();
   json_tokener_reset(tok);
   return tok;
 }
@@ -64,7 +64,7 @@ struct json_tokener* json_tokener_new(void)
 void json_tokener_free(struct json_tokener *tok)
 {
   json_tokener_reset(tok);
-  if(tok) printbuf_free(tok->pb);
+  if(tok) jl_printbuf_free(tok->pb);
   free(tok);
 }
 
@@ -137,8 +137,8 @@ char* strndup(const char* str, size_t n)
  * achieved by using tighter loops to locally handle units such as
  * comments and strings.  Loops that handle an entire token within 
  * their scope also gather entire strings and pass them to 
- * printbuf_memappend() in a single call, rather than calling
- * printbuf_memappend() one char at a time.
+ * jl_printbuf_memappend() in a single call, rather than calling
+ * jl_printbuf_memappend() one char at a time.
  *
  * POP_CHAR() and ADVANCE_CHAR() macros are used for code that is
  * common to both the main loop and the tighter loops.
@@ -191,8 +191,8 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	  goto out;
       }
       if(c == '/') {
-	printbuf_reset(tok->pb);
-	printbuf_memappend_fast(tok->pb, &c, 1);
+	jl_printbuf_reset(tok->pb);
+	jl_printbuf_memappend_fast(tok->pb, &c, 1);
 	state = json_tokener_state_comment_start;
       } else {
 	state = saved_state;
@@ -215,13 +215,13 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
       case 'N':
       case 'n':
 	state = json_tokener_state_null;
-	printbuf_reset(tok->pb);
+	jl_printbuf_reset(tok->pb);
 	tok->st_pos = 0;
 	goto redo_char;
       case '"':
       case '\'':
 	state = json_tokener_state_string;
-	printbuf_reset(tok->pb);
+	jl_printbuf_reset(tok->pb);
 	tok->quote_char = c;
 	break;
       case 'T':
@@ -229,7 +229,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
       case 'F':
       case 'f':
 	state = json_tokener_state_boolean;
-	printbuf_reset(tok->pb);
+	jl_printbuf_reset(tok->pb);
 	tok->st_pos = 0;
 	goto redo_char;
 #if defined(__GNUC__)
@@ -248,7 +248,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 #endif
       case '-':
 	state = json_tokener_state_number;
-	printbuf_reset(tok->pb);
+	jl_printbuf_reset(tok->pb);
 	tok->is_double = 0;
 	goto redo_char;
       default:
@@ -265,7 +265,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
       goto redo_char;
 
     case json_tokener_state_null:
-      printbuf_memappend_fast(tok->pb, &c, 1);
+      jl_printbuf_memappend_fast(tok->pb, &c, 1);
       if(strncasecmp(json_null_str, tok->pb->buf,
 		     json_min(tok->st_pos+1, strlen(json_null_str))) == 0) {
 	if(tok->st_pos == strlen(json_null_str)) {
@@ -290,7 +290,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	tok->err = json_tokener_error_parse_comment;
 	goto out;
       }
-      printbuf_memappend_fast(tok->pb, &c, 1);
+      jl_printbuf_memappend_fast(tok->pb, &c, 1);
       break;
 
     case json_tokener_state_comment:
@@ -299,11 +299,11 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
           const char *case_start = str;
           while(c != '*') {
             if (!ADVANCE_CHAR(str, tok) || !POP_CHAR(c, tok)) {
-              printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+              jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
               goto out;
             } 
           }
-          printbuf_memappend_fast(tok->pb, case_start, 1+str-case_start);
+          jl_printbuf_memappend_fast(tok->pb, case_start, 1+str-case_start);
           state = json_tokener_state_comment_end;
         }
             break;
@@ -314,18 +314,18 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	const char *case_start = str;
 	while(c != '\n') {
 	  if (!ADVANCE_CHAR(str, tok) || !POP_CHAR(c, tok)) {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    goto out;
 	  }
 	}
-	printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	MC_DEBUG("json_tokener_comment: %s\n", tok->pb->buf);
 	state = json_tokener_state_eatws;
       }
       break;
 
     case json_tokener_state_comment_end:
-      printbuf_memappend_fast(tok->pb, &c, 1);
+      jl_printbuf_memappend_fast(tok->pb, &c, 1);
       if(c == '/') {
 	MC_DEBUG("json_tokener_comment: %s\n", tok->pb->buf);
 	state = json_tokener_state_eatws;
@@ -340,19 +340,19 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	const char *case_start = str;
 	while(1) {
 	  if(c == tok->quote_char) {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    current = json_object_new_string(tok->pb->buf);
 	    saved_state = json_tokener_state_finish;
 	    state = json_tokener_state_eatws;
 	    break;
 	  } else if(c == '\\') {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    saved_state = json_tokener_state_string;
 	    state = json_tokener_state_string_escape;
 	    break;
 	  }
 	  if (!ADVANCE_CHAR(str, tok) || !POP_CHAR(c, tok)) {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    goto out;
 	  }
 	}
@@ -364,17 +364,17 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
       case '"':
       case '\\':
       case '/':
-	printbuf_memappend_fast(tok->pb, &c, 1);
+	jl_printbuf_memappend_fast(tok->pb, &c, 1);
 	state = saved_state;
 	break;
       case 'b':
       case 'n':
       case 'r':
       case 't':
-	if(c == 'b') printbuf_memappend_fast(tok->pb, "\b", 1);
-	else if(c == 'n') printbuf_memappend_fast(tok->pb, "\n", 1);
-	else if(c == 'r') printbuf_memappend_fast(tok->pb, "\r", 1);
-	else if(c == 't') printbuf_memappend_fast(tok->pb, "\t", 1);
+	if(c == 'b') jl_printbuf_memappend_fast(tok->pb, "\b", 1);
+	else if(c == 'n') jl_printbuf_memappend_fast(tok->pb, "\n", 1);
+	else if(c == 'r') jl_printbuf_memappend_fast(tok->pb, "\r", 1);
+	else if(c == 't') jl_printbuf_memappend_fast(tok->pb, "\t", 1);
 	state = saved_state;
 	break;
       case 'u':
@@ -390,7 +390,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 
     case json_tokener_state_escape_unicode:
             /* Note that the following code is inefficient for handling large
-       * chunks of extended chars, calling printbuf_memappend() once
+       * chunks of extended chars, calling jl_printbuf_memappend() once
        * for each multi-byte character of input.
        * This is a good area for future optimization.
        */
@@ -403,16 +403,16 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 		unsigned char utf_out[3];
 		if (tok->ucs_char < 0x80) {
 		  utf_out[0] = tok->ucs_char;
-		  printbuf_memappend_fast(tok->pb, (char*)utf_out, 1);
+		  jl_printbuf_memappend_fast(tok->pb, (char*)utf_out, 1);
 		} else if (tok->ucs_char < 0x800) {
 		  utf_out[0] = 0xc0 | (tok->ucs_char >> 6);
 		  utf_out[1] = 0x80 | (tok->ucs_char & 0x3f);
-		  printbuf_memappend_fast(tok->pb, (char*)utf_out, 2);
+		  jl_printbuf_memappend_fast(tok->pb, (char*)utf_out, 2);
 		} else {
 		  utf_out[0] = 0xe0 | (tok->ucs_char >> 12);
 		  utf_out[1] = 0x80 | ((tok->ucs_char >> 6) & 0x3f);
 		  utf_out[2] = 0x80 | (tok->ucs_char & 0x3f);
-		  printbuf_memappend_fast(tok->pb, (char*)utf_out, 3);
+		  jl_printbuf_memappend_fast(tok->pb, (char*)utf_out, 3);
 		}
 		state = saved_state;
 		break;
@@ -428,7 +428,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
       break;
 
     case json_tokener_state_boolean:
-      printbuf_memappend_fast(tok->pb, &c, 1);
+      jl_printbuf_memappend_fast(tok->pb, &c, 1);
       if(strncasecmp(json_true_str, tok->pb->buf,
 		     json_min(tok->st_pos+1, strlen(json_true_str))) == 0) {
 	if(tok->st_pos == strlen(json_true_str)) {
@@ -461,12 +461,12 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	  ++case_len;
 	  if(c == '.' || c == 'e') tok->is_double = 1;
 	  if (!ADVANCE_CHAR(str, tok) || !POP_CHAR(c, tok)) {
-	    printbuf_memappend_fast(tok->pb, case_start, case_len);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, case_len);
 	    goto out;
 	  }
 	}
         if (case_len>0)
-          printbuf_memappend_fast(tok->pb, case_start, case_len);
+          jl_printbuf_memappend_fast(tok->pb, case_start, case_len);
       }
       {
         int numi;
@@ -540,7 +540,7 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	state = json_tokener_state_eatws;
       } else if (c == '"' || c == '\'') {
 	tok->quote_char = c;
-	printbuf_reset(tok->pb);
+	jl_printbuf_reset(tok->pb);
 	state = json_tokener_state_object_field;
       } else {
 	tok->err = json_tokener_error_parse_object_key_name;
@@ -554,19 +554,19 @@ struct json_object* json_tokener_parse_ex(struct json_tokener *tok,
 	const char *case_start = str;
 	while(1) {
 	  if(c == tok->quote_char) {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    obj_field_name = strdup(tok->pb->buf);
 	    saved_state = json_tokener_state_object_field_end;
 	    state = json_tokener_state_eatws;
 	    break;
 	  } else if(c == '\\') {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    saved_state = json_tokener_state_object_field;
 	    state = json_tokener_state_string_escape;
 	    break;
 	  }
 	  if (!ADVANCE_CHAR(str, tok) || !POP_CHAR(c, tok)) {
-	    printbuf_memappend_fast(tok->pb, case_start, str-case_start);
+	    jl_printbuf_memappend_fast(tok->pb, case_start, str-case_start);
 	    goto out;
 	  }
 	}

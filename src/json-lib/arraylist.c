@@ -23,12 +23,12 @@
 #include "bits.h"
 #include "arraylist.h"
 
-struct array_list*
-array_list_new(array_list_free_fn *free_fn)
+struct jl_array_list*
+jl_array_list_new(jl_array_list_free_fn *free_fn)
 {
-  struct array_list *arr;
+  struct jl_array_list *arr;
 
-  arr = (struct array_list*)calloc(1, sizeof(struct array_list));
+  arr = (struct jl_array_list*)calloc(1, sizeof(struct jl_array_list));
   if(!arr) return NULL;
   arr->size = ARRAY_LIST_DEFAULT_SIZE;
   arr->length = 0;
@@ -41,7 +41,7 @@ array_list_new(array_list_free_fn *free_fn)
 }
 
 extern void
-array_list_free(struct array_list *arr)
+jl_array_list_free(struct jl_array_list *arr)
 {
   int i;
   for(i = 0; i < arr->length; i++)
@@ -51,13 +51,13 @@ array_list_free(struct array_list *arr)
 }
 
 void*
-array_list_get_idx(struct array_list *arr, int i)
+jl_array_list_get_idx(struct jl_array_list *arr, int i)
 {
   if(i >= arr->length) return NULL;
   return arr->array[i];
 }
 
-static int array_list_expand_internal(struct array_list *arr, int max)
+static int jl_array_list_expand_internal(struct jl_array_list *arr, int max)
 {
   void *t;
   int new_size;
@@ -72,9 +72,9 @@ static int array_list_expand_internal(struct array_list *arr, int max)
 }
 
 int
-array_list_put_idx(struct array_list *arr, int idx, void *data)
+jl_array_list_put_idx(struct jl_array_list *arr, int idx, void *data)
 {
-  if(array_list_expand_internal(arr, idx)) return -1;
+  if(jl_array_list_expand_internal(arr, idx)) return -1;
   if(arr->array[idx]) arr->free_fn(arr->array[idx]);
   arr->array[idx] = data;
   if(arr->length <= idx) arr->length = idx + 1;
@@ -82,13 +82,13 @@ array_list_put_idx(struct array_list *arr, int idx, void *data)
 }
 
 int
-array_list_add(struct array_list *arr, void *data)
+jl_array_list_add(struct jl_array_list *arr, void *data)
 {
-  return array_list_put_idx(arr, arr->length, data);
+  return jl_array_list_put_idx(arr, arr->length, data);
 }
 
 int
-array_list_length(struct array_list *arr)
+jl_array_list_length(struct jl_array_list *arr)
 {
   return arr->length;
 }
