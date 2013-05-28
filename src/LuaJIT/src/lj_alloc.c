@@ -197,10 +197,12 @@ static LJ_AINLINE void *CALL_MMAP(size_t size)
 */
 #if LJ_TARGET_OSX
 #define MMAP_REGION_START	((uintptr_t)0x10000)
-#else
+#elif LJ_64 && defined(__sun__)
 #define MMAP_REGION_START	((uintptr_t)0x10000000)
+#else
+#define MMAP_REGION_START	((uintptr_t)0x80000000)
 #endif
-#define MMAP_REGION_END		((uintptr_t)0x80000000)
+#define MMAP_REGION_END		((uintptr_t)0xffffffff)
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <sys/resource.h>
@@ -212,6 +214,19 @@ static LJ_AINLINE void *CALL_MMAP(size_t size)
   /* Hint for next allocation. Doesn't need to be thread-safe. */
   static uintptr_t alloc_hint = MMAP_REGION_START;
   int retry = 0;
+
+#if defined(__sun__)
+  /* MAP_32BIT on Illumos is 0x80. This will allow us to build
+   * with support despite not having support on the build machine.
+   * It also allows for run-time detection, we'll error if the
+   * flag is not supported. */
+  void *ptr = mmap(NULL, size, MMAP_PROT, 0x80|MMAP_FLAGS, -1, 0);
+  if(ptr != MAP_FAILED) {
+    errno = olderr;
+    return ptr;
+  }
+#endif
+
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
   static int rlimit_modified = 0;
   if (LJ_UNLIKELY(rlimit_modified == 0)) {
