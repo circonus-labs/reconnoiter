@@ -607,6 +607,9 @@ static int noit_httptrap_init(noit_module_t *self) {
   noit_http_rest_register("PUT", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_handler);
+  noit_http_rest_register("POST", "/module/httptrap/",
+                          "^(" UUID_REGEX ")/([^/]*).*$",
+                          rest_httptrap_handler);
   return 0;
 }
 
