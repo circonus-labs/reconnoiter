@@ -528,7 +528,7 @@ noit_conf_read_into_node(xmlNodePtr node, const char *path) {
   snprintf(filepath, sizeof(filepath), "%s/.attrs", path);
   while((rv = stat(filepath, &sb)) < 0 && errno == EINTR);
   if(rv == 0) {
-    doc = xmlParseFile(filepath);
+    doc = xmlReadFile(filepath, "utf8", XML_PARSE_NOENT);
     if(doc) root = xmlDocGetRootElement(doc);
     if(doc && root) {
       node->properties = root->properties;
@@ -717,7 +717,7 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
       strlcat(infile, path, PATH_MAX);
     }
     xmlFree(path);
-    config_include_nodes[i].doc = xmlParseFile(infile);
+    config_include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
     if(config_include_nodes[i].doc) {
       xmlNodePtr n;
       config_include_nodes[i].insertion_point = node;
