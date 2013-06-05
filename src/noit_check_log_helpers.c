@@ -292,7 +292,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
       default:
         break;
     }
-    if(value_size == 0) continue; /* WTF, bad metric_type? */
+    if(value_size == 0 && m.metric_type != METRIC_STRING) continue; /* WTF, bad metric_type? */
 
     size = 2 /* M\t */ + strlen(timestamp) + 1 /* \t */ +
            strlen(uuid_str) + 1 /* \t */ + strlen(metric->name) +
