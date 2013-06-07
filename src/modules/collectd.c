@@ -2017,7 +2017,7 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
   noit_hash_table *hdrs;
   const char *v;
 
-
+  rxc = restc->call_closure;
   if(restc->call_closure == NULL) {
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
     rxc->state = CD_NONE;
@@ -2027,22 +2027,22 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
     yajl_config(rxc->parser, yajl_allow_trailing_garbage, 1);
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
     restc->call_closure_free = rest_json_payload_free;
+
+    req = noit_http_session_request(ctx);
+    hdrs = noit_http_request_headers_table(req);
+    if(!noit_hash_retr_str(hdrs, "authorization", 13, &v)) goto unauth;
+  
+    if(strncmp(v, "Basic ", 6)) goto unauth;
+    rxc->user = strdup(v);
+    len = noit_b64_decode(v+6, strlen(v)-6,
+                          (unsigned char *)rxc->user, strlen(v));
+    if(len < 0) goto unauth;
+  	rxc->user[len] = '\0';
+  	cp = strchr(rxc->user, ':');
+    if(!cp) goto denied;
+    *cp++ = '\0';
+    rxc->pass = cp;
   }
-
-  req = noit_http_session_request(ctx);
-  hdrs = noit_http_request_headers_table(req);
-  if(!noit_hash_retr_str(hdrs, "authorization", 13, &v)) goto unauth;
-
-  if(strncmp(v, "Basic ", 6)) goto unauth;
-  rxc->user = strdup(v);
-  len = noit_b64_decode(v+6, strlen(v)-6,
-                        (unsigned char *)rxc->user, strlen(v));
-  if(len < 0) goto unauth;
-	rxc->user[len] = '\0';
-	cp = strchr(rxc->user, ':');
-  if(!cp) goto denied;
-  *cp++ = '\0';
-  rxc->pass = cp;
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
   if(rxc == NULL && !complete) return mask;
