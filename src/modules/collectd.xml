@@ -21,7 +21,7 @@
     <parameter name="username"
                required="optional"
                allowed=".+">The collectd username for authenticating signed and encrypted packets. Also the username used for HTTP authentication when using the write_http ingestion method.</parameter>
-    <parameter name="password"
+    <parameter name="secret"
                required="optional"
                allowed=".+">The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</parameter>
   </checkconfig>
