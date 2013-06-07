@@ -124,12 +124,14 @@ typedef struct meta_data_s meta_data_t;
 
 #define TYPE_HOST            0x0000
 #define TYPE_TIME            0x0001
+#define TYPE_TIME_HR         0x0008
 #define TYPE_PLUGIN          0x0002
 #define TYPE_PLUGIN_INSTANCE 0x0003
 #define TYPE_TYPE            0x0004
 #define TYPE_TYPE_INSTANCE   0x0005
 #define TYPE_VALUES          0x0006
 #define TYPE_INTERVAL        0x0007
+#define TYPE_INTERVAL_HR     0x0009
 
 /* Types to transmit notifications */
 #define TYPE_MESSAGE         0x0100
@@ -170,6 +172,16 @@ typedef struct meta_data_s meta_data_t;
         (t == DS_TYPE_ABSOLUTE) ? "absolute" : \
         "unknown"
 
+
+#define ONE_GIGABYTE (1 << 30)
+#define CONVERT_CDTIME_TO_TIME_T(t) ((time_t) ((t) / ONE_GIGABYTE))
+#define CONVERT_CDTIME_TO_US(t)  ((suseconds_t) (((double) (t))  / ((double)(ONE_GIGABYTE) / 1000000)))
+#define CONVERT_CDTIME_TO_TIMEVAL(cd_time,timeval_ptr) \
+  do { \
+    (timeval_ptr)->tv_usec = CONVERT_CDTIME_TO_US ((cd_time) % ONE_GIGABYTE); \
+    (timeval_ptr)->tv_sec = CONVERT_CDTIME_TO_TIME_T (cd_time); \
+  } while (0)
+
 #define BUFF_SIZE 1024
 
 typedef unsigned long long counter_t;
@@ -191,7 +203,7 @@ struct value_list_s
 {
   value_t *values;
   int      values_len;
-  time_t   time;
+  struct timeval time;
   int      interval;
   char     host[DATA_MAX_NAME_LEN];
   char     plugin[DATA_MAX_NAME_LEN];
@@ -231,7 +243,7 @@ typedef struct notification_meta_s
 typedef struct notification_s
 {
   int    severity;
-  time_t time;
+  struct timeval time;
   char   message[NOTIF_MAX_MSG_LEN];
   char   host[DATA_MAX_NAME_LEN];
   char   plugin[DATA_MAX_NAME_LEN];
@@ -947,7 +959,7 @@ static int parse_packet (/* {{{ */
   int packet_was_encrypted = (flags & PP_ENCRYPTED);
   int printed_ignore_warning = 0;
 
-#define VALUE_LIST_INIT { NULL, 0, 0, interval_g, "localhost", "", "", "", "", NULL }
+#define VALUE_LIST_INIT { NULL, 0, {0}, interval_g, "localhost", "", "", "", "", NULL }
   value_list_t vl = VALUE_LIST_INIT;
   notification_t n;
 
@@ -1045,7 +1057,7 @@ static int parse_packet (/* {{{ */
       {
         noitL(noit_error,
               "collectd: NOT dispatching values [%lld,%s:%s:%s]\n",
-              (long long int)vl.time, vl.host, vl.plugin, vl.type);
+              (long long int)vl.time.tv_sec, vl.host, vl.plugin, vl.type);
       }
 
       sfree (vl.values);
@@ -1057,8 +1069,18 @@ static int parse_packet (/* {{{ */
       status = parse_part_number (&buffer, &buffer_size, &tmp);
       if (status == 0)
       {
-        vl.time = (time_t) tmp;
-        n.time = (time_t) tmp;
+        vl.time.tv_sec = (time_t) tmp;
+        n.time.tv_sec = (time_t) tmp;
+      }
+    }
+    else if (pkg_type == TYPE_TIME_HR)
+    {
+      uint64_t tmp = 0;
+      status = parse_part_number (&buffer, &buffer_size, &tmp);
+      if (status == 0)
+      {
+        CONVERT_CDTIME_TO_TIMEVAL(tmp, &vl.time);
+        CONVERT_CDTIME_TO_TIMEVAL(tmp, &n.time);
       }
     }
     else if (pkg_type == TYPE_INTERVAL)
@@ -1068,6 +1090,14 @@ static int parse_packet (/* {{{ */
           &tmp);
       if (status == 0)
         vl.interval = (int) tmp;
+    }
+    else if (pkg_type == TYPE_INTERVAL_HR)
+    {
+      uint64_t tmp = 0;
+      status = parse_part_number (&buffer, &buffer_size,
+          &tmp);
+      if (status == 0)
+        vl.interval = CONVERT_CDTIME_TO_TIME_T(tmp);
     }
     else if (pkg_type == TYPE_HOST)
     {
