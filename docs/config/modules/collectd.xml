@@ -2,6 +2,7 @@
 <section>
   <title>collectd</title>
   <para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para>
+  <para>Additionally, this module registers a REST handler to support collectd's write_http output plugin.  This exposes a REST endpoint at /module/collectd.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -117,13 +118,13 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The collectd username for authenticating signed and encrypted packets</para>
+          <para>The collectd username for authenticating signed and encrypted packets. Also the username used for HTTP authentication when using the write_http ingestion method.</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>password</term>
+        <term>secret</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -139,7 +140,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The collectd password for authenticating signed and encrypted packets</para>
+          <para>The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -162,6 +163,18 @@
           Password "s3cr3t"
         &lt;/Server&gt;
       &lt;/Plugin&gt;
+
+      &lt;Plugin write_http&gt;
+        &lt;URL "https://127.0.0.1:43191/module/collectd/"&gt;
+          User "us3rname"
+          Password "s3cr3t"
+          VerifyPeer false
+          VerifyHost false
+          CACert "/etc/ssl/ca.crt"
+          Format "JSON"
+          StoreRates false
+        &lt;/URL&gt;
+      &lt;/Plugin&gt;
       </programlisting>
     <programlisting>
       &lt;noit&gt;
@@ -169,7 +182,7 @@
           &lt;module image="collectd" name="collectd"&gt;
             &lt;config&gt;
               &lt;username&gt;us3rname&lt;/username&gt;
-              &lt;password&gt;s3cr3t&lt;/password&gt;
+              &lt;secret&gt;s3cr3t&lt;/secret&gt;
               &lt;security_level&gt;2&lt;/security_level&gt;
             &lt;/config&gt;
           &lt;/module&gt;

@@ -64,7 +64,7 @@
           <module image="collectd" name="collectd">
             <config>
               <username>us3rname</username>
-              <password>s3cr3t</password>
+              <secret>s3cr3t</secret>
               <security_level>2</security_level>
             </config>
           </module>
