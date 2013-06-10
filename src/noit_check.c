@@ -125,10 +125,18 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_check_add_to_list(noit_check_t *new_check) {
+noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
+  assert(new_check->name || newname);
   if(!(new_check->flags & NP_TRANSIENT)) {
     /* This remove could fail -- no big deal */
-    noit_skiplist_remove(&polls_by_name, new_check, NULL);
+    if(new_check->name != NULL)
+      noit_skiplist_remove(&polls_by_name, new_check, NULL);
+
+    /* optional update the name (at the critical point) */
+    if(newname) {
+      if(new_check->name) free(new_check->name);
+      new_check->name = strdup(newname);
+    }
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
@@ -765,7 +773,7 @@ noit_check_is_valid_target(const char *target) {
 }
 int
 noit_check_set_ip(noit_check_t *new_check,
-                  const char *ip_str) {
+                  const char *ip_str, const char *newname) {
   int8_t family;
   int rv, failed = 0;
   char old_target_ip[INET6_ADDRSTRLEN];
@@ -803,8 +811,13 @@ noit_check_set_ip(noit_check_t *new_check,
                  sizeof(new_check->target_ip)) == NULL) {
       noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
-  if (strcmp(old_target_ip, new_check->target_ip) != 0) {
-    noit_check_add_to_list(new_check);
+  /*
+   * new_check->name could be null if this check is being set for the
+   * first time.  add_to_list will set it.
+   */
+  if (new_check->name == NULL ||
+      strcmp(old_target_ip, new_check->target_ip) != 0) {
+    noit_check_add_to_list(new_check, newname);
   }
   return failed;
 }
@@ -817,7 +830,7 @@ noit_check_resolve(noit_check_t *check) {
   if(noit_check_resolver_fetch(check->target, ipaddr, sizeof(ipaddr),
                                family_pref) >= 0) {
     check->flags |= NP_RESOLVED;
-    noit_check_set_ip(check, ipaddr);
+    noit_check_set_ip(check, ipaddr, NULL);
     return 0;
   }
   check->flags &= ~NP_RESOLVED;
@@ -836,6 +849,7 @@ noit_check_update(noit_check_t *new_check,
                   int flags) {
   int mask = NP_DISABLED | NP_UNCONFIG;
 
+  assert(name);
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
@@ -854,7 +868,8 @@ noit_check_update(noit_check_t *new_check,
   else
     new_check->flags &= ~NP_RESOLVE;
 
-  if(noit_check_set_ip(new_check, target)) {
+  /* This sets both the name and the target_addr */
+  if(noit_check_set_ip(new_check, target, name)) {
     noit_boolean should_resolve;
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
@@ -865,8 +880,6 @@ noit_check_update(noit_check_t *new_check,
     noit_check_resolve(new_check);
   }
 
-  if(new_check->name) free(new_check->name);
-  new_check->name = name ? strdup(name): NULL;
   if(new_check->filterset) free(new_check->filterset);
   new_check->filterset = filterset ? strdup(filterset): NULL;
 
@@ -899,7 +912,7 @@ noit_check_update(noit_check_t *new_check,
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
 
-  noit_check_add_to_list(new_check);
+  noit_check_add_to_list(new_check, NULL);
   noit_check_log_check(new_check);
   return 0;
 }
