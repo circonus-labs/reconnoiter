@@ -133,7 +133,7 @@ noit_check_add_to_list(noit_check_t *new_check) {
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
     if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-      noitL(noit_stderr, "Check %s`%s disabled due to naming conflict\n",
+      noitL(noit_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
     }
