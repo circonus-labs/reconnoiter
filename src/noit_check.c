@@ -803,7 +803,7 @@ noit_check_set_ip(noit_check_t *new_check,
                  sizeof(new_check->target_ip)) == NULL) {
       noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
-  if ((failed == 0) && (new_check->name != NULL) && (strcmp(old_target_ip, new_check->target_ip) != 0)) {
+  if (strcmp(old_target_ip, new_check->target_ip) != 0) {
     noit_check_add_to_list(new_check);
   }
   return failed;
