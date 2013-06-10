@@ -1617,7 +1617,8 @@ nc_printf_check_brief(noit_console_closure_t ncct,
                       noit_check_t *check) {
   char out[512];
   char uuid_str[37];
-  snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
+  snprintf(out, sizeof(out), "%s`%s (%s [%x])", check->target, check->name,
+           check->target_ip, check->flags);
   uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
   if(check->stats.current.status)
@@ -1717,6 +1718,44 @@ noit_console_show_checks(noit_console_closure_t ncct,
   return 0;
 }
 
+static int
+noit_console_short_checks_sl(noit_console_closure_t ncct,
+                             noit_skiplist *tlist) {
+  noit_skiplist_node *iter;
+  for(iter = noit_skiplist_getlist(tlist); iter;
+      noit_skiplist_next(tlist, &iter)) {
+    nc_printf_check_brief(ncct, (noit_check_t *)iter->data);
+  }
+  return 0;
+}
+static int
+noit_console_show_checks_name(noit_console_closure_t ncct,
+                              int argc, char **argv,
+                              noit_console_state_t *dstate,
+                              void *closure) {
+  return noit_console_short_checks_sl(ncct, &polls_by_name);
+}
+
+static int
+noit_console_show_checks_target(noit_console_closure_t ncct,
+                                   int argc, char **argv,
+                                   noit_console_state_t *dstate,
+                                   void *closure) {
+  return noit_console_short_checks_sl(ncct,
+           noit_skiplist_find(polls_by_name.index,
+           __check_target_compare, NULL));
+}
+
+static int
+noit_console_show_checks_target_ip(noit_console_closure_t ncct,
+                                   int argc, char **argv,
+                                   noit_console_state_t *dstate,
+                                   void *closure) {
+  return noit_console_short_checks_sl(ncct,
+           noit_skiplist_find(polls_by_name.index,
+           __check_target_ip_compare, NULL));
+}
+
 static void
 register_console_check_commands() {
   noit_console_state_t *tl;
@@ -1731,6 +1770,18 @@ register_console_check_commands() {
 
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("checks:name", noit_console_show_checks_name, NULL,
+           NULL, NULL));
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("checks:target", noit_console_show_checks_target, NULL,
+           NULL, NULL));
+
+  noit_console_state_add_cmd(showcmd->dstate,
+    NCSCMD("checks:target_ip", noit_console_show_checks_target_ip, NULL,
+           NULL, NULL));
 
   noit_console_state_add_cmd(showcmd->dstate,
     NCSCMD("watches", noit_console_show_watchlist, NULL, NULL, NULL));
