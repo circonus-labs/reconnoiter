@@ -156,6 +156,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   flags |= noit_calc_rtype_flag(resolve_rtype);
   c = calloc(1, sizeof(*c));
   c->module = strdup(module);
+  c->flags = NP_TRANSIENT;
   noit_check_update(c, target, name, filterset,
                     conf_hash, moptions, 0, timeout, NULL, flags);
   uuid_generate(c->checkid);

@@ -126,8 +126,8 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
 }
 static int
 noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
-  assert(new_check->name || newname);
   if(!(new_check->flags & NP_TRANSIENT)) {
+    assert(new_check->name || newname);
     /* This remove could fail -- no big deal */
     if(new_check->name != NULL)
       noit_skiplist_remove(&polls_by_name, new_check, NULL);
