@@ -819,6 +819,12 @@ noit_check_set_ip(noit_check_t *new_check,
       strcmp(old_target_ip, new_check->target_ip) != 0) {
     noit_check_add_to_list(new_check, newname);
   }
+
+  if(new_check->name == NULL && newname != NULL) {
+    assert(new_check->flags & NP_TRANSIENT);
+    new_check->name = strdup(newname);
+  }
+
   return failed;
 }
 int
