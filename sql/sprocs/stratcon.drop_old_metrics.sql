@@ -36,8 +36,8 @@ begin
       from pg_class c
       join pg_namespace n on (c.relnamespace = n.oid)
      where relkind = 'r'
-       and relname like 'metric_%_archive_%' 
-       and ( relname <= ('metric_numeric_archive_' || v_tdate) or relname <= ('metric_text_archive_' || v_tdate))
+       and ( ( relname like 'metric_numeric_archive_%' and relname <= ('metric_numeric_archive_' || v_tdate) ) or 
+             ( relname like 'metric_text_archive_%' and relname <= ('metric_text_archive_' || v_tdate) ) )
      order by relname 
   loop
     v_sql := 'drop table ' || v_rec.tablename;
