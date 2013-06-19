@@ -53,7 +53,7 @@ begin
 end;$BODY$
   LANGUAGE 'plpgsql' VOLATILE
   COST 100;
-ALTER FUNCTION stratcon.drop_old_metrics(interval, boolean) OWNER TO postgres;
+ALTER FUNCTION stratcon.drop_old_metrics(interval, boolean) OWNER TO reconnoiter;
 COMMENT ON FUNCTION stratcon.drop_old_metrics(interval, boolean) IS 'Drop old metric data, that has been rolled up. Will refuse to drop data, that is still needed.
 Parameters:
  in_keep - how long into the past to keep data
