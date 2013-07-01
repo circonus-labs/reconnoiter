@@ -576,6 +576,9 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   GET_FEEDTYPE(nctx, feedtype);
   STRATCON_CONNECT_SSL(e->fd, (char *)feedtype, nctx->remote_str,
                             (char *)cn_expected);
+
+  if(mask & EVENTER_EXCEPTION) goto error;
+
   rv = eventer_SSL_connect(e, &mask);
   sslctx = eventer_get_eventer_ssl_ctx(e);
 
