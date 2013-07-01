@@ -156,6 +156,11 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
   feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
   nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
   gettimeofday(&now, NULL);
+  if(ctx->timeout_event) {
+    sub_timeval(ctx->timeout_event->whence, now, &diff);
+    nc_printf(ncct, "\tTimeout scheduled for %lld.%06us\n",
+              (long long)diff.tv_sec, (unsigned int) diff.tv_usec);
+  }
   if(ctx->retry_event) {
     sub_timeval(ctx->retry_event->whence, now, &diff);
     nc_printf(ncct, "\tNext attempt in %lld.%06us\n",
