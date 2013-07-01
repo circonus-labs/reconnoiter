@@ -36,8 +36,8 @@ begin
       from pg_class c
       join pg_namespace n on (c.relnamespace = n.oid)
      where relkind = 'r'
-       and relname like 'metric_%_archive_%' 
-       and ( relname <= ('metric_numeric_archive_' || v_tdate) or relname <= ('metric_text_archive_' || v_tdate))
+       and ( ( relname like 'metric_numeric_archive_%' and relname <= ('metric_numeric_archive_' || v_tdate) ) or 
+             ( relname like 'metric_text_archive_%' and relname <= ('metric_text_archive_' || v_tdate) ) )
      order by relname 
   loop
     v_sql := 'drop table ' || v_rec.tablename;
@@ -53,7 +53,7 @@ begin
 end;$BODY$
   LANGUAGE 'plpgsql' VOLATILE
   COST 100;
-ALTER FUNCTION stratcon.drop_old_metrics(interval, boolean) OWNER TO postgres;
+ALTER FUNCTION stratcon.drop_old_metrics(interval, boolean) OWNER TO reconnoiter;
 COMMENT ON FUNCTION stratcon.drop_old_metrics(interval, boolean) IS 'Drop old metric data, that has been rolled up. Will refuse to drop data, that is still needed.
 Parameters:
  in_keep - how long into the past to keep data
