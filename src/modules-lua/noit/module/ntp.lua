@@ -287,6 +287,7 @@ function initiate_control(module, check, s)
     local i = 0
     local len, numassoc = result.data:len(), result.data:len() / 4;
     local use_id = 0
+    local selection = 4
     while len > 0 do
       local cnt, associd, status = string.unpack(result.data:sub(1+4*i, 4+4*i), '>HH')
       i = i + 1
@@ -299,13 +300,17 @@ function initiate_control(module, check, s)
           associations[i].prefer = band(associations[i].flash,0x2) ~= 0
           associations[i].burst = band(associations[i].flash,0x4) ~= 0
           associations[i].volley = band(associations[i].flash,0x1) ~= 0
+          if associations[i].flash > selection then
+            selection = associations[i].flash
+            use_id = i
+          end
       else
           associations[i].flash = band(rshift(status,8),0x3)
           associations[i].prefer = band(associations[i].flash,0x1) ~= 0
           associations[i].burst = band(associations[i].flash,0x2) ~= 0
           associations[i].volley = false
+          if(associations[i].prefer) then use_id = i end
       end
-      if(associations[i].prefer) then use_id = i end
     end
     if(use_id < 1) then use_id = 1 end
 
