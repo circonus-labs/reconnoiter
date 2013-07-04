@@ -40,7 +40,7 @@ public class mysql extends JDBC implements JezebelCheck {
            catch (Exception e) { throw new RuntimeException(e); } }
   protected String defaultPort() { return "3306"; }
   protected String jdbcConnectUrl(String host, String port, String db) {
-    return "jdbc:mysql://" + host + ":" + port + "/" + db;
+    return "jdbc:mysql://" + host + ":" + port + "/" + ((db != null) ? db : "");
   }
   protected Map<String,String> setupBasicSSL() {
     HashMap<String,String> props = new HashMap<String,String>();
