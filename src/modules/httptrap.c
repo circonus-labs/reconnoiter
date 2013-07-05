@@ -259,9 +259,10 @@ httptrap_yajl_cb_end_map(void *ctx) {
       noit_stats_set_metric_coerce(json->check, json->stats,
           json->keys[json->depth], json->last_type, p->v);
       last_p = p;
-      if(json->last_type == 'L' || json->last_type == 'l' ||
-         json->last_type == 'I' || json->last_type == 'i' ||
-         json->last_type == 'n') {
+      if(p->v != NULL &&
+         (json->last_type == 'L' || json->last_type == 'l' ||
+          json->last_type == 'I' || json->last_type == 'i' ||
+          json->last_type == 'n')) {
         total += strtold(p->v, NULL);
         cnt = cnt + 1;
         use_avg = noit_true;
