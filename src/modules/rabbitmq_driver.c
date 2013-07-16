@@ -197,7 +197,7 @@ static void noit_rabbitmq_heartbeat(struct amqp_driver *dr) {
 static void
 noit_rabbitmq_brcb(amqp_channel_t channel, amqp_basic_return_t *m, void *closure) {
   BUMPSTAT(basic_returns);
-  noitL(noit_error, "AMQP return [%d:%.*s]\n", m->reply_code,
+  noitL(noit_debug, "AMQP return [%d:%.*s]\n", m->reply_code,
         (int)m->reply_text.len, (char *)m->reply_text.bytes);
 }
 static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
