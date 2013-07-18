@@ -53,6 +53,7 @@ AC_SUBST(PERL)
 ENABLE_LUA=$enable_lua
 AC_SUBST(ENABLE_LUA)
 
+MAPFLAGS=""
 if test "x$GCC" = "xyes" ; then
   C99FLAG="-std=c99"
   CFLAGS="$CFLAGS -g $C99FLAG"
@@ -91,6 +92,7 @@ case $host in
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
 		DTRACEFLAGS=-64
+		MAPFLAGS="-Wl,-M -Wl,map64bit"
 		if test -n "`isalist | grep sparc`"; then
 			AC_MSG_RESULT([sparc 64])
 			ATOMIC_OBJS="noit_atomic_sol_sparcv9.o"
@@ -114,6 +116,9 @@ case $host in
 		MODULELD="$CC -G"
 		SHLD="$CC -G"
 	else
+		if test -n "`echo $CFLAGS | grep m64`" ; then
+			MAPFLAGS="-Wl,-M -Wl,map64bit"
+		fi
 		PICFLAGS="-fPIC"
 		MODULELD="$CC -shared"
 		SHLD="$CC -shared"
@@ -179,6 +184,7 @@ AC_SUBST(MODULEEXT)
 AC_SUBST(WHOLE_ARCHIVE)
 AC_SUBST(NOWHOLE_ARCHIVE)
 AC_SUBST(ATOMIC_OBJS)
+AC_SUBST(MAPFLAGS)
 AC_DEFINE_UNQUOTED(MODULEEXT, "$MODULEEXT", [module extension])
 AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])
 

@@ -13,6 +13,7 @@ RANLIB=@RANLIB@
 LIBS=@LIBS@
 INSTALL=@INSTALL@
 XML2H=@top_srcdir@/buildtools/xml2h
+MAPFLAGS=@MAPFLAGS@
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
@@ -188,6 +189,7 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_NOIT_OBJS) \
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
+		$(MAPFLAGS) \
 		$(LIBS)
 
 stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
@@ -195,6 +197,7 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_STRATCON_OBJS) \
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
+		$(MAPFLAGS) \
 		$(LIBS)
 
 stratcon_datastore.o:	stratcon_datastore.c
