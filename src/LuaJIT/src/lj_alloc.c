@@ -197,6 +197,8 @@ static LJ_AINLINE void *CALL_MMAP(size_t size)
 */
 #if LJ_TARGET_OSX
 #define MMAP_REGION_START	((uintptr_t)0x10000)
+#elif LJ_64 && defined(__sun__)
+#define MMAP_REGION_START	((uintptr_t)0x10000000)
 #else
 #define MMAP_REGION_START	((uintptr_t)0x80000000)
 #endif
