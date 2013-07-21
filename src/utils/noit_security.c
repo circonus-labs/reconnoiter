@@ -128,8 +128,8 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
       struct group *gr, _gr;
       char *buf;
       if(NULL == (buf = alloca(grnam_buflen))) BAIL("alloca failed\n");
-      if(NULL == (gr = __getgrnam_r(user, &_gr, buf, grnam_buflen)))
-        BAIL("Cannot find group '%s'\n", user);
+      if(NULL == (gr = __getgrnam_r(group, &_gr, buf, grnam_buflen)))
+        BAIL("Cannot find group '%s'\n", group);
       gid = gr->gr_gid;
     }
   }
