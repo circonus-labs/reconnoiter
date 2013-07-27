@@ -56,17 +56,18 @@ nl_convert_mib(lua_State *L) {
     lua_pushstring(L, in);
   }
   else {
-    int maxsize = MAX_OID_LEN*4;
-    char outbuff[maxsize];
-    memset(outbuff, 0, maxsize);
+    char outbuff[MAX_OID_LEN*8], *cp = outbuff;
+    memset(outbuff, 0, sizeof(outbuff));
     ret = get_node(in, theoid, &theSize);
     if (!ret) {
       lua_pushstring(L, "error");
       return 1;
     }
     for (i=0; i < theSize; i++) {
-      sprintf(outbuff, "%s.%d", outbuff, theoid[i]);
-      if (strlen(outbuff) > maxsize-5) {
+      int len;
+      len = snprintf(cp, sizeof(outbuff) - (cp-outbuff), "%s%d", i==0 ? "" : ".", theoid[i]);
+      if(len >= 0) cp += len;
+      else {
         lua_pushstring(L, "error");
         return 1;
       }

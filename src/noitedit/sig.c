@@ -82,7 +82,7 @@ sig_handler(int signo)
 
 	switch (signo) {
 	case SIGCONT:
-		tty_rawmode(sel);
+		(void)tty_rawmode(sel);
 		if (ed_redisplay(sel, 0) == CC_REFRESH)
 			re_refresh(sel);
 		term__flush();

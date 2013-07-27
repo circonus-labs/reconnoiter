@@ -98,7 +98,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   char *target = NULL, *name = NULL, *module = NULL, *filterset = NULL;
   char *resolve_rtype = NULL;
   int timeout = 0, flags = NP_TRANSIENT, i, mod_cnt;
-  noit_module_t *m;
+  noit_module_t *m = NULL;
   noit_check_t *c = NULL;
   xmlNodePtr a, co;
   noit_hash_table *conf_hash = NULL;
@@ -120,7 +120,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     } else if(!strcmp((char *)a->name, "resolve_rtype")) 
       resolve_rtype = (char *)xmlNodeGetContent(a);
   }
-  m = noit_module_lookup(module);
+  if(module) noit_module_lookup(module);
   if(!m) {
     *error = "cannot find requested module";
     goto error;
@@ -181,7 +181,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   if(name) xmlFree(name);
   if(module) xmlFree(module);
   if(filterset) xmlFree(filterset);
-  if (resolve_rtype) xmlFree(resolve_rtype);
+  if(resolve_rtype) xmlFree(resolve_rtype);
   return c;
 }
 

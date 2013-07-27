@@ -139,7 +139,7 @@ eventer_jobq_t *
 eventer_jobq_retrieve(const char *name) {
   void *vjq = NULL;
   pthread_mutex_lock(&all_queues_lock);
-  noit_hash_retrieve(&all_queues, name, strlen(name), &vjq);
+  (void)noit_hash_retrieve(&all_queues, name, strlen(name), &vjq);
   pthread_mutex_unlock(&all_queues_lock);
   return vjq;
 }

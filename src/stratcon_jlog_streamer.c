@@ -110,10 +110,10 @@ nc_print_noit_conn_brief(noit_console_closure_t ncct,
                           noit_connection_ctx_t *ctx) {
   jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
   struct timeval now, diff, session_duration;
+  char cmdbuf[4096];
   const char *feedtype = "unknown";
   const char *lasttime = "never";
   if(ctx->last_connect.tv_sec != 0) {
-    char cmdbuf[4096];
     time_t r = ctx->last_connect.tv_sec;
     struct tm tbuf, *tm;
     tm = gmtime_r(&r, &tbuf);

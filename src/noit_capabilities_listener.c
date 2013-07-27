@@ -205,7 +205,7 @@ cleanup_shutdown:
       if(cl->buff) free(cl->buff);
       free(cl);
     }
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     return 0;
   }
 

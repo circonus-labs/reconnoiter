@@ -457,14 +457,17 @@ stratcon_realtime_recv_handler(eventer_t e, int mask, void *closure,
       case REALTIME_HTTP_WANT_INITIATE:
         full_nb_write(&livestream_cmd, sizeof(livestream_cmd));
         ctx->state = REALTIME_HTTP_WANT_SEND_INTERVAL;
+        /* FALLTHROUGH */
       case REALTIME_HTTP_WANT_SEND_INTERVAL:
         nint = htonl(ctx->rt->interval);
         full_nb_write(&nint, sizeof(nint));
         ctx->state = REALTIME_HTTP_WANT_SEND_UUID;
+        /* FALLTHROUGH */
       case REALTIME_HTTP_WANT_SEND_UUID:
         uuid_unparse_lower(ctx->rt->checkid, uuid_str);
         full_nb_write(uuid_str, 36);
         ctx->state = REALTIME_HTTP_WANT_HEADER;
+        /* FALLTHROUGH */
       case REALTIME_HTTP_WANT_HEADER:
         FULLREAD(e, ctx, sizeof(u_int32_t));
         memcpy(&net_body_len, ctx->buffer, sizeof(u_int32_t));

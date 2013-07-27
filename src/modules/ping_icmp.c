@@ -123,7 +123,7 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
 }
 static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
   struct check_info *data;
-  double avail, min = MAXFLOAT, max = 0.0, avg = 0.0, cnt;
+  double avail = 0.0, min = MAXFLOAT, max = 0.0, avg = 0.0, cnt;
   int avail_needed = 100;
   const char *config_val = NULL;
   int i, points = 0;
@@ -142,13 +142,16 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
       if(data->turnaround[i] < min) min = data->turnaround[i];
     }
   }
+  cnt = data->expected_count;
   if(points == 0) {
     min = 0.0 / 0.0;
     max = 0.0 / 0.0;
+    avg = 0.0 / 0.0;
   }
-  cnt = data->expected_count;
-  avail = (float)points /cnt;
-  avg /= (float)points;
+  else {
+    avail = (float)points /cnt;
+    avg /= (float)points;
+  }
 
   if(noit_hash_retr_str(check->config, "avail_needed", strlen("avail_needed"),
                         &config_val))
@@ -357,6 +360,7 @@ static int ping_icmp_init(noit_module_t *self) {
 
   if ((proto = getprotobyname("icmp")) == NULL) {
     noitL(noit_error, "Couldn't find 'icmp' protocol\n");
+    free(data);
     return -1;
   }
 
@@ -440,7 +444,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
   struct timeval whence;
   ping_icmp_data_t *data;
   void *vcheck;
-  int i;
+  int i = 0;
 
   data = noit_module_get_userdata(pcl->self);
   payload = (struct ping_payload *)((char *)pcl->payload + pcl->icp_len);

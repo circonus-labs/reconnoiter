@@ -578,7 +578,7 @@ start_iep_daemon() {
     dup2(info->stdin_pipe[0], 0);
     dup2(info->stderr_pipe[1], 2);
     stdout_fileno = open("/dev/null", O_WRONLY);
-    dup2(stdout_fileno, 1);
+    if(stdout_fileno >= 0) dup2(stdout_fileno, 1);
 
     exit(execv(info->command, argv));
   }

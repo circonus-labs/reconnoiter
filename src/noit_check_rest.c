@@ -301,6 +301,10 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   /* Make sure any present namespaces are in the master document already */
   toplevel = noit_conf_get_section(NULL, "/*");
   master_config_root = (xmlNodePtr)toplevel; 
+  if(!master_config_root) {
+    *error = "no document";
+    return 0;
+  }
   if(missing_namespaces(master_config_root, root)) {
     *error = "invalid namespace provided";
     return 0;
@@ -541,7 +545,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
     FAIL("internal error uuid");
 
   /* delete this here */
-  noit_poller_deschedule(check->checkid);
+  if(check) noit_poller_deschedule(check->checkid);
   CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
@@ -606,7 +610,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
     if(exists) { error_code = 403; FAIL("uuid not yours"); }
     else {
       char *target = NULL, *name = NULL, *module = NULL;
-      noit_module_t *m;
+      noit_module_t *m = NULL;
       xmlNodePtr newcheck, a;
       /* make sure this isn't a dup */
       for(a = attr->children; a; a = a->next) {
@@ -617,11 +621,11 @@ rest_set_check(noit_http_rest_closure_t *restc,
         if(!strcmp((char *)a->name, "module"))
           module = (char *)xmlNodeGetContent(a);
       }
-      exists = (noit_poller_lookup_by_name(target, name) != NULL);
-      m = noit_module_lookup(module);
-      xmlFree(target);
-      xmlFree(name);
-      xmlFree(module);
+      exists = (!target || noit_poller_lookup_by_name(target, name) != NULL);
+      if(module) m = noit_module_lookup(module);
+      if(target) xmlFree(target);
+      if(name) xmlFree(name);
+      if(module) xmlFree(module);
       if(exists) FAIL("target`name already registered");
       if(!m) FAIL("module does not exist");
       /* create a check here */
@@ -679,7 +683,6 @@ rest_set_check(noit_http_rest_closure_t *restc,
   restc->call_closure_free = NULL;
   restc->call_closure = NULL;
   if(pobj) xmlXPathFreeObject(pobj);
-  if(doc) xmlFreeDoc(doc);
   restc->fastpath = rest_show_check;
   return restc->fastpath(restc, restc->nparams, restc->params);
 

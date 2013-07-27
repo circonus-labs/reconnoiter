@@ -292,7 +292,7 @@ noit_console_check(noit_console_closure_t ncct,
   }
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
-  if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
+  if(!node || !uuid_conf || uuid_parse(uuid_conf, checkid)) {
     nc_printf(ncct, "%s has invalid or missing UUID!\n",
               (char *)xmlGetNodePath(node) + strlen("/noit"));
     goto out;
@@ -339,8 +339,7 @@ noit_console_watch_check(noit_console_closure_t ncct,
   /* An alternate period */
   if(argc == 2) period = atoi(argv[1]);
 
-  if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), NULL,
-                                argc ? argv[0] : NULL)) {
+  if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), NULL, argv[0])) {
     nc_printf(ncct, "ERROR: could not find check '%s'\n", argv[0]);
     return -1;
   }

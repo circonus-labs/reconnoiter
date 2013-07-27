@@ -231,8 +231,6 @@ static int __check_target_ip_compare(const void *a, const void *b) {
   const noit_check_t *ac = a;
   const noit_check_t *bc = b;
   int rv;
-  if (ac->target_ip == NULL) return 1;
-  if (bc->target_ip == NULL) return -1;
   if((rv = strcmp(ac->target_ip, bc->target_ip)) != 0) return rv;
   if (ac->name == NULL) return 1;
   if (bc->name == NULL) return -1;

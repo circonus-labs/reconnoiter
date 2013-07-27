@@ -142,11 +142,13 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
             strlcpy(buff, n->ip4[0], len);
             return rv;
           }
+          break;
         case AF_INET6:
           if(n->ip6_cnt > 0) {
             strlcpy(buff, n->ip6[0], len);
             return rv;
           }
+          break;
       }
     }
     return rv;
@@ -301,6 +303,11 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
     n->ip6 = answers;
     n->lookup_inflight_v6 = noit_false;
   }
+  else {
+    if(answers) free(answers);
+    if(result) free(result);
+     return;
+  }
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   noit_skiplist_insert(&nc_dns_cache, n);
@@ -332,7 +339,9 @@ void noit_check_resolver_maintain() {
 
   now = time(NULL);
   sn = noit_skiplist_getlist(nc_dns_cache.index);
+  assert(sn);
   tlist = sn->data;
+  assert(tlist);
   sn = noit_skiplist_getlist(tlist);
   while(sn) {
     dns_cache_node *n = sn->data;

@@ -483,6 +483,8 @@ el_source(EditLine *el, const char *fname)
 			snprintf(path, sizeof(path), "%s%s%s", getenv("HOMEDRIVE"), getenv("HOMEPATH"), elpath);
 			fname = path;
 		}
+	  if (fname == NULL)
+		  return -1;
 #else
 		if ((ptr = getenv("HOME")) == NULL)
 			return (-1);
@@ -493,8 +495,6 @@ el_source(EditLine *el, const char *fname)
 		fname = path;
 #endif
 	}
-	if (fname == NULL)
-		return -1;
 	if (fp == NULL)
 		fp = fopen(fname, "r");
 	if (fp == NULL) {

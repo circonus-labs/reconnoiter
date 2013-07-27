@@ -103,7 +103,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate() {
     dr->heartbeat = 5000;
   dr->heartbeat = (dr->heartbeat + 999) / 1000;
 
-  noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &hostname);
+  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) dr->nhosts++;
   if(dr->nhosts > MAX_HOSTS) dr->nhosts = MAX_HOSTS;

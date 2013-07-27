@@ -1006,8 +1006,10 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   ts->refcnt++; /* Increment here, decrement when this check completes */
 
   req = snmp_pdu_create(SNMP_MSG_GET);
-  if(req) noit_snmp_fill_req(req, check);
-  req->version = info->version;
+  if(req) {
+    noit_snmp_fill_req(req, check);
+    req->version = info->version;
+  }
   /* Setup out snmp requests */
   if(ts->sess_handle && req &&
      (info->reqid = snmp_sess_send(ts->sess_handle, req)) != 0) {

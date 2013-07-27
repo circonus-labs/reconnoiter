@@ -180,6 +180,7 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
     else if(!strcmp(v, "deferred")) ci->method = EVENTER_CANCEL_DEFERRED;
     else if(!strcmp(v, "asynch")) ci->method = EVENTER_CANCEL_ASYNCH;
   }
+  gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   /* Register a handler for the worker */

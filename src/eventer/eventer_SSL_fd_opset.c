@@ -406,7 +406,7 @@ eventer_SSL_server_info_callback(const SSL *ssl, int type, int val) {
     return;
 
   ctx = SSL_get_eventer_ssl_ctx(ssl);
-  if(ctx->no_more_negotiations) {
+  if(ctx && ctx->no_more_negotiations) {
     noitL(eventer_deb, "eventer_SSL_server_info_callback ... reneg is bad\n");
     ctx->renegotiated = 1;
   }
@@ -500,7 +500,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     populate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca);
     ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                SSLv23_server_method() : SSLv23_client_method());
-    if(!ctx->ssl_ctx) return NULL;
+    if(!ctx->ssl_ctx) goto bail;
     if (type == SSL_SERVER)
       SSL_CTX_set_session_id_context(ctx->ssl_ctx,
               (unsigned char *)EVENTER_SSL_DATANAME,
@@ -718,6 +718,7 @@ int
 eventer_SSL_renegotiate(eventer_t e) {
   eventer_ssl_ctx_t *ctx;
   ctx = eventer_get_eventer_ssl_ctx(e);
+  if(!ctx) return -1;
   SSL_renegotiate(ctx->ssl);
   return 0;
 }

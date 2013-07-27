@@ -505,7 +505,7 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
       error = "no such httptrap check";
       goto error;
     }
-    noit_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
+    (void)noit_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
     if(!secret) secret = "";
     if(strcmp(pats[1], secret)) {
       error = "secret mismatch";

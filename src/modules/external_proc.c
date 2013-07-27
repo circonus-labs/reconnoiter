@@ -320,7 +320,7 @@ int external_child(external_data_t *data) {
     proc_state->check_no = check_no;
 
     /* read in the argument lengths */
-    arglens = malloc(argcnt * sizeof(*arglens));
+    arglens = calloc(argcnt, sizeof(*arglens));
     assert_read(in_fd, arglens, argcnt * sizeof(*arglens));
     /* first string is the path, second is the first argv[0] */
     /* we need to allocate argcnt + 1 (NULL), but the first is path */
@@ -337,7 +337,7 @@ int external_child(external_data_t *data) {
 
     /* similar thing with envp, but no path trickery */
     assert_read(in_fd, &envcnt, sizeof(envcnt));
-    envlens = malloc(envcnt * sizeof(*envlens));
+    envlens = calloc(envcnt, sizeof(*envlens));
     assert_read(in_fd, envlens, envcnt * sizeof(*envlens));
     proc_state->envp = malloc((envcnt+1) * sizeof(*proc_state->envp));
     for(i=0; i<envcnt; i++) {

@@ -57,12 +57,12 @@ static iep_thread_driver_t *noit_stomp_allocate() {
     free(dr);
     return NULL;
   }
-  noit_conf_get_string(NULL, "/stratcon/iep/mq/exchange", &dr->exchange);
+  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/exchange", &dr->exchange);
   if(!noit_conf_get_string(NULL, "/stratcon/iep/mq/destination", &dr->destination))
   if(!dr->destination) dr->destination = strdup("/queue/noit.firehose");
-  noit_conf_get_string(NULL, "/stratcon/iep/mq/username", &dr->user);
-  noit_conf_get_string(NULL, "/stratcon/iep/mq/password", &dr->pass);
-  noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &dr->hostname);
+  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/username", &dr->user);
+  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/password", &dr->pass);
+  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &dr->hostname);
   if(!dr->hostname) dr->hostname = strdup("127.0.0.1");
   if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/port", &dr->port))
     dr->port = 61613;

@@ -554,8 +554,10 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     req->current_input->size -= lsize;
     if(req->last_input == req->current_input)
       req->last_input = req->first_input;
-    else
+    else {
+      assert(req->current_input != req->current_request_chain);
       FREE_BCHAIN(req->current_input);
+    }
   }
   else {
     req->first_input = req->last_input = NULL;
@@ -1200,7 +1202,8 @@ noit_http_response_append(noit_http_session_ctx *ctx,
      !(ctx->res.output_options & (NOIT_HTTP_CLOSE | NOIT_HTTP_CHUNKED)))
     return noit_false;
   if(!ctx->res.output)
-    assert(ctx->res.output = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE));
+    ctx->res.output = ALLOC_BCHAIN(DEFAULT_BCHAINSIZE);
+  assert(ctx->res.output != NULL);
   o = ctx->res.output;
   while(o->next) o = o->next;
   while(l > 0) {
@@ -1296,7 +1299,7 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
     int vlen;
     key = keys[i];
     klen = strlen(key);
-    noit_hash_retr_str(&ctx->res.headers, key, klen, &value);
+    (void)noit_hash_retr_str(&ctx->res.headers, key, klen, &value);
     vlen = strlen(value);
     CTX_LEADER_APPEND(key, klen);
     CTX_LEADER_APPEND(": ", 2);

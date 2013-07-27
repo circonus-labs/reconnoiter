@@ -273,7 +273,7 @@ static int external_handler(eventer_t e, int mask,
       r.exit_code = h.exit_code;
       r.stdoutlen = h.stdoutlen;
       data->cr = calloc(sizeof(*data->cr), 1);
-      memset(data->cr, 0, sizeof(data->cr));
+      memset(data->cr, 0, sizeof(*data->cr));
       memcpy(data->cr, &r, sizeof(r));
       data->cr->stdoutbuff = malloc(data->cr->stdoutlen);
       memset(data->cr->stdoutbuff, 0, data->cr->stdoutlen);
@@ -288,6 +288,8 @@ static int external_handler(eventer_t e, int mask,
         if(inlen == -1 && errno == EAGAIN)
           return EVENTER_READ | EVENTER_EXCEPTION;
         if(inlen == 0) goto widowed;
+        if((data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
+          goto widowed; /* overflow */
         data->cr->stdoutlen_sofar += inlen;
       }
       assert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
@@ -310,6 +312,8 @@ static int external_handler(eventer_t e, int mask,
         if(inlen == -1 && errno == EAGAIN)
           return EVENTER_READ | EVENTER_EXCEPTION;
         if(inlen == 0) goto widowed;
+        if((data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
+          goto widowed; /* overflow */
         data->cr->stderrlen_sofar += inlen;
       }
       assert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
@@ -364,7 +368,7 @@ static int external_init(noit_module_t *self) {
   external_data_t *data;
 
   data = noit_module_get_userdata(self);
-  if(!data) data = malloc(sizeof(*data));
+  if(!data) data = calloc(1, sizeof(*data));
   data->nlerr = noit_log_stream_find("error/external");
   data->nldeb = noit_log_stream_find("debug/external");
 
@@ -400,6 +404,7 @@ static int external_init(noit_module_t *self) {
       noitL(noit_error,
             "external: could not set pipe non-blocking: %s\n",
             strerror(errno));
+      free(data);
       return -1;
     }
     eventer_t newe;
@@ -413,8 +418,8 @@ static int external_init(noit_module_t *self) {
   else {
     const char *user = NULL, *group = NULL;
     if(data->options) {
-      noit_hash_retr_str(data->options, "user", 4, &user);
-      noit_hash_retr_str(data->options, "group", 4, &group);
+      (void)noit_hash_retr_str(data->options, "user", 4, &user);
+      (void)noit_hash_retr_str(data->options, "group", 4, &group);
     }
     noit_security_usergroup(user, group, noit_false);
     exit(external_child(data));

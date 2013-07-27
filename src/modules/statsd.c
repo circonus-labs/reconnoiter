@@ -404,6 +404,7 @@ static int noit_statsd_init(noit_module_t *self) {
       return -1;
     }
   }
+  memset(&skaddr, 0, sizeof(skaddr));
   skaddr.sin_family = AF_INET;
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   skaddr.sin_port = htons(conf->port);

@@ -218,10 +218,12 @@ int noit_load_image(const char *file, const char *name,
   if(obj->onload && obj->onload(obj)) {
     free(obj->opaque_handle);
     free(obj);
+    dlclose(dlhandle);
     return -1;
   }
   if(!noit_hash_store(registry, obj->name, strlen(obj->name), obj)) {
     noitL(noit_error, "Attempted to load module %s more than once.\n", obj->name);
+    dlclose(dlhandle);
     return -1;
   }
   return 0;

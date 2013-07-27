@@ -35,11 +35,13 @@ int amqp_open_socket(char const *hostname,
     return -ENOENT;
   }
 
+  memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(portnumber);
   addr.sin_addr.s_addr = * (uint32_t *) he->h_addr_list[0];
 
   sockfd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_STREAM, 0);
+  if(sockfd < 0) return -1;
   if(((flags = fcntl(sockfd, F_GETFL, 0)) == -1) ||
      (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)) {
     result = -errno;
@@ -78,8 +80,8 @@ good:
     return result;
   }
   if(timeout) {
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, timeout, sizeof(*timeout));
-    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, timeout, sizeof(*timeout));
+    (void)setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, timeout, sizeof(*timeout));
+    (void)setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, timeout, sizeof(*timeout));
   }
   return sockfd;
 }
@@ -346,8 +348,8 @@ static int amqp_login_inner(amqp_connection_state_t state,
 
   if(heartbeat != 0) {
     hb.tv_sec = 2*heartbeat; hb.tv_usec = 0;
-    setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &hb, sizeof(hb));
-    setsockopt(state->sockfd, SOL_SOCKET, SO_SNDTIMEO, &hb, sizeof(hb));
+    (void)setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &hb, sizeof(hb));
+    (void)setsockopt(state->sockfd, SOL_SOCKET, SO_SNDTIMEO, &hb, sizeof(hb));
   }
 
   amqp_send_header(state);
@@ -400,8 +402,8 @@ static int amqp_login_inner(amqp_connection_state_t state,
   }
   if(heartbeat != 0) {
     hb.tv_sec = 2*heartbeat; hb.tv_usec = 0;
-    setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &hb, sizeof(hb));
-    setsockopt(state->sockfd, SOL_SOCKET, SO_SNDTIMEO, &hb, sizeof(hb));
+    (void)setsockopt(state->sockfd, SOL_SOCKET, SO_RCVTIMEO, &hb, sizeof(hb));
+    (void)setsockopt(state->sockfd, SOL_SOCKET, SO_SNDTIMEO, &hb, sizeof(hb));
   }
 
   (void)AMQP_CHECK_RESULT(amqp_tune_connection(state, channel_max, frame_max, heartbeat));

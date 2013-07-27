@@ -217,11 +217,11 @@ noit_lua_general_config(noit_module_generic_t *self, noit_hash_table *o) {
   conf->script_dir = "";
   conf->module = NULL;
   conf->function = NULL;
-  noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
+  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
-  noit_hash_retr_str(o, "lua_module", strlen("lua_module"), &conf->module);
+  (void)noit_hash_retr_str(o, "lua_module", strlen("lua_module"), &conf->module);
   if(conf->module) conf->module = strdup(conf->module);
-  noit_hash_retr_str(o, "lua_function", strlen("lua_function"), &conf->function);
+  (void)noit_hash_retr_str(o, "lua_function", strlen("lua_function"), &conf->function);
   if(conf->function) conf->function = strdup(conf->function);
   return 0;
 }

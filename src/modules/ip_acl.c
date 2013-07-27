@@ -156,7 +156,7 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   current.available = NP_UNAVAILABLE;
   current.state = NP_BAD;
   gettimeofday(&current.whence, NULL);
-  snprintf(deny_msg, sizeof(deny_msg), "prevented by ACL '%s'", k ? k : "unknown");
+  snprintf(deny_msg, sizeof(deny_msg), "prevented by ACL '%s'", k);
   current.status = deny_msg;
   noit_check_set_stats(check, &current);
   return NOIT_HOOK_DONE;

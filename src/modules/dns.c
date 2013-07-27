@@ -812,7 +812,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   }
   else {
     nv_pair = (struct dns_nameval *)vnv_pair;
-    ci->query_ctype = nv_pair->val;
+    ci->query_ctype = (enum dns_class)nv_pair->val;
   }
   /* Lookup out rr type */
   if(!noit_hash_retrieve(&dns_rtypes, rtype, strlen(rtype),
@@ -822,7 +822,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   }
   else {
     nv_pair = (struct dns_nameval *)vnv_pair;
-    ci->query_rtype = nv_pair->val;
+    ci->query_rtype = (enum dns_type)nv_pair->val;
   }
 
   if(!ci->error) {
