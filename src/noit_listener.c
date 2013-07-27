@@ -40,6 +40,7 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
+#include <assert.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
@@ -458,6 +459,7 @@ noit_control_dispatch(eventer_t e, int mask, void *closure,
   noit_hash_table *delegation_table = NULL;
   acceptor_closure_t *ac = closure;
 
+  assert(ac->rlen >= 0);
   while(len >= 0 && ac->rlen < sizeof(cmd)) {
     len = e->opset->read(e->fd, ((char *)&cmd) + ac->rlen,
                          sizeof(cmd) - ac->rlen, &mask, e);
@@ -466,6 +468,7 @@ noit_control_dispatch(eventer_t e, int mask, void *closure,
 
     if(len > 0) ac->rlen += len;
   }
+  assert(ac->rlen >= 0 && ac->rlen <= sizeof(cmd));
 
   if(mask & EVENTER_EXCEPTION || ac->rlen != sizeof(cmd)) {
     int newmask;
@@ -491,7 +494,7 @@ socket_error:
     }
     else {
     const char *event_name;
-      noitL(noit_error, "listener (%s %p) has no command: 0x%8x\n",
+      noitL(noit_error, "listener (%s %p) has no command: 0x%08x\n",
             (event_name = eventer_name_for_callback(ac->dispatch))?event_name:"???",
             delegation_table, cmd);
     }
