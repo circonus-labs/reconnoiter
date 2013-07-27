@@ -102,9 +102,14 @@ void parse_clargs(int argc, char **argv) {
           char *cp = strchr(optarg, ':');
           if(!cp) noit_listener_skip(optarg, 0);
           else {
-            if(cp == optarg) optarg = NULL;
-            *cp++ = '\0';
-            noit_listener_skip(optarg, atoi(cp));
+            if(cp == optarg) {
+              *cp++ = '\0';
+              noit_listener_skip(NULL, atoi(cp));
+            }
+            else {
+              *cp++ = '\0';
+              noit_listener_skip(optarg, atoi(cp));
+            }
           }
         }
         break;

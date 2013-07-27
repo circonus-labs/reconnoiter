@@ -110,26 +110,27 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
                           const char **remote_cn_out,
                           const char **fqdn_out, const char **dsn_out) {
   /* only called from the main thread -- no safety issues */
+  uuid_t id;
   void *vstr;
   const char *actual_remote_cn = NULL;
   if(remote_cn) actual_remote_cn = remote_cn;
-  uuid_t id;
-  uuid_parse((char *)uuid_str, id);
-  if(noit_hash_retrieve(&uuid_map, (const char *)id, UUID_SIZE, &vstr)) {
-    char *str = (char *)vstr;
-    if(remote_cn && strcmp(str, remote_cn)) {
-      /* replace with new remote */
+  if(uuid_parse((char *)uuid_str, id) == 0) {
+    if(noit_hash_retrieve(&uuid_map, (const char *)id, UUID_SIZE, &vstr)) {
+      char *str = (char *)vstr;
+      if(remote_cn && strcmp(str, remote_cn)) {
+        /* replace with new remote */
+        void *key = malloc(UUID_SIZE);
+        memcpy(key, id, UUID_SIZE);
+        actual_remote_cn = strdup(remote_cn);
+        noit_hash_replace(&uuid_map, key, UUID_SIZE, (void *)actual_remote_cn,
+                          free, free);
+      }
+    }
+    else if(remote_cn) {
       void *key = malloc(UUID_SIZE);
       memcpy(key, id, UUID_SIZE);
-      actual_remote_cn = strdup(remote_cn);
-      noit_hash_replace(&uuid_map, key, UUID_SIZE, (void *)actual_remote_cn,
-                        free, free);
+      noit_hash_store(&uuid_map, key, UUID_SIZE, strdup(remote_cn));
     }
-  }
-  else if(remote_cn) {
-    void *key = malloc(UUID_SIZE);
-    memcpy(key, id, UUID_SIZE);
-    noit_hash_store(&uuid_map, key, UUID_SIZE, strdup(remote_cn));
   }
   if(!actual_remote_cn) actual_remote_cn = "[[null]]";
 

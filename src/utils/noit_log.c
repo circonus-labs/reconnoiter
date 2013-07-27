@@ -335,6 +335,7 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
 
 #ifdef _PC_NAME_MAX
   size = pathconf(path, _PC_NAME_MAX);
+  if(size < 0) size = PATH_MAX + 128;
 #endif
   size = MIN(size, PATH_MAX + 128);
   de = alloca(size);

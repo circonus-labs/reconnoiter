@@ -236,7 +236,7 @@ lua_web_handler(noit_http_rest_closure_t *restc,
     noit_http_response_standard(restc->http_ctx,
                                 (ctx && ctx->httpcode) ? ctx->httpcode : 500,
                                 "ERROR", "text/plain");
-    if(ctx->err) noit_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
+    if(ctx && ctx->err) noit_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
     noit_http_response_end(restc->http_ctx);
   }
   return 0;
@@ -252,9 +252,9 @@ noit_lua_web_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
   lua_web_conf_t *conf = get_config(self);
   conf->script_dir = "";
   conf->dispatch = NULL;
-  noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
+  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
-  noit_hash_retr_str(o, "dispatch", strlen("dispatch"), &conf->dispatch);
+  (void)noit_hash_retr_str(o, "dispatch", strlen("dispatch"), &conf->dispatch);
   if(conf->dispatch) conf->dispatch = strdup(conf->dispatch);
   conf->max_post_size = DEFAULT_MAX_POST_SIZE;
   return 0;

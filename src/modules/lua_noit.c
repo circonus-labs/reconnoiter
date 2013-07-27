@@ -1531,6 +1531,7 @@ nl_utf8tohtml(lua_State *L) {
   }
   else {
     out = malloc(out_len);
+    needs_free = 1;
   }
   if(!out) luaL_error(L, "out-of-memory");
   rv = UTF8ToHtml(out, &out_len, in, &in_len);
@@ -2600,7 +2601,9 @@ int nl_spawn(lua_State *L) {
   PIPE_SAFE(out, 1, 1);
   PIPE_SAFE(err, 1, 2);
   attr = (posix_spawnattr_t *)alloca(sizeof(*attr));
+  memset(attr, 0, sizeof(*attr));
   if(posix_spawnattr_init(attr)) {
+    attr = NULL;
     spawn_info->last_errno = errno;
     noitL(nlerr, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
     goto err;

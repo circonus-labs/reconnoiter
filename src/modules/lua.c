@@ -1141,7 +1141,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
 static int
 noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
   const char *dir = ".";
-  noit_hash_retr_str(o, "directory", strlen("directory"), &dir);
+  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &dir);
   noit_lua_loader_set_directory(self, dir);
   return 0;
 }

@@ -1442,10 +1442,10 @@ push_packet_at_check(noit_check_t *check, void *closure) {
   }
 
   if(!ccl->secret)
-    noit_hash_retr_str(check->config, "secret", strlen("secret"),
+    (void)noit_hash_retr_str(check->config, "secret", strlen("secret"),
                        (const char**)&ccl->secret);
   if(!ccl->secret)
-    noit_hash_retr_str(conf->options, "secret", strlen("secret"),
+    (void)noit_hash_retr_str(conf->options, "secret", strlen("secret"),
                        (const char**)&ccl->secret);
   if(!ccl->secret) {
     if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
@@ -1873,6 +1873,7 @@ collectd_yajl_cb_start_map(void *ctx) {
     case CD_OBJECT:
       json->pstate = json->state;
       json->state = CD_DONTCARE;
+      /* FALLTHROUGH */
     case CD_DONTCARE:
       json->depth++;
       return 1;
@@ -1922,6 +1923,7 @@ collectd_yajl_cb_start_array(void *ctx) {
     case CD_OBJECT:
       json->pstate = json->state;
       json->state = CD_DONTCARE;
+      /* FALLTHROUGH */
     case CD_DONTCARE:
       json->depth++;
       return 1;
@@ -2176,11 +2178,16 @@ static int noit_collectd_init(noit_module_t *self) {
             strerror(errno));
     }
   }
+  memset(&skaddr, 0, sizeof(skaddr));
   skaddr.sin_family = AF_INET;
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   skaddr.sin_port = htons(port);
 
   sockaddr_len = sizeof(skaddr);
+  if(conf->ipv4_fd <= 0) {
+    noitL(noit_error, "failed to setup ipv4 socket[%s]\n", host);
+    return -1;
+  }
   if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
     noitL(noit_error, "bind failed[%s]: %s\n", host, strerror(errno));
     close(conf->ipv4_fd);
@@ -2217,7 +2224,8 @@ static int noit_collectd_init(noit_module_t *self) {
   skaddr6.sin6_addr = in6addr_any;
   skaddr6.sin6_port = htons(port);
 
-  if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
+  if(conf->ipv6_fd >= 0 &&
+     bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
     noitL(noit_error, "bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
     close(conf->ipv6_fd);
     conf->ipv6_fd = -1;

@@ -232,8 +232,10 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
           exit(-1);
         }
       }
-      fsync(ij->fd);
-      close(ij->fd);
+      if(ij->fd >= 0) {
+        fsync(ij->fd);
+        close(ij->fd);
+      }
       ij->fd = -1;
       snprintf(id_str, sizeof(id_str), "%d", ij->storagenode_id);
       stratcon_ingest(ij->filename, ij->remote_str,
@@ -324,11 +326,11 @@ stratcon_datastore_journal(struct sockaddr *remote,
     return;
   }
   cp1 = strchr(line, '\t');
+  *rtype = '\0';
   if(cp1 && cp1 - line < sizeof(rtype) - 1) {
     memcpy(rtype, line, cp1 - line);
     rtype[cp1 - line] = '\0';
   }
-  else rtype[0] = '\0';
   /* if it is a UUID based thing, find the storage node */
   switch(*rtype) {
     case 'C':

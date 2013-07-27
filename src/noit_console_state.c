@@ -46,6 +46,7 @@
 #include <pcre.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#include <assert.h>
 
 int cmd_info_comparek(const void *akv, const void *bv) {
   char *ak = (char *)akv;
@@ -303,6 +304,7 @@ expand_range(const char *range, char ***set, int max_count, const char **err) {
       return 0;
     }
     i = n - s; /* Our increment */
+    if(i <= 0) return 0;
     count = (e - s) / i + 1;
     *set = malloc(count * sizeof(**set));
     count = 0;
@@ -339,6 +341,7 @@ noit_console_generic_apply(noit_console_closure_t ncct,
   if(!count) {
     nc_printf(ncct, "apply error: '%s' range produced nothing [%s]\n",
               range, err ? err : "unknown error");
+    assert(expanded == NULL);
     return -1;
   }
   if(count < 0) {

@@ -850,7 +850,7 @@ void noit_conf_get_into_hash(noit_conf_section_t section,
                              const char *path,
                              noit_hash_table *table,
                              const char *namespace) {
-  unsigned int cnt;
+  int cnt;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
@@ -978,8 +978,7 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
   const char *str, *interest;
   char fullpath[1024];
-  int rv = 1;
-  unsigned int i;
+  int rv = 1, i;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr current_ctxt;
   xmlNodePtr current_node = (xmlNodePtr)section;
@@ -1683,9 +1682,11 @@ noit_console_config_section(noit_console_closure_t ncct,
   }
   if(delete) {
     node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
-    CONF_REMOVE(node);
-    xmlUnlinkNode(node);
-    noit_conf_mark_changed();
+    if(node) {
+      CONF_REMOVE(node);
+      xmlUnlinkNode(node);
+      noit_conf_mark_changed();
+    }
     return 0;
   }
   if(pobj) xmlXPathFreeObject(pobj);

@@ -144,7 +144,7 @@ noit_check_schedule_next(noit_module_t *self,
   /* calculate the differnet between the initial schedule time and "now" */
   if(compare_timeval(earliest, *last_check) >= 0) {
     sub_timeval(earliest, *last_check, &diff);
-    diffms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+    diffms = (int64_t)diff.tv_sec * 1000 + diff.tv_usec / 1000;
   }
   else {
     noitL(noit_error, "time is going backwards. abort.\n");
@@ -160,7 +160,7 @@ noit_check_schedule_next(noit_module_t *self,
   add_timeval(newe->whence, diff, &newe->whence);
 
   sub_timeval(newe->whence, earliest, &diff);
-  diffms = (int)diff.tv_sec * 1000 + (int)diff.tv_usec / 1000;
+  diffms = (int64_t)diff.tv_sec * 1000 + (int)diff.tv_usec / 1000;
   assert(compare_timeval(newe->whence, earliest) > 0);
   newe->mask = EVENTER_TIMER;
   newe->callback = noit_check_recur_handler;

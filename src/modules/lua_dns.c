@@ -391,12 +391,12 @@ static int noit_lua_dns_lookup(lua_State *L) {
   if(!noit_hash_retrieve(&dns_ctypes, ctype_up, strlen(ctype_up), &vnv_pair))
     dlc->error = strdup("bad class");
   else
-    dlc->query_ctype = ((struct dns_nameval *)vnv_pair)->val;
+    dlc->query_ctype = (enum dns_class)((struct dns_nameval *)vnv_pair)->val;
 
   if(!noit_hash_retrieve(&dns_rtypes, rtype_up, strlen(rtype_up), &vnv_pair)) 
     dlc->error = strdup("bad rr type");
   else
-    dlc->query_rtype = ((struct dns_nameval *)vnv_pair)->val;
+    dlc->query_rtype = (enum dns_type)((struct dns_nameval *)vnv_pair)->val;
 
   dlc->active = 1;
   noit_atomic_inc32(&dlc->refcnt);

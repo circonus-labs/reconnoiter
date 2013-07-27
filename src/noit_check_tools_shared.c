@@ -124,6 +124,7 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
     }
     *cp = '\0';
     if(copy) free(copy);
+    copy = NULL;
     if(replaced_something)
       copy = strdup(buff);
     fmt = copy;

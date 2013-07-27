@@ -163,7 +163,7 @@ noit_main(const char *appname,
   if(!glider) noit_conf_get_string(NULL, appscratch, &glider);
   noit_watchdog_glider(glider);
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@tracedir", appname);
-  noit_conf_get_string(NULL, appscratch, &trace_dir);
+  (void)noit_conf_get_string(NULL, appscratch, &trace_dir);
   if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
 
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@retries", appname);
@@ -230,9 +230,13 @@ noit_main(const char *appname,
     if(lockfd >= 0) noit_lockfile_release(lockfd);
 
     fd = open("/dev/null", O_RDWR);
-    dup2(fd, STDIN_FILENO);
-    dup2(fd, STDOUT_FILENO);
-    dup2(fd, STDERR_FILENO);
+    if(fd < 0 ||
+       dup2(fd, STDIN_FILENO) < 0 ||
+       dup2(fd, STDOUT_FILENO) < 0 ||
+       dup2(fd, STDERR_FILENO)) {
+      noitL(noit_stderr, "Failed to setup std{in,out,err}: %s\n", strerror(errno));
+      exit(-1);
+    }
     if(fork()) exit(0);
     setsid();
     if(fork()) exit(0);

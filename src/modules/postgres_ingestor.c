@@ -253,8 +253,9 @@ ttl_purge_conn_pool(conn_pool *pool) {
 
   /* Force release these without holding the lock */
   while(cq) {
+    prev = cq;
     cq = cq->next;
-    release_conn_q_forceable(cq, 1);
+    release_conn_q_forceable(prev, 1);
   }
   if(old_cnt != new_cnt)
     noitL(ds_pool_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
@@ -456,6 +457,7 @@ stratcon_ingest_check_loadall(void *vsn) {
     if(i++ > 4) {
       noitL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
       release_conn_q(cq);
+      free(d);
       return (void *)(vpsized_int)good;
     }
     sleep(1);
@@ -588,7 +590,7 @@ stratcon_ingest_find(ds_rt_detail *d) {
     }
 
     cq = get_conn_q_for_remote(NULL, remote_cn, fqdn, dsn);
-    stratcon_database_connect(cq);
+    if(stratcon_database_connect(cq) != 0) goto bad_row;
 
     GET_QUERY(check_find);
     DECLARE_PARAM_INT(node->sid);
@@ -1124,7 +1126,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
 static void
 pg_interim_journal_remove(pg_interim_journal_t *ij) {
   unlink(ij->filename);
-  if(ij->filename) free(ij->filename);
+  free(ij->filename);
   if(ij->remote_str) free(ij->remote_str);
   if(ij->remote_cn) free(ij->remote_cn);
   if(ij->fqdn) free(ij->fqdn);
@@ -1426,7 +1428,6 @@ stratcon_ingest_launch_file_ingestion(const char *path,
     snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
     if(link(path, pgfile) < 0 && errno != EEXIST) {
       noitL(noit_error, "cannot link journal %s: %s\n", path, strerror(errno));
-      free(ij);
       return -1;
     }
   }
@@ -1595,6 +1596,7 @@ stratcon_get_noit_config(const char *cn) {
   free_params((ds_single_detail *)d);
   d->nparams = 0;
   if(cq) release_conn_q(cq);
+  free(d);
 
   return xmlcopy;
 }
