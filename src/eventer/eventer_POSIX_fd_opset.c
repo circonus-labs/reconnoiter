@@ -32,6 +32,7 @@
 
 #include "noit_defines.h"
 #include "eventer/eventer.h"
+#include "noit_dtrace_probes.h"
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -39,29 +40,45 @@
 static int
 POSIX_accept(int fd, struct sockaddr *addr, socklen_t *len,
              int *mask, void *closure) {
+  int rv;
+  EVENTER_ACCEPT_ENTRY(fd, (void *)addr, *len, *mask, closure);
   *mask = EVENTER_READ | EVENTER_EXCEPTION;
-  return accept(fd, addr, len);
+  rv = accept(fd, addr, len);
+  EVENTER_ACCEPT_RETURN(fd, (void *)addr, *len, *mask, closure, rv);
+  return rv;
 }
 
 static int
 POSIX_read(int fd, void *buffer, size_t len,
            int *mask, void *closure) {
+  int rv;
+  EVENTER_READ_ENTRY(fd, buffer, len, *mask, closure);
   *mask = EVENTER_READ | EVENTER_EXCEPTION;
-  return read(fd, buffer, len);
+  rv = read(fd, buffer, len);
+  EVENTER_READ_RETURN(fd, buffer, len, *mask, closure, rv);
+  return rv;
 }
 
 static int
 POSIX_write(int fd, const void *buffer, size_t len,
             int *mask, void *closure) {
+  int rv;
+  EVENTER_WRITE_ENTRY(fd, buffer, len, *mask, closure);
   *mask = EVENTER_WRITE | EVENTER_EXCEPTION;
-  return write(fd, buffer, len);
+  rv = write(fd, buffer, len);
+  EVENTER_WRITE_RETURN(fd, buffer, len, *mask, closure, rv);
+  return rv;
 }
 
 static int
 POSIX_close(int fd,
             int *mask, void *closure) {
+  int rv;
   *mask = 0;
-  return close(fd);
+  EVENTER_CLOSE_ENTRY(fd, *mask, closure);
+  rv = close(fd);
+  EVENTER_CLOSE_RETURN(fd, *mask, closure, rv);
+  return rv;
 }
 
 struct _fd_opset _eventer_POSIX_fd_opset = {

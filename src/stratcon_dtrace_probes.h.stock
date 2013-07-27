@@ -269,6 +269,26 @@ do { \
 
 #if !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED
 
+#define	EVENTER_ACCEPT_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$accept__entry$v1$696e74$766f6964202a$696e74$696e74$766f6964202a(arg0, arg1, arg2, arg3, arg4); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_ACCEPT_ENTRY_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$accept__entry$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_ACCEPT_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$accept__return$v1$696e74$766f6964202a$696e74$696e74$766f6964202a$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_ACCEPT_RETURN_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$accept__return$v1(); \
+		__asm__ volatile(""); \
+		_r; })
 #define	EVENTER_CALLBACK_ENTRY(arg0, arg1, arg2, arg3, arg4) \
 do { \
 	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
@@ -289,15 +309,99 @@ do { \
 	({ int _r = __dtrace_isenabled$eventer$callback__return$v1(); \
 		__asm__ volatile(""); \
 		_r; })
+#define	EVENTER_CLOSE_ENTRY(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$close__entry$v1$696e74$696e74$766f6964202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_CLOSE_ENTRY_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$close__entry$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_CLOSE_RETURN(arg0, arg1, arg2, arg3) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$close__return$v1$696e74$696e74$766f6964202a$696e74(arg0, arg1, arg2, arg3); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_CLOSE_RETURN_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$close__return$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_READ_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$read__entry$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a(arg0, arg1, arg2, arg3, arg4); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_READ_ENTRY_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$read__entry$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_READ_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$read__return$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_READ_RETURN_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$read__return$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_WRITE_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$write__entry$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a(arg0, arg1, arg2, arg3, arg4); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_WRITE_ENTRY_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$write__entry$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	EVENTER_WRITE_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	__asm__ volatile(".reference " EVENTER_TYPEDEFS); \
+	__dtrace_probe$eventer$write__return$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
+	__asm__ volatile(".reference " EVENTER_STABILITY); \
+} while (0)
+#define	EVENTER_WRITE_RETURN_ENABLED() \
+	({ int _r = __dtrace_isenabled$eventer$write__return$v1(); \
+		__asm__ volatile(""); \
+		_r; })
 
 
+extern void __dtrace_probe$eventer$accept__entry$v1$696e74$766f6964202a$696e74$696e74$766f6964202a(int, const void *, int, int, const void *);
+extern int __dtrace_isenabled$eventer$accept__entry$v1(void);
+extern void __dtrace_probe$eventer$accept__return$v1$696e74$766f6964202a$696e74$696e74$766f6964202a$696e74(int, const void *, int, int, const void *, int);
+extern int __dtrace_isenabled$eventer$accept__return$v1(void);
 extern void __dtrace_probe$eventer$callback__entry$v1$766f6964202a$63686172202a$696e74$696e74$696e74(const void *, const char *, int, int, int);
 extern int __dtrace_isenabled$eventer$callback__entry$v1(void);
 extern void __dtrace_probe$eventer$callback__return$v1$766f6964202a$63686172202a$696e74(const void *, const char *, int);
 extern int __dtrace_isenabled$eventer$callback__return$v1(void);
+extern void __dtrace_probe$eventer$close__entry$v1$696e74$696e74$766f6964202a(int, int, const void *);
+extern int __dtrace_isenabled$eventer$close__entry$v1(void);
+extern void __dtrace_probe$eventer$close__return$v1$696e74$696e74$766f6964202a$696e74(int, int, const void *, int);
+extern int __dtrace_isenabled$eventer$close__return$v1(void);
+extern void __dtrace_probe$eventer$read__entry$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a(int, const char *, size_t, int, const void *);
+extern int __dtrace_isenabled$eventer$read__entry$v1(void);
+extern void __dtrace_probe$eventer$read__return$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a$696e74(int, const char *, size_t, int, const void *, int);
+extern int __dtrace_isenabled$eventer$read__return$v1(void);
+extern void __dtrace_probe$eventer$write__entry$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a(int, const char *, size_t, int, const void *);
+extern int __dtrace_isenabled$eventer$write__entry$v1(void);
+extern void __dtrace_probe$eventer$write__return$v1$696e74$63686172202a$73697a655f74$696e74$766f6964202a$696e74(int, const char *, size_t, int, const void *, int);
+extern int __dtrace_isenabled$eventer$write__return$v1(void);
 
 #else
 
+#define	EVENTER_ACCEPT_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	} while (0)
+#define	EVENTER_ACCEPT_ENTRY_ENABLED() (0)
+#define	EVENTER_ACCEPT_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	} while (0)
+#define	EVENTER_ACCEPT_RETURN_ENABLED() (0)
 #define	EVENTER_CALLBACK_ENTRY(arg0, arg1, arg2, arg3, arg4) \
 do { \
 	} while (0)
@@ -306,6 +410,30 @@ do { \
 do { \
 	} while (0)
 #define	EVENTER_CALLBACK_RETURN_ENABLED() (0)
+#define	EVENTER_CLOSE_ENTRY(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	EVENTER_CLOSE_ENTRY_ENABLED() (0)
+#define	EVENTER_CLOSE_RETURN(arg0, arg1, arg2, arg3) \
+do { \
+	} while (0)
+#define	EVENTER_CLOSE_RETURN_ENABLED() (0)
+#define	EVENTER_READ_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	} while (0)
+#define	EVENTER_READ_ENTRY_ENABLED() (0)
+#define	EVENTER_READ_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	} while (0)
+#define	EVENTER_READ_RETURN_ENABLED() (0)
+#define	EVENTER_WRITE_ENTRY(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	} while (0)
+#define	EVENTER_WRITE_ENTRY_ENABLED() (0)
+#define	EVENTER_WRITE_RETURN(arg0, arg1, arg2, arg3, arg4, arg5) \
+do { \
+	} while (0)
+#define	EVENTER_WRITE_RETURN_ENABLED() (0)
 
 #endif /* !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED */
 
