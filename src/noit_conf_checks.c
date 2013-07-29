@@ -539,7 +539,7 @@ noit_console_show_check(noit_console_closure_t ncct,
           c = &check->stats.previous;
         }
         memset(&iter, 0, sizeof(iter));
-        sorted_keys = alloca(c->metrics.size * sizeof(*sorted_keys));
+        sorted_keys = malloc(c->metrics.size * sizeof(*sorted_keys));
         while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
           if(sorted_keys) sorted_keys[mcount++] = k;
           else {
@@ -561,6 +561,7 @@ noit_console_show_check(noit_console_closure_t ncct,
               nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
             }
           }
+          free(sorted_keys);
         }
       }
     }
