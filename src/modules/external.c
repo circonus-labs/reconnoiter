@@ -380,6 +380,8 @@ static int external_init(noit_module_t *self) {
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
      socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_e2n) != 0) {
     noitL(noit_error, "external: pipe() failed: %s\n", strerror(errno));
+    free(data->jobq);
+    free(data);
     return -1;
   }
 
@@ -387,6 +389,8 @@ static int external_init(noit_module_t *self) {
   if(data->child == -1) {
     /* No child, bail. */
     noitL(noit_error, "external: fork() failed: %s\n", strerror(errno));
+    free(data->jobq);
+    free(data);
     return -1;
   }
 

@@ -891,12 +891,12 @@ initiate_noit_connection(const char *host, unsigned short port,
   return 0;
 }
 
-void
+int
 stratcon_streamer_connection(const char *toplevel, const char *destination,
                              eventer_func_t handler,
                              void *(*handler_alloc)(void), void *handler_ctx,
                              void (*handler_free)(void *)) {
-  int i, cnt = 0;
+  int i, cnt = 0, found = 0;
   noit_conf_section_t *noit_configs;
   char path[256];
 
@@ -936,12 +936,14 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
                              handler,
                              handler_alloc ? handler_alloc() : handler_ctx,
                              handler_free);
+    found++;
     noit_hash_destroy(sslconfig,free,free);
     free(sslconfig);
     noit_hash_destroy(config,free,free);
     free(config);
   }
   free(noit_configs);
+  return found;
 }
 int
 stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {

@@ -130,11 +130,11 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     feat = xmlNewNode(NULL, (xmlChar *)"features");
     xmlAddChild(root, feat);
     if(features.size) {
-      noit_hash_iter iter;
+      noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
       void *vfv;
       const char *f;
       int flen;
-      while(noit_hash_next(&features, &iter, &f, &flen, &vfv)) {
+      while(noit_hash_next(&features, &iter2, &f, &flen, &vfv)) {
         xmlNodePtr featnode;
         featnode = xmlNewNode(NULL, (xmlChar *)"feature");
         xmlSetProp(featnode, (xmlChar *)"name", (xmlChar *)f);

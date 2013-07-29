@@ -71,6 +71,7 @@ noit_module_loader_t __noit_image_loader = {
 };
 struct __extended_image_data {
   void *userdata;
+  void *dlhandle;
 };
 
 static noit_hash_table loaders = NOIT_HASH_EMPTY;
@@ -226,6 +227,7 @@ int noit_load_image(const char *file, const char *name,
     dlclose(dlhandle);
     return -1;
   }
+  ((struct __extended_image_data *)obj->opaque_handle)->dlhandle = dlhandle;
   return 0;
 }
 

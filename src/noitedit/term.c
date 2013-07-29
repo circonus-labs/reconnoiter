@@ -483,8 +483,10 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+      while(i>0) el_free(b[--i]);
 			return (-1);
+    }
 	}
 	b[c->v] = NULL;
 	el->el_display = b;
@@ -494,8 +496,10 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+      while(i>0) el_free(b[--i]);
 			return (-1);
+    }
 	}
 	b[c->v] = NULL;
 	el->el_vdisplay = b;

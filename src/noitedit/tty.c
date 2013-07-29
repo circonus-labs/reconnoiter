@@ -1092,10 +1092,12 @@ tty_stty(EditLine *el, int argc, char **argv)
 				st = len =
 				    strlen(el->el_tty.t_t[z][m->m_type].t_name);
 			}
-			x = (el->el_tty.t_t[z][i].t_setmask & m->m_value)
-			    ?  '+' : '\0';
-			x = (el->el_tty.t_t[z][i].t_clrmask & m->m_value)
-			    ? '-' : x;
+      if (i >= 0) {
+			  x = (el->el_tty.t_t[z][i].t_setmask & m->m_value)
+			      ?  '+' : '\0';
+			  x = (el->el_tty.t_t[z][i].t_clrmask & m->m_value)
+			      ? '-' : x;
+      }
 
 			if (x != '\0' || aflag) {
 

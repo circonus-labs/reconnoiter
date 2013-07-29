@@ -117,7 +117,7 @@ API_EXPORT(int)
   noit_connection_disable_timeout(noit_connection_ctx_t *ctx);
 API_EXPORT(void)
   noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx);
-API_EXPORT(void)
+API_EXPORT(int)
   stratcon_streamer_connection(const char *toplevel, const char *destination,
                                eventer_func_t handler,
                                void *(*handler_alloc)(void), void *handler_ctx,

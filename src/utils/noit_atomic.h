@@ -57,6 +57,7 @@ noit_atomic_cas32(volatile noit_atomic32_t *ptr,
 #if (SIZEOF_VOID_P == 4)
 static inline void *
 noit_atomic_casptr(volatile void **ptr,
+                   /* coverity[noescape] */
                    volatile void *rpl,
                    volatile void *curr) {
   void *prev;
@@ -85,6 +86,7 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
 #if (SIZEOF_VOID_P == 8)
 static inline void *
 noit_atomic_casptr(volatile void **ptr,
+                  /* coverity[noescape] */
                   volatile void *rpl,
                   volatile void *curr) {
   void *prev;

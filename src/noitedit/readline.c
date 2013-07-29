@@ -836,6 +836,7 @@ history_expand(char *str, char **output)
 	result = NULL;
 	size = idx = 0;
 	for (i = 0; str[i];) {
+    char *malloced;
 		int start, j, loop_again;
 		size_t len;
 
@@ -887,10 +888,11 @@ loop:
 			break;
 		}
 		retval = _history_expand_command(&str[i], (size_t) (j - i),
-		    &temp);
+		    &malloced);
 		if (retval != -1) {
-			len = strlen(temp);
-			ADD_STRING(temp, len);
+			len = strlen(malloced);
+			ADD_STRING(malloced, len);
+      free(malloced);
 		}
 		i = j;
 	}			/* for(i ...) */
