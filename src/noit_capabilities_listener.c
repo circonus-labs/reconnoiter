@@ -50,6 +50,8 @@
 #include <libxml/xmlsave.h>
 #include <libxml/tree.h>
 
+static noit_hash_table features = NOIT_HASH_EMPTY;
+
 typedef struct noit_capsvc_closure {
   char *buff;
   size_t written;
@@ -62,6 +64,15 @@ noit_capabilities_listener_init() {
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CAPABILITIES_SERVICE,
                                  noit_capabilities_handler);
+}
+
+void
+noit_capabilities_add_feature(const char *feature, const char *version) {
+  feature = strdup(feature);
+  if(version) version = strdup(version);
+  if(!noit_hash_store(&features, feature, strlen(feature), (void *)version))
+    noitL(noit_error, "Feature conflict! %s version %s\n",
+          feature, version ? version : "unpecified");
 }
 
 static void
@@ -77,7 +88,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     struct timeval now;
 
     xmlDocPtr xmldoc;
-    xmlNodePtr root, cmds, bi, ri, mods;
+    xmlNodePtr root, cmds, bi, ri, mods, feat;
 
     /* fill out capabilities */
 
@@ -113,6 +124,23 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
       xmlNewTextChild(ri, NULL, (xmlChar *)"release", (xmlChar *)utsn.release);
       xmlNewTextChild(ri, NULL, (xmlChar *)"version", (xmlChar *)utsn.version);
       xmlNewTextChild(ri, NULL, (xmlChar *)"machine", (xmlChar *)utsn.machine);
+    }
+
+    /* features */
+    feat = xmlNewNode(NULL, (xmlChar *)"features");
+    xmlAddChild(root, feat);
+    if(features.size) {
+      noit_hash_iter iter;
+      void *vfv;
+      const char *f;
+      int flen;
+      while(noit_hash_next(&features, &iter, &f, &flen, &vfv)) {
+        xmlNodePtr featnode;
+        featnode = xmlNewNode(NULL, (xmlChar *)"feature");
+        xmlSetProp(featnode, (xmlChar *)"name", (xmlChar *)f);
+        if(vfv) xmlSetProp(featnode, (xmlChar *)"version", (xmlChar *)vfv);
+        xmlAddChild(feat, featnode);
+      }
     }
 
     /* time (poor man's time check) */

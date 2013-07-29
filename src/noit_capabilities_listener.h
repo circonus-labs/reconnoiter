@@ -41,6 +41,9 @@
 API_EXPORT(void)
   noit_capabilities_listener_init(void);
 
+API_EXPORT(void)
+  noit_capabilities_add_feature(const char *feature, const char *version);
+
 API_EXPORT(int)
   noit_capabilities_handler(eventer_t e, int mask, void *closure,
                             struct timeval *now);
