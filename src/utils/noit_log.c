@@ -352,11 +352,13 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
       snprintf(fullfile, sizeof(fullfile), "%s/%s", path, entry->d_name);
       snprintf(fullidx, sizeof(fullidx), "%s/%s" INDEX_EXT,
                path, entry->d_name);
+      /* coverity[fs_check_call] */
       while((rv = stat(fullfile, &st)) != 0 && errno == EINTR);
       if(rv == 0) {
         int readers;
         readers = __jlog_pending_readers(log, logid);
         if(readers == 0) {
+          /* coverity[toctou] */
           unlink(fullfile);
           unlink(fullidx);
         }
@@ -523,6 +525,7 @@ jlog_logio_open(noit_log_stream_t ls) {
   if(listed == -1) {
     noitL(noit_error, "Cannot list jlog subscribers: %s\n",
           jlog_ctx_err_string(log));
+    jlog_ctx_close(log);
     return -1;
   }
 

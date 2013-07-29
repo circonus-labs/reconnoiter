@@ -303,16 +303,16 @@ static int external_handler(eventer_t e, int mask,
         assert(inlen == sizeof(data->cr->stderrlen));
         data->cr->stderrbuff = malloc(data->cr->stderrlen);
       }
-      while(data->cr->stderrlen_sofar < data->cr->stderrlen) {
+      while(data->cr->stderrlen_sofar < (int)data->cr->stderrlen) {
         while((inlen =
                  read(e->fd,
                       data->cr->stderrbuff + data->cr->stderrlen_sofar,
-                      data->cr->stderrlen - data->cr->stderrlen_sofar)) == -1 &&
+                      (int)data->cr->stderrlen - data->cr->stderrlen_sofar)) == -1 &&
                errno == EINTR);
         if(inlen == -1 && errno == EAGAIN)
           return EVENTER_READ | EVENTER_EXCEPTION;
         if(inlen == 0) goto widowed;
-        if((data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
+        if(((int)data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
           goto widowed; /* overflow */
         data->cr->stderrlen_sofar += inlen;
       }

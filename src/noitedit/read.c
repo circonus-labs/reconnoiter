@@ -249,9 +249,11 @@ el_internal_read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch, int nonbloc
 			el->el_state.metanext = 0;
 			*ch |= 0200;
 		}
+    /* coverity[tainted_data] */
 		cmd = el->el_map.current[(unsigned char) *ch];
 		if (cmd == ED_SEQUENCE_LEAD_IN || el->el_keystate) {
 			key_value_t val;
+      /* coverity[tainted_data] */
 			switch (key_get(el, ch, &val)) {
 			case XK_CMD:
 				cmd = val.cmd;

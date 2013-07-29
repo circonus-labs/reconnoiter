@@ -397,7 +397,10 @@ int __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log) {
   if (!dir) return -1;
   
   len = strlen(ctx->path);
-  if(len + 2 > sizeof(file)) return -1;
+  if(len + 2 > sizeof(file)) {
+    closedir(dir);
+    return -1;
+  }
   memcpy(file, ctx->path, len);
   file[len++] = IFS_CH;
   file[len] = '\0';
@@ -1115,6 +1118,7 @@ int jlog_ctx_init(jlog_ctx *ctx) {
     return -1;
   }
   ctx->context_mode = JLOG_INIT;
+  /* coverity[fs_check_call] */
   while((rv = stat(ctx->path, &sb)) == -1 && errno == EINTR);
   if(rv == 0 || errno != ENOENT) {
     SYS_FAIL_EX(JLOG_ERR_CREATE_EXISTS, 0);
@@ -1123,6 +1127,7 @@ int jlog_ctx_init(jlog_ctx *ctx) {
   if(dirmode & 0400) dirmode |= 0100;
   if(dirmode & 040) dirmode |= 010;
   if(dirmode & 04) dirmode |= 01;
+  /* coverity[toctou] */
   if(mkdir(ctx->path, dirmode) == -1)
     SYS_FAIL(JLOG_ERR_CREATE_MKDIR);
   chmod(ctx->path, dirmode);

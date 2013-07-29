@@ -77,6 +77,7 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
 
   if (pthread_mutex_lock(&jlog_files_lock) != 0) return NULL;
 
+  /* coverity[fs_check_call] */
   if (stat(path, &sb) == 0) {
     if (!S_ISREG(sb.st_mode)) goto out;
     memset(&id, 0, sizeof(id));
@@ -93,6 +94,7 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
     }
   }
 
+  /* coverity[toctou] */
   if ((fd = open(path, realflags, mode)) == -1) goto out;
   if (fstat(fd, &sb) != 0) {
     while (close(fd) == -1 && errno == EINTR) ;

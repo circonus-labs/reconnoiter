@@ -182,8 +182,9 @@ noit_find_bpm_route_ipv6(btrie *tree, struct in6_addr *a, unsigned char *pl) {
 void *
 noit_find_bpm_route_ipv4(btrie *tree, struct in_addr *a, unsigned char *pl) {
   btrie_node *node = NULL;
-  uint32_t ia = ntohl(a->s_addr);
-  find_bpm_route(tree, &ia, 32, NULL, &node);
+  uint32_t ia[1];
+  ia[0] = ntohl(a->s_addr);
+  find_bpm_route(tree, ia, 32, NULL, &node);
   if(node && pl) *pl = node->prefix_len;
   if(node && node->data) return node->data;
   return NULL;
@@ -200,8 +201,9 @@ noit_del_route_ipv6(btrie *tree, struct in6_addr *a, unsigned char prefix_len,
 int
 noit_del_route_ipv4(btrie *tree, struct in_addr *a, unsigned char prefix_len,
                void (*f)(void *)) {
-  uint32_t ia = ntohl(a->s_addr);
-  return del_route(tree, &ia, prefix_len, f);
+  uint32_t ia[1];
+  ia[0] = ntohl(a->s_addr);
+  return del_route(tree, ia, prefix_len, f);
 }
 
 void noit_add_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
@@ -289,9 +291,10 @@ void noit_add_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
 
 void noit_add_route_ipv4(btrie *tree, struct in_addr *a,
                     unsigned char prefix_len, void *data) {
-  uint32_t ia = ntohl(a->s_addr);
+  uint32_t ia[1];
+  ia[0] = ntohl(a->s_addr);
   assert(prefix_len <= 32);
-  noit_add_route(tree, &ia, prefix_len, data);
+  noit_add_route(tree, ia, prefix_len, data);
 }
 void noit_add_route_ipv6(btrie *tree, struct in6_addr *a,
                     unsigned char prefix_len, void *data) {

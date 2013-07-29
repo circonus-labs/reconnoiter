@@ -2536,7 +2536,7 @@ int nl_spawn(lua_State *L) {
   const char *path;
   const char **argv, **envp = NULL;
   struct spawn_info *spawn_info;
-  posix_spawnattr_t *attr;
+  posix_spawnattr_t *attr = NULL;
   posix_spawn_file_actions_t *filea;
   noit_lua_resume_info_t *ri;
 

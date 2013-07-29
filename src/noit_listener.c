@@ -300,6 +300,7 @@ noit_listener(char *host, unsigned short port, int type,
   if(family == AF_UNIX) {
     struct stat sb;
     /* unlink the path if it is a socket */
+    /* coverity[fs_check_call] */
     if(stat(host, &sb) == -1) {
       if(errno != ENOENT) {
         noitL(noit_error, "%s: %s\n", host, strerror(errno));
@@ -308,8 +309,10 @@ noit_listener(char *host, unsigned short port, int type,
       }
     }
     else {
-      if(sb.st_mode & S_IFSOCK)
+      if(sb.st_mode & S_IFSOCK) {
+        /* coverity[toctou] */
         unlink(host);
+      }
       else {
         noitL(noit_error, "unlink %s failed: %s\n", host, strerror(errno));
         close(fd);

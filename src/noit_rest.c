@@ -540,6 +540,7 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
   if(strncmp(rfile, document_root, drlen)) goto denied;
   if(rfile[drlen] != '/' && rfile[drlen + 1] != '/') goto denied;
   /* stat */
+  /* coverity[fs_check_call] */
   if(stat(rfile, &st) != 0) {
     switch (errno) {
       case EACCES: goto denied;
@@ -548,6 +549,7 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
   }
   /* open */
   if(st.st_size > 0) {
+    /* coverity[toctou] */
     fd = open(rfile, O_RDONLY);
     if(fd < 0) goto not_found;
     contents = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);

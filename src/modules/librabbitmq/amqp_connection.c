@@ -43,9 +43,6 @@ amqp_connection_state_t amqp_new_connection(void) {
   state->inbound_buffer.bytes = NULL;
   state->outbound_buffer.bytes = NULL;
   if (amqp_tune_connection(state, 0, INITIAL_FRAME_POOL_PAGE_SIZE, 0) != 0) {
-    empty_amqp_pool(&state->frame_pool);
-    empty_amqp_pool(&state->decoding_pool);
-    free(state);
     return NULL;
   }
 
@@ -374,7 +371,7 @@ static int inner_send_frame(amqp_connection_state_t state,
 int amqp_send_frame(amqp_connection_state_t state,
 		    amqp_frame_t const *frame)
 {
-  amqp_bytes_t encoded;
+  amqp_bytes_t encoded = { .len = 0, .bytes = NULL };
   int payload_len;
   int separate_body;
 
@@ -406,7 +403,7 @@ int amqp_send_frame_to(amqp_connection_state_t state,
 		       amqp_output_fn_t fn,
 		       void *context)
 {
-  amqp_bytes_t encoded;
+  amqp_bytes_t encoded = { .len = 0, .bytes = NULL };
   int payload_len;
   int separate_body;
 

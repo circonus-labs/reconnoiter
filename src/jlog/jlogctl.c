@@ -126,12 +126,12 @@ static void process_jlog(const char *file, const char *sub) {
   if(!sub) {
     if(jlog_ctx_open_writer(log)) {
       fprintf(stderr, "error opening '%s'\n", file);
-      return;
+      goto out;
     }
   } else {
     if(jlog_ctx_open_reader(log, sub)) {
       fprintf(stderr, "error opening '%s'\n", file);
-      return;
+      goto out;
     }
   }
   if(show_progress) {
@@ -175,7 +175,7 @@ static void process_jlog(const char *file, const char *sub) {
     dir = opendir(file);
     if(!dir) {
       fprintf(stderr, "error opening '%s'\n", file);
-      return;
+      goto out;
     }
     while((de = readdir(dir)) != NULL) {
       u_int32_t logid;
@@ -194,6 +194,7 @@ static void process_jlog(const char *file, const char *sub) {
                             de->d_name, (unsigned long long)st.st_size, readers);
           if(show_index_info && !quiet) {
             struct stat sb;
+            /* coverity[fs_check_call] */
             if (stat(fullidx, &sb)) {
               printf("\t\t idx: none\n");
             } else {
@@ -210,6 +211,7 @@ static void process_jlog(const char *file, const char *sub) {
           if (analyze_datafiles) analyze_datafile(log, logid);
           if((readers == 0) && cleanup) {
             unlink(fullfile);
+            /* coverity[toctou] */
             unlink(fullidx);
           }
         }
@@ -217,6 +219,7 @@ static void process_jlog(const char *file, const char *sub) {
     }
     closedir(dir);
   }
+ out:
   jlog_ctx_close(log);
 }
 int main(int argc, char **argv) {

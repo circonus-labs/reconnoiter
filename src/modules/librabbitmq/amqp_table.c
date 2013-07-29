@@ -42,8 +42,8 @@ int amqp_decode_table(amqp_bytes_t encoded,
       allocated_entries = allocated_entries * 2;
       newentries = realloc(entries, allocated_entries * sizeof(amqp_table_entry_t));
       if (newentries == NULL) {
-	free(entries);
-	return -ENOMEM;
+        free(entries);
+        return -ENOMEM;
       }
       entries = newentries;
     }
@@ -90,6 +90,7 @@ int amqp_decode_table(amqp_bytes_t encoded,
 
   output->num_entries = num_entries;
   output->entries = amqp_pool_alloc(pool, num_entries * sizeof(amqp_table_entry_t));
+  /* coverity[uninit_use_in_call] */
   memcpy(output->entries, entries, num_entries * sizeof(amqp_table_entry_t));
   free(entries);
 

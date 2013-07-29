@@ -531,7 +531,7 @@ _rl_compat_sub(const char *str, const char *what, const char *with,
 static int
 _history_expand_command(const char *command, size_t cmdlen, char **result)
 {
-	char **arr, *tempcmd, *line, *search = NULL, *cmd;
+	char **arr, *tempcmd = NULL, *line, *search = NULL, *cmd;
 	const char *event_data = NULL;
 	static char *from = NULL, *to = NULL;
 	int start = -1, end = -1, max, i, idx;
