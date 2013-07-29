@@ -45,18 +45,23 @@
 
 static noit_hash_table *filtersets = NULL;
 static pthread_mutex_t filterset_lock;
+static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
 
 typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY } noit_ruletype_t;
 typedef struct _filterrule {
   noit_ruletype_t type;
+  pcre *target_override;
   pcre *target;
   pcre_extra *target_e;
+  pcre *module_override;
   pcre *module;
   pcre_extra *module_e;
+  pcre *name_override;
   pcre *name;
   pcre_extra *name_e;
+  pcre *metric_override;
   pcre *metric;
   pcre_extra *metric_e;
   struct _filterrule *next;
@@ -141,6 +146,7 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     if(!rule->rname) { \
       noitL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
+      rule->rname##_override = fallback_no_match; \
     } \
     else { \
       rule->rname##_e = pcre_study(rule->rname, 0, &error); \
@@ -227,7 +233,7 @@ noit_apply_filterset(const char *filterset,
     filterrule_t *r;
     noit_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
-#define MATCHES(rname, value) noit_apply_filterrule(r->rname, r->rname##_e, value)
+#define MATCHES(rname, value) noit_apply_filterrule(r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
       if(MATCHES(target, check->target) &&
          MATCHES(module, check->module) &&
@@ -504,8 +510,15 @@ register_console_filter_commands() {
 
 void
 noit_filters_init() {
+  const char *error;
+  int erroffset;
   pthread_mutex_init(&filterset_lock, NULL);
   filtersets = calloc(1, sizeof(noit_hash_table));
+  fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
+  if(!fallback_no_match) {
+    noitL(noit_error, "Filter initialization failed (nomatch filter)\n");
+    exit(-1);
+  }
   register_console_filter_commands();
   noit_filters_from_conf();
 }
