@@ -120,7 +120,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     } else if(!strcmp((char *)a->name, "resolve_rtype")) 
       resolve_rtype = (char *)xmlNodeGetContent(a);
   }
-  if(module) noit_module_lookup(module);
+  if(module) m = noit_module_lookup(module);
   if(!m) {
     *error = "cannot find requested module";
     goto error;
