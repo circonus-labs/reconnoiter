@@ -38,6 +38,7 @@
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_capabilities_listener.h"
 
 #include <pcre.h>
 #include <assert.h>
@@ -55,15 +56,19 @@ typedef struct _filterrule {
   pcre *target_override;
   pcre *target;
   pcre_extra *target_e;
+  noit_hash_table *target_ht;
   pcre *module_override;
   pcre *module;
   pcre_extra *module_e;
+  noit_hash_table *module_ht;
   pcre *name_override;
   pcre *name;
   pcre_extra *name_e;
+  noit_hash_table *name_ht;
   pcre *metric_override;
   pcre *metric;
   pcre_extra *metric_e;
+  noit_hash_table *metric_ht;
   struct _filterrule *next;
 } filterrule_t;
 
@@ -76,6 +81,10 @@ typedef struct {
 #define FRF(r,a) do { \
   if(r->a) pcre_free(r->a); \
   if(r->a##_e) pcre_free(r->a##_e); \
+  if(r->a##_ht) { \
+    noit_hash_destroy(r->a##_ht, free, NULL); \
+    free(r->a##_ht); \
+  } \
 } while(0)
 
 static void
@@ -136,6 +145,30 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
                    NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
 
+    /* Compile any hash tables, should they exist */
+#define HT_COMPILE(rname) do { \
+    noit_conf_section_t *htentries; \
+    int hte_cnt; \
+    htentries = noit_conf_get_sections(rules[j], #rname, &hte_cnt); \
+    if(hte_cnt) { \
+      int hti; \
+      char *htstr; \
+      rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
+      noit_hash_init_size(rule->rname##_ht, 8); /* small as we have lots */ \
+      for(hti=0; hti<hte_cnt; hti++) { \
+        if(!noit_conf_get_string(htentries[hti], "self::node()", &htstr)) \
+          noitL(noit_error, "Error fetching text content from filter match.\n"); \
+        else \
+          noit_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
+      } \
+    } \
+    free(htentries); \
+} while(0);
+    HT_COMPILE(target);
+    HT_COMPILE(module);
+    HT_COMPILE(name);
+    HT_COMPILE(metric);
+    
     /* Compile our rules */
 #define RULE_COMPILE(rname) do { \
   char *longre = NULL; \
@@ -209,8 +242,13 @@ noit_refresh_filtersets(noit_console_closure_t ncct,
 }
 
 static noit_boolean
-noit_apply_filterrule(pcre *p, pcre_extra *pe, const char *subj) {
+noit_apply_filterrule(noit_hash_table *m,
+                      pcre *p, pcre_extra *pe, const char *subj) {
   int rc, ovector[30];
+  if(m) {
+    void *vptr;
+    return noit_hash_retrieve(m, subj, strlen(subj), &vptr);
+  }
   if(!p) return noit_true;
   rc = pcre_exec(p, pe, subj, strlen(subj), 0, 0, ovector, 30);
   if(rc >= 0) return noit_true;
@@ -233,7 +271,7 @@ noit_apply_filterset(const char *filterset,
     filterrule_t *r;
     noit_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
-#define MATCHES(rname, value) noit_apply_filterrule(r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
+#define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
       if(MATCHES(target, check->target) &&
          MATCHES(module, check->module) &&
@@ -297,10 +335,17 @@ noit_console_filter_show(noit_console_closure_t ncct,
     nc_printf(ncct, "Rule %d [%s]:\n", i+1, val);
 #define DUMP_ATTR(a) do { \
   char *vstr; \
-  if(noit_conf_get_string(rules[i], "@" #a, &vstr)) { \
+  noit_conf_section_t ht; \
+  int cnt; \
+  ht = noit_conf_get_sections(rules[i], #a, &cnt); \
+  if(ht && cnt) { \
+    nc_printf(ncct, "\t%s: hash match of %d items\n", #a, cnt); \
+  } \
+  else if(noit_conf_get_string(rules[i], "@" #a, &vstr)) { \
     nc_printf(ncct, "\t%s: /%s/\n", #a, val); \
     free(vstr); \
   } \
+  free(ht); \
 } while(0)
     DUMP_ATTR(target);
     DUMP_ATTR(module);
@@ -519,6 +564,7 @@ noit_filters_init() {
     noitL(noit_error, "Filter initialization failed (nomatch filter)\n");
     exit(-1);
   }
+  noit_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
   noit_filters_from_conf();
 }
