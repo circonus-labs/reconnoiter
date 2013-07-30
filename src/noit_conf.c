@@ -1007,7 +1007,9 @@ int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
  fallback:
   interest = path;
   if(*interest != '/' && current_node) {
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", (char *)xmlGetNodePath(current_node), path);
+    xmlChar *basepath = xmlGetNodePath(current_node);
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", (char *)basepath, path);
+    free(basepath);
     interest = fullpath;
   }
   if(noit_hash_retr_str(&_compiled_fallback,
