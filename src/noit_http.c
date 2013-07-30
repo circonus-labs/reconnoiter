@@ -871,7 +871,6 @@ noit_http_session_req_consume_chunked(noit_http_session_ctx *ctx,
       unsigned int clen = 0;
       const char *cp = in->buff + in->start;
       while(cp <= str_in_f) {
-  noitL(http_debug, "Looking at character: '%c'\n", *cp);
         if(*cp >= '0' && *cp <= '9') clen = (clen << 4) | (*cp - '0');
         else if(*cp >= 'a' && *cp <= 'f') clen = (clen << 4) | (*cp - 'a' + 10);
         else if(*cp >= 'A' && *cp <= 'F') clen = (clen << 4) | (*cp - 'A' + 10);
