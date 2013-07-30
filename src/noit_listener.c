@@ -457,7 +457,7 @@ int
 noit_control_dispatch(eventer_t e, int mask, void *closure,
                       struct timeval *now) {
   u_int32_t cmd;
-  int len = 0;
+  int len = 0, callmask = mask;
   void *vdelegation_table;
   noit_hash_table *delegation_table = NULL;
   acceptor_closure_t *ac = closure;
@@ -473,7 +473,7 @@ noit_control_dispatch(eventer_t e, int mask, void *closure,
   }
   assert(ac->rlen >= 0 && ac->rlen <= sizeof(cmd));
 
-  if(mask & EVENTER_EXCEPTION || ac->rlen != sizeof(cmd)) {
+  if(callmask & EVENTER_EXCEPTION || ac->rlen != sizeof(cmd)) {
     int newmask;
 socket_error:
     /* Exceptions cause us to simply snip the connection */
@@ -493,7 +493,7 @@ socket_error:
     if(noit_hash_retrieve(delegation_table,
                           (char *)&ac->cmd, sizeof(ac->cmd), &vfunc)) {
       e->callback = *((eventer_func_t *)vfunc);
-      return e->callback(e, mask, closure, now);
+      return e->callback(e, callmask, closure, now);
     }
     else {
     const char *event_name;
