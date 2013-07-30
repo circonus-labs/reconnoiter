@@ -929,6 +929,7 @@ noit_http_session_req_consume_chunked(noit_http_session_ctx *ctx,
   if(in->size == 0) {
     tofree = in;
     ctx->req.first_input = in = in->next;
+    if(ctx->req.last_input == tofree) ctx->req.last_input = in;
     tofree->next = NULL;
     RELEASE_BCHAIN(tofree);
   }
