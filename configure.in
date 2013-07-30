@@ -79,8 +79,10 @@ case $host in
 	MODULEEXT=bundle
 	RLDFLAG="-Wl,--rpath="
 	# This is needed for luajit on Mac OS X
-	LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
-	SHLDFLAGS="$SHLDFLAGS -image_base 100000000"
+  if test "x$ENABLE_LUA" = "xLuaJIT"; then
+		LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
+		SHLDFLAGS="$SHLDFLAGS -image_base 100000000"
+	fi
 	;;
 *-*-solaris*)
 	DTRACE=/usr/sbin/dtrace
