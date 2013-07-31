@@ -240,8 +240,7 @@ noit_main(const char *appname,
   }
   close(fd);
   fd = open("/dev/null", O_WRONLY);
-  if(fd < 0 || dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO
-     )) {
+  if(fd < 0 || dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO) < 0) {
     fprintf(stderr, "Failed to setup std{out,err}: %s\n", strerror(errno));
     exit(-1);
   }
