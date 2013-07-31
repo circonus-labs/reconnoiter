@@ -418,7 +418,7 @@ int __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log) {
 #endif
       if ((cp = jlog_file_open(file, 0, ctx->file_mode))) {
         if (jlog_file_lock(cp)) {
-          jlog_file_pread(cp, &id, sizeof(id), 0);
+          (void) jlog_file_pread(cp, &id, sizeof(id), 0);
 #ifdef DEBUG
           fprintf(stderr, "\t%u <= %u (pending reader)\n", id.log, log);
 #endif
@@ -592,7 +592,7 @@ static int __jlog_set_checkpoint(jlog_ctx *ctx, const char *s, const jlog_id *id
 
   if(!f) return -1;
   if (!jlog_file_lock(f))
-    goto failset;
+    goto failset_nolock;
 
   if (jlog_file_size(f) == 0) {
     /* we're setting it for the first time, no segments were pending on it */
@@ -615,7 +615,12 @@ static int __jlog_set_checkpoint(jlog_ctx *ctx, const char *s, const jlog_id *id
     }
   }
 
+  if (f && f != ctx->checkpoint) jlog_file_close(f);
+  return rv;
+
  failset:
+  jlog_file_unlock(f);
+ failset_nolock:
   if (f && f != ctx->checkpoint) jlog_file_close(f);
   return rv;
 }
@@ -950,7 +955,7 @@ static int __jlog_resync_index(jlog_ctx *ctx, u_int32_t log, jlog_id *last, int 
     /* We can't fix the file if someone may write to it again */
     if(log >= ctx->storage.log) break;
 
-    jlog_file_lock(ctx->index);
+    if(!jlog_file_lock(ctx->index)) break;
     /* it doesn't really matter what jlog_repair_datafile returns
      * we'll keep retrying anyway */
     jlog_repair_datafile(ctx, log);
@@ -1130,7 +1135,8 @@ int jlog_ctx_init(jlog_ctx *ctx) {
   /* coverity[toctou] */
   if(mkdir(ctx->path, dirmode) == -1)
     SYS_FAIL(JLOG_ERR_CREATE_MKDIR);
-  chmod(ctx->path, dirmode);
+  if(chmod(ctx->path, dirmode) == -1)
+    SYS_FAIL(JLOG_ERR_CREATE_MKDIR);
   /* Setup our initial state and store our instance metadata */
   if(__jlog_open_metastore(ctx) != 0)
     SYS_FAIL(JLOG_ERR_CREATE_META);
@@ -1489,7 +1495,8 @@ int jlog_ctx_read_interval(jlog_ctx *ctx, jlog_id *start, jlog_id *finish) {
     return -1;
   }
 
-  __jlog_restore_metastore(ctx, 0);
+  if(__jlog_restore_metastore(ctx, 0))
+    SYS_FAIL(JLOG_ERR_META_OPEN);
   if(jlog_get_checkpoint(ctx, ctx->subscriber_name, &chkpt))
     SYS_FAIL(JLOG_ERR_INVALID_SUBSCRIBER);
   if(__jlog_find_first_log_after(ctx, &chkpt, start, finish) != 0)

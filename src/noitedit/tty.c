@@ -505,36 +505,33 @@ tty_setup(EditLine *el)
          * Reset the tty chars to reasonable defaults
          * If they are disabled, then enable them.
          */
-	if (rst) {
-		if (tty__cooked_mode(&el->el_tty.t_ts)) {
-			tty__getchar(&el->el_tty.t_ts, el->el_tty.t_c[TS_IO]);
-			/*
-	                 * Don't affect CMIN and CTIME for the editor mode
-	                 */
-			for (rst = 0; rst < C_NCC - 2; rst++)
-				if (el->el_tty.t_c[TS_IO][rst] !=
-				      el->el_tty.t_vdisable
-				    && el->el_tty.t_c[ED_IO][rst] !=
-				      el->el_tty.t_vdisable)
-					el->el_tty.t_c[ED_IO][rst] =
-					    el->el_tty.t_c[TS_IO][rst];
-			for (rst = 0; rst < C_NCC; rst++)
-				if (el->el_tty.t_c[TS_IO][rst] !=
-				    el->el_tty.t_vdisable)
-					el->el_tty.t_c[EX_IO][rst] =
-					    el->el_tty.t_c[TS_IO][rst];
-		}
-		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
-		if (tty_setty(el, &el->el_tty.t_ex) == -1) {
+	if (tty__cooked_mode(&el->el_tty.t_ts)) {
+		tty__getchar(&el->el_tty.t_ts, el->el_tty.t_c[TS_IO]);
+		/*
+                 * Don't affect CMIN and CTIME for the editor mode
+                 */
+		for (rst = 0; rst < C_NCC - 2; rst++)
+			if (el->el_tty.t_c[TS_IO][rst] !=
+			      el->el_tty.t_vdisable
+			    && el->el_tty.t_c[ED_IO][rst] !=
+			      el->el_tty.t_vdisable)
+				el->el_tty.t_c[ED_IO][rst] =
+				    el->el_tty.t_c[TS_IO][rst];
+		for (rst = 0; rst < C_NCC; rst++)
+			if (el->el_tty.t_c[TS_IO][rst] !=
+			    el->el_tty.t_vdisable)
+				el->el_tty.t_c[EX_IO][rst] =
+				    el->el_tty.t_c[TS_IO][rst];
+	}
+	tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
+	if (tty_setty(el, &el->el_tty.t_ex) == -1) {
 #ifdef DEBUG_TTY
-			(void) el->el_err_printf(el,
-			    "tty_setup: tty_setty: %s\r\n",
-			    strerror(errno));
+		(void) el->el_err_printf(el,
+		    "tty_setup: tty_setty: %s\r\n",
+		    strerror(errno));
 #endif /* DEBUG_TTY */
-			return (-1);
-		}
-	} else
-		tty__setchar(&el->el_tty.t_ex, el->el_tty.t_c[EX_IO]);
+		return (-1);
+	}
 
 	el->el_tty.t_ed.c_iflag &= ~el->el_tty.t_t[ED_IO][MD_INP].t_clrmask;
 	el->el_tty.t_ed.c_iflag |= el->el_tty.t_t[ED_IO][MD_INP].t_setmask;
@@ -1045,7 +1042,7 @@ protected int
 tty_stty(EditLine *el, int argc, char **argv)
 {
 	const ttymodes_t *m;
-	char x, *d;
+	char x = '\0', *d;
 	int aflag = 0;
 	char *s;
 	char *name;

@@ -304,7 +304,7 @@ expand_range(const char *range, char ***set, int max_count, const char **err) {
       return 0;
     }
     i = n - s; /* Our increment */
-    if(i <= 0) return 0;
+    if(i == 0) return 0;
     count = (e - s) / i + 1;
     *set = malloc(count * sizeof(**set));
     count = 0;

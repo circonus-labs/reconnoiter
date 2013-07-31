@@ -134,7 +134,7 @@ static void process_jlog(const char *file, const char *sub) {
       goto out;
     }
   }
-  if(show_progress) {
+  if(show_progress && sub) {
     jlog_id id, id2, id3;
     char buff[20], buff2[20], buff3[20];
     jlog_get_checkpoint(log, sub, &id);
@@ -277,6 +277,7 @@ int main(int argc, char **argv) {
   }
   for(i=optind; i<argc; i++) {
     if(!quiet) printf("%s\n", argv[i]);
+    /* coverity[tainted_string] */
     process_jlog(argv[i], subscriber);
   }
   return 0;

@@ -278,47 +278,48 @@ static int external_handler(eventer_t e, int mask,
       data->cr->stdoutbuff = malloc(data->cr->stdoutlen);
       memset(data->cr->stdoutbuff, 0, data->cr->stdoutlen);
     }
-    if(data->cr) {
-      while(data->cr->stdoutlen_sofar < data->cr->stdoutlen) {
-        while((inlen =
-                 read(e->fd,
-                      data->cr->stdoutbuff + data->cr->stdoutlen_sofar,
-                      data->cr->stdoutlen - data->cr->stdoutlen_sofar)) == -1 &&
-               errno == EINTR);
-        if(inlen == -1 && errno == EAGAIN)
-          return EVENTER_READ | EVENTER_EXCEPTION;
-        if(inlen == 0) goto widowed;
-        if((data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
-          goto widowed; /* overflow */
-        data->cr->stdoutlen_sofar += inlen;
-      }
-      assert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
-      if(!data->cr->stderrbuff) {
-        while((inlen = read(e->fd, &data->cr->stderrlen,
-                            sizeof(data->cr->stderrlen))) == -1 &&
-              errno == EINTR);
-        if(inlen == -1 && errno == EAGAIN)
-          return EVENTER_READ | EVENTER_EXCEPTION;
-        if(inlen == 0) goto widowed;
-        assert(inlen == sizeof(data->cr->stderrlen));
-        data->cr->stderrbuff = malloc(data->cr->stderrlen);
-      }
-      while(data->cr->stderrlen_sofar < (int)data->cr->stderrlen) {
-        while((inlen =
-                 read(e->fd,
-                      data->cr->stderrbuff + data->cr->stderrlen_sofar,
-                      (int)data->cr->stderrlen - data->cr->stderrlen_sofar)) == -1 &&
-               errno == EINTR);
-        if(inlen == -1 && errno == EAGAIN)
-          return EVENTER_READ | EVENTER_EXCEPTION;
-        if(inlen == 0) goto widowed;
-        if(((int)data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
-          goto widowed; /* overflow */
-        data->cr->stderrlen_sofar += inlen;
-      }
-      assert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
+
+    while(data->cr->stdoutlen_sofar < data->cr->stdoutlen) {
+      while((inlen =
+               read(e->fd,
+                    data->cr->stdoutbuff + data->cr->stdoutlen_sofar,
+                    data->cr->stdoutlen - data->cr->stdoutlen_sofar)) == -1 &&
+             errno == EINTR);
+      if(inlen == -1 && errno == EAGAIN)
+        return EVENTER_READ | EVENTER_EXCEPTION;
+      if(inlen == 0) goto widowed;
+      if((data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
+        goto widowed; /* overflow */
+      data->cr->stdoutlen_sofar += inlen;
+    }
+    assert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
+    if(!data->cr->stderrbuff) {
+      while((inlen = read(e->fd, &data->cr->stderrlen,
+                          sizeof(data->cr->stderrlen))) == -1 &&
+            errno == EINTR);
+      if(inlen == -1 && errno == EAGAIN)
+        return EVENTER_READ | EVENTER_EXCEPTION;
+      if(inlen == 0) goto widowed;
+      assert(inlen == sizeof(data->cr->stderrlen));
+      data->cr->stderrbuff = malloc(data->cr->stderrlen);
+    }
+    while(data->cr->stderrlen_sofar < (int)data->cr->stderrlen) {
+      int stderrlen = (int)data->cr->stderrlen;
+      if(stderrlen > data->cr->stderrlen_sofar) goto widowed; /* overflow */
+      while((inlen =
+               read(e->fd,
+                    data->cr->stderrbuff + data->cr->stderrlen_sofar,
+                    stderrlen - data->cr->stderrlen_sofar)) == -1 &&
+             errno == EINTR);
+      if(inlen == -1 && errno == EAGAIN)
+        return EVENTER_READ | EVENTER_EXCEPTION;
+      if(inlen == 0) goto widowed;
+      if(((int)data->cr->stdoutlen_sofar + inlen) < data->cr->stdoutlen_sofar)
+        goto widowed; /* overflow */
+      data->cr->stderrlen_sofar += inlen;
     }
     assert(data->cr && data->cr->stdoutbuff && data->cr->stderrbuff);
+    assert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
 
     gettimeofday(now, NULL); /* set it, as we care about accuracy */
 

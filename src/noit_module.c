@@ -102,7 +102,7 @@ noit_module_list(noit_hash_table *t, const char ***f) {
     return 0;
   }
 
-  *f = calloc(t->size, sizeof(*f));
+  *f = calloc(t->size, sizeof(**f));
   while(noit_hash_next(t, &iter, (const char **)&name, &klen,
                        &vhdr)) {
     noit_image_t *hdr = (noit_image_t *)vhdr;

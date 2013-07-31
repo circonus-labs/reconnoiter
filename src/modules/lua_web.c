@@ -98,7 +98,6 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
   int status, base, rv = 0;
   noit_lua_resume_rest_info_t *ctx = ri->context_data;
   noit_http_rest_closure_t *restc = ctx->restc;
-  noit_http_response *res = noit_http_session_response(restc->http_ctx);
   eventer_t conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
 
 #if LUA_VERSION_NUM >= 502

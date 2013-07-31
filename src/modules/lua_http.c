@@ -60,6 +60,10 @@
   if(nargs && lua_gettop(L) != (nargs)) \
     luaL_error(L, "wrong number of arguments")
 
+#define CCALL_NARGS(L, nargs) \
+  if(nargs && lua_gettop(L) != (nargs)) \
+    luaL_error(L, "wrong number of arguments")
+
 static int
 noit_lua_http_request_headers(lua_State *L) {
   noit_hash_table *h;
@@ -118,7 +122,7 @@ noit_lua_http_request_method(lua_State *L) {
 static int
 noit_lua_http_request_form(lua_State *L) {
   int has_arg;
-  CCALL_DECL(L, noit_http_request, req, 0);
+  CCALL_NARGS(L, 0);
   has_arg = (lua_gettop(L) == 2);
   if(lua_gettop(L) > 2)
     luaL_error(L, "invalid arguments to noit_http_request:form()");
@@ -136,7 +140,7 @@ noit_lua_http_request_form(lua_State *L) {
 static int
 noit_lua_http_request_cookie(lua_State *L) {
   int has_arg;
-  CCALL_DECL(L, noit_http_request, req, 0);
+  CCALL_NARGS(L, 0);
   has_arg = (lua_gettop(L) == 2);
   if(lua_gettop(L) > 2)
     luaL_error(L, "invalid arguments to noit_http_request:cookie()");
@@ -301,7 +305,7 @@ noit_lua_http_write_fd(lua_State *L) {
 static int
 noit_lua_http_set_cookie(lua_State *L) {
   int i, n;
-  CCALL_DECL(L, noit_http_session_ctx, ctx, 0);
+  CCALL_NARGS(L, 0);
   n = lua_gettop(L);
   if(n < 3 || n > 4)
     luaL_error(L, "invalid arguments to noit_http_session:set_cookie()");

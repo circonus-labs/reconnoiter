@@ -408,7 +408,7 @@ term_alloc(EditLine *el, const struct termcapstr *t, char *cap)
          * New string is shorter; no need to allocate space
          */
 	if (clen <= tlen) {
-		(void) strlcpy(*str, cap, tlen);
+		if(*str != NULL) (void) strlcpy(*str, cap, tlen);
 		return;
 	}
 	/*

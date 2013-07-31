@@ -109,7 +109,7 @@ void parse_clargs(int argc, char **argv) {
         break;
       case 'n':
         {
-          char *cp = strchr(optarg, ':');
+          char *cp = optarg ? strchr(optarg, ':') : NULL;
           if(!cp) noit_listener_skip(optarg, 0);
           else {
             if(cp == optarg) optarg = NULL;

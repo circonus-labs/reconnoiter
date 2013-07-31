@@ -132,7 +132,7 @@ noit_conf_set_namespace(const char *ns) {
   if(!nsptr) {
     char url[128];
     snprintf(url, sizeof(url), "noit://module/%s", ns);
-    nsptr = xmlNewNs(root, (xmlChar *)url, (xmlChar *)ns);
+    xmlNewNs(root, (xmlChar *)url, (xmlChar *)ns);
   }
 }
 
@@ -1709,7 +1709,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if((newnode = xmlNewChild(node, NULL, (xmlChar *)argv[0], NULL)) != NULL) {
     noit_conf_mark_changed();
-    if(info->path) free(info->path);
+    free(info->path);
     info->path = strdup((char *)xmlGetNodePath(newnode) + 1 +
                         strlen(root_node_name));
   }
@@ -1896,7 +1896,7 @@ noit_console_config_cd(noit_console_closure_t ncct,
     free(xmlpath);
   }
 
-  if(path) free(path);
+  free(path);
   if(pobj) xmlXPathFreeObject(pobj);
   if(closure) noit_console_state_pop(ncct, argc, argv, NULL, NULL);
   return 0;

@@ -268,8 +268,8 @@ noit_jlog_thread_main(void *e_vptr) {
  alldone:
   e->opset->close(e->fd, &mask, e);
   noit_atomic_dec32(&jcl->feed_stats->connections);
-  if(jcl) noit_jlog_closure_free(jcl);
-  if(ac) acceptor_closure_free(ac);
+  noit_jlog_closure_free(jcl);
+  acceptor_closure_free(ac);
   return NULL;
 }
 
@@ -296,7 +296,7 @@ socket_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     if(jcl) noit_jlog_closure_free(jcl);
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     return 0;
   }
 

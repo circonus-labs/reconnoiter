@@ -77,14 +77,16 @@ APR_DECLARE(apr_status_t) stomp_connect(stomp_connection **connection_ref, const
 
 APR_DECLARE(apr_status_t) stomp_disconnect(stomp_connection **connection_ref)
 {
-   apr_status_t result, rc;
-	stomp_connection *connection = *connection_ref;
+	apr_status_t result, rc;
+	stomp_connection *connection;
    
-   if( connection_ref == NULL || *connection_ref==NULL )
-      return APR_EGENERAL;
+	if( connection_ref == NULL || *connection_ref==NULL )
+		return APR_EGENERAL;
+
+	connection = *connection_ref;
    
 	result = APR_SUCCESS;	
-   rc = apr_socket_shutdown(connection->socket, APR_SHUTDOWN_WRITE);	
+   	rc = apr_socket_shutdown(connection->socket, APR_SHUTDOWN_WRITE);	
 	if( rc!=APR_SUCCESS )
 		result = rc;
    
@@ -235,7 +237,7 @@ APR_DECLARE(apr_status_t) stomp_read_buffer(stomp_connection *connection, char *
          if( tail->data[i-1]==0 ) {
             char endline[1];
             // We expect a newline after the null.
-            apr_socket_recv(connection->socket, endline, &length);
+            (void) apr_socket_recv(connection->socket, endline, &length);
             CHECK_SUCCESS;
             if( endline[0] != '\n' ) {
                return APR_EGENERAL;
@@ -285,7 +287,9 @@ APR_DECLARE(apr_status_t) stomp_read_buffer(stomp_connection *connection, char *
 
 APR_DECLARE(apr_status_t) stomp_write(stomp_connection *connection, stomp_frame *frame, apr_pool_t* pool) {
    apr_status_t rc;
-   
+  
+   if(connection == NULL) return APR_EGENERAL;
+
 #define CHECK_SUCCESS if( rc!=APR_SUCCESS ) { return rc; }
    // Write the command.
    rc = stomp_write_buffer(connection, frame->command, strlen(frame->command));
@@ -316,7 +320,7 @@ APR_DECLARE(apr_status_t) stomp_write(stomp_connection *connection, stomp_frame 
 		  apr_pool_t *length_pool;
 		  char *length_string;
 
-		  apr_pool_create(&length_pool, pool);
+		  (void) apr_pool_create(&length_pool, pool);
 		  rc = stomp_write_buffer(connection, "content-length:", 15);
 		  CHECK_SUCCESS;
 		 

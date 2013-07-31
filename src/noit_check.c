@@ -534,7 +534,7 @@ noit_poller_make_causal_map() {
         target = "";
         parent = noit_poller_lookup(id);
       }
-      if((target = strchr(check->oncheck, '`')) != NULL) {
+      else if((target = strchr(check->oncheck, '`')) != NULL) {
         strlcpy(fullcheck, check->oncheck, target + 1 - check->oncheck);
         name = target + 1;
         target = fullcheck;

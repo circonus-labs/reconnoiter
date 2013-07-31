@@ -160,7 +160,7 @@ noit_main(const char *appname,
   }
 
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@glider", appname);
-  if(!glider) noit_conf_get_string(NULL, appscratch, &glider);
+  if(!glider) (void) noit_conf_get_string(NULL, appscratch, &glider);
   noit_watchdog_glider(glider);
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@tracedir", appname);
   (void)noit_conf_get_string(NULL, appscratch, &trace_dir);

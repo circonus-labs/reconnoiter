@@ -208,7 +208,9 @@ noit_livestream_thread_main(void *e_vptr) {
  alldone:
   e->opset->close(e->fd, &mask, e);
   jcl->wants_shutdown = 1;
-  if(ac) acceptor_closure_free(ac);
+  acceptor_closure_free(ac);
+  /* Our semaphores are counting semaphores, not locks. */
+  /* coverity[missing_unlock] */
   return NULL;
 }
 
@@ -228,7 +230,7 @@ socket_error:
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     if(jcl) noit_livestream_closure_free(jcl);
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     return 0;
   }
 

@@ -127,6 +127,7 @@ del_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
       node->incidental = 1;
       if(node->bit[0] == NULL || node->bit[1] == NULL) {
         /* collapse (even if both are null) */
+        assert(parent);
         parent->bit[BIT_AT(key, parent->prefix_len+1)] =
           node->bit[ (node->bit[0] == NULL) ? 1 : 0 ];
         node->bit[0] = node->bit[1] = NULL;

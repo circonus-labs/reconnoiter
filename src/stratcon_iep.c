@@ -604,9 +604,7 @@ start_iep_daemon() {
   return;
 
  bail:
-  if(info) {
-    iep_daemon_info_free(info);
-  }
+  iep_daemon_info_free(info);
   noitL(noit_iep, "Failed to start IEP daemon\n");
   exit(-1);
   return;

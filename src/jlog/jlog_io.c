@@ -236,7 +236,7 @@ off_t jlog_file_size(jlog_file *f)
 {
   struct stat sb;
   int rv;
-  while ((rv = fstat(f->fd, &sb) != 0) == -1 && errno == EINTR) ;
+  while ((rv = fstat(f->fd, &sb)) == -1 && errno == EINTR) ;
   if (rv != 0) return -1;
   return sb.st_size;
 }

@@ -176,10 +176,12 @@ el_set(EditLine *el, int op, ...)
 {
 	va_list va;
 	int rv;
-	va_start(va, op);
 
 	if (el == NULL)
 		return (-1);
+
+	va_start(va, op);
+
 	switch (op) {
 	case EL_PROMPT:
 	case EL_RPROMPT:
@@ -264,10 +266,6 @@ el_set(EditLine *el, int op, ...)
 		case EL_SETTY:
 			argv[0] = "setty";
 			rv = tty_stty(el, i, argv);
-			break;
-
-		default:
-			EL_ABORT((el->el_errfile, "Bad op %d\n", op));
 			break;
 		}
 		break;

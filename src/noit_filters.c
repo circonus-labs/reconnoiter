@@ -500,7 +500,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
 
   if(info) {
     char *xmlpath = NULL;
-    if(info->path) free(info->path);
+    free(info->path);
     xmlpath = (char *)xmlGetNodePath(fsnode);
     info->path = strdup(xmlpath + strlen("/noit"));
     free(xmlpath);

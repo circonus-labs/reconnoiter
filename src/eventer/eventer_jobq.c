@@ -216,6 +216,8 @@ __eventer_jobq_dequeue(eventer_jobq_t *jobq, int should_wait) {
   pthread_mutex_unlock(&jobq->lock);
 
   if(job) job->next = NULL; /* To reduce any confusion */
+  /* Our semaphores are counting semaphores, not locks. */
+  /* coverity[missing_unlock] */
   return job;
 }
 
@@ -442,6 +444,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       /* We need to cleanup... we haven't done it yet. */
       noitL(eventer_deb, "%p jobq[%s] -> cleanup [%p]\n", pthread_self_ptr(),
             jobq->queue_name, job);
+      /* threaded issue, need to recheck. */
+      /* coverity[check_after_deref] */
       if(job->fd_event)
         job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                                 job->fd_event->closure, &job->finish_time);

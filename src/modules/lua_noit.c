@@ -2707,7 +2707,6 @@ noit_lua_process_gc(lua_State *L) {
   noit_lua_resume_info_t *ci;
   struct spawn_info *spawn_info;
 
-  ci = noit_lua_get_resume_info(L);
   spawn_info = (struct spawn_info *)lua_touserdata(L,1);
   if(spawn_info->pid != -1) {
     int status;

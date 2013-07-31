@@ -479,7 +479,7 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     return 0;
   }
 

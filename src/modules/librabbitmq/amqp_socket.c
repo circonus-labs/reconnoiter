@@ -452,6 +452,7 @@ amqp_rpc_reply_t amqp_login(amqp_connection_state_t state,
 			     (amqp_method_number_t *) &replies,
 			     &s);
     if (result.reply_type != AMQP_RESPONSE_NORMAL) {
+      va_end(vl);
       return result;
     }
   }

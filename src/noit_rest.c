@@ -368,7 +368,7 @@ socket_error:
   }
   rv = noit_http_session_drive(e, mask, restc->http_ctx, now, &done);
   if(done) {
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
   }
   return rv;
 }
@@ -384,7 +384,7 @@ noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     return 0;
   }
   if(!ac->service_ctx) {
@@ -397,7 +397,7 @@ noit_http_rest_raw_handler(eventer_t e, int mask, void *closure,
   }
   rv = noit_http_session_drive(e, mask, restc->http_ctx, now, &done);
   if(done) {
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
   }
   return rv;
 }

@@ -65,7 +65,8 @@ nl_convert_mib(lua_State *L) {
     }
     for (i=0; i < theSize; i++) {
       int len;
-      len = snprintf(cp, sizeof(outbuff) - (cp-outbuff), "%s%d", i==0 ? "" : ".", theoid[i]);
+      len = snprintf(cp, sizeof(outbuff) - (cp-outbuff), "%s%d",
+                     i==0 ? "" : ".", (int)theoid[i]);
       if(len >= 0) cp += len;
       else {
         lua_pushstring(L, "error");

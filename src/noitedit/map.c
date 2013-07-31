@@ -1377,10 +1377,6 @@ map_bind(EditLine *el, int argc, char **argv)
 			}
 		}
 		break;
-
-	default:
-		EL_ABORT((el, "Bad XK_ type\n", ntype));
-		break;
 	}
 	return (0);
 }

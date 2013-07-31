@@ -310,7 +310,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
     return 0;
   }
       
-  if(!root || strcmp((char *)root->name, "check")) return 0;
+  if(strcmp((char *)root->name, "check")) return 0;
   for(tl = root->children; tl; tl = tl->next) {
     if(!strcmp((char *)tl->name, "attributes")) {
       *a = tl;
