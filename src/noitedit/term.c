@@ -485,6 +485,7 @@ term_alloc_display(EditLine *el)
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
 		if (b[i] == NULL) {
       while(i>0) el_free(b[--i]);
+      el_free(b);
 			return (-1);
     }
 	}

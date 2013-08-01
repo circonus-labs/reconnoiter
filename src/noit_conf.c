@@ -1670,7 +1670,7 @@ noit_console_config_section(noit_console_closure_t ncct,
   if(!delete && !xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
     if(xmlXPathNodeSetGetLength(pobj->nodesetval) == 1) {
       node = xmlXPathNodeSetItem(pobj->nodesetval, 0);
-      if(info->path) free(info->path);
+      free(info->path);
       info->path = strdup((char *)xmlGetNodePath(node) +
                           1 + strlen(root_node_name));
       goto cdout;

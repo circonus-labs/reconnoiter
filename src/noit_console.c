@@ -364,7 +364,7 @@ socket_error:
 
     /* This removes the log feed which is important to do before calling close */
     eventer_remove_fd(e->fd);
-    if(ac) acceptor_closure_free(ac);
+    acceptor_closure_free(ac);
     e->opset->close(e->fd, &newmask, e);
     return 0;
   }

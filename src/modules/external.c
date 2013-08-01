@@ -301,6 +301,11 @@ static int external_handler(eventer_t e, int mask,
         return EVENTER_READ | EVENTER_EXCEPTION;
       if(inlen == 0) goto widowed;
       assert(inlen == sizeof(data->cr->stderrlen));
+      /* We know that the strderrlen we read is taintet, but it comes
+       * from our parent process and is well controlled, so we can
+       * forgive that transgression.
+       */
+      /* coverity[tainted_data] */
       data->cr->stderrbuff = malloc(data->cr->stderrlen);
     }
     while(data->cr->stderrlen_sofar < (int)data->cr->stderrlen) {

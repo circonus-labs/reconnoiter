@@ -326,6 +326,8 @@ int external_child(external_data_t *data) {
     /* we need to allocate argcnt + 1 (NULL), but the first is path */
     proc_state->argv = malloc(argcnt * sizeof(*proc_state->argv));
     /* read each string, first in path, second into argv[0], ... */
+    /* arglens[i] comes from the parent, so we should trust it */
+    /* coverity[tainted_data] */
     proc_state->path = malloc(arglens[0]);
     assert_read(in_fd, proc_state->path, arglens[0]);
     for(i=0; i<argcnt-1; i++) {
