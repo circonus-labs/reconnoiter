@@ -43,7 +43,7 @@ function onload(image)
                allowed="\d+">Specifies the port on which the management interface can be reached.</parameter>
     <parameter name="use_ssl" required="optional" allowed="^(?:true|false|on|off)$" default="true">Upgrade TCP connection to use SSL.</parameter>
     <parameter name="command" required="required" allowed=".+">Command to run on the remote node.</parameter>
-    <parameter name="apped_uom" required="optional" allowed="(?:true|false|on|off)">If the value comes back with a unit of measure, append it to the metric name.</parameter>
+    <parameter name="append_uom" required="optional" allowed="(?:true|false|on|off)">If the value comes back with a unit of measure, append it to the metric name.</parameter>
   </checkconfig>
   <examples>
     <example>
