@@ -410,7 +410,7 @@ jlog_logio_asynch_writer(void *vls) {
   jlog_line *iter = NULL;
   int gen;
   gen = noit_atomic_inc32(&actx->gen);
-  noitL(noit_error, "starting asynchronous jlog writer[%d/%p]\n",
+  noitL(noit_debug, "starting asynchronous jlog writer[%d/%p]\n",
         (int)getpid(), (void *)(vpsized_int)pthread_self());
   while(gen == actx->gen) {
     pthread_rwlock_t *lock;
@@ -439,7 +439,7 @@ jlog_logio_asynch_writer(void *vls) {
       usleep(fast ? 10000 : 200000);
     }
   }
-  noitL(noit_error, "stopping asynchronous jlog writer[%d/%p]\n",
+  noitL(noit_debug, "stopping asynchronous jlog writer[%d/%p]\n",
         (int)getpid(), (void *)(vpsized_int)pthread_self());
   pthread_exit((void *)0);
 }
@@ -656,6 +656,8 @@ noit_log_init(int debug_on) {
   noit_notice = noit_log_stream_new("notice", NULL, NULL, NULL, NULL);
   noit_debug->flags = (noit_debug->flags & ~NOIT_LOG_STREAM_DEBUG) |
                       (debug_on ? NOIT_LOG_STREAM_DEBUG : 0);
+  if(debug_on) noit_debug->flags |= NOIT_LOG_STREAM_ENABLED;
+  else noit_debug->flags &= ~NOIT_LOG_STREAM_ENABLED;
 }
 
 void
