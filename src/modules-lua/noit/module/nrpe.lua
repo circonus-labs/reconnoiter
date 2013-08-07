@@ -43,6 +43,7 @@ function onload(image)
                allowed="\d+">Specifies the port on which the management interface can be reached.</parameter>
     <parameter name="use_ssl" required="optional" allowed="^(?:true|false|on|off)$" default="true">Upgrade TCP connection to use SSL.</parameter>
     <parameter name="command" required="required" allowed=".+">Command to run on the remote node.</parameter>
+    <parameter name="apped_uom" required="optional" allowed="(?:true|false|on|off)">If the value comes back with a unit of measure, append it to the metric name.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -103,6 +104,7 @@ function initiate(module, check)
   local good = false
   local status = ""
   local use_ssl = true
+  local append_uom = true
   local port = 5666
 
   if check.config.port ~= nil then
@@ -117,6 +119,11 @@ function initiate(module, check)
   -- SSL
   if check.config.use_ssl == "false" or check.config.use_ssl == "off" then
     use_ssl = false
+  end
+
+  -- Append Unit of Measure to metric name
+  if check.config.append_uom == "false" or check.config.append_uom == "off" then
+    append_uom = false
   end
 
   local e = noit.socket(check.target_ip)
@@ -171,12 +178,15 @@ function initiate(module, check)
 
   local metrics = result:match("|(.+)$")
   if metrics ~= nil then
-    -- /(?<key>\S+)=(?<value>[^;\s]+)(?=[;\s])/g
-    local exre = noit.pcre('(\\S+)=([^;\\s]+)(?=[;\\s])')
+    -- /'?(?<key>[^'=]+)'?=(?<value>[\-0-9\.]+)(?<uom>[a-zA-Z%]+)(?=[;\s])/g
+    local exre = noit.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
     local rv = true
     while rv do
-      rv, m, key, value = exre(metrics)
+      rv, m, key, value, uom = exre(metrics)
       if rv and key ~= nil then
+        if append_uom and uom ~= nil then
+          key = key .. "_" .. uom 
+        end
         check.metric(key, value)
       end
     end
