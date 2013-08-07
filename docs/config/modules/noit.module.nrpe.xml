@@ -93,6 +93,28 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>append_uom</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|false|on|off)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>If the value comes back with a unit of measure, append it to the metric name.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <example>
     <title>Checking load via NRPE.</title>
