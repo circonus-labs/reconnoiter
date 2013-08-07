@@ -495,7 +495,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>\d+\.\d+</para>
+                <para>^(\d+\.\d+)?$</para>
               </listitem>
             </varlistentry>
           </variablelist>

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <section>
   <title>dhcp</title>
-  <para>Monitor a DHCP server</para>
+  <para>DHCP metrics check.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -18,34 +18,6 @@
   </variablelist>
   <section>
     <title>Module Configuration</title>
-    <variablelist>
-      <varlistentry>
-        <term>internal_port</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>default</term>
-              <listitem>
-                <para>55000</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>\d+</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>The local port that individual checks will pass DHCP configuration information to.</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
   </section>
   <section>
     <title>Check Configuration</title>
@@ -73,7 +45,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The port to which we will send DHCP request</para>
+          <para>Specifies the port to send DHCP request packets to</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -101,7 +73,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The hardware address of the DHCP client</para>
+          <para>The hardware address of the host computer</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -129,7 +101,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The IP address of the DHCP client</para>
+          <para>The IP address of the host computer</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -153,35 +125,35 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>(?:1|8)</para>
+                <para>^(?:1|8)</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The type of DHCP request message to send to the server</para>
+          <para>The type of DHCP request message to send</para>
         </listitem>
       </varlistentry>
     </variablelist>
   </section>
   <example>
-    <title>Monitor a DHCP service</title>
-    <para>The following example monitors a DHCP services on 10.1.2.3</para>
+    <title>Checking DHCP connection.</title>
+    <para>This example checks DHCP connection</para>
     <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
             &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
           &lt;/loader&gt;
-          &lt;module loader="lua" name="dhcp" object="noit.module.dhcp"/&gt;
+          &lt;module loader="lua" name="dhcp" object="noit.module.dhcp" /&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
-          &lt;check uuid="4edab6d0-c14b-11e1-afa7-0800200c9a66" module="dhcp" target="10.1.2.3" period="60000" timeout="5000"/&gt;
-            &lt;config&gt;
-              &lt;send_port&gt;67&lt;/send_port&gt;
-              &lt;hardware_addr&gt;00:00:00:00:00:00&lt;/hardware_addr&gt;
-            &lt;/config&gt;
-          &lt;/config&gt;
+            &lt;check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="dhcp"&gt;
+              &lt;config&gt;
+                &lt;hardware_addr&gt;00:00:00:00:00:00&lt;/hardware_addr&gt;
+                &lt;host_ip&gt;10.80.1.2&lt;/host_ip&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
         &lt;/checks&gt;
       &lt;/noit&gt;
-      </programlisting>
+    </programlisting>
   </example>
 </section>

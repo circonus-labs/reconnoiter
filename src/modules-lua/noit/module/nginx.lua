@@ -47,16 +47,13 @@ function onload(image)
                allowed=".+">The URL including schema and hostname for the status output from nginx.</parameter>
     <parameter name="ca_chain"
                required="optional"
-               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validat
-e the remote certificate (for SSL checks).</parameter>
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
     <parameter name="certificate_file"
                required="optional"
-               allowed=".+">A path to a file containing the client certificate that will be presented to the remote serv
-er (for SSL checks).</parameter>
+               allowed=".+">A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</parameter>
     <parameter name="key_file"
                required="optional"
-               allowed=".+">A path to a file containing key to be used in conjunction with the cilent certificate (for S
-SL checks).</parameter>
+               allowed=".+">A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</parameter>
     <parameter name="ciphers"
                required="optional"
                allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>

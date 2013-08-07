@@ -105,7 +105,7 @@ function onload(image)
     <parameter name="http_version"
                required="optional"
                default="1.1"
-               allowed="\d+\.\d+)?$">Sets the HTTP version for the check to use.</parameter>
+               allowed="^(\d+\.\d+)?$">Sets the HTTP version for the check to use.</parameter>
   </checkconfig>
   <examples>
     <example>

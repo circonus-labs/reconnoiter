@@ -231,14 +231,14 @@ SL checks).</para>
   </section>
   <example>
     <title>Checking POP3 connection.</title>
-    <para>This example checks the POP3 connection.</para>
+    <para>This example checks the POP connection.</para>
     <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
             &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
           &lt;/loader&gt;
-          &lt;module loader="lua" name="imap" object="noit.module.imap" /&gt;
+          &lt;module loader="lua" name="imap" object="noit.module.pop3" /&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
           &lt;check target="10.0.7.2" module="pop3" name="pop3" uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" period="10000" timeout="5000"&gt;
