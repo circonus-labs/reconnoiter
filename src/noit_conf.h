@@ -47,7 +47,7 @@ typedef struct {
   char *path;
   uuid_t current_check;
   char filter_name[50];
-  char prompt[50];
+  char prompt[80];
 } noit_conf_t_userdata_t;
 
 /* seconds == 0 disable config journaling watchdog */
