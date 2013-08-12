@@ -372,14 +372,18 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   len = __read_on_ctx(e, ctx, &mask); \
   if(len < 0) { \
     if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
-    noitL(noit_error, "[%s] SSL read error: %s\n", nctx->remote_str, strerror(errno)); \
+    noitL(noit_error, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
+          nctx->remote_cn ? nctx->remote_cn : "(null)", \
+          strerror(errno)); \
     goto socket_error; \
   } \
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    noitL(noit_error, "[%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
-          nctx->remote_str, ctx->state, len, (long unsigned int)size); \
+    noitL(noit_error, "[%s] [%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
+          nctx->remote_str ? nctx->remote_str : "(null)", \
+          nctx->remote_cn ? nctx->remote_cn : "(null)", \
+          ctx->state, len, (long unsigned int)size); \
     goto socket_error; \
   } \
 } while(0)
@@ -390,8 +394,9 @@ noit_connection_session_timeout(eventer_t e, int mask, void *closure,
   noit_connection_ctx_t *nctx = closure;
   eventer_t fde = nctx->e;
   nctx->timeout_event = NULL;
-  noitL(noit_error, "Timing out jlog session: %s\n",
-        nctx->remote_cn ? nctx->remote_cn : "(null)");
+  noitL(noit_error, "Timing out jlog session: %s, %s\n",
+        nctx->remote_cn ? nctx->remote_cn : "(null)",
+        nctx->remote_str ? nctx->remote_str : "(null)");
   if(fde)
     eventer_trigger(fde, EVENTER_EXCEPTION);
   return 0;
@@ -410,7 +415,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
     if(write(e->fd, e, 0) == -1)
-      noitL(noit_error, "socket error: %s\n", strerror(errno));
+      noitL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
+            nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
     STRATCON_CONNECT_CLOSE(e->fd, (char *)feedtype, nctx->remote_str,
                                 (char *)cn_expected,
@@ -441,7 +447,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           goto socket_error;
         }
         if(len != sizeof(ctx->jlog_feed_cmd)) {
-          noitL(noit_error, "short write [%d/%d] on initiating stream.\n", 
+          noitL(noit_error, "[%s] [%s] short write [%d/%d] on initiating stream.\n", 
+                nctx->remote_str ? nctx->remote_str : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)",
                 (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
         }
@@ -450,8 +457,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_ERROR:
         FULLREAD(e, ctx, 0 - ctx->count);
-        noitL(noit_error, "[%s] %.*s\n", nctx->remote_str,
-              0 - ctx->count, ctx->buffer);
+        noitL(noit_error, "[%s] [%s] %.*s\n", nctx->remote_str ? nctx->remote_str : "(null)",
+              nctx->remote_cn ? nctx->remote_cn : "(null)", 0 - ctx->count, ctx->buffer);
         free(ctx->buffer); ctx->buffer = NULL;
         goto socket_error;
         break;
@@ -520,8 +527,9 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           ctx->state = JLOG_STREAMER_IS_ASYNC;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
-          noitL(noit_debug, "Pushing %s batch async [%s]: [%u/%u]\n",
+          noitL(noit_debug, "Pushing %s batch async [%s] [%s]: [%u/%u]\n",
                 feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
+                nctx->remote_str ? nctx->remote_str : "(null)",
                 nctx->remote_cn ? nctx->remote_cn : "(null)",
                 ctx->header.chkpt.log, ctx->header.chkpt.marker);
           noit_connection_disable_timeout(nctx);
@@ -536,8 +544,9 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       case JLOG_STREAMER_IS_ASYNC:
         ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
-        noitL(noit_debug, "Pushing %s checkpoint [%s]: [%u/%u]\n",
+        noitL(noit_debug, "Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
               feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
+              nctx->remote_str ? nctx->remote_str : "(null)",
               nctx->remote_cn ? nctx->remote_cn : "(null)",
               ctx->header.chkpt.log, ctx->header.chkpt.marker);
         n_chkpt.log = htonl(ctx->header.chkpt.log);
@@ -551,7 +560,9 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           goto socket_error;
         }
         if(len != sizeof(jlog_id)) {
-          noitL(noit_error, "short write on checkpointing stream.\n");
+          noitL(noit_error, "[%s] [%s] short write on checkpointing stream.\n", 
+            nctx->remote_str ? nctx->remote_str : "(null)",
+            nctx->remote_cn ? nctx->remote_cn : "(null)");
           goto socket_error;
         }
         STRATCON_STREAM_CHECKPOINT(e->fd, (char *)feedtype,
@@ -570,6 +581,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   noit_connection_ctx_t *nctx = closure;
   int rv;
   const char *error = NULL, *cn_expected, *feedtype;
+  char error_buff[500];
   eventer_ssl_ctx_t *sslctx = NULL;
 
   GET_EXPECTED_CN(nctx, cn_expected);
@@ -600,7 +612,9 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
       }
       if(cn_expected && (!nctx->remote_cn ||
                          strcmp(nctx->remote_cn, cn_expected))) {
-        error = "jlog connect CN mismatch";
+        snprintf(error_buff, 500, "jlog connect CN mismatch - expected %s, got %s",
+            cn_expected ? cn_expected : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)");
+        error = error_buff;
         goto error;
       }
     }
@@ -616,7 +630,9 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   STRATCON_CONNECT_SSL_FAILED(e->fd, (char *)feedtype,
                                    nctx->remote_str, (char *)cn_expected,
                                    (char *)error, errno);
-  if(error) noitL(noit_error, "%s\n", error);
+  if(error) noitL(noit_error, "[%s] [%s] noit_connection_ssl_upgrade: %s\n", 
+    nctx->remote_str ? nctx->remote_str : "(null)",
+    cn_expected ? cn_expected : "(null)", error);
   eventer_remove_fd(e->fd);
   nctx->e = NULL;
   e->opset->close(e->fd, &mask, e);
@@ -664,8 +680,8 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
       default:
         snprintf(remote_str, sizeof(remote_str), "(unknown)");
     }
-    noitL(noit_error, "Error connecting to %s: %s\n",
-          remote_str, strerror(aerrno));
+    noitL(noit_error, "Error connecting to %s (%s): %s\n",
+          remote_str, cn_expected ? cn_expected : "(null)", strerror(aerrno));
     STRATCON_CONNECT_FAILED(e->fd, (char *)feedtype, remote_str,
                                  (char *)cn_expected, aerrno);
     eventer_remove_fd(e->fd);
@@ -732,7 +748,9 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   optval = val; \
   optlen = sizeof(optval); \
   if(setsockopt(fd, type, opt, &optval, optlen) < 0) { \
-    noitL(noit_error, "Cannot set " #type "/" #opt " on jlog socket: %s\n", \
+    noitL(noit_error, "[%s] [%s] Cannot set " #type "/" #opt " on jlog socket: %s\n", \
+          nctx->remote_str ? nctx->remote_str : "(null)", \
+          cn_expected,  \
           strerror(errno)); \
     goto reschedule; \
   } \
