@@ -169,26 +169,23 @@ function initiate(module, check)
 
   local result = response:sub(cnt):gsub("%z", "")
 
-  local state = result:match("^(%w+)")
-  if state == "OK" then good = true end
+  local state = result:match("^([%w%s]+)")
+  if string.match(state, "OK") then good = true end
   check.metric_string("state", state)
 
-  local message = result:match("^%w+ %- ([^|]+)")
+  local message = result:match("^([^|]+)")
   check.metric_string("message", message)
 
   local metrics = result:match("|(.+)$")
   if metrics ~= nil then
     -- /'?(?<key>[^'=]+)'?=(?<value>[\-0-9\.]+)(?<uom>[a-zA-Z%]+)(?=[;\s])/g
     local exre = noit.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
-    local rv = true
-    while rv do
-      rv, m, key, value, uom = exre(metrics)
-      if rv and key ~= nil then
-        if append_uom and uom ~= nil then
-          key = key .. "_" .. uom 
-        end
-        check.metric(key, value)
+    rv, m, key, value, uom = exre(metrics)
+    if rv and key ~= nil then
+      if append_uom and uom ~= nil then
+        key = key .. "_" .. uom
       end
+      check.metric(key, value)
     end
   end
   -- turnaround time
