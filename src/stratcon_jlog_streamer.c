@@ -612,7 +612,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
       }
       if(cn_expected && (!nctx->remote_cn ||
                          strcmp(nctx->remote_cn, cn_expected))) {
-        snprintf(error_buff, 500, "jlog connect CN mismatch - expected %s, got %s",
+        snprintf(error_buff, sizeof(error_buff), "jlog connect CN mismatch - expected %s, got %s",
             cn_expected ? cn_expected : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)");
         error = error_buff;
         goto error;
