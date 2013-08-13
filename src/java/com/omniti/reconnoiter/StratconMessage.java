@@ -13,13 +13,16 @@ import java.util.HashMap;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
+import java.security.MessageDigest;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.event.*;
 
 public abstract class StratconMessage {
   // This is the text type in the noit_log.h
+  private final static MessageDigest md;
   public final static String METRIC_STRING = "s";
   public final static HashMap<String,StratconMessageFactory> quicklookup = new HashMap<String,StratconMessageFactory>();
+  protected byte[] signature;
 
   public static void ignorePrefix(String prefix) {
     quicklookup.put(prefix, null);
@@ -68,7 +71,7 @@ public abstract class StratconMessage {
   }
 
   public int numparts() { return 0; }
-
+  public byte[] signature() { return signature; }
   public abstract void handle(IEventHandler eh);
 
   public StratconMessage() {}
@@ -80,6 +83,13 @@ public abstract class StratconMessage {
     if (parts.length != numparts()) {
       throw new Exception("Incorrect amount of parts parsed, tossing message.");
     }
+    for(int i=0; i<parts.length;i++) {
+      if(parts[i] != null) {
+        byte[] piece = parts[i].getBytes();
+        if(piece.length > 0) md.update(piece);
+      }
+    }
+    signature = md.digest();
   }
 
   public static StratconMessage makeMessage(String jlog) {
@@ -114,6 +124,10 @@ public abstract class StratconMessage {
     return messages;
   }
   static {
+    try { md = MessageDigest.getInstance("MD5"); }
+    catch(java.security.NoSuchAlgorithmException nsae) {
+      throw new RuntimeException(nsae);
+    }
     StratconMessage.registerType(NoitCheck.class);
     StratconMessage.registerType(NoitStatus.class);
     StratconMessage.registerType(NoitMetric.class);
