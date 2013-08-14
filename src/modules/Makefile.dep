@@ -31,6 +31,11 @@ collectd.lo: collectd.c ../noit_defines.h ../noit_config.h \
   ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
   ../utils/noit_hash.h collectd.xmlh
 
+ganglia.lo: ganglia.c ../noit_defines.h ../utils/noit_str.h \
+	../noit_module.h ../noit_check.h ../noit_check_tools.h \
+	../noit_rest.h ../utils/noit_log.h ../utils/noit_hash.h \
+	../utils/noit_b64.h ganglia.xmlh
+
 dns.lo: dns.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_config.h ../noit_module.h ../noit_defines.h \
   ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
