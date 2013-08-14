@@ -1,0 +1,24 @@
+<module>
+  <name>ganglia</name>
+  <description><para>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</para>
+  <loader>C</loader>
+  <image>ganglia.so</image>
+  <moduleconfig>
+    <parameter name="ganglia_multiaddr"
+               required="required"
+               default="239.2.11.71"
+               allowed="\d+">The address of the multicast group from which which ganglia packets are received</parameter>
+    <parameter name="ganglia_port"
+               required="required"
+               default="8946"
+               allowed="\d+">The port of the multicast group from which which ganglia packets are received</parameter>
+    <parameter name="ganglia_multiaddr6"
+               required="optional"
+               allowed="\d+">The address of the ipv6 multicast group from which which ganglia packets are received</parameter>
+    <parameter name="ganglia_port6"
+               required="optional"
+               allowed="\d+">The port of the ipv6 multicast group from which which ganglia packets are received</parameter>
+  </moduleconfig>
+  <checkconfig>
+  </checkconfig>
+</module>
