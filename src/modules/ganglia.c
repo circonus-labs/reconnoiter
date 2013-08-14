@@ -21,11 +21,8 @@
 #define GANGLIA_DEFAULT_MCAST_ADDR "239.2.11.71"
 #define GANGLIA_DEFAULT_MCAST_PORT 8649
 
-static noit_module_t *global_ganglia = NULL;
-
 typedef struct _mod_config {
   noit_hash_table *options;
-  noit_hash_table target_sessions; //??
   noit_boolean asynch_metrics;
   int ipv4_fd;
   int ipv6_fd;
@@ -37,10 +34,10 @@ typedef struct ganglia_closure_s {
   int ntfy_count;
 } ganglia_closure_t;
 
-//based on formats from \\ganglia/monitor-core/lib/gm_protocol.x
-//taken from version 3.2, 2009-12-13 15:38:58 -0500
+/* based on formats from \\ganglia/monitor-core/lib/gm_protocol.x */
+/* taken from version 3.2, 2009-12-13 15:38:58 -0500 */
 enum Ganglia_msg_formats {
-   gmetadata_full = 128, //this one refers to metadataref
+   gmetadata_full = 128, /* this one refers to metadataref */
    gmetric_ushort,
    gmetric_short,
    gmetric_int,
@@ -98,11 +95,14 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
   if (!check || strcmp(check->module, "ganglia")) return 0;
 
   immediate = noit_collects_check_aynsch(pkt->self, check);
-  gcl = check->closure ? (ganglia_closure_t *)check->closure : (ganglia_closure_t *)(check->closure = calloc(1, sizeof(ganglia_closure_t)));
+  if(check->closure)
+    gcl = check->closure;
+  else
+   gcl = check->closure = calloc(1, sizeof(ganglia_closure_t));
 
   switch(pkt->type) {
     case gmetadata_full:
-      //nothing of value to get from the metadata
+      /* nothing of value to get from the metadata */
       break;
     case gmetadata_request:
       break;
@@ -162,7 +162,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
 
 static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
-  char packet[1500]; //1500 is correct; see __GANGLIA_MTU
+  char packet[1500]; /* 1500 is correct; see __GANGLIA_MTU */
   int packet_len = sizeof(packet);
   noit_module_t *self = (noit_module_t *)closure;
 
@@ -177,8 +177,8 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
     inlen = recvfrom(e->fd, packet, packet_len, 0, NULL, 0);
 
     if(inlen < 0) {
-      if(errno == EAGAIN) break; //out of data to read, hand it back to eventer
-                                 //and wait to be scheduled again
+      if(errno == EAGAIN) break; /* out of data to read, hand it back to eventer
+                                    and wait to be scheduled again */
       noitLT(noit_error, now, "ganglia: recvfrom: %s\n", strerror(errno));
       break;
     }
@@ -194,8 +194,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
       return -1;
     }
     payload += 4;
-    host = calloc(1, *len + 1);
-    memcpy(host, payload, *len);
+    host = payload;
     payload += (*len + 3) & ~0x03;
 
     len = payload;
@@ -205,18 +204,19 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
       return -1;
     }
     payload += 4;
-    name = calloc(1, *len + 1);
-    memcpy(name, payload, *len);
+    name = payload;
     payload += (*len + 3) & ~0x03;
+    *len = 0; /* add null char to end of host string */
 
-    //skip the spoof boolean
+    /* skip the spoof boolean */
     payload += 4;
 
-    //skip the format string
+    /* skip the format string */
     len = payload;
     *len = ntohl(*len);
     payload += 4;
     payload += (*len + 3) & ~0x03;
+    *len = 0; /* add null char to end of name string */
 
     pkt.self = self;
     pkt.payload = payload;
@@ -226,9 +226,6 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
 
     if(!noit_poller_target_do(host, ganglia_process_dgram, &pkt))
       noitL(noit_error, "ganglia: no checks from host: %s\n", host);
-
-    free(host);
-    free(name);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -236,7 +233,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
 static int
 ganglia_submit(noit_module_t *self, noit_check_t *check,
                          noit_check_t *cause) {
-  //almost entirely pulled from collectd.c:collectd_submit_internal()
+  /* almost entirely pulled from collectd.c:collectd_submit_internal() */
   ganglia_closure_t *gcl;
   struct timeval now, duration, age;
   noit_boolean immediate;
@@ -258,12 +255,12 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
     memset(gcl, 0, sizeof(ganglia_closure_t));
     memcpy(&gcl->current.whence, &now, sizeof(now));
   } else {
-    // Don't count the first run
+    /*  Don't count the first run */
     char human_buffer[256];
     gcl = (ganglia_closure_t*)check->closure; 
     memcpy(&gcl->current.whence, &now, sizeof(now));
     sub_timeval(gcl->current.whence, check->last_fire_time, &duration);
-    gcl->current.duration = duration.tv_sec; // + duration.tv_usec / (1000 * 1000);
+    gcl->current.duration = duration.tv_sec; /*  + duration.tv_usec / (1000 * 1000); */
 
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%d,run=%d,stats=%d,ntfy=%d", gcl->current.duration, 
@@ -323,9 +320,6 @@ static int noit_ganglia_init(noit_module_t *self) {
   int portint=0;
   unsigned short port;
 
-  //if already initialized, fail
-  if(global_ganglia) return -1;
-
   conf->asynch_metrics = noit_true;
   if(noit_hash_retr_str(conf->options,
                         "asynch_metrics", strlen("asynch_metrics"),
@@ -337,20 +331,20 @@ static int noit_ganglia_init(noit_module_t *self) {
   /* Default Collectd port */
   portint = GANGLIA_DEFAULT_MCAST_PORT;
   if(noit_hash_retr_str(conf->options,
-                         "ganglia_port", strlen("ganglia_port"),
+                         "port", strlen("port"),
                          (const char**)&config_val))
     portint = atoi(config_val);
   port = (unsigned short) portint;
 
   if(!noit_hash_retr_str(conf->options,
-                         "ganglia_multiaddr", strlen("ganglia_multiaddr"),
+                         "multiaddr", strlen("multiaddr"),
                          (const char**)&multiaddr))
     multiaddr = GANGLIA_DEFAULT_MCAST_ADDR;
 
 
   conf->ipv4_fd = conf->ipv6_fd = -1;
 
-  //ipv4 socket and binding
+  /* ipv4 socket and binding */
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
     close(conf->ipv4_fd);
@@ -364,7 +358,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     return -1;
   }
 
-  //ipv4 binding
+  /* ipv4 binding */
   memset(&skaddr, 0, sizeof(skaddr));
   skaddr.sin_family = AF_INET;
   skaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -376,7 +370,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     return -1;
   }
 
-  //join ipv4 multicast
+  /* join ipv4 multicast */
   memset(&mreq, 0, sizeof(mreq));
 
   inet_pton(AF_INET, multiaddr, &mreq.imr_multiaddr.s_addr);
@@ -396,22 +390,22 @@ static int noit_ganglia_init(noit_module_t *self) {
   newe->callback = noit_ganglia_handler;
   newe->closure = self;
   eventer_add(newe);
-  noitL(noit_debug, "Added ipv4 handler!\n");
+  noitL(noit_debug, "ganglia: Added ipv4 handler!\n");
 
   portint = GANGLIA_DEFAULT_MCAST_PORT;
   if(noit_hash_retr_str(conf->options,
-                         "ganglia_port6", strlen("ganglia_port6"),
+                         "port6", strlen("port6"),
                          (const char**)&config_val))
     portint = atoi(config_val);
   port = (unsigned short) portint;
 
   if(!noit_hash_retr_str(conf->options,
-                         "ganglia_multiaddr6", strlen("ganglia_multiaddr6"),
+                         "multiaddr6", strlen("multiaddr6"),
                          (const char**)&multiaddr6))
-    //ganglia doesn't have a default ipv6 multicast
+    /* ganglia doesn't have a default ipv6 multicast */
     multiaddr6 = NULL;
 
-  //ipv6 socket, nonblocking
+  /* ipv6 socket, nonblocking */
   if(multiaddr6) { 
     conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
     if(conf->ipv6_fd < 0) {
@@ -424,7 +418,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     }
   }
 
-  //ipv6 binding
+  /* ipv6 binding */
   if(conf->ipv6_fd > 0) {
     memset(&skaddr6, 0, sizeof(skaddr6));
     skaddr6.sin6_family = AF_INET6;
@@ -437,7 +431,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     }
   }
 
-  //join ipv6 multicast
+  /* join ipv6 multicast */
   if(conf->ipv6_fd > 0) {
     memset(&mreqv6, 0, sizeof(mreqv6));
 
@@ -460,12 +454,11 @@ static int noit_ganglia_init(noit_module_t *self) {
     newe->callback = noit_ganglia_handler;
     newe->closure = self;
     eventer_add(newe);
-    noitL(noit_debug, "Added ipv4 handler!\n");
+    noitL(noit_debug, "ganglia: Added ipv6 handler!\n");
   }
 
   noit_module_set_userdata(self, conf);
 
-  global_ganglia = self;
   return 0;
 }
 
