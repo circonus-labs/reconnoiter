@@ -176,16 +176,33 @@ function initiate(module, check)
   local message = result:match("^([^|]+)")
   check.metric_string("message", message)
 
-  local metrics = result:match("|(.+)$")
+  local metrics = result:match("|%s(.+)$")
   if metrics ~= nil then
+    local lcnt = 0;
+    local pdata = 0;
     -- /'?(?<key>[^'=]+)'?=(?<value>[\-0-9\.]+)(?<uom>[a-zA-Z%]+)(?=[;\s])/g
-    local exre = noit.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
-    rv, m, key, value, uom = exre(metrics)
-    if rv and key ~= nil then
-      if append_uom and uom ~= nil then
-        key = key .. "_" .. uom
+
+    for line in metrics:gmatch("[^\r\n]+") do
+      if lcnt ~= 0 and pdata == 0 then
+        local idx = line:find("|")
+        if idx ~= nil then
+          line = line:sub(idx+2)
+          pdata = 1
+        end
       end
-      check.metric(key, value)
+
+      if lcnt == 0 or pdata == 1 then
+        local exre = noit.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
+        rv, m, key, value, uom = exre(line)
+        if rv and key ~= nil then
+          if append_uom and uom ~= nil then
+            key = key .. "_" .. uom
+          end
+          check.metric(key, value)
+        end
+      end
+
+      lcnt = lcnt + 1
     end
   end
   -- turnaround time
@@ -195,4 +212,3 @@ function initiate(module, check)
   if good then check.good() else check.bad() end
   check.status(status)
 end
-
