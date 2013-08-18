@@ -65,3 +65,15 @@ PostgreSQL 8.4 is required.
 # make
 }}}
 
+
+== OmniOS ==
+{{{
+# pkg set-publisher -g http://pkg.omniti.com/omniti-ms/ ms.omniti.com
+# pkg install developer/git developer/build/autoconf system/header \
+	developer/gcc48 omniti/library/protobuf-c omniti/library/libpq5 \
+	developer/build/gnu-make
+# git clone git@github.com:circonus-labs/reconnoiter.git
+# autoconf
+# ./configure
+# make
+}}}
