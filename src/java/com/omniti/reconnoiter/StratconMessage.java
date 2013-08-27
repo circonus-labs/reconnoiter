@@ -83,13 +83,15 @@ public abstract class StratconMessage {
     if (parts.length != numparts()) {
       throw new Exception("Incorrect amount of parts parsed, tossing message.");
     }
-    for(int i=0; i<parts.length;i++) {
-      if(parts[i] != null) {
-        byte[] piece = parts[i].getBytes();
-        if(piece.length > 0) md.update(piece);
+    synchronized(md) {
+      for(int i=0; i<parts.length;i++) {
+        if(parts[i] != null) {
+          byte[] piece = parts[i].getBytes();
+          if(piece.length > 0) md.update(piece);
+        }
       }
+      signature = md.digest();
     }
-    signature = md.digest();
   }
 
   public static StratconMessage makeMessage(String jlog) {
