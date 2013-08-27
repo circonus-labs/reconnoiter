@@ -19,7 +19,17 @@ import com.omniti.reconnoiter.event.*;
 
 public abstract class StratconMessage {
   // This is the text type in the noit_log.h
-  private final static MessageDigest md;
+  private static final ThreadLocal < MessageDigest > md_tls = 
+    new ThreadLocal < MessageDigest > () {
+      @Override protected MessageDigest initialValue() {
+        MessageDigest md;
+        try { md = MessageDigest.getInstance("MD5"); }
+        catch(java.security.NoSuchAlgorithmException nsae) {
+          throw new RuntimeException(nsae);
+        }
+        return md;
+      }
+    };
   public final static String METRIC_STRING = "s";
   public final static HashMap<String,StratconMessageFactory> quicklookup = new HashMap<String,StratconMessageFactory>();
   protected byte[] signature;
@@ -83,15 +93,15 @@ public abstract class StratconMessage {
     if (parts.length != numparts()) {
       throw new Exception("Incorrect amount of parts parsed, tossing message.");
     }
-    synchronized(md) {
-      for(int i=0; i<parts.length;i++) {
-        if(parts[i] != null) {
-          byte[] piece = parts[i].getBytes();
-          if(piece.length > 0) md.update(piece);
-        }
+
+    MessageDigest md = md_tls.get();
+    for(int i=0; i<parts.length;i++) {
+      if(parts[i] != null) {
+        byte[] piece = parts[i].getBytes();
+        if(piece.length > 0) md.update(piece);
       }
-      signature = md.digest();
     }
+    signature = md.digest();
   }
 
   public static StratconMessage makeMessage(String jlog) {
@@ -126,10 +136,6 @@ public abstract class StratconMessage {
     return messages;
   }
   static {
-    try { md = MessageDigest.getInstance("MD5"); }
-    catch(java.security.NoSuchAlgorithmException nsae) {
-      throw new RuntimeException(nsae);
-    }
     StratconMessage.registerType(NoitCheck.class);
     StratconMessage.registerType(NoitStatus.class);
     StratconMessage.registerType(NoitMetric.class);
