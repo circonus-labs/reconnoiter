@@ -1666,9 +1666,11 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
     noitL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
     noit_stats_set_metric(check, &ccl->current, m->metric_name,
                           m->metric_type, m->metric_value.vp);
-    if(immediate) needs_immediate = noit_true;
+    if(immediate) {
+      needs_immediate = noit_true;
       noit_stats_log_immediate_metric(check, m->metric_name,
                                       m->metric_type, m->metric_value.vp);
+    }
     ccl->stats_count++;
     json->hits++;
   }
