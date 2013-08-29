@@ -38,13 +38,19 @@
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
 #include "noit_jlog_listener.h"
+#include "noit_rest.h"
 
 #include <unistd.h>
 #include <poll.h>
+#include <assert.h>
 #define MAX_ROWS_AT_ONCE 1000
 #define DEFAULT_SECONDS_BETWEEN_BATCHES 10
 
 static noit_atomic32_t tmpfeedcounter = 0;
+static int rest_show_feed(noit_http_rest_closure_t *restc,
+                          int npats, char **pats);
+static int rest_delete_feed(noit_http_rest_closure_t *restc,
+                            int npats, char **pats);
 
 void
 noit_jlog_listener_init() {
@@ -55,6 +61,14 @@ noit_jlog_listener_init() {
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_JLOG_DATA_TEMP_FEED,
                                  noit_jlog_handler);
+  assert(noit_http_rest_register_auth(
+    "GET", "/", "^feed$",
+    rest_show_feed, noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "DELETE", "/feed/", "^(.+)$",
+    rest_delete_feed, noit_http_rest_client_cert_auth
+  ) == 0);
 }
 
 typedef struct {
@@ -405,3 +419,104 @@ socket_error:
   e->opset->close(e->fd, &newmask, e);
   return 0;
 }
+
+static int rest_show_feed(noit_http_rest_closure_t *restc,
+                          int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  const char *err = "unknown error";
+  const char *jpath_with_sub;
+  char jlogpath[PATH_MAX], *cp, **subs = NULL;
+  int nsubs, i;
+  noit_log_stream_t feed;
+  jlog_ctx *jctx;
+  xmlDocPtr doc = NULL;
+  xmlNodePtr root = NULL, subnodes;
+
+  feed = noit_log_stream_find("feed");
+  if(!feed) { err = "cannot find feed"; goto error; }
+
+  jpath_with_sub = noit_log_stream_get_path(feed);
+  strlcpy(jlogpath, jpath_with_sub, sizeof(jlogpath));
+  cp = strchr(jlogpath, '(');
+  if(cp) *cp = '\0';
+
+  jctx = jlog_new(jlogpath);
+  if((nsubs = jlog_ctx_list_subscribers(jctx, &subs)) == -1) {
+    err = jlog_ctx_err_string(jctx);
+    goto error;
+  }
+
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"feed", NULL);
+  xmlDocSetRootElement(doc, root);
+
+  subnodes = xmlNewNode(NULL, (xmlChar *)"subscribers");
+  for(i=0; i<nsubs; i++) {
+    xmlNewChild(subnodes, NULL, (xmlChar *)"subscriber", (xmlChar *)subs[i]);
+  }
+  xmlAddChild(root, subnodes);
+
+  noit_http_response_ok(restc->http_ctx, "text/xml");
+  noit_http_response_xml(restc->http_ctx, doc);
+  noit_http_response_end(restc->http_ctx);
+  if(subs) jlog_ctx_list_subscribers_dispose(jctx, subs);
+  xmlFreeDoc(doc);
+  jlog_ctx_close(jctx);
+  return 0;
+
+ error:
+  if(doc) xmlFreeDoc(doc);
+  if(subs) jlog_ctx_list_subscribers_dispose(jctx, subs);
+  noit_http_response_server_error(ctx, "text/plain");
+  noit_http_response_append(ctx, err, strlen(err));
+  noit_http_response_end(ctx);
+  jlog_ctx_close(jctx);
+  return 0;
+}
+
+static int rest_delete_feed(noit_http_rest_closure_t *restc,
+                            int npats, char **pats) {
+  noit_http_session_ctx *ctx = restc->http_ctx;
+  const char *err = "unknown error";
+  const char *jpath_with_sub;
+  char jlogpath[PATH_MAX], *cp;
+  int rv;
+  noit_log_stream_t feed;
+  jlog_ctx *jctx;
+
+  feed = noit_log_stream_find("feed");
+  if(!feed) { err = "cannot find feed"; goto error; }
+
+  jpath_with_sub = noit_log_stream_get_path(feed);
+  strlcpy(jlogpath, jpath_with_sub, sizeof(jlogpath));
+  cp = strchr(jlogpath, '(');
+  if(cp) *cp = '\0';
+
+  jctx = jlog_new(jlogpath);
+  rv = jlog_ctx_remove_subscriber(jctx, pats[0]);
+  jlog_ctx_close(jctx);
+  if(rv < 0) {
+    err = jlog_ctx_err_string(jctx);
+    goto error;
+  }
+
+  /* removed or note, we should do a sweeping cleanup */
+  jlog_clean(jlogpath);
+
+  if(rv == 0) {
+    noit_http_response_not_found(ctx, "text/plain");
+    noit_http_response_end(ctx);
+    return 0;
+  }
+
+  noit_http_response_standard(ctx, 204, "OK", "text/plain");
+  noit_http_response_end(ctx);
+  return 0;
+
+ error:
+  noit_http_response_server_error(ctx, "text/plain");
+  noit_http_response_append(ctx, err, strlen(err));
+  noit_http_response_end(ctx);
+  return 0;
+}
+

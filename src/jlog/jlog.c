@@ -1585,4 +1585,59 @@ int jlog_ctx_advance_id(jlog_ctx *ctx, jlog_id *cur,
   return 0;
 }
 
+static int is_datafile(const char *f, u_int32_t *logid) {
+  int i;
+  u_int32_t l = 0;
+  for(i=0; i<8; i++) {
+    if((f[i] >= '0' && f[i] <= '9') ||
+       (f[i] >= 'a' && f[i] <= 'f')) {
+      l <<= 4;
+      l |= (f[i] < 'a') ? (f[i] - '0') : (f[i] - 'a' + 10);
+    }
+    else
+      return 0;
+  }
+  if(f[i] != '\0') return 0;
+  if(logid) *logid = l;
+  return 1;
+}
+
+int jlog_clean(const char *file) {
+  int rv = -1;
+  jlog_ctx *log;
+  DIR *dir;
+  struct dirent *de;
+
+  log = jlog_new(file);
+  jlog_ctx_open_writer(log);
+  dir = opendir(file);
+  if(!dir) goto out;
+
+  rv = 0;
+  while((de = readdir(dir)) != NULL) {
+    u_int32_t logid;
+    if(is_datafile(de->d_name, &logid)) {
+      char fullfile[MAXPATHLEN];
+      char fullidx[MAXPATHLEN];
+      struct stat st;
+      int readers;
+      snprintf(fullfile, sizeof(fullfile), "%s/%s", file, de->d_name);
+      snprintf(fullidx, sizeof(fullidx), "%s/%s" INDEX_EXT, file, de->d_name);
+      if(!stat(fullfile, &st)) {
+        readers = __jlog_pending_readers(log, logid);
+        if(readers == 0) {
+          unlink(fullfile);
+          /* coverity[toctou] */
+          unlink(fullidx);
+          rv++;
+        }
+      }
+    }
+  }
+  closedir(dir);
+ out:
+  jlog_ctx_close(log);
+  return rv;
+}
+
 /* vim:se ts=2 sw=2 et: */
