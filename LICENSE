@@ -36,16 +36,30 @@ Source code included in this distribution have varying (but compatible)
 licenses.  They are listed here in brief form.  Their licenses can be
 found in full form with their code within the source tree.
 
-jlog: new-BSD style (no advert)
-noitedit: (libedit: new-BSD w/advert)
-eventer: new-BSD
-serf: Apache-2.0
-lua: MIT
-libudns: LGPL
-collectd: LGPL
-esper: GPLv2
-activemq: Apache-2.0
-reconnoiter.jar: GPLv2
+reconnoiter: new-BSD [http://labs.omniti.com/labs/reconnoiter]
+jlog: new-BSD style (no advert) [http://labs.omniti.com/labs/reconnoiter]
+noitedit: (libedit: new-BSD w/advert) [http://labs.omniti.com/labs/reconnoiter]
+eventer: new-BSD [http://labs.omniti.com/labs/reconnoiter]
+lua: MIT [http://labs.omniti.com/labs/reconnoiter]
+LuaJIT: MIT [http://labs.omniti.com/labs/reconnoiter]
+libudns: LGPL [http://labs.omniti.com/labs/reconnoiter]
+collectd: LGPL [http://labs.omniti.com/labs/reconnoiter]
+yajl: MIT [http://labs.omniti.com/labs/reconnoiter]
+
+activemq: Apache-2.0 [http://activemq.apache.org/]
+reconnoiter.jar: GPLv2 [http://labs.omniti.com/labs/reconnoiter]
+esper: GPLv2 [http://esper.codehaus.org/]
+jetty 6: Apache 2.0 [http://www.eclipse.org/jetty/]
+antlr: new-BSD [www.antlr.org]
+log4j: Apache 2.0 [http://logging.apache.org/log4j/2.x/]
+cglib: Apache 2.0 [http://cglib.sourceforge.net/]
+postgresql jdbc: new-BSD [http://jdbc.postgresql.org/]
+Apache commons: Apache 2.0 [http://commons.apache.org/]
+protobuf-java: new-BSD [https://code.google.com/p/protobuf/]
+rabbitmq java client: MPL v1.1 [http://www.rabbitmq.com/java-client.html]
+servlet api: CDDL
+snmp4j: Apache 2.0 [http://www.snmp4j.org/]
+spring: Apache 2.0 [http://www.springsource.org/]
 
  *    "This product includes software developed by the OpenEvidence Project
  *    for use in the OpenEvidence Toolkit (http://www.openevidence.org/)
