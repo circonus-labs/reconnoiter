@@ -69,10 +69,14 @@ public abstract class StratconMessage {
   protected long timeToLong(String time) {
     long ms = 0;
     int off = time.lastIndexOf('.');
-    if(off == -1) return 0;
     try {
-      ms = Long.valueOf(time.substring(0,off)).longValue() * 1000;
-      ms = ms + Long.valueOf(time.substring(off+1)).longValue();
+      if(off == -1) {
+        ms = Long.valueOf(time).longValue() * 1000;
+      }
+      else {
+        ms = Long.valueOf(time.substring(0,off)).longValue() * 1000;
+        ms = ms + Long.valueOf(time.substring(off+1)).longValue();
+      }
     }
     catch (NumberFormatException e) {
       return 0;
