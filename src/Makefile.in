@@ -14,6 +14,8 @@ LIBS=@LIBS@
 INSTALL=@INSTALL@
 XML2H=@top_srcdir@/buildtools/xml2h
 MAPFLAGS=@MAPFLAGS@
+CTFCONVERT=@CTFCONVERT@
+CTFMERGE=@CTFMERGE@
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
@@ -116,11 +118,19 @@ noit-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:noit-objs/%.o=%.o) $@
+	@if test -x "$(CTFCONVERT)" ; then \
+		echo "- making CTF ($@)" ; \
+		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
+	fi
 
 stratcon-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
 	@cp $(@:stratcon-objs/%.o=%.o) $@
+	@if test -x "$(CTFCONVERT)" ; then \
+		echo "- making CTF ($@)" ; \
+		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
+	fi
 
 make-man:
 	@(cd man && $(MAKE) -s)
@@ -191,6 +201,9 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
 		$(LIBS)
+	@if test -x "$(CTFMERGE)" ; then \
+		$(CTFMERGE) -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
+	fi
 
 stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 	@echo "- linking $@"
@@ -199,6 +212,9 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
 		$(LIBS)
+	@if test -x "$(CTFMERGE)" ; then \
+		$(CTFMERGE) -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
+	fi
 
 stratcon_datastore.o:	stratcon_datastore.c
 	@echo "- compiling $<"
