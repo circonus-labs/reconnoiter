@@ -126,6 +126,12 @@ stomp_driver.@MODULEEXT@:	stomp_driver.lo libstomp.lo
 	@$(MODULELD) $(SHLDFLAGS) -o $@ stomp_driver.lo libstomp.lo @APRLIBS@
 	@echo "- linking $@"
 
+fq_driver.lo:	fq_driver.c fq_driver.xmlh
+
+fq_driver.@MODULEEXT@:	fq_driver.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ fq_driver.lo -lfq
+	@echo "- linking $@"
+
 RABBITMQ_DRIVER_OBJS=rabbitmq_driver.lo \
 	librabbitmq/amqp_api.lo librabbitmq/amqp_connection.lo \
 	librabbitmq/amqp_debug.lo librabbitmq/amqp_framing.lo \

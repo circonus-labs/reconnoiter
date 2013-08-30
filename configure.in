@@ -354,6 +354,17 @@ AC_CHECK_LIB(netsnmp, snmp_sess_open,
 )
 LIBS="$SAVELIBS"
 fi
+
+SAVELIBS="$LIBS"
+HAS_LIBFQ="no"
+AC_CHECK_LIB(fq, fq_client_init,
+	[
+		BUILD_SMODULES="$BUILD_SMODULES fq_driver.$MODULEEXT"
+		HAS_LIBFQ="yes"
+	]
+)
+LIBS="$SAVELIBS"
+
 if test "x$HAS_NETSNMP" = "xno"; then
 	AC_MSG_WARN([No libnetsnmp, skipping snmp module])
 	if test -n "$LUA_MODULE"; then
