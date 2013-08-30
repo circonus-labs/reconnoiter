@@ -50,21 +50,21 @@ struct stomp_driver {
   int port;
 };
 
-static iep_thread_driver_t *noit_stomp_allocate() {
+static iep_thread_driver_t *noit_stomp_allocate(noit_conf_section_t conf) {
   struct stomp_driver *dr;
   dr = calloc(1, sizeof(*dr));
   if(apr_pool_create(&dr->pool, NULL) != APR_SUCCESS) {
     free(dr);
     return NULL;
   }
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/exchange", &dr->exchange);
-  if(!noit_conf_get_string(NULL, "/stratcon/iep/mq/destination", &dr->destination))
+  (void)noit_conf_get_string(conf, "exchange", &dr->exchange);
+  if(!noit_conf_get_string(conf, "destination", &dr->destination))
   if(!dr->destination) dr->destination = strdup("/queue/noit.firehose");
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/username", &dr->user);
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/password", &dr->pass);
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &dr->hostname);
+  (void)noit_conf_get_string(conf, "username", &dr->user);
+  (void)noit_conf_get_string(conf, "password", &dr->pass);
+  (void)noit_conf_get_string(conf, "hostname", &dr->hostname);
   if(!dr->hostname) dr->hostname = strdup("127.0.0.1");
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/port", &dr->port))
+  if(!noit_conf_get_int(conf, "port", &dr->port))
     dr->port = 61613;
   return (iep_thread_driver_t *)dr;
 }

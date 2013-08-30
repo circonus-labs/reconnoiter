@@ -61,9 +61,17 @@ static noit_log_stream_t noit_iep = NULL;
 static noit_log_stream_t noit_iep_debug = NULL;
 static noit_spinlock_t iep_conn_cnt = 0;
 
-static pthread_key_t iep_connection;
 static noit_hash_table mq_drivers = NOIT_HASH_EMPTY;
-static mq_driver_t *mq_driver = NULL;
+struct driver_thread_data {
+  mq_driver_t *mq_driver;
+  struct iep_thread_driver *driver_data;
+};
+struct driver_list {
+  mq_driver_t *mq_driver;
+  pthread_key_t iep_connection;
+  noit_conf_section_t section;
+  struct driver_list *next;
+} *drivers;
 
 static int iep_system_enabled = 1;
 int stratcon_iep_get_enabled() { return iep_system_enabled; }
@@ -314,17 +322,19 @@ void stratcon_iep_submit_queries() {
   free(query_configs);
 }
 
-static
-struct iep_thread_driver *stratcon_iep_get_connection() {
+static struct driver_thread_data *
+connect_iep_driver(struct driver_list *d) {
   int rc;
-  struct iep_thread_driver *driver;
-  driver = pthread_getspecific(iep_connection);
-  if(!driver) {
-    driver = mq_driver->allocate();
-    pthread_setspecific(iep_connection, driver);
+  struct driver_thread_data *data;
+  data = pthread_getspecific(d->iep_connection);
+  if(!data) {
+    data = calloc(1, sizeof(*data));
+    data->mq_driver = d->mq_driver;
+    pthread_setspecific(d->iep_connection, data);
   }
-
-  rc = mq_driver->connect(driver);
+  if(!data->driver_data)
+    data->driver_data = data->mq_driver->allocate(d->section);
+  rc = data->mq_driver->connect(data->driver_data);
   if(rc < 0) return NULL;
   if(rc == 0) {
     /* Initial connect */
@@ -334,7 +344,7 @@ struct iep_thread_driver *stratcon_iep_get_connection() {
     stratcon_iep_submit_queries();
   }
 
-  return driver;
+  return data;
 }
 
 static int
@@ -363,7 +373,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
                        struct timeval *now) {
   double age;
   struct iep_job_closure *job = closure;
-  struct iep_thread_driver *driver;
+  char *line;
   /* We only play when it is an asynch event */
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
 
@@ -377,8 +387,6 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     }
     return 0;
   }
-  driver = stratcon_iep_get_connection();
-  if(!driver) setup_iep_connection_later(1);
 
   if(!job->line || job->line[0] == '\0') return 0;
 
@@ -388,27 +396,27 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     return 0;
   }
   /* Submit */
-  if(driver) {
-    int line_len = strlen(job->line);
-    int remote_len = strlen(job->remote);
-    const char *toff = strchr(job->line, '\t');
-    int token_off = 2;
-    if(toff) token_off = toff - job->line + 1;
+  int line_len = strlen(job->line);
+  int remote_len = strlen(job->remote);
+  const char *toff = strchr(job->line, '\t');
+  int token_off = 2;
+  if(toff) token_off = toff - job->line + 1;
 
-    job->doc_str = (char*)calloc(line_len + 1 /* \t */ +
-        remote_len + 2, 1);
-    strncpy(job->doc_str, job->line, token_off);
-    strncat(job->doc_str, job->remote, remote_len);
-    strncat(job->doc_str, "\t", 1);
-    strncat(job->doc_str, job->line + token_off, line_len - token_off);
+  line = (char*)calloc(line_len + 1 /* \t */ + remote_len + 2, 1);
+  strncpy(line, job->line, token_off);
+  strncat(line, job->remote, remote_len);
+  strncat(line, "\t", 1);
+  strncat(line, job->line + token_off, line_len - token_off);
+  job->doc_str = line;
 
-    /* Don't need to catch error here, next submit will catch it */
-    if(mq_driver->submit(driver, job->doc_str, line_len + remote_len + 1) != 0) {
-      noitL(noit_debug, "failed to MQ submit.\n");
+  for(struct driver_list *d = drivers; d; d = d->next) {
+    struct driver_thread_data *tls = connect_iep_driver(d);
+    if(tls && tls->driver_data) {
+      if(tls->mq_driver->submit(tls->driver_data, job->doc_str,
+                                line_len + remote_len + 1) != 0) {
+        noitL(noit_debug, "failed to MQ submit.\n");
+      }
     }
-  }
-  else {
-    noitL(noit_iep, "no iep connection, skipping line: '%s'\n", job->line); 
   }
   return 0;
 }
@@ -464,9 +472,10 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
 }
 
 static void connection_destroy(void *vd) {
-  struct iep_thread_driver *driver = vd;
-  mq_driver->disconnect(driver);
-  mq_driver->deallocate(driver);
+  struct driver_thread_data *data = vd;
+  data->mq_driver->disconnect(data->driver_data);
+  data->mq_driver->deallocate(data->driver_data);
+  free(data);
 }
 
 jlog_streamer_ctx_t *
@@ -617,8 +626,11 @@ stratcon_iep_mq_driver_register(const char *name, mq_driver_t *d) {
 
 void
 stratcon_iep_init() {
+  noit_conf_section_t *mqs;
+  int i, cnt;
   noit_boolean disabled = noit_false;
   char mq_type[128] = "stomp";
+  struct driver_list *newdriver;
   void *vdriver;
 
   noit_iep = noit_log_stream_find("error/iep");
@@ -632,23 +644,31 @@ stratcon_iep_init() {
     return;
   }
 
-  if(!noit_conf_get_stringbuf(NULL, "/stratcon/iep/mq/@type",
-                              mq_type, sizeof(mq_type))) {
-    noitL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");
-    exit(-2);
+  mqs = noit_conf_get_sections(NULL, "/stratcon/iep/mq", &cnt);
+  for(i=0; i<cnt; i++) {
+    if(!noit_conf_get_stringbuf(mqs[i], "@type",
+                                mq_type, sizeof(mq_type))) {
+      noitL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");
+      exit(-2);
+    }
+    if(!noit_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
+       vdriver == NULL) {
+      noitL(noit_iep, "Cannot find MQ driver type: %s\n", mq_type);
+      noitL(noit_iep, "Did you forget to load a module?\n");
+      exit(-2);
+    }
+    newdriver = calloc(1, sizeof(*newdriver));
+    newdriver->section = mqs[i];
+    newdriver->mq_driver = (mq_driver_t *)vdriver;
+    pthread_key_create(&newdriver->iep_connection, connection_destroy);
+    newdriver->next = drivers;
+    drivers = newdriver;
   }
-  if(!noit_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
-     vdriver == NULL) {
-    noitL(noit_iep, "Cannot find MQ driver type: %s\n", mq_type);
-    noitL(noit_iep, "Did you forget to load a module?\n");
-    exit(-2);
-  }
-  mq_driver = (mq_driver_t *)vdriver;
+  free(mqs);
 
   eventer_name_callback("stratcon_iep_submitter", stratcon_iep_submitter);
   eventer_name_callback("stratcon_iep_err_handler", stratcon_iep_err_handler);
   eventer_name_callback("setup_iep_connection_callback", setup_iep_connection_callback);
-  pthread_key_create(&iep_connection, connection_destroy);
 
   /* start up a thread pool of one */
   memset(&iep_jobq, 0, sizeof(iep_jobq));

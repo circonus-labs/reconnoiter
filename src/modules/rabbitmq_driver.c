@@ -76,7 +76,7 @@ static struct {
 } stats;
 #define BUMPSTAT(a) noit_atomic_inc64(&stats.a)
 
-static iep_thread_driver_t *noit_rabbimq_allocate() {
+static iep_thread_driver_t *noit_rabbimq_allocate(noit_conf_section_t conf) {
   char *hostname, *cp, *brk;
   struct amqp_driver *dr = NULL;
   int i;
@@ -92,18 +92,18 @@ static iep_thread_driver_t *noit_rabbimq_allocate() {
   pthread_mutex_unlock(&driver_lock);
   if(!dr) return NULL;
   dr->nconnects = rand();
-#define GETCONFSTR(w) noit_conf_get_stringbuf(NULL, "/stratcon/iep/mq/" #w, dr->w, sizeof(dr->w))
+#define GETCONFSTR(w) noit_conf_get_stringbuf(conf, #w, dr->w, sizeof(dr->w))
   GETCONFSTR(exchange);
   if(!GETCONFSTR(routingkey))
     dr->routingkey[0] = '\0';
   GETCONFSTR(username);
   GETCONFSTR(password);
   if(!GETCONFSTR(vhost)) { dr->vhost[0] = '/'; dr->vhost[1] = '\0'; }
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/heartbeat", &dr->heartbeat))
+  if(!noit_conf_get_int(conf, "heartbeat", &dr->heartbeat))
     dr->heartbeat = 5000;
   dr->heartbeat = (dr->heartbeat + 999) / 1000;
 
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &hostname);
+  (void)noit_conf_get_string(conf, "hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) dr->nhosts++;
   if(dr->nhosts > MAX_HOSTS) dr->nhosts = MAX_HOSTS;
@@ -112,7 +112,7 @@ static iep_thread_driver_t *noit_rabbimq_allocate() {
     strlcpy(dr->hostname[i], cp, sizeof(dr->hostname[i]));
   free(hostname);
 
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/port", &dr->port))
+  if(!noit_conf_get_int(conf, "port", &dr->port))
     dr->port = 5672;
   noit_atomic_inc64(&stats.concurrency);
   return (iep_thread_driver_t *)dr;

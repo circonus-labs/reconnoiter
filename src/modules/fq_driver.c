@@ -155,25 +155,23 @@ static void fq_logger(fq_client c, const char *err) {
   }
 }
 
-static iep_thread_driver_t *noit_fq_allocate() {
+static iep_thread_driver_t *noit_fq_allocate(noit_conf_section_t conf) {
   char *hostname, *cp, *brk;
   int i;
 
-#define GETCONFSTR(w) noit_conf_get_stringbuf(NULL, "/stratcon/iep/mq/" #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
+#define GETCONFSTR(w) noit_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
   GETCONFSTR(exchange);
   if(!GETCONFSTR(routingkey))
     global_fq_ctx.routingkey[0] = '\0';
   GETCONFSTR(username);
   GETCONFSTR(password);
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/heartbeat",
-                        &global_fq_ctx.heartbeat))
+  if(!noit_conf_get_int(conf, "heartbeat", &global_fq_ctx.heartbeat))
     global_fq_ctx.heartbeat = 2000;
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/backlog",
-                        &global_fq_ctx.backlog))
+  if(!noit_conf_get_int(conf, "backlog", &global_fq_ctx.backlog))
     global_fq_ctx.backlog = 2000;
-  if(!noit_conf_get_int(NULL, "/stratcon/iep/mq/port", &global_fq_ctx.port))
+  if(!noit_conf_get_int(conf, "port", &global_fq_ctx.port))
     global_fq_ctx.port = 8765;
-  (void)noit_conf_get_string(NULL, "/stratcon/iep/mq/hostname", &hostname);
+  (void)noit_conf_get_string(conf, "hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) global_fq_ctx.nhosts++;
   if(global_fq_ctx.nhosts > MAX_HOSTS) global_fq_ctx.nhosts = MAX_HOSTS;
@@ -205,7 +203,7 @@ static iep_thread_driver_t *noit_fq_allocate() {
 /* connect happens once in allocate, not in connect...
  * so we don't disconnect. */
 static int noit_fq_connect(iep_thread_driver_t *dr) {
-  return 0;
+  return 1;
 }
 static int noit_fq_disconnect(iep_thread_driver_t *d) {
   return 0;

@@ -56,7 +56,7 @@ API_EXPORT(jlog_streamer_ctx_t *)
 typedef struct iep_thread_driver iep_thread_driver_t;
 
 typedef struct mq_driver {
-  iep_thread_driver_t *(*allocate)();
+  iep_thread_driver_t *(*allocate)(noit_conf_section_t);
 
   int (*connect)(iep_thread_driver_t *driver);
   /* connect returns:
