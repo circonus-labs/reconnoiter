@@ -65,13 +65,21 @@ static xmlDocPtr master_config = NULL;
 static int config_include_cnt = -1;
 static int backingstore_include_cnt = -1;
 
-static struct {
+struct include_node_t{
   xmlNodePtr insertion_point;
   xmlNodePtr old_children;
   xmlDocPtr doc;
   xmlNodePtr root;
-} *config_include_nodes = NULL,
-  *backingstore_include_nodes = NULL;
+  int snippet;
+  char path[255];
+  int child_count;
+  struct include_node_t *children;
+};
+
+typedef struct include_node_t include_node_t;
+
+static include_node_t *config_include_nodes = NULL,
+                      *backingstore_include_nodes = NULL;
 
 typedef struct noit_xml_userdata {
   char       *name;
@@ -116,6 +124,37 @@ struct recurrent_journaler {
   int (*journal_config)(void *);
   void *jc_closure;
 };
+
+void
+write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
+  int i;
+  for(i=0; i<include_node_cnt; i++) {
+    xmlOutputBufferPtr out;
+    xmlCharEncodingHandlerPtr enc;
+    mode_t mode = 0640;
+    char filename[500];
+    int len, fd;
+    struct stat st;
+
+    if(stat(include_nodes[i].path, &st) == 0) {
+      mode = st.st_mode;
+    }
+
+    sprintf(filename, "%s.tmp", include_nodes[i].path);
+    fd = open(filename, O_CREAT|O_TRUNC|O_WRONLY, mode);
+
+    enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+    out = xmlOutputBufferCreateFd(fd, enc);
+    len = xmlSaveFormatFileTo(out, include_nodes[i].doc, "utf8", 1);
+    if (len < 0) {
+      noitL(noit_error, "couldn't write out %s\n", include_nodes[i].path);
+      close(fd);
+      continue;
+    }
+    close(fd);
+    write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
+  }
+}
 
 static void
 noit_xml_userdata_free(noit_xml_userdata_t *n) {
@@ -264,26 +303,33 @@ void noit_conf_init(const char *toplevel) {
 }
 
 void
-noit_conf_magic_separate(xmlDocPtr doc) {
-  assert(config_include_cnt != -1);
-  if(config_include_nodes) {
+noit_conf_magic_separate_includes(include_node_t **root_include_nodes, int *cnt) {
+  include_node_t *include_nodes = *root_include_nodes;
+  assert(*cnt != -1);
+  if(include_nodes) {
     int i;
-    for(i=0; i<config_include_cnt; i++) {
-      if(config_include_nodes[i].doc) {
+    for(i=0; i<*cnt; i++) {
+      noit_conf_magic_separate_includes(&(include_nodes[i].children), &(include_nodes[i].child_count));
+      if(include_nodes[i].doc) {
         xmlNodePtr n;
-        for(n=config_include_nodes[i].insertion_point->children;
+        for(n=include_nodes[i].insertion_point->children;
             n; n = n->next)
-          n->parent = config_include_nodes[i].root;
-        config_include_nodes[i].insertion_point->children =
-          config_include_nodes[i].old_children;
-        xmlFreeDoc(config_include_nodes[i].doc);
+          n->parent = include_nodes[i].root;
+        include_nodes[i].insertion_point->children =
+          include_nodes[i].old_children;
+        xmlFreeDoc(include_nodes[i].doc);
       }
     }
-    free(config_include_nodes);
+    free(include_nodes);
   }
-  config_include_nodes = NULL;
-  config_include_cnt = -1;
+  *root_include_nodes = NULL;
+  *cnt = -1;
+}
 
+void
+noit_conf_magic_separate() {
+  noit_conf_magic_separate_includes(&config_include_nodes, &config_include_cnt);
+  assert(config_include_nodes == NULL);
   if(backingstore_include_nodes) {
     int i;
     for(i=0; i<backingstore_include_cnt; i++) {
@@ -309,33 +355,41 @@ noit_conf_magic_separate(xmlDocPtr doc) {
   backingstore_include_cnt = -1;
 }
 void
-noit_conf_kansas_city_shuffle_redo(xmlDocPtr doc) {
-  if(config_include_nodes) {
+noit_conf_kansas_city_shuffle_redo(include_node_t *include_nodes, int include_node_cnt) {
+  if(include_nodes) {
     int i;
-    for(i=0; i<config_include_cnt; i++) {
-      if(config_include_nodes[i].doc) {
+    for(i=0; i<include_node_cnt; i++) {
+      noit_conf_kansas_city_shuffle_redo(include_nodes[i].children, include_nodes[i].child_count);
+      if(include_nodes[i].doc) {
         xmlNodePtr n;
-        config_include_nodes[i].insertion_point->children =
-          config_include_nodes[i].root->children;
-        for(n=config_include_nodes[i].insertion_point->children;
+
+        if (!include_nodes[i].snippet)
+          include_nodes[i].insertion_point->children =
+            include_nodes[i].root->children;
+        else
+          include_nodes[i].insertion_point->children =
+            include_nodes[i].root;
+
+        for(n=include_nodes[i].insertion_point->children;
             n; n = n->next)
-          n->parent = config_include_nodes[i].insertion_point;
+          n->parent = include_nodes[i].insertion_point;
       }
     }
   }
 }
 void
-noit_conf_kansas_city_shuffle_undo(xmlDocPtr doc) {
-  if(config_include_nodes) {
+noit_conf_kansas_city_shuffle_undo(include_node_t *include_nodes, int include_node_cnt) {
+  if(include_nodes) {
     int i;
-    for(i=0; i<config_include_cnt; i++) {
-      if(config_include_nodes[i].doc) {
+    for(i=0; i<include_node_cnt; i++) {
+      noit_conf_kansas_city_shuffle_undo(include_nodes[i].children, include_nodes[i].child_count);
+      if(include_nodes[i].doc) {
         xmlNodePtr n;
-        for(n=config_include_nodes[i].insertion_point->children;
+        for(n=include_nodes[i].insertion_point->children;
             n; n = n->next)
-          n->parent = config_include_nodes[i].root;
-        config_include_nodes[i].insertion_point->children =
-          config_include_nodes[i].old_children;
+          n->parent = include_nodes[i].root;
+        include_nodes[i].insertion_point->children =
+          include_nodes[i].old_children;
       }
     }
   }
@@ -615,21 +669,40 @@ noit_conf_read_backing_store(const char *path) {
   return doc;
 }
 int
-noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
+noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_node) {
   xmlXPathContextPtr mix_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node;
-  int i, cnt, rv = 0;
+  int i, cnt, rv = 0, master = 0;
+  int *include_cnt;
+  include_node_t* include_nodes;
 
-  assert(config_include_cnt == -1);
-  assert(backingstore_include_cnt == -1);
+  if (inc_node) {
+    include_cnt = &(inc_node->child_count);
+    include_nodes = inc_node->children;
+  }
+  else {
+    include_cnt = &(config_include_cnt);
+    include_nodes = config_include_nodes;
+    master = 1;
+  }
 
-  backingstore_include_cnt = 0;
+  assert(*include_cnt == -1);
+
+  if (master) {
+    assert(backingstore_include_cnt == -1);
+    backingstore_include_cnt = 0;
+  }
   mix_ctxt = xmlXPathNewContext(doc);
-  pobj = xmlXPathEval((xmlChar *)"//*[@backingstore]", mix_ctxt);
+  if (master)
+    pobj = xmlXPathEval((xmlChar *)"//*[@backingstore]", mix_ctxt);
+  else
+    pobj = NULL;
+
   if(!pobj) goto includes;
   if(pobj->type != XPATH_NODESET) goto includes;
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto includes;
+
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt > 0)
     backingstore_include_nodes = calloc(cnt, sizeof(*backingstore_include_nodes));
@@ -691,19 +764,31 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
 
  includes:
   if(pobj) xmlXPathFreeObject(pobj);
-  config_include_cnt = 0;
+  *include_cnt = 0;
   pobj = xmlXPathEval((xmlChar *)"//include[@file]", mix_ctxt);
   if(!pobj) goto out;
   if(pobj->type != XPATH_NODESET) goto out;
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
-  if(cnt > 0)
-    config_include_nodes = calloc(cnt, sizeof(*config_include_nodes));
+  if(cnt > 0) {
+    include_nodes = calloc(cnt, sizeof(*include_nodes));
+    if (master) {
+      config_include_nodes = include_nodes;
+    }
+    else {
+      inc_node->children = include_nodes;
+    }
+    for (i=0; i < cnt; i++) {
+      include_nodes[i].child_count = -1;
+    }
+  }
   for(i=0; i<cnt; i++) {
-    char *path, *infile;
+    char *path, *infile, *snippet;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     path = (char *)xmlGetProp(node, (xmlChar *)"file");
+    snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
     if(!path) continue;
+    if(!snippet) snippet = "false";
     if(*path == '/') infile = strdup(path);
     else {
       char *cp;
@@ -717,15 +802,27 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
       strlcat(infile, path, PATH_MAX);
     }
     xmlFree(path);
-    config_include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
-    if(config_include_nodes[i].doc) {
+    if (!strcmp(snippet, "false")) {
+      include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
+      include_nodes[i].snippet = 0;
+    }
+    else {
+      include_nodes[i].doc = xmlParseEntity(infile);
+      include_nodes[i].snippet = 1;
+    }
+    if((include_nodes[i].doc) || (include_nodes[i].snippet)) {
       xmlNodePtr n;
-      config_include_nodes[i].insertion_point = node;
-      config_include_nodes[i].root = xmlDocGetRootElement(config_include_nodes[i].doc);
-      config_include_nodes[i].old_children = node->children;
-      node->children = config_include_nodes[i].root->children;
+      noit_conf_magic_mix(infile, include_nodes[i].doc, &(include_nodes[i]));
+      strncpy(include_nodes[i].path, infile, sizeof(include_nodes[i].path));
+      include_nodes[i].insertion_point = node;
+      include_nodes[i].root = xmlDocGetRootElement(include_nodes[i].doc);
+      include_nodes[i].old_children = node->children;
+      if (!include_nodes[i].snippet)
+        node->children = include_nodes[i].root->children;
+      else
+        node->children = include_nodes[i].root;
       for(n=node->children; n; n = n->next)
-        n->parent = config_include_nodes[i].insertion_point;
+        n->parent = include_nodes[i].insertion_point;
     }
     else {
       noitL(noit_error, "Could not load: '%s'\n", infile);
@@ -733,8 +830,8 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc) {
     }
     free(infile);
   }
-  config_include_cnt = cnt;
-  noitL(noit_debug, "Processed %d includes\n", config_include_cnt);
+  *include_cnt = cnt;
+  noitL(noit_debug, "Processed %d includes\n", *include_cnt);
  out:
   if(pobj) xmlXPathFreeObject(pobj);
   if(mix_ctxt) xmlXPathFreeContext(mix_ctxt);
@@ -753,14 +850,14 @@ static int noit_conf_load_internal(const char *path) {
 
     if(master_config) {
       /* separate all includes */
-      noit_conf_magic_separate(master_config);
+      noit_conf_magic_separate();
       xmlFreeDoc(master_config);
     }
     if(xpath_ctxt) xmlXPathFreeContext(xpath_ctxt);
 
     master_config = new_config;
     /* mixin all the includes */
-    if(noit_conf_magic_mix(path, master_config)) rv = -1;
+    if(noit_conf_magic_mix(path, master_config, NULL)) rv = -1;
 
     xpath_ctxt = xmlXPathNewContext(master_config);
     if(path != master_config_file)
@@ -1245,9 +1342,10 @@ noit_conf_write_terminal(noit_console_closure_t ncct,
   out = xmlOutputBufferCreateIO(noit_console_write_xml,
                                 noit_console_close_xml,
                                 ncct, enc);
-  noit_conf_kansas_city_shuffle_undo(master_config);
+  noit_conf_kansas_city_shuffle_undo(config_include_nodes, config_include_cnt);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
-  noit_conf_kansas_city_shuffle_redo(master_config);
+  write_out_include_files(config_include_nodes, config_include_cnt);
+  noit_conf_kansas_city_shuffle_redo(config_include_nodes, config_include_cnt);
   return 0;
 }
 int
@@ -1291,11 +1389,12 @@ noit_conf_write_file(char **err) {
     if(err) *err = strdup("internal error: OutputBufferCreate failed");
     return -1;
   }
-  noit_conf_kansas_city_shuffle_undo(master_config);
+  noit_conf_kansas_city_shuffle_undo(config_include_nodes, config_include_cnt);
   noit_conf_shatter_write(master_config);
   len = xmlSaveFormatFileTo(out, master_config, "utf8", 1);
   noit_conf_shatter_postwrite(master_config);
-  noit_conf_kansas_city_shuffle_redo(master_config);
+  write_out_include_files(config_include_nodes, config_include_cnt);
+  noit_conf_kansas_city_shuffle_redo(config_include_nodes, config_include_cnt);
   close(fd);
   if(len <= 0) {
     if(err) *err = strdup("internal error: writing to tmp file failed.");
@@ -1324,9 +1423,10 @@ noit_conf_xml_in_mem(size_t *len) {
   out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
                                 noit_config_log_close_xml,
                                 clv, enc);
-  noit_conf_kansas_city_shuffle_undo(master_config);
+  noit_conf_kansas_city_shuffle_undo(config_include_nodes, config_include_cnt);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
-  noit_conf_kansas_city_shuffle_redo(master_config);
+  write_out_include_files(config_include_nodes, config_include_cnt);
+  noit_conf_kansas_city_shuffle_redo(config_include_nodes, config_include_cnt);
   if(clv->encoded != CONFIG_RAW) {
     noitL(noit_error, "Error logging configuration\n");
     if(clv->buff) free(clv->buff);
@@ -1371,9 +1471,10 @@ noit_conf_write_log() {
   out = xmlOutputBufferCreateIO(noit_config_log_write_xml,
                                 noit_config_log_close_xml,
                                 clv, enc);
-  noit_conf_kansas_city_shuffle_undo(master_config);
+  noit_conf_kansas_city_shuffle_undo(config_include_nodes, config_include_cnt);
   xmlSaveFormatFileTo(out, master_config, "utf8", 1);
-  noit_conf_kansas_city_shuffle_redo(master_config);
+  write_out_include_files(config_include_nodes, config_include_cnt);
+  noit_conf_kansas_city_shuffle_redo(config_include_nodes, config_include_cnt);
   if(clv->encoded != CONFIG_B64) {
     noitL(noit_error, "Error logging configuration\n");
     if(clv->buff) free(clv->buff);
