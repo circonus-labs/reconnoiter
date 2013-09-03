@@ -534,8 +534,10 @@ void noit_module_init() {
     noit_module_loader_t *loader = &__noit_image_loader;
     noit_hash_table *config;
     noit_module_t *module;
+    noit_conf_section_t *include_sections;
     char loader_name[256];
     char module_name[256];
+    int section_cnt;
 
     /* If no loader is specified, we should use the image loader */
     if(!noit_conf_get_stringbuf(sections[i], "ancestor-or-self::node()/@name",
@@ -565,7 +567,13 @@ void noit_module_init() {
     }
     if(module->config) {
       int rv;
-      config = noit_conf_get_hash(sections[i], "config");
+      include_sections = noit_conf_get_sections(sections[i], "include", &section_cnt);
+      if ((include_sections) && (section_cnt == 1)) {
+        config = noit_conf_get_hash(*include_sections, "config");
+      }
+      else {
+        config = noit_conf_get_hash(sections[i], "config");
+      }
       rv = module->config(module, config);
       if(rv == 0) {
         /* Not an error,
@@ -579,6 +587,7 @@ void noit_module_init() {
               "Configure failed on %s\n", module_name);
         continue;
       }
+      if(include_sections) free(include_sections);
     }
     if(module->init && module->init(module)) {
       noitL(noit_stderr,
