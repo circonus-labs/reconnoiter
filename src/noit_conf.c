@@ -153,6 +153,9 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
     }
     close(fd);
     write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
+    if(rename(filename, include_nodes[i].path) != 0) {
+      noitL(noit_error, "Failed to replace file %s: %s\n", include_nodes[i].path, strerror(errno));
+    }
   }
 }
 
