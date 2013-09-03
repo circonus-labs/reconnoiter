@@ -1071,6 +1071,14 @@ noit_conf_section_t *noit_conf_get_sections(noit_conf_section_t section,
     xmlXPathFreeContext(current_ctxt);
   return sections;
 }
+int noit_conf_remove_section(noit_conf_section_t section) {
+  if (!section) return -1;
+  xmlNodePtr node = (xmlNodePtr) section;
+  xmlUnlinkNode(node);
+  xmlFreeNode(node);
+  noit_conf_mark_changed();
+  return 0;
+}
 int _noit_conf_get_string(noit_conf_section_t section, xmlNodePtr *vnode,
                           const char *path, char **value) {
   const char *str, *interest;
