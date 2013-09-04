@@ -2049,6 +2049,56 @@ nl_conf_get_float(lua_State *L) {
   else lua_pushnil(L);
   return 1;
 }
+static int
+nl_conf_replace_value(lua_State *L) {
+  const char *path = lua_tostring(L,1);
+  if (path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    if (!element) {
+      lua_pushboolean(L, 0);
+      return 1;
+    }
+    while (section = noit_conf_get_section(NULL, path)) {
+      noit_conf_remove_section(section);
+    }
+    section = noit_conf_get_section(NULL, base);
+    if(!section) {
+      lua_pushboolean(L, 0);
+      return 1;
+    }
+    noit_conf_set_string(section, element, lua_tostring(L,2));
+    lua_pushboolean(L, 1);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
+static int
+nl_conf_replace_boolean(lua_State *L) {
+  const char *path = lua_tostring(L,1);
+  if (path && lua_gettop(L) == 2) {
+    noit_conf_section_t section;
+    char *element, *base;
+    SPLIT_PATH(path, base, element);
+    if (!element) {
+      lua_pushboolean(L, 0);
+      return 1;
+    }
+    while (section = noit_conf_get_section(NULL, path)) {
+      noit_conf_remove_section(section);
+    }
+    section = noit_conf_get_section(NULL, base);
+    if(!section) {
+      lua_pushboolean(L, 0);
+      return 1;
+    }
+    noit_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
+    lua_pushboolean(L, 1);
+  }
+  else lua_pushnil(L);
+  return 1;
+}
 struct xpath_iter {
   xmlXPathContextPtr ctxt;
   xmlXPathObjectPtr pobj;
@@ -2749,12 +2799,16 @@ static const luaL_Reg noitlib[] = {
   { "conf_get", nl_conf_get_string },
   { "conf_get_string", nl_conf_get_string },
   { "conf_string", nl_conf_get_string },
+  { "conf_replace_string", nl_conf_replace_value },
   { "conf_get_integer", nl_conf_get_integer },
   { "conf_integer", nl_conf_get_integer },
+  { "conf_replace_integer", nl_conf_replace_value },
   { "conf_get_boolean", nl_conf_get_boolean },
   { "conf_boolean", nl_conf_get_boolean },
+  { "conf_replace_boolean", nl_conf_replace_boolean },
   { "conf_get_number", nl_conf_get_float },
   { "conf_number", nl_conf_get_float },
+  { "conf_replace_number", nl_conf_replace_value },
   { "parsexml", nl_parsexml },
   { "parsejson", nl_parsejson },
   { "spawn", nl_spawn },
