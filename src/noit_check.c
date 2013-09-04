@@ -659,7 +659,7 @@ noit_check_watch(uuid_t in, int period) {
 
   uuid_unparse_lower(in, uuid_str);
 
-  noitL(noit_error, "noit_check_watch(%s,%d)\n", uuid_str, period);
+  noitL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
     return noit_poller_lookup(in);
   }
