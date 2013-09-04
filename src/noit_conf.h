@@ -75,6 +75,8 @@ API_EXPORT(noit_conf_section_t)
 API_EXPORT(noit_conf_section_t *)
   noit_conf_get_sections(noit_conf_section_t section, const char *path,
                          int *cnt);
+API_EXPORT(int)
+  noit_conf_remove_section(noit_conf_section_t section);
 
 API_EXPORT(noit_hash_table *)
   noit_conf_get_hash(noit_conf_section_t section, const char *path);
