@@ -121,6 +121,7 @@ typedef struct _eventer_impl {
   void              (*trigger)(eventer_t e, int mask);
   int               (*loop)();
   void              (*foreach_fdevent)(void (*f)(eventer_t, void *), void *);
+  void              (*wakeup)();
   struct timeval    max_sleeptime;
   int               maxfds;
   struct {
@@ -151,6 +152,7 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_trigger       __eventer->trigger
 #define eventer_max_sleeptime __eventer->max_sleeptime
 #define eventer_foreach_fdevent  __eventer->foreach_fdevent
+#define eventer_wakeup        __eventer->wakeup
 
 extern eventer_impl_t registered_eventers[];
 

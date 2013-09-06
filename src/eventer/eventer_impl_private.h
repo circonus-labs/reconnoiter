@@ -67,3 +67,5 @@ LOCAL_EVENTER_foreach_fdevent (void (*f)(eventer_t e, void *),
     release_master_fd(fd, ls);
   }
 }
+
+void eventer_wakeup_noop();

@@ -348,6 +348,7 @@ eventer_t eventer_remove_recurrent(eventer_t e) {
   pthread_mutex_unlock(&recurrent_lock);
   return NULL;
 }
+void eventer_wakeup_noop() { }
 void eventer_add_recurrent(eventer_t e) {
   struct recurrent_events *node;
   assert(e->mask & EVENTER_RECURRENT);

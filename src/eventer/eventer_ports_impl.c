@@ -325,6 +325,12 @@ static int eventer_ports_impl_loop() {
     }
   }
   /* NOTREACHED */
+  return 0;
+}
+
+static void
+eventer_ports_impl_wakeup() {
+  port_send(port_fd, 0, NULL);
 }
 
 struct _eventer_impl eventer_ports_impl = {
@@ -339,6 +345,7 @@ struct _eventer_impl eventer_ports_impl = {
   eventer_ports_impl_trigger,
   eventer_ports_impl_loop,
   eventer_ports_impl_foreach_fdevent,
+  eventer_ports_impl_wakeup,
   { 0, 200000 },
   0,
   NULL

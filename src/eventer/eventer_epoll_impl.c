@@ -290,6 +290,7 @@ struct _eventer_impl eventer_epoll_impl = {
   eventer_epoll_impl_trigger,
   eventer_epoll_impl_loop,
   eventer_epoll_impl_foreach_fdevent,
+  eventer_wakeup_noop,
   { 0, 200000 },
   0,
   NULL
