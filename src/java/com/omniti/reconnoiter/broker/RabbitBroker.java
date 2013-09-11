@@ -63,6 +63,7 @@ public class RabbitBroker implements IMQBroker  {
     try {
       this.listenerClass = Class.forName(className);
     }
+    catch(java.lang.NoClassDefFoundError e) { }
     catch(java.lang.ClassNotFoundException e) {
       logger.warn("Class " + className + " not found.");
     }

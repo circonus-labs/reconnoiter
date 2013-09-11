@@ -46,6 +46,7 @@ public abstract class StratconMessage {
       StratconMessageFactory smf = new StratconMessageFactory(clazz);
       quicklookup.put(prefix, smf);
       success = true;
+    } catch (NoClassDefFoundError e) {
     } catch (NoSuchMethodException e) {
       e.printStackTrace();
     } catch (IllegalAccessException e) {

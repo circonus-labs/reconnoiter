@@ -20,7 +20,6 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 
 import com.espertech.esper.client.EPServiceProvider;
-import com.espertech.esper.client.UpdateListener;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.event.StratconQuery;
@@ -29,7 +28,6 @@ public class AMQBroker implements IMQBroker {
   private String hostName;
   private int portNumber;
   private Class listenerClass;
-  private Constructor<UpdateListener> con;
 
   @SuppressWarnings("unchecked")
   public AMQBroker(StratconConfig config) {
