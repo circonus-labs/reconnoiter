@@ -20,6 +20,7 @@
       <error>
         <outlet name="error"/>
         <log name="error/collectd"/>
+        <log name="error/ganglia"/>
         <log name="error/dns"/>
         <log name="error/eventer"/>
         <log name="error/external"/>
@@ -34,6 +35,7 @@
       <debug>
         <outlet name="debug"/>
         <log name="debug/collectd" disabled="true"/>
+        <log name="debug/ganglia" disabled="true"/>
         <log name="debug/dns" disabled="true"/>
         <log name="debug/eventer" disabled="true"/>
         <log name="debug/external" disabled="true"/>
@@ -67,6 +69,7 @@
     <module image="ssh2" name="ssh2"/>
     <module image="httptrap" name="httptrap"/>
     <module image="statsd" name="statsd"/>
+    <module image="ganglia" name="ganglia"/>
     <module loader="lua" name="varnish" object="noit.module.varnish"/>
     <module loader="lua" name="http" object="noit.module.http"/>
     <module loader="lua" name="resmon" object="noit.module.resmon"/>
@@ -127,6 +130,7 @@
     </config>
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="127.0.0.1" period="5000" timeout="4000"/>
     <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="8.8.8.8" period="15000" timeout="14000"/>
+    <check uuid="9bccffcf-fee8-4885-987a-faa10f16e724" module="ganglia" target="127.0.0.1" period="15000" timeout="14000"/>
     <dc1 timeout="30000" period="60000" transient_min_period="10000">
       <icmp module="ping_icmp">
         <check uuid="1b4e28ba-2fa1-11d2-883f-b9a761bde3fb" target="66.225.209.7"/>
