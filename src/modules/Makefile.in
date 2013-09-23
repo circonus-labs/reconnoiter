@@ -29,7 +29,7 @@ top_srcdir=@top_srcdir@
 MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
 	dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
-	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ \
+	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 SMODULES=@BUILD_SMODULES@ postgres_ingestor.@MODULEEXT@ \
@@ -186,6 +186,14 @@ collectd.@MODULEEXT@:	collectd.lo
 
 collectd.lo:	collectd.c collectd.xmlh
 	@$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c collectd.c -o $@
+	@echo "- compiling $<"
+
+ganglia.@MODULEEXT@:	ganglia.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ ganglia.lo -lssl 
+	@echo "- linking $@"
+
+ganglia.lo:	ganglia.c ganglia.xmlh
+	@$(CC) $(CPPFLAGS) $(CFLAGS) $(SHCFLAGS) -c ganglia.c -o $@
 	@echo "- compiling $<"
 
 ssh2.lo:	ssh2.xmlh
