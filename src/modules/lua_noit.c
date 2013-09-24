@@ -154,12 +154,40 @@ inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
 }
 
 static int
+noit_lua_socket_close(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  eventer_t *eptr, e;
+  int newmask;
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  if (e == NULL) return 0;
+
+  ci = noit_lua_get_resume_info(L);
+  assert(ci);
+
+  noit_lua_check_deregister_event(ci, e, 0);
+  eventer_remove_fd(e->fd);
+  e->opset->close(e->fd, &newmask, e);
+  eventer_free(e);
+  return 0;
+}
+
+static int
 noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
                                  struct timeval *now) {
   noit_lua_resume_info_t *ci;
   struct nl_slcl *cl = vcl;
   int args = 0, aerrno;
   socklen_t aerrno_len = sizeof(aerrno);
+
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
 
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
@@ -196,6 +224,12 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
   int rv, args = 0;
   void *inbuff = NULL;
   socklen_t alen;
+
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
 
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
@@ -295,6 +329,12 @@ noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
   struct nl_slcl *cl = vcl;
   int sbytes;
   int args = 0;
+
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
 
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
@@ -482,6 +522,7 @@ noit_lua_socket_bind(lua_State *L) {
   target = lua_tostring(L, 2);
   if(!target) target = "";
   port = lua_tointeger(L, 3);
+  memset(&a, 0, sizeof(a));
 
   family = AF_INET;
   rv = inet_pton(family, target, &a.sin4.sin_addr);
@@ -489,7 +530,6 @@ noit_lua_socket_bind(lua_State *L) {
     family = AF_INET6;
     rv = inet_pton(family, target, &a.sin6.sin6_addr);
     if(rv != 1) {
-      memset(&a, 0, sizeof(a));
       lua_pushinteger(L, -1);
       lua_pushfstring(L, "Cannot translate '%s' to IP\n", target);
       return 2;
@@ -516,6 +556,198 @@ noit_lua_socket_bind(lua_State *L) {
   lua_pushinteger(L, -1);
   lua_pushstring(L, strerror(errno));
   return 2;
+}
+
+static eventer_t *
+noit_lua_event(lua_State *L, eventer_t e) {
+  eventer_t *addr;
+  addr = (eventer_t *)lua_newuserdata(L, sizeof(e));
+  *addr = e;
+  luaL_getmetatable(L, "noit.eventer");
+  lua_setmetatable(L, -2);
+  return addr;
+}
+
+static int
+noit_lua_socket_accept_complete(eventer_t e, int mask, void *vcl,
+                                struct timeval *now) {
+  noit_lua_resume_info_t *ci;
+  struct nl_slcl *cl = vcl, *newcl;
+  eventer_t newe;
+  int fd, nargs = 0, newmask;
+  union {
+    struct sockaddr in;
+    struct sockaddr_in in4;
+    struct sockaddr_in6 in6;
+  } addr;
+  socklen_t inlen, optlen;
+
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
+
+  ci = noit_lua_get_resume_info(cl->L);
+  assert(ci);
+
+  inlen = sizeof(addr.in);
+  fd = e->opset->accept(e->fd, &addr.in, &inlen, &newmask, e);
+  if(fd <= 0 && errno == EAGAIN) return newmask | EVENTER_EXCEPTION;
+  if(fd < 0) {
+    lua_pushnil(cl->L);
+    goto alldone;
+  }
+  
+  if(eventer_set_fd_nonblocking(fd)) {
+    close(fd);
+    lua_pushnil(cl->L);
+    goto alldone;
+  }
+
+  newcl = calloc(1, sizeof(*cl));
+  newcl->free = nl_extended_free;
+  newcl->L = cl->L;
+
+  optlen = sizeof(newcl->send_size);
+  if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &newcl->send_size, &optlen) != 0)
+    newcl->send_size = 4096;
+
+  newe = eventer_alloc();
+  newe->fd = fd;
+  newe->mask = EVENTER_EXCEPTION;
+  newe->callback = NULL;
+  newe->closure = newcl;
+  newcl->eptr = noit_lua_event(cl->L, newe);
+
+  noit_lua_check_register_event(ci, newe);
+  nargs = 1;
+
+ alldone:
+  eventer_remove_fd(e->fd);
+  noit_lua_check_deregister_event(ci, e, 0);
+  *(cl->eptr) = eventer_alloc();
+  memcpy(*cl->eptr, e, sizeof(*e));
+  noit_lua_check_register_event(ci, *cl->eptr);
+  ci->lmc->resume(ci, nargs);
+  return 0;
+}
+
+static int
+noit_lua_socket_listen(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  eventer_t e, *eptr;
+  int rv;
+
+  ci = noit_lua_get_resume_info(L);
+  assert(ci);
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+
+  if((rv = listen(e->fd, lua_tointeger(L, 2))) < 0) {
+    lua_pushinteger(L, rv);
+    lua_pushinteger(L, errno);
+    lua_pushstring(L, strerror(errno));
+    return 3;
+  }
+  lua_pushinteger(L, rv);
+  return 1;
+}
+
+static int
+noit_lua_socket_own(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  struct nl_slcl *cl;
+  eventer_t e, *eptr;
+
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  cl = e->closure;
+  if(cl->L == L) return 0;
+  
+  ci = noit_lua_get_resume_info(cl->L);
+  assert(ci);
+  noit_lua_check_deregister_event(ci, e, 0);
+  ci = noit_lua_get_resume_info(L);
+  assert(ci);
+  cl->L = L;
+  noit_lua_check_register_event(ci, e);
+  return 0;
+}
+
+static int
+noit_lua_socket_accept(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  struct nl_slcl *cl;
+  eventer_t e, *eptr;
+  socklen_t optlen;
+  union {
+    struct sockaddr in;
+    struct sockaddr_in in4;
+    struct sockaddr_in6 in6;
+  } addr;
+  socklen_t inlen;
+  int fd, newmask;
+
+  ci = noit_lua_get_resume_info(L);
+  assert(ci);
+
+  noitL(nldeb, "accept starting\n");
+  eptr = lua_touserdata(L, lua_upvalueindex(1));
+  if(eptr != lua_touserdata(L, 1))
+    luaL_error(L, "must be called as method");
+  e = *eptr;
+  cl = e->closure;
+
+  if(cl->L != L) {
+    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    luaL_error(L, "cross-coroutine socket call: use event:own()");
+  }
+
+  inlen = sizeof(addr.in);
+  fd = e->opset->accept(e->fd, &addr.in, &inlen, &newmask, e);
+  if(fd < 0) {
+    if(errno == EAGAIN) {
+      /* Need completion */
+      eventer_remove_fd(e->fd);
+      e->callback = noit_lua_socket_accept_complete;
+      e->mask = newmask | EVENTER_EXCEPTION;
+      eventer_add(e);
+      noitL(nldeb, "accept rescheduled\n");
+      return noit_lua_yield(ci, 0);
+    }
+    noitL(nldeb, "accept error: %s\n", strerror(errno));
+    lua_pushnil(L);
+    return 1;
+  }
+  if(eventer_set_fd_nonblocking(fd)) {
+    close(fd);
+    lua_pushnil(L);
+    return 1;
+  }
+
+  cl = calloc(1, sizeof(*cl));
+  cl->free = nl_extended_free;
+  cl->L = L;
+
+  optlen = sizeof(cl->send_size);
+  if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &cl->send_size, &optlen) != 0)
+    cl->send_size = 4096;
+
+  e = eventer_alloc();
+  e->fd = fd;
+  e->mask = EVENTER_EXCEPTION;
+  e->callback = NULL;
+  e->closure = cl;
+  cl->eptr = noit_lua_event(L, e);
+
+  noit_lua_check_register_event(ci, e);
+  return 1;
 }
 static int
 noit_lua_socket_setsockopt(lua_State *L) {
@@ -796,6 +1028,12 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
   int len;
   int args = 0;
 
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
+
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
@@ -836,6 +1074,11 @@ noit_lua_socket_read(lua_State *L) {
   cl = e->closure;
   cl->read_goal = 0;
   cl->read_terminator = NULL;
+
+  if(cl->L != L) {
+    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    luaL_error(L, "cross-coroutine socket call: use event:own()");
+  }
 
   if(lua_isnumber(L, 2)) {
     cl->read_goal = lua_tointeger(L, 2);
@@ -896,6 +1139,12 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
   int rv;
   int args = 0;
 
+  /* If the pointer has been cleared, this has been gc'd */
+  if(!*(cl->eptr)) {
+    noitL(nlerr, "noit.eventer callback post GC\n");
+    return 0;
+  }
+
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
 
@@ -954,6 +1203,11 @@ noit_lua_socket_write(lua_State *L) {
   cl = e->closure;
   cl->write_sofar = 0;
   cl->outbuff = lua_tolstring(L, 2, &cl->write_goal);
+
+  if(cl->L != L) {
+    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    luaL_error(L, "cross-coroutine socket call: use event:own()");
+  }
 
   while((rv = e->opset->write(e->fd,
                               cl->outbuff + cl->write_sofar,
@@ -1014,11 +1268,21 @@ noit_eventer_index_func(lua_State *L) {
   }
   k = lua_tostring(L, 2);
   switch(*k) {
+    case 'a':
+     LUA_DISPATCH(accept, noit_lua_socket_accept);
+     break;
     case 'b':
      LUA_DISPATCH(bind, noit_lua_socket_bind);
      break;
     case 'c':
+     LUA_DISPATCH(close, noit_lua_socket_close);
      LUA_DISPATCH(connect, noit_lua_socket_connect);
+     break;
+    case 'l':
+     LUA_DISPATCH(listen, noit_lua_socket_listen);
+     break;
+    case 'o':
+     LUA_DISPATCH(own, noit_lua_socket_own);
      break;
     case 'r':
      LUA_DISPATCH(read, noit_lua_socket_read);
@@ -1039,16 +1303,6 @@ noit_eventer_index_func(lua_State *L) {
   }
   luaL_error(L, "noit.eventer no such element: %s", k);
   return 0;
-}
-
-static eventer_t *
-noit_lua_event(lua_State *L, eventer_t e) {
-  eventer_t *addr;
-  addr = (eventer_t *)lua_newuserdata(L, sizeof(e));
-  *addr = e;
-  luaL_getmetatable(L, "noit.eventer");
-  lua_setmetatable(L, -2);
-  return addr;
 }
 
 static int
@@ -1953,6 +2207,22 @@ noit_lua_pcre_gc(lua_State *L) {
 } while(0)
 
 static int
+nl_check(lua_State *L) {
+  noit_check_t *check;
+  uuid_t id;
+  const char *id_str = lua_tostring(L,1);
+  if(id_str && uuid_parse(id_str, id) == 0) {
+    noit_check_t *check = noit_poller_lookup(id);
+    if(check) {
+      noit_lua_setup_check(L, check);
+      return 1;
+    }
+  }
+  lua_pushnil(L);
+  return 1;
+}
+
+static int
 nl_conf_get_string(lua_State *L) {
   char *val;
   const char *path = lua_tostring(L,1);
@@ -2753,8 +3023,17 @@ noit_lua_process_index_func(lua_State *L) {
 }
 
 static int
+noit_lua_eventer_gc(lua_State *L) {
+  eventer_t *eptr;
+
+  eptr = (eventer_t *)lua_touserdata(L,1);
+  /* Simply null it out so if we try to use it, we'll notice */
+  *eptr = NULL;
+  return 0;
+}
+
+static int
 noit_lua_process_gc(lua_State *L) {
-  noit_lua_resume_info_t *ci;
   struct spawn_info *spawn_info;
 
   spawn_info = (struct spawn_info *)lua_touserdata(L,1);
@@ -2769,7 +3048,18 @@ noit_lua_process_gc(lua_State *L) {
   return 0;
 }
 
+static int
+nl_cancel_coro(lua_State *L) {
+  noit_lua_resume_info_t *ci;
+  lua_State *co = lua_tothread(L,1);
+  ci = noit_lua_get_resume_info(co);
+  assert(ci);
+  noit_lua_cancel_coro(ci);
+  return 0;
+}
+
 static const luaL_Reg noitlib[] = {
+  { "cancel_coro", nl_cancel_coro },
   { "waitfor", nl_waitfor },
   { "notify", nl_waitfor_notify },
   { "sleep", nl_sleep },
@@ -2795,6 +3085,7 @@ static const luaL_Reg noitlib[] = {
   { "md5_hex", nl_md5_hex },
   { "pcre", nl_pcre },
   { "gunzip", nl_gunzip },
+  { "check", nl_check },
   { "conf", nl_conf_get_string },
   { "conf_get", nl_conf_get_string },
   { "conf_get_string", nl_conf_get_string },
@@ -2819,6 +3110,8 @@ int luaopen_noit(lua_State *L) {
   luaL_newmetatable(L, "noit.eventer");
   lua_pushcclosure(L, noit_eventer_index_func, 0);
   lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, noit_lua_eventer_gc);
+  lua_setfield(L, -2, "__gc");
 
   luaL_newmetatable(L, "noit.eventer.ssl_ctx");
   lua_pushcclosure(L, noit_ssl_ctx_index_func, 0);
@@ -2905,10 +3198,12 @@ void noit_lua_init() {
                         noit_lua_socket_read_complete);
   eventer_name_callback("lua/socket_write",
                         noit_lua_socket_write_complete);
-  eventer_name_callback("lua/socket_send",
+  eventer_name_callback("lua/socket_iend",
                         noit_lua_socket_send_complete);
   eventer_name_callback("lua/socket_connect",
                         noit_lua_socket_connect_complete);
+  eventer_name_callback("lua/socket_accept",
+                        noit_lua_socket_accept_complete);
   eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);
   nlerr = noit_log_stream_find("error/lua");
   nldeb = noit_log_stream_find("debug/lua");

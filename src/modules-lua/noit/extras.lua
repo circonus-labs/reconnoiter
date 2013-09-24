@@ -34,6 +34,8 @@ local type = type
 local tonumber = tonumber
 local string = require("string")
 local table = require("table")
+local _G = _G
+
 module("noit.extras")
 
 -- from http://www.wellho.net/resources/ex.php4?item=u108/split
@@ -185,3 +187,15 @@ function set_cookie(http, key, value, attrs)
   if(lattrs['httponly']) then hdrval = hdrval .. "; HttpOnly" end
   http:header('Set-Cookie', hdrval)
 end
+
+function noit_coros_resume(co,...)
+  local rv = {_G.coroutine._resume(co,...)}
+  if _G.coroutine.status(co) == "dead" then
+    _G.noit.cancel_coro(co)
+  end
+  if type(rv) == "table" then return table.unpack(rv) end
+  return rv
+end
+
+_G.coroutine._resume = _G.coroutine.resume
+_G.coroutine.resume = noit_coros_resume

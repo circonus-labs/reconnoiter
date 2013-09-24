@@ -86,7 +86,7 @@ noit_lua_cancel_coro(noit_lua_resume_info_t *ci) {
 
 void
 noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri) {
-  lua_getglobal(L, "noit_internal_lmc");;
+  lua_getglobal(L, "noit_internal_lmc");
   ri->lmc = lua_touserdata(L, lua_gettop(L));
   noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
   noit_hash_store(&noit_coros,
@@ -186,6 +186,10 @@ noit_lua_get_resume_info(lua_State *L) {
   ri->lmc = lua_touserdata(L, lua_gettop(L));
   lua_pop(L, 1);
   noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  lua_getglobal(L, "noit_coros");
+  lua_pushthread(L);
+  ri->coro_state_ref = luaL_ref(L, -2);
+  lua_pop(L, 1); /* pops noit_coros */
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
@@ -378,6 +382,37 @@ noit_lua_get_state(lua_State *L) {
   return 1;
 }
 static int
+noit_lua_get_flags(lua_State *L) {
+  noit_check_t *check;
+  noit_lua_resume_info_t *ri;
+  noit_lua_resume_check_info_t *ci;
+  u_int32_t andset = ~0;
+  int narg;
+
+  if(lua_gettop(L) > 0) andset = 0;
+  for(narg = 0; narg < lua_gettop(L); narg++) {
+    const char *freq;
+    freq = lua_tostring(L, narg+1);
+    if(!freq) luaL_error(L, "argument must be a string");
+#define NP_F(flag) if(!strcmp(freq, #flag)) { andset |= flag; }
+    NP_F(NP_RUNNING)
+    else NP_F(NP_KILLED)
+    else NP_F(NP_DISABLED)
+    else NP_F(NP_UNCONFIG)
+    else NP_F(NP_TRANSIENT)
+    else NP_F(NP_RESOLVE)
+    else NP_F(NP_RESOLVED)
+    else NP_F(NP_SUPPRESS_STATUS)
+    else NP_F(NP_PREFER_IPV6)
+    else NP_F(NP_SINGLE_RESOLVE)
+    else NP_F(NP_PASSIVE_COLLECTION)
+    else luaL_error(L, "unknown flag specified");
+  }
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  lua_pushinteger(L, (check->flags & andset));
+  return 1;
+}
+static int
 noit_lua_set_state(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
@@ -565,6 +600,13 @@ noit_check_index_func(lua_State *L) {
       }
       else break;
       return 1;
+    case 'f':
+      if(!strcmp(k, "flags")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_get_flags, 1);
+      }
+      else break;
+      return 1;
     case 'g':
       if(!strcmp(k, "good")) {
         lua_pushlightuserdata(L, check);
@@ -657,7 +699,7 @@ noit_lua_setup_module(lua_State *L,
   }
   lua_setmetatable(L, -2);
 }
-static void
+void
 noit_lua_setup_check(lua_State *L,
                      noit_check_t *check) {
   noit_check_t **addr;
@@ -829,8 +871,8 @@ noit_lua_yield(noit_lua_resume_info_t *ci, int nargs) {
 int
 noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
   int result = -1, base;
-  noit_module_t *self;
-  noit_check_t *check;
+  noit_module_t *self = NULL;
+  noit_check_t *check = NULL;
   noit_lua_resume_check_info_t *ci = ri->context_data;
 
   noitL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
@@ -839,8 +881,17 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
 #else
   result = lua_resume(ri->coro_state, nargs);
 #endif
+  if(ci) {
+    self = ci->self;
+    check = ci->check;
+  }
   switch(result) {
     case 0: /* success */
+      if(lua_status(ri->coro_state) == 0 && lua_gettop(ri->coro_state) == 0) {
+        /* LUA_OK status with no stack means we're dead (good or bad) */
+        noitL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
+              lua_status(ri->coro_state), ci ? ci->check: NULL);
+      }
       break;
     case LUA_YIELD: /* The complicated case */
       /* The person yielding had better setup an event
@@ -849,8 +900,6 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
       lua_gc(ri->lmc->lua_state, LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
-      self = ci->self;
-      check = ci->check;
       noitL(nldeb, "lua resume returned: %d\n", result);
       if(check)  {
         if(check->stats.inprogress.status) free(check->stats.inprogress.status);
@@ -882,8 +931,10 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
       break;
   }
 
-  self = ci->self;
-  check = ci->check;
+  if(ci) {
+    self = ci->self;
+    check = ci->check;
+  }
   noit_lua_cancel_coro(ri);
   if(check) {
     noit_lua_log_results(self, check);
@@ -956,7 +1007,6 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ci->self = self;
   ci->check = check;
   ci->cause = cause;
-  noit_check_stats_clear(check, &check->stats.inprogress);
 
   gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
@@ -979,6 +1029,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ri->lmc = lmc;
   lua_getglobal(L, "noit_coros");
   ri->coro_state = lua_newthread(L);
+  ri->check = check; /* This is the coroutine from which the check is run */
   ri->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
   noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
