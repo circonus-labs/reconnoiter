@@ -103,7 +103,9 @@ public class snmp implements JezebelCheck {
       final String context_engine        = config.remove("context_engine");
       final String security_name         = config.remove("security_name");
       final String context_name          = config.remove("context_name");
+      final String separate_queries      = config.remove("separate_queries");
       /* Assigned Later */
+      boolean send_separate_queries = false;
       final HashMap<String,String> oids  = new HashMap<String,String>();
       Target target;
       HashMap<String, ArrayList<oid_data>> oid_hashmap = new HashMap<String, ArrayList<oid_data>>();
@@ -117,6 +119,9 @@ public class snmp implements JezebelCheck {
       }
       if (community == null) {
         community = "public";
+      }
+      if ((separate_queries != null) && ((separate_queries.equals("on")) || separate_queries.equals("true"))) {
+        send_separate_queries = true;
       }
 
       Address targetAddress = GenericAddress.parse("udp:"+host+"/"+port);
@@ -197,24 +202,19 @@ public class snmp implements JezebelCheck {
             target = getUserTarget(targetAddress, Integer.parseInt(timeout), security_level, security_name, security_engine);
         }
         snmp.listen();
-        PDU request = createPDU(target, context_engine, context_name);
-        PDU response = null;
         Iterator it = oids.entrySet().iterator();
-        while (it.hasNext()) {
-          Map.Entry pairs = (Map.Entry)it.next();
-          /* We may have bad values... we want to just fail for this entry, not kick out of the
-             check altogether */
-          try {
-            request.add(new VariableBinding(new OID(pairs.getValue().toString().substring(1))));
-          }
-          catch (Exception e) {
-          }
+        Exception ret = null;
+        if (send_separate_queries == true) {
+          ret = processIndividually(snmp, target, context_engine, context_name, it, oid_hashmap, rr);
         }
-        ResponseEvent responseEvent = snmp.send(request, target);
-        if (responseEvent != null) {
-          response = responseEvent.getResponse();
-          processResponse(response, oid_hashmap, rr);
+        else {
+          ret = processAll(snmp, target, context_engine, context_name, it, oid_hashmap, rr);
         }
+        if (ret != null) {
+          throw(ret);
+        }
+        /* Go through remaining named values, return blank strings */
+        blankMissingValues(oid_hashmap, rr);
       }
       catch (Exception e) {
         String error_msg = e.getMessage();
@@ -228,6 +228,70 @@ public class snmp implements JezebelCheck {
       String error_msg = e.getMessage();
       if (error_msg != null) {
         rr.set("jezebel_status", error_msg);
+      }
+    }
+  }
+  private Exception processAll(Snmp snmp, Target target, String context_engine, String context_name, 
+                               Iterator it, HashMap oid_hashmap, ResmonResult rr) {
+    try {
+      PDU request = createPDU(target, context_engine, context_name);
+      PDU response = null;
+      while (it.hasNext()) {
+        Map.Entry pairs = (Map.Entry)it.next();
+        /* We may have bad values... we want to just fail for this entry, not kick out of the
+           check altogether */
+        try {
+          request.add(new VariableBinding(new OID(pairs.getValue().toString().substring(1))));
+        }
+        catch (Exception e) {
+        }
+      }
+      ResponseEvent responseEvent = snmp.send(request, target);
+      if (responseEvent != null) {
+        response = responseEvent.getResponse();
+        processResponse(response, oid_hashmap, rr);
+      }
+    }
+    catch(Exception e) {
+      return e;
+    }
+    return null;
+  }
+  private Exception processIndividually(Snmp snmp, Target target, String context_engine, String context_name,
+                               Iterator it, HashMap oid_hashmap, ResmonResult rr) {
+    try {
+      while (it.hasNext()) {
+        PDU request = createPDU(target, context_engine, context_name);
+        PDU response = null;
+        Map.Entry pairs = (Map.Entry)it.next();
+        /* If we have a bad value, just continue, since each request can only contain one OID */
+        try {
+          request.add(new VariableBinding(new OID(pairs.getValue().toString().substring(1))));
+        }
+        catch (Exception e) {
+          continue;
+        }
+        ResponseEvent responseEvent = snmp.send(request, target);
+        if (responseEvent != null) {
+          response = responseEvent.getResponse();
+          processResponse(response, oid_hashmap, rr);
+        }
+      }
+    }
+    catch(Exception e) {
+      return e;
+    }
+    return null;
+  }
+  private void blankMissingValues(HashMap oid_hashmap, ResmonResult rr) {
+    Iterator entries = oid_hashmap.entrySet().iterator();
+    while (entries.hasNext()) {
+      Map.Entry thisEntry = (Map.Entry) entries.next();
+      String key = (String)thisEntry.getKey();
+      ArrayList list = (ArrayList)thisEntry.getValue();
+      for (Object obj : list) {
+        oid_data data = (oid_data)obj;
+        coerceMetric(data.name, "", "string", rr);
       }
     }
   }
@@ -256,17 +320,6 @@ public class snmp implements JezebelCheck {
               coerceMetric(data.name, vb.toValueString(), data.metric_type, rr);
             }
           }
-        }
-      }
-      /*Go through remaining named values, return blank strings */
-      Iterator entries = oid_hashmap.entrySet().iterator();
-      while (entries.hasNext()) {
-        Map.Entry thisEntry = (Map.Entry) entries.next();
-        String key = (String)thisEntry.getKey();
-        ArrayList list = (ArrayList)thisEntry.getValue();
-        for (Object obj : list) {
-          oid_data data = (oid_data)obj;
-          coerceMetric(data.name, "", "string", rr);
         }
       }
     }
