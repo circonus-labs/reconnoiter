@@ -57,7 +57,6 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
-  stats_t current;
   MYSQL *conn;
   MYSQL_RES *result;
   double connect_duration_d;
@@ -115,7 +114,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               iv = strtol(row[j], NULL, 10);
               piv = &iv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT32, piv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_INT32, piv);
             break;
           case FIELD_TYPE_INT24:
           case FIELD_TYPE_LONGLONG:
@@ -124,7 +123,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               lv = strtoll(row[j], NULL, 10);
               plv = &lv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT64, plv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_INT64, plv);
             break;
           case FIELD_TYPE_DECIMAL:
           case FIELD_TYPE_FLOAT:
@@ -134,12 +133,12 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
               dv = atof(row[j]);
               pdv = &dv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_DOUBLE, pdv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_DOUBLE, pdv);
             break;
           default:
             if(!row[j]) sv = NULL;
             else sv = row[j];
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_GUESS, sv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_GUESS, sv);
             break;
         }
       }
@@ -150,34 +149,35 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   mysql_check_info_t *ci = check->closure;
 
-  gettimeofday(&ci->current.whence, NULL);
-  sub_timeval(ci->current.whence, check->last_fire_time, &duration);
-  ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  ci->current.available = NP_UNAVAILABLE;
-  ci->current.state = NP_BAD;
-  if(ci->error) ci->current.status = ci->error;
-  else if(ci->timed_out) ci->current.status = "timeout";
+  gettimeofday(&ci->check->stats.inprogress.whence, NULL);
+  sub_timeval(ci->check->stats.inprogress.whence, check->last_fire_time, &duration);
+  ci->check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  ci->check->stats.inprogress.available = NP_UNAVAILABLE;
+  ci->check->stats.inprogress.state = NP_BAD;
+  if(ci->error) ci->check->stats.inprogress.status = ci->error;
+  else if(ci->timed_out) ci->check->stats.inprogress.status = "timeout";
   else if(ci->rv == 0) {
-    ci->current.available = NP_AVAILABLE;
-    ci->current.state = NP_GOOD;
-    ci->current.status = "no rows, ok";
+    ci->check->stats.inprogress.available = NP_AVAILABLE;
+    ci->check->stats.inprogress.state = NP_GOOD;
+    ci->check->stats.inprogress.status = "no rows, ok";
   }
   else {
-    ci->current.available = NP_AVAILABLE;
-    ci->current.state = NP_GOOD;
-    ci->current.status = "got rows, ok";
+    ci->check->stats.inprogress.available = NP_AVAILABLE;
+    ci->check->stats.inprogress.state = NP_GOOD;
+    ci->check->stats.inprogress.status = "got rows, ok";
   }
 
   if(ci->rv >= 0)
-    noit_stats_set_metric(check, &ci->current, "row_count", METRIC_INT32, &ci->rv);
+    noit_stats_set_metric(check, &check->stats.inprogress, "row_count", METRIC_INT32, &ci->rv);
   if(ci->connect_duration)
-    noit_stats_set_metric(check, &ci->current, "connect_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(check, &check->stats.inprogress, "connect_duration", METRIC_DOUBLE,
                           ci->connect_duration);
   if(ci->query_duration)
-    noit_stats_set_metric(check, &ci->current, "query_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(check, &check->stats.inprogress, "query_duration", METRIC_DOUBLE,
                           ci->query_duration);
 
-  noit_check_set_stats(check, &ci->current);
+  noit_check_set_stats(check, &ci->check->stats.inprogress);
+  noit_check_stats_clear(check, &check->stats.inprogress);
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
@@ -264,7 +264,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      noit_check_stats_clear(ci->check, &ci->current);
+      noit_check_stats_clear(ci->check, &ci->check->stats.inprogress);
       ci->connect_duration = NULL;
       ci->query_duration = NULL;
 

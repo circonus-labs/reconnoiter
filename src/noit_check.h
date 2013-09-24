@@ -58,7 +58,7 @@
  *   timeout (ms)
  *  transient:
  *   eventer_t (fire)
- *   stats_t [inprogress, last]
+ *   stats_t [inprogress, current, previous]
  *   closure
  */
 
@@ -159,6 +159,7 @@ typedef struct noit_check {
   eventer_t fire_event;
   struct timeval last_fire_time;
   struct {
+    stats_t inprogress;
     stats_t current;
     stats_t previous;
   } stats;

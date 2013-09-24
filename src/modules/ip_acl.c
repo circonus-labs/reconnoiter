@@ -122,7 +122,6 @@ static noit_hook_return_t
 ip_acl_hook_impl(void *closure, noit_module_t *self,
                  noit_check_t *check, noit_check_t *cause) {
   char deny_msg[128];
-  stats_t current;
   noit_hash_table *config;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k = NULL;
@@ -152,13 +151,14 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   return NOIT_HOOK_CONTINUE;
 
  prevent:
-  memset(&current, 0, sizeof(current));
-  current.available = NP_UNAVAILABLE;
-  current.state = NP_BAD;
-  gettimeofday(&current.whence, NULL);
+  noit_check_stats_clear(check, &check->stats.inprogress);
+  check->stats.inprogress.available = NP_UNAVAILABLE;
+  check->stats.inprogress.state = NP_BAD;
+  gettimeofday(&check->stats.inprogress.whence, NULL);
   snprintf(deny_msg, sizeof(deny_msg), "prevented by ACL '%s'", k);
-  current.status = deny_msg;
-  noit_check_set_stats(check, &current);
+  check->stats.inprogress.status = deny_msg;
+  noit_check_set_stats(check, &check->stats.inprogress);
+  noit_check_stats_clear(check, &check->stats.inprogress);
   return NOIT_HOOK_DONE;
 }
 static int

@@ -58,7 +58,6 @@ typedef struct _mod_config {
 
 typedef struct httptrap_closure_s {
   noit_module_t *self;
-  stats_t current;
   int stats_count;
 } httptrap_closure_t;
 
@@ -416,11 +415,6 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
   return rxc;
 }
 
-static void clear_closure(noit_check_t *check, httptrap_closure_t *ccl) {
-  ccl->stats_count = 0;
-  noit_check_stats_clear(check, &ccl->current);
-}
-
 static int httptrap_submit(noit_module_t *self, noit_check_t *check,
                            noit_check_t *cause) {
   httptrap_closure_t *ccl;
@@ -437,27 +431,28 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     // Don't count the first run
     char human_buffer[256];
     ccl = (httptrap_closure_t*)check->closure;
-    gettimeofday(&ccl->current.whence, NULL);
-    sub_timeval(ccl->current.whence, check->last_fire_time, &duration);
-    ccl->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+    gettimeofday(&check->stats.inprogress.whence, NULL);
+    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
+    check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d", ccl->current.duration,
+             "dur=%d,run=%d,stats=%d", check->stats.inprogress.duration,
              check->generation, ccl->stats_count);
     noitL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
-    ccl->current.available = (ccl->stats_count > 0) ?
+    check->stats.inprogress.available = (ccl->stats_count > 0) ?
         NP_AVAILABLE : NP_UNAVAILABLE;
-    ccl->current.state = (ccl->stats_count > 0) ?
+    check->stats.inprogress.state = (ccl->stats_count > 0) ?
         NP_GOOD : NP_BAD;
-    ccl->current.status = human_buffer;
+    check->stats.inprogress.status = human_buffer;
     if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(check, &ccl->current);
+      noit_check_passive_set_stats(check, &check->stats.inprogress);
 
-    memcpy(&check->last_fire_time, &ccl->current.whence, sizeof(duration));
+    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
   }
-  clear_closure(check, ccl);
+  ccl->stats_count = 0;
+  noit_check_stats_clear(check, &check->stats.inprogress);
   return 0;
 }
 
@@ -517,7 +512,7 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
       error = "noitd is booting, try again in a bit";
       goto error;
     }
-    rxc->stats = &ccl->current;
+    rxc->stats = &rxc->check->stats.inprogress;
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);

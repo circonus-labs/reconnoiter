@@ -69,7 +69,6 @@ typedef struct collectd_closure_s {
   char *secret;
   int security_level;
   EVP_CIPHER_CTX ctx; 
-  stats_t current;
   int stats_count;
   int ntfy_count;
 } collectd_closure_t;
@@ -1251,7 +1250,7 @@ static void concat_metrics(char *buffer, char* plugin, char* plugin_inst, char* 
 
 static int queue_notifications(collectd_closure_t *ccl, 
       noit_module_t *self, noit_check_t *check, notification_t *n) {
-  stats_t current;
+  stats_t tmpstats;
   noit_boolean immediate;
   char buffer[DATA_MAX_NAME_LEN*4 + 128];
   collectd_mod_config_t *conf;
@@ -1261,16 +1260,16 @@ static int queue_notifications(collectd_closure_t *ccl,
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  noit_check_stats_clear(check, &current);
-  gettimeofday(&current.whence, NULL);
+  noit_check_stats_clear(check, &tmpstats);
+  gettimeofday(&tmpstats.whence, NULL);
 
   // Concat all the names together so they fit into the flat noitd model 
   concat_metrics(buffer, n->plugin, n->plugin_instance, n->type, n->type_instance);
-  noit_stats_set_metric(check, &ccl->current, buffer, METRIC_STRING, n->message);
+  noit_stats_set_metric(check, &check->stats.inprogress, buffer, METRIC_STRING, n->message);
   immediate = noit_collects_check_aynsch(self,check);
   if(immediate)
     noit_stats_log_immediate_metric(check, buffer, METRIC_STRING, n->message);
-  noit_check_passive_set_stats(check, &current);
+  noit_check_passive_set_stats(check, &tmpstats);
   noitL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
   return 0;
 }
@@ -1298,22 +1297,22 @@ static int queue_values(collectd_closure_t *ccl,
     switch (vl->types[i])
     {
       case DS_TYPE_COUNTER:
-        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_UINT64, &vl->values[i].counter);
+        noit_stats_set_metric(check, &check->stats.inprogress, buffer, METRIC_UINT64, &vl->values[i].counter);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_UINT64, &vl->values[i].counter);
         break;
 
       case DS_TYPE_GAUGE:
-        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
+        noit_stats_set_metric(check, &check->stats.inprogress, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_DOUBLE, &vl->values[i].gauge);
         break;
 
       case DS_TYPE_DERIVE:
-        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_INT64, &vl->values[i].derive);
+        noit_stats_set_metric(check, &check->stats.inprogress, buffer, METRIC_INT64, &vl->values[i].derive);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].derive);
         break;
 
       case DS_TYPE_ABSOLUTE:
-        noit_stats_set_metric(check, &ccl->current, buffer, METRIC_INT64, &vl->values[i].absolute);
+        noit_stats_set_metric(check, &check->stats.inprogress, buffer, METRIC_INT64, &vl->values[i].absolute);
         if(immediate) noit_stats_log_immediate_metric(check, buffer, METRIC_INT64, &vl->values[i].absolute);
         break;
 
@@ -1327,13 +1326,6 @@ static int queue_values(collectd_closure_t *ccl,
     noitL(nldeb, "collectd: queue_values(%s, %s)\n", buffer, check->target);
   }
   return 0;
-}
-
-static void clear_closure(noit_check_t *check, collectd_closure_t *ccl) {
-  ccl->stats_count = 0;
-  ccl->ntfy_count = 0;
-  noit_check_stats_clear(check, &ccl->current);
-
 }
 
 static int
@@ -1359,31 +1351,33 @@ collectd_submit_internal(noit_module_t *self, noit_check_t *check,
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(collectd_closure_t)); 
     memset(ccl, 0, sizeof(collectd_closure_t));
-    memcpy(&ccl->current.whence, &now, sizeof(now));
+    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
   } else {
     // Don't count the first run
     char human_buffer[256];
     ccl = (collectd_closure_t*)check->closure; 
-    memcpy(&ccl->current.whence, &now, sizeof(now));
-    sub_timeval(ccl->current.whence, check->last_fire_time, &duration);
-    ccl->current.duration = duration.tv_sec; // + duration.tv_usec / (1000 * 1000);
+    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
+    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
+    check->stats.inprogress.duration = duration.tv_sec; // + duration.tv_usec / (1000 * 1000);
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d,ntfy=%d", ccl->current.duration, 
+             "dur=%d,run=%d,stats=%d,ntfy=%d", check->stats.inprogress.duration, 
              check->generation, ccl->stats_count, ccl->ntfy_count);
     noitL(nldeb, "collectd(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
-    ccl->current.available = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
+    check->stats.inprogress.available = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
         NP_AVAILABLE : NP_UNAVAILABLE;
-    ccl->current.state = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
+    check->stats.inprogress.state = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
         NP_GOOD : NP_BAD;
-    ccl->current.status = human_buffer;
-    noit_check_passive_set_stats(check, &ccl->current);
+    check->stats.inprogress.status = human_buffer;
+    noit_check_passive_set_stats(check, &check->stats.inprogress);
 
-    memcpy(&check->last_fire_time, &ccl->current.whence, sizeof(duration));
+    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
   }
-  clear_closure(check, ccl);
+  noit_check_stats_clear(check, &check->stats.inprogress);
+  ccl->stats_count = 0;
+  ccl->ntfy_count = 0;
   return 0;
 }
 
@@ -1664,7 +1658,7 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
   for(i=0; i<json->o->nnames; i++) {
     metric_t *m = &json->o->metrics[i];
     noitL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
-    noit_stats_set_metric(check, &ccl->current, m->metric_name,
+    noit_stats_set_metric(check, &check->stats.current, m->metric_name,
                           m->metric_type, m->metric_value.vp);
     if(immediate) {
       needs_immediate = noit_true;

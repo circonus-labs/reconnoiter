@@ -75,7 +75,6 @@ typedef struct noit_lua_resume_check_info {
   noit_check_t *cause;
   int timed_out;
   eventer_t timeout_event;
-  stats_t current;
   struct timeval finish_time;
 } noit_lua_resume_check_info_t;
 #define LUA_CHECK_INFO_MAGIC 0x22113322

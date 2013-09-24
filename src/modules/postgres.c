@@ -72,7 +72,6 @@
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
-  stats_t current;
   PGconn *conn;
   PGresult *result;
   int rv;
@@ -104,7 +103,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
     int nrows, ncols, i, j;
     nrows = PQntuples(ci->result);
     ncols = PQnfields(ci->result);
-    noit_stats_set_metric(ci->check, &ci->current, "row_count", METRIC_INT32, &nrows);
+    noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "row_count", METRIC_INT32, &nrows);
     for (i=0; i<nrows; i++) {
       noitL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
       if(ncols<2) continue;
@@ -129,7 +128,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
               iv = strcmp(PQgetvalue(ci->result, i, j), "f") ? 1 : 0;
               piv = &iv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT32, piv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_INT32, piv);
             break;
           case INT2OID:
           case INT4OID:
@@ -139,7 +138,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
               lv = strtoll(PQgetvalue(ci->result, i, j), NULL, 10);
               plv = &lv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_INT64, plv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_INT64, plv);
             break;
           case FLOAT4OID:
           case FLOAT8OID:
@@ -149,12 +148,12 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
               dv = atof(PQgetvalue(ci->result, i, j));
               pdv = &dv;
             }
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_DOUBLE, pdv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_DOUBLE, pdv);
             break;
           default:
             if(PQgetisnull(ci->result, i, j)) sv = NULL;
             else sv = PQgetvalue(ci->result, i, j);
-            noit_stats_set_metric(ci->check, &ci->current, mname, METRIC_GUESS, sv);
+            noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, mname, METRIC_GUESS, sv);
             break;
         }
       }
@@ -165,32 +164,33 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   postgres_check_info_t *ci = check->closure;
 
-  gettimeofday(&ci->current.whence, NULL);
-  sub_timeval(ci->current.whence, check->last_fire_time, &duration);
-  ci->current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  ci->current.available = NP_UNAVAILABLE;
-  ci->current.state = NP_BAD;
+  gettimeofday(&ci->check->stats.inprogress.whence, NULL);
+  sub_timeval(ci->check->stats.inprogress.whence, check->last_fire_time, &duration);
+  ci->check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  ci->check->stats.inprogress.available = NP_UNAVAILABLE;
+  ci->check->stats.inprogress.state = NP_BAD;
   if(ci->connect_duration)
-    noit_stats_set_metric(ci->check, &ci->current, "connect_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "connect_duration", METRIC_DOUBLE,
                           ci->connect_duration);
   if(ci->query_duration)
-    noit_stats_set_metric(ci->check, &ci->current, "query_duration", METRIC_DOUBLE,
+    noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "query_duration", METRIC_DOUBLE,
                           ci->query_duration);
-  if(ci->error) ci->current.status = ci->error;
-  else if(ci->timed_out) ci->current.status = "timeout";
+  if(ci->error) ci->check->stats.inprogress.status = ci->error;
+  else if(ci->timed_out) ci->check->stats.inprogress.status = "timeout";
   else if(ci->rv == PGRES_COMMAND_OK) {
-    ci->current.available = NP_AVAILABLE;
-    ci->current.state = NP_GOOD;
-    ci->current.status = "command ok";
+    ci->check->stats.inprogress.available = NP_AVAILABLE;
+    ci->check->stats.inprogress.state = NP_GOOD;
+    ci->check->stats.inprogress.status = "command ok";
   }
   else if(ci->rv == PGRES_TUPLES_OK) {
-    ci->current.available = NP_AVAILABLE;
-    ci->current.state = NP_GOOD;
-    ci->current.status = "tuples ok";
+    ci->check->stats.inprogress.available = NP_AVAILABLE;
+    ci->check->stats.inprogress.state = NP_GOOD;
+    ci->check->stats.inprogress.status = "tuples ok";
   }
-  else ci->current.status = "internal error";
+  else ci->check->stats.inprogress.status = "internal error";
 
-  noit_check_set_stats(check, &ci->current);
+  noit_check_set_stats(check, &ci->check->stats.inprogress);
+  noit_check_stats_clear(check, &check->stats.inprogress);
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
@@ -229,7 +229,7 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
 
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      noit_check_stats_clear(ci->check, &ci->current);
+      noit_check_stats_clear(ci->check, &ci->check->stats.inprogress);
       ci->connect_duration = NULL;
       ci->query_duration = NULL;
 

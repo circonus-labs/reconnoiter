@@ -30,6 +30,7 @@
         <log name="error/selfcheck"/>
         <log name="error/snmp"/>
         <log name="error/ssh2"/>
+        <log name="error/statsd"/>
       </error>
       <debug>
         <outlet name="debug"/>
@@ -44,6 +45,7 @@
         <log name="debug/selfcheck" disabled="true"/>
         <log name="debug/snmp" disabled="true"/>
         <log name="debug/ssh2" disabled="true"/>
+        <log name="debug/statsd" disabled="true"/>
       </debug>
     </components>
     <feeds>

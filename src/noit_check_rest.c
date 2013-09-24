@@ -58,13 +58,42 @@
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
-xmlNodePtr
-noit_check_state_as_xml(noit_check_t *check) {
-  xmlNodePtr state, tmp, metrics;
+static void
+add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
+                    int include_time) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
+  xmlNodePtr tmp;
+  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+    char buff[256];
+    metric_t *m = (metric_t *)data;
+    xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
+    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
+    buff[0] = m->metric_type; buff[1] = '\0';
+    xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
+    if(m->metric_value.s) {
+      int rv;
+      rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
+      if(rv < 0)
+        xmlSetProp(tmp, (xmlChar *)"error", (xmlChar *)"unknown type");
+      else
+        xmlNodeAddContent(tmp, (xmlChar *)buff);
+    }
+  }
+  xmlSetProp(metrics, (xmlChar *)"type", (const xmlChar *) type);
+  if(include_time) {
+    struct timeval f = c->whence;
+    char timestr[20];
+    snprintf(timestr, sizeof(timestr), "%0.3f",
+             f.tv_sec + (f.tv_usec / 1000000.0));
+    xmlSetProp(metrics, (xmlChar *)"timestamp", (xmlChar *)timestr);
+  }
+}
+xmlNodePtr
+noit_check_state_as_xml(noit_check_t *check) {
+  xmlNodePtr state, tmp, metrics;
   struct timeval now;
   stats_t *c = &check->stats.current;
 
@@ -97,31 +126,15 @@ noit_check_state_as_xml(noit_check_t *check) {
                noit_check_available_string(c->available));
   NODE_CONTENT(state, "state", noit_check_state_string(c->state));
   NODE_CONTENT(state, "status", c->status ? c->status : "");
-  memset(&iter, 0, sizeof(iter));
   xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-  if(c->metrics.size == 0 && check->stats.previous.metrics.size > 0) {
-    c = &check->stats.previous;
-    struct timeval f = check->stats.previous.whence;
-    char timestr[20];
-    snprintf(timestr, sizeof(timestr), "%0.3f",
-             f.tv_sec + (f.tv_usec / 1000000.0));
-    xmlSetProp(metrics, (xmlChar *)"outdated", (xmlChar *)timestr);
+  add_metrics_to_node(&check->stats.inprogress, metrics, "inprogress", 0);
+  if(check->stats.current.whence.tv_sec) {
+    xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+    add_metrics_to_node(&check->stats.current, metrics, "current", 1);
   }
-  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
-    char buff[256];
-    metric_t *m = (metric_t *)data;
-    xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
-    xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
-    buff[0] = m->metric_type; buff[1] = '\0';
-    xmlSetProp(tmp, (xmlChar *)"type", (xmlChar *)buff);
-    if(m->metric_value.s) {
-      int rv;
-      rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
-      if(rv < 0)
-        xmlSetProp(tmp, (xmlChar *)"error", (xmlChar *)"unknown type");
-      else
-        xmlNodeAddContent(tmp, (xmlChar *)buff);
-    }
+  if(check->stats.previous.whence.tv_sec) {
+    xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+    add_metrics_to_node(&check->stats.previous, metrics, "previous", 1);
   }
   return state;
 }

@@ -396,6 +396,44 @@ _qsort_string_compare(const void *i1, const void *i2) {
         const char *s2 = ((const char **)i2)[0];
         return strcasecmp(s1, s2);
 }
+static void
+nc_print_stat_metrics(noit_console_closure_t ncct,
+                      noit_check_t *check, stats_t *c) {
+  int mcount=0;
+  const char **sorted_keys;
+  char buff[256];
+  noit_boolean filtered;
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+
+  memset(&iter, 0, sizeof(iter));
+  sorted_keys = malloc(c->metrics.size * sizeof(*sorted_keys));
+  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+    if(sorted_keys) sorted_keys[mcount++] = k;
+    else {
+      noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
+      filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+      nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
+    }
+  }
+  if(sorted_keys) {
+    int j;
+    qsort(sorted_keys, mcount, sizeof(*sorted_keys),
+          _qsort_string_compare);
+    for(j=0;j<mcount;j++) {
+      if(noit_hash_retrieve(&c->metrics,
+                            sorted_keys[j], strlen(sorted_keys[j]),
+                            &data)) {
+        noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
+        filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
+        nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
+      }
+    }
+    free(sorted_keys);
+  }
+}
 static int
 noit_console_show_check(noit_console_closure_t ncct,
                         int argc, char **argv,
@@ -518,12 +556,7 @@ noit_console_show_check(noit_console_closure_t ncct,
       }
       else {
         stats_t *c = &check->stats.current;
-        int mcount=0;
-        const char **sorted_keys;
-        char buff[256];
         struct timeval now, diff;
-        noit_boolean filtered;
-
         gettimeofday(&now, NULL);
         sub_timeval(now, c->whence, &diff);
         nc_printf(ncct, " last run: %0.3f seconds ago\n",
@@ -533,36 +566,18 @@ noit_console_show_check(noit_console_closure_t ncct,
                   noit_check_state_string(c->state));
         nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
-        nc_printf(ncct, " metrics:\n");
-        if(c->metrics.size == 0 && check->stats.previous.metrics.size > 0) {
-          nc_printf(ncct, " metrics (previous):\n");
-          c = &check->stats.previous;
-        }
-        memset(&iter, 0, sizeof(iter));
-        sorted_keys = malloc(c->metrics.size * sizeof(*sorted_keys));
-        while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
-          if(sorted_keys) sorted_keys[mcount++] = k;
-          else {
-            noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
-            filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
-            nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
-          }
-        }
-        if(sorted_keys) {
-          int j;
-          qsort(sorted_keys, mcount, sizeof(*sorted_keys),
-                _qsort_string_compare);
-          for(j=0;j<mcount;j++) {
-            if(noit_hash_retrieve(&c->metrics,
-                                  sorted_keys[j], strlen(sorted_keys[j]),
-                                  &data)) {
-              noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
-              filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
-              nc_printf(ncct, "  %c%s\n", filtered ? '*' : ' ', buff);
-            }
-          }
-          free(sorted_keys);
-        }
+      }
+
+      if(check->stats.inprogress.metrics.size > 0) {
+        nc_printf(ncct, " metrics (inprogress):\n");
+        nc_print_stat_metrics(ncct, check, &check->stats.inprogress);
+      }
+      if(check->stats.current.metrics.size) {
+        nc_printf(ncct, " metrics (current):\n");
+        nc_print_stat_metrics(ncct, check, &check->stats.current);
+      } else if(check->stats.previous.metrics.size > 0) {
+        nc_printf(ncct, " metrics (previous):\n");
+        nc_print_stat_metrics(ncct, check, &check->stats.previous);
       }
     }
   }

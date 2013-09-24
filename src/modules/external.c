@@ -122,10 +122,9 @@ static int external_config(noit_module_t *self, noit_hash_table *options) {
 static void external_log_results(noit_module_t *self, noit_check_t *check) {
   external_data_t *data;
   struct check_info *ci;
-  stats_t current;
   struct timeval duration;
 
-  noit_check_stats_clear(check, &current);
+  noit_check_stats_clear(check, &check->stats.inprogress);
 
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
@@ -133,20 +132,20 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   noitL(data->nldeb, "external(%s) (timeout: %d, exit: %x)\n",
         check->target, ci->timedout, ci->exit_code);
 
-  gettimeofday(&current.whence, NULL);
-  sub_timeval(current.whence, check->last_fire_time, &duration);
-  current.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  gettimeofday(&check->stats.inprogress.whence, NULL);
+  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
+  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   if(ci->timedout) {
-    current.available = NP_UNAVAILABLE;
-    current.state = NP_BAD;
+    check->stats.inprogress.available = NP_UNAVAILABLE;
+    check->stats.inprogress.state = NP_BAD;
   }
   else if(WEXITSTATUS(ci->exit_code) == 3) {
-    current.available = NP_UNKNOWN;
-    current.state = NP_UNKNOWN;
+    check->stats.inprogress.available = NP_UNKNOWN;
+    check->stats.inprogress.state = NP_UNKNOWN;
   }
   else {
-    current.available = NP_AVAILABLE;
-    current.state = (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD;
+    check->stats.inprogress.available = NP_AVAILABLE;
+    check->stats.inprogress.state = (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD;
   }
 
   /* Hack the output into metrics */
@@ -166,15 +165,16 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
          pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
                                    "value", value, sizeof(value)) > 0) {
         /* We're able to extract something... */
-        noit_stats_set_metric(check, &current, metric, METRIC_GUESS, value);
+        noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
       }
       noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
     noitL(data->nldeb, "match failed.... %d\n", rc);
   }
 
-  current.status = ci->output;
-  noit_check_set_stats(check, &current);
+  check->stats.inprogress.status = ci->output;
+  noit_check_set_stats(check, &check->stats.inprogress);
+  noit_check_stats_clear(check, &check->stats.inprogress);
 
   /* If we didn't exit normally, or we core, or we have stderr to report...
    * provide a full report.
