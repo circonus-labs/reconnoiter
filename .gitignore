@@ -26,10 +26,7 @@ src/java/jezebel
 src/java/run-iep.sh
 src/java/jezebel.jar
 src/java/reconnoiter.jar
-src/java/com/omniti/jezebel/*.class
-src/java/com/omniti/jezebel/*/*.class
-src/java/com/omniti/reconnoiter/*.class
-src/java/com/omniti/reconnoiter/*/*.class
+src/java/classes
 src/jlog/jlog_config.h
 src/jlog/perl/Makefile.PL
 src/jlog/jlogctl

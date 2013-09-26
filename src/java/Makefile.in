@@ -22,66 +22,68 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
-R_JAVA=com/omniti/reconnoiter/MQListener.java \
-	com/omniti/reconnoiter/EventHandler.java \
-	com/omniti/reconnoiter/IEventHandler.java \
-	com/omniti/reconnoiter/MessageHandler.java \
-	com/omniti/reconnoiter/CheckStatus.java \
-	com/omniti/reconnoiter/broker/NoitListener.java \
-	com/omniti/reconnoiter/broker/RabbitBroker.java \
-	com/omniti/reconnoiter/broker/IMQBroker.java \
-	com/omniti/reconnoiter/broker/AMQBroker.java \
-	com/omniti/reconnoiter/broker/RabbitListener.java \
-	com/omniti/reconnoiter/broker/AMQListener.java \
-	com/omniti/reconnoiter/broker/BrokerFactory.java \
-	com/omniti/reconnoiter/event/NoitEvent.java \
-	com/omniti/reconnoiter/event/NoitBundlev1.java \
-	com/omniti/reconnoiter/event/NoitBundlev2.java \
-	com/omniti/reconnoiter/event/NoitCheck.java \
-	com/omniti/reconnoiter/event/NoitStatus.java \
-	com/omniti/reconnoiter/event/NoitMetric.java \
-	com/omniti/reconnoiter/event/NoitMetricText.java \
-	com/omniti/reconnoiter/event/NoitMetricNumeric.java \
-	com/omniti/reconnoiter/event/NoitMetricGeneric.java \
-	com/omniti/reconnoiter/event/StratconStatement.java \
-	com/omniti/reconnoiter/event/StratconQueryBase.java \
-	com/omniti/reconnoiter/event/StratconQuery.java \
-	com/omniti/reconnoiter/event/StratconQueryStop.java \
-	com/omniti/reconnoiter/esper/ExactStatViewFactory.java \
-	com/omniti/reconnoiter/esper/ExactBaseBivariateStatisticsView.java \
-	com/omniti/reconnoiter/esper/ExactRegressionLinestView.java \
-	com/omniti/reconnoiter/esper/ExactBaseStatisticsBean.java \
-	com/omniti/reconnoiter/esper/ExactRegressionBean.java \
-	com/omniti/reconnoiter/esper/WeightedValueBean.java \
-	com/omniti/reconnoiter/esper/CounterView.java \
-	com/omniti/reconnoiter/esper/CounterViewFactory.java \
-	com/omniti/reconnoiter/esper/DeriveView.java \
-	com/omniti/reconnoiter/esper/DeriveViewFactory.java \
-	com/omniti/reconnoiter/IEPEngine.java \
-	com/omniti/reconnoiter/StratconConfig.java \
-	com/omniti/reconnoiter/StratconMessage.java \
-	com/omniti/reconnoiter/StratconMessageFactory.java
+R_FILE=src/com/omniti/reconnoiter/MQListener.java \
+	src/com/omniti/reconnoiter/EventHandler.java \
+	src/com/omniti/reconnoiter/IEventHandler.java \
+	src/com/omniti/reconnoiter/MessageHandler.java \
+	src/com/omniti/reconnoiter/CheckStatus.java \
+	src/com/omniti/reconnoiter/broker/NoitListener.java \
+	src/com/omniti/reconnoiter/broker/RabbitBroker.java \
+	src/com/omniti/reconnoiter/broker/IMQBroker.java \
+	src/com/omniti/reconnoiter/broker/AMQBroker.java \
+	src/com/omniti/reconnoiter/broker/RabbitListener.java \
+	src/com/omniti/reconnoiter/broker/AMQListener.java \
+	src/com/omniti/reconnoiter/broker/BrokerFactory.java \
+	src/com/omniti/reconnoiter/event/NoitEvent.java \
+	src/com/omniti/reconnoiter/event/NoitBundlev1.java \
+	src/com/omniti/reconnoiter/event/NoitBundlev2.java \
+	src/com/omniti/reconnoiter/event/NoitCheck.java \
+	src/com/omniti/reconnoiter/event/NoitStatus.java \
+	src/com/omniti/reconnoiter/event/NoitMetric.java \
+	src/com/omniti/reconnoiter/event/NoitMetricText.java \
+	src/com/omniti/reconnoiter/event/NoitMetricNumeric.java \
+	src/com/omniti/reconnoiter/event/NoitMetricGeneric.java \
+	src/com/omniti/reconnoiter/event/StratconStatement.java \
+	src/com/omniti/reconnoiter/event/StratconQueryBase.java \
+	src/com/omniti/reconnoiter/event/StratconQuery.java \
+	src/com/omniti/reconnoiter/event/StratconQueryStop.java \
+	src/com/omniti/reconnoiter/esper/ExactStatViewFactory.java \
+	src/com/omniti/reconnoiter/esper/ExactBaseBivariateStatisticsView.java \
+	src/com/omniti/reconnoiter/esper/ExactRegressionLinestView.java \
+	src/com/omniti/reconnoiter/esper/ExactBaseStatisticsBean.java \
+	src/com/omniti/reconnoiter/esper/ExactRegressionBean.java \
+	src/com/omniti/reconnoiter/esper/WeightedValueBean.java \
+	src/com/omniti/reconnoiter/esper/CounterView.java \
+	src/com/omniti/reconnoiter/esper/CounterViewFactory.java \
+	src/com/omniti/reconnoiter/esper/DeriveView.java \
+	src/com/omniti/reconnoiter/esper/DeriveViewFactory.java \
+	src/com/omniti/reconnoiter/IEPEngine.java \
+	src/com/omniti/reconnoiter/StratconConfig.java \
+	src/com/omniti/reconnoiter/StratconMessage.java \
+	src/com/omniti/reconnoiter/StratconMessageFactory.java
 
+R_JAVA = $(R_FILE:src/%=%)
 R_CLASS = $(R_JAVA:.java=*.class)
 
-J_JAVA = com/omniti/jezebel/Jezebel.java \
-	com/omniti/jezebel/JezebelDispatch.java \
-	com/omniti/jezebel/JezebelCheck.java \
-	com/omniti/jezebel/JezebelClassLoader.java \
-	com/omniti/jezebel/JezebelResmon.java \
-	com/omniti/jezebel/JezebelTools.java \
-	com/omniti/jezebel/Resmon.java \
-	com/omniti/jezebel/ResmonResult.java \
-	com/omniti/jezebel/SampleCheck.java \
-	com/omniti/jezebel/check/JDBC.java \
-	com/omniti/jezebel/check/mysql.java \
-	com/omniti/jezebel/check/oracle.java \
-	com/omniti/jezebel/check/sqlserver.java \
-	com/omniti/jezebel/check/postgres.java \
-	com/omniti/jezebel/check/jmx.java \
-        com/omniti/jezebel/check/ldap.java \
-        com/omniti/jezebel/check/snmp.java
+J_FILE = src/com/omniti/jezebel/Jezebel.java \
+	src/com/omniti/jezebel/JezebelDispatch.java \
+	src/com/omniti/jezebel/JezebelCheck.java \
+	src/com/omniti/jezebel/JezebelClassLoader.java \
+	src/com/omniti/jezebel/JezebelResmon.java \
+	src/com/omniti/jezebel/JezebelTools.java \
+	src/com/omniti/jezebel/Resmon.java \
+	src/com/omniti/jezebel/ResmonResult.java \
+	src/com/omniti/jezebel/SampleCheck.java \
+	src/com/omniti/jezebel/check/JDBC.java \
+	src/com/omniti/jezebel/check/mysql.java \
+	src/com/omniti/jezebel/check/oracle.java \
+	src/com/omniti/jezebel/check/sqlserver.java \
+	src/com/omniti/jezebel/check/postgres.java \
+	src/com/omniti/jezebel/check/jmx.java \
+	src/com/omniti/jezebel/check/ldap.java \
+	src/com/omniti/jezebel/check/snmp.java
 
+J_JAVA = $(J_FILE:src/%=%)
 J_CLASS = $(J_JAVA:.java=*.class)
 
 R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-4.5.0.jar \
@@ -101,17 +103,19 @@ all:	reconnoiter.jar jezebel.jar
 	@chmod 755 run-iep.sh
 	@chmod 755 jezebel
 
-reconnoiter.jar:	$(R_JAVA)
+reconnoiter.jar:	$(R_FILE)
 	@echo "- $@ compiling files"
-	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(R_SUPPORT) | sed -e 's/ /:/g;'` $(R_JAVA)
+	@mkdir -p classes
+	(cd src && $(JAVAC) -Xlint:unchecked -g -cp ../`echo $(R_SUPPORT) | sed -e 's/ /:..\//g;'` -d ../classes $(R_JAVA))
 	@echo "- creating $@"
-	@$(JAR) cf $@ $(R_CLASS)
+	@(cd classes && $(JAR) cf ../$@ $(R_CLASS))
 
-jezebel.jar:	$(J_JAVA)
+jezebel.jar:	$(J_FILE)
 	@echo "- $@ compiling files"
-	@$(JAVAC) -Xlint:unchecked -g -cp `echo $(J_SUPPORT) | sed -e 's/ /:/g;'` $(J_JAVA)
+	@mkdir -p classes
+	@(cd src && $(JAVAC) -Xlint:unchecked -g -cp ../`echo $(J_SUPPORT) | sed -e 's/ /:..\//g;'` -d ../classes $(J_JAVA))
 	@echo "- creating $@"
-	@$(JAR) cf $@ $(J_CLASS)
+	@(cd classes && $(JAR) cf ../$@ $(J_CLASS))
 
 install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
@@ -136,7 +140,7 @@ install-jezebel:	install-dirs all
 install:	install-iep install-jezebel
 
 clean:
-	find com -name \*.class -exec rm {} \;
+	rm -rf classes
 	rm -f reconnoiter.jar jezebel.jar
 
 distclean: 	clean
