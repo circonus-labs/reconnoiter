@@ -65,6 +65,7 @@ struct noit_lua_resume_info {
   noit_hash_table *events; /* Any eventers we need to cleanup */
   int context_magic;
   void *context_data;
+  noit_check_t *check; /* If this is null, we're in a daemonized coroutine */
 };
 
 #define LUA_GENERAL_INFO_MAGIC 0x918243fa
@@ -126,6 +127,7 @@ lua_State *noit_lua_open(const char *module_name, void *lmc,
 void noit_lua_cancel_coro(noit_lua_resume_info_t *ci);
 void noit_lua_resume_clean_events(noit_lua_resume_info_t *ci);
 void noit_lua_pushmodule(lua_State *L, const char *m);
+int noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs);
 void noit_lua_init_dns();
 void noit_lua_hash_to_table(lua_State *L, noit_hash_table *t);
 int noit_lua_dns_gc(lua_State *L);
@@ -135,6 +137,7 @@ int luaopen_noit(lua_State *L);
 int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 int luaopen_bit(lua_State *L); /* from lua_bit.c */
 int luaopen_snmp(lua_State *L); /* from lua_snmp.c */
+void noit_lua_setup_check(lua_State *L, noit_check_t *check);
 noit_lua_resume_info_t *noit_lua_get_resume_info(lua_State *L);
 void noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri);
 int noit_lua_yield(noit_lua_resume_info_t *ci, int nargs);
