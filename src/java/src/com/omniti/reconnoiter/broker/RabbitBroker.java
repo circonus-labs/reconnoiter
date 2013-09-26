@@ -1,9 +1,34 @@
 /*
- * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2013, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * The software in this package is published under the terms of the GPL license
- * a copy of which can be found at:
- * https://labs.omniti.com/reconnoiter/trunk/src/java/LICENSE
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
+ *       of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written
+ *       permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package com.omniti.reconnoiter.broker;
@@ -13,9 +38,9 @@ import java.io.IOException;
 import org.apache.log4j.Logger;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
-import com.omniti.reconnoiter.event.StratconQuery;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.MessageProperties;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
@@ -42,7 +67,6 @@ public class RabbitBroker implements IMQBroker  {
   private String alertExchangeName;
   private Integer heartBeat;
   private Integer connectTimeout;
-  private Class listenerClass;
   private boolean exclusiveQueue;
   private boolean durableQueue;
   private boolean durableExchange;
@@ -58,15 +82,6 @@ public class RabbitBroker implements IMQBroker  {
     this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
     this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
-
-    String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.RabbitListener");
-    try {
-      this.listenerClass = Class.forName(className);
-    }
-    catch(java.lang.NoClassDefFoundError e) { }
-    catch(java.lang.ClassNotFoundException e) {
-      logger.warn("Class " + className + " not found.");
-    }
 
     this.exchangeType = config.getMQParameter("exchangetype", "fanout");
     this.durableExchange = config.getMQParameter("durableexchange", "false").equals("true");
@@ -128,11 +143,18 @@ public class RabbitBroker implements IMQBroker  {
     if(conn == null) throw new Exception("connection failed");
 
     channel = conn.createChannel();
-    boolean exclusive = false, internal = false, autoDelete = false;
-    channel.exchangeDeclare(exchangeName, exchangeType,
-                            durableExchange, autoDelete, internal, null);
-    autoDelete = true;
 
+    boolean durable = durableExchange, exclusive = false,
+            internal = false, autoDelete = false;
+    channel.exchangeDeclare(exchangeName, exchangeType,
+                            durable, autoDelete, internal, null);
+
+    internal = false;
+    durable = true;
+    autoDelete = false;
+    channel.exchangeDeclare(getAlertExchangeName(), "topic", durable, autoDelete, internal, null); 
+
+    autoDelete = true;
     returnedQueueName = channel.queueDeclare(queueName, durableQueue,
                                              exclusiveQueue, autoDelete, null).getQueue();
     for (String rk : routingKey.split(",")) {
@@ -168,7 +190,18 @@ public class RabbitBroker implements IMQBroker  {
     }
   }
 
-  public Class getListenerClass() { return listenerClass; }
   public String getAlertExchangeName() { return alertExchangeName; }
   public String getAlertRoutingKey() { return alertRoutingKey; }
+  public void alert(String key, String json) {
+    String routingKey;
+    if(key == null) routingKey = getAlertRoutingKey();
+    else routingKey = getAlertRoutingKey() + key;
+    try {
+      byte[] messageBodyBytes = json.getBytes();
+      channel.basicPublish(getAlertExchangeName(), routingKey,
+                           MessageProperties.TEXT_PLAIN, messageBodyBytes);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 }

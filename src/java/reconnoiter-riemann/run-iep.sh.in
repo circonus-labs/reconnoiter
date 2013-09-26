@@ -1,0 +1,45 @@
+#!/bin/sh
+
+RJAR=reconnoiter-riemann-1.0-jar-with-dependencies.jar
+
+set -- `getopt D: $*`
+
+JAVA=@JAVA@
+if [ ! -x $JAVA ]; then
+	JAVA=/usr/bin/java
+fi
+JPARAMS="-Xms32m -Xmx512m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
+if [ "$1" = "-d" ]; then
+	JAVA=`echo $JAVA | sed -e 's/java$/jdb/;'`
+	JPARAMS="-sourcepath . $JPARAMS"
+	shift
+fi
+
+DIRS=". lib @JAVA_LIB_DIR@ target"
+CP=
+
+for i in $*
+do
+	case $i in
+	-D)	DIRS="$2 $DIRS"
+		shift 2
+		;;
+	--)	shift; break;;
+	esac
+done
+
+found=
+for dir in $DIRS
+do
+  if [ -r "$dir/$RJAR" ]; then
+    found="$dir/$RJAR"
+    MJAR="$found"
+    break
+  fi
+done
+if [ -z "$found" ]; then
+  echo "Cannot find $RJAR" 2>&1
+  exit
+fi
+
+exec $JAVA $JPARAMS -jar $MJAR $*

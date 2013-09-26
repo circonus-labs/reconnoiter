@@ -77,8 +77,6 @@ my %licenses = (
  * OF THE POSSIBILITY OF SUCH DAMAGE.
 %),
   'labs-omni-BSD' => normalize(q%
-All rights reserved.
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -107,8 +105,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %),
   'labs-msys-BSD' => normalize(q%
-All rights reserved.
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -120,6 +116,34 @@ met:
       disclaimer in the documentation and/or other materials provided
       with the distribution.
     * Neither the name Message Systems, Inc. nor the names
+      of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written
+      permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+%),
+  'labs-circonus-BSD' => normalize(q%
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name Circonus, Inc. nor the names
       of its contributors may be used to endorse or promote products
       derived from this software without specific prior written
       permission.
@@ -149,14 +173,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  See the License for the specific language governing permissions and
  limitations under the License.
 %),
-  'GPL' => normalize(q%
- Copyright (c) 2009, OmniTI Computer Consulting, Inc.
- All rights reserved.
- The software in this package is published under the terms of the GPL license
- a copy of which can be found at:
- https://labs.omniti.com/reconnoiter/trunk/src/java/LICENSE
-%),
-  'Esper-GPL' => normalize(q%published under the terms of the GPL license%),
   'LGPL' => normalize(q%
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -247,7 +263,50 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  POSSIBILITY OF SUCH DAMAGE.
 %)],
+  'MPL' => [
+    normalize(q%see LICENSE-MPL-RabbitMQ%),
+  ],
   'MIT' => [
+    normalize(q%released under the MIT License%),
+    normalize(q%
+This library is free software; you can redistribute it and/or modify
+it under the terms of the MIT license. See COPYING for details.
+%),
+    normalize(q%
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+%),
+    normalize(q%See dynasm.lua for full copyright%),
+    normalize(q%See Copyright Notice in luajit.h%),
+    normalize(q%
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+%),
     normalize(q%See Copyright Notice in lua.h%),
     normalize(q%
  Permission is hereby granted, free of charge, to any person obtaining
@@ -271,8 +330,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %)
            ],
   'modified-bsd' => normalize(q%this file may be licensed under the new BSD license%),
-  'public-domain' => normalize(q%Public domain%),
-  'N/A' => normalize(q%Automatically generated%),
+  'public-domain' => [
+    normalize(q%Public domain%),
+    normalize(q%Donated to the public domain%),
+    normalize(q%placed in the public domain%),
+    normalize(q%released to the public domain%),
+  ],
+  'N/A' => [
+    normalize(q%Automatically generated%),
+    normalize(q%Generated by the protocol buffer compiler.%),
+  ]
 );
 
 find( {
@@ -320,7 +387,7 @@ sub detect_license {
       }
     }
   }
-  chomp(my $st = `svn st $fname`);
-  return 'ignored' if($st =~ /^I\s+/);
+  chomp(my $st = `git ls-tree HEAD -- $fname`);
+  return 'ignored' unless(length($st));
   return $license;
 }

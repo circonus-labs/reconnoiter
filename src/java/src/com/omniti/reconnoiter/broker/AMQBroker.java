@@ -1,9 +1,34 @@
 /*
- * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2013, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * The software in this package is published under the terms of the GPL license
- * a copy of which can be found at:
- * https://labs.omniti.com/reconnoiter/trunk/src/java/LICENSE
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
+ *       of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written
+ *       permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package com.omniti.reconnoiter.broker;
@@ -13,16 +38,16 @@ import java.lang.reflect.Constructor;
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.DeliveryMode;
 import javax.jms.Session;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 
-import com.espertech.esper.client.EPServiceProvider;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
-import com.omniti.reconnoiter.event.StratconQuery;
 
 public class AMQBroker implements IMQBroker {
   private String hostName;
@@ -33,15 +58,11 @@ public class AMQBroker implements IMQBroker {
   public AMQBroker(StratconConfig config) {
     this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "61613"));
-    String className = config.getBrokerParameter("listenerClass", "com.omniti.reconnoiter.broker.AMQListener");
-    try {
-      this.listenerClass = Class.forName(className);
-    }
-    catch(java.lang.ClassNotFoundException e) {
-    }
   }
 
+  private Session session;
   private MessageConsumer consumer;
+  private MessageProducer producer;
 
   public void disconnect() {
   }
@@ -51,9 +72,9 @@ public class AMQBroker implements IMQBroker {
 
     Connection connection=connectionFactory.createConnection();
     connection.start();
-    Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    Destination destination=session.createQueue("noit.firehose");
+    session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
+    Destination destination=session.createQueue("noit.firehose");
     consumer = session.createConsumer(destination);
   }
   
@@ -69,14 +90,25 @@ public class AMQBroker implements IMQBroker {
         try {
           String xml = textMessage.getText();
           eh.processMessage(xml);
-        } catch(Exception ie) {
-          System.err.println(ie);
-        }
+        } catch(Exception ie) { ie.printStackTrace(); }
       }
     }
   }
 
-  public Class getListenerClass() { return listenerClass; }
-  public String getAlertRoutingKey() { return ""; }
+  public String getAlertRoutingKey() { return "noit.alerts."; }
   public String getAlertExchangeName() { return "vm://localhost"; }
+
+  public void alert(String key, String json) {
+    String rk;
+    if(key == null) rk = getAlertRoutingKey();
+    else rk = getAlertRoutingKey() + key;
+
+    try {
+      Destination destination = session.createTopic(rk);
+      producer = session.createProducer(destination);
+      producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+      TextMessage message = session.createTextMessage(json);
+      producer.send(message);
+    } catch (Exception e) { e.printStackTrace(); }
+  }
 }

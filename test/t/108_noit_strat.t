@@ -153,9 +153,13 @@ eval { die "no data" unless defined($payload);
        $json = from_json($payload); };
 is($@, '', 'json numeric payload');
 undef $stomp;
-$json ||= {};
-like($json->{r}->{uuid} || '', $uuid_re, 'numeric match has uuid');
-is($json->{r}->{check_module} || '', 'selfcheck', 'modules is set');
+$json ||= { tags => [] };
+my %tags;
+foreach my $tag (@{$json->{tags}}) {
+  $tags{$1} = $2 if $tag =~ /([^:]+):(.*)/;
+}
+like($tags{check} || '', $uuid_re, 'numeric match has uuid');
+is($tags{module} || '', 'selfcheck', 'modules is set');
 
 ok(stop_noit, 'shutdown noit');
 ok(stop_stratcon, 'shutdown stratcon');

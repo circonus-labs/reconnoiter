@@ -22,17 +22,15 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
+IEPJAR=reconnoiter-riemann/target/reconnoiter-riemann-1.0-jar-with-dependencies.jar
+
 R_FILE=src/com/omniti/reconnoiter/MQListener.java \
-	src/com/omniti/reconnoiter/EventHandler.java \
 	src/com/omniti/reconnoiter/IEventHandler.java \
 	src/com/omniti/reconnoiter/MessageHandler.java \
 	src/com/omniti/reconnoiter/CheckStatus.java \
-	src/com/omniti/reconnoiter/broker/NoitListener.java \
 	src/com/omniti/reconnoiter/broker/RabbitBroker.java \
 	src/com/omniti/reconnoiter/broker/IMQBroker.java \
 	src/com/omniti/reconnoiter/broker/AMQBroker.java \
-	src/com/omniti/reconnoiter/broker/RabbitListener.java \
-	src/com/omniti/reconnoiter/broker/AMQListener.java \
 	src/com/omniti/reconnoiter/broker/BrokerFactory.java \
 	src/com/omniti/reconnoiter/event/NoitEvent.java \
 	src/com/omniti/reconnoiter/event/NoitBundlev1.java \
@@ -43,21 +41,6 @@ R_FILE=src/com/omniti/reconnoiter/MQListener.java \
 	src/com/omniti/reconnoiter/event/NoitMetricText.java \
 	src/com/omniti/reconnoiter/event/NoitMetricNumeric.java \
 	src/com/omniti/reconnoiter/event/NoitMetricGeneric.java \
-	src/com/omniti/reconnoiter/event/StratconStatement.java \
-	src/com/omniti/reconnoiter/event/StratconQueryBase.java \
-	src/com/omniti/reconnoiter/event/StratconQuery.java \
-	src/com/omniti/reconnoiter/event/StratconQueryStop.java \
-	src/com/omniti/reconnoiter/esper/ExactStatViewFactory.java \
-	src/com/omniti/reconnoiter/esper/ExactBaseBivariateStatisticsView.java \
-	src/com/omniti/reconnoiter/esper/ExactRegressionLinestView.java \
-	src/com/omniti/reconnoiter/esper/ExactBaseStatisticsBean.java \
-	src/com/omniti/reconnoiter/esper/ExactRegressionBean.java \
-	src/com/omniti/reconnoiter/esper/WeightedValueBean.java \
-	src/com/omniti/reconnoiter/esper/CounterView.java \
-	src/com/omniti/reconnoiter/esper/CounterViewFactory.java \
-	src/com/omniti/reconnoiter/esper/DeriveView.java \
-	src/com/omniti/reconnoiter/esper/DeriveViewFactory.java \
-	src/com/omniti/reconnoiter/IEPEngine.java \
 	src/com/omniti/reconnoiter/StratconConfig.java \
 	src/com/omniti/reconnoiter/StratconMessage.java \
 	src/com/omniti/reconnoiter/StratconMessageFactory.java
@@ -86,7 +69,7 @@ J_FILE = src/com/omniti/jezebel/Jezebel.java \
 J_JAVA = $(J_FILE:src/%=%)
 J_CLASS = $(J_JAVA:.java=*.class)
 
-R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar lib/esper-4.5.0.jar \
+R_SUPPORT=lib/activemq-all-5.2.0.jar lib/antlr-runtime-3.1.1.jar \
 	lib/log4j-1.2.15.jar lib/spring-beans-2.5.5.jar lib/spring-context-2.5.5.jar \
 	lib/cglib-nodep-2.2.jar lib/commons-pool-1.4.jar lib/commons-dbcp-1.2.2.jar \
 	lib/postgresql-8.3-604.jdbc3.jar lib/rabbitmq-client-2.4.1.jar lib/commons-io-1.2.jar \
@@ -99,23 +82,29 @@ J_SUPPORT=lib/log4j-1.2.15.jar \
 	lib/commons-cli-1.1.jar lib/postgresql-8.3-604.jdbc3.jar \
 	lib/snmp4j-2.1.0.jar
 
-all:	reconnoiter.jar jezebel.jar
-	@chmod 755 run-iep.sh
+all:	lib/reconnoiter.jar lib/jezebel.jar $(IEPJAR)
+	@chmod 755 reconnoiter-riemann/run-iep.sh
 	@chmod 755 jezebel
 
-reconnoiter.jar:	$(R_FILE)
+lib/reconnoiter.jar:	$(R_FILE)
 	@echo "- $@ compiling files"
 	@mkdir -p classes
 	(cd src && $(JAVAC) -Xlint:unchecked -g -cp ../`echo $(R_SUPPORT) | sed -e 's/ /:..\//g;'` -d ../classes $(R_JAVA))
 	@echo "- creating $@"
 	@(cd classes && $(JAR) cf ../$@ $(R_CLASS))
 
-jezebel.jar:	$(J_FILE)
+lib/jezebel.jar:	$(J_FILE)
 	@echo "- $@ compiling files"
 	@mkdir -p classes
 	@(cd src && $(JAVAC) -Xlint:unchecked -g -cp ../`echo $(J_SUPPORT) | sed -e 's/ /:..\//g;'` -d ../classes $(J_JAVA))
 	@echo "- creating $@"
 	@(cd classes && $(JAR) cf ../$@ $(J_CLASS))
+
+$(IEPJAR):
+	@echo "- building a maven-like repo layout in lib"
+	@(cd lib && ./stub-as-maven.sh)
+	@echo "- building reconnoiter-riemann"
+	@(cd reconnoiter-riemann && mvn compile assembly:single)
 
 install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
@@ -123,15 +112,13 @@ install-dirs:	all
 
 install-iep:	install-dirs all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(localstatedir)/db/noit-iep
-	$(INSTALL) -m 0644 reconnoiter.jar $(DESTDIR)$(javalibdir)/reconnoiter.jar
-	for jar in $(R_SUPPORT) ; do \
-		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/`echo $$jar | sed -e 's#^lib/##'` ; \
-	done
-	$(INSTALL) -m 0755 run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
+	$(INSTALL) -m 0644 $(IEPJAR) $(DESTDIR)$(javalibdir)/
+	$(INSTALL) -m 0755 reconnoiter-riemann/run-iep.sh $(DESTDIR)$(bindir)/run-iep.sh
+	$(INSTALL) -m 0644 reconnoiter-riemann/riemann.config $(DESTDIR)$(localstatedir)/db/noit-iep/riemann.config
 	$(INSTALL) -m 0644 log4j.xml $(DESTDIR)$(localstatedir)/db/noit-iep/log4j.xml
 
 install-jezebel:	install-dirs all
-	$(INSTALL) -m 0644 jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
+	$(INSTALL) -m 0644 lib/jezebel.jar $(DESTDIR)$(javalibdir)/jezebel.jar
 	for jar in $(J_SUPPORT) ; do \
 		$(INSTALL) -m 0644 $$jar $(DESTDIR)$(javalibdir)/`echo $$jar | sed -e 's#^lib/##'` ; \
 	done
@@ -140,9 +127,9 @@ install-jezebel:	install-dirs all
 install:	install-iep install-jezebel
 
 clean:
-	rm -rf classes
-	rm -f reconnoiter.jar jezebel.jar
+	rm -rf classes reconnoiter-riemann/target
+	rm -f lib/reconnoiter.jar lib/jezebel.jar
 
 distclean: 	clean
-	rm -f Makefile run-iep.sh jezebel
+	rm -f Makefile reconnoiter-riemann/run-iep.sh jezebel
 

@@ -362,16 +362,22 @@ sub make_iep_config {
   my $cwd = $opts->{cwd};
   $opts->{iep}->{disabled} ||= 'false';
   mkdir("$cwd/logs/$opts->{name}_iep_root");
-  open(my $run, "<$cwd/../../src/java/run-iep.sh") ||
+  open(my $run, "<$cwd/../../src/java/reconnoiter-riemann/run-iep.sh") ||
     BAIL_OUT("cannot open source run-iep.sh");
-  sysopen(my $newrun, "$cwd/logs/$opts->{name}_iep_root/run-iep.sh", O_WRONLY|O_CREAT, 0755) ||
+  sysopen(my $newrun, "$cwd/logs/$opts->{name}_iep_root/run-iep.sh", O_WRONLY|O_CREAT|O_TRUNC, 0755) ||
     BAIL_OUT("cannot open target run-iep.sh");
   while(<$run>) {
-    s%^DIRS="%DIRS="$cwd/../../src/java $cwd/../../src/java/lib %;
+    s%^DIRS="%DIRS="$cwd/../../src/java/reconnoiter-riemann/target %;
     print $newrun $_;
   }
   close($run);
   close($newrun);
+
+  sysopen(my $rconf, "$cwd/logs/$opts->{name}_iep_root/riemann.config", O_WRONLY|O_CREAT|O_TRUNC, 0755) ||
+    BAIL_OUT("cannot open target riemann.config");
+  print $rconf $opts->{iep}->{riemann}->{config};
+  close($rconf);
+
   print $o qq{
   <iep disabled="$opts->{iep}->{disabled}">
     <start directory="$cwd/logs/$opts->{name}_iep_root"
@@ -379,7 +385,7 @@ sub make_iep_config {
 };
   foreach my $mqt (keys %{$opts->{iep}->{mq}}) {
     print $o qq{    <mq type="$mqt">\n};
-    while (my ($k,$v) = each %{$opts->{iep}->{mq}->{mqt}}) {
+    while (my ($k,$v) = each %{$opts->{iep}->{mq}->{$mqt}}) {
       print $o qq{      <$k>$v</$k>\n};
     }
     print $o qq{    </mq>\n};
@@ -391,19 +397,6 @@ sub make_iep_config {
     }
     print $o qq{    </broker>\n};
   }
-  print $o qq{    <queries master="iep">\n};
-  foreach my $s (@{$opts->{iep}->{statements}}) {
-    print $o qq{        <statement id="$s->{id}" provides="$s->{id}">\n};
-    print $o qq{            <requires>$s->{requires}</requires>\n} if $s->{requires};
-    print $o qq{            <epl><![CDATA[$s->{epl}]]></epl>\n};
-    print $o qq{        </statement>\n};
-  }
-  foreach my $s (@{$opts->{iep}->{queries}}) {
-    print $o qq{        <query id="$s->{id}" topic="$s->{topic}">\n};
-    print $o qq{            <epl><![CDATA[$s->{epl}]]></epl>\n};
-    print $o qq{        </query>\n};
-  }
-  print $o qq{    </queries>\n};
   print $o qq{</iep>\n};
 }
 sub make_database_config {
@@ -493,10 +486,19 @@ sub make_stratcon_config {
   L("make_stratcon_config");
   $options->{cwd} ||= getcwd();
   L("make_stratcon_config in $options->{cwd}");
-  $options->{generics} ||= { 'stomp_driver' => { image => 'stomp_driver' },
+  $options->{generics} ||= { 'rabbitmq_driver' => { image => 'rabbitmq_driver' },
+                             'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
-  $options->{iep}->{mq} ||= { 'stomp' => {} };
+  $options->{iep}->{mq} ||= { 'stomp' => {},
+                              'rabbitmq' => { 'hostname' => 'localhost' } };
+  $options->{iep}->{riemann} ||= { 'config' => q~
+(logging/init :file "riemann.log")
+(streams 
+  (where (and (not (tagged "riemann"))
+              (not (nil? :metric)))
+    (reconnoiter/alert-key "numeric")))
+~ };
   my $cwd = $options->{cwd};
   my $file = "$cwd/logs/${name}_stratcon.conf";
   L("make_stratcon_config -> open($file)");

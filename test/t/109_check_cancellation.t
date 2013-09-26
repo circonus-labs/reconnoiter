@@ -130,7 +130,7 @@ is($r[0], 404, "$prefix gone");
 
 SKIP: {
   skip "$^O doesn't support deferred, uninterruptable", 5
-    if $^O =~ /^(?:linux)$/;
+    if $^O =~ /^(?:linux|darwin)$/;
 $uuid = '766fb7a0-3ca3-11e0-a725-37c58e6f62dd';
 $prefix = 'deferred, uninterruptable';
 @r = $c->put("/checks/set/$uuid", check_def("default", 1));

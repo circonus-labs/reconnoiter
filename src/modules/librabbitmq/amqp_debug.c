@@ -1,3 +1,4 @@
+/* MOZILLA PUBLIC LICENSE Version 1.1 -- see LICENSE-MPL-RabbitMQ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

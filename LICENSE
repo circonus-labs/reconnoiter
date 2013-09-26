@@ -1,6 +1,7 @@
 Noit itself is released under the following license:
 
-Copyright (c) 2007,2008, OmniTI Computer Consulting, Inc.
+Copyright (c) 2007-2013 Circonus, Inc. All rights reserved.
+Copyright (c) 2007-2013 OmniTI Computer Consulting, Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -47,8 +48,7 @@ collectd: LGPL [http://labs.omniti.com/labs/reconnoiter]
 yajl: MIT [http://labs.omniti.com/labs/reconnoiter]
 
 activemq: Apache-2.0 [http://activemq.apache.org/]
-reconnoiter.jar: GPLv2 [http://labs.omniti.com/labs/reconnoiter]
-esper: GPLv2 [http://esper.codehaus.org/]
+reconnoiter.jar: new-BSD [http://labs.omniti.com/labs/reconnoiter]
 jetty 6: Apache 2.0 [http://www.eclipse.org/jetty/]
 antlr: new-BSD [www.antlr.org]
 log4j: Apache 2.0 [http://logging.apache.org/log4j/2.x/]

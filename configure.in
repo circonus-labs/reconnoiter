@@ -840,7 +840,7 @@ src/modules-lua/Makefile
 src/utils/Makefile
 src/noitedit/Makefile
 src/java/Makefile
-src/java/run-iep.sh
+src/java/reconnoiter-riemann/run-iep.sh
 src/java/jezebel
 src/scripts/noit-config
 sql/Makefile

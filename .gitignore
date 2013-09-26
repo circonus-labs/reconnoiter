@@ -23,9 +23,8 @@ src/stratcon.conf
 src/test-stratcon.conf
 src/java/activemq-data
 src/java/jezebel
-src/java/run-iep.sh
-src/java/jezebel.jar
-src/java/reconnoiter.jar
+src/java/lib/jezebel.jar
+src/java/lib/reconnoiter.jar
 src/java/classes
 src/jlog/jlog_config.h
 src/jlog/perl/Makefile.PL

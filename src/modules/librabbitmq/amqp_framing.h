@@ -1,3 +1,4 @@
+/* MOZILLA PUBLIC LICENSE Version 1.1 -- see LICENSE-MPL-RabbitMQ */
 #ifndef librabbitmq_amqp_framing_h
 #define librabbitmq_amqp_framing_h
 
