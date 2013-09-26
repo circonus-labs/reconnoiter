@@ -77,7 +77,7 @@ static struct {
 #define BUMPSTAT(a) noit_atomic_inc64(&stats.a)
 
 static iep_thread_driver_t *noit_rabbimq_allocate(noit_conf_section_t conf) {
-  char *hostname, *cp, *brk;
+  char *hostname = NULL, *cp, *brk;
   struct amqp_driver *dr = NULL;
   int i;
 

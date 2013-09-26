@@ -41,23 +41,19 @@
   <iep disabled="false">
     <start directory="%iepdbdir%"
            command="%iepbindir%/run-iep.sh" />
-    <mq type="stomp">
-    </mq>
-    <!-- For RabbitMQ
     <broker adapter="rabbitmq">
-      <hostname>mq1.int.circonus.net,mq2.int.circonus.net</hostname>
+      <hostname>mq1,mq2</hostname>
       <username>stratcon</username>
       <password>youllneverguess</password>
     </broker>
     <mq type="rabbitmq">
-      <hostname>mq1.int.circonus.net,mq2.int.circonus.net</hostname>
+      <hostname>mq1,mq2</hostname>
       <exchange>noit.firehose</exchange>
       <exchangetype>topic</exchangetype>
       <routingkey>check,null</routingkey>
       <username>stratcon</username>
       <password>youllneverguess</password>
     </mq>
-    -->
     <queries master="iep">
       <statement id="6cc613a4-7f9c-11de-973f-db7e8ccb2e5c" provides="CheckDetails-ddl">
         <epl>create window CheckDetails.std:unique(uuid).win:keepall() as NoitCheck</epl>
