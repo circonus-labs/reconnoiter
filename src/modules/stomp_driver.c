@@ -103,7 +103,7 @@ static int noit_stomp_connect(iep_thread_driver_t *dr) {
     frame.command = "CONNECT";
     frame.headers = apr_hash_make(driver->pool);
 
-    // This is for RabbitMQ Support
+    /* This is for RabbitMQ Support */
     if(driver->user && driver->pass) {
       apr_hash_set(frame.headers, "login",
                    APR_HASH_KEY_STRING, driver->user);
@@ -121,6 +121,7 @@ static int noit_stomp_connect(iep_thread_driver_t *dr) {
       stomp_disconnect(&driver->connection);
       return -1;
     }
+    noitL(noit_debug, "MQ STOMP connection established.\n");
     return 0;
   }
   /* 1 means already connected */
@@ -153,6 +154,7 @@ static int noit_stomp_submit(iep_thread_driver_t *dr,
     if(driver->connection) stomp_disconnect(&driver->connection);
     driver->connection = NULL;
   }
+  else noitL(noit_debug, "STOMP send succeeded\n");
   apr_pool_destroy(dummy);
   return (rc == APR_SUCCESS) ? 0 : -1;
 }
