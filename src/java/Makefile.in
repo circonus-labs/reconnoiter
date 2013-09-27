@@ -22,7 +22,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 
-IEPJAR=reconnoiter-riemann/target/reconnoiter-riemann-1.0-jar-with-dependencies.jar
+@SKIP_IEP@IEPJAR=reconnoiter-riemann/target/reconnoiter-riemann-1.0-jar-with-dependencies.jar
 
 R_FILE=src/com/omniti/reconnoiter/MQListener.java \
 	src/com/omniti/reconnoiter/IEventHandler.java \
@@ -124,7 +124,7 @@ install-jezebel:	install-dirs all
 	done
 	$(INSTALL) -m 0755 jezebel $(DESTDIR)$(bindir)/jezebel
 
-install:	install-iep install-jezebel
+install:	@INSTALL_IEP@ install-jezebel
 
 clean:
 	rm -rf classes reconnoiter-riemann/target

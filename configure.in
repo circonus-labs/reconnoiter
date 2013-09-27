@@ -41,6 +41,7 @@ AC_PATH_PROG(AR, ar)
 AC_PATH_PROGS(PERL, perl)
 AC_PATH_PROGS(XSLTPROC, xsltproc)
 AC_PATH_PROGS(XMLLINT, xmllint)
+AC_PATH_PROGS(MAVEN, mvn)
 AC_PATH_PROGS(JAVA, java)
 AC_PATH_PROGS(JAVA, java, , $JAVA_HOME/bin)
 AC_PATH_PROGS(JAVAC, javac)
@@ -197,6 +198,14 @@ if test "$enable_lua" = "no"; then
   LUA_MODULE=
 fi
 
+INSTALL_IEP=install-iep
+SKIP_IEP=
+if test -z "$ac_cv_path_MAVEN" ; then
+	INSTALL_IEP=
+	SKIP_IEP=_SKIP_
+fi
+AC_SUBST(INSTALL_IEP)
+AC_SUBST(SKIP_IEP)
 
 if test -z "$ac_cv_path_JAVA" \
 	-o -z "$ac_cv_path_JAVAC" \
