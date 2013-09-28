@@ -3,7 +3,7 @@ AC_INIT(src/noitd.c)
 node=`hostname | cut -f1 -d '.' | tr '[A-Z]' '[a-z]'`
 if test -f ".configure.$node"; then
 	echo "***********************************************************"
-        echo "* Loading node specific configure settings for $node."
+	echo "* Loading node specific configure settings for $node."
 	echo "***********************************************************"
 	. ./.configure.$node
 fi
@@ -13,21 +13,21 @@ AC_CONFIG_HEADER(src/noit_config.h)
 AC_CONFIG_HEADER(src/jlog/jlog_config.h)
 
 AC_ARG_ENABLE(strict,
-    [AC_HELP_STRING([--enable-strict],
-                    [Compile with warnings treated as errors])],
-                    enable_strict="$enableval",
-                    enable_strict=no)
+	[AC_HELP_STRING([--enable-strict],
+		[Compile with warnings treated as errors])],
+	enable_strict="$enableval",
+	enable_strict=no)
 
 AC_ARG_ENABLE(lua,
-    [AC_HELP_STRING([--enable-lua],
-                    [Choose a lua implementation: (no, lua52, LuaJIT)])],
-                    enable_lua="$enableval",
-                    enable_lua=LuaJIT)
+	[AC_HELP_STRING([--enable-lua],
+		[Choose a lua implementation: (no, lua52, LuaJIT)])],
+	enable_lua="$enableval",
+	enable_lua=LuaJIT)
 
 if (test "$enable_lua" != "LuaJIT" && \
 	test "$enable_lua" != "lua52" && \
 	test "$enable_lua" != "no") ; then
-    AC_MSG_ERROR(Invalid value '$enable_lua' for --enable-lua)
+	AC_MSG_ERROR(Invalid value '$enable_lua' for --enable-lua)
 fi
 
 AC_PROG_CC
@@ -58,13 +58,13 @@ AC_SUBST(ENABLE_LUA)
 
 MAPFLAGS=""
 if test "x$GCC" = "xyes" ; then
-  C99FLAG="-std=c99"
-  CFLAGS="$CFLAGS -g $C99FLAG"
-  DEPFLAGS="-MM"
+	C99FLAG="-std=c99"
+	CFLAGS="$CFLAGS -g $C99FLAG"
+	DEPFLAGS="-MM"
 else
-  C99FLAG="-xc99=all"
-  CFLAGS="$CFLAGS -g $C99FLAG"
-  DEPFLAGS="-xM1"
+	C99FLAG="-xc99=all"
+	CFLAGS="$CFLAGS -g $C99FLAG"
+	DEPFLAGS="-xM1"
 fi
 SHLDFLAGS="$LDFLAGS"
 
@@ -82,7 +82,7 @@ case $host in
 	MODULEEXT=bundle
 	RLDFLAG="-Wl,--rpath="
 	# This is needed for luajit on Mac OS X
-  if test "x$ENABLE_LUA" = "xLuaJIT"; then
+	if test "x$ENABLE_LUA" = "xLuaJIT"; then
 		LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
 		SHLDFLAGS="$SHLDFLAGS -image_base 100000000"
 	fi
@@ -91,7 +91,7 @@ case $host in
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
-        CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS"
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
@@ -195,18 +195,23 @@ AC_MSG_CHECKING([enable build/install of the Java IEP and Jezebel bits])
 
 LUA_MODULE=lua.$MODULEEXT
 if test "$enable_lua" = "no"; then
-  LUA_MODULE=
+	LUA_MODULE=
 fi
 
 INSTALL_IEP=install-iep
 SKIP_IEP=
+RIEMANN_IEP_ENABLE="no"
 if test -z "$ac_cv_path_MAVEN" ; then
 	INSTALL_IEP=
 	SKIP_IEP=_SKIP_
+else
+	RIEMANN_IEP_ENABLE="yes"
 fi
 AC_SUBST(INSTALL_IEP)
 AC_SUBST(SKIP_IEP)
 
+JEZEBEL_JAR_ENABLE="no"
+RECONNOITER_JAR_ENABLE="no"
 if test -z "$ac_cv_path_JAVA" \
 	-o -z "$ac_cv_path_JAVAC" \
 	-o -z "$ac_cv_path_JAR" ; then
@@ -215,6 +220,8 @@ else
 	if $ac_cv_path_JAVA -cp buildtools version 1.6 ; then
 		JAVAPARTS=java
 		AC_MSG_RESULT([yes])
+		JEZEBEL_JAR_ENABLE="yes"
+		RECONNOITER_JAR_ENABLE="yes"
 	else
 		JVERSION=`$ac_cv_path_JAVA -cp buildtools version 1.6`
 		AC_MSG_RESULT([too old: $JVERSION]);
@@ -236,11 +243,11 @@ AC_CHECK_LIB(rt, sem_init, , )
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
-             [AC_MSG_ERROR(libprotobuf-c required)])
+	[AC_MSG_ERROR(libprotobuf-c required)])
 
 AC_CHECK_FUNC(uuid_generate, , [
-  AC_MSG_WARN([uuid_generate not available])
-  AC_SEARCH_LIBS(uuid_generate, uuid e2fs-uuid, , [AC_MSG_ERROR(*** uuid is required ***)])])
+	AC_MSG_WARN([uuid_generate not available])
+	AC_SEARCH_LIBS(uuid_generate, uuid e2fs-uuid, , [AC_MSG_ERROR(*** uuid is required ***)])])
 
 # Some libraries provide an unparse_lower command
 # we use that, so if it isn't present, we'll need
@@ -285,7 +292,7 @@ AC_CHECK_LIB(pq, PQconnectdb,
 AC_MSG_CHECKING([libpq includes])
 PQICFLAGS=`pg_config --includedir`
 if test -n "$PQICFLAGS" ; then
-  CFLAGS="$CFLAGS -I$PQICFLAGS"
+	CFLAGS="$CFLAGS -I$PQICFLAGS"
 fi
 
 AC_TRY_LINK([
@@ -304,6 +311,7 @@ AC_CHECK_HEADERS(gcrypt.h)
 
 AC_CHECK_HEADERS(mysql.h mysql/mysql.h)
 
+MYSQL_MODULE="no"
 if test "$ac_cv_header_mysql_h" = "no" -a "$ac_cv_header_mysql_mysql_h" = "no" ; then
 	AC_MSG_WARN([No libmysqlclient, skipping mysql module])
 	AC_SUBST(MYCFLAGS)
@@ -322,18 +330,19 @@ else
 	LIBS="$MYLIBS"
 	
 	AC_CHECK_FUNC(mysql_real_connect,
-	        [
-	                BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
+		[
+			BUILD_MODULES="$BUILD_MODULES mysql.$MODULEEXT"
 			MYCFLAGS="$CFLAGS"
 			MYLIBS="$LIBS"
 			AC_SUBST(MYCFLAGS)
 			AC_SUBST(MYLIBS)
-	        ],
-	        [
-	                AC_MSG_WARN([No libmysqlclient, skipping mysql module])
+			MYSQL_MODULE="yes"
+		],
+		[
+			AC_MSG_WARN([No libmysqlclient, skipping mysql module])
 			AC_SUBST(MYCFLAGS)
 			AC_SUBST(MYLIBS)
-	        ]
+		]
 	)
 	
 	
@@ -351,6 +360,7 @@ fi
 ########
 
 # Should we build snmp checks?
+SNMP_MODULE="no"
 HAS_NETSNMP="no"
 AC_CHECK_HEADERS(net-snmp/net-snmp-config.h)
 if test "$ac_cv_header_net_snmp_net_snmp_config_h" = "yes" ; then
@@ -359,17 +369,20 @@ AC_CHECK_LIB(netsnmp, snmp_sess_open,
 	[
 		BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
 		HAS_NETSNMP="yes"
+		SNMP_MODULE="yes"
 	]
 )
 LIBS="$SAVELIBS"
 fi
 
+FQ_DRIVER_MODULE="no"
 SAVELIBS="$LIBS"
 HAS_LIBFQ="no"
 AC_CHECK_LIB(fq, fq_client_init,
 	[
 		BUILD_SMODULES="$BUILD_SMODULES fq_driver.$MODULEEXT"
 		HAS_LIBFQ="yes"
+		FQ_DRIVER_MODULE="yes"
 	]
 )
 LIBS="$SAVELIBS"
@@ -382,10 +395,12 @@ if test "x$HAS_NETSNMP" = "xno"; then
 fi
 
 # Should we build ssh2 checks?
+SSH2_MODULE="no"
 SAVELIBS="$LIBS"
 AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
 	[
 		BUILD_MODULES="$BUILD_MODULES ssh2.$MODULEEXT"
+		SSH2_MODULE="yes"
 	],
 	[
 		AC_MSG_WARN([No libssh2, skipping ssh2 module])
@@ -417,10 +432,12 @@ AC_MSG_RESULT([$XSLTLIBS])
 
 AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
 
+STOMP_DRIVER_MODULE="no"
 AC_MSG_CHECKING([apr-1-config for needed for stomp support])
 APRPREFIX=`apr-1-config --prefix`
 if test $? -eq "0"; then
 	BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
+	STOMP_DRIVER_MODULE="yes"
 fi
 AC_SUBST(APRPREFIX)
 AC_MSG_RESULT([$APRPREFIX])
@@ -462,43 +479,46 @@ int main(void){sem_t s;return (0 != sem_init(&s,0,0));}
 
 AC_FUNC_STRFTIME
 AC_CHECK_FUNCS(ssetugid strlcpy strnstrn openpty inet_pton inet_ntop getopt \
-               poll vasprintf)
+	poll vasprintf)
 
 # Checks for header files.
 AC_CHECK_HEADERS(sys/file.h sys/types.h dirent.h sys/param.h fcntl.h errno.h limits.h \
-                 sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
-                 ctype.h unistd.h time.h pty.h sys/stat.h sys/event.h libkern/OSAtomic.h \
-                 termio.h termios.h curses.h sys/cdefs.h grp.h netinet/in_systm.h \
-                 sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
-                 sys/ioctl.h stropts.h sys/stream.h alloca.h sys/wait.h bsd/libutil.h libutil.h)
+	sys/resource.h pthread.h semaphore.h pwd.h stdio.h stdlib.h string.h \
+	ctype.h unistd.h time.h pty.h sys/stat.h sys/event.h libkern/OSAtomic.h \
+	termio.h termios.h curses.h sys/cdefs.h grp.h netinet/in_systm.h \
+	sys/ioctl_compat.h sys/filio.h util.h sys/time.h sys/mman.h \
+	sys/ioctl.h stropts.h sys/stream.h alloca.h sys/wait.h bsd/libutil.h libutil.h)
+
 AC_CHECK_HEADERS([term.h], [], [],
-     [[#ifdef HAVE_CURSES_H
-     # include <curses.h>
-     #endif
-     ]])
+	[[
+#ifdef HAVE_CURSES_H
+# include <curses.h>
+#endif
+	]])
 
 AC_CHECK_DECLS([openpty], [], [],
-		[#if defined(HAVE_SYS_TYPES_H)
-		 # include <sys/types.h>
-		 #endif
-		 #if defined(HAVE_SYS_IOCTL_H)
-		 # include <sys/ioctl.h>
-		 #endif
-		 #if defined(HAVE_TERMIOS_H)
-		 # include <termios.h>
-		 #endif
-		 #if defined(HAVE_BSD_LIBUTIL_H)
-		 # include <bsd/libutil.h>
-		 #elif defined(HAVE_LIBUTIL_H)
-		 # include <libutil.h>
-		 #endif
-		 #if defined(HAVE_UTIL_H)
-		 # include <util.h>
-		 #endif
-		 #if defined(HAVE_PTY_H)
-		 # include <pty.h>
-		 #endif
-		])
+	[
+#if defined(HAVE_SYS_TYPES_H)
+# include <sys/types.h>
+#endif
+#if defined(HAVE_SYS_IOCTL_H)
+# include <sys/ioctl.h>
+#endif
+#if defined(HAVE_TERMIOS_H)
+# include <termios.h>
+#endif
+#if defined(HAVE_BSD_LIBUTIL_H)
+# include <bsd/libutil.h>
+#elif defined(HAVE_LIBUTIL_H)
+# include <libutil.h>
+#endif
+#if defined(HAVE_UTIL_H)
+# include <util.h>
+#endif
+#if defined(HAVE_PTY_H)
+# include <pty.h>
+#endif
+	])
 
 AC_CHECK_FUNCS(getpwnam_r)
 GETPWNAM_R_POSIX
@@ -668,7 +688,7 @@ if test "x$ac_cv_have_u_int64_t" = "xyes" ; then
 fi
 
 if (test -z "$have_u_intxx_t" || test -z "$have_intxx_t" && \
-           test "x$ac_cv_header_sys_bitypes_h" = "xyes")
+	test "x$ac_cv_header_sys_bitypes_h" = "xyes")
 then
 	AC_MSG_CHECKING([for intXX_t and u_intXX_t types in sys/bitypes.h])
 	AC_TRY_COMPILE(
@@ -764,13 +784,13 @@ AC_SUBST(SHLDFLAGS)
 
 SUBPREFIX="$prefix"
 if test "x$prefix" = "xNONE"; then
-  SUBPREFIX="$ac_default_prefix"
+	SUBPREFIX="$ac_default_prefix"
 fi
 AC_MSG_CHECKING([Resolving libexec path...])
 fullpath=$libexecdir
 while test "x$temppath" != "x$fullpath" ; do
-  temppath=$fullpath
-  fullpath=`eval echo ${fullpath}`
+	temppath=$fullpath
+	fullpath=`eval echo ${fullpath}`
 done
 fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath/noit])
@@ -785,8 +805,8 @@ AC_ARG_WITH(java-libdir,
 AC_MSG_CHECKING([Resolving javalibdir path...])
 fullpath=$JAVA_LIB_DIR
 while test "x$temppath" != "x$fullpath" ; do
-  temppath=$fullpath
-  fullpath=`eval echo ${fullpath}`
+	temppath=$fullpath
+	fullpath=`eval echo ${fullpath}`
 done
 fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 JAVA_LIB_DIR=$fullpath
@@ -796,8 +816,8 @@ AC_SUBST(JAVA_LIB_DIR)
 AC_MSG_CHECKING([Resolving sysconfdir path...])
 fullpath=$sysconfdir
 while test "x$temppath" != "x$fullpath" ; do
-  temppath=$fullpath
-  fullpath=`eval echo ${fullpath}`
+	temppath=$fullpath
+	fullpath=`eval echo ${fullpath}`
 done
 fullpath=`echo $fullpath | sed "s~NONE~$SUBPREFIX~"`
 AC_MSG_RESULT([$fullpath])
@@ -806,14 +826,14 @@ ETC_DIR=${fullpath}
 AC_SUBST(ETC_DIR)
 
 if test -n "`$CC -V 2>&1 | grep 'Sun C'`"; then
-  if test "$enable_string" != "no"; then
-    CFLAGS="$CFLAGS -errwarn=%all"
-  fi
+	if test "$enable_string" != "no"; then
+		CFLAGS="$CFLAGS -errwarn=%all"
+	fi
 else
-  CFLAGS="$CFLAGS -Wall"
-  if test "$enable_strict" != "no"; then
-    CFLAGS="$CFLAGS -Werror"
-  fi
+	CFLAGS="$CFLAGS -Wall"
+	if test "$enable_strict" != "no"; then
+		CFLAGS="$CFLAGS -Werror"
+	fi
 fi
 
 LUACFLAGS=`echo $CFLAGS | sed -e "s#${C99FLAG}##g; s#-mt##g; s#-errwarn=%all##g;"`
@@ -831,6 +851,7 @@ AC_DEFINE_UNQUOTED(UNAME_S, "$UNAME_S")
 AC_DEFINE_UNQUOTED(UNAME_M, "$UNAME_M")
 AC_DEFINE_UNQUOTED(UNAME_N, "$UNAME_N")
 AC_DEFINE_UNQUOTED(UNAME_P, "$UNAME_P")
+
 
 AC_OUTPUT([
 Makefile
@@ -854,4 +875,24 @@ src/java/jezebel
 src/scripts/noit-config
 sql/Makefile
 test/Makefile
+])
+
+AC_MSG_RESULT([
+
+=== Compile-time Configuration ===
+  Lua Implementation: $ENABLE_LUA
+
+  == optional noit modules ==
+  MySQL module:       $MYSQL_MODULE
+  SNMP module:        $SNMP_MODULE
+  SSH2 module:        $SSH2_MODULE
+
+  == optional stratcon modules ==
+  STOMP iep driver:   $STOMP_DRIVER_MODULE
+  FQ iep driver:      $FQ_DRIVER_MODULE
+
+  == Java bits ==
+  Jezebel:            $JEZEBEL_JAR_ENABLE
+  Reconnoiter:        $RECONNOITER_JAR_ENABLE
+  Riemann IEP:        $RIEMANN_IEP_ENABLE
 ])
