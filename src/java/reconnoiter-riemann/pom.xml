@@ -58,6 +58,11 @@
       <version>0.1</version>
     </dependency>
     <dependency>
+      <groupId>fqclient</groupId>
+      <artifactId>fqclient</artifactId>
+      <version>0.1</version>
+    </dependency>
+    <dependency>
       <groupId>rabbitmq-client</groupId>
       <artifactId>rabbitmq-client</artifactId>
       <version>2.4.1</version>

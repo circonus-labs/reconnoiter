@@ -49,6 +49,9 @@ public class MQFactory {
     else if (broker.compareToIgnoreCase("activemq") == 0) {
       return new AMQMQ(config);
     }
+    else if (broker.compareToIgnoreCase("fq") == 0) {
+      return new FQMQ(config);
+    }
     return new AMQMQ(config);
   }
 }

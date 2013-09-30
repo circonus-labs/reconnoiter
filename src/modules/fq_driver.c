@@ -160,10 +160,14 @@ static iep_thread_driver_t *noit_fq_allocate(noit_conf_section_t conf) {
   int i;
 
 #define GETCONFSTR(w) noit_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
+  snprintf(global_fq_ctx.exchange, sizeof(global_fq_ctx.exchange), "%s",
+           "noit.firehose");
   GETCONFSTR(exchange);
   if(!GETCONFSTR(routingkey))
-    global_fq_ctx.routingkey[0] = '\0';
+    snprintf(global_fq_ctx.routingkey, sizeof(global_fq_ctx.routingkey), "%s", "check");
+  snprintf(global_fq_ctx.username, sizeof(global_fq_ctx.username), "%s", "guest");
   GETCONFSTR(username);
+  snprintf(global_fq_ctx.password, sizeof(global_fq_ctx.password), "%s", "guest");
   GETCONFSTR(password);
   if(!noit_conf_get_int(conf, "heartbeat", &global_fq_ctx.heartbeat))
     global_fq_ctx.heartbeat = 2000;
@@ -245,7 +249,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
   }
   driver->msg_cnt++;
   fq_msg_exchange(msg, driver->exchange, strlen(driver->exchange));
-noitL(noit_error, "route -> %s\n", routingkey);
+  noitL(noit_debug, "route[%s] -> %s\n", driver->exchange, routingkey);
   fq_msg_route(msg, routingkey, strlen(routingkey));
   fq_msg_id(msg, NULL);
 
