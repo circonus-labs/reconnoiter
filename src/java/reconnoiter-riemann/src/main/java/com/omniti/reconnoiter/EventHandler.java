@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.omniti.reconnoiter.broker.IMQMQ;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import com.omniti.reconnoiter.event.*;
 import com.omniti.reconnoiter.MessageHandler;
@@ -58,6 +59,7 @@ import clojure.lang.PersistentVector;
 public class EventHandler implements IEventHandler {
   static Logger logger = Logger.getLogger(EventHandler.class.getName());
   private LinkedList<MessageHandler> alternates;
+  private IMQMQ mq;
   private IMQBroker broker;
   private AtomicLong events_handled_num;
   private AtomicLong events_handled_microseconds;
@@ -75,8 +77,9 @@ public class EventHandler implements IEventHandler {
   static public void _coreReload() {
     _global.coreReload();
   }
-  public EventHandler(IMQBroker broker) {
+  public EventHandler(IMQMQ mq, IMQBroker broker) {
     _global = this;
+    this.mq = mq;
     this.broker = broker;
     alternates = new LinkedList<MessageHandler>();
     events_handled_num = new AtomicLong(0);
@@ -99,6 +102,7 @@ public class EventHandler implements IEventHandler {
   public void addObserver(MessageHandler mh) {
     alternates.add(mh);
   }
+  public IMQMQ getMQ() { return mq; }
   public IMQBroker getBroker() { return broker; }
 
   public void processMessage(StratconMessage m) throws Exception {

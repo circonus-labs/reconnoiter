@@ -490,8 +490,10 @@ sub make_stratcon_config {
                              'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
-  $options->{iep}->{mq} ||= { 'stomp' => {},
-                              'rabbitmq' => { 'hostname' => 'localhost' } };
+  $options->{iep}->{mq} ||= { 'stomp' => {} };
+                              #'rabbitmq' => { 'hostname' => 'localhost' } };
+  $options->{iep}->{broker} ||= { #'stomp' => {} };
+                                  'rabbitmq' => { 'hostname' => 'localhost' } };
   $options->{iep}->{riemann} ||= { 'config' => q~
 (logging/init :file "riemann.log")
 (streams 

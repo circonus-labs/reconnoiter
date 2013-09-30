@@ -33,7 +33,7 @@
 
 package com.omniti.reconnoiter;
 
-import com.omniti.reconnoiter.broker.IMQBroker;
+import com.omniti.reconnoiter.broker.IMQMQ;
 import com.omniti.reconnoiter.MessageHandler;
 import com.omniti.reconnoiter.event.*;
 import java.lang.Runnable;
@@ -44,14 +44,14 @@ import java.util.List;
 import java.util.UUID;
 
 public class MQListener implements Runnable {
-    private IMQBroker broker;
+    private IMQMQ mq;
     private LinkedList<StratconMessage> preproc;
     private LinkedList<MessageHandler>  alternates;
     private boolean booted = false;
     private IEventHandler eh = null;
 
-    public MQListener(IEventHandler eh, IMQBroker broker) {
-      this.broker = broker;
+    public MQListener(IEventHandler eh, IMQMQ mq) {
+      this.mq = mq;
       this.eh = eh;
       preproc = new LinkedList<StratconMessage>();
       alternates = new LinkedList<MessageHandler>();
@@ -78,16 +78,16 @@ public class MQListener implements Runnable {
       booted = true;
     }
     public IEventHandler getEventHandler() { return eh; }
-    public IMQBroker getBroker() { return broker; }
+    public IMQMQ getMQ() { return mq; }
     public void run() {
       for ( MessageHandler mh : alternates ) eh.addObserver(mh);
       process(eh, preproc);
       booted();
       while(true) {
         try {
-          broker.connect();
-          try { broker.consume(eh); } catch (Exception anything) {}
-          broker.disconnect();
+          mq.connect();
+          try { mq.consume(eh); } catch (Exception anything) {}
+          mq.disconnect();
         }
         catch (Exception e) {
           Throwable cause = e.getCause();

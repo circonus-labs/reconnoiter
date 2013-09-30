@@ -36,8 +36,8 @@ package com.omniti.reconnoiter.broker;
 import com.omniti.reconnoiter.IEventHandler;
 import java.io.IOException;
 
-public interface IMQBroker {
+public interface IMQMQ {
   public void connect() throws Exception;
   public void disconnect();
-  public void alert(String key, String json);
+  public void consume(IEventHandler eh) throws IOException;
 }

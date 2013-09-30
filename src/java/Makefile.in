@@ -29,9 +29,13 @@ R_FILE=src/com/omniti/reconnoiter/MQListener.java \
 	src/com/omniti/reconnoiter/MessageHandler.java \
 	src/com/omniti/reconnoiter/CheckStatus.java \
 	src/com/omniti/reconnoiter/broker/RabbitBroker.java \
+	src/com/omniti/reconnoiter/broker/RabbitMQ.java \
 	src/com/omniti/reconnoiter/broker/IMQBroker.java \
+	src/com/omniti/reconnoiter/broker/IMQMQ.java \
 	src/com/omniti/reconnoiter/broker/AMQBroker.java \
+	src/com/omniti/reconnoiter/broker/AMQMQ.java \
 	src/com/omniti/reconnoiter/broker/BrokerFactory.java \
+	src/com/omniti/reconnoiter/broker/MQFactory.java \
 	src/com/omniti/reconnoiter/event/NoitEvent.java \
 	src/com/omniti/reconnoiter/event/NoitBundlev1.java \
 	src/com/omniti/reconnoiter/event/NoitBundlev2.java \

@@ -38,6 +38,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
 import com.omniti.reconnoiter.MQListener;
+import com.omniti.reconnoiter.broker.MQFactory;
 import com.omniti.reconnoiter.broker.BrokerFactory;
 import com.omniti.reconnoiter.StratconConfig;
 import com.omniti.reconnoiter.StratconMessage;
@@ -45,6 +46,7 @@ import com.omniti.reconnoiter.event.*;
 import org.apache.log4j.BasicConfigurator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import com.omniti.reconnoiter.broker.IMQMQ;
 import com.omniti.reconnoiter.broker.IMQBroker;
 import clojure.lang.RT;
 import clojure.lang.Compiler;
@@ -72,9 +74,10 @@ class IEPRiemann {
     riemann.bin.main(new String[] {
       sconf.getIepParameter("riemann", "config") }
     );
+    IMQMQ mq = MQFactory.getMQ(sconf);
     IMQBroker broker = BrokerFactory.getBroker(sconf);
-    EventHandler eh = new EventHandler(broker);
-    mql = new MQListener(eh, broker);
+    EventHandler eh = new EventHandler(mq, broker);
+    mql = new MQListener(eh, mq);
   }
 
   public void start() {

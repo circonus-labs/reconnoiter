@@ -45,8 +45,8 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
 
-public class RabbitBroker implements IMQBroker  {
-  static Logger logger = Logger.getLogger(RabbitBroker.class.getName());
+public class RabbitMQ implements IMQMQ  {
+  static Logger logger = Logger.getLogger(RabbitMQ.class.getName());
   private int cidx;
   private Connection conn;
   private Channel channel;
@@ -57,6 +57,12 @@ public class RabbitBroker implements IMQBroker  {
   private String hostName[];
   private ConnectionFactory factory[];
   private int portNumber;
+  private String exchangeName;
+  private String exchangeType;
+  private String declaredQueueName;
+  private String queueName;
+  private String returnedQueueName;
+  private String routingKey;
   private String alertRoutingKey;
   private String alertExchangeName;
   private Integer heartBeat;
@@ -65,20 +71,37 @@ public class RabbitBroker implements IMQBroker  {
   private boolean durableQueue;
   private boolean durableExchange;
 
-  public RabbitBroker(StratconConfig config) {
+  public RabbitMQ(StratconConfig config) {
     this.conn = null;
     this.cidx = 0;
-    this.userName = config.getBrokerParameter("username", "guest");
-    this.password = config.getBrokerParameter("password", "guest");
-    this.virtualHost = config.getBrokerParameter("virtualhost", "/");
-    this.hostName = config.getBrokerParameter("hostname", "127.0.0.1").split(",");
-    this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "5672"));
-    this.heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "5000"));
+    this.userName = config.getMQParameter("username", "guest");
+    this.password = config.getMQParameter("password", "guest");
+    this.virtualHost = config.getMQParameter("virtualhost", "/");
+    this.hostName = config.getMQParameter("hostname", "127.0.0.1").split(",");
+    this.portNumber = Integer.parseInt(config.getMQParameter("port", "5672"));
+    this.heartBeat = Integer.parseInt(config.getMQParameter("heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
-    this.connectTimeout = Integer.parseInt(config.getBrokerParameter("connect_timeout", "5000"));
+    this.connectTimeout = Integer.parseInt(config.getMQParameter("connect_timeout", "5000"));
 
-    this.alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
-    this.alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
+    this.exchangeType = config.getMQParameter("exchangetype", "fanout");
+    this.durableExchange = config.getMQParameter("durableexchange", "false").equals("true");
+    this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
+    this.exclusiveQueue = config.getMQParameter("exclusivequeue", "false").equals("true");
+    this.durableQueue = config.getMQParameter("durablequeue", "false").equals("true");
+    this.declaredQueueName = config.getMQParameter("queue", "reconnoiter-{node}-{pid}");
+    this.routingKey = config.getMQParameter("routingkey", "");
+  
+    try {
+      this.queueName = this.declaredQueueName;
+      this.queueName = this.queueName.replace("{node}",
+        java.net.InetAddress.getLocalHost().getHostName());
+      this.queueName = this.queueName.replace("{pid}",
+        java.lang.management.ManagementFactory.getRuntimeMXBean()
+                                              .getName().replaceAll("@.+$", ""));
+    } catch(java.net.UnknownHostException uhe) {
+      System.err.println("Cannot self identify for queuename!");
+      System.exit(-1);
+    }     
 
     this.factory = new ConnectionFactory[this.hostName.length];
     for(int i = 0; i<hostName.length; i++) {
@@ -91,8 +114,6 @@ public class RabbitBroker implements IMQBroker  {
       this.factory[i].setPort(this.portNumber);
       this.factory[i].setHost(this.hostName[i]);
     }
-    try { connect(); }
-    catch (Exception e) { }
   }
   
   // 
@@ -120,24 +141,44 @@ public class RabbitBroker implements IMQBroker  {
 
     channel = conn.createChannel();
 
-    boolean internal = false, durable = true, autoDelete = false;
-    channel.exchangeDeclare(getAlertExchangeName(), "topic", durable, autoDelete, internal, null); 
+    boolean durable = durableExchange, exclusive = false,
+            internal = false, autoDelete = false;
+    channel.exchangeDeclare(exchangeName, exchangeType,
+                            durable, autoDelete, internal, null);
+
+    autoDelete = true;
+    returnedQueueName = channel.queueDeclare(queueName, durableQueue,
+                                             exclusiveQueue, autoDelete, null).getQueue();
+    for (String rk : routingKey.split(",")) {
+        if ( rk.equalsIgnoreCase("null") ) rk = "";
+        channel.queueBind(returnedQueueName, exchangeName, rk);
+    }
   }
+  public Channel getChannel() { return channel; }
   
-  private String getAlertExchangeName() { return alertExchangeName; }
-  private String getAlertRoutingKey() { return alertRoutingKey; }
-  public void alert(String key, String json) {
-    String routingKey;
-    if(key == null) routingKey = getAlertRoutingKey();
-    else routingKey = getAlertRoutingKey() + key;
-    try {
-      byte[] messageBodyBytes = json.getBytes();
-      channel.basicPublish(getAlertExchangeName(), routingKey,
-                           MessageProperties.TEXT_PLAIN, messageBodyBytes);
-    } catch (Exception e) {
-      e.printStackTrace();
-      try { connect(); }
-      catch (Exception ignored) { }
+  public void consume(IEventHandler eh) throws IOException {
+    QueueingConsumer consumer = new QueueingConsumer(channel);
+
+    channel.basicConsume(returnedQueueName, noAck, consumer);
+    
+    while (true) {
+      QueueingConsumer.Delivery delivery;
+      try {
+        delivery = consumer.nextDelivery();
+      } catch (InterruptedException ie) {
+        continue;
+      }
+      // (process the message components ...)
+    
+      String xml = new String(delivery.getBody());
+      try {
+        eh.processMessage(xml);
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
+      if(!noAck)
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
     }
   }
 }

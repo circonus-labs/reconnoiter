@@ -33,12 +33,14 @@
 package com.omniti.reconnoiter;
 
 import com.omniti.reconnoiter.broker.IMQBroker;
+import com.omniti.reconnoiter.broker.IMQMQ;
 import com.omniti.reconnoiter.event.*;
 import com.omniti.reconnoiter.MessageHandler;
 
 public interface IEventHandler {
   public void addObserver(MessageHandler mh);
   public IMQBroker getBroker();
+  public IMQMQ getMQ();
   public void processMessage(StratconMessage m) throws Exception;
   public void processMessage(String payload) throws Exception;
   public void sendEvent(StratconMessage m);

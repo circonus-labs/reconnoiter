@@ -50,22 +50,19 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
 
-public class AMQBroker implements IMQBroker {
+public class AMQMQ implements IMQMQ {
   private String hostName;
   private int portNumber;
   private Class listenerClass;
   private BrokerService amqBroker;
 
   @SuppressWarnings("unchecked")
-  public AMQBroker(StratconConfig config) {
+  public AMQMQ(StratconConfig config) {
     this.hostName = config.getBrokerParameter("hostname", "127.0.0.1");
     this.portNumber = Integer.parseInt(config.getBrokerParameter("port", "61613"));
-    try { connect(); }
-    catch (Exception e) {}
   }
 
-  private Session session;
-  private MessageProducer producer;
+  private MessageConsumer consumer;
 
   public void disconnect() {
   }
@@ -83,24 +80,26 @@ public class AMQBroker implements IMQBroker {
 
     Connection connection=connectionFactory.createConnection();
     connection.start();
-    session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    Session session=connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
+    Destination destination=session.createQueue("noit.firehose");
+    consumer = session.createConsumer(destination);
   }
- 
-  private String getAlertRoutingKey() { return "noit.alerts."; }
-  private String getAlertExchangeName() { return "vm://localhost"; }
-
-  public void alert(String key, String json) {
-    String rk;
-    if(key == null) rk = getAlertRoutingKey();
-    else rk = getAlertRoutingKey() + key;
-
-    try {
-      Destination destination = session.createTopic(rk);
-      producer = session.createProducer(destination);
-      producer.setDeliveryMode(DeliveryMode.PERSISTENT);
-      TextMessage message = session.createTextMessage(json);
-      producer.send(message);
-    } catch (Exception e) { e.printStackTrace(); }
-  } 
+  
+  public void consume(IEventHandler eh) {
+    while (true) {
+      Message message = null;
+      try {
+        message = consumer.receive(1000);
+      } catch(Exception ignored) {
+      }
+      if (message != null && message instanceof TextMessage) {
+        TextMessage textMessage = (TextMessage) message;
+        try {
+          String xml = textMessage.getText();
+          eh.processMessage(xml);
+        } catch(Exception ie) { ie.printStackTrace(); }
+      }
+    }
+  }
 }

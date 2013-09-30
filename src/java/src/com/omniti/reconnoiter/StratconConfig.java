@@ -131,6 +131,26 @@ public class StratconConfig {
     return null;
   }
   
+  public String getMQ() {
+    XPathFactory factory = XPathFactory.newInstance();
+    XPath xpath = factory.newXPath();
+    Object result;
+    try {
+      XPathExpression expr =
+        xpath.compile("/stratcon/iep/mq/@type");
+      result = expr.evaluate(doc, XPathConstants.NODESET);
+    }
+    catch(XPathExpressionException e) {
+      System.err.println("Bad expression: " + e.getMessage());
+      return null;
+    }
+    NodeList nodes = (NodeList) result;
+    if(nodes.getLength() > 0) {
+      return nodes.item(nodes.getLength() -1).getNodeValue();
+    }
+    return null;
+  }
+  
   public String getBrokerParameter(String param, String or) {
     String result = getBrokerParameter(param);
     if (result == null)

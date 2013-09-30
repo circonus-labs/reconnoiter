@@ -33,11 +33,22 @@
 
 package com.omniti.reconnoiter.broker;
 
-import com.omniti.reconnoiter.IEventHandler;
-import java.io.IOException;
+import com.omniti.reconnoiter.StratconConfig;
 
-public interface IMQBroker {
-  public void connect() throws Exception;
-  public void disconnect();
-  public void alert(String key, String json);
+public class MQFactory {
+  public static IMQMQ getMQ(StratconConfig config) {
+    // TODO if the broker is null default the AMQAdapter
+    String broker = config.getMQ();
+    
+    if (broker == null)
+      return new AMQMQ(config);
+    
+    if (broker.compareToIgnoreCase("rabbitmq") == 0) {
+      return new RabbitMQ(config);
+    }
+    else if (broker.compareToIgnoreCase("activemq") == 0) {
+      return new AMQMQ(config);
+    }
+    return new AMQMQ(config);
+  }
 }
