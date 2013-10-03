@@ -3,6 +3,7 @@
 JAVA=@JAVA@
 JAVAC=@JAVAC@
 JAR=@JAR@
+MAVEN=@MAVEN@
 INSTALL=@INSTALL@
 
 prefix=@prefix@
@@ -109,7 +110,7 @@ $(IEPJAR):
 	@echo "- building a maven-like repo layout in lib"
 	@(cd lib && ./stub-as-maven.sh)
 	@echo "- building reconnoiter-riemann"
-	@(cd reconnoiter-riemann && mvn compile assembly:single)
+	@(cd reconnoiter-riemann && $(MAVEN) compile assembly:single)
 
 install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
