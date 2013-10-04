@@ -486,14 +486,16 @@ sub make_stratcon_config {
   L("make_stratcon_config");
   $options->{cwd} ||= getcwd();
   L("make_stratcon_config in $options->{cwd}");
-  $options->{generics} ||= { 'rabbitmq_driver' => { image => 'rabbitmq_driver' },
+  $options->{generics} ||= { #'rabbitmq_driver' => { image => 'rabbitmq_driver' },
                              'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
-  $options->{iep}->{mq} ||= { 'stomp' => {} };
-                              #'rabbitmq' => { 'hostname' => 'localhost' } };
-  $options->{iep}->{broker} ||= { #'stomp' => {} };
-                                  'rabbitmq' => { 'hostname' => 'localhost' } };
+  $options->{iep}->{mq} ||= { 'stomp' => {},
+                              #'rabbitmq' => { 'hostname' => 'localhost' },
+                            };
+  $options->{iep}->{broker} ||= { 'stomp' => {},
+                                  #'rabbitmq' => { 'hostname' => 'localhost' },
+                                };
   $options->{iep}->{riemann} ||= { 'config' => q~
 (logging/init :file "riemann.log")
 (streams 
