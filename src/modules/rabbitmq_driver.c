@@ -40,6 +40,7 @@
 #include "rabbitmq_driver.xmlh"
 
 #include <poll.h>
+#include <unistd.h>
 #include <assert.h>
 
 #define MAX_CONCURRENCY 16
@@ -121,6 +122,7 @@ static int noit_rabbimq_disconnect(iep_thread_driver_t *d) {
   struct amqp_driver *dr = (struct amqp_driver *)d;
   if(dr->connection) {
     amqp_destroy_connection(dr->connection);
+    if(dr->sockfd >= 0) close(dr->sockfd);
     dr->sockfd = -1;
     dr->connection = NULL;
     return 0;
@@ -232,6 +234,8 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
       noitL(noit_error, "AMQP login failed\n");
       amqp_connection_close(driver->connection, AMQP_REPLY_SUCCESS);
       amqp_destroy_connection(driver->connection);
+      if(driver->sockfd >= 0) close(driver->sockfd);
+      driver->sockfd = -1;
       driver->connection = NULL;
       return -1;
     }
@@ -242,6 +246,8 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
       noitL(noit_error, "AMQP channe_open failed\n");
       amqp_connection_close(driver->connection, AMQP_REPLY_SUCCESS);
       amqp_destroy_connection(driver->connection);
+      if(driver->sockfd >= 0) close(driver->sockfd);
+      driver->sockfd = -1;
       driver->connection = NULL;
       return -1;
     }
@@ -355,6 +361,8 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
     noitL(noit_error, "AMQP publish failed, disconnecting\n");
     amqp_connection_close(driver->connection, AMQP_REPLY_SUCCESS);
     amqp_destroy_connection(driver->connection);
+    if(driver->sockfd >= 0) close(driver->sockfd);
+    driver->sockfd = -1;
     driver->connection = NULL;
     return -1;
   }
@@ -365,6 +373,8 @@ noit_rabbimq_submit(iep_thread_driver_t *dr,
   if(driver->has_error) {
     amqp_connection_close(driver->connection, AMQP_REPLY_SUCCESS);
     amqp_destroy_connection(driver->connection);
+    if(driver->sockfd >= 0) close(driver->sockfd);
+    driver->sockfd = -1;
     driver->connection = NULL;
     return -1;
   }
