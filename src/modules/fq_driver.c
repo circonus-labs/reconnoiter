@@ -253,17 +253,12 @@ noit_fq_submit(iep_thread_driver_t *dr,
   fq_msg_route(msg, routingkey, strlen(routingkey));
   fq_msg_id(msg, NULL);
 
-  /* hold a reservation on this message so it doesn't get freed
-   * race freeing while we publish.
-   */
-  fq_msg_ref(msg);
   for(i=0; i<driver->nhosts; i++) {
     if(fq_client_publish(driver->client[i], msg) == 1)
       BUMPSTAT(i, publications);
     else
       BUMPSTAT(i, client_tx_drop);
   }
-  /* racy section past, drop our reservation */
   fq_msg_deref(msg);
   return 0;
 }
