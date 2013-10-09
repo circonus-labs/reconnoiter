@@ -47,6 +47,7 @@ import com.omniti.labs.FqMessage;
 public class FQMQ implements IMQMQ  {
   static Logger logger = Logger.getLogger(FQMQ.class.getName());
   private FqClient client;
+  protected int idx = 0;
   protected String userName;
   protected String password;
   protected String hostName[];
@@ -70,6 +71,14 @@ public class FQMQ implements IMQMQ  {
         if(parent.eh != null) parent.eh.processMessage(new String(m.getPayload()));
       } catch (Exception e) { e.printStackTrace(); }
     }
+    public void commandError(Throwable e) {
+      while(true) {
+        try {
+          client.creds(hostName[idx++], portNumber, userName, password);
+          return;
+        } catch(java.net.UnknownHostException uhe) { }
+      }
+    }
     public void dispatchAuth(FqCommand.Auth a) {
       if(a.success()) {
         client.setHeartbeat(parent.heartBeat);
@@ -89,12 +98,13 @@ public class FQMQ implements IMQMQ  {
     portNumber = Integer.parseInt(config.getMQParameter("port", "8765"));
     heartBeat = Integer.parseInt(config.getMQParameter("heartbeat", "1000"));
     routingKey = config.getMQParameter("routingkey", "");
+    exchangeName = config.getMQParameter("exchange", "");
 
     FqNoit impl = new FqNoit(this);
     FqClient client;
     try {
       client = new FqClient(impl);
-      client.creds(hostName[0], portNumber, userName, password);
+      client.creds(hostName[idx++], portNumber, userName, password);
       client.connect();
     } catch(Exception e) {
       throw new RuntimeException(e);
