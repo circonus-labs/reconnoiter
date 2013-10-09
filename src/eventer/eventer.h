@@ -156,6 +156,13 @@ API_EXPORT(int) eventer_choose(const char *name);
 
 extern eventer_impl_t registered_eventers[];
 
+#if defined(__MACH__)
+typedef u_int64_t hrtime_t;
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+typedef long long unsigned int hrtime_t;
+#endif
+API_EXPORT(hrtime_t) eventer_gethrtime(void);
+
 #include "eventer/eventer_jobq.h"
 
 API_EXPORT(eventer_jobq_t *) eventer_default_backq();

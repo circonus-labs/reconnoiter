@@ -47,8 +47,9 @@
 
 typedef struct _eventer_job_t {
   pthread_mutex_t         lock;
-  struct timeval          create_time;
-  struct timeval          start_time;
+  hrtime_t                create_hrtime;
+  hrtime_t                start_hrtime;
+  hrtime_t                finish_hrtime;
   struct timeval          finish_time;
   pthread_t               executor;
   eventer_t               timeout_event;
@@ -73,6 +74,12 @@ typedef struct _eventer_jobq_t {
   pthread_key_t           threadenv;
   pthread_key_t           activejob;
   struct _eventer_jobq_t *backq;
+  noit_atomic32_t         backlog;
+  noit_atomic32_t         inflight;
+  noit_atomic64_t         total_jobs;
+  noit_atomic64_t         timeouts;
+  noit_atomic64_t         avg_wait_ns; /* smoother alpha = 0.8 */
+  noit_atomic64_t         avg_run_ns; /* smoother alpha = 0.8 */
 } eventer_jobq_t;
 
 int eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name);

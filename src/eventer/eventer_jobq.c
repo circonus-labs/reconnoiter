@@ -53,6 +53,24 @@ static noit_hash_table all_queues = NOIT_HASH_EMPTY;
 pthread_mutex_t all_queues_lock;
 
 static void
+eventer_jobq_finished_job(eventer_jobq_t *jobq, eventer_job_t *job) {
+  hrtime_t wait_time = job->start_hrtime - job->create_hrtime;
+  hrtime_t run_time = job->finish_hrtime - job->start_hrtime;
+  noit_atomic_dec32(&jobq->inflight);
+  if(job->timeout_triggered) noit_atomic_inc64(&jobq->timeouts);
+  while(1) {
+    hrtime_t newv = jobq->avg_wait_ns * 0.8 + wait_time * 0.2;
+    if(noit_atomic_cas64(&jobq->avg_wait_ns, newv, jobq->avg_wait_ns) == jobq->avg_wait_ns)
+      break;
+  }
+  while(1) {
+    hrtime_t newv = jobq->avg_run_ns * 0.8 + run_time * 0.2;
+    if(noit_atomic_cas64(&jobq->avg_run_ns, newv, jobq->avg_run_ns) == jobq->avg_run_ns)
+      break;
+  }
+}
+
+static void
 eventer_jobq_handler(int signo)
 {
   eventer_jobq_t *jobq;
@@ -192,6 +210,8 @@ eventer_jobq_enqueue(eventer_jobq_t *jobq, eventer_job_t *job) {
     jobq->headq = jobq->tailq = job;
   }
   pthread_mutex_unlock(&jobq->lock);
+  noit_atomic_inc64(&jobq->total_jobs);
+  noit_atomic_inc32(&jobq->backlog);
 
   /* Signal consumers */
   sem_post(&jobq->semaphore);
@@ -215,7 +235,11 @@ __eventer_jobq_dequeue(eventer_jobq_t *jobq, int should_wait) {
   }
   pthread_mutex_unlock(&jobq->lock);
 
-  if(job) job->next = NULL; /* To reduce any confusion */
+  if(job) {
+    job->next = NULL; /* To reduce any confusion */
+    noit_atomic_dec32(&jobq->backlog);
+    noit_atomic_inc32(&jobq->inflight);
+  }
   /* Our semaphores are counting semaphores, not locks. */
   /* coverity[missing_unlock] */
   return job;
@@ -266,6 +290,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
          * one's soul out.
          */
         if(my_precious) {
+          gettimeofday(&job->finish_time, NULL); /* We're done */
           EVENTER_CALLBACK_ENTRY((void *)my_precious->callback, NULL,
                                  my_precious->fd, my_precious->mask,
                                  EVENTER_ASYNCH_CLEANUP);
@@ -278,8 +303,11 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
       memcpy(jobcopy, job, sizeof(*jobcopy));
       free(job);
       jobcopy->fd_event = my_precious;
+      job->finish_hrtime = eventer_gethrtime();
       eventer_jobq_maybe_spawn(jobcopy->jobq);
+      eventer_jobq_finished_job(jobcopy->jobq, jobcopy);
       eventer_jobq_enqueue(jobcopy->jobq->backq, jobcopy);
+      eventer_wakeup();
     }
     else
       pthread_kill(job->executor, JOBQ_SIGNAL);
@@ -354,20 +382,24 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
           jobq->queue_name, job);
 
     /* Mark our commencement */
-    gettimeofday(&job->start_time, NULL);
+    job->start_hrtime = eventer_gethrtime();
 
     /* Safely check and handle if we've timed out while in queue */
     pthread_mutex_lock(&job->lock);
     if(job->timeout_triggered) {
       struct timeval diff, diff2;
+      hrtime_t udiff2;
       /* This happens if the timeout occurred before we even had the change
        * to pull the job off the queue.  We must be in bad shape here.
        */
       noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p]\n",
             pthread_self_ptr(), jobq->queue_name, job);
       gettimeofday(&job->finish_time, NULL); /* We're done */
+      job->finish_hrtime = eventer_gethrtime();
       sub_timeval(job->finish_time, job->fd_event->whence, &diff);
-      sub_timeval(job->finish_time, job->create_time, &diff2);
+      udiff2 = (job->finish_hrtime - job->create_hrtime)/1000;
+      diff2.tv_sec = udiff2/1000000;
+      diff2.tv_usec = udiff2%1000000;
       noitL(eventer_deb, "%p jobq[%s] -> timeout before start [%p] -%0.6f (%0.6f)\n",
             pthread_self_ptr(), jobq->queue_name, job,
             (float)diff.tv_sec + (float)diff.tv_usec/1000000.0,
@@ -379,7 +411,9 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
       EVENTER_CALLBACK_RETURN((void *)job->fd_event->callback, NULL, -1);
+      eventer_jobq_finished_job(jobq, job);
       eventer_jobq_enqueue(jobq->backq, job);
+      eventer_wakeup();
       continue;
     }
     pthread_mutex_unlock(&job->lock);
@@ -415,9 +449,11 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
             pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
           }
           /* run the job */
+          struct timeval start_time;
+          gettimeofday(&start_time, NULL);
           noitL(eventer_deb, "jobq[%s] -> dispatch BEGIN\n", jobq->queue_name);
           job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_WORK,
-                                  job->fd_event->closure, &job->start_time);
+                                  job->fd_event->closure, &start_time);
           noitL(eventer_deb, "jobq[%s] -> dispatch END\n", jobq->queue_name);
           if(job->fd_event && job->fd_event->mask & EVENTER_CANCEL)
             pthread_testcancel();
@@ -450,6 +486,8 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
         job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                                 job->fd_event->closure, &job->finish_time);
     }
+    job->finish_hrtime = eventer_gethrtime();
+    eventer_jobq_finished_job(jobq, job);
     eventer_jobq_enqueue(jobq->backq, job);
     eventer_wakeup();
   }

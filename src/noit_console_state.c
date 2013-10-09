@@ -90,10 +90,15 @@ noit_console_spit_jobq(eventer_jobq_t *jobq, void *c) {
   const char *bqn = "(undefined)";
   if(jobq->backq && jobq->backq->queue_name) bqn = jobq->backq->queue_name;
   nc_printf(ncct, "=== %s ===\n", jobq->queue_name);
-  nc_printf(ncct, " concurrency: %d\n", jobq->concurrency);
+  nc_printf(ncct, " concurrency: %d/%d\n", jobq->concurrency, jobq->desired_concurrency);
   nc_printf(ncct, " backq: %s\n", bqn);
   sem_getvalue(&jobq->semaphore, &qlen);
-  nc_printf(ncct, " queue size: %d\n", qlen);
+  nc_printf(ncct, " total jobs: %lld\n", (long long int)jobq->total_jobs);
+  nc_printf(ncct, " backlog: %d\n", jobq->backlog);
+  nc_printf(ncct, " inflight: %d\n", jobq->inflight);
+  nc_printf(ncct, " timeouts: %lld\n", (long long int)jobq->timeouts);
+  nc_printf(ncct, " avg_wait_ms: %f\n", (double)jobq->avg_wait_ns/1000000.0);
+  nc_printf(ncct, " avg_run_ms: %f\n", (double)jobq->avg_run_ns/1000000.0);
 }
 static int
 noit_console_eventer_timers(noit_console_closure_t ncct, int argc, char **argv,

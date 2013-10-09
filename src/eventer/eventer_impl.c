@@ -213,7 +213,7 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   job = calloc(1, sizeof(*job));
   job->fd_event = e;
   job->jobq = q ? q : &__default_jobq;
-  gettimeofday(&job->create_time, NULL);
+  job->create_hrtime = eventer_gethrtime();
   /* If we're debugging the eventer, these cross thread timeouts will
    * make it impossible for us to slowly trace an asynch job. */
   if(!EVENTER_DEBUGGING && e->whence.tv_sec) {
@@ -365,3 +365,32 @@ void eventer_add_recurrent(eventer_t e) {
   pthread_mutex_unlock(&recurrent_lock);
 }
 
+
+#if defined(linux) || defined(__linux) || defined(__linux__)
+#include <time.h>
+hrtime_t eventer_gethrtime() {
+  struct timespec ts;
+  uint64_t t;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  return ((ts.tv_sec * 1000000000) + ts.tv_nsec);
+}
+#elif defined(__MACH__)
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
+static int initialized = 0;
+static mach_timebase_info_data_t    sTimebaseInfo;
+hrtime_t eventer_gethrtime() {
+  uint64_t t;
+  if(!initialized) {
+    if(sTimebaseInfo.denom == 0)
+      (void) mach_timebase_info(&sTimebaseInfo);
+  }
+  t = mach_absolute_time();
+  return t * sTimebaseInfo.numer / sTimebaseInfo.denom;
+}
+#else
+hrtime_t eventer_gethrtime() {
+  return gethrtime();
+}
+#endif
