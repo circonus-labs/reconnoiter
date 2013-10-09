@@ -67,3 +67,5 @@ $(LUADIR)/src/%.o:
 else
 endif
 endif
+
+.PRECIOUS:  $(LUADIR)/src/%.o
