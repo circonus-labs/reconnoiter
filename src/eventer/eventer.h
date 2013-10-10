@@ -161,7 +161,7 @@ typedef u_int64_t eventer_hrtime_t;
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 typedef long long unsigned int eventer_hrtime_t;
 #else
-typedef hrtime_t eventer_hrtime_t
+typedef hrtime_t eventer_hrtime_t;
 #endif
 API_EXPORT(eventer_hrtime_t) eventer_gethrtime(void);
 
