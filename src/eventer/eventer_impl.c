@@ -371,7 +371,11 @@ void eventer_add_recurrent(eventer_t e) {
 hrtime_t eventer_gethrtime() {
   struct timespec ts;
   uint64_t t;
+#ifdef CLOCK_MONOTONIC_RAW
   clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+#else
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+#endif
   return ((ts.tv_sec * 1000000000) + ts.tv_nsec);
 }
 #elif defined(__MACH__)
