@@ -47,9 +47,9 @@
 
 typedef struct _eventer_job_t {
   pthread_mutex_t         lock;
-  hrtime_t                create_hrtime;
-  hrtime_t                start_hrtime;
-  hrtime_t                finish_hrtime;
+  eventer_hrtime_t        create_hrtime;
+  eventer_hrtime_t        start_hrtime;
+  eventer_hrtime_t        finish_hrtime;
   struct timeval          finish_time;
   pthread_t               executor;
   eventer_t               timeout_event;

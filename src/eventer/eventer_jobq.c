@@ -54,17 +54,17 @@ pthread_mutex_t all_queues_lock;
 
 static void
 eventer_jobq_finished_job(eventer_jobq_t *jobq, eventer_job_t *job) {
-  hrtime_t wait_time = job->start_hrtime - job->create_hrtime;
-  hrtime_t run_time = job->finish_hrtime - job->start_hrtime;
+  eventer_hrtime_t wait_time = job->start_hrtime - job->create_hrtime;
+  eventer_hrtime_t run_time = job->finish_hrtime - job->start_hrtime;
   noit_atomic_dec32(&jobq->inflight);
   if(job->timeout_triggered) noit_atomic_inc64(&jobq->timeouts);
   while(1) {
-    hrtime_t newv = jobq->avg_wait_ns * 0.8 + wait_time * 0.2;
+    eventer_hrtime_t newv = jobq->avg_wait_ns * 0.8 + wait_time * 0.2;
     if(noit_atomic_cas64(&jobq->avg_wait_ns, newv, jobq->avg_wait_ns) == jobq->avg_wait_ns)
       break;
   }
   while(1) {
-    hrtime_t newv = jobq->avg_run_ns * 0.8 + run_time * 0.2;
+    eventer_hrtime_t newv = jobq->avg_run_ns * 0.8 + run_time * 0.2;
     if(noit_atomic_cas64(&jobq->avg_run_ns, newv, jobq->avg_run_ns) == jobq->avg_run_ns)
       break;
   }
@@ -388,7 +388,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     pthread_mutex_lock(&job->lock);
     if(job->timeout_triggered) {
       struct timeval diff, diff2;
-      hrtime_t udiff2;
+      eventer_hrtime_t udiff2;
       /* This happens if the timeout occurred before we even had the change
        * to pull the job off the queue.  We must be in bad shape here.
        */

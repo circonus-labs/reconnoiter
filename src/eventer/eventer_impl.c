@@ -368,7 +368,7 @@ void eventer_add_recurrent(eventer_t e) {
 
 #if defined(linux) || defined(__linux) || defined(__linux__)
 #include <time.h>
-hrtime_t eventer_gethrtime() {
+eventer_hrtime_t eventer_gethrtime() {
   struct timespec ts;
   uint64_t t;
 #ifdef CLOCK_MONOTONIC_RAW
@@ -384,7 +384,7 @@ hrtime_t eventer_gethrtime() {
 
 static int initialized = 0;
 static mach_timebase_info_data_t    sTimebaseInfo;
-hrtime_t eventer_gethrtime() {
+eventer_hrtime_t eventer_gethrtime() {
   uint64_t t;
   if(!initialized) {
     if(sTimebaseInfo.denom == 0)
@@ -394,7 +394,7 @@ hrtime_t eventer_gethrtime() {
   return t * sTimebaseInfo.numer / sTimebaseInfo.denom;
 }
 #else
-hrtime_t eventer_gethrtime() {
+eventer_hrtime_t eventer_gethrtime() {
   return gethrtime();
 }
 #endif
