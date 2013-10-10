@@ -154,18 +154,19 @@ function issue_cmd(e, tok, str)
 end
 
 function initiate(module, check)
+  local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
-  local folder = check.config.folder or 'INBOX'
+  local folder = config.folder or 'INBOX'
   check.bad()
   check.unavailable()
   check.status("unknown error")
-  local port = check.config.port
+  local port = config.port
   local good = false
   local status = ""
   local use_ssl = false
   local _tok = 0
   local last_msg = 0
-  local host_header = check.config.header_Host or ''
+  local host_header = config.header_Host or ''
 
   if check.target_ip == nil then
     check.status("dns resolution failure")
@@ -178,7 +179,7 @@ function initiate(module, check)
   end
 
   -- SSL
-  if check.config.use_ssl == "true" or check.config.use_ssl == "on" then
+  if config.use_ssl == "true" or config.use_ssl == "on" then
     use_ssl = true
   end
 
@@ -197,15 +198,15 @@ function initiate(module, check)
   local ca_chain = 
      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
 
-  if check.config.ca_chain ~= nil and check.config.ca_chain ~= '' then
-    ca_chain = check.config.ca_chain
+  if config.ca_chain ~= nil and config.ca_chain ~= '' then
+    ca_chain = config.ca_chain
   end
 
   if use_ssl == true then
-    rv, err = e:ssl_upgrade_socket(check.config.certificate_file,
-                                        check.config.key_file,
+    rv, err = e:ssl_upgrade_socket(config.certificate_file,
+                                        config.key_file,
                                         ca_chain,
-                                        check.config.ciphers)
+                                        config.ciphers)
   end 
 
   local connecttime = noit.timeval.now()
@@ -262,8 +263,8 @@ function initiate(module, check)
   -- login
   local lstart = noit.timeval.now()
   state, lines, errors = issue_cmd(e, tok(), "LOGIN " ..
-                                             check.config.auth_user .. " " ..
-                                             check.config.auth_password)
+                                             config.auth_user .. " " ..
+                                             config.auth_password)
   elapsed(check, "login`duration", lstart, noit.timeval.now())
   check.metric_string("login`status", lines[ # lines ])
   if state ~= "OK" then good = false
@@ -288,9 +289,9 @@ function initiate(module, check)
     end
   end
 
-  if check.config.search ~= nil then
+  if config.search ~= nil then
     last_msg = nil
-    local search = check.config.search:gsub("[\r\n]", "")
+    local search = config.search:gsub("[\r\n]", "")
     local sstart = noit.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "SEARCH " .. search)
     elapsed(check, "search`duration", sstart, noit.timeval.now())
@@ -310,8 +311,8 @@ function initiate(module, check)
     end
   end
 
-  if check.config.fetch ~= nil and
-     (check.config.fetch == "true" or check.config.fetch == "on") and
+  if config.fetch ~= nil and
+     (config.fetch == "true" or config.fetch == "on") and
      last_msg ~= nil and
      last_msg > 0 then
     local fstart = noit.timeval.now()

@@ -256,16 +256,16 @@ local function mk_saslplain(e, check)
   end
 end
 
-function ex_actions(action, check, mailfrom, rcptto, payload)
+function ex_actions(action, check, config, mailfrom, rcptto, payload)
   local status = ''
   -- Only proceed if from is present, empty or not
-  if check.config.from == "" or check.config.from then
+  if config.from == "" or config.from then
     action("mailfrom", mailfrom, 250)
   else
      return status
   end
 
-  if check.config.to then
+  if config.to then
      action("rcptto", rcptto, 250)
   else
      return status
@@ -281,9 +281,10 @@ function ex_actions(action, check, mailfrom, rcptto, payload)
 end
 
 function initiate(module, check)
+  local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
   local e = noit.socket(check.target_ip)
-  local rv, err = e:connect(check.target_ip, check.config.port or 25)
+  local rv, err = e:connect(check.target_ip, config.port or 25)
   local action_result
   check.unavailable()
 
@@ -293,12 +294,12 @@ function initiate(module, check)
     return
   end
 
-  local try_starttls = check.config.starttls == "true" or check.config.starttls == "on"
+  local try_starttls = config.starttls == "true" or config.starttls == "on"
   local good = true
-  local ehlo = string.format("EHLO %s", check.config.ehlo or "noit.local")
-  local mailfrom = string.format("MAIL FROM:<%s>", check.config.from or "")
-  local rcptto = string.format("RCPT TO:<%s>", check.config.to or "")
-  local payload = check.config.payload or "Subject: Test\n\nHello."
+  local ehlo = string.format("EHLO %s", config.ehlo or "noit.local")
+  local mailfrom = string.format("MAIL FROM:<%s>", config.from or "")
+  local rcptto = string.format("RCPT TO:<%s>", config.to or "")
+  local payload = config.payload or "Subject: Test\n\nHello."
   payload = payload:gsub("\n", "\r\n")
   local status = 'connected'
   local action = mkaction(e, check)
@@ -308,10 +309,10 @@ function initiate(module, check)
   -- setup SSL info
   local default_ca_chain =
       noit.conf_get_string("/noit/eventer/config/default_ca_chain")
-  local certfile = check.config.certificate_file or ''
-  local keyfile = check.config.key_file or ''
-  local cachain = check.config.ca_chain or default_ca_chain
-  local ciphers = check.config.ciphers or ''
+  local certfile = config.certificate_file or ''
+  local keyfile = config.key_file or ''
+  local cachain = config.ca_chain or default_ca_chain
+  local ciphers = config.ciphers or ''
 
   if     not action("banner", nil, 220)
       or not action("ehlo", ehlo, 250) then return end
@@ -345,15 +346,15 @@ function initiate(module, check)
     if not action("ehlo", ehlo, 250) then return end
   end
 
-  if check.config.sasl_authentication ~= nil then
-    if check.config.sasl_authentication == "login" then
-      sasl_login(noit.base64_encode(check.config.sasl_user or ""), noit.base64_encode(check.config.sasl_password or ""))
-    elseif check.config.sasl_authentication == "plain" then
-      sasl_plain(noit.base64_encode((check.config.sasl_auth_id or "") .. "\0" .. (check.config.sasl_user or "") .. "\0" .. (check.config.sasl_password or "")))
+  if config.sasl_authentication ~= nil then
+    if config.sasl_authentication == "login" then
+      sasl_login(noit.base64_encode(config.sasl_user or ""), noit.base64_encode(config.sasl_password or ""))
+    elseif config.sasl_authentication == "plain" then
+      sasl_plain(noit.base64_encode((config.sasl_auth_id or "") .. "\0" .. (config.sasl_user or "") .. "\0" .. (config.sasl_password or "")))
     end
   end
 
-  action_result = ex_actions(action, check, mailfrom, rcptto, payload)
+  action_result = ex_actions(action, check, config, mailfrom, rcptto, payload)
   -- Always issue quit
   action("quit", "QUIT", 221)
 

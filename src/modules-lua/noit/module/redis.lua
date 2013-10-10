@@ -86,14 +86,15 @@ function config(module, options)
 end
 
 function initiate(module, check)
-  local host = check.config.host or check.target_ip or check.target
-  local port = check.config.port or 6379
+  local config = check.interpolate(check.config)
+  local host = config.host or check.target_ip or check.target
+  local port = config.port or 6379
 
   -- default to bad
   check.bad();
   check.unavailable();
 
-  local redis_comm = build_redis_command(check.config.command or "info")
+  local redis_comm = build_redis_command(config.command or "info")
 
   local conn = noit.socket(host)
   local rv, err = conn:connect(host, port)
@@ -102,8 +103,8 @@ function initiate(module, check)
     return
   end
 
-  if ( check.config.password ~= nil and check.config.password ~= "" ) then
-    conn:write(build_redis_command("AUTH " .. check.config.password))
+  if ( config.password ~= nil and config.password ~= "" ) then
+    conn:write(build_redis_command("AUTH " .. config.password))
     conn:read(1)
     local status = string.sub(conn:read("\r\n"), 1, -3)
     if ( status ~= "OK" ) then
@@ -112,12 +113,12 @@ function initiate(module, check)
     end
   end
 
-  if ( check.config.dbindex ~= nil and check.config.dbindex ~= 0 ) then
-    conn:write(build_redis_command("SELECT " .. check.config.dbindex))
+  if ( config.dbindex ~= nil and config.dbindex ~= 0 ) then
+    conn:write(build_redis_command("SELECT " .. config.dbindex))
     conn:read(1)
     local status = string.sub(conn:read("\r\n"), 1, -3)
     if ( status ~= "OK" ) then
-      check.status("could not select dbindex " .. check.config.dbindex .. " (" .. status .. ")")
+      check.status("could not select dbindex " .. config.dbindex .. " (" .. status .. ")")
       return
     end
   end
@@ -125,8 +126,8 @@ function initiate(module, check)
   conn:write(redis_comm)
   local metric_count = 0
 
-  if ( check.config.command ~= nil and check.config.command:upper() ~= "INFO" ) then
-    metric_count = get_command_metrics(conn, check)
+  if ( config.command ~= nil and config.command:upper() ~= "INFO" ) then
+    metric_count = get_command_metrics(conn, check, config)
   else
     metric_count = get_info_metrics(conn, check)
   end
@@ -200,7 +201,7 @@ function get_info_metrics(conn, check)
   return count
 end
 
-function get_command_metrics(conn, check)
+function get_command_metrics(conn, check, config)
   -- the only metric name we know is what we are sending to redis
   local metric_data = {}
   metric_data["hash_key"] = nil
@@ -208,7 +209,7 @@ function get_command_metrics(conn, check)
   metric_data["need_key"] = 0
   metric_data["names"] = {}
 
-  local cs = string.split(check.config.command, "%s+")
+  local cs = string.split(config.command, "%s+")
   if ( string.find(cs[1]:upper(), "HGET") ) then
     metric_data["hash_key"] = cs[2]
   elseif ( string.find(cs[1]:upper(), "MGET") ) then

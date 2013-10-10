@@ -192,14 +192,15 @@ function xml_to_metrics(check, doc)
 end
 
 function initiate(module, check)
-    local url = check.config.url or 'http:///'
+    local config = check.interpolate(check.config)
+    local url = config.url or 'http:///'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
     local port
     local use_ssl = false
-    local codere = noit.pcre(check.config.code or '^200$')
+    local codere = noit.pcre(config.code or '^200$')
     local good = false
     local starttime = noit.timeval.now()
-    local read_limit = tonumber(check.config.read_limit) or nil
+    local read_limit = tonumber(config.read_limit) or nil
 
     -- assume the worst.
     check.bad()
@@ -213,9 +214,9 @@ function initiate(module, check)
         uri = '/'
     end
     if schema == 'http' then
-        port = check.config.port or 81
+        port = config.port or 81
     elseif schema == 'https' then
-        port = check.config.port or 443
+        port = config.port or 443
         use_ssl = true
     else
         error(schema .. " not supported")
@@ -233,19 +234,19 @@ function initiate(module, check)
     local headers = {}
     headers.Host = host
 
-    if check.config.auth_method == "Basic" or
-        (check.config.auth_method == nil and
-            check.config.auth_user ~= nil and
-            check.config.auth_password ~= nil) then
-        local user = check.config.auth_user or nil
-        local pass = check.config.auth_password or nil
+    if config.auth_method == "Basic" or
+        (config.auth_method == nil and
+            config.auth_user ~= nil and
+            config.auth_password ~= nil) then
+        local user = config.auth_user or nil
+        local pass = config.auth_password or nil
         local encoded = nil
         if (user ~= nil and pass ~= nil) then
             encoded = noit.base64_encode(user .. ':' .. pass)
             headers["Authorization"] = "Basic " .. encoded
         end
-    elseif check.config.auth_method == "Digest" or
-           check.config.auth_method == "Auto" then
+    elseif config.auth_method == "Digest" or
+           config.auth_method == "Auto" then
 
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
@@ -265,11 +266,11 @@ function initiate(module, check)
             check.status("expected digest challenge, got " .. client.code)
             return
         end
-        local user = check.config.auth_user or ''
-        local password = check.config.auth_password or ''
+        local user = config.auth_user or ''
+        local password = config.auth_password or ''
         local ameth, challenge =
             string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
-        if check.config.auth_method == "Auto" and ameth == "Basic" then
+        if config.auth_method == "Auto" and ameth == "Basic" then
             local encoded = noit.base64_encode(user .. ':' .. password)
             headers["Authorization"] = "Basic " .. encoded
         elseif ameth == "Digest" then
@@ -280,8 +281,8 @@ function initiate(module, check)
             check.status("Unexpected auth '" .. ameth .. "' in challenge")
             return
         end
-    elseif check.config.auth_method ~= nil then
-        check.status("Unknown auth method: " .. check.config.auth_method)
+    elseif config.auth_method ~= nil then
+        check.status("Unknown auth method: " .. config.auth_method)
         return
     end
 

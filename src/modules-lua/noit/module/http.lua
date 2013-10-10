@@ -300,20 +300,21 @@ function get_absolute_path(uri)
 end
 
 function initiate(module, check)
-    local url = check.config.url or 'http:///'
+    local config = check.interpolate(check.config)
+    local url = config.url or 'http:///'
     local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
     local use_ssl = false
-    local codere = noit.pcre(check.config.code or '^200$')
+    local codere = noit.pcre(config.code or '^200$')
     local good = false
     local starttime = noit.timeval.now()
-    local method = check.config.method or "GET"
+    local method = config.method or "GET"
     local max_len = 80
-    local pcre_match_limit = check.config.pcre_match_limit or 10000
-    local redirects = check.config.redirects or 0
+    local pcre_match_limit = config.pcre_match_limit or 10000
+    local redirects = config.redirects or 0
     local include_body = false
-    local read_limit = tonumber(check.config.read_limit) or nil
-    local host_header = check.config.header_Host
-    local http_version = check.config.http_version or '1.1'
+    local read_limit = tonumber(config.read_limit) or nil
+    local host_header = config.header_Host
+    local http_version = config.http_version or '1.1'
 
     -- expect the worst
     check.bad()
@@ -330,9 +331,9 @@ function initiate(module, check)
     end
     if port == '' or port == nil then
         if schema == 'http' then
-            port = check.config.port or 80
+            port = config.port or 80
         elseif schema == 'https' then
-            port = check.config.port or 443
+            port = config.port or 443
         else
             error(schema .. " not supported")
         end
@@ -342,7 +343,7 @@ function initiate(module, check)
     end
 
     -- Include body as a metric
-    if check.config.include_body == "true" or check.config.include_body == "on" then
+    if config.include_body == "true" or config.include_body == "on" then
         include_body = true
     end
 
@@ -373,30 +374,30 @@ function initiate(module, check)
     -- setup SSL info
     local default_ca_chain =
         noit.conf_get_string("/noit/eventer/config/default_ca_chain")
-    callbacks.certfile = function () return check.config.certificate_file end
-    callbacks.keyfile = function () return check.config.key_file end
+    callbacks.certfile = function () return config.certificate_file end
+    callbacks.keyfile = function () return config.key_file end
     callbacks.cachain = function ()
-        return check.config.ca_chain and check.config.ca_chain
+        return config.ca_chain and config.ca_chain
                                       or default_ca_chain
     end
-    callbacks.ciphers = function () return check.config.ciphers end
+    callbacks.ciphers = function () return config.ciphers end
 
     -- set the stage
     local headers = {}
     headers.Host = host
-    for header, value in pairs(check.config) do
+    for header, value in pairs(config) do
         hdr = string.match(header, '^header_(.+)$')
         if hdr ~= nil then
           headers[hdr] = value
         end
     end
-    if check.config.auth_method == "Basic" then
-        local user = check.config.auth_user or ''
-        local password = check.config.auth_password or ''
+    if config.auth_method == "Basic" then
+        local user = config.auth_user or ''
+        local password = config.auth_password or ''
         local encoded = noit.base64_encode(user .. ':' .. password)
         headers["Authorization"] = "Basic " .. encoded
-    elseif check.config.auth_method == "Digest" or
-           check.config.auth_method == "Auto" then
+    elseif config.auth_method == "Digest" or
+           config.auth_method == "Auto" then
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
         local rv, err = client:connect(check.target_ip, port, use_ssl, host_header)
@@ -415,11 +416,11 @@ function initiate(module, check)
             check.status("expected digest challenge, got " .. client.code)
             return
         end
-        local user = check.config.auth_user or ''
-        local password = check.config.auth_password or ''
+        local user = config.auth_user or ''
+        local password = config.auth_password or ''
         local ameth, challenge =
             string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
-        if check.config.auth_method == "Auto" and ameth == "Basic" then
+        if config.auth_method == "Auto" and ameth == "Basic" then
             local encoded = noit.base64_encode(user .. ':' .. password)
             headers["Authorization"] = "Basic " .. encoded
         elseif ameth == "Digest" then
@@ -430,8 +431,8 @@ function initiate(module, check)
             check.status("Unexpected auth '" .. ameth .. "' in challenge")
             return
         end
-    elseif check.config.auth_method ~= nil then
-      check.status("Unknown auth method: " .. check.config.auth_method)
+    elseif config.auth_method ~= nil then
+      check.status("Unknown auth method: " .. config.auth_method)
       return
     end
 
@@ -439,7 +440,7 @@ function initiate(module, check)
     local client
     local dns = noit.dns()
     local target = check.target_ip
-    local payload = check.config.payload
+    local payload = config.payload
     -- artificially increase redirects as the initial request counts
     redirects = redirects + 1
     starttime = noit.timeval.now()
@@ -492,7 +493,7 @@ function initiate(module, check)
             while string.find(host, "/", -1) ~= nil do
                 host = string.sub(host, 1, -2)
             end
-            headers["Cookie"] = check.config["header_Cookie"]
+            headers["Cookie"] = config["header_Cookie"]
             apply_cookies(headers, cookies, host, uri)
         end
     until redirects <= 0 or next_location == nil
@@ -524,8 +525,8 @@ function initiate(module, check)
     status = status .. ',bytes=' .. client.content_bytes
     check.metric_int32("bytes", client.content_bytes)
 
-    if check.config.extract ~= nil then
-      local exre = noit.pcre(check.config.extract)
+    if config.extract ~= nil then
+      local exre = noit.pcre(config.extract)
       local rv = true
       local m = nil
       while rv and m ~= '' do
@@ -537,8 +538,8 @@ function initiate(module, check)
     end
 
     -- check body
-    if check.config.body ~= nil then
-      local bodyre = noit.pcre(check.config.body)
+    if config.body ~= nil then
+      local bodyre = noit.pcre(config.body)
       local rv, m, m1 = bodyre(output or '')
       if rv then
         m = m1 or m or output
@@ -557,7 +558,7 @@ function initiate(module, check)
     -- check body matches
     local matches = 0
     has_body_matches = false
-    for key, value in pairs(check.config) do
+    for key, value in pairs(config) do
       local match = string.find(key, BODY_MATCHES_PREFIX)
 
       if match == 1 then

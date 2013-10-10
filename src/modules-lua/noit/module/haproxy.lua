@@ -93,9 +93,10 @@ local HttpClient = require 'noit.HttpClient'
 
 
 function initiate(module, check)
-  local host = check.config.host or check.target_ip or check.target
-  local port = check.config.port or 80
-  local uri  = check.config.uri or "/admin?stats;csv"
+  local config = check.interpolate(check.config)
+  local host = config.host or check.target_ip or check.target
+  local port = config.port or 80
+  local uri  = config.uri or "/admin?stats;csv"
 
   -- expect the worst
   check.bad()
@@ -104,16 +105,16 @@ function initiate(module, check)
   -- build request headers
   local headers = {}
   headers.Host = host
-  for header, value in pairs(check.config) do
+  for header, value in pairs(config) do
     hdr = string.match(header, '^header_(.+)$')
     if hdr ~= nil then
       headers[hdr] = value
     end
   end
 
-  if check.config.auth_user ~= nil then
-    local user = check.config.auth_user;
-    local password = check.config.auth_password or ''
+  if config.auth_user ~= nil then
+    local user = config.auth_user;
+    local password = config.auth_password or ''
     local encoded = noit.base64_encode(user .. ':' .. password)
     headers["Authorization"] = "Basic " .. encoded
   end
@@ -162,7 +163,7 @@ function initiate(module, check)
       elseif state == 0 then -- collecting header line
         hdr[column] = field
       else
-        local selectre = noit.pcre(check.config.select or '.*')
+        local selectre = noit.pcre(config.select or '.*')
         if selectre == nil or selectre(rowname) then
           local cname = rowname .. "`" .. hdr[column]
           if is_string[hdr[column]] then

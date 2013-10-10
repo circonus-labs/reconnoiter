@@ -103,7 +103,8 @@ end
 local HttpClient = require 'noit.HttpClient'
 
 function initiate(module, check)
-  local url = check.config.url
+  local config = check.interpolate(check.config)
+  local url = config.url
   local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
   local use_ssl = false
 
@@ -160,13 +161,13 @@ function initiate(module, check)
   -- setup SSL info
   local default_ca_chain =
       noit.conf_get_string("/noit/eventer/config/default_ca_chain")
-  callbacks.certfile = function () return check.config.certificate_file end
-  callbacks.keyfile = function () return check.config.key_file end
+  callbacks.certfile = function () return config.certificate_file end
+  callbacks.keyfile = function () return config.key_file end
   callbacks.cachain = function ()
-      return check.config.ca_chain and check.config.ca_chain
+      return config.ca_chain and config.ca_chain
                                     or default_ca_chain
   end
-  callbacks.ciphers = function () return check.config.ciphers end
+  callbacks.ciphers = function () return config.ciphers end
 
   local client = HttpClient:new(callbacks)
   local target = check.target_ip

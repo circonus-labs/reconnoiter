@@ -137,15 +137,16 @@ function issue_cmd(e, str)
 end
 
 function initiate(module, check)
+  local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
   check.bad()
   check.unavailable()
   check.status("unknown error")
-  local port = check.config.port
+  local port = config.port
   local good = false
   local status = ""
   local use_ssl = false
-  local expected_certificate_name = check.config.expected_certificate_name or ''
+  local expected_certificate_name = config.expected_certificate_name or ''
 
   if check.target_ip == nil then
     check.status("dns resolution failure")
@@ -153,7 +154,7 @@ function initiate(module, check)
   end
 
   -- SSL
-  if check.config.use_ssl == "true" or check.config.use_ssl == "on" then
+  if config.use_ssl == "true" or config.use_ssl == "on" then
     use_ssl = true
   end
 
@@ -172,15 +173,15 @@ function initiate(module, check)
   local ca_chain = 
      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
 
-  if check.config.ca_chain ~= nil and check.config.ca_chain ~= '' then
-    ca_chain = check.config.ca_chain
+  if config.ca_chain ~= nil and config.ca_chain ~= '' then
+    ca_chain = config.ca_chain
   end
 
   if use_ssl == true then
-    rv, err = e:ssl_upgrade_socket(check.config.certificate_file,
-                                        check.config.key_file,
+    rv, err = e:ssl_upgrade_socket(config.certificate_file,
+                                        config.key_file,
                                         ca_chain,
-                                        check.config.ciphers)
+                                        config.ciphers)
   end 
 
   if rv ~= 0 then
@@ -237,12 +238,12 @@ function initiate(module, check)
 
   -- login
   local lstart = noit.timeval.now()
-  state, line = issue_cmd(e, "USER " .. check.config.auth_user)
+  state, line = issue_cmd(e, "USER " .. config.auth_user)
   if state ~= "OK" then 
     good = false
     check.metric_string("login`status", line)
   else
-    state, line = issue_cmd(e, "PASS " .. check.config.auth_password)
+    state, line = issue_cmd(e, "PASS " .. config.auth_password)
     elapsed(check, "login`duration", lstart, noit.timeval.now())
     check.metric_string("login`status", line)
   end

@@ -345,11 +345,12 @@ function parse_buffer(buf, dhcp_option_names, dhcp_message_types, check, target_
 end
 
 function initiate(module, check)
-  local send_port = check.config.send_port or 67
-  local host_ip = check.config.host_ip or "0.0.0.0"
-  local hardware_addr = check.config.hardware_addr or "00:00:00:00:00:00"
+  local config = check.interpolate(check.config)
+  local send_port = config.send_port or 67
+  local host_ip = config.host_ip or "0.0.0.0"
+  local hardware_addr = config.hardware_addr or "00:00:00:00:00:00"
   local internal_port = configs.internal_port or 55000
-  local request_type = check.config.request_type or 1
+  local request_type = config.request_type or 1
   local good = false
   local status = ""
   local dhcp_option_names = get_dhcp_option_names()

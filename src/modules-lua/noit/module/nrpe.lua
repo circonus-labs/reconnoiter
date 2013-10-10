@@ -96,6 +96,7 @@ function v2_packet(cmd)
 end
 
 function initiate(module, check)
+  local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
   local max_len = 80
   check.bad()
@@ -107,22 +108,22 @@ function initiate(module, check)
   local append_uom = true
   local port = 5666
 
-  if check.config.port ~= nil then
-    port = check.config.port
+  if config.port ~= nil then
+    port = config.port
   end
 
-  if check.config.command == nil then
+  if config.command == nil then
     check.status("no command")
     return
   end
 
   -- SSL
-  if check.config.use_ssl == "false" or check.config.use_ssl == "off" then
+  if config.use_ssl == "false" or config.use_ssl == "off" then
     use_ssl = false
   end
 
   -- Append Unit of Measure to metric name
-  if check.config.append_uom == "false" or check.config.append_uom == "off" then
+  if config.append_uom == "false" or config.append_uom == "off" then
     append_uom = false
   end
 
@@ -152,7 +153,7 @@ function initiate(module, check)
   check.available()
 
   -- run the command
-  local packet = v2_packet(check.config.command)
+  local packet = v2_packet(config.command)
   e:write(packet)
   local response = e:read(1036)
   if response == nil or response:len() ~= 1036 then
