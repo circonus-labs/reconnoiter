@@ -1,4 +1,4 @@
-use Test::More tests => 58;
+use Test::More tests => 59;
 use XML::LibXML;
 use XML::LibXML::XPathContext;
 use testconfig;
@@ -29,11 +29,11 @@ sub check_def($$;$$) {
     return qq{<?xml version="1.0" encoding="utf8"?><check><attributes><target>127.0.0.1</target><period>$period</period><timeout>$timeout</timeout><name>$name</name><filterset>allowall</filterset><module>test_abort</module></attributes><config><method>$method</method><ignore_signals>$is</ignore_signals></config></check>};
 }
 
-SKIP: {
-  skip "$^O doesn't support iterruptable", 12
-    if $^O =~ /^(?:solaris|linux)$/;
 boot("default");
 $c = apiclient->new('localhost', $NOIT_API_PORT);
+SKIP: {
+  skip "$^O doesn't support interruptable", 6
+    if $^O =~ /^(?:solaris)$/;
 
 $uuid = '6bbdf85c-3c86-11e0-9160-4fdcf11a743f';
 $prefix = 'default, interruptable';
@@ -51,7 +51,14 @@ is($xpc->findvalue('/check/state/state', $doc), 'good', "$prefix results");
 is($r[0], 200, "$prefix delete");
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, "$prefix gone");
+}
 
+my $needcrash = 0;
+SKIP: {
+  skip "$^O doesn't support uninterruptable", 5
+    if $^O =~ /^(?:solaris|linux|darwin)$/;
+
+$needcrash = 1;
 $uuid = 'a717e016-3c95-11e0-8d77-b33dc4909098';
 $prefix = 'default, uninterruptable';
 @r = $c->put("/checks/set/$uuid", check_def("default", 1));
@@ -63,21 +70,27 @@ safe_usleep(3000000);
 eval { @r = $c->get("/checks/show/$uuid"); die $r[1] unless $r[0] == 200; };
 isnt($@, '', "$prefix get checks fails as expected");
 $fh = get_noit_log();
+my $found = 0;
 while(<$fh>) {
   if(/Assertion/ && /check->flags & (0x00000001|NP_RUNNING)/ &&
      /test_abort/) {
     $fh->close;
-    ok(1, "$prefix: found assertion");
+    $found = 1;
     last;
   }
 }
-if($fh->opened) { $fh->close; ok(0, "$prefix: found assertion"); }
-ok(0 == stop_noit(), "$prefix shutdown (already happened)");
+ok($found, "$prefix: found assertion");
+if($fh->opened) { $fh->close; }
+}
+if($needcrash) {
+  ok(0 == stop_noit(), "$prefix shutdown (already happened)");
+} else {
+  ok(stop_noit(), "$prefix shutdown");
 }
 
 SKIP: {
   skip "$^O doesn't support uniterruptable", 6
-    if $^O =~ /^(?:solaris|linux)$/;
+    if $^O =~ /^(?:solaris|linux|darwin)$/;
 boot("pending_abort");
 $c = apiclient->new('localhost', $NOIT_API_PORT);
 
@@ -108,7 +121,7 @@ ok(0 == stop_noit(), "$prefix shutdown (already happened)");
 
 SKIP: {
   skip "$^O doesn't support deferred", 12
-    if $^O =~ /^(?:solaris|linux)$/;
+    if $^O =~ /^(?:solaris|linux|darwin)$/;
 boot("deferred");
 $c = apiclient->new('localhost', $NOIT_API_PORT);
 
@@ -198,6 +211,9 @@ $c = apiclient->new('localhost', $NOIT_API_PORT);
 
 $prefix = 'asynch, interruptable';
 $uuid = '92f56c20-3ca4-11e0-acbe-a3a119ca7850';
+SKIP: {
+  skip "$^O doesn't support asynchronous interruptable", 6
+    if $^O =~ /^(?:linux|darwin)$/;
 @r = $c->put("/checks/set/$uuid", check_def("asynch", 0));
 is($r[0], 200, "$prefix set");
 print STDERR $r[1] unless $r[0];
@@ -212,12 +228,13 @@ is($xpc->findvalue('/check/state/state', $doc), 'bad', "$prefix result");
 is($r[0], 200, "$prefix delete");
 @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, "$prefix gone");
+}
 
 $uuid = '9f1bdd2c-3ca4-11e0-b6fe-7fee9b8a4257';
 $prefix = 'asynch, uninterruptable';
 SKIP: {
   skip "$^O doesn't support cancel_asynchronous", 6
-    if $^O =~ /^(?:darwin)$/;
+    if $^O =~ /^(?:darwin|linux)$/;
 
   @r = $c->put("/checks/set/$uuid", check_def("asynch", 1));
   is($r[0], 200, "$prefix set");
