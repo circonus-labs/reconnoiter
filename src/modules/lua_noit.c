@@ -3024,10 +3024,23 @@ noit_lua_process_index_func(lua_State *L) {
 
 static int
 noit_lua_eventer_gc(lua_State *L) {
-  eventer_t *eptr;
+  eventer_t *eptr, e;
 
   eptr = (eventer_t *)lua_touserdata(L,1);
   /* Simply null it out so if we try to use it, we'll notice */
+  e = *eptr;
+  if(e) {
+    noit_lua_resume_info_t *ci;
+    struct nl_slcl *cl = e->closure;
+    int newmask;
+
+    ci = noit_lua_get_resume_info(cl->L);
+    assert(ci);
+    noit_lua_check_deregister_event(ci, e, 0);
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &newmask, e);
+    eventer_free(e);
+  }
   *eptr = NULL;
   return 0;
 }
