@@ -77,7 +77,7 @@ ok(0 == stop_noit(), "$prefix shutdown (already happened)");
 
 SKIP: {
   skip "$^O doesn't support uniterruptable", 6
-    if $^O =~ /^(?:solaris)$/;
+    if $^O =~ /^(?:solaris|linux)$/;
 boot("pending_abort");
 $c = apiclient->new('localhost', $NOIT_API_PORT);
 
