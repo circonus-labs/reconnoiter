@@ -88,6 +88,8 @@ struct noit_rest_acl {
   struct noit_rest_acl *next;
 };
 
+static noit_hash_table mime_type_defaults = NOIT_HASH_EMPTY;
+
 static struct noit_rest_acl *global_rest_acls = NULL;
 
 static int
@@ -516,6 +518,8 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
   struct stat st;
   int fd;
   void *contents = MAP_FAILED;
+  const char *dot = NULL, *slash;
+  const char *content_type = "application/octet-stream";
 
   if(npats != 1 ||
      !noit_hash_retr_str(restc->ac->config,
@@ -556,7 +560,36 @@ noit_rest_simple_file_handler(noit_http_rest_closure_t *restc,
     close(fd);
     if(contents == MAP_FAILED) goto not_found;
   }
-  noit_http_response_ok(ctx, "text/html");
+  /* set content type */
+  slash = strchr(rfile, '/');
+  while(slash) {
+    const char *nslash = strchr(slash+1, '/');
+    if(!nslash) break;
+    slash = nslash;
+  }
+  if(slash) dot = strchr(slash+1, '.');
+  while(dot) {
+    const char *ndot = strchr(dot+1, '.');
+    if(!ndot) break;
+    dot = ndot;
+  }
+  /* If there is no extention, just use the filename */
+  if(!dot) dot = slash+1;
+  if(dot) {
+    char ext[PATH_MAX];
+    strlcpy(ext, "mime_type_", sizeof(ext));
+    strlcpy(ext+strlen(ext), dot+1, sizeof(ext)-strlen(ext));
+    if(!noit_hash_retr_str(restc->ac->config,
+                           ext, strlen(ext),
+                           &content_type)) {
+      if(!noit_hash_retr_str(&mime_type_defaults, dot+1, strlen(dot+1),
+                             &content_type)) {
+        content_type = "application/octet-stream";
+      }
+    }
+  }
+  
+  noit_http_response_ok(ctx, content_type);
   if(st.st_size > 0) {
     noit_http_response_append(ctx, contents, st.st_size);
     munmap(contents, st.st_size);
@@ -648,6 +681,19 @@ void noit_http_rest_init() {
   noit_http_init();
   eventer_name_callback("noit_wire_rest_api/1.0", noit_http_rest_handler);
   eventer_name_callback("http_rest_api", noit_http_rest_raw_handler);
+
+  /* some default mime types */
+#define ADD_MIME_TYPE(ext, type) \
+noit_hash_store(&mime_type_defaults, strdup(ext), strlen(ext), strdup(type))
+  ADD_MIME_TYPE("html", "text/html");
+  ADD_MIME_TYPE("htm", "text/html");
+  ADD_MIME_TYPE("js", "text/javascript");
+  ADD_MIME_TYPE("css", "text/css");
+  ADD_MIME_TYPE("gif", "image/gif");
+  ADD_MIME_TYPE("png", "image/png");
+  ADD_MIME_TYPE("jpg", "image/jpg");
+  ADD_MIME_TYPE("jpeg", "image/jpg");
+  ADD_MIME_TYPE("json", "application/javascript");
 
   noit_http_rest_load_rules();
 
