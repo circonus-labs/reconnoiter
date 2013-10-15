@@ -689,6 +689,7 @@ noit_hash_store(&mime_type_defaults, strdup(ext), strlen(ext), strdup(type))
   ADD_MIME_TYPE("htm", "text/html");
   ADD_MIME_TYPE("js", "text/javascript");
   ADD_MIME_TYPE("css", "text/css");
+  ADD_MIME_TYPE("ico", "image/x-icon");
   ADD_MIME_TYPE("gif", "image/gif");
   ADD_MIME_TYPE("png", "image/png");
   ADD_MIME_TYPE("jpg", "image/jpg");
