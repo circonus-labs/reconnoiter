@@ -122,6 +122,7 @@ case $host in
 		SHLD="$CC -G"
 	else
 		if test -n "`echo $CFLAGS | grep m64`" ; then
+			DTRACEFLAGS=-64
 			MAPFLAGS="-Wl,-M -Wl,map64bit"
 		fi
 		PICFLAGS="-fPIC"
