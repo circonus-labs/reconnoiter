@@ -52,6 +52,7 @@
 #include "noit_module.h"
 #include "noit_conf.h"
 #include "noit_rest.h"
+#include "noit_events_rest.h"
 #include "noit_capabilities_listener.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
@@ -208,6 +209,7 @@ static int child_main() {
   noit_console_init(APPNAME);
   noit_console_conf_init();
   noit_http_rest_init();
+  noit_events_rest_init();
   stratcon_realtime_http_init(APPNAME);
   noit_capabilities_listener_init();
   noit_listener_init(APPNAME);

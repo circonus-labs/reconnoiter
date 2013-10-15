@@ -271,7 +271,7 @@ rest_show_checks_json(noit_http_rest_closure_t *restc,
   doc = json_object_new_object();
   noit_poller_do(json_check_accum, doc);
 
-  noit_http_response_ok(restc->http_ctx, "OK");
+  noit_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
   noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
   noit_http_response_append(restc->http_ctx, "\n", 1);
@@ -298,14 +298,14 @@ rest_show_check_json(noit_http_rest_closure_t *restc,
   const char *jsonstr;
   check = noit_poller_lookup(checkid);
   if(!check) {
-    noit_http_response_not_found(restc->http_ctx, "NOT FOUND");
+    noit_http_response_not_found(restc->http_ctx, "application/json");
     noit_http_response_end(restc->http_ctx);
     return 0;
   }
 
   doc = noit_check_to_json(check, 1);
   
-  noit_http_response_ok(restc->http_ctx, "OK");
+  noit_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
   noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
   noit_http_response_append(restc->http_ctx, "\n", 1);

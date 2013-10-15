@@ -773,7 +773,8 @@ struct _fd_opset _eventer_SSL_fd_opset = {
   _noallowed_eventer_SSL_accept,
   eventer_SSL_read,
   eventer_SSL_write,
-  eventer_SSL_close
+  eventer_SSL_close,
+  "SSL"
 };
 
 eventer_fd_opset_t eventer_SSL_fd_opset = &_eventer_SSL_fd_opset;

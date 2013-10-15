@@ -319,6 +319,10 @@ boolean json_object_get_boolean(struct json_object *jso)
 static int json_object_int_to_json_string(struct json_object* jso,
 					  struct jl_printbuf *pb)
 {
+  if(jso->o_ioverflow == json_overflow_uint64)
+    return jl_sprintbuf(pb, "%llu", (unsigned long long int)jso->overflow.c_uint64);
+  else if(jso->o_ioverflow == json_overflow_int64)
+    return jl_sprintbuf(pb, "%lld", (long long int)jso->overflow.c_int64);
   return jl_sprintbuf(pb, "%d", jso->o.c_int);
 }
 

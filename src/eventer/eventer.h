@@ -73,6 +73,7 @@ typedef struct _fd_opset {
   eventer_fd_read_t   read;
   eventer_fd_write_t  write;
   eventer_fd_close_t  close;
+  const char *name;
 } *eventer_fd_opset_t;
 
 typedef struct _event *eventer_t;
