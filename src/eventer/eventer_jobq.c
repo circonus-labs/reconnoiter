@@ -338,6 +338,7 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
     }
     job->fd_event = NULL;
     assert(job->timeout_event == NULL);
+    noit_atomic_dec32(&jobq->inflight);
     free(job);
   }
   return EVENTER_RECURRENT;
