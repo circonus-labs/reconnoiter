@@ -629,9 +629,10 @@ stratcon_realtime_http_init(const char *toplevel) {
   assert(noit_http_rest_register_auth(
     "GET", "/data/",
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
-    rest_stream_data, noit_http_rest_access
+    rest_stream_data, noit_http_rest_client_cert_auth
   ) == 0);
   assert(noit_http_rest_register_auth(
-    "GET", "/", "^(.*)$", noit_rest_simple_file_handler, noit_http_rest_access
+    "GET", "/", "^(.*)$", noit_rest_simple_file_handler,
+           noit_http_rest_client_cert_auth
   ) == 0);
 }
