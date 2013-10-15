@@ -255,6 +255,10 @@ API_EXPORT(int)
                          void *closure);
 
 API_EXPORT(int)
+   noit_poller_do(int (*f)(noit_check_t *, void *),
+                  void *closure);
+
+API_EXPORT(int)
   noit_check_xpath(char *xpath, int len,
                    const char *base, const char *arg);
 

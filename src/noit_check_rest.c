@@ -44,6 +44,7 @@
 #include "noit_conf.h"
 #include "noit_conf_private.h"
 #include "noit_filters.h"
+#include "json-lib/json.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
@@ -57,6 +58,9 @@
   } \
 } while(0)
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
+
+static int
+rest_show_config(noit_http_rest_closure_t *, int, char **);
 
 static void
 add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
@@ -139,6 +143,176 @@ noit_check_state_as_xml(noit_check_t *check) {
   return state;
 }
 
+static struct json_object *
+stats_to_json(stats_t *c) {
+  struct json_object *doc;
+  doc = json_object_new_object();
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen;
+  void *data;
+  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+    char buff[256];
+    metric_t *m = (metric_t *)data;
+    struct json_object *metric = json_object_new_object();
+    buff[0] = m->metric_type; buff[1] = '\0';
+    json_object_object_add(metric, "_type", json_object_new_string(buff));
+    if(m->metric_value.s) {
+      int rv;
+      rv = noit_stats_snprint_metric_value(buff, sizeof(buff), m);
+      if(rv >= 0)
+        json_object_object_add(metric, "_value", json_object_new_string(buff));
+    }
+    json_object_object_add(doc, m->metric_name, metric);
+  }
+  return doc;
+}
+
+static struct json_object *
+noit_check_to_json(noit_check_t *check, int full) {
+  char id_str[UUID_STR_LEN+1];
+  struct json_object *doc;
+  uuid_unparse_lower(check->checkid, id_str);
+
+  doc = json_object_new_object();
+  json_object_object_add(doc, "id", json_object_new_string(id_str));
+  json_object_object_add(doc, "name", json_object_new_string(check->name));
+  json_object_object_add(doc, "module", json_object_new_string(check->module));
+  json_object_object_add(doc, "target", json_object_new_string(check->target));
+  json_object_object_add(doc, "target_ip", json_object_new_string(check->target_ip));
+  json_object_object_add(doc, "filterset", json_object_new_string(check->filterset));
+  json_object_object_add(doc, "period", json_object_new_int(check->period));
+  json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
+  json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+  if(full) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *k;
+    int klen;
+    void *data;
+    noit_hash_table *configh;
+    struct timeval f;
+    char timestr[20];
+    struct json_object *status, *metrics, *config;
+
+    /* config */
+    config = json_object_new_object();
+    configh = check->config;
+    while(noit_hash_next(configh, &iter, &k, &klen, &data))
+      json_object_object_add(config, k, json_object_new_string(data));
+    json_object_object_add(doc, "config", config);
+
+    /* status */
+    status = json_object_new_object();
+    switch(check->stats.current.available) {
+      case NP_UNKNOWN: break;
+      case NP_AVAILABLE:
+        json_object_object_add(status, "available", json_object_new_boolean(1));
+        break;
+      case NP_UNAVAILABLE:
+        json_object_object_add(status, "available", json_object_new_boolean(0));
+        break;
+    }
+    switch(check->stats.current.state) {
+      case NP_UNKNOWN: break;
+      case NP_GOOD:
+        json_object_object_add(status, "good", json_object_new_boolean(1));
+        break;
+      case NP_BAD:
+        json_object_object_add(status, "good", json_object_new_boolean(0));
+        break;
+    }
+    json_object_object_add(doc, "status", status);
+    metrics = json_object_new_object();
+
+    f = check->stats.current.whence;
+    if(f.tv_sec) {
+      json_object_object_add(metrics, "current", stats_to_json(&check->stats.current));
+      snprintf(timestr, sizeof(timestr), "%llu%03d",
+               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+      json_object_object_add(metrics, "current_timestamp", json_object_new_string(timestr));
+    }
+
+    f = check->stats.inprogress.whence;
+    if(f.tv_sec) {
+      json_object_object_add(metrics, "inprogress", stats_to_json(&check->stats.inprogress));
+      snprintf(timestr, sizeof(timestr), "%llu%03d",
+               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+      json_object_object_add(metrics, "inprogress_timestamp", json_object_new_string(timestr));
+    }
+
+    f = check->stats.previous.whence;
+    if(f.tv_sec) {
+      json_object_object_add(metrics, "previous", stats_to_json(&check->stats.previous));
+      snprintf(timestr, sizeof(timestr), "%llu%03d",
+               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+      json_object_object_add(metrics, "previous_timestamp", json_object_new_string(timestr));
+    }
+
+    json_object_object_add(doc, "metrics", metrics);
+  }
+  return doc;
+}
+
+static int
+json_check_accum(noit_check_t *check, void *closure) {
+  struct json_object *cobj, *doc = closure;
+  char id_str[UUID_STR_LEN+1];
+  uuid_unparse_lower(check->checkid, id_str);
+  cobj = noit_check_to_json(check, 0);
+  json_object_object_del(cobj, "id");
+  json_object_object_add(doc, id_str, cobj);
+  return 1;
+}
+static int
+rest_show_checks_json(noit_http_rest_closure_t *restc,
+                      int npats, char **pats) {
+  const char *jsonstr;
+  struct json_object *doc;
+  doc = json_object_new_object();
+  noit_poller_do(json_check_accum, doc);
+
+  noit_http_response_ok(restc->http_ctx, "OK");
+  jsonstr = json_object_to_json_string(doc);
+  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  noit_http_response_append(restc->http_ctx, "\n", 1);
+  json_object_put(doc);
+  noit_http_response_end(restc->http_ctx);
+  return 0;
+}
+static int
+rest_show_checks(noit_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  char *cpath = "/checks";
+
+  if(npats == 1 && !strcmp(pats[0], ".json"))
+    return rest_show_checks_json(restc, npats, pats);
+
+  return rest_show_config(restc, 1, &cpath);
+}
+
+static int
+rest_show_check_json(noit_http_rest_closure_t *restc,
+                     uuid_t checkid) {
+  noit_check_t *check;
+  struct json_object *doc;
+  const char *jsonstr;
+  check = noit_poller_lookup(checkid);
+  if(!check) {
+    noit_http_response_not_found(restc->http_ctx, "NOT FOUND");
+    noit_http_response_end(restc->http_ctx);
+    return 0;
+  }
+
+  doc = noit_check_to_json(check, 1);
+  
+  noit_http_response_ok(restc->http_ctx, "OK");
+  jsonstr = json_object_to_json_string(doc);
+  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  noit_http_response_append(restc->http_ctx, "\n", 1);
+  json_object_put(doc);
+  noit_http_response_end(restc->http_ctx);
+  return 0;
+}
 static int
 rest_show_check(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
@@ -157,7 +331,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
   void *data;
   noit_hash_table *configh;
 
-  if(npats != 2) goto error;
+  if(npats != 2 && npats != 3) goto error;
 
   rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
   if(rv == 0) goto not_found;
@@ -173,6 +347,10 @@ rest_show_check(noit_http_rest_closure_t *restc,
   node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
+
+  if(npats == 3 && !strcmp(pats[2], ".json")) {
+    return rest_show_check_json(restc, checkid);
+  }
 
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
@@ -751,7 +929,11 @@ noit_check_rest_init() {
     rest_show_config, noit_http_rest_client_cert_auth
   ) == 0);
   assert(noit_http_rest_register_auth(
-    "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")$",
+    "GET", "/checks/", "^show(\\.json)?$",
+    rest_show_checks, noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")(\\.json)?$",
     rest_show_check, noit_http_rest_client_cert_auth
   ) == 0);
   assert(noit_http_rest_register_auth(

@@ -1127,6 +1127,19 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   }
   return count;
 }
+
+int
+noit_poller_do(int (*f)(noit_check_t *, void *),
+               void *closure) {
+  noit_skiplist_node *iter;
+  int count = 0;
+  for(iter = noit_skiplist_getlist(&polls_by_name); iter;
+      noit_skiplist_next(&polls_by_name, &iter)) {
+    count += f((noit_check_t *)iter->data, closure);
+  }
+  return count;
+}
+
 struct ip_module_collector_crutch {
   noit_check_t **array;
   const char *module;
