@@ -476,6 +476,13 @@ noit_lua_setup_http_ctx(lua_State *L,
   lua_setmetatable(L, -2);
 }
 static int
+noit_lua_rest_acl_func(lua_State *L) {
+  const char *acl_type;
+  CCALL_DECL(L, noit_http_rest_closure_t, restc, 1);
+  lua_pushboolean(L, noit_http_rest_access(restc, 0, NULL));
+  return 1;
+}
+static int
 noit_lua_http_ctx_func(lua_State *L) {
   CCALL_DECL(L, noit_http_session_ctx, http_ctx, 1);
   noit_lua_setup_http_ctx(L, http_ctx);
@@ -485,6 +492,12 @@ static int
 noit_restc_index_func(lua_State *L) {
   OO_LUA_DECL(L, noit_http_rest_closure_t, restc, k);
   switch(*k) {
+    case 'a':
+      if(!strcmp(k, "apply_acl")) {
+        lua_pushlightuserdata(L, restc);
+        lua_pushcclosure(L, noit_lua_rest_acl_func, 1);
+        return 1;
+      }
     case 'h':
       if(!strcmp(k, "http")) {
         lua_pushlightuserdata(L, restc->http_ctx);

@@ -158,18 +158,20 @@ noit_http_rest_access(noit_http_rest_closure_t *restc,
   struct noit_rest_acl_rule *rule;
   noit_http_request *req = noit_http_session_request(restc->http_ctx);
   const char *uri_str;
+  const char *remote_cn = "";
   int ovector[30];
 
+  if(restc->remote_cn) remote_cn = restc->remote_cn;
   uri_str = noit_http_request_uri_str(req);
   for(acl = global_rest_acls; acl; acl = acl->next) {
-    if(acl->cn && pcre_exec(acl->cn, NULL, "", 0, 0, 0,
+    if(acl->cn && pcre_exec(acl->cn, NULL, remote_cn, 0, 0, 0,
                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     if(acl->url && pcre_exec(acl->url, NULL, uri_str, strlen(uri_str), 0, 0,
                              ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     for(rule = acl->rules; rule; rule = rule->next) {
-      if(rule->cn && pcre_exec(rule->cn, NULL, "", 0, 0, 0,
+      if(rule->cn && pcre_exec(rule->cn, NULL, remote_cn, 0, 0, 0,
                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
       if(rule->url && pcre_exec(rule->url, NULL, uri_str, strlen(uri_str), 0, 0,

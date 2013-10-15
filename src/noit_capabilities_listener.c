@@ -41,16 +41,17 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_xml.h"
+#include "noit_rest.h"
+#include "json-lib/json.h"
 
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#include <assert.h>
 
 #include <libxml/xmlsave.h>
 #include <libxml/tree.h>
-
-static noit_hash_table features = NOIT_HASH_EMPTY;
 
 typedef struct noit_capsvc_closure {
   char *buff;
@@ -58,12 +59,22 @@ typedef struct noit_capsvc_closure {
   size_t towrite;
 } noit_capsvc_closure_t;
 
+static noit_hash_table features = NOIT_HASH_EMPTY;
+static int
+  noit_capabilities_rest(noit_http_rest_closure_t *, int, char **);
+static void
+  noit_capabilities_tobuff(noit_capsvc_closure_t *, eventer_func_t);
+static void
+  noit_capabilities_tobuff_json(noit_capsvc_closure_t *, eventer_func_t);
+
 void
 noit_capabilities_listener_init() {
   eventer_name_callback("capabilities_transit/1.0", noit_capabilities_handler);
   noit_control_dispatch_delegate(noit_control_dispatch,
                                  NOIT_CAPABILITIES_SERVICE,
                                  noit_capabilities_handler);
+  assert(noit_http_rest_register("GET", "/", "capa(\\.json)?",
+                                 noit_capabilities_rest) == 0);
 }
 
 void
@@ -75,6 +86,167 @@ noit_capabilities_add_feature(const char *feature, const char *version) {
           feature, version ? version : "unpecified");
 }
 
+static int
+noit_capabilities_rest(noit_http_rest_closure_t *restc, int n, char **p) {
+  noit_capsvc_closure_t cl = { 0 };
+  const char *mtype = "application/xml";
+  if(n > 0 && !strcmp(p[0], ".json")) {
+    noit_capabilities_tobuff_json(&cl, NULL);
+    mtype = "application/json";
+  }
+  else noit_capabilities_tobuff(&cl, NULL);
+  if(!cl.buff) goto error;
+  noit_http_response_ok(restc->http_ctx, mtype);
+  noit_http_response_append(restc->http_ctx, cl.buff, cl.towrite);
+  noit_http_response_end(restc->http_ctx);
+  free(cl.buff);
+  return 0;
+
+ error:
+  noit_http_response_server_error(restc->http_ctx, "text/html");
+  noit_http_response_end(restc->http_ctx);
+  return 0;
+}
+
+static void
+noit_capabilities_tobuff_json(noit_capsvc_closure_t *cl, eventer_func_t curr) {
+    const char **mod_names;
+    struct utsname utsn;
+    char vbuff[128];
+    noit_hash_table *lc;
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *k;
+    int klen, i, nmods;
+    void *data;
+    struct timeval now;
+
+    struct json_object *doc;
+    struct json_object *svcs, *bi, *ri, *mods, *feat;
+
+    /* fill out capabilities */
+
+    /* Create an XML Document */
+    doc = json_object_new_object();
+
+    /* Fill in the document */
+    noit_build_version(vbuff, sizeof(vbuff));
+    json_object_object_add(doc, "version", json_object_new_string(vbuff));
+
+    /* Build info */
+    bi = json_object_new_object();
+    json_object_object_add(bi, "bitwidth", json_object_new_int(sizeof(void *)*8));
+    json_object_object_add(bi, "sysname", json_object_new_string(UNAME_S));
+    json_object_object_add(bi, "nodename", json_object_new_string(UNAME_N));
+    json_object_object_add(bi, "release", json_object_new_string(UNAME_R));
+    json_object_object_add(bi, "version", json_object_new_string(UNAME_V));
+    json_object_object_add(bi, "machine", json_object_new_string(UNAME_M));
+    json_object_object_add(doc, "unameBuild", bi);
+
+    /* Run info */
+    ri = json_object_new_object();
+    json_object_object_add(ri, "bitwidth", json_object_new_int(sizeof(void *)*8));
+    if(uname(&utsn)) {
+      json_object_object_add(ri, "error", json_object_new_string(strerror(errno)));
+    } else {
+      json_object_object_add(ri, "sysname", json_object_new_string(utsn.sysname));
+      json_object_object_add(ri, "nodename", json_object_new_string(utsn.nodename));
+      json_object_object_add(ri, "release", json_object_new_string(utsn.release));
+      json_object_object_add(ri, "version", json_object_new_string(utsn.version));
+      json_object_object_add(ri, "machine", json_object_new_string(utsn.machine));
+    }
+    json_object_object_add(doc, "unameRun", ri);
+
+    /* features */
+    feat = json_object_new_object();
+    if(features.size) {
+      noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
+      void *vfv;
+      const char *f;
+      int flen;
+      while(noit_hash_next(&features, &iter2, &f, &flen, &vfv)) {
+        struct json_object *featnode;
+        featnode = json_object_new_object();
+        if(vfv) json_object_object_add(featnode, "version", json_object_new_string(vfv));
+        json_object_object_add(feat, f, featnode);
+      }
+    }
+    json_object_object_add(doc, "features", feat);
+
+    /* time (poor man's time check) */
+    gettimeofday(&now, NULL);
+    snprintf(vbuff, sizeof(vbuff), "%llu%03d", (unsigned long long)now.tv_sec,
+             (int)(now.tv_usec / 1000));
+    json_object_object_add(doc, "current_time", json_object_new_string(vbuff));
+
+    svcs = json_object_new_object();
+    lc = noit_listener_commands();
+    while(noit_hash_next(lc, &iter, &k, &klen, &data)) {
+      struct json_object *cnode, *cmds;
+      char hexcode[11];
+      const char *name;
+      eventer_func_t *f = (eventer_func_t *)k;
+      noit_hash_table *sc = (noit_hash_table *)data;
+      noit_hash_iter sc_iter = NOIT_HASH_ITER_ZERO;
+      const char *sc_k;
+      int sc_klen;
+      void *sc_data;
+
+      name = eventer_name_for_callback(*f);
+      cnode = json_object_new_object();
+      if(klen == 8)
+        snprintf(hexcode, sizeof(hexcode), "0x%0llx",
+                 (unsigned long long int)(vpsized_uint)**f);
+      else
+        snprintf(hexcode, sizeof(hexcode), "0x%0x",
+                 (unsigned int)(vpsized_uint)**f);
+      json_object_object_add(svcs, hexcode, cnode);
+      if(name) json_object_object_add(cnode, name, json_object_new_string(name));
+      cmds = json_object_new_object();
+      json_object_object_add(cnode, "commands", cmds);
+      while(noit_hash_next(sc, &sc_iter, &sc_k, &sc_klen, &sc_data)) {
+        struct json_object *scnode;
+        char *name_copy, *version = NULL;
+        eventer_func_t *f = (eventer_func_t *)sc_data;
+
+        scnode = json_object_new_object();
+        snprintf(hexcode, sizeof(hexcode), "0x%08x", *((u_int32_t *)sc_k));
+        name = eventer_name_for_callback(*f);
+        name_copy = strdup(name ? name : "[[unknown]]");
+        version = strchr(name_copy, '/');
+        if(version) *version++ = '\0';
+
+        json_object_object_add(scnode, "name", json_object_new_string(name_copy));
+        if(version) json_object_object_add(scnode, "version", json_object_new_string(version));
+        json_object_object_add(cmds, hexcode, scnode);
+        free(name_copy);
+      }
+    }
+    json_object_object_add(doc, "services", svcs);
+
+    mods = json_object_new_object();
+
+#define list_modules_json(func, name) do { \
+    nmods = func(&mod_names); \
+    for(i=0; i<nmods; i++) { \
+      struct json_object *pnode; \
+      pnode = json_object_new_object(); \
+      json_object_object_add(pnode, "type", json_object_new_string(name)); \
+      json_object_object_add(mods, mod_names[i], pnode); \
+    } \
+    if(mod_names) free(mod_names); \
+} while(0)
+    list_modules_json(noit_module_list_loaders, "loader");
+    list_modules_json(noit_module_list_modules, "module");
+    list_modules_json(noit_module_list_generics, "generic");
+    json_object_object_add(doc, "modules", mods);
+
+    /* Write it out to a buffer and copy it for writing */
+    cl->buff = strdup(json_object_to_json_string(doc));
+    cl->towrite = strlen(cl->buff);
+
+    /* Clean up after ourselves */
+    json_object_put(doc);
+}
 static void
 noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     const char **mod_names;
