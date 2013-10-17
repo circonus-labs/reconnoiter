@@ -126,7 +126,7 @@ function initiate(module, check)
   conn:write(redis_comm)
   local metric_count = 0
 
-  if ( config.command ~= nil and config.command:upper() ~= "INFO" ) then
+  if ( config.command ~= nil and not string.find(config.command:upper(), "^INFO") ) then
     metric_count = get_command_metrics(conn, check, config)
   else
     metric_count = get_info_metrics(conn, check)
@@ -164,18 +164,15 @@ function get_info_metrics(conn, check)
   local list = string.split(redis_result, "\r\n")
 
   for line in pairs(list) do
-    if ( list[line] == nil) then
-      break
-    end
     if ( list[line] ~= "" and string.sub(list[line], 1, 1) ~= "#" ) then
       kv = string.split(list[line], ":")
 
-      -- see if this is db* data
-      if ( string.find(kv[1], "^db%d+$") ) then
-        db_metrics = string.split(kv[2], ",")
-        for idx in pairs(db_metrics) do
+      -- lines with = in them contain multiple metrics, ex. db0, cmdstat
+      if ( string.find(kv[2], "=") ) then
+        multi_metrics = string.split(kv[2], ",")
+        for idx in pairs(multi_metrics) do
           count = count + 1
-          met = string.split(db_metrics[idx], "=")
+          met = string.split(multi_metrics[idx], "=")
           metric_data["metric_name"] = kv[1] .. "`" .. met[1]
           add_check_metric(met[2], check, metric_data)
         end
