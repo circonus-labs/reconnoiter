@@ -51,6 +51,9 @@ function onload(image)
                required="optional"
                default="0"
                allowed="\d+">Sets an approximate limit on the data read (0 means no limit).</parameter>
+    <parameter name="header_(\S+)"
+               required="optional"
+               allowed=".+">Allows the setting of arbitrary HTTP headers in the request.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -233,6 +236,12 @@ function initiate(module, check)
     -- perform the request
     local headers = {}
     headers.Host = host
+    for header, value in pairs(config) do
+        hdr = string.match(header, '^header_(.+)$')
+        if hdr ~= nil then
+          headers[hdr] = value
+        end
+    end
 
     if config.auth_method == "Basic" or
         (config.auth_method == nil and
