@@ -164,14 +164,14 @@ noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
   if(restc->remote_cn) remote_cn = restc->remote_cn;
   uri_str = noit_http_request_uri_str(req);
   for(acl = global_rest_acls; acl; acl = acl->next) {
-    if(acl->cn && pcre_exec(acl->cn, NULL, remote_cn, 0, 0, 0,
+    if(acl->cn && pcre_exec(acl->cn, NULL, remote_cn, strlen(remote_cn), 0, 0,
                             ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     if(acl->url && pcre_exec(acl->url, NULL, uri_str, strlen(uri_str), 0, 0,
                              ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
       continue;
     for(rule = acl->rules; rule; rule = rule->next) {
-      if(rule->cn && pcre_exec(rule->cn, NULL, remote_cn, 0, 0, 0,
+      if(rule->cn && pcre_exec(rule->cn, NULL, remote_cn, strlen(remote_cn), 0, 0,
                                ovector, sizeof(ovector)/sizeof(*ovector)) <= 0)
         continue;
       if(rule->url && pcre_exec(rule->url, NULL, uri_str, strlen(uri_str), 0, 0,
