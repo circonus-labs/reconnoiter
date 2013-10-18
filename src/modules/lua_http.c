@@ -479,7 +479,7 @@ static int
 noit_lua_rest_acl_func(lua_State *L) {
   const char *acl_type;
   CCALL_DECL(L, noit_http_rest_closure_t, restc, 1);
-  lua_pushboolean(L, noit_http_rest_access(restc, 0, NULL));
+  lua_pushboolean(L, noit_http_rest_client_cert_auth(restc, 0, NULL));
   return 1;
 }
 static int

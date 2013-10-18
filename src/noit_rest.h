@@ -68,10 +68,6 @@ API_EXPORT(void)
   noit_http_rest_clean_request(noit_http_rest_closure_t *restc);
 
 API_EXPORT(noit_boolean)
-  noit_http_rest_access(noit_http_rest_closure_t *restc,
-                        int npats, char **pats) ;
-
-API_EXPORT(noit_boolean)
   noit_http_rest_client_cert_auth(noit_http_rest_closure_t *restc,
                                   int npats, char **pats);
 
