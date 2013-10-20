@@ -57,6 +57,19 @@ typedef struct {
   dispatch_func_t dispatch;
 } recur_closure_t;
 
+static void
+noit_check_recur_name_details(char *buf, int buflen,
+                              eventer_t e, void *closure) {
+  char id_str[UUID_STR_LEN+1];
+  recur_closure_t *rcl = e ? e->closure : NULL;
+  if(!e) {
+    snprintf(buf, buflen, "noit_check_recur_handler");
+    return;
+  }
+  uuid_unparse_lower(rcl->check->checkid, id_str);
+  snprintf(buf, buflen, "fire(%s)", id_str);
+  return;
+}
 static int
 noit_check_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
@@ -202,7 +215,9 @@ noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
 void
 noit_check_tools_init() {
   noit_check_tools_shared_init();
-  eventer_name_callback("noit_check_recur_handler", noit_check_recur_handler);
+  eventer_name_callback_ext("noit_check_recur_handler",
+                            noit_check_recur_handler,
+                            noit_check_recur_name_details, NULL);
 }
 
 static int

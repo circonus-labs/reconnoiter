@@ -117,7 +117,7 @@ noit_listener_accept_ssl(eventer_t e, int mask,
     }
     e->closure = ac;
     noitL(nldeb, "noit_listener[%s] SSL_accept on fd %d [%s]\n",
-          eventer_name_for_callback(e->callback),
+          eventer_name_for_callback_e(e->callback, e),
           e->fd, ac->remote_cn ? ac->remote_cn : "anonymous");
     if(listener_closure) free(listener_closure);
     return e->callback(e, mask, e->closure, tv);
@@ -130,6 +130,20 @@ noit_listener_accept_ssl(eventer_t e, int mask,
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &mask, e);
   return 0;
+}
+
+static void
+noit_listener_details(char *buf, int buflen, eventer_t e, void *closure) {
+  char sbuf[128];
+  const char *sbufptr;
+  struct _event stub;
+  listener_closure_t listener_closure = e->closure;
+
+  stub.callback = listener_closure->dispatch_callback;
+  stub.closure = listener_closure->dispatch_closure;
+  sbufptr = eventer_name_for_callback_e(stub.callback, &stub);
+  strlcpy(sbuf, sbufptr, sizeof(sbuf));
+  snprintf(buf, buflen, "listener(%s)", sbuf);
 }
 
 static int
@@ -574,7 +588,8 @@ noit_listener_init(const char *toplevel) {
   nldeb = noit_log_stream_find("debug/listener");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
-  eventer_name_callback("noit_listener_acceptor", noit_listener_acceptor);
+  eventer_name_callback_ext("noit_listener_acceptor", noit_listener_acceptor,
+                            noit_listener_details, NULL);
   eventer_name_callback("noit_listener_accept_ssl", noit_listener_accept_ssl);
   eventer_name_callback("control_dispatch", noit_control_dispatch);
   noit_listener_reconfig(toplevel);

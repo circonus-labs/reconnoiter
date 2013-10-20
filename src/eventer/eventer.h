@@ -98,8 +98,14 @@ API_EXPORT(eventer_t) eventer_alloc();
 API_EXPORT(void)      eventer_free(eventer_t);
 API_EXPORT(int)       eventer_timecompare(const void *a, const void *b);
 API_EXPORT(int)       eventer_name_callback(const char *name, eventer_func_t f);
+API_EXPORT(int)       eventer_name_callback_ext(const char *name,
+                                                eventer_func_t f,
+                                                void (*fn)(char *,int,eventer_t,void *),
+                                                void *);
 API_EXPORT(const char *)
                       eventer_name_for_callback(eventer_func_t f);
+API_EXPORT(const char *)
+                      eventer_name_for_callback_e(eventer_func_t, eventer_t);
 API_EXPORT(eventer_func_t)
                       eventer_callback_for_name(const char *name);
 

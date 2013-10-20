@@ -67,7 +67,7 @@ noit_console_spit_event(eventer_t e, void *c) {
   char funcptr[20];
   const char *cname;
 
-  cname = eventer_name_for_callback(e->callback);
+  cname = eventer_name_for_callback_e(e->callback, e);
   snprintf(fdstr, sizeof(fdstr), " fd: %d", e->fd);
   gettimeofday(&now, NULL);
   sub_timeval(e->whence, now, &diff);

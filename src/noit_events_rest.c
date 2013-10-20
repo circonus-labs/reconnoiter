@@ -54,7 +54,7 @@ json_spit_event(eventer_t e, void *closure) {
   socklen_t addrlen;
   eo = json_object_new_object();
   
-  cbname = eventer_name_for_callback(e->callback);
+  cbname = eventer_name_for_callback_e(e->callback, e);
   if(!cbname) cbname = "unknown";
   json_object_object_add(eo, "callback", json_object_new_string(cbname));
   if(e->mask & (EVENTER_READ|EVENTER_WRITE|EVENTER_EXCEPTION)) {

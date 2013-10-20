@@ -76,14 +76,39 @@ int eventer_set_fd_blocking(int fd) {
   return 0;
 }
 
+struct callback_details {
+  char *simple_name;
+  void (*functional_name)(char *buf, int buflen, eventer_t e, void *closure);
+  void *closure;
+};
+static void
+free_callback_details(void *vcd) {
+  struct callback_details *cd = (struct callback_details *)vcd;
+  if(cd->simple_name) free(cd->simple_name);
+  free(vcd);
+}
+
 static noit_hash_table __name_to_func = NOIT_HASH_EMPTY;
 static noit_hash_table __func_to_name = NOIT_HASH_EMPTY;
 int eventer_name_callback(const char *name, eventer_func_t f) {
+  eventer_name_callback_ext(name, f, NULL, NULL);
+  return 0;
+}
+int eventer_name_callback_ext(const char *name,
+                              eventer_func_t f,
+                              void (*fn)(char *,int,eventer_t,void *),
+                              void *cl) {
   void **fptr = malloc(sizeof(*fptr));
   *fptr = (void *)f;
-  noit_hash_replace(&__name_to_func, strdup(name), strlen(name), (void *)f, free, NULL);
-  noit_hash_replace(&__func_to_name, (char *)fptr, sizeof(*fptr), strdup(name),
-                    free, free);
+  noit_hash_replace(&__name_to_func, strdup(name), strlen(name),
+                    (void *)f, free, NULL);
+  struct callback_details *cd;
+  cd = calloc(1, sizeof(*cd));
+  cd->simple_name = strdup(name);
+  cd->functional_name = fn;
+  cd->closure = cl;
+  noit_hash_replace(&__func_to_name, (char *)fptr, sizeof(*fptr), cd,
+                    free, free_callback_details);
   return 0;
 }
 eventer_func_t eventer_callback_for_name(const char *name) {
@@ -92,16 +117,37 @@ eventer_func_t eventer_callback_for_name(const char *name) {
     return (eventer_func_t)vf;
   return (eventer_func_t)NULL;
 }
+
+static pthread_key_t _tls_funcname_key;
+#define FUNCNAME_SIZE 128
 const char *eventer_name_for_callback(eventer_func_t f) {
+  return eventer_name_for_callback_e(f, NULL);
+}
+const char *eventer_name_for_callback_e(eventer_func_t f, eventer_t e) {
+  void *vcd;
+  struct callback_details *cd;
   const char *name;
-  if(noit_hash_retr_str(&__func_to_name, (char *)&f, sizeof(f), &name))
-    return name;
+  if(noit_hash_retrieve(&__func_to_name, (char *)&f, sizeof(f), &vcd)) {
+    cd = vcd;
+    if(cd->functional_name && e) {
+      char *buf;
+      buf = pthread_getspecific(_tls_funcname_key);
+      if(!buf) {
+        buf = malloc(FUNCNAME_SIZE);
+        pthread_setspecific(_tls_funcname_key, buf);
+      }
+      cd->functional_name(buf, FUNCNAME_SIZE, e, cd->closure);
+      return buf;
+    }
+    return cd->simple_name;
+  }
   return NULL;
 }
 
 int eventer_choose(const char *name) {
   int i = 0;
   eventer_impl_t choice;
+  pthread_key_create(&_tls_funcname_key, free);
   for(choice = registered_eventers[i];
       choice;
       choice = registered_eventers[++i]) {

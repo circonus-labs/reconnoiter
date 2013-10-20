@@ -231,7 +231,7 @@ void eventer_add_timed(eventer_t e) {
   assert(e->mask & EVENTER_TIMER);
   if(EVENTER_DEBUGGING) {
     const char *cbname;
-    cbname = eventer_name_for_callback(e->callback);
+    cbname = eventer_name_for_callback_e(e->callback, e);
     noitL(eventer_deb, "debug: eventer_add timed (%s)\n",
           cbname ? cbname : "???");
   }
@@ -287,7 +287,7 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
     if(EVENTER_DEBUGGING ||
        EVENTER_CALLBACK_ENTRY_ENABLED() ||
        EVENTER_CALLBACK_RETURN_ENABLED()) {
-      cbname = eventer_name_for_callback(timed_event->callback);
+      cbname = eventer_name_for_callback_e(timed_event->callback, timed_event);
       noitLT(eventer_deb, now, "debug: timed dispatch(%s)\n",
              cbname ? cbname : "???");
     }

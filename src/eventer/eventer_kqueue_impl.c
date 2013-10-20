@@ -136,7 +136,7 @@ static void eventer_kqueue_impl_add(eventer_t e) {
   assert(e->mask);
   ev_lock_state_t lockstate;
   const char *cbname;
-  cbname = eventer_name_for_callback(e->callback);
+  cbname = eventer_name_for_callback_e(e->callback, e);
 
   if(e->mask & EVENTER_ASYNCH) {
     noitL(eventer_deb, "debug: eventer_add asynch (%s)\n", cbname ? cbname : "???");
@@ -263,7 +263,7 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
    * So, we combine them "just to be safe."
    */
   oldmask = e->mask | masks[fd];
-  cbname = eventer_name_for_callback(e->callback);
+  cbname = eventer_name_for_callback_e(e->callback, e);
   noitLT(eventer_deb, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
          fd, masks[fd], cbname?cbname:"???", e->callback);
   EVENTER_CALLBACK_ENTRY((void *)e->callback, (char *)cbname, fd, e->mask, mask);

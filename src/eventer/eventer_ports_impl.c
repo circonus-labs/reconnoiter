@@ -108,7 +108,7 @@ static void eventer_ports_impl_add(eventer_t e) {
   assert(e->mask);
   ev_lock_state_t lockstate;
   const char *cbname;
-  cbname = eventer_name_for_callback(e->callback);
+  cbname = eventer_name_for_callback_e(e->callback, e);
 
   if(e->mask & EVENTER_ASYNCH) {
     noitL(eventer_deb, "debug: eventer_add asynch (%s)\n", cbname ? cbname : "???");
@@ -200,7 +200,7 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   assert(lockstate == EV_OWNED);
 
   gettimeofday(&__now, NULL);
-  cbname = eventer_name_for_callback(e->callback);
+  cbname = eventer_name_for_callback_e(e->callback, e);
   noitLT(eventer_deb, &__now, "ports: fire on %d/%x to %s(%p)\n",
          fd, mask, cbname?cbname:"???", e->callback);
   EVENTER_CALLBACK_ENTRY((void *)e->callback, (char *)cbname, fd, e->mask, mask);
