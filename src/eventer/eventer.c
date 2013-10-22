@@ -126,7 +126,6 @@ const char *eventer_name_for_callback(eventer_func_t f) {
 const char *eventer_name_for_callback_e(eventer_func_t f, eventer_t e) {
   void *vcd;
   struct callback_details *cd;
-  const char *name;
   if(noit_hash_retrieve(&__func_to_name, (char *)&f, sizeof(f), &vcd)) {
     cd = vcd;
     if(cd->functional_name && e) {
