@@ -1100,7 +1100,7 @@ noit_poller_target_ip_do(const char *target_ip,
     noit_check_t *check = next->data;
     if(strcmp(check->target_ip, target_ip)) break;
     count += f(check,closure);
-    noit_skiplist_next(&polls_by_name, &next);
+    noit_skiplist_next(tlist, &next);
   }
   return count;
 }
@@ -1123,7 +1123,7 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
     noit_check_t *check = next->data;
     if(strcmp(check->target, target)) break;
     count += f(check,closure);
-    noit_skiplist_next(&polls_by_name, &next);
+    noit_skiplist_next(tlist, &next);
   }
   return count;
 }
