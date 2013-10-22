@@ -60,11 +60,13 @@ void noit_skiplisti_init(noit_skiplist *sl) {
 static int indexing_comp(const void *av, const void *bv) {
   const noit_skiplist *a = av;
   const noit_skiplist *b = bv;
-  return (void *)(a->compare)>(void *)(b->compare);
+  if(a->compare == b->compare) return 0;
+  return (void *)(a->compare)>(void *)(b->compare) ? 1 : -1;
 }
 static int indexing_compk(const void *a, const void *bv) {
   const noit_skiplist *b = bv;
-  return a>(void *)(b->compare);
+  if(a == (const void *)b->compare) return 0;
+  return a>(void *)(b->compare) ? 1 : -1;
 }
 
 void noit_skiplist_init(noit_skiplist *sl) {
