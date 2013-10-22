@@ -55,8 +55,8 @@ struct _noit_log_stream_outlet_list {
 typedef struct {
   int (*openop)(noit_log_stream_t);
   int (*reopenop)(noit_log_stream_t);
-  int (*writeop)(noit_log_stream_t, const void *, size_t);
-  int (*writevop)(noit_log_stream_t, const struct iovec *iov, int iovcnt);
+  int (*writeop)(noit_log_stream_t, const struct timeval *whence, const void *, size_t);
+  int (*writevop)(noit_log_stream_t, const struct timeval *whence, const struct iovec *iov, int iovcnt);
   int (*closeop)(noit_log_stream_t);
   size_t (*sizeop)(noit_log_stream_t);
   int (*renameop)(noit_log_stream_t, const char *);
@@ -125,6 +125,28 @@ API_EXPORT(int) noit_log(noit_log_stream_t ls, struct timeval *,
   __attribute__ ((format (printf, 5, 6)))
 #endif
   ;
+
+/* fills logger with up to nsize loggers.
+ * If there are more loggers thatn nsize, -total is returned.
+ * Otherwise, the number loggers is returned.
+ */
+API_EXPORT(int) noit_log_list(noit_log_stream_t *loggers, int nsize);
+
+/* finds log_lines most recent log lines and calls f with their
+ * sequence number and content.  If f returns non-zero, the iteration
+ * is aborted early.
+ */
+API_EXPORT(int)
+  noit_log_memory_lines(noit_log_stream_t ls, int log_lines,
+                        int (*f)(u_int64_t, const struct timeval *,
+                                 const char *, size_t, void *),
+                        void *closure);
+
+API_EXPORT(int)
+  noit_log_memory_lines_since(noit_log_stream_t ls, u_int64_t afterwhich,
+                              int (*f)(u_int64_t, const struct timeval *,
+                                      const char *, size_t, void *),
+                              void *closure);
 
 #define noitLT(ls, t, args...) do { \
   if((ls) && (noit_log_global_enabled() || N_L_S_ON(ls))) \

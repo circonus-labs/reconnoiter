@@ -190,6 +190,78 @@ noit_rest_eventer_jobq(noit_http_rest_closure_t *restc, int n, char **p) {
   return 0;
 }
 
+static int
+json_spit_log(u_int64_t idx, const struct timeval *whence,
+              const char *log, size_t len, void *closure) {
+  struct json_object *doc = (struct json_object *)closure;
+  struct json_object *o, *wo;
+  u_int64_t ms;
+
+  o = json_object_new_object();
+
+  wo = json_object_new_int(idx);
+  json_object_set_int_overflow(wo, json_overflow_uint64);
+  json_object_set_uint64(wo, idx);
+  json_object_object_add(o, "idx", wo);
+
+  ms = whence->tv_sec;
+  ms *= 1000ULL;
+  ms += whence->tv_usec/1000;
+  wo = json_object_new_int(ms);
+  json_object_set_int_overflow(wo, json_overflow_uint64);
+  json_object_set_uint64(wo, ms);
+  json_object_object_add(o, "whence", wo);
+
+  json_object_object_add(o, "line", json_object_new_string_len(log, len));
+
+  json_object_array_add(doc, o);
+  return 0;
+}
+
+int
+noit_rest_eventer_logs(noit_http_rest_closure_t *restc, int n, char **p) {
+  char *endptr = NULL;
+  const char *since_s;
+  const char *jsonstr;
+  char errbuf[128];
+  unsigned long long since;
+  struct json_object *doc;
+  noit_log_stream_t ls;
+  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  since_s = noit_http_request_querystring(req, "since");
+  if(since_s) since = strtoull(since_s, &endptr, 10);
+
+  assert(n==1);
+  ls = noit_log_stream_find(p[0]);
+  if(!ls || strcmp(noit_log_stream_get_type(ls),"memory"))
+    goto not_found;
+
+  doc = json_object_new_array();
+  if(endptr != since_s)
+    noit_log_memory_lines_since(ls, since, json_spit_log, doc);
+  else
+    noit_log_memory_lines(ls, 0, json_spit_log, doc);
+
+  noit_http_response_ok(restc->http_ctx, "application/json");
+  jsonstr = json_object_to_json_string(doc);
+  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  noit_http_response_append(restc->http_ctx, "\n", 1);
+  json_object_put(doc);
+  noit_http_response_end(restc->http_ctx);
+  return 0;
+ not_found:
+  doc = json_object_new_object();
+  snprintf(errbuf, sizeof(errbuf), "log '%s' not found", p[0]);
+  json_object_object_add(doc, "error", json_object_new_string(errbuf));
+  jsonstr = json_object_to_json_string(doc);
+  noit_http_response_not_found(restc->http_ctx, "application/json");
+  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  noit_http_response_append(restc->http_ctx, "\n", 1);
+  json_object_put(doc);
+  noit_http_response_end(restc->http_ctx);
+  return 0;
+}
+
 void
 noit_events_rest_init() {
   assert(noit_http_rest_register_auth(
@@ -203,5 +275,9 @@ noit_events_rest_init() {
   assert(noit_http_rest_register_auth(
     "GET", "/eventer/", "^jobq\\.json$",
     noit_rest_eventer_jobq, noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "GET", "/eventer/", "^logs/(.+)\\.json$",
+    noit_rest_eventer_logs, noit_http_rest_client_cert_auth
   ) == 0);
 }

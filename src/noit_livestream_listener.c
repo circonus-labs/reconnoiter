@@ -96,9 +96,11 @@ noit_livestream_logio_reopen(noit_log_stream_t ls) {
   return 0;
 }
 static int
-noit_livestream_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+noit_livestream_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+                            const void *buf, size_t len) {
   noit_livestream_closure_t *jcl;
   struct log_entry *le;
+  (void)whence;
 
   jcl = noit_log_stream_get_ctx(ls);
   if(!jcl) return 0;

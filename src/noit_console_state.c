@@ -178,6 +178,65 @@ cmd_info_t console_command_version = {
   "version", noit_console_version, NULL, NULL, NULL
 };
 
+static int
+noit_console_log_a_line(u_int64_t idx, const struct timeval *whence,
+                        const char *line, size_t len, void *cl) {
+  noit_console_closure_t ncct = cl;
+  (void)whence;
+  nc_printf(ncct, "[%llu] %.*s", (unsigned long long)idx, (int)len, line);
+  return 0;
+}
+static int
+noit_console_log_lines(noit_console_closure_t ncct, int argc, char **argv,
+                       noit_console_state_t *dstate, void *unused) {
+  noit_log_stream_t ls;
+  int log_lines = 23;
+  if(argc < 1 || argc > 2) return -1;
+  if(argc == 2) log_lines = atoi(argv[1]);
+  ls = noit_log_stream_find(argv[0]);
+  if(!ls || strcmp(noit_log_stream_get_type(ls),"memory")) {
+    nc_printf(ncct, "No memory log '%s'\n", argv[0]);
+    return 0;
+  }
+  noit_log_memory_lines(ls, log_lines, noit_console_log_a_line, ncct);
+  return 0;
+}
+static char *
+noit_console_memory_log_opts(noit_console_closure_t ncct,
+                             noit_console_state_stack_t *stack,
+                             noit_console_state_t *dstate,
+                             int argc, char **argv, int idx) {
+  noit_log_stream_t *loggers;
+  int cnt, i, offset = 0;
+
+  if(argc == 1) {
+    cnt = noit_log_list(NULL, 0);
+    if(cnt < 0 ) {
+      cnt = 0 - cnt;
+      loggers = alloca(sizeof(*loggers) * cnt);
+      cnt = noit_log_list(loggers, cnt);
+      if(cnt > 0) {
+        for(i=0;i<cnt;i++) {
+          const char *name = noit_log_stream_get_name(loggers[i]);
+          const char *type = noit_log_stream_get_type(loggers[i]);
+
+          if(type && !strcmp(type, "memory")) {
+            if(name && !strncmp(name, argv[0], strlen(argv[0]))) {
+              if(offset == idx) return strdup(name);
+              offset++;
+            }
+          }
+        }
+      }
+    }
+  }
+  return NULL;
+}
+
+cmd_info_t console_command_log_lines = {
+  "log", noit_console_log_lines, noit_console_memory_log_opts, NULL, NULL
+};
+
 void
 noit_console_add_help(const char *topic, console_cmd_func_t topic_func,
                       console_opt_func_t ac) {
@@ -544,6 +603,7 @@ noit_console_state_initial() {
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
     noit_console_state_add_cmd(show_state, &console_command_version);
+    noit_console_state_add_cmd(show_state, &console_command_log_lines);
     (void)no_state;
 
     evdeb = noit_console_mksubdelegate(

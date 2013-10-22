@@ -88,6 +88,242 @@ struct _noit_log_stream {
   unsigned flags_below;
 };
 
+typedef struct {
+  u_int64_t head;
+  u_int64_t tail;
+  int noffsets;
+  int *offsets;
+  int segmentsize;
+  int segmentcut;
+  char *segment;
+} membuf_ctx_t;
+
+static membuf_ctx_t *
+log_stream_membuf_init(int nlogs, int nbytes) {
+  membuf_ctx_t *membuf;
+  membuf = calloc(1, sizeof(*membuf));
+  membuf->head = membuf->tail = 0;
+  membuf->segment = malloc(nbytes);
+  membuf->segmentsize = nbytes;
+  membuf->segmentcut = membuf->segmentsize;
+  membuf->offsets = calloc(nlogs, sizeof(*membuf->offsets));
+  membuf->noffsets = nlogs;
+  return membuf;
+}
+static void
+log_stream_membuf_free(membuf_ctx_t *membuf) {
+  if(membuf->offsets) free(membuf->offsets);
+  if(membuf->segment) free(membuf->segment);
+  free(membuf);
+}
+
+static int
+membuf_logio_open(noit_log_stream_t ls) {
+  int cnt = 0, size = 0;
+  char *cp;
+  cp = strchr(ls->path, ',');
+  cnt = atoi(ls->path);
+  if(cp) size = atoi(cp+1);
+  if(!cnt) cnt = 10000;
+  if(!size) size = 100000;
+  ls->op_ctx = log_stream_membuf_init(cnt, size);
+  return 0;
+}
+
+static int
+intersect_seg(int a1, int a2, int b1, int b2) {
+  int rv = 0;
+  if(a1 >= b1 && a1 <= b2) rv=1;
+  if(a2 >= b1 && a2 <= b2) rv=1;
+  assert(a1 < a2 && b1 < b2);
+  return rv;
+}
+static int
+membuf_logio_writev(noit_log_stream_t ls, const struct timeval *whence,
+                    const struct iovec *iov, int iovcnt) {
+  struct timeval __now;
+  int i, offset, headoffset, headend, tailoffset, tailend,
+      attemptoffset = -3, attemptend = -1, nexttailoff, nexttail, faketail;
+  pthread_rwlock_t *lock = ls->lock;
+  membuf_ctx_t *membuf = ls->op_ctx;
+  size_t len = sizeof(*whence);
+
+  for(i=0; i<iovcnt; i++) len += iov[i].iov_len;
+  if(len > membuf->segmentsize) return 0;
+
+  if(whence == NULL) {
+    gettimeofday(&__now, NULL);
+    whence = &__now;
+  }
+ 
+  if(lock) pthread_rwlock_wrlock(lock); 
+  /* use tail */
+  offset = membuf->offsets[membuf->tail % membuf->noffsets];
+  if(offset + len > membuf->segmentcut)
+    membuf->segmentcut = membuf->segmentsize;
+  if(offset + len > membuf->segmentsize) {
+    attemptoffset = offset;
+    attemptend = offset + len;
+    membuf->segmentcut = offset;
+    offset = 0;
+    membuf->offsets[membuf->tail % membuf->noffsets] = offset;
+  }
+  nexttailoff = offset + len;
+  nexttail = membuf->tail + 1;
+
+  faketail = ((membuf->tail % membuf->noffsets) < (membuf->head % membuf->noffsets)) ?
+               ((membuf->tail % membuf->noffsets) + membuf->noffsets) :
+               (membuf->tail % membuf->noffsets);
+  /* clean up head until it is ahead of the next tail */
+  headoffset = membuf->offsets[membuf->head % membuf->noffsets];
+  headend = membuf->offsets[(membuf->head+1) % membuf->noffsets];
+  if(headend < headoffset) headend = membuf->segmentsize;
+  tailoffset = membuf->offsets[membuf->tail % membuf->noffsets];
+  tailend = nexttailoff;
+  /* while we're about to write over the head (attempt or actual), advance */
+  while(membuf->head != membuf->tail &&
+        (intersect_seg(headoffset, headend-1, attemptoffset, attemptend-1) ||
+         intersect_seg(headoffset, headend-1, tailoffset, tailend-1))) {
+    membuf->head++;
+    headoffset = membuf->offsets[membuf->head % membuf->noffsets];
+    headend = membuf->offsets[(membuf->head+1) % membuf->noffsets];
+    if(headend < headoffset) headend = membuf->segmentsize;
+    //if((membuf->head % membuf->noffsets) == 0) {
+    if(headoffset == 0) {
+      faketail = (membuf->tail % membuf->noffsets); /* reset */
+    }
+  }
+
+  /* move tail forward updating head if needed */
+  if((nexttail % membuf->noffsets) == (membuf->head % membuf->noffsets))
+    membuf->head++;
+  /* note where the new tail is */
+  membuf->offsets[nexttail % membuf->noffsets] = nexttailoff;
+
+  len = 0;
+  memcpy(membuf->segment + offset, whence, sizeof(*whence));
+  len += sizeof(*whence);
+  for(i=0;i<iovcnt;i++) {
+    memcpy(membuf->segment + offset + len, iov[i].iov_base, iov[i].iov_len);
+    len += iov[i].iov_len;
+  }
+  membuf->tail = nexttail;
+
+  if(lock) pthread_rwlock_unlock(lock); 
+  return len;
+}
+
+static int
+membuf_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+                   const void *buf, size_t len) {
+  struct iovec iov;
+  iov.iov_base = (char *)buf;
+  iov.iov_len = len;
+  return membuf_logio_writev(ls, whence, &iov, 1);
+}
+static int
+membuf_logio_reopen(noit_log_stream_t ls) {
+  return 0;
+}
+static int
+membuf_logio_close(noit_log_stream_t ls) {
+  membuf_ctx_t *membuf = ls->op_ctx;
+  log_stream_membuf_free(membuf);
+  ls->op_ctx = NULL;
+  return 0;
+}
+static size_t
+membuf_logio_size(noit_log_stream_t ls) {
+  membuf_ctx_t *membuf = ls->op_ctx;
+  return membuf->segmentsize;
+}
+static int
+membuf_logio_rename(noit_log_stream_t ls, const char *newname) {
+  /* Not supported (and makes no sense) */
+  return -1;
+}
+
+static logops_t membuf_logio_ops = {
+  membuf_logio_open,
+  membuf_logio_reopen,
+  membuf_logio_write,
+  membuf_logio_writev,
+  membuf_logio_close,
+  membuf_logio_size,
+  membuf_logio_rename
+};
+
+int
+noit_log_memory_lines(noit_log_stream_t ls, int log_lines,
+                      int (*f)(u_int64_t, const struct timeval *,
+                               const char *, size_t, void *),
+                      void *closure) {
+  int nmsg;
+  pthread_rwlock_t *lock = ls->lock;
+  u_int64_t idx;
+  if(strcmp(ls->type, "memory")) return -1;
+  membuf_ctx_t *membuf = ls->op_ctx;
+  if(membuf == NULL) return 0;
+
+  if(lock) pthread_rwlock_wrlock(lock);
+  nmsg = ((membuf->tail % membuf->noffsets) >= (membuf->head % membuf->noffsets)) ?
+           ((membuf->tail % membuf->noffsets) - (membuf->head % membuf->noffsets)) :
+           ((membuf->tail % membuf->noffsets) + membuf->noffsets - (membuf->head % membuf->noffsets));
+  assert(nmsg < membuf->noffsets);
+  if(log_lines == 0) log_lines = nmsg;
+  log_lines = MIN(log_lines,nmsg);
+  idx = (membuf->tail >= log_lines) ?
+          (membuf->tail - log_lines) : 0;
+  if(lock) pthread_rwlock_unlock(lock);
+  return noit_log_memory_lines_since(ls, idx, f, closure);
+}
+
+int
+noit_log_memory_lines_since(noit_log_stream_t ls, u_int64_t afterwhich,
+                            int (*f)(u_int64_t, const struct timeval *,
+                                    const char *, size_t, void *),
+                            void *closure) {
+  int nmsg, count = 0;
+  pthread_rwlock_t *lock = ls->lock;
+  u_int64_t idx = afterwhich;
+  if(strcmp(ls->type, "memory")) return -1;
+  membuf_ctx_t *membuf = ls->op_ctx;
+  if(membuf == NULL) return 0;
+
+  if(lock) pthread_rwlock_wrlock(lock);
+  nmsg = ((membuf->tail % membuf->noffsets) >= (membuf->head % membuf->noffsets)) ?
+           ((membuf->tail % membuf->noffsets) - (membuf->head % membuf->noffsets)) :
+           ((membuf->tail % membuf->noffsets) + membuf->noffsets - (membuf->head % membuf->noffsets));
+  assert(nmsg < membuf->noffsets);
+  /* We want stuff *after* this, so add one */
+  idx++;
+  if(afterwhich == membuf->tail) return 0;
+
+  /* If we're asked for a starting index outside our range, then we should set it to head. */
+  if((membuf->head > membuf->tail && idx < membuf->head && idx >= membuf->tail) ||
+     (membuf->head < membuf->tail && (idx >= membuf->tail || idx < membuf->head)))
+    idx = membuf->head;
+
+  while(idx != membuf->tail) {
+    u_int64_t nidx;
+    size_t len;
+    nidx = idx + 1;
+    len = (membuf->offsets[idx % membuf->noffsets] < membuf->offsets[nidx % membuf->noffsets]) ?
+            membuf->offsets[nidx % membuf->noffsets] - membuf->offsets[idx % membuf->noffsets] :
+            membuf->segmentcut - membuf->offsets[idx % membuf->noffsets];
+    struct timeval copy;
+    const char *logline;
+    memcpy(&copy, membuf->segment + membuf->offsets[idx % membuf->noffsets], sizeof(copy));
+    logline = membuf->segment + membuf->offsets[idx % membuf->noffsets] + sizeof(copy);
+    len -= sizeof(copy);
+    if(f(idx, &copy, logline, len, closure))
+      break;
+    idx = nidx;
+    count++;
+  }
+  if(lock) pthread_rwlock_unlock(lock);
+  return count;
+}
 #define IS_ENABLED_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_ENABLED)
 #define IS_TIMESTAMPS_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_TIMESTAMPS)
 #define IS_DEBUG_ON(ls) ((ls)->flags & NOIT_LOG_STREAM_DEBUG)
@@ -188,9 +424,11 @@ posix_logio_reopen(noit_log_stream_t ls) {
   return -1;
 }
 static int
-posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+posix_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+                  const void *buf, size_t len) {
   int fd, rv = -1;
   pthread_rwlock_t *lock = ls->lock;
+  (void)whence;
   if(lock) pthread_rwlock_rdlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   debug_printf("writing to %d\n", fd);
@@ -200,9 +438,11 @@ posix_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
   return rv;
 }
 static int
-posix_logio_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
+posix_logio_writev(noit_log_stream_t ls, const struct timeval *whence,
+                   const struct iovec *iov, int iovcnt) {
   int fd, rv = -1;
   pthread_rwlock_t *lock = ls->lock;
+  (void)whence;
   if(lock) pthread_rwlock_rdlock(lock);
   fd = (int)(vpsized_int)ls->op_ctx;
   debug_printf("writ(v)ing to %d\n", fd);
@@ -588,10 +828,12 @@ jlog_logio_open(noit_log_stream_t ls) {
   return 0;
 }
 static int
-jlog_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+jlog_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+                 const void *buf, size_t len) {
   int rv = -1;
   jlog_asynch_ctx *actx;
   jlog_line *line;
+  (void)whence;
   if(!ls->op_ctx) return -1;
   actx = ls->op_ctx;
   line = calloc(1, sizeof(*line));
@@ -648,6 +890,7 @@ noit_log_init(int debug_on) {
   noit_hash_init(&noit_logops);
   noit_register_logops("file", &posix_logio_ops);
   noit_register_logops("jlog", &jlog_logio_ops);
+  noit_register_logops("memory", &membuf_logio_ops);
   noit_stderr = noit_log_stream_new_on_fd("stderr", 2, NULL);
   noit_stderr->flags |= NOIT_LOG_STREAM_TIMESTAMPS;
   noit_stderr->flags |= NOIT_LOG_STREAM_FACILITY;
@@ -934,15 +1177,16 @@ noit_log_stream_free(noit_log_stream_t ls) {
 }
 
 static int
-noit_log_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
+noit_log_writev(noit_log_stream_t ls, struct timeval *whence,
+                const struct iovec *iov, int iovcnt) {
   /* This emulates writev into a buffer for ops that don't support it */
   char stackbuff[4096], *tofree = NULL, *buff = NULL;
   int i, s = 0, ins = 0;
 
   if(!ls->ops) return -1;
-  if(ls->ops->writevop) return ls->ops->writevop(ls, iov, iovcnt);
+  if(ls->ops->writevop) return ls->ops->writevop(ls, whence, iov, iovcnt);
   if(!ls->ops->writeop) return -1;
-  if(iovcnt == 1) return ls->ops->writeop(ls, iov[0].iov_base, iov[0].iov_len);
+  if(iovcnt == 1) return ls->ops->writeop(ls, whence, iov[0].iov_base, iov[0].iov_len);
 
   for(i=0;i<iovcnt;i++) s+=iov[i].iov_len;
   if(s > sizeof(stackbuff)) {
@@ -954,13 +1198,14 @@ noit_log_writev(noit_log_stream_t ls, const struct iovec *iov, int iovcnt) {
     memcpy(buff + ins, iov[i].iov_base, iov[i].iov_len);
     ins += iov[i].iov_len;
   }
-  i = ls->ops->writeop(ls, buff, s);
+  i = ls->ops->writeop(ls, whence, buff, s);
   if(tofree) free(tofree);
   return i;
 }
 
 static int
 noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
+              struct timeval *whence,
               const char *timebuf, int timebuflen,
               const char *debugbuf, int debugbuflen,
               const char *buffer, size_t len) {
@@ -1000,12 +1245,12 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
     iov[iovcnt].iov_base = (void *)buffer;
     iov[iovcnt].iov_len = len;
     iovcnt++;
-    rv = noit_log_writev(ls, iov, iovcnt);
+    rv = noit_log_writev(ls, whence, iov, iovcnt);
   }
   for(node = ls->outlets; node; node = node->next) {
     int srv = 0;
     debug_printf(" %s -> %s\n", ls->name, node->outlet->name);
-    srv = noit_log_line(node->outlet, bitor, timebuf,
+    srv = noit_log_line(node->outlet, bitor, whence, timebuf,
                         timebuflen, debugbuf, debugbuflen, buffer, len);
     if(srv) rv = srv;
   }
@@ -1065,13 +1310,13 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       }
       NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
       if(IS_ENABLED_ON(ls))
-        rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
+        rv = noit_log_line(ls, NULL, now, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
       free(dynbuff);
     }
     else {
       NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
       if(IS_ENABLED_ON(ls))
-        rv = noit_log_line(ls, NULL, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
+        rv = noit_log_line(ls, NULL, now, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
     }
     if(rv == len) return 0;
     return -1;
@@ -1103,5 +1348,20 @@ noit_log_reopen_all() {
     if(ls->ops) if(ls->ops->reopenop(ls) < 0) rv = -1;
   }
   return rv;
+}
+
+int
+noit_log_list(noit_log_stream_t *loggers, int nsize) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen, count = 0, total = 0, out_of_space_flag = 1;
+  void *data;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    if(count < nsize) loggers[count++] = (noit_log_stream_t)data;
+    else out_of_space_flag = -1;
+    total++;
+  }
+  return total * out_of_space_flag;
 }
 

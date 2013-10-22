@@ -503,10 +503,12 @@ noit_console_logio_reopen(noit_log_stream_t ls) {
   return 0;
 }
 static int
-noit_console_logio_write(noit_log_stream_t ls, const void *buf, size_t len) {
+noit_console_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+                         const void *buf, size_t len) {
   noit_console_closure_t ncct;
   ncct = noit_log_stream_get_ctx(ls);
   int rv, rlen, mask;
+  (void)whence;
   if(!ncct) return 0;
   rlen = nc_write(ncct, buf, len);
   while((rv = noit_console_continue_sending(ncct, &mask)) == -1 && errno == EINTR);

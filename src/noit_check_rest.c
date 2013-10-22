@@ -171,6 +171,9 @@ stats_to_json(stats_t *c) {
 static struct json_object *
 noit_check_to_json(noit_check_t *check, int full) {
   char id_str[UUID_STR_LEN+1];
+  struct json_object *j_last_run, *j_next_run;
+  struct timeval *t;
+  u_int64_t ms;
   struct json_object *doc;
   uuid_unparse_lower(check->checkid, id_str);
 
@@ -184,6 +187,27 @@ noit_check_to_json(noit_check_t *check, int full) {
   json_object_object_add(doc, "period", json_object_new_int(check->period));
   json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
   json_object_object_add(doc, "flags", json_object_new_int(check->flags));
+
+  t = &check->stats.current.whence;
+  j_last_run = json_object_new_int(ms);
+  json_object_set_int_overflow(j_last_run, json_overflow_uint64);
+  ms = t->tv_sec;
+  ms *= 1000ULL;
+  ms += t->tv_usec/1000;
+  json_object_set_uint64(j_last_run, ms);
+  json_object_object_add(doc, "last_run", j_last_run);
+
+  t = check->fire_event ? &check->fire_event->whence : NULL;
+  if(t) {
+    j_next_run = json_object_new_int(ms);
+    json_object_set_int_overflow(j_next_run, json_overflow_uint64);
+    ms = t->tv_sec;
+    ms *= 1000ULL;
+    ms += t->tv_usec/1000;
+    json_object_set_uint64(j_next_run, ms);
+    json_object_object_add(doc, "next_run", j_next_run);
+  }
+
   if(full) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *k;
