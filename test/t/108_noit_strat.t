@@ -90,8 +90,8 @@ $doc = $xp->parse_string($r[1]);
 cmp_ok($xpc->findvalue('/noits/noit[@type="durable/storage"]/@session_events', $doc), '>', 0, 'durable connection (events)');
 cmp_ok($xpc->findvalue('/noits/noit[@type="transient/iep"]/@session_events', $doc), '>', 0, 'iep connection (events)');
 
-ok(1, 'going to wait 2 more seconds for load into postgres');
-usleep(2000000);
+ok(1, 'going to wait 4 more seconds for load into postgres');
+usleep(4000000);
 my($f_t, $f_n) = do_counts();
 cmp_ok($st_t, '<', $f_t, 'text metrics loaded');
 cmp_ok($st_n, '<', $f_n, 'numeric metrics loaded');
