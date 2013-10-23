@@ -142,6 +142,7 @@ set_array_key(struct rest_json_payload *json) {
 static int
 httptrap_yajl_cb_null(void *ctx) {
   struct rest_json_payload *json = ctx;
+  if(json->depth<0) return 0;
   set_array_key(json);
   if(json->last_special_key == 0x2) {
     NEW_LV(json, NULL);
@@ -160,6 +161,7 @@ static int
 httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
   int ival;
   struct rest_json_payload *json = ctx;
+  if(json->depth<0) return 0;
   set_array_key(json);
   if(json->last_special_key == 0x2) {
     NEW_LV(json, strdup(boolVal ? "1" : "0"));
@@ -180,6 +182,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
                         size_t numberLen) {
   char val[128];
   struct rest_json_payload *json = ctx;
+  if(json->depth<0) return 0;
   set_array_key(json);
   if(json->last_special_key == 0x2) {
     char *str;
@@ -206,6 +209,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
                         size_t stringLen) {
   struct rest_json_payload *json = ctx;
   char val[4096];
+  if(json->depth<0) return 0;
   set_array_key(json);
   if(json->last_special_key == 0x1) {
     if(stringLen != 1) return 0;
