@@ -297,7 +297,7 @@ noit_log_memory_lines_since(noit_log_stream_t ls, u_int64_t afterwhich,
   assert(nmsg < membuf->noffsets);
   /* We want stuff *after* this, so add one */
   idx++;
-  if(afterwhich == membuf->tail) return 0;
+  if(idx == membuf->tail) return 0;
 
   /* If we're asked for a starting index outside our range, then we should set it to head. */
   if((membuf->head > membuf->tail && idx < membuf->head && idx >= membuf->tail) ||
