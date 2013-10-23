@@ -145,7 +145,7 @@ noit_capabilities_tobuff_json(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     /* Run info */
     ri = json_object_new_object();
     json_object_object_add(ri, "bitwidth", json_object_new_int(sizeof(void *)*8));
-    if(uname(&utsn)) {
+    if(uname(&utsn) < 0) {
       json_object_object_add(ri, "error", json_object_new_string(strerror(errno)));
     } else {
       json_object_object_add(ri, "sysname", json_object_new_string(utsn.sysname));
@@ -288,7 +288,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     ri = xmlNewNode(NULL, (xmlChar *)"unameRun");
     xmlSetProp(ri, (xmlChar *)"bitwidth", (xmlChar *)bwstr);
     xmlAddChild(root, ri);
-    if(uname(&utsn)) {
+    if(uname(&utsn) < 0) {
       xmlNewTextChild(ri, NULL, (xmlChar *)"error", (xmlChar *)strerror(errno));
     } else {
       xmlNewTextChild(ri, NULL, (xmlChar *)"sysname", (xmlChar *)utsn.sysname);
