@@ -5,8 +5,14 @@ use Net::Stomp;
 sub new {
     my $class = shift;
     my $port = shift || 61613;
-    my $stomp = Net::Stomp->new( { hostname => 'localhost', port => '61613'} );
-    $stomp->connect( { login => 'guest', passcode => 'guest' } );
+    my $stomp;
+    alarm 2;
+    eval {
+        local $SIG{ALRM} = sub { die; };
+        $stomp = Net::Stomp->new( { hostname => 'localhost', port => '61613'} );
+        $stomp->connect( { login => 'guest', passcode => 'guest' } );
+        alarm 0;
+    };
     return bless { stomp => $stomp }, $class;
 }
 sub subscribe {
