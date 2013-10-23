@@ -221,15 +221,18 @@ json_spit_log(u_int64_t idx, const struct timeval *whence,
 int
 noit_rest_eventer_logs(noit_http_rest_closure_t *restc, int n, char **p) {
   char *endptr = NULL;
-  const char *since_s;
+  const char *since_s, *last_s;
   const char *jsonstr;
   char errbuf[128];
   unsigned long long since;
+  int last = 0;
   struct json_object *doc;
   noit_log_stream_t ls;
   noit_http_request *req = noit_http_session_request(restc->http_ctx);
   since_s = noit_http_request_querystring(req, "since");
   if(since_s) since = strtoull(since_s, &endptr, 10);
+  last_s = noit_http_request_querystring(req, "last");
+  if(last_s) last = atoi(last_s);
 
   assert(n==1);
   ls = noit_log_stream_find(p[0]);
@@ -240,7 +243,7 @@ noit_rest_eventer_logs(noit_http_rest_closure_t *restc, int n, char **p) {
   if(endptr != since_s)
     noit_log_memory_lines_since(ls, since, json_spit_log, doc);
   else
-    noit_log_memory_lines(ls, 0, json_spit_log, doc);
+    noit_log_memory_lines(ls, last, json_spit_log, doc);
 
   noit_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
