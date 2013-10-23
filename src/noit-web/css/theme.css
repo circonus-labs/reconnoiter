@@ -1,0 +1,60 @@
+body {
+  padding-top: 75px;
+  padding-bottom: 30px;
+}
+
+.container > div.navbar-header {
+  background: transparent url(../i/product-logo-rev2.png) no-repeat scroll left top;
+  background-size: 50px 50px;
+  background-position: 0 2px;
+  padding-left: 55px;
+}
+
+.theme-dropdown .dropdown-menu {
+  display: block;
+  position: static;
+  margin-bottom: 20px;
+}
+
+.theme-showcase > p > .btn {
+  margin: 5px 0;
+}
+
+.destinations div.progress {
+  margin-bottom: 4px;
+}
+
+.check-details-main dt {
+  width: 100px;
+}
+.check-details-main dd {
+  margin-left: 120px;
+}
+.label-none {
+  background-color: #fff;
+}
+
+div#main-log-window {
+  height: 10em;
+  overflow-y: scroll;
+}
+
+div#stateview div.row div.panel-body > div {
+  margin-left: 1em;
+}
+
+ul.noit-proto > li {
+  clear:both;
+}
+ul.noit-proto-cmd > li {
+  list-style-type: none;
+  display: inline;
+  padding-left: 0.2em;
+  float: left;
+}
+ul.noit-proto-cmd > li:after {
+  content: ", ";
+}
+ul.noit-proto-cmd > li:last-child:after {
+  content: ""
+}

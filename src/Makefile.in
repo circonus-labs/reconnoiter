@@ -257,6 +257,7 @@ test-noit.conf:	noit.conf.in Makefile
 	@sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
+		-e "s^%datarootdir%^`pwd`^g;" \
 		-e "s^%PKIPREFIX%^../test/test-^g;" < \
 		noit.conf.in > \
 		test-noit.conf
@@ -265,6 +266,7 @@ noit.conf:	noit.conf.in Makefile
 	@sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
 		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
+		-e "s^%datarootdir%^$(datarootdir)^g;" \
 		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
 		noit.conf.in > \
 		noit.conf
@@ -293,6 +295,7 @@ install-dirs:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datarootdir)/noit-web
 
 install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
@@ -315,6 +318,7 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 	$(INSTALL) -m 0644 default-ca-chain.crt $(DESTDIR)$(sysconfdir)/default-ca-chain.crt
 	(cd modules && $(MAKE) install-modules DESTDIR=$(DESTDIR))
 	(cd modules-lua && $(MAKE) install DESTDIR=$(DESTDIR))
+	(cd noit-web && tar cf - .) | (cd $(DESTDIR)$(datarootdir)/noit-web && tar xf -)
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
 install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits

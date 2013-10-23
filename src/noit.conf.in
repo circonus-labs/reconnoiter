@@ -118,12 +118,12 @@
     <listener type="control_dispatch" address="*" port="43191" ssl="on">
       <config>
         <log_transit_feed_name>feed</log_transit_feed_name>
-        <document_root>%sysconfdir%/noit-web</document_root>
+        <document_root>%datarootdir%/noit-web</document_root>
       </config>
     </listener>
     <listener type="http_rest_api" address="*" port="8888" ssl="off">
       <config>
-        <document_root>%sysconfdir%/noit-web</document_root>
+        <document_root>%datarootdir%/noit-web</document_root>
       </config>
     </listener>
   </listeners>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href="favicon.png">
+
+    <title>Circonus Reconnoiter Operational Dashboard</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <!-- Bootstrap theme -->
+    <link href="css/bootstrap-theme.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="css/colorbrewer.css" rel="stylesheet">
+    <link href="css/theme.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.js"></script>
+      <script src="js/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="navbar navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">Circonus Reconnoiter</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="container theme-showcase">
+
+      <ul id="viewTab" class="nav nav-tabs">
+        <li class="active"><a href="#stateview" data-toggle="tab">Overview</a></li>
+        <li class=""><a href="#checksview" data-toggle="tab" id="check-refresh">Checks&nbsp;&nbsp;&nbsp;&nbsp;<span class="glyphicon glyphicon-refresh"></span></a></li>
+        <li class=""><a href="#internals" data-toggle="tab">Internals</a></li>
+      </ul>
+      <div id="viewTabContent" class="tab-content">
+        <div class="tab-pane fade active in" id="stateview">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="panel panel-info">
+                <div class="panel-heading">
+                  <h4 class="panel-title">Runtime</h4>
+                </div>
+                <div class="panel-body">
+                  <h5>Version</h5>
+                  <div id="noit-version"></div>
+                  <h5>Build</h5>
+                  <div id="noit-build"></div>
+                  <h5>Run</h5>
+                  <div id="noit-run"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="panel panel-info">
+                <div class="panel-heading">
+                  <h4 class="panel-title">Capabilities</h4>
+                </div>
+                <div class="panel-body">
+                  <h5>Modules</h5>
+                  <div id="noit-module-list"></div>
+                  <h5>Features</h5>
+                  <div id="noit-feature-list"></div>
+                  <h5>Listener Commands</h5>
+                  <div id="noit-services"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              <h4 class="panel-title">Log</h4>
+            </div>
+            <div class="panel-body">
+              <div id="main-log-window">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="checksview">
+          <div class="input-group">
+           <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
+           <input type="text" class="form-control" placeholder="Search" id="check-search">
+          </div>
+          <table class="table table-condensed">
+            <thead>
+              <tr><th><span class="label label-none">running</span></th><th>UUID</th><th>Name</th><th>Module</th><th>Target</th><th>IP</th><th>Frequency</th><th>Flags</th></tr>
+            </thead>
+            <tbody id="check-table">
+            </tbody>
+          </table>
+        </div>
+        <div class="tab-pane fade" id="internals">
+          <div class="panel-group" id="eventer">
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-sockets">
+                    Sockets
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-sockets" class="panel-collapse collapse in">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th>FD</th><th>Opset</th><th>Callback</th><th>Local</th><th>Remote</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-jobq">
+                    Job Queues
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-jobq" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th></th><th>Queue</th><th class="text-center">Concurrency</th><th class="text-right">Processed</th><th colspan=2 class="text-center">Waiting</th><th colspan=2 class="text-center">Running</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a class="accordion-toggle" data-toggle="collapse" data-parent="#eventer" href="#eventer-timers">
+                    Timers
+                  </a>
+                </h4>
+              </div>
+              <div id="eventer-timers" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <table class="table table-condensed">
+                    <thead>
+                      <tr><th>Callback</th><th>When</th></tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <div id="templates" style="display:none">
+    <div id="checktemplate" class="well well-lg">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="panel panel-default check-details-main">
+            <div class="panel-heading">Check Details</div>
+            <div class="panel-body">
+              <dl class="dl-horizontal">
+                <dt>ID</dt><dd class="check-detail-uuid"></dd>
+                <dt>Target</dt><dd class="check-detail-target"></dd>
+                <dt>Name</dt><dd class="check-detail-name"></dd>
+                <dt>Module</dt><dd class="check-detail-module"></dd>
+                <dt>IP</dt><dd class="check-detail-target-ip"></dd>
+                <dt>Period</dt><dd class="check-detail-period"></dd>
+                <dt>Timeout</dt><dd class="check-detail-timeout"></dd>
+                <dt>Filterset</dt><dd class="check-detail-filterset"></dd>
+                <dt>Last run</dt><dd><span class="auto-date check-detail-last-run"></span> (<span class="auto-age check-detail-last-run"></span>)</dd>
+                <dt>Next run</dt><dd class="auto-date check-detail-next-run"></dd>
+                <dt>Status</dt><dd>
+                  <span class="check-detail-available"></span>&nbsp;<span class="check-detail-state"></span></dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="panel panel-default">
+            <div class="panel-heading">Check Config</div>
+            <div class="panel-body">
+              <dl class="dl-horizontal check-config-container">
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel panel-default">
+        <div class="panel-heading">Metrics</div>
+        <div class="panel-body">
+          <table class="table table-condensed check-metrics">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="js/jquery-2.0.3.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/d3.min.js"></script>
+    <script src="js/colorbrewer.js"></script>
+    <script src="js/noit.js"></script>
+
+  </body>
+</html>
+
