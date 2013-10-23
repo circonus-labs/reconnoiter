@@ -1,4 +1,4 @@
-use Test::More tests => 32;
+use Test::More tests => 31;
 use WWW::Curl::Easy;
 use JSON;
 use XML::LibXML;
@@ -51,17 +51,18 @@ is($r[0], 200, 'get checks');
 $doc = $xp->parse_string($r[1]);
 is($xpc->findvalue('/check/state/state', $doc), 'good', 'results');
 
-ok(1, 'going to sleep 2 seconds for mapping');
-usleep(2000000);
-
 my $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'data store connection');
 my $sid = undef;
-if($conn) {
-  my $st=$conn->prepare("select sid from stratcon.map_uuid_to_sid where id = ?");
-  $st->execute($uuid);
-  ($sid) = $st->fetchrow();
-  $st->finish();
+my $seconds = 8;
+while($seconds-- > 0 && !$sid) {
+  if($conn) {
+    usleep(1000000);
+    my $st=$conn->prepare("select sid from stratcon.map_uuid_to_sid where id = ?");
+    $st->execute($uuid);
+    ($sid) = $st->fetchrow();
+    $st->finish();
+  }
 }
 ok($sid, 'uuid mapped to sid');
 
