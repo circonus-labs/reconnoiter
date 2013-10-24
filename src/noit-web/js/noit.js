@@ -445,7 +445,7 @@ function refresh_logs(force) {
     qs = "?since=" + last_log_idx;
   else
     qs = "?last=100";
-  $.ajax("/eventer/logs/memory.json" + qs).done(function (logs) {
+  $.ajax("/eventer/logs/internal.json" + qs).done(function (logs) {
     var atend = force || Math.abs(($c[0].scrollTop + $c[0].clientHeight - $c[0].scrollHeight));
     for(var i in logs) {
       var log = logs[i];

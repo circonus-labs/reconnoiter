@@ -8,10 +8,10 @@
     </config>
   </eventer>
   <logs>
-    <log name="memory" type="memory" path="10000,100000"/>
+    <log name="internal" type="memory" path="10000,100000"/>
     <console_output>
       <outlet name="stderr"/>
-      <outlet name="memory"/>
+      <outlet name="internal"/>
       <log name="error"/>
       <log name="debug" disabled="true"/>
     </console_output>
