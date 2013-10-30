@@ -54,7 +54,7 @@ is($xpc->findvalue('/check/state/state', $doc), 'good', 'results');
 my $conn = pg('reconnoiter','reconnoiter');
 ok($conn, 'data store connection');
 my $sid = undef;
-my $seconds = 8;
+my $seconds = 20;
 while($seconds-- > 0 && !$sid) {
   if($conn) {
     usleep(1000000);
