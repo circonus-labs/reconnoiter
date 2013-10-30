@@ -563,7 +563,7 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   DIR *d;
   struct dirent *de, *entry;
   int cnt = 0;
-  char path[PATH_MAX];
+  char path[PATH_MAX], current_log[9];
   int size = 0;
 
   actx = (jlog_asynch_ctx *)ls->op_ctx;
@@ -572,6 +572,7 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   if(!log) return -1;
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), NULL) <= 0) return -1;
   d = opendir(path);
+  snprintf(current_log, sizeof(current_log), "%08x", log->current_log);
 
 #ifdef _PC_NAME_MAX
   size = pathconf(path, _PC_NAME_MAX);
@@ -583,7 +584,9 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   if(!d) return -1;
   while(portable_readdir_r(d, de, &entry) == 0 && entry != NULL) {
     u_int32_t logid;
-    if(is_datafile(entry->d_name, &logid)) {
+    /* the current log file isn't a deletion target. period. */
+    if(is_datafile(entry->d_name, &logid) &&
+       strcmp(current_log, entry->d_name)) {
       int rv;
       struct stat st;
       char fullfile[PATH_MAX];
@@ -708,7 +711,7 @@ jlog_logio_reopen(noit_log_stream_t ls) {
 
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
+  if(pthread_create(&actx->writer, &tattr, jlog_logio_asynch_writer, ls) != 0)
     return -1;
   
   return 0;
@@ -727,7 +730,6 @@ jlog_logio_open(noit_log_stream_t ls) {
   char path[PATH_MAX], *sub, **subs, *p;
   jlog_asynch_ctx *actx;
   jlog_ctx *log = NULL;
-  pthread_attr_t tattr;
   int i, listed, found, allow_unmatched = 0;
 
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), &sub) <= 0) return -1;
@@ -818,14 +820,8 @@ jlog_logio_open(noit_log_stream_t ls) {
   actx->log = log;
   ls->op_ctx = actx;
 
-  pthread_attr_init(&tattr);
-  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if(pthread_create(&actx->writer, NULL, jlog_logio_asynch_writer, ls) != 0)
-    return -1;
-
-  /* We do this to clean things up */
-  jlog_logio_reopen(ls);
-  return 0;
+  /* We do this to clean things up and start our thread */
+  return jlog_logio_reopen(ls);
 }
 static int
 jlog_logio_write(noit_log_stream_t ls, const struct timeval *whence,
