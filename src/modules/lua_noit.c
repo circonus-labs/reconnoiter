@@ -3040,6 +3040,7 @@ noit_lua_eventer_gc(lua_State *L) {
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     eventer_free(e);
+    if(cl->free) cl->free(cl);
   }
   *eptr = NULL;
   return 0;
