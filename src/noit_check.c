@@ -98,6 +98,7 @@ static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0;
+static noit_atomic64_t check_metrics_seen = 0;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
@@ -147,6 +148,13 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
     }
   }
   return 1;
+}
+
+u_int64_t noit_check_metric_count() {
+  return check_metrics_seen;
+}
+void noit_check_metric_count_add(u_int64_t add) {
+  noit_atomic_add64(&check_metrics_seen, add);
 }
 
 u_int64_t noit_check_completion_count() {
@@ -1434,6 +1442,7 @@ noit_stats_set_metric(noit_check_t *check,
     free_metric(m);
     return;
   }
+  noit_check_metric_count_add(1);
   check_stats_set_metric_hook_invoke(check, newstate, m);
   __stats_add_metric(newstate, m);
 }
