@@ -242,6 +242,7 @@ function initiate(module, check)
           headers[hdr] = value
         end
     end
+    headers['X-Reconnoiter-Period'] = check.period
 
     if config.auth_method == "Basic" or
         (config.auth_method == nil and
