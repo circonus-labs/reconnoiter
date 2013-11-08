@@ -55,6 +55,7 @@
 #include "eventer/eventer.h"
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
+#define RECYCLE_INTERVAL 60
 
 NOIT_HOOK_IMPL(check_stats_set_metric,
   (noit_check_t *check, stats_t *stats, metric_t *m),
@@ -599,7 +600,7 @@ noit_poller_init() {
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
-  eventer_add_in_s_us(check_recycle_bin_processor, NULL, 60, 0);
+  eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
   noit_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
@@ -644,7 +645,11 @@ noit_check_clone(uuid_t in) {
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
   noit_hash_merge_as_dict(new_check->config, checker->config);
+  new_check->module_configs = NULL;
+  new_check->module_metadata = NULL;
+
   for(i=0; i<reg_module_id; i++) {
+    void *src_metadata;
     noit_hash_table *src_mconfig;
     src_mconfig = noit_check_get_module_config(checker, i);
     if(src_mconfig) {
@@ -652,6 +657,9 @@ noit_check_clone(uuid_t in) {
       noit_hash_merge_as_dict(t, src_mconfig);
       noit_check_set_module_config(new_check, i, t);
     }
+    if(checker->flags & NP_PASSIVE_COLLECTION)
+      if(NULL != (src_metadata = noit_check_get_module_metadata(new_check, i)))
+        noit_check_set_module_metadata(new_check, i, src_metadata, NULL);
   }
   return new_check;
 }
@@ -754,6 +762,7 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
+    noit_poller_free_check(check);
   }
 }
 
@@ -1008,8 +1017,10 @@ noit_poller_free_check(noit_check_t *checker) {
     for(i=0; i<reg_module_id; i++) {
       struct vp_w_free *tuple;
       tuple = checker->module_metadata[i];
-      if(tuple && tuple->freefunc) tuple->freefunc(tuple->ptr);
-      free(tuple);
+      if(tuple) {
+        if(tuple->freefunc) tuple->freefunc(tuple->ptr);
+        free(tuple);
+      }
     }
     free(checker->module_metadata);
   }
@@ -1028,7 +1039,7 @@ noit_poller_free_check(noit_check_t *checker) {
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
-  static struct timeval one_minute = { 60L, 0L };
+  static struct timeval one_minute = { RECYCLE_INTERVAL, 0L };
   struct _checker_rcb *prev = NULL, *curr = checker_rcb;
   noitL(noit_debug, "Scanning check recycle bin\n");
   while(curr) {
