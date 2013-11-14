@@ -187,7 +187,7 @@ typedef struct noit_check {
 
 API_EXPORT(void) noit_poller_init();
 API_EXPORT(u_int64_t) noit_check_completion_count();
-API_EXPORT(u_int32_t) noit_check_metric_count();
+API_EXPORT(u_int64_t) noit_check_metric_count();
 API_EXPORT(void) noit_check_metric_count_add(int);
 API_EXPORT(int) noit_poller_check_count();
 API_EXPORT(int) noit_poller_transient_check_count();
