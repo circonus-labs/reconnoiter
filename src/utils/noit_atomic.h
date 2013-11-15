@@ -117,8 +117,8 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
     : "%ecx", "memory", "cc");
 #else
   /* These have to be unsigned or bit shifting doesn't work
-   * properly */
-  u_int32_t old_high = *ptr >> 32, old_low = *ptr;
+   * properly. "old_high" and "old_low" must be volatile. */
+  volatile u_int32_t old_high = *ptr >> 32, old_low = *ptr;
   u_int32_t new_high = rpl >> 32, new_low = rpl;
   u_int64_t tmp;
   /* We need to break the 64-bit variables into 2 32-bit variables, do a 
