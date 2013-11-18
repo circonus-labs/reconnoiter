@@ -33,6 +33,7 @@
 #ifndef UTILS_NOIT_ATOMIC_H
 #define UTILS_NOIT_ATOMIC_H
 
+#include <stdio.h>
 #include "noit_config.h"
 
 typedef int32_t noit_atomic32_t;
@@ -99,6 +100,26 @@ noit_atomic_casptr(volatile void **ptr,
 }
 #endif
 #else
+
+static inline noit_atomic64_t
+noit_atomic_cas64_asm (volatile noit_atomic64_t* ptr,
+		       volatile u_int32_t old_high, 
+		       volatile u_int32_t old_low,
+		       volatile u_int32_t new_high,
+		       volatile u_int32_t new_low) {
+  noit_atomic64_t prev;
+  u_int64_t tmp;
+  __asm__ volatile (
+      "lock; cmpxchg8b (%6);"
+    : "=a" (old_low), "=d" (old_high)
+    : "0" (old_low),  "1" (old_high),
+      "c" (new_high),  "r" (new_low),
+      "r" (ptr)
+    : "memory", "cc");
+  tmp = old_high;
+  prev = old_low | tmp << 32;
+  return prev;
+}
 static inline noit_atomic64_t
 noit_atomic_cas64(volatile noit_atomic64_t *ptr,
                   volatile noit_atomic64_t rpl,
@@ -118,20 +139,11 @@ noit_atomic_cas64(volatile noit_atomic64_t *ptr,
 #else
   /* These have to be unsigned or bit shifting doesn't work
    * properly */
-  u_int32_t old_high = *ptr >> 32, old_low = *ptr;
-  u_int32_t new_high = rpl >> 32, new_low = rpl;
-  u_int64_t tmp;
+  register u_int32_t old_high = *ptr >> 32, old_low = *ptr;
+  register u_int32_t new_high = rpl >> 32, new_low = rpl;
   /* We need to break the 64-bit variables into 2 32-bit variables, do a 
    * compare-and-swap, then combine the results */
-  __asm__ volatile (
-      "lock; cmpxchg8b (%6);"
-    : "=a" (old_low), "=d" (old_high)
-    : "0" (old_low),  "1" (old_high),
-      "c" (new_high),  "r" (new_low),
-      "r" (ptr)
-    : "memory", "cc");
-  tmp = old_high;
-  prev = old_low | tmp << 32;
+  prev = noit_atomic_cas64_asm(ptr, old_high, old_low, new_high, new_low);
 #endif
   return prev;
 };
