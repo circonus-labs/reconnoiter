@@ -33,7 +33,6 @@
 #ifndef UTILS_NOIT_ATOMIC_H
 #define UTILS_NOIT_ATOMIC_H
 
-#include <stdio.h>
 #include "noit_config.h"
 
 typedef int32_t noit_atomic32_t;
