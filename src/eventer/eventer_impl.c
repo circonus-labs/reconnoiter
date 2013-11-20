@@ -191,7 +191,6 @@ int eventer_impl_init() {
   if(!eventer_err) eventer_err = noit_stderr;
   if(!eventer_deb) eventer_deb = noit_debug;
 
-  eventer_ssl_init();
   eventer_jobq_init(&__global_backq, "default_back_queue");
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
@@ -205,6 +204,8 @@ int eventer_impl_init() {
   __default_jobq.backq = &__global_backq;
   for(i=0; i<__default_queue_threads; i++)
     eventer_jobq_increase_concurrency(&__default_jobq);
+
+  eventer_ssl_init();
   return 0;
 }
 

@@ -160,6 +160,42 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
   if(i>=2) ctx->last_error[i-2] = '\0';
 }
 
+static DH *dh512_tmp = NULL, *dh1024_tmp = NULL;
+static int
+generate_dh_params(eventer_t e, int mask, void *cl, struct timeval *now) {
+  int bits = (int)(vpsized_int)cl;
+  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  switch(bits) {
+  case 512:
+    noitL(noit_error, "Generating 512 bit DH parameters.\n");
+    if(!dh512_tmp) dh512_tmp = DH_generate_parameters(512, 2, NULL, NULL);
+    break;
+  case 1024:
+    noitL(noit_error, "Generating 1024 bit DH parameters.\n");
+    if(!dh1024_tmp) dh1024_tmp = DH_generate_parameters(1024, 2, NULL, NULL);
+    break;
+  default:
+    noitL(noit_error, "Unexpected DH parameter request: %d\n", bits);
+    abort();
+  }
+  return 0;
+}
+static DH *
+tmp_dh_callback(SSL *s, int is_export, int keylen) {
+  DH *dh_tmp=NULL;
+  switch (keylen) {
+  case 512:
+    dh_tmp = dh512_tmp;
+    break;
+  case 1024:
+    dh_tmp = dh1024_tmp;
+    break;
+  default:
+    noitL(noit_error, "What? DH request(%d,%d).\n", is_export, keylen);
+  }
+  return dh_tmp;
+}
+
 static int
 eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
                          X509_STORE_CTX *x509ctx, void *closure) {
@@ -499,6 +535,8 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   }
 
   ctx->ssl = SSL_new(ctx->ssl_ctx);
+  if(dh512_tmp && dh1024_tmp)
+    SSL_set_tmp_dh_callback(ctx->ssl, tmp_dh_callback);
   if(!ctx->ssl) goto bail;
   SSL_set_info_callback(ctx->ssl, eventer_SSL_server_info_callback);
   SSL_set_eventer_ssl_ctx(ctx->ssl, ctx);
@@ -774,6 +812,7 @@ void eventer_ssl_set_ssl_ctx_cache_expiry(int timeout) {
   ssl_ctx_cache_expiry = timeout;
 }
 void eventer_ssl_init() {
+  eventer_t e;
   int i, numlocks;
   if(__lcks) return;
   numlocks = CRYPTO_num_locks();
@@ -789,6 +828,18 @@ void eventer_ssl_init() {
   SSL_load_error_strings();
   SSL_library_init();
   OpenSSL_add_all_ciphers();
+
+  e = eventer_alloc();
+  e->mask = EVENTER_ASYNCH;
+  e->callback = generate_dh_params;
+  e->closure = (void *)512;
+  eventer_add_asynch(NULL, e);
+
+  e = eventer_alloc();
+  e->mask = EVENTER_ASYNCH;
+  e->callback = generate_dh_params;
+  e->closure = (void *)1024;
+  eventer_add_asynch(NULL, e);
   return;
 }
 
