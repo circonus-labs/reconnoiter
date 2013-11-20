@@ -92,7 +92,6 @@ struct eventer_ssl_ctx_t {
 /* Static function prototypes */
 static void SSL_set_eventer_ssl_ctx(SSL *ssl, eventer_ssl_ctx_t *ctx);
 static eventer_ssl_ctx_t *SSL_get_eventer_ssl_ctx(const SSL *ssl);
-static RSA *tmp_rsa_cb(SSL *ssl, int export, int keylen);
 static void
 _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
                                 const char *file, int line);
@@ -159,37 +158,6 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
   /* now clip off the last ", " */
   i = strlen(ctx->last_error);
   if(i>=2) ctx->last_error[i-2] = '\0';
-}
-
-/*
- * Cribbed from SSL examples.
- */
-static char *tmpkeyfile = NULL;
-static time_t tmpkeyfile_time = 0;
-static RSA *
-tmp_rsa_cb(SSL *ssl, int export, int keylen) {
-  RSA *tmpkey;
-  if (!export) keylen = 512;
-  if (tmpkeyfile && keylen == 512) {
-    BIO *in = BIO_new_file(tmpkeyfile, "r");
-    if (in) {
-      RSA *rsa = PEM_read_bio_RSAPrivateKey(in,NULL,NULL,NULL);
-      BIO_free(in);
-      if (rsa) return rsa;
-    }
-  }
-  tmpkey = RSA_generate_key(keylen,RSA_F4,NULL,NULL);
-  if(tmpkeyfile && keylen == 512) {
-    BIO *out = BIO_new_file(tmpkeyfile, "r");
-    if(!out ||
-       !PEM_write_bio_RSAPrivateKey(out, tmpkey, NULL, NULL, 0, 0, NULL)) {
-      noitL(eventer_err, "Could not save temporary RSA key to %s\n", tmpkeyfile);
-    } else {
-      tmpkeyfile_time = time(NULL);
-    }
-    if(out) BIO_free(out);
-  }
-  return tmpkey;
 }
 
 static int
@@ -524,7 +492,6 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
         goto bail;
       SSL_CTX_set_client_CA_list(ctx->ssl_ctx, cert_stack);
     }
-    SSL_CTX_set_tmp_rsa_callback(ctx->ssl_ctx, tmp_rsa_cb);
     SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
     SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
     SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2);
