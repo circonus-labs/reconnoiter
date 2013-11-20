@@ -726,8 +726,11 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
     return -1;
   }
 
-  switch(sslerror = SSL_get_error(ctx->ssl, rv)) {
+  sslerror = SSL_get_error(ctx->ssl, rv);
+  switch(sslerror) {
     case SSL_ERROR_NONE:
+      noitL(eventer_deb, "SSL[%s of %d] -> %d, rw error: %d\n", opstr,
+            (int)len, rv, sslerror);
       return 0;
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
@@ -735,9 +738,15 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
                 EVENTER_READ : EVENTER_WRITE;
       errno = EAGAIN;
       break;
+    case SSL_ERROR_SYSCALL:
+      if(errno == 0) {
+        noitL(eventer_deb, "SSL error (syscall) no error?!\n");
+        return 0;
+      }
+      /* FALLTHROUGH */
     default:
-      noitL(eventer_deb, "SSL[%s of %d] rw error: %d\n", opstr,
-            (int)len, sslerror);
+      noitL(eventer_deb, "SSL[%s of %d] -> %d, rw error: %d/%s\n", opstr,
+            (int)len, rv, sslerror, strerror(errno));
       eventer_ssl_ctx_save_last_error(ctx, 1);
       errno = EIO;
   }
