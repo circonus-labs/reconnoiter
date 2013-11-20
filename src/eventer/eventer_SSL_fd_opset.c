@@ -361,6 +361,18 @@ const char *
 eventer_ssl_get_peer_san_list(eventer_ssl_ctx_t *ctx) {
   return ctx->san_list;
 }
+const char *
+eventer_ssl_get_cipher_list(eventer_ssl_ctx_t *ctx, int prio) {
+  return SSL_get_cipher_list(ctx->ssl, prio);
+}
+const char *
+eventer_ssl_get_current_cipher(eventer_ssl_ctx_t *ctx) {
+  return SSL_get_cipher_name(ctx->ssl);
+}
+int
+eventer_ssl_get_method(eventer_ssl_ctx_t *ctx) {
+  return SSL_get_ssl_method(ctx->ssl)->version;
+}
 
 static int
 verify_cb(int ok, X509_STORE_CTX *x509ctx) {

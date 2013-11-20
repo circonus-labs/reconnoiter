@@ -1322,12 +1322,30 @@ noit_ssl_ctx_index_func(lua_State *L) {
   }
   k = lua_tostring(L, 2);
   switch(*k) {
+    case 'c':
+      if(!strcmp(k,"ciphers")) {
+        int i = 0;
+        const char *ciphername;
+        lua_newtable(L);
+        while(NULL != (ciphername = eventer_ssl_get_cipher_list(ssl_ctx,i))) {
+          if(!ciphername) break;
+          lua_pushnumber(L, ++i);
+          lua_pushstring(L, ciphername);
+          lua_settable(L,-3);
+        }
+        return 1;
+      }
+      LUA_RETSTRING(current_cipher, eventer_ssl_get_current_cipher(ssl_ctx));
+      break;
     case 'e':
       LUA_RETSTRING(error, eventer_ssl_get_peer_error(ssl_ctx));
       LUA_RETINTEGER(end_time, eventer_ssl_get_peer_end_time(ssl_ctx));
       break;
     case 'i':
       LUA_RETSTRING(issuer, eventer_ssl_get_peer_issuer(ssl_ctx));
+      break;
+    case 'm':
+      LUA_RETINTEGER(method, eventer_ssl_get_method(ssl_ctx));
       break;
     case 's':
       LUA_RETSTRING(san_list, eventer_ssl_get_peer_san_list(ssl_ctx));

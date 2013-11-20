@@ -116,6 +116,12 @@ API_EXPORT(time_t)
   eventer_ssl_get_peer_start_time(eventer_ssl_ctx_t *ctx);
 API_EXPORT(time_t)
   eventer_ssl_get_peer_end_time(eventer_ssl_ctx_t *ctx);
+API_EXPORT(const char *)
+  eventer_ssl_get_cipher_list(eventer_ssl_ctx_t *ctx, int prio);
+API_EXPORT(const char *)
+  eventer_ssl_get_current_cipher(eventer_ssl_ctx_t *ctx);
+API_EXPORT(int)
+  eventer_ssl_get_method(eventer_ssl_ctx_t *ctx);
 
 #endif
 
