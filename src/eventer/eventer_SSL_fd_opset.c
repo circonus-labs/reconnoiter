@@ -507,6 +507,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   }
 
   if(!ctx->ssl_ctx_cn) {
+    long ctx_options = SSL_OP_ALL|SSL_OP_NO_SSLv2;
     ctx->ssl_ctx_cn = calloc(1, sizeof(*ctx->ssl_ctx_cn));
     ctx->ssl_ctx_cn->key = strdup(ssl_ctx_key);
     ctx->ssl_ctx_cn->refcnt = 1;
@@ -522,7 +523,19 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
       SSL_CTX_set_session_id_context(ctx->ssl_ctx,
               (unsigned char *)EVENTER_SSL_DATANAME,
               sizeof(EVENTER_SSL_DATANAME)-1);
-    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_ALL);
+#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+    ctx_options &= ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+#endif
+#ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+    ctx_options &= ~SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG;
+#endif
+#ifdef SSL_OP_NO_COMPRESSION
+    ctx_options |= SSL_OP_NO_COMPRESSION;
+#endif
+#ifdef SSL_OP_NO_TICKET
+    ctx_options |= SSL_OP_NO_TICKET;
+#endif
+    SSL_CTX_set_options(ctx->ssl_ctx, ctx_options);
 #ifdef SSL_MODE_RELEASE_BUFFERS
     SSL_CTX_set_mode(ctx->ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
 #endif
@@ -542,7 +555,6 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     }
     SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
     SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
-    SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2);
     ssl_ctx_cache_set(ctx->ssl_ctx_cn);
   }
 
