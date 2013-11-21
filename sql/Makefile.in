@@ -17,6 +17,7 @@ libdir=@libdir@
 includedir=${prefix}/include
 libexecdir=@libexecdir@
 datarootdir = @datarootdir@
+datadir = @datadir@
 mandir=@mandir@
 mansubdir=@mansubdir@
 docdir=${prefix}/@docdir@
@@ -31,9 +32,9 @@ reconnoiter_ddl_dump.sql:
 	./build_ddl.pl scaffolding.sql > reconnoiter_ddl_dump.sql
 
 install:	reconnoiter_ddl_dump.sql
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datarootdir)/reconnoiter
-	$(INSTALL) -m 0644 reconnoiter_ddl_dump.sql $(DESTDIR)$(datarootdir)/reconnoiter/schema.sql
-	$(INSTALL) -m 0644 crontab $(DESTDIR)$(datarootdir)/reconnoiter/crontab
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/reconnoiter
+	$(INSTALL) -m 0644 reconnoiter_ddl_dump.sql $(DESTDIR)$(datadir)/reconnoiter/schema.sql
+	$(INSTALL) -m 0644 crontab $(DESTDIR)$(datadir)/reconnoiter/crontab
 
 clean:
 	rm -f reconnoiter_ddl_dump.sql
