@@ -308,6 +308,11 @@ function add_check_metric(value, check, metric_data)
     check.metric_uint64(metric_data["metric_name"], value)
   elseif ( string.find(value, "^%d+?.%d+$") ) then
     check.metric_double(metric_data["metric_name"], value)
+  elseif ( string.find(value, "^{") ) then
+    local cnt = check.metric_json("{\"" .. metric_data["metric_name"] .. "\":" .. value .. "}")
+    if ( cnt < 0 ) then
+      check.metric(metric_data["metric_name"], value)
+    end
   else
     check.metric(metric_data["metric_name"], value)
   end
