@@ -81,6 +81,7 @@
     <module loader="lua" name="ntp" object="noit.module.ntp"/>
     <module loader="lua" name="dhcp" object="noit.module.dhcp"/>
     <module loader="lua" name="pop3" object="noit.module.pop3"/>
+    <module loader="lua" name="monit" object="noit.module.monit"/>
     <jezebel>
       <config><url>http://127.0.0.1:8083/dispatch</url></config>
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
