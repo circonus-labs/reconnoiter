@@ -700,7 +700,6 @@ function servicegroup_metrics(check, doc, version)
                     end
                 end
             end
-            check.metric_string("temp", metric_string)
         end
     end
 end
