@@ -1,6 +1,6 @@
 <module>
   <name>ganglia</name>
-  <description><para>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</para>
+  <description><para>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</para></description>
   <loader>C</loader>
   <image>ganglia.so</image>
   <moduleconfig>
