@@ -47,7 +47,8 @@ LUA=\
 	noit/module/redis.lua \
 	noit/module/nginx.lua \
 	noit/module/dhcp.lua \
-	noit/module/pop3.lua
+	noit/module/pop3.lua \
+	noit/module/monit.lua
 
 all:
 
