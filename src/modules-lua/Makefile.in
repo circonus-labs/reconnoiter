@@ -37,6 +37,7 @@ LUA=\
 	noit/module/http.lua \
 	noit/module/haproxy.lua \
 	noit/module/jezebel.lua \
+	noit/module/keynote.lua \
 	noit/module/resmon.lua \
 	noit/module/memcached.lua \
 	noit/module/munin.lua \
