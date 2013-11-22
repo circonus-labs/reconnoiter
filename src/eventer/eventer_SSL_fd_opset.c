@@ -741,7 +741,7 @@ eventer_SSL_rw(int op, int fd, void *buffer, size_t len, int *mask,
     case SSL_ERROR_SYSCALL:
       if(errno == 0) {
         noitL(eventer_deb, "SSL error (syscall) no error?!\n");
-        return 0;
+        return -1;
       }
       /* FALLTHROUGH */
     default:

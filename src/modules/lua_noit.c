@@ -1012,11 +1012,12 @@ noit_lua_socket_do_read(eventer_t e, int *mask, struct nl_slcl *cl,
       }
     }
   }
-  if(len == 0 && cl->inbuff_len) {
+  if(len <= 0 && cl->inbuff_len) {
     /* EOF */
     *read_complete = 1;
     lua_pushlstring(cl->L, cl->inbuff, cl->inbuff_len);
     cl->inbuff_len = 0;
+    return 0;
   }
   return len;
 }
