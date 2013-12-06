@@ -240,7 +240,9 @@ AC_CHECK_SIZEOF(void *, 1)
 
 AC_CHECK_LIB(umem, umem_cache_create, , )
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
-AC_CHECK_LIB(rt, sem_init, , )
+AC_CHECK_LIB(rt, sem_init, , [
+  AC_CHECK_LIB(rt, clock_gettime, , )
+])
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
