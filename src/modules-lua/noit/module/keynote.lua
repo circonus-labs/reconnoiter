@@ -40,7 +40,7 @@ function onload(image)
   <object>noit.module.keynote</object>
   <checkconfig>
     <parameter name="base_url"
-               required="required"
+               required="optional"
                default="https://api.keynote.com/keynote/api/"
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
     <parameter name="api_key"
