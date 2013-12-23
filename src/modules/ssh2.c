@@ -157,6 +157,8 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
   int i;
   const char *fingerprint;
   ssh2_check_info_t *ci = closure;
+  struct timeval diff;
+  int timeout_ms = 10; /* 10ms, gets set below */
   if(ci->state == WANT_CLOSE) {
     noit_check_t *check = ci->check;
     ssh2_log_results(ci->self, ci->check);
@@ -192,6 +194,11 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       set_method(mac_sc, LIBSSH2_METHOD_MAC_SC);
       set_method(comp_cs, LIBSSH2_METHOD_COMP_CS);
       set_method(comp_sc, LIBSSH2_METHOD_COMP_SC);
+      if(compare_timeval(*now, e->whence) < 0) {
+        sub_timeval(e->whence, *now, &diff);
+        timeout_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+      }
+      libssh2_session_set_timeout(ci->session, timeout_ms);
       if (libssh2_session_startup(ci->session, e->fd)) {
         ci->timed_out = 0;
         ci->error = strdup("ssh session startup failed");
