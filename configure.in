@@ -255,6 +255,7 @@ AC_CHECK_FUNC(uuid_generate, , [
 # Some libraries provide an unparse_lower command
 # we use that, so if it isn't present, we'll need
 # to implement it.
+AC_CHECK_FUNC(fdwalk, [AC_DEFINE(HAVE_FDWALK)], )
 AC_CHECK_FUNC(uuid_unparse_lower, [AC_DEFINE(HAVE_UUID_UNPARSE_LOWER)], )
 AC_CHECK_LIB(util, openpty, , )
 AC_CHECK_LIB(termcap, tputs, , )
