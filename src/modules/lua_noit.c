@@ -1156,7 +1156,8 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
   }
   while((rv = e->opset->write(e->fd,
                               cl->outbuff + cl->write_sofar,
-                              MIN(cl->send_size, cl->write_goal),
+                              MIN(cl->send_size,
+                                  (cl->write_goal - cl->write_sofar)),
                               &mask, e)) > 0) {
     cl->write_sofar += rv;
     assert(cl->write_sofar <= cl->write_goal);
@@ -1212,7 +1213,8 @@ noit_lua_socket_write(lua_State *L) {
 
   while((rv = e->opset->write(e->fd,
                               cl->outbuff + cl->write_sofar,
-                              MIN(cl->send_size, cl->write_goal),
+                              MIN(cl->send_size,
+                                  (cl->write_goal - cl->write_sofar)),
                               &mask, e)) > 0) {
     cl->write_sofar += rv;
     assert(cl->write_sofar <= cl->write_goal);
