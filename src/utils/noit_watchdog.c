@@ -194,7 +194,9 @@ static void stop_other_threads() {
     if(entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
       lwpid_t tgt;
       tgt = atoi(entry->d_name);
+#ifdef UNSAFE_STOP
       if(tgt != self) _lwp_suspend(tgt);
+#endif
     }
   }
   closedir(root);
