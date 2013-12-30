@@ -124,7 +124,7 @@ lua_general_handler(noit_module_generic_t *self) {
   int status, rv;
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
-  noit_lua_resume_info_t *ri = NULL;;
+  noit_lua_resume_info_t *ri = NULL;
   const char *err = NULL;
   char errbuf[128];
   lua_State *L;
@@ -244,6 +244,7 @@ noit_lua_general_init(noit_module_generic_t *self) {
   }
 
   lmc->resume = lua_general_resume;
+  lmc->owner = pthread_self();
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
   noitL(nldeb, "lua_general opening state -> %p\n", lmc->lua_state);
   if(lmc->lua_state == NULL) {

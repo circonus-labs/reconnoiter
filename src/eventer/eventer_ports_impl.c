@@ -57,7 +57,17 @@ struct _eventer_impl eventer_ports_impl;
 #include "eventer/eventer_impl_private.h"
 
 static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
-static int port_fd = -1;
+struct ports_spec {
+  int port_fd;
+};
+
+static void *eventer_ports_spec_alloc() {
+  struct ports_spec *spec;
+  spec = calloc(1, sizeof(*spec));
+  spec->port_fd = port_create();
+  if(spec->port_fd < 0) abort();
+  return spec;
+}
 
 static int eventer_ports_impl_init() {
   struct rlimit rlim;
@@ -67,10 +77,6 @@ static int eventer_ports_impl_init() {
   if((rv = eventer_impl_init()) != 0) return rv;
 
   signal(SIGPIPE, SIG_IGN);
-  port_fd = port_create();
-  if(port_fd == -1) {
-    return -1;
-  }
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
@@ -83,19 +89,21 @@ static int eventer_ports_impl_propset(const char *key, const char *value) {
   return 0;
 }
 static void alter_fd(eventer_t e, int mask) {
+  struct ports_spec *spec;
+  spec = eventer_get_spec_for_event(e);
   if(mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     int events = 0;
     if(mask & EVENTER_READ) events |= POLLIN;
     if(mask & EVENTER_WRITE) events |= POLLOUT;
     if(mask & EVENTER_EXCEPTION) events |= POLLERR;
-    if(port_associate(port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
+    if(port_associate(spec->port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
       noitL(eventer_err,
             "eventer port_associate failed: %s\n", strerror(errno));
       abort();
     }
   }
   else {
-    if(port_dissociate(port_fd, PORT_SOURCE_FD, e->fd) == -1) {
+    if(port_dissociate(spec->port_fd, PORT_SOURCE_FD, e->fd) == -1) {
       if(errno == ENOENT) return; /* Fine */
       if(errno == EBADFD) return; /* Fine */
       noitL(eventer_err,
@@ -243,6 +251,8 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
 }
 static int eventer_ports_impl_loop() {
   struct timeval __dyna_sleep = { 0, 0 };
+  struct ports_spec *spec;
+  spec = eventer_get_spec_for_event(NULL);
 
   while(1) {
     struct timeval __now, __sleeptime;
@@ -271,7 +281,7 @@ static int eventer_ports_impl_loop() {
 
     pevents[0].portev_source = 65535; /* This is impossible */
 
-    ret = port_getn(port_fd, pevents, MAX_PORT_EVENTS, &fd_cnt,
+    ret = port_getn(spec->port_fd, pevents, MAX_PORT_EVENTS, &fd_cnt,
                     &__ports_sleeptime);
     /* The timeout case is a tad complex with ports.  -1/ETIME is clearly
      * a timeout.  However, it i spossible that we got that and fd_cnt isn't
@@ -287,8 +297,8 @@ static int eventer_ports_impl_loop() {
     if(ret < 0)
       noitLT(eventer_deb, &__now, "port_getn: %s\n", strerror(errno));
 
-    noitLT(eventer_deb, &__now, "debug: port_getn(%d, [], %d) => %d\n", port_fd,
-           fd_cnt, ret);
+    noitLT(eventer_deb, &__now, "debug: port_getn(%d, [], %d) => %d\n",
+           spec->port_fd, fd_cnt, ret);
 
     if(pevents[0].portev_source == 65535) {
       /* the impossible still remains, which means our fd_cnt _must_ be 0 */
@@ -329,8 +339,9 @@ static int eventer_ports_impl_loop() {
 }
 
 static void
-eventer_ports_impl_wakeup() {
-  port_send(port_fd, 0, NULL);
+eventer_ports_impl_wakeup(eventer_t e) {
+  struct ports_spec *spec = eventer_get_spec_for_event(e);
+  port_send(spec->port_fd, 0, NULL);
 }
 
 struct _eventer_impl eventer_ports_impl = {
@@ -346,6 +357,7 @@ struct _eventer_impl eventer_ports_impl = {
   eventer_ports_impl_loop,
   eventer_ports_impl_foreach_fdevent,
   eventer_ports_impl_wakeup,
+  eventer_ports_spec_alloc,
   { 0, 200000 },
   0,
   NULL

@@ -125,7 +125,7 @@ describe_lua_context(noit_console_closure_t ncct,
     {
       char uuid_str[UUID_STR_LEN+1];
       noit_lua_resume_check_info_t *ci = ri->context_data;
-      nc_printf(ncct, "lua_check(state:%p)\n", ri->coro_state);
+      nc_printf(ncct, "lua_check(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
       uuid_unparse_lower(ci->check->checkid, uuid_str);
       nc_printf(ncct, "\tcheck: %s\n", uuid_str);
       nc_printf(ncct, "\tname: %s\n", ci->check->name);
@@ -134,13 +134,13 @@ describe_lua_context(noit_console_closure_t ncct,
       break;
     }
     case LUA_GENERAL_INFO_MAGIC:
-      nc_printf(ncct, "lua_general(state:%p)\n", ri->coro_state);
+      nc_printf(ncct, "lua_general(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
       break;
     case 0:
-      nc_printf(ncct, "lua_native(state:%p)\n", ri->coro_state);
+      nc_printf(ncct, "lua_native(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
       break;
     default:
-      nc_printf(ncct, "Unknown lua context(state:%p)\n", ri->coro_state);
+      nc_printf(ncct, "Unknown lua context(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
   }
 }
 static int
@@ -166,18 +166,27 @@ noit_console_show_lua(noit_console_closure_t ncct,
     while (lua_getstack(L, level++, &ar));
     level--;
     while (level > 0 && lua_getstack(L, --level, &ar)) {
-      lua_getinfo(L, "Sl", &ar);
+      const char *name, *cp;
       lua_getinfo(L, "n", &ar);
+      name = ar.name;
+      lua_getinfo(L, "Snlf", &ar);
+      cp = ar.source;
+      if(cp) {
+        cp = cp + strlen(cp) - 1;
+        while(cp >= ar.source && *cp != '/') cp--;
+        cp++;
+      }
+      else cp = "???";
+      if(ar.name == NULL) ar.name = name;
+      if(ar.name == NULL) ar.name = "???";
       if (ar.currentline > 0) {
-        const char *cp = ar.source;
-        if(cp) {
-          cp = cp + strlen(cp) - 1;
-          while(cp >= ar.source && *cp != '/') cp--;
-          cp++;
+        if(*ar.namewhat) {
+          nc_printf(ncct, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
+        } else {
+          nc_printf(ncct, "\t%s:%d\n", cp, ar.currentline);
         }
-        else cp = "???";
-        if(ar.name == NULL) ar.name = "???";
-        nc_printf(ncct, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
+      } else {
+        nc_printf(ncct, "\t%s:%s(%s)\n", cp, ar.namewhat, ar.name);
       }
     }
     nc_printf(ncct, "\n");
@@ -248,6 +257,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_image_t *mod, const char **
   if(lmc == NULL) {
     lmc = calloc(1, sizeof(*lmc));
     lmc->pending = calloc(1, sizeof(*lmc->pending));
+    lmc->owner = pthread_self();
     lmc->resume = noit_lua_check_resume;
     pthread_setspecific(mc->c->key, lmc);
     noitL(nldeb, "lua_state[%s]: new state\n", mod->name);

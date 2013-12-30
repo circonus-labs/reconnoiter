@@ -129,7 +129,7 @@ typedef struct _eventer_impl {
   void              (*trigger)(eventer_t e, int mask);
   int               (*loop)(int);
   void              (*foreach_fdevent)(void (*f)(eventer_t, void *), void *);
-  void              (*wakeup)();
+  void              (*wakeup)(eventer_t);
   void             *(*alloc_spec)();
   struct timeval    max_sleeptime;
   int               maxfds;

@@ -269,6 +269,7 @@ noit_lua_web_driver_init(noit_module_generic_t *self) {
   lua_web_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
   lmc->resume = lua_web_resume;
+  lmc->owner = pthread_self();
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
   if(lmc->lua_state == NULL) return -1;
   lmc->pending = calloc(1, sizeof(*lmc->pending));
