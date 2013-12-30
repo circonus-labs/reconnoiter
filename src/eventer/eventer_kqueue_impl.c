@@ -54,22 +54,22 @@ struct _eventer_impl eventer_kqueue_impl;
 #include "eventer/eventer_impl_private.h"
 
 static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
-static int kqueue_fd = -1;
-typedef struct kqueue_setup {
-  struct kevent *__ke_vec;
-  unsigned int __ke_vec_a;
-  unsigned int __ke_vec_used;
+typedef struct kqueue_spec {
+  int kqueue_fd;
+  pthread_mutex_t lock;
+  struct {
+    struct kevent *__ke_vec;
+    unsigned int __ke_vec_a;
+    unsigned int __ke_vec_used;
+  } q;
 } *kqs_t;
 
-static pthread_mutex_t kqs_lock;
-static kqs_t master_kqs = NULL;
-static pthread_key_t kqueue_setup_key;
 static int *masks;
 #define KQUEUE_DECL kqs_t kqs
-#define KQUEUE_SETUP kqs = (kqs_t) pthread_getspecific(kqueue_setup_key)
-#define ke_vec kqs->__ke_vec
-#define ke_vec_a kqs->__ke_vec_a
-#define ke_vec_used kqs->__ke_vec_used
+#define KQUEUE_SETUP(e) kqs = (kqs_t) eventer_get_spec_for_event(e)
+#define ke_vec kqs->q.__ke_vec
+#define ke_vec_a kqs->q.__ke_vec_a
+#define ke_vec_used kqs->q.__ke_vec_used
 
 static void kqs_init(kqs_t kqs) {
   enum { initial_alloc = 64 };
@@ -83,10 +83,9 @@ ke_change (register int const ident,
            register eventer_t e) {
   register struct kevent *kep;
   KQUEUE_DECL;
-  KQUEUE_SETUP;
-  if(!kqs) kqs = master_kqs;
+  KQUEUE_SETUP(e);
 
-  if(kqs == master_kqs) pthread_mutex_lock(&kqs_lock);
+  pthread_mutex_lock(&kqs->lock);
   if (!ke_vec_a) {
     kqs_init(kqs);
   }
@@ -100,9 +99,17 @@ ke_change (register int const ident,
   EV_SET(kep, ident, filter, flags, 0, 0, (void *)(vpsized_int)e->fd);
   noitL(eventer_deb, "debug: ke_change(fd:%d, filt:%x, flags:%x)\n",
         ident, filter, flags);
-  if(kqs == master_kqs) pthread_mutex_unlock(&kqs_lock);
+  pthread_mutex_unlock(&kqs->lock);
 }
 
+static void *eventer_kqueue_spec_alloc() {
+  struct kqueue_spec *spec;
+  spec = calloc(1, sizeof(*spec));
+  spec->kqueue_fd = kqueue();
+  if(spec->kqueue_fd == -1) abort();
+  pthread_mutex_init(&spec->lock, NULL);
+  return spec;
+}
 static int eventer_kqueue_impl_init() {
   struct rlimit rlim;
   int rv;
@@ -111,14 +118,6 @@ static int eventer_kqueue_impl_init() {
   if((rv = eventer_impl_init()) != 0) return rv;
 
   signal(SIGPIPE, SIG_IGN);
-  kqueue_fd = kqueue();
-  if(kqueue_fd == -1) {
-    return -1;
-  }
-  pthread_mutex_init(&kqs_lock, NULL);
-  pthread_key_create(&kqueue_setup_key, NULL);
-  master_kqs = calloc(1, sizeof(*master_kqs));
-  kqs_init(master_kqs);
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
@@ -134,6 +133,7 @@ static int eventer_kqueue_impl_propset(const char *key, const char *value) {
 }
 static void eventer_kqueue_impl_add(eventer_t e) {
   assert(e->mask);
+  assert(eventer_is_loop(e->thr_owner));
   ev_lock_state_t lockstate;
   const char *cbname;
   cbname = eventer_name_for_callback_e(e->callback, e);
@@ -318,13 +318,8 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
 static int eventer_kqueue_impl_loop() {
   struct timeval __dyna_sleep = { 0, 0 };
   KQUEUE_DECL;
-  KQUEUE_SETUP;
+  KQUEUE_SETUP(NULL);
 
-  if(!kqs) {
-    kqs = calloc(1, sizeof(*kqs));
-    kqs_init(kqs);
-  }
-  pthread_setspecific(kqueue_setup_key, kqs);
   while(1) {
     struct timeval __now, __sleeptime;
     struct timespec __kqueue_sleeptime;
@@ -344,31 +339,31 @@ static int eventer_kqueue_impl_loop() {
     eventer_dispatch_recurrent(&__now);
 
     /* If we're the master, we need to lock the master_kqs and make mods */
-    if(master_kqs->__ke_vec_used) {
+    if(ke_vec_used && 0) {
       struct timespec __zerotime = { 0, 0 };
-      pthread_mutex_lock(&kqs_lock);
-      fd_cnt = kevent(kqueue_fd,
-                      master_kqs->__ke_vec, master_kqs->__ke_vec_used,
+      pthread_mutex_lock(&kqs->lock);
+      fd_cnt = kevent(kqs->kqueue_fd,
+                      ke_vec, ke_vec_used,
                       NULL, 0,
                       &__zerotime);
-      noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, master_kqs->__ke_vec_used, fd_cnt);
+      if(ke_vec_used) noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqs->kqueue_fd, ke_vec_used, fd_cnt);
       if(fd_cnt < 0) {
-        noitLT(eventer_err, &__now, "kevent: %s\n", strerror(errno));
+        noitLT(eventer_err, &__now, "kevent(u/%d): %s\n", kqs->kqueue_fd, strerror(errno));
       }
-      master_kqs->__ke_vec_used = 0;
-      pthread_mutex_unlock(&kqs_lock);
+      ke_vec_used = 0;
+      pthread_mutex_unlock(&kqs->lock);
     }
 
     /* Now we move on to our fd-based events */
     __kqueue_sleeptime.tv_sec = __sleeptime.tv_sec;
     __kqueue_sleeptime.tv_nsec = __sleeptime.tv_usec * 1000;
-    fd_cnt = kevent(kqueue_fd, ke_vec, ke_vec_used,
+    fd_cnt = kevent(kqs->kqueue_fd, ke_vec, ke_vec_used,
                     ke_vec, ke_vec_a,
                     &__kqueue_sleeptime);
-    noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqueue_fd, ke_vec_used, fd_cnt);
+    if(ke_vec_used) noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqs->kqueue_fd, ke_vec_used, fd_cnt);
     ke_vec_used = 0;
     if(fd_cnt < 0) {
-      noitLT(eventer_err, &__now, "kevent: %s\n", strerror(errno));
+      noitLT(eventer_err, &__now, "kevent(s/%d): %s\n", kqs->kqueue_fd, strerror(errno));
     }
     else if(fd_cnt == 0) {
       /* timeout */
@@ -435,6 +430,7 @@ struct _eventer_impl eventer_kqueue_impl = {
   eventer_kqueue_impl_loop,
   eventer_kqueue_impl_foreach_fdevent,
   eventer_wakeup_noop,
+  eventer_kqueue_spec_alloc,
   { 0, 200000 },
   0,
   NULL

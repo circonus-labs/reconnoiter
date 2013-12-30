@@ -380,7 +380,6 @@ static int external_init(noit_module_t *self) {
 
   data->jobq = calloc(1, sizeof(*data->jobq));
   eventer_jobq_init(data->jobq, "external");
-  data->jobq->backq = eventer_default_backq();
   eventer_jobq_increase_concurrency(data->jobq);
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||

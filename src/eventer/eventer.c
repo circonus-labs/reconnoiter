@@ -36,10 +36,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
 
 eventer_t eventer_alloc() {
   eventer_t e;
   e = calloc(1, sizeof(*e));
+  e->thr_owner = pthread_self();
   e->opset = eventer_POSIX_fd_opset;
   return e;
 }

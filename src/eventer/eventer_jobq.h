@@ -73,7 +73,6 @@ typedef struct _eventer_jobq_t {
   eventer_job_t          *tailq;
   pthread_key_t           threadenv;
   pthread_key_t           activejob;
-  struct _eventer_jobq_t *backq;
   noit_atomic32_t         backlog;
   noit_atomic32_t         inflight;
   noit_atomic64_t         total_jobs;

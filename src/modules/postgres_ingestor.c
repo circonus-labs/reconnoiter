@@ -309,7 +309,6 @@ get_conn_pool_for_remote(const char *remote_str,
       /* Our job to setup the pool */
       cpool->jobq = calloc(1, sizeof(*cpool->jobq));
       eventer_jobq_init(cpool->jobq, queue_name);
-      cpool->jobq->backq = eventer_default_backq();
       /* Add one thread */
       for(i=0; i<MAX(cpool->max_allocated - cpool->max_in_pool, 1); i++)
         eventer_jobq_increase_concurrency(cpool->jobq);

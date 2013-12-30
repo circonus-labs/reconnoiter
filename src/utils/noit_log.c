@@ -1212,6 +1212,8 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
   if(bitor) {
     bitor_onstack.name = bitor->name;
     bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_FACILITY;
+    bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_DEBUG;
+    bitor_onstack.flags |= bitor->flags & NOIT_LOG_STREAM_TIMESTAMPS;
   }
   bitor = &bitor_onstack;
   if(ls->ops) {
@@ -1246,6 +1248,7 @@ noit_log_line(noit_log_stream_t ls, noit_log_stream_t bitor,
   for(node = ls->outlets; node; node = node->next) {
     int srv = 0;
     debug_printf(" %s -> %s\n", ls->name, node->outlet->name);
+    bitor->flags = ls->flags;
     srv = noit_log_line(node->outlet, bitor, whence, timebuf,
                         timebuflen, debugbuf, debugbuflen, buffer, len);
     if(srv) rv = srv;
@@ -1278,7 +1281,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
     }
     else tbuf[0] = '\0';
     if(IS_DEBUG_BELOW(ls)) {
-      snprintf(dbuf, sizeof(dbuf), "[%s:%d] ", file, line);
+      snprintf(dbuf, sizeof(dbuf), "[t@%x,%s:%d] ", (unsigned int)pthread_self(), file, line);
       dbuflen = strlen(dbuf);
     }
     else dbuf[0] = '\0';

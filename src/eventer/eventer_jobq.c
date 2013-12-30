@@ -306,7 +306,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
       job->finish_hrtime = eventer_gethrtime();
       eventer_jobq_maybe_spawn(jobcopy->jobq);
       eventer_jobq_finished_job(jobcopy->jobq, jobcopy);
-      eventer_jobq_enqueue(jobcopy->jobq->backq, jobcopy);
+      eventer_jobq_enqueue(eventer_default_backq(jobcopy->fd_event), jobcopy);
       eventer_wakeup();
     }
     else
@@ -322,7 +322,7 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
   /* This can only be called with a backq jobq
    * (a standalone queue with no backq itself)
    */
-  assert(jobq && !jobq->backq);
+  assert(jobq);
   while((job = eventer_jobq_dequeue_nowait(jobq)) != NULL) {
     int newmask;
     EVENTER_CALLBACK_ENTRY((void *)job->fd_event->callback, NULL,
@@ -355,7 +355,6 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
   int32_t current_count;
   sigjmp_buf env;
 
-  assert(jobq->backq);
   current_count = noit_atomic_inc32(&jobq->concurrency);
   noitL(eventer_deb, "jobq[%s] -> %d\n", jobq->queue_name, current_count);
   if(current_count > jobq->desired_concurrency) {
@@ -413,7 +412,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
                               job->fd_event->closure, &job->finish_time);
       EVENTER_CALLBACK_RETURN((void *)job->fd_event->callback, NULL, -1);
       eventer_jobq_finished_job(jobq, job);
-      eventer_jobq_enqueue(jobq->backq, job);
+      eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
       eventer_wakeup();
       continue;
     }
@@ -471,9 +470,10 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     /* No we know we won't have siglongjmp called on us */
 
     gettimeofday(&job->finish_time, NULL);
-    if(job->timeout_event &&
-       eventer_remove(job->timeout_event)) {
-      eventer_free(job->timeout_event);
+    if(job->timeout_event) {
+      if(eventer_remove(job->timeout_event)) {
+        eventer_free(job->timeout_event);
+      }
     }
     job->timeout_event = NULL;
 
@@ -489,7 +489,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     }
     job->finish_hrtime = eventer_gethrtime();
     eventer_jobq_finished_job(jobq, job);
-    eventer_jobq_enqueue(jobq->backq, job);
+    eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
     eventer_wakeup();
   }
   pthread_cleanup_pop(0);

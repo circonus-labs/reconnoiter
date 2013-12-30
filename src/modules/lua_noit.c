@@ -2351,7 +2351,7 @@ nl_conf_replace_value(lua_State *L) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    while (section = noit_conf_get_section(NULL, path)) {
+    while (NULL != (section = noit_conf_get_section(NULL, path))) {
       noit_conf_remove_section(section);
     }
     section = noit_conf_get_section(NULL, base);
@@ -2376,7 +2376,7 @@ nl_conf_replace_boolean(lua_State *L) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    while (section = noit_conf_get_section(NULL, path)) {
+    while (NULL != (section = noit_conf_get_section(NULL, path))) {
       noit_conf_remove_section(section);
     }
     section = noit_conf_get_section(NULL, base);

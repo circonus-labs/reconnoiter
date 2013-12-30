@@ -51,9 +51,7 @@
 typedef struct noit_lua_resume_info noit_lua_resume_info_t;
 
 typedef struct lua_module_closure {
-  char *object;
   lua_State *lua_state;
-  int object_ref;
   noit_hash_table *pending;
   int (*resume)(noit_lua_resume_info_t *ci, int nargs);
 } lua_module_closure_t;

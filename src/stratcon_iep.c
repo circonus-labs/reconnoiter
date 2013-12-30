@@ -460,6 +460,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   /* process operand and push onto queue */
   gettimeofday(&__now, NULL);
   newe = eventer_alloc();
+  newe->thr_owner = eventer_choose_owner(0);
   newe->mask = EVENTER_ASYNCH;
   add_timeval(__now, iep_timeout, &newe->whence);
   newe->callback = stratcon_iep_submitter;
@@ -673,7 +674,6 @@ stratcon_iep_init() {
   /* start up a thread pool of one */
   memset(&iep_jobq, 0, sizeof(iep_jobq));
   eventer_jobq_init(&iep_jobq, "iep_submitter");
-  iep_jobq.backq = eventer_default_backq();
   eventer_jobq_increase_concurrency(&iep_jobq);
 
   start_iep_daemon();

@@ -87,11 +87,8 @@ static void
 noit_console_spit_jobq(eventer_jobq_t *jobq, void *c) {
   noit_console_closure_t ncct = c;
   int qlen = 0;
-  const char *bqn = "(undefined)";
-  if(jobq->backq && jobq->backq->queue_name) bqn = jobq->backq->queue_name;
   nc_printf(ncct, "=== %s ===\n", jobq->queue_name);
   nc_printf(ncct, " concurrency: %d/%d\n", jobq->concurrency, jobq->desired_concurrency);
-  nc_printf(ncct, " backq: %s\n", bqn);
   sem_getvalue(&jobq->semaphore, &qlen);
   nc_printf(ncct, " total jobs: %lld\n", (long long int)jobq->total_jobs);
   nc_printf(ncct, " backlog: %d\n", jobq->backlog);

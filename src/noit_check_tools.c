@@ -184,6 +184,7 @@ noit_check_schedule_next(noit_module_t *self,
   rcl->dispatch = dispatch;
   newe->closure = rcl;
 
+  newe->thr_owner = eventer_choose_owner((int)((((vpsized_int)check)>>4)*33));
   eventer_add(newe);
   check->fire_event = newe;
   return diffms;
