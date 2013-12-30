@@ -3,6 +3,7 @@
   <!-- <watchdog glider="/opt/gimli/bin/glider" tracedir="/var/log/noitd.crash"/> -->
   <eventer>
     <config>
+      <concurrency>4</concurrency>
       <default_queue_threads>10</default_queue_threads>
       <default_ca_chain>%sysconfdir%/default-ca-chain.crt</default_ca_chain>
     </config>

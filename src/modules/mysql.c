@@ -398,12 +398,12 @@ static int mysql_onload(noit_image_t *self) {
 #include "mysql.xmlh"
 noit_module_t mysql = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "mysql",
-    "MySQL Checker",
-    mysql_xml_description,
-    mysql_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "mysql",
+    .description = "MySQL Checker",
+    .xml_description = mysql_xml_description,
+    .onload = mysql_onload
   },
   NULL,
   NULL,

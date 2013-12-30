@@ -91,7 +91,8 @@ struct _event {
   int                 mask;
   eventer_fd_opset_t  opset;
   void               *opset_ctx;
-  void *closure;
+  void               *closure;
+  pthread_t           thr_owner;
 };
 
 API_EXPORT(eventer_t) eventer_alloc();
@@ -126,9 +127,10 @@ typedef struct _eventer_impl {
   eventer_t         (*remove_fd)(int fd);
   eventer_t         (*find_fd)(int fd);
   void              (*trigger)(eventer_t e, int mask);
-  int               (*loop)();
+  int               (*loop)(int);
   void              (*foreach_fdevent)(void (*f)(eventer_t, void *), void *);
   void              (*wakeup)();
+  void             *(*alloc_spec)();
   struct timeval    max_sleeptime;
   int               maxfds;
   struct {
@@ -147,6 +149,8 @@ noit_log_stream_t eventer_err;
 noit_log_stream_t eventer_deb;
 
 API_EXPORT(int) eventer_choose(const char *name);
+API_EXPORT(void) eventer_loop();
+API_EXPORT(int) eventer_is_loop(pthread_t tid);
 
 #define eventer_propset       __eventer->propset
 #define eventer_init          __eventer->init
@@ -155,7 +159,6 @@ API_EXPORT(int) eventer_choose(const char *name);
 #define eventer_update        __eventer->update
 #define eventer_remove_fd     __eventer->remove_fd
 #define eventer_find_fd       __eventer->find_fd
-#define eventer_loop          __eventer->loop
 #define eventer_trigger       __eventer->trigger
 #define eventer_max_sleeptime __eventer->max_sleeptime
 #define eventer_foreach_fdevent  __eventer->foreach_fdevent
@@ -174,7 +177,7 @@ API_EXPORT(eventer_hrtime_t) eventer_gethrtime(void);
 
 #include "eventer/eventer_jobq.h"
 
-API_EXPORT(eventer_jobq_t *) eventer_default_backq();
+API_EXPORT(eventer_jobq_t *) eventer_default_backq(eventer_t);
 API_EXPORT(int) eventer_impl_propset(const char *key, const char *value);
 API_EXPORT(int) eventer_impl_init();
 API_EXPORT(void) eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
@@ -189,6 +192,8 @@ API_EXPORT(void) eventer_dispatch_recurrent(struct timeval *now);
 API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
 API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
+API_EXPORT(void *) eventer_get_spec_for_event(eventer_t);
+API_EXPORT(pthread_t) eventer_choose_owner(int);
 
 /* Helpers to schedule timed events */
 #define eventer_add_at(func, cl, t) do { \
@@ -223,5 +228,6 @@ API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
 /* Helpers to set sockets non-blocking / blocking */
 API_EXPORT(int) eventer_set_fd_nonblocking(int fd);
 API_EXPORT(int) eventer_set_fd_blocking(int fd);
+API_EXPORT(int) eventer_thread_check(eventer_t);
 
 #endif

@@ -380,7 +380,6 @@ static int external_init(noit_module_t *self) {
 
   data->jobq = calloc(1, sizeof(*data->jobq));
   eventer_jobq_init(data->jobq, "external");
-  data->jobq->backq = eventer_default_backq();
   eventer_jobq_increase_concurrency(data->jobq);
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
@@ -640,12 +639,12 @@ static int external_onload(noit_image_t *self) {
 #include "external.xmlh"
 noit_module_t external = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "external",
-    "checks via external programs",
-    external_xml_description,
-    external_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "external",
+    .description = "checks via external programs",
+    .xml_description = external_xml_description,
+    .onload = external_onload
   },
   external_config,
   external_init,

@@ -429,12 +429,12 @@ static int ssh2_onload(noit_image_t *self) {
 #include "ssh2.xmlh"
 noit_module_t ssh2 = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "ssh2",
-    "Secure Shell version 2 checker",
-    ssh2_xml_description,
-    ssh2_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "ssh2",
+    .description = "Secure Shell version 2 checker",
+    .xml_description = ssh2_xml_description,
+    .onload = ssh2_onload
   },
   ssh2_config,
   ssh2_init,

@@ -297,12 +297,12 @@ static int handoff_ingestor_init(noit_module_generic_t *self) {
 
 noit_module_generic_t handoff_ingestor = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "handoff_ingestor",
-    "data ingestion that just hands off to another process",
-    handoff_ingestor_xml_description,
-    handoff_ingestor_onload,
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "handoff_ingestor",
+    .description = "data ingestion that just hands off to another process",
+    .xml_description = handoff_ingestor_xml_description,
+    .onload = handoff_ingestor_onload,
   },
   handoff_ingestor_config,
   handoff_ingestor_init

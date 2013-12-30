@@ -38,7 +38,7 @@
 #include "noit_check.h"
 
 #define NOIT_LOADER_MAGIC         0xA7AD7104
-#define NOIT_LOADER_ABI_VERSION   4
+#define NOIT_LOADER_ABI_VERSION   5
 
 struct __extended_image_data;
 
@@ -63,7 +63,7 @@ typedef struct _noit_module_generic {
 } noit_module_generic_t;
 
 #define NOIT_GENERIC_MAGIC         0x3FD892A0
-#define NOIT_GENERIC_ABI_VERSION   1
+#define NOIT_GENERIC_ABI_VERSION   2
 
 typedef struct _noit_module_loader {
   noit_image_t hdr;
@@ -80,7 +80,7 @@ typedef struct _noit_module_loader {
  */
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
-#define NOIT_MODULE_ABI_VERSION   3
+#define NOIT_MODULE_ABI_VERSION   4
 
 typedef struct _noit_module {
   noit_image_t hdr;

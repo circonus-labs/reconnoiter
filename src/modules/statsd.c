@@ -468,12 +468,12 @@ static int noit_statsd_init(noit_module_t *self) {
 #include "statsd.xmlh"
 noit_module_t statsd = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "statsd",
-    "statsd collection",
-    statsd_xml_description,
-    noit_statsd_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "statsd",
+    .description = "statsd collection",
+    .xml_description = statsd_xml_description,
+    .onload = noit_statsd_onload
   },
   noit_statsd_config,
   noit_statsd_init,

@@ -892,12 +892,12 @@ static int dns_onload(noit_image_t *self) {
 #include "dns.xmlh"
 noit_module_t dns = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "dns",
-    "DNS RR checker",
-    dns_xml_description,
-    dns_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "dns",
+    .description = "DNS RR checker",
+    .xml_description = dns_xml_description,
+    .onload = dns_onload
   },
   dns_config,
   dns_module_init,

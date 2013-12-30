@@ -616,12 +616,12 @@ static int noit_httptrap_init(noit_module_t *self) {
 #include "httptrap.xmlh"
 noit_module_t httptrap = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "httptrap",
-    "httptrap collection",
-    httptrap_xml_description,
-    noit_httptrap_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "httptrap",
+    .description = "httptrap collection",
+    .xml_description = httptrap_xml_description,
+    .onload = noit_httptrap_onload
   },
   noit_httptrap_config,
   noit_httptrap_init,

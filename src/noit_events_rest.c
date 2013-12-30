@@ -125,8 +125,6 @@ static void
 json_spit_jobq(eventer_jobq_t *jobq, void *closure) {
   struct json_object *doc = closure;
   struct json_object *jo = json_object_new_object();
-  if(jobq->backq && jobq->backq->queue_name)
-    json_object_object_add(jo, "backq", json_object_new_string(jobq->backq->queue_name));
   json_object_object_add(jo, "concurrency", json_object_new_int(jobq->concurrency));
   json_object_object_add(jo, "desired_concurrency", json_object_new_int(jobq->desired_concurrency));
   struct json_object *li = json_object_new_int(0);

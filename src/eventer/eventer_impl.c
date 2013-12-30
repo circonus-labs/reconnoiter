@@ -43,8 +43,23 @@
 static struct timeval *eventer_impl_epoch = NULL;
 static int EVENTER_DEBUGGING = 0;
 static int desired_nofiles = 1024*1024;
-static pthread_mutex_t te_lock;
-static noit_skiplist *timed_events = NULL;
+
+struct eventer_impl_data {
+  int id;
+  pthread_t tid;
+  pthread_mutex_t te_lock;
+  noit_skiplist *timed_events;
+  eventer_jobq_t __global_backq;
+  pthread_mutex_t recurrent_lock;
+  struct recurrent_events {
+    eventer_t e;
+    struct recurrent_events *next;
+  } *recurrent_events;
+  void *spec;
+};
+
+pthread_key_t tls_impl_data_key;
+static struct eventer_impl_data *eventer_impl_tls_data = NULL;
 
 #ifdef HAVE_KQUEUE
 extern struct _eventer_impl eventer_kqueue_impl;
@@ -74,16 +89,49 @@ noit_log_stream_t eventer_err = NULL;
 noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
+static int __loop_concurrency = 1;
 static int desired_limit = 1024 * 1024;
-static eventer_jobq_t __global_backq, __default_jobq;
-static pthread_mutex_t recurrent_lock = PTHREAD_MUTEX_INITIALIZER;
-struct recurrent_events {
-  eventer_t e;
-  struct recurrent_events *next;
-} *recurrent_events = NULL;
+static eventer_jobq_t __default_jobq;
 
+pthread_t eventer_choose_owner(int i) {
+  return eventer_impl_tls_data[i%__loop_concurrency].tid;
+}
+static struct eventer_impl_data *get_my_impl_data() {
+  return (struct eventer_impl_data *)pthread_getspecific(tls_impl_data_key);
+}
+static struct eventer_impl_data *get_tls_impl_data(pthread_t tid) {
+  int i;
+  for(i=0;i<__loop_concurrency;i++) {
+    if(pthread_equal(eventer_impl_tls_data[i].tid, tid))
+      return &eventer_impl_tls_data[i];
+  }
+  noitL(noit_error, "get_tls_impl_data called from non-eventer thread\n");
+  return NULL;
+}
+static struct eventer_impl_data *get_event_impl_data(eventer_t e) {
+  return get_tls_impl_data(e->thr_owner);
+}
+int eventer_is_loop(pthread_t tid) {
+  int i;
+  for(i=0;i<__loop_concurrency;i++)
+    if(pthread_equal(eventer_impl_tls_data[i].tid, tid)) return 1;
+  return 0;
+}
+void *eventer_get_spec_for_event(eventer_t e) {
+  struct eventer_impl_data *t;
+  if(e == NULL) t = get_my_impl_data();
+  else t = get_event_impl_data(e);
+  assert(t);
+  if(t->spec == NULL) t->spec = __eventer->alloc_spec();
+  return t->spec;
+}
 
 int eventer_impl_propset(const char *key, const char *value) {
+  if(!strcasecmp(key, "concurrency")) {
+    __loop_concurrency = atoi(value);
+    if(__loop_concurrency < 1) __loop_concurrency = 1;
+    return 0;
+  }
   if(!strcasecmp(key, "default_queue_threads")) {
     __default_queue_threads = atoi(value);
     if(__default_queue_threads < 1) {
@@ -119,8 +167,13 @@ int eventer_impl_propset(const char *key, const char *value) {
   return 0;
 }
 
-eventer_jobq_t *eventer_default_backq() {
-  return &__global_backq;
+eventer_jobq_t *eventer_default_backq(eventer_t e) {
+  pthread_t tid;
+  struct eventer_impl_data *impl_data;
+  tid = e ? e->thr_owner : pthread_self();
+  impl_data = get_tls_impl_data(tid);
+  assert(impl_data);
+  return &impl_data->__global_backq;
 }
 
 int eventer_get_epoch(struct timeval *epoch) {
@@ -132,10 +185,58 @@ int eventer_get_epoch(struct timeval *epoch) {
 int NE_SOCK_CLOEXEC = 0;
 int NE_O_CLOEXEC = 0;
 
+static void eventer_per_thread_init(struct eventer_impl_data *t) {
+  char qname[80];
+  eventer_t e;
+
+  if(t->timed_events != NULL) return;
+
+  t->tid = pthread_self();
+  pthread_setspecific(tls_impl_data_key, t);
+
+  pthread_mutex_init(&t->te_lock, NULL);
+  t->timed_events = calloc(1, sizeof(*t->timed_events));
+  noit_skiplist_init(t->timed_events);
+  noit_skiplist_set_compare(t->timed_events,
+                            eventer_timecompare, eventer_timecompare);
+  noit_skiplist_add_index(t->timed_events,
+                          noit_compare_voidptr, noit_compare_voidptr);
+
+  snprintf(qname, sizeof(qname), "default_back_queue/%d", t->id);
+  eventer_jobq_init(&t->__global_backq, qname);
+  e = eventer_alloc();
+  e->mask = EVENTER_RECURRENT;
+  e->closure = &t->__global_backq;
+  e->callback = eventer_jobq_consume_available;
+
+  /* We call directly here as we may not be completely initialized */
+  eventer_add_recurrent(e);
+}
+
+static void *thrloopwrap(void *vid) {
+  struct eventer_impl_data *t;
+  int id = (int)(vpsized_int)vid;
+  t = &eventer_impl_tls_data[id];
+  t->id = id;
+  eventer_per_thread_init(t);
+  return (void *)(vpsized_int)__eventer->loop(id);
+}
+
+void eventer_loop() {
+  thrloopwrap((void *)(vpsized_int)0);
+}
+
+static void eventer_loop_prime() {
+  int i;
+  for(i=1; i<__loop_concurrency; i++) {
+    pthread_t tid;
+    pthread_create(&tid, NULL, thrloopwrap, (void *)(vpsized_int)i);
+  }
+}
+
 int eventer_impl_init() {
   struct rlimit rlim;
   int i, try;
-  eventer_t e;
   char *evdeb;
 
 #ifdef SOCK_CLOEXEC
@@ -178,39 +279,29 @@ int eventer_impl_init() {
 
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);
-  pthread_mutex_init(&te_lock, NULL);
-    timed_events = calloc(1, sizeof(*timed_events));
-  noit_skiplist_init(timed_events);
-  noit_skiplist_set_compare(timed_events,
-                            eventer_timecompare, eventer_timecompare);
-  noit_skiplist_add_index(timed_events,
-                          noit_compare_voidptr, noit_compare_voidptr);
 
   eventer_err = noit_log_stream_find("error/eventer");
   eventer_deb = noit_log_stream_find("debug/eventer");
   if(!eventer_err) eventer_err = noit_stderr;
   if(!eventer_deb) eventer_deb = noit_debug;
 
-  eventer_jobq_init(&__global_backq, "default_back_queue");
-  e = eventer_alloc();
-  e->mask = EVENTER_RECURRENT;
-  e->closure = &__global_backq;
-  e->callback = eventer_jobq_consume_available;
-
-  /* We call directly here as we may not be completely initialized */
-  eventer_add_recurrent(e);
-
   eventer_jobq_init(&__default_jobq, "default_queue");
-  __default_jobq.backq = &__global_backq;
   for(i=0; i<__default_queue_threads; i++)
     eventer_jobq_increase_concurrency(&__default_jobq);
 
+  assert(eventer_impl_tls_data == NULL);
+  pthread_key_create(&tls_impl_data_key, NULL);
+  eventer_impl_tls_data = calloc(__loop_concurrency, sizeof(*eventer_impl_tls_data));
+
+  eventer_per_thread_init(&eventer_impl_tls_data[0]);
+  eventer_loop_prime();
   eventer_ssl_init();
   return 0;
 }
 
 void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   eventer_job_t *job;
+  if(!eventer_is_loop(e->thr_owner)) e->thr_owner = eventer_choose_owner(0);
   job = calloc(1, sizeof(*job));
   job->fd_event = e;
   job->jobq = q ? q : &__default_jobq;
@@ -219,6 +310,7 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
    * make it impossible for us to slowly trace an asynch job. */
   if(!EVENTER_DEBUGGING && e->whence.tv_sec) {
     job->timeout_event = eventer_alloc();
+    job->timeout_event->thr_owner = e->thr_owner;
     memcpy(&job->timeout_event->whence, &e->whence, sizeof(e->whence));
     job->timeout_event->mask = EVENTER_TIMER;
     job->timeout_event->closure = job;
@@ -229,6 +321,7 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
 }
 
 void eventer_add_timed(eventer_t e) {
+  struct eventer_impl_data *t;
   assert(e->mask & EVENTER_TIMER);
   if(EVENTER_DEBUGGING) {
     const char *cbname;
@@ -236,33 +329,40 @@ void eventer_add_timed(eventer_t e) {
     noitL(eventer_deb, "debug: eventer_add timed (%s)\n",
           cbname ? cbname : "???");
   }
-  pthread_mutex_lock(&te_lock);
-  noit_skiplist_insert(timed_events, e);
-  pthread_mutex_unlock(&te_lock);
+  t = get_event_impl_data(e);
+  pthread_mutex_lock(&t->te_lock);
+  noit_skiplist_insert(t->timed_events, e);
+  pthread_mutex_unlock(&t->te_lock);
 }
 eventer_t eventer_remove_timed(eventer_t e) {
+  struct eventer_impl_data *t;
   eventer_t removed = NULL;
   assert(e->mask & EVENTER_TIMER);
-  pthread_mutex_lock(&te_lock);
-  if(noit_skiplist_remove_compare(timed_events, e, NULL,
+  t = get_event_impl_data(e);
+  pthread_mutex_lock(&t->te_lock);
+  if(noit_skiplist_remove_compare(t->timed_events, e, NULL,
                                   noit_compare_voidptr))
     removed = e;
-  pthread_mutex_unlock(&te_lock);
+  pthread_mutex_unlock(&t->te_lock);
   return removed;
 }
 void eventer_update_timed(eventer_t e, int mask) {
+  struct eventer_impl_data *t;
   assert(mask & EVENTER_TIMER);
-  pthread_mutex_lock(&te_lock);
-  noit_skiplist_remove_compare(timed_events, e, NULL, noit_compare_voidptr);
-  noit_skiplist_insert(timed_events, e);
-  pthread_mutex_unlock(&te_lock);
+  t = get_event_impl_data(e);
+  pthread_mutex_lock(&t->te_lock);
+  noit_skiplist_remove_compare(t->timed_events, e, NULL, noit_compare_voidptr);
+  noit_skiplist_insert(t->timed_events, e);
+  pthread_mutex_unlock(&t->te_lock);
 }
 void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
+  struct eventer_impl_data *t;
   int max_timed_events_to_process;
     /* Handle timed events...
      * we could be multithreaded, so if we pop forever we could starve
      * ourselves. */
-  max_timed_events_to_process = timed_events->size;
+  t = get_my_impl_data();
+  max_timed_events_to_process = t->timed_events->size;
   while(max_timed_events_to_process-- > 0) {
     int newmask;
     const char *cbname = NULL;
@@ -270,20 +370,20 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
 
     gettimeofday(now, NULL);
 
-    pthread_mutex_lock(&te_lock);
+    pthread_mutex_lock(&t->te_lock);
     /* Peek at our next timed event, if should fire, pop it.
      * otherwise we noop and NULL it out to break the loop. */
-    timed_event = noit_skiplist_peek(timed_events);
+    timed_event = noit_skiplist_peek(t->timed_events);
     if(timed_event) {
       if(compare_timeval(timed_event->whence, *now) < 0) {
-        timed_event = noit_skiplist_pop(timed_events, NULL);
+        timed_event = noit_skiplist_pop(t->timed_events, NULL);
       }
       else {
         sub_timeval(timed_event->whence, *now, next);
         timed_event = NULL;
       }
     }
-    pthread_mutex_unlock(&te_lock);
+    pthread_mutex_unlock(&t->te_lock);
     if(timed_event == NULL) break;
     if(EVENTER_DEBUGGING ||
        EVENTER_CALLBACK_ENTRY_ENABLED() ||
@@ -312,60 +412,73 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
 void
 eventer_foreach_timedevent (void (*f)(eventer_t e, void *), void *closure) {
   noit_skiplist_node *iter = NULL;
-  pthread_mutex_lock(&te_lock);
-  for(iter = noit_skiplist_getlist(timed_events); iter;
-      noit_skiplist_next(timed_events,&iter)) {
-    if(iter->data) f(iter->data, closure);
+  int i;
+  for(i=0;i<__loop_concurrency;i++) {
+    struct eventer_impl_data *t = &eventer_impl_tls_data[i];
+    pthread_mutex_lock(&t->te_lock);
+    for(iter = noit_skiplist_getlist(t->timed_events); iter;
+        noit_skiplist_next(t->timed_events,&iter)) {
+      if(iter->data) f(iter->data, closure);
+    }
+    pthread_mutex_unlock(&t->te_lock);
   }
-  pthread_mutex_unlock(&te_lock);
 }
 
 void eventer_dispatch_recurrent(struct timeval *now) {
+  struct eventer_impl_data *t;
   struct recurrent_events *node;
   struct timeval __now;
   if(!now) {
     gettimeofday(&__now, NULL);
     now = &__now;
   }
-  pthread_mutex_lock(&recurrent_lock);
-  for(node = recurrent_events; node; node = node->next) {
+  t = get_my_impl_data();
+  pthread_mutex_lock(&t->recurrent_lock);
+  for(node = t->recurrent_events; node; node = node->next) {
     node->e->callback(node->e, EVENTER_RECURRENT, node->e->closure, now);
   }
-  pthread_mutex_unlock(&recurrent_lock);
+  pthread_mutex_unlock(&t->recurrent_lock);
 }
 eventer_t eventer_remove_recurrent(eventer_t e) {
+  struct eventer_impl_data *t;
   struct recurrent_events *node, *prev = NULL;
-  pthread_mutex_lock(&recurrent_lock);
-  for(node = recurrent_events; node; node = node->next) {
+  t = get_event_impl_data(e);
+  pthread_mutex_lock(&t->recurrent_lock);
+  for(node = t->recurrent_events; node; node = node->next) {
     if(node->e == e) {
       if(prev) prev->next = node->next;
-      else recurrent_events = node->next;
+      else t->recurrent_events = node->next;
       free(node);
-      pthread_mutex_unlock(&recurrent_lock);
+      pthread_mutex_unlock(&t->recurrent_lock);
       return e;
     }
     prev = node;
   }
-  pthread_mutex_unlock(&recurrent_lock);
+  pthread_mutex_unlock(&t->recurrent_lock);
   return NULL;
 }
 void eventer_wakeup_noop() { }
 void eventer_add_recurrent(eventer_t e) {
+  struct eventer_impl_data *t;
   struct recurrent_events *node;
   assert(e->mask & EVENTER_RECURRENT);
-  pthread_mutex_lock(&recurrent_lock);
-  for(node = recurrent_events; node; node = node->next)
+  t = get_event_impl_data(e);
+  pthread_mutex_lock(&t->recurrent_lock);
+  for(node = t->recurrent_events; node; node = node->next)
     if(node->e == e) {
-      pthread_mutex_unlock(&recurrent_lock);
+      pthread_mutex_unlock(&t->recurrent_lock);
       return;
     }
   node = calloc(1, sizeof(*node));
   node->e = e;
-  node->next = recurrent_events;
-  recurrent_events = node;
-  pthread_mutex_unlock(&recurrent_lock);
+  node->next = t->recurrent_events;
+  t->recurrent_events = node;
+  pthread_mutex_unlock(&t->recurrent_lock);
 }
 
+int eventer_thread_check(eventer_t e) {
+  return pthread_equal(pthread_self(), e->thr_owner);
+}
 
 #if defined(linux) || defined(__linux) || defined(__linux__)
 #include <time.h>

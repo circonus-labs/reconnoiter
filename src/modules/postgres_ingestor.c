@@ -309,7 +309,6 @@ get_conn_pool_for_remote(const char *remote_str,
       /* Our job to setup the pool */
       cpool->jobq = calloc(1, sizeof(*cpool->jobq));
       eventer_jobq_init(cpool->jobq, queue_name);
-      cpool->jobq->backq = eventer_default_backq();
       /* Add one thread */
       for(i=0; i<MAX(cpool->max_allocated - cpool->max_in_pool, 1); i++)
         eventer_jobq_increase_concurrency(cpool->jobq);
@@ -1644,12 +1643,12 @@ static int postgres_ingestor_init(noit_module_generic_t *self) {
 
 noit_module_generic_t postgres_ingestor = { 
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "postgres_ingestor",
-    "postgres drive for data ingestion",
-    postgres_ingestor_xml_description,
-    postgres_ingestor_onload,
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "postgres_ingestor",
+    .description = "postgres drive for data ingestion",
+    .xml_description = postgres_ingestor_xml_description,
+    .onload = postgres_ingestor_onload,
   },  
   postgres_ingestor_config,
   postgres_ingestor_init
