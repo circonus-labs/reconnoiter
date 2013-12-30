@@ -457,7 +457,7 @@ eventer_t eventer_remove_recurrent(eventer_t e) {
   pthread_mutex_unlock(&t->recurrent_lock);
   return NULL;
 }
-void eventer_wakeup_noop() { }
+void eventer_wakeup_noop(eventer_t e) { }
 void eventer_add_recurrent(eventer_t e) {
   struct eventer_impl_data *t;
   struct recurrent_events *node;

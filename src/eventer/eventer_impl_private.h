@@ -68,4 +68,4 @@ LOCAL_EVENTER_foreach_fdevent (void (*f)(eventer_t e, void *),
   }
 }
 
-void eventer_wakeup_noop();
+void eventer_wakeup_noop(eventer_t);

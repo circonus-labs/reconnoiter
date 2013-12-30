@@ -307,7 +307,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
       eventer_jobq_maybe_spawn(jobcopy->jobq);
       eventer_jobq_finished_job(jobcopy->jobq, jobcopy);
       eventer_jobq_enqueue(eventer_default_backq(jobcopy->fd_event), jobcopy);
-      eventer_wakeup();
+      eventer_wakeup(jobcopy->fd_event);
     }
     else
       pthread_kill(job->executor, JOBQ_SIGNAL);
@@ -413,7 +413,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       EVENTER_CALLBACK_RETURN((void *)job->fd_event->callback, NULL, -1);
       eventer_jobq_finished_job(jobq, job);
       eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
-      eventer_wakeup();
+      eventer_wakeup(job->fd_event);
       continue;
     }
     pthread_mutex_unlock(&job->lock);
@@ -490,7 +490,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     job->finish_hrtime = eventer_gethrtime();
     eventer_jobq_finished_job(jobq, job);
     eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
-    eventer_wakeup();
+    eventer_wakeup(job->fd_event);
   }
   pthread_cleanup_pop(0);
   noit_atomic_dec32(&jobq->concurrency);
