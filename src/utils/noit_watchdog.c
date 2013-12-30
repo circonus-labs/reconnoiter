@@ -234,9 +234,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
-  if(glider_path) {
-    signal(SIGUSR2, glidechild);
-  }
+  signal(SIGUSR2, glidechild);
   while(1) {
     /* This sets up things so we start alive */
     it_ticks_zero();
