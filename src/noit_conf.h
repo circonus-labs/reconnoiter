@@ -99,6 +99,8 @@ API_EXPORT(int) noit_conf_get_boolean(noit_conf_section_t section,
                                       const char *path, noit_boolean *value);
 API_EXPORT(noit_boolean) noit_conf_string_to_boolean(const char *str);
 
+API_EXPORT(int) noit_conf_should_resolve_targets(noit_boolean *);
+
 API_EXPORT(int)
   noit_conf_get_uuid(noit_conf_section_t section,
                      const char *path, uuid_t out);

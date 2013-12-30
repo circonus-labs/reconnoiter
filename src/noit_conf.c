@@ -1251,6 +1251,18 @@ int noit_conf_set_boolean(noit_conf_section_t section,
   return noit_conf_set_string(section,path,"false");
 }
 
+int noit_conf_should_resolve_targets(noit_boolean *should_resolve) {
+  static int inited = 0, cached_rv;;
+  static noit_boolean cached_should_resolve;
+  if(!inited) {
+    cached_rv = noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
+                                      &cached_should_resolve);
+    inited = 1;
+  }
+  *should_resolve = cached_should_resolve;
+  return cached_rv;
+}
+
 struct config_line_vstr {
   char *buff;
   int raw_len;

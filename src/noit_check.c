@@ -896,9 +896,7 @@ noit_check_update(noit_check_t *new_check,
     noit_boolean should_resolve;
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
-    if(noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
-                             &should_resolve) && should_resolve == noit_false)
-      
+    if(noit_conf_should_resolve_targets(&should_resolve) && !should_resolve)
       flags |= NP_DISABLED | NP_UNCONFIG;
     noit_check_resolve(new_check);
   }

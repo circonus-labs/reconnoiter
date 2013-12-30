@@ -551,8 +551,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           tmp = xmlNodeGetContent(an);
           valid = noit_check_is_valid_target((char *)tmp);
           xmlFree(tmp);
-          if(noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
-                                   &should_resolve) &&
+          if(noit_conf_should_resolve_targets(&should_resolve) &&
              should_resolve == noit_false &&
              !valid) {
             *error = "invalid target";
