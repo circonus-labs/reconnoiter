@@ -142,7 +142,6 @@ eventer_jobq_init(eventer_jobq_t *jobq, const char *queue_name) {
           strerror(errno));
     return -1;
   }
-  jobq->backq = eventer_default_backq();
   pthread_mutex_lock(&all_queues_lock);
   if(noit_hash_store(&all_queues, jobq->queue_name, strlen(jobq->queue_name),
                      jobq) == 0) {
