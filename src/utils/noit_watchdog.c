@@ -40,8 +40,8 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#if defined(__sun__)
 #include <dirent.h>
+#if defined(__sun__)
 #include <sys/lwp.h>
 #endif
 #include <signal.h>
@@ -164,6 +164,29 @@ static int fdwalker_close(void *unused, int fd) {
 static void close_all_fds() {
 #if HAVE_FDWALK
   fdwalk(fdwalker_close, NULL);
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+  char path[PATH_MAX];
+  DIR *root;
+  struct dirent *de, *entry;
+  int size = 0;
+
+  snprintf(path, sizeof(path), "/proc/%d/fd", getpid());
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+#endif
+  size = MAX(size, PATH_MAX + 128);
+  de = alloca(size);
+  close(3); /* hoping opendir uses 3 */
+  root = opendir(path);
+  if(!root) return;
+  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
+    if(entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
+      int tgt;
+      tgt = atoi(entry->d_name);
+      if(tgt != 3) close(tgt);
+    }
+  }
+  close(3);
 #else
   struct rlimit rl;
   int i;
@@ -259,7 +282,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
       int sig = -1, exit_val = -1;
       noit_monitored_child_pid = child_pid;
       while(1) {
-        unsigned long ltt;
+        unsigned long ltt = 0;
         int status, rv;
         sleep(1); /* Just check child status every second */
         if(child_pid != crashing_pid && crashing_pid != -1) {

@@ -67,7 +67,7 @@ typedef struct {
 
 static noit_hash_table ssl_ctx_cache;
 static pthread_mutex_t ssl_ctx_cache_lock;
-static int ssl_ctx_cache_expiry = 3600;
+static int ssl_ctx_cache_expiry = 5;
 static int ssl_ctx_cache_finfo_expiry = 5;
 
 struct eventer_ssl_ctx_t {
@@ -164,7 +164,7 @@ static DH *dh512_tmp = NULL, *dh1024_tmp = NULL;
 static int
 generate_dh_params(eventer_t e, int mask, void *cl, struct timeval *now) {
   int bits = (int)(vpsized_int)cl;
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if(mask != EVENTER_ASYNCH_WORK) return 0;
   switch(bits) {
   case 512:
     noitL(noit_error, "Generating 512 bit DH parameters.\n");
@@ -394,11 +394,17 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
  */
 static void
 ssl_ctx_cache_node_free(ssl_ctx_cache_node *node) {
+  noit_atomic32_t endval;
   if(!node) return;
-  if(noit_atomic_dec32(&node->refcnt) == 0) {
+  endval = noit_atomic_dec32(&node->refcnt);
+  if(endval == 0) {
+    noitL(eventer_deb, "ssl_ctx_cache_node_free(%p -> %d) freeing\n", node, endval);
     SSL_CTX_free(node->internal_ssl_ctx);
     free(node->key);
     free(node);
+  }
+  else {
+    noitL(eventer_deb, "ssl_ctx_cache_node_free(%p -> %d)\n", node, endval);
   }
 }
 
@@ -452,19 +458,21 @@ static ssl_ctx_cache_node *
 ssl_ctx_cache_get(const char *key) {
   void *vnode;
   ssl_ctx_cache_node *node = NULL;
+  noit_atomic32_t newval;
   pthread_mutex_lock(&ssl_ctx_cache_lock);
   if(noit_hash_retrieve(&ssl_ctx_cache, key, strlen(key), &vnode)) {
     node = vnode;
-    noit_atomic_inc32(&node->refcnt);
+    newval = noit_atomic_inc32(&node->refcnt);
   }
   pthread_mutex_unlock(&ssl_ctx_cache_lock);
-  noitL(eventer_deb, "ssl_ctx_cache->get(%s) -> %p\n", key, node);
+  if(node) noitL(eventer_deb, "ssl_ctx_cache->get(%p -> %d)\n", node, newval);
   return node;
 }
 
 static ssl_ctx_cache_node *
 ssl_ctx_cache_set(ssl_ctx_cache_node *node) {
   void *vnode;
+  noit_atomic32_t newval;
   pthread_mutex_lock(&ssl_ctx_cache_lock);
   if(noit_hash_retrieve(&ssl_ctx_cache, node->key, strlen(node->key),
                         &vnode)) {
@@ -474,8 +482,9 @@ ssl_ctx_cache_set(ssl_ctx_cache_node *node) {
   else {
     noit_hash_store(&ssl_ctx_cache, node->key, strlen(node->key), node);
   }
-  noit_atomic_inc32(&node->refcnt);
+  newval = noit_atomic_inc32(&node->refcnt);
   pthread_mutex_unlock(&ssl_ctx_cache_lock);
+  noitL(eventer_deb, "ssl_ctx_cache->set(%p -> %d)\n", node, newval);
   return node;
 }
 
@@ -500,14 +509,15 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
             validate_finfo(&ctx->ssl_ctx_cn->key_finfo, key) ||
             validate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca) || 
             (ctx->ssl_ctx_cn->last_stat_time = now) == 0))) { /* assignment */
-      noit_atomic_dec32(&ctx->ssl_ctx_cn->refcnt);
       ssl_ctx_cache_remove(ssl_ctx_key);
+      ssl_ctx_cache_node_free(ctx->ssl_ctx_cn);
       ctx->ssl_ctx_cn = NULL;
     }
   }
 
   if(!ctx->ssl_ctx_cn) {
     long ctx_options = SSL_OP_ALL|SSL_OP_NO_SSLv2;
+    ssl_ctx_cache_node *existing_ctx_cn;
     ctx->ssl_ctx_cn = calloc(1, sizeof(*ctx->ssl_ctx_cn));
     ctx->ssl_ctx_cn->key = strdup(ssl_ctx_key);
     ctx->ssl_ctx_cn->refcnt = 1;
@@ -555,7 +565,11 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     }
     SSL_CTX_set_cipher_list(ctx->ssl_ctx, ciphers ? ciphers : "DEFAULT");
     SSL_CTX_set_verify(ctx->ssl_ctx, SSL_VERIFY_PEER, verify_cb);
-    ssl_ctx_cache_set(ctx->ssl_ctx_cn);
+    existing_ctx_cn = ssl_ctx_cache_set(ctx->ssl_ctx_cn);
+    if(existing_ctx_cn != ctx->ssl_ctx_cn) {
+      ssl_ctx_cache_node_free(ctx->ssl_ctx_cn);
+      ctx->ssl_ctx_cn = existing_ctx_cn;
+    }
   }
 
   ctx->ssl = SSL_new(ctx->ssl_ctx);

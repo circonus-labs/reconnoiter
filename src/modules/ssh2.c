@@ -198,7 +198,9 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
         sub_timeval(e->whence, *now, &diff);
         timeout_ms = diff.tv_sec * 1000 + diff.tv_usec / 1000;
       }
+#if LIBSSH2_VERSION_NUM >= 0x010209
       libssh2_session_set_timeout(ci->session, timeout_ms);
+#endif
       if (libssh2_session_startup(ci->session, e->fd)) {
         ci->timed_out = 0;
         ci->error = strdup("ssh session startup failed");
