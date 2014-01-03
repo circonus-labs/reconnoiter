@@ -192,6 +192,7 @@ int eventer_impl_init() {
   if(!eventer_deb) eventer_deb = noit_debug;
 
   eventer_jobq_init(&__global_backq, "default_back_queue");
+  __global_backq.backq = NULL;
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
   e->closure = &__global_backq;
