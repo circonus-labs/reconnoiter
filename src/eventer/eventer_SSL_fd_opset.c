@@ -164,7 +164,7 @@ static DH *dh512_tmp = NULL, *dh1024_tmp = NULL;
 static int
 generate_dh_params(eventer_t e, int mask, void *cl, struct timeval *now) {
   int bits = (int)(vpsized_int)cl;
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if(mask != EVENTER_ASYNCH_WORK) return 0;
   switch(bits) {
   case 512:
     noitL(noit_error, "Generating 512 bit DH parameters.\n");
