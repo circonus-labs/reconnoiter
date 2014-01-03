@@ -1,5 +1,6 @@
 package stomp;
 use strict;
+use testconfig;
 use Net::Stomp;
 
 sub new {
@@ -9,7 +10,7 @@ sub new {
     alarm 2;
     eval {
         local $SIG{ALRM} = sub { die; };
-        $stomp = Net::Stomp->new( { hostname => 'localhost', port => '61613'} );
+        $stomp = Net::Stomp->new( { hostname => 'localhost', port => $STOMP_PORT } );
         $stomp->connect( { login => 'guest', passcode => 'guest' } );
         alarm 0;
     };

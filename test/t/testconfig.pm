@@ -31,7 +31,7 @@ my $boot_timeout = 5;
 @EXPORT = qw($NOIT_TEST_DB $NOIT_TEST_DB_PORT
              $NOIT_API_PORT $NOIT_CLI_PORT
              $STRATCON_API_PORT $STRATCON_CLI_PORT
-             $STRATCON_WEB_PORT
+             $STRATCON_WEB_PORT $STOMP_PORT
              pg make_noit_config start_noit stop_noit get_noit_log
              make_stratcon_config start_stratcon stop_stratcon get_stratcon_log
              $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules
@@ -65,8 +65,8 @@ our $all_noit_modules = {
   'tcp' => { 'loader' => 'lua', 'object' => 'noit.module.tcp' },
 };
 
-# Jitter the ports up (in blocks of 5 for 10k ports)
-my $jitter = int(rand() * 10000 / 5) * 5;
+# Jitter the ports up (in blocks of 10 for 10k ports)
+my $jitter = int(rand() * 10000 / 10) * 10;
 our $NOIT_TEST_DB = "/tmp/noit-test-db-$>";
 our $NOIT_TEST_DB_PORT = 23816;
 our $NOIT_API_PORT = 42364 + $jitter;
@@ -74,6 +74,7 @@ our $NOIT_CLI_PORT = 42365 + $jitter;
 our $STRATCON_API_PORT = 42366 + $jitter;
 our $STRATCON_CLI_PORT = 42367 + $jitter;
 our $STRATCON_WEB_PORT = 42368 + $jitter;
+our $STOMP_PORT = 42369 + $jitter;
 
 our ($MODULES_DIR, $LUA_DIR);
 
@@ -392,7 +393,7 @@ sub make_iep_config {
   }
   foreach my $bt (keys %{$opts->{iep}->{broker}}) {
     print $o qq{    <broker adapter="$bt">\n};
-    while (my ($k,$v) = each %{$opts->{iep}->{broker}->{bt}}) {
+    while (my ($k,$v) = each %{$opts->{iep}->{broker}->{$bt}}) {
       print $o qq{      <$k>$v</$k>\n};
     }
     print $o qq{    </broker>\n};
@@ -490,10 +491,10 @@ sub make_stratcon_config {
                              'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
-  $options->{iep}->{mq} ||= { 'stomp' => {},
+  $options->{iep}->{mq} ||= { 'stomp' => { 'port' => $STOMP_PORT },
                               #'rabbitmq' => { 'hostname' => 'localhost' },
                             };
-  $options->{iep}->{broker} ||= { 'stomp' => {},
+  $options->{iep}->{broker} ||= { 'stomp' => { 'port' => $STOMP_PORT },
                                   #'rabbitmq' => { 'hostname' => 'localhost' },
                                 };
   $options->{iep}->{riemann} ||= { 'config' => q~
