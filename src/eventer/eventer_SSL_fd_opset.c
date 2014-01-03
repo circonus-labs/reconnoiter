@@ -167,11 +167,11 @@ generate_dh_params(eventer_t e, int mask, void *cl, struct timeval *now) {
   if(mask != EVENTER_ASYNCH_WORK) return 0;
   switch(bits) {
   case 512:
-    noitL(noit_error, "Generating 512 bit DH parameters.\n");
+    noitL(eventer_deb, "Generating 512 bit DH parameters.\n");
     if(!dh512_tmp) dh512_tmp = DH_generate_parameters(512, 2, NULL, NULL);
     break;
   case 1024:
-    noitL(noit_error, "Generating 1024 bit DH parameters.\n");
+    noitL(eventer_deb, "Generating 1024 bit DH parameters.\n");
     if(!dh1024_tmp) dh1024_tmp = DH_generate_parameters(1024, 2, NULL, NULL);
     break;
   default:
