@@ -1225,6 +1225,7 @@ noit_lua_socket_write(lua_State *L) {
     return 1;
   }
   if(rv == -1 && errno == EAGAIN) {
+    eventer_remove_fd(e->fd);
     e->callback = noit_lua_socket_write_complete;
     e->mask = mask | EVENTER_EXCEPTION;
     eventer_add(e);
