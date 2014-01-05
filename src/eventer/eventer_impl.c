@@ -95,7 +95,7 @@ static int desired_limit = 1024 * 1024;
 static eventer_jobq_t __default_jobq;
 
 pthread_t eventer_choose_owner(int i) {
-  return eventer_impl_tls_data[i%__loop_concurrency].tid;
+  return eventer_impl_tls_data[((unsigned int)i)%__loop_concurrency].tid;
 }
 static struct eventer_impl_data *get_my_impl_data() {
   return (struct eventer_impl_data *)pthread_getspecific(tls_impl_data_key);
