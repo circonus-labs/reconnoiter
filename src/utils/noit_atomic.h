@@ -35,8 +35,8 @@
 
 #include "noit_config.h"
 
-typedef int32_t noit_atomic32_t;
-typedef int64_t noit_atomic64_t;
+typedef volatile int32_t noit_atomic32_t;
+typedef volatile int64_t noit_atomic64_t;
 
 #if defined(__GNUC__)
 
