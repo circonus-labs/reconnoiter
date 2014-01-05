@@ -90,6 +90,7 @@ noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
 static int __loop_concurrency = 1;
+static noit_atomic32_t __loops_started = 0;
 static int desired_limit = 1024 * 1024;
 static eventer_jobq_t __default_jobq;
 
@@ -211,6 +212,7 @@ static void eventer_per_thread_init(struct eventer_impl_data *t) {
 
   /* We call directly here as we may not be completely initialized */
   eventer_add_recurrent(e);
+  noit_atomic_inc32(&__loops_started);
 }
 
 static void *thrloopwrap(void *vid) {
@@ -232,6 +234,7 @@ static void eventer_loop_prime() {
     pthread_t tid;
     pthread_create(&tid, NULL, thrloopwrap, (void *)(vpsized_int)i);
   }
+  while(__loops_started < __loop_concurrency);
 }
 
 int eventer_impl_init() {
