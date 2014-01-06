@@ -196,6 +196,7 @@ check_slots_adjust_tv(struct timeval *tv, short adj) {
   idx = offset_ms / SCHEDULE_GRANULARITY;
   check_slots_count[idx] += adj;
   check_slots_seconds_count[offset_ms / 1000] += adj;
+noitL(noit_error, "check_slots_adjust_tv[%d/%d] + %d\n", offset_ms/1000, idx, adj);
 }
 void check_slots_inc_tv(struct timeval *tv) {
   check_slots_adjust_tv(tv, 1);
@@ -274,7 +275,7 @@ noit_calc_rtype_flag(char *resolve_rtype) {
 void
 noit_check_fake_last_check(noit_check_t *check,
                            struct timeval *lc, struct timeval *_now) {
-  struct timeval now, period;
+  struct timeval now, period, marker;
   int balance_ms;
 
   if(!_now) {
@@ -285,26 +286,29 @@ noit_check_fake_last_check(noit_check_t *check,
   period.tv_usec = (check->period % 1000) * 1000;
   sub_timeval(*_now, period, lc);
 
-  if(!(check->flags & NP_TRANSIENT) && check->period) {
-    balance_ms = check_slots_find_smallest(_now->tv_sec+1);
-    lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
-    lc->tv_usec = (balance_ms % 1000) * 1000;
-    if(compare_timeval(*_now, *lc) < 0) {
-      do {
-        sub_timeval(*lc, period, lc);
-      } while(compare_timeval(*_now, *lc) < 0);
-    }
-    else {
-      struct timeval test;
-      while(1) {
-        add_timeval(*lc, period, &test);
-        if(compare_timeval(*_now, test) < 0) break;
-        memcpy(lc, &test, sizeof(test));
+  if(!(check->flags & NP_TRANSIENT)) {
+    if(check->period) {
+      balance_ms = check_slots_find_smallest(_now->tv_sec+1);
+      lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
+      lc->tv_usec = (balance_ms % 1000) * 1000;
+      memcpy(&marker, lc, sizeof(marker));
+      if(compare_timeval(*_now, *lc) < 0) {
+        do {
+          sub_timeval(*lc, period, lc);
+        } while(compare_timeval(*_now, *lc) < 0);
+      }
+      else {
+        struct timeval test;
+        while(1) {
+          add_timeval(*lc, period, &test);
+          if(compare_timeval(*_now, test) < 0) break;
+          memcpy(lc, &test, sizeof(test));
+        }
       }
     }
+    /* now, we're going to do an even distribution using the slots */
+    check_slots_inc_tv(&marker);
   }
-  /* now, we're going to do an even distribution using the slots */
-  if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(lc);
 }
 void
 noit_poller_process_checks(const char *xpath) {
