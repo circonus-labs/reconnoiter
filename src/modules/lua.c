@@ -47,6 +47,7 @@
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static noit_hash_table noit_coros = NOIT_HASH_EMPTY;
+static pthread_mutex_t coro_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct loader_conf {
   pthread_key_t key;
@@ -103,9 +104,11 @@ noit_lua_cancel_coro(noit_lua_resume_info_t *ci) {
   lua_pop(ci->lmc->lua_state, 1);
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
   noitL(nldeb, "coro_store <- %p\n", ci->coro_state);
+  pthread_mutex_lock(&coro_lock);
   assert(noit_hash_delete(&noit_coros,
                           (const char *)&ci->coro_state, sizeof(ci->coro_state),
                           NULL, NULL));
+  pthread_mutex_unlock(&coro_lock);
 }
 
 void
@@ -113,9 +116,11 @@ noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri) {
   lua_getglobal(L, "noit_internal_lmc");
   ri->lmc = lua_touserdata(L, lua_gettop(L));
   noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  pthread_mutex_lock(&coro_lock);
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri); 
+  pthread_mutex_unlock(&coro_lock);
 }
 static void
 describe_lua_context(noit_console_closure_t ncct,
@@ -153,6 +158,7 @@ noit_console_show_lua(noit_console_closure_t ncct,
   int klen;
   void *vri;
 
+  pthread_mutex_lock(&coro_lock);
   while(noit_hash_next(&noit_coros, &iter, &key, &klen, &vri)) {
     noit_lua_resume_info_t *ri;
     int level = 1;
@@ -191,6 +197,7 @@ noit_console_show_lua(noit_console_closure_t ncct,
     }
     nc_printf(ncct, "\n");
   }
+  pthread_mutex_unlock(&coro_lock);
   return 0;
 }
 
@@ -211,8 +218,11 @@ noit_lua_get_resume_info(lua_State *L) {
   noit_lua_resume_info_t *ri;
   lua_module_closure_t *lmc;
   void *v = NULL;
-  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v))
+  pthread_mutex_lock(&coro_lock);
+  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v)) {
+    pthread_mutex_unlock(&coro_lock);
     return (noit_lua_resume_info_t *)v;
+  }
   ri = calloc(1, sizeof(*ri));
   ri->coro_state = L;
   lua_getglobal(L, "noit_internal_lmc");;
@@ -226,6 +236,7 @@ noit_lua_get_resume_info(lua_State *L) {
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
+  pthread_mutex_unlock(&coro_lock);
   return ri;
 }
 static void
@@ -1122,9 +1133,11 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ri->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
   noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  pthread_mutex_lock(&coro_lock);
   noit_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
+  pthread_mutex_unlock(&coro_lock);
 
   SETUP_CALL(ri->coro_state, object, "initiate", goto fail);
   noit_lua_setup_module(ri->coro_state, ci->self);
