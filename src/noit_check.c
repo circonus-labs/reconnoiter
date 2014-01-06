@@ -196,7 +196,6 @@ check_slots_adjust_tv(struct timeval *tv, short adj) {
   idx = offset_ms / SCHEDULE_GRANULARITY;
   check_slots_count[idx] += adj;
   check_slots_seconds_count[offset_ms / 1000] += adj;
-noitL(noit_error, "check_slots_adjust_tv[%d/%d] + %d\n", offset_ms/1000, idx, adj);
 }
 void check_slots_inc_tv(struct timeval *tv) {
   check_slots_adjust_tv(tv, 1);
