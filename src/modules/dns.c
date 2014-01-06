@@ -82,6 +82,7 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   dns_close(h->ctx);
   dns_free(h->ctx);
   assert(h->timeout == NULL);
+  free(h);
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
   noit_atomic_inc32(&h->refcnt);
