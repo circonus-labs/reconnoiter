@@ -238,6 +238,10 @@ static void dns_check_log_results(struct dns_check_info *ci) {
 
   ci->check->stats.inprogress.state = (ci->error || ci->nrr == 0) ? NP_BAD : NP_GOOD;
   ci->check->stats.inprogress.available = ci->timed_out ? NP_UNAVAILABLE : NP_AVAILABLE;
+  if(ci->check->stats.inprogress.status) {
+    free(ci->check->stats.inprogress.status);
+    ci->check->stats.inprogress.status = NULL;
+  }
   if(ci->error) {
     ci->check->stats.inprogress.status = strdup(ci->error);
   }
