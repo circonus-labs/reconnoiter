@@ -256,6 +256,7 @@ eventer_ssl_get_san_values(eventer_ssl_ctx_t *ctx,
       }
       ctx->san_list = strdup(cn);
     }
+    sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
   }
   return 1;
 }
