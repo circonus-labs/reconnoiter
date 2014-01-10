@@ -643,7 +643,7 @@ int
 noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
-  const char *cert, *key, *ca, *ciphers, *crl = NULL, *cn_expected, *feedtype;
+  const char *layer = NULL, *cert, *key, *ca, *ciphers, *crl = NULL, *cn_expected, *feedtype;
   char remote_str[128], tmp_str[128];
   eventer_ssl_ctx_t *sslctx;
   int aerrno, len;
@@ -694,12 +694,13 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
 #define SSLCONFGET(var,name) do { \
   if(!noit_hash_retr_str(nctx->sslconfig, name, strlen(name), \
                          &var)) var = NULL; } while(0)
+  SSLCONFGET(layer, "layer");
   SSLCONFGET(cert, "certificate_file");
   SSLCONFGET(key, "key_file");
   SSLCONFGET(ca, "ca_chain");
   SSLCONFGET(ciphers, "ciphers");
   SSLCONFGET(crl, "crl");
-  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
+  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, layer, cert, key, ca, ciphers);
   if(!sslctx) goto connect_error;
   if(crl) {
     if(!eventer_ssl_use_crl(sslctx, crl)) {

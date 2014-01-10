@@ -63,6 +63,7 @@ void eventer_ssl_init();
 /* Helper functions */
 API_EXPORT(eventer_ssl_ctx_t *)
   eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
+                      const char *layer,
                       const char *certificate, const char *key,
                       const char *ca, const char *ciphers);
 API_EXPORT(void)

@@ -911,7 +911,7 @@ noit_lua_ssl_upgrade(eventer_t e, int mask, void *vcl,
 }
 static int
 noit_lua_socket_connect_ssl(lua_State *L) {
-  const char *ca, *ciphers, *cert, *key, *snihost, *err;
+  const char *layer, *ca, *ciphers, *cert, *key, *snihost, *err;
   eventer_ssl_ctx_t *sslctx;
   noit_lua_resume_info_t *ci;
   eventer_t e, *eptr;
@@ -929,8 +929,9 @@ noit_lua_socket_connect_ssl(lua_State *L) {
   ca = lua_tostring(L, 4);
   ciphers = lua_tostring(L, 5);
   snihost = lua_tostring(L, 6);
+  layer = lua_tostring(L, 7);
 
-  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, cert, key, ca, ciphers);
+  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, layer, cert, key, ca, ciphers);
   if(!sslctx) {
     lua_pushinteger(L, -1);
     lua_pushstring(L, "ssl_client context creation failed");

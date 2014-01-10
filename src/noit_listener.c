@@ -181,7 +181,7 @@ noit_listener_acceptor(eventer_t e, int mask,
       newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   
       if(listener_closure->sslconfig->size) {
-        const char *cert, *key, *ca, *ciphers, *crl;
+        const char *layer, *cert, *key, *ca, *ciphers, *crl;
         eventer_ssl_ctx_t *ctx;
         /* We have an SSL configuration.  While our socket accept is
          * complete, we now have to SSL_accept, which could require
@@ -190,11 +190,12 @@ noit_listener_acceptor(eventer_t e, int mask,
   #define SSLCONFGET(var,name) do { \
     if(!noit_hash_retr_str(listener_closure->sslconfig, name, strlen(name), \
                            &var)) var = NULL; } while(0)
+        SSLCONFGET(layer, "layer");
         SSLCONFGET(cert, "certificate_file");
         SSLCONFGET(key, "key_file");
         SSLCONFGET(ca, "ca_chain");
         SSLCONFGET(ciphers, "ciphers");
-        ctx = eventer_ssl_ctx_new(SSL_SERVER, cert, key, ca, ciphers);
+        ctx = eventer_ssl_ctx_new(SSL_SERVER, layer, cert, key, ca, ciphers);
         if(!ctx) {
           newe->opset->close(newe->fd, &newmask, e);
           eventer_free(newe);
