@@ -39,6 +39,7 @@ LUA=\
 	noit/module/jezebel.lua \
 	noit/module/keynote.lua \
 	noit/module/resmon.lua \
+	noit/module/resmon/elasticsearch.lua \
 	noit/module/memcached.lua \
 	noit/module/munin.lua \
 	noit/module/tcp.lua \

@@ -86,15 +86,18 @@ function onload(image)
   return 0
 end
 
+local HttpClient = require 'noit.HttpClient'
+local helper = nil
+
 function init(module)
+  local status, err = pcall(function () helper = require ('noit.module.resmon.' .. module.name()) end)
+  if not status then helper = nil end
   return 0
 end
 
 function config(module, options)
   return 0
 end
-
-local HttpClient = require 'noit.HttpClient'
 
 function set_check_metric(check, name, type, value)
     if type == 'i' then
@@ -196,6 +199,7 @@ end
 
 function initiate(module, check)
     local config = check.interpolate(check.config)
+    if helper and helper.fix_config then config = helper.fix_config(config) end
     local url = config.url or 'http:///'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
     local port
@@ -305,6 +309,13 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response(read_limit)
+
+    if helper and helper.fix_output then output = helper.fix_output(output) end
+
+    if helper and helper.process then
+      helper.process(check, output)
+      return
+    end
 
     local jsondoc = nil
     if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
