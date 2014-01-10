@@ -207,12 +207,12 @@ static int test_abort_onload(noit_image_t *self) {
 
 noit_module_t test_abort = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "test_abort",
-    "test_abort internal tool for eventer testing",
-    "",
-    test_abort_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "test_abort",
+    .description = "test_abort internal tool for eventer testing",
+    .xml_description = "",
+    .onload = test_abort_onload
   },
   NULL,
   NULL,

@@ -183,12 +183,12 @@ static int noit_stomp_driver_init(noit_module_generic_t *self) {
 
 noit_module_generic_t stomp_driver = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "stomp_driver",
-    "STOMP driver for IEP MQ submission",
-    stomp_driver_xml_description,
-    noit_stomp_driver_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "stomp_driver",
+    .description = "STOMP driver for IEP MQ submission",
+    .xml_description = stomp_driver_xml_description,
+    .onload = noit_stomp_driver_onload
   },
   noit_stomp_driver_config,
   noit_stomp_driver_init

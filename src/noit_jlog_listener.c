@@ -428,7 +428,7 @@ static int rest_show_feed(noit_http_rest_closure_t *restc,
   char jlogpath[PATH_MAX], *cp, **subs = NULL;
   int nsubs, i;
   noit_log_stream_t feed;
-  jlog_ctx *jctx;
+  jlog_ctx *jctx = NULL;
   xmlDocPtr doc = NULL;
   xmlNodePtr root = NULL, subnodes;
 
@@ -470,7 +470,7 @@ static int rest_show_feed(noit_http_rest_closure_t *restc,
   noit_http_response_server_error(ctx, "text/plain");
   noit_http_response_append(ctx, err, strlen(err));
   noit_http_response_end(ctx);
-  jlog_ctx_close(jctx);
+  if(jctx) jlog_ctx_close(jctx);
   return 0;
 }
 

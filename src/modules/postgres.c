@@ -332,12 +332,12 @@ static int postgres_onload(noit_image_t *self) {
 #include "postgres.xmlh"
 noit_module_t postgres = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "postgres",
-    "PostgreSQL Checker",
-    postgres_xml_description,
-    postgres_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "postgres",
+    .description = "PostgreSQL Checker",
+    .xml_description = postgres_xml_description,
+    .onload = postgres_onload
   },
   NULL,
   NULL,

@@ -639,12 +639,12 @@ static int external_onload(noit_image_t *self) {
 #include "external.xmlh"
 noit_module_t external = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "external",
-    "checks via external programs",
-    external_xml_description,
-    external_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "external",
+    .description = "checks via external programs",
+    .xml_description = external_xml_description,
+    .onload = external_onload
   },
   external_config,
   external_init,

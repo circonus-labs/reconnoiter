@@ -237,12 +237,12 @@ static int selfcheck_onload(noit_image_t *self) {
 #include "selfcheck.xmlh"
 noit_module_t selfcheck = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "selfcheck",
-    "noitd self-checker",
-    selfcheck_xml_description,
-    selfcheck_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "selfcheck",
+    .description = "noitd self-checker",
+    .xml_description = selfcheck_xml_description,
+    .onload = selfcheck_onload
   },
   NULL,
   NULL,

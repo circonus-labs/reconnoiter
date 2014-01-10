@@ -1643,12 +1643,12 @@ static int postgres_ingestor_init(noit_module_generic_t *self) {
 
 noit_module_generic_t postgres_ingestor = { 
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "postgres_ingestor",
-    "postgres drive for data ingestion",
-    postgres_ingestor_xml_description,
-    postgres_ingestor_onload,
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "postgres_ingestor",
+    .description = "postgres drive for data ingestion",
+    .xml_description = postgres_ingestor_xml_description,
+    .onload = postgres_ingestor_onload,
   },  
   postgres_ingestor_config,
   postgres_ingestor_init

@@ -496,12 +496,12 @@ static int noit_ganglia_init(noit_module_t *self) {
 #include "ganglia.xmlh"
 noit_module_t ganglia = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "ganglia",
-    "ganglia collection",
-    ganglia_xml_description,
-    noit_ganglia_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "ganglia",
+    .description = "ganglia collection",
+    .xml_description = ganglia_xml_description,
+    .onload = noit_ganglia_onload
   },
   noit_ganglia_config,
   noit_ganglia_init,
