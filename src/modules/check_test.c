@@ -345,12 +345,12 @@ check_test_init(noit_module_generic_t *self) {
 
 noit_module_generic_t check_test = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "check_test",
-    "Check Tester",
-    check_test_xml_description,
-    check_test_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "check_test",
+    .description = "Check Tester",
+    .xml_description = check_test_xml_description,
+    .onload = check_test_onload
   },
   check_test_config,
   check_test_init

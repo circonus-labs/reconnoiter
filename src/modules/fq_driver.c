@@ -367,12 +367,12 @@ static int noit_fq_driver_init(noit_module_generic_t *self) {
 
 noit_module_generic_t fq_driver = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "fq_driver",
-    "FQ driver for IEP MQ submission",
-    fq_driver_xml_description,
-    noit_fq_driver_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "fq_driver",
+    .description = "FQ driver for IEP MQ submission",
+    .xml_description = fq_driver_xml_description,
+    .onload = noit_fq_driver_onload
   },
   noit_fq_driver_config,
   noit_fq_driver_init

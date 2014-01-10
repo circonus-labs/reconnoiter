@@ -448,12 +448,12 @@ static int noit_rabbimq_driver_init(noit_module_generic_t *self) {
 
 noit_module_generic_t rabbitmq_driver = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "rabbitmq_driver",
-    "AMQP driver for IEP MQ submission",
-    rabbitmq_driver_xml_description,
-    noit_rabbimq_driver_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "rabbitmq_driver",
+    .description = "AMQP driver for IEP MQ submission",
+    .xml_description = rabbitmq_driver_xml_description,
+    .onload = noit_rabbimq_driver_onload
   },
   noit_rabbimq_driver_config,
   noit_rabbimq_driver_init

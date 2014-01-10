@@ -3235,7 +3235,9 @@ void noit_lua_init() {
                         noit_lua_socket_read_complete);
   eventer_name_callback("lua/socket_write",
                         noit_lua_socket_write_complete);
-  eventer_name_callback("lua/socket_iend",
+  eventer_name_callback("lua/socket_recv",
+                        noit_lua_socket_recv_complete);
+  eventer_name_callback("lua/socket_send",
                         noit_lua_socket_send_complete);
   eventer_name_callback("lua/socket_connect",
                         noit_lua_socket_connect_complete);

@@ -1199,12 +1199,12 @@ noit_lua_loader_onload(noit_image_t *self) {
 #include "lua.xmlh"
 noit_module_loader_t lua = {
   {
-    NOIT_LOADER_MAGIC,
-    NOIT_LOADER_ABI_VERSION,
-    "lua",
-    "Lua check loader",
-    lua_xml_description,
-    noit_lua_loader_onload,
+    .magic = NOIT_LOADER_MAGIC,
+    .version = NOIT_LOADER_ABI_VERSION,
+    .name = "lua",
+    .description = "Lua check loader",
+    .xml_description = lua_xml_description,
+    .onload = noit_lua_loader_onload,
   },
   noit_lua_loader_config,
   NULL,

@@ -696,12 +696,12 @@ static int ping_icmp_onload(noit_image_t *self) {
 #include "ping_icmp.xmlh"
 noit_module_t ping_icmp = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "ping_icmp",
-    "ICMP based host availability detection",
-    ping_icmp_xml_description,
-    ping_icmp_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "ping_icmp",
+    .description = "ICMP based host availability detection",
+    .xml_description = ping_icmp_xml_description,
+    .onload = ping_icmp_onload
   },
   ping_icmp_config,
   ping_icmp_init,

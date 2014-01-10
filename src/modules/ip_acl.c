@@ -169,12 +169,12 @@ ip_acl_init(noit_module_generic_t *self) {
 
 noit_module_generic_t ip_acl = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "ip_acl",
-    "IP Access Controls for Checks",
-    ip_acl_xml_description,
-    ip_acl_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "ip_acl",
+    .description = "IP Access Controls for Checks",
+    .xml_description = ip_acl_xml_description,
+    .onload = ip_acl_onload
   },
   ip_acl_config,
   ip_acl_init

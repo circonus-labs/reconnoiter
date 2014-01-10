@@ -1219,12 +1219,12 @@ static int noit_snmp_init(noit_module_t *self) {
 #include "snmp.xmlh"
 noit_module_t snmp = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "snmp",
-    "SNMP collection",
-    snmp_xml_description,
-    noit_snmp_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "snmp",
+    .description = "SNMP collection",
+    .xml_description = snmp_xml_description,
+    .onload = noit_snmp_onload
   },
   noit_snmp_config,
   noit_snmp_init,
@@ -1235,12 +1235,12 @@ noit_module_t snmp = {
 #include "snmptrap.xmlh"
 noit_module_t snmptrap = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "snmptrap",
-    "SNMP trap collection",
-    snmptrap_xml_description,
-    noit_snmptrap_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "snmptrap",
+    .description = "SNMP trap collection",
+    .xml_description = snmptrap_xml_description,
+    .onload = noit_snmptrap_onload
   },
   noit_snmp_config,
   noit_snmp_init,

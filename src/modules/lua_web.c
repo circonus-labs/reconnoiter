@@ -278,12 +278,12 @@ noit_lua_web_driver_init(noit_module_generic_t *self) {
 
 noit_module_generic_t lua_web = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
-    "lua_web",
-    "web services in lua",
-    lua_web_driver_xml_description,
-    noit_lua_web_driver_onload
+    .magic = NOIT_GENERIC_MAGIC,
+    .version = NOIT_GENERIC_ABI_VERSION,
+    .name = "lua_web",
+    .description = "web services in lua",
+    .xml_description = lua_web_driver_xml_description,
+    .onload = noit_lua_web_driver_onload
   },
   noit_lua_web_driver_config,
   noit_lua_web_driver_init

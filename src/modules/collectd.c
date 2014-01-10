@@ -2250,12 +2250,12 @@ static int noit_collectd_init(noit_module_t *self) {
 #include "collectd.xmlh"
 noit_module_t collectd = {
   {
-    NOIT_MODULE_MAGIC,
-    NOIT_MODULE_ABI_VERSION,
-    "collectd",
-    "collectd collection",
-    collectd_xml_description,
-    noit_collectd_onload
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "collectd",
+    .description = "collectd collection",
+    .xml_description = collectd_xml_description,
+    .onload = noit_collectd_onload
   },
   noit_collectd_config,
   noit_collectd_init,
