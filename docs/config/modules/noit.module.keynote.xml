@@ -30,7 +30,7 @@
             <varlistentry>
               <term>required</term>
               <listitem>
-                <para>required</para>
+                <para>optional</para>
               </listitem>
             </varlistentry>
             <varlistentry>
