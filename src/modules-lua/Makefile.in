@@ -56,6 +56,7 @@ all:
 
 install:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/noit/module
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/noit/module/resmon
 	for lua in $(LUA); do \
 		$(INSTALL) -m 0644 $$lua $(DESTDIR)$(MODULES_DIR)/$$lua ; \
 	done

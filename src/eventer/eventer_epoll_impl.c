@@ -54,7 +54,17 @@ struct _eventer_impl eventer_epoll_impl;
 #include "eventer/eventer_impl_private.h"
 
 static int *masks;
-static int epoll_fd = -1;
+struct epoll_spec {
+  int epoll_fd;
+};
+
+static void *eventer_epoll_spec_alloc() {
+  struct epoll_spec *spec;
+  spec = calloc(1, sizeof(*spec));
+  spec->epoll_fd = epoll_create(1024);
+  if(spec->epoll_fd < 0) abort();
+  return spec;
+}
 
 static int eventer_epoll_impl_init() {
   struct rlimit rlim;
@@ -64,10 +74,6 @@ static int eventer_epoll_impl_init() {
   if((rv = eventer_impl_init()) != 0) return rv;
 
   signal(SIGPIPE, SIG_IGN);
-  epoll_fd = epoll_create(1024);
-  if(epoll_fd == -1) {
-    return -1;
-  }
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
@@ -83,6 +89,7 @@ static int eventer_epoll_impl_propset(const char *key, const char *value) {
 }
 static void eventer_epoll_impl_add(eventer_t e) {
   int rv;
+  struct epoll_spec *spec;
   struct epoll_event _ev;
   ev_lock_state_t lockstate;
   assert(e->mask);
@@ -104,6 +111,7 @@ static void eventer_epoll_impl_add(eventer_t e) {
     return;
   }
 
+  spec = eventer_get_spec_for_event(e);
   /* file descriptor event */
   assert(e->whence.tv_sec == 0 && e->whence.tv_usec == 0);
   memset(&_ev, 0, sizeof(_ev));
@@ -115,16 +123,17 @@ static void eventer_epoll_impl_add(eventer_t e) {
   lockstate = acquire_master_fd(e->fd);
   master_fds[e->fd].e = e;
 
-  rv = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, e->fd, &_ev);
+  rv = epoll_ctl(spec->epoll_fd, EPOLL_CTL_ADD, e->fd, &_ev);
   if(rv != 0) {
     noitL(eventer_err, "epoll_ctl(%d,add,%d,%x) -> %d (%d: %s)\n",
-          epoll_fd, e->fd, e->mask, rv, errno, strerror(errno));
+          spec->epoll_fd, e->fd, e->mask, rv, errno, strerror(errno));
     abort();
   }
 
   release_master_fd(e->fd, lockstate);
 }
 static eventer_t eventer_epoll_impl_remove(eventer_t e) {
+  struct epoll_spec *spec;
   eventer_t removed = NULL;
   if(e->mask & EVENTER_ASYNCH) {
     abort();
@@ -132,13 +141,14 @@ static eventer_t eventer_epoll_impl_remove(eventer_t e) {
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
     ev_lock_state_t lockstate;
     struct epoll_event _ev;
+    spec = eventer_get_spec_for_event(e);
     memset(&_ev, 0, sizeof(_ev));
     _ev.data.fd = e->fd;
     lockstate = acquire_master_fd(e->fd);
     if(e == master_fds[e->fd].e) {
       removed = e;
       master_fds[e->fd].e = NULL;
-      assert(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, e->fd, &_ev) == 0);
+      assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_DEL, e->fd, &_ev) == 0);
     }
     release_master_fd(e->fd, lockstate);
   }
@@ -163,23 +173,27 @@ static void eventer_epoll_impl_update(eventer_t e, int mask) {
   _ev.data.fd = e->fd;
   e->mask = mask;
   if(e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION)) {
+    struct epoll_spec *spec;
+    spec = eventer_get_spec_for_event(e);
     if(e->mask & EVENTER_READ) _ev.events |= (EPOLLIN|EPOLLPRI);
     if(e->mask & EVENTER_WRITE) _ev.events |= (EPOLLOUT);
     if(e->mask & EVENTER_EXCEPTION) _ev.events |= (EPOLLERR|EPOLLHUP);
-    assert(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, e->fd, &_ev) == 0);
+    assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_MOD, e->fd, &_ev) == 0);
   }
 }
 static eventer_t eventer_epoll_impl_remove_fd(int fd) {
   eventer_t eiq = NULL;
   ev_lock_state_t lockstate;
   if(master_fds[fd].e) {
+    struct epoll_spec *spec;
     struct epoll_event _ev;
     memset(&_ev, 0, sizeof(_ev));
     _ev.data.fd = fd;
     lockstate = acquire_master_fd(fd);
     eiq = master_fds[fd].e;
+    spec = eventer_get_spec_for_event(eiq);
     master_fds[fd].e = NULL;
-    assert(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, &_ev) == 0);
+    assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_DEL, fd, &_ev) == 0);
     release_master_fd(fd, lockstate);
   }
   return eiq;
@@ -189,6 +203,7 @@ static eventer_t eventer_epoll_impl_find_fd(int fd) {
 }
 
 static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
+  struct epoll_spec *spec;
   struct timeval __now;
   int fd, newmask;
   const char *cbname;
@@ -219,7 +234,8 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
       noitL(noit_error, "eventer %s(%p) epoll asked to modify descheduled fd: %d\n",
             cbname?cbname:"???", e->callback, fd);
     } else {
-      assert(epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
+      spec = eventer_get_spec_for_event(e);
+      assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
     }
     /* Set our mask */
     e->mask = newmask;
@@ -233,7 +249,9 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
 }
 static int eventer_epoll_impl_loop() {
   struct epoll_event *epev;
+  struct epoll_spec *spec;
 
+  spec = eventer_get_spec_for_event(NULL);
   epev = malloc(sizeof(*epev) * maxfds);
 
   while(1) {
@@ -248,9 +266,10 @@ static int eventer_epoll_impl_loop() {
     eventer_dispatch_recurrent(&__now);
 
     /* Now we move on to our fd-based events */
-    fd_cnt = epoll_wait(epoll_fd, epev, maxfds,
+    fd_cnt = epoll_wait(spec->epoll_fd, epev, maxfds,
                         __sleeptime.tv_sec * 1000 + __sleeptime.tv_usec / 1000);
-    noitLT(eventer_deb, &__now, "debug: epoll_wait(%d, [], %d) => %d\n", epoll_fd, maxfds, fd_cnt);
+    noitLT(eventer_deb, &__now, "debug: epoll_wait(%d, [], %d) => %d\n",
+           spec->epoll_fd, maxfds, fd_cnt);
     if(fd_cnt < 0) {
       noitLT(eventer_err, &__now, "epoll_wait: %s\n", strerror(errno));
     }
@@ -297,6 +316,7 @@ struct _eventer_impl eventer_epoll_impl = {
   eventer_epoll_impl_loop,
   eventer_epoll_impl_foreach_fdevent,
   eventer_wakeup_noop,
+  eventer_epoll_spec_alloc,
   { 0, 200000 },
   0,
   NULL

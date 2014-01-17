@@ -438,10 +438,11 @@ eventer_SSL_server_info_callback(const SSL *ssl, int type, int val) {
 
 static void
 ssl_ctx_key_write(char *b, int blen, eventer_ssl_orientation_t type,
+                  const char *layer,
                   const char *certificate, const char *key,
                   const char *ca, const char *ciphers) {
-  snprintf(b, blen, "%c:%s:%s:%s:%s",
-           (type == SSL_SERVER) ? 'S' : 'C',
+  snprintf(b, blen, "%c:%s:%s:%s:%s:%s",
+           (type == SSL_SERVER) ? 'S' : 'C', layer ? layer : "",
            certificate ? certificate : "", key ? key : "",
            ca ? ca : "", ciphers ? ciphers : "");
 }
@@ -491,6 +492,7 @@ ssl_ctx_cache_set(ssl_ctx_cache_node *node) {
 
 eventer_ssl_ctx_t *
 eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
+                    const char *layer,
                     const char *certificate, const char *key,
                     const char *ca, const char *ciphers) {
   char ssl_ctx_key[SSL_CTX_KEYLEN];
@@ -501,7 +503,7 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
 
   now = time(NULL);
   ssl_ctx_key_write(ssl_ctx_key, sizeof(ssl_ctx_key),
-                    type, certificate, key, ca, ciphers);
+                    type, layer, certificate, key, ca, ciphers);
   ctx->ssl_ctx_cn = ssl_ctx_cache_get(ssl_ctx_key);
   if(ctx->ssl_ctx_cn) {
     if(now - ctx->ssl_ctx_cn->creation_time > ssl_ctx_cache_expiry ||
@@ -527,8 +529,35 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     populate_finfo(&ctx->ssl_ctx_cn->cert_finfo, certificate);
     populate_finfo(&ctx->ssl_ctx_cn->key_finfo, key);
     populate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca);
-    ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
-                               SSLv23_server_method() : SSLv23_client_method());
+    ctx->ssl_ctx = NULL;
+#ifdef SSL_TXT_SSLV3
+    if(layer && !strcasecmp(layer, SSL_TXT_SSLV3))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 SSLv3_server_method() : SSLv3_client_method());
+#endif
+#ifdef SSL_TXT_SSLV2
+    else if(layer && !strcasecmp(layer, SSL_TXT_SSLV2))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 SSLv2_server_method() : SSLv2_client_method());
+#endif
+#ifdef SSL_TXT_TLSV1
+    else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 TLSv1_server_method() : TLSv1_client_method());
+#endif
+#ifdef SSL_TXT_TLSV1_1
+    else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1_1))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 TLSv1_1_server_method() : TLSv1_1_client_method());
+#endif
+#ifdef SSL_TXT_TLSV1_2
+    else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1_2))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 TLSv1_2_server_method() : TLSv1_2_client_method());
+#endif
+    if(ctx->ssl_ctx == NULL)
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 SSLv23_server_method() : SSLv23_client_method());
     if(!ctx->ssl_ctx) goto bail;
     if (type == SSL_SERVER)
       SSL_CTX_set_session_id_context(ctx->ssl_ctx,
