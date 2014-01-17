@@ -180,7 +180,7 @@ noit_listener_acceptor(eventer_t e, int mask,
       newe->fd = conn;
       newe->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   
-      if(listener_closure->sslconfig->size) {
+      if(noit_hash_size(listener_closure->sslconfig)) {
         const char *layer, *cert, *key, *ca, *ciphers, *crl;
         eventer_ssl_ctx_t *ctx;
         /* We have an SSL configuration.  While our socket accept is

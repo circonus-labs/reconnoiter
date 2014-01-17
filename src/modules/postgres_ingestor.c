@@ -513,7 +513,7 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
   pthread_mutex_lock(&storagenode_to_info_cache_lock);
-  nodes = storagenode_to_info_cache.size;
+  nodes = noit_hash_size(&storagenode_to_info_cache);
   jobs = calloc(MAX(1,nodes), sizeof(*jobs));
   sns = calloc(MAX(1,nodes), sizeof(*sns));
   if(nodes == 0) sns[nodes++] = &self;

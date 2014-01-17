@@ -350,8 +350,9 @@ noit_lua_hash_to_table(lua_State *L,
                        noit_hash_table *t) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *key, *value;
-  int klen;
-  lua_createtable(L, 0, t ? t->size : 0);
+  int klen, kcnt;
+  kcnt = t ? noit_hash_size(t) : 0;
+  lua_createtable(L, 0, kcnt);
   if(t) {
     while(noit_hash_next_str(t, &iter, &key, &klen, &value)) {
       lua_pushlstring(L, value, strlen(value));

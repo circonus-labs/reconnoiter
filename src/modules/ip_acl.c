@@ -128,7 +128,7 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   int klen;
   void *data;
   config = noit_check_get_module_config(check, ip_acl_module_id);
-  if(!config || config->size == 0) return NOIT_HOOK_CONTINUE;
+  if(!config || noit_hash_size(config) == 0) return NOIT_HOOK_CONTINUE;
   while(noit_hash_next(config, &iter, &k, &klen, &data)) {
     if(k) {
       void *dir = NULL;

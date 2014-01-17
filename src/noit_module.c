@@ -97,12 +97,12 @@ noit_module_list(noit_hash_table *t, const char ***f) {
   int klen, i = 0;
   void *vhdr;
 
-  if(t->size == 0) {
+  if(noit_hash_size(t) == 0) {
     *f = NULL;
     return 0;
   }
 
-  *f = calloc(t->size, sizeof(**f));
+  *f = calloc(noit_hash_size(t), sizeof(**f));
   while(noit_hash_next(t, &iter, (const char **)&name, &klen,
                        &vhdr)) {
     noit_image_t *hdr = (noit_image_t *)vhdr;

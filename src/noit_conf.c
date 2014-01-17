@@ -1007,7 +1007,7 @@ noit_hash_table *noit_conf_get_namespaced_hash(noit_conf_section_t section,
 
   table = calloc(1, sizeof(*table));
   noit_conf_get_into_hash(section, path, table, ns);
-  if(table->size == 0) {
+  if(noit_hash_size(table) == 0) {
     noit_hash_destroy(table, free, free);
     free(table);
     table = NULL;

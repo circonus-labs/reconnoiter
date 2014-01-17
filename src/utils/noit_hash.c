@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014, Circonus Inc.
  * Copyright (c) 2005-2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
@@ -30,12 +31,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* this is just a copy (with search and replace) from jlog_hash */
-
 #include "noit_config.h"
 #include "noit_hash.h"
-
-/* This is from http://burtleburtle.net/bob/hash/doobs.html */
+#include <time.h>
+#include <assert.h>
+#include <ck_epoch.h>
 
 #define NoitHASH_INITIAL_SIZE (1<<7)
 
@@ -99,192 +99,127 @@ u_int32_t noit_hash__hash(const char *k, u_int32_t length, u_int32_t initval) {
   return __hash(k,length,initval);
 }
 
+static int rand_init;
 void noit_hash_init(noit_hash_table *h) {
-  memset(h, 0, sizeof(noit_hash_table));
-  h->initval = lrand48();
-  h->table_size = NoitHASH_INITIAL_SIZE;
-  h->buckets = calloc(h->table_size, sizeof(noit_hash_bucket *));
+  return noit_hash_init_size(h, NoitHASH_INITIAL_SIZE);
 }
+
+static void *
+ht_malloc(size_t r)
+{
+
+  return malloc(r);
+}
+
+static void
+ht_free(void *p, size_t b, bool r)
+{
+
+  (void)b;
+  (void)r;
+  free(p);
+  return;
+}
+
+static struct ck_malloc my_allocator = {
+  .malloc = ht_malloc,
+  .free = ht_free
+};
 
 void noit_hash_init_size(noit_hash_table *h, int size) {
-  memset(h, 0, sizeof(noit_hash_table));
-  h->initval = lrand48();
-  if (size > 0)
-    h->table_size = size;
-  else
-    h->table_size = NoitHASH_INITIAL_SIZE;
-  h->buckets = calloc(h->table_size, sizeof(noit_hash_bucket *));
+  if(!rand_init) {
+    srand48((long int)time(NULL));
+    rand_init = 1;
+  }
+  assert(ck_ht_init(&h->ht, CK_HT_MODE_BYTESTRING, NULL, &my_allocator,
+                    size, lrand48()));
 }
-
-noit_hash_bucket *noit_hash__new_bucket(const char *k, int klen, void *data) {
-  noit_hash_bucket *b;
-  b = calloc(1, sizeof(noit_hash_bucket));
-  b->k = k;
-  b->klen = klen;
-  b->data = data;
-  return b;
-}
-void noit_hash__rebucket(noit_hash_table *h, int newsize) {
-  int i, newoff;
-  noit_hash_bucket **newbuckets, *b, *n;
-
-  if (h->dont_rebucket) return;
-
-  i = newsize;
-  while(i) {
-    if(i & 1) break;
-    i >>= 1;
-  }
-  if(i & ~1) {
-    return;
-  }
-  newbuckets = calloc(newsize, sizeof(noit_hash_bucket *));
-  h->num_used_buckets = 0;
-  for(i = 0; i < h->table_size; i++) {
-    b = h->buckets[i];
-    while(b) {
-      n = b->next;
-      newoff = __hash(b->k, b->klen, h->initval) & (newsize-1);
-      if(newbuckets[newoff] == NULL) h->num_used_buckets++;
-      b->next = newbuckets[newoff];
-      newbuckets[newoff] = b;
-      b = n;
-    }
-  }
-  free(h->buckets);
-  h->table_size = newsize;
-  h->buckets = newbuckets;
+int noit_hash_size(noit_hash_table *h) {
+  if(h->ht.h == NULL) noit_hash_init(h);
+  return ck_ht_count(&h->ht);
 }
 int noit_hash_replace(noit_hash_table *h, const char *k, int klen, void *data,
-                   NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
-  int off;
-  int replaced = 0;
-  noit_hash_bucket __b, *tr, *b = &__b;
+                      NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
+  ck_ht_entry_t entry;
+  ck_ht_hash_t hv;
+  void *tofree;
 
-  if(h->table_size == 0) noit_hash_init(h);
-  off = __hash(k, klen, h->initval) & (h->table_size-1);
-  __b.next = h->buckets[off];
-  if(!b->next) h->num_used_buckets++;
-  while(b->next) {
-    if(b->next->klen == klen && !memcmp(b->next->k, k, klen)) {
-      tr = b->next;
-      if(keyfree) keyfree((void *)tr->k);
-      if(datafree && tr->data) datafree((void *)tr->data);
-      b->next = tr->next;
-      if(tr == h->buckets[off]) h->buckets[off] = tr->next;
-      free(tr);
-      replaced = 1;
-      break;
-    } else {
-      b = b->next;
-    }
-  }
-  b = noit_hash__new_bucket(k, klen, data);
-  b->next = h->buckets[off]; 
-  h->buckets[off] = b;
-  if(!replaced) h->size++;
-
-  if(h->size > h->table_size - (h->table_size >> 3)) {
-    noit_hash__rebucket(h, h->table_size << 1);
+  if(h->ht.h == NULL) noit_hash_init(h);
+  ck_ht_hash(&hv, &h->ht, k, klen);
+  ck_ht_entry_set(&entry, hv, k, klen, data);
+  if(ck_ht_set_spmc(&h->ht, hv, &entry) && !ck_ht_entry_empty(&entry)) {
+    if(keyfree && (tofree = ck_ht_entry_key(&entry)) != k) keyfree(tofree);
+    if(datafree && (tofree = ck_ht_entry_value(&entry)) != data) datafree(tofree);
   }
   return 1;
 }
 int noit_hash_store(noit_hash_table *h, const char *k, int klen, void *data) {
-  int off;
-  noit_hash_bucket *b;
+  ck_ht_entry_t entry;
+  ck_ht_hash_t hv;
 
-  if(h->table_size == 0) noit_hash_init(h);
-  off = __hash(k, klen, h->initval) & (h->table_size-1);
-  b = h->buckets[off];
-  if(!b) h->num_used_buckets++;
-  while(b) {
-    if(b->klen == klen && !memcmp(b->k, k, klen)) return 0;
-    b = b->next;
-  }
-  b = noit_hash__new_bucket(k, klen, data);
-  b->next = h->buckets[off]; 
-  h->buckets[off] = b;
-  h->size++;
-
-  if(h->size > h->table_size - (h->table_size >> 3)) {
-    noit_hash__rebucket(h, h->table_size << 1);
-  }
-  return 1;
+  if(h->ht.h == NULL) noit_hash_init(h);
+  ck_ht_hash(&hv, &h->ht, k, klen);
+  ck_ht_entry_set(&entry, hv, k, klen, data);
+  return ck_ht_put_spmc(&h->ht, hv, &entry);
 }
 int noit_hash_retrieve(noit_hash_table *h, const char *k, int klen, void **data) {
-  int off;
-  noit_hash_bucket *b;
+  ck_ht_entry_t entry;
+  ck_ht_hash_t hv;
 
   if(!h) return 0;
-  if(h->table_size == 0) noit_hash_init(h);
-  off = __hash(k, klen, h->initval) & (h->table_size-1);
-  b = h->buckets[off];
-  while(b) {
-    if(b->klen == klen && !memcmp(b->k, k, klen)) break;
-    b = b->next;
-  }
-  if(b) {
-    if(data) *data = b->data;
+  if(h->ht.h == NULL) noit_hash_init(h);
+  ck_ht_hash(&hv, &h->ht, k, klen);
+  ck_ht_entry_set(&entry, hv, k, klen, NULL);
+  if(ck_ht_get_spmc(&h->ht, hv, &entry)) {
+    if(data) *data = ck_ht_entry_value(&entry);
     return 1;
   }
   return 0;
 }
 int noit_hash_retr_str(noit_hash_table *h, const char *k, int klen, const char **dstr) {
-  int rv;
-  void *vptr = NULL;
-  rv = noit_hash_retrieve(h,k,klen,&vptr);
-  *dstr = vptr;
-  return rv;
+  void *data;
+  if(!h) return 0;
+  if(noit_hash_retrieve(h, k, klen, &data)) {
+    if(dstr) *dstr = data;
+    return 1;
+  }
+  return 0;
 }
 int noit_hash_delete(noit_hash_table *h, const char *k, int klen,
-                  NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
-  int off;
-  noit_hash_bucket *b, *prev = NULL;
+                     NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
+  ck_ht_entry_t entry;
+  ck_ht_hash_t hv;
 
-  if(h->table_size == 0) noit_hash_init(h);
-  off = __hash(k, klen, h->initval) & (h->table_size-1);
-  b = h->buckets[off];
-  while(b) {
-    if(b->klen == klen && !memcmp(b->k, k, klen)) break;
-    prev = b;
-    b = b->next;
+  if(!h) return 0;
+  if(h->ht.h == NULL) noit_hash_init(h);
+  ck_ht_hash(&hv, &h->ht, k, klen);
+  ck_ht_entry_set(&entry, hv, k, klen, NULL);
+  if(ck_ht_remove_spmc(&h->ht, hv, &entry)) {
+    void *tofree;
+    if(keyfree && (tofree = ck_ht_entry_key(&entry)) != NULL) keyfree(tofree);
+    if(datafree && (tofree = ck_ht_entry_value(&entry)) != NULL) datafree(tofree);
+    return 1;
   }
-  if(!b) return 0; /* No match */
-  if(!prev) h->buckets[off] = h->buckets[off]->next;
-  else prev->next = b->next;
-  if(keyfree) keyfree((void *)b->k);
-  if(datafree && b->data) datafree(b->data);
-  free(b);
-  h->size--;
-  if(h->buckets[off] == NULL) h->num_used_buckets--;
-  if(h->table_size > NoitHASH_INITIAL_SIZE &&
-     h->size < h->table_size >> 2) 
-    noit_hash__rebucket(h, h->table_size >> 1);
-  return 1;
+  return 0;
 }
 
 void noit_hash_delete_all(noit_hash_table *h, NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
-  int i;
-  noit_hash_bucket *b, *tofree;
-  for(i=0; i<h->table_size; i++) {
-    b = h->buckets[i];
-    while(b) {
-      tofree = b;
-      b = b->next;
-      if(keyfree) keyfree((void *)tofree->k);
-      if(datafree && tofree->data) datafree(tofree->data);
-      free(tofree);
-    }
-    h->buckets[i] = NULL;
+  ck_ht_entry_t *cursor;
+  ck_ht_iterator_t iterator = CK_HT_ITERATOR_INITIALIZER;
+  if(!h) return;
+  if(!keyfree && !datafree) return;
+  if(h->ht.h == NULL) noit_hash_init(h);
+  while(ck_ht_next(&h->ht, &iterator, &cursor)) {
+    if(keyfree) keyfree(ck_ht_entry_key(cursor));
+    if(datafree) datafree(ck_ht_entry_value(cursor));
   }
-  h->num_used_buckets = 0;
-  h->size = 0;
-  noit_hash__rebucket(h, NoitHASH_INITIAL_SIZE);
 }
 
 void noit_hash_destroy(noit_hash_table *h, NoitHashFreeFunc keyfree, NoitHashFreeFunc datafree) {
+  if(!h) return;
+  if(h->ht.h == NULL) noit_hash_init(h);
   noit_hash_delete_all(h, keyfree, datafree);
-  if(h->buckets) free(h->buckets);
+  ck_ht_destroy(&h->ht);
 }
 
 void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src) {
@@ -299,20 +234,12 @@ void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src) {
 
 int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,
                 const char **k, int *klen, void **data) {
-  noit_hash_bucket *b;
- next_row:
-  if(iter->p1 < 0 || iter->p1 >= h->table_size) return 0;
-  if(iter->p2 == NULL) iter->p2 = (void *)h->buckets[iter->p1];
-  if(iter->p2 == NULL) {
-    iter->p1++;
-    goto next_row;
-  }
-  b = (noit_hash_bucket *)(iter->p2);
-  *k = b->k; *klen = b->klen; 
-  if(data) *data = b->data;
-  b = b->next;
-  if(!b) iter->p1++;
-  iter->p2 = b;
+  ck_ht_entry_t *cursor;
+  if(h->ht.h == NULL) noit_hash_init(h);
+  if(!ck_ht_next(&h->ht, iter, &cursor)) return 0;
+  *k = ck_ht_entry_key(cursor);
+  *klen = ck_ht_entry_key_length(cursor);
+  *data = ck_ht_entry_value(cursor);
   return 1;
 }
 
@@ -325,44 +252,4 @@ int noit_hash_next_str(noit_hash_table *h, noit_hash_iter *iter,
   return rv;
 }
 
-int noit_hash_firstkey(noit_hash_table *h, const char **k, int *klen) {
-  int i;
-  for(i=0;i<h->table_size;i++) {
-    if(h->buckets[i]) {
-      *k = h->buckets[i]->k;
-      *klen = h->buckets[i]->klen;
-      return 1;
-    }
-  }
-  return 0;
-}
-int noit_hash_nextkey(noit_hash_table *h, const char **k, int *klen, const char *lk, int lklen) {
-  int off;
-  noit_hash_bucket *b;
-
-  if(h->table_size == 0) return 0;
-  off = __hash(lk, lklen, h->initval) & (h->table_size-1);
-  b = h->buckets[off];
-  while(b) {
-    if(b->klen == lklen && !memcmp(b->k, lk, lklen)) break;
-    b = b->next;
-  }
-  if(b) {
-    if(b->next) {
-      *k = b->next->k;
-      *klen = b->next->klen;
-      return 1;
-    } else {
-      off++;
-      for(;off < h->table_size; off++) {
-        if(h->buckets[off]) {
-          *k = h->buckets[off]->k;
-          *klen = h->buckets[off]->klen;
-          return 1;
-        }
-      }
-    }
-  }
-  return 0;
-}
 /* vim: se sw=2 ts=2 et: */

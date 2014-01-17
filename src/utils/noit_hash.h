@@ -36,37 +36,22 @@
 #define _NOIT_HASH_H
 
 #include "noit_config.h"
+#include <ck_ht.h>
 
 typedef void (*NoitHashFreeFunc)(void *);
 
-typedef struct _noit_hash_bucket {
-  const char *k;
-  int klen;
-  void *data;
-  struct _noit_hash_bucket *next;
-} noit_hash_bucket;
-
 typedef struct {
-  noit_hash_bucket **buckets;
-  u_int32_t table_size;
-  u_int32_t initval;
-  u_int32_t num_used_buckets;
-  u_int32_t size;
-  unsigned dont_rebucket:1;
-  unsigned _spare:31;
+  ck_ht_t ht CK_CC_CACHELINE;
 } noit_hash_table;
 
-#define NOIT_HASH_EMPTY { NULL, 0, 0, 0, 0, 0, 0 }
+typedef ck_ht_iterator_t noit_hash_iter;
 
-typedef struct {
-  void *p2;
-  int p1;
-} noit_hash_iter;
-
-#define NOIT_HASH_ITER_ZERO { NULL, 0 }
+#define NOIT_HASH_EMPTY { { NULL, NULL, 0, 0, NULL} }
+#define NOIT_HASH_ITER_ZERO CK_HT_ITERATOR_INITIALIZER
 
 void noit_hash_init(noit_hash_table *h);
 void noit_hash_init_size(noit_hash_table *h, int size);
+int noit_hash_size(noit_hash_table *h);
 /* NOTE! "k" and "data" MUST NOT be transient buffers, as the hash table
  * implementation does not duplicate them.  You provide a pair of
  * NoitHashFreeFunc functions to free up their storage when you call
@@ -108,12 +93,5 @@ int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,
                    const char **k, int *klen, void **data);
 int noit_hash_next_str(noit_hash_table *h, noit_hash_iter *iter,
                        const char **k, int *klen, const char **dstr);
-int noit_hash_firstkey(noit_hash_table *h, const char **k, int *klen);
-int noit_hash_nextkey(noit_hash_table *h, const char **k, int *klen, const char *lk, int lklen);
 
-/* This function serves no real API use sans calculating expected buckets
-   for keys (or extending the hash... which is unsupported) */
-u_int32_t noit_hash__hash(const char *k, u_int32_t length, u_int32_t initval);
-noit_hash_bucket *noit_hash__new_bucket(const char *k, int klen, void *data);
-void noit_hash__rebucket(noit_hash_table *h, int newsize);
 #endif

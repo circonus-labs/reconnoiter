@@ -238,7 +238,7 @@ noit_refresh_filtersets(noit_console_closure_t ncct,
                         noit_conf_t_userdata_t *info) {
   noit_filters_from_conf();
   nc_printf(ncct, "Reloaded %d filtersets.\n",
-            filtersets ? filtersets->size : 0);
+            filtersets ? noit_hash_size(filtersets) : 0);
 }
 
 static noit_boolean

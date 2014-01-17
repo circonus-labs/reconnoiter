@@ -1255,7 +1255,7 @@ static int casesort(const void *a, const void *b) {
 }
 static int
 _http_construct_leader(noit_http_session_ctx *ctx) {
-  int len = 0, tlen;
+  int len = 0, tlen, kcnt;
   struct bchain *b;
   const char *protocol_str;
   const char *key, *value;
@@ -1288,14 +1288,15 @@ _http_construct_leader(noit_http_session_ctx *ctx) {
   memcpy(b->buff + b->start + b->size, s, slen); \
   b->size += slen; \
 } while(0)
-  keys = alloca(sizeof(*keys)*ctx->res.headers.size);
+  keys = alloca(sizeof(*keys)*noit_hash_size(&ctx->res.headers));
   i = 0;
   while(noit_hash_next_str(&ctx->res.headers, &iter,
                            &key, &klen, &value)) {
     keys[i++] = key;
   }
   qsort(keys, i, sizeof(*keys), casesort);
-  for(i=0;i<ctx->res.headers.size;i++) {
+  kcnt = i;
+  for(i=0;i<kcnt;i++) {
     int vlen;
     key = keys[i];
     klen = strlen(key);

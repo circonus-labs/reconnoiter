@@ -399,7 +399,7 @@ _qsort_string_compare(const void *i1, const void *i2) {
 static void
 nc_print_stat_metrics(noit_console_closure_t ncct,
                       noit_check_t *check, stats_t *c) {
-  int mcount=0;
+  int mcount=0, cnt=0;
   const char **sorted_keys;
   char buff[256];
   noit_boolean filtered;
@@ -409,9 +409,11 @@ nc_print_stat_metrics(noit_console_closure_t ncct,
   void *data;
 
   memset(&iter, 0, sizeof(iter));
-  sorted_keys = malloc(c->metrics.size * sizeof(*sorted_keys));
+  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) cnt++;
+  sorted_keys = malloc(cnt * sizeof(*sorted_keys));
+  memset(&iter, 0, sizeof(iter));
   while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
-    if(sorted_keys) sorted_keys[mcount++] = k;
+    if(sorted_keys && mcount < cnt) sorted_keys[mcount++] = k;
     else {
       noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
       filtered = !noit_apply_filterset(check->filterset, check, (metric_t *)data);
@@ -568,14 +570,14 @@ noit_console_show_check(noit_console_closure_t ncct,
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
       }
 
-      if(check->stats.inprogress.metrics.size > 0) {
+      if(noit_hash_size(&check->stats.inprogress.metrics) > 0) {
         nc_printf(ncct, " metrics (inprogress):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.inprogress);
       }
-      if(check->stats.current.metrics.size) {
+      if(noit_hash_size(&check->stats.current.metrics)) {
         nc_printf(ncct, " metrics (current):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.current);
-      } else if(check->stats.previous.metrics.size > 0) {
+      } else if(noit_hash_size(&check->stats.previous.metrics) > 0) {
         nc_printf(ncct, " metrics (previous):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.previous);
       }

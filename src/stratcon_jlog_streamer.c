@@ -1081,7 +1081,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
     return 0;
   }
   pthread_mutex_lock(&noits_lock);
-  ctx = malloc(sizeof(*ctx) * noits.size);
+  ctx = malloc(sizeof(*ctx) * noit_hash_size(&noits));
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctx[n] = (noit_connection_ctx_t *)vconn;
@@ -1206,7 +1206,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   }
 
   pthread_mutex_lock(&noits_lock);
-  ctxs = malloc(sizeof(*ctxs) * noits.size);
+  ctxs = malloc(sizeof(*ctxs) * noit_hash_size(&noits));
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
@@ -1267,7 +1267,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
-  ctxs = malloc(sizeof(*ctxs) * noits.size);
+  ctxs = malloc(sizeof(*ctxs) * noit_hash_size(&noits));
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
@@ -1514,7 +1514,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
   free(noit_configs);
 
   pthread_mutex_lock(&noits_lock);
-  ctx = malloc(sizeof(*ctx) * noits.size);
+  ctx = malloc(sizeof(*ctx) * noit_hash_size(&noits));
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {

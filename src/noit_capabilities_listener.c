@@ -158,7 +158,7 @@ noit_capabilities_tobuff_json(noit_capsvc_closure_t *cl, eventer_func_t curr) {
 
     /* features */
     feat = json_object_new_object();
-    if(features.size) {
+    if(noit_hash_size(&features)) {
       noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
       void *vfv;
       const char *f;
@@ -301,7 +301,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     /* features */
     feat = xmlNewNode(NULL, (xmlChar *)"features");
     xmlAddChild(root, feat);
-    if(features.size) {
+    if(noit_hash_size(&features)) {
       noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
       void *vfv;
       const char *f;
