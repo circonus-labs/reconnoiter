@@ -536,9 +536,11 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                                  SSLv3_server_method() : SSLv3_client_method());
 #endif
 #ifdef SSL_TXT_SSLV2
+#ifndef OPENSSL_NO_SSL2
     else if(layer && !strcasecmp(layer, SSL_TXT_SSLV2))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  SSLv2_server_method() : SSLv2_client_method());
+#endif
 #endif
 #ifdef SSL_TXT_TLSV1
     else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1))
