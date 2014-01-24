@@ -32,6 +32,7 @@
 
 #include "noit_defines.h"
 #include "eventer/eventer.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
 #include "dtrace_probes.h"
@@ -186,6 +187,12 @@ int eventer_get_epoch(struct timeval *epoch) {
 int NE_SOCK_CLOEXEC = 0;
 int NE_O_CLOEXEC = 0;
 
+static int
+eventer_noit_memory_maintenance(eventer_t e, int mask, void *c,
+                                struct timeval *now) {
+  noit_memory_maintenance();
+  return EVENTER_RECURRENT;
+}
 static void eventer_per_thread_init(struct eventer_impl_data *t) {
   char qname[80];
   eventer_t e;
@@ -209,9 +216,15 @@ static void eventer_per_thread_init(struct eventer_impl_data *t) {
   e->mask = EVENTER_RECURRENT;
   e->closure = &t->__global_backq;
   e->callback = eventer_jobq_consume_available;
-
-  /* We call directly here as we may not be completely initialized */
   eventer_add_recurrent(e);
+
+  if(t->id == 0) {
+    /* Only one thread need do this */
+    e = eventer_alloc();
+    e->mask = EVENTER_RECURRENT;
+    e->callback = eventer_noit_memory_maintenance;
+    eventer_add_recurrent(e);
+  }
   noit_atomic_inc32(&__loops_started);
 }
 
@@ -220,6 +233,7 @@ static void *thrloopwrap(void *vid) {
   int id = (int)(vpsized_int)vid;
   t = &eventer_impl_tls_data[id];
   t->id = id;
+  noit_memory_init_thread();
   eventer_per_thread_init(t);
   return (void *)(vpsized_int)__eventer->loop(id);
 }
@@ -396,11 +410,13 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
              cbname ? cbname : "???");
     }
     /* Make our call */
+    noit_memory_begin();
     EVENTER_CALLBACK_ENTRY((void *)timed_event->callback, (char *)cbname, -1,
                            timed_event->mask, EVENTER_TIMER);
     newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                     timed_event->closure, now);
     EVENTER_CALLBACK_RETURN((void *)timed_event->callback, (char *)cbname, newmask);
+    noit_memory_end();
     if(newmask)
       eventer_add_timed(timed_event);
     else

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014, Circonus, Inc.
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
@@ -31,6 +32,7 @@
  */
 
 #include "noit_defines.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "utils/noit_atomic.h"
 #include "eventer/eventer.h"
@@ -164,6 +166,7 @@ eventer_jobq_retrieve(const char *name) {
 
 static void *
 eventer_jobq_consumer_pthreadentry(void *vp) {
+  noit_memory_init_thread();
   return eventer_jobq_consumer((eventer_jobq_t *)vp);
 }
 static void
@@ -325,12 +328,14 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
   assert(jobq);
   while((job = eventer_jobq_dequeue_nowait(jobq)) != NULL) {
     int newmask;
+    noit_memory_begin();
     EVENTER_CALLBACK_ENTRY((void *)job->fd_event->callback, NULL,
                            job->fd_event->fd, job->fd_event->mask,
                            job->fd_event->mask);
     newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
                                       job->fd_event->closure, now);
     EVENTER_CALLBACK_RETURN((void *)job->fd_event->callback, NULL, newmask);
+    noit_memory_end();
     if(!newmask) eventer_free(job->fd_event);
     else {
       job->fd_event->mask = newmask;
@@ -369,9 +374,12 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
   pthread_setspecific(jobq->threadenv, &env);
   pthread_cleanup_push(eventer_jobq_cancel_cleanup, jobq);
 
+  noit_memory_begin();
   while(1) {
     pthread_setspecific(jobq->activejob, NULL);
+    noit_memory_end();
     job = eventer_jobq_dequeue(jobq);
+    noit_memory_begin();
     if(!job) continue;
     if(!job->fd_event) {
       free(job);
@@ -492,6 +500,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
     eventer_wakeup(job->fd_event);
   }
+  noit_memory_end();
   pthread_cleanup_pop(0);
   noit_atomic_dec32(&jobq->concurrency);
   pthread_exit(NULL);

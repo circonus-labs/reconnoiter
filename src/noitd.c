@@ -45,6 +45,7 @@
 
 #include "noit_main.h"
 #include "eventer/eventer.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_security.h"
@@ -235,6 +236,7 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
+  noit_memory_init();
   parse_clargs(argc, argv);
   return noit_main(APPNAME, config_file, debug, foreground,
                    glider, droptouser, droptogroup, child_main);

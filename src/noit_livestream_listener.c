@@ -34,6 +34,7 @@
 #include "eventer/eventer.h"
 #include "noit_listener.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "utils/noit_sem.h"
 #include "noit_livestream_listener.h"
@@ -169,6 +170,7 @@ noit_livestream_thread_main(void *e_vptr) {
   acceptor_closure_t *ac = e->closure;
   noit_livestream_closure_t *jcl = ac->service_ctx;
 
+  noit_memory_init_thread();
   /* Go into blocking mode */
   if(eventer_set_fd_blocking(e->fd) == -1) {
     noitL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",

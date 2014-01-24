@@ -34,6 +34,7 @@
 #include "eventer/eventer.h"
 #include "noit_listener.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
@@ -186,6 +187,7 @@ noit_jlog_thread_main(void *e_vptr) {
   noit_jlog_closure_t *jcl = ac->service_ctx;
   char inbuff[sizeof(jlog_id)];
 
+  noit_memory_init_thread();
   eventer_set_fd_blocking(e->fd);
 
   while(1) {

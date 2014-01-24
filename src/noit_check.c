@@ -43,6 +43,7 @@
 #include <time.h>
 
 #include "dtrace_probes.h"
+#include "utils/noit_memory.h"
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
@@ -1266,9 +1267,9 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 void
 free_metric(metric_t *m) {
   if(!m) return;
-  if(m->metric_name) free(m->metric_name);
-  if(m->metric_value.i) free(m->metric_value.i);
-  free(m);
+  if(m->metric_name) noit_memory_safe_free(m->metric_name);
+  if(m->metric_value.i) noit_memory_safe_free(m->metric_value.i);
+  noit_memory_safe_free(m);
 }
 
 void
@@ -1385,7 +1386,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scanint:
    if(negative) {
      int64_t *v;
-     v = calloc(1, sizeof(*v));
+     v = noit_memory_safe_malloc(sizeof(*v));
      *v = strtoll(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_INT64;
@@ -1393,7 +1394,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
    }
    else {
      u_int64_t *v;
-     v = calloc(1, sizeof(*v));
+     v = noit_memory_safe_malloc(sizeof(*v));
      *v = strtoull(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_UINT64;
@@ -1402,7 +1403,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scandouble:
    {
      double *v;
-     v = calloc(1, sizeof(*v));
+     v = noit_memory_safe_malloc(sizeof(*v));
      *v = strtod(rpl, NULL);
      *replacement = v;
      type = METRIC_DOUBLE;
@@ -1422,14 +1423,15 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
     type = noit_metric_guess_type((char *)value, &replacement);
   if(type == METRIC_GUESS) return -1;
 
-  m->metric_name = strdup(name);
+  m->metric_name = noit_memory_safe_malloc(strlen(name)+1);
+  memcpy(m->metric_name, name, strlen(name)+1);
   m->metric_type = type;
   if(replacement)
     m->metric_value.vp = replacement;
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
-    m->metric_value.vp = calloc(1, len);
+    m->metric_value.vp = noit_memory_safe_malloc(len);
     memcpy(m->metric_value.vp, value, len);
     if (type == METRIC_STRING) {
       m->metric_value.s[len-1] = 0;
@@ -1451,7 +1453,7 @@ void
 noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
                       const void *value) {
-  metric_t *m = calloc(1, sizeof(*m));
+  metric_t *m = noit_memory_safe_malloc(sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
@@ -1526,7 +1528,7 @@ noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 void *value) {
   struct timeval now;
-  metric_t *m = calloc(1, sizeof(*m));
+  metric_t *m = noit_memory_safe_malloc(sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;

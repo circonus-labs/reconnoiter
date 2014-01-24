@@ -24,7 +24,7 @@ NOIT_UTILS_OBJS=utils/noit_b32.o utils/noit_b64.o utils/noit_btrie.o \
         utils/noit_getip.o utils/noit_hash.o utils/noit_lockfile.o \
         utils/noit_log.o utils/noit_mkdir.o utils/noit_security.o \
         utils/noit_sem.o utils/noit_skiplist.o utils/noit_str.o \
-        utils/noit_watchdog.o $(ATOMIC_OBJS)
+        utils/noit_watchdog.o utils/noit_memory.o $(ATOMIC_OBJS)
 YAJL_LIB_OBJS=yajl-lib/yajl.o yajl-lib/yajl_alloc.o yajl-lib/yajl_buf.o \
         yajl-lib/yajl_encode.o yajl-lib/yajl_gen.o yajl-lib/yajl_lex.o \
         yajl-lib/yajl_parser.o yajl-lib/yajl_tree.o yajl-lib/yajl_version.o
