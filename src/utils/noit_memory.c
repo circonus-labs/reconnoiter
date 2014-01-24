@@ -31,7 +31,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include <ck_epoch.h>
+
+#define NOIT_EPOCH_SAFE_MAGIC 0x5afe5afe
 
 static int initialized = 0;
 static ck_epoch_t epoch_ht;
@@ -73,6 +76,7 @@ void noit_memory_end() {
 
 struct safe_epoch {
   ck_epoch_entry_t epoch_entry;
+  uint32_t magic;
 };
 
 static void noit_memory_real_free(ck_epoch_entry_t *e) {
@@ -82,8 +86,9 @@ fprintf(stderr, "--- actual free (%p) ---\n", e);
 }
 
 void *noit_memory_safe_malloc(size_t r) {
-  ck_epoch_entry_t *b;
+  struct safe_epoch *b;
   b = malloc(sizeof(*b) + r);
+  b->magic = NOIT_EPOCH_SAFE_MAGIC;
   return b + 1;
 }
 
@@ -92,15 +97,17 @@ void *noit_memory_ck_malloc(size_t r) {
 }
 
 void noit_memory_ck_free(void *p, size_t b, bool r) {
-  struct safe_epoch *e = p;
+  struct safe_epoch *e = (p - sizeof(struct safe_epoch));
 
+  if(p == NULL) return;
   (void)b;
+  assert(e->magic == NOIT_EPOCH_SAFE_MAGIC);
 
   if (r == true) {
     /* Destruction requires safe memory reclamation. */
-    ck_epoch_call(&epoch_ht, epoch_rec, &(--e)->epoch_entry, noit_memory_real_free);
+    ck_epoch_call(&epoch_ht, epoch_rec, &e->epoch_entry, noit_memory_real_free);
   } else {
-    free(--e);
+    noit_memory_real_free(&e->epoch_entry);
   }
 
   return;
