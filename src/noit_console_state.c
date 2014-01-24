@@ -73,10 +73,11 @@ noit_console_spit_event(eventer_t e, void *c) {
   sub_timeval(e->whence, now, &diff);
   snprintf(wfn, sizeof(wfn), " fires: %lld.%06ds", (long long)diff.tv_sec, (int)diff.tv_usec);
   snprintf(funcptr, sizeof(funcptr), "%p", e->callback);
-  nc_printf(ncct, "  [%p]%s%s [%c%c%c%c] -> %s(%p)\n",
+  nc_printf(ncct, "  [%p]%s%s t@%x [%c%c%c%c] -> %s(%p)\n",
             e,
             e->mask & (EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION) ? fdstr : "",
             e->mask & (EVENTER_TIMER) ?  wfn : "",
+            e->thr_owner,
             e->mask & EVENTER_READ ? 'r' : '-',
             e->mask & EVENTER_WRITE ? 'w' : '-',
             e->mask & EVENTER_EXCEPTION ? 'e' : '-',
