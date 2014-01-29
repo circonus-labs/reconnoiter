@@ -116,6 +116,7 @@ struct noit_http_response {
 struct noit_http_session_ctx {
   noit_atomic32_t ref_cnt;
   int64_t drainage;
+  int16_t write_in_progress;
   int max_write;
   noit_http_connection conn;
   noit_http_request req;
@@ -443,17 +444,25 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   int len, tlen = 0;
   size_t attempt_write_len;
   struct bchain **head, *b;
+  if (ctx->write_in_progress) {
+    return 0;
+  }
+  ctx->write_in_progress = 1;
  choose_bucket:
   head = ctx->res.leader ? &ctx->res.leader : &ctx->res.output_raw;
   b = *head;
 
-  if(!ctx->conn.e) return 0;
+  if(!ctx->conn.e) {
+    ctx->write_in_progress = 0;
+    return 0;
+  }
 #if 0
   if(ctx->res.output_started == noit_false) return EVENTER_EXCEPTION;
 #endif
   if(!b) {
     if(ctx->res.closed) ctx->res.complete = noit_true;
     *mask = EVENTER_EXCEPTION;
+    ctx->write_in_progress = 0;
     return tlen;
   }
 
@@ -475,6 +484,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
                 attempt_write_len, mask, ctx->conn.e);
   if(len == -1 && errno == EAGAIN) {
     *mask |= EVENTER_EXCEPTION;
+    ctx->write_in_progress = 0;
     return tlen;
   }
   if(len == -1) {
@@ -483,6 +493,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
     ctx->conn.needs_close = noit_true;
     noit_http_log_request(ctx);
     *mask |= EVENTER_EXCEPTION;
+    ctx->write_in_progress = 0;
     return -1;
   }
   noitL(http_io, " http_write(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd,
@@ -1130,6 +1141,7 @@ noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e,
   noit_http_session_ctx *ctx;
   ctx = calloc(1, sizeof(*ctx));
   ctx->ref_cnt = 1;
+  ctx->write_in_progress = 0;
   ctx->req.complete = noit_false;
   ctx->conn.e = e;
   ctx->max_write = DEFAULT_MAXWRITE;
@@ -1594,7 +1606,17 @@ noit_http_response_flush_asynch(noit_http_session_ctx *ctx,
 
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
-  if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
+  int tries = 0;
+  while (ctx->write_in_progress) {
+    tries++;
+    usleep(10000);
+    if (tries > 30) {
+      return noit_false;
+    }
+  }
+  if(!noit_http_response_flush(ctx, noit_true)) {
+    return noit_false;
+  }
   return noit_true;
 }
 
