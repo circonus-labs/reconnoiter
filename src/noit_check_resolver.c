@@ -573,7 +573,7 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
       }
     }
     endhostent();
-    noitL(noit_error, "reloaded %d /etc/hosts targets\n", etc_hosts_cache.size);
+    noitL(noit_error, "reloaded %d /etc/hosts targets\n", noit_hash_size(&etc_hosts_cache));
   }
 
   eventer_add_in_s_us(noit_check_etc_hosts_cache_refresh, NULL, 1, 0);
