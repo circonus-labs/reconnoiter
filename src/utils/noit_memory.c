@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ck_epoch.h>
+#include "utils/noit_log.h"
 
 #define NOIT_EPOCH_SAFE_MAGIC 0x5afe5afe
 
@@ -58,7 +59,8 @@ void noit_memory_maintenance() {
     if(epoch_temporary.n_pending != epoch_rec->n_pending ||
        epoch_temporary.n_peak != epoch_rec->n_peak ||
        epoch_temporary.n_dispatch != epoch_rec->n_dispatch) {
-      fprintf(stderr, " '- Summary: [%u/%u/%u] %u pending, %u peak, %lu reclamations -> "
+      noitL(noit_debug,
+            "summary: [%u/%u/%u] %u pending, %u peak, %lu reclamations -> "
               "[%u/%u/%u] %u pending, %u peak, %lu reclamations\n\n",
               epoch_temporary.state, epoch_temporary.epoch,epoch_temporary.active,
               epoch_temporary.n_pending, epoch_temporary.n_peak, epoch_temporary.n_dispatch,
@@ -80,7 +82,6 @@ struct safe_epoch {
 };
 
 static void noit_memory_real_free(ck_epoch_entry_t *e) {
-fprintf(stderr, "--- actual free (%p) ---\n", e);
   free(e);
   return;
 }

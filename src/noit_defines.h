@@ -35,6 +35,9 @@
 
 #include "noit_config.h"
 
+#include <stdbool.h>
+#define _BOOL
+
 #ifndef __FUNCTION__
 #define __FUNCTION__ __func__
 #endif
