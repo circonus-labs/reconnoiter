@@ -40,10 +40,12 @@
 #include <assert.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
+#include "utils/noit_hash.h"
 #include "udns/udns.h"
 #include "noit_console.h"
 
@@ -54,6 +56,7 @@
 static struct dns_ctx *dns_ctx;
 static noit_skiplist nc_dns_cache;
 static eventer_t dns_cache_timeout = NULL;
+static noit_hash_table etc_hosts_cache;
 
 typedef struct {
   time_t last_needed;
@@ -68,6 +71,14 @@ typedef struct {
   int ip6_cnt;
   char **ip6;
 } dns_cache_node;
+
+typedef struct {
+  char *target;
+  struct in_addr ip4;
+  struct in6_addr ip6;
+  int has_ip4:1;
+  int has_ip6:1;
+} static_host_node;
 
 void dns_cache_node_free(void *vn) {
   dns_cache_node *n = vn;
@@ -124,11 +135,32 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
   int i;
   uint8_t progression[2];
   dns_cache_node *n;
+  void *vnode;
 
   buff[0] = '\0';
   if(!target) return -1;
   progression[0] = prefer_family;
   progression[1] = (prefer_family == AF_INET) ? AF_INET6 : AF_INET;
+
+  if(noit_hash_retrieve(&etc_hosts_cache, target, strlen(target), &vnode)) {
+    static_host_node *node = vnode;
+    for(i=0; i<2; i++) {
+      switch(progression[i]) {
+        case AF_INET:
+          if(node->has_ip4) {
+            inet_ntop(AF_INET, &node->ip4, buff, len);
+            return 1;
+          }
+          break;
+        case AF_INET6:
+          if(node->has_ip6) {
+            inet_ntop(AF_INET6, &node->ip6, buff, len);
+            return 1;
+          }
+          break;
+      }
+    }
+  }
 
   n = noit_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
@@ -493,6 +525,58 @@ register_console_dns_cache_commands() {
     NCSCMD("dns_cache", noit_console_manip_dns_cache, NULL, NULL, (void *)0x1));
 }
 
+int
+noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
+                                   struct timeval *now) {
+  static struct stat last_stat;
+  struct stat sb;
+  struct hostent *ent;
+  int reload = 0;
+
+  memset(&sb, 0, sizeof(sb));
+  stat("/etc/hosts", &sb);
+#if defined(__MACH__)
+  memset(&sb.st_atimespec, 0, sizeof(sb.st_atimespec));
+#else
+  memset(&sb.st_atime, 0, sizeof(sb.st_atime));
+#endif
+  reload = memcmp(&sb, &last_stat, sizeof(sb));
+  memcpy(&last_stat, &sb, sizeof(sb));
+
+  if(reload) {
+    noit_hash_delete_all(&etc_hosts_cache, free, free);
+    while(NULL != (ent = gethostent())) {
+      int i = 0;
+      char *name = ent->h_name;
+      while(name) {
+        void *vnode;
+        static_host_node *node;
+        if(!noit_hash_retrieve(&etc_hosts_cache, name, strlen(name), &vnode)) {
+          vnode = node = calloc(1, sizeof(*node));
+          node->target = strdup(name);
+          noit_hash_store(&etc_hosts_cache, node->target, strlen(node->target), node);
+        }
+        node = vnode;
+  
+        if(ent->h_addrtype == AF_INET) {
+          node->has_ip4 = 1;
+          memcpy(&node->ip4, ent->h_addr_list[0], ent->h_length);
+        }
+        if(ent->h_addrtype == AF_INET6) {
+          node->has_ip6 = 1;
+          memcpy(&node->ip6, ent->h_addr_list[0], ent->h_length);
+        }
+        
+        name = ent->h_aliases[i++];
+      }
+    }
+    endhostent();
+    noitL(noit_error, "reloaded %d /etc/hosts targets\n", etc_hosts_cache.size);
+  }
+
+  eventer_add_in_s_us(noit_check_etc_hosts_cache_refresh, NULL, 1, 0);
+  return 0;
+}
 
 void noit_check_resolver_init() {
   eventer_t e;
@@ -517,4 +601,7 @@ void noit_check_resolver_init() {
   noit_skiplist_add_index(&nc_dns_cache, refresh_idx, refresh_idx_k);
   noit_check_resolver_loop(NULL, 0, NULL, NULL);
   register_console_dns_cache_commands();
+
+  noit_hash_init(&etc_hosts_cache);
+  noit_check_etc_hosts_cache_refresh(NULL, 0, NULL, NULL);
 }

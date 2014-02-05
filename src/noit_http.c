@@ -40,6 +40,7 @@
 #include <zlib.h>
 #include <sys/mman.h>
 #include <libxml/tree.h>
+#include <pthread.h>
 
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
@@ -116,6 +117,7 @@ struct noit_http_response {
 struct noit_http_session_ctx {
   noit_atomic32_t ref_cnt;
   int64_t drainage;
+  pthread_mutex_t write_lock;
   int max_write;
   noit_http_connection conn;
   noit_http_request req;
@@ -443,17 +445,22 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
   int len, tlen = 0;
   size_t attempt_write_len;
   struct bchain **head, *b;
+  pthread_mutex_lock(&ctx->write_lock);
  choose_bucket:
   head = ctx->res.leader ? &ctx->res.leader : &ctx->res.output_raw;
   b = *head;
 
-  if(!ctx->conn.e) return 0;
+  if(!ctx->conn.e) {
+    pthread_mutex_unlock(&ctx->write_lock);
+    return 0;
+  }
 #if 0
   if(ctx->res.output_started == noit_false) return EVENTER_EXCEPTION;
 #endif
   if(!b) {
     if(ctx->res.closed) ctx->res.complete = noit_true;
     *mask = EVENTER_EXCEPTION;
+    pthread_mutex_unlock(&ctx->write_lock);
     return tlen;
   }
 
@@ -475,6 +482,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
                 attempt_write_len, mask, ctx->conn.e);
   if(len == -1 && errno == EAGAIN) {
     *mask |= EVENTER_EXCEPTION;
+    pthread_mutex_unlock(&ctx->write_lock);
     return tlen;
   }
   if(len == -1) {
@@ -483,6 +491,7 @@ _http_perform_write(noit_http_session_ctx *ctx, int *mask) {
     ctx->conn.needs_close = noit_true;
     noit_http_log_request(ctx);
     *mask |= EVENTER_EXCEPTION;
+    pthread_mutex_unlock(&ctx->write_lock);
     return -1;
   }
   noitL(http_io, " http_write(%d) => %d [\n%.*s\n]\n", ctx->conn.e->fd,
@@ -833,6 +842,7 @@ noit_http_ctx_session_release(noit_http_session_ctx *ctx) {
     noit_http_request_release(ctx);
     if(ctx->req.first_input) RELEASE_BCHAIN(ctx->req.first_input);
     noit_http_response_release(ctx);
+    pthread_mutex_destroy(&ctx->write_lock);
     free(ctx);
   }
 }
@@ -1130,6 +1140,7 @@ noit_http_session_ctx_new(noit_http_dispatch_func f, void *c, eventer_t e,
   noit_http_session_ctx *ctx;
   ctx = calloc(1, sizeof(*ctx));
   ctx->ref_cnt = 1;
+  pthread_mutex_init(&ctx->write_lock, NULL);
   ctx->req.complete = noit_false;
   ctx->conn.e = e;
   ctx->max_write = DEFAULT_MAXWRITE;
@@ -1595,7 +1606,9 @@ noit_http_response_flush_asynch(noit_http_session_ctx *ctx,
 
 noit_boolean
 noit_http_response_end(noit_http_session_ctx *ctx) {
-  if(!noit_http_response_flush(ctx, noit_true)) return noit_false;
+  if(!noit_http_response_flush(ctx, noit_true)) {
+    return noit_false;
+  }
   return noit_true;
 }
 
