@@ -537,10 +537,12 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
   stat("/etc/hosts", &sb);
 #if defined(__MACH__)
   memset(&sb.st_atimespec, 0, sizeof(sb.st_atimespec));
+  reload = memcmp(&sb, &last_stat, offsetof(struct stat,st_fstype));
 #else
-  memset(&sb.st_atime, 0, sizeof(sb.st_atime));
+#define CSTAT(f) (sb.f == last_stat.f)
+  reload = ! (CSTAT(st_dev) && CSTAT(st_ino) && CSTAT(st_mode) && CSTAT(st_uid) &&
+              CSTAT(st_gid) && CSTAT(st_size) && CSTAT(st_mtime));
 #endif
-  reload = memcmp(&sb, &last_stat, sizeof(sb));
   memcpy(&last_stat, &sb, sizeof(sb));
 
   if(reload) {
