@@ -46,9 +46,18 @@ function onload(image)
     <parameter name="api_key"
                required="required"
                allowed=".+">The Keynote-issued API access key.</parameter>
+    <parameter name="transpagelist"
+               required="optional"
+               allowed="\d+(?:,\d+)*">A list of pages.</parameter>
+    <parameter name="pagecomponent"
+               required="required"
+               allowed=".">Page component ID.</parameter>
     <parameter name="slotid_list"
                required="required"
                allowed="\d+(?:,\d+)*">A list of Keynote slot ids.</parameter>
+    <parameter name="slot_alias_(\d+)"
+               required="optional"
+               allowed=".+">A human readable alias for a given slot id.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -93,13 +102,26 @@ end
 
 local HttpClient = require 'noit.HttpClient'
 
+local component = { U="User Time", N="Cached Measurement Time", Y="Bytes Downloaded",
+  M="Objects Count", H="Throughput", A="Connection Count", D="DNS", I="Initial Connection",
+  J="DOM Interactive Time", W="DOM Load Time", V="DOM Complete Time", K="DOM Content Load Time",
+  G="DOM Unload Time", F="First Byte Time", B="Base Page Time", S="SSL Time", L="Client Time",
+  R="Redirection Time", E="Request Time", C="Conent Time", X="IE Paint Start Time", O="Custom 1",
+  P="Custom 2", Q="Custom 3" }
+component["@"]="Time to Interactive"
+
 function json_to_metrics(check, doc)
     local services = 0
     check.available()
     local data = doc:document()
-    for i,v in ipairs(data.measurement) do
-      check.metric_double(v.id, tonumber(v.bucket_data[0].perf_data.value))
-      check.metric_double(v.alias, tonumber(v.bucket_data[0].perf_data.value))
+    local cname = component[check.config.pagecomponent] or check.config.pagecomponent
+    for i,v in pairs(data.measurement) do
+      local alias = check.config['slot_alias_' .. v.id]
+      if alias ~= nil then
+        check.metric_double(alias .. ' ' .. cname, tonumber(v.bucket_data[0].perf_data.value))
+      else
+        check.metric_double(v.id .. ' ' .. cname, tonumber(v.bucket_data[0].perf_data.value))
+      end
       services = services + 1
     end
     check.metric_uint32("services", services)
@@ -111,6 +133,8 @@ function initiate(module, check)
     local config = check.interpolate(check.config)
     local url = config.base_url or 'https://api.keynote.com/keynote/api/'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
+    local transpagelist = config.transpagelist
+    local pagecomponent = config.pagecomponent or "T"
     local port
     local use_ssl = false
 
@@ -142,6 +166,10 @@ function initiate(module, check)
     end
 
     uri = uri .. 'getgraphdata?api_key=' .. config.api_key .. '&format=json&slotidlist=' .. config.slotid_list .. '&timemode=relative&relativehours=300&bucket=300&timezone=UTC'
+    uri = uri .. '&pagecomponent=' .. pagecomponent
+    if transpagelist ~= nil then
+      uri = uri .. '&transpagelist=' .. transpagelist
+    end
 
     local output = ''
 
@@ -157,7 +185,7 @@ function initiate(module, check)
     headers.Accept = '*/*'
 
     local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target_ip, port, use_ssl, host)
+    local rv, err = client:connect(check.target_ip, port, use_ssl, host, "TLSv1")
     if rv ~= 0 then
         check.status(err or "unknown error")
         return
