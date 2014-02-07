@@ -381,6 +381,11 @@ static int noit_lua_dns_lookup(lua_State *L) {
   if(lua_gettop(L) > 2) rtype = lua_tostring(L, 3);
   if(lua_gettop(L) > 3) ctype = lua_tostring(L, 4);
 
+  if(query == NULL || rtype == NULL || ctype == NULL) {
+    lua_pushnil(L);
+    return 1;
+  }
+
   ctype_up = alloca(strlen(ctype)+1);
   for(d = ctype_up, c = ctype; *c; d++, c++) *d = toupper(*c);
   *d = '\0';
