@@ -71,6 +71,7 @@ struct include_node_t{
   xmlDocPtr doc;
   xmlNodePtr root;
   int snippet;
+  int ro;
   char path[255];
   int child_count;
   struct include_node_t *children;
@@ -135,6 +136,11 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
     char filename[500];
     int len, fd;
     struct stat st;
+
+    if(include_nodes[i].ro) {
+      write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
+      return;
+    }
 
     if(stat(include_nodes[i].path, &st) == 0) {
       mode = st.st_mode;
@@ -786,10 +792,11 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
     }
   }
   for(i=0; i<cnt; i++) {
-    char *path, *infile, *snippet;
+    char *path, *infile, *snippet, *ro;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     path = (char *)xmlGetProp(node, (xmlChar *)"file");
     snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
+    ro = (char *)xmlGetProp(node, (xmlChar *)"readonly");
     if(!path) continue;
     if(!snippet) snippet = "false";
     if(*path == '/') infile = strdup(path);
@@ -805,6 +812,7 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
       strlcat(infile, path, PATH_MAX);
     }
     xmlFree(path);
+    if (ro && !strcmp(ro, "true")) include_nodes[i].ro = 1;
     if (!strcmp(snippet, "false")) {
       include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
       include_nodes[i].snippet = 0;
