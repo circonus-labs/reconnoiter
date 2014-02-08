@@ -123,6 +123,8 @@ API_EXPORT(const char *)
   eventer_ssl_get_current_cipher(eventer_ssl_ctx_t *ctx);
 API_EXPORT(int)
   eventer_ssl_get_method(eventer_ssl_ctx_t *ctx);
+API_EXPORT(int)
+  eventer_ssl_config(const char *key, const char *value);
 
 #endif
 

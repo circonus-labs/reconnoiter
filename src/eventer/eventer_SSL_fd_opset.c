@@ -39,6 +39,7 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -160,19 +161,64 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
   if(i>=2) ctx->last_error[i-2] = '\0';
 }
 
+static DH *
+load_dh_params(const char *filename) {
+  BIO *bio;
+  DH *dh = NULL;
+  if(filename == NULL) return NULL;
+  bio = BIO_new_file(filename, "r");
+  if(bio == NULL) return NULL;
+  PEM_read_bio_DHparams(bio, &dh, 0, NULL);
+  BIO_free(bio);
+  if(dh) {
+    int code = 0;
+    if(DH_check(dh, &code) != 1 || code != 0) {
+      noitL(eventer_err, "DH Parameter in %s is bad [%x], not using.\n",
+            filename, code);
+      DH_free(dh);
+      dh = NULL;
+    }
+  }
+  return dh;
+}
+static void
+save_dh_params(DH *p, const char *filename) {
+  int fd;
+  BIO *bio;
+  if(p == NULL || filename == NULL) return;
+  fd = open(filename, O_CREAT|O_TRUNC|O_RDWR, 0600);
+  if(fd < 0) return;
+  bio = BIO_new_fd(fd, 0);
+  if(bio == NULL) { close(fd); return; }
+  PEM_write_bio_DHparams(bio,p);
+  BIO_free(bio);
+  fchmod(fd, 0400);
+  close(fd);
+  return;
+}
+
 static DH *dh512_tmp = NULL, *dh1024_tmp = NULL;
+static const char *dh512_file = NULL, *dh1024_file = NULL;
 static int
 generate_dh_params(eventer_t e, int mask, void *cl, struct timeval *now) {
   int bits = (int)(vpsized_int)cl;
   if(mask != EVENTER_ASYNCH_WORK) return 0;
   switch(bits) {
   case 512:
-    noitL(eventer_deb, "Generating 512 bit DH parameters.\n");
-    if(!dh512_tmp) dh512_tmp = DH_generate_parameters(512, 2, NULL, NULL);
+    if(!dh512_tmp) dh512_tmp = load_dh_params(dh512_file);
+    if(!dh512_tmp) {
+      noitL(eventer_err, "Generating 512 bit DH parameters.\n");
+      dh512_tmp = DH_generate_parameters(512, 2, NULL, NULL);
+      save_dh_params(dh512_tmp, dh512_file);
+    }
     break;
   case 1024:
-    noitL(eventer_deb, "Generating 1024 bit DH parameters.\n");
-    if(!dh1024_tmp) dh1024_tmp = DH_generate_parameters(1024, 2, NULL, NULL);
+    if(!dh1024_tmp) dh1024_tmp = load_dh_params(dh1024_file);
+    if(!dh1024_tmp) {
+      noitL(eventer_err, "Generating 1024 bit DH parameters.\n");
+      dh1024_tmp = DH_generate_parameters(1024, 2, NULL, NULL);
+      save_dh_params(dh1024_tmp, dh1024_file);
+    }
     break;
   default:
     noitL(noit_error, "Unexpected DH parameter request: %d\n", bits);
@@ -889,6 +935,21 @@ static void lock_dynamic(int mode, struct CRYPTO_dynlock_value *lock,
 }
 void eventer_ssl_set_ssl_ctx_cache_expiry(int timeout) {
   ssl_ctx_cache_expiry = timeout;
+}
+int eventer_ssl_config(const char *key, const char *value) {
+  if(!strcmp(key, "ssl_dhparam512_file")) {
+    dh512_file = strdup(value);
+    return 0;
+  }
+  if(!strcmp(key, "ssl_dhparam1024_file")) {
+    dh1024_file = strdup(value);
+    return 0;
+  }
+  if(!strcmp(key, "ssl_ctx_cache_expiry")) {
+    eventer_ssl_set_ssl_ctx_cache_expiry(atoi(value));
+    return 0;
+  }
+  return 1;
 }
 void eventer_ssl_init() {
   eventer_t e;

@@ -5,6 +5,8 @@
     <config>
       <default_queue_threads>10</default_queue_threads>
       <default_ca_chain>%sysconfdir%/default-ca-chain.crt</default_ca_chain>
+      <ssl_dhparam512_file>%sysconfdir%/dhparam512.txt</ssl_dhparam512_file>
+      <ssl_dhparam1024_file>%sysconfdir%/dhparam1024.txt</ssl_dhparam1024_file>
     </config>
   </eventer>
   <logs>
