@@ -136,6 +136,8 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
     char filename[500];
     int len, fd;
     struct stat st;
+    uid_t uid = 0;
+    gid_t gid = 0;
 
     if(include_nodes[i].ro) {
       write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
@@ -144,10 +146,13 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
 
     if(stat(include_nodes[i].path, &st) == 0) {
       mode = st.st_mode;
+      uid = st.st_uid;
+      gid = st.st_gid;
     }
 
     sprintf(filename, "%s.tmp", include_nodes[i].path);
     fd = open(filename, O_CREAT|O_TRUNC|O_WRONLY, mode);
+    fchown(fd, uid, gid);
 
     enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
     out = xmlOutputBufferCreateFd(fd, enc);
@@ -1399,9 +1404,14 @@ noit_conf_write_file(char **err) {
   xmlCharEncodingHandlerPtr enc;
   struct stat st;
   mode_t mode = 0640; /* the default */
+  uid_t uid = 0;
+  gid_t gid = 0;
 
-  if(stat(master_config_file, &st) == 0)
+  if(stat(master_config_file, &st) == 0) {
     mode = st.st_mode;
+    uid = st.st_uid;
+    gid = st.st_gid;
+  }
   snprintf(master_file_tmp, sizeof(master_file_tmp),
            "%s.tmp", master_config_file);
   unlink(master_file_tmp);
@@ -1412,6 +1422,8 @@ noit_conf_write_file(char **err) {
     if(err) *err = strdup(errstr);
     return -1;
   }
+  fchown(fd, uid, gid);
+
   enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
   out = xmlOutputBufferCreateFd(fd, enc);
   if(!out) {
