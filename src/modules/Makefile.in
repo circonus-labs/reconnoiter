@@ -48,8 +48,8 @@ check_test.lo:	check_test.xmlh
 
 ip_acl.lo:	ip_acl.xmlh
 
-lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
+lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_crypto.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
@@ -58,6 +58,10 @@ lua.lo:	lua.c lua.xmlh
 
 lua_noit.lo:	lua_noit.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_noit.c -o $@
+	@echo "- compiling $<"
+
+lua_crypto.lo:	lua_crypto.c
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src -c lua_crypto.c -o $@
 	@echo "- compiling $<"
 
 lua_dns.lo:	lua_dns.c
