@@ -791,9 +791,9 @@ jlog_logio_open(noit_log_stream_t ls) {
       if(subs[i] &&
          (!allow_unmatched || subs[i][0] == '~')) {
         jlog_ctx_remove_subscriber(log, subs[i]);
-        free(subs[i]);
-        subs[i] = NULL;
       }
+      free(subs[i]);
+      subs[i] = NULL;
     }
 
     free(subs);
