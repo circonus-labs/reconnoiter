@@ -800,10 +800,10 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
     char *path, *infile, *snippet, *ro;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     path = (char *)xmlGetProp(node, (xmlChar *)"file");
-    snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
-    ro = (char *)xmlGetProp(node, (xmlChar *)"readonly");
     if(!path) continue;
-    if(!snippet) snippet = "false";
+    snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
+    include_nodes[i].snippet = (snippet && strcmp(snippet, "false"));
+    if(snippet) xmlFree(snippet);
     if(*path == '/') infile = strdup(path);
     else {
       char *cp;
@@ -817,15 +817,13 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
       strlcat(infile, path, PATH_MAX);
     }
     xmlFree(path);
+    ro = (char *)xmlGetProp(node, (xmlChar *)"readonly");
     if (ro && !strcmp(ro, "true")) include_nodes[i].ro = 1;
-    if (!strcmp(snippet, "false")) {
-      include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
-      include_nodes[i].snippet = 0;
-    }
-    else {
+    if (ro) xmlFree(ro);
+    if (include_nodes[i].snippet)
       include_nodes[i].doc = xmlParseEntity(infile);
-      include_nodes[i].snippet = 1;
-    }
+    else
+      include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
     if((include_nodes[i].doc) || (include_nodes[i].snippet)) {
       xmlNodePtr n;
       noit_conf_magic_mix(infile, include_nodes[i].doc, &(include_nodes[i]));
