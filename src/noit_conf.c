@@ -925,13 +925,16 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
+    const xmlChar *name;
+    int freename = 0;
     char *value;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(namespace && node->ns && !strcmp((char *)node->ns->prefix, namespace)) {
-      const xmlChar *name = node->name;
+      name = node->name;
       if(!strcmp((char *)name, "value")) {
         name = xmlGetProp(node, (xmlChar *)"name");
         if(!name) name = node->name;
+        else freename = 1;
       }
       value = (char *)xmlXPathCastNodeToString(node);
       noit_hash_replace(table,
@@ -940,10 +943,11 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
       xmlFree(value);
     }
     else if(!namespace && !node->ns) {
-      const xmlChar *name = node->name;
+      name = node->name;
       if(!strcmp((char *)name, "value")) {
         name = xmlGetProp(node, (xmlChar *)"name");
         if(!name) name = node->name;
+        else freename = 1;
       }
       value = (char *)xmlXPathCastNodeToString(node);
       noit_hash_replace(table,
@@ -951,6 +955,7 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
                         strdup(value), free, free);
       xmlFree(value);
     }
+    if(freename) xmlFree((void *)name);
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
