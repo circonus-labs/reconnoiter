@@ -51,7 +51,9 @@ noit_lua_crypto_newrsa(lua_State *L) {
   RSA *rsa = NULL;
 
   if(lua_gettop(L) > 0) {
-    if(lua_isstring(L,1)) {
+    if(lua_isnumber(L,1))
+      bits = lua_tointeger(L,1);
+    else {
       BIO *bio;
       size_t len;
       const char *key;
@@ -64,7 +66,6 @@ noit_lua_crypto_newrsa(lua_State *L) {
       lua_pushnil(L);
       return 1;
     }
-    bits = lua_tointeger(L,1);
   }
   if(lua_gettop(L) > 1) e = lua_tointeger(L,2);
 
