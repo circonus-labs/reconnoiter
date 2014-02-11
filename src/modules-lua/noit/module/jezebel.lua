@@ -179,7 +179,6 @@ function initiate(module, check)
     local headers = {}
     headers.Host = host
     local xml = constructXml(check)
-noit.log("error", xml)
     client:do_request("POST", uri, headers, xml)
     client:get_response()
 
