@@ -15,8 +15,8 @@ function onload(image)
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
     <parameter name="port"
                required="optional"
-               default="9300"
-               allowed="\d+">The TCP port can be specified to overide the default of 9300.</parameter>
+               default="9200"
+               allowed="\d+">The TCP port can be specified to overide the default of 9200.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -49,7 +49,7 @@ function fix_config(config)
     config.url = 'http:///_cluster/nodes/_local/stats?os=true&process=true&fs=true'
   end
   if not config.port then
-    config.port = 9300
+    config.port = 9200
   end
   return config
 end
@@ -82,7 +82,11 @@ function json_metric(check, prefix, o)
             else
                 local np = prefix and (prefix .. '`' .. k) or k
                 if prefix == "nodes" and v["hostname"] then
-                  np = prefix .. '`' .. v["hostname"]
+                  if check.config.url == nil or string.find(check.config.url, "/_local/") then
+                    np = prefix
+                  else
+                    np = prefix .. '`' .. v["hostname"]
+                  end
                 end
                 cnt = cnt + json_metric(check, np, v)
             end
