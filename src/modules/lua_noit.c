@@ -1875,6 +1875,26 @@ nl_hmac_sha1_encode(lua_State *L) {
 
   return 1;
 }
+static int
+nl_hmac_sha256_encode(lua_State *L) {
+  size_t messagelen, keylen, encoded_len;
+  const unsigned char *message, *key;
+  unsigned char* result;
+  char encoded[45];
+
+  if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.hmac_sha256_encode");
+  encoded_len = 44; /* the length of the base64 encoded HMAC-SHA256 result will always be 44 */
+
+  message = (const unsigned char *)lua_tolstring(L, 1, &messagelen);
+  key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
+
+  result = HMAC(EVP_sha256(), key, keylen, message, messagelen, NULL, NULL);
+  encoded_len = noit_b64_encode(result, 32, encoded, encoded_len); /* the raw HMAC-SHA256 result will always be 32 */
+
+  lua_pushlstring(L, (char *)encoded, encoded_len);
+
+  return 1;
+}
 static const char _hexchars[16] =
   {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 static int
@@ -3122,6 +3142,7 @@ static const luaL_Reg noitlib[] = {
   { "base64_encode", nl_base64_encode },
   { "utf8tohtml", nl_utf8tohtml },
   { "hmac_sha1_encode", nl_hmac_sha1_encode },
+  { "hmac_sha256_encode", nl_hmac_sha256_encode },
   { "md5_hex", nl_md5_hex },
   { "pcre", nl_pcre },
   { "gunzip", nl_gunzip },

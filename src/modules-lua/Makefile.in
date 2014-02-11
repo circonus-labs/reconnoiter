@@ -31,6 +31,7 @@ LUA=\
 	json.lua \
 	noit/timeval.lua \
 	noit/HttpClient.lua \
+	noit/AWSClient.lua \
 	noit/extras.lua \
 	noit/module/varnish.lua \
 	noit/module/smtp.lua \
@@ -50,7 +51,8 @@ LUA=\
 	noit/module/nginx.lua \
 	noit/module/dhcp.lua \
 	noit/module/pop3.lua \
-	noit/module/monit.lua
+	noit/module/monit.lua \
+	noit/module/cloudwatch.lua
 
 all:
 
