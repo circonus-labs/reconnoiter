@@ -161,9 +161,9 @@ int eventer_impl_propset(const char *key, const char *value) {
     /* used by eventer consumers */
     return 0;
   }
-  else if(!strcasecmp(key, "ssl_ctx_cache_expiry")) {
-    eventer_ssl_set_ssl_ctx_cache_expiry(atoi(value));
-    return 0;
+  else if(!strncmp(key, "ssl_", 4)) {
+    if(eventer_ssl_config(key, value) == 0) return 0;
+    /* if we return 1, we'll fall through to the error message */
   }
   noitL(noit_error, "Warning: unknown eventer config '%s'\n", key);
   return 0;

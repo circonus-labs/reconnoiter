@@ -63,7 +63,7 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>9300</para>
+                <para>9200</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -73,7 +73,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The TCP port can be specified to overide the default of 9300.</para>
+          <para>The TCP port can be specified to overide the default of 9200.</para>
         </listitem>
       </varlistentry>
     </variablelist>

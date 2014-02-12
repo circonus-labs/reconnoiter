@@ -68,6 +68,7 @@ void noit_hash_delete_all(noit_hash_table *h, NoitHashFreeFunc keyfree,
                           NoitHashFreeFunc datafree);
 void noit_hash_destroy(noit_hash_table *h, NoitHashFreeFunc keyfree,
                        NoitHashFreeFunc datafree);
+int noit_hash_size(noit_hash_table *h);
 
 /* This is a convenience function only.  It assumes that all keys and values
  * in the destination hash are strings and allocated with malloc() and

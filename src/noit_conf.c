@@ -71,6 +71,7 @@ struct include_node_t{
   xmlDocPtr doc;
   xmlNodePtr root;
   int snippet;
+  int ro;
   char path[255];
   int child_count;
   struct include_node_t *children;
@@ -135,13 +136,23 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
     char filename[500];
     int len, fd;
     struct stat st;
+    uid_t uid = 0;
+    gid_t gid = 0;
+
+    if(include_nodes[i].ro) {
+      write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
+      return;
+    }
 
     if(stat(include_nodes[i].path, &st) == 0) {
       mode = st.st_mode;
+      uid = st.st_uid;
+      gid = st.st_gid;
     }
 
     sprintf(filename, "%s.tmp", include_nodes[i].path);
     fd = open(filename, O_CREAT|O_TRUNC|O_WRONLY, mode);
+    fchown(fd, uid, gid);
 
     enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
     out = xmlOutputBufferCreateFd(fd, enc);
@@ -786,12 +797,13 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
     }
   }
   for(i=0; i<cnt; i++) {
-    char *path, *infile, *snippet;
+    char *path, *infile, *snippet, *ro;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     path = (char *)xmlGetProp(node, (xmlChar *)"file");
-    snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
     if(!path) continue;
-    if(!snippet) snippet = "false";
+    snippet = (char *)xmlGetProp(node, (xmlChar *)"snippet");
+    include_nodes[i].snippet = (snippet && strcmp(snippet, "false"));
+    if(snippet) xmlFree(snippet);
     if(*path == '/') infile = strdup(path);
     else {
       char *cp;
@@ -805,14 +817,13 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
       strlcat(infile, path, PATH_MAX);
     }
     xmlFree(path);
-    if (!strcmp(snippet, "false")) {
-      include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
-      include_nodes[i].snippet = 0;
-    }
-    else {
+    ro = (char *)xmlGetProp(node, (xmlChar *)"readonly");
+    if (ro && !strcmp(ro, "true")) include_nodes[i].ro = 1;
+    if (ro) xmlFree(ro);
+    if (include_nodes[i].snippet)
       include_nodes[i].doc = xmlParseEntity(infile);
-      include_nodes[i].snippet = 1;
-    }
+    else
+      include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
     if((include_nodes[i].doc) || (include_nodes[i].snippet)) {
       xmlNodePtr n;
       noit_conf_magic_mix(infile, include_nodes[i].doc, &(include_nodes[i]));
@@ -914,13 +925,16 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
   if(xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto out;
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
+    const xmlChar *name;
+    int freename = 0;
     char *value;
     node = xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(namespace && node->ns && !strcmp((char *)node->ns->prefix, namespace)) {
-      const xmlChar *name = node->name;
+      name = node->name;
       if(!strcmp((char *)name, "value")) {
         name = xmlGetProp(node, (xmlChar *)"name");
         if(!name) name = node->name;
+        else freename = 1;
       }
       value = (char *)xmlXPathCastNodeToString(node);
       noit_hash_replace(table,
@@ -929,10 +943,11 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
       xmlFree(value);
     }
     else if(!namespace && !node->ns) {
-      const xmlChar *name = node->name;
+      name = node->name;
       if(!strcmp((char *)name, "value")) {
         name = xmlGetProp(node, (xmlChar *)"name");
         if(!name) name = node->name;
+        else freename = 1;
       }
       value = (char *)xmlXPathCastNodeToString(node);
       noit_hash_replace(table,
@@ -940,6 +955,7 @@ void noit_conf_get_elements_into_hash(noit_conf_section_t section,
                         strdup(value), free, free);
       xmlFree(value);
     }
+    if(freename) xmlFree((void *)name);
   }
  out:
   if(pobj) xmlXPathFreeObject(pobj);
@@ -1391,9 +1407,14 @@ noit_conf_write_file(char **err) {
   xmlCharEncodingHandlerPtr enc;
   struct stat st;
   mode_t mode = 0640; /* the default */
+  uid_t uid = 0;
+  gid_t gid = 0;
 
-  if(stat(master_config_file, &st) == 0)
+  if(stat(master_config_file, &st) == 0) {
     mode = st.st_mode;
+    uid = st.st_uid;
+    gid = st.st_gid;
+  }
   snprintf(master_file_tmp, sizeof(master_file_tmp),
            "%s.tmp", master_config_file);
   unlink(master_file_tmp);
@@ -1404,6 +1425,8 @@ noit_conf_write_file(char **err) {
     if(err) *err = strdup(errstr);
     return -1;
   }
+  fchown(fd, uid, gid);
+
   enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
   out = xmlOutputBufferCreateFd(fd, enc);
   if(!out) {

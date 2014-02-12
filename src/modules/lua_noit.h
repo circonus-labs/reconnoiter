@@ -133,6 +133,7 @@ int noit_lua_dns_gc(lua_State *L);
 int noit_lua_dns_index_func(lua_State *L);
 int nl_dns_lookup(lua_State *L);
 int luaopen_noit(lua_State *L);
+int luaopen_crypto(lua_State *L);
 int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 int luaopen_bit(lua_State *L); /* from lua_bit.c */
 int luaopen_snmp(lua_State *L); /* from lua_snmp.c */

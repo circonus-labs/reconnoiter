@@ -1,8 +1,7 @@
 <?xml version="1.0"?>
 <section>
   <title>keynote</title>
-  <para>The keynote module fetches telemetry from Keynote(TM) API calls.</para>
-  <para>This module rides on the http module and provides a secondary phase of JSON parsing transformation that turns the Keynote data into something useful.</para>
+  <para>The keynote module fetches telemetry from Keynote(TM) Pulse API.</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -13,7 +12,7 @@
     <varlistentry>
       <term>object</term>
       <listitem>
-        <para>noit.module.keynote</para>
+        <para>noit.module.keynote_pulse</para>
       </listitem>
     </varlistentry>
   </variablelist>
@@ -36,7 +35,7 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>https://api.keynote.com/keynote/api/</para>
+                <para>https://datapulse.keynote.com/</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -52,7 +51,7 @@
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>api_key</term>
+        <term>user</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -68,85 +67,19 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The Keynote-issued API access key.</para>
+          <para>The Keynote-issued Pulse API username.</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>transpagelist</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>\d+(?:,\d+)*</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>A list of pages.</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>pagecomponent</term>
+        <term>password</term>
         <listitem>
           <variablelist>
             <varlistentry>
               <term>required</term>
               <listitem>
                 <para>required</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>.</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>Page component ID.</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>slotid_list</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>required</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>\d+(?:,\d+)*</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>A list of Keynote slot ids.</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>slot_alias_(\d+)</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -156,30 +89,53 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>A human readable alias for a given slot id.</para>
+          <para>The Keynote-issued Pulse API password.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>agreement_id</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>\d+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The Keynote-issued agreement_id for the service.</para>
         </listitem>
       </varlistentry>
     </variablelist>
   </section>
   <example>
     <title>Checking Keynote services.</title>
-    <para>This example checks two slots: 10 and 11.</para>
+    <para>This example checks agreement_id: 1.</para>
     <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
             &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
           &lt;/loader&gt;
-          &lt;module loader="lua" name="keynote" object="noit.module.keynote"/&gt;
+          &lt;module loader="lua" name="keynote_pulse" object="noit.module.keynote_pulse"/&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
-          &lt;keynote target="api.keynote.com" module="keynote"&gt;
+          &lt;keynote target="datapulse.keynote.com" module="keynote_pulse"&gt;
             &lt;config&gt;
-              &lt;api_key&gt;917c1660-5136-11e3-afd7-7cd1c3dcddf7&lt;/api_key&gt;
+              &lt;user&gt;bob&lt;/user&gt;
+              &lt;password&gt;bobspassword&lt;/password&gt;
             &lt;/config&gt;
             &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de" period="300000"&gt;
               &lt;config&gt;
-                &lt;slotid_list&gt;10,11&lt;/slotid_list&gt;
+                &lt;agreement_id&gt;1&lt;/agreement_id&gt;
               &lt;/config&gt;
             &lt;/check&gt;
           &lt;/keynote&gt;

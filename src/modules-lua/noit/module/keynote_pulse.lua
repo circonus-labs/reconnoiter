@@ -1,4 +1,4 @@
--- Copyright (c) 2013, Circonus, Inc.
+-- Copyright (c) 2014, Circonus, Inc.
 -- All rights reserved.
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -33,52 +33,46 @@ function onload(image)
   image.xml_description([=[
 <module>
   <name>keynote</name>
-  <description><para>The keynote module fetches telemetry from Keynote(TM) API calls.</para>
-  <para>This module rides on the http module and provides a secondary phase of JSON parsing transformation that turns the Keynote data into something useful.</para>
+  <description><para>The keynote module fetches telemetry from Keynote(TM) Pulse API.</para>
   </description>
   <loader>lua</loader>
-  <object>noit.module.keynote</object>
+  <object>noit.module.keynote_pulse</object>
   <checkconfig>
     <parameter name="base_url"
                required="optional"
-               default="https://api.keynote.com/keynote/api/"
+               default="https://datapulse.keynote.com/"
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
-    <parameter name="api_key"
+    <parameter name="user"
                required="required"
-               allowed=".+">The Keynote-issued API access key.</parameter>
-    <parameter name="transpagelist"
-               required="optional"
-               allowed="\d+(?:,\d+)*">A list of pages.</parameter>
-    <parameter name="pagecomponent"
+               allowed=".+">The Keynote-issued Pulse API username.</parameter>
+    <parameter name="password"
                required="required"
-               allowed=".">Page component ID.</parameter>
-    <parameter name="slotid_list"
+               allowed=".+">The Keynote-issued Pulse API password.</parameter>
+    <parameter name="agreement_id"
                required="required"
-               allowed="\d+(?:,\d+)*">A list of Keynote slot ids.</parameter>
-    <parameter name="slot_alias_(\d+)"
-               required="optional"
-               allowed=".+">A human readable alias for a given slot id.</parameter>
+               allowed="\d+">The Keynote-issued agreement_id for the service.</parameter>
   </checkconfig>
   <examples>
     <example>
       <title>Checking Keynote services.</title>
-      <para>This example checks two slots: 10 and 11.</para>
+      <para>This example checks agreement_id: 1.</para>
       <programlisting><![CDATA[
       <noit>
         <modules>
           <loader image="lua" name="lua">
             <config><directory>/opt/reconnoiter/libexec/modules-lua/?.lua</directory></config>
           </loader>
-          <module loader="lua" name="keynote" object="noit.module.keynote"/>
+          <module loader="lua" name="keynote_pulse" object="noit.module.keynote_pulse"/>
         </modules>
         <checks>
-          <keynote target="api.keynote.com" module="keynote">
+          <keynote target="datapulse.keynote.com" module="keynote_pulse">
             <config>
-              <api_key>917c1660-5136-11e3-afd7-7cd1c3dcddf7</api_key>
+              <user>bob</user>
+              <password>bobspassword</password>
             </config>
             <check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de" period="300000">
               <config>
-                <slotid_list>10,11</slotid_list>
+                <agreement_id>1</agreement_id>
               </config>
             </check>
           </keynote>
@@ -92,6 +86,8 @@ function onload(image)
   return 0
 end
 
+local next_allowed_run = {}
+
 function init(module)
   return 0
 end
@@ -102,46 +98,72 @@ end
 
 local HttpClient = require 'noit.HttpClient'
 
-local component = { U="User Time", N="Cached Measurement Time", Y="Bytes Downloaded",
-  M="Objects Count", H="Throughput", A="Connection Count", D="DNS", I="Initial Connection",
-  J="DOM Interactive Time", W="DOM Load Time", V="DOM Complete Time", K="DOM Content Load Time",
-  G="DOM Unload Time", F="First Byte Time", B="Base Page Time", S="SSL Time", L="Client Time",
-  R="Redirection Time", E="Request Time", C="Conent Time", X="IE Paint Start Time", O="Custom 1",
-  P="Custom 2", Q="Custom 3" }
-component["@"]="Time to Interactive"
-
-function json_to_metrics(check, doc)
+function xml_to_metrics(check, doc)
     local services = 0
+    local agents = {}
+    local slots = {}
+
     check.available()
-    local data = doc:document()
-    local cname = component[check.config.pagecomponent] or check.config.pagecomponent
-    for i,v in pairs(data.measurement) do
-      local alias = check.config['slot_alias_' .. v.id]
-      if alias ~= nil then
-        check.metric_double(alias .. ' ' .. cname, tonumber(v.bucket_data[0].perf_data.value))
-      else
-        check.metric_double(v.id .. ' ' .. cname, tonumber(v.bucket_data[0].perf_data.value))
-      end
-      services = services + 1
+
+    local result
+    for result in doc:xpath("//TXN_META_DATA/AGENT_META_DATA") do
+        agents[result:attr("agent_id")] = result:attr("description")
     end
-    check.metric_uint32("services", services)
-    if services > 0 then check.good() else check.bad() end
-    check.status("services=" .. services)
+    for result in doc:xpath("//TXN_META_DATA/SLOT_META_DATA") do
+        slots[result:attr("slot_id")] = result:attr("slot_alias")
+    end
+
+    for result in doc:xpath("//DP_TXN_MEASUREMENTS/TXN_MEASUREMENT") do
+        local slot = slots[result:attr("slot")] or "unknown slot"
+        local agent = agents[result:attr("agent")] or "unknown agent"
+        local prefix = slot .. '`' .. agent .. '`'
+        for summary in doc:xpath("TXN_SUMMARY", result) do
+            for i,key in ipairs({"delta_user_msec", "delta_msec",
+                                 "content_errors", "estimated_cache_delta_msec",
+                                 "resp_bytes", "element_count"}) do
+                check.metric_uint32(prefix .. 'summary`' .. key, tonumber(summary:attr(key)))
+            end
+            break
+        end
+        local page
+        for page in doc:xpath("TXN_PAGE", result) do
+            local pagetxn
+            prefix = slot .. '`' .. agent .. '`page' .. page:attr("page_seq") .. '`'
+            for pagetxn in doc:xpath("TXN_PAGE_PERFORMANCE", page) do
+                for i,key in ipairs({"start_msec", "system_delta",
+                                     "connect_delta", "dns_delta",
+                                     "element_delta", "first_packet_delta",
+                                     "request_delta", "remain_packets_delta"}) do
+                    check.metric_uint32(prefix .. key, tonumber(pagetxn:attr(key)))
+                end
+            end
+        end
+    end
 end
 
 function initiate(module, check)
+    if next_allowed_run[check.checkid] and
+       noit.timeval.seconds(noit.timeval.now()) < next_allowed_run[check.checkid] then
+      check.bad()
+      check.unavailable()
+      check.status("internally rate limited")
+      return
+    end
     local config = check.interpolate(check.config)
-    local url = config.base_url or 'https://api.keynote.com/keynote/api/'
+    local url = config.base_url or 'https://datapulse.keynote.com/'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
-    local transpagelist = config.transpagelist
-    local pagecomponent = config.pagecomponent or "T"
     local port
     local use_ssl = false
+    local ip = check.target_ip
+
+    local dns = noit:dns()
+    local r = dns:lookup(host or 'datapulse.keynote.com')
+    if r and r.a ~= nil then ip = r.a end 
 
     -- assume the worst.
     check.bad()
     check.unavailable()
-    if check.target_ip == nil then return end
+    if ip == nil then return end
 
     if host == nil then host = check.target end
     if schema == nil then
@@ -165,11 +187,7 @@ function initiate(module, check)
         port = newport
     end
 
-    uri = uri .. 'getgraphdata?api_key=' .. config.api_key .. '&format=json&slotidlist=' .. config.slotid_list .. '&timemode=relative&relativehours=300&bucket=300&timezone=UTC'
-    uri = uri .. '&pagecomponent=' .. pagecomponent
-    if transpagelist ~= nil then
-      uri = uri .. '&transpagelist=' .. transpagelist
-    end
+    uri = uri .. 'dps/xmlpost?delta_time=300&service=TRANSACTION&meta_data=true&agreement_id=' .. config.agreement_id
 
     local output = ''
 
@@ -183,9 +201,10 @@ function initiate(module, check)
     local headers = {}
     headers.Host = host
     headers.Accept = '*/*'
+    headers.Authorization = "Basic " .. noit.base64_encode(config.user .. ':' .. config.password)
 
     local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target_ip, port, use_ssl, host, "TLSv1")
+    local rv, err = client:connect(ip, port, use_ssl, host, "TLSv1")
     if rv ~= 0 then
         check.status(err or "unknown error")
         return
@@ -193,6 +212,7 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response()
-    json_to_metrics(check, noit.parsejson(output))
+    next_allowed_run[check.checkid] = noit.timeval.seconds(noit.timeval.now()) + 60
+    xml_to_metrics(check, noit.parsexml(output))
 end
 

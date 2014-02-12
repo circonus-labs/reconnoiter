@@ -1214,6 +1214,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   luaopen_pack(L);
   luaopen_bit(L);
   luaopen_noit(L);
+  luaopen_crypto(L);
 
   lua_newtable(L);
   lua_setglobal(L, "noit_coros");

@@ -157,6 +157,7 @@ static int
 noit_lua_socket_close(lua_State *L) {
   noit_lua_resume_info_t *ci;
   eventer_t *eptr, e;
+  struct nl_slcl *cl;
   int newmask;
 
   eptr = lua_touserdata(L, lua_upvalueindex(1));
@@ -171,7 +172,9 @@ noit_lua_socket_close(lua_State *L) {
   noit_lua_check_deregister_event(ci, e, 0);
   eventer_remove_fd(e->fd);
   e->opset->close(e->fd, &newmask, e);
+  cl = e->closure;
   eventer_free(e);
+  if(cl && cl->free) cl->free(cl);
   return 0;
 }
 

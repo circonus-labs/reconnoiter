@@ -112,7 +112,13 @@ function constructXml(check)
   if check.module == "snmp" then
     for key, value in pairs(check.config) do
       value = check.interpolate(value):gsub("^%s*(.-)%s*$", "%1")
-      if string.sub(key, 1, 4) == "oid_" then
+      if key == "walk" then
+        if string.find(value, "^%d") then
+          value = "." .. value
+        end
+        local converted = snmp.convert_mib(value)
+        config:addchild("walk"):contents(converted)
+      elseif string.sub(key, 1, 4) == "oid_" then
         if string.find(value, "^%d") then
           value = "." .. value
         end

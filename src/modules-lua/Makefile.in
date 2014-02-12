@@ -38,6 +38,7 @@ LUA=\
 	noit/module/haproxy.lua \
 	noit/module/jezebel.lua \
 	noit/module/keynote.lua \
+	noit/module/keynote_pulse.lua \
 	noit/module/resmon.lua \
 	noit/module/resmon/elasticsearch.lua \
 	noit/module/memcached.lua \

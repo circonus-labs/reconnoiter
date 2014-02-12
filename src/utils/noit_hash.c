@@ -222,6 +222,11 @@ void noit_hash_destroy(noit_hash_table *h, NoitHashFreeFunc keyfree, NoitHashFre
   ck_ht_destroy(&h->ht);
 }
 
+int noit_hash_size(noit_hash_table *h) {
+  if(h == NULL) return 0;
+  return h->size;
+}
+
 void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *k;

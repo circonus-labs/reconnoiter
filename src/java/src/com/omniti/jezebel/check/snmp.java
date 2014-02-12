@@ -45,6 +45,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 import org.snmp4j.PDU;
 import org.snmp4j.ScopedPDU;
@@ -74,6 +75,10 @@ import org.snmp4j.smi.OID;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
+import org.snmp4j.util.DefaultPDUFactory;
+import org.snmp4j.util.TreeUtils;
+import org.snmp4j.util.TreeEvent;
+
 
 public class snmp implements JezebelCheck {
   public snmp() { }
@@ -103,6 +108,7 @@ public class snmp implements JezebelCheck {
       final String context_engine        = config.remove("context_engine");
       final String security_name         = config.remove("security_name");
       final String context_name          = config.remove("context_name");
+      final String walk_base             = config.remove("walk");
       final String separate_queries      = config.remove("separate_queries");
       /* Assigned Later */
       boolean send_separate_queries = false;
@@ -204,6 +210,9 @@ public class snmp implements JezebelCheck {
         snmp.listen();
         Iterator it = oids.entrySet().iterator();
         Exception ret = null;
+        if (walk_base != null) {
+          ret = walkHard(snmp, target, context_engine, context_name, walk_base, rr);
+        }
         if (send_separate_queries == true) {
           ret = processIndividually(snmp, target, context_engine, context_name, it, oid_hashmap, rr);
         }
@@ -230,6 +239,33 @@ public class snmp implements JezebelCheck {
         rr.set("jezebel_status", error_msg);
       }
     }
+  }
+  private Exception walkHard(Snmp snmp, Target target, String context_engine, String context_name,
+                             String oid_string, ResmonResult rr) {
+    try {
+      OID walk_oid = new OID(oid_string);
+      TreeUtils treeUtils = new TreeUtils(snmp, new DefaultPDUFactory());      
+      List<TreeEvent> events = treeUtils.getSubtree(target, walk_oid);
+      if(events == null || events.size() == 0) return null;
+      for (TreeEvent event : events) {
+        if(event != null){
+          if (event.isError()) continue;
+          VariableBinding[] varBindings = event.getVariableBindings();
+          if(varBindings == null || varBindings.length == 0) continue;
+          for (VariableBinding vb : varBindings) {
+            OID oid = vb.getOid();
+            String value = vb.toValueString();
+            if (value != null && !value.equals("Null")) {
+              coerceMetric(oid.toString(), vb.toValueString(), null, rr);
+            }
+          }
+        }
+      }
+    }
+    catch(Exception e) {
+      return e;
+    }
+    return null;
   }
   private Exception processAll(Snmp snmp, Target target, String context_engine, String context_name, 
                                Iterator it, HashMap oid_hashmap, ResmonResult rr) {
