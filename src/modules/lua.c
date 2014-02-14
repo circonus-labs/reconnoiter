@@ -1286,8 +1286,10 @@ noit_lua_loader_load(noit_module_loader_t *loader,
     if(L) lua_close(L);
     free(m->hdr.name);
     free(m->hdr.description);
-    free(lmc->pending);
-    free(lmc);
+    if(lmc) {
+      free(lmc->pending);
+      free(lmc);
+    }
     /* FIXME: We leak the opaque_handler in the module here... */
     free(m);
     return NULL;
