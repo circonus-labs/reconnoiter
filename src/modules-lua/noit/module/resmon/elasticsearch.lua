@@ -11,7 +11,7 @@ function onload(image)
   <checkconfig>
     <parameter name="url"
                required="required"
-               default="http:///_cluster/nodes/_local/stats?os=true&amp;process=true&amp;fs=true"
+               default="http:///_nodes/_local/stats?os=true&amp;process=true&amp;fs=true"
                allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
     <parameter name="port"
                required="optional"
@@ -44,9 +44,11 @@ function onload(image)
   return 0
 end
 
-function fix_config(config)
+function fix_config(inconfig)
+  local config = {}
+  for k,v in pairs(inconfig) do config[k] = v end
   if not config.url then
-    config.url = 'http:///_cluster/nodes/_local/stats?os=true&process=true&fs=true'
+    config.url = 'http:///_nodes/_local/stats?os=true&process=true&fs=true'
   end
   if not config.port then
     config.port = 9200
@@ -81,11 +83,11 @@ function json_metric(check, prefix, o)
             elseif k == "_value" then has_value = true
             else
                 local np = prefix and (prefix .. '`' .. k) or k
-                if prefix == "nodes" and v["hostname"] then
+                if prefix == "nodes" and (v["hostname"] or v["host"]) then
                   if check.config.url == nil or string.find(check.config.url, "/_local/") then
                     np = prefix
                   else
-                    np = prefix .. '`' .. v["hostname"]
+                    np = prefix .. '`' .. (v["hostname"] or v["host"])
                   end
                 end
                 cnt = cnt + json_metric(check, np, v)
@@ -118,7 +120,6 @@ function json_to_metrics(check, doc)
     if data ~= nil then
       services = json_metric(check, nil, data)
     end
-    check.metric_uint32("services", services)
     if services > 0 then check.good() else check.bad() end
     check.status("services=" .. services)
 end

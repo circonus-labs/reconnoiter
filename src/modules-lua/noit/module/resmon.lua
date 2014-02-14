@@ -30,6 +30,9 @@
 
 module(..., package.seeall)
 
+local HttpClient = require 'noit.HttpClient'
+local helper = {}
+
 function onload(image)
   image.xml_description([=[
 <module>
@@ -83,15 +86,17 @@ function onload(image)
   </examples>
 </module>
 ]=]);
+
+  if image.name() == "resmon" then return 0 end
+  local status, err = pcall(function () helper = require ('noit.module.resmon.' .. image.name()) end)
+  if not status then
+    noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err)
+    return -1
+  end
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
-local helper = nil
-
 function init(module)
-  local status, err = pcall(function () helper = require ('noit.module.resmon.' .. module.name()) end)
-  if not status then helper = nil end
   return 0
 end
 
