@@ -91,7 +91,7 @@ function onload(image)
   local status, err = pcall(function () helper = require ('noit.module.resmon.' .. image.name()) end)
   if not status then
     noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err)
-    return -1
+    return 0
   end
   return 0
 end
