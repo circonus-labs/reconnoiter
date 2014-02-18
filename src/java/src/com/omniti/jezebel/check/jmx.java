@@ -35,11 +35,11 @@ package com.omniti.jezebel.check;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.Hashtable;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.MBeanServerConnection;
 import javax.management.MBeanInfo;
@@ -64,6 +64,9 @@ import com.omniti.jezebel.JezebelCheck;
 import com.omniti.jezebel.Jezebel;
 
 public class jmx implements JezebelCheck {
+    private static ConcurrentHashMap<String, ConcurrentHashMap<ObjectName, ArrayList<String>>> attribute_cache = 
+        new ConcurrentHashMap<String, ConcurrentHashMap<ObjectName, ArrayList<String>>>();
+
     public jmx() {}
     public void perform(Map<String,String> check,
                         Map<String,String> config,
@@ -89,50 +92,90 @@ public class jmx implements JezebelCheck {
             rr.set("default_domain", mbsc.getDefaultDomain());
             rr.set("mbean_count", mbsc.getMBeanCount());
 
-            final Set<ObjectName> allObjectNames = mbsc.queryNames(null, null);
+	    ConcurrentHashMap<ObjectName, ArrayList<String>> cache = null;
+	    if ( ! attribute_cache.containsKey(check.get("name")) ) {
+                Set<ObjectName> allObjectNames = mbsc.queryNames(null, null);
 
-            ArrayList<String> domains = new ArrayList<String>();
-            if ( mbean_domains != null ) {
-                domains = new ArrayList<String>(Arrays.asList(mbean_domains.split("\\s+")));
-            }
-
-            for (ObjectName objectName : allObjectNames) {
-                if ( ! domains.isEmpty() && ! domains.contains(objectName.getDomain()) ) {
-                    continue;
+                ArrayList<String> domains = new ArrayList<String>();
+                if ( mbean_domains != null ) {
+                    domains = new ArrayList<String>(Arrays.asList(mbean_domains.split("\\s+")));
                 }
 
-                MBeanInfo mbi = mbsc.getMBeanInfo(objectName);
-                MBeanAttributeInfo[] attribs = mbi.getAttributes();
-                String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
+                cache = new ConcurrentHashMap<ObjectName, ArrayList<String>>();
 
-                String[] attributes = new String[attribs.length];
-                int i = 0;
-                for (MBeanAttributeInfo attr : attribs) {
-                        attributes[i] = attr.getName();
-                        ++i;
-                }
-
-                // Some servers will give back attributes that aren't serializable and will
-                // throw errors when we try to get their values.  if we can't get all the values
-                // in one pass, try to get them individually
-                try {
-                    AttributeList al = mbsc.getAttributes(objectName, attributes);
-                    for (Attribute a : al.asList()) {
-                        getMetric(oname, a.getName(), a.getValue(), rr);
+                for (ObjectName objectName : allObjectNames) {
+                    if ( ! domains.isEmpty() && ! domains.contains(objectName.getDomain()) ) {
+                        continue;
                     }
-                }
-                catch (Exception e) {
-                    for (String attr : attributes) {
-                        try {
-                            Object o = mbsc.getAttribute(objectName, attr);
-                            getMetric(oname, attr, o, rr);
+
+                    String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
+
+                    MBeanInfo mbi = mbsc.getMBeanInfo(objectName);
+                    MBeanAttributeInfo[] attribs = mbi.getAttributes();
+                    ArrayList<String> attributes = new ArrayList<String>(attribs.length);
+
+                    for (MBeanAttributeInfo attr : attribs) {
+                        String type = attr.getType();
+
+                        // Whitelist the types of attributes we will pull to only allow "Open MBeans" as defined here:
+                        // http://www.oracle.com/technetwork/java/javase/tech/best-practices-jsp-136021.html#mozTocId817742
+                        if (
+                            type != null &&
+                            (
+                                    type.equals("int") 
+                                ||  type.equals("long")
+                                ||  type.equals("double")
+                                ||  type.equals("boolean")
+                                ||  type.equals("java.lang.String")
+                                ||  type.equals("java.lang.Date")
+                                ||  type.equals("java.lang.BigDecimal")
+                                ||  type.equals("java.lang.BigInteger")
+                                ||  type.equals("java.lang.Byte")
+                                ||  type.equals("java.lang.Short")
+                                ||  type.equals("java.lang.Integer")
+                                ||  type.equals("java.lang.Long")
+                                ||  type.equals("java.lang.Float")
+                                ||  type.equals("java.lang.Double")
+                                ||  type.equals("java.lang.Character")
+                                ||  type.equals("java.lang.Boolean")
+                                ||  type.equals("java.lang.Void")
+                                ||  type.startsWith("javax.management.openmbean")
+                            )
+                        ) {
+                            attributes.add(attr.getName());
                         }
-                        catch (Exception ignore) {}
                     }
+                    cache.put(objectName, attributes);
+                    getAttributeValues(mbsc, oname, objectName, attributes, rr);
+                }
+
+                // Don't cache anything for test checks, there is no current good way to identify these
+                // though so this might change to be something other than the name
+                if ( ! check.get("name").startsWith("c_test") ) {
+                    attribute_cache.put(check.get("name"), cache);
+                }
+            }
+            else {
+                cache = attribute_cache.get(check.get("name"));
+                for (ObjectName objectName : cache.keySet()) {
+                    String oname = objectName.getDomain() + ":" + objectName.getCanonicalKeyPropertyListString();
+                    getAttributeValues(mbsc, oname, objectName, cache.get(objectName), rr);
                 }
             }
             connector.close();
+        }
+        catch (Exception e) {
+            Jezebel.exceptionTraceLogger(e);
+            rr.set("jezebel_status", e.getMessage());
+        }
+    }
 
+    private void getAttributeValues (MBeanServerConnection mbsc, String oname, ObjectName objectName, ArrayList<String> attributes, ResmonResult rr) {
+        try {
+            AttributeList al = mbsc.getAttributes(objectName, attributes.toArray(new String[]{}));
+            for (Attribute a : al.asList()) {
+                getMetric(oname, a.getName(), a.getValue(), rr);
+            }
         }
         catch (Exception e) {
             Jezebel.exceptionTraceLogger(e);
