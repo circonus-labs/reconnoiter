@@ -318,6 +318,7 @@ _noit_check_log_bundle_metric(noit_log_stream_t ls, Metric *metric, metric_t *m)
 static int
 noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
+  static char *ip_str = "ip";
   char uuid_str[256*3+37];
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   noit_hash_iter iter2 = NOIT_HASH_ITER_ZERO;
@@ -351,6 +352,12 @@ noit_check_log_bundle_serialize(noit_log_stream_t ls, noit_check_t *check) {
   bundle.has_timeout = noit_true;
   bundle.timeout = check->timeout;
 
+  bundle.n_metadata = 1;
+  bundle.metadata = malloc(sizeof(Metadata*));
+  bundle.metadata[0] = malloc(sizeof(Metadata));
+  metadata__init(bundle.metadata[0]);
+  bundle.metadata[0]->key = ip_str;
+  bundle.metadata[0]->value = check->target_ip;
 
   // Just count
   while(noit_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
