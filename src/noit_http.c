@@ -523,11 +523,11 @@ noit_http_request_finalize_headers(noit_http_request *req, noit_boolean *err) {
     req->current_offset++;
     inset = req->current_offset - req->current_input->start;
     if(memcmp(req->current_input->buff + req->current_input->start,
-              REQ_PAT + (REQ_PATSIZE - inset), inset) == 0 &&
+              &REQ_PAT[REQ_PATSIZE - inset], inset) == 0 &&
        memcmp(req->current_input->prev->buff +
                 req->current_input->prev->start +
                 req->current_input->prev->size - REQ_PATSIZE + inset,
-              REQ_PAT + inset,
+              &REQ_PAT[inset],
               REQ_PATSIZE - inset) == 0) goto match;
   }
   start = MAX(req->current_offset - REQ_PATSIZE, req->current_input->start);
