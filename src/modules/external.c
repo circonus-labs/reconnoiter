@@ -310,7 +310,9 @@ static int external_handler(eventer_t e, int mask,
     }
     while(data->cr->stderrlen_sofar < (int)data->cr->stderrlen) {
       int stderrlen = (int)data->cr->stderrlen;
-      if(stderrlen > data->cr->stderrlen_sofar) goto widowed; /* overflow */
+      if((stderrlen - data->cr->stderrlen_sofar) < 0 ||
+         (size_t)(stderrlen - data->cr->stderrlen_sofar) > data->cr->stderrlen)
+        goto widowed; /* overflow */
       while((inlen =
                read(e->fd,
                     data->cr->stderrbuff + data->cr->stderrlen_sofar,
