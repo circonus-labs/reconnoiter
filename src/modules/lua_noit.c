@@ -1859,7 +1859,8 @@ static int
 nl_hmac_sha1_encode(lua_State *L) {
   size_t messagelen, keylen, encoded_len;
   const unsigned char *message, *key;
-  unsigned char* result;
+  unsigned char result[EVP_MAX_MD_SIZE+1];
+  unsigned int md_len;
   char encoded[29];
 
   if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.hmac_sha1_encode");
@@ -1868,8 +1869,8 @@ nl_hmac_sha1_encode(lua_State *L) {
   message = (const unsigned char *)lua_tolstring(L, 1, &messagelen);
   key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
 
-  result = HMAC(EVP_sha1(), key, keylen, message, messagelen, NULL, NULL);
-  encoded_len = noit_b64_encode(result, 20, encoded, encoded_len); /* the raw HMAC-SHA1 result will always be 20 */
+  HMAC(EVP_sha1(), key, keylen, message, messagelen, result, &md_len);
+  encoded_len = noit_b64_encode(result, md_len, encoded, encoded_len);
 
   lua_pushlstring(L, (char *)encoded, encoded_len);
 
@@ -1879,7 +1880,8 @@ static int
 nl_hmac_sha256_encode(lua_State *L) {
   size_t messagelen, keylen, encoded_len;
   const unsigned char *message, *key;
-  unsigned char* result;
+  unsigned char result[EVP_MAX_MD_SIZE+1];
+  unsigned int md_len;
   char encoded[45];
 
   if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.hmac_sha256_encode");
@@ -1888,8 +1890,8 @@ nl_hmac_sha256_encode(lua_State *L) {
   message = (const unsigned char *)lua_tolstring(L, 1, &messagelen);
   key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
 
-  result = HMAC(EVP_sha256(), key, keylen, message, messagelen, NULL, NULL);
-  encoded_len = noit_b64_encode(result, 32, encoded, encoded_len); /* the raw HMAC-SHA256 result will always be 32 */
+  HMAC(EVP_sha256(), key, keylen, message, messagelen, result, &md_len);
+  encoded_len = noit_b64_encode(result, md_len, encoded, encoded_len);
 
   lua_pushlstring(L, (char *)encoded, encoded_len);
 
