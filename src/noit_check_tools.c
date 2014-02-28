@@ -264,7 +264,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
           count += populate_stats_from_resmon_formatted_json(check, s, item, keybuff);
         }
       }
-      if(prefix && has_type && has_value &&
+      if(prefix && has_type &&
          json_object_is_type(has_type, json_type_string)) {
         const char *type_str = json_object_get_string(has_type);
 
@@ -285,7 +285,12 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
   } \
 } while(0)
 
-        if(json_object_is_type(has_value, json_type_array)) {
+
+        if (has_value == NULL) {
+          noit_stats_set_metric_coerce(check, s, prefix, (metric_type_t)*type_str, NULL);
+          count++;
+        }
+        else if(json_object_is_type(has_value, json_type_array)) {
           int i, alen = json_object_array_length(has_value);
           for(i=0;i<alen;i++) {
             struct json_object *item = json_object_array_get_idx(has_value, i);
