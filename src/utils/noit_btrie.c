@@ -91,11 +91,11 @@ static inline int calc_bits_in_commons(btrie_node *node,
                                        unsigned char match_len) {
  /* Largest common mask */
   int i;
-  u_int32_t prefix_len = 0;
-  const int max_prefix_len = MIN(match_len, node->prefix_len);
+  uint32_t prefix_len = 0;
+  const unsigned int max_prefix_len = (match_len > node->prefix_len) ? match_len : node->prefix_len;
 
   for (i = 0; i < MAXBITS/32; i++) {
-    u_int32_t mask = 0, trymask;
+    uint32_t mask = 0, trymask;
 
     while(mask != 0xffffffff && prefix_len < max_prefix_len) {
       trymask = (mask >> 1) | 0x80000000;
@@ -127,7 +127,6 @@ del_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
       node->incidental = 1;
       if(node->bit[0] == NULL || node->bit[1] == NULL) {
         /* collapse (even if both are null) */
-        assert(parent);
         parent->bit[BIT_AT(key, parent->prefix_len+1)] =
           node->bit[ (node->bit[0] == NULL) ? 1 : 0 ];
         node->bit[0] = node->bit[1] = NULL;
@@ -183,9 +182,8 @@ noit_find_bpm_route_ipv6(btrie *tree, struct in6_addr *a, unsigned char *pl) {
 void *
 noit_find_bpm_route_ipv4(btrie *tree, struct in_addr *a, unsigned char *pl) {
   btrie_node *node = NULL;
-  uint32_t ia[1];
-  ia[0] = ntohl(a->s_addr);
-  find_bpm_route(tree, ia, 32, NULL, &node);
+  uint32_t ia = ntohl(a->s_addr);
+  find_bpm_route(tree, &ia, 32, NULL, &node);
   if(node && pl) *pl = node->prefix_len;
   if(node && node->data) return node->data;
   return NULL;
@@ -202,9 +200,8 @@ noit_del_route_ipv6(btrie *tree, struct in6_addr *a, unsigned char prefix_len,
 int
 noit_del_route_ipv4(btrie *tree, struct in_addr *a, unsigned char prefix_len,
                void (*f)(void *)) {
-  uint32_t ia[1];
-  ia[0] = ntohl(a->s_addr);
-  return del_route(tree, ia, prefix_len, f);
+  uint32_t ia = ntohl(a->s_addr);
+  return del_route(tree, &ia, prefix_len, f);
 }
 
 void noit_add_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
@@ -257,7 +254,7 @@ void noit_add_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
   /* here we must be inserting between node and down */
   bits_in_common = calc_bits_in_commons(down, key, prefix_len);
   parent = node;
-  assert(bits_in_common <= prefix_len);
+  if(bits_in_common > prefix_len) bits_in_common = prefix_len;
   assert(!parent || parent->prefix_len < prefix_len);
 
   /* we either need to make a new branch above down and newnode
@@ -292,16 +289,24 @@ void noit_add_route(btrie *tree, uint32_t *key, unsigned char prefix_len,
 
 void noit_add_route_ipv4(btrie *tree, struct in_addr *a,
                     unsigned char prefix_len, void *data) {
-  uint32_t ia[1];
-  ia[0] = ntohl(a->s_addr);
+  uint32_t ia = ntohl(a->s_addr), mask;
   assert(prefix_len <= 32);
-  noit_add_route(tree, ia, prefix_len, data);
+  mask = (prefix_len == 32) ? 0xffffffff : ~(0xffffffff >> prefix_len);
+  ia &= mask;
+  noit_add_route(tree, &ia, prefix_len, data);
 }
 void noit_add_route_ipv6(btrie *tree, struct in6_addr *a,
                     unsigned char prefix_len, void *data) {
-  uint32_t ia[4], i;
+  uint32_t ia[4], i, mask;
+  int splen;
   memcpy(ia, &a->s6_addr, sizeof(ia));
-  for(i=0;i<4;i++) ia[i] = ntohl(ia[i]);
+  for(i=0;i<4;i++) {
+    splen = prefix_len - i*32;
+    mask = 0;
+    if(splen >= 0)
+      mask = (splen >= 32) ? 0xffffffff : ~(0xffffffff >> splen);
+    ia[i] = ntohl(ia[i]) & mask;
+  }
   assert(prefix_len <= 128);
   noit_add_route(tree, ia, prefix_len, data);
 }
