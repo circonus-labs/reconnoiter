@@ -233,9 +233,9 @@ int write_out_backing_fd(int ofd, int bfd) {
 static void finish_procs() {
   struct proc_state *ps;
   process_siglist();
-  noitL(noit_error, "%d done procs to cleanup\n", done_procs.size);
+  noitL(noit_debug, "%d done procs to cleanup\n", done_procs.size);
   while((ps = noit_skiplist_pop(&done_procs, NULL)) != NULL) {
-    noitL(noit_error, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
+    noitL(noit_debug, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
     if(ps->cancelled == 0) {
       assert_write(out_fd, &ps->check_no,
                    sizeof(ps->check_no));
