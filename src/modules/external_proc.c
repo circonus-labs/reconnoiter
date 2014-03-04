@@ -61,7 +61,10 @@ struct proc_state {
   char **envp;
   int stdout_fd;
   int stderr_fd;
+  struct proc_state *next;
 };
+
+static struct proc_state *siglist = NULL;
 
 void proc_state_free(struct proc_state *ps) {
   int i;
@@ -120,7 +123,17 @@ static void external_sigchld(int sig) {
         pid, (long long int)(ps?ps->check_no:-1), status);
   if(ps) {
     ps->status = status;
-    noit_skiplist_remove_compare(&active_procs, &pid, NULL,  __proc_state_pid);
+    ps->next = siglist;
+    siglist = ps;
+  }
+}
+
+static void process_siglist() {
+  struct proc_state *ps;
+  while(NULL != (ps = siglist)) {
+    siglist = siglist->next;
+    ps->next = NULL;
+    noit_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
     noit_skiplist_insert(&done_procs, ps);
   }
 }
@@ -192,7 +205,7 @@ int write_out_backing_fd(int ofd, int bfd) {
   /* Our output length is limited to 64k (including a \0) */
   /* So, we'll limit the mapping of the file to 0xfffe */
   if(buf.st_size > 0xfffe) outlen = 0xfffe;
-  outlen = buf.st_size & 0xffff;
+  else outlen = buf.st_size & 0xffff;
   /* If we have no length, we can skip all this nonsense */
   if(outlen == 0) goto bail;
 
@@ -218,6 +231,7 @@ int write_out_backing_fd(int ofd, int bfd) {
 
 static void finish_procs() {
   struct proc_state *ps;
+  process_siglist();
   noitL(noit_error, "%d done procs to cleanup\n", done_procs.size);
   while((ps = noit_skiplist_pop(&done_procs, NULL)) != NULL) {
     noitL(noit_error, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
