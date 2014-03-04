@@ -126,6 +126,7 @@ static void external_sigchld(int sig) {
     ps->next = siglist;
     siglist = ps;
   }
+  signal(SIGCHLD, external_sigchld);
 }
 
 static void process_siglist() {
