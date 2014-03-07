@@ -334,6 +334,7 @@ noit_poller_process_checks(const char *xpath) {
     if(reg_module_id > 0) {
       moptions = alloca(reg_module_id * sizeof(noit_hash_table *));
       memset(moptions, 0, reg_module_id * sizeof(noit_hash_table *));
+      moptions_used = noit_true;
     }
 
 #define NEXT(...) noitL(noit_stderr, __VA_ARGS__); continue
@@ -397,7 +398,6 @@ noit_poller_process_checks(const char *xpath) {
     for(ridx=0; ridx<reg_module_id; ridx++) {
       moptions[ridx] = noit_conf_get_namespaced_hash(sec[i], "config",
                                                      reg_module_names[ridx]);
-      if(moptions[ridx]) moptions_used = noit_true;
     }
 
     INHERIT(boolean, disable, &disabled);
@@ -918,6 +918,12 @@ noit_check_update(noit_check_t *new_check,
   if(mconfigs != NULL) {
     int i;
     for(i=0; i<reg_module_id; i++) {
+      noit_hash_table *t;
+      if(NULL != (t = noit_check_get_module_config(new_check, i))) {
+        noit_check_set_module_config(new_check, i, NULL);
+        noit_hash_destroy(t, free, free);
+        free(t);
+      }
       if(mconfigs[i]) {
         noit_hash_table *t = calloc(1, sizeof(*new_check->config));
         noit_hash_merge_as_dict(t, mconfigs[i]);
