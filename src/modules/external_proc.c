@@ -64,8 +64,6 @@ struct proc_state {
   struct proc_state *next;
 };
 
-static struct proc_state *siglist = NULL;
-
 void proc_state_free(struct proc_state *ps) {
   int i;
   free(ps->path);
@@ -112,30 +110,24 @@ static int __proc_state_pid_key(const void *akv, const void *bv) {
   return 1;
 }
 
-static void external_sigchld(int sig) {
+static void process_siglist() {
   noit_skiplist_node *iter = NULL;
   struct proc_state *ps;
-  int status = 0;
   pid_t pid;
-  pid = waitpid(0, &status, WNOHANG);
-  ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
-  noitL(nldeb, "reaped pid %d (check: %lld) -> %x\n",
-        pid, (long long int)(ps?ps->check_no:-1), status);
-  if(ps) {
-    ps->status = status;
-    ps->next = siglist;
-    siglist = ps;
-  }
-  signal(SIGCHLD, external_sigchld);
-}
-
-static void process_siglist() {
-  struct proc_state *ps;
-  while(NULL != (ps = siglist)) {
-    siglist = siglist->next;
-    ps->next = NULL;
-    noit_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
-    noit_skiplist_insert(&done_procs, ps);
+  while(1) {
+    int status = 0;
+    pid = waitpid(0, &status, WNOHANG);
+    if(pid <= 0) break;
+    ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
+    noitL((ps?nldeb:nlerr), "reaped pid %d (check: %lld) -> %x\n",
+          pid, (long long int)(ps?ps->check_no:-1), status);
+    if(ps) {
+      int rv = noit_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
+      if (!rv) {
+        noitL(noit_error, "error: couldn't remove PID %d from active_procs in external\n");
+      }
+      noit_skiplist_insert(&done_procs, ps);
+    }
   }
 }
 
@@ -286,6 +278,10 @@ int external_proc_spawn(struct proc_state *ps) {
   return -1;
 }
 
+static void sig_noop(int signum) {
+  signal(signum, sig_noop);
+}
+
 int external_child(external_data_t *data) {
   in_fd = data->pipe_n2e[0];
   out_fd = data->pipe_e2n[1];
@@ -314,7 +310,7 @@ int external_child(external_data_t *data) {
     int16_t argcnt, *arglens, envcnt, *envlens;
     int i;
 
-    signal(SIGCHLD, external_sigchld);
+    sig_noop(SIGCHLD);
 
     /* We poll here so that we can be interrupted by the SIGCHLD */
     pfd.fd = in_fd;

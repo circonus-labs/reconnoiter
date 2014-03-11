@@ -69,6 +69,7 @@ struct check_info {
   int exit_code;
 
   int timedout;
+  int written;
   char *output;
   char *error;
   pcre *matcher;
@@ -200,8 +201,6 @@ static int external_timeout(eventer_t e, int mask,
     external_log_results(ecl->self, ecl->check);
     data->timeout_event = NULL;
   }
-  ecl->check->flags &= ~NP_RUNNING;
-  free(ecl);
   return 0;
 }
 static void check_info_clean(struct check_info *ci) {
@@ -351,19 +350,24 @@ static int external_handler(eventer_t e, int mask,
       free(data->cr->stderrbuff);
       free(data->cr);
       data->cr = NULL;
+      if (ci && ci->check) {
+        ci->check->flags &= ~NP_RUNNING;
+      }
       continue;
     }
+    eventer_remove(ci->timeout_event);
+    free(ci->timeout_event->closure);
+    eventer_free(ci->timeout_event);
+    ci->timeout_event = NULL;
     ci->exit_code = data->cr->exit_code;
     ci->output = data->cr->stdoutbuff;
     ci->error = data->cr->stderrbuff;
     free(data->cr);
     data->cr = NULL;
     check = ci->check;
-    external_log_results(self, check);
-    eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
-    eventer_free(ci->timeout_event);
-    ci->timeout_event = NULL;
+    if (!ci->timedout) {
+      external_log_results(self, check);
+    }
     check->flags &= ~NP_RUNNING;
   }
 
@@ -451,7 +455,30 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
     }
   }
 }
-#define assert_write(fd, w, s) assert(write(fd, w, s) == s)
+#define assert_write(fd, s, l) do { \
+  int len; \
+  int written_bytes = 0; \
+  if (l == 0) break; \
+  while (1) { \
+    len = write(fd,(char*)s+written_bytes,l-written_bytes); \
+    if (len == -1) { \
+      if (errno != EINTR) { \
+        break; \
+      } \
+    } \
+    else if (len == 0) { \
+      break; \
+    } \
+    else { \
+      written_bytes += len; \
+      if (written_bytes >= l) break;\
+    } \
+  } \
+  if (written_bytes != l) { \
+    noitL(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
+    abort(); \
+  } \
+} while (0)
 static int external_enqueue(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   external_closure_t *ecl = (external_closure_t *)closure;
@@ -463,7 +490,19 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
     e->mask = 0;
     return 0;
   }
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if (!mask) {
+    if (!ci->written) {
+      noitL(noit_error, "never wrote to external_proc for %d - marking check not running\n", ci->check_no);
+      ci->check->flags &= ~NP_RUNNING;
+    }
+    free(ecl);
+  }
+  if(!(mask & EVENTER_ASYNCH_WORK)) {
+    return 0;
+  }
+  if ((ci->written) || (ci->timedout)) {
+    return 0;
+  }
   data = noit_module_get_userdata(ecl->self);
   fd = data->pipe_n2e[1];
   assert_write(fd, &ci->check_no, sizeof(ci->check_no));
@@ -475,6 +514,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   assert_write(fd, ci->envlens, sizeof(*ci->envlens)*ci->envcnt);
   for(i=0; i<ci->envcnt; i++)
     assert_write(fd, ci->envs[i], ci->envlens[i]);
+  ci->written = 1;
   return 0;
 }
 static int external_invoke(noit_module_t *self, noit_check_t *check,
@@ -622,7 +662,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   ecl->check = check;
   newe->closure = ecl;
   newe->callback = external_enqueue;
-  eventer_add(newe);
+  eventer_add_asynch(data->jobq, newe);
 
   return 0;
 }
