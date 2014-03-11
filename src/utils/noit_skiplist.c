@@ -348,7 +348,7 @@ int noit_skiplist_remove_compare(noit_skiplist *sli,
     assert(m);
     sl= (noit_skiplist *) m->data;
   }
-  noit_skiplisti_find_compare(sl, data, &m, NULL, NULL, comp);
+  noit_skiplisti_find_compare(sl, data, &m, NULL, NULL, sl->comparek);
   if(!m) return 0;
   while(m->previndex) m=m->previndex;
   return noit_skiplisti_remove(m->sl, m, myfree);
