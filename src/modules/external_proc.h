@@ -54,6 +54,7 @@ typedef struct {
   int child;
   int pipe_n2e[2];
   int pipe_e2n[2];
+  char* path;
   eventer_jobq_t *jobq;
   noit_atomic64_t check_no_seq;
   noit_hash_table external_checks;

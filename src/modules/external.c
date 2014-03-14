@@ -57,6 +57,12 @@
 #include "utils/noit_security.h"
 #include "external_proc.h"
 
+typedef enum {
+  EXTERNAL_ERROR_NONE = 0,
+  EXTERNAL_ERROR_TIMEOUT = 1,
+  EXTERNAL_ERROR_BADPATH = 2
+} external_error_t;
+
 struct check_info {
   int64_t check_no;
   u_int16_t argcnt;
@@ -68,7 +74,7 @@ struct check_info {
   noit_check_t *check;
   int exit_code;
 
-  int timedout;
+  int errortype;
   int written;
   char *output;
   char *error;
@@ -130,15 +136,21 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
 
-  noitL(data->nldeb, "external(%s) (timeout: %d, exit: %x)\n",
-        check->target, ci->timedout, ci->exit_code);
+  noitL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
+        check->target, ci->errortype, ci->exit_code);
 
   gettimeofday(&check->stats.inprogress.whence, NULL);
   sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
   check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  if(ci->timedout) {
+  if(ci->errortype == EXTERNAL_ERROR_TIMEOUT) {
     check->stats.inprogress.available = NP_UNAVAILABLE;
     check->stats.inprogress.state = NP_BAD;
+    check->stats.inprogress.status = "command timed out";
+  }
+  else if(ci->errortype == EXTERNAL_ERROR_BADPATH) {
+    check->stats.inprogress.available = NP_UNAVAILABLE;
+    check->stats.inprogress.state = NP_BAD;
+    check->stats.inprogress.status = "command is not in module path";
   }
   else if(WEXITSTATUS(ci->exit_code) == 3) {
     check->stats.inprogress.available = NP_UNKNOWN;
@@ -173,7 +185,8 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     noitL(data->nldeb, "match failed.... %d\n", rc);
   }
 
-  check->stats.inprogress.status = ci->output;
+  if (!check->stats.inprogress.status)
+    check->stats.inprogress.status = ci->output;
   noit_check_set_stats(check, &check->stats.inprogress);
   noit_check_stats_clear(check, &check->stats.inprogress);
 
@@ -196,7 +209,7 @@ static int external_timeout(eventer_t e, int mask,
   struct check_info *data;
   if(!NOIT_CHECK_KILLED(ecl->check) && !NOIT_CHECK_DISABLED(ecl->check)) {
     data = (struct check_info *)ecl->check->closure;
-    data->timedout = 1;
+    data->errortype = EXTERNAL_ERROR_TIMEOUT;
     data->exit_code = 3;
     external_log_results(ecl->self, ecl->check);
     data->timeout_event = NULL;
@@ -365,7 +378,7 @@ static int external_handler(eventer_t e, int mask,
     free(data->cr);
     data->cr = NULL;
     check = ci->check;
-    if (!ci->timedout) {
+    if (!ci->errortype) {
       external_log_results(self, check);
     }
     check->flags &= ~NP_RUNNING;
@@ -378,6 +391,7 @@ static int external_handler(eventer_t e, int mask,
 
 static int external_init(noit_module_t *self) {
   external_data_t *data;
+  const char* path = NULL;
 
   data = noit_module_get_userdata(self);
   if(!data) data = calloc(1, sizeof(*data));
@@ -388,6 +402,29 @@ static int external_init(noit_module_t *self) {
   eventer_jobq_init(data->jobq, "external");
   data->jobq->backq = eventer_default_backq();
   eventer_jobq_increase_concurrency(data->jobq);
+
+  if (data->options) {
+    (void)noit_hash_retr_str(data->options, "path", strlen("path"), &path);
+    if (path) {
+      if (path[strlen(path)-1] == '/') {
+        data->path = strdup(path);
+      }
+      else {
+        /* We need to append a slash to the end */
+        data->path = calloc(1, strlen(path)+2);
+        memcpy(data->path, path, strlen(path));
+        data->path[strlen(path)] = '/';
+      }
+    }
+    else {
+      /* If no path is given, just assume that we can run the script
+       * anywhere */
+      data->path = strdup("/");
+    }
+  }
+  else {
+    data->path = strdup("/");
+  }
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
      socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_e2n) != 0) {
@@ -434,8 +471,8 @@ static int external_init(noit_module_t *self) {
   else {
     const char *user = NULL, *group = NULL;
     if(data->options) {
-      (void)noit_hash_retr_str(data->options, "user", 4, &user);
-      (void)noit_hash_retr_str(data->options, "group", 4, &group);
+      (void)noit_hash_retr_str(data->options, "user", strlen("user"), &user);
+      (void)noit_hash_retr_str(data->options, "group", strlen("group"), &group);
     }
     noit_security_usergroup(user, group, noit_false);
     exit(external_child(data));
@@ -500,7 +537,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   if(!(mask & EVENTER_ASYNCH_WORK)) {
     return 0;
   }
-  if ((ci->written) || (ci->timedout)) {
+  if ((ci->written) || (ci->errortype)) {
     return 0;
   }
   data = noit_module_get_userdata(ecl->self);
@@ -527,8 +564,10 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
   int i, klen;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  const char *name, *value;
+  const char *name, *value, *command;
+  char resolved_path[PATH_MAX];
   char interp_fmt[4096], interp_buff[4096];
+  char* rp;
 
   data = noit_module_get_userdata(self);
 
@@ -555,6 +594,24 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   /* Setup all our check bits */
   ci->check_no = noit_atomic_inc64(&data->check_no_seq);
   ci->check = check;
+
+  /* Pull the command value */
+  if(noit_hash_retr_str(check->config, "command", strlen("command"),
+                        &command) == 0) {
+    command = "/bin/true";
+  }
+
+  /* Check to verify that the check is in the config path.... if it
+     isn't, bail on the check with an appropriate status */
+  rp = realpath(command, resolved_path);
+  if ( (!rp) || (strlen(data->path) > strlen(resolved_path)) ||
+          (strncmp(data->path, resolved_path, strlen(data->path)) != 0) ) {
+    ci->errortype = EXTERNAL_ERROR_BADPATH;
+    external_log_results(self, check);
+    check->flags &= ~NP_RUNNING;
+    return 0;
+  }
+
   /* We might want to extract metrics */
   if(noit_hash_retr_str(check->config,
                         "output_extract", strlen("output_extract"),
@@ -584,11 +641,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   ci->args = calloc(ci->argcnt, sizeof(*ci->args));
 
   /* Make the command */
-  if(noit_hash_retr_str(check->config, "command", strlen("command"),
-                        &value) == 0) {
-    value = "/bin/true";
-  }
-  ci->args[0] = strdup(value);
+  ci->args[0] = strdup(command);
   ci->arglens[0] = strlen(ci->args[0]) + 1;
 
   i = 0;
