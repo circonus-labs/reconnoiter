@@ -10,6 +10,14 @@
     <parameter name="group"
                required="optional"
                allowed=".+">The group under which the external checks should be executed.</parameter>
+    <parameter name="path"
+               required="optional"
+               default="/"
+               allowed=".+">The path under which all external commands to be executed will be located. Commands outside of this path will not be executed.</parameter>
+    <parameter name="nagios_regex"
+               required="optional"
+               default="\'?(?&lt;key&gt;[^'=\s]+)\'?=(?&lt;value&gt;-?[0-9]+(\.[0-9]+)?)(?&lt;uom&gt;[a-zA-Z%]+)?(?=[;,\s])"
+               allowed=".+">The default regular expression with which to parse Nagios data. Named values are "key", "value", and "uom" (unit of measurement)</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="command"
@@ -26,7 +34,7 @@
                allowed=".+">These parameters allow the setting of environment variables for the command execution.  The text following env_ is the key and the parameter value is the value of the environment variable to be set via execve.</parameter>
     <parameter name="output_extract"
                required="optional"
-               allowed=".+">This is a regular expression that is globally applied to the stdout of the command.  Each match is turned into a metric. It is a requirement to used named capturing in the regular expression where "key" is the named match of the metric name and "value" is the named match for the matric value.  A sample for extracting performance data from Nagios commands would be: <![CDATA[(?<key>\S+)=(?<value>[^;\s]+)(?=[;\s])]]></parameter>
+               allowed=".+">This is a regular expression that is globally applied to the stdout of the command.  Each match is turned into a metric. It is a requirement to used named capturing in the regular expression where "key" is the named match of the metric name and "value" is the named match for the matric value.  A sample for extracting performance data from Nagios commands would be: <![CDATA[(?<key>\S+)=(?<value>[^;\s]+)(?=[;\s])]]>. "NAGIOS" may also be specified as a value, which will configure the external check to do Nagios parsing based on the nagios_regex module configuration parameter.</parameter>
   </checkconfig>
   <examples>
     <example>
