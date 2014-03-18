@@ -38,6 +38,11 @@
 #include "utils/noit_atomic.h"
 #include "utils/noit_hash.h"
 
+typedef enum {
+  EXTERNAL_DEFAULT_TYPE = 0,
+  EXTERNAL_NAGIOS_TYPE = 1
+} external_special_t;
+
 struct external_response {
   int64_t check_no;
   int32_t exit_code;
@@ -55,6 +60,8 @@ typedef struct {
   int pipe_n2e[2];
   int pipe_e2n[2];
   char* path;
+  char* nagios_regex;
+  external_special_t type;
   eventer_jobq_t *jobq;
   noit_atomic64_t check_no_seq;
   noit_hash_table external_checks;

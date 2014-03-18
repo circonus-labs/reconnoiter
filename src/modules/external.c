@@ -165,20 +165,82 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   if(ci->output && ci->matcher) {
     int rc, len, startoffset = 0;
     int ovector[30];
-    len = strlen(ci->output);
+    char* output = ci->output;
+    len = strlen(output);
     noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
-    while((rc = pcre_exec(ci->matcher, NULL, ci->output, len, startoffset, 0,
+    if (data->type == EXTERNAL_NAGIOS_TYPE) {
+      pcre *matcher;
+      const char *error;
+      char* pch;
+      int erroffset;
+      int localrc;
+      int localovector[30];
+      int state_found = 0;
+
+      /* Ignore whitespace at beginning of output, skip any words, look for "ok", "warning", 
+       * "critical", or "unknown", then either a colon, dash, semicolon, pipe, or end of string */
+      matcher = pcre_compile("^\\s*[\\w\\s+]*(?<state>(?i)ok|warning|critical|unknown(?-i))(\\s?$|\\s?(:|-|\\||;))", 0, &error, &erroffset, NULL);
+      if(matcher) {
+        if ((localrc = pcre_exec(matcher, NULL, output, len, 0, 0, 
+                                localovector, sizeof(localovector)/sizeof(*localovector))) > 0) {
+          char state[10];
+          if(pcre_copy_named_substring(matcher, output, localovector, localrc,
+                                       "state", state, sizeof(state)) > 0) {
+            noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, state);
+            state_found=1;
+          }
+        }
+        pcre_free(matcher);
+      }
+      if (!state_found) {
+        noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, "NOT FOUND");
+      }
+      /* Look for the pipe.... if it's there, report the preamble as the "message" metric,
+       * then only parse metrics after it... if not, report the whole message as the "message"
+       * metric and parse the whole thing for metrics */
+      pch = strchr(output, '|');
+      if (pch) {
+        int size = pch-output+1;
+        char* message = calloc(1, size);
+        memcpy(message, output, size);
+        message[size-1] = 0;
+        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, message);
+        output = pch+1;
+        free(message);
+      }
+      else {
+        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, output);
+      }
+
+    }
+    while((rc = pcre_exec(ci->matcher, NULL, output, len, startoffset, 0,
                           ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
       char metric[128];
       char value[128];
       startoffset = ovector[1];
       noitL(data->nldeb, "matched at offset %d\n", rc);
-      if(pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+      if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "key", metric, sizeof(metric)) > 0 &&
-         pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+         pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "value", value, sizeof(value)) > 0) {
         /* We're able to extract something... */
-        noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
+        if (data->type == EXTERNAL_NAGIOS_TYPE) {
+          /* We only care about metrics after the pipe - get check status from the
+           * pre-pipe data, then only match on post-pipe data */
+          char uom[128];
+          char metric_name[256];
+          if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
+                                       "uom", uom, sizeof(uom)) > 0) {
+            snprintf(metric_name, 255, "%s_%s", metric, uom);
+          }
+          else {
+            snprintf(metric_name, 255, "%s", metric);
+          }
+          noit_stats_set_metric(check, &check->stats.inprogress, metric_name, METRIC_GUESS, value);
+        }
+        else {
+          noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
+        }
       }
       noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
@@ -391,7 +453,7 @@ static int external_handler(eventer_t e, int mask,
 
 static int external_init(noit_module_t *self) {
   external_data_t *data;
-  const char* path = NULL;
+  const char* path = NULL, *nagios_regex = NULL;
 
   data = noit_module_get_userdata(self);
   if(!data) data = calloc(1, sizeof(*data));
@@ -421,9 +483,18 @@ static int external_init(noit_module_t *self) {
        * anywhere */
       data->path = strdup("/");
     }
+    (void)noit_hash_retr_str(data->options, "nagios_regex", strlen("nagios_regex"), &nagios_regex);
+    if (nagios_regex) {
+      data->nagios_regex = strdup(nagios_regex);
+    }
+    else {
+      data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
+    }
+
   }
   else {
     data->path = strdup("/");
+    data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
   }
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
@@ -618,7 +689,14 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
                         &value) != 0) {
     const char *error;
     int erroffset;
-    ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
+    if (!strcmp(value, "NAGIOS")) {
+      data->type = EXTERNAL_NAGIOS_TYPE;
+      ci->matcher = pcre_compile(data->nagios_regex, 0, &error, &erroffset, NULL);
+    }
+    else {
+      data->type = EXTERNAL_DEFAULT_TYPE;
+      ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
+    }
     if(!ci->matcher) {
       noitL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
             value, erroffset, error);
