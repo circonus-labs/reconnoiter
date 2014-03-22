@@ -57,6 +57,12 @@
 #include "utils/noit_security.h"
 #include "external_proc.h"
 
+typedef enum {
+  EXTERNAL_ERROR_NONE = 0,
+  EXTERNAL_ERROR_TIMEOUT = 1,
+  EXTERNAL_ERROR_BADPATH = 2
+} external_error_t;
+
 struct check_info {
   int64_t check_no;
   u_int16_t argcnt;
@@ -68,7 +74,8 @@ struct check_info {
   noit_check_t *check;
   int exit_code;
 
-  int timedout;
+  int errortype;
+  int written;
   char *output;
   char *error;
   pcre *matcher;
@@ -129,15 +136,21 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
 
-  noitL(data->nldeb, "external(%s) (timeout: %d, exit: %x)\n",
-        check->target, ci->timedout, ci->exit_code);
+  noitL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
+        check->target, ci->errortype, ci->exit_code);
 
   gettimeofday(&check->stats.inprogress.whence, NULL);
   sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
   check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  if(ci->timedout) {
+  if(ci->errortype == EXTERNAL_ERROR_TIMEOUT) {
     check->stats.inprogress.available = NP_UNAVAILABLE;
     check->stats.inprogress.state = NP_BAD;
+    check->stats.inprogress.status = "command timed out";
+  }
+  else if(ci->errortype == EXTERNAL_ERROR_BADPATH) {
+    check->stats.inprogress.available = NP_UNAVAILABLE;
+    check->stats.inprogress.state = NP_BAD;
+    check->stats.inprogress.status = "command is not in module path";
   }
   else if(WEXITSTATUS(ci->exit_code) == 3) {
     check->stats.inprogress.available = NP_UNKNOWN;
@@ -152,27 +165,90 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   if(ci->output && ci->matcher) {
     int rc, len, startoffset = 0;
     int ovector[30];
-    len = strlen(ci->output);
+    char* output = ci->output;
+    len = strlen(output);
     noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
-    while((rc = pcre_exec(ci->matcher, NULL, ci->output, len, startoffset, 0,
+    if (data->type == EXTERNAL_NAGIOS_TYPE) {
+      pcre *matcher;
+      const char *error;
+      char* pch;
+      int erroffset;
+      int localrc;
+      int localovector[30];
+      int state_found = 0;
+
+      /* Ignore whitespace at beginning of output, skip any words, look for "ok", "warning", 
+       * "critical", or "unknown", then either a colon, dash, semicolon, pipe, or end of string */
+      matcher = pcre_compile("^\\s*[\\w\\s+]*(?<state>(?i)ok|warning|critical|unknown(?-i))(\\s?$|\\s?(:|-|\\||;))", 0, &error, &erroffset, NULL);
+      if(matcher) {
+        if ((localrc = pcre_exec(matcher, NULL, output, len, 0, 0, 
+                                localovector, sizeof(localovector)/sizeof(*localovector))) > 0) {
+          char state[10];
+          if(pcre_copy_named_substring(matcher, output, localovector, localrc,
+                                       "state", state, sizeof(state)) > 0) {
+            noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, state);
+            state_found=1;
+          }
+        }
+        pcre_free(matcher);
+      }
+      if (!state_found) {
+        noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, "NOT FOUND");
+      }
+      /* Look for the pipe.... if it's there, report the preamble as the "message" metric,
+       * then only parse metrics after it... if not, report the whole message as the "message"
+       * metric and parse the whole thing for metrics */
+      pch = strchr(output, '|');
+      if (pch) {
+        int size = pch-output+1;
+        char* message = calloc(1, size);
+        memcpy(message, output, size);
+        message[size-1] = 0;
+        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, message);
+        output = pch+1;
+        free(message);
+      }
+      else {
+        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, output);
+      }
+
+    }
+    while((rc = pcre_exec(ci->matcher, NULL, output, len, startoffset, 0,
                           ovector, sizeof(ovector)/sizeof(*ovector))) > 0) {
       char metric[128];
       char value[128];
       startoffset = ovector[1];
       noitL(data->nldeb, "matched at offset %d\n", rc);
-      if(pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+      if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "key", metric, sizeof(metric)) > 0 &&
-         pcre_copy_named_substring(ci->matcher, ci->output, ovector, rc,
+         pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "value", value, sizeof(value)) > 0) {
         /* We're able to extract something... */
-        noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
+        if (data->type == EXTERNAL_NAGIOS_TYPE) {
+          /* We only care about metrics after the pipe - get check status from the
+           * pre-pipe data, then only match on post-pipe data */
+          char uom[128];
+          char metric_name[256];
+          if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
+                                       "uom", uom, sizeof(uom)) > 0) {
+            snprintf(metric_name, 255, "%s_%s", metric, uom);
+          }
+          else {
+            snprintf(metric_name, 255, "%s", metric);
+          }
+          noit_stats_set_metric(check, &check->stats.inprogress, metric_name, METRIC_GUESS, value);
+        }
+        else {
+          noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
+        }
       }
       noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
     noitL(data->nldeb, "match failed.... %d\n", rc);
   }
 
-  check->stats.inprogress.status = ci->output;
+  if (!check->stats.inprogress.status)
+    check->stats.inprogress.status = ci->output;
   noit_check_set_stats(check, &check->stats.inprogress);
   noit_check_stats_clear(check, &check->stats.inprogress);
 
@@ -195,13 +271,11 @@ static int external_timeout(eventer_t e, int mask,
   struct check_info *data;
   if(!NOIT_CHECK_KILLED(ecl->check) && !NOIT_CHECK_DISABLED(ecl->check)) {
     data = (struct check_info *)ecl->check->closure;
-    data->timedout = 1;
+    data->errortype = EXTERNAL_ERROR_TIMEOUT;
     data->exit_code = 3;
     external_log_results(ecl->self, ecl->check);
     data->timeout_event = NULL;
   }
-  ecl->check->flags &= ~NP_RUNNING;
-  free(ecl);
   return 0;
 }
 static void check_info_clean(struct check_info *ci) {
@@ -351,19 +425,24 @@ static int external_handler(eventer_t e, int mask,
       free(data->cr->stderrbuff);
       free(data->cr);
       data->cr = NULL;
+      if (ci && ci->check) {
+        ci->check->flags &= ~NP_RUNNING;
+      }
       continue;
     }
+    eventer_remove(ci->timeout_event);
+    free(ci->timeout_event->closure);
+    eventer_free(ci->timeout_event);
+    ci->timeout_event = NULL;
     ci->exit_code = data->cr->exit_code;
     ci->output = data->cr->stdoutbuff;
     ci->error = data->cr->stderrbuff;
     free(data->cr);
     data->cr = NULL;
     check = ci->check;
-    external_log_results(self, check);
-    eventer_remove(ci->timeout_event);
-    free(ci->timeout_event->closure);
-    eventer_free(ci->timeout_event);
-    ci->timeout_event = NULL;
+    if (!ci->errortype) {
+      external_log_results(self, check);
+    }
     check->flags &= ~NP_RUNNING;
   }
 
@@ -374,6 +453,7 @@ static int external_handler(eventer_t e, int mask,
 
 static int external_init(noit_module_t *self) {
   external_data_t *data;
+  const char* path = NULL, *nagios_regex = NULL;
 
   data = noit_module_get_userdata(self);
   if(!data) data = calloc(1, sizeof(*data));
@@ -383,6 +463,38 @@ static int external_init(noit_module_t *self) {
   data->jobq = calloc(1, sizeof(*data->jobq));
   eventer_jobq_init(data->jobq, "external");
   eventer_jobq_increase_concurrency(data->jobq);
+
+  if (data->options) {
+    (void)noit_hash_retr_str(data->options, "path", strlen("path"), &path);
+    if (path) {
+      if (path[strlen(path)-1] == '/') {
+        data->path = strdup(path);
+      }
+      else {
+        /* We need to append a slash to the end */
+        data->path = calloc(1, strlen(path)+2);
+        memcpy(data->path, path, strlen(path));
+        data->path[strlen(path)] = '/';
+      }
+    }
+    else {
+      /* If no path is given, just assume that we can run the script
+       * anywhere */
+      data->path = strdup("/");
+    }
+    (void)noit_hash_retr_str(data->options, "nagios_regex", strlen("nagios_regex"), &nagios_regex);
+    if (nagios_regex) {
+      data->nagios_regex = strdup(nagios_regex);
+    }
+    else {
+      data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
+    }
+
+  }
+  else {
+    data->path = strdup("/");
+    data->nagios_regex = strdup("\\'?(?<key>[^'=\\s]+)\\'?=(?<value>-?[0-9]+(\\.[0-9]+)?)(?<uom>[a-zA-Z%]+)?(?=[;,\\s])");
+  }
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
      socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_e2n) != 0) {
@@ -429,8 +541,8 @@ static int external_init(noit_module_t *self) {
   else {
     const char *user = NULL, *group = NULL;
     if(data->options) {
-      (void)noit_hash_retr_str(data->options, "user", 4, &user);
-      (void)noit_hash_retr_str(data->options, "group", 4, &group);
+      (void)noit_hash_retr_str(data->options, "user", strlen("user"), &user);
+      (void)noit_hash_retr_str(data->options, "group", strlen("group"), &group);
     }
     noit_security_usergroup(user, group, noit_false);
     exit(external_child(data));
@@ -450,7 +562,30 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
     }
   }
 }
-#define assert_write(fd, w, s) assert(write(fd, w, s) == s)
+#define assert_write(fd, s, l) do { \
+  int len; \
+  int written_bytes = 0; \
+  if (l == 0) break; \
+  while (1) { \
+    len = write(fd,(char*)s+written_bytes,l-written_bytes); \
+    if (len == -1) { \
+      if (errno != EINTR) { \
+        break; \
+      } \
+    } \
+    else if (len == 0) { \
+      break; \
+    } \
+    else { \
+      written_bytes += len; \
+      if (written_bytes >= l) break;\
+    } \
+  } \
+  if (written_bytes != l) { \
+    noitL(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
+    abort(); \
+  } \
+} while (0)
 static int external_enqueue(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   external_closure_t *ecl = (external_closure_t *)closure;
@@ -462,7 +597,19 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
     e->mask = 0;
     return 0;
   }
-  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  if (!mask) {
+    if (!ci->written) {
+      noitL(noit_error, "never wrote to external_proc for %d - marking check not running\n", ci->check_no);
+      ci->check->flags &= ~NP_RUNNING;
+    }
+    free(ecl);
+  }
+  if(!(mask & EVENTER_ASYNCH_WORK)) {
+    return 0;
+  }
+  if ((ci->written) || (ci->errortype)) {
+    return 0;
+  }
   data = noit_module_get_userdata(ecl->self);
   fd = data->pipe_n2e[1];
   assert_write(fd, &ci->check_no, sizeof(ci->check_no));
@@ -474,6 +621,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   assert_write(fd, ci->envlens, sizeof(*ci->envlens)*ci->envcnt);
   for(i=0; i<ci->envcnt; i++)
     assert_write(fd, ci->envs[i], ci->envlens[i]);
+  ci->written = 1;
   return 0;
 }
 static int external_invoke(noit_module_t *self, noit_check_t *check,
@@ -486,8 +634,10 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
   int i, klen;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-  const char *name, *value;
+  const char *name, *value, *command;
+  char resolved_path[PATH_MAX];
   char interp_fmt[4096], interp_buff[4096];
+  char* rp;
 
   data = noit_module_get_userdata(self);
 
@@ -514,13 +664,38 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   /* Setup all our check bits */
   ci->check_no = noit_atomic_inc64(&data->check_no_seq);
   ci->check = check;
+
+  /* Pull the command value */
+  if(noit_hash_retr_str(check->config, "command", strlen("command"),
+                        &command) == 0) {
+    command = "/bin/true";
+  }
+
+  /* Check to verify that the check is in the config path.... if it
+     isn't, bail on the check with an appropriate status */
+  rp = realpath(command, resolved_path);
+  if ( (!rp) || (strlen(data->path) > strlen(resolved_path)) ||
+          (strncmp(data->path, resolved_path, strlen(data->path)) != 0) ) {
+    ci->errortype = EXTERNAL_ERROR_BADPATH;
+    external_log_results(self, check);
+    check->flags &= ~NP_RUNNING;
+    return 0;
+  }
+
   /* We might want to extract metrics */
   if(noit_hash_retr_str(check->config,
                         "output_extract", strlen("output_extract"),
                         &value) != 0) {
     const char *error;
     int erroffset;
-    ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
+    if (!strcmp(value, "NAGIOS")) {
+      data->type = EXTERNAL_NAGIOS_TYPE;
+      ci->matcher = pcre_compile(data->nagios_regex, 0, &error, &erroffset, NULL);
+    }
+    else {
+      data->type = EXTERNAL_DEFAULT_TYPE;
+      ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
+    }
     if(!ci->matcher) {
       noitL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
             value, erroffset, error);
@@ -543,11 +718,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   ci->args = calloc(ci->argcnt, sizeof(*ci->args));
 
   /* Make the command */
-  if(noit_hash_retr_str(check->config, "command", strlen("command"),
-                        &value) == 0) {
-    value = "/bin/true";
-  }
-  ci->args[0] = strdup(value);
+  ci->args[0] = strdup(command);
   ci->arglens[0] = strlen(ci->args[0]) + 1;
 
   i = 0;
@@ -621,7 +792,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   ecl->check = check;
   newe->closure = ecl;
   newe->callback = external_enqueue;
-  eventer_add(newe);
+  eventer_add_asynch(data->jobq, newe);
 
   return 0;
 }

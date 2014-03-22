@@ -32,7 +32,7 @@ my $iep_queries = [
 
 ok(start_noit("108", { logs_debug => { '' => 'false' } }), 'starting noit');
 ok(start_stratcon("108", { noits => [ { address => "127.0.0.1", port => "$NOIT_API_PORT" } ], iep => { queries => $iep_queries } }), 'starting stratcon');
-my $c = apiclient->new('localhost', $NOIT_API_PORT);
+my $c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 my @r = $c->get("/checks/show/$uuid");
 is($r[0], 404, 'get checks');
 
@@ -83,7 +83,7 @@ my($st_t, $st_n) = do_counts();
 
 ok(1, 'going to sleep 7 seconds for data to stream');
 usleep(7000000);
-my $sc = apiclient->new('localhost', $STRATCON_API_PORT);
+my $sc = apiclient->new('localhost', $STRATCON_API_PORT, 'stratcon');
 @r = $sc->get('/noits/show');
 is($r[0], '200', 'get noits');
 $doc = $xp->parse_string($r[1]);

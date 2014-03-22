@@ -228,10 +228,12 @@ static void stop_other_threads() {
 
 void emancipate(int sig) {
   signal(sig, SIG_DFL);
+  noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
     run_glider(noit_monitored_child_pid);
+    kill(noit_monitored_child_pid, sig);
   }
-  else {
+  else if (getpid() == noit_monitored_child_pid){
     kill(getppid(), SIGUSR2); /* fast notification path */
     it_ticks_crash(); /* slow notification path */
     kill(noit_monitored_child_pid, SIGSTOP); /* stop and wait for a glide */
@@ -242,8 +244,16 @@ void emancipate(int sig) {
       it_ticks_crash_release(); /* notify parent that it can fork a new one */
       /* the subsequent dump may take a while on big processes and slow disks */
     }
+    kill(noit_monitored_child_pid, sig);
   }
-  kill(noit_monitored_child_pid, sig);
+  else {
+    kill(noit_monitored_child_pid, SIGUSR2);
+  }
+}
+
+void subprocess_killed(int sig) {
+  noitL(noit_error, "got a signal from spawned process.... exiting\n");
+  exit(-1);
 }
 
 int noit_watchdog_start_child(const char *app, int (*func)(),
@@ -275,6 +285,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         noitL(noit_error, "no glider, allowing a single emancipated minor.\n");
       signal(SIGSEGV, emancipate);
       signal(SIGABRT, emancipate);
+      signal(SIGUSR2, subprocess_killed);
       /* run the program */
       exit(func());
     }

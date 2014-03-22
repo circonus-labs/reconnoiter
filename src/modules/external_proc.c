@@ -61,6 +61,7 @@ struct proc_state {
   char **envp;
   int stdout_fd;
   int stderr_fd;
+  struct proc_state *next;
 };
 
 void proc_state_free(struct proc_state *ps) {
@@ -109,19 +110,24 @@ static int __proc_state_pid_key(const void *akv, const void *bv) {
   return 1;
 }
 
-static void external_sigchld(int sig) {
+static void process_siglist() {
   noit_skiplist_node *iter = NULL;
   struct proc_state *ps;
-  int status = 0;
   pid_t pid;
-  pid = waitpid(0, &status, WNOHANG);
-  ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
-  noitL(nldeb, "reaped pid %d (check: %lld) -> %x\n",
-        pid, (long long int)(ps?ps->check_no:-1), status);
-  if(ps) {
-    ps->status = status;
-    noit_skiplist_remove_compare(&active_procs, &pid, NULL,  __proc_state_pid);
-    noit_skiplist_insert(&done_procs, ps);
+  while(1) {
+    int status = 0;
+    pid = waitpid(0, &status, WNOHANG);
+    if(pid <= 0) break;
+    ps = noit_skiplist_find_compare(&active_procs, &pid, &iter, __proc_state_pid);
+    noitL((ps?nldeb:nlerr), "reaped pid %d (check: %lld) -> %x\n",
+          pid, (long long int)(ps?ps->check_no:-1), status);
+    if(ps) {
+      int rv = noit_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
+      if (!rv) {
+        noitL(noit_error, "error: couldn't remove PID %d from active_procs in external\n");
+      }
+      noit_skiplist_insert(&done_procs, ps);
+    }
   }
 }
 
@@ -192,7 +198,7 @@ int write_out_backing_fd(int ofd, int bfd) {
   /* Our output length is limited to 64k (including a \0) */
   /* So, we'll limit the mapping of the file to 0xfffe */
   if(buf.st_size > 0xfffe) outlen = 0xfffe;
-  outlen = buf.st_size & 0xffff;
+  else outlen = buf.st_size & 0xffff;
   /* If we have no length, we can skip all this nonsense */
   if(outlen == 0) goto bail;
 
@@ -218,9 +224,10 @@ int write_out_backing_fd(int ofd, int bfd) {
 
 static void finish_procs() {
   struct proc_state *ps;
-  noitL(noit_error, "%d done procs to cleanup\n", done_procs.size);
+  process_siglist();
+  noitL(noit_debug, "%d done procs to cleanup\n", done_procs.size);
   while((ps = noit_skiplist_pop(&done_procs, NULL)) != NULL) {
-    noitL(noit_error, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
+    noitL(noit_debug, "finished %lld/%d\n", (long long int)ps->check_no, ps->pid);
     if(ps->cancelled == 0) {
       assert_write(out_fd, &ps->check_no,
                    sizeof(ps->check_no));
@@ -271,6 +278,10 @@ int external_proc_spawn(struct proc_state *ps) {
   return -1;
 }
 
+static void sig_noop(int signum) {
+  signal(signum, sig_noop);
+}
+
 int external_child(external_data_t *data) {
   in_fd = data->pipe_n2e[0];
   out_fd = data->pipe_e2n[1];
@@ -299,7 +310,7 @@ int external_child(external_data_t *data) {
     int16_t argcnt, *arglens, envcnt, *envlens;
     int i;
 
-    signal(SIGCHLD, external_sigchld);
+    sig_noop(SIGCHLD);
 
     /* We poll here so that we can be interrupted by the SIGCHLD */
     pfd.fd = in_fd;

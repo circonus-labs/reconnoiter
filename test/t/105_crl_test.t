@@ -19,11 +19,11 @@ ok(start_noit("105", { logs_debug => { '' => 'false' },
 SKIP: {
   skip "$^O can't curl with keys correctly", 2
     if $^O =~ /^(?:darwin)$/;
-  $c = apiclient->new('localhost', $NOIT_API_PORT);
+  $c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
   @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
   is($r[0], 404, 'request works with usable key');
   
-  $c = apiclient->new('localhost', $NOIT_API_PORT,
+  $c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test',
                       { 'key' => '../badclient.key',
                         'cert' => '../badclient.crt' });
   @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");

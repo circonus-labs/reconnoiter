@@ -6,6 +6,7 @@ sub new {
     my $class = shift;
     my $host = shift;
     my $port = shift;
+    my $cn = shift;
     my $options = {
         'cainfo' => '../test-ca.crt',
         'key' => '../client.key',
@@ -16,8 +17,25 @@ sub new {
       $options->{$k} = $v;
     }
     my $curl = WWW::Curl::Easy->new();
+    my $version_str = $curl->version();
+    my $version = 100000;
+    if($version_str =~ /libcurl\/(\d+)\.(\d+)\.(\d+)/) {
+      $version = 1000*$1 + $2 + $3/1000;
+    }
     $curl->setopt(CURLOPT_SSL_VERIFYPEER, 0);
-    $curl->setopt(CURLOPT_SSL_VERIFYHOST, 1);
+    if($cn && $WWW::Curl::Easy::VERSION > 4.15 && $version > 7032) {
+      no strict 'subs'; # for older WWW::Curl::Easy
+      my $map = $cn.":$port:$host";
+      $host = $cn;
+      $curl->setopt(CURLOPT_RESOLVE, [$map]);
+      $curl->setopt(CURLOPT_SSL_VERIFYHOST, 2);
+    }
+    elsif($version > 7032) {
+      $curl->setopt(CURLOPT_SSL_VERIFYHOST, 0);
+    }
+    else {
+      $curl->setopt(CURLOPT_SSL_VERIFYHOST, 1);
+    }
     $curl->setopt(CURLOPT_CAINFO, $options->{cainfo});
     $curl->setopt(CURLOPT_SSLKEY, $options->{key});
     $curl->setopt(CURLOPT_SSLCERT, $options->{cert});

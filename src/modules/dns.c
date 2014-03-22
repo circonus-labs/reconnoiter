@@ -141,6 +141,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
       free(h->ns);
       free(h);
       free(hk);
+      dns_free(h->ctx);
       h = NULL;
       goto bail;
     }

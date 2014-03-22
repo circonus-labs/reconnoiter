@@ -17,7 +17,7 @@ ok(start_noit("107", { logs_debug => { '' => 'false' },
                          }
                        ]
                      }), 'starting noit');
-my $c = apiclient->new('localhost', $NOIT_API_PORT);
+my $c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 my @r = $c->get("/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc");
 is($r[0], 404, 'get checks');
 

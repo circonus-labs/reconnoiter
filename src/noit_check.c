@@ -338,6 +338,7 @@ noit_poller_process_checks(const char *xpath) {
     if(reg_module_id > 0) {
       moptions = alloca(reg_module_id * sizeof(noit_hash_table *));
       memset(moptions, 0, reg_module_id * sizeof(noit_hash_table *));
+      moptions_used = noit_true;
     }
 
 #define NEXT(...) noitL(noit_stderr, __VA_ARGS__); continue
@@ -401,7 +402,6 @@ noit_poller_process_checks(const char *xpath) {
     for(ridx=0; ridx<reg_module_id; ridx++) {
       moptions[ridx] = noit_conf_get_namespaced_hash(sec[i], "config",
                                                      reg_module_names[ridx]);
-      if(moptions[ridx]) moptions_used = noit_true;
     }
 
     INHERIT(boolean, disable, &disabled);
@@ -922,6 +922,12 @@ noit_check_update(noit_check_t *new_check,
   if(mconfigs != NULL) {
     int i;
     for(i=0; i<reg_module_id; i++) {
+      noit_hash_table *t;
+      if(NULL != (t = noit_check_get_module_config(new_check, i))) {
+        noit_check_set_module_config(new_check, i, NULL);
+        noit_hash_destroy(t, free, free);
+        free(t);
+      }
       if(mconfigs[i]) {
         noit_hash_table *t = calloc(1, sizeof(*new_check->config));
         noit_hash_merge_as_dict(t, mconfigs[i]);
@@ -991,6 +997,13 @@ static void recycle_check(noit_check_t *checker) {
   checker_rcb = n;
 }
 void
+free_metric(metric_t *m) {
+  if(!m) return;
+  if(m->metric_name) noit_memory_safe_free(m->metric_name);
+  if(m->metric_value.i) noit_memory_safe_free(m->metric_value.i);
+  noit_memory_safe_free(m);
+}
+void
 noit_poller_free_check(noit_check_t *checker) {
   noit_module_t *mod;
 
@@ -1038,6 +1051,15 @@ noit_poller_free_check(noit_check_t *checker) {
     }
     free(checker->module_configs);
   }
+  if(checker->stats.inprogress.status) free(checker->stats.inprogress.status);
+  noit_hash_destroy(&checker->stats.inprogress.metrics, NULL,
+                    (void (*)(void *))free_metric);
+  if(checker->stats.current.status) free(checker->stats.current.status);
+  noit_hash_destroy(&checker->stats.current.metrics, NULL,
+                    (void (*)(void *))free_metric);
+  if(checker->stats.previous.status) free(checker->stats.previous.status);
+  noit_hash_destroy(&checker->stats.previous.metrics, NULL,
+                    (void (*)(void *))free_metric);
   free(checker);
 }
 static int
@@ -1263,13 +1285,6 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
   memset(s, 0, sizeof(*s));
   s->state = NP_UNKNOWN;
   s->available = NP_UNKNOWN;
-}
-void
-free_metric(metric_t *m) {
-  if(!m) return;
-  if(m->metric_name) noit_memory_safe_free(m->metric_name);
-  if(m->metric_value.i) noit_memory_safe_free(m->metric_value.i);
-  noit_memory_safe_free(m);
 }
 
 void

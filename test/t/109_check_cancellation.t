@@ -30,7 +30,7 @@ sub check_def($$;$$) {
 }
 
 boot("default");
-$c = apiclient->new('localhost', $NOIT_API_PORT);
+$c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 SKIP: {
   skip "$^O doesn't support interruptable", 6
     if $^O =~ /^(?:solaris)$/;
@@ -92,7 +92,7 @@ SKIP: {
   skip "$^O doesn't support uniterruptable", 6
     if $^O =~ /^(?:solaris|linux|darwin)$/;
 boot("pending_abort");
-$c = apiclient->new('localhost', $NOIT_API_PORT);
+$c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 
 $prefix = 'deferred, uninterruptable';
 foreach $uuid ('10e23ee2-3ca5-11e0-8049-c77271aac681',
@@ -123,7 +123,7 @@ SKIP: {
   skip "$^O doesn't support deferred", 12
     if $^O =~ /^(?:solaris|linux|darwin)$/;
 boot("deferred");
-$c = apiclient->new('localhost', $NOIT_API_PORT);
+$c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 
 $uuid = '4e577e3e-3ca2-11e0-b9fe-cfa5216d0ae6';
 $prefix = 'deferred, interruptable';
@@ -169,7 +169,7 @@ ok(0 == stop_noit(), "$prefix shutdown (already happened)");
 }
 
 boot("evil");
-$c = apiclient->new('localhost', $NOIT_API_PORT);
+$c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 
 $uuid = 'd62c889e-3ca3-11e0-95f5-1fe23931d67b';
 $prefix = 'evil, interruptable';
@@ -207,7 +207,7 @@ is($r[0], 404, "$prefix gone");
 ok(stop_noit(), "$prefix shutdown");
 
 boot("asynch");
-$c = apiclient->new('localhost', $NOIT_API_PORT);
+$c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 
 $prefix = 'asynch, interruptable';
 $uuid = '92f56c20-3ca4-11e0-acbe-a3a119ca7850';
