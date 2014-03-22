@@ -993,6 +993,13 @@ static void recycle_check(noit_check_t *checker) {
   checker_rcb = n;
 }
 void
+free_metric(metric_t *m) {
+  if(!m) return;
+  if(m->metric_name) free(m->metric_name);
+  if(m->metric_value.i) free(m->metric_value.i);
+  free(m);
+}
+void
 noit_poller_free_check(noit_check_t *checker) {
   noit_module_t *mod;
 
@@ -1040,6 +1047,15 @@ noit_poller_free_check(noit_check_t *checker) {
     }
     free(checker->module_configs);
   }
+  if(checker->stats.inprogress.status) free(checker->stats.inprogress.status);
+  noit_hash_destroy(&checker->stats.inprogress.metrics, NULL,
+                    (void (*)(void *))free_metric);
+  if(checker->stats.current.status) free(checker->stats.current.status);
+  noit_hash_destroy(&checker->stats.current.metrics, NULL,
+                    (void (*)(void *))free_metric);
+  if(checker->stats.previous.status) free(checker->stats.previous.status);
+  noit_hash_destroy(&checker->stats.previous.metrics, NULL,
+                    (void (*)(void *))free_metric);
   free(checker);
 }
 static int
@@ -1265,13 +1281,6 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
   memset(s, 0, sizeof(*s));
   s->state = NP_UNKNOWN;
   s->available = NP_UNKNOWN;
-}
-void
-free_metric(metric_t *m) {
-  if(!m) return;
-  if(m->metric_name) free(m->metric_name);
-  if(m->metric_value.i) free(m->metric_value.i);
-  free(m);
 }
 
 void
