@@ -91,6 +91,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   void *vh;
   char *hk = NULL;
   dns_ctx_handle_t *h = NULL;
+  if(ns && *ns == '\0') ns = NULL;
   pthread_mutex_lock(&dns_ctx_store_lock);
   if(ns == NULL && default_ctx_handle != NULL) {
     /* special case -- default context */
@@ -139,9 +140,9 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
     }
     if(failed) {
       free(h->ns);
+      dns_free(h->ctx);
       free(h);
       free(hk);
-      dns_free(h->ctx);
       h = NULL;
       goto bail;
     }
