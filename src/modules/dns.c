@@ -232,6 +232,7 @@ static void __deactivate_ci(struct dns_check_info *ci) {
 static void dns_check_log_results(struct dns_check_info *ci) {
   struct timeval duration;
   double rtt;
+  char buff[48];
 
   gettimeofday(&ci->check->stats.inprogress.whence, NULL);
   sub_timeval(ci->check->stats.inprogress.whence, ci->check->last_fire_time, &duration);
@@ -245,13 +246,12 @@ static void dns_check_log_results(struct dns_check_info *ci) {
     ci->check->stats.inprogress.status = NULL;
   }
   if(ci->error) {
-    ci->check->stats.inprogress.status = strdup(ci->error);
+    ci->check->stats.inprogress.status = ci->error;
   }
   else if(!ci->check->stats.inprogress.status) {
-    char buff[48];
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
-    ci->check->stats.inprogress.status = strdup(buff);
+    ci->check->stats.inprogress.status = buff;
   }
   noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "rtt", METRIC_DOUBLE,
                         ci->timed_out ? NULL : &rtt);
