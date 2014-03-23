@@ -26,13 +26,13 @@ LUADIR=LuaJIT
 
 top_srcdir=@top_srcdir@
 
-MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ postgres.@MODULEEXT@ \
+MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-SMODULES=@BUILD_SMODULES@ postgres_ingestor.@MODULEEXT@ \
+SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
 include ../Makefile.objs

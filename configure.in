@@ -289,7 +289,8 @@ AC_CHECK_LIB(pq, PQconnectdb,
 		AC_SUBST(PGLIBS)
 	],
 	[
-		AC_MSG_ERROR([libpq required])
+		AC_MSG_WARN([libpq is *highly* recommended and needed for the test suite.])
+		AC_SUBST(PGLIBS)
 	]
 )
 
@@ -299,12 +300,23 @@ if test -n "$PQICFLAGS" ; then
 	CFLAGS="$CFLAGS -I$PQICFLAGS"
 fi
 
+POSTGRES_MODULE="no"
+POSTGRES_INGESTOR_MODULE="no"
 AC_TRY_LINK([
 	#include <libpq-fe.h>
 	],
 	[ PGconn *dbh = PQconnectdb(""); ],
-	[],
-	[ AC_MSG_ERROR([Cannot compile/link against libpq]) ]
+	[
+		BUILD_MODULES="$BUILD_MODULES postgres.$MODULEEXT"
+		BUILD_SMODULES="$BUILD_SMODULES postgres_ingestor.$MODULEEXT"
+		AC_SUBST(PGCFLAGS)
+		POSTGRES_MODULE="yes"
+		POSTGRES_INGESTOR_MODULE="yes"
+  ],
+	[
+		AC_SUBST(PGCFLAGS)
+		AC_MSG_WARN([Cannot compile/link against libpq])
+	]
 )
 PGCFLAGS=$CFLAGS
 AC_SUBST(PGCFLAGS)
@@ -887,11 +899,13 @@ AC_MSG_RESULT([
   Lua Implementation: $ENABLE_LUA
 
   == optional noit modules ==
+  Postgres module:    $POSTGRES_MODULE
   MySQL module:       $MYSQL_MODULE
   SNMP module:        $SNMP_MODULE
   SSH2 module:        $SSH2_MODULE
 
   == optional stratcon modules ==
+  Postgres ingestor:  $POSTGRES_INGESTOR_MODULE
   STOMP iep driver:   $STOMP_DRIVER_MODULE
   FQ iep driver:      $FQ_DRIVER_MODULE
 
