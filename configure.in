@@ -289,7 +289,7 @@ AC_CHECK_LIB(pq, PQconnectdb,
 		AC_SUBST(PGLIBS)
 	],
 	[
-		AC_MSG_WARN([libpq is *highly* recommended and needed for the test suite.])
+		AC_MSG_WARN([libpq is highly recommended and needed for the test suite])
 		AC_SUBST(PGLIBS)
 	]
 )
