@@ -75,6 +75,6 @@ PostgreSQL 8.4 is required.
 # git clone git@github.com:circonus-labs/reconnoiter.git
 # cd reconnoiter
 # autoconf
-# ./configure LDFLAGS="-L/opt/omni/lib/"
+# ./configure LDFLAGS="-L/opt/omni/lib/" CPPFLAGS="-I/opt/omni/include"
 # make
 }}}
