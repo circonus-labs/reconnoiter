@@ -68,6 +68,7 @@ typedef struct {
 /* This performs a pop (exiting if at toplevel) */
 extern cmd_info_t console_command_exit;
 extern cmd_info_t console_command_help;
+extern cmd_info_t console_command_crash;
 extern cmd_info_t console_command_shutdown;
 extern cmd_info_t console_command_restart;
 
@@ -164,6 +165,10 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_console_help(noit_console_closure_t ncct, int argc, char **argv,
                     noit_console_state_t *, void *);
+
+API_EXPORT(int)
+  noit_console_crash(noit_console_closure_t ncct, int argc, char **argv,
+                     noit_console_state_t *, void *);
 
 API_EXPORT(int)
   noit_console_shutdown(noit_console_closure_t ncct, int argc, char **argv,
