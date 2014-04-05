@@ -139,9 +139,13 @@ int noit_monitored_child_pid = -1;
 void run_glider(int pid) {
   char cmd[1024], unused;
   if(glider_path) {
+    char *oldpath, oldpath_buf[PATH_MAX];
+    oldpath = getcwd(oldpath_buf, sizeof(oldpath_buf));
+    if(oldpath) chdir(trace_dir);
     snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
              glider_path, pid, trace_dir, appname, pid);
     unused = system(cmd);
+    if(oldpath) chdir(oldpath);
   }
   (void)unused;
 }
