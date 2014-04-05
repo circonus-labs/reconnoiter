@@ -207,10 +207,11 @@ static void close_all_fds() {
   }
 #else
   struct rlimit rl;
-  int i;
+  int i, reasonable_max;
 
   getrlimit(RLIMIT_NOFILE, &rl);
-  for (i = 0; i < rl.rlim_max; i++)
+  reasonable_max = MIN(1<<14, rl.rlim_max);
+  for (i = 0; i < reasonable_max; i++)
     (void) close(i);
 #endif
 }
