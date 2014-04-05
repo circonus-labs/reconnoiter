@@ -44,6 +44,9 @@
 #if defined(__sun__)
 #include <sys/lwp.h>
 #endif
+#if defined(__MACH__) && defined(__APPLE__)
+#include <libproc.h>
+#endif
 #include <signal.h>
 #include <time.h>
 #ifdef HAVE_SYS_WAIT_H
@@ -191,6 +194,17 @@ static void close_all_fds() {
     }
   }
   close(3);
+#elif defined(__MACH__) && defined(__APPLE__)
+  struct proc_fdinfo files[1024*16];
+  int rv, i = 0;
+
+  rv = proc_pidinfo(getpid(), PROC_PIDLISTFDS, 0, files, sizeof(files));
+  if(rv > 0 && (rv % sizeof(files[0])) == 0) {
+    rv /= sizeof(files[0]);
+    for(i=0;i<rv;i++) {
+      (void) close(files[i].proc_fd);
+    }
+  }
 #else
   struct rlimit rl;
   int i;
