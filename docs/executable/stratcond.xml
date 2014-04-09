@@ -118,6 +118,12 @@
         The process remains attached to the terminal.  This is primarily
         for debugging purposes.
       </para>
+      <para>
+        If this flag is specified more than once, <command>stratcond</command>
+        stay in the foreground, but the foreground process will actually
+        be the monitor process and the child will be forked off and
+        respawned on unexpected failures.
+      </para>
     </listitem>
   </varlistentry>
   <varlistentry><term><option>-d</option></term>

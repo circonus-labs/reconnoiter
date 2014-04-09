@@ -233,22 +233,24 @@ noit_main(const char *appname,
   if(lockfd >= 0) noit_lockfile_release(lockfd);
   lockfd = -1;
 
-  fd = open("/dev/null", O_RDONLY);
-  if(fd < 0 || dup2(fd, STDIN_FILENO) < 0) {
-    fprintf(stderr, "Failed to setup stdin: %s\n", strerror(errno));
-    exit(-1);
-  }
-  close(fd);
-  fd = open("/dev/null", O_WRONLY);
-  if(fd < 0 || dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO) < 0) {
-    fprintf(stderr, "Failed to setup std{out,err}: %s\n", strerror(errno));
-    exit(-1);
-  }
-  close(fd);
+  if(foreground == 0) {
+    fd = open("/dev/null", O_RDONLY);
+    if(fd < 0 || dup2(fd, STDIN_FILENO) < 0) {
+      fprintf(stderr, "Failed to setup stdin: %s\n", strerror(errno));
+      exit(-1);
+    }
+    close(fd);
+    fd = open("/dev/null", O_WRONLY);
+    if(fd < 0 || dup2(fd, STDOUT_FILENO) < 0 || dup2(fd, STDERR_FILENO) < 0) {
+      fprintf(stderr, "Failed to setup std{out,err}: %s\n", strerror(errno));
+      exit(-1);
+    }
+    close(fd);
 
-  if(fork()) exit(0);
-  setsid();
-  if(fork()) exit(0);
+    if(fork()) exit(0);
+    setsid();
+    if(fork()) exit(0);
+  }
 
   /* Reacquire the lock */
   if(*lockfile) {

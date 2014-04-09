@@ -153,15 +153,6 @@ void run_glider(int pid) {
   (void)unused;
 }
 
-void glidechild(int sig) {
-  signal(sig, SIG_DFL);
-  if(noit_monitored_child_pid > 0) {
-    run_glider(noit_monitored_child_pid);
-    kill(noit_monitored_child_pid, SIGCONT);
-  }
-  signal(SIGUSR2, glidechild);
-}
-
 #ifdef HAVE_FDWALK
 static int fdwalker_close(void *unused, int fd) {
   close(fd);
@@ -253,7 +244,6 @@ void emancipate(int sig) {
     kill(noit_monitored_child_pid, sig);
   }
   else if (getpid() == noit_monitored_child_pid){
-    kill(getppid(), SIGUSR2); /* fast notification path */
     it_ticks_crash(); /* slow notification path */
     kill(noit_monitored_child_pid, SIGSTOP); /* stop and wait for a glide */
 
@@ -265,15 +255,37 @@ void emancipate(int sig) {
     }
     kill(noit_monitored_child_pid, sig);
   }
-  else {
-    kill(noit_monitored_child_pid, SIGUSR2);
-  }
 }
 
 void subprocess_killed(int sig) {
   noitL(noit_error, "got a signal from spawned process.... exiting\n");
   exit(-1);
 }
+
+/* monitoring...
+ *
+ *  /-----------------/                /---------------------------------/
+ *  /  Child running  / --> (hang) --> / Parent tick age > timeout       /
+ *  /-----------------/   (no crash)   /     SIGSTOP -> glide -> SIGKILL /
+ *         |                           /---------------------------------/
+ *       (segv)
+ *         |
+ *  /--------------------------------------------------/
+ *  /   `emancipate`                                   /
+ *  /  Child annotates shared memory CRASHED indicator / -(notices crash)
+ *  /  Child STOPs itself.                             /         |
+ *  /     [ possible fd shutdown and mark as RESTART ] /         |
+ *  /--------------------------------------------------/         |
+ *         |                                                     |
+ *         |                           /---------------------------------/
+ *         |                           /  Parent runs run glider.        /
+ *         |<----(wakeup)--------------/  Parent SIGCONT Child.          /
+ *         |                           /  if RESTART, clear indicator    /
+ *  /-----------------------/          /---------------------------------/
+ *  / Child reraises signal / 
+ *  /-----------------------/
+ *
+ */
 
 int noit_watchdog_start_child(const char *app, int (*func)(),
                               int child_watchdog_timeout) {
@@ -286,8 +298,8 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
   appname = strdup(app);
   if(child_watchdog_timeout == 0)
     child_watchdog_timeout = CHILD_WATCHDOG_TIMEOUT;
-  signal(SIGUSR2, glidechild);
   while(1) {
+    unsigned long ltt = 0;
     /* This sets up things so we start alive */
     it_ticks_zero();
     child_pid = fork();
@@ -304,7 +316,6 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         noitL(noit_error, "no glider, allowing a single emancipated minor.\n");
       signal(SIGSEGV, emancipate);
       signal(SIGABRT, emancipate);
-      signal(SIGUSR2, subprocess_killed);
       /* run the program */
       exit(func());
     }
@@ -312,13 +323,12 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
       int sig = -1, exit_val = -1;
       noit_monitored_child_pid = child_pid;
       while(1) {
-        unsigned long ltt = 0;
         int status, rv;
         sleep(1); /* Just check child status every second */
         if(child_pid != crashing_pid && crashing_pid != -1) {
           rv = waitpid(crashing_pid, &status, WNOHANG);
           if(rv == crashing_pid) {
-            noitL(noit_error, "emancipated child %d [%d/%d] reaped.\n",
+            noitL(noit_error, "[monitor] emancipated child %d [%d/%d] reaped.\n",
                   crashing_pid, WEXITSTATUS(status), WTERMSIG(status));
             crashing_pid = -1;
           }
@@ -330,54 +340,63 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         else if (rv == child_pid) {
           /* We died!... we need to relaunch, unless the status was a requested exit (2) */
           int quit;
-          if(child_pid == crashing_pid) crashing_pid = -1;
+          if(child_pid == crashing_pid) {
+            lifeline[1] = 0;
+            crashing_pid = -1;
+          }
           noit_monitored_child_pid = -1;
           sig = WTERMSIG(status);
           exit_val = WEXITSTATUS(status);
           quit = update_retries(&offset, time_data);
           if (quit) {
-            noitL(noit_error, "noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
+            noitL(noit_error, "[monitor] noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
             exit(0);
           }
           else if(sig == SIGINT || sig == SIGQUIT ||
              (sig == 0 && (exit_val == 2 || exit_val < 0))) {
-            noitL(noit_error, "%s shutdown acknowledged.\n", app);
+            noitL(noit_error, "[monitor] %s shutdown acknowledged.\n", app);
             exit(0);
           }
           break;
         }
-        else {
-          noitL(noit_error, "Unexpected return from waitpid: %d\n", rv);
+        else if(errno != ECHILD) {
+          noitL(noit_error, "[monitor] unexpected return from waitpid: %d (%s)\n", rv, strerror(errno));
           exit(-1);
         }
         /* Now check out timeout */
         if(it_ticks_crash_restart()) {
-          noitL(noit_error, "%s %d is emancipated for dumping.\n", app, crashing_pid);
+          noitL(noit_error, "[monitor] %s %d is emancipated for dumping.\n", app, crashing_pid);
+          lifeline[1] = 0;
           noit_monitored_child_pid = -1;
           break;
         }
         else if(it_ticks_crashed() && crashing_pid == -1) {
           crashing_pid = noit_monitored_child_pid;
-          noitL(noit_error, "%s %d has crashed.\n", app, crashing_pid);
+          noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
           run_glider(crashing_pid);
-          lifeline[1] = 0;
           kill(crashing_pid, SIGCONT);
         }
-        else if((ltt = last_tick_time()) > child_watchdog_timeout) {
+        else if(lifeline[1] == 0 && noit_monitored_child_pid == child_pid &&
+                (ltt = last_tick_time()) > child_watchdog_timeout) {
           noitL(noit_error,
-                "Watchdog timeout (%lu s)... terminating child\n",
+                "[monitor] Watchdog timeout (%lu s)... terminating child\n",
                 ltt);
-          kill(child_pid, SIGSTOP);
-          run_glider(child_pid);
+          if(glider_path) {
+            kill(child_pid, SIGSTOP);
+            run_glider(child_pid);
+            kill(child_pid, SIGCONT);
+          }
           kill(child_pid, SIGKILL);
           noit_monitored_child_pid = -1;
         }
-        noitL(noit_debug, "last_tick_time -> %lu\n", ltt);
       }
       if(sig >= 0) {
-        noitL(noit_error, "%s child died [%d/%d], restarting.\n",
+        noitL(noit_error, "[monitor] %s child died [%d/%d], restarting.\n",
               app, exit_val, sig);
       }
+    }
+    if((ltt = last_tick_time()) > 1) {
+      noitL(noit_debug, "[monitor] child hearbeat age: %lu\n", ltt);
     }
   }
 }
