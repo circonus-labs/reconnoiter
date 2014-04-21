@@ -135,6 +135,9 @@ cmd_info_t console_command_help = {
 cmd_info_t console_command_exit = {
   "exit", noit_console_state_pop, NULL, NULL, NULL
 };
+cmd_info_t console_command_crash = {
+  "crash", noit_console_crash, NULL, NULL, NULL
+};
 cmd_info_t console_command_shutdown = {
   "shutdown", noit_console_shutdown, NULL, NULL, NULL
 };
@@ -598,6 +601,7 @@ noit_console_state_initial() {
     show_state = noit_console_mksubdelegate(_top_level_state, "show");
     no_state = noit_console_mksubdelegate(_top_level_state, "no");
 
+    noit_console_state_add_cmd(_top_level_state, &console_command_crash);
     noit_console_state_add_cmd(_top_level_state, &console_command_shutdown);
     noit_console_state_add_cmd(_top_level_state, &console_command_restart);
     noit_console_state_add_cmd(show_state, &console_command_version);
@@ -625,6 +629,12 @@ noit_console_state_push_state(noit_console_closure_t ncct,
   ncct->state_stack = stack;
 }
 
+int
+noit_console_crash(noit_console_closure_t ncct, int argc, char **argv,
+                   noit_console_state_t *dstate, void *unused) {
+  *((volatile int *)0) = 0;
+  return 0;
+}
 int
 noit_console_shutdown(noit_console_closure_t ncct, int argc, char **argv,
                       noit_console_state_t *dstate, void *unused) {

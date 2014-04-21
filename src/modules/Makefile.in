@@ -35,9 +35,9 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
-include ../Makefile.objs
-
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
+
+include ../Makefile.objs
 
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@

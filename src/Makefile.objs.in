@@ -49,7 +49,14 @@ LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
 LUADIR=LuaJIT
 LUACFLAGS+=-DLUAJIT_UNWIND_INTERNAL
 LUA_OBJS=$(LUAJIT:%=$(LUADIR)/src/%)
-$(LUADIR)/src/%.o:
+
+$(LUADIR)/src/host/minilua:
+	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" host/minilua
+
+$(LUADIR)/src/host/buildvm:
+	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" host/buildvm
+
+$(LUADIR)/src/%.o:	$(LUADIR)/src/host/minilua $(LUADIR)/src/host/buildvm
 	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 else
 ifeq (lua52,$(ENABLE_LUA))

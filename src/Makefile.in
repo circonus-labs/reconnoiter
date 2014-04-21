@@ -45,6 +45,8 @@ STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
 	jlog/jlogctl
 
+all:	reversion $(TARGETS) java-bits make-modules make-man
+
 MODDIR=modules
 
 HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
@@ -109,8 +111,6 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 
 FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
-
-all:	reversion $(TARGETS) java-bits make-modules make-man
 
 lua/src/lua:
 	(cd lua/src && $(MAKE) lua)

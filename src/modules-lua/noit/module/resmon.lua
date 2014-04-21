@@ -89,8 +89,8 @@ function onload(image)
 
   if image.name() == "resmon" then return 0 end
   local status, err = pcall(function () helper = require ('noit.module.resmon.' .. image.name()) end)
-  if not status then
-    noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err)
+  if not status and (err == nil or string.find(err, "not found") == nil) then
+    noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err or "unknown error")
     return 0
   end
   return 0
