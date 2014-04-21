@@ -51,7 +51,6 @@ typedef ck_ht_iterator_t noit_hash_iter;
 
 void noit_hash_init(noit_hash_table *h);
 void noit_hash_init_size(noit_hash_table *h, int size);
-int noit_hash_size(noit_hash_table *h);
 /* NOTE! "k" and "data" MUST NOT be transient buffers, as the hash table
  * implementation does not duplicate them.  You provide a pair of
  * NoitHashFreeFunc functions to free up their storage when you call
