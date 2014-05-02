@@ -217,7 +217,7 @@ function initiate(module, check)
   if config.banner_match ~= nil then
     str = e:read("\n")
     if str == nil then
-      check.status("bad banner length " .. (str and str:len() or "0"))
+      check.status("could not read banner")
       return
     end
     local firstbytetime = noit.timeval.now()
