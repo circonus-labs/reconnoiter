@@ -216,6 +216,10 @@ function initiate(module, check)
   -- match banner
   if config.banner_match ~= nil then
     str = e:read("\n")
+    if str == nil then
+      check.status("could not read banner")
+      return
+    end
     local firstbytetime = noit.timeval.now()
     elapsed(check, "tt_firstbyte", starttime, firstbytetime)
 
