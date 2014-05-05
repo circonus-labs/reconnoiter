@@ -131,14 +131,14 @@ struct uuid_dummy { uuid_t foo; };
 #define UUID_SIZE sizeof(struct uuid_dummy)
 
 #if defined(__MACH__)
-typedef uint64_t hrtime_t;
+typedef uint64_t noit_hrtime_t;
 #elif defined(linux) || defined(__linux) || defined(__linux__)
-typedef long long unsigned int hrtime_t;
+typedef long long unsigned int noit_hrtime_t;
 #endif
 
 #if defined(linux)
 #include <time.h>
-static inline hrtime_t noit_gethrtime() {
+static inline noit_hrtime_t noit_gethrtime() {
   struct timespec ts;
   uint64_t t;
   clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -148,7 +148,7 @@ static inline hrtime_t noit_gethrtime() {
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 
-static inline hrtime_t noit_gethrtime() {
+static inline noit_hrtime_t noit_gethrtime() {
   static int initialized = 0;
   static mach_timebase_info_data_t    sTimebaseInfo;
   uint64_t t;
@@ -160,8 +160,8 @@ static inline hrtime_t noit_gethrtime() {
   return t * sTimebaseInfo.numer / sTimebaseInfo.denom;
 }
 #else
-static inline hrtime_t noit_gethrtime() {
-  return gethrtime();
+static inline noit_hrtime_t noit_gethrtime() {
+  return (noit_hrtime_t)gethrtime();
 }
 #endif
 
