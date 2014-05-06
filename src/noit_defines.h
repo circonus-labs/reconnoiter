@@ -134,6 +134,8 @@ struct uuid_dummy { uuid_t foo; };
 typedef uint64_t noit_hrtime_t;
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 typedef long long unsigned int noit_hrtime_t;
+#else
+typedef htrime_t noit_hrtime_t;
 #endif
 
 #if defined(linux)
