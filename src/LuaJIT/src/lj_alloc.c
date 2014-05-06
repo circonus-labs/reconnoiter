@@ -183,7 +183,12 @@ static LJ_AINLINE int CALL_MUNMAP(void *ptr, size_t size)
 static LJ_AINLINE void *CALL_MMAP(size_t size)
 {
   int olderr = errno;
+#if defined(__sun__)
+  /* Illumos MAP_32BIT implementation breaks with NULL request address */
+  void *ptr = mmap((void *)0x1000, size, MMAP_PROT, MAP_32BIT|MMAP_FLAGS, -1, 0);
+#else
   void *ptr = mmap(NULL, size, MMAP_PROT, MAP_32BIT|MMAP_FLAGS, -1, 0);
+#endif
   errno = olderr;
   return ptr;
 }
