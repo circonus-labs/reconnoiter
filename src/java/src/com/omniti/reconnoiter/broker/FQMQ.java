@@ -101,6 +101,7 @@ public class FQMQ implements IMQMQ  {
     exchangeName = config.getMQParameter("exchange", "");
 
     FqNoit impl = new FqNoit(this);
+    client = new FqClient[hostName.length];
     for(int i=0;i<hostName.length;i++) {
       try {
         client[i] = new FqClient(impl);
