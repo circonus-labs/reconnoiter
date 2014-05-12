@@ -74,22 +74,22 @@ public class RabbitMQ implements IMQMQ  {
   public RabbitMQ(StratconConfig config) {
     this.conn = null;
     this.cidx = 0;
-    this.userName = config.getMQParameter("username", "guest");
-    this.password = config.getMQParameter("password", "guest");
-    this.virtualHost = config.getMQParameter("virtualhost", "/");
-    this.hostName = config.getMQParameter("hostname", "127.0.0.1").split(",");
-    this.portNumber = Integer.parseInt(config.getMQParameter("port", "5672"));
-    this.heartBeat = Integer.parseInt(config.getMQParameter("heartbeat", "5000"));
+    this.userName = config.getMQTypeParameter("rabbitmq", "username", "guest");
+    this.password = config.getMQTypeParameter("rabbitmq", "password", "guest");
+    this.virtualHost = config.getMQTypeParameter("rabbitmq", "virtualhost", "/");
+    this.hostName = config.getMQTypeParameter("rabbitmq", "hostname", "127.0.0.1").split(",");
+    this.portNumber = Integer.parseInt(config.getMQTypeParameter("rabbitmq", "port", "5672"));
+    this.heartBeat = Integer.parseInt(config.getMQTypeParameter("rabbitmq", "heartbeat", "5000"));
     this.heartBeat = (this.heartBeat + 999) / 1000; // (ms -> seconds, rounding up)
-    this.connectTimeout = Integer.parseInt(config.getMQParameter("connect_timeout", "5000"));
+    this.connectTimeout = Integer.parseInt(config.getMQTypeParameter("rabbitmq", "connect_timeout", "5000"));
 
-    this.exchangeType = config.getMQParameter("exchangetype", "fanout");
-    this.durableExchange = config.getMQParameter("durableexchange", "false").equals("true");
-    this.exchangeName = config.getMQParameter("exchange", "noit.firehose");
-    this.exclusiveQueue = config.getMQParameter("exclusivequeue", "false").equals("true");
-    this.durableQueue = config.getMQParameter("durablequeue", "false").equals("true");
-    this.declaredQueueName = config.getMQParameter("queue", "reconnoiter-{node}-{pid}");
-    this.routingKey = config.getMQParameter("routingkey", "");
+    this.exchangeType = config.getMQTypeParameter("rabbitmq", "exchangetype", "fanout");
+    this.durableExchange = config.getMQTypeParameter("rabbitmq", "durableexchange", "false").equals("true");
+    this.exchangeName = config.getMQTypeParameter("rabbitmq", "exchange", "noit.firehose");
+    this.exclusiveQueue = config.getMQTypeParameter("rabbitmq", "exclusivequeue", "false").equals("true");
+    this.durableQueue = config.getMQTypeParameter("rabbitmq", "durablequeue", "false").equals("true");
+    this.declaredQueueName = config.getMQTypeParameter("rabbitmq", "queue", "reconnoiter-{node}-{pid}");
+    this.routingKey = config.getMQTypeParameter("rabbitmq", "routingkey", "");
   
     try {
       this.queueName = this.declaredQueueName;

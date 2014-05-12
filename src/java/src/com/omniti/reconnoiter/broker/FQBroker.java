@@ -64,7 +64,10 @@ public class FQBroker implements IMQBroker  {
       super();
       parent = p;
     }
-    public void setClient(FqClient c) { client = c; }
+    public void setClient(FqClient c) throws InUseException {
+      if(client != null) throw new InUseException();
+      client = c;
+    }
     public void commandError(Throwable e) {
       while(true) {
         try {
@@ -76,18 +79,18 @@ public class FQBroker implements IMQBroker  {
   }
 
   public FQBroker(StratconConfig config) {
-    userName = config.getMQParameter("username", "guest");
-    password = config.getMQParameter("password", "guest");
-    hostName = config.getMQParameter("hostname", "127.0.0.1").split(",");
-    portNumber = Integer.parseInt(config.getMQParameter("port", "8765"));
-    heartBeat = Integer.parseInt(config.getMQParameter("heartbeat", "1000"));
+    userName = config.getBrokerParameter("username", "guest");
+    password = config.getBrokerParameter("password", "guest");
+    hostName = config.getBrokerParameter("hostname", "127.0.0.1").split(",");
+    portNumber = Integer.parseInt(config.getBrokerParameter("port", "8765"));
+    heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "1000"));
     alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
     alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
 
-    FqNoit impl = new FqNoit(this);
     client = new FqClient[hostName.length];
     for(int i=0;i<hostName.length; i++) {
       try {
+        FqNoit impl = new FqNoit(this);
         client[i] = new FqClient(impl);
         client[i].creds(hostName[i], portNumber, userName, password);
         client[i].connect();
