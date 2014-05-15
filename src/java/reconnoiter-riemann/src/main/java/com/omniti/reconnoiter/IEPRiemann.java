@@ -53,7 +53,7 @@ import clojure.lang.Compiler;
 import java.io.StringReader;
 
 class IEPRiemann {
-  private MQListener mql;
+  private MQListener[] mql;
 
   public IEPRiemann(StratconConfig sconf) {
     try { RT.load("riemann.core"); }
@@ -74,15 +74,17 @@ class IEPRiemann {
     riemann.bin.main(new String[] {
       sconf.getIepParameter("riemann", "config") }
     );
-    IMQMQ mq = MQFactory.getMQ(sconf);
+    IMQMQ[] mqs = MQFactory.getMQs(sconf);
     IMQBroker broker = BrokerFactory.getBroker(sconf);
-    EventHandler eh = new EventHandler(mq, broker);
-    mql = new MQListener(eh, mq);
+    EventHandler eh = new EventHandler(mqs, broker);
+    mql = new MQListener[mqs.length];
+    for(int i=0; i<mqs.length; i++)
+      mql[i] = new MQListener(eh, mqs[i]);
   }
 
   public void start() {
-    Thread listener = new Thread(mql);
-    listener.start();
+    for(int i=0; i<mql.length; i++)
+      (new Thread(mql[i])).start();
   }
 
   static public void main(String[] args) {

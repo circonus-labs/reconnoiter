@@ -59,7 +59,7 @@ import clojure.lang.PersistentVector;
 public class EventHandler implements IEventHandler {
   static Logger logger = Logger.getLogger(EventHandler.class.getName());
   private LinkedList<MessageHandler> alternates;
-  private IMQMQ mq;
+  private IMQMQ[] mq;
   private IMQBroker broker;
   private AtomicLong events_handled_num;
   private AtomicLong events_handled_microseconds;
@@ -77,7 +77,7 @@ public class EventHandler implements IEventHandler {
   static public void _coreReload() {
     _global.coreReload();
   }
-  public EventHandler(IMQMQ mq, IMQBroker broker) {
+  public EventHandler(IMQMQ[] mq, IMQBroker broker) {
     _global = this;
     this.mq = mq;
     this.broker = broker;
@@ -102,7 +102,7 @@ public class EventHandler implements IEventHandler {
   public void addObserver(MessageHandler mh) {
     alternates.add(mh);
   }
-  public IMQMQ getMQ() { return mq; }
+  public IMQMQ[] getMQs() { return mq; }
   public IMQBroker getBroker() { return broker; }
 
   public void processMessage(StratconMessage m) throws Exception {

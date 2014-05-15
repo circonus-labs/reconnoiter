@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -16,7 +16,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -132,5 +132,42 @@ static inline void uuid_unparse_lower(uuid_t in, char *out) {
 #include <uuid/uuid.h>
 struct uuid_dummy { uuid_t foo; };
 #define UUID_SIZE sizeof(struct uuid_dummy)
+
+#if defined(__MACH__)
+typedef uint64_t noit_hrtime_t;
+#elif defined(linux) || defined(__linux) || defined(__linux__)
+typedef long long unsigned int noit_hrtime_t;
+#else
+typedef hrtime_t noit_hrtime_t;
+#endif
+
+#if defined(linux)
+#include <time.h>
+static inline noit_hrtime_t noit_gethrtime() {
+  struct timespec ts;
+  uint64_t t;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  return ((ts.tv_sec * 1000000000) + ts.tv_nsec);
+}
+#elif defined(__MACH__)
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
+static inline noit_hrtime_t noit_gethrtime() {
+  static int initialized = 0;
+  static mach_timebase_info_data_t    sTimebaseInfo;
+  uint64_t t;
+  if(!initialized) {
+    if(sTimebaseInfo.denom == 0)
+      (void) mach_timebase_info(&sTimebaseInfo);
+  }
+  t = mach_absolute_time();
+  return t * sTimebaseInfo.numer / sTimebaseInfo.denom;
+}
+#else
+static inline noit_hrtime_t noit_gethrtime() {
+  return (noit_hrtime_t)gethrtime();
+}
+#endif
 
 #endif

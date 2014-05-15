@@ -36,22 +36,27 @@ package com.omniti.reconnoiter.broker;
 import com.omniti.reconnoiter.StratconConfig;
 
 public class MQFactory {
-  public static IMQMQ getMQ(StratconConfig config) {
+  public static IMQMQ[] getMQs(StratconConfig config) {
     // TODO if the broker is null default the AMQAdapter
-    String broker = config.getMQ();
+    String[] brokers = config.getMQs();
+    IMQMQ[] mqs;
     
-    if (broker == null)
-      return new AMQMQ(config);
-    
-    if (broker.compareToIgnoreCase("rabbitmq") == 0) {
-      return new RabbitMQ(config);
+    if (brokers == null) {
+      return new IMQMQ[]{new AMQMQ(config)};
     }
-    else if (broker.compareToIgnoreCase("activemq") == 0) {
-      return new AMQMQ(config);
+    mqs = new IMQMQ[brokers.length];
+    for(int i=0;i<brokers.length; i++) {
+      if (brokers[i].compareToIgnoreCase("rabbitmq") == 0) {
+        mqs[i] = new RabbitMQ(config);
+      }
+      else if (brokers[i].compareToIgnoreCase("activemq") == 0) {
+        mqs[i] = new AMQMQ(config);
+      }
+      else if (brokers[i].compareToIgnoreCase("fq") == 0) {
+        mqs[i] = new FQMQ(config);
+      }
+      else mqs[i] = new AMQMQ(config);
     }
-    else if (broker.compareToIgnoreCase("fq") == 0) {
-      return new FQMQ(config);
-    }
-    return new AMQMQ(config);
+    return mqs;
   }
 }

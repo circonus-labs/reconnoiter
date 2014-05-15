@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2014, Circonus, Inc. All rights reserved.
- * Copyright (c) 2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,10 +12,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -38,31 +36,31 @@ import java.io.IOException;
 import org.apache.log4j.Logger;
 import com.omniti.reconnoiter.IEventHandler;
 import com.omniti.reconnoiter.StratconConfig;
+
 import com.omniti.labs.FqClient;
-import com.omniti.labs.FqClientImplDebug;
 import com.omniti.labs.FqClientImplNoop;
 import com.omniti.labs.FqClientImplInterface;
 import com.omniti.labs.FqCommand;
 import com.omniti.labs.FqMessage;
 
-public class FQMQ implements IMQMQ  {
-  static Logger logger = Logger.getLogger(FQMQ.class.getName());
+public class FQBroker implements IMQBroker  {
+  static Logger logger = Logger.getLogger(FQBroker.class.getName());
+
   private FqClient[] client;
-  protected int idx = 0;
   protected String userName;
   protected String password;
   protected String hostName[];
   protected int portNumber;
-  protected String exchangeName;
-  protected String routingKey;
+  protected String alertExchangeName;
+  protected String alertRoutingKey;
   protected Integer heartBeat;
   protected IEventHandler eh;
   private FqNoit impl;
 
-  private class FqNoit extends FqClientImplDebug {
-    private FQMQ parent;
+  private class FqNoit extends FqClientImplNoop {
+    private FQBroker parent;
     private FqClient client;
-    public FqNoit(FQMQ p) {
+    public FqNoit(FQBroker p) {
       super();
       parent = p;
     }
@@ -70,13 +68,7 @@ public class FQMQ implements IMQMQ  {
       if(client != null) throw new InUseException();
       client = c;
     }
-    public void dispatch(FqMessage m) {
-      try {
-        if(parent.eh != null) parent.eh.processMessage(new String(m.getPayload()));
-      } catch (Exception e) { e.printStackTrace(); }
-    }
     public void commandError(Throwable e) {
-      e.printStackTrace();
       while(true) {
         try {
           client.creds(null, portNumber, userName, password);
@@ -84,54 +76,52 @@ public class FQMQ implements IMQMQ  {
         } catch(java.net.UnknownHostException uhe) { }
       }
     }
-    public void dispatchBindRequest(FqCommand.BindRequest cmd) {
-      System.err.println("bind -> " + cmd.getBinding());
-    }
-    public void dispatchAuth(FqCommand.Auth a) {
-      if(a.success()) {
-        for (String rk : routingKey.split(",")) {
-            if ( rk.equalsIgnoreCase("null") ) rk = "";
-            FqCommand.BindRequest breq = new FqCommand.BindRequest(
-              exchangeName, "prefix:\"" + rk + "\"", false
-            );
-            client.send(breq);
-        }
-      }
-    }
   }
-  public FQMQ(StratconConfig config) {
-    userName = config.getMQTypeParameter("fq", "username", "guest");
-    password = config.getMQTypeParameter("fq", "password", "guest");
-    hostName = config.getMQTypeParameter("fq", "hostname", "127.0.0.1").split(",");
-    portNumber = Integer.parseInt(config.getMQTypeParameter("fq", "port", "8765"));
-    heartBeat = Integer.parseInt(config.getMQTypeParameter("fq", "heartbeat", "1000"));
-    routingKey = config.getMQTypeParameter("fq", "routingkey", "");
-    exchangeName = config.getMQTypeParameter("fq", "exchange", "");
+
+  public FQBroker(StratconConfig config) {
+    userName = config.getBrokerParameter("username", "guest");
+    password = config.getBrokerParameter("password", "guest");
+    hostName = config.getBrokerParameter("hostname", "127.0.0.1").split(",");
+    portNumber = Integer.parseInt(config.getBrokerParameter("port", "8765"));
+    heartBeat = Integer.parseInt(config.getBrokerParameter("heartbeat", "1000"));
+    alertRoutingKey = config.getBrokerParameter("routingkey", "noit.alerts.");
+    alertExchangeName = config.getBrokerParameter("exchange", "noit.alerts");
 
     client = new FqClient[hostName.length];
-    for(int i=0;i<hostName.length;i++) {
+    for(int i=0;i<hostName.length; i++) {
       try {
         FqNoit impl = new FqNoit(this);
         client[i] = new FqClient(impl);
         client[i].creds(hostName[i], portNumber, userName, password);
-        client[i].setHeartbeat(heartBeat);
         client[i].connect();
       } catch(Exception e) {
         throw new RuntimeException(e);
       }
     }
   }
-  
-  // 
+
+  //
   public void disconnect() {
   }
   public void connect() throws Exception {
   }
-  
-  public void consume(IEventHandler _eh) throws IOException {
-    eh = _eh;
-    while(true) {
-      try { this.wait(); } catch (InterruptedException ie) {}
+
+  private String getAlertExchangeName() { return alertExchangeName; }
+  private String getAlertRoutingKey() { return alertRoutingKey; }
+  public void alert(String key, String json) {
+    String routingKey;
+    if(key == null) routingKey = getAlertRoutingKey();
+    else routingKey = getAlertRoutingKey() + key;
+    try {
+      FqMessage msg = new FqMessage();
+      msg.setRoute(routingKey.getBytes());
+      msg.setExchange(getAlertExchangeName().getBytes());
+      msg.setPayload(json.getBytes());
+      for(int i=0;i<client.length;i++) client[i].send(msg);
+    } catch (Exception e) {
+      e.printStackTrace();
+      try { connect(); }
+      catch (Exception ignored) { }
     }
   }
 }

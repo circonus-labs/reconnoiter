@@ -40,7 +40,7 @@ import com.omniti.reconnoiter.MessageHandler;
 public interface IEventHandler {
   public void addObserver(MessageHandler mh);
   public IMQBroker getBroker();
-  public IMQMQ getMQ();
+  public IMQMQ[] getMQs();
   public void processMessage(StratconMessage m) throws Exception;
   public void processMessage(String payload) throws Exception;
   public void sendEvent(StratconMessage m);

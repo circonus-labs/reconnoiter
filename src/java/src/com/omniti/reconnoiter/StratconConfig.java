@@ -131,7 +131,7 @@ public class StratconConfig {
     return null;
   }
   
-  public String getMQ() {
+  public String[] getMQs() {
     XPathFactory factory = XPathFactory.newInstance();
     XPath xpath = factory.newXPath();
     Object result;
@@ -146,7 +146,10 @@ public class StratconConfig {
     }
     NodeList nodes = (NodeList) result;
     if(nodes.getLength() > 0) {
-      return nodes.item(nodes.getLength() -1).getNodeValue();
+      String r[] = new String[nodes.getLength()];
+      for(int i=0;i<nodes.getLength();i++)
+        r[i] = nodes.item(i).getNodeValue();
+      return r;
     }
     return null;
   }
@@ -162,15 +165,15 @@ public class StratconConfig {
     return getIepParameter("broker", param);
   }
   
-  public String getMQParameter(String param, String or) {
-    String result = getMQParameter(param);
+  public String getMQTypeParameter(String type, String param, String or) {
+    String result = getMQTypeParameter(type, param);
     if (result == null)
       return or;
     return result;
   }
   
-  public String getMQParameter(String param) {
-    return getIepParameter("mq", param);
+  public String getMQTypeParameter(String type, String param) {
+    return getIepParameter("mq[@type=\"" + type + "\"]", param);
   }
   
   public String getIepParameter(String which, String param) {

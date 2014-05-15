@@ -29,6 +29,7 @@ R_FILE=src/com/omniti/reconnoiter/MQListener.java \
 	src/com/omniti/reconnoiter/IEventHandler.java \
 	src/com/omniti/reconnoiter/MessageHandler.java \
 	src/com/omniti/reconnoiter/CheckStatus.java \
+	src/com/omniti/reconnoiter/broker/FQBroker.java \
 	src/com/omniti/reconnoiter/broker/FQMQ.java \
 	src/com/omniti/reconnoiter/broker/RabbitBroker.java \
 	src/com/omniti/reconnoiter/broker/RabbitMQ.java \
