@@ -196,7 +196,9 @@ static void blank_update_v4(dns_cache_node *n) {
   n->ip4_cnt = 0;
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
-  n->ttl = DEFAULT_FAILED_TTL;
+  if (n->lookup_inflight_v6) {
+    n->ttl = DEFAULT_FAILED_TTL;
+  }
   n->lookup_inflight_v4 = noit_false;
   noit_skiplist_insert(&nc_dns_cache, n);
 }
@@ -208,7 +210,9 @@ static void blank_update_v6(dns_cache_node *n) {
   n->ip6_cnt = 0;
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
-  n->ttl = DEFAULT_FAILED_TTL;
+  if (n->lookup_inflight_v4) {
+    n->ttl = DEFAULT_FAILED_TTL;
+  }
   n->lookup_inflight_v6 = noit_false;
   noit_skiplist_insert(&nc_dns_cache, n);
 }
