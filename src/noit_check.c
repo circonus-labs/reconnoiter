@@ -896,6 +896,11 @@ noit_check_update(noit_check_t *new_check,
     noit_boolean should_resolve;
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
+    /* If we fail resolving a Cloudwatch target, we don't really 
+     * need to resolve it */
+    if (!strcmp(new_check->module, "cloudwatch")) {
+      new_check->flags &= ~NP_RESOLVE;
+    }
     if(noit_conf_should_resolve_targets(&should_resolve) && !should_resolve)
       flags |= NP_DISABLED | NP_UNCONFIG;
     noit_check_resolve(new_check);
