@@ -194,6 +194,7 @@ API_EXPORT(int) noit_poller_transient_check_count();
 API_EXPORT(void) noit_poller_reload(const char *xpath); /* NULL for all */
 API_EXPORT(void) noit_poller_process_checks(const char *xpath);
 API_EXPORT(void) noit_poller_make_causal_map();
+API_EXPORT(void) noit_check_dns_ignore_list_init();
 
 API_EXPORT(void)
   noit_check_fake_last_check(noit_check_t *check,
