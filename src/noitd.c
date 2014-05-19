@@ -205,7 +205,6 @@ static int child_main() {
   noit_livestream_listener_init();
 
   noit_module_init();
-  noit_check_dns_ignore_list_init();
   if(strict_module_load && noit_module_load_failures() > 0) {
     noitL(noit_stderr, "Failed to load some modules and -M given.\n");
     exit(2);

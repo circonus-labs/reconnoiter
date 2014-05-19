@@ -109,6 +109,7 @@ local cache_table = { }
 
 function init(module)
   cache_table = { }
+  noit.register_dns_ignore_domain("_aws", "true")
   return 0
 end
 

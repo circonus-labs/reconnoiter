@@ -585,7 +585,11 @@ noit_poller_reload(const char *xpath)
   noit_poller_make_causal_map();
   noit_poller_initiate();
 }
-void 
+void
+noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
+  noit_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), NULL, NULL);
+}
+static void 
 noit_check_dns_ignore_list_init() {
   noit_conf_section_t* dns;
   int cnt;
@@ -602,9 +606,7 @@ noit_check_dns_ignore_list_init() {
       if(!noit_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
         continue;
       }
-      if (!strcmp(ignore, "true")) {
-        noit_hash_store(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore));
-      }
+      noit_check_dns_ignore_tld(extension, ignore);
     }
   }
 }
@@ -631,6 +633,7 @@ noit_poller_init() {
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
+  noit_check_dns_ignore_list_init();
   noit_poller_reload(NULL);
 }
 
@@ -918,25 +921,19 @@ noit_check_update(noit_check_t *new_check,
   /* This sets both the name and the target_addr */
   if(noit_check_set_ip(new_check, target, name)) {
     noit_boolean should_resolve;
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *key, *value;
+    int klen;
+    char* extension = strrchr(target, '.');
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
-    /* We don't need to resolve Cloudwatch targets */
-    if (!strcmp(new_check->module, "cloudwatch")) {
-      new_check->flags &= ~NP_RESOLVE;
-    }
-    else {
-      /* If we match any of the extensions we're supposed to ignore in
-       * the config file, don't resolve it either */
-      noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
-      const char *key, *value;
-      int klen;
-      char* extension = strrchr(target, '.');
-      if (extension && (strlen(extension) > 1)) {
-        while(noit_hash_next(&dns_ignore_list, &iter, &key, &klen, &value)) {
-          if (!strcmp(extension+1, key)) {
-              new_check->flags &= ~NP_RESOLVE;
-              break;
-          }
+    /* If we match any of the extensions we're supposed to ignore,
+     * don't resolve */
+    if (extension && (strlen(extension) > 1)) {
+      while(noit_hash_next(&dns_ignore_list, &iter, &key, &klen, (void**)&value)) {
+        if ((!strcmp("true", value)) && (!strcmp(extension+1, key))) {
+            new_check->flags &= ~NP_RESOLVE;
+            break;
         }
       }
     }
