@@ -87,7 +87,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_http.o noit_rest.o noit_check_rest.o noit_filters_rest.o \
-	noit_events_rest.o bundle.pb-c.o \
+  noit_reverse_socket.o noit_events_rest.o bundle.pb-c.o \
 	$(UDNS_LIB_OBJS) $(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
 	$(JLOG_LIB_OBJS) $(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS) \
 	$(LUA_OBJS)
@@ -102,6 +102,7 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	noit_conf.o noit_http.o noit_rest.o noit_tokenizer.o \
 	noit_capabilities_listener.o noit_module.o \
 	noit_events_rest.o noit_check_tools_shared.o noit_check_log_helpers.o \
+  noit_reverse_socket.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o \

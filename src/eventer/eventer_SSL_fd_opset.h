@@ -125,6 +125,8 @@ API_EXPORT(int)
   eventer_ssl_get_method(eventer_ssl_ctx_t *ctx);
 API_EXPORT(int)
   eventer_ssl_config(const char *key, const char *value);
+API_EXPORT(int)
+  eventer_ssl_get_local_commonname(eventer_ssl_ctx_t *ctx, char *buff, int len);
 
 #endif
 
