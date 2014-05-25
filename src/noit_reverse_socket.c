@@ -1357,7 +1357,7 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
   noit_connection_ctx_t *nctx = closure;
   const char *my_cn;
   reverse_socket_t *rc = nctx->consumer_ctx;
-  const char *target, *port_str;
+  const char *target, *port_str, *xbind;
   char channel_name[256];
   char reverse_intro[300];
   int8_t family = AF_INET;
@@ -1381,6 +1381,7 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
   GET_CONF_STR(nctx, "endpoint", my_cn);
   GET_CONF_STR(nctx, "address", target);
   GET_CONF_STR(nctx, "port", port_str);
+  GET_CONF_STR(nctx, "xbind", xbind);
 
   if(my_cn) {
     snprintf(channel_name, sizeof(channel_name), "noit/%s", my_cn);
@@ -1420,7 +1421,8 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
   }
 
   snprintf(reverse_intro, sizeof(reverse_intro),
-           "REVERSE /%s\r\nX-Bind: *\r\n\r\n", channel_name);
+           "REVERSE /%s%s%s\r\n\r\n", channel_name,
+           xbind ? "\r\nX-Bind: " : "", xbind ? xbind : "");
   rc->buff = strdup(reverse_intro);
   rc->buff_len = strlen(rc->buff);
 
