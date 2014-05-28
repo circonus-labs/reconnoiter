@@ -669,10 +669,10 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
         if(!targetns) {
           targetns = xmlSearchNs(config->doc, config, n->ns->prefix);
           if(!targetns) targetns = xmlNewNs(config, n->ns->href, n->ns->prefix);
-          noitL(noit_error,"Setting a config value in a new namespace (%p)\n", targetns);
+          noitL(noit_debug, "Setting a config value in a new namespace (%p)\n", targetns);
         }
         else {
-          noitL(noit_error,"Setting a config value in a namespace (%p)\n", targetns);
+          noitL(noit_debug,"Setting a config value in a namespace (%p)\n", targetns);
         }
       }
       xmlNodePtr co = xmlNewNode(targetns, n->name);
