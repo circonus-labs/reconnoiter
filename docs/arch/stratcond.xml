@@ -1,11 +1,7 @@
 <?xml version='1.0' encoding='UTF-8' ?>
-<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
-  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
-[
-  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
-  %magic.fixup;
-]>
-<chapter id="arch.stratcond">
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<chapter xmlns="http://docbook.org/ns/docbook" xml:id="arch.stratcond" version="5">
   <title>stratcond</title>
   <para>
     <command>stratcond</command> is responsible for pulling collected metrics 
@@ -24,12 +20,10 @@
     that <command>stratcond</command> presents to <command>noitd</command> upon 
     connecting is used as the jlog subscriber name.
   </para>
-  <para>
-    See the 
-    <ulink url="http://labs.omniti.com/trac/jlog"><citetitle>JLog</citetitle></ulink>
-    project page for more information about JLog.
-  </para>
-  <section id="arch.stratcond.design">
+  <para> See the <link xmlns:xlink="http://www.w3.org/1999/xlink"
+      xlink:href="https://github.com/omniti-labs/jlog/"><citetitle>JLog</citetitle></link> project
+    page for more information about JLog. </para>
+  <section xml:id="arch.stratcond.design">
     <title>stratcond Design</title>
     <para>
       <command>stratcond</command> is simple in both purpose and design.  All 

@@ -33,6 +33,11 @@
 #ifndef _NOIT_SECURITY_H
 #define _NOIT_SECURITY_H
 
+/*!  \file noit_security.h
+
+     Access to privilege separation helpers.
+ */
+
 /*! \fn int noit_security_chroot(const char *path)
     \brief chroot(2) to the specified directory.
     \param path The path to chroot to.

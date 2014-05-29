@@ -38,18 +38,18 @@
 
 typedef int noit_lockfile_t;
 
-/*! \fn noit_lockfile_t noit_lockfile_acquire(const char *lf)
+/*! \fn noit_lockfile_t noit_lockfile_acquire(const char *fp)
     \brief lock the file immediately if possible, return -1 otherwise.
-    \param lf the path to the lock file
+    \param fp the path to the lock file
     \return >= 0 on success, -1 on failure
  */
 
 API_EXPORT(noit_lockfile_t)
   noit_lockfile_acquire(const char *fp);
 
-/*! \fn int noit_lockfile_release(noit_lockfile_t lf)
+/*! \fn int noit_lockfile_release(noit_lockfile_t fd)
     \brief release a held file lock
-    \param lf the file lock to release
+    \param fd the file lock to release
     \return -1 on failure, 0 on success
  */
 

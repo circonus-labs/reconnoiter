@@ -33,6 +33,11 @@
 #ifndef _NOIT_B64_H
 #define _NOIT_B64_H
 
+/*!  \file noit_b64.h
+
+     Interface to the noit base64 encoding and decoding routines.
+ */
+
 #include "noit_config.h"
 #include "noit_defines.h"
 
@@ -54,6 +59,8 @@ API_EXPORT(int) noit_b64_decode(const char *, size_t, unsigned char *, size_t);
     \param dest The destination buffer to which the function will produce.
     \param dest_len The size of the destination buffer.
     \return The size of the encoded output.  Returns zero is out_sz is too small.
+
+    noit_b64_encode encodes an input string into a base64 representation with no linefeeds.
  */
 API_EXPORT(int) noit_b64_encode(const unsigned char *, size_t, char *, size_t);
 

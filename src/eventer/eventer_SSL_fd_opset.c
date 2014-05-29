@@ -66,8 +66,8 @@ typedef struct {
   noit_atomic32_t refcnt;
 } ssl_ctx_cache_node;
 
-static noit_hash_table ssl_ctx_cache;
-static pthread_mutex_t ssl_ctx_cache_lock;
+static noit_hash_table ssl_ctx_cache = NOIT_HASH_EMPTY;
+static pthread_mutex_t ssl_ctx_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 static int ssl_ctx_cache_expiry = 5;
 static int ssl_ctx_cache_finfo_expiry = 5;
 

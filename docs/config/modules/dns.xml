@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>dns</title>
   <para>The dns module leverages libudns to allow highly concurrent DNS lookups of a variety of DNS RR types.  In the event that you name a dns check <parameter>in-addr.arpa</parameter> with an rtype of <parameter>PTR</parameter>, the result of the query may be used throughout reconnoiter as the identifying hostname of that target.</para>
   <para>This module provides the <function>inaddrarpa</function> interpolation method which will reverse a dot-delimited IP address.  This is particularly useful for constructing in-addr.arpa queries, but also used for checking blacklists, whitelists and other IP-based DNS databases.</para>
@@ -17,9 +17,6 @@
       </listitem>
     </varlistentry>
   </variablelist>
-  <section>
-    <title>Module Configuration</title>
-  </section>
   <section>
     <title>Check Configuration</title>
     <variablelist>
@@ -191,10 +188,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Establishing PTR records for hosts.</title>
-    <para>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Establishing PTR records for hosts.</title>
+      <para>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="dns" name="dns"/&gt;
@@ -212,11 +211,11 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
-  <example>
-    <title>Checking labs.omniti.com.</title>
-    <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
-    <programlisting>
+    </example>
+    <example>
+      <title>Checking labs.omniti.com.</title>
+      <para>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="dns" name="dns"/&gt;
@@ -228,5 +227,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

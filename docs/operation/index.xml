@@ -4,14 +4,7 @@
 <part xmlns="http://docbook.org/ns/docbook"
       xmlns:xi="http://www.w3.org/2001/XInclude"
       xmlns:xlink="http://www.w3.org/1999/xlink"
-      version="5.0">
-<title>Development</title>
-<chapter xml:id="dev.reconnoiter">
-  <title>Developer's Guide</title>
-  <section>
-    <title>Hooks</title>
-    <xi:include href="docs/utils_noit_hooks_h.xml"/>
-    <xi:include href="docs/noit_check_tools_h.xml"/>
-  </section>
-</chapter>
+      version="5" xml:id="operation">
+    <title>Operation</title>
+    <xi:include href="noitd.xml"/>
 </part>

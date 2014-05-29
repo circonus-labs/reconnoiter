@@ -23,7 +23,7 @@
 </xsl:template>
 
 <xsl:template match="/">
-  <section>
+  <section xmlns="http://docbook.org/ns/docbook" version="5">
     <title><xsl:value-of select="module/name"/></title>
     <xsl:copy-of disable-output-escaping="yes" select="module/description/*"/>
 
@@ -37,23 +37,32 @@
       </xsl:if>
     </variablelist>
 
+  <xsl:if test="module/moduleconfig/parameter">
   <section>
     <title>Module Configuration</title>
     <xsl:for-each select="module/moduleconfig/parameter">
       <xsl:call-template name="configparams" />
     </xsl:for-each>
   </section>
+  </xsl:if>
 
+  <xsl:if test="module/checkconfig/parameter">
   <section>
     <title>Check Configuration</title>
     <xsl:for-each select="module/checkconfig/parameter">
       <xsl:call-template name="configparams" />
     </xsl:for-each>
   </section>
+  </xsl:if>
 
+  <xsl:if test="module/examples/example">
+  <section>
+  <title>Examples</title>
   <xsl:for-each select="module/examples/example">
     <xsl:copy-of select="."/>
   </xsl:for-each>
+  </section>
+  </xsl:if>
 
   <xsl:for-each select="module/section">
     <xsl:copy-of select="."/>

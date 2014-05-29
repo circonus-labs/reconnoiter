@@ -2,13 +2,14 @@
 <?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
 <?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"
 ?>
-<!DOCTYPE chapter [
-<!ENTITY inventory SYSTEM "inventory.lst">
-]>
 <chapter xmlns="http://docbook.org/ns/docbook"
          xmlns:xi="http://www.w3.org/2001/XInclude"
          xmlns:xlink="http://www.w3.org/1999/xlink"
-         xml:id="config.noitd.modules">
-  <title>noitd modules</title>
-  &inventory;
+         xml:id="config.stratcond.modules">
+  <title>stratcond modules</title>
+  <xi:include href="modules/fq_driver.xml"/>
+  <xi:include href="modules/rabbitmq_driver.xml"/>
+  <xi:include href="modules/stomp_driver.xml"/>
+  <xi:include href="modules/postgres_ingestor.xml"/>
+  <xi:include href="modules/handoff_ingestor.xml"/>
 </chapter>

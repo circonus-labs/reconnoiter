@@ -40,7 +40,6 @@
 /*! \fn int noit_watchdog_prefork_init()
     \brief Prepare the program to split into a child/parent-monitor relationship.
     \return Returns zero on success.
-.
     
     noit_watchdog_prefork_init sets up the necessary plumbing to bridge across a
 child to instrument watchdogs.
@@ -62,18 +61,17 @@ API_EXPORT(int)
 API_EXPORT(int)
   update_retries(int* offset, time_t times[]);
 
-/*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int timeout)
+/*! \fn int noit_watchdog_start_child(const char *app, int (*func)(), int child_watchdog_timeout)
     \brief Starts a function as a separate child under close watch.
     \param app The name of the application (for error output).
     \param func The function that will be the child process.
-    \param timeout The number of seconds of lifelessness before the parent reaps and restarts the child.
+    \param child_watchdog_timeout The number of seconds of lifelessness before the parent reaps and restarts the child.
     \return Returns on program termination.
-.
     
     noit_watchdog_start_child will fork and run the specified function in the child process.  The parent will watch.  The child process must initialize the eventer system and then call noit_watchdog_child_hearbeat to let the parent know it is alive.  If the eventer system is being used to drive the child process, noit_watchdog_child_eventer_heartbeat may be called once after the eventer is initalized.  This will induce a regular heartbeat.
  */
 API_EXPORT(int)
-  noit_watchdog_start_child(const char *app, int (*func)(), int timeout);
+  noit_watchdog_start_child(const char *app, int (*func)(), int child_watchdog_timeout);
 
 /*! \fn int noit_watchdog_child_heartbeat()
     \return Returns zero on success

@@ -34,11 +34,11 @@
             <variablelist>
                 <varlistentry>
                     <term>method</term>
-                    <listitem><code>POST</code></listitem>
+                    <listitem><para><code>POST</code></para></listitem>
                 </varlistentry>
                 <varlistentry>
                     <term>uri</term>
-                    <listitem><code>/checks/test</code></listitem>
+                    <listitem><para><code>/checks/test</code></para></listitem>
                 </varlistentry>
             </variablelist>
             <para>

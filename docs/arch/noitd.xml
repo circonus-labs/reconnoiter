@@ -1,11 +1,7 @@
 <?xml version='1.0' encoding='UTF-8' ?>
-<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
-  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
-[
-  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
-  %magic.fixup;
-]>
-<chapter id="arch.noitd">
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<chapter xmlns="http://docbook.org/ns/docbook" xml:id="arch.noitd" version="5">
   <title>noitd</title>
   <para>
     <command>noitd</command> is the "scout in the field."  It is responsible 
@@ -28,7 +24,7 @@
     <command>stratcond</command> daemon over port 34332 (or another port of 
     your choosing) via an SSL-protected TCP transport.
   </para>
-  <section id="arch.noitd.design">
+  <section xml:id="arch.noitd.design">
     <title>noitd Design</title>
     <para>
       <command>noitd</command> is designed to be high-performance as well as

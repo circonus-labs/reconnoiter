@@ -230,7 +230,7 @@ snmp.lo:	snmp.xmlh snmptrap.xmlh
 
 alldocs:
 	for c in *.xml ; do \
-		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - > $(top_srcdir)/docs/config/modules/$$c ; \
+		$(XSLTPROC) module.xsl $$c | $(XMLLINT) --format - | sed -e 's/ xmlns=""//g;' > $(top_srcdir)/docs/config/modules/$$c ; \
 	done
 
 install:	install-modules install-smodules
