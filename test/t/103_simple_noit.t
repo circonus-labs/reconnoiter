@@ -31,6 +31,7 @@ is_deeply($codes,
           , '0x4d455247' => 'noit_wire_rest_api'
           , '0x504f5354' => 'noit_wire_rest_api'
           , '0x50555420' => 'noit_wire_rest_api'
+          , '0x52455645' => 'reverse_socket_accept',
           , '0x7e66feed' => 'log_transit'
           , '0xda7afeed' => 'log_transit'
           },

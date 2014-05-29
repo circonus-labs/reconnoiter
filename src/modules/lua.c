@@ -261,6 +261,24 @@ noit_lua_pushmodule(lua_State *L, const char *m) {
     else stack_pos = -1;
   }
 }
+noit_hash_table *
+noit_lua_table_to_hash(lua_State *L, int idx) {
+  noit_hash_table *t;
+  if(lua_gettop(L) < idx || !lua_istable(L,idx))
+    luaL_error(L, "table_to_hash: not a table");
+
+  t = calloc(1, sizeof(*t));
+  lua_pushnil(L);  /* first key */
+  while (lua_next(L, idx) != 0) {
+    const char *key, *value;
+    size_t klen;
+    key = lua_tolstring(L, -2, &klen);
+    value = lua_tostring(L, -1);
+    noit_hash_store(t, key, klen, (void *)value);
+    lua_pop(L, 1);
+  }
+  return t;
+}
 void
 noit_lua_hash_to_table(lua_State *L,
                        noit_hash_table *t) {
