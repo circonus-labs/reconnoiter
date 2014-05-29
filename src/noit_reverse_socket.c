@@ -159,7 +159,6 @@ static void *noit_reverse_socket_alloc() {
 static void
 noit_reverse_socket_free(void *vrc) {
   reverse_socket_t *rc = vrc;
-noitL(noit_error, "noit_reverse_socket_free(%s)\n", rc->id);
   if(rc->id) {
     pthread_rwlock_wrlock(&reverse_sockets_lock);
     noit_hash_delete(&reverse_sockets, rc->id, strlen(rc->id), NULL, NULL);
@@ -535,7 +534,6 @@ noit_reverse_socket_server_handler(eventer_t e, int mask, void *closure,
   acceptor_closure_t *ac = closure;
   reverse_socket_t *rc = ac->service_ctx;
   rv = noit_reverse_socket_handler(e, mask, rc, now);
-noitL(noit_error, "noit_reverse_socket_server_handler(%d) -> %d\n", e->fd, rv);
   if(rv == 0) {
     acceptor_closure_free(ac);
     eventer_remove_fd(e->fd);
@@ -552,11 +550,9 @@ noit_reverse_socket_client_handler(eventer_t e, int mask, void *closure,
   reverse_socket_t *rc = nctx->consumer_ctx;
   assert(rc->nctx == nctx);
   rv = noit_reverse_socket_handler(e, mask, rc, now);
-noitL(noit_error, "noit_reverse_socket_client_handler(%d) -> %d\n", e->fd, rv);
   if(rv == 0) {
 rv = e->fd;
     nctx->close(nctx, e);
-noitL(noit_error, "closed(%d)\n", rv);
     nctx->schedule_reattempt(nctx, now);
   }
   return rv;
@@ -1215,7 +1211,6 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   e->callback = noit_connection_complete_connect;
   e->closure = nctx;
   nctx->e = e;
-noitL(noit_error, "new noit_connection -> %d\n", fd);
   eventer_add(e);
 
   NOIT_CONNECT(e->fd, nctx->remote_str, (char *)cn_expected);
@@ -1350,7 +1345,7 @@ noit_connections_from_config(noit_hash_table *tracker, pthread_mutex_t *tracker_
     sslconfig = noit_conf_get_hash(noit_configs[i], "sslconfig");
     config = noit_conf_get_hash(noit_configs[i], "config");
 
-    noitL(noit_error, "initiating to %s\n", address);
+    noitL(noit_debug, "initiating to %s\n", address);
     initiate_noit_connection(tracker, tracker_lock,
                              address, port, sslconfig, config,
                              handler,
@@ -1761,7 +1756,6 @@ noit_reverse_socket_connection_shutdown(const char *address, int port) {
     noit_connection_ctx_t *ctx = vconn;
     if(ctx->remote_str && !strcmp(remote_str, ctx->remote_str)) {
       if(!ctx->wants_permanent_shutdown) {
-noitL(noit_error, "shutting down reverse_socket(%s)\n", ctx->remote_str);
         ctx->wants_permanent_shutdown = 1;
         if(ctx->e) eventer_trigger(ctx->e, EVENTER_EXCEPTION);
         success = 1;
@@ -1776,7 +1770,7 @@ int
 noit_lua_help_initiate_noit_connection(const char *address, int port,
                                        noit_hash_table *sslconfig,
                                        noit_hash_table *config) {
-  noitL(noit_error, "initiating to %s\n", address);
+  noitL(noit_debug, "initiating to %s\n", address);
   initiate_noit_connection(&reverses, &reverses_lock,
                            address, port, sslconfig, config,
                            noit_reverse_client_handler,
