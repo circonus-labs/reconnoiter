@@ -17,96 +17,6 @@ extern "C" {
 
 #if !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED
 
-#define	STRATCON_CONNECT(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__close$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_CLOSE_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__close$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_FAILED(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_FAILED_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__failed$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_SSL(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__ssl$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_SSL_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__ssl$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4, arg5); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_SSL_FAILED_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__ssl__failed$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_SSL_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__ssl__success$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_SSL_SUCCESS_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__ssl__success$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_CONNECT_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$connect__success$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_CONNECT_SUCCESS_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$connect__success$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_RESCHEDULE(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$reschedule$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_RESCHEDULE_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$reschedule$v1(); \
-		__asm__ volatile(""); \
-		_r; })
-#define	STRATCON_SHUTDOWN_PERMANENT(arg0, arg1, arg2, arg3) \
-do { \
-	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
-	__dtrace_probe$stratcon$shutdown__permanent$v1$696e74$63686172202a$63686172202a$63686172202a(arg0, arg1, arg2, arg3); \
-	__asm__ volatile(".reference " STRATCON_STABILITY); \
-} while (0)
-#define	STRATCON_SHUTDOWN_PERMANENT_ENABLED() \
-	({ int _r = __dtrace_isenabled$stratcon$shutdown__permanent$v1(); \
-		__asm__ volatile(""); \
-		_r; })
 #define	STRATCON_STREAM_BODY(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
 do { \
 	__asm__ volatile(".reference " STRATCON_TYPEDEFS); \
@@ -149,24 +59,6 @@ do { \
 		_r; })
 
 
-extern void __dtrace_probe$stratcon$connect$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon$connect$v1(void);
-extern void __dtrace_probe$stratcon$connect__close$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(int, const char *, const char *, const char *, int, int);
-extern int __dtrace_isenabled$stratcon$connect__close$v1(void);
-extern void __dtrace_probe$stratcon$connect__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon$connect__failed$v1(void);
-extern void __dtrace_probe$stratcon$connect__ssl$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon$connect__ssl$v1(void);
-extern void __dtrace_probe$stratcon$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon$connect__ssl__failed$v1(void);
-extern void __dtrace_probe$stratcon$connect__ssl__success$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon$connect__ssl__success$v1(void);
-extern void __dtrace_probe$stratcon$connect__success$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon$connect__success$v1(void);
-extern void __dtrace_probe$stratcon$reschedule$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
-extern int __dtrace_isenabled$stratcon$reschedule$v1(void);
-extern void __dtrace_probe$stratcon$shutdown__permanent$v1$696e74$63686172202a$63686172202a$63686172202a(int, const char *, const char *, const char *);
-extern int __dtrace_isenabled$stratcon$shutdown__permanent$v1(void);
 extern void __dtrace_probe$stratcon$stream__body$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74$696e74$696e74$63686172202a(int, const char *, const char *, const char *, int, int, int, int, const char *);
 extern int __dtrace_isenabled$stratcon$stream__body$v1(void);
 extern void __dtrace_probe$stratcon$stream__checkpoint$v1$696e74$63686172202a$63686172202a$63686172202a$696e74$696e74(int, const char *, const char *, const char *, int, int);
@@ -178,42 +70,6 @@ extern int __dtrace_isenabled$stratcon$stream__header$v1(void);
 
 #else
 
-#define	STRATCON_CONNECT(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_ENABLED() (0)
-#define	STRATCON_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_CLOSE_ENABLED() (0)
-#define	STRATCON_CONNECT_FAILED(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_FAILED_ENABLED() (0)
-#define	STRATCON_CONNECT_SSL(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_SSL_ENABLED() (0)
-#define	STRATCON_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4, arg5) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_SSL_FAILED_ENABLED() (0)
-#define	STRATCON_CONNECT_SSL_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_SSL_SUCCESS_ENABLED() (0)
-#define	STRATCON_CONNECT_SUCCESS(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
-#define	STRATCON_CONNECT_SUCCESS_ENABLED() (0)
-#define	STRATCON_RESCHEDULE(arg0, arg1, arg2, arg3, arg4) \
-do { \
-	} while (0)
-#define	STRATCON_RESCHEDULE_ENABLED() (0)
-#define	STRATCON_SHUTDOWN_PERMANENT(arg0, arg1, arg2, arg3) \
-do { \
-	} while (0)
-#define	STRATCON_SHUTDOWN_PERMANENT_ENABLED() (0)
 #define	STRATCON_STREAM_BODY(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
 do { \
 	} while (0)

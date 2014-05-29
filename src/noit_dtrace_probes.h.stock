@@ -47,6 +47,96 @@ do { \
 	({ int _r = __dtrace_isenabled$noit$check__status$v1(); \
 		__asm__ volatile(""); \
 		_r; })
+#define	NOIT_CONNECT(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect$v1$696e74$63686172202a$63686172202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__close$v1$696e74$63686172202a$63686172202a$696e74$696e74(arg0, arg1, arg2, arg3, arg4); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_CLOSE_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__close$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_FAILED(arg0, arg1, arg2, arg3) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__failed$v1$696e74$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_FAILED_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__failed$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_SSL(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__ssl$v1$696e74$63686172202a$63686172202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_SSL_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__ssl$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3, arg4); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_SSL_FAILED_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__ssl__failed$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_SSL_SUCCESS(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__ssl__success$v1$696e74$63686172202a$63686172202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_SSL_SUCCESS_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__ssl__success$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_CONNECT_SUCCESS(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$connect__success$v1$696e74$63686172202a$63686172202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_CONNECT_SUCCESS_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$connect__success$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_RESCHEDULE(arg0, arg1, arg2, arg3) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$reschedule$v1$696e74$63686172202a$63686172202a$696e74(arg0, arg1, arg2, arg3); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_RESCHEDULE_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$reschedule$v1(); \
+		__asm__ volatile(""); \
+		_r; })
+#define	NOIT_SHUTDOWN_PERMANENT(arg0, arg1, arg2) \
+do { \
+	__asm__ volatile(".reference " NOIT_TYPEDEFS); \
+	__dtrace_probe$noit$shutdown__permanent$v1$696e74$63686172202a$63686172202a(arg0, arg1, arg2); \
+	__asm__ volatile(".reference " NOIT_STABILITY); \
+} while (0)
+#define	NOIT_SHUTDOWN_PERMANENT_ENABLED() \
+	({ int _r = __dtrace_isenabled$noit$shutdown__permanent$v1(); \
+		__asm__ volatile(""); \
+		_r; })
 
 
 extern void __dtrace_probe$noit$check__dispatch$v1$63686172202a$63686172202a$63686172202a$63686172202a(const char *, const char *, const char *, const char *);
@@ -55,6 +145,24 @@ extern void __dtrace_probe$noit$check__metric$v1$63686172202a$63686172202a$63686
 extern int __dtrace_isenabled$noit$check__metric$v1(void);
 extern void __dtrace_probe$noit$check__status$v1$63686172202a$63686172202a$63686172202a$63686172202a$696e74$696e74$63686172202a(const char *, const char *, const char *, const char *, int, int, const char *);
 extern int __dtrace_isenabled$noit$check__status$v1(void);
+extern void __dtrace_probe$noit$connect$v1$696e74$63686172202a$63686172202a(int, const char *, const char *);
+extern int __dtrace_isenabled$noit$connect$v1(void);
+extern void __dtrace_probe$noit$connect__close$v1$696e74$63686172202a$63686172202a$696e74$696e74(int, const char *, const char *, int, int);
+extern int __dtrace_isenabled$noit$connect__close$v1(void);
+extern void __dtrace_probe$noit$connect__failed$v1$696e74$63686172202a$63686172202a$696e74(int, const char *, const char *, int);
+extern int __dtrace_isenabled$noit$connect__failed$v1(void);
+extern void __dtrace_probe$noit$connect__ssl$v1$696e74$63686172202a$63686172202a(int, const char *, const char *);
+extern int __dtrace_isenabled$noit$connect__ssl$v1(void);
+extern void __dtrace_probe$noit$connect__ssl__failed$v1$696e74$63686172202a$63686172202a$63686172202a$696e74(int, const char *, const char *, const char *, int);
+extern int __dtrace_isenabled$noit$connect__ssl__failed$v1(void);
+extern void __dtrace_probe$noit$connect__ssl__success$v1$696e74$63686172202a$63686172202a(int, const char *, const char *);
+extern int __dtrace_isenabled$noit$connect__ssl__success$v1(void);
+extern void __dtrace_probe$noit$connect__success$v1$696e74$63686172202a$63686172202a(int, const char *, const char *);
+extern int __dtrace_isenabled$noit$connect__success$v1(void);
+extern void __dtrace_probe$noit$reschedule$v1$696e74$63686172202a$63686172202a$696e74(int, const char *, const char *, int);
+extern int __dtrace_isenabled$noit$reschedule$v1(void);
+extern void __dtrace_probe$noit$shutdown__permanent$v1$696e74$63686172202a$63686172202a(int, const char *, const char *);
+extern int __dtrace_isenabled$noit$shutdown__permanent$v1(void);
 
 #else
 
@@ -70,6 +178,42 @@ do { \
 do { \
 	} while (0)
 #define	NOIT_CHECK_STATUS_ENABLED() (0)
+#define	NOIT_CONNECT(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_ENABLED() (0)
+#define	NOIT_CONNECT_CLOSE(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_CLOSE_ENABLED() (0)
+#define	NOIT_CONNECT_FAILED(arg0, arg1, arg2, arg3) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_FAILED_ENABLED() (0)
+#define	NOIT_CONNECT_SSL(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_SSL_ENABLED() (0)
+#define	NOIT_CONNECT_SSL_FAILED(arg0, arg1, arg2, arg3, arg4) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_SSL_FAILED_ENABLED() (0)
+#define	NOIT_CONNECT_SSL_SUCCESS(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_SSL_SUCCESS_ENABLED() (0)
+#define	NOIT_CONNECT_SUCCESS(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	NOIT_CONNECT_SUCCESS_ENABLED() (0)
+#define	NOIT_RESCHEDULE(arg0, arg1, arg2, arg3) \
+do { \
+	} while (0)
+#define	NOIT_RESCHEDULE_ENABLED() (0)
+#define	NOIT_SHUTDOWN_PERMANENT(arg0, arg1, arg2) \
+do { \
+	} while (0)
+#define	NOIT_SHUTDOWN_PERMANENT_ENABLED() (0)
 
 #endif /* !defined(DTRACE_PROBES_DISABLED) || !DTRACE_PROBES_DISABLED */
 
