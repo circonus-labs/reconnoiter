@@ -33,19 +33,21 @@
 #define DEFAULT_NOIT_CONNECTION_TIMEOUT 60000 /* 60 seconds */
 
 #define IFCMD(f, s) if((f)->command && (f)->buff_len == strlen(s) && !strncmp((f)->buff, s, strlen(s)))
-#define GET_EXPECTED_CN(nctx, cn) do { \
+#define GET_CONF_STR(nctx, key, cn) do { \
   void *vcn; \
   cn = NULL; \
   if(nctx->config && \
-     noit_hash_retrieve(nctx->config, "cn", 2, &vcn)) { \
+     noit_hash_retrieve(nctx->config, key, strlen(key), &vcn)) { \
      cn = vcn; \
   } \
 } while(0)
+#define GET_EXPECTED_CN(nctx, cn) GET_CONF_STR(nctx, "cn", cn)
 
 #include "noit_defines.h"
 #include "noit_listener.h"
 #include "noit_conf.h"
 #include "noit_rest.h"
+#include "noit_reverse_socket.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_str.h"
 #include "noit_reverse_socket.h"
@@ -157,6 +159,7 @@ static void *noit_reverse_socket_alloc() {
 static void
 noit_reverse_socket_free(void *vrc) {
   reverse_socket_t *rc = vrc;
+noitL(noit_error, "noit_reverse_socket_free(%s)\n", rc->id);
   if(rc->id) {
     pthread_rwlock_wrlock(&reverse_sockets_lock);
     noit_hash_delete(&reverse_sockets, rc->id, strlen(rc->id), NULL, NULL);
@@ -282,8 +285,6 @@ noit_reverse_socket_shutdown(reverse_socket_t *rc, eventer_t e) {
   for(i=0;i<MAX_CHANNELS;i++) {
     rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
   }
-  eventer_remove_fd(e->fd);
-  e->opset->close(e->fd, &mask, e);
 }
 
 static int
@@ -296,6 +297,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   int write_mask = EVENTER_EXCEPTION, read_mask = EVENTER_EXCEPTION;
 #define CHANNEL cct->parent->channels[cct->channel_id]
 
+  if(cct->parent->nctx && cct->parent->nctx->wants_permanent_shutdown) goto snip;
   if(mask & EVENTER_EXCEPTION) goto snip;
 
   /* this damn-well better be our side of the socketpair */
@@ -389,6 +391,10 @@ noit_reverse_socket_handler(eventer_t e, int mask, void *closure,
   reverse_socket_t *rc = closure;
   const char *socket_error_string = "protocol error";
 
+  if(rc->nctx && rc->nctx->wants_permanent_shutdown) {
+    socket_error_string = "shutdown requested";
+    goto socket_error;
+  }
   if(mask & EVENTER_EXCEPTION) {
 socket_error:
     /* Exceptions cause us to simply snip the connection */
@@ -402,7 +408,7 @@ socket_error:
     while(rc->frame_hdr_read < sizeof(rc->frame_hdr)) {
       len = e->opset->read(e->fd, rc->frame_hdr + rc->frame_hdr_read, sizeof(rc->frame_hdr) - rc->frame_hdr_read, &rmask, e);
       if(len < 0 && errno == EAGAIN) goto try_writes;
-      if(len < 0) goto socket_error;
+      if(len <= 0) goto socket_error;
       rc->frame_hdr_read += len;
       success = 1;
     }
@@ -531,7 +537,12 @@ noit_reverse_socket_server_handler(eventer_t e, int mask, void *closure,
   acceptor_closure_t *ac = closure;
   reverse_socket_t *rc = ac->service_ctx;
   rv = noit_reverse_socket_handler(e, mask, rc, now);
-  if(rv == 0) acceptor_closure_free(ac);
+noitL(noit_error, "noit_reverse_socket_server_handler(%d) -> %d\n", e->fd, rv);
+  if(rv == 0) {
+    acceptor_closure_free(ac);
+    eventer_remove_fd(e->fd);
+    e->opset->close(e->fd, &mask, e);
+  }
   return rv;
 }
 
@@ -541,9 +552,13 @@ noit_reverse_socket_client_handler(eventer_t e, int mask, void *closure,
   int rv;
   noit_connection_ctx_t *nctx = closure;
   reverse_socket_t *rc = nctx->consumer_ctx;
+  assert(rc->nctx == nctx);
   rv = noit_reverse_socket_handler(e, mask, rc, now);
+noitL(noit_error, "noit_reverse_socket_client_handler(%d) -> %d\n", e->fd, rv);
   if(rv == 0) {
-    /* This is closed already in noit_reverse_socket_handler */
+rv = e->fd;
+    nctx->close(nctx, e);
+noitL(noit_error, "closed(%d)\n", rv);
     nctx->schedule_reattempt(nctx, now);
   }
   return rv;
@@ -650,6 +665,7 @@ noit_reverse_socket_acceptor(eventer_t e, int mask, void *closure,
   int newmask = EVENTER_READ | EVENTER_EXCEPTION, rv;
   ssize_t len = 0;
   const char *socket_error_string = "unknown socket error";
+  char errbuf[80];
   acceptor_closure_t *ac = closure;
   reverse_socket_t *rc = ac->service_ctx;
 
@@ -658,6 +674,7 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     acceptor_closure_free(ac);
     noit_reverse_socket_shutdown(rc, e);
+    eventer_remove_fd(e->fd);
     noitL(nlerr, "reverse_socket: %s\n", socket_error_string);
     return 0;
   }
@@ -717,9 +734,10 @@ socket_error:
   rv = noit_hash_store(&reverse_sockets, rc->id, strlen(rc->id), rc);
   pthread_rwlock_unlock(&reverse_sockets_lock);
   if(rv == 0) {
+    snprintf(errbuf, sizeof(errbuf), "'%s' id in use", rc->id);
     if(rc->id) free(rc->id);
     rc->id = NULL;
-    socket_error_string = "id in use";
+    socket_error_string = errbuf;
     goto socket_error;
   }
   else {
@@ -806,7 +824,10 @@ noit_connection_close(noit_connection_ctx_t *ctx, eventer_t e) {
 
 static void
 noit_reverse_socket_close(noit_connection_ctx_t *ctx, eventer_t e) {
+  int mask;
   noit_reverse_socket_shutdown(ctx->consumer_ctx,e);
+  eventer_remove_fd(e->fd);
+  e->opset->close(e->fd, &mask, e);
   ctx->e = NULL;
 }
 
@@ -862,11 +883,15 @@ noit_connection_ctx_deref(noit_connection_ctx_t *ctx) {
 void
 noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx) {
   noit_connection_ctx_t **pctx = &ctx;
-  if(ctx->tracker_lock) pthread_mutex_lock(ctx->tracker_lock);
+  pthread_mutex_t *lock = ctx->tracker_lock;
+  if(lock) pthread_mutex_lock(lock);
   if(ctx->tracker)
     noit_hash_delete(ctx->tracker, (const char *)pctx, sizeof(*pctx),
                      free, (void (*)(void *))noit_connection_ctx_deref);
-  if(ctx->tracker_lock) pthread_mutex_unlock(ctx->tracker_lock);
+  else
+    noit_connection_ctx_deref(ctx);
+  /* ctx could be free, so ctx->tracker_lock would be bad */
+  if(lock) pthread_mutex_unlock(lock);
 }
 
 int
@@ -1031,7 +1056,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
         len = sizeof(struct sockaddr_in6);
         inet_ntop(nctx->r.remote.sa_family, &nctx->r.remote_in6.sin6_addr,
                   tmp_str, len);
-        snprintf(remote_str, sizeof(remote_str), "%s:%d",
+        snprintf(remote_str, sizeof(remote_str), "[%s]:%d",
                  tmp_str, ntohs(nctx->r.remote_in6.sin6_port));
        break;
       case AF_UNIX:
@@ -1192,6 +1217,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   e->callback = noit_connection_complete_connect;
   e->closure = nctx;
   nctx->e = e;
+noitL(noit_error, "new noit_connection -> %d\n", fd);
   eventer_add(e);
 
   NOIT_CONNECT(e->fd, nctx->remote_str, cn_expected);
@@ -1342,15 +1368,6 @@ noit_connections_from_config(noit_hash_table *tracker, pthread_mutex_t *tracker_
   return found;
 }
 
-#define GET_CONF_STR(nctx, key, cn) do { \
-  void *vcn; \
-  cn = NULL; \
-  if(nctx->config && \
-     noit_hash_retrieve(nctx->config, key, strlen(key), &vcn)) { \
-     cn = vcn; \
-  } \
-} while(0)
-
 static int
 noit_reverse_client_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
@@ -1370,6 +1387,8 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
   char tmpidstr[UUID_STR_LEN+1];
   char client_id[ /* client/ */ 7 + UUID_STR_LEN + 1];
 
+  if(nctx->wants_permanent_shutdown) goto fail;
+
   rc->nctx = nctx;
   nctx->close = noit_reverse_socket_close;
 
@@ -1379,8 +1398,8 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
   }
 
   GET_CONF_STR(nctx, "endpoint", my_cn);
-  GET_CONF_STR(nctx, "address", target);
-  GET_CONF_STR(nctx, "port", port_str);
+  GET_CONF_STR(nctx, "local_address", target);
+  GET_CONF_STR(nctx, "local_port", port_str);
   GET_CONF_STR(nctx, "xbind", xbind);
 
   if(my_cn) {
@@ -1727,4 +1746,43 @@ void noit_reverse_socket_init() {
   ) == 0);
 
   register_console_reverse_commands();
+}
+
+int
+noit_reverse_socket_connection_shutdown(const char *address, int port) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *key_id;
+  int klen, success = 0;
+  char remote_str[INET6_ADDRSTRLEN + 1 + 5 + 1];
+  void *vconn;
+
+  snprintf(remote_str, sizeof(remote_str), "%s:%d", address, port);
+  pthread_mutex_lock(&reverses_lock);
+  while(noit_hash_next(&reverses, &iter, &key_id, &klen,
+                       &vconn)) {
+    noit_connection_ctx_t *ctx = vconn;
+    if(ctx->remote_str && !strcmp(remote_str, ctx->remote_str)) {
+      if(!ctx->wants_permanent_shutdown) {
+noitL(noit_error, "shutting down reverse_socket(%s)\n", ctx->remote_str);
+        ctx->wants_permanent_shutdown = 1;
+        if(ctx->e) eventer_trigger(ctx->e, EVENTER_EXCEPTION);
+        success = 1;
+      }
+      break;
+    }
+  }
+  pthread_mutex_unlock(&reverses_lock);
+  return success;
+}
+int
+noit_lua_help_initiate_noit_connection(const char *address, int port,
+                                       noit_hash_table *sslconfig,
+                                       noit_hash_table *config) {
+  noitL(noit_error, "initiating to %s\n", address);
+  initiate_noit_connection(&reverses, &reverses_lock,
+                           address, port, sslconfig, config,
+                           noit_reverse_client_handler,
+                           noit_reverse_socket_alloc(),
+                           noit_reverse_socket_free);
+  return 0;
 }

@@ -89,4 +89,11 @@ API_EXPORT(int)
                                void *(*handler_alloc)(void), void *handler_ctx,
                                void (*handler_free)(void *));
 
+API_EXPORT(int)
+  noit_lua_help_initiate_noit_connection(const char *address, int port,
+                                         noit_hash_table *sslconfig,
+                                         noit_hash_table *config);
+API_EXPORT(int)
+  noit_reverse_socket_connection_shutdown(const char *address, int port);
+
 #endif

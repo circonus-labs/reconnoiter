@@ -226,9 +226,53 @@ noit_lua_general_config(noit_module_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 
+static int
+lua_general_reverse_socket_initiate(lua_State *L) {
+  const char *host;
+  int port;
+  noit_hash_table *sslconfig = NULL, *config = NULL;
+  if(lua_gettop(L) < 2 ||
+     !lua_isstring(L,1) ||
+     !lua_isnumber(L,2) ||
+     (lua_gettop(L) == 3 && !lua_istable(L,3)) ||
+     (lua_gettop(L) == 4 && !lua_istable(L,4)))
+    luaL_error(L, "reverse_start(host,port,sslconfig,config)");
+
+  host = lua_tostring(L,1);
+  port = lua_tointeger(L,2);
+  if(lua_gettop(L)==3) sslconfig = noit_lua_table_to_hash(L,3);
+  if(lua_gettop(L)==4) config = noit_lua_table_to_hash(L,4);
+
+  noit_lua_help_initiate_noit_connection(host, port, sslconfig, config);
+
+  if(sslconfig) {
+    noit_hash_destroy(sslconfig, NULL, NULL);
+    free(sslconfig);
+  }
+  if(config) {
+    noit_hash_destroy(config, NULL, NULL);
+    free(config);
+  }
+  return 0;
+}
+static int
+lua_general_reverse_socket_shutdown(lua_State *L) {
+  int rv;
+  if(lua_gettop(L) < 2 ||
+     !lua_isstring(L,1) ||
+     !lua_isnumber(L,2))
+    luaL_error(L, "reverse_stop(host,port)");
+
+  rv = noit_reverse_socket_connection_shutdown(lua_tostring(L,1), lua_tointeger(L,2));
+  lua_pushboolean(L,rv);
+  return 1;
+}
+
 static const luaL_Reg general_lua_funcs[] =
 {
   {"coroutine_spawn", lua_general_coroutine_spawn },
+  {"reverse_start", lua_general_reverse_socket_initiate },
+  {"reverse_stop", lua_general_reverse_socket_shutdown },
   {NULL,  NULL}
 };
 
