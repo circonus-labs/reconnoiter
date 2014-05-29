@@ -902,9 +902,9 @@ static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  EVENTER_WRITE_ENTRY(fd, buffer, len, *mask, closure);
+  EVENTER_WRITE_ENTRY(fd, (char *)buffer, len, *mask, closure);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  EVENTER_WRITE_RETURN(fd, buffer, len, *mask, closure, rv);
+  EVENTER_WRITE_RETURN(fd, (char *)buffer, len, *mask, closure, rv);
   return rv;
 }
 

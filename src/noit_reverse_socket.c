@@ -57,7 +57,7 @@
 #include <assert.h>
 #include <poll.h>
 
-static const int MAX_CHANNELS = 128;
+#define MAX_CHANNELS 128
 static const int MAX_FRAME_LEN = 65530;
 static const int CMD_BUFF_LEN = 4096;
 
@@ -203,7 +203,6 @@ static void POP_OUT(reverse_socket_t *rc) {
   reverse_frame_free(f);
 }
 static void APPEND_OUT(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
-  int rv = 0;
   reverse_frame_t *frame = malloc(sizeof(*frame));
   memcpy(frame, frame_to_copy, sizeof(*frame));
   pthread_mutex_lock(&rc->lock);
@@ -214,7 +213,6 @@ static void APPEND_OUT(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
   if(rc->outgoing_tail) {
     rc->outgoing_tail->next = frame;
     rc->outgoing_tail = frame;
-    rv = 1;
   }
   else {
     rc->outgoing = rc->outgoing_tail = frame;
@@ -453,7 +451,7 @@ socket_error:
     if(rc->incoming_inflight.command) {
       noitL(nldeb, "inbound command channel:%d '%.*s'\n",
             rc->incoming_inflight.channel_id,
-            (int)rc->incoming_inflight.buff_len, rc->incoming_inflight.buff);
+            (int)rc->incoming_inflight.buff_len, (char *)rc->incoming_inflight.buff);
     }
     IFCMD(&rc->incoming_inflight, "CONNECT") {
       if(rc->channels[rc->incoming_inflight.channel_id].pair[0] == -1) {
@@ -1097,7 +1095,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                              nctx->sslconfig);
   EVENTER_ATTACH_SSL(e, sslctx);
   e->callback = noit_connection_ssl_upgrade;
-  NOIT_CONNECT_SUCCESS(e->fd, nctx->remote_str, cn_expected);
+  NOIT_CONNECT_SUCCESS(e->fd, nctx->remote_str, (char *)cn_expected);
   return e->callback(e, mask, closure, now);
 }
 
@@ -1154,7 +1152,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   GET_EXPECTED_CN(nctx, cn_expected);
   nctx->e = NULL;
   if(nctx->wants_permanent_shutdown) {
-    NOIT_SHUTDOWN_PERMANENT(-1, nctx->remote_str, cn_expected);
+    NOIT_SHUTDOWN_PERMANENT(-1, nctx->remote_str, (char *)cn_expected);
     noit_connection_ctx_dealloc(nctx);
     return;
   }
@@ -1220,7 +1218,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
 noitL(noit_error, "new noit_connection -> %d\n", fd);
   eventer_add(e);
 
-  NOIT_CONNECT(e->fd, nctx->remote_str, cn_expected);
+  NOIT_CONNECT(e->fd, nctx->remote_str, (char *)cn_expected);
   noit_connection_update_timeout(nctx);
   return;
  reschedule:

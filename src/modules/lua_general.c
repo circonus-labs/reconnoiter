@@ -33,6 +33,7 @@
 #include "noit_module.h"
 #include "noit_http.h"
 #include "noit_rest.h"
+#include "noit_reverse_socket.h"
 #define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 #include "lua_http.h"

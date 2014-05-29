@@ -252,7 +252,7 @@ noit_check_to_json(noit_check_t *check, int full) {
     if(f.tv_sec) {
       json_object_object_add(metrics, "current", stats_to_json(&check->stats.current));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
       json_object_object_add(metrics, "current_timestamp", json_object_new_string(timestr));
     }
 
@@ -260,7 +260,7 @@ noit_check_to_json(noit_check_t *check, int full) {
     if(f.tv_sec) {
       json_object_object_add(metrics, "inprogress", stats_to_json(&check->stats.inprogress));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
       json_object_object_add(metrics, "inprogress_timestamp", json_object_new_string(timestr));
     }
 
@@ -268,7 +268,7 @@ noit_check_to_json(noit_check_t *check, int full) {
     if(f.tv_sec) {
       json_object_object_add(metrics, "previous", stats_to_json(&check->stats.previous));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (f.tv_usec / 1000));
+               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
       json_object_object_add(metrics, "previous_timestamp", json_object_new_string(timestr));
     }
 
