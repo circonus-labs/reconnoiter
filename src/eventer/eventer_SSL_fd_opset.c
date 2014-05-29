@@ -66,8 +66,8 @@ typedef struct {
   noit_atomic32_t refcnt;
 } ssl_ctx_cache_node;
 
-static noit_hash_table ssl_ctx_cache;
-static pthread_mutex_t ssl_ctx_cache_lock;
+static noit_hash_table ssl_ctx_cache = NOIT_HASH_EMPTY;
+static pthread_mutex_t ssl_ctx_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 static int ssl_ctx_cache_expiry = 5;
 static int ssl_ctx_cache_finfo_expiry = 5;
 
@@ -419,6 +419,30 @@ eventer_ssl_get_current_cipher(eventer_ssl_ctx_t *ctx) {
 int
 eventer_ssl_get_method(eventer_ssl_ctx_t *ctx) {
   return SSL_get_ssl_method(ctx->ssl)->version;
+}
+int
+eventer_ssl_get_local_commonname(eventer_ssl_ctx_t *ctx, char *buff, int len) {
+  char *out = NULL;
+  X509_NAME *name;
+  X509 *cert = SSL_get_certificate(ctx->ssl);
+  if(cert == NULL) return -1;
+  name = X509_get_subject_name(cert);
+  if(name) {
+    int pos;
+    if(-1 != (pos = X509_NAME_get_index_by_NID(name, NID_commonName, -1))) {
+      X509_NAME_ENTRY *entry = X509_NAME_get_entry(name, pos);
+      if(entry) {
+        ASN1_STRING *entryData = X509_NAME_ENTRY_get_data( entry );
+        unsigned char *utf8;
+        int length = ASN1_STRING_to_UTF8( &utf8, entryData );
+        strlcpy(buff, (const char *)utf8, MIN(length+1,len));
+        out = buff;
+        OPENSSL_free( utf8 );
+      }
+    }
+  }
+  if(out) return strlen(out);
+  return -1;
 }
 
 static int
@@ -878,9 +902,9 @@ static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  EVENTER_WRITE_ENTRY(fd, buffer, len, *mask, closure);
+  EVENTER_WRITE_ENTRY(fd, (char *)buffer, len, *mask, closure);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  EVENTER_WRITE_RETURN(fd, buffer, len, *mask, closure, rv);
+  EVENTER_WRITE_RETURN(fd, (char *)buffer, len, *mask, closure, rv);
   return rv;
 }
 
@@ -895,6 +919,7 @@ eventer_SSL_close(int fd, int *mask, void *closure) {
   eventer_ssl_ctx_free(ctx);
   rv = close(fd);
   if(mask) *mask = 0;
+  e->opset_ctx = NULL;
   EVENTER_CLOSE_RETURN(fd, *mask, closure, rv);
   return 0;
 }

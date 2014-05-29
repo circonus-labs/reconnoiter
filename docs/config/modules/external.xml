@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>external</title>
   <para>The external module performs checks via external processes like more traditional monitoring systems.  While this approach is far less efficient and does not scale well on a single system, it provides easier transition from existing monitoring systems.  Checks should exit normally with an exit status of 0 for success, 1 or 2 for failure and 3 for unknown.  Exiting with a status of 3 is highly discouraged.  The standard output is provided as the status of the check.</para>
   <variablelist>
@@ -232,10 +232,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Checking a service via the /path/to/check_foo command.</title>
-    <para>The hypothetical check_foo command takes a target host with the -H parameter, runs a check and returns its health via exit code and stdout. We set the environment variable QUUX to the value BAZ.  The check is against host 10.10.2.2.</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Checking a service via the /path/to/check_foo command.</title>
+      <para>The hypothetical check_foo command takes a target host with the -H parameter, runs a check and returns its health via exit code and stdout. We set the environment variable QUUX to the value BAZ.  The check is against host 10.10.2.2.</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="external" name="external"/&gt;
@@ -253,5 +255,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
       </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

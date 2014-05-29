@@ -66,8 +66,6 @@ static noit_boolean stratcon_selfcheck_extended_id = noit_true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
-static void noit_connection_initiate_connection(noit_connection_ctx_t *ctx);
-
 static const char *feed_type_to_str(int jlog_feed_cmd) {
   switch(jlog_feed_cmd) {
     case NOIT_JLOG_DATA_FEED: return "durable/storage";
@@ -222,113 +220,7 @@ stratcon_jlog_streamer_ctx_alloc(void) {
   ctx = calloc(1, sizeof(*ctx));
   return ctx;
 }
-noit_connection_ctx_t *
-noit_connection_ctx_alloc(void) {
-  noit_connection_ctx_t *ctx, **pctx;
-  ctx = calloc(1, sizeof(*ctx));
-  ctx->refcnt = 1;
-  pctx = malloc(sizeof(*pctx));
-  *pctx = ctx;
-  pthread_mutex_lock(&noits_lock);
-  noit_hash_store(&noits, (const char *)pctx, sizeof(*pctx), ctx);
-  pthread_mutex_unlock(&noits_lock);
-  return ctx;
-}
-int
-noit_connection_reinitiate(eventer_t e, int mask, void *closure,
-                         struct timeval *now) {
-  noit_connection_ctx_t *ctx = closure;
-  ctx->retry_event = NULL;
-  noit_connection_initiate_connection(closure);
-  return 0;
-}
-void
-noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
-                                   struct timeval *now) {
-  struct timeval __now, interval;
-  const char *v, *feedtype, *cn_expected;
-  u_int32_t min_interval = 1000, max_interval = 8000;
 
-  noit_connection_disable_timeout(ctx);
-  if(ctx->remote_cn) {
-    free(ctx->remote_cn);
-    ctx->remote_cn = NULL;
-  }
-  if(noit_hash_retr_str(ctx->config,
-                        "reconnect_initial_interval",
-                        strlen("reconnect_initial_interval"),
-                        &v)) {
-    min_interval = MAX(atoi(v), 100); /* .1 second minimum */
-  }
-  if(noit_hash_retr_str(ctx->config,
-                        "reconnect_maximum_interval",
-                        strlen("reconnect_maximum_interval"),
-                        &v)) {
-    max_interval = MIN(atoi(v), 3600*1000); /* 1 hour maximum */
-  }
-  if(ctx->current_backoff == 0) ctx->current_backoff = min_interval;
-  else {
-    ctx->current_backoff *= 2;
-    ctx->current_backoff = MAX(min_interval, ctx->current_backoff);
-    ctx->current_backoff = MIN(max_interval, ctx->current_backoff);
-  }
-  if(!now) {
-    gettimeofday(&__now, NULL);
-    now = &__now;
-  }
-  interval.tv_sec = ctx->current_backoff / 1000;
-  interval.tv_usec = (ctx->current_backoff % 1000) * 1000;
-  noitL(noit_debug, "Next jlog_streamer attempt in %ums\n",
-        ctx->current_backoff);
-  if(ctx->retry_event)
-    eventer_remove(ctx->retry_event);
-  else
-    ctx->retry_event = eventer_alloc();
-  ctx->retry_event->callback = noit_connection_reinitiate;
-  ctx->retry_event->closure = ctx;
-  ctx->retry_event->mask = EVENTER_TIMER;
-  add_timeval(*now, interval, &ctx->retry_event->whence);
-  GET_EXPECTED_CN(ctx, cn_expected);
-  GET_FEEDTYPE(ctx, feedtype);
-  STRATCON_RESCHEDULE(-1, (char *)feedtype, ctx->remote_str,
-                           (char *)cn_expected, ctx->current_backoff);
-  eventer_add(ctx->retry_event);
-}
-static void
-noit_connection_ctx_free(noit_connection_ctx_t *ctx) {
-  if(ctx->remote_cn) free(ctx->remote_cn);
-  if(ctx->remote_str) free(ctx->remote_str);
-  if(ctx->retry_event) {
-    eventer_remove(ctx->retry_event);
-    eventer_free(ctx->retry_event);
-  }
-  if(ctx->timeout_event) {
-    eventer_remove(ctx->timeout_event);
-    eventer_free(ctx->timeout_event);
-  }
-  ctx->consumer_free(ctx->consumer_ctx);
-  if (ctx->e) {
-    int mask = 0;
-    eventer_remove_fd(ctx->e->fd);
-    ctx->e->opset->close(ctx->e->fd, &mask, ctx->e);
-    eventer_free(ctx->e);
-  }
-  free(ctx);
-}
-void
-noit_connection_ctx_deref(noit_connection_ctx_t *ctx) {
-  if(noit_atomic_dec32(&ctx->refcnt) == 0) {
-    noit_connection_ctx_free(ctx);
-  }
-}
-void
-noit_connection_ctx_dealloc(noit_connection_ctx_t *ctx) {
-  noit_connection_ctx_t **pctx = &ctx;
-  pthread_mutex_lock(&noits_lock);
-  noit_hash_delete(&noits, (const char *)pctx, sizeof(*pctx),
-                   free, (void (*)(void *))noit_connection_ctx_deref);
-  pthread_mutex_unlock(&noits_lock);
-}
 void
 jlog_streamer_ctx_free(void *cl) {
   jlog_streamer_ctx_t *ctx = cl;
@@ -389,19 +281,6 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
 } while(0)
 
 int
-noit_connection_session_timeout(eventer_t e, int mask, void *closure,
-                                struct timeval *now) {
-  noit_connection_ctx_t *nctx = closure;
-  eventer_t fde = nctx->e;
-  nctx->timeout_event = NULL;
-  noitL(noit_error, "Timing out jlog session: %s, %s\n",
-        nctx->remote_cn ? nctx->remote_cn : "(null)",
-        nctx->remote_str ? nctx->remote_str : "(null)");
-  if(fde)
-    eventer_trigger(fde, EVENTER_EXCEPTION);
-  return 0;
-}
-int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
   noit_connection_ctx_t *nctx = closure;
@@ -418,9 +297,6 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       noitL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
-    STRATCON_CONNECT_CLOSE(e->fd, (char *)feedtype, nctx->remote_str,
-                                (char *)cn_expected,
-                                nctx->wants_shutdown, errno);
     ctx->state = JLOG_STREAMER_WANT_INITIATE;
     ctx->count = 0;
     ctx->needs_chkpt = 0;
@@ -428,10 +304,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     ctx->bytes_expected = 0;
     if(ctx->buffer) free(ctx->buffer);
     ctx->buffer = NULL;
-    noit_connection_schedule_reattempt(nctx, now);
-    eventer_remove_fd(e->fd);
-    nctx->e = NULL;
-    e->opset->close(e->fd, &mask, e);
+    nctx->schedule_reattempt(nctx, now);
+    nctx->close(nctx, e);
     return 0;
   }
 
@@ -575,395 +449,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
   /* never get here */
 }
 
-int
-noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
-                            struct timeval *now) {
-  noit_connection_ctx_t *nctx = closure;
-  int rv;
-  const char *error = NULL, *cn_expected, *feedtype;
-  char error_buff[500];
-  eventer_ssl_ctx_t *sslctx = NULL;
 
-  GET_EXPECTED_CN(nctx, cn_expected);
-  GET_FEEDTYPE(nctx, feedtype);
-  STRATCON_CONNECT_SSL(e->fd, (char *)feedtype, nctx->remote_str,
-                            (char *)cn_expected);
-
-  if(mask & EVENTER_EXCEPTION) goto error;
-
-  rv = eventer_SSL_connect(e, &mask);
-  sslctx = eventer_get_eventer_ssl_ctx(e);
-
-  if(rv > 0) {
-    e->callback = nctx->consumer_callback;
-    /* We must make a copy of the acceptor_closure_t for each new
-     * connection.
-     */
-    if(sslctx != NULL) {
-      const char *cn, *end;
-      cn = eventer_ssl_get_peer_subject(sslctx);
-      if(cn && (cn = strstr(cn, "CN=")) != NULL) {
-        cn += 3;
-        end = cn;
-        while(*end && *end != '/') end++;
-        nctx->remote_cn = malloc(end - cn + 1);
-        memcpy(nctx->remote_cn, cn, end - cn);
-        nctx->remote_cn[end-cn] = '\0';
-      }
-      if(cn_expected && (!nctx->remote_cn ||
-                         strcmp(nctx->remote_cn, cn_expected))) {
-        snprintf(error_buff, sizeof(error_buff), "jlog connect CN mismatch - expected %s, got %s",
-            cn_expected ? cn_expected : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)");
-        error = error_buff;
-        goto error;
-      }
-    }
-    STRATCON_CONNECT_SSL_SUCCESS(e->fd, (char *)feedtype,
-                                      nctx->remote_str, (char *)cn_expected);
-    return e->callback(e, mask, e->closure, now);
-  }
-  if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
-  if(sslctx) error = eventer_ssl_get_last_error(sslctx);
-  noitL(noit_debug, "jlog streamer SSL upgrade failed.\n");
-
- error:
-  STRATCON_CONNECT_SSL_FAILED(e->fd, (char *)feedtype,
-                                   nctx->remote_str, (char *)cn_expected,
-                                   (char *)error, errno);
-  if(error) noitL(noit_error, "[%s] [%s] noit_connection_ssl_upgrade: %s\n", 
-    nctx->remote_str ? nctx->remote_str : "(null)",
-    cn_expected ? cn_expected : "(null)", error);
-  eventer_remove_fd(e->fd);
-  nctx->e = NULL;
-  e->opset->close(e->fd, &mask, e);
-  noit_connection_schedule_reattempt(nctx, now);
-  return 0;
-}
-int
-noit_connection_complete_connect(eventer_t e, int mask, void *closure,
-                                 struct timeval *now) {
-  noit_connection_ctx_t *nctx = closure;
-  const char *layer = NULL, *cert, *key, *ca, *ciphers, *crl = NULL, *cn_expected, *feedtype;
-  char remote_str[128], tmp_str[128];
-  eventer_ssl_ctx_t *sslctx;
-  int aerrno, len;
-  socklen_t aerrno_len = sizeof(aerrno);
-
-  GET_EXPECTED_CN(nctx, cn_expected);
-  GET_FEEDTYPE(nctx, feedtype);
-  if(getsockopt(e->fd,SOL_SOCKET,SO_ERROR, &aerrno, &aerrno_len) == 0)
-    if(aerrno != 0) goto connect_error;
-  aerrno = 0;
-
-  if(mask & EVENTER_EXCEPTION) {
-    if(aerrno == 0 && (write(e->fd, e, 0) == -1))
-      aerrno = errno;
- connect_error:
-    switch(nctx->r.remote.sa_family) {
-      case AF_INET:
-        len = sizeof(struct sockaddr_in);
-        inet_ntop(nctx->r.remote.sa_family, &nctx->r.remote_in.sin_addr,
-                  tmp_str, len);
-        snprintf(remote_str, sizeof(remote_str), "%s:%d",
-                 tmp_str, ntohs(nctx->r.remote_in.sin_port));
-        break;
-      case AF_INET6:
-        len = sizeof(struct sockaddr_in6);
-        inet_ntop(nctx->r.remote.sa_family, &nctx->r.remote_in6.sin6_addr,
-                  tmp_str, len);
-        snprintf(remote_str, sizeof(remote_str), "%s:%d",
-                 tmp_str, ntohs(nctx->r.remote_in6.sin6_port));
-       break;
-      case AF_UNIX:
-        snprintf(remote_str, sizeof(remote_str), "%s", nctx->r.remote_un.sun_path);
-        break;
-      default:
-        snprintf(remote_str, sizeof(remote_str), "(unknown)");
-    }
-    noitL(noit_error, "Error connecting to %s (%s): %s\n",
-          remote_str, cn_expected ? cn_expected : "(null)", strerror(aerrno));
-    STRATCON_CONNECT_FAILED(e->fd, (char *)feedtype, remote_str,
-                                 (char *)cn_expected, aerrno);
-    eventer_remove_fd(e->fd);
-    nctx->e = NULL;
-    e->opset->close(e->fd, &mask, e);
-    noit_connection_schedule_reattempt(nctx, now);
-    return 0;
-  }
-
-#define SSLCONFGET(var,name) do { \
-  if(!noit_hash_retr_str(nctx->sslconfig, name, strlen(name), \
-                         &var)) var = NULL; } while(0)
-  SSLCONFGET(layer, "layer");
-  SSLCONFGET(cert, "certificate_file");
-  SSLCONFGET(key, "key_file");
-  SSLCONFGET(ca, "ca_chain");
-  SSLCONFGET(ciphers, "ciphers");
-  SSLCONFGET(crl, "crl");
-  sslctx = eventer_ssl_ctx_new(SSL_CLIENT, layer, cert, key, ca, ciphers);
-  if(!sslctx) goto connect_error;
-  if(crl) {
-    if(!eventer_ssl_use_crl(sslctx, crl)) {
-      noitL(noit_error, "Failed to load CRL from %s\n", crl);
-      eventer_ssl_ctx_free(sslctx);
-      goto connect_error;
-    }
-  }
-
-  memcpy(&nctx->last_connect, now, sizeof(*now));
-  eventer_ssl_ctx_set_verify(sslctx, eventer_ssl_verify_cert,
-                             nctx->sslconfig);
-  EVENTER_ATTACH_SSL(e, sslctx);
-  e->callback = noit_connection_ssl_upgrade;
-  STRATCON_CONNECT_SUCCESS(e->fd, (char *)feedtype, nctx->remote_str,
-                                (char *)cn_expected);
-  return e->callback(e, mask, closure, now);
-}
-static void
-noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
-  struct timeval __now;
-  const char *cn_expected, *feedtype;
-  eventer_t e;
-  int rv, fd = -1;
-#ifdef SO_KEEPALIVE
-  int optval;
-  socklen_t optlen = sizeof(optval);
-#endif
-
-  GET_EXPECTED_CN(nctx, cn_expected);
-  GET_FEEDTYPE(nctx, feedtype);
-  nctx->e = NULL;
-  if(nctx->wants_permanent_shutdown) {
-    STRATCON_SHUTDOWN_PERMANENT(-1, (char *)feedtype,
-                                     nctx->remote_str, (char *)cn_expected);
-    noit_connection_ctx_dealloc(nctx);
-    return;
-  }
-  /* Open a socket */
-  fd = socket(nctx->r.remote.sa_family, NE_SOCK_CLOEXEC|SOCK_STREAM, 0);
-  if(fd < 0) goto reschedule;
-
-  /* Make it non-blocking */
-  if(eventer_set_fd_nonblocking(fd)) goto reschedule;
-#define set_or_bail(type, opt, val) do { \
-  optval = val; \
-  optlen = sizeof(optval); \
-  if(setsockopt(fd, type, opt, &optval, optlen) < 0) { \
-    noitL(noit_error, "[%s] [%s] Cannot set " #type "/" #opt " on jlog socket: %s\n", \
-          nctx->remote_str ? nctx->remote_str : "(null)", \
-          cn_expected,  \
-          strerror(errno)); \
-    goto reschedule; \
-  } \
-} while(0)
-#ifdef SO_KEEPALIVE
-  set_or_bail(SOL_SOCKET, SO_KEEPALIVE, 1);
-#endif
-#ifdef TCP_KEEPALIVE_THRESHOLD
-  set_or_bail(IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, 10 * 1000);
-#endif
-#ifdef TCP_KEEPALIVE_ABORT_THRESHOLD
-  set_or_bail(IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, 30 * 1000);
-#endif
-#ifdef TCP_CONN_NOTIFY_THRESHOLD
-  set_or_bail(IPPROTO_TCP, TCP_CONN_NOTIFY_THRESHOLD, 10 * 1000);
-#endif
-#ifdef TCP_CONN_ABORT_THRESHOLD
-  set_or_bail(IPPROTO_TCP, TCP_CONN_ABORT_THRESHOLD, 30 * 1000);
-#endif
-
-  /* Initiate a connection */
-  rv = connect(fd, &nctx->r.remote, nctx->remote_len);
-  if(rv == -1 && errno != EINPROGRESS) goto reschedule;
-
-  /* Register a handler for connection completion */
-  e = eventer_alloc();
-  e->fd = fd;
-  e->mask = EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
-  e->callback = noit_connection_complete_connect;
-  e->closure = nctx;
-  nctx->e = e;
-  eventer_add(e);
-
-  STRATCON_CONNECT(e->fd, (char *)feedtype, nctx->remote_str,
-                        (char *)cn_expected);
-  noit_connection_update_timeout(nctx);
-  return;
-
- reschedule:
-  if(fd >= 0) close(fd);
-  gettimeofday(&__now, NULL);
-  noit_connection_schedule_reattempt(nctx, &__now);
-  return;
-}
-
-int
-noit_connection_update_timeout(noit_connection_ctx_t *nctx) {
-  struct timeval now, diff;
-  if(nctx->max_silence == 0) return 0;
-
-  diff.tv_sec = nctx->max_silence / 1000;
-  diff.tv_usec = (nctx->max_silence % 1000) * 1000;
-  gettimeofday(&now, NULL);
-
-  if(!nctx->timeout_event) {
-    nctx->timeout_event = eventer_alloc();
-    nctx->timeout_event->mask = EVENTER_TIMER;
-    nctx->timeout_event->closure = nctx;
-    nctx->timeout_event->callback = noit_connection_session_timeout;
-    add_timeval(now, diff, &nctx->timeout_event->whence);
-    eventer_add(nctx->timeout_event);
-  }
-  else {
-    add_timeval(now, diff, &nctx->timeout_event->whence);
-    eventer_update(nctx->timeout_event, EVENTER_TIMER);
-  }
-  return 0;
-}
-
-int
-noit_connection_disable_timeout(noit_connection_ctx_t *nctx) {
-  if(nctx->timeout_event) {
-    eventer_remove(nctx->timeout_event);
-    eventer_free(nctx->timeout_event);
-    nctx->timeout_event = NULL;
-  }
-  return 0;
-}
-
-int
-initiate_noit_connection(const char *host, unsigned short port,
-                         noit_hash_table *sslconfig, noit_hash_table *config,
-                         eventer_func_t handler, void *closure,
-                         void (*freefunc)(void *)) {
-  noit_connection_ctx_t *ctx;
-  const char *stimeout;
-  int8_t family;
-  int rv;
-  union {
-    struct in_addr addr4;
-    struct in6_addr addr6;
-  } a;
-
-  if(host[0] == '/') {
-    family = AF_UNIX;
-  }
-  else {
-    family = AF_INET;
-    rv = inet_pton(family, host, &a);
-    if(rv != 1) {
-      family = AF_INET6;
-      rv = inet_pton(family, host, &a);
-      if(rv != 1) {
-        noitL(noit_stderr, "Cannot translate '%s' to IP\n", host);
-        return -1;
-      }
-    }
-  }
-
-  ctx = noit_connection_ctx_alloc();
-  ctx->remote_str = calloc(1, strlen(host) + 7);
-  snprintf(ctx->remote_str, strlen(host) + 7,
-           "%s:%d", host, port);
-  
-  memset(&ctx->r, 0, sizeof(ctx->r));
-  if(family == AF_UNIX) {
-    struct sockaddr_un *s = &ctx->r.remote_un;
-    s->sun_family = AF_UNIX;
-    strncpy(s->sun_path, host, sizeof(s->sun_path)-1);
-    ctx->remote_len = sizeof(*s);
-  }
-  else if(family == AF_INET) {
-    struct sockaddr_in *s = &ctx->r.remote_in;
-    s->sin_family = family;
-    s->sin_port = htons(port);
-    memcpy(&s->sin_addr, &a, sizeof(struct in_addr));
-    ctx->remote_len = sizeof(*s);
-  }
-  else {
-    struct sockaddr_in6 *s = &ctx->r.remote_in6;
-    s->sin6_family = family;
-    s->sin6_port = htons(port);
-    memcpy(&s->sin6_addr, &a, sizeof(a));
-    ctx->remote_len = sizeof(*s);
-  }
-
-  if(ctx->sslconfig)
-    noit_hash_delete_all(ctx->sslconfig, free, free);
-  else
-    ctx->sslconfig = calloc(1, sizeof(noit_hash_table));
-  noit_hash_merge_as_dict(ctx->sslconfig, sslconfig);
-  if(ctx->config)
-    noit_hash_delete_all(ctx->config, free, free);
-  else
-    ctx->config = calloc(1, sizeof(noit_hash_table));
-  noit_hash_merge_as_dict(ctx->config, config);
-
-  if(noit_hash_retr_str(ctx->config, "timeout", strlen("timeout"), &stimeout))
-    ctx->max_silence = atoi(stimeout);
-  else
-    ctx->max_silence = DEFAULT_NOIT_CONNECTION_TIMEOUT;
-  ctx->consumer_callback = handler;
-  ctx->consumer_free = freefunc;
-  ctx->consumer_ctx = closure;
-  noit_connection_initiate_connection(ctx);
-  return 0;
-}
-
-int
-stratcon_streamer_connection(const char *toplevel, const char *destination,
-                             eventer_func_t handler,
-                             void *(*handler_alloc)(void), void *handler_ctx,
-                             void (*handler_free)(void *)) {
-  int i, cnt = 0, found = 0;
-  noit_conf_section_t *noit_configs;
-  char path[256];
-
-  snprintf(path, sizeof(path), "/%s/noits//noit", toplevel ? toplevel : "*");
-  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_error, "Found %d %s stanzas\n", cnt, path);
-  for(i=0; i<cnt; i++) {
-    char address[256];
-    unsigned short port;
-    int portint;
-    noit_hash_table *sslconfig, *config;
-
-    if(!noit_conf_get_stringbuf(noit_configs[i],
-                                "ancestor-or-self::node()/@address",
-                                address, sizeof(address))) {
-      noitL(noit_error, "address attribute missing in noit %d\n", i+1);
-      continue;
-    }
-    /* if destination is specified, exact match it */
-    if(destination && strcmp(address, destination)) continue;
-
-    if(!noit_conf_get_int(noit_configs[i],
-                          "ancestor-or-self::node()/@port", &portint))
-      portint = 0;
-    port = (unsigned short) portint;
-    if(address[0] != '/' && (portint == 0 || (port != portint))) {
-      /* UNIX sockets don't require a port (they'll ignore it if specified */
-      noitL(noit_stderr,
-            "Invalid port [%d] specified in stanza %d\n", port, i+1);
-      continue;
-    }
-    sslconfig = noit_conf_get_hash(noit_configs[i], "sslconfig");
-    config = noit_conf_get_hash(noit_configs[i], "config");
-
-    noitL(noit_error, "initiating to %s\n", address);
-    initiate_noit_connection(address, port, sslconfig, config,
-                             handler,
-                             handler_alloc ? handler_alloc() : handler_ctx,
-                             handler_free);
-    found++;
-    noit_hash_destroy(sslconfig,free,free);
-    free(sslconfig);
-    noit_hash_destroy(config,free,free);
-    free(config);
-  }
-  free(noit_configs);
-  return found;
-}
 int
 stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
   int rv = -1;
@@ -1007,7 +493,7 @@ stratcon_jlog_streamer_reload(const char *toplevel) {
   /* flush and repopulate the cn cache */
   stratcon_jlog_streamer_recache_noit();
   if(!stratcon_datastore_get_enabled()) return;
-  stratcon_streamer_connection(toplevel, NULL,
+  stratcon_streamer_connection(toplevel, NULL, "noit",
                                stratcon_jlog_recv_handler,
                                (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
                                NULL,
@@ -1089,7 +575,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
        !strcmp(ctx[n]->remote_str, argv[0]) ||
        (ctx[n]->config && noit_hash_retr_str(ctx[n]->config, "cn", 2, &ecn) &&
         !strcmp(ecn, argv[0]))) {
-      noit_atomic_inc32(&ctx[n]->refcnt);
+      noit_connection_ctx_ref(ctx[n]);
       n++;
     }
   }
@@ -1210,7 +696,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
-    noit_atomic_inc32(&ctxs[n]->refcnt);
+    noit_connection_ctx_ref(ctxs[n]);
     n++;
   }
   pthread_mutex_unlock(&noits_lock);
@@ -1271,7 +757,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   while(noit_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
     ctxs[n] = (noit_connection_ctx_t *)vconn;
-    noit_atomic_inc32(&ctxs[n]->refcnt);
+    noit_connection_ctx_ref(ctxs[n]);
     n++;
   }
   pthread_mutex_unlock(&noits_lock);
@@ -1468,13 +954,13 @@ stratcon_add_noit(const char *target, unsigned short port,
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
   if(stratcon_datastore_get_enabled())
-    stratcon_streamer_connection(NULL, target,
+    stratcon_streamer_connection(NULL, target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_datastore_ctx_alloc,
                                  NULL,
                                  jlog_streamer_ctx_free);
   if(stratcon_iep_get_enabled())
-    stratcon_streamer_connection(NULL, target,
+    stratcon_streamer_connection(NULL, target, "noit",
                                  stratcon_jlog_recv_handler,
                                  (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                  NULL,
@@ -1519,7 +1005,7 @@ stratcon_remove_noit(const char *target, unsigned short port) {
                        &vconn)) {
     if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {
       ctx[n] = (noit_connection_ctx_t *)vconn;
-      noit_atomic_inc32(&ctx[n]->refcnt);
+      noit_connection_ctx_ref(ctx[n]);
       n++;
     }
   }
@@ -1631,6 +1117,18 @@ register_console_streamer_commands() {
     NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
 }
 
+int
+stratcon_streamer_connection(const char *toplevel, const char *destination,
+                             const char *type,
+                             eventer_func_t handler,
+                             void *(*handler_alloc)(void), void *handler_ctx,
+                             void (*handler_free)(void *)) {
+  return noit_connections_from_config(&noits, &noits_lock,
+                                      toplevel, destination, type,
+                                      handler, handler_alloc, handler_ctx,
+                                      handler_free);
+}
+
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
@@ -1639,19 +1137,11 @@ stratcon_jlog_streamer_init(const char *toplevel) {
 
   pthread_mutex_init(&noits_lock, NULL);
   pthread_mutex_init(&noit_ip_by_cn_lock, NULL);
-  eventer_name_callback("noit_connection_reinitiate",
-                        noit_connection_reinitiate);
   eventer_name_callback("stratcon_jlog_recv_handler",
                         stratcon_jlog_recv_handler);
-  eventer_name_callback("noit_connection_ssl_upgrade",
-                        noit_connection_ssl_upgrade);
-  eventer_name_callback("noit_connection_complete_connect",
-                        noit_connection_complete_connect);
-  eventer_name_callback("noit_connection_session_timeout",
-                        noit_connection_session_timeout);
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
-  stratcon_streamer_connection(toplevel, "", NULL, NULL, NULL, NULL);
+  stratcon_streamer_connection(toplevel, "", "noit", NULL, NULL, NULL, NULL);
   assert(noit_http_rest_register_auth(
     "GET", "/noits/", "^show$", rest_show_noits,
              noit_http_rest_client_cert_auth

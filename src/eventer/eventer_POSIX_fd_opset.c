@@ -63,10 +63,10 @@ static int
 POSIX_write(int fd, const void *buffer, size_t len,
             int *mask, void *closure) {
   int rv;
-  EVENTER_WRITE_ENTRY(fd, buffer, len, *mask, closure);
+  EVENTER_WRITE_ENTRY(fd, (char *)buffer, len, *mask, closure);
   *mask = EVENTER_WRITE | EVENTER_EXCEPTION;
   rv = write(fd, buffer, len);
-  EVENTER_WRITE_RETURN(fd, buffer, len, *mask, closure, rv);
+  EVENTER_WRITE_RETURN(fd, (char *)buffer, len, *mask, closure, rv);
   return rv;
 }
 

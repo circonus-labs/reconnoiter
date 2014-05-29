@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>jezebel</title>
   <para>The jezebel module performs services checks against jezebel and simplifies its special-case Resmon output.</para>
-  <para><ulink url="https://labs.omniti.com/trac/resmon"><citetitle>Resmon</citetitle></ulink> is a light-weight resource monitor that exposes health of services over HTTP in XML.</para>
+  <para><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://labs.omniti.com/trac/resmon"><citetitle>Resmon</citetitle></link> is a light-weight resource monitor that exposes health of services over HTTP in XML.</para>
   <para>This module rides on the http module and provides a secondary phase of XML parsing on the contents that extracts Resmon status messages into metrics that can be trended.</para>
   <variablelist>
     <varlistentry>
@@ -90,10 +90,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Checking resmon services on OmniTI Labs.</title>
-    <para>This example checks the Resmon service on OmniTI Labs.</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Checking resmon services on OmniTI Labs.</title>
+      <para>This example checks the Resmon service on OmniTI Labs.</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
@@ -114,5 +116,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

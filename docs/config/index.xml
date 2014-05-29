@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<part xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      xmlns:xlink="http://www.w3.org/1999/xlink"
+      version="5"
+      xml:id="configuration">
+    <title>Configuration</title>
+    <xi:include href="generic.xml"/>
+    <xi:include href="noitd.xml"/>
+    <xi:include href="noitd_modules.xml"/>
+    <xi:include href="stratcond.xml"/>
+    <xi:include href="stratcond_modules.xml"/>
+</part>

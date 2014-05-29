@@ -69,7 +69,8 @@ alldocs:	../../docs
 		$(top_srcdir)/src/lua/src/lua extract_xml.lua $$lua tmp.xml ; \
 		test -f tmp.xml && \
 			$(XSLTPROC) ../modules/module.xsl tmp.xml | \
-			$(XMLLINT) --format - > \
+			$(XMLLINT) --format - | \
+			sed -e 's/ xmlns=""//g;' > \
 			$(top_srcdir)/docs/config/modules/`echo $$lua | sed -e 's/\.lua/.xml/; s/\//./g'` ; \
 		rm -f tmp.xml ; \
 	done

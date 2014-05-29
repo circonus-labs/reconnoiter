@@ -1,62 +1,45 @@
-<?xml version='1.0' encoding='UTF-8' ?>
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
-  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
-[
-  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
-  %magic.fixup;
-]>
-<book id="reconnoiter" lang="en">
-
-  <bookinfo>
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<book xmlns="http://docbook.org/ns/docbook" xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info>
     <title>Reconnoiter</title>
     <subtitle>Large-scale Monitoring and Trend Analysis System</subtitle>
-    <!-- edition>edition</edition -->
-    <pubdate>@PUBDATE@, Document revision @VERS@</pubdate>
-
-    <corpauthor>OmniTI Computer Consulting, Inc.</corpauthor>
-
+    <pubdate>2014-05-28, Document revision 12421</pubdate>
+    <author>
+      <orgname>Circonus, Inc.</orgname>
+    </author>
     <copyright>
-      <year>2008</year>
-      <holder>OmniTI Computer Consulting, Inc.</holder>
+      <year>2014</year>
+      <holder>Circonus, Inc.</holder>
     </copyright>
+  </info>
 
-  </bookinfo>
+  <xi:include href="preface.xml"/>
+  <xi:include href="arch/index.xml"/>
+  <xi:include href="config/index.xml"/>
+  <xi:include href="operation/index.xml"/>
+  <xi:include href="development/dev.xml"/>
 
-  &preface;
-
-  <part id="archecture">
-    <title>Architecture</title>
-    &arch.all;
-  </part>
-  <part id="configuration">
-    <title>Configuration</title>
-    &config.all;
-  </part>
-  <part id="operation">
-    <title>Operation</title>
-    &operation.all;
-  </part>
-  <part id="development">
-    <title>Development</title>
-    &development.all;
-  </part>
-  <part id="reference">
+  <part xml:id="reference">
     <title>Reference</title>
-    <reference id="exe">
+    <reference xml:id="exe">
       <title>Reconnoiter Command Line Reference</title>
-      &executable.all;
+      <xi:include href="executable/noitd.xml"/>
+      <xi:include href="executable/stratcond.xml"/>
     </reference>
-    <chapter id="ref">
+    <!--
+    <chapter xml:id="ref">
       <title>Code Reference</title>
       <section><title>Internal Functions</title>
       <reference><title>Function Refrence</title>
-      &gen.all;
       </reference>
       </section>
     </chapter>
+    -->
   </part>
-
-  <index id="the.index"/>
+  
+  <index xml:id="the.index"/>
 </book>
 <!--
 vim:ts=2:sw=2:et:

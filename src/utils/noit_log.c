@@ -143,7 +143,7 @@ membuf_logio_writev(noit_log_stream_t ls, const struct timeval *whence,
                     const struct iovec *iov, int iovcnt) {
   struct timeval __now;
   int i, offset, headoffset, headend, tailoffset, tailend,
-      attemptoffset = -3, attemptend = -1, nexttailoff, nexttail, faketail;
+      attemptoffset = -3, attemptend = -1, nexttailoff, nexttail;
   pthread_rwlock_t *lock = ls->lock;
   membuf_ctx_t *membuf = ls->op_ctx;
   size_t len = sizeof(*whence);
@@ -171,9 +171,6 @@ membuf_logio_writev(noit_log_stream_t ls, const struct timeval *whence,
   nexttailoff = offset + len;
   nexttail = membuf->tail + 1;
 
-  faketail = ((membuf->tail % membuf->noffsets) < (membuf->head % membuf->noffsets)) ?
-               ((membuf->tail % membuf->noffsets) + membuf->noffsets) :
-               (membuf->tail % membuf->noffsets);
   /* clean up head until it is ahead of the next tail */
   headoffset = membuf->offsets[membuf->head % membuf->noffsets];
   headend = membuf->offsets[(membuf->head+1) % membuf->noffsets];
@@ -189,9 +186,6 @@ membuf_logio_writev(noit_log_stream_t ls, const struct timeval *whence,
     headend = membuf->offsets[(membuf->head+1) % membuf->noffsets];
     if(headend < headoffset) headend = membuf->segmentsize;
     //if((membuf->head % membuf->noffsets) == 0) {
-    if(headoffset == 0) {
-      faketail = (membuf->tail % membuf->noffsets); /* reset */
-    }
   }
 
   /* move tail forward updating head if needed */

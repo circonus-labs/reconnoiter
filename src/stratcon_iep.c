@@ -679,7 +679,7 @@ stratcon_iep_init() {
   start_iep_daemon();
 
   /* setup our live jlog stream */
-  stratcon_streamer_connection(NULL, NULL,
+  stratcon_streamer_connection(NULL, NULL, "noit",
                                stratcon_jlog_recv_handler,
                                (void *(*)())stratcon_jlog_streamer_iep_ctx_alloc,
                                NULL,

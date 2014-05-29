@@ -33,6 +33,11 @@
 #ifndef _NOIT_B32_H
 #define _NOIT_B32_H
 
+/*!  \file noit_b32.h
+
+     Interface to the noit base32 encoding and decoding routines.
+ */
+
 #include "noit_config.h"
 #include "noit_defines.h"
 

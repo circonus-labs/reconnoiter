@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>lua</title>
   <para>The lua module is a loader that allows the authoring of checks in Lua.</para>
   <variablelist>
@@ -48,12 +48,11 @@
     </variablelist>
   </section>
   <section>
-    <title>Check Configuration</title>
-  </section>
-  <example>
-    <title>Loading the lua loader.</title>
-    <para>This example loads the lua VM and registers it as a module loader.</para>
-    <programlisting>
+    <title>Examples</title>
+    <example>
+      <title>Loading the lua loader.</title>
+      <para>This example loads the lua VM and registers it as a module loader.</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="lua" name="lua"&gt;
@@ -64,5 +63,6 @@
         &lt;/modules&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

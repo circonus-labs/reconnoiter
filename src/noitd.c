@@ -55,6 +55,7 @@
 #include "noit_console.h"
 #include "noit_jlog_listener.h"
 #include "noit_rest.h"
+#include "noit_reverse_socket.h"
 #include "noit_check_rest.h"
 #include "noit_events_rest.h"
 #include "noit_livestream_listener.h"
@@ -200,6 +201,7 @@ static int child_main() {
   noit_capabilities_listener_init();
   noit_jlog_listener_init();
   noit_http_rest_init();
+  noit_reverse_socket_init();
   noit_events_rest_init();
   noit_check_rest_init();
   noit_filters_rest_init();

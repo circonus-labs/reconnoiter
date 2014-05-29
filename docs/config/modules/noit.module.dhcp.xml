@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>dhcp</title>
   <para>DHCP metrics check.</para>
   <variablelist>
@@ -16,9 +16,6 @@
       </listitem>
     </varlistentry>
   </variablelist>
-  <section>
-    <title>Module Configuration</title>
-  </section>
   <section>
     <title>Check Configuration</title>
     <variablelist>
@@ -134,10 +131,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Checking DHCP connection.</title>
-    <para>This example checks DHCP connection</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Checking DHCP connection.</title>
+      <para>This example checks DHCP connection</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
@@ -155,5 +154,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

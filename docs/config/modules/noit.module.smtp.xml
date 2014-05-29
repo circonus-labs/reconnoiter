@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>smtp</title>
   <para>Send an email via an SMTP server.</para>
   <variablelist>
@@ -16,9 +16,6 @@
       </listitem>
     </varlistentry>
   </variablelist>
-  <section>
-    <title>Module Configuration</title>
-  </section>
   <section>
     <title>Check Configuration</title>
     <variablelist>
@@ -384,10 +381,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Send an email to test SMTP service.</title>
-    <para>The following example sends an email via 10.80.117.6 from test@omniti.com to devnull@omniti.com</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Send an email to test SMTP service.</title>
+      <para>The following example sends an email via 10.80.117.6 from test@omniti.com to devnull@omniti.com</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
@@ -405,5 +404,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
       </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

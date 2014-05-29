@@ -1,5 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<section>
+<?xml version='1.0' encoding='UTF-8' ?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5"
+         xml:id="noitd.interactive.console">
   <title>Interactive Console Command Line Operation</title>
   <para>
       This section serves to document the basic methods of operation
@@ -307,9 +310,9 @@
 
     <section>
       <title>watch</title>
+      <para><command>watch {check id} {interval}</command> redisplays information for a given check at a configurable interval. Interval is given in units of milliseconds.  If interval is omitted, presently, there is a bug where the check begins to output at its configured interval directly to the cli, but does not appear as a watch in <command>show watches</command> and <command>no watch {id}</command> has no effect.</para>
+      <para>The currently active watches may be listed with <command>show watches</command>, and an active watch may be terminated with by issuing the command <command>no watch {check id} {interval}</command> where check id and interval are the ones used for the initial creation of the watch.</para>
     </section>
-    <para><command>watch {check id} {interval}</command> redisplays information for a given check at a configurable interval. Interval is given in units of milliseconds.  If interval is omitted, presently, there is a bug where the check begins to output at its configured interval directly to the cli, but does not appear as a watch in <command>show watches</command> and <command>no watch {id}</command> has no effect.</para>
-    <para>The currently active watches may be listed with <command>show watches</command>, and an active watch may be terminated with by issuing the command <command>no watch {check id} {interval}</command> where check id and interval are the ones used for the initial creation of the watch.</para>
   </section>
 
   <section>

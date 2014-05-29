@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>cloudwatch</title>
-  <para>The Cloudwatch module gathers metrics via the AWS Cloudwatch API</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -16,9 +15,6 @@
       </listitem>
     </varlistentry>
   </variablelist>
-  <section>
-    <title>Module Configuration</title>
-  </section>
   <section>
     <title>Check Configuration</title>
     <variablelist>
@@ -223,7 +219,7 @@
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>dim_.*</term>
+        <term>dim_.+</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -235,7 +231,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>.*</para>
+                <para>.+</para>
               </listitem>
             </varlistentry>
           </variablelist>
@@ -244,10 +240,12 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Check Cloudwatch data</title>
-    <para>This example checks some Cloudwatch data</para>
-    <programlisting>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Checking Cloudwatch data</title>
+      <para>This example checks some Cloudwatch data</para>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
@@ -266,6 +264,7 @@
           &lt;/check&gt;
         &lt;/checks&gt;
       &lt;/noit&gt;
-      </programlisting>
-  </example>
+    </programlisting>
+    </example>
+  </section>
 </section>

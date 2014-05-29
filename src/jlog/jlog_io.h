@@ -94,7 +94,8 @@ int jlog_file_sync(jlog_file *f);
 
 /**
  * maps the entirety of a jlog_file into memory for reading
- * @param[out] map is set to the base of the mapped region
+ * @param[in] f the jlog_file on which you are operating
+ * @param[out] base is set to the base of the mapped region
  * @param[out] len is set to the length of the mapped region
  * @return 1 on success, 0 on failure
  * @internal

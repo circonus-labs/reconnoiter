@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>collectd</title>
   <para>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</para>
   <para>Additionally, this module registers a REST handler to support collectd's write_http output plugin.  This exposes a REST endpoint at /module/collectd.</para>
@@ -145,9 +145,11 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Simple encrypted passive checking.</title>
-    <para>The following example allows a collectd agent to send any metric to the noit
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Simple encrypted passive checking.</title>
+      <para>The following example allows a collectd agent to send any metric to the noit
       system.  In this example the collectd agent must be version 4.7.0 to support encryption 
       and must be configured with parameters similar to the ones below.  Like the snmptrap 
       module the collectd disregards the timeout value completely, but uses the period to
@@ -155,7 +157,7 @@
       check is marked as G and A for state and availability respectively.  The first program
       listing shows a collectd configuration and the second listing shows the corresponding
       check configuration in reconnoiter.</para>
-    <programlisting>
+      <programlisting>
       &lt;Plugin network&gt;
         &lt;Server "127.0.0.1" "25826"&gt;
           SecurityLevel "encrypt"
@@ -176,7 +178,7 @@
         &lt;/URL&gt;
       &lt;/Plugin&gt;
       </programlisting>
-    <programlisting>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="collectd" name="collectd"&gt;
@@ -193,5 +195,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
       </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

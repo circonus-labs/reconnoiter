@@ -91,7 +91,7 @@ __getgrnam_r(const char *group, struct group *gr,
 }
 
 int
-noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
+noit_security_usergroup(const char *user, const char *group, noit_boolean effective) {
   static long pwnam_buflen = 0;
   static long grnam_buflen = 0;
   uid_t uid = 0;
@@ -135,17 +135,17 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean eff) {
   }
 
   if(group) {
-    if(!eff && gid == 0) BAIL("Cannot use this function to setgid(0)\n");
-    if((eff ? setegid(gid) : setgid(gid)) != 0)
+    if(!effective && gid == 0) BAIL("Cannot use this function to setgid(0)\n");
+    if((effective ? setegid(gid) : setgid(gid)) != 0)
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
   }
   if(user) {
-    if(!eff && uid == 0) BAIL("Cannot use this function to setuid(0)\n");
-    if((eff ? seteuid(uid) : setuid(uid)) != 0) 
+    if(!effective && uid == 0) BAIL("Cannot use this function to setuid(0)\n");
+    if((effective ? seteuid(uid) : setuid(uid)) != 0) 
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
-    if(!eff && setuid(0) == 0)
+    if(!effective && setuid(0) == 0)
       BAIL("setuid(0) worked, and it shouldn't have.\n");
-    if(!eff && setgid(0) == 0)
+    if(!effective && setgid(0) == 0)
       BAIL("setgid(0) worked, and it shouldn't have.\n");
   }
   return 0;

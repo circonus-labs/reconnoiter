@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>snmptrap</title>
   <para>The snmptrap module provides SNMP trap daemon support for reconnoiter.  Reconnoiter comes with a <command>snmptrap</command>-based helper utility called <command>noittrap</command> aimed to assist with the complexities of forming valid SNMP traps to this module.</para>
   <variablelist>
@@ -88,13 +88,15 @@
       </varlistentry>
     </variablelist>
   </section>
-  <example>
-    <title>Simple passive checking.</title>
-    <para>The following example configures a check prepared to accept traps from
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Simple passive checking.</title>
+      <para>The following example configures a check prepared to accept traps from
       host 10.1.1.1.  Traps must be performed with the community name 's3cr3t'. Note that
       because this check is passive, the timeout and period mean nothing to reconnoiter.
       Though these values may be used by an upstream provider for fault detection.</para>
-    <programlisting>
+      <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;module image="snmp" name="snmptrap"&gt;
@@ -109,5 +111,6 @@
         &lt;/checks&gt;
       &lt;/noit&gt;
     </programlisting>
-  </example>
+    </example>
+  </section>
 </section>

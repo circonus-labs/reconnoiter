@@ -125,6 +125,7 @@ noit_listener_accept_ssl(eventer_t e, int mask,
   if(errno == EAGAIN) return mask|EVENTER_EXCEPTION;
 
  socketfail:
+  noitL(noit_error, "SSL accept failed: %s\n", eventer_ssl_get_last_error(eventer_get_eventer_ssl_ctx(e)));
   if(listener_closure) free(listener_closure);
   if(ac) acceptor_closure_free(ac);
   eventer_remove_fd(e->fd);
@@ -157,7 +158,7 @@ noit_listener_acceptor(eventer_t e, int mask,
   if(mask & EVENTER_EXCEPTION) {
  socketfail:
     if(ac) acceptor_closure_free(ac);
-    /* We don't shut down the socket, it's out listener! */
+    /* We don't shut down the socket, it's our listener! */
     return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
   }
 

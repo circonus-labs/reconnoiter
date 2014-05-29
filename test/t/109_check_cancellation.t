@@ -11,6 +11,13 @@ my $xpc = XML::LibXML::XPathContext->new();
 my (@r, $fh, $doc, $uuid, $c, $prefix);
 my $codes = {};
 
+if(!exists($ENV{"CANCELLATION"}) || $ENV{"CANCELLATION"} != 1) {
+  SKIP: {
+    skip "not testing cancellation", 59;
+  }
+  exit;
+}
+
 sub boot($) {
   my $name = shift;
   my $suffix = $name ? ".$name" : "";

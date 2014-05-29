@@ -38,6 +38,7 @@ function extract(file, outfile)
     return
   end
   M.onload( {
+    name = function() return module end,
     xml_description =
       function(xml)
         local f = io.open(outfile, "w+")

@@ -499,7 +499,7 @@ stratcon_realtime_http_postresolve(eventer_t e, int mask, void *closure,
       rrctx = calloc(1, sizeof(*rrctx));
       rrctx->ctx = ctx;
       rrctx->rt = node;
-      stratcon_streamer_connection(NULL, node->noit,
+      stratcon_streamer_connection(NULL, node->noit, "noit",
                                    stratcon_realtime_recv_handler,
                                    NULL, rrctx,
                                    free_realtime_recv_ctx);

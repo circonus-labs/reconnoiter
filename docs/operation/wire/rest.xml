@@ -1,11 +1,10 @@
 <?xml version='1.0' encoding='UTF-8' ?>
-<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.4//EN"
-  "http://www.oasis-open.org/docbook/xml/4.4/docbookx.dtd"
-[
-  <!ENTITY % magic.fixup SYSTEM "http://labs.omniti.com/docbook/ent">
-  %magic.fixup;
-]>
-<section>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<section xmlns="http://docbook.org/ns/docbook"
+         xmlns:xi="http://www.w3.org/2001/XInclude"
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         xml:id="operation.wire.rest" version="5">
 <title>REST operation over HTTP</title>
 
 <para>
@@ -21,11 +20,15 @@ instance.
 
 <section>
 <title>Manipulating Checks</title>
-&operation.wire.checks.all;
+<xi:include href="checks/delete.xml"/>
+<xi:include href="checks/set.xml"/>
+<xi:include href="checks/show.xml"/>
 </section>
 
 <section>
 <title>Manipulating Filters</title>
-&operation.wire.filters.all;
+<xi:include href="filters/delete.xml"/>
+<xi:include href="filters/set.xml"/>
+<xi:include href="filters/show.xml"/>
 </section>
 </section>

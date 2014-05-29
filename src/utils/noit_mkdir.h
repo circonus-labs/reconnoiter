@@ -37,6 +37,20 @@
 #include "noit_defines.h"
 #include <sys/stat.h>
 
+/*! \file noit_mkdir.h
+
+    Directory creation routines.
+ */
+
+/*! \fn int mkdir_for_file(const char *file, mode_t m)
+    \brief Create directories along a path.
+    \param file a filename for which a directory is desired.
+    \param m the mode used for creating directories.
+    \return Returns 0 on success, -1 on error.
+
+    Creates all directories from / (as needed) to hold a named file.
+ */
+
 API_EXPORT(int) mkdir_for_file(const char *file, mode_t m);
 
 #endif

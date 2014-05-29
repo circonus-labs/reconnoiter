@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<section>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
   <title>ganglia</title>
   <para>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</para>
   <variablelist>
@@ -118,8 +118,5 @@
         </listitem>
       </varlistentry>
     </variablelist>
-  </section>
-  <section>
-    <title>Check Configuration</title>
   </section>
 </section>

@@ -128,6 +128,7 @@ void noit_lua_resume_clean_events(noit_lua_resume_info_t *ci);
 void noit_lua_pushmodule(lua_State *L, const char *m);
 int noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs);
 void noit_lua_init_dns();
+noit_hash_table *noit_lua_table_to_hash(lua_State *L, int idx);
 void noit_lua_hash_to_table(lua_State *L, noit_hash_table *t);
 int noit_lua_dns_gc(lua_State *L);
 int noit_lua_dns_index_func(lua_State *L);
