@@ -1,0 +1,32 @@
+<module>
+    <name>custom_config</name>
+    <description>
+        <para>
+          Allows config options to be namespaced into "custom"
+        </para></description>
+    <loader>C</loader>
+    <image>custom_config.so</image>
+    <moduleconfig>
+    </moduleconfig>
+    <checkconfig />
+    <examples>
+        <example>
+            <title>Loading the custom_config module.</title>
+            <para>This example loads the custom_config module and creates a
+             keyname=valuename config setting.
+             </para>
+            <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <generic image="custom_config" name="custom_config" />
+        </modules>
+        <checks>
+          <config xmlns:custom="noit://module/custom">
+            <custom:keyname>valuename</custom:keyname>
+          </config>
+        </checks>
+      </noit>
+    ]]></programlisting>
+        </example>
+    </examples>
+</module>
