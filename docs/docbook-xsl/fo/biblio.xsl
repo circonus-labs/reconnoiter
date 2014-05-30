@@ -4,12 +4,12 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: biblio.xsl,v 1.33 2005/01/18 08:20:23 bobstayton Exp $
+     $Id: biblio.xsl 9330 2012-05-05 22:48:55Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -95,6 +95,7 @@
 </xsl:template>
 
 <xsl:template match="bibliography/bibliographyinfo"></xsl:template>
+<xsl:template match="bibliography/info"></xsl:template>
 <xsl:template match="bibliography/title"></xsl:template>
 <xsl:template match="bibliography/subtitle"></xsl:template>
 <xsl:template match="bibliography/titleabbrev"></xsl:template>
@@ -132,6 +133,7 @@
     </xsl:if>
 
     <xsl:apply-templates select="*[not(self::blockinfo)
+                                   and not(self::info)
                                    and not(self::title)
                                    and not(self::titleabbrev)]"/>
   </fo:block>
@@ -151,7 +153,8 @@
   <xsl:choose>
     <xsl:when test="string(.) = ''">
       <xsl:variable name="bib" select="document($bibliography.collection,.)"/>
-      <xsl:variable name="entry" select="$bib/bibliography/*[@id=$id][1]"/>
+      <xsl:variable name="entry" select="$bib/bibliography//
+                                         *[@id=$id or @xml:id=$id][1]"/>
       <xsl:choose>
         <xsl:when test="$entry">
           <xsl:choose>
@@ -182,10 +185,16 @@
       </xsl:choose>
     </xsl:when>
     <xsl:otherwise>
-      <fo:block id="{$id}" xsl:use-attribute-sets="normal.para.spacing"
-                start-indent="0.5in" text-indent="-0.5in">
+      <fo:block id="{$id}" xsl:use-attribute-sets="biblioentry.properties">
         <xsl:copy-of select="$label"/>
-        <xsl:apply-templates mode="bibliography.mode"/>
+	<xsl:choose>
+	  <xsl:when test="$bibliography.style = 'iso690'">
+	    <xsl:call-template name="iso690.makecitation"/>
+	  </xsl:when>
+	  <xsl:otherwise>
+	    <xsl:apply-templates mode="bibliography.mode"/>
+	  </xsl:otherwise>
+	</xsl:choose>
       </fo:block>
     </xsl:otherwise>
   </xsl:choose>
@@ -203,7 +212,8 @@
   <xsl:choose>
     <xsl:when test="string(.) = ''">
       <xsl:variable name="bib" select="document($bibliography.collection,.)"/>
-      <xsl:variable name="entry" select="$bib/bibliography/*[@id=$id][1]"/>
+      <xsl:variable name="entry" select="$bib/bibliography//
+                                         *[@id=$id or @xml:id=$id][1]"/>
       <xsl:choose>
         <xsl:when test="$entry">
           <xsl:choose>
@@ -234,8 +244,7 @@
       </xsl:choose>
     </xsl:when>
     <xsl:otherwise>
-      <fo:block id="{$id}" xsl:use-attribute-sets="normal.para.spacing"
-                start-indent="0.5in" text-indent="-0.5in">
+      <fo:block id="{$id}" xsl:use-attribute-sets="biblioentry.properties">
         <xsl:copy-of select="$label"/>
         <xsl:apply-templates mode="bibliomixed.mode"/>
       </fo:block>
@@ -263,9 +272,9 @@
       <xsl:value-of select="$node/@xreflabel"/>
       <xsl:text>] </xsl:text>
     </xsl:when>
-    <xsl:when test="$node/@id">
+    <xsl:when test="$node/@id or $node/@xml:id">
       <xsl:text>[</xsl:text>
-      <xsl:value-of select="$node/@id"/>
+      <xsl:value-of select="($node/@id|$node/@xml:id)[1]"/>
       <xsl:text>] </xsl:text>
     </xsl:when>
     <xsl:otherwise><!-- nop --></xsl:otherwise>
@@ -318,7 +327,8 @@
   </fo:inline>
 </xsl:template>
 
-<xsl:template match="artheader|articleinfo" mode="bibliography.mode">
+<xsl:template match="artheader|articleinfo|article/info" 
+              mode="bibliography.mode">
   <fo:inline>
     <xsl:apply-templates mode="bibliography.mode"/>
     <xsl:value-of select="$biblioentry.item.separator"/>
@@ -334,8 +344,15 @@
 
 <xsl:template match="author" mode="bibliography.mode">
   <fo:inline>
-    <xsl:call-template name="person.name"/>
-    <xsl:value-of select="$biblioentry.item.separator"/>
+    <xsl:choose>
+      <xsl:when test="orgname">
+        <xsl:apply-templates select="orgname" mode="bibliography.mode"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="person.name"/>
+        <xsl:value-of select="$biblioentry.item.separator"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </fo:inline>
 </xsl:template>
 
@@ -401,13 +418,6 @@
 </xsl:template>
 
 <!-- ================================================== -->
-
-<xsl:template match="bookbiblio" mode="bibliography.mode">
-  <fo:inline>
-    <xsl:apply-templates mode="bibliography.mode"/>
-    <xsl:value-of select="$biblioentry.item.separator"/>
-  </fo:inline>
-</xsl:template>
 
 <xsl:template match="citetitle" mode="bibliography.mode">
   <fo:inline>
@@ -554,10 +564,7 @@
 </xsl:template>
 
 <xsl:template match="indexterm" mode="bibliography.mode">
-  <fo:inline>
-    <xsl:apply-templates mode="bibliography.mode"/>
-    <xsl:value-of select="$biblioentry.item.separator"/>
-  </fo:inline>
+  <xsl:apply-templates select="."/> 
 </xsl:template>
 
 <xsl:template match="invpartnumber" mode="bibliography.mode">
@@ -842,7 +849,14 @@
 
 <xsl:template match="author" mode="bibliomixed.mode">
   <fo:inline>
-    <xsl:call-template name="person.name"/>
+    <xsl:choose>
+      <xsl:when test="orgname">
+        <xsl:apply-templates select="orgname" mode="bibliomixed.mode"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:call-template name="person.name"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </fo:inline>
 </xsl:template>
 
@@ -1003,9 +1017,7 @@
 </xsl:template>
 
 <xsl:template match="indexterm" mode="bibliomixed.mode">
-  <fo:inline>
-    <xsl:apply-templates mode="bibliomixed.mode"/>
-  </fo:inline>
+  <xsl:apply-templates select="."/> 
 </xsl:template>
 
 <xsl:template match="invpartnumber" mode="bibliomixed.mode">

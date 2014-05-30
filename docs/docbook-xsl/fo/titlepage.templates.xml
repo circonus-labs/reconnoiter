@@ -18,12 +18,12 @@
              xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
 <!-- ********************************************************************
-     $Id: titlepage.templates.xml,v 1.26 2005/04/15 19:22:45 bobstayton Exp $
+     $Id: titlepage.templates.xml 9722 2013-02-01 19:44:13Z bobstayton $
      ********************************************************************
 
      This file is part of the DocBook XSL Stylesheet distribution.
      See ../README or http://docbook.sf.net/ for copyright
-     and other information.
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -51,6 +51,10 @@
     <author space-before="0.5em"
             font-size="&hsize2;"/>
 
+    <!-- If you add editor, include this t:predicate attribute
+         because only the first editor generates the list of editors.
+    <editor t:predicate="[position() = 1]"/>
+    -->
     <othercredit space-before="0.5em"/>
     <releaseinfo space-before="0.5em"/>
     <copyright space-before="0.5em"/>
@@ -66,6 +70,7 @@
 	      margin-left="0.5in"
               margin-right="0.5in"
               font-family="{$body.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -107,6 +112,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -146,6 +152,11 @@
       <author font-size="&hsize3;"
 	      space-before="&hsize2space;"
 	      keep-with-next.within-column="always"/>
+      <!-- If you add editor, include this t:predicate attribute
+           because only the first editor generates the list of editors.
+      <editor t:predicate="[position() = 1]"/>
+      -->
+      <itermset/>
     </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -157,7 +168,12 @@
       <corpauthor/>
       <authorgroup t:named-template="verso.authorgroup"/>
       <author/>
+      <!-- If you add editor, include this t:predicate attribute
+           because only the first editor generates the list of editors.
+      <editor t:predicate="[position() = 1]"/>
+      -->
       <othercredit/>
+      <releaseinfo space-before="0.5em"/>
       <pubdate space-before="1em"/>
       <copyright/>
       <abstract/>
@@ -195,6 +211,7 @@
 	      font-weight='bold'
 	      font-style='italic'
 	      font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -235,6 +252,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -276,6 +294,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -297,6 +316,7 @@
   <t:titlepage-content t:side="recto">
     <title
 	   font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -318,6 +338,7 @@
   <t:titlepage-content t:side="recto">
     <title
 	   font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -339,6 +360,7 @@
   <t:titlepage-content t:side="recto">
     <title
 	   font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -360,6 +382,7 @@
   <t:titlepage-content t:side="recto">
     <title
 	   font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -381,6 +404,7 @@
   <t:titlepage-content t:side="recto">
     <title
 	   font-family="{$title.fontset}"/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -410,6 +434,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -424,6 +449,38 @@
   <t:titlepage-before t:side="verso">
   </t:titlepage-before>
 </t:titlepage>
+
+<!-- ==================================================================== -->
+
+<!-- Same formatting as dedication -->
+ <t:titlepage t:element="acknowledgements" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="component.title"
+	     param:node="ancestor-or-self::acknowledgements[1]"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize5;"
+	     font-family="{$title.fontset}"
+	     font-weight="bold"/>
+      <subtitle
+		font-family="{$title.fontset}"/>
+      <itermset/>
+    </t:titlepage-content>
+
+  <t:titlepage-content t:side="verso">
+  </t:titlepage-content>
+
+  <t:titlepage-separator>
+  </t:titlepage-separator>
+
+  <t:titlepage-before t:side="recto">
+  </t:titlepage-before>
+
+  <t:titlepage-before t:side="verso">
+  </t:titlepage-before>
+</t:titlepage>
+
 
 <!-- ==================================================================== -->
 
@@ -450,6 +507,7 @@
       <revision/>
       <revhistory/>
       <abstract/>
+      <itermset/>
     </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -500,6 +558,7 @@
       <revision/>
       <revhistory/>
       <abstract/>
+      <itermset/>
     </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -539,6 +598,7 @@
       <revision/>
       <revhistory/>
       <abstract/>
+      <itermset/>
     </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -574,6 +634,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -607,6 +668,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -640,6 +702,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -673,6 +736,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -706,6 +770,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -739,6 +804,7 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -772,6 +838,32 @@
     <revision/>
     <revhistory/>
     <abstract/>
+    <itermset/>
+  </t:titlepage-content>
+
+  <t:titlepage-content t:side="verso">
+  </t:titlepage-content>
+
+  <t:titlepage-separator>
+  </t:titlepage-separator>
+
+  <t:titlepage-before t:side="recto">
+  </t:titlepage-before>
+
+  <t:titlepage-before t:side="verso">
+  </t:titlepage-before>
+</t:titlepage>
+
+<t:titlepage t:element="topic" t:wrapper="fo:block">
+  <t:titlepage-content t:side="recto">
+    <title
+	   font-weight="bold"
+           font-size="&hsize3;"
+           space-before="1em"
+           space-after="1em"
+	   font-family="{$title.fontset}"/>
+    <subtitle
+	      font-family="{$title.fontset}"/>
   </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
@@ -801,6 +893,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -828,6 +921,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -857,6 +951,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -884,6 +979,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -914,6 +1010,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -942,6 +1039,7 @@
 	     param:title="title"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -972,6 +1070,7 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
 
     <t:titlepage-content t:side="verso">
@@ -1001,7 +1100,87 @@
 	     font-weight="bold"/>
       <subtitle
 		font-family="{$title.fontset}"/>
+      <itermset/>
     </t:titlepage-content>
+
+  <t:titlepage-content t:side="verso">
+  </t:titlepage-content>
+
+  <t:titlepage-separator>
+  </t:titlepage-separator>
+
+  <t:titlepage-before t:side="recto">
+  </t:titlepage-before>
+
+  <t:titlepage-before t:side="verso">
+  </t:titlepage-before>
+</t:titlepage>
+
+<!-- ==================================================================== -->
+
+  <t:titlepage t:element="sidebar" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title 
+	     font-family="{$title.fontset}"
+	     font-weight="bold"/>
+      <subtitle
+		font-family="{$title.fontset}"/>
+      <itermset/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+<!-- ==================================================================== -->
+<t:titlepage t:element="qandaset" t:wrapper="fo:block"
+             font-family="{$title.fontset}">
+
+  <t:titlepage-content t:side="recto"
+	     start-indent="0pt"
+             text-align="center">
+
+    <title t:named-template="component.title"
+	   param:node="ancestor-or-self::qandaset[1]"
+	   keep-with-next.within-column="always"
+	   font-size="&hsize5;"
+	   font-weight="bold"/>
+
+    <subtitle/>
+
+    <corpauthor space-before="0.5em"
+                font-size="&hsize2;"/>
+    <authorgroup space-before="0.5em"
+                 font-size="&hsize2;"/>
+    <author space-before="0.5em"
+            font-size="&hsize2;"/>
+
+    <othercredit space-before="0.5em"/>
+    <releaseinfo space-before="0.5em"/>
+    <copyright space-before="0.5em"/>
+    <legalnotice text-align="start"
+                 margin-left="0.5in"
+                 margin-right="0.5in"
+                 font-family="{$body.fontset}"/>
+    <pubdate space-before="0.5em"/>
+    <revision space-before="0.5em"/>
+    <revhistory space-before="0.5em"/>
+    <abstract space-before="0.5em"
+	      text-align="start"
+	      margin-left="0.5in"
+              margin-right="0.5in"
+              font-family="{$body.fontset}"/>
+    <itermset/>
+  </t:titlepage-content>
 
   <t:titlepage-content t:side="verso">
   </t:titlepage-content>
@@ -1028,7 +1207,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1058,7 +1236,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1088,7 +1265,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1118,7 +1294,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1148,7 +1323,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1178,7 +1352,6 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
 	     font-weight="bold"
@@ -1208,9 +1381,182 @@
              space-before.optimum="1.5em"
              space-before.maximum="2em"
 	     space-after="0.5em"
-	     margin-left="{$title.margin.left}"
 	     start-indent="0pt"
 	     font-size="&hsize3;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.tables" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofTables'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.figures" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofFigures'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.examples" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofExamples'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.equations" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofEquations'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.procedures" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofProcedures'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
+	     font-weight="bold"
+	     font-family="{$title.fontset}"/>
+    </t:titlepage-content>
+
+    <t:titlepage-content t:side="verso">
+    </t:titlepage-content>
+
+    <t:titlepage-separator>
+    </t:titlepage-separator>
+
+    <t:titlepage-before t:side="recto">
+    </t:titlepage-before>
+
+    <t:titlepage-before t:side="verso">
+    </t:titlepage-before>
+  </t:titlepage>
+
+  <t:titlepage t:element="component.list.of.unknowns" t:wrapper="fo:block">
+    <t:titlepage-content t:side="recto">
+      <title
+	     t:force="1"
+	     t:named-template="gentext"
+	     param:key="'ListofUnknown'"
+             space-before.minimum="1em"
+             space-before.optimum="1em"
+             space-before.maximum="1em"
+	     space-after="0.5em"
+	     margin-left="{$title.margin.left}"
+	     font-size="&hsize1;"
 	     font-weight="bold"
 	     font-family="{$title.fontset}"/>
     </t:titlepage-content>

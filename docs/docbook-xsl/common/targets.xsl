@@ -1,16 +1,17 @@
 <?xml version='1.0'?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:doc="http://nwalsh.com/xsl/documentation/1.0"
-                exclude-result-prefixes="doc"
+                xmlns:exsl="http://exslt.org/common"
+                exclude-result-prefixes="doc exsl"
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: targets.xsl,v 1.9 2004/05/28 08:07:08 bobstayton Exp $
+     $Id: targets.xsl 9286 2012-04-19 10:10:58Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -20,7 +21,7 @@
 
 <doc:mode mode="collect.targets" xmlns="">
 <refpurpose>Collects information for potential cross reference targets</refpurpose>
-<refdescription>
+<refdescription id="collect.targets-desc">
 <para>Processing the root element in the
 <literal role="mode">collect.targets</literal> mode produces 
 a set of target database elements that can be used by
@@ -64,7 +65,7 @@ document output.
             <xsl:with-param name="omit-xml-declaration" select="'yes'"/>
             <xsl:with-param name="doctype-public" select="''"/>
             <xsl:with-param name="doctype-system" select="''"/>
-            <xsl:with-param name="indent" select="'yes'"/>
+            <xsl:with-param name="indent" select="'no'"/>
             <xsl:with-param name="quiet" select="0"/>
             <xsl:with-param name="content">
               <xsl:apply-templates select="." mode="olink.mode"/>
@@ -86,6 +87,7 @@ document output.
   <xsl:value-of select="$olink.base.uri"/>
   <xsl:call-template name="href.target">
     <xsl:with-param name="object" select="$nd"/>
+    <xsl:with-param name="context" select="NOTANODE"/>
   </xsl:call-template>
 </xsl:template>
 
@@ -118,11 +120,18 @@ document output.
     </xsl:attribute>
   </xsl:if>
 
-  <xsl:if test="$nd/@id">
-    <xsl:attribute name="targetptr">
-      <xsl:value-of select="$nd/@id"/>
-    </xsl:attribute>
-  </xsl:if>
+  <xsl:choose>
+    <xsl:when test="$nd/@id">
+      <xsl:attribute name="targetptr">
+        <xsl:value-of select="$nd/@id"/>
+      </xsl:attribute>
+    </xsl:when>
+    <xsl:when test="$nd/@xml:id">
+      <xsl:attribute name="targetptr">
+        <xsl:value-of select="$nd/@xml:id"/>
+      </xsl:attribute>
+    </xsl:when>
+  </xsl:choose>
 
   <xsl:if test="$nd/@lang">
     <xsl:attribute name="lang">
@@ -221,6 +230,10 @@ document output.
   <xsl:call-template name="div"/>
 </xsl:template>
 
+<xsl:template match="topic" mode="olink.mode">
+  <xsl:call-template name="div"/>
+</xsl:template>
+
 <xsl:template match="bibliography|bibliodiv" mode="olink.mode">
   <xsl:call-template name="div"/>
 </xsl:template>
@@ -243,9 +256,10 @@ document output.
 
 <xsl:template match="figure|example|table" mode="olink.mode">
   <xsl:call-template name="obj"/>
+  <xsl:apply-templates mode="olink.mode"/>
 </xsl:template>
 
-<xsl:template match="equation[title]" mode="olink.mode">
+<xsl:template match="equation[title or info/title]" mode="olink.mode">
   <xsl:call-template name="obj"/>
 </xsl:template>
 
@@ -253,8 +267,68 @@ document output.
   <xsl:call-template name="div"/>
 </xsl:template>
 
+<!-- handle an glossary collection -->
+<xsl:template match="glossary[@role='auto']" mode="olink.mode" priority="2">
+  <xsl:variable name="collection" select="document($glossary.collection, .)"/>
+  <xsl:if test="$glossary.collection = ''">
+    <xsl:message>
+      <xsl:text>Warning: processing automatic glossary </xsl:text>
+      <xsl:text>without a glossary.collection file.</xsl:text>
+    </xsl:message>
+  </xsl:if>
+
+  <xsl:if test="not($collection) and $glossary.collection != ''">
+    <xsl:message>
+      <xsl:text>Warning: processing automatic glossary but unable to </xsl:text>
+      <xsl:text>open glossary.collection file '</xsl:text>
+      <xsl:value-of select="$glossary.collection"/>
+      <xsl:text>'</xsl:text>
+    </xsl:message>
+  </xsl:if>
+
+
+  <xsl:if test="$exsl.node.set.available != 0">
+    <xsl:variable name="auto.glossary">
+      <xsl:apply-templates select="." mode="assemble.auto.glossary"/>
+    </xsl:variable>
+    <xsl:variable name="auto.glossary.nodeset" select="exsl:node-set($auto.glossary)"/>
+    <xsl:apply-templates select="$auto.glossary.nodeset/*" mode="olink.mode"/>
+  </xsl:if>
+
+</xsl:template>
+
+<!-- construct a glossary in memory -->
+<xsl:template match="glossary" mode="assemble.auto.glossary">
+  <xsl:copy>
+    <xsl:copy-of select="@*[not(local-name() = 'role')]"/>
+    <xsl:apply-templates select="node()" mode="assemble.auto.glossary"/>
+    <xsl:call-template name="select.glossentries"/>
+  </xsl:copy>
+</xsl:template>
+
+<xsl:template name="select.glossentries">
+  <xsl:param name="collection" select="document($glossary.collection, .)"/>
+  <xsl:param name="terms" select="//glossterm[not(parent::glossdef)]|//firstterm"/>
+
+  <xsl:for-each select="$collection//glossentry">
+    <xsl:variable name="cterm" select="glossterm"/>
+    <xsl:if test="$terms[@baseform = $cterm or . = $cterm]">
+      <xsl:copy-of select="."/>
+    </xsl:if>
+  </xsl:for-each>
+</xsl:template>
+
+<xsl:template match="glossentry" mode="assemble.auto.glossary">
+  <!-- skip the dummy entries -->
+</xsl:template>
+
+<xsl:template match="*" mode="assemble.auto.glossary">
+  <!-- pass through any titles and intro stuff -->
+  <xsl:copy-of select="."/>
+</xsl:template>
+
 <xsl:template match="*" mode="olink.mode">
-  <xsl:if test="@id">
+  <xsl:if test="@id or @xml:id">
     <xsl:call-template name="obj"/>
   </xsl:if> 
   <xsl:apply-templates mode="olink.mode"/>

@@ -4,12 +4,12 @@
                 version="1.0">
 
 <!-- ********************************************************************
-     $Id: task.xsl,v 1.2 2003/11/30 19:35:03 bobstayton Exp $
+     $Id: task.xsl 9122 2011-10-09 07:21:49Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -40,8 +40,18 @@
                 select="*[not(self::title
                               or self::titleabbrev)]"/>
 
+  <xsl:variable name="keep.together">
+    <xsl:call-template name="pi.dbfo_keep-together"/>
+  </xsl:variable>
+
   <fo:block id="{$id}"
-            xsl:use-attribute-sets="formal.object.properties">
+            xsl:use-attribute-sets="task.properties">
+
+    <xsl:if test="$keep.together != ''">
+      <xsl:attribute name="keep-together.within-column"><xsl:value-of
+      select="$keep.together"/></xsl:attribute>
+    </xsl:if>
+
     <xsl:call-template name="anchor"/>
 
     <xsl:if test="title and $placement = 'before'">
@@ -64,12 +74,18 @@
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
 
+<xsl:template match="tasksummary/title"/>
+
 <xsl:template match="taskprerequisites">
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
 
+<xsl:template match="taskprerequisites/title"/>
+
 <xsl:template match="taskrelated">
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
+
+<xsl:template match="taskrelated/title"/>
 
 </xsl:stylesheet>

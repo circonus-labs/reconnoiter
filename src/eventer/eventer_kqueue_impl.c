@@ -54,7 +54,7 @@ struct _eventer_impl eventer_kqueue_impl;
 
 #include "eventer/eventer_impl_private.h"
 
-static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
+static const struct timeval __dyna_increment = { 0, 10000 }; /* 10 ms */
 typedef struct kqueue_spec {
   int kqueue_fd;
   pthread_mutex_t lock;
@@ -103,6 +103,19 @@ ke_change (register int const ident,
   pthread_mutex_unlock(&kqs->lock);
 }
 
+static void eventer_kqueue_impl_wakeup_spec(struct kqueue_spec *spec) {
+  struct kevent kev;
+	EV_SET(&kev, 0, EVFILT_USER, 0, NOTE_FFCOPY|NOTE_TRIGGER|0x1, 0, NULL);
+	kevent(spec->kqueue_fd, &kev, 1, NULL, 0, NULL);
+}
+
+static int eventer_kqueue_impl_register_wakeup(struct kqueue_spec *spec) {
+  struct kevent kev;
+  EV_SET(&kev, 0, EVFILT_USER, EV_ADD|EV_ONESHOT, NOTE_FFNOP, 0, NULL);
+  noitL(noit_debug, "wakeup... reregister\n");
+  return kevent(spec->kqueue_fd, &kev, 1, NULL, 0, NULL);
+}
+
 static void *eventer_kqueue_spec_alloc() {
   struct kqueue_spec *spec;
   spec = calloc(1, sizeof(*spec));
@@ -111,6 +124,7 @@ static void *eventer_kqueue_spec_alloc() {
   pthread_mutex_init(&spec->lock, NULL);
   return spec;
 }
+
 static int eventer_kqueue_impl_init() {
   struct rlimit rlim;
   int rv;
@@ -119,6 +133,7 @@ static int eventer_kqueue_impl_init() {
   if((rv = eventer_impl_init()) != 0) return rv;
 
   signal(SIGPIPE, SIG_IGN);
+
   getrlimit(RLIMIT_NOFILE, &rlim);
   maxfds = rlim.rlim_cur;
   master_fds = calloc(maxfds, sizeof(*master_fds));
@@ -323,6 +338,9 @@ static int eventer_kqueue_impl_loop() {
   KQUEUE_DECL;
   KQUEUE_SETUP(NULL);
 
+	if(eventer_kqueue_impl_register_wakeup(kqs) == -1)
+    abort();
+
   while(1) {
     struct timeval __now, __sleeptime;
     struct timespec __kqueue_sleeptime;
@@ -368,8 +386,10 @@ static int eventer_kqueue_impl_loop() {
     if(fd_cnt < 0) {
       noitLT(eventer_err, &__now, "kevent(s/%d): %s\n", kqs->kqueue_fd, strerror(errno));
     }
-    else if(fd_cnt == 0) {
+    else if(fd_cnt == 0 ||
+            (fd_cnt == 1 && ke_vec[0].filter == EVFILT_USER)) {
       /* timeout */
+      if(fd_cnt) eventer_kqueue_impl_register_wakeup(kqs);
       add_timeval(__dyna_sleep, __dyna_increment, &__dyna_sleep);
     }
     else {
@@ -380,6 +400,10 @@ static int eventer_kqueue_impl_loop() {
         struct kevent *ke;
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) continue;
+        if(ke->filter == EVFILT_USER) {
+          eventer_kqueue_impl_register_wakeup(kqs);
+          continue;
+        }
         masks[ke->ident] = 0;
       }
       /* Loop again to aggregate */
@@ -387,6 +411,7 @@ static int eventer_kqueue_impl_loop() {
         struct kevent *ke;
         ke = &ke_vec[idx];
         if(ke->flags & EV_ERROR) continue;
+        if(ke->filter == EVFILT_USER) continue;
         if(ke->filter == EVFILT_READ) masks[ke->ident] |= EVENTER_READ;
         if(ke->filter == EVFILT_WRITE) masks[ke->ident] |= EVENTER_WRITE;
       }
@@ -397,6 +422,7 @@ static int eventer_kqueue_impl_loop() {
         int fd;
 
         ke = &ke_vec[idx];
+        if(ke->filter == EVFILT_USER) continue;
         if(ke->flags & EV_ERROR) {
           if(ke->data != EBADF && ke->data != ENOENT)
             noitLT(eventer_err, &__now, "error [%d]: %s\n",
@@ -420,6 +446,12 @@ static int eventer_kqueue_impl_loop() {
   return 0;
 }
 
+void eventer_kqueue_impl_wakeup(eventer_t e) {
+  KQUEUE_DECL;
+  KQUEUE_SETUP(e);
+  eventer_kqueue_impl_wakeup_spec(kqs);
+}
+
 struct _eventer_impl eventer_kqueue_impl = {
   "kqueue",
   eventer_kqueue_impl_init,
@@ -432,7 +464,7 @@ struct _eventer_impl eventer_kqueue_impl = {
   eventer_kqueue_impl_trigger,
   eventer_kqueue_impl_loop,
   eventer_kqueue_impl_foreach_fdevent,
-  eventer_wakeup_noop,
+  eventer_kqueue_impl_wakeup,
   eventer_kqueue_spec_alloc,
   { 0, 200000 },
   0,

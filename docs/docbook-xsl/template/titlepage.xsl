@@ -9,47 +9,49 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: titlepage.xsl,v 1.8 2005/04/29 20:05:36 kosek Exp $
+     $Id: titlepage.xsl 9600 2012-09-11 12:12:09Z kosek $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
 <!-- ==================================================================== -->
 
-<doc:reference xmlns="">
-<referenceinfo>
-<releaseinfo role="meta">
-$Id: titlepage.xsl,v 1.8 2005/04/29 20:05:36 kosek Exp $
-</releaseinfo>
-<author><surname>Walsh</surname>
-<firstname>Norman</firstname></author>
-<copyright><year>1999</year><year>2000</year>
-<holder>Norman Walsh</holder>
-</copyright>
-</referenceinfo>
-<title>Template Stylesheet Reference</title>
+<!-- Namespace for wrapper elements. Please set it for XHTML. -->
+<xsl:param name="ns">
+  <!-- Guess correct setting for cases where parameter is not supplied -->
+  <xsl:choose>
+    <xsl:when test="//*[namespace-uri() = 'http://www.w3.org/1999/XSL/Format']">http://www.w3.org/1999/XSL/Format</xsl:when>
+    <xsl:when test="//*[namespace-uri() = 'http://www.w3.org/1999/xhtml']">http://www.w3.org/1999/xhtml</xsl:when>
+  </xsl:choose>
+</xsl:param>
 
-<partintro>
-<section><title>Introduction</title>
+<xsl:template match="/">
+  <xsl:text>&#x0a;</xsl:text>
+  <xsl:apply-templates/>
+  <xsl:text>&#x0a;</xsl:text>
+</xsl:template>
 
-<para>This is technical reference documentation for the DocBook XSL
-Stylesheets; it documents (some of) the parameters, templates, and
-other elements of the stylesheets.</para>
-
-<para>This is not intended to be <quote>user</quote> documentation.
-It is provided for developers writing customization layers for the
-stylesheets, and for anyone who's interested in <quote>how it
-works</quote>.</para>
-
-<para>Although I am trying to be thorough, this documentation is known
-to be incomplete. Don't forget to read the source, too :-)</para>
-</section>
-</partintro>
-
+<doc:reference xmlns="" xml:id="template">
+  <?dbhtml dir="template"?>
+  <?dbhtml filename="index.html"?>
+  <info>
+    <title>Titlepage Template Stylesheet Reference</title>
+    <releaseinfo role="meta">
+      $Id: titlepage.xsl 9600 2012-09-11 12:12:09Z kosek $
+    </releaseinfo>
+  </info>
+  <partintro xml:id="intro_partintro">
+    <title>Introduction</title>
+    <para>This is technical reference documentation for the
+      “titlepage” templates in the DocBook XSL Stylesheets.</para>
+    <para>This is not intended to be user documentation.  It is
+      provided for developers writing customization layers for the
+      stylesheets.</para>
+  </partintro>
 </doc:reference>
 
 <!-- ==================================================================== -->
@@ -59,7 +61,7 @@ to be incomplete. Don't forget to read the source, too :-)</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:templates" xmlns="">
+<doc:template match="t:templates" xmlns="" id="templates">
 <refpurpose>Construct a stylesheet for the templates provided</refpurpose>
 
 <refdescription>
@@ -75,15 +77,18 @@ set of templates. This template creates an appropriate
 
 <xsl:template match="t:templates">
   <xsl:element name="xsl:stylesheet">
-    <xsl:copy-of select="document('')/xsl:stylesheet/namespace::exsl"/>
+
+    <xsl:for-each select="document('')/xsl:stylesheet/namespace::exsl">
+      <xsl:copy/>
+    </xsl:for-each>
+
     <xsl:attribute name="version">1.0</xsl:attribute>
     <xsl:attribute name="exclude-result-prefixes">exsl</xsl:attribute>
 
     <xsl:text>&#xA;&#xA;</xsl:text>
     <xsl:comment>
       <xsl:text> This stylesheet was created by </xsl:text>
-      <xsl:text>template/titlepage.xsl; </xsl:text>
-      <xsl:text>do not edit it by hand. </xsl:text>
+      <xsl:text>template/titlepage.xsl</xsl:text>
     </xsl:comment>
 
     <xsl:if test="@t:base-stylesheet">
@@ -103,7 +108,7 @@ set of templates. This template creates an appropriate
 
 <!-- ==================================================================== -->
 
-<doc:template match="xsl:*" xmlns="">
+<doc:template match="xsl:*" xmlns="" id="star">
 <refpurpose>Copy xsl: elements straight through</refpurpose>
 
 <refdescription>
@@ -118,7 +123,7 @@ straight through into the result tree.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:titlepage" xmlns="">
+<doc:template match="t:titlepage" xmlns="" id="titlepage">
 <refpurpose>Create the templates necessary to construct a title page</refpurpose>
 
 <refdescription>
@@ -135,8 +140,8 @@ template that should be called to generate the title page.
 <varlistentry><term>element</term>
 <listitem><para>The name of the source document element for which
 these templates apply. In other words, to make a title page for the
-<sgmltag>article</sgmltag> element, set the
-<sgmltag class="attribute">element</sgmltag> attribute to
+<tag>article</tag> element, set the
+<tag class="attribute">element</tag> attribute to
 <quote><literal>article</literal></quote>. This attribute is required.
 </para></listitem>
 </varlistentry>
@@ -146,8 +151,8 @@ This attribute identifies that element.
 </para></listitem>
 </varlistentry>
 <varlistentry><term>class</term>
-<listitem><para>If the <sgmltag class="attribute">class</sgmltag> attribute
-is set, a <sgmltag class="attribute">class</sgmltag> attribute with this
+<listitem><para>If the <tag class="attribute">class</tag> attribute
+is set, a <tag class="attribute">class</tag> attribute with this
 value will be added to the wrapper element that surrounds the entire
 title page.
 </para></listitem>
@@ -182,7 +187,7 @@ and <quote>verso</quote> sides of the title page.</para>
       <xsl:text>.titlepage</xsl:text>
     </xsl:attribute>
     <xsl:text>&#xA;  </xsl:text>
-    <xsl:element name="{@t:wrapper}">
+    <xsl:element name="{@t:wrapper}" namespace="{$ns}">
       <xsl:apply-templates select="@*" mode="copy.literal.atts"/>
       <xsl:text>&#xA;    </xsl:text>
       <xsl:element name="xsl:variable">
@@ -216,6 +221,15 @@ and <quote>verso</quote> sides of the title page.</para>
 	    </xsl:element>
 	  </xsl:element>
 	  <xsl:text>&#xA;        </xsl:text>
+	  <xsl:element name="xsl:when">
+	    <xsl:attribute name="test">contains(system-property('xsl:vendor'), 'Apache Software Foundation')</xsl:attribute>
+	    <xsl:text>&#xA;          </xsl:text>
+	    <xsl:comment>Xalan quirk</xsl:comment>
+	    <xsl:element name="xsl:value-of">
+	      <xsl:attribute name="select">count(exsl:node-set($recto.content)/*)</xsl:attribute>
+	    </xsl:element>
+	  </xsl:element>
+	  <xsl:text>&#xA;        </xsl:text>
 	  <xsl:element name="xsl:otherwise">
 	    <xsl:text>1</xsl:text>
 	  </xsl:element>
@@ -227,7 +241,7 @@ and <quote>verso</quote> sides of the title page.</para>
       <xsl:element name="xsl:if">
         <xsl:attribute name="test">(normalize-space($recto.content) != '') or ($recto.elements.count > 0)</xsl:attribute>
         <xsl:text>&#xA;      </xsl:text>
-        <xsl:element name="{@t:wrapper}">
+        <xsl:element name="{@t:wrapper}" namespace="{$ns}">
           <xsl:apply-templates select="t:titlepage-content[@t:side='recto']/@*"
                                mode="copy.literal.atts"/>
           <xsl:element name="xsl:copy-of">
@@ -268,6 +282,15 @@ and <quote>verso</quote> sides of the title page.</para>
 	    </xsl:element>
 	  </xsl:element>
 	  <xsl:text>&#xA;        </xsl:text>
+	  <xsl:element name="xsl:when">
+	    <xsl:attribute name="test">contains(system-property('xsl:vendor'), 'Apache Software Foundation')</xsl:attribute>
+	    <xsl:text>&#xA;          </xsl:text>
+	    <xsl:comment>Xalan quirk</xsl:comment>
+	    <xsl:element name="xsl:value-of">
+	      <xsl:attribute name="select">count(exsl:node-set($verso.content)/*)</xsl:attribute>
+	    </xsl:element>
+	  </xsl:element>
+	  <xsl:text>&#xA;        </xsl:text>
 	  <xsl:element name="xsl:otherwise">
 	    <xsl:text>1</xsl:text>
 	  </xsl:element>
@@ -279,7 +302,7 @@ and <quote>verso</quote> sides of the title page.</para>
       <xsl:element name="xsl:if">
         <xsl:attribute name="test">(normalize-space($verso.content) != '') or ($verso.elements.count > 0)</xsl:attribute>
         <xsl:text>&#xA;      </xsl:text>
-        <xsl:element name="{@t:wrapper}">
+        <xsl:element name="{@t:wrapper}" namespace="{$ns}">
           <xsl:apply-templates select="t:titlepage-content[@t:side='verso']/@*"
                                mode="copy.literal.atts"/>
           <xsl:element name="xsl:copy-of">
@@ -368,7 +391,7 @@ and <quote>verso</quote> sides of the title page.</para>
           <xsl:text>.auto.mode</xsl:text>
         </xsl:attribute>
         <xsl:text>&#xA;</xsl:text>
-        <xsl:element name="{../../@t:wrapper}">
+        <xsl:element name="{../../@t:wrapper}" namespace="{$ns}">
           <xsl:attribute name="xsl:use-attribute-sets">
             <xsl:value-of select="../../@t:element"/>
             <xsl:text>.titlepage.</xsl:text>
@@ -428,7 +451,8 @@ and <quote>verso</quote> sides of the title page.</para>
   </xsl:for-each>
 </xsl:template>
 
-<doc:template match="@*" mode="copy.literal.atts" xmlns="">
+<doc:template match="@*" mode="copy.literal.atts" xmlns=""
+              id="attr_star_in_copy.literal.atts">
 <refpurpose>Copy t:titlepage attributes</refpurpose>
 
 <refdescription>
@@ -449,7 +473,7 @@ wrapper.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:titlepage-content">
+<doc:template match="t:titlepage-content" id="titlepage-content">
 <refpurpose>Create templates for the content of one side of a title page</refpurpose>
 
 <refdescription>
@@ -463,7 +487,7 @@ for the recto and verso sides of the title page.</para>
 <varlistentry><term>side</term>
 <listitem><para>Identifies the side of the page to which this title
 page content applies. The
-<sgmltag class="attribute">side</sgmltag> attribute is required and
+<tag class="attribute">side</tag> attribute is required and
 must be set to either 
 <quote><literal>recto</literal></quote> or
 <quote><literal>verso</literal></quote>. In addition, you must specify
@@ -474,10 +498,10 @@ within each <literal>t:titlepage</literal>.</para>
 <varlistentry><term>order</term>
 <listitem><para>Indicates how the order of the elements presented on
 the title page is determined. If the
-<sgmltag class="attribute">order</sgmltag> is
+<tag class="attribute">order</tag> is
 <quote><literal>document</literal></quote>, the elements are presented
 in document order. Otherwise (if the
-<sgmltag class="attribute">order</sgmltag> is
+<tag class="attribute">order</tag> is
 <quote><literal>stylesheet</literal></quote>), the elements are presented
 in the order that they appear in the template (and consequently in
 the stylesheet).</para>
@@ -492,7 +516,7 @@ the elements in the source document that should appear on the title page.
 </para>
 
 <para>Each element may have a single attribute:
-<sgmltag class="attribute">predicate</sgmltag>. The value of this
+<tag class="attribute">predicate</tag>. The value of this
 attribute is used as a predicate for the expression that matches
 the element on which it occurs.</para>
 
@@ -607,7 +631,7 @@ you'll have to construct the templates by hand.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:titlepage-separator">
+<doc:template match="t:titlepage-separator" id="titlepage-separator">
 <refpurpose>Create templates for the separator</refpurpose>
 
 <refdescription>
@@ -632,7 +656,7 @@ element.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:titlepage-before">
+<doc:template match="t:titlepage-before" id="titlepage-before">
 <refpurpose>Create templates for what precedes a title page</refpurpose>
 
 <refdescription>
@@ -658,7 +682,7 @@ side.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="*" mode="copy" xmlns="">
+<doc:template match="*" mode="copy" xmlns="" id="star_in_copy">
 <refpurpose>Copy elements</refpurpose>
 
 <refdescription>
@@ -668,15 +692,25 @@ straight through into the result tree.</para>
 </doc:template>
 
 <xsl:template match="*" mode="copy">
-  <xsl:element name="{name(.)}">
-    <xsl:apply-templates select="@*" mode="copy"/>
-    <xsl:apply-templates mode="copy"/>
-  </xsl:element>
+  <xsl:choose>
+    <xsl:when test="(name(.) = local-name(.)) and namespace-uri(.) != ''">
+      <xsl:element name="{name(.)}" namespace="{namespace-uri(.)}">
+	<xsl:apply-templates select="@*" mode="copy"/>
+	<xsl:apply-templates mode="copy"/>
+      </xsl:element>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:element name="{name(.)}">
+	<xsl:apply-templates select="@*" mode="copy"/>
+	<xsl:apply-templates mode="copy"/>
+      </xsl:element>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <!-- ==================================================================== -->
 
-<doc:template match="@*" mode="copy" xmlns="">
+<doc:template match="@*" mode="copy" xmlns="" id="attr_star_in_copy">
 <refpurpose>Copy attributes</refpurpose>
 
 <refdescription>
@@ -686,14 +720,23 @@ straight through into the result tree.</para>
 </doc:template>
 
 <xsl:template match="@*" mode="copy">
-  <xsl:attribute name="{name(.)}">
-    <xsl:value-of select="."/>
-  </xsl:attribute>
+  <xsl:choose>
+    <xsl:when test="(name(.) = local-name(.)) and namespace-uri(.) != ''">
+      <xsl:attribute name="{name(.)}" namespace="{namespace-uri(.)}">
+	<xsl:value-of select="."/>
+      </xsl:attribute>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:attribute name="{name(.)}">
+	<xsl:value-of select="."/>
+      </xsl:attribute>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <!-- ==================================================================== -->
 
-<doc:template match="*" mode="document.order" xmlns="">
+<doc:template match="*" mode="document.order" xmlns="" id="attr_star_in_document.order">
 <refpurpose>Create rules to process titlepage elements in document order</refpurpose>
 
 <refdescription>
@@ -725,6 +768,9 @@ names.</para>
       <xsl:when test="ancestor::t:titlepage/@t:element='article'">
         <xsl:text>artheader</xsl:text>
       </xsl:when>
+      <xsl:when test="ancestor::t:titlepage/@t:element='qandaset'">
+        <xsl:text>blockinfo</xsl:text>
+      </xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='section'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect1'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect2'"></xsl:when>
@@ -733,6 +779,7 @@ names.</para>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect5'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='book'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='set'"></xsl:when>
+      <xsl:when test="ancestor::t:titlepage/@t:element='topic'"></xsl:when>
       <xsl:otherwise>docinfo</xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
@@ -797,7 +844,7 @@ names.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="*" mode="document.order" xmlns="">
+<doc:template match="*" mode="document.order" xmlns="" id="star_in_document.order">
 <refpurpose>Create rules to process titlepage elements in stylesheet order</refpurpose>
 
 <refdescription>
@@ -829,6 +876,9 @@ names.</para>
       <xsl:when test="ancestor::t:titlepage/@t:element='article'">
         <xsl:text>artheader</xsl:text>
       </xsl:when>
+      <xsl:when test="ancestor::t:titlepage/@t:element='qandaset'">
+        <xsl:text>blockinfo</xsl:text>
+      </xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='section'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect1'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect2'"></xsl:when>
@@ -837,6 +887,7 @@ names.</para>
       <xsl:when test="ancestor::t:titlepage/@t:element='sect5'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='book'"></xsl:when>
       <xsl:when test="ancestor::t:titlepage/@t:element='set'"></xsl:when>
+      <xsl:when test="ancestor::t:titlepage/@t:element='topic'"></xsl:when>
       <xsl:otherwise>docinfo</xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
@@ -863,7 +914,7 @@ names.</para>
     <xsl:when test="@t:force and @t:force != '0'">
       <xsl:choose>
         <xsl:when test="@t:named-template">
-          <xsl:element name="{../../@t:wrapper}">
+          <xsl:element name="{../../@t:wrapper}" namespace="{$ns}">
             <xsl:attribute name="xsl:use-attribute-sets">
               <xsl:value-of select="../../@t:element"/>
               <xsl:text>.titlepage.</xsl:text>
@@ -1071,7 +1122,8 @@ names.</para>
 
 <!-- ==================================================================== -->
 
-<doc:template match="*" mode="titlepage.specialrules" xmlns="">
+<doc:template match="*" mode="titlepage.specialrules" xmlns=""
+              id="star_in_titlepage.specialrules">
 <refpurpose>Create templates for special rules</refpurpose>
 
 <refdescription>
@@ -1123,7 +1175,8 @@ processing. At present, that's just <literal>t:or</literal> elements.
 
 <!-- ==================================================================== -->
 
-<doc:template match="*" mode="titlepage.subrules" xmlns="">
+<doc:template match="*" mode="titlepage.subrules" xmlns=""
+              id="star_in_titlepage.subrules">
 <refpurpose>Create template for individual special rules</refpurpose>
 
 <refdescription>
@@ -1162,7 +1215,7 @@ template elements.
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:or" xmlns="">
+<doc:template match="t:or" xmlns="" id="or">
 <refpurpose>Process the t:or special rule</refpurpose>
 
 <refdescription>
@@ -1200,7 +1253,8 @@ template elements.
 
 <!-- ==================================================================== -->
 
-<doc:template match="t:or" mode="titlepage.subrules" xmlns="">
+<doc:template match="t:or" mode="titlepage.subrules" xmlns=""
+              id="or_in_titlepage.subrules">
 <refpurpose>Process the t:or special rule in
 titlepage.subrules mode</refpurpose>
 

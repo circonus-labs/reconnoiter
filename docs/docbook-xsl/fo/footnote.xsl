@@ -1,17 +1,18 @@
 <?xml version='1.0'?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:fo="http://www.w3.org/1999/XSL/Format"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
                 xmlns:exsl="http://exslt.org/common"
-                exclude-result-prefixes="exsl"
+                exclude-result-prefixes="exsl xlink"
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: footnote.xsl,v 1.21 2005/04/04 19:35:57 nwalsh Exp $
+     $Id: footnote.xsl 8359 2009-03-20 18:42:06Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -58,6 +59,16 @@
 
 <xsl:template match="footnoteref">
   <xsl:variable name="footnote" select="key('id',@linkend)"/>
+
+  <xsl:if test="not(local-name($footnote) = 'footnote')">
+   <xsl:message terminate="yes">
+ERROR: A footnoteref element has a linkend that points to an element that is not a footnote. 
+Typically this happens when an id attribute is accidentally applied to the child of a footnote element. 
+target element: <xsl:value-of select="local-name($footnote)"/>
+linkend/id: <xsl:value-of select="@linkend"/>
+   </xsl:message>
+  </xsl:if>
+
   <xsl:call-template name="format.footnote.mark">
     <xsl:with-param name="mark">
       <xsl:apply-templates select="$footnote" mode="footnote.number"/>
@@ -87,10 +98,33 @@
     </xsl:when>
     <xsl:otherwise>
       <xsl:variable name="fnum">
+        <!-- * Determine the footnote number to display for this footnote, -->
+        <!-- * by counting all foonotes, ulinks, and any elements that have -->
+        <!-- * an xlink:href attribute that meets the following criteria: -->
+        <!-- * -->
+        <!-- * - the content of the element is not a URI that is the same -->
+        <!-- *   URI as the value of the href attribute -->
+        <!-- * - the href attribute is not an internal ID reference (does -->
+        <!-- *   not start with a hash sign) -->
+        <!-- * - the href is not part of an olink reference (the element -->
+        <!-- * - does not have an xlink:role attribute that indicates it is -->
+        <!-- *   an olink, and the hrf does not contain a hash sign) -->
+        <!-- * - the element either has no xlink:type attribute or has -->
+        <!-- *   an xlink:type attribute whose value is 'simple' -->
+        <!-- *  -->
+        <!-- * Note that hyperlinks are counted only if both the value of -->
+        <!-- * ulink.footnotes is non-zero and the value of ulink.show is -->
+        <!-- * non-zero -->
         <!-- FIXME: list in @from is probably not complete -->
         <xsl:number level="any" 
                     from="chapter|appendix|preface|article|refentry|bibliography" 
-                    count="footnote[not(@label)][not(ancestor::table) and not(ancestor::informaltable)]|ulink[$ulink.footnotes != 0][node()][@url != .][not(ancestor::footnote)]" 
+                    count="footnote[not(@label)][not(ancestor::table) and not(ancestor::informaltable)]
+                    |ulink[$ulink.footnotes != 0][node()][@url != .][not(ancestor::footnote)][$ulink.show != 0]
+                    |*[node()][@xlink:href][not(@xlink:href = .)][not(starts-with(@xlink:href,'#'))]
+                      [not(contains(@xlink:href,'#') and @xlink:role = $xolink.role)]
+                      [not(@xlink:type) or @xlink:type='simple']
+                      [not(ancestor::footnote)][$ulink.footnotes != 0][$ulink.show != 0]
+                    "
                     format="1"/>
       </xsl:variable>
       <xsl:choose>
@@ -154,16 +188,16 @@
   </fo:block>
 </xsl:template>
 
-<xsl:template match="footnote" name="process.footnote" mode="table.footnote.mode">
+<xsl:template match="footnote" mode="table.footnote.mode">
   <xsl:choose>
     <xsl:when test="local-name(*[1]) = 'para' or local-name(*[1]) = 'simpara'">
-      <fo:block>
+      <fo:block xsl:use-attribute-sets="table.footnote.properties">
         <xsl:apply-templates/>
       </fo:block>
     </xsl:when>
 
-    <xsl:when test="function-available('exsl:node-set')">
-      <fo:block>
+    <xsl:when test="$exsl.node.set.available != 0">
+      <fo:block xsl:use-attribute-sets="table.footnote.properties">
         <xsl:apply-templates select="*[1]" mode="footnote.body.number"/>
         <xsl:apply-templates select="*[position() &gt; 1]"/>
       </fo:block>
@@ -176,7 +210,7 @@
         <xsl:value-of select="local-name(*[1])"/>
         <xsl:text> unexpected as first child of footnote.</xsl:text>
       </xsl:message>
-      <fo:block>
+      <fo:block xsl:use-attribute-sets="table.footnote.properties">
         <xsl:apply-templates/>
       </fo:block>
     </xsl:otherwise>

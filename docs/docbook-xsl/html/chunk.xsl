@@ -4,37 +4,49 @@
                 exclude-result-prefixes="exsl">
 
 <!-- ********************************************************************
-     $Id: chunk.xsl,v 1.30 2003/11/30 19:42:23 bobstayton Exp $
+     $Id: chunk.xsl 6910 2007-06-28 23:23:30Z xmldoc $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
 <!-- ==================================================================== -->
 
+<!-- First import the non-chunking templates that format elements
+     within each chunk file. In a customization, you should
+     create a separate non-chunking customization layer such
+     as mydocbook.xsl that imports the original docbook.xsl and
+     customizes any presentation templates. Then your chunking
+     customization should import mydocbook.xsl instead of
+     docbook.xsl.  -->
 <xsl:import href="docbook.xsl"/>
+
+<!-- chunk-common.xsl contains all the named templates for chunking.
+     In a customization file, you import chunk-common.xsl, then
+     add any customized chunking templates of the same name. 
+     They will have import precedence over the original 
+     chunking templates in chunk-common.xsl. -->
 <xsl:import href="chunk-common.xsl"/>
-<xsl:include href="manifest.xsl"/>
 
-<!-- Why is chunk-code now xsl:included?
+<!-- The manifest.xsl module is no longer imported because its
+     templates were moved into chunk-common and chunk-code -->
 
-Suppose you want to customize *both* the chunking algorithm used *and* the
-presentation of some elements that may be chunks. In order to do that, you
-must get the order of imports "just right". The answer is to make your own
-copy of this file, where you replace the initial import of "docbook.xsl"
-with an import of your own base.xsl (that does its own import of docbook.xsl).
-
-Put the templates for changing the presentation of elements in your base.xsl.
-
-Put the templates that control chunking after the include of chunk-code.xsl.
-
-Voila! (Man I hope we can do this better in XSLT 2.0)
-
--->
-
+<!-- chunk-code.xsl contains all the chunking templates that use
+     a match attribute.  In a customization it should be referenced
+     using <xsl:include> instead of <xsl:import>, and then add
+     any customized chunking templates with match attributes. But be sure
+     to add a priority="1" to such customized templates to resolve
+     its conflict with the original, since they have the
+     same import precedence.
+     
+     Using xsl:include prevents adding another layer
+     of import precedence, which would cause any
+     customizations that use xsl:apply-imports to wrongly
+     apply the chunking version instead of the original
+     non-chunking version to format an element.  -->
 <xsl:include href="chunk-code.xsl"/>
 
 </xsl:stylesheet>

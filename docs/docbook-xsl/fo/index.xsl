@@ -1,8 +1,7 @@
 <?xml version='1.0'?>
 <!DOCTYPE xsl:stylesheet [
-<!ENTITY primary   'normalize-space(concat(primary/@sortas, primary[not(@sortas)]))'>
-<!ENTITY secondary 'normalize-space(concat(secondary/@sortas, secondary[not(@sortas)]))'>
-<!ENTITY tertiary  'normalize-space(concat(tertiary/@sortas, tertiary[not(@sortas)]))'>
+<!ENTITY % common.entities SYSTEM "../common/entities.ent">
+%common.entities;
 ]>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:fo="http://www.w3.org/1999/XSL/Format"
@@ -10,12 +9,12 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: index.xsl,v 1.33 2005/04/08 20:49:41 bobstayton Exp $
+     $Id: index.xsl 9286 2012-04-19 10:10:58Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -116,7 +115,8 @@
         <xsl:with-param name="master-reference" select="$master-reference"/>
       </xsl:call-template>
 
-      <fo:block id="{$id}">
+      <fo:block id="{$id}"
+                xsl:use-attribute-sets="component.titlepage.properties">
         <xsl:call-template name="index.titlepage"/>
       </fo:block>
       <xsl:apply-templates/>
@@ -249,6 +249,8 @@
  </xsl:if>
 </xsl:template>
 
+<xsl:template match="index/indexinfo"></xsl:template>
+<xsl:template match="index/info"></xsl:template>
 <xsl:template match="index/title"></xsl:template>
 <xsl:template match="index/subtitle"></xsl:template>
 <xsl:template match="index/titleabbrev"></xsl:template>
@@ -293,7 +295,7 @@
   <!-- Temporal workaround for bug in AXF -->
   <xsl:variable name="wrapper.name">
     <xsl:choose>
-      <xsl:when test="$axf.extensions != 0">
+      <xsl:when test="$axf.extensions != 0 or $fop1.extensions != 0">
         <xsl:call-template name="inline.or.block"/>
       </xsl:when>
       <xsl:otherwise>fo:wrapper</xsl:otherwise>
@@ -344,9 +346,7 @@
   <xsl:choose>
     <xsl:when test="$xep.extensions != 0">
       <rx:begin-index-range>
-        <xsl:attribute name="id">
-          <xsl:value-of select="@id"/>
-        </xsl:attribute>
+        <xsl:call-template name="anchor"/>
         <xsl:attribute name="rx:key">
           <xsl:value-of select="&primary;"/>
           <xsl:if test="@significance='preferred'"><xsl:value-of select="$significant.flag"/></xsl:if>
@@ -446,8 +446,12 @@
   <fo:block>
     <xsl:attribute name="start-indent">
       <xsl:choose>
-        <xsl:when test="preceding-sibling::tertiaryie">3pc</xsl:when>
-        <xsl:when test="preceding-sibling::secondaryie">2pc</xsl:when>
+        <xsl:when test="(preceding-sibling::tertiaryie |
+                         preceding-sibling::secondaryie)[last()]
+                         [self::tertiaryie]">3pc</xsl:when>
+        <xsl:when test="(preceding-sibling::tertiaryie |
+                         preceding-sibling::secondaryie)[last()]
+                         [self::secondaryie]">2pc</xsl:when>
         <xsl:otherwise>1pc</xsl:otherwise>
       </xsl:choose>
     </xsl:attribute>
@@ -466,12 +470,13 @@
 <xsl:template name="inline.or.block">
   <xsl:param name="parentnode" select=".."/>
 
-  <xsl:variable name="parent" select="local-name($parentnode)"/>
+  <xsl:variable name="parent" select="concat('|', local-name($parentnode), '|')"/>
 
-  <xsl:variable name="block.parents" select="'|answer|appendix|appendixinfo|article|articleinfo|bibliodiv|bibliography|bibliographyinfo|blockinfo|blockquote|bookinfo|callout|caution|chapter|chapterinfo|dedication|example|figure|formalpara|funcsynopsisinfo|glossary|glossaryinfo|glossdef|glossdiv|glossentry|highlights|important|index|indexinfo|informalexample|informalfigure|informaltable|itemizedlist|legalnotice|listitem|msgexplan|msgtext|note|objectinfo|orderedlist|partinfo|partintro|preface|prefaceinfo|procedure|qandadiv|qandaset|question|refentry|refentryinfo|referenceinfo|refmeta|refmiscinfo|refsect1|refsect1info|refsect2|refsect2info|refsect3|refsect3info|refsection|refsectioninfo|refsynopsisdiv|refsynopsisdivinfo|revdescription|screeninfo|sect1|sect1info|sect2|sect2info|sect3|sect3info|sect4|sect4info|sect5|sect5info|section|sectioninfo|setindex|setindexinfo|setinfo|sidebar|sidebarinfo|simplesect|step|table|task|taskprerequisites|taskrelated|tasksummary|tip|variablelist|warning|'"/>
+  <xsl:variable name="block.parents" select="'|answer|appendix|appendixinfo|article|articleinfo|bibliodiv|bibliography|bibliographyinfo|blockinfo|blockquote|bookinfo|callout|caution|chapter|chapterinfo|dedication|example|figure|formalpara|funcsynopsisinfo|glossary|glossaryinfo|glossdef|glossdiv|glossentry|highlights|important|index|indexinfo|info|informalexample|informalfigure|informaltable|itemizedlist|legalnotice|listitem|msgexplan|msgtext|note|objectinfo|orderedlist|partinfo|partintro|preface|prefaceinfo|procedure|qandadiv|qandaset|question|refentry|refentryinfo|referenceinfo|refmeta|refmiscinfo|refsect1|refsect1info|refsect2|refsect2info|refsect3|refsect3info|refsection|refsectioninfo|refsynopsisdiv|refsynopsisdivinfo|revdescription|screeninfo|sect1|sect1info|sect2|sect2info|sect3|sect3info|sect4|sect4info|sect5|sect5info|section|sectioninfo|setindex|setindexinfo|setinfo|sidebar|sidebarinfo|simplesect|step|table|task|taskprerequisites|taskrelated|tasksummary|tip|topic|variablelist|warning|'"/>
 
   <xsl:choose>
-    <xsl:when test="contains($parent, $block.parents)">fo:block</xsl:when>
+    <xsl:when test="contains($block.parents, $parent)">fo:block</xsl:when>
+    <xsl:when test="$fop1.extensions != 0">fo:wrapper</xsl:when>
     <xsl:otherwise>fo:inline</xsl:otherwise>
   </xsl:choose>
 </xsl:template>

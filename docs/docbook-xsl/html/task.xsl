@@ -3,12 +3,12 @@
                 version="1.0">
 
 <!-- ********************************************************************
-     $Id: task.xsl,v 1.2 2003/11/30 19:42:23 bobstayton Exp $
+     $Id: task.xsl 9363 2012-05-12 23:42:32Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -35,16 +35,18 @@
                 select="*[not(self::title
                               or self::titleabbrev)]"/>
 
-  <div class="{name(.)}">
+  <div>
+    <xsl:apply-templates select="." mode="common.html.attributes"/>
+    <xsl:call-template name="id.attribute"/>
     <xsl:call-template name="anchor"/>
 
-    <xsl:if test="title and $placement = 'before'">
+    <xsl:if test="(title or info/title) and $placement = 'before'">
       <xsl:call-template name="formal.object.heading"/>
     </xsl:if>
 
     <xsl:apply-templates select="$preamble"/>
 
-    <xsl:if test="title and $placement != 'before'">
+    <xsl:if test="(title or info/title) and $placement != 'before'">
       <xsl:call-template name="formal.object.heading"/>
     </xsl:if>
   </div>
@@ -58,12 +60,18 @@
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
 
+<xsl:template match="tasksummary/title"/>
+
 <xsl:template match="taskprerequisites">
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
 
+<xsl:template match="taskprerequisites/title"/>
+
 <xsl:template match="taskrelated">
   <xsl:call-template name="semiformal.object"/>
 </xsl:template>
+
+<xsl:template match="taskrelated/title"/>
 
 </xsl:stylesheet>

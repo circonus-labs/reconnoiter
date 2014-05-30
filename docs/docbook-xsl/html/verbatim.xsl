@@ -1,32 +1,37 @@
 <?xml version='1.0'?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:sverb="http://nwalsh.com/xslt/ext/com.nwalsh.saxon.Verbatim"
-                xmlns:xverb="com.nwalsh.xalan.Verbatim"
+                xmlns:xverb="xalan://com.nwalsh.xalan.Verbatim"
                 xmlns:lxslt="http://xml.apache.org/xslt"
                 xmlns:exsl="http://exslt.org/common"
                 exclude-result-prefixes="sverb xverb lxslt exsl"
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: verbatim.xsl,v 1.13 2004/10/29 13:28:33 nwalsh Exp $
+     $Id: verbatim.xsl 9589 2012-09-02 20:52:15Z tom_schr $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
+
+<!-- XSLTHL highlighting is turned off by default. See highlighting/README
+     for instructions on how to turn on XSLTHL -->
+<xsl:template name="apply-highlighting">
+    <xsl:apply-templates/>
+</xsl:template>
 
 <lxslt:component prefix="xverb"
                  functions="numberLines"/>
 
 <xsl:template match="programlisting|screen|synopsis">
   <xsl:param name="suppress-numbers" select="'0'"/>
-  <xsl:variable name="id">
-    <xsl:call-template name="object.id"/>
-  </xsl:variable>
 
   <xsl:call-template name="anchor"/>
+
+  <xsl:variable name="div.element">pre</xsl:variable>
 
   <xsl:if test="$shade.verbatim != 0">
     <xsl:message>
@@ -42,22 +47,50 @@
 
   <xsl:choose>
     <xsl:when test="$suppress-numbers = '0'
-		    and @linenumbering = 'numbered'
-		    and $use.extensions != '0'
-		    and $linenumbering.extension != '0'">
+                    and @linenumbering = 'numbered'
+                    and $use.extensions != '0'
+                    and $linenumbering.extension != '0'">
       <xsl:variable name="rtf">
-	<xsl:apply-templates/>
+        <xsl:choose>
+          <xsl:when test="$highlight.source != 0">
+            <xsl:call-template name="apply-highlighting"/>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:apply-templates/>
+          </xsl:otherwise>
+        </xsl:choose>
       </xsl:variable>
-      <pre class="{name(.)}">
-	<xsl:call-template name="number.rtf.lines">
-	  <xsl:with-param name="rtf" select="$rtf"/>
-	</xsl:call-template>
-      </pre>
+      <xsl:element name="{$div.element}">
+        <xsl:apply-templates select="." mode="common.html.attributes"/>
+        <xsl:call-template name="id.attribute"/>
+        <xsl:if test="@width != ''">
+          <xsl:attribute name="width">
+            <xsl:value-of select="@width"/>
+          </xsl:attribute>
+        </xsl:if>
+        <xsl:call-template name="number.rtf.lines">
+          <xsl:with-param name="rtf" select="$rtf"/>
+        </xsl:call-template>
+      </xsl:element>
     </xsl:when>
     <xsl:otherwise>
-      <pre class="{name(.)}">
-	<xsl:apply-templates/>
-      </pre>
+      <xsl:element name="{$div.element}">
+        <xsl:apply-templates select="." mode="common.html.attributes"/>
+        <xsl:call-template name="id.attribute"/>
+        <xsl:if test="@width != ''">
+          <xsl:attribute name="width">
+            <xsl:value-of select="@width"/>
+          </xsl:attribute>
+        </xsl:if>
+        <xsl:choose>
+          <xsl:when test="$highlight.source != 0">
+            <xsl:call-template name="apply-highlighting"/>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:apply-templates/>
+          </xsl:otherwise>
+        </xsl:choose>
+      </xsl:element>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -83,44 +116,52 @@
 
   <xsl:choose>
     <xsl:when test="$suppress-numbers = '0'
-		    and @linenumbering = 'numbered'
-		    and $use.extensions != '0'
-		    and $linenumbering.extension != '0'">
+                    and @linenumbering = 'numbered'
+                    and $use.extensions != '0'
+                    and $linenumbering.extension != '0'">
       <xsl:choose>
-	<xsl:when test="@class='monospaced'">
-	  <pre class="{name(.)}">
-	    <xsl:call-template name="number.rtf.lines">
-	      <xsl:with-param name="rtf" select="$rtf"/>
-	    </xsl:call-template>
-	  </pre>
-	</xsl:when>
-	<xsl:otherwise>
-	  <div class="{name(.)}">
-	    <p>
-	      <xsl:call-template name="number.rtf.lines">
-		<xsl:with-param name="rtf" select="$rtf"/>
-	      </xsl:call-template>
-	    </p>
-	  </div>
-	</xsl:otherwise>
+        <xsl:when test="@class='monospaced'">
+          <pre>
+            <xsl:apply-templates select="." mode="common.html.attributes"/>
+            <xsl:call-template name="id.attribute"/>
+            <xsl:call-template name="number.rtf.lines">
+              <xsl:with-param name="rtf" select="$rtf"/>
+            </xsl:call-template>
+          </pre>
+        </xsl:when>
+        <xsl:otherwise>
+          <div>
+            <xsl:apply-templates select="." mode="common.html.attributes"/>
+            <xsl:call-template name="id.attribute"/>
+            <p>
+              <xsl:call-template name="number.rtf.lines">
+                <xsl:with-param name="rtf" select="$rtf"/>
+              </xsl:call-template>
+            </p>
+          </div>
+        </xsl:otherwise>
       </xsl:choose>
     </xsl:when>
     <xsl:otherwise>
       <xsl:choose>
-	<xsl:when test="@class='monospaced'">
-	  <pre class="{name(.)}">
-	    <xsl:copy-of select="$rtf"/>
-	  </pre>
-	</xsl:when>
-	<xsl:otherwise>
-	  <div class="{name(.)}">
-	    <p>
-	      <xsl:call-template name="make-verbatim">
-		<xsl:with-param name="rtf" select="$rtf"/>
-	      </xsl:call-template>
-	    </p>
-	  </div>
-	</xsl:otherwise>
+        <xsl:when test="@class='monospaced'">
+          <pre>
+            <xsl:apply-templates select="." mode="common.html.attributes"/>
+            <xsl:call-template name="id.attribute"/>
+            <xsl:copy-of select="$rtf"/>
+          </pre>
+        </xsl:when>
+        <xsl:otherwise>
+          <div>
+            <xsl:apply-templates select="." mode="common.html.attributes"/>
+            <xsl:call-template name="id.attribute"/>
+            <p>
+              <xsl:call-template name="make-verbatim">
+                <xsl:with-param name="rtf" select="$rtf"/>
+              </xsl:call-template>
+            </p>
+          </div>
+        </xsl:otherwise>
       </xsl:choose>
     </xsl:otherwise>
   </xsl:choose>
@@ -138,7 +179,9 @@
                     and @linenumbering = 'numbered'
                     and $use.extensions != '0'
                     and $linenumbering.extension != '0'">
-      <div class="{name(.)}">
+      <div>
+        <xsl:apply-templates select="." mode="common.html.attributes"/>
+        <xsl:call-template name="id.attribute"/>
         <p>
           <xsl:call-template name="number.rtf.lines">
             <xsl:with-param name="rtf" select="$rtf"/>
@@ -148,7 +191,9 @@
     </xsl:when>
 
     <xsl:otherwise>
-      <div class="{name(.)}">
+      <div>
+        <xsl:apply-templates select="." mode="common.html.attributes"/>
+        <xsl:call-template name="id.attribute"/>
         <p>
           <xsl:call-template name="make-verbatim">
             <xsl:with-param name="rtf" select="$rtf"/>
@@ -175,26 +220,20 @@
 
   <!-- Extract the <?dbhtml linenumbering.*?> PI values -->
   <xsl:variable name="pi.linenumbering.everyNth">
-    <xsl:call-template name="dbhtml-attribute">
-      <xsl:with-param name="pis"
-                      select="$pi.context/processing-instruction('dbhtml')"/>
-      <xsl:with-param name="attribute" select="'linenumbering.everyNth'"/>
+    <xsl:call-template name="pi.dbhtml_linenumbering.everyNth">
+      <xsl:with-param name="node" select="$pi.context"/>
     </xsl:call-template>
   </xsl:variable>
 
   <xsl:variable name="pi.linenumbering.separator">
-    <xsl:call-template name="dbhtml-attribute">
-      <xsl:with-param name="pis"
-                      select="$pi.context/processing-instruction('dbhtml')"/>
-      <xsl:with-param name="attribute" select="'linenumbering.separator'"/>
+    <xsl:call-template name="pi.dbhtml_linenumbering.separator">
+      <xsl:with-param name="node" select="$pi.context"/>
     </xsl:call-template>
   </xsl:variable>
 
   <xsl:variable name="pi.linenumbering.width">
-    <xsl:call-template name="dbhtml-attribute">
-      <xsl:with-param name="pis"
-                      select="$pi.context/processing-instruction('dbhtml')"/>
-      <xsl:with-param name="attribute" select="'linenumbering.width'"/>
+    <xsl:call-template name="pi.dbhtml_linenumbering.width">
+      <xsl:with-param name="node" select="$pi.context"/>
     </xsl:call-template>
   </xsl:variable>
 
@@ -234,37 +273,37 @@
 
   <xsl:variable name="linenumbering.startinglinenumber">
     <xsl:choose>
-      <xsl:when test="@startinglinenumber">
-        <xsl:value-of select="@startinglinenumber"/>
+      <xsl:when test="$pi.context/@startinglinenumber">
+        <xsl:value-of select="$pi.context/@startinglinenumber"/>
       </xsl:when>
-      <xsl:when test="@continuation='continues'">
+      <xsl:when test="$pi.context/@continuation='continues'">
         <xsl:variable name="lastLine">
           <xsl:choose>
-            <xsl:when test="self::programlisting">
+            <xsl:when test="$pi.context/self::programlisting">
               <xsl:call-template name="lastLineNumber">
                 <xsl:with-param name="listings"
                      select="preceding::programlisting[@linenumbering='numbered']"/>
               </xsl:call-template>
             </xsl:when>
-            <xsl:when test="self::screen">
+            <xsl:when test="$pi.context/self::screen">
               <xsl:call-template name="lastLineNumber">
                 <xsl:with-param name="listings"
                      select="preceding::screen[@linenumbering='numbered']"/>
               </xsl:call-template>
             </xsl:when>
-            <xsl:when test="self::literallayout">
+            <xsl:when test="$pi.context/self::literallayout">
               <xsl:call-template name="lastLineNumber">
                 <xsl:with-param name="listings"
                      select="preceding::literallayout[@linenumbering='numbered']"/>
               </xsl:call-template>
             </xsl:when>
-            <xsl:when test="self::address">
+            <xsl:when test="$pi.context/self::address">
               <xsl:call-template name="lastLineNumber">
                 <xsl:with-param name="listings"
                      select="preceding::address[@linenumbering='numbered']"/>
               </xsl:call-template>
             </xsl:when>
-            <xsl:when test="self::synopsis">
+            <xsl:when test="$pi.context/self::synopsis">
               <xsl:call-template name="lastLineNumber">
                 <xsl:with-param name="listings"
                      select="preceding::synopsis[@linenumbering='numbered']"/>
@@ -273,7 +312,7 @@
             <xsl:otherwise>
               <xsl:message>
                 <xsl:text>Unexpected verbatim environment: </xsl:text>
-                <xsl:value-of select="local-name(.)"/>
+                <xsl:value-of select="local-name($pi.context)"/>
               </xsl:message>
               <xsl:value-of select="0"/>
             </xsl:otherwise>
@@ -309,7 +348,7 @@
        or I have to rely on CSS. -->
 
   <xsl:choose>
-    <xsl:when test="function-available('exsl:node-set')">
+    <xsl:when test="$exsl.node.set.available != 0">
       <xsl:apply-templates select="exsl:node-set($rtf)" mode="make.verbatim.mode"/>
     </xsl:when>
     <xsl:otherwise>
@@ -341,7 +380,7 @@
     </xsl:when>
     <xsl:when test="$listings[1]/@continuation='continues'">
       <xsl:call-template name="lastLineNumber">
-        <xsl:with-param name="listings" select="listings[position() &gt; 1]"/>
+        <xsl:with-param name="listings" select="$listings[position() &gt; 1]"/>
         <xsl:with-param name="number" select="$number + $lines"/>
       </xsl:call-template>
     </xsl:when>
