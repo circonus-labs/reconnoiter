@@ -364,6 +364,11 @@ API_EXPORT(char *)
 API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
 
+NOIT_HOOK_PROTO(check_config_fixup,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check))
+
 NOIT_HOOK_PROTO(check_stats_set_metric,
                 (noit_check_t *check, stats_t *stats, metric_t *m),
                 void *, closure,

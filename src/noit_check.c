@@ -57,6 +57,12 @@
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
 #define RECYCLE_INTERVAL 60
 
+NOIT_HOOK_IMPL(check_config_fixup,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
 NOIT_HOOK_IMPL(check_stats_set_metric,
   (noit_check_t *check, stats_t *stats, metric_t *m),
   void *, closure,
@@ -406,6 +412,7 @@ noit_poller_process_checks(const char *xpath) {
     else if(disabled) flags |= NP_DISABLED;
 
     flags |= noit_calc_rtype_flag(resolve_rtype);
+
 
     if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
                           &vcheck)) {
@@ -938,6 +945,8 @@ noit_check_update(noit_check_t *new_check,
 
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
+
+  check_config_fixup_hook_invoke(new_check);
 
   noit_check_add_to_list(new_check, NULL);
   noit_check_log_check(new_check);
