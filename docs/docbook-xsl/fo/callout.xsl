@@ -8,12 +8,12 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: callout.xsl,v 1.12 2003/08/28 20:51:58 bobstayton Exp $
+     $Id: callout.xsl 9668 2012-11-28 00:47:59Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -84,17 +84,67 @@
 </xsl:template>
 
 <xsl:template match="co">
-  <fo:inline id="{@id}">
-    <xsl:apply-templates select="." mode="callout-bug"/>
-  </fo:inline>
+  <xsl:param name="coref"/> 
+  <!-- link to the callout? -->
+  <xsl:variable name="linkend">
+    <xsl:choose>
+      <!-- if more than one target, choose the first -->
+      <xsl:when test="contains(normalize-space(@linkends), ' ')">
+        <xsl:value-of select="substring-before(normalize-space(@linkends), ' ')"/>
+      </xsl:when>
+      <xsl:when test="string-length(normalize-space(@linkends)) != 0">
+        <xsl:value-of select="normalize-space(@linkends)"/>
+      </xsl:when>
+      <xsl:otherwise>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+
+  <xsl:choose>
+    <xsl:when test="string-length($linkend) != 0">
+      <fo:basic-link internal-destination="{$linkend}">
+        <xsl:choose>
+          <xsl:when test="$coref">
+            <xsl:call-template name="anchor">
+              <xsl:with-param name="node" select="$coref"/>
+              <xsl:with-param name="conditional" select="0"/>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:call-template name="anchor">
+              <xsl:with-param name="conditional" select="0"/>
+            </xsl:call-template>
+          </xsl:otherwise>
+        </xsl:choose>
+        <xsl:apply-templates select="." mode="callout-bug"/>
+      </fo:basic-link>
+    </xsl:when>
+    <xsl:otherwise>
+      <fo:inline>
+        <xsl:choose>
+          <xsl:when test="$coref">
+            <xsl:call-template name="anchor">
+              <xsl:with-param name="node" select="$coref"/>
+              <xsl:with-param name="conditional" select="0"/>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:call-template name="anchor">
+              <xsl:with-param name="conditional" select="0"/>
+            </xsl:call-template>
+          </xsl:otherwise>
+        </xsl:choose>
+        <xsl:apply-templates select="." mode="callout-bug"/>
+      </fo:inline>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template match="coref">
-  <!-- tricky; this relies on the fact that we can process the "co" that's -->
+  <!-- this relies on the fact that we can process the "co" that's -->
   <!-- "over there" as if it were "right here" -->
 
   <xsl:variable name="co" select="key('id', @linkend)"/>
-  <xsl:variable name="id" select="@id"/>
   <xsl:choose>
     <xsl:when test="not($co)">
       <xsl:message>
@@ -109,14 +159,10 @@
       </xsl:message>
     </xsl:when>
     <xsl:otherwise>
-      <fo:inline>
-        <xsl:if test="$id != ''">
-	  <xsl:attribute name="id">
-	    <xsl:value-of select="$id"/>
-	  </xsl:attribute>
-	</xsl:if>
-        <xsl:apply-templates select="$co" mode="callout-bug"/>
-      </fo:inline>
+      <!-- process it as if it were the co itself -->
+      <xsl:apply-templates select="$co">
+        <xsl:with-param name="coref" select="."/>
+      </xsl:apply-templates>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -140,13 +186,14 @@
     <xsl:when test="$callout.graphics != '0'
                     and $conum &lt;= $callout.graphics.number.limit">
       <xsl:variable name="filename"
-                    select="concat($callout.graphics.path,$conum,$callout.graphics.extension)"/>
+                    select="concat($callout.graphics.path, $conum,
+		                   $callout.graphics.extension)"/>
 
-      <fo:external-graphic>
+      <fo:external-graphic content-width="{$callout.icon.size}"
+                           width="{$callout.icon.size}">
         <xsl:attribute name="src">
           <xsl:choose>
-            <xsl:when test="$passivetex.extensions != 0
-                            or $fop.extensions != 0
+            <xsl:when test="$fop.extensions != 0
                             or $arbortext.extensions != 0">
               <xsl:value-of select="$filename"/>
             </xsl:when>
@@ -176,6 +223,40 @@
               <xsl:when test="$conum = 8">&#10109;</xsl:when>
               <xsl:when test="$conum = 9">&#10110;</xsl:when>
               <xsl:when test="$conum = 10">&#10111;</xsl:when>
+              <xsl:when test="$conum = 11">&#9451;</xsl:when>
+              <xsl:when test="$conum = 12">&#9452;</xsl:when>
+              <xsl:when test="$conum = 13">&#9453;</xsl:when>
+              <xsl:when test="$conum = 14">&#9454;</xsl:when>
+              <xsl:when test="$conum = 15">&#9455;</xsl:when>
+              <xsl:when test="$conum = 16">&#9456;</xsl:when>
+              <xsl:when test="$conum = 17">&#9457;</xsl:when>
+              <xsl:when test="$conum = 18">&#9458;</xsl:when>
+              <xsl:when test="$conum = 19">&#9459;</xsl:when>
+              <xsl:when test="$conum = 20">&#9460;</xsl:when>
+            </xsl:choose>
+          </xsl:when>
+          <xsl:when test="$callout.unicode.start.character = 9312">
+            <xsl:choose>
+              <xsl:when test="$conum = 1">&#9312;</xsl:when>
+              <xsl:when test="$conum = 2">&#9313;</xsl:when>
+              <xsl:when test="$conum = 3">&#9314;</xsl:when>
+              <xsl:when test="$conum = 4">&#9315;</xsl:when>
+              <xsl:when test="$conum = 5">&#9316;</xsl:when>
+              <xsl:when test="$conum = 6">&#9317;</xsl:when>
+              <xsl:when test="$conum = 7">&#9318;</xsl:when>
+              <xsl:when test="$conum = 8">&#9319;</xsl:when>
+              <xsl:when test="$conum = 9">&#9320;</xsl:when>
+              <xsl:when test="$conum = 10">&#9321;</xsl:when>
+              <xsl:when test="$conum = 11">&#9322;</xsl:when>
+              <xsl:when test="$conum = 12">&#9323;</xsl:when>
+              <xsl:when test="$conum = 13">&#9324;</xsl:when>
+              <xsl:when test="$conum = 14">&#9325;</xsl:when>
+              <xsl:when test="$conum = 15">&#9326;</xsl:when>
+              <xsl:when test="$conum = 16">&#9327;</xsl:when>
+              <xsl:when test="$conum = 17">&#9328;</xsl:when>
+              <xsl:when test="$conum = 18">&#9329;</xsl:when>
+              <xsl:when test="$conum = 19">&#9330;</xsl:when>
+              <xsl:when test="$conum = 20">&#9331;</xsl:when>
             </xsl:choose>
           </xsl:when>
           <xsl:otherwise>

@@ -1,5 +1,10 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:saxon="http://icl.com/saxon"
+                exclude-result-prefixes="saxon"
                 version="1.0">
+
+<!-- Should be base URI for imagedata and so on fixed? -->
+<xsl:param name="profile.baseuri.fixup" select="true()"/>
 
 <!-- Copy all non-element nodes -->
 <xsl:template match="@*|text()|comment()|processing-instruction()" mode="profile">
@@ -19,6 +24,18 @@
   </xsl:variable>
   <xsl:variable name="arch.ok" select="not(@arch) or not($profile.arch) or
                                        $arch.content != '' or @arch = ''"/>
+
+  <xsl:variable name="audience.content">
+    <xsl:if test="@audience">
+      <xsl:call-template name="cross.compare">
+        <xsl:with-param name="a" select="$profile.audience"/>
+        <xsl:with-param name="b" select="@audience"/>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:variable>
+  <xsl:variable name="audience.ok" 
+                        select="not(@audience) or not($profile.audience) or
+                                $audience.content != '' or @audience = ''"/>
 
   <xsl:variable name="condition.content">
     <xsl:if test="@condition">
@@ -43,15 +60,15 @@
                                               $conformance.content != '' or @conformance = ''"/>
 
   <xsl:variable name="lang.content">
-    <xsl:if test="@lang">
+    <xsl:if test="@lang | @xml:lang">
       <xsl:call-template name="cross.compare">
         <xsl:with-param name="a" select="$profile.lang"/>
-        <xsl:with-param name="b" select="@lang"/>
+        <xsl:with-param name="b" select="(@lang | @xml:lang)[1]"/>
       </xsl:call-template>
     </xsl:if>
   </xsl:variable>
-  <xsl:variable name="lang.ok" select="not(@lang) or not($profile.lang) or
-                                       $lang.content != '' or @lang = ''"/>
+  <xsl:variable name="lang.ok" select="not(@lang | @xml:lang) or not($profile.lang) or
+                                       $lang.content != '' or @lang = '' or @xml:lang = ''"/>
 
   <xsl:variable name="os.content">
     <xsl:if test="@os">
@@ -108,6 +125,17 @@
   <xsl:variable name="security.ok" select="not(@security) or not($profile.security) or
                                            $security.content != '' or @security = ''"/>
 
+  <xsl:variable name="status.content">
+    <xsl:if test="@status">
+      <xsl:call-template name="cross.compare">
+        <xsl:with-param name="a" select="$profile.status"/>
+        <xsl:with-param name="b" select="@status"/>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:variable>
+  <xsl:variable name="status.ok" select="not(@status) or not($profile.status) or
+                                           $status.content != '' or @status = ''"/>
+
   <xsl:variable name="userlevel.content">
     <xsl:if test="@userlevel">
       <xsl:call-template name="cross.compare">
@@ -130,6 +158,18 @@
   <xsl:variable name="vendor.ok" select="not(@vendor) or not($profile.vendor) or
                                          $vendor.content != '' or @vendor = ''"/>
 
+  <xsl:variable name="wordsize.content">
+    <xsl:if test="@wordsize">
+      <xsl:call-template name="cross.compare">
+        <xsl:with-param name="a" select="$profile.wordsize"/>
+        <xsl:with-param name="b" select="@wordsize"/>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:variable>
+  <xsl:variable name="wordsize.ok" 
+                        select="not(@wordsize) or not($profile.wordsize) or
+                                $wordsize.content != '' or @wordsize = ''"/>
+
   <xsl:variable name="attribute.content">
     <xsl:if test="@*[local-name()=$profile.attribute]">
       <xsl:call-template name="cross.compare">
@@ -139,15 +179,42 @@
     </xsl:if>
   </xsl:variable>
   <xsl:variable name="attribute.ok" 
-                select="not(@*[local-name()=$profile.attribute]) or not($profile.value) or
-                        $attribute.content != '' or 
-                        @*[local-name()=$profile.attribute] = '' or not($profile.attribute)"/>
+                select="not(@*[local-name()=$profile.attribute]) or 
+                        not($profile.value) or $attribute.content != '' or 
+                        @*[local-name()=$profile.attribute] = '' or 
+                        not($profile.attribute)"/>
 
-  <xsl:if test="$arch.ok and $condition.ok and $conformance.ok and $lang.ok and $os.ok 
-                and $revision.ok and $revisionflag.ok and $role.ok and $security.ok
-                and $userlevel.ok and $vendor.ok and $attribute.ok">
+  <xsl:if test="$arch.ok and 
+                $audience.ok and 
+                $condition.ok and 
+                $conformance.ok and 
+                $lang.ok and 
+                $os.ok and 
+                $revision.ok and 
+                $revisionflag.ok and 
+                $role.ok and 
+                $security.ok and 
+                $status.ok and 
+                $userlevel.ok and 
+                $vendor.ok and 
+                $wordsize.ok and 
+                $attribute.ok">
     <xsl:copy>
-      <xsl:apply-templates select="@*|node()" mode="profile"/>
+      <xsl:apply-templates mode="profile" select="@*"/>
+
+      <!-- Entity references must be replaced with filereferences for temporary tree -->
+      <xsl:if test="@entityref and $profile.baseuri.fixup">
+        <xsl:attribute name="fileref">
+          <xsl:value-of select="unparsed-entity-uri(@entityref)"/>
+        </xsl:attribute>
+      </xsl:if>
+
+      <!-- xml:base is eventually added to the root element -->
+      <xsl:if test="not(../..) and $profile.baseuri.fixup">
+        <xsl:call-template name="add-xml-base"/>
+      </xsl:if>
+
+      <xsl:apply-templates select="node()" mode="profile"/>
     </xsl:copy>
   </xsl:if>
 </xsl:template>
@@ -159,7 +226,13 @@
   <xsl:param name="sep" select="$profile.separator"/>
   <xsl:variable name="head" select="substring-before(concat($a, $sep), $sep)"/>
   <xsl:variable name="tail" select="substring-after($a, $sep)"/>
-  <xsl:if test="contains(concat($sep, $b, $sep), concat($sep, $head, $sep))">1</xsl:if>
+<!-- <xsl:message> -->
+<!-- a="<xsl:value-of select="$a"/>" -->
+<!-- a="<xsl:value-of select="normalize-space($a)"/>" -->
+<!-- head="<xsl:value-of select="$head"/>" -->
+<!-- tail="<xsl:value-of select="$tail"/>" -->
+<!-- </xsl:message> -->
+  <xsl:if test="contains(concat($sep, $b, $sep), concat($sep, $head, $sep)) or normalize-space($a) = '' ">1</xsl:if>
   <xsl:if test="$tail">
     <xsl:call-template name="cross.compare">
       <xsl:with-param name="a" select="$tail"/>

@@ -5,12 +5,12 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: gentext.xsl,v 1.34 2005/07/10 08:54:39 bobstayton Exp $
+     $Id: gentext.xsl 9713 2013-01-22 22:08:30Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -90,7 +90,7 @@
 </xsl:template>
 
 <xsl:template match="section|sect1|sect2|sect3|sect4|sect5|simplesect
-                     |bridgehead"
+                     |bridgehead|topic"
               mode="object.title.template">
   <xsl:variable name="is.numbered">
     <xsl:call-template name="label.this.section"/>
@@ -196,8 +196,14 @@
 </xsl:template>
 
 <xsl:template match="bridgehead" mode="is.autonumber">
-  <xsl:value-of select="$section.autolabel"/>
+  <!-- bridgeheads are not numbered -->
+  <xsl:text>0</xsl:text>
 </xsl:template>
+
+<xsl:template match="procedure" mode="is.autonumber">
+  <xsl:value-of select="$formal.procedures"/>
+</xsl:template>
+
 
 <xsl:template match="*" mode="object.xref.template">
   <xsl:param name="purpose"/>
@@ -229,6 +235,9 @@
 
   <xsl:variable name="context">
     <xsl:choose>
+      <xsl:when test="self::equation and not(title) and not(info/title)">
+         <xsl:value-of select="'xref-number'"/>
+      </xsl:when>
       <xsl:when test="string($autonumber) != 0 
                       and $number-and-title-template != 0
                       and $xref.with.number.and.title != 0">
@@ -284,7 +293,7 @@
   <xsl:variable name="title">
     <xsl:apply-templates select="." mode="object.title.markup"/>
   </xsl:variable>
-  <xsl:value-of select="$title"/>
+  <xsl:value-of select="normalize-space($title)"/>
 </xsl:template>
 
 <!-- ============================================================ -->
@@ -360,7 +369,7 @@
     <xsl:message>
       <xsl:text>object.xref.markup: empty xref template</xsl:text>
       <xsl:text> for linkend="</xsl:text>
-      <xsl:value-of select="@id"/>
+      <xsl:value-of select="@id|@xml:id"/>
       <xsl:text>" and @xrefstyle="</xsl:text>
       <xsl:value-of select="$xrefstyle"/>
       <xsl:text>"</xsl:text>
@@ -392,7 +401,7 @@
       <xsl:message>
         <xsl:text>Xref is only supported to listitems in an</xsl:text>
         <xsl:text> orderedlist: </xsl:text>
-        <xsl:value-of select="@id"/>
+        <xsl:value-of select=".//@id|.//@xml:id"/>
       </xsl:message>
       <xsl:text>???</xsl:text>
     </xsl:when>
@@ -467,6 +476,12 @@
               <xsl:choose>
                 <xsl:when test="$title != ''">
                   <xsl:copy-of select="$title"/>
+                </xsl:when>
+                <xsl:when test="$purpose = 'xref'">
+                  <xsl:apply-templates select="." mode="titleabbrev.markup">
+                    <xsl:with-param name="allow-anchors" select="$allow-anchors"/>
+                    <xsl:with-param name="verbose" select="$verbose"/>
+                  </xsl:apply-templates>
                 </xsl:when>
                 <xsl:otherwise>
                   <xsl:apply-templates select="." mode="title.markup">
@@ -738,7 +753,7 @@
       <xsl:when test="$titletype != ''">
         <xsl:value-of select="$xref.label-title.separator"/>
       </xsl:when>
-      <xsl:when test="$pagetype != ''">
+      <xsl:when test="$pagetype != '' and $pagetype != 'nopage'">
         <xsl:value-of select="$xref.label-page.separator"/>
       </xsl:when>
     </xsl:choose>

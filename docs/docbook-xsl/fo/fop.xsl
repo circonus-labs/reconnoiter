@@ -5,7 +5,7 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: fop.xsl,v 1.10 2005/04/20 08:11:36 bobstayton Exp $
+     $Id: fop.xsl 7531 2007-10-17 18:06:49Z dcramer $
      ********************************************************************
      (c) Stephane Bline Peregrine Systems 2001
      Driver file to allow pdf bookmarking (based on fop implementation).
@@ -23,8 +23,11 @@ translates characters with code>255 back to ASCII.
 "'aaaccccddeeeeeegggghhiiiiijklllllnnnnooorrrsssstttuuuuuuwyzzzAAACCCCDDEEEEEEGGGGHHIIIIIJKLLLLLNNNNOOORRRSSSSTTTUUUUUUWYYZZZ'"/>
 
 <xsl:template match="*" mode="fop.outline">
-  <xsl:if test="@id">
-    <fox:destination internal-destination="{@id}"/>
+  <xsl:variable name="id">
+    <xsl:value-of select="(@id|@xml:id)[1]"/>
+  </xsl:variable>
+  <xsl:if test="$id != ''">
+    <fox:destination internal-destination="{$id}"/>
   </xsl:if>
   <xsl:apply-templates select="*" mode="fop.outline"/>
 </xsl:template>
@@ -45,6 +48,7 @@ translates characters with code>255 back to ASCII.
   <!-- If the object is a set or book, generate a bookmark for the toc -->
 
   <xsl:choose>
+    <xsl:when test="self::index and $generate.index = 0"/>	
     <xsl:when test="parent::*">
       <fox:outline internal-destination="{$id}">
         <fox:label>

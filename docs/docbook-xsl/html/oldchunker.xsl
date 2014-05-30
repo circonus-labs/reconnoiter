@@ -1,19 +1,19 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:saxon="http://icl.com/saxon"
                 xmlns:lxslt="http://xml.apache.org/xslt"
-                xmlns:xalanredirect="org.apache.xalan.xslt.extensions.Redirect"
+                xmlns:redirect="http://xml.apache.org/xalan/redirect"
                 xmlns:doc="http://nwalsh.com/xsl/documentation/1.0"
 		version="1.1"
                 exclude-result-prefixes="doc"
-                extension-element-prefixes="saxon xalanredirect lxslt">
+                extension-element-prefixes="saxon redirect lxslt">
 
 <!-- ********************************************************************
-     $Id: oldchunker.xsl,v 1.5 2003/11/30 19:42:23 bobstayton Exp $
+     $Id: oldchunker.xsl 6910 2007-06-28 23:23:30Z xmldoc $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -120,10 +120,10 @@ in default.encoding, set this parameter to value <literal>native</literal>.
       </saxon:output>
     </xsl:when>
     <xsl:when test="contains($vendor, 'Apache')">
-      <!-- Xalan uses xalanredirect -->
-      <xalanredirect:write file="{$filename}">
+      <!-- Xalan uses redirect -->
+      <redirect:write file="{$filename}">
         <xsl:copy-of select="$content"/>
-      </xalanredirect:write>
+      </redirect:write>
     </xsl:when>
     <xsl:otherwise>
       <!-- it doesn't matter since we won't be making chunks... -->
@@ -183,10 +183,10 @@ in default.encoding, set this parameter to value <literal>native</literal>.
       </saxon:output>
     </xsl:when>
     <xsl:when test="contains($vendor, 'Apache')">
-      <!-- Xalan uses xalanredirect -->
-      <xalanredirect:write file="{$filename}">
+      <!-- Xalan uses redirect -->
+      <redirect:write file="{$filename}">
         <xsl:copy-of select="$content"/>
-      </xalanredirect:write>
+      </redirect:write>
     </xsl:when>
     <xsl:otherwise>
       <!-- it doesn't matter since we won't be making chunks... -->

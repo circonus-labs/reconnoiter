@@ -1,4 +1,8 @@
 <?xml version='1.0'?>
+<!DOCTYPE xsl:stylesheet [
+<!ENTITY lowercase "'abcdefghijklmnopqrstuvwxyz'">
+<!ENTITY uppercase "'ABCDEFGHIJKLMNOPQRSTUVWXYZ'">
+ ]>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:doc="http://nwalsh.com/xsl/documentation/1.0"
                 xmlns:dyn="http://exslt.org/dynamic"
@@ -7,47 +11,31 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: common.xsl,v 1.53 2005/07/05 00:54:57 xmldoc Exp $
+     $Id: common.xsl 9347 2012-05-11 03:49:49Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
-     This file contains general templates common to both the HTML and FO
-     versions of the DocBook stylesheets.
      ******************************************************************** -->
 
-<doc:reference xmlns="">
-<referenceinfo>
-<releaseinfo role="meta">
-$Id: common.xsl,v 1.53 2005/07/05 00:54:57 xmldoc Exp $
-</releaseinfo>
-<author><surname>Walsh</surname>
-<firstname>Norman</firstname></author>
-<copyright><year>1999</year><year>2000</year>
-<holder>Norman Walsh</holder>
-</copyright>
-</referenceinfo>
-<title>Common Template Reference</title>
-
-<partintro>
-<section><title>Introduction</title>
-
-<para>This is technical reference documentation for the DocBook XSL
-Stylesheets; it documents (some of) the parameters, templates, and
-other elements of the stylesheets.</para>
-
-<para>This is not intended to be <quote>user</quote> documentation.
-It is provided for developers writing customization layers for the
-stylesheets, and for anyone who's interested in <quote>how it
-works</quote>.</para>
-
-<para>Although I am trying to be thorough, this documentation is known
-to be incomplete. Don't forget to read the source, too :-)</para>
-</section>
-</partintro>
-
+<doc:reference xmlns="" xml:id="base">
+  <info>
+    <title>Common » Base Template Reference</title>
+    <releaseinfo role="meta">
+      $Id: common.xsl 9347 2012-05-11 03:49:49Z bobstayton $
+    </releaseinfo>
+  </info>
+  <!-- * yes, partintro is a valid child of a reference... -->
+  <partintro xml:id="partintro">
+    <title>Introduction</title>
+    <para>This is technical reference documentation for the “base”
+      set of common templates in the DocBook XSL Stylesheets.</para>
+    <para>This is not intended to be user documentation. It is
+      provided for developers writing customization layers for the
+      stylesheets.</para>
+  </partintro>
 </doc:reference>
 
 <!-- ==================================================================== -->
@@ -59,13 +47,13 @@ to be incomplete. Don't forget to read the source, too :-)</para>
 abstract affiliation anchor answer appendix area areaset areaspec
 artheader article audiodata audioobject author authorblurb authorgroup
 beginpage bibliodiv biblioentry bibliography biblioset blockquote book
-bookbiblio bookinfo callout calloutlist caption caution chapter
+bookinfo callout calloutlist caption caution chapter
 citerefentry cmdsynopsis co collab colophon colspec confgroup
 copyright dedication docinfo editor entrytbl epigraph equation
 example figure footnote footnoteref formalpara funcprototype
 funcsynopsis glossary glossdef glossdiv glossentry glosslist graphicco
 group highlights imagedata imageobject imageobjectco important index
-indexdiv indexentry indexterm informalequation informalexample
+indexdiv indexentry indexterm info informalequation informalexample
 informalfigure informaltable inlineequation inlinemediaobject
 itemizedlist itermset keycombo keywordset legalnotice listitem lot
 mediaobject mediaobjectco menuchoice msg msgentry msgexplan msginfo
@@ -80,7 +68,7 @@ sectioninfo seglistitem segmentedlist seriesinfo set setindex setinfo
 shortcut sidebar simplelist simplesect spanspec step subject
 subjectset substeps synopfragment table tbody textobject tfoot tgroup
 thead tip toc tocchap toclevel1 toclevel2 toclevel3 toclevel4
-toclevel5 tocpart varargs variablelist varlistentry videodata
+toclevel5 tocpart topic varargs variablelist varlistentry videodata
 videoobject void warning subjectset
 
 classsynopsis
@@ -95,18 +83,17 @@ oointerface
 simplemsgentry
 manvolnum
 "/>
-
 <!-- ====================================================================== -->
 
 <doc:template name="is.component" xmlns="">
 <refpurpose>Tests if a given node is a component-level element</refpurpose>
 
-<refdescription>
+<refdescription id="is.component-desc">
 <para>This template returns '1' if the specified node is a component
 (Chapter, Appendix, etc.), and '0' otherwise.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="is.component-params">
 <variablelist>
 <varlistentry><term>node</term>
 <listitem>
@@ -116,7 +103,7 @@ manvolnum
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="is.component-returns">
 <para>This template returns '1' if the specified node is a component
 (Chapter, Appendix, etc.), and '0' otherwise.</para>
 </refreturn>
@@ -141,12 +128,12 @@ manvolnum
 <doc:template name="is.section" xmlns="">
 <refpurpose>Tests if a given node is a section-level element</refpurpose>
 
-<refdescription>
+<refdescription id="is.section-desc">
 <para>This template returns '1' if the specified node is a section
 (Section, Sect1, Sect2, etc.), and '0' otherwise.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="is.section-params">
 <variablelist>
 <varlistentry><term>node</term>
 <listitem>
@@ -156,7 +143,7 @@ manvolnum
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="is.section-returns">
 <para>This template returns '1' if the specified node is a section
 (Section, Sect1, Sect2, etc.), and '0' otherwise.</para>
 </refreturn>
@@ -184,15 +171,15 @@ manvolnum
 <doc:template name="section.level" xmlns="">
 <refpurpose>Returns the hierarchical level of a section</refpurpose>
 
-<refdescription>
+<refdescription id="section.level-desc">
 <para>This template calculates the hierarchical level of a section.
-The element <sgmltag>sect1</sgmltag> is at level 1, <sgmltag>sect2</sgmltag> is
+The element <tag>sect1</tag> is at level 1, <tag>sect2</tag> is
 at level 2, etc.</para>
 
 <para>Recursive sections are calculated down to the fifth level.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="section.level-params">
 <variablelist>
 <varlistentry><term>node</term>
 <listitem>
@@ -203,7 +190,7 @@ Defaults to the context node.</para>
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="section.level-returns">
 <para>The section level, <quote>1</quote>, <quote>2</quote>, etc.
 </para>
 </refreturn>
@@ -212,12 +199,12 @@ Defaults to the context node.</para>
 <xsl:template name="section.level">
   <xsl:param name="node" select="."/>
   <xsl:choose>
-    <xsl:when test="name($node)='sect1'">1</xsl:when>
-    <xsl:when test="name($node)='sect2'">2</xsl:when>
-    <xsl:when test="name($node)='sect3'">3</xsl:when>
-    <xsl:when test="name($node)='sect4'">4</xsl:when>
-    <xsl:when test="name($node)='sect5'">5</xsl:when>
-    <xsl:when test="name($node)='section'">
+    <xsl:when test="local-name($node)='sect1'">1</xsl:when>
+    <xsl:when test="local-name($node)='sect2'">2</xsl:when>
+    <xsl:when test="local-name($node)='sect3'">3</xsl:when>
+    <xsl:when test="local-name($node)='sect4'">4</xsl:when>
+    <xsl:when test="local-name($node)='sect5'">5</xsl:when>
+    <xsl:when test="local-name($node)='section'">
       <xsl:choose>
         <xsl:when test="$node/../../../../../../section">6</xsl:when>
         <xsl:when test="$node/../../../../../section">5</xsl:when>
@@ -227,16 +214,16 @@ Defaults to the context node.</para>
         <xsl:otherwise>1</xsl:otherwise>
       </xsl:choose>
     </xsl:when>
-    <xsl:when test="name($node)='refsect1' or
-                    name($node)='refsect2' or
-                    name($node)='refsect3' or
-                    name($node)='refsection' or
-                    name($node)='refsynopsisdiv'">
+    <xsl:when test="local-name($node)='refsect1' or
+                    local-name($node)='refsect2' or
+                    local-name($node)='refsect3' or
+                    local-name($node)='refsection' or
+                    local-name($node)='refsynopsisdiv'">
       <xsl:call-template name="refentry.section.level">
         <xsl:with-param name="node" select="$node"/>
       </xsl:call-template>
     </xsl:when>
-    <xsl:when test="name($node)='simplesect'">
+    <xsl:when test="local-name($node)='simplesect'">
       <xsl:choose>
         <xsl:when test="$node/../../sect1">2</xsl:when>
         <xsl:when test="$node/../../sect2">3</xsl:when>
@@ -261,12 +248,12 @@ Defaults to the context node.</para>
 <doc:template name="qanda.section.level" xmlns="">
 <refpurpose>Returns the hierarchical level of a QandASet</refpurpose>
 
-<refdescription>
+<refdescription id="qanda.section.level-desc">
 <para>This template calculates the hierarchical level of a QandASet.
 </para>
 </refdescription>
 
-<refreturn>
+<refreturn id="qanda.section.level-returns">
 <para>The level, <quote>1</quote>, <quote>2</quote>, etc.
 </para>
 </refreturn>
@@ -310,11 +297,11 @@ Defaults to the context node.</para>
 
   <xsl:variable name="levelinRE">
     <xsl:choose>
-      <xsl:when test="name($node)='refsynopsisdiv'">1</xsl:when>
-      <xsl:when test="name($node)='refsect1'">1</xsl:when>
-      <xsl:when test="name($node)='refsect2'">2</xsl:when>
-      <xsl:when test="name($node)='refsect3'">3</xsl:when>
-      <xsl:when test="name($node)='refsection'">
+      <xsl:when test="local-name($node)='refsynopsisdiv'">1</xsl:when>
+      <xsl:when test="local-name($node)='refsect1'">1</xsl:when>
+      <xsl:when test="local-name($node)='refsect2'">2</xsl:when>
+      <xsl:when test="local-name($node)='refsect3'">3</xsl:when>
+      <xsl:when test="local-name($node)='refsection'">
         <xsl:choose>
           <xsl:when test="$node/../../../../../refsection">5</xsl:when>
           <xsl:when test="$node/../../../../refsection">4</xsl:when>
@@ -380,30 +367,30 @@ Defaults to the context node.</para>
 <!--
  (hnr      (hierarchical-number-recursive (normalize "qandadiv") node))
 
-	 (parsect  (ancestor-member node (section-element-list)))
+         (parsect  (ancestor-member node (section-element-list)))
 
-	 (defnum   (if (and %qanda-inherit-numeration% 
-			    %section-autolabel%)
-		       (if (node-list-empty? parsect)
-			   (section-autolabel-prefix node)
-			   (section-autolabel parsect))
-		       ""))
+         (defnum   (if (and %qanda-inherit-numeration% 
+                            %section-autolabel%)
+                       (if (node-list-empty? parsect)
+                           (section-autolabel-prefix node)
+                           (section-autolabel parsect))
+                       ""))
 
-	 (hnumber  (let loop ((numlist hnr) (number defnum) 
-			      (sep (if (equal? defnum "") "" ".")))
-		     (if (null? numlist)
-			 number
-			 (loop (cdr numlist) 
-			       (string-append number
-					      sep
-					      (number->string (car numlist)))
-			       "."))))
-	 (cnumber  (child-number (parent node)))
-	 (number   (string-append hnumber 
-				  (if (equal? hnumber "")
-				      ""
-				      ".")
-				  (number->string cnumber))))
+         (hnumber  (let loop ((numlist hnr) (number defnum) 
+                              (sep (if (equal? defnum "") "" ".")))
+                     (if (null? numlist)
+                         number
+                         (loop (cdr numlist) 
+                               (string-append number
+                                              sep
+                                              (number->string (car numlist)))
+                               "."))))
+         (cnumber  (child-number (parent node)))
+         (number   (string-append hnumber 
+                                  (if (equal? hnumber "")
+                                      ""
+                                      ".")
+                                  (number->string cnumber))))
 -->
 
   <xsl:choose>
@@ -475,6 +462,13 @@ Defaults to the context node.</para>
     <xsl:when test="$object/@xml:id">
       <xsl:value-of select="$object/@xml:id"/>
     </xsl:when>
+    <xsl:when test="$generate.consistent.ids != 0">
+      <!-- Make $object the current node -->
+      <xsl:for-each select="$object">
+        <xsl:text>id-</xsl:text>
+        <xsl:number level="multiple" count="*"/>
+      </xsl:for-each>
+    </xsl:when>
     <xsl:otherwise>
       <xsl:value-of select="generate-id($object)"/>
     </xsl:otherwise>
@@ -508,12 +502,19 @@ Defaults to the context node.</para>
     </xsl:when>
 
     <!-- handle corpauthor as a special case...-->
-    <xsl:when test="name($node)='corpauthor'">
+    <!-- * MikeSmith 2007-06: I'm wondering if the person.name template -->
+    <!-- * actually ever gets called to handle corpauthor.. maybe -->
+    <!-- * we don't actually need to check for corpauthor here. -->
+    <xsl:when test="local-name($node)='corpauthor'">
       <xsl:apply-templates select="$node"/>
     </xsl:when>
 
     <xsl:otherwise>
       <xsl:choose>
+        <!-- Handle case when personname contains only general markup (DocBook 5.0) -->
+        <xsl:when test="$node/self::personname and not($node/firstname or $node/honorific or $node/lineage or $node/othername or $node/surname)">
+          <xsl:apply-templates select="$node/node()"/>
+        </xsl:when>
         <xsl:when test="$style = 'family-given'">
           <xsl:call-template name="person.name.family-given">
             <xsl:with-param name="node" select="$node"/>
@@ -656,19 +657,19 @@ Defaults to the context node.</para>
      documentation for DocBook V3.0
 -->
 
-<xsl:variable name="arg.choice.opt.open.str">[</xsl:variable>
-<xsl:variable name="arg.choice.opt.close.str">]</xsl:variable>
-<xsl:variable name="arg.choice.req.open.str">{</xsl:variable>
-<xsl:variable name="arg.choice.req.close.str">}</xsl:variable>
-<xsl:variable name="arg.choice.plain.open.str"><xsl:text> </xsl:text></xsl:variable>
-<xsl:variable name="arg.choice.plain.close.str"><xsl:text> </xsl:text></xsl:variable>
-<xsl:variable name="arg.choice.def.open.str">[</xsl:variable>
-<xsl:variable name="arg.choice.def.close.str">]</xsl:variable>
-<xsl:variable name="arg.rep.repeat.str">...</xsl:variable>
-<xsl:variable name="arg.rep.norepeat.str"></xsl:variable>
-<xsl:variable name="arg.rep.def.str"></xsl:variable>
-<xsl:variable name="arg.or.sep"> | </xsl:variable>
-<xsl:variable name="cmdsynopsis.hanging.indent">4pi</xsl:variable>
+<xsl:param name="arg.choice.opt.open.str">[</xsl:param>
+<xsl:param name="arg.choice.opt.close.str">]</xsl:param>
+<xsl:param name="arg.choice.req.open.str">{</xsl:param>
+<xsl:param name="arg.choice.req.close.str">}</xsl:param>
+<xsl:param name="arg.choice.plain.open.str"><xsl:text> </xsl:text></xsl:param>
+<xsl:param name="arg.choice.plain.close.str"><xsl:text> </xsl:text></xsl:param>
+<xsl:param name="arg.choice.def.open.str">[</xsl:param>
+<xsl:param name="arg.choice.def.close.str">]</xsl:param>
+<xsl:param name="arg.rep.repeat.str">...</xsl:param>
+<xsl:param name="arg.rep.norepeat.str"></xsl:param>
+<xsl:param name="arg.rep.def.str"></xsl:param>
+<xsl:param name="arg.or.sep"> | </xsl:param>
+<xsl:param name="cmdsynopsis.hanging.indent">4pi</xsl:param>
 
 <!-- ====================================================================== -->
 
@@ -682,7 +683,7 @@ Defaults to the context node.</para>
     <xsl:when test="contains($string, $subst)">
       <xsl:value-of select="substring-before($string, $subst)"/>
       <xsl:call-template name="gentext.element.name">
-        <xsl:with-param name="element.name" select="name($target)"/>
+        <xsl:with-param name="element.name" select="local-name($target)"/>
       </xsl:call-template>
       <xsl:call-template name="xref.g.subst">
         <xsl:with-param name="string"
@@ -826,7 +827,7 @@ Defaults to the context node.</para>
 <doc:template name="select.mediaobject" xmlns="">
 <refpurpose>Selects and processes an appropriate media object from a list</refpurpose>
 
-<refdescription>
+<refdescription id="select.mediaobject-desc">
 <para>This template takes a list of media objects (usually the
 children of a mediaobject or inlinemediaobject) and processes
 the "right" object.</para>
@@ -838,7 +839,7 @@ in the list is appropriate.</para>
 <para>If no acceptable object is located, nothing happens.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="select.mediaobject-params">
 <variablelist>
 <varlistentry><term>olist</term>
 <listitem>
@@ -848,7 +849,7 @@ in the list is appropriate.</para>
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="select.mediaobject-returns">
 <para>Calls &lt;xsl:apply-templates&gt; on the selected object.</para>
 </refreturn>
 </doc:template>
@@ -875,7 +876,7 @@ in the list is appropriate.</para>
 <doc:template name="select.mediaobject.index" xmlns="">
 <refpurpose>Selects the position of the appropriate media object from a list</refpurpose>
 
-<refdescription>
+<refdescription id="select.mediaobject.index-desc">
 <para>This template takes a list of media objects (usually the
 children of a mediaobject or inlinemediaobject) and determines
 the "right" object. It returns the position of that object
@@ -895,7 +896,7 @@ of media objects is that the first acceptable graphic should be used.
 <para>If no acceptable object is located, no index is returned.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="select.mediaobject.index-params">
 <variablelist>
 <varlistentry><term>olist</term>
 <listitem>
@@ -911,7 +912,7 @@ recursive process.</para>
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="select.mediaobject.index-returns">
 <para>Returns the position in the original list of the selected object.</para>
 </refreturn>
 </doc:template>
@@ -959,6 +960,12 @@ recursive process.</para>
         </xsl:if>
       </xsl:for-each>
     </xsl:when>
+
+    <!-- If no selection by role, and there is only one object, use it -->
+    <xsl:when test="count($olist) = 1 and $count = 1">
+      <xsl:value-of select="$count"/> 
+    </xsl:when>
+
     <xsl:otherwise>
       <!-- Otherwise select first acceptable object -->
       <xsl:if test="$count &lt;= count($olist)">
@@ -966,24 +973,38 @@ recursive process.</para>
     
         <xsl:variable name="useobject">
           <xsl:choose>
+            <!-- select videoobject or audioobject before textobject -->
+            <xsl:when test="local-name($object) = 'videoobject'">
+              <xsl:text>1</xsl:text> 
+            </xsl:when>
+            <xsl:when test="local-name($object) = 'audioobject'">
+              <xsl:text>1</xsl:text> 
+            </xsl:when>
+            <!-- skip textobject if also video, audio, or image out of order -->
+            <xsl:when test="local-name($object) = 'textobject' and
+                            ../imageobject or
+                            ../audioobject or
+                            ../videoobject">
+              <xsl:text>0</xsl:text> 
+            </xsl:when>
             <!-- The phrase is used only when contains TeX Math and output is FO -->
-            <xsl:when test="name($object)='textobject' and $object/phrase
+            <xsl:when test="local-name($object)='textobject' and $object/phrase
                             and $object/@role='tex' and $stylesheet.result.type = 'fo'
                             and $tex.math.in.alt != ''">
               <xsl:text>1</xsl:text> 
             </xsl:when>
             <!-- The phrase is never used -->
-            <xsl:when test="name($object)='textobject' and $object/phrase">
+            <xsl:when test="local-name($object)='textobject' and $object/phrase">
               <xsl:text>0</xsl:text>
             </xsl:when>
-            <xsl:when test="name($object)='textobject'
+            <xsl:when test="local-name($object)='textobject'
                             and $object/ancestor::equation ">
             <!-- The first textobject is not a reasonable fallback
                  for equation image -->
               <xsl:text>0</xsl:text>
             </xsl:when>
             <!-- The first textobject is a reasonable fallback -->
-            <xsl:when test="name($object)='textobject'
+            <xsl:when test="local-name($object)='textobject'
                             and $object[not(@role) or @role!='tex']">
               <xsl:text>1</xsl:text>
             </xsl:when>
@@ -1037,12 +1058,12 @@ recursive process.</para>
 <doc:template name="is.acceptable.mediaobject" xmlns="">
 <refpurpose>Returns '1' if the specified media object is recognized</refpurpose>
 
-<refdescription>
+<refdescription id="is.acceptable.mediaobject-desc">
 <para>This template examines a media object and returns '1' if the
 object is recognized as a graphic.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="is.acceptable.mediaobject-params">
 <variablelist>
 <varlistentry><term>object</term>
 <listitem>
@@ -1052,7 +1073,7 @@ object is recognized as a graphic.</para>
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="is.acceptable.mediaobject-returns">
 <para>0 or 1</para>
 </refreturn>
 </doc:template>
@@ -1183,7 +1204,7 @@ object is recognized as a graphic.</para>
 
 <doc:template name="check.id.unique" xmlns="">
 <refpurpose>Warn users about references to non-unique IDs</refpurpose>
-<refdescription>
+<refdescription id="check.id.unique-desc">
 <para>If passed an ID in <varname>linkend</varname>,
 <function>check.id.unique</function> prints
 a warning message to the user if either the ID does not exist or
@@ -1223,7 +1244,7 @@ the ID is not unique.</para>
 
 <doc:template name="check.idref.targets" xmlns="">
 <refpurpose>Warn users about incorrectly typed references</refpurpose>
-<refdescription>
+<refdescription id="check.idref.targets-desc">
 <para>If passed an ID in <varname>linkend</varname>,
 <function>check.idref.targets</function> makes sure that the element
 pointed to by the link is one of the elements listed in
@@ -1239,12 +1260,12 @@ pointed to by the link is one of the elements listed in
     <xsl:variable name="target" select="$targets[1]"/>
 
     <xsl:if test="count($target) &gt; 0">
-      <xsl:if test="not(contains(concat(' ', $element-list, ' '), name($target)))">
+      <xsl:if test="not(contains(concat(' ', $element-list, ' '), local-name($target)))">
         <xsl:message>
           <xsl:text>Error: linkend (</xsl:text>
           <xsl:value-of select="$linkend"/>
           <xsl:text>) points to "</xsl:text>
-          <xsl:value-of select="name($target)"/>
+          <xsl:value-of select="local-name($target)"/>
           <xsl:text>" not (one of): </xsl:text>
           <xsl:value-of select="$element-list"/>
         </xsl:message>
@@ -1314,14 +1335,26 @@ pointed to by the link is one of the elements listed in
 
 <!-- ====================================================================== -->
 <!-- OrderedList Numeration -->
-
-<xsl:template name="orderedlist-starting-number">
-  <xsl:param name="list" select="."/>
+<xsl:template name="output-orderedlist-starting-number">
+  <xsl:param name="list"/>
+  <xsl:param name="pi-start"/>
   <xsl:choose>
-    <xsl:when test="not($list/@continuation = 'continues')">1</xsl:when>
+    <xsl:when test="not($list/@continuation = 'continues')">
+      <xsl:choose>
+        <xsl:when test="$list/@startingnumber">
+          <xsl:value-of select="$list/@startingnumber"/>
+        </xsl:when>
+        <xsl:when test="$pi-start != ''">
+          <xsl:value-of select="$pi-start"/>
+        </xsl:when>
+        <xsl:otherwise>1</xsl:otherwise>
+      </xsl:choose>
+    </xsl:when>
     <xsl:otherwise>
-      <xsl:variable name="prevlist"
-                    select="$list/preceding::orderedlist[1]"/>
+      <!-- match on previous list at same nesting level -->
+      <xsl:variable name="prevlist" 
+       select="$list/preceding::orderedlist
+                [count($list/ancestor::orderedlist) = count(ancestor::orderedlist)][1]"/>
       <xsl:choose>
         <xsl:when test="count($prevlist) = 0">2</xsl:when>
         <xsl:otherwise>
@@ -1341,7 +1374,6 @@ pointed to by the link is one of the elements listed in
 <xsl:template name="orderedlist-item-number">
   <!-- context node must be a listitem in an orderedlist -->
   <xsl:param name="node" select="."/>
-
   <xsl:choose>
     <xsl:when test="$node/@override">
       <xsl:value-of select="$node/@override"/>
@@ -1401,6 +1433,44 @@ pointed to by the link is one of the elements listed in
   </xsl:choose>
 </xsl:template>
 
+<xsl:template match="orderedlist/listitem" mode="item-number">
+  <xsl:variable name="numeration">
+    <xsl:call-template name="list.numeration">
+      <xsl:with-param name="node" select="parent::orderedlist"/>
+    </xsl:call-template>
+  </xsl:variable>
+
+  <xsl:variable name="type">
+    <xsl:choose>
+      <xsl:when test="$numeration='arabic'">1.</xsl:when>
+      <xsl:when test="$numeration='loweralpha'">a.</xsl:when>
+      <xsl:when test="$numeration='lowerroman'">i.</xsl:when>
+      <xsl:when test="$numeration='upperalpha'">A.</xsl:when>
+      <xsl:when test="$numeration='upperroman'">I.</xsl:when>
+      <!-- What!? This should never happen -->
+      <xsl:otherwise>
+        <xsl:message>
+          <xsl:text>Unexpected numeration: </xsl:text>
+          <xsl:value-of select="$numeration"/>
+        </xsl:message>
+        <xsl:value-of select="1."/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+
+  <xsl:variable name="item-number">
+    <xsl:call-template name="orderedlist-item-number"/>
+  </xsl:variable>
+
+  <xsl:if test="parent::orderedlist/@inheritnum='inherit'
+                and ancestor::listitem[parent::orderedlist]">
+    <xsl:apply-templates select="ancestor::listitem[parent::orderedlist][1]"
+                         mode="item-number"/>
+  </xsl:if>
+
+  <xsl:number value="$item-number" format="{$type}"/>
+</xsl:template>
+
 <!-- ====================================================================== -->
 <!-- ItemizedList "Numeration" -->
 
@@ -1448,7 +1518,7 @@ pointed to by the link is one of the elements listed in
 <doc:template name="copyright.years" xmlns="">
 <refpurpose>Print a set of years with collapsed ranges</refpurpose>
 
-<refdescription>
+<refdescription id="copyright.years-desc">
 <para>This template prints a list of year elements with consecutive
 years printed as a range. In other words:</para>
 
@@ -1470,7 +1540,7 @@ are expressed in full <quote>century+year</quote>
 (<quote>1999</quote> not <quote>99</quote>) notation.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="copyright.years-params">
 <variablelist>
 <varlistentry><term>years</term>
 <listitem>
@@ -1494,7 +1564,7 @@ year range is <quote>1991-1992</quote> but discretely it's
 </variablelist>
 </refparameter>
 
-<refreturn>
+<refreturn id="copyright.years-returns">
 <para>This template returns the formatted list of years.</para>
 </refreturn>
 </doc:template>
@@ -1523,7 +1593,7 @@ year range is <quote>1991-1992</quote> but discretely it's
     <xsl:text>)</xsl:text>
   </xsl:message>
   -->
-
+    
   <xsl:choose>
     <xsl:when test="$print.ranges = 0 and count($years) &gt; 0">
       <xsl:choose>
@@ -1549,6 +1619,10 @@ year range is <quote>1991-1992</quote> but discretely it's
         <xsl:when test="$firstyear = 0">
           <!-- there weren't any years at all -->
         </xsl:when>
+        <!-- Just output a year with range in its text -->
+        <xsl:when test="contains($firstyear, '-') or contains($firstyear, ',')">
+          <xsl:value-of select="$firstyear"/>
+        </xsl:when>
         <xsl:when test="$firstyear = $lastyear">
           <xsl:value-of select="$firstyear"/>
         </xsl:when>
@@ -1564,6 +1638,22 @@ year range is <quote>1991-1992</quote> but discretely it's
           <xsl:value-of select="$lastyear"/>
         </xsl:otherwise>
       </xsl:choose>
+    </xsl:when>
+    <xsl:when test="contains($firstyear, '-') or contains($firstyear, ',')">
+      <!-- Just output a year with range in its text -->
+      <xsl:value-of select="$firstyear"/>
+      <xsl:if test="count($years) != 0">
+        <xsl:text>, </xsl:text>
+      </xsl:if>
+      <xsl:call-template name="copyright.years">
+        <xsl:with-param name="years"
+              select="$years[position() &gt; 1]"/>
+        <xsl:with-param name="firstyear" select="$years[1]"/>
+        <xsl:with-param name="nextyear" select="$years[1] + 1"/>
+        <xsl:with-param name="print.ranges" select="$print.ranges"/>
+        <xsl:with-param name="single.year.ranges"
+                select="$single.year.ranges"/>
+      </xsl:call-template>
     </xsl:when>
     <xsl:when test="$firstyear = 0">
       <xsl:call-template name="copyright.years">
@@ -1626,7 +1716,7 @@ year range is <quote>1991-1992</quote> but discretely it's
 <doc:template name="find.path.params" xmlns="">
 <refpurpose>Search in a table for the "best" match for the node</refpurpose>
 
-<refdescription>
+<refdescription id="find.path.params-desc">
 <para>This template searches in a table for the value that most-closely
 (in the typical best-match sense of XSLT) matches the current (element)
 node location.</para>
@@ -1715,8 +1805,10 @@ node location.</para>
 <xsl:template name="xml.base.dirs">
   <xsl:param name="base.elem" select="NONODE"/>
 
-  <!-- Recursively resolve xml:base attributes -->
-  <xsl:if test="$base.elem/ancestor::*[@xml:base != '']">
+  <!-- Recursively resolve xml:base attributes, up to a 
+       full path with : in uri -->
+  <xsl:if test="$base.elem/ancestor::*[@xml:base != ''] and
+                not(contains($base.elem/@xml:base, ':'))">
     <xsl:call-template name="xml.base.dirs">
       <xsl:with-param name="base.elem" 
                       select="$base.elem/ancestor::*[@xml:base != ''][1]"/>
@@ -1774,7 +1866,7 @@ node location.</para>
 <doc:template name="string.upper" xmlns="">
 <refpurpose>Converts a string to all uppercase letters</refpurpose>
 
-<refdescription>
+<refdescription id="string.upper-desc">
 <para>Given a string, this template does a language-aware conversion
 of that string to all uppercase letters, based on the values of the
 <literal>lowercase.alpha</literal> and
@@ -1785,7 +1877,7 @@ locale. It affects only those characters found in the values of
 unchanged.</para>
 </refdescription>
 
-<refparameter>
+<refparameter id="string.upper-params">
 <variablelist>
 <varlistentry><term>string</term>
 <listitem>
@@ -1795,7 +1887,6 @@ unchanged.</para>
 </variablelist>
 </refparameter>
 </doc:template>
-
 <xsl:template name="string.upper">
   <xsl:param name="string" select="''"/>
   <xsl:variable name="lowercase.alpha">
@@ -1813,62 +1904,92 @@ unchanged.</para>
 
 <!-- ===================================== -->
 
+<doc:template name="string.lower" xmlns="">
+<refpurpose>Converts a string to all lowercase letters</refpurpose>
+
+<refdescription id="string.lower-desc">
+<para>Given a string, this template does a language-aware conversion
+of that string to all lowercase letters, based on the values of the
+<literal>uppercase.alpha</literal> and
+<literal>lowercase.alpha</literal> gentext keys for the current
+locale. It affects only those characters found in the values of
+<literal>uppercase.alpha</literal> and
+<literal>lowercase.alpha</literal>. All other characters are left
+unchanged.</para>
+</refdescription>
+
+<refparameter id="string.lower-params">
+<variablelist>
+<varlistentry><term>string</term>
+<listitem>
+<para>The string to convert to lowercase.</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</refparameter>
+</doc:template>
+<xsl:template name="string.lower">
+  <xsl:param name="string" select="''"/>
+  <xsl:variable name="uppercase.alpha">
+    <xsl:call-template name="gentext">
+      <xsl:with-param name="key" select="'uppercase.alpha'"/>
+    </xsl:call-template>
+  </xsl:variable>
+  <xsl:variable name="lowercase.alpha">
+    <xsl:call-template name="gentext">
+      <xsl:with-param name="key" select="'lowercase.alpha'"/>
+    </xsl:call-template>
+  </xsl:variable>
+  <xsl:value-of select="translate($string,$uppercase.alpha,$lowercase.alpha)"/>
+</xsl:template>
+
+<!-- ===================================== -->
+
 <doc:template name="select.choice.separator" xmlns="">
   <refpurpose>Returns localized choice separator</refpurpose>
-  <refdescription>
+  <refdescription id="select.choice.separator-desc">
     <para>This template enables auto-generation of an appropriate
     localized "choice" separator (for example, "and" or "or") before
     the final item in an inline list (though it could also be useful
     for generating choice separators for non-inline lists).</para>
-
     <para>It currently works by evaluating a processing instruction
     (PI) of the form &lt;?dbchoice&#xa0;choice="foo"?> :
-
     <itemizedlist>
       <listitem>
-	<simpara>if the value of the <sgmltag>choice</sgmltag>
-	pseudo-attribute is "and" or "or", returns a localized "and"
-	or "or"</simpara>
+        <simpara>if the value of the <tag>choice</tag>
+        pseudo-attribute is "and" or "or", returns a localized "and"
+        or "or"</simpara>
       </listitem>
       <listitem>
-	<simpara>otherwise returns the literal value of the
-	<sgmltag>choice</sgmltag> pseudo-attribute</simpara>
+        <simpara>otherwise returns the literal value of the
+        <tag>choice</tag> pseudo-attribute</simpara>
       </listitem>
     </itemizedlist>
-
     The latter is provided only as a temporary workaround because the
     locale files do not currently have translations for the word
     <wordasword>or</wordasword>. So if you want to generate a a
     logical "or" separator in French (for example), you currently need
     to do this:
-
     <literallayout>&lt;?dbchoice choice="ou"?></literallayout>
     </para>
-
     <warning>
-      <para>The <sgmltag>dbchoice</sgmltag> processing instruction is
+      <para>The <tag>dbchoice</tag> processing instruction is
       an unfortunate hack; support for it may disappear in the future
       (particularly if and when a more appropriate means for marking
       up "choice" lists becomes available in DocBook).</para>
     </warning>
   </refdescription>
 </doc:template>
-
 <xsl:template name="select.choice.separator">
-  
   <xsl:variable name="choice">
-    <xsl:call-template name="pi-attribute">
-      <xsl:with-param name="pis" select="processing-instruction('dbchoice')"/>
-      <xsl:with-param name="attribute">choice</xsl:with-param>
-    </xsl:call-template>
+    <xsl:call-template name="pi.dbchoice_choice"/>
   </xsl:variable>
-  
   <xsl:choose>
     <!-- if value of $choice is "and" or "or", translate to equivalent in -->
     <!-- current locale -->
     <xsl:when test="$choice = 'and' or $choice = 'or'">
       <xsl:call-template name="gentext">
-	<xsl:with-param name="key" select="$choice"/>
+        <xsl:with-param name="key" select="$choice"/>
       </xsl:call-template>
     </xsl:when>
     <!--  otherwise, just output value of $choice, whatever it is -->
@@ -1882,22 +2003,22 @@ unchanged.</para>
 
 <doc:template name="evaluate.info.profile" xmlns="">
   <refpurpose>Evaluates an info profile</refpurpose>
-  <refdescription>
-    <para>This function evaluates an "info profile" matching the XPath
+  <refdescription id="evaluate.info.profile-desc">
+    <para>This template evaluates an "info profile" matching the XPath
     expression given by the <parameter>profile</parameter>
     parameter. It relies on the XSLT <function>evaluate()</function>
     extension function.</para>
 
     <para>The value of the <parameter>profile</parameter> parameter
-    can include the strings <literal>$info</literal> and
-    <literal>$parentinfo</literal>. If found in the value of the
-    <parameter>profile</parameter> parameter, those strings are
-    evaluated using the <parameter>info</parameter> and
-    <parameter>parentinfo</parameter> parameters, the values of which
-    should be DocBook <replaceable>*info</replaceable> element node
-    sets.</para>
+    can include the literal string <literal>$info</literal>. If found
+    in the value of the <parameter>profile</parameter> parameter, the
+    literal string <literal>$info</literal> string is replaced with
+    the value of the <parameter>info</parameter> parameter, which
+    should be a set of <replaceable>*info</replaceable> nodes; the
+    expression is then evaluated using the XSLT
+    <function>evaluate()</function> extension function.</para>
   </refdescription>
-  <refparameter>
+  <refparameter id="evaluate.info.profile-params">
     <variablelist>
        <varlistentry>
         <term>profile</term>
@@ -1908,38 +2029,30 @@ unchanged.</para>
        <varlistentry>
         <term>info</term>
         <listitem>
-          <para>A DocBook info node</para>
-        </listitem>
-      </varlistentry>
-      <varlistentry>
-        <term>parentinfo</term>
-        <listitem>
-          <para>A DocBook info node (from a parent element)</para>
+          <para>A set of *info nodes</para>
         </listitem>
       </varlistentry>
     </variablelist>
   </refparameter>
 
-  <refreturn>
+  <refreturn id="evaluate.info.profile-returns">
     <para>Returns a node (the result of evaluating the
     <parameter>profile</parameter> parameter)</para>
   </refreturn>
 </doc:template>
-
   <xsl:template name="evaluate.info.profile">
     <xsl:param name="profile"/>
     <xsl:param name="info"/>
-    <xsl:param name="parentinfo"/>
     <xsl:choose>
-      <!-- xsltproc and Xalan both support dyn:evaluate() -->
+      <!-- * xsltproc and Xalan both support dyn:evaluate() -->
       <xsl:when test="function-available('dyn:evaluate')">
         <xsl:apply-templates
-            select="dyn:evaluate($profile)"/>
+            select="dyn:evaluate($profile)" mode="get.refentry.metadata"/>
       </xsl:when>
-      <!-- Saxon has its own evaluate() & doesn't support dyn:evaluate() -->
+      <!-- * Saxon has its own evaluate() & doesn't support dyn:evaluate() -->
       <xsl:when test="function-available('saxon:evaluate')">
         <xsl:apply-templates
-            select="saxon:evaluate($profile)"/>
+            select="saxon:evaluate($profile)" mode="get.refentry.metadata"/>
       </xsl:when>
       <xsl:otherwise>
         <xsl:message terminate="yes">
@@ -1950,5 +2063,48 @@ engine does not support it.
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
+
+
+<doc:template name="graphic.format.content-type" xmlns="">
+  <refpurpose>Returns mimetype for media format</refpurpose>
+  <refdescription id="graphic.format.content-type-desc">
+    <para>This takes as input a 'format' param and returns
+    a mimetype string.  It uses an xsl:choose after first
+    converting the input to all uppercase.</para>
+  </refdescription>
+</doc:template>
+<xsl:template name="graphic.format.content-type">
+  <xsl:param name="format"/>
+  <xsl:variable name="upperformat" select="translate($format,&lowercase;,&uppercase;)"/>
+  <xsl:choose>
+    <xsl:when test="$upperformat = ''"></xsl:when>
+    <xsl:when test="$upperformat = 'linespecific'"></xsl:when>
+    <xsl:when test="$upperformat = 'PS'">application/postscript</xsl:when>
+    <xsl:when test="$upperformat = 'PDF'">application/pdf</xsl:when>
+    <xsl:when test="$upperformat = 'PNG'">image/png</xsl:when>
+    <xsl:when test="$upperformat = 'SVG'">image/svg+xml</xsl:when>
+    <xsl:when test="$upperformat = 'JPG'">image/jpeg</xsl:when>
+    <xsl:when test="$upperformat = 'JPEG'">image/jpeg</xsl:when>
+    <xsl:when test="$upperformat = 'GIF'">image/gif</xsl:when>
+    <xsl:when test="$upperformat = 'GIF87A'">image/gif</xsl:when>
+    <xsl:when test="$upperformat = 'GIF89A'">image/gif</xsl:when>
+    <xsl:when test="$upperformat = 'ACC'">audio/acc</xsl:when>
+    <xsl:when test="$upperformat = 'MPG'">audio/mpeg</xsl:when>
+    <xsl:when test="$upperformat = 'MP1'">audio/mpeg</xsl:when>
+    <xsl:when test="$upperformat = 'MP2'">audio/mpeg</xsl:when>
+    <xsl:when test="$upperformat = 'MP3'">audio/mpeg</xsl:when>
+    <xsl:when test="$upperformat = 'M4A'">audio/mp4</xsl:when>
+    <xsl:when test="$upperformat = 'MPEG'">audio/mpeg</xsl:when>
+    <xsl:when test="$upperformat = 'WAV'">audio/wav</xsl:when>
+    <xsl:when test="$upperformat = 'MP4'">video/mp4</xsl:when>
+    <xsl:when test="$upperformat = 'M4V'">video/mp4</xsl:when>
+    <xsl:when test="$upperformat = 'OGV'">video/ogg</xsl:when>
+    <xsl:when test="$upperformat = 'OGG'">video/ogg</xsl:when>
+    <xsl:when test="$upperformat = 'WEBM'">video/webm</xsl:when>
+    <xsl:otherwise>
+        <xsl:value-of select="concat('image/', $upperformat)"/> 
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
 
 </xsl:stylesheet>

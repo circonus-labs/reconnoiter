@@ -4,12 +4,12 @@
                 version='1.0'>
 
 <!-- ********************************************************************
-     $Id: admon.xsl,v 1.11 2005/04/07 21:24:51 bobstayton Exp $
+     $Id: admon.xsl 9647 2012-10-26 17:42:03Z bobstayton $
      ********************************************************************
 
      This file is part of the XSL DocBook Stylesheet distribution.
-     See ../README or http://nwalsh.com/docbook/xsl/ for copyright
-     and other information.
+     See ../README or http://docbook.sf.net/release/xsl/current/ for
+     copyright and other information.
 
      ******************************************************************** -->
 
@@ -35,19 +35,18 @@
   <xsl:variable name="filename">
     <xsl:value-of select="$admon.graphics.path"/>
     <xsl:choose>
-      <xsl:when test="name($node)='note'">note</xsl:when>
-      <xsl:when test="name($node)='warning'">warning</xsl:when>
-      <xsl:when test="name($node)='caution'">caution</xsl:when>
-      <xsl:when test="name($node)='tip'">tip</xsl:when>
-      <xsl:when test="name($node)='important'">important</xsl:when>
+      <xsl:when test="local-name($node)='note'">note</xsl:when>
+      <xsl:when test="local-name($node)='warning'">warning</xsl:when>
+      <xsl:when test="local-name($node)='caution'">caution</xsl:when>
+      <xsl:when test="local-name($node)='tip'">tip</xsl:when>
+      <xsl:when test="local-name($node)='important'">important</xsl:when>
       <xsl:otherwise>note</xsl:otherwise>
     </xsl:choose>
     <xsl:value-of select="$admon.graphics.extension"/>
   </xsl:variable>
 
   <xsl:choose>
-    <xsl:when test="$passivetex.extensions != 0
-                    or $fop.extensions != 0
+    <xsl:when test="$fop.extensions != 0
                     or $arbortext.extensions != 0">
       <xsl:value-of select="$filename"/>
     </xsl:when>
@@ -83,9 +82,11 @@
             </fo:block>
           </fo:list-item-label>
           <fo:list-item-body start-indent="body-start()">
-            <xsl:if test="$admon.textlabel != 0 or title">
+            <xsl:if test="$admon.textlabel != 0 or title or info/title">
               <fo:block xsl:use-attribute-sets="admonition.title.properties">
-                <xsl:apply-templates select="." mode="object.title.markup"/>
+                <xsl:apply-templates select="." mode="object.title.markup">
+		  <xsl:with-param name="allow-anchors" select="1"/>
+		</xsl:apply-templates>
               </fo:block>
             </xsl:if>
             <fo:block xsl:use-attribute-sets="admonition.properties">
@@ -104,10 +105,12 @@
 
   <fo:block id="{$id}"
             xsl:use-attribute-sets="nongraphical.admonition.properties">
-    <xsl:if test="$admon.textlabel != 0 or title">
+    <xsl:if test="$admon.textlabel != 0 or title or info/title">
       <fo:block keep-with-next.within-column='always'
                 xsl:use-attribute-sets="admonition.title.properties">
-         <xsl:apply-templates select="." mode="object.title.markup"/>
+         <xsl:apply-templates select="." mode="object.title.markup">
+	   <xsl:with-param name="allow-anchors" select="1"/>
+	 </xsl:apply-templates>
       </fo:block>
     </xsl:if>
 
