@@ -99,6 +99,8 @@ lib/reconnoiter.jar:	$(R_FILE)
 	(cd src && $(JAVAC) -Xlint:unchecked -g -cp ../`echo $(R_SUPPORT) | sed -e 's/ /:..\//g;'` -d ../classes $(R_JAVA))
 	@echo "- creating $@"
 	@(cd classes && $(JAR) cf ../$@ $(R_CLASS))
+	@cmp ~/.m2/repository/reconnoiter/reconnoiter/0.1/reconnoiter-0.1.jar ../lib/reconnoiter.jar 2>/dev/null \
+		|| rm -f ~/.m2/repository/reconnoiter/reconnoiter/0.1/reconnoiter-0.1.jar
 
 lib/jezebel.jar:	$(J_FILE)
 	@echo "- $@ compiling files"
@@ -112,6 +114,7 @@ $(IEPJAR):
 	@(cd lib && ./stub-as-maven.sh)
 	@echo "- building reconnoiter-riemann"
 	@(cd reconnoiter-riemann && $(MAVEN) compile assembly:single)
+	@test -f $(IEPJAR)
 
 install-dirs:	all
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(javalibdir)
