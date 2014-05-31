@@ -138,7 +138,7 @@ typedef long long unsigned int noit_hrtime_t;
 typedef hrtime_t noit_hrtime_t;
 #endif
 
-#if defined(linux)
+#if defined(linux) || defined(__linux) || defined(__linux__)
 #include <time.h>
 static inline noit_hrtime_t noit_gethrtime() {
   struct timespec ts;
