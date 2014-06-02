@@ -60,12 +60,6 @@ typedef enum {
 
 struct bchain;
 
-#define DEFAULT_MAXWRITE 1<<14 /* 32k */
-#define DEFAULT_BCHAINSIZE ((1 << 15)-(offsetof(struct bchain, _buff)))
-/* 64k - delta */
-#define DEFAULT_BCHAINMINREAD (DEFAULT_BCHAINSIZE/4)
-#define BCHAIN_SPACE(a) ((a)->allocd - (a)->size - (a)->start)
-
 struct noit_http_connection;
 typedef struct noit_http_connection noit_http_connection;
 struct noit_http_request;
