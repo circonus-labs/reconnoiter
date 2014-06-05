@@ -1,5 +1,6 @@
 <xi:include href="modules/check_test.xml"/>
 <xi:include href="modules/collectd.xml"/>
+<xi:include href="modules/custom_config.xml"/>
 <xi:include href="modules/dns.xml"/>
 <xi:include href="modules/external.xml"/>
 <xi:include href="modules/ganglia.xml"/>

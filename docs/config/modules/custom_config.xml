@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
+  <title>custom_config</title>
+  <para>
+          Allows config options to be namespaced into "custom"
+        </para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>custom_config.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Loading the custom_config module.</title>
+      <para>This example loads the custom_config module and creates a
+             keyname=valuename config setting.
+             </para>
+      <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="custom_config" name="custom_config" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config xmlns:custom="noit://module/custom"&gt;
+            &lt;custom:keyname&gt;valuename&lt;/custom:keyname&gt;
+          &lt;/config&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+    </example>
+  </section>
+</section>
