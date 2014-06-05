@@ -68,13 +68,34 @@ static int retries = 5;
 static int span = 60;
 static int allow_async_dumps = 1;
 
-void noit_watchdog_glider(const char *path) {
+int noit_watchdog_glider(const char *path) {
   glider_path = path;
-  if(glider_path)
+  if(glider_path) {
+    int rv;
+    struct stat sb;
+    while((rv = stat(path, &sb)) == -1 && errno == EINTR);
+    if(rv == -1 || !S_ISREG(sb.st_mode) || (sb.st_mode & 0111) == 0) {
+      noitL(noit_error, "glider '%s' doesn't exist or isn't executable.\n",
+            glider_path);
+      return -1;
+    }
     noitL(noit_error, "Setting watchdog glider to '%s'\n", glider_path);
+  }
+  return 0;
 }
-void noit_watchdog_glider_trace_dir(const char *path) {
+int noit_watchdog_glider_trace_dir(const char *path) {
   trace_dir = path;
+  if(trace_dir) {
+    int rv;
+    struct stat sb;
+    while((rv = stat(path, &sb)) == -1 && errno == EINTR);
+    if(rv == -1 || !S_ISDIR(sb.st_mode) || (sb.st_mode & 0111) == 0) {
+      noitL(noit_error, "glider trace_dir '%s': no such directory.\n",
+            trace_dir);
+      return -1;
+    }
+  }
+  return 0;
 }
 void noit_watchdog_ratelimit(int retry_val, int span_val) {
     retries = retry_val;
