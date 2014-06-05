@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbookxi.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://docbook.org/xml/5.0/rng/docbook.rng" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<section xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      xmlns:xlink="http://www.w3.org/1999/xlink"
+      version="5.0">
+      <title>Developing Reconnoiter modules in C</title>
+      <para>As Reconnoiter is written in the C programming language, the native plugin development
+            is done in C.  If C is not your preferred language, please see the sections regarding
+            programming plugins in lua, Java and via external programs via the external module.</para>
+      <para></para>
+      <section>
+        <title>Starting your project</title>
+      </section>
+</section>
