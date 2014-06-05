@@ -46,6 +46,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 
+#define DEFAULT_HTTPTRAP_DELIMITER '`'
 #define MAX_DEPTH 32
 
 static noit_log_stream_t nlerr = NULL;
@@ -71,6 +72,7 @@ struct rest_json_payload {
   yajl_handle parser;
   int len;
   int complete;
+  char delimiter;
   char *error;
   int depth;
   char *keys[MAX_DEPTH];
@@ -133,7 +135,7 @@ set_array_key(struct rest_json_payload *json) {
       if(uplen + 1 + strLen > 255) return;
       json->keys[json->depth] = malloc(uplen + 1 + strLen + 1);
       memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
-      json->keys[json->depth][uplen] = '`';
+      json->keys[json->depth][uplen] = json->delimiter;
       memcpy(json->keys[json->depth] + uplen + 1, str, strLen);
       json->keys[json->depth][uplen + 1 + strLen] = '\0';
     }
@@ -339,7 +341,7 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
     if(uplen + 1 + stringLen > 255) return 0;
     json->keys[json->depth] = malloc(uplen + 1 + stringLen + 1);
     memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
-    json->keys[json->depth][uplen] = '`';
+    json->keys[json->depth][uplen] = json->delimiter;
     memcpy(json->keys[json->depth] + uplen + 1, key, stringLen);
     json->keys[json->depth][uplen + 1 + stringLen] = '\0';
   }
@@ -498,7 +500,9 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
 
   if(restc->call_closure == NULL) {
     httptrap_closure_t *ccl;
+    const char *delimiter = NULL;
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
+    rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
     check = noit_poller_lookup(check_id);
     if(!check || strcmp(check->module, "httptrap")) {
       error = "no such httptrap check";
@@ -510,6 +514,8 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
       error = "secret mismatch";
       goto error;
     }
+    (void)noit_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
+    if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
     ccl = check->closure;
     if(!ccl) {

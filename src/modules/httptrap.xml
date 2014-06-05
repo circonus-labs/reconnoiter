@@ -18,6 +18,10 @@
                required="optional"
                default=""
                allowed=".+">Specify the secret with which metrics may be submitted.</parameter>
+    <parameter name="delimiter"
+               required="optional"
+               default="`"
+               allowed="^.$">Specify the delimiter used when flattening metric nmes from the JSON hierarchy.</parameter>
   </checkconfig>
   <examples>
     <example>
