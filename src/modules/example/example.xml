@@ -1,0 +1,34 @@
+<module>
+  <name>example</name>
+  <description><para>The example module reports a random number.</para>
+  </description>
+  <loader>C</loader>
+  <image>dns.so</image>
+  <moduleconfig />
+  <checkconfig>
+    <parameter name="limit"
+               required="optional"
+               default="0"
+               allowed="\d+">A psuedorandom integer number will be generated between 0 and this specified limit.</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>Using the example module</title>
+      <para>The following exmaple generates a random number between 0 and 10.</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="example" name="exampl"/>
+        </modules>
+        <checks>
+          <check uuid="4ee71384-ecf1-11e3-82f4-7cd1c3dcddf7" target="127.0.0.1" module="example" name="shifty" period="1000" timeout="200">
+            <config>
+              <limit>10</limit>
+            </config>
+          </check>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
