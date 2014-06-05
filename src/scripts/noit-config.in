@@ -13,7 +13,7 @@ while(<DATA>) {
 
 sub help {
   print STDERR "help:\n";
-  for my $o (keys %opts) {
+  for my $o (sort keys %opts) {
     $o =~ s/_/-/g;
     print STDERR "\t--$o\n";
   }
@@ -64,8 +64,10 @@ docdir=${prefix}/@docdir@
 sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
-shld=@SHLD@
 shcflags=@SHCFLAGS@
+shld=@SHLD@
+shldflags=@SHLDFLAGS@
 moduleld=@MODULELD@
 modules_dir=@MODULES_DIR@
 moduleext=@MODULEEXT@
+xml2h=@bindir@/noit-xml2h
