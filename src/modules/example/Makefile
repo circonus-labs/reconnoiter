@@ -9,12 +9,12 @@ MODULEEXT=$(shell noit-config --moduleext)
 MODULESDIR=$(shell noit-config --modules-dir)
 XML2H=$(shell noit-config --xml2h)
 
-.xml.xmlh:
-	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
-
 MODULES=example.$(MODULEEXT)
 
 all:	$(MODULES)
+
+.xml.xmlh:
+	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
 example.lo:	example.c example.xmlh
 	$(CC) $(CPPFLAGS) $(SHCFLAGS) -o $@ -c $<

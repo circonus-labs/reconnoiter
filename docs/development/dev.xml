@@ -8,13 +8,14 @@
 <title>Development</title>
 <chapter xml:id="dev.reconnoiter">
   <title>Developer's Guide</title>
-  <xi:include href="modules_in_c.xml"/>
-  <xi:include href="modules_in_lua.xml"/>
-  <xi:include href="modules_in_java.xml"/>
+  <xi:include href="internals.xml"/>
   <section>
     <title>Hooks</title>
     <xi:include href="docs/utils_noit_hooks_h.xml"/>
     <xi:include href="docs/noit_check_tools_h.xml"/>
   </section>
+  <xi:include href="modules_in_c.xml"/>
+  <xi:include href="modules_in_lua.xml"/>
+  <xi:include href="modules_in_java.xml"/>
 </chapter>
 </part>

@@ -9,7 +9,11 @@
       <para>As Reconnoiter is written in the C programming language, the native plugin development
             is done in C.  If C is not your preferred language, please see the sections regarding
             programming plugins in lua, Java and via external programs via the external module.</para>
-      <para></para>
+      <para>In this section we will walk through a complete (yet simple) check module that reports a random number as a metric.</para>
+      <para>Generally, a real check module would be much more complex requiring extensive use of other Reconnoiter APIs.</para>
+      <caution><title>You must not block in module code</title>
+      <para>Reconnoiter uses an evented system that relies on normal code to act in a non-blocking fashion.  Performing network operations, filesystem access or invoking third-party library calls can block the Reconnoier event loop and cause the system to malfunction.  Reconnoiter provides a robust suite of APIs and services to manage non-blocking IO and run blocking operations in asynchronous thread pools.  These APIs are discussed in <xref linkend="dev.reconnoiter.internal"/>.</para>
+      </caution>
       <section>
         <title>Starting your project</title>
 				<para>It is highly recommended that you start a new module based on the
@@ -213,6 +217,73 @@ noit_module_t example = {
         </section>
         <section>
           <title>Writing a Makefile</title>
+          <para>Building an C app that is more than a toy requires a build environment.  While it is possible to set up projects in an IDE, we will tour through a minimal build system using <command>make</command>.</para>
+          <para>Our makefile has 4 goals:</para>
+          <itemizedlist>
+            <listitem><para>Convert our documentation so that it can be included in our code.</para></listitem>
+            <listitem><para>Compile our code to objects.</para></listitem>
+            <listitem><para>Link our objects together into a loadable module.</para></listitem>
+            <listitem><para>Install the results.</para></listitem>
+          </itemizedlist>
+          <para>The Makefile must start with some non-standard suffixes so that we can make general rules around building our parts.</para>
+<programlisting language="make"><![CDATA[
+.SUFFIXES: .lo .bundle .xml .xmlh .so
+]]></programlisting>
+          <para><code>.lo</code> is used, by convention, to mean object code that has been compiled in an pointer-invariant manner (e.g. using the <code>-fPIC</code> compiler option).  <code>.bundle</code> and <code>.so</code> are the expected file extensions of loadable modules on Mac OS X and all other UNIX and UNIX-like platforms, respectively.  Finally, to convert from our XML documentation to our customer XML header files, we teach <code>make</code> about the <code>.xml</code> and <code>.xmlh</code> extensions.</para>
+
+<programlisting language="make"><![CDATA[
+CC=$(shell noit-config --cc)
+CPPFLAGS=$(shell noit-config --cppflags)
+SHCFLAGS=$(shell noit-config --shcflags)
+MODULELD=$(shell noit-config --moduleld)
+SHLDFLAGS=$(shell noit-config --shldflags)
+MODULEEXT=$(shell noit-config --moduleext)
+MODULESDIR=$(shell noit-config --modules-dir)
+XML2H=$(shell noit-config --xml2h)
+]]></programlisting>
+          <para>Compiling, linking and processing XML are all quite dependent on your environment.  When the Reconnoiter product configureson your platform, it produces a helper application called <command>noit-config</command> that can regurgitate the originally determined options.  Here we save relevant commands and options into variables to use in our Makefile.</para>
+
+<programlisting language="make"><![CDATA[
+MODULES=example.$(MODULEEXT)
+
+all:  $(MODULES)
+
+]]></programlisting>
+          <para>Next we make a list of the modules we wish to build and set the first (and default) target <code>all</code> to depend on that list.  Now when you run <command>make</command> it will attempt to build the module.</para>
+
+<programlisting language="make"><![CDATA[
+.xml.xmlh:
+  @$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
+]]></programlisting>
+
+          <para>We define a rule to convert from our XML documentation to our custom <code>.xmlh</code> inline include.  The resulting file is included in our module's source code.</para>
+
+<programlisting language="make"><![CDATA[
+example.lo: example.c example.xmlh
+  $(CC) $(CPPFLAGS) $(SHCFLAGS) -o $@ -c $<
+]]></programlisting>
+
+          <para>Next we define a rule to build an object from our source code.</para>
+
+<programlisting language="make"><![CDATA[
+example.$(MODULEEXT): example.lo
+  $(MODULELD) $(SHLDFLAGS) -o $@ example.lo
+]]></programlisting>
+
+          <para>We then define a rule to build our module by linking the object(s) together.  This is the place where we would add additional library dependencies if our module leveraged 3rd-party libraried.</para>
+
+          <para>At this point, we can run make an product a module that can be loaded into our <command>noitd</command>.</para>
+
+<programlisting language="make"><![CDATA[
+install:  $(MODULES)
+  for i in $(MODULES); do \
+    cp $$i $(DESTDIR)$(MODULESDIR)/$$i; \
+    chmod 755 $(DESTDIR)$(MODULESDIR)/$$i; \
+  done
+]]></programlisting>
+
+          <para>For sake of completeness, we can proide and <code>install</code> target that installs the built module to the directory in which <command>noitd</command> was originally configured to delivery it's included modules.</para>
+
         </section>
       </section>
 </section>
