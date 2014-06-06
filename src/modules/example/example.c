@@ -8,12 +8,6 @@
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 
-struct example_check_info {
-  noit_check_t *check;
-  noit_module_t *self;
-  int limit;
-};
-
 
 static int example_onload(noit_image_t *self) {
   if(NULL == (nlerr=noit_log_stream_find("error/example"))) nlerr = noit_error;
@@ -29,19 +23,17 @@ static int example_init(noit_module_t *self) {
   return 0;
 }
 
-static void example_cleanup(noit_module_t *self, noit_check_t *check) {
-  struct example_check_info *ci = check->closure;
-  if(ci) {
-    free(ci);
-  }
-}
+struct example_check_info {
+  noit_check_t *check;
+  noit_module_t *self;
+  int limit;
+};
 
 static int example_initiate(noit_module_t *self, noit_check_t *check,
                             noit_check_t *cause) {
-  int value;
-  const char *limit = "0";
   struct example_check_info *ci = check->closure;
-  struct timeval duration;
+  const char *limit = "0";
+  struct timeval diff;
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
@@ -49,12 +41,12 @@ static int example_initiate(noit_module_t *self, noit_check_t *check,
   noit_hash_retrieve(check->config, "limit", strlen("limit"), (void **)&limit);
   ci->limit = atoi(limit);
 
+  if(check->stats.inprogress.status) free(check->stats.inprogress.status);
   noit_check_stats_clear(check, &check->stats.inprogress); 
   gettimeofday(&check->stats.inprogress.whence, NULL);
-  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &diff);
+  check->stats.inprogress.duration = diff.tv_sec * 1000 + diff.tv_usec / 1000;
   check->stats.inprogress.available = NP_AVAILABLE;
-  if(check->stats.inprogress.status) free(check->stats.inprogress.status);
   check->stats.inprogress.status = strdup("hello world");
 
   if(ci->limit) {
@@ -70,7 +62,6 @@ static int example_initiate(noit_module_t *self, noit_check_t *check,
   }
 
   noit_check_set_stats(check, &check->stats.inprogress);
-  noit_check_stats_clear(check, &check->stats.inprogress);
   check->flags &= ~NP_RUNNING;
 
   return 0;
@@ -86,6 +77,13 @@ static int example_initiate_check(noit_module_t *self, noit_check_t *check,
   ci->self = self;
   INITIATE_CHECK(example_initiate, self, check, cause);
   return 0;
+}
+
+static void example_cleanup(noit_module_t *self, noit_check_t *check) {
+  struct example_check_info *ci = check->closure;
+  if(ci) {
+    free(ci);
+  }
 }
 
 #include "example.xmlh"

@@ -5,12 +5,214 @@
       xmlns:xi="http://www.w3.org/2001/XInclude"
       xmlns:xlink="http://www.w3.org/1999/xlink"
       version="5.0">
-      <title>Developing Reconnoiter modules in C</title>
+      <title>Developing modules in C</title>
       <para>As Reconnoiter is written in the C programming language, the native plugin development
             is done in C.  If C is not your preferred language, please see the sections regarding
             programming plugins in lua, Java and via external programs via the external module.</para>
       <para></para>
       <section>
         <title>Starting your project</title>
+				<para>It is highly recommended that you start a new module based on the
+example module available at <link xmlns:xlink="http://www.w3.org/1999/xlink"
+xlink:href="https://github.com/circonus-labs/reconnoiter/tree/master/src/modules/example"><citetitle>src/modules/example</citetitle></link>.</para>
+        <para>Reconnoiter ships a confguration helper called <command>noit-config</command>.  This tool can help you determine how to build and install plugin modules.</para>
+        <para>There are three basic components of a C module: a Makefile, a source file and a documentation file. There can be multiple source iles for more complicated project, but herein we will assume a single source file for a module.</para>
+        <section>
+          <title>Module documentation</title>
+          <para>Reconnoiter module documentation is written in xml using a non-strict subset of docbook.  It describe the module, it's type, how it is loaded, the various confiruation parameters (including allowable values and default), and finally optional examples of the module in action.</para>
+          <para>As all documentation is accessible in the <link xmlns:xlink="http://www.w3.org/1999/xlink"
+xlink:href="https://github.com/circonus-labs/reconnoiter/tree/master/src/modules/"><citetitle>src/modules</citetitle></link> directory in the reconnoiter repository, it is recommended that you reference that (and docbook documentation) for examples.</para>
+          <para>While it is not recommended, producing an empty xml file as your module documentation is permitted, but may limit certain functionality.</para>
+        </section>
+        <section>
+          <title>Writing code</title>
+					<para>Reconnoiter check modules have a few basic parts including code
+                that executes as the module is loaded, for module-level configuration,
+                initialization and to initiate a check.  We will take a guided tour through the
+                example module to better undestand these parts and how they work.</para>
+
+<programlisting language="c"><![CDATA[
+/* Your copyright and license data here */
+
+#include "noit_defines.h"
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
+]]></programlisting>
+
+<para>These are the minimal includes required to author a check module.</para>
+
+<programlisting language="c"><![CDATA[
+static noit_log_stream_t nlerr = NULL;
+static noit_log_stream_t nldeb = NULL;
+
+static int example_onload(noit_image_t *self) {
+  if(NULL == (nlerr=noit_log_stream_find("error/example"))) nlerr = noit_error;
+  if(NULL == (nldeb=noit_log_stream_find("debug/example"))) nldeb = noit_debug;
+  return 0;
+}
+]]></programlisting>
+
+<para>We'd like to be able to use Reconnoiter's logging infrastructure to note errors and debugging information that can be granularly controlled.  We declare them statically within our module and initialize them in our onload function (the first thing that runs).  Here we look for a configured log destination at "error/example" to assign our to our log stream <code>nlerr</code>, but if one is not found, we'll fall back to the globally defined <code>noit_error</code> log stream.</para>
+
+<para>It is important to note that the <code>onload</code> function is called in the parent (monitor) <command>noitd</command> before privileges are dropped.  If a module requires opening a device, priviledged socket or other task requiring escalate privileges it must be performed here.  All other module callbacks happen in the main process subsquent to dropping privileges.</para>
+
+<para>This function must return 0 on success.  If a non-zero return value is provided, the module will not load.</para>
+
+<programlisting language="c"><![CDATA[
+static int example_config(noit_module_t *self, noit_hash_table *options) {
+  return 0;
+}
+]]></programlisting>
+
+<para>The <code>noit.conf</code> file allows a configuration to be passed to a module as it is loaded.  This configuration is converted into a dictionary (represented as a <code>noit_hash_table *</code>) with keys and values as C strings.  This dictionary is passed to the module instance by calling our <code>example_config</code> function.</para>
+
+<para>This function must return 0, a non-zero return value will cause the module to be unavailable.</para>
+
+<programlisting language="c"><![CDATA[
+static int example_init(noit_module_t *self) {
+  return 0;
+}
+]]></programlisting>
+
+<para>The initialization function is called after configuration.  This is the opportunity to perform boot-time configuration.</para>
+
+<para>This function must return 0, a non-zero return value will cause the module to be unavailable.</para>
+
+<programlisting language="c"><![CDATA[
+struct example_check_info {
+  noit_check_t *check;
+  noit_module_t *self;
+  int limit;
+};
+
+static int example_initiate(noit_module_t *self, noit_check_t *check,
+                            noit_check_t *cause) {
+  /* run on each check invocation */
+  ...
+  /* discussed in detail later */
+}
+
+static int example_initiate_check(noit_module_t *self, noit_check_t *check,
+                                  int once, noit_check_t *cause) {
+  struct example_check_info *ci;
+  if(!check->closure)
+    check->closure = calloc(1, sizeof(struct example_check_info));
+  ci = check->closure;
+  ci->check = check;
+  ci->self = self;
+  INITIATE_CHECK(example_initiate, self, check, cause);
+  return 0;
+}
+]]></programlisting>
+
+<para>When a check is first successfully configured and enabled in Reconnoiter, the module associated with that check is invoked once.  This can be confusing to users that would think the application would invoke the check according to the check's configured period.  In fact, it is the checks responsibility to run itself.  This might sound intimidating, but there are convenience functions and the separation provides some capabilities that more advanced modules leverage.</para>
+
+<para>Given that your module is special, it is likely that you will need to store information along the instance of the check you are enabling.  Each <code>noit_check_t</code> has a <code>closure</code> that is provided for you to use as your context.  In this example, we declare a structure that is useful to our example module.  The <code>int limit</code> is useful to the features and function of our module.  The two other structure elements are included out of best practice.  As module executiong becomes more complicated, you will find yourself with only your user context and finding the check and module will be necessary.</para>
+
+<para>In this example, <code>example_initiate_check</code> will be called when a check is first installed (not every <code>period</code> milliseconds).  In this function, we setup our user context in <code>check->closure</code>, set our other context elements and call a convenience macro called <code>INITIATE_CHECK</code>.  The <code>INITIATE_CHECK</code> macro will setup a recurrent job that will run <code>example_initiate</code> at the frequency at which the check is configured. This two-phase initiation is considered best practice.</para>
+
+<programlisting language="c"><![CDATA[
+static int example_initiate(noit_module_t *self, noit_check_t *check,
+                            noit_check_t *cause) {
+  struct example_check_info *ci = check->closure;
+  const char *limit = "0";
+  struct timeval diff;
+
+  BAIL_ON_RUNNING_CHECK(check);
+  check->flags |= NP_RUNNING;
+]]></programlisting>
+
+<para>Exploring our <code>example_initiate</code> more deeply, we collect our user context from <code>check->closure</code> and setup some local variable in our C stack we'll need later.</para>
+
+<para>The first critial step is refuse to run if the check is already running and then mark this check as running before proceeding.  The <code>BAIL_ON_RUNNING_CHECK</code> does the former, and next we set the <code>NP_RUNNING</code> bit in our check's flags.</para>
+
+<programlisting language="c"><![CDATA[
+  noit_hash_retrieve(check->config, "limit", strlen("limit"), (void **)&limit);
+  ci->limit = atoi(limit);
+]]></programlisting>
+
+<para>Our check's configuration (like out module's configuration) is a dictionary in a <code>noit_hash_table</code> where keys and values are C strings.  In this example, we look for a config setting "limit" and convert that into a number and store it in our context.</para>
+
+<para>You should evaluate the config each time your check runs as the configuration may have been changed at run-time by an operator since the last invocation.</para>
+
+<programlisting language="c"><![CDATA[
+  if(check->stats.inprogress.status) free(check->stats.inprogress.status);
+  noit_check_stats_clear(check, &check->stats.inprogress);
+  gettimeofday(&check->stats.inprogress.whence, NULL);
+  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &diff);
+  check->stats.inprogress.duration = diff.tv_sec * 1000 + diff.tv_usec / 1000;
+  check->stats.inprogress.available = NP_AVAILABLE;
+  check->stats.inprogress.status = strdup("hello world");
+]]></programlisting>
+
+<para>Each check has a set of three <code>stats_t</code> (a structure holding metadata about the execution of a check) structures: <code>previous</code>, <code>current</code> and <code>inprogress</code>.  As a module author, you should never touch the previous or current <code>stats_t</code> structures; operate only on the <code>check->stats.inprogress</code>.</para>
+
+<para>Walking through this example, we first clear our inprogress stats.  The reason we must explicitly free the status is because the last time we were invoked we allocated (via strdup) the status that's there; we own it, we allocated it, we free it.  We then calculate how long this check took to run (which should be pretty darn fast as we didn't do anything).  We proceed to set various key attributes in the inprogress structure: <code>duration</code>, <code>available</code>, and <code>status</code>.  We then set our status (allocating via strdup). This completes the metadata of the check and we proceed on setting our metric(s).</para>
+
+<programlisting language="c"><![CDATA[
+  if(ci->limit) {
+    int value = (int)(lrand48() % ci->limit);
+    noit_stats_set_metric(check, &check->stats.inprogress,
+                          "random", METRIC_INT32, &value);
+    check->stats.inprogress.state = NP_GOOD;
+  }
+  else {
+    noit_stats_set_metric(check, &check->stats.inprogress,
+                          "random", METRIC_INT32, NULL);
+    check->stats.inprogress.state = NP_BAD;
+  }
+]]></programlisting>
+
+<para>If the limit has been set (to something other than zero), we calculate a random integer and limit it to the requested range.  We take that and set a metric called "random" in our <code>inprogress</code> <code>stats_t</code> structure.  Notice we pass the addres of our integer and not the value.  This worked out well for us, so we set our state to "good."</para>
+
+<para>If the limit was zero, we still want to pass the metric back, but we'd like to note that we couldn't not calculated it (you can't modulo by zero).  In this case we set the metric just as before, but pass <code>NULL</code> in as the value.  We consider this an unsuccessful performance, so we set the state to "bad."</para>
+
+<programlisting language="c"><![CDATA[
+  noit_check_set_stats(check, &check->stats.inprogress);
+  check->flags &= ~NP_RUNNING;
+
+  return 0;
+}
+]]></programlisting>
+
+<para>We set the stats on the check via the call to <code>noit_check_set_stats</code>.  This step actually causes reconnoiter to log the data which is sent upstream.  You can think of this a "committing" the data.  Finally, we mark our check as no longer running.</para>
+
+<programlisting language="c"><![CDATA[
+static void example_cleanup(noit_module_t *self, noit_check_t *check) {
+  struct example_check_info *ci = check->closure;
+  if(ci) {
+    free(ci);
+  }
+}
+]]></programlisting>
+
+<para>You may optionally provide a function to free the context for the check in the case when a check is disabled or deleted administratively during runtime. If you allocate a context, you should most likely implement this or you will risk leaking memory.</para>
+
+<programlisting language="c"><![CDATA[
+#include "example.xmlh"
+noit_module_t example = {
+  {
+    .magic = NOIT_MODULE_MAGIC,
+    .version = NOIT_MODULE_ABI_VERSION,
+    .name = "example",
+    .description = "a module to demonstrat module development",
+    .xml_description = example_xml_description,
+    .onload = example_onload
+  },
+  example_config,
+  example_init,
+  example_initiate_check,
+  example_cleanup
+};
+]]></programlisting>
+
+<para>This last declaration ties everything together.  This is the actual declaration of your module.  The name of the <code>noit_module_t</code> variable must match the <code>name</code> field.  The <code>magic</code> and <code>version</code> ensure that this module can only be loaded into a compatible <command>noitd</command>.</para>
+
+<para>The <code>#include</code> of the <code>.xmlh</code> file might look odd, but we'll get to how that is auto-generated from your XML documetation when we discuss writing our Makefile.  This specific include file provide a define for the the XML documentation as a C string; in this example it is named <code>example_xml_description</code>.  The rest of the structure assignements connect the functions we've already written into the module definition so that <code>noitd</code> knows which functions to run.</para>
+        </section>
+        <section>
+          <title>Writing a Makefile</title>
+        </section>
       </section>
 </section>
