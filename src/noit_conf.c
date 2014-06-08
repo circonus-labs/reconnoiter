@@ -1503,7 +1503,7 @@ noit_conf_write_log() {
   if(!N_L_S_ON(config_log)) return 0;
 
   v = noit_log_stream_get_property(config_log, "notify_only");
-  if(v && (!strcmp(v, "on") || !strcmp(v, "true")) notify_only = noit_true;
+  if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = noit_true;
 
   /* We know we haven't changed */
   if(last_write_gen == __config_gen) return 0;
