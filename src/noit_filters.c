@@ -151,10 +151,12 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     int hte_cnt; \
     htentries = noit_conf_get_sections(rules[j], #rname, &hte_cnt); \
     if(hte_cnt) { \
+      int tablesize = 1; \
       int hti; \
       char *htstr; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
-      noit_hash_init_size(rule->rname##_ht, 8); /* small as we have lots */ \
+      while(tablesize < hte_cnt) tablesize <<= 1; \
+      noit_hash_init_size(rule->rname##_ht, tablesize); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!noit_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           noitL(noit_error, "Error fetching text content from filter match.\n"); \
@@ -188,10 +190,14 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
   } \
 } while(0)
 
-    RULE_COMPILE(target);
-    RULE_COMPILE(module);
-    RULE_COMPILE(name);
-    RULE_COMPILE(metric);
+    if(rule->target_ht == NULL)
+      RULE_COMPILE(target);
+    if(rule->module_ht == NULL)
+      RULE_COMPILE(module);
+    if(rule->name_ht == NULL)
+      RULE_COMPILE(name);
+    if(rule->metric_ht == NULL)
+      RULE_COMPILE(metric);
     rule->next = set->rules;
     set->rules = rule;
   }
