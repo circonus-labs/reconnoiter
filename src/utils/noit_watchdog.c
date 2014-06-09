@@ -121,10 +121,10 @@ static unsigned long last_tick_time() {
   return (unsigned long)diff.tv_sec;
 }
 static void it_ticks_crash() {
-  lifeline[1] = CRASHY_CRASH;
+  if(lifeline) lifeline[1] = CRASHY_CRASH;
 }
 static void it_ticks_crash_release() {
-  lifeline[1] = CRASHY_RESTART;
+  if(lifeline) lifeline[1] = CRASHY_RESTART;
 }
 static int it_ticks_crashed() {
   return (lifeline[1] == CRASHY_CRASH);
@@ -133,11 +133,13 @@ static int it_ticks_crash_restart() {
   return (lifeline[1] == CRASHY_RESTART);
 }
 static void it_ticks_zero() {
-  lifeline[0] = 0;
-  lifeline[1] = 0;
+  if(lifeline) {
+    lifeline[0] = 0;
+    lifeline[1] = 0;
+  }
 }
 static void it_ticks() {
-  (*lifeline)++;
+  if(lifeline) (*lifeline)++;
 }
 int noit_watchdog_child_heartbeat() {
   it_ticks();
