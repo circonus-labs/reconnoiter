@@ -11,7 +11,7 @@ declare
   rec stratcon.metric_numeric_rollup_segment%rowtype;
   r record;
   rise numeric;
-  last_row_whence timestamp;
+  last_row_whence timestamptz;
   last_value numeric;
   run numeric;
   v_sql text;
