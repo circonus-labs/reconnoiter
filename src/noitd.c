@@ -165,6 +165,9 @@ static int noitice_hup(eventer_t e, int mask, void *unused, struct timeval *now)
 static int child_main() {
   eventer_t e;
 
+  /* Send out a birth notice. */
+  noit_watchdog_child_heartbeat();
+
   /* Load our config...
    * to ensure it is current w.r.t. to this child starting */
   if(noit_conf_load(config_file) == -1) {
