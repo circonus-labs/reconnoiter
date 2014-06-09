@@ -34,6 +34,7 @@
 
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
+#include "utils/noit_watchdog.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_conf_checks.h"
@@ -234,6 +235,7 @@ noit_filters_from_conf() {
 
   sets = noit_conf_get_sections(NULL, "/noit/filtersets//filterset", &cnt);
   for(i=0; i<cnt; i++) {
+    noit_watchdog_child_heartbeat();
     noit_filter_compile_add(sets[i]);
   }
   free(sets);
