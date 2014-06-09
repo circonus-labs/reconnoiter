@@ -483,6 +483,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
     nc_printf(ncct, "%sremoved filterset '%s'\n",
               removed ? "" : "failed to ", argv[0]);
     if(removed) {
+      CONF_REMOVE(fsnode);
       xmlUnlinkNode(fsnode);
       xmlFreeNode(fsnode);
     }
@@ -522,6 +523,82 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   return rv;
 }
 
+static int
+cull_unused_filtersets() {
+  noit_hash_table active = NOIT_HASH_EMPTY;
+  char *buffer = NULL, name[128];
+  noit_conf_section_t *uses, *declares;
+  int i, n_uses = 0, n_declares = 0, removed = 0;
+  const char *use_xpath = "//*[@filterset]",
+             *declare_xpath = "//filterset[@name]";
+
+  declares = noit_conf_get_sections(NULL, declare_xpath, &n_declares);
+  if(declares) {
+    /* store all unit filtersets used */
+    for(i=0;i<n_declares;i++) {
+      if(!buffer) buffer = malloc(128);
+      if(noit_conf_get_stringbuf(declares[i], "@name", buffer, 128)) {
+        if(noit_hash_store(&active, buffer, strlen(buffer), declares[i])) {
+          buffer = NULL;
+        }
+      }
+    }
+    if(buffer) free(buffer);
+    free(declares);
+  }
+
+  uses = noit_conf_get_sections(NULL, use_xpath, &n_uses);
+  if(uses) {
+    for(i=0;i<n_uses;i++) {
+      if(noit_conf_get_stringbuf(uses[i], "@filterset", name, sizeof(name))) {
+        noit_hash_delete(&active, name, strlen(name), free, NULL);
+      }
+    }
+    free(uses);
+  }
+  if(noit_hash_size(&active) > 1) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *filter_name;
+    int filter_name_len;
+    void *vnode;
+    while(noit_hash_next(&active, &iter, &filter_name, &filter_name_len,
+                         &vnode)) {
+      if(noit_filter_remove(vnode)) {
+        CONF_REMOVE(vnode);
+        xmlUnlinkNode(vnode);
+        xmlFreeNode(vnode);
+        removed++;
+      }
+    }
+  }
+
+  noit_hash_destroy(&active, free, NULL);
+  return removed;
+}
+
+static int
+noit_console_filter_cull(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *state,
+                         void *closure) {
+  int rv = 0;
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info) {
+    nc_printf(ncct, "internal error\n");
+    return -1;
+  }
+  if(strncmp(info->path, "/filtersets/", strlen("/filtersets/")) &&
+     strcmp(info->path, "/filtersets")) {
+    nc_printf(ncct, "filterset only allows inside /filtersets (not %s)\n",
+              info->path);
+    return -1;
+  }
+  rv = cull_unused_filtersets();
+  nc_printf(ncct, "Culled %d unused filtersets\n", rv);
+  return 0;
+}
 static void
 register_console_filter_commands() {
   noit_console_state_t *tl, *filterset_state, *nostate;
@@ -554,6 +631,10 @@ register_console_filter_commands() {
   noit_console_state_add_cmd(conf_t_cmd->dstate,
     NCSCMD("filterset", noit_console_filter_configure,
            NULL, filterset_state, NULL));
+
+  noit_console_state_add_cmd(conf_t_cmd->dstate,
+    NCSCMD("cull", noit_console_filter_cull,
+           NULL, NULL, NULL));
 
   no_cmd = noit_console_state_get_cmd(conf_t_cmd->dstate, "no");
   assert(no_cmd && no_cmd->dstate);
