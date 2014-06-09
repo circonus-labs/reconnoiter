@@ -50,6 +50,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
+#include "utils/noit_watchdog.h"
 
 /* tmp hash impl, replace this with something nice */
 static noit_log_stream_t xml_debug = NULL;
@@ -626,6 +627,8 @@ noit_conf_read_into_node(xmlNodePtr node, const char *path) {
     char *sep;
     xmlNodePtr child;
     u_int64_t gen;
+
+    noit_watchdog_child_heartbeat();
 
     sep = strchr(entry->d_name, '#');
     if(!sep) continue;
