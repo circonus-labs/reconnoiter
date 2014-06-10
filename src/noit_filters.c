@@ -523,14 +523,21 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   return rv;
 }
 
+static int
+filterset_accum(noit_check_t *check, void *closure) {
+  noit_hash_table *active = closure;
+  if(noit_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
+    return 1;
+  return 0;
+}
+
 int
 noit_filtersets_cull_unused() {
   noit_hash_table active = NOIT_HASH_EMPTY;
-  char *buffer = NULL, name[128];
-  noit_conf_section_t *uses, *declares;
+  char *buffer = NULL;
+  noit_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
-  const char *use_xpath = "//*[@filterset]",
-             *declare_xpath = "//filterset[@name]";
+  const char *declare_xpath = "//filterset[@name]";
 
   declares = noit_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {
@@ -547,16 +554,9 @@ noit_filtersets_cull_unused() {
     free(declares);
   }
 
-  uses = noit_conf_get_sections(NULL, use_xpath, &n_uses);
-  if(uses) {
-    for(i=0;i<n_uses;i++) {
-      if(noit_conf_get_stringbuf(uses[i], "@filterset", name, sizeof(name))) {
-        noit_hash_delete(&active, name, strlen(name), free, NULL);
-      }
-    }
-    free(uses);
-  }
-  if(noit_hash_size(&active) > 1) {
+  n_uses = noit_poller_do(filterset_accum, &active);
+
+  if(n_uses > 0 && noit_hash_size(&active) > 1) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *filter_name;
     int filter_name_len;
