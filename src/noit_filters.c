@@ -526,6 +526,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
 static int
 filterset_accum(noit_check_t *check, void *closure) {
   noit_hash_table *active = closure;
+  if(!check->filterset) return 0;
   if(noit_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
     return 1;
   return 0;
@@ -556,7 +557,7 @@ noit_filtersets_cull_unused() {
 
   n_uses = noit_poller_do(filterset_accum, &active);
 
-  if(n_uses > 0 && noit_hash_size(&active) > 1) {
+  if(n_uses > 0 && noit_hash_size(&active) > 0) {
     noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
     const char *filter_name;
     int filter_name_len;
