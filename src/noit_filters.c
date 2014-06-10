@@ -523,8 +523,8 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   return rv;
 }
 
-static int
-cull_unused_filtersets() {
+int
+noit_filtersets_cull_unused() {
   noit_hash_table active = NOIT_HASH_EMPTY;
   char *buffer = NULL, name[128];
   noit_conf_section_t *uses, *declares;
@@ -595,7 +595,7 @@ noit_console_filter_cull(noit_console_closure_t ncct,
               info->path);
     return -1;
   }
-  rv = cull_unused_filtersets();
+  rv = noit_filtersets_cull_unused();
   nc_printf(ncct, "Culled %d unused filtersets\n", rv);
   return 0;
 }

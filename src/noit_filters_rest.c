@@ -174,6 +174,22 @@ rest_delete_filter(noit_http_rest_closure_t *restc,
 }
 
 static int
+rest_cull_filter(noit_http_rest_closure_t *restc,
+                 int npats, char **pats) {
+  int rv;
+  char cnt_str[32];
+  noit_http_session_ctx *ctx = restc->http_ctx;
+
+  rv = noit_filtersets_cull_unused();
+  if(rv > 0) noit_conf_mark_changed();
+  snprintf(cnt_str, sizeof(cnt_str), "%d", rv);
+  noit_http_response_ok(ctx, "text/html");
+  noit_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);
+  noit_http_response_end(ctx);
+  return 0;
+}
+
+static int
 rest_set_filter(noit_http_rest_closure_t *restc,
                 int npats, char **pats) {
   noit_http_session_ctx *ctx = restc->http_ctx;
@@ -249,6 +265,10 @@ noit_filters_rest_init() {
   assert(noit_http_rest_register_auth(
     "DELETE", "/filters/", "^delete(/.*)(?<=/)([^/]+)$",
     rest_delete_filter, noit_http_rest_client_cert_auth
+  ) == 0);
+  assert(noit_http_rest_register_auth(
+    "POST", "/filters/", "^cull$",
+    rest_cull_filter, noit_http_rest_client_cert_auth
   ) == 0);
 }
 
