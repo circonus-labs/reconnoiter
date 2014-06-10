@@ -279,12 +279,20 @@ lua_general_filtersets_cull(lua_State *L) {
   return 1;
 }
 
+static int
+lua_general_conf_save(lua_State *L) {
+  /* Invert the response to indicate a truthy success in lua */
+  lua_pushboolean(L, noit_conf_write_file(NULL) ? 0 : 1);
+  return 1;
+}
+
 static const luaL_Reg general_lua_funcs[] =
 {
   {"coroutine_spawn", lua_general_coroutine_spawn },
   {"reverse_start", lua_general_reverse_socket_initiate },
   {"reverse_stop", lua_general_reverse_socket_shutdown },
   {"filtersets_cull", lua_general_filtersets_cull },
+  {"conf_save", lua_general_conf_save },
   {NULL,  NULL}
 };
 
