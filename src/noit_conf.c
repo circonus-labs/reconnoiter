@@ -417,10 +417,45 @@ usec_now() {
   usec += tv.tv_usec;
   return usec;
 }
+
+static void
+remove_emancipated_child_node(xmlNodePtr oldp, xmlNodePtr node) {
+  /* node was once a child of oldp... it's still in it's children list
+   * but node's parent isn't this child.
+   */
+  assert(node->parent != oldp);
+  if(oldp->children == NULL) return;
+  if(oldp->children == node) {
+    oldp->children = node->next;
+    node->next->prev = node->prev;
+  }
+  else {
+    xmlNodePtr prev = oldp->children;
+    for(prev = oldp->children; prev->next && prev->next != node; prev = prev->next);
+    if(prev) prev->next = node->next;
+    if(node->next) node->next->prev = prev;
+  }
+}
+void
+noit_conf_include_remove(noit_conf_section_t vnode) {
+  int i;
+  xmlNodePtr node = vnode;
+  for(i=0;i<config_include_cnt;i++) {
+    if(node->parent == config_include_nodes[i].insertion_point) {
+      remove_emancipated_child_node(config_include_nodes[i].root, node);
+    }
+  }
+}
 void
 noit_conf_backingstore_remove(noit_conf_section_t vnode) {
+  int i;
   xmlNodePtr node = vnode;
   noit_xml_userdata_t *subctx = node->_private;
+  for(i=0;i<backingstore_include_cnt;i++) {
+    if(node->parent == backingstore_include_nodes[i].insertion_point) {
+      remove_emancipated_child_node(backingstore_include_nodes[i].root, node);
+    }
+  }
   if(subctx) {
     noitL(noit_debug, "marking %s for removal\n", subctx->path);
     if(!backingstore_freelist) backingstore_freelist = subctx;
@@ -439,6 +474,7 @@ noit_conf_backingstore_dirty(noit_conf_section_t vnode) {
   xmlNodePtr node = vnode;
   noit_xml_userdata_t *subctx = node->_private;
   if(subctx) {
+    noitL(noit_debug, "backingstore[%s] marked dirty\n", subctx->path);
     subctx->dirty_time = usec_now();
     return;
   }
