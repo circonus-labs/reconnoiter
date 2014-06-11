@@ -131,6 +131,7 @@ void noit_hash_init_size(noit_hash_table *h, int size) {
     srand48((long int)time(NULL));
     rand_init = 1;
   }
+  if(size < 2) size = 2;
   assert(ck_ht_init(&h->ht, CK_HT_MODE_BYTESTRING, NULL, &my_allocator,
                     size, lrand48()));
 }
