@@ -142,9 +142,8 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
 
     if(include_nodes[i].ro) {
       write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
-      return;
+      continue;
     }
-
     if(stat(include_nodes[i].path, &st) == 0) {
       mode = st.st_mode;
       uid = st.st_uid;
