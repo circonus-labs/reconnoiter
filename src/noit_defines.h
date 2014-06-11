@@ -141,11 +141,11 @@ typedef long long unsigned int noit_hrtime_t;
 typedef hrtime_t noit_hrtime_t;
 #endif
 
-#if defined(linux)
+#if defined(linux) || defined(__linux) || defined(__linux__)
 #include <time.h>
 static inline noit_hrtime_t noit_gethrtime() {
   struct timespec ts;
-  uint64_t t;
+  u_int64_t t;
   clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
   return ((ts.tv_sec * 1000000000) + ts.tv_nsec);
 }

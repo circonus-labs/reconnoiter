@@ -107,7 +107,8 @@ public class ResmonResult {
                 // characters() is happy to accept control chars that will lead to invalid XML, skip them
                 if ( d.type.equalsIgnoreCase("s") ) {
                     for (char c : valueChars) {
-                        if ( Character.isISOControl((int)c) ) {
+                        if ( c != '\n' && c != '\r' &&
+                             Character.isISOControl((int)c) ) {
                             containsControl = true;
                         }
                     }

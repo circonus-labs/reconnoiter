@@ -68,13 +68,34 @@ static int retries = 5;
 static int span = 60;
 static int allow_async_dumps = 1;
 
-void noit_watchdog_glider(const char *path) {
+int noit_watchdog_glider(const char *path) {
   glider_path = path;
-  if(glider_path)
+  if(glider_path) {
+    int rv;
+    struct stat sb;
+    while((rv = stat(path, &sb)) == -1 && errno == EINTR);
+    if(rv == -1 || !S_ISREG(sb.st_mode) || (sb.st_mode & 0111) == 0) {
+      noitL(noit_error, "glider '%s' doesn't exist or isn't executable.\n",
+            glider_path);
+      return -1;
+    }
     noitL(noit_error, "Setting watchdog glider to '%s'\n", glider_path);
+  }
+  return 0;
 }
-void noit_watchdog_glider_trace_dir(const char *path) {
+int noit_watchdog_glider_trace_dir(const char *path) {
   trace_dir = path;
+  if(trace_dir) {
+    int rv;
+    struct stat sb;
+    while((rv = stat(path, &sb)) == -1 && errno == EINTR);
+    if(rv == -1 || !S_ISDIR(sb.st_mode) || (sb.st_mode & 0111) == 0) {
+      noitL(noit_error, "glider trace_dir '%s': no such directory.\n",
+            trace_dir);
+      return -1;
+    }
+  }
+  return 0;
 }
 void noit_watchdog_ratelimit(int retry_val, int span_val) {
     retries = retry_val;
@@ -100,10 +121,10 @@ static unsigned long last_tick_time() {
   return (unsigned long)diff.tv_sec;
 }
 static void it_ticks_crash() {
-  lifeline[1] = CRASHY_CRASH;
+  if(lifeline) lifeline[1] = CRASHY_CRASH;
 }
 static void it_ticks_crash_release() {
-  lifeline[1] = CRASHY_RESTART;
+  if(lifeline) lifeline[1] = CRASHY_RESTART;
 }
 static int it_ticks_crashed() {
   return (lifeline[1] == CRASHY_CRASH);
@@ -112,11 +133,13 @@ static int it_ticks_crash_restart() {
   return (lifeline[1] == CRASHY_RESTART);
 }
 static void it_ticks_zero() {
-  lifeline[0] = 0;
-  lifeline[1] = 0;
+  if(lifeline) {
+    lifeline[0] = 0;
+    lifeline[1] = 0;
+  }
 }
 static void it_ticks() {
-  (*lifeline)++;
+  if(lifeline) (*lifeline)++;
 }
 int noit_watchdog_child_heartbeat() {
   it_ticks();

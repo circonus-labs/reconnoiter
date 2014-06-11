@@ -663,6 +663,7 @@ noit_hash_store(&mime_type_defaults, strdup(ext), strlen(ext), strdup(type))
   ADD_MIME_TYPE("png", "image/png");
   ADD_MIME_TYPE("jpg", "image/jpg");
   ADD_MIME_TYPE("jpeg", "image/jpg");
+  ADD_MIME_TYPE("svg", "image/svg+xml");
   ADD_MIME_TYPE("json", "application/javascript");
 
   noit_http_rest_load_rules();

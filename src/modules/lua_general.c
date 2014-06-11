@@ -33,6 +33,7 @@
 #include "noit_module.h"
 #include "noit_http.h"
 #include "noit_rest.h"
+#include "noit_filters.h"
 #include "noit_reverse_socket.h"
 #define LUA_COMPAT_MODULE
 #include "lua_noit.h"
@@ -269,11 +270,29 @@ lua_general_reverse_socket_shutdown(lua_State *L) {
   return 1;
 }
 
+static int
+lua_general_filtersets_cull(lua_State *L) {
+  int rv;
+  rv = noit_filtersets_cull_unused();
+  if(rv > 0) noit_conf_mark_changed();
+  lua_pushinteger(L, rv);
+  return 1;
+}
+
+static int
+lua_general_conf_save(lua_State *L) {
+  /* Invert the response to indicate a truthy success in lua */
+  lua_pushboolean(L, noit_conf_write_file(NULL) ? 0 : 1);
+  return 1;
+}
+
 static const luaL_Reg general_lua_funcs[] =
 {
   {"coroutine_spawn", lua_general_coroutine_spawn },
   {"reverse_start", lua_general_reverse_socket_initiate },
   {"reverse_stop", lua_general_reverse_socket_shutdown },
+  {"filtersets_cull", lua_general_filtersets_cull },
+  {"conf_save", lua_general_conf_save },
   {NULL,  NULL}
 };
 

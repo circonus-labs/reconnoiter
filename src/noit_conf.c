@@ -50,6 +50,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
+#include "utils/noit_watchdog.h"
 
 /* tmp hash impl, replace this with something nice */
 static noit_log_stream_t xml_debug = NULL;
@@ -141,9 +142,8 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
 
     if(include_nodes[i].ro) {
       write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
-      return;
+      continue;
     }
-
     if(stat(include_nodes[i].path, &st) == 0) {
       mode = st.st_mode;
       uid = st.st_uid;
@@ -417,10 +417,45 @@ usec_now() {
   usec += tv.tv_usec;
   return usec;
 }
+
+static void
+remove_emancipated_child_node(xmlNodePtr oldp, xmlNodePtr node) {
+  /* node was once a child of oldp... it's still in it's children list
+   * but node's parent isn't this child.
+   */
+  assert(node->parent != oldp);
+  if(oldp->children == NULL) return;
+  if(oldp->children == node) {
+    oldp->children = node->next;
+    node->next->prev = node->prev;
+  }
+  else {
+    xmlNodePtr prev = oldp->children;
+    for(prev = oldp->children; prev->next && prev->next != node; prev = prev->next);
+    if(prev) prev->next = node->next;
+    if(node->next) node->next->prev = prev;
+  }
+}
+void
+noit_conf_include_remove(noit_conf_section_t vnode) {
+  int i;
+  xmlNodePtr node = vnode;
+  for(i=0;i<config_include_cnt;i++) {
+    if(node->parent == config_include_nodes[i].insertion_point) {
+      remove_emancipated_child_node(config_include_nodes[i].root, node);
+    }
+  }
+}
 void
 noit_conf_backingstore_remove(noit_conf_section_t vnode) {
+  int i;
   xmlNodePtr node = vnode;
   noit_xml_userdata_t *subctx = node->_private;
+  for(i=0;i<backingstore_include_cnt;i++) {
+    if(node->parent == backingstore_include_nodes[i].insertion_point) {
+      remove_emancipated_child_node(backingstore_include_nodes[i].root, node);
+    }
+  }
   if(subctx) {
     noitL(noit_debug, "marking %s for removal\n", subctx->path);
     if(!backingstore_freelist) backingstore_freelist = subctx;
@@ -439,6 +474,7 @@ noit_conf_backingstore_dirty(noit_conf_section_t vnode) {
   xmlNodePtr node = vnode;
   noit_xml_userdata_t *subctx = node->_private;
   if(subctx) {
+    noitL(noit_debug, "backingstore[%s] marked dirty\n", subctx->path);
     subctx->dirty_time = usec_now();
     return;
   }
@@ -487,9 +523,19 @@ noit_conf_backingstore_write(noit_xml_userdata_t *ctx, noit_boolean skip,
       xmlDocPtr tmpdoc;
       xmlNodePtr tmpnode;
       if(subctx->dirty_time > last_config_flush) {
+        xmlNsPtr *parent_nslist, iter_ns;
+        xmlNodePtr root;
+        root = xmlDocGetRootElement(master_config);
+        parent_nslist = xmlGetNsList(master_config, root);
+
         tmpdoc = xmlNewDoc((xmlChar *)"1.0");
         tmpnode = xmlNewNode(NULL, n->name);
         xmlDocSetRootElement(tmpdoc, tmpnode);
+        if(parent_nslist) {
+          for(iter_ns = *parent_nslist; iter_ns; iter_ns = iter_ns->next)
+            xmlNewNs(tmpnode, iter_ns->href, iter_ns->prefix);
+          xmlFree(parent_nslist);
+        }
         tmpnode->properties = n->properties;
         tmpnode->children = n->children;
         failure = noit_xmlSaveToFile(tmpdoc, subctx->path);
@@ -588,7 +634,6 @@ noit_conf_read_into_node(xmlNodePtr node, const char *path) {
   char filepath[PATH_MAX];
   xmlDocPtr doc;
   xmlNodePtr root = NULL;
-  xmlAttrPtr a;
   struct stat sb;
   int size, rv;
 
@@ -599,12 +644,7 @@ noit_conf_read_into_node(xmlNodePtr node, const char *path) {
     doc = xmlReadFile(filepath, "utf8", XML_PARSE_NOENT);
     if(doc) root = xmlDocGetRootElement(doc);
     if(doc && root) {
-      node->properties = root->properties;
-      for(a = node->properties; a; a = a->next) {
-        a->parent = node;
-        a->doc = node->doc;
-      }
-      root->properties = NULL;
+      node->properties = xmlCopyPropList(node, root->properties);
       xmlFreeDoc(doc);
       doc = NULL;
     }
@@ -622,6 +662,8 @@ noit_conf_read_into_node(xmlNodePtr node, const char *path) {
     char *sep;
     xmlNodePtr child;
     u_int64_t gen;
+
+    noit_watchdog_child_heartbeat();
 
     sep = strchr(entry->d_name, '#');
     if(!sep) continue;
@@ -1496,8 +1538,10 @@ noit_conf_write_log() {
   noit_boolean notify_only = noit_false;
   const char *v;
   SETUP_LOG(config, return -1);
+  if(!N_L_S_ON(config_log)) return 0;
+
   v = noit_log_stream_get_property(config_log, "notify_only");
-  if(v && !strcmp(v, "on")) notify_only = noit_true;
+  if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = noit_true;
 
   /* We know we haven't changed */
   if(last_write_gen == __config_gen) return 0;

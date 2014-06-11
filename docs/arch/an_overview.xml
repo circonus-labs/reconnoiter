@@ -8,7 +8,7 @@
         <title>Some image properties</title>
         <mediaobject>
           <imageobject>
-            <imagedata width="50%" fileref="https://labs.omniti.com/reconnoiter/docs/assets/noit-network-arch.png" format="PNG"/>
+            <imagedata width="50%" fileref="assets/noit-network-arch.png" format="PNG"/>
           </imageobject>
           <textobject><phrase>A graphic illustrating the the various components of Reconnoiter and how they inter-operate.</phrase></textobject>
         </mediaobject>

@@ -9,8 +9,13 @@ configure
 .configure.*
 config.log
 config.status
-Makefile
+/Makefile
+docs/out
+sql/Makefile
 sql/reconnoiter_ddl_dump.sql
+src/Makefile
+src/**/Makefile
+!src/modules/example/Makefile
 src/dhparam*.txt
 src/*.dSYM
 src/lua/src/lua
@@ -54,6 +59,7 @@ src/LuaJIT/src/host/buildvm_arch.h
 src/LuaJIT/src/host/minilua
 src/noit_dtrace_probes.h
 src/stratcon_dtrace_probes.h
+test/Makefile
 test/00.pem
 test/01.pem
 test/02.pem

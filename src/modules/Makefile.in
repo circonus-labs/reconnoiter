@@ -27,7 +27,7 @@ LUADIR=LuaJIT
 top_srcdir=@top_srcdir@
 
 MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
-	dns.@MODULEEXT@ selfcheck.@MODULEEXT@ \
+	dns.@MODULEEXT@ selfcheck.@MODULEEXT@ custom_config.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	@BUILD_MODULES@
@@ -47,6 +47,8 @@ selfcheck.lo:	selfcheck.xmlh
 check_test.lo:	check_test.xmlh
 
 ip_acl.lo:	ip_acl.xmlh
+
+custom_config.lo:	custom_config.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_crypto.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
 	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp

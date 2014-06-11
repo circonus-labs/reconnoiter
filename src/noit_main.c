@@ -161,10 +161,18 @@ noit_main(const char *appname,
 
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@glider", appname);
   if(!glider) (void) noit_conf_get_string(NULL, appscratch, &glider);
-  noit_watchdog_glider(glider);
+  if(noit_watchdog_glider(glider)) {
+    noitL(noit_stderr, "Invalid glider, exiting.\n");
+    exit(-1);
+  }
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@tracedir", appname);
   (void)noit_conf_get_string(NULL, appscratch, &trace_dir);
-  if(trace_dir) noit_watchdog_glider_trace_dir(trace_dir);
+  if(trace_dir) {
+    if(noit_watchdog_glider_trace_dir(trace_dir)) {
+      noitL(noit_stderr, "Invalid glider tracedir, exiting.\n");
+      exit(-1);
+    }
+  }
 
   snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@retries", appname);
   ret = noit_conf_get_int(NULL, appscratch, &retry_val);

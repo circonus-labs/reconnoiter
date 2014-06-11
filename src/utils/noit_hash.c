@@ -229,7 +229,7 @@ void noit_hash_merge_as_dict(noit_hash_table *dst, noit_hash_table *src) {
   void *data;
   if(src == NULL || dst == NULL) return;
   while(noit_hash_next(src, &iter, &k, &klen, &data))
-    noit_hash_store(dst, strdup(k), klen, strdup((char *)data));
+    noit_hash_replace(dst, strdup(k), klen, strdup((char *)data), free, free);
 }
 
 int noit_hash_next(noit_hash_table *h, noit_hash_iter *iter,

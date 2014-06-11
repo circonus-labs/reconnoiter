@@ -34,6 +34,7 @@
 
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
+#include "utils/noit_watchdog.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_conf_checks.h"
@@ -151,10 +152,12 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     int hte_cnt; \
     htentries = noit_conf_get_sections(rules[j], #rname, &hte_cnt); \
     if(hte_cnt) { \
+      int tablesize = 1; \
       int hti; \
       char *htstr; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
-      noit_hash_init_size(rule->rname##_ht, 8); /* small as we have lots */ \
+      while(tablesize < hte_cnt) tablesize <<= 1; \
+      noit_hash_init_size(rule->rname##_ht, tablesize); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!noit_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           noitL(noit_error, "Error fetching text content from filter match.\n"); \
@@ -188,10 +191,14 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
   } \
 } while(0)
 
-    RULE_COMPILE(target);
-    RULE_COMPILE(module);
-    RULE_COMPILE(name);
-    RULE_COMPILE(metric);
+    if(rule->target_ht == NULL)
+      RULE_COMPILE(target);
+    if(rule->module_ht == NULL)
+      RULE_COMPILE(module);
+    if(rule->name_ht == NULL)
+      RULE_COMPILE(name);
+    if(rule->metric_ht == NULL)
+      RULE_COMPILE(metric);
     rule->next = set->rules;
     set->rules = rule;
   }
@@ -228,6 +235,7 @@ noit_filters_from_conf() {
 
   sets = noit_conf_get_sections(NULL, "/noit/filtersets//filterset", &cnt);
   for(i=0; i<cnt; i++) {
+    noit_watchdog_child_heartbeat();
     noit_filter_compile_add(sets[i]);
   }
   free(sets);
@@ -475,6 +483,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
     nc_printf(ncct, "%sremoved filterset '%s'\n",
               removed ? "" : "failed to ", argv[0]);
     if(removed) {
+      CONF_REMOVE(fsnode);
       xmlUnlinkNode(fsnode);
       xmlFreeNode(fsnode);
     }
@@ -514,6 +523,83 @@ noit_console_filter_configure(noit_console_closure_t ncct,
   return rv;
 }
 
+static int
+filterset_accum(noit_check_t *check, void *closure) {
+  noit_hash_table *active = closure;
+  if(!check->filterset) return 0;
+  if(noit_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
+    return 1;
+  return 0;
+}
+
+int
+noit_filtersets_cull_unused() {
+  noit_hash_table active = NOIT_HASH_EMPTY;
+  char *buffer = NULL;
+  noit_conf_section_t *declares;
+  int i, n_uses = 0, n_declares = 0, removed = 0;
+  const char *declare_xpath = "//filterset[@name]";
+
+  declares = noit_conf_get_sections(NULL, declare_xpath, &n_declares);
+  if(declares) {
+    /* store all unit filtersets used */
+    for(i=0;i<n_declares;i++) {
+      if(!buffer) buffer = malloc(128);
+      if(noit_conf_get_stringbuf(declares[i], "@name", buffer, 128)) {
+        if(noit_hash_store(&active, buffer, strlen(buffer), declares[i])) {
+          buffer = NULL;
+        }
+      }
+    }
+    if(buffer) free(buffer);
+    free(declares);
+  }
+
+  n_uses = noit_poller_do(filterset_accum, &active);
+
+  if(n_uses > 0 && noit_hash_size(&active) > 0) {
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *filter_name;
+    int filter_name_len;
+    void *vnode;
+    while(noit_hash_next(&active, &iter, &filter_name, &filter_name_len,
+                         &vnode)) {
+      if(noit_filter_remove(vnode)) {
+        CONF_REMOVE(vnode);
+        xmlUnlinkNode(vnode);
+        xmlFreeNode(vnode);
+        removed++;
+      }
+    }
+  }
+
+  noit_hash_destroy(&active, free, NULL);
+  return removed;
+}
+
+static int
+noit_console_filter_cull(noit_console_closure_t ncct,
+                         int argc, char **argv,
+                         noit_console_state_t *state,
+                         void *closure) {
+  int rv = 0;
+  noit_conf_t_userdata_t *info;
+
+  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  if(!info) {
+    nc_printf(ncct, "internal error\n");
+    return -1;
+  }
+  if(strncmp(info->path, "/filtersets/", strlen("/filtersets/")) &&
+     strcmp(info->path, "/filtersets")) {
+    nc_printf(ncct, "filterset only allows inside /filtersets (not %s)\n",
+              info->path);
+    return -1;
+  }
+  rv = noit_filtersets_cull_unused();
+  nc_printf(ncct, "Culled %d unused filtersets\n", rv);
+  return 0;
+}
 static void
 register_console_filter_commands() {
   noit_console_state_t *tl, *filterset_state, *nostate;
@@ -546,6 +632,10 @@ register_console_filter_commands() {
   noit_console_state_add_cmd(conf_t_cmd->dstate,
     NCSCMD("filterset", noit_console_filter_configure,
            NULL, filterset_state, NULL));
+
+  noit_console_state_add_cmd(conf_t_cmd->dstate,
+    NCSCMD("cull", noit_console_filter_cull,
+           NULL, NULL, NULL));
 
   no_cmd = noit_console_state_get_cmd(conf_t_cmd->dstate, "no");
   assert(no_cmd && no_cmd->dstate);

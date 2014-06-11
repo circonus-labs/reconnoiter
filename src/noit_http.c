@@ -42,6 +42,12 @@
 #include <libxml/tree.h>
 #include <pthread.h>
 
+#define DEFAULT_MAXWRITE 1<<14 /* 32k */
+#define DEFAULT_BCHAINSIZE ((1 << 15)-(offsetof(struct bchain, _buff)))
+/* 64k - delta */
+#define DEFAULT_BCHAINMINREAD (DEFAULT_BCHAINSIZE/4)
+#define BCHAIN_SPACE(a) ((a)->allocd - (a)->size - (a)->start)
+
 #define REQ_PAT "\r\n\r\n"
 #define REQ_PATSIZE 4
 #define HEADER_CONTENT_LENGTH "content-length"
@@ -1327,7 +1333,7 @@ static int memgzip2(noit_http_response *res, Bytef *dest, uLongf *destLen,
   int err, skip=0, expect = Z_OK;
   if(!res->gzip) {
     res->gzip = calloc(1, sizeof(*res->gzip));
-    err = deflateInit2(res->gzip, level, Z_DEFLATED, -15, 9,
+    err = deflateInit2(res->gzip, level, Z_DEFLATED, -15, 8,
                        Z_DEFAULT_STRATEGY);
     if (err != Z_OK) {
       noitL(noit_error, "memgzip2() -> deflateInit2: %d\n", err);
