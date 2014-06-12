@@ -31,7 +31,7 @@
 module(..., package.seeall)
 
 local HttpClient = require 'noit.HttpClient'
-local helper = {}
+local helpers = {}
 
 function onload(image)
   image.xml_description([=[
@@ -89,11 +89,13 @@ function onload(image)
 ]=]);
 
   if image.name() == "resmon" then return 0 end
+  local helper = {} 
   local status, err = pcall(function () helper = require ('noit.module.resmon.' .. image.name()) end)
   if not status and (err == nil or string.find(err, "not found") == nil) then
     noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err or "unknown error")
     return 0
   end
+  helpers[image.name()] = helper
   return 0
 end
 
@@ -205,6 +207,7 @@ end
 
 function initiate(module, check)
     local config = check.interpolate(check.config)
+    local helper = helpers[module.name()]
     if helper and helper.fix_config then config = helper.fix_config(config) end
     local url = config.url or 'http:///'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
