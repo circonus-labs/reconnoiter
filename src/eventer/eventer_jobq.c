@@ -378,6 +378,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
   while(1) {
     pthread_setspecific(jobq->activejob, NULL);
     noit_memory_end();
+    noit_memory_maintenance();
     job = eventer_jobq_dequeue(jobq);
     noit_memory_begin();
     if(!job) continue;
@@ -501,6 +502,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     eventer_wakeup(job->fd_event);
   }
   noit_memory_end();
+  noit_memory_maintenance();
   pthread_cleanup_pop(0);
   noit_atomic_dec32(&jobq->concurrency);
   pthread_exit(NULL);

@@ -218,13 +218,10 @@ static void eventer_per_thread_init(struct eventer_impl_data *t) {
   e->callback = eventer_jobq_consume_available;
   eventer_add_recurrent(e);
 
-  if(t->id == 0) {
-    /* Only one thread need do this */
-    e = eventer_alloc();
-    e->mask = EVENTER_RECURRENT;
-    e->callback = eventer_noit_memory_maintenance;
-    eventer_add_recurrent(e);
-  }
+  e = eventer_alloc();
+  e->mask = EVENTER_RECURRENT;
+  e->callback = eventer_noit_memory_maintenance;
+  eventer_add_recurrent(e);
   noit_atomic_inc32(&__loops_started);
 }
 
