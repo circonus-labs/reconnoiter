@@ -171,7 +171,6 @@ noit_livestream_thread_main(void *e_vptr) {
   noit_livestream_closure_t *jcl = ac->service_ctx;
 
   noit_memory_init_thread();
-  noit_memory_begin();
   /* Go into blocking mode */
   if(eventer_set_fd_blocking(e->fd) == -1) {
     noitL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",
@@ -184,11 +183,8 @@ noit_livestream_thread_main(void *e_vptr) {
     struct log_entry *le = NULL;
     int rv;
    
-    noit_memory_end();
-    noit_memory_maintenance();
     sem_wait(&jcl->lqueue_sem);
     pthread_mutex_lock(&jcl->lqueue_lock);
-    noit_memory_begin();
     if(jcl->lqueue) {
       /* If there are items, pop and advance the header pointer */
       le = jcl->lqueue;
@@ -217,7 +213,6 @@ noit_livestream_thread_main(void *e_vptr) {
   e->opset->close(e->fd, &mask, e);
   jcl->wants_shutdown = 1;
   acceptor_closure_free(ac);
-  noit_memory_end();
   noit_memory_maintenance();
   /* Our semaphores are counting semaphores, not locks. */
   /* coverity[missing_unlock] */

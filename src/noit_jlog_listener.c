@@ -188,16 +188,12 @@ noit_jlog_thread_main(void *e_vptr) {
   char inbuff[sizeof(jlog_id)];
 
   noit_memory_init_thread();
-  noit_memory_begin();
   eventer_set_fd_blocking(e->fd);
 
   while(1) {
     jlog_id client_chkpt;
     int sleeptime = (ac->cmd == NOIT_JLOG_DATA_TEMP_FEED) ?
                       1 : DEFAULT_SECONDS_BETWEEN_BATCHES;
-    noit_memory_end();
-    noit_memory_maintenance();
-    noit_memory_begin();
     jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
     if(jcl->count < 0) {
@@ -282,8 +278,6 @@ noit_jlog_thread_main(void *e_vptr) {
         goto alldone;
       }
     }
-    noit_memory_end();
-    noit_memory_maintenance();
     if(sleeptime) sleep(sleeptime);
   }
 
@@ -292,7 +286,6 @@ noit_jlog_thread_main(void *e_vptr) {
   noit_atomic_dec32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   acceptor_closure_free(ac);
-  noit_memory_end();
   noit_memory_maintenance();
   return NULL;
 }
