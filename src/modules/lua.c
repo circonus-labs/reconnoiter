@@ -167,7 +167,8 @@ noit_console_show_lua(noit_console_closure_t ncct,
     assert(klen == sizeof(L));
     L = *((lua_State **)key);
     ri = vri;
-    describe_lua_context(ncct, ri);
+    if(ri) describe_lua_context(ncct, ri);
+    nc_printf(ncct, "memory: %d kb\n", lua_gc(L, LUA_GCCOUNT, 0));
     nc_printf(ncct, "stack\n");
     while (lua_getstack(L, level++, &ar));
     level--;
@@ -405,8 +406,10 @@ static int
 noit_lua_module_set_xml_description(lua_State *L) {
   noit_module_t *module;
   module = lua_touserdata(L, lua_upvalueindex(1));
-  if(lua_gettop(L) == 1)
+  if(lua_gettop(L) == 1) {
+    if(module->hdr.xml_description) free(module->hdr.xml_description);
     module->hdr.xml_description = strdup(lua_tostring(L, 1));
+  }
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.xml_description);
