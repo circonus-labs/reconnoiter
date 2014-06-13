@@ -911,13 +911,14 @@ noit_lua_module_config(noit_module_t *mod,
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
   LMC_DECL(L, mod, object);
-  SETUP_CALL(L, object, "config", return 0);
 
   mc = noit_module_get_userdata(mod);
   if(options) mc->options = options;
   else options = mc->options;
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(mtlsc->configured) return mtlsc->configured;
+
+  SETUP_CALL(L, object, "config", return 0);
 
   noit_lua_setup_module(L, mod);
   noit_lua_hash_to_table(L, options);
