@@ -39,6 +39,7 @@
 #include "utils/noit_log.h"
 #include "lua_noit.h"
 
+#include <unistd.h>
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
@@ -46,6 +47,8 @@
 
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
+static noit_hash_table noit_lua_states = NOIT_HASH_EMPTY;
+static pthread_mutex_t noit_lua_states_lock = PTHREAD_MUTEX_INITIALIZER;
 static noit_hash_table noit_coros = NOIT_HASH_EMPTY;
 static pthread_mutex_t coro_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -130,7 +133,8 @@ describe_lua_context(noit_console_closure_t ncct,
     {
       char uuid_str[UUID_STR_LEN+1];
       noit_lua_resume_check_info_t *ci = ri->context_data;
-      nc_printf(ncct, "lua_check(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
+      nc_printf(ncct, "lua_check(state:%p, parent:%p)\n",
+                ri->coro_state, ri->lmc->lua_state);
       uuid_unparse_lower(ci->check->checkid, uuid_str);
       nc_printf(ncct, "\tcheck: %s\n", uuid_str);
       nc_printf(ncct, "\tname: %s\n", ci->check->name);
@@ -139,25 +143,53 @@ describe_lua_context(noit_console_closure_t ncct,
       break;
     }
     case LUA_GENERAL_INFO_MAGIC:
-      nc_printf(ncct, "lua_general(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
+      nc_printf(ncct, "lua_general(state:%p, parent:%p)\n",
+                ri->coro_state, ri->lmc->lua_state);
       break;
     case 0:
-      nc_printf(ncct, "lua_native(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
+      nc_printf(ncct, "lua_native(state:%p, parent:%p)\n",
+                ri->coro_state, ri->lmc->lua_state);
       break;
     default:
-      nc_printf(ncct, "Unknown lua context(t@%x state:%p)\n", ri->lmc->owner, ri->coro_state);
+      nc_printf(ncct, "Unknown lua context(state:%p, parent:%p)\n",
+                ri->coro_state, ri->lmc->lua_state);
   }
 }
+
+struct lua_reporter {
+  pthread_mutex_t lock;
+  noit_console_closure_t ncct;
+  noit_atomic32_t outstanding;
+};
+
 static int
-noit_console_show_lua(noit_console_closure_t ncct,
-                      int argc, char **argv,
-                      noit_console_state_t *dstate,
-                      void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
+                                 struct timeval *now) {
+  struct lua_reporter *reporter = closure;
+  noit_console_closure_t ncct = reporter->ncct;
+  noit_hash_iter zero = NOIT_HASH_ITER_ZERO, iter;
   const char *key;
   int klen;
   void *vri;
+  pthread_t me, *tgt;
+  me = pthread_self();
 
+  pthread_mutex_lock(&reporter->lock);
+  nc_printf(ncct, "== Thread %x ==\n", me);
+
+  memcpy(&iter, &zero, sizeof(zero));
+  pthread_mutex_lock(&noit_lua_states_lock);
+  while(noit_hash_next(&noit_lua_states, &iter, &key, &klen, &vri)) {
+    lua_State **Lptr = (lua_State **)key;
+    pthread_t tgt = vri;
+    if(!pthread_equal(me, tgt)) continue;
+    nc_printf(ncct, "master (state:%p)\n", *Lptr);
+    nc_printf(ncct, "\tmemory: %d kb\n", lua_gc(*Lptr, LUA_GCCOUNT, 0));
+    nc_printf(ncct, "\n");
+  }
+  pthread_mutex_unlock(&noit_lua_states_lock);
+
+  memcpy(&iter, &zero, sizeof(zero));
   pthread_mutex_lock(&coro_lock);
   while(noit_hash_next(&noit_coros, &iter, &key, &klen, &vri)) {
     noit_lua_resume_info_t *ri;
@@ -167,9 +199,9 @@ noit_console_show_lua(noit_console_closure_t ncct,
     assert(klen == sizeof(L));
     L = *((lua_State **)key);
     ri = vri;
+    if(!pthread_equal(me, ri->lmc->owner)) continue;
     if(ri) describe_lua_context(ncct, ri);
-    nc_printf(ncct, "memory: %d kb\n", lua_gc(L, LUA_GCCOUNT, 0));
-    nc_printf(ncct, "stack\n");
+    nc_printf(ncct, "\tstack:\n");
     while (lua_getstack(L, level++, &ar));
     level--;
     while (level > 0 && lua_getstack(L, --level, &ar)) {
@@ -188,17 +220,61 @@ noit_console_show_lua(noit_console_closure_t ncct,
       if(ar.name == NULL) ar.name = "???";
       if (ar.currentline > 0) {
         if(*ar.namewhat) {
-          nc_printf(ncct, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
+          nc_printf(ncct, "\t\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
         } else {
-          nc_printf(ncct, "\t%s:%d\n", cp, ar.currentline);
+          nc_printf(ncct, "\t\t%s:%d\n", cp, ar.currentline);
         }
       } else {
-        nc_printf(ncct, "\t%s:%s(%s)\n", cp, ar.namewhat, ar.name);
+        nc_printf(ncct, "\t\t%s:%s(%s)\n", cp, ar.namewhat, ar.name);
       }
     }
     nc_printf(ncct, "\n");
   }
   pthread_mutex_unlock(&coro_lock);
+  noit_atomic_dec32(&reporter->outstanding);
+  pthread_mutex_unlock(&reporter->lock);
+  return 0;
+}
+static int
+noit_console_show_lua(noit_console_closure_t ncct,
+                      int argc, char **argv,
+                      noit_console_state_t *dstate,
+                      void *closure) {
+  int i = 0;
+  pthread_t me, tgt, first;
+  struct lua_reporter crutch;
+  struct timeval old = { 1ULL, 0ULL };
+
+  crutch.outstanding = 1; /* me */
+  crutch.ncct = ncct;
+  pthread_mutex_init(&crutch.lock, NULL);
+
+  me = pthread_self();
+  first = eventer_choose_owner(i++);
+  do {
+    tgt = eventer_choose_owner(i++);
+    if(pthread_equal(me, tgt)) {
+      noit_console_lua_thread_reporter(NULL, 0, &crutch, NULL);
+    }
+    else {
+      eventer_t e;
+      e = eventer_alloc();
+      memcpy(&e->whence, &old, sizeof(old));
+      e->thr_owner = tgt;
+      e->mask = EVENTER_TIMER;
+      e->callback = noit_console_lua_thread_reporter;
+      e->closure = &crutch;
+      noit_atomic_inc32(&crutch.outstanding);
+      eventer_add(e);
+    }
+  } while(!pthread_equal(first, tgt));
+
+  /* Wait for completion */
+  while(crutch.outstanding > 0) {
+    usleep(500);
+  }
+
+  pthread_mutex_destroy(&crutch.lock);
   return 0;
 }
 
@@ -1227,7 +1303,7 @@ static void *l_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
 lua_State *
 noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   int rv;
-  lua_State *L = luaL_newstate();
+  lua_State *L = luaL_newstate(), **Lptr;
   lua_atpanic(L, &noit_lua_panic);
 
   lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
@@ -1267,6 +1343,15 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   require(noit.extras);
 
   lua_gc(L, LUA_GCRESTART, 0);
+
+  Lptr = malloc(sizeof(*Lptr));
+  *Lptr = L;
+  pthread_mutex_lock(&noit_lua_states_lock);
+  noit_hash_store(&noit_lua_states,
+                  (const char *)Lptr, sizeof(*Lptr),
+                  pthread_self());
+  pthread_mutex_unlock(&noit_lua_states_lock);
+
   return L;
 }
 static noit_module_t *
