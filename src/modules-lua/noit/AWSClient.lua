@@ -129,8 +129,17 @@ function AWSClient:perform(target, cache_table)
   local time = os.time()
   local timestamp = os.date("%Y-%m-%dT%H:%M:%S.000Z", time)
   time = time - (time % 60)
-  local start_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time-(granularity*120))
-  local end_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time+(granularity*60))
+  local start_time
+  local end_time
+  --Billing is a special case.... pull back the last 8 hours, use the most 
+  --recent value available
+  if (namespace == "AWS/Billing") then
+    start_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time-(60*60*8))
+    end_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time+300)
+  else
+    start_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time-(granularity*120))
+    end_time = os.date("%Y-%m-%dT%H:%M:%S.000Z", time+(granularity*60))
+  end
   local uri = ""
   local output = ''
   local period = granularity * 60
