@@ -13,14 +13,14 @@ function config(module, options)
 end
 
 function initiate(modules, check)
-  local type
+  local target_type
   local failed = false
   check.bad()
   check.unavailable()
   if check.target == 'fe80::7ed1:c3ff:fedc:ddf7' then
-    type = 'ipv6'
+    target_type = 'ipv6'
   elseif check.target == '192.168.19.12' then
-    type = 'ipv4'
+    target_type = 'ipv4'
   else
     check.status("target " .. check.config.target .. " unsupported")
     return
@@ -38,27 +38,40 @@ function initiate(modules, check)
     module = 'testing.%[module]',
     ccns = 'testing.%[:ccns:target]', -- used b/c ip6 has ::
     reverseip = 'testing.%[:reverseip:target]',
-    inaddrarpa = 'testing.%[:inaddrarpa:target]'
+    inaddrarpa = 'testing.%[:inaddrarpa:target]',
+    randint = '%[:random:integer]',
+    randuuid = '%[:random:uuid]',
+    randbroken = '%[:random:magic]'
   }
   local expected = {
     broken = 'testing.%[:broken:name]',
     copy = 'testing.' .. check.config.key,
     name = 'testing.' .. check.name,
     module = 'testing.' .. check.module,
-    ccns = type == 'ipv6'
+    ccns = target_type == 'ipv6'
        and 'testing.7ed1:c3ff:fedc:ddf7'
         or 'testing.192.168.19.12',
-    reverseip = type == 'ipv6'
+    reverseip = target_type == 'ipv6'
            and 'testing.7.f.d.d.c.d.e.f.f.f.3.c.1.d.e.7.0.0.0.0.0.0.0.0.0.0.0.0.0.8.e.f'
             or 'testing.12.19.168.192',
-    inaddrarpa = type == 'ipv6'
+    inaddrarpa = target_type == 'ipv6'
            and 'testing.7.f.d.d.c.d.e.f.f.f.3.c.1.d.e.7.0.0.0.0.0.0.0.0.0.0.0.0.0.8.e.f.ip6.arpa'
             or 'testing.12.19.168.192.in-addr.arpa',
+    randint = function(a) return string.find(a, "^%d+$") ~= nil end,
+    randuuid = function(a) return string.find(a, "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$") ~= nil end,
+    randbroken = 'random_what'
   }
   local output = check.interpolate(input)
   check.status("tested")
   for k, v in pairs(input) do
-    if output[k] ~= expected[k] then
+    local success = false
+    if type(expected[k]) == 'function' then
+      local f = expected[k]
+      success = f(output[k])
+    else
+      success = output[k] == expected[k]
+    end
+    if not success then
       check.status("failed")
       noit.log("error", "'%s' ~= '%s'\n", output[k], expected[k])
       check.metric_string(k, "FAILURE: " .. output[k])

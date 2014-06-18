@@ -203,9 +203,27 @@ noit_check_release_attrs(noit_hash_table *attrs) {
   noit_hash_destroy(attrs, NULL, NULL);
 }
 
+static int
+interpolate_oper_random(char *buff, int len, const char *key,
+                        const char *replacement) {
+  if(!strcmp(key, "integer")) {
+    long val = lrand48();
+    return snprintf(buff, len, "%lld", (long long int)val);
+  }
+  else if(!strcmp(key, "uuid")) {
+    uuid_t val;
+    char val_str[UUID_STR_LEN+1];
+    uuid_generate(val);
+    uuid_unparse_lower(val, val_str);
+    return snprintf(buff, len, "%s", val_str);
+  }
+  return snprintf(buff, len, "random_what");
+}
+
 void
 noit_check_tools_shared_init() {
   noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
   noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
+  noit_check_interpolate_register_oper_fn("random", interpolate_oper_random);
 }
 

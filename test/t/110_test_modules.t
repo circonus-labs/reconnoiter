@@ -32,7 +32,10 @@ sub mkcheckxml {
 }
 
 my ($c, $metrics, $expected);
-foreach(qw/broken copy name module inaddrarpa reverseip ccns/) {$expected->{$_} = 'SUCCESS'}
+foreach(qw/broken copy name module inaddrarpa reverseip ccns
+           randint randuuid randbroken/) {
+  $expected->{$_} = 'SUCCESS';
+}
 
 $c = apiclient->new('localhost', $NOIT_API_PORT, 'noit-test');
 @r = $c->post("/checks/test", mkcheckxml('192.168.19.12', 'interp', { key => "foofoo" }));
