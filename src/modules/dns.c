@@ -262,7 +262,8 @@ static void dns_check_log_results(struct dns_check_info *ci) {
   noit_check_stats_clear(ci->check, &ci->check->stats.inprogress);
 }
 
-static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *ip) {
+static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *key,
+                                       const char *ip) {
   const char *b, *e;
   char *o;
   unsigned char dn[DNS_MAXDN];
@@ -274,6 +275,7 @@ static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *ip) {
   /* This function takes a dot delimited string as input and
    * reverses the parts split on dot.
    */
+  (void)key;
   if (dns_pton(AF_INET, ip, &a.addr) > 0) {
     dns_a4todn(&a.addr, 0, dn, sizeof(dn));
     dns_dntop(dn,buff,len);
@@ -308,10 +310,12 @@ static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *ip) {
   assert((o - buff) == il);
   return o - buff;
 }
-static int dns_interpolate_reverse_ip(char *buff, int len, const char *ip) {
+static int dns_interpolate_reverse_ip(char *buff, int len, const char *key,
+                                      const char *ip) {
 #define IN4ADDRARPA_LEN 13 // strlen(".in-addr.arpa");
 #define IN6ADDRARPA_LEN 9 // strlen(".ip6.arpa");
-  dns_interpolate_inaddr_arpa(buff,len,ip);
+  dns_interpolate_inaddr_arpa(buff,len,key,ip);
+  len = strlen(buff);
   if(len > IN4ADDRARPA_LEN &&
      !strcmp(buff+len-IN4ADDRARPA_LEN, ".in-addr.arpa"))
     buff[len-IN4ADDRARPA_LEN] = '\0';

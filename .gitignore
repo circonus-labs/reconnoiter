@@ -9,6 +9,7 @@ configure
 .configure.*
 config.log
 config.status
+.DS_Store
 /Makefile
 docs/out
 sql/Makefile
