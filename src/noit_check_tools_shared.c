@@ -39,15 +39,19 @@
 static noit_hash_table interpolation_operators = NOIT_HASH_EMPTY;
 
 static int
-interpolate_oper_copy(char *buff, int len, const char *replacement) {
+interpolate_oper_copy(char *buff, int len, const char *key,
+                      const char *replacement) {
+  (void)key;
   strlcpy(buff, replacement, len);
   return strlen(buff);
 }
 static int
-interpolate_oper_ccns(char *buff, int len, const char *replacement) {
+interpolate_oper_ccns(char *buff, int len, const char *key,
+                      const char *replacement) {
   char *start;
   start = strstr(replacement, "::");
-  return interpolate_oper_copy(buff, len, start ? (start + 2) : replacement);
+  return interpolate_oper_copy(buff, len, key,
+                               start ? (start + 2) : replacement);
 }
 
 int
@@ -67,6 +71,8 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
   char *copy = NULL;
   char closer;
   const char *fmte, *key;
+  char keycopy[128];
+  int keylen;
   int replaced_something = 1;
   int iterations = 3;
 
@@ -97,8 +103,9 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
                 if(!noit_hash_retrieve(&interpolation_operators,
                                        oper, nkey - oper,
                                        &voper)) {
-                  /* else oper <- copy */
-                  oper_sprint = interpolate_oper_copy;
+                  /* this isn't an understood interpolator */
+                  *cp++ = *fmt++;
+                  continue;
                 }
                 else
                   oper_sprint = (intperpolate_oper_fn)voper;
@@ -108,11 +115,16 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
                 oper_sprint = interpolate_oper_copy;
                 nkey = key;
               }
+              /* make a C string copy to pass to the interpolation function */
+              keylen = fmte - nkey;
+              memcpy(keycopy, nkey, MIN(sizeof(keycopy)-1, keylen));
+              keycopy[MIN(sizeof(keycopy)-1,keylen)] = '\0';
+
               if(!noit_hash_retr_str((closer == '}') ?  config : attrs,
-                                     nkey, fmte - nkey, &replacement))
+                                     nkey, keylen, &replacement))
                 replacement = "";
               fmt = fmte + 1; /* Format points just after the end of the key */
-              cp += oper_sprint(cp, end-cp, replacement);
+              cp += oper_sprint(cp, end-cp, keycopy, replacement);
               *(end-1) = '\0'; /* In case the oper_sprint didn't teminate */
               replaced_something = 1;
               break;

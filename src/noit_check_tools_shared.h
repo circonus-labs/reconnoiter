@@ -39,7 +39,8 @@
 #include "noit_check.h"
 #include "utils/noit_hash.h"
 
-typedef int (*intperpolate_oper_fn)(char *, int len, const char *replacement);
+typedef int (*intperpolate_oper_fn)(char *, int len,
+                                    const char *key, const char *replacement);
 
 API_EXPORT(int)
   noit_check_interpolate_register_oper_fn(const char *name,
