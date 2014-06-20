@@ -1,4 +1,4 @@
-/* $Id: inet_XtoX.c,v 1.1 2006/12/04 01:55:39 mjt Exp $
+/* inet_XtoX.c
  * Simple implementation of the following functions:
  *  inet_ntop(), inet_ntoa(), inet_pton(), inet_aton().
  *

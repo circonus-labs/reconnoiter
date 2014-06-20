@@ -1,4 +1,4 @@
-/* $Id: udns_rr_srv.c,v 1.2 2005/09/12 12:26:22 mjt Exp $
+/* udns_rr_srv.c
    parse/query SRV IN (rfc2782) records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -87,9 +87,8 @@ dns_parse_srv(dnscc_t *qdn, dnscc_t *pkt, dnscc_t *cur, dnscc_t *end,
  * according to rfc2782 rules.
  * Return 0 or the label length.
  * Routing assumes dn holds enouth space for a single DN label. */
-static unsigned add_sname(dnsc_t *dn, const char *sn) {
-  unsigned l;
-  l = dns_ptodn(sn, 0, dn + 1, DNS_MAXLABEL-1, NULL);
+static int add_sname(dnsc_t *dn, const char *sn) {
+  int l = dns_ptodn(sn, 0, dn + 1, DNS_MAXLABEL-1, NULL);
   if (l <= 1 || l - 2 != dn[1])
     /* Should we really check if sn is exactly one label?  Do we care? */
     return 0;
@@ -98,28 +97,30 @@ static unsigned add_sname(dnsc_t *dn, const char *sn) {
   return l;
 }
 
-/* Construct a domain name for SRV query from the given name, service and
- * protocol (service may be NULL in which case protocol isn't used).
- * Return negative value on error (malformed query),
- * or addition query flag(s) to use.
+/* Construct a domain name for SRV query from the given name, service and proto.
+ * The code allows any combinations of srv and proto (both are non-NULL,
+ * both NULL, or either one is non-NULL).  Whenever it makes any sense or not
+ * is left as an exercise to programmer.
+ * Return negative value on error (malformed query) or addition query flag(s).
  */
 static int
 build_srv_dn(dnsc_t *dn, const char *name, const char *srv, const char *proto)
 {
-  unsigned p = 0, l;
-  int isabs;
+  int p = 0, l, isabs;
   if (srv) {
     l = add_sname(dn + p, srv);
     if (!l)
       return -1;
     p += l;
+  }
+  if (proto) {
     l = add_sname(dn + p, proto);
     if (!l)
       return -1;
     p += l;
   }
   l = dns_ptodn(name, 0, dn + p, DNS_MAXDN - p, &isabs);
-  if (!l)
+  if (l < 0)
     return -1;
   return isabs ? DNS_NOSRCH : 0;
 }

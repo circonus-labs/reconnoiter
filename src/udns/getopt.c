@@ -1,4 +1,4 @@
-/* $Id: getopt.c,v 1.2 2007/01/07 23:19:19 mjt Exp $
+/* getopt.c
  * Simple getopt() implementation.
  *
  * Standard interface:

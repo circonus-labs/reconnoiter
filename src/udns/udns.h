@@ -1,4 +1,4 @@
-/* $Id: udns.h,v 1.51 2007/01/15 21:19:08 mjt Exp $
+/* udns.h
    header file for the UDNS library.
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -23,7 +23,7 @@
 
 #ifndef UDNS_VERSION	/* include guard */
 
-#define UDNS_VERSION "0.0.9"
+#define UDNS_VERSION "0.4"
 
 #ifdef WINDOWS
 # ifdef UDNS_DYNAMIC_LIBRARY
@@ -130,7 +130,20 @@ enum dns_type {		/* DNS RR Types */
   DNS_T_SINK		= 40,	/* Kitchen sink (experimentatl) */
   DNS_T_OPT		= 41,	/* EDNS0 option (meta-RR) */
   DNS_T_DS		= 43,	/* DNSSEC */
+  DNS_T_SSHFP		= 44,
+  DNS_T_IPSECKEY	= 45,
+  DNS_T_RRSIG		= 46,	/* DNSSEC */
   DNS_T_NSEC		= 47,	/* DNSSEC */
+  DNS_T_DNSKEY		= 48,
+  DNS_T_DHCID		= 49,
+  DNS_T_NSEC3		= 50,
+  DNS_T_NSEC3PARAMS	= 51,
+  DNS_T_TALINK		= 58, /* draft-ietf-dnsop-trust-history */
+  DNS_T_SPF		= 99,
+  DNS_T_UINFO		= 100,
+  DNS_T_UID		= 101,
+  DNS_T_GID		= 102,
+  DNS_T_UNSPEC		= 103,
   DNS_T_TSIG		= 250,	/* Transaction signature. */
   DNS_T_IXFR		= 251,	/* Incremental zone transfer. */
   DNS_T_AXFR		= 252,	/* Transfer zone of authority. */
@@ -138,6 +151,7 @@ enum dns_type {		/* DNS RR Types */
   DNS_T_MAILA		= 254,	/* Transfer mail agent records. */
   DNS_T_ANY		= 255,	/* Wildcard match. */
   DNS_T_ZXFR		= 256,	/* BIND-specific, nonstandard. */
+  DNS_T_DLV		= 32769, /* RFC 4431, 5074, DNSSEC Lookaside Validation */
   DNS_T_MAX		= 65536
 };
 
@@ -233,24 +247,21 @@ enum dns_rcode {	/* reply codes */
   DNS_R_BADTIME		= 18
 };
 
-static inline unsigned dns_get16(dnscc_t *s) {
+static __inline unsigned dns_get16(dnscc_t *s) {
   return ((unsigned)s[0]<<8) | s[1];
 }
-static inline unsigned dns_get32(dnscc_t *s) {
+static __inline unsigned dns_get32(dnscc_t *s) {
   return ((unsigned)s[0]<<24) | ((unsigned)s[1]<<16)
         | ((unsigned)s[2]<<8) | s[3];
 }
-static inline dnsc_t *dns_put16(dnsc_t *d, unsigned n) {
+static __inline dnsc_t *dns_put16(dnsc_t *d, unsigned n) {
   *d++ = (dnsc_t)((n >> 8) & 255); *d++ = (dnsc_t)(n & 255); return d;
 }
-static inline dnsc_t *dns_put32(dnsc_t *d, unsigned n) {
+static __inline dnsc_t *dns_put32(dnsc_t *d, unsigned n) {
   *d++ = (dnsc_t)((n >> 24) & 255); *d++ = (dnsc_t)((n >> 16) & 255);
   *d++ = (dnsc_t)((n >>  8) & 255); *d++ = (dnsc_t)(n & 255);
   return d;
 }
-
-/* return pseudo-random 16bits number */
-UDNS_API unsigned dns_random16(void);
 
 /* DNS Header layout */
 enum {
@@ -275,7 +286,11 @@ enum {
   DNS_H_F2	= 3,
   DNS_HF2_RA	= 0x80,	/* recursion available */
 #define dns_ra(pkt)	((pkt)[DNS_H_F2]&DNS_HF2_RA)
-  DNS_HF2_Z	= 0x70,	/* reserved */
+  DNS_HF2_Z	= 0x40,	/* reserved */
+  DNS_HF2_AD	= 0x20, /* DNSSEC: authentic data */
+#define dns_ad(pkt)	((pkt)[DNS_H_F2]&DNS_HF2_AD)
+  DNS_HF2_CD	= 0x10, /* DNSSEC: checking disabled */
+#define dns_cd(pkt)	((pkt)[DNS_H_F2]&DNS_HF2_CD)
   DNS_HF2_RCODE	= 0x0f,	/* response code, DNS_R_XXX above */
 #define dns_rcode(pkt)	((pkt)[DNS_H_F2]&DNS_HF2_RCODE)
  /* bytes 4:5: qdcount, numqueries */
@@ -299,6 +314,8 @@ enum {
   DNS_H_ARCNT	= DNS_H_ARCNT1,
 #define dns_numar(pkt)	dns_get16((pkt)+10)
 #define dns_payload(pkt) ((pkt)+DNS_HSIZE)
+  /* EDNS0 (OPT RR) flags (Ext. Flags) */
+  DNS_EF1_DO	= 0x80, /* DNSSEC OK */
 };
 
 /* packet buffer: start at pkt, end before pkte, current pos *curp.
@@ -406,6 +423,8 @@ enum dns_flags {
   DNS_NOSRCH	= 0x00010000,	/* do not perform search */
   DNS_NORD	= 0x00020000,	/* request no recursion */
   DNS_AAONLY	= 0x00040000,	/* set AA flag in queries */
+  DNS_SET_DO	= 0x00080000,	/* set EDNS0 "DO" bit (DNSSEC OK) */
+  DNS_SET_CD	= 0x00100000,	/* set CD bit (DNSSEC: checking disabled) */
 };
 
 /* set the debug function pointer */
@@ -740,6 +759,20 @@ UDNS_API const char *dns_rcodename(enum dns_rcode rcode);
 const char *_dns_format_code(char *buf, const char *prefix, int code);
 
 UDNS_API const char *dns_strerror(int errnum);
+
+/* simple pseudo-random number generator, code by Bob Jenkins */
+
+struct udns_jranctx {	/* the context */
+  unsigned a, b, c, d;
+};
+
+/* initialize the RNG with a given seed */
+UDNS_API void
+udns_jraninit(struct udns_jranctx *x, unsigned seed);
+
+/* return next random number.  32bits on most platforms so far. */
+UDNS_API unsigned
+udns_jranval(struct udns_jranctx *x);
 
 #ifdef __cplusplus
 } /* extern "C" */

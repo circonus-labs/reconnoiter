@@ -1,4 +1,4 @@
-/* $Id: udns_rr_a.c,v 1.16 2007/01/09 04:44:51 mjt Exp $
+/* udns_rr_a.c
    parse/query A/AAAA IN records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

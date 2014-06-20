@@ -1,4 +1,4 @@
-/* $Id: udns_parse.c,v 1.14 2005/09/12 10:55:21 mjt Exp $
+/* udns_parse.c
    raw DNS packet parsing routines
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -55,7 +55,7 @@ dns_getdn(dnscc_t *pkt, dnscc_t **cur, dnscc_t *end,
       return -1;
     c = *pp++;			/* length of the label */
     if (!c) {			/* empty label: terminate */
-      if (dp >= de)		/* can't fit terminator */
+      if (dn >= de)		/* can't fit terminator */
         goto noroom;
       *dp++ = 0;
       /* return next pos: either after the first jump or current */

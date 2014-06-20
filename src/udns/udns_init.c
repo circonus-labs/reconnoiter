@@ -1,4 +1,4 @@
-/* $Id: udns_init.c,v 1.6 2007/01/08 00:41:38 mjt Exp $
+/* udns_init.c
    resolver initialisation stuff
 
    Copyright (C) 2006  Michael Tokarev <mjt@corpit.ru>
@@ -36,8 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "udns.h"
-
-extern int NE_O_CLOEXEC;
 
 #define ISSPACE(x) (x == ' ' || x == '\t' || x == '\r' || x == '\n')
 
@@ -149,7 +147,7 @@ static int dns_init_resolvconf(struct dns_ctx *ctx) {
   int has_srch = 0;
 
   /* read resolv.conf... */
-  { int fd = open("/etc/resolv.conf", O_RDONLY|NE_O_CLOEXEC);
+  { int fd = open("/etc/resolv.conf", O_RDONLY);
     if (fd >= 0) {
       int l = read(fd, buf, sizeof(buf) - 1);
       close(fd);

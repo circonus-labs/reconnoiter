@@ -2,7 +2,7 @@ UDNS_LIB_OBJS=udns/udns_dn.o udns/udns_dntosp.o udns/udns_parse.o \
         udns/udns_resolver.o udns/udns_init.o udns/udns_misc.o \
         udns/udns_XtoX.o udns/udns_rr_a.o udns/udns_rr_ptr.o udns/udns_rr_mx.o \
         udns/udns_rr_txt.o udns/udns_bl.o udns/udns_rr_srv.o \
-        udns/udns_rr_naptr.o udns/udns_codes.o
+        udns/udns_rr_naptr.o udns/udns_codes.o udns/udns_jran.o
 JSON_LIB_OBJS=json-lib/arraylist.o json-lib/debug.o json-lib/json_object.o \
         json-lib/json_tokener.o json-lib/json_util.o json-lib/linkhash.o \
         json-lib/printbuf.o

@@ -1,7 +1,6 @@
-.\" $Id: dnsget.1,v 1.3 2005/04/20 00:55:34 mjt Exp $
-.\" dnsget manpage
+.\" dnsget.1: dnsget manpage
 .\"
-.\" Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
+.\" Copyright (C) 2005-2014  Michael Tokarev <mjt+udns@tls.msk.ru>
 .\" This file is part of UDNS library, an async DNS stub resolver.
 .\"
 .\" This library is free software; you can redistribute it and/or
@@ -19,7 +18,7 @@
 .\" write to the Free Software Foundation, Inc., 59 Temple Place,
 .\" Suite 330, Boston, MA  02111-1307  USA
 
-.TH dnsget 1 "Apr 2005" "User Utilities"
+.TH dnsget 1 "Jan 2014" "User Utilities"
 
 .SH NAME
 dnsget \- DNS lookup utility
@@ -32,7 +31,7 @@ dnsget \- DNS lookup utility
 .RB [\| \-t
 .IR type \|]
 .RB [\| \-o
-.IR option : value \]
+.IR opt , opt ,...]
 .IR name \|.\|.\|.
 
 .SH DESCRIPTION
@@ -127,11 +126,12 @@ and increasing verbosity level
 (planned)
 
 .TP
-\fB\-o \fIoption\fR:\fIvalue\fR
-Set resolver option \fIoption\fR to the value \fIvalue\fR
-(may be specified several times).  The same as setting
+\fB\-o \fIopt\fR,\fIopt\fR,...
+(may be specified several times).
+Set resolver options (in a form \fIoption\fR:\fIvalue\fR) as if they
+were set in
 .RB $ RES_OPTIONS
-environment variable.  The following options are recognized:
+environment variable, or set query flags:
 .RS
 .TP
 \fBtimeout\fR:\fIsec\fR
@@ -147,6 +147,19 @@ EDNS0 (RFC 2671) extensions will be used.
 .TP
 \fBport\fR:\fInum\fR
 Use given UDP port number \fInum\fR instead of the default port 53 (domain).
+.TP
+\fBaa\fR
+set AA (auth only) query bit.
+.TP
+\fBnord\fR
+do not set RD (recursion desired) query bit (set by default).
+.TP
+\fBdnssec\fR or \fBdo\fR
+set DNSSEC OK (DO) query flag (\fBdnsget\fR does not verify DNSSEC signatures,
+only displays them; this is set in EDNS RR).
+.TP
+\fBcd\fR
+set CD (checking disabled) query bit.
 .RE
 
 .TP

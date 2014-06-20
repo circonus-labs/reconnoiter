@@ -1,4 +1,4 @@
-/* $Id: udns_resolver.c,v 1.98 2007/01/10 13:32:33 mjt Exp $
+/* udns_resolver.c
    resolver stuff (main module)
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -55,8 +55,6 @@
 #include <stddef.h>
 #include "udns.h"
 
-extern int NE_SOCK_CLOEXEC;
-
 #ifndef EAFNOSUPPORT
 # define EAFNOSUPPORT EINVAL
 #endif
@@ -64,12 +62,13 @@ extern int NE_SOCK_CLOEXEC;
 # define MSG_DONTWAIT 0
 #endif
 
-struct dns_qlink {
-  struct dns_query *next, *prev;
+struct dns_qlist {
+  struct dns_query *head, *tail;
 };
 
 struct dns_query {
-  struct dns_qlink dnsq_link;		/* list entry (should be first) */
+  struct dns_query *dnsq_next;          /* double-linked list */
+  struct dns_query *dnsq_prev;
   unsigned dnsq_origdnl0;		/* original query DN len w/o last 0 */
   unsigned dnsq_flags;			/* control flags for this query */
   unsigned dnsq_servi;			/* index of next server to try */
@@ -93,59 +92,39 @@ struct dns_query {
 
 /* working with dns_query lists */
 
-static inline void qlist_init(struct dns_qlink *list) {
-  list->next = list->prev = (struct dns_query *)list;
+static __inline void qlist_init(struct dns_qlist *list) {
+  list->head = list->tail = NULL;
 }
 
-static inline int qlist_isempty(const struct dns_qlink *list) {
-  return list->next == (const struct dns_query *)list ? 1 : 0;
+static __inline void qlist_remove(struct dns_qlist *list, struct dns_query *q) {
+   if (q->dnsq_prev) q->dnsq_prev->dnsq_next = q->dnsq_next;
+   else list->head = q->dnsq_next;
+   if (q->dnsq_next) q->dnsq_next->dnsq_prev = q->dnsq_prev;
+   else list->tail = q->dnsq_prev;
 }
 
-static inline struct dns_query *qlist_first(struct dns_qlink *list) {
-  return list->next == (struct dns_query *)list ? 0 : list->next;
+static __inline void
+qlist_add_head(struct dns_qlist *list, struct dns_query *q) {
+  q->dnsq_next = list->head;
+  if (list->head) list->head->dnsq_prev = q;
+  else list->tail = q;
+  list->head = q;
+  q->dnsq_prev = NULL;
 }
 
-static inline void qlist_remove(struct dns_query *q) {
-  q->dnsq_link.next->dnsq_link.prev = q->dnsq_link.prev;
-  q->dnsq_link.prev->dnsq_link.next = q->dnsq_link.next;
+static __inline void
+qlist_insert_after(struct dns_qlist *list,
+                   struct dns_query *q, struct dns_query *prev) {
+  if ((q->dnsq_prev = prev) != NULL) {
+    if ((q->dnsq_next = prev->dnsq_next) != NULL)
+      q->dnsq_next->dnsq_prev = q;
+    else
+      list->tail = q;
+    prev->dnsq_next = q;
+  }
+  else
+    qlist_add_head(list, q);
 }
-
-/* insert q between prev and next */
-static inline void
-qlist_insert(struct dns_query *q,
-             struct dns_query *prev, struct dns_query *next) {
-  q->dnsq_link.next = next;
-  q->dnsq_link.prev = prev;
-  prev->dnsq_link.next = next->dnsq_link.prev = q;
-}
-
-static inline void
-qlist_insert_after(struct dns_query *q, struct dns_query *prev) {
-  qlist_insert(q, prev, prev->dnsq_link.next);
-}
-
-static inline void
-qlist_insert_before(struct dns_query *q, struct dns_query *next) {
-  qlist_insert(q, next->dnsq_link.prev, next);
-}
-
-static inline void
-qlist_add_tail(struct dns_query *q, struct dns_qlink *top) {
-  qlist_insert_before(q, (struct dns_query *)top);
-}
-
-static inline void
-qlist_add_head(struct dns_query *q, struct dns_qlink *top) {
-  qlist_insert_after(q, (struct dns_query *)top);
-}
-
-#define QLIST_FIRST(list, direction) ((list)->direction)
-#define QLIST_ISLAST(list, q) ((q) == (struct dns_query*)(list))
-#define QLIST_NEXT(q, direction) ((q)->dnsq_link.direction)
-
-#define QLIST_FOR_EACH(list, q, direction) \
-  for(q = QLIST_FIRST(list, direction); \
-      !QLIST_ISLAST(list, q); q = QLIST_NEXT(q, direction))
 
 union sockaddr_ns {
   struct sockaddr sa;
@@ -184,9 +163,10 @@ struct dns_ctx {		/* resolver context */
   dns_dbgfn *dnsc_udbgfn;		/* debugging function */
 
   /* dynamic data */
-  unsigned dnsc_nextid;		/* next queue ID to use */
+  struct udns_jranctx dnsc_jran;	/* random number generator state */
+  unsigned dnsc_nextid;			/* next queue ID to use if !0 */
   int dnsc_udpsock;			/* UDP socket */
-  struct dns_qlink dnsc_qactive;	/* active list sorted by deadline */
+  struct dns_qlist dnsc_qactive;	/* active list sorted by deadline */
   int dnsc_nactive;			/* number entries in dnsc_qactive */
   dnsc_t *dnsc_pbuf;			/* packet buffer (udpbuf size) */
   int dnsc_qstatus;			/* last query status value */
@@ -230,10 +210,12 @@ struct dns_ctx dns_defctx;
 static void dns_assert_ctx(const struct dns_ctx *ctx) {
   int nactive = 0;
   const struct dns_query *q;
-  QLIST_FOR_EACH(&ctx->dnsc_qactive, q, next) {
+  for(q = ctx->dnsc_qactive.head; q; q = q->dnsq_next) {
     assert(q->dnsq_ctx == ctx);
-    assert(q->dnsq_link.next->dnsq_link.prev == q);
-    assert(q->dnsq_link.prev->dnsq_link.next == q);
+    assert(q == (q->dnsq_next ?
+                 q->dnsq_next->dnsq_prev : ctx->dnsc_qactive.tail));
+    assert(q == (q->dnsq_prev ?
+                 q->dnsq_prev->dnsq_next : ctx->dnsc_qactive.head));
     ++nactive;
   }
   assert(nactive == ctx->dnsc_nactive);
@@ -289,18 +271,20 @@ int dns_add_serv_s(struct dns_ctx *ctx, const struct sockaddr *sa) {
 
 int dns_set_opts(struct dns_ctx *ctx, const char *opts) {
   unsigned i, v;
+  int err = 0;
   SETCTXINACTIVE(ctx);
   for(;;) {
     while(ISSPACE(*opts)) ++opts;
     if (!*opts) break;
-    for(i = 0; i < sizeof(dns_opts)/sizeof(dns_opts[0]); ++i) {
+    for(i = 0; ; ++i) {
+      if (i >= sizeof(dns_opts)/sizeof(dns_opts[0])) { ++err; break; }
       v = strlen(dns_opts[i].name);
       if (strncmp(dns_opts[i].name, opts, v) != 0 ||
           (opts[v] != ':' && opts[v] != '='))
         continue;
       opts += v + 1;
       v = 0;
-      if (*opts < '0' || *opts > '9') break;
+      if (*opts < '0' || *opts > '9') { ++err; break; }
       do v = v * 10 + (*opts++ - '0');
       while (*opts >= '0' && *opts <= '9');
       if (v < dns_opts[i].min) v = dns_opts[i].min;
@@ -310,7 +294,7 @@ int dns_set_opts(struct dns_ctx *ctx, const char *opts) {
     }
     while(*opts && !ISSPACE(*opts)) ++opts;
   }
-  return 0;
+  return err;
 }
 
 int dns_set_opt(struct dns_ctx *ctx, enum dns_opt opt, int val) {
@@ -373,7 +357,7 @@ _dns_request_utm(struct dns_ctx *ctx, time_t now) {
   struct dns_query *q;
   time_t deadline;
   int timeout;
-  q = qlist_first(&ctx->dnsc_qactive);
+  q = ctx->dnsc_qactive.head;
   if (!q)
     deadline = -1, timeout = -1;
   else if (!now || q->dnsq_deadline <= now)
@@ -386,7 +370,7 @@ _dns_request_utm(struct dns_ctx *ctx, time_t now) {
   ctx->dnsc_utmexp = deadline;
 }
 
-static inline void
+static __inline void
 dns_request_utm(struct dns_ctx *ctx, time_t now) {
   if (ctx->dnsc_utmfn)
     _dns_request_utm(ctx, now);
@@ -407,22 +391,32 @@ dns_set_tmcbck(struct dns_ctx *ctx, dns_utm_fn *fn, void *data) {
     dns_request_utm(ctx, 0);
 }
 
-unsigned dns_random16(void) {
+static unsigned dns_nonrandom_32(void) {
 #ifdef WINDOWS
   FILETIME ft;
   GetSystemTimeAsFileTime(&ft);
-#define x (ft.dwLowDateTime)
+  return ft.dwLowDateTime;
 #else
   struct timeval tv;
   gettimeofday(&tv, NULL);
-#define x (tv.tv_usec)
+  return tv.tv_usec;
 #endif
-  return ((unsigned)x ^ ((unsigned)x >> 16)) & 0xffff;
-#undef x
+}
+
+/* This is historic deprecated API */
+UDNS_API unsigned dns_random16(void);
+unsigned dns_random16(void) {
+  unsigned x = dns_nonrandom_32();
+  return (x ^ (x >> 16)) & 0xffff;
+}
+
+static void dns_init_rng(struct dns_ctx *ctx) {
+  udns_jraninit(&ctx->dnsc_jran, dns_nonrandom_32());
+  ctx->dnsc_nextid = 0;
 }
 
 void dns_close(struct dns_ctx *ctx) {
-  struct dns_query *q;
+  struct dns_query *q, *p;
   SETCTX(ctx);
   if (CTXINITED(ctx)) {
     if (ctx->dnsc_udpsock >= 0)
@@ -431,10 +425,12 @@ void dns_close(struct dns_ctx *ctx) {
     if (ctx->dnsc_pbuf)
       free(ctx->dnsc_pbuf);
     ctx->dnsc_pbuf = NULL;
-    while((q = qlist_first(&ctx->dnsc_qactive)) != NULL) {
-      qlist_remove(q);
-      free(q);
+    q = ctx->dnsc_qactive.head;
+    while((p = q) != NULL) {
+      q = q->dnsq_next;
+      free(p);
     }
+    qlist_init(&ctx->dnsc_qactive);
     ctx->dnsc_nactive = 0;
     dns_drop_utm(ctx);
   }
@@ -452,7 +448,7 @@ void dns_reset(struct dns_ctx *ctx) {
   ctx->dnsc_udpsock = -1;
   ctx->dnsc_srchend = ctx->dnsc_srchbuf;
   qlist_init(&ctx->dnsc_qactive);
-  ctx->dnsc_nextid = dns_random16();
+  dns_init_rng(ctx);
   ctx->dnsc_flags = DNS_INITED;
 }
 
@@ -469,9 +465,11 @@ struct dns_ctx *dns_new(const struct dns_ctx *copy) {
   ctx->dnsc_nactive = 0;
   ctx->dnsc_pbuf = NULL;
   ctx->dnsc_qstatus = 0;
+  ctx->dnsc_srchend = ctx->dnsc_srchbuf +
+    (copy->dnsc_srchend - copy->dnsc_srchbuf);
   ctx->dnsc_utmfn = NULL;
   ctx->dnsc_utmctx = NULL;
-  ctx->dnsc_nextid = dns_random16();
+  dns_init_rng(ctx);
   return ctx;
 }
 
@@ -531,8 +529,7 @@ int dns_open(struct dns_ctx *ctx) {
       sns = &ctx->dnsc_serv[i];
       if (sns->sa.sa_family == AF_INET) {
         sin6.sin6_port = sns->sin.sin_port;
-        memcpy(&((struct in_addr*)&sin6.sin6_addr)[3],
-               &sns->sin.sin_addr, sizeof(struct in_addr));
+        memcpy(sin6.sin6_addr.s6_addr + 4*3, &sns->sin.sin_addr, 4);
         sns->sin6 = sin6;
       }
     }
@@ -542,11 +539,11 @@ int dns_open(struct dns_ctx *ctx) {
     sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
 
   if (have_inet6)
-    sock = socket(PF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
+    sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_UDP);
   else
-    sock = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
+    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 #else /* !HAVE_IPv6 */
-  sock = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
+  sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   ctx->dnsc_salen = sizeof(struct sockaddr_in);
 #endif /* HAVE_IPv6 */
 
@@ -616,7 +613,7 @@ dns_end_query(struct dns_ctx *ctx, struct dns_query *q,
   assert(cbck != 0);	/*XXX callback may be NULL */
   assert(ctx->dnsc_nactive > 0);
   --ctx->dnsc_nactive;
-  qlist_remove(q);
+  qlist_remove(&ctx->dnsc_qactive, q);
   /* force the query to be unconnected */
   /*memset(q, 0, sizeof(*q));*/
 #ifndef NDEBUG
@@ -692,12 +689,32 @@ static void dns_newid(struct dns_ctx *ctx, struct dns_query *q) {
    * Note that ALL stub resolvers (again, unless they implement and enforce
    * DNSSEC) suffers from this same problem.
    *
-   * So, instead of trying to be more secure (which actually is not - false
-   * sense of security is - I think - is worse than no security), I'm trying
-   * to be more robust here (by preventing qID reuse, which helps in normal
-   * conditions).  And use sequential qID generation scheme.
+   * Here, I use a pseudo-random number generator for qIDs, instead of a
+   * simpler sequential IDs.  This is _not_ more secure than sequential
+   * ID, but some found random IDs more enjoyeable for some reason.  So
+   * here it goes.
    */
-  dns_put16(q->dnsq_id, ctx->dnsc_nextid++);
+
+  /* Use random number and check if it's unique.
+   * If it's not, try again up to 5 times.
+   */
+  unsigned loop;
+  dnsc_t c0, c1;
+  for(loop = 0; loop < 5; ++loop) {
+    const struct dns_query *c;
+    if (!ctx->dnsc_nextid)
+      ctx->dnsc_nextid = udns_jranval(&ctx->dnsc_jran);
+    c0 = ctx->dnsc_nextid & 0xff;
+    c1 = (ctx->dnsc_nextid >> 8) & 0xff;
+    ctx->dnsc_nextid >>= 16;
+    for(c = ctx->dnsc_qactive.head; c; c = c->dnsq_next)
+      if (c->dnsq_id[0] == c0 && c->dnsq_id[1] == c1)
+        break; /* found such entry, try again */
+    if (!c)
+      break;
+  }
+  q->dnsq_id[0] = c0; q->dnsq_id[1] = c1;
+
   /* reset all parameters relevant for previous query lifetime */
   q->dnsq_try = 0;
   q->dnsq_servi = 0;
@@ -757,6 +774,7 @@ dns_send_this(struct dns_ctx *ctx, struct dns_query *q,
     memset(p, 0, DNS_HSIZE);
     if (!(q->dnsq_flags & DNS_NORD)) p[DNS_H_F1] |= DNS_HF1_RD;
     if (q->dnsq_flags & DNS_AAONLY) p[DNS_H_F1] |= DNS_HF1_AA;
+    if (q->dnsq_flags & DNS_SET_CD) p[DNS_H_F2] |= DNS_HF2_CD;
     p[DNS_H_QDCNT2] = 1;
     memcpy(p + DNS_H_QID, q->dnsq_id, 2);
     p = dns_payload(p);
@@ -764,14 +782,17 @@ dns_send_this(struct dns_ctx *ctx, struct dns_query *q,
     p += dns_dntodn(q->dnsq_dn, p, DNS_MAXDN);
     /* query type and class */
     memcpy(p, q->dnsq_typcls, 4); p += 4;
-    /* add EDNS0 size record */
-    if (ctx->dnsc_udpbuf > DNS_MAXPACKET &&
-        !(q->dnsq_servnEDNS0 & (1 << servi))) {
+    /* add EDNS0 record. DO flag requires it */
+    if (q->dnsq_flags & DNS_SET_DO ||
+        (ctx->dnsc_udpbuf > DNS_MAXPACKET &&
+         !(q->dnsq_servnEDNS0 & (1 << servi)))) {
       *p++ = 0;			/* empty (root) DN */
       p = dns_put16(p, DNS_T_OPT);
       p = dns_put16(p, ctx->dnsc_udpbuf);
       /* EDNS0 RCODE & VERSION; rest of the TTL field; RDLEN */
-      memset(p, 0, 2+2+2); p += 2+2+2;
+      memset(p, 0, 2+2+2);
+      if (q->dnsq_flags & DNS_SET_DO) p[2] |= DNS_EF1_DO;
+      p += 2+2+2;
       ctx->dnsc_pbuf[DNS_H_ARCNT2] = 1;
     }
     qlen = p - ctx->dnsc_pbuf;
@@ -801,13 +822,13 @@ dns_send_this(struct dns_ctx *ctx, struct dns_query *q,
     (dns_find_serv(ctx, q) ? 1 : ctx->dnsc_timeout << q->dnsq_try);
 
   /* move the query to the proper place, according to the new deadline */
-  qlist_remove(q);
+  qlist_remove(&ctx->dnsc_qactive, q);
   { /* insert from the tail */
     struct dns_query *p;
-    QLIST_FOR_EACH(&ctx->dnsc_qactive, p, prev)
+    for(p = ctx->dnsc_qactive.tail; p; p = p->dnsq_prev)
       if (p->dnsq_deadline <= q->dnsq_deadline)
 	break;
-    qlist_insert_after(q, p);
+    qlist_insert_after(&ctx->dnsc_qactive, q, p);
   }
 
   return 0;
@@ -846,6 +867,7 @@ dns_send(struct dns_ctx *ctx, struct dns_query *q, time_t now) {
 
 static void dns_dummy_cb(struct dns_ctx *ctx, void *result, void *data) {
   if (result) free(result);
+  data = ctx = 0;	/* used */
 }
 
 /* The (only, main, real) query submission routine.
@@ -897,7 +919,12 @@ dns_submit_dn(struct dns_ctx *ctx,
     dns_next_srch(ctx, q);
   }
 
-  qlist_add_head(q, &ctx->dnsc_qactive);
+  /* q->dnsq_deadline is set to 0 (calloc above): the new query is
+   * "already expired" when first inserted into queue, so it's safe
+   * to insert it into the head of the list.  Next call to dns_timeouts()
+   * will actually send it.
+   */
+  qlist_add_head(&ctx->dnsc_qactive, q);
   ++ctx->dnsc_nactive;
   dns_request_utm(ctx, 0);
 
@@ -951,8 +978,6 @@ void dns_ioevent(struct dns_ctx *ctx, time_t now) {
 
 again: /* receive the reply */
 
-  if (!CTXOPEN(ctx))
-    return;
   slen = sizeof(sns);
   r = recvfrom(ctx->dnsc_udpsock, (void*)pbuf, ctx->dnsc_udpbuf,
                MSG_DONTWAIT, &sns.sa, &slen);
@@ -988,8 +1013,8 @@ again: /* receive the reply */
   }
 
   /* find the matching query, by qID */
-  for (q = QLIST_FIRST(&ctx->dnsc_qactive, next);; q = QLIST_NEXT(q, next)) {
-    if (QLIST_ISLAST(&ctx->dnsc_qactive, q)) {
+  for (q = ctx->dnsc_qactive.head; ; q = q->dnsq_next) {
+    if (!q) {
       /* no more requests: old reply? */
       DNS_DBG(ctx, -5/*no matching query*/, &sns.sa, slen, pbuf, r);
       goto again;
@@ -1188,7 +1213,7 @@ int dns_timeouts(struct dns_ctx *ctx, int maxwait, time_t now) {
    * If not, this is the query which determines the closest deadline.
    */
 
-  q = qlist_first(&ctx->dnsc_qactive);
+  q = ctx->dnsc_qactive.head;
   if (!q)
     return maxwait;
   if (!now)
@@ -1204,7 +1229,7 @@ int dns_timeouts(struct dns_ctx *ctx, int maxwait, time_t now) {
       /* process expired deadline */
       dns_send(ctx, q, now);
     }
-  } while((q = qlist_first(&ctx->dnsc_qactive)) != NULL);
+  } while((q = ctx->dnsc_qactive.head) != NULL);
 
   dns_request_utm(ctx, now); /* update timer with new deadline */
   return maxwait;
@@ -1290,7 +1315,7 @@ int dns_cancel(struct dns_ctx *ctx, struct dns_query *q) {
   assert(q->dnsq_cbck != dns_resolve_cb && "can't cancel syncronous query");
   if (q->dnsq_cbck == dns_resolve_cb)
     return (ctx->dnsc_qstatus = DNS_E_BADQUERY);
-  qlist_remove(q);
+  qlist_remove(&ctx->dnsc_qactive, q);
   --ctx->dnsc_nactive;
   dns_request_utm(ctx, 0);
   return 0;

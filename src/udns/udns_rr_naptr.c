@@ -1,4 +1,4 @@
-/* $Id: udns_rr_naptr.c,v 1.1 2006/11/28 22:58:04 mjt Exp $
+/* udns_rr_naptr.c
    parse/query NAPTR IN records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

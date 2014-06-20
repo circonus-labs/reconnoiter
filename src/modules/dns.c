@@ -87,6 +87,12 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
   noit_atomic_inc32(&h->refcnt);
 }
+static void
+dns_debug_wrap(int code, const struct sockaddr *sa, unsigned salen,
+               dnscc_t *pkt, int plen,
+               const struct dns_query *q, void *data) {
+  noitL(nldeb, "dns code -> %d\n", code);
+}
 static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   void *vh;
   char *hk = NULL;
@@ -121,6 +127,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
       noitL(nlerr, "dns_init failed\n");
       failed++;
     }
+    dns_set_dbgfn(h->ctx, dns_debug_wrap);
     if(ns) {
       if(dns_add_serv(h->ctx, NULL) < 0) {
         noitL(nlerr, "dns_add_serv(NULL) failed\n");

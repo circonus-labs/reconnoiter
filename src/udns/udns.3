@@ -1,7 +1,7 @@
-.\" $Id: udns.3,v 1.32 2007/01/15 21:19:08 mjt Exp $
+.\" udns.3
 .\" udns library manpage
 .\"
-.\" Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
+.\" Copyright (C) 2005-2014  Michael Tokarev <mjt+udns@tls.msk.ru>
 .\" This file is part of UDNS library, an async DNS stub resolver.
 .\"
 .\" This library is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
 .\" write to the Free Software Foundation, Inc., 59 Temple Place,
 .\" Suite 330, Boston, MA  02111-1307  USA
 
-.TH udns 3 "Jan 2007" "Library Functions"
+.TH udns 3 "Jan 2014" "Library Functions"
 
 .SH NAME
 udns \- stub DNS resolver library
@@ -184,7 +184,7 @@ is non-zero.
 .PP
 When initializing resolver context, the library uses information from
 system file /etc/resolv.conf (see \fBresolv.conf\fR(5)), consults
-environment variables \fB$LOCALDOMAIN\fR, \fB$DNSCACHEIP\fR,
+environment variables \fB$LOCALDOMAIN\fR, \fB$NSCACHEIP\fR,
 \fB$NAMESERVERS\fR and \fB$RES_OPTIONS\fR, and local host name to obtain
 list of local nameservers, domain name search list and various resolver
 options.
@@ -252,7 +252,8 @@ int \fBdns_set_opts\fR(\fIctx\fR, const char *\fIopts\fR)
 .RS
 set resolver context options from \fIopts\fR string, in the same way as
 processing \fBoptions\fR statement in resolv.conf and \fB$RES_OPTIONS\fR
-environment variable.
+environment variable.  Return number of unrecognized/invalid options
+found (all recognized and valid options gets processed).
 .RE
 .PP
 .nf
@@ -349,7 +350,7 @@ when it is not 0, it should contain current time as returned by
 .PP
 .nf
 typedef void \fBdns_utm_fn\fR(\fIctx\fR, int \fItimeout\fR, void *\fIdata\fR)
-void \fBdns_set_cbck\fR(\fIctx\fR, dns_utm_fn *\fIutmfn\fR, void *\fIdata\fR)
+void \fBdns_set_tmcbck\fR(\fIctx\fR, dns_utm_fn *\fIutmfn\fR, void *\fIdata\fR)
 .fi
 .RS
 An application may use custom callback-based I/O multiplexing mechanism.
@@ -367,7 +368,7 @@ assotiates single timer with resolver context.  User-supplied \fIutmfn\fR
 routine will be called by the library with the following arguments:
 .IP "\fIctx\fR == NULL"
 delete user timer, at context free time or when an application changes
-user timer request routine using \fBdns_set_cbck\fR();
+user timer request routine using \fBdns_set_tmcbck\fR();
 .IP "\fIctx\fR != NULL, \fItimeout\fR < 0"
 don't fire timer anymore, when there are no active requests;
 .IP "\fIctx\fR != NULL, \fItimeout\fR == 0"
@@ -376,9 +377,9 @@ fire timer at the next possibility, but not immediately;
 fire timer after \fItimeout\fR seconds after now.
 .PP
 The \fIdata\fR argument passed to the routine will be the same
-as passed to \fBdns_set_cbck\fR().
+as passed to \fBdns_set_tmcbck\fR().
 .PP
-When a timer expires, an application should call \fBdns_tmeouts\fR()
+When a timer expires, an application should call \fBdns_timeouts\fR()
 routine (see below).  Non-callback timer usage is provided too.
 .RE
 
@@ -845,7 +846,7 @@ struct \fBdns_naptr\fR {        /* single NAPTR record */
   int \fBorder\fR;              /* record order */
   int \fBpreference\fR;         /* preference of this record */
   char *\fBflags\fR;            /* application-specific flags */
-  char *\fBservices\fR;         /* service parameters */
+  char *\fBservice\fR;          /* service parameter */
   char *\fBregexp\fR;           /* substitutional regular expression */
   char *\fBreplacement\fR;      /* replacement string */
 };
@@ -1344,8 +1345,8 @@ address family is not supported.
 
 .SH AUTHOR
 .PP
-The \fBudns\fR library has been written by Michael Tokarev, mjt@corpit.ru.
+The \fBudns\fR library has been written by Michael Tokarev, mjt+udns@tls.msk.ru.
 
 .SH VERSION
 .PP
-This manual page corresponds to udns version 0.0.9, released Jan-2007.
+This manual page corresponds to udns version 0.4, released Jan-2014.

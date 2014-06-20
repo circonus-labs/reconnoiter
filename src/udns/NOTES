@@ -75,30 +75,24 @@ Ok, udns is a stub resolver, so it expects sorta friendly environment, but
 on LAN it's usually much easier to fire an attack, due to the speed of local
 network, where a bad guy can generate alot of packets in a short time.
 
-Choosing of DNS QueryID
-~~~~~~~~~~~~~~~~~~~~~~~
+Spoofing of replies (Kaminsky attack, CVE-2008-1447)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Currently, udns uses sequential number for query IDs.  Which simplifies
-attacks even more (c.f. the previous item about single UDP port), making
-them nearly trivial.  The library should use random number for query ID.
-But there's no portable way to get random numbers, even on various flavors
-of Unix.  It's possible to use low bits from tv_nsec field returned by
-gettimeofday() (current time, nanoseconds), but I wrote the library in
-a way to avoid making system calls where possible, because many syscalls
-means many context switches and slow processes as a result.  Maybe use some
-application-supplied callback to get random values will be a better way,
-defaulting to gettimeofday() method.
+While udns uses random numbers for query IDs, it uses single UDP port for
+all queries (see previous item).  And even if it used random UDP port for
+each query, the attack described in CVE-2008-1447 is still quite trivial.
+This is not specific to udns library unfortunately - it is inherent property
+of the protocol.  Udns is designed to work in a LAN, it needs full recursive
+resolver nearby, and modern LAN usually uses high-bandwidth equipment which
+makes the Kaminsky attack trivial.  The problem is that even with qID (16
+bits) and random UDP port (about 20 bits available to a regular process)
+combined still can not hold enough randomness, so on a fast network it is
+still easy to flood the target with fake replies and hit the "right" reply
+before real reply comes.  So random qIDs don't add much protection anyway,
+even if this feature is implemented in udns, and using all available
+techniques wont solve it either.
 
-Note that a single query - even if (re)sent to different nameservers, several
-times (due to no reply received in time), uses the same qID assigned when it
-was first dispatched.  So we have: single UDP socket (fixed port number),
-sequential (= trivially predictable) qIDs, and long lifetime of those qIDs.
-This all makes (local) attacks against the library really trivial.
-
-See also comments in udns_resolver.c, udns_newid().
-
-And note that at least some other stub resolvers out there (like c-ares
-for example) also uses sequential qID.
+See also long comment in udns_resolver.c, udns_newid().
 
 Assumptions about RRs returned
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,8 +147,8 @@ such more specific error cases are of good help.
 Planned API changes
 ~~~~~~~~~~~~~~~~~~~
 
-At least one thing I want to change for 0.1 version is a way how queries are
-submitted and how replies are handled.
+At least one thing I want to change for some future version is a way how
+queries are submitted and how replies are handled.
 
 I want to made dns_query object to be owned by an application.  So that instead
 of udns library allocating it for the lifetime of query, it will be pre-
@@ -195,6 +189,11 @@ routine is.. insane.  Especially since in 99% cases it will be set to
 default NULL.  But with such "nesting" of query initializers, it becomes
 trivial.
 
+This change (the way how queries gets submitted) will NOT break API/ABI
+compatibility with old versions, since the new submitting API works in
+parallel with current (and current will use the new one as building
+blocks, instead of doing all work at once).
+
 Another way to do the same is to manipulate query object right after a
 query has been submitted, but before any events processing (during this
 time, query object is allocated and initialized, but no actual network
@@ -211,6 +210,11 @@ for result.  When parsing, a routine will return true amount of memory it
 will need to place the result, regardless of whenever it has enough room
 or not, so that an application can (re)allocate properly sized buffer and
 call a parsing routine again.
+
+This, in theory, also can be done without breaking current API/ABI, but in
+that case we'll again need a parallel set of routines (parsing included),
+which makes the library more complicated with too many ways of doing the
+same thing.  Still, code reuse is at good level.
 
 Another modification I plan to include is to have an ability to work in
 terms of domain names (DNs) as used with on-wire DNS packets, not only
