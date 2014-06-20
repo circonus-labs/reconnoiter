@@ -1485,7 +1485,6 @@ noit_stats_set_metric(noit_check_t *check,
   }
   noit_check_metric_count_add(1);
   check_stats_set_metric_hook_invoke(check, newstate, m);
-if(!strcmp(m->metric_name,"cert_error")) fprintf(stderr, "%s -> %p %s\n", m->metric_name, m, m->metric_value.s ? m->metric_value.s : "(null)");
   __stats_add_metric(newstate, m);
 }
 void
