@@ -298,9 +298,12 @@ noit_lua_get_resume_info(lua_State *L) {
   pthread_mutex_lock(&coro_lock);
   if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v)) {
     pthread_mutex_unlock(&coro_lock);
-    return (noit_lua_resume_info_t *)v;
+    ri = v;
+    assert(pthread_equal(pthread_self(), ri->bound_thread));
+    return ri;
   }
   ri = calloc(1, sizeof(*ri));
+  ri->bound_thread = pthread_self();
   ri->coro_state = L;
   lua_getglobal(L, "noit_internal_lmc");;
   ri->lmc = lua_touserdata(L, lua_gettop(L));
@@ -1071,6 +1074,8 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
   noit_check_t *check = NULL;
   noit_lua_resume_check_info_t *ci = ri->context_data;
 
+  assert(pthread_equal(pthread_self(), ri->bound_thread));
+
   noitL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
 #if LUA_VERSION_NUM >= 502
   result = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
@@ -1187,8 +1192,14 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   struct timeval p_int, __now;
   eventer_t e;
 
-  if(!check->closure) check->closure = calloc(1, sizeof(noit_lua_resume_info_t));
-  ri = check->closure;
+  if(!check->closure) {
+    check->closure = calloc(1, sizeof(noit_lua_resume_info_t));
+    ri = check->closure;
+    ri->bound_thread = pthread_self();
+  }
+  else {
+    ri = check->closure;
+  }
   ci = ri->context_data;
   if(!ci) {
     ri->context_magic = LUA_CHECK_INFO_MAGIC;
@@ -1258,7 +1269,6 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
 static int
 noit_lua_module_initiate_check(noit_module_t *self, noit_check_t *check,
                                int once, noit_check_t *cause) {
-  if(!check->closure) check->closure = calloc(1, sizeof(noit_lua_resume_info_t));
   INITIATE_CHECK(noit_lua_initiate, self, check, cause);
   return 0;
 }

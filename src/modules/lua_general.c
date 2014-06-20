@@ -79,6 +79,8 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
 
+  assert(pthread_equal(pthread_self(), ri->bound_thread));
+
 #if LUA_VERSION_NUM >= 502
   status = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
 #else
@@ -109,6 +111,8 @@ static noit_lua_resume_info_t *
 lua_general_new_resume_info(lua_module_closure_t *lmc) {
   noit_lua_resume_info_t *ri;
   ri = calloc(1, sizeof(*ri));
+  assert(pthread_equal(lmc->owner, pthread_self()));
+  ri->bound_thread = lmc->owner;
   ri->context_magic = LUA_GENERAL_INFO_MAGIC;
   ri->lmc = lmc;
   lua_getglobal(lmc->lua_state, "noit_coros");

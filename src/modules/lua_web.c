@@ -100,6 +100,8 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
   noit_http_rest_closure_t *restc = ctx->restc;
   eventer_t conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
 
+  assert(pthread_equal(pthread_self(), ri->bound_thread));
+
 #if LUA_VERSION_NUM >= 502
   status = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
 #else
@@ -166,6 +168,7 @@ lua_web_handler(noit_http_rest_closure_t *restc,
 
   if(restc->call_closure == NULL) {
     ri = calloc(1, sizeof(*ri));
+    ri->bound_thread = pthread_self();
     ri->context_magic = LUA_REST_INFO_MAGIC;
     ctx = ri->context_data = calloc(1, sizeof(noit_lua_resume_rest_info_t));
     ctx->restc = restc;

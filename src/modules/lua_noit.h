@@ -58,6 +58,7 @@ typedef struct lua_module_closure {
 } lua_module_closure_t;
 
 struct noit_lua_resume_info {
+  pthread_t bound_thread;
   lua_module_closure_t *lmc;
   lua_State *coro_state;
   int coro_state_ref;
