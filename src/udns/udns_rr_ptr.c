@@ -1,4 +1,4 @@
-/* $Id: udns_rr_ptr.c,v 1.15 2005/09/12 11:21:06 mjt Exp $
+/* udns_rr_ptr.c
    parse/query PTR records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -64,7 +64,7 @@ dns_parse_ptr(dnscc_t *qdn, dnscc_t *pkt, dnscc_t *cur, dnscc_t *end,
   sp = (char*)(ret->dnsptr_ptr + c);
   c = 0;
   dns_rewind(&p, qdn);
-  while(dns_nextrr(&p, &rr) > 0) {
+  while((r = dns_nextrr(&p, &rr)) > 0) {
     ret->dnsptr_ptr[c] = sp;
     cur = rr.dnsrr_dptr;
     dns_getdn(pkt, &cur, end, ptr, sizeof(ptr));

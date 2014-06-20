@@ -1,4 +1,4 @@
-/* $Id: udns_rr_mx.c,v 1.13 2005/04/20 06:44:34 mjt Exp $
+/* udns_rr_mx.c
    parse/query MX IN records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

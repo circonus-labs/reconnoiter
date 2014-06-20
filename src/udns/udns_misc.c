@@ -1,4 +1,4 @@
-/* $Id: udns_misc.c,v 1.8 2005/04/05 22:51:32 mjt Exp $
+/* udns_misc.c
    miscellaneous routines
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

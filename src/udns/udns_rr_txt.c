@@ -1,4 +1,4 @@
-/* $Id: udns_rr_txt.c,v 1.15 2006/11/28 22:45:20 mjt Exp $
+/* udns_rr_txt.c
    parse/query TXT records
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

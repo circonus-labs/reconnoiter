@@ -1,4 +1,4 @@
-/* $Id: udns_dntosp.c,v 1.5 2005/04/19 21:48:09 mjt Exp $
+/* udns_dntosp.c
    dns_dntosp() = convert DN to asciiz string using static buffer
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

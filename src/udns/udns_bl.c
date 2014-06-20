@@ -1,4 +1,4 @@
-/* $Id: udns_bl.c,v 1.10 2005/09/12 10:55:21 mjt Exp $
+/* udns_bl.c
    DNSBL stuff
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>

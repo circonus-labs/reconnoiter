@@ -1,4 +1,4 @@
-/* $Id: dnsget.c,v 1.31 2007/01/08 01:14:44 mjt Exp $
+/* dnsget.c
    simple host/dig-like application using UDNS library
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -121,7 +121,7 @@ printtxt(const unsigned char *c) {
   unsigned n = *c++;
   const unsigned char *e = c + n;
   if (verbose > 0) while(c < e) {
-    if (*c < ' ' || *c >= 127) printf("\\%02x", *c);
+    if (*c < ' ' || *c >= 127) printf("\\%03u", *c);
     else if (*c == '\\' || *c == '"') printf("\\%c", *c);
     else putchar(*c);
     ++c;
@@ -187,8 +187,12 @@ printrr(const struct dns_parse *p, struct dns_rr *rr) {
   if (verbose > 0) {
     if (verbose > 1) {
       if (!p->dnsp_rrl && !rr->dnsrr_dn[0] && rr->dnsrr_typ == DNS_T_OPT) {
-        printf(";EDNS0 OPT record (UDPsize: %d): %d bytes\n",
-               rr->dnsrr_cls, rr->dnsrr_dsz);
+        printf(";EDNS%d OPT record (UDPsize: %d, ERcode: %d, Flags: 0x%02x): %d bytes\n",
+               (rr->dnsrr_ttl>>16) & 0xff,	/* version */
+               rr->dnsrr_cls,			/* udp size */
+               (rr->dnsrr_ttl>>24) & 0xff,	/* extended rcode */
+               rr->dnsrr_ttl & 0xffff,		/* flags */
+               rr->dnsrr_dsz);
         return;
       }
       n = printf("%s.", dns_dntosp(rr->dnsrr_dn));
@@ -301,7 +305,12 @@ printrr(const struct dns_parse *p, struct dns_rr *rr) {
     printf(" %s.", dns_dntosp(dn));
     break;
 
-  case DNS_T_KEY: /* flags(2) proto(1) algo(1) pubkey */
+  case DNS_T_KEY:
+  case DNS_T_DNSKEY:
+    /* flags(2) proto(1) algo(1) pubkey */
+  case DNS_T_DS:
+  case DNS_T_DLV:
+    /* ktag(2) proto(1) algo(1) pubkey */
     c = dptr;
     if (c + 2 + 1 + 1 > dend) goto xperr;
     printf("%d %d %d", dns_get16(c), c[2], c[3]);
@@ -313,12 +322,13 @@ printrr(const struct dns_parse *p, struct dns_rr *rr) {
     break;
 
   case DNS_T_SIG:
+  case DNS_T_RRSIG:
     /* type(2) algo(1) labels(1) ottl(4) sexp(4) sinc(4) tag(2) sdn sig */
     c = dptr;
     c += 2 + 1 + 1 + 4 + 4 + 4 + 2;
     if (dns_getdn(pkt, &c, end, dn, DNS_MAXDN) <= 0) goto xperr;
-    printf("%d %u %u %u ",
-           dns_get16(dptr), dptr[2], dptr[3], dns_get32(dptr+4));
+    printf("%s %u %u %u ",
+           dns_typename(dns_get16(dptr)), dptr[2], dptr[3], dns_get32(dptr+4));
     printdate(dns_get32(dptr+8));
     putchar(' ');
     printdate(dns_get32(dptr+12));
@@ -326,15 +336,14 @@ printrr(const struct dns_parse *p, struct dns_rr *rr) {
     printb64(c, dend);
     break;
 
-#if 0	/* unused RR types? */
-  case DNS_T_DS:
-    c = dptr;
-    if (c + 2 + 2 >= dend) goto xperr;
-    printf("%u %u %u ", dns_get16(c), c[2], c[3]);
-    printhex(c + 4, dend);
+  case DNS_T_SSHFP: /* algo(1), fp type(1), fp... */
+    if (dend < dptr + 3) goto xperr;
+    printf("%u %u ", dptr[0], dptr[1]); /* algo, fp type */
+    printhex(dptr + 2, dend);
     break;
 
-  case DNS_T_NSEC:
+#if 0	/* unused RR types? */
+  case DNS_T_NSEC: /* nextDN bitmaps */
     c = dptr;
     if (dns_getdn(pkt, &c, end, dn, DNS_MAXDN) <= 0) goto xperr;
     printf("%s.", dns_dntosp(dn));
@@ -450,10 +459,13 @@ dbgcb(int code, const struct sockaddr *sa, unsigned slen,
   printf(", status: %s, id: %d, size: %d\n;; flags:",
          dns_rcodename(dns_rcode(pkt)), dns_qid(pkt), r);
   if (dns_qr(pkt)) printf(" qr");
-  if (dns_rd(pkt)) printf(" rd");
-  if (dns_ra(pkt)) printf(" ra");
   if (dns_aa(pkt)) printf(" aa");
   if (dns_tc(pkt)) printf(" tc");
+  if (dns_rd(pkt)) printf(" rd");
+  if (dns_ra(pkt)) printf(" ra");
+  /* if (dns_z(pkt))  printf(" z"); only one reserved bit left */
+  if (dns_ad(pkt)) printf(" ad");
+  if (dns_cd(pkt)) printf(" cd");
   numqd = dns_numqd(pkt);
   printf("; QUERY: %d, ANSWER: %d, AUTHORITY: %d, ADDITIONAL: %d\n",
          numqd, dns_numan(pkt), dns_numns(pkt), dns_numar(pkt));
@@ -559,6 +571,7 @@ int main(int argc, char **argv) {
   struct query *q;
   enum dns_type qtyp = 0;
   struct dns_ctx *nctx = NULL;
+  int flags = 0;
 
   if (!(progname = strrchr(argv[0], '/'))) progname = argv[0];
   else argv[0] = ++progname;
@@ -572,7 +585,7 @@ int main(int argc, char **argv) {
    * nameservers if given as names, using default options.
    */
 
-  while((i = getopt(argc, argv, "vqt:c:an:o:h")) != EOF) switch(i) {
+  while((i = getopt(argc, argv, "vqt:c:an:o:f:h")) != EOF) switch(i) {
   case 'v': ++verbose; break;
   case 'q': --verbose; break;
   case 't':
@@ -599,9 +612,22 @@ int main(int argc, char **argv) {
     ns[nns++] = optarg;
     break;
   case 'o':
-    if (dns_set_opts(NULL, optarg) != 0)
-      die(0, "invalid option string: `%s'", optarg);
+  case 'f': {
+    char *opt;
+    const char *const delim = " \t,;";
+    for(opt = strtok(optarg, delim); opt != NULL; opt = strtok(NULL, delim)) {
+      if (dns_set_opts(NULL, optarg) == 0)
+        ;
+      else if (strcmp(opt, "aa") == 0) flags |= DNS_AAONLY;
+      else if (strcmp(optarg, "nord") == 0) flags |= DNS_NORD;
+      else if (strcmp(optarg, "dnssec") == 0) flags |= DNS_SET_DO;
+      else if (strcmp(optarg, "do")     == 0) flags |= DNS_SET_DO;
+      else if (strcmp(optarg, "cd") == 0) flags |= DNS_SET_CD;
+      else
+        die(0, "invalid option: `%s'", opt);
+    }
     break;
+  }
   case 'h':
     printf(
 "%s: simple DNS query tool (using udns version %s)\n"
@@ -615,13 +641,17 @@ int main(int argc, char **argv) {
 " -a - equivalent to -t ANY -v\n"
 " -n ns - use given nameserver(s) instead of default\n"
 "  (may be specified multiple times)\n"
-" -o option:value - set resovler option (the same as setting $RES_OPTIONS):\n"
-"  timeout:sec  - initial query timeout\n"
-"  attempts:num - number of attempt to resovle a query\n"
-"  ndots:num    - if name has more than num dots, lookup it before search\n"
-"  port:num     - port number for queries instead of default 53\n"
-"  udpbuf:num   - size of UDP buffer (use EDNS0 if >512)\n"
-"  (may be specified more than once)\n"
+" -o opt,opt,... (comma- or space-separated list,\n"
+"                 may be specified more than once):\n"
+"  set resovler options (the same as setting $RES_OPTIONS):\n"
+"   timeout:sec  - initial query timeout\n"
+"   attempts:num - number of attempt to resovle a query\n"
+"   ndots:num    - if name has more than num dots, lookup it before search\n"
+"   port:num     - port number for queries instead of default 53\n"
+"   udpbuf:num   - size of UDP buffer (use EDNS0 if >512)\n"
+"  or query flags:\n"
+"   aa,nord,dnssec,do,cd - set query flag (auth-only, no recursion,\n"
+"     enable DNSSEC (DNSSEC Ok), check disabled)\n"
       , progname, dns_version(), progname);
     return 0;
   default:
@@ -678,6 +708,9 @@ int main(int argc, char **argv) {
 
   if (verbose > 1)
     dns_set_dbgfn(NULL, dbgcb);
+
+  if (flags)
+    dns_set_opt(NULL, DNS_OPT_FLAGS, flags);
 
   for (i = 0; i < argc; ++i) {
     char *name = argv[i];

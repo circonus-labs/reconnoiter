@@ -1,4 +1,4 @@
-/* $Id: rblcheck.c,v 1.14 2007/01/10 02:52:51 mjt Exp $
+/* rblcheck.c
    dnsbl (rbl) checker application
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -44,7 +44,7 @@
 # include "getopt.c"
 #endif
 
-static const char *version = "udns-rblcheck 0.2";
+static const char *version = "udns-rblcheck 0.4";
 static char *progname;
 
 static void error(int die, const char *fmt, ...) {
@@ -121,7 +121,8 @@ static int addzonefile(const char *fname) {
     e = p;
     while(*e && *e != ' ' && *e != '\t' && *e != '\n')
       ++e;
-    *e = '\0';
+    *e++ = '\0';
+    p = memcpy(ecalloc(e - p, 1), p, e - p); // strdup
     addzone(p);
   }
   fclose(f);

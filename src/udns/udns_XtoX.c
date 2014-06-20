@@ -1,4 +1,4 @@
-/* $Id: udns_XtoX.c,v 1.1 2007/01/07 22:20:39 mjt Exp $
+/* udns_XtoX.c
    udns_ntop() and udns_pton() routines, which are either
      - wrappers for inet_ntop() and inet_pton() or
      - reimplementations of those routines.

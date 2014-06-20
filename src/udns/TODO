@@ -1,15 +1,14 @@
-$Id: TODO,v 1.13 2007/01/15 21:19:08 mjt Exp $
+TODO
 
 The following is mostly an internal, not user-visible stuff.
 
 * rearrange an API to make dns_query object owned by application,
   so that it'll look like this:
    struct dns_query *q;
-   q = udns_query_alloc(ctx);
-   udns_query_set(q, options, domain_name, flags, ...);
-   udns_query_submit(ctx, q);
- or
-   udns_query_resolve(ctx, q);
+   q = dns_query_alloc(ctx);
+   dns_query_set(q, options, domain_name, flags, ...);
+   dns_query_submit(ctx, q);
+  For more information see NOTES file, section "Planned API changes".
 
 * allow NULL callbacks?  Or provide separate resolver
   context list of queries which are done but wich did not
@@ -40,9 +39,6 @@ The following is mostly an internal, not user-visible stuff.
 
 * allow TCP queue?
 
-* And oh, qID should really be random.  Or... not.
-  See notes in udns_resolver.c, dns_newid().
-
 * more accurate error reporting.  Currently, udns always returns TEMPFAIL,
   but don't specify why it happened (ENOMEM, timeout, etc).
 
@@ -61,9 +57,3 @@ The following is mostly an internal, not user-visible stuff.
 * implement /etc/hosts lookup too, ala [c-]ares??
 
 * sortlist support?
-
-* windows port?  Oh no please!..  At least, I can't do it myself
-  because of the lack of platform.
-  Ok ok, the Windows port is in progress.  Christian Prahauser
-  from cosy.sbg.ac.at is helping with that.
-  Other folks done some more work in this area.

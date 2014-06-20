@@ -1,4 +1,4 @@
-/* $Id: udns_dn.c,v 1.7 2006/11/28 22:45:20 mjt Exp $
+/* udns_dn.c
    domain names manipulation routines
 
    Copyright (C) 2005  Michael Tokarev <mjt@corpit.ru>
@@ -26,11 +26,8 @@
 
 unsigned dns_dnlen(dnscc_t *dn) {
   register dnscc_t *d = dn;
-  unsigned l = 0;
-  while(*d && l < DNS_MAXDN) {
-    l += 1 + *d;
+  while(*d)
     d += 1 + *d;
-  }
   return (unsigned)(d - dn) + 1;
 }
 
@@ -89,8 +86,7 @@ dns_ptodn(const char *name, unsigned namelen,
       if (!c) {			/* empty label */
         if (np == (dnscc_t *)name && np + 1 == ne) {
           /* special case for root dn, aka `.' */
-          /* ++np;
-             ... incrementing a variable that isn't subsequently looked at */
+          ++np;
           break;
         }
         return -1;		/* zero label */
@@ -138,8 +134,6 @@ dns_ptodn(const char *name, unsigned namelen,
   if ((c = dp - llab) > DNS_MAXLABEL)
     return -1;				/* label too long */
   if ((llab[-1] = (dnsc_t)c) != 0) {
-    if (dp >= de)
-      return -1;
     *dp++ = 0;
     if (isabs)
       *isabs = 0;
@@ -154,12 +148,10 @@ dnscc_t dns_inaddr_arpa_dn[14] = "\07in-addr\04arpa";
 
 dnsc_t *
 dns_a4todn_(const struct in_addr *addr, dnsc_t *dn, dnsc_t *dne) {
-  dnsc_t *p;
-  unsigned n;
-  dnscc_t *s = ((dnscc_t *)addr) + 4;
-  while(--s >= (dnscc_t *)addr) {
-    n = *s;
-    p = dn + 1;
+  const unsigned char *s = ((const unsigned char *)addr) + 4;
+  while(s > (const unsigned char *)addr) {
+    unsigned n = *--s;
+    dnsc_t *p = dn + 1;
     if (n > 99) {
       if (p + 2 > dne) return 0;
       *p++ = n / 100 + '0';
@@ -212,12 +204,11 @@ dnscc_t dns_ip6_arpa_dn[10] = "\03ip6\04arpa";
 
 dnsc_t *
 dns_a6todn_(const struct in6_addr *addr, dnsc_t *dn, dnsc_t *dne) {
-  unsigned n;
-  dnscc_t *s = ((dnscc_t *)addr) + 16;
+  const unsigned char *s = ((const unsigned char *)addr) + 16;
   if (dn + 64 > dne) return 0;
-  while(--s >= (dnscc_t *)addr) {
+  while(s > (const unsigned char *)addr) {
+    unsigned n = *--s & 0x0f;
     *dn++ = 1;
-    n = *s & 0x0f;
     *dn++ = n > 9 ? n + 'a' - 10 : n + '0';
     *dn++ = 1;
     n = *s >> 4;
