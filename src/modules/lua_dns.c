@@ -65,6 +65,8 @@ typedef struct dns_lookup_ctx {
   noit_lua_resume_info_t *ci;
   dns_ctx_handle_t *h;
   char *error;
+  char *results;
+  int results_len;
   unsigned char dn[DNS_MAXDN];
   enum dns_class query_ctype;
   enum dns_type query_rtype;
@@ -197,6 +199,8 @@ static void dns_ctx_release(dns_ctx_handle_t *h) {
 
 void lookup_ctx_release(dns_lookup_ctx_t *v) {
   if(!v) return;
+  if(v->results) free(v->results);
+  v->results = NULL;
   if(v->error) free(v->error);
   v->error = NULL;
   if(noit_atomic_dec32(&v->refcnt) == 0) {
@@ -244,9 +248,9 @@ static char *encode_txt(char *dst, const unsigned char *src, int len) {
   return dst;
 }
 
-static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
-  int r = dns_status(ctx);
-  dns_lookup_ctx_t *dlc = data;
+static void dns_resume(dns_lookup_ctx_t *dlc) {
+  int r = dlc->results_len;
+  void *result = dlc->results;
   struct dns_parse p;
   struct dns_rr rr;
   unsigned nrr = 0;
@@ -254,6 +258,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   const unsigned char *pkt, *cur, *end;
   lua_State *L;
 
+  dlc->results = NULL; /* We will free 'result' in cleanup */
   if(!dlc->active) goto cleanup;
   if(!result) goto cleanup;
 
@@ -360,6 +365,35 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   if(result) free(result);
   if(dlc->active) dlc->ci->lmc->resume(dlc->ci, nrr);
   lookup_ctx_release(dlc);
+}
+static int dns_resume_event(eventer_t e, int mask, void *closure,
+                            struct timeval *now) {
+  dns_resume(closure);
+  return 0;
+}
+
+static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
+  eventer_t e;
+  int r = dns_status(ctx);
+  dns_lookup_ctx_t *dlc = data;
+  if(dlc->results) free(dlc->results);
+  dlc->results = NULL;
+  if(r >= 0) {
+    dlc->results_len = r;
+    dlc->results = malloc( r>0 ? r : r+1 );
+    memcpy(dlc->results, result, dlc->results_len);
+  }
+  if(pthread_equal(dlc->ci->bound_thread, pthread_self()))
+    return dns_resume(dlc);
+
+  /* We need to schedule this to run on another eventer thread */
+  e = eventer_alloc();
+  /* no whence, so epoch... or "right now!" */
+  e->thr_owner = dlc->ci->bound_thread;
+  e->closure = dlc;
+  e->callback = dns_resume_event;
+  e->mask = EVENTER_TIMER;
+  eventer_add(e);
 }
 
 static int noit_lua_dns_lookup(lua_State *L) {
