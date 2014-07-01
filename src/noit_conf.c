@@ -46,11 +46,15 @@
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_console.h"
+#include "noit_version.h"
 #include "noit_xml.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
 #include "utils/noit_watchdog.h"
+
+const char *_noit_branch = NOIT_BRANCH;
+const char *_noit_version = NOIT_VERSION;
 
 /* tmp hash impl, replace this with something nice */
 static noit_log_stream_t xml_debug = NULL;
