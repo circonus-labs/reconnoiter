@@ -224,9 +224,9 @@ noit_jlog_thread_main(void *e_vptr) {
        */
       jcl->count = MAX_ROWS_AT_ONCE;
       jcl->finish.marker = jcl->start.marker + jcl->count;
-      sleeptime = 0;
     }
     if(jcl->count > 0) {
+      sleeptime = 0;
       if(noit_jlog_push(e, jcl)) {
         goto alldone;
       }
