@@ -67,8 +67,10 @@ our $all_noit_modules = {
 
 # Jitter the ports up (in blocks of 10 for 10k ports)
 my $jitter = int(rand() * 10000 / 10) * 10;
-our $NOIT_TEST_DB = "/tmp/noit-test-db-$>";
-our $NOIT_TEST_DB_PORT = 23816;
+my $append = "";
+$append = "-$ENV{'BUILD_NUMBER'}" if(exists($ENV{'BUILD_NUMBER'}));
+our $NOIT_TEST_DB = "/tmp/noit-test-db-$>$append";
+our $NOIT_TEST_DB_PORT = 23816 + ($ENV{'BUILD_NUMBER'} || 0);
 our $NOIT_API_PORT = 42364 + $jitter;
 our $NOIT_CLI_PORT = 42365 + $jitter;
 our $STRATCON_API_PORT = 42366 + $jitter;
