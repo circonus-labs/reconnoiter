@@ -148,6 +148,7 @@ JLOG_API(int)       jlog_ctx_read_message(jlog_ctx *ctx, const jlog_id *, jlog_m
 JLOG_API(int)       jlog_ctx_read_checkpoint(jlog_ctx *ctx, const jlog_id *checkpoint);
 JLOG_API(int)       jlog_snprint_logid(char *buff, int n, const jlog_id *checkpoint);
 
+JLOG_API(int)       jlog_pending_readers(jlog_ctx *ctx, u_int32_t log, u_int32_t *earliest_ptr);
 JLOG_API(int)       __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log);
 JLOG_API(int)       jlog_ctx_first_log_id(jlog_ctx *ctx, jlog_id *id);
 JLOG_API(int)       jlog_ctx_last_log_id(jlog_ctx *ctx, jlog_id *id);

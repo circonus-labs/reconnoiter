@@ -384,11 +384,16 @@ static int __jlog_open_metastore(jlog_ctx *ctx)
 
 /* exported */
 int __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log) {
+  return jlog_pending_readers(ctx, log, NULL);
+}
+int jlog_pending_readers(jlog_ctx *ctx, u_int32_t log,
+                         u_int32_t *earliest_out) {
   int readers;
   DIR *dir;
   struct dirent *ent;
   char file[MAXPATHLEN];
-  int len;
+  int len, seen = 0;
+  u_int32_t earliest = 0;
   jlog_id id;
 
   readers = 0;
@@ -422,6 +427,15 @@ int __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log) {
 #ifdef DEBUG
           fprintf(stderr, "\t%u <= %u (pending reader)\n", id.log, log);
 #endif
+          if (!seen) {
+            earliest = id.log;
+            seen = 1;
+          }
+          else {
+            if(id.log < earliest) {
+              earliest = id.log;
+            }
+          }
           if (id.log <= log) {
             readers++;
           }
@@ -432,6 +446,7 @@ int __jlog_pending_readers(jlog_ctx *ctx, u_int32_t log) {
     }
   }
   closedir(dir);
+  if(earliest_out) *earliest_out = earliest;
   return readers;
 }
 struct _jlog_subs {
@@ -1604,6 +1619,7 @@ static int is_datafile(const char *f, u_int32_t *logid) {
 
 int jlog_clean(const char *file) {
   int rv = -1;
+  u_int32_t earliest = 0;
   jlog_ctx *log;
   DIR *dir;
   struct dirent *de;
@@ -1613,25 +1629,20 @@ int jlog_clean(const char *file) {
   dir = opendir(file);
   if(!dir) goto out;
 
+  earliest = 0;
+  if(jlog_pending_readers(log, 0, &earliest) < 0) goto out;
+
   rv = 0;
   while((de = readdir(dir)) != NULL) {
     u_int32_t logid;
-    if(is_datafile(de->d_name, &logid)) {
+    if(is_datafile(de->d_name, &logid) && logid < earliest) {
       char fullfile[MAXPATHLEN];
       char fullidx[MAXPATHLEN];
-      struct stat st;
-      int readers;
       snprintf(fullfile, sizeof(fullfile), "%s/%s", file, de->d_name);
       snprintf(fullidx, sizeof(fullidx), "%s/%s" INDEX_EXT, file, de->d_name);
-      if(!stat(fullfile, &st)) {
-        readers = __jlog_pending_readers(log, logid);
-        if(readers == 0) {
-          unlink(fullfile);
-          /* coverity[toctou] */
-          unlink(fullidx);
-          rv++;
-        }
-      }
+      (void)unlink(fullfile);
+      (void)unlink(fullidx); /* this may not exist; don't care */
+      rv++;
     }
   }
   closedir(dir);
