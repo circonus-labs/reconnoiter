@@ -556,8 +556,9 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   jlog_ctx *log;
   DIR *d;
   struct dirent *de, *entry;
-  int cnt = 0;
-  char path[PATH_MAX], current_log[9];
+  int cnt = 0, readers;
+  u_int32_t earliest = 0;
+  char path[PATH_MAX];
   int size = 0;
 
   actx = (jlog_asynch_ctx *)ls->op_ctx;
@@ -566,7 +567,11 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   if(!log) return -1;
   if(jlog_lspath_to_fspath(ls, path, sizeof(path), NULL) <= 0) return -1;
   d = opendir(path);
-  snprintf(current_log, sizeof(current_log), "%08x", log->current_log);
+
+  /* populate earliest, if this fails, we assume */
+  readers = jlog_pending_readers(log, log->current_log, &earliest);
+  if(readers < 0) return -1;
+  if(readers == 0) return 0;
 
 #ifdef _PC_NAME_MAX
   size = pathconf(path, _PC_NAME_MAX);
@@ -579,27 +584,18 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   while(portable_readdir_r(d, de, &entry) == 0 && entry != NULL) {
     u_int32_t logid;
     /* the current log file isn't a deletion target. period. */
-    if(is_datafile(entry->d_name, &logid) &&
-       strcmp(current_log, entry->d_name)) {
-      int rv;
-      struct stat st;
+    if(is_datafile(entry->d_name, &logid) &&  /* make sure it is a datafile */
+       logid < earliest &&                    /* and that is older enough */
+       logid != log->current_log) {           /* and that isn't current */
       char fullfile[PATH_MAX];
       char fullidx[PATH_MAX];
 
       snprintf(fullfile, sizeof(fullfile), "%s/%s", path, entry->d_name);
       snprintf(fullidx, sizeof(fullidx), "%s/%s" INDEX_EXT,
                path, entry->d_name);
-      /* coverity[fs_check_call] */
-      while((rv = stat(fullfile, &st)) != 0 && errno == EINTR);
-      if(rv == 0) {
-        int readers;
-        readers = __jlog_pending_readers(log, logid);
-        if(readers == 0) {
-          /* coverity[toctou] */
-          unlink(fullfile);
-          unlink(fullidx);
-        }
-      }
+      (void)unlink(fullfile);
+      (void)unlink(fullidx); /* this might fail ENOENT; don't care */
+      cnt++;
     }
   }
   closedir(d);
