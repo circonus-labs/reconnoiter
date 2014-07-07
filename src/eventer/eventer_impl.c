@@ -74,7 +74,6 @@ noit_log_stream_t eventer_err = NULL;
 noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
-static int desired_limit = 1024 * 1024;
 static eventer_jobq_t __global_backq, __default_jobq;
 static pthread_mutex_t recurrent_lock = PTHREAD_MUTEX_INITIALIZER;
 struct recurrent_events {
@@ -93,8 +92,8 @@ int eventer_impl_propset(const char *key, const char *value) {
     return 0;
   }
   else if(!strcasecmp(key, "rlim_nofiles")) {
-    desired_limit = atoi(value);
-    if(desired_limit < 256) {
+    desired_nofiles = atoi(value);
+    if(desired_nofiles < 256) {
       noitL(noit_error, "rlim_nofiles must be >= 256\n");
       return -1;
     }
@@ -169,7 +168,7 @@ int eventer_impl_init() {
 
   getrlimit(RLIMIT_NOFILE, &rlim);
   rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
-  while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > desired_limit + 10) {
+  while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > 1024) {
     noitL(noit_debug, "setrlimit(%u) : %s\n", (u_int32_t)rlim.rlim_cur, strerror(errno));
     rlim.rlim_cur = rlim.rlim_max = --try;
   }
