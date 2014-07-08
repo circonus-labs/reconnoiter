@@ -34,6 +34,7 @@
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
+#include "utils/noit_watchdog.h"
 #include "dtrace_probes.h"
 #include <pthread.h>
 #include <errno.h>
@@ -170,6 +171,7 @@ int eventer_impl_init() {
   rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
   while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > 1024) {
     noitL(noit_debug, "setrlimit(%u) : %s\n", (u_int32_t)rlim.rlim_cur, strerror(errno));
+    noit_watchdog_child_heartbeat();
     rlim.rlim_cur = rlim.rlim_max = --try;
   }
   getrlimit(RLIMIT_NOFILE, &rlim);
