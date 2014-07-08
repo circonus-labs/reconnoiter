@@ -170,10 +170,8 @@ int eventer_impl_init() {
   getrlimit(RLIMIT_NOFILE, &rlim);
   rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
   while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > 1024) {
-    noitL(noit_debug, "setrlimit(%u) : %s\n", (u_int32_t)rlim.rlim_cur, strerror(errno));
     noit_watchdog_child_heartbeat();
-    try = try / 2;
-    rlim.rlim_cur = rlim.rlim_max = try;
+    rlim.rlim_cur = rlim.rlim_max = --try;
   }
   getrlimit(RLIMIT_NOFILE, &rlim);
   noitL(noit_debug, "rlim { %u, %u }\n", (u_int32_t)rlim.rlim_cur, (u_int32_t)rlim.rlim_max);
