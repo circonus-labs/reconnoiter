@@ -566,7 +566,6 @@ noit_reverse_socket_client_handler(eventer_t e, int mask, void *closure,
   assert(rc->nctx == nctx);
   rv = noit_reverse_socket_handler(e, mask, rc, now);
   if(rv == 0) {
-rv = e->fd;
     nctx->close(nctx, e);
     nctx->schedule_reattempt(nctx, now);
   }
@@ -618,13 +617,17 @@ noit_reverse_socket_proxy_accept(eventer_t e, int mask, void *closure,
   fd = e->opset->accept(e->fd, &remote.in, &salen, &mask, e);
   if(fd >= 0) {
     if(eventer_set_fd_nonblocking(fd)) {
+      noitL(nlerr, "reverse_socket accept eventer_set_fd_nonblocking failed\n");
       close(fd);
     }
     else {
       if(noit_reverse_socket_connect(rc->id, fd) < 0) {
+        noitL(nlerr, "reverse_socket accept noit_reverse_socket_connect failed\n");
         close(fd);
       }
     }
+  } else {
+    noitL(nlerr, "reverse_socket accept failed: %s\n", strerror(errno));
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -813,6 +816,8 @@ int noit_reverse_socket_connect(const char *id, int existing_fd) {
     }
   }
   pthread_rwlock_unlock(&reverse_sockets_lock);
+  if(!rc)
+    noitL(nlerr, "noit_support_socket[%s] does not exist\n", id);
   if(rc && fd < 0)
     noitL(nlerr, "noit_support_socket[%s] failed %s: %s\n", rc->id, op, strerror(errno));
   return fd;
