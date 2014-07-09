@@ -236,14 +236,14 @@ lua_general_reverse_socket_initiate(lua_State *L) {
   if(lua_gettop(L) < 2 ||
      !lua_isstring(L,1) ||
      !lua_isnumber(L,2) ||
-     (lua_gettop(L) == 3 && !lua_istable(L,3)) ||
-     (lua_gettop(L) == 4 && !lua_istable(L,4)))
+     (lua_gettop(L) >= 3 && !lua_istable(L,3)) ||
+     (lua_gettop(L) >= 4 && !lua_istable(L,4)))
     luaL_error(L, "reverse_start(host,port,sslconfig,config)");
 
   host = lua_tostring(L,1);
   port = lua_tointeger(L,2);
-  if(lua_gettop(L)==3) sslconfig = noit_lua_table_to_hash(L,3);
-  if(lua_gettop(L)==4) config = noit_lua_table_to_hash(L,4);
+  if(lua_gettop(L)>=3) sslconfig = noit_lua_table_to_hash(L,3);
+  if(lua_gettop(L)>=4) config = noit_lua_table_to_hash(L,4);
 
   noit_lua_help_initiate_noit_connection(host, port, sslconfig, config);
 
