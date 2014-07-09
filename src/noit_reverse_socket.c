@@ -150,7 +150,11 @@ typedef struct {
 
 static void *noit_reverse_socket_alloc() {
   int i;
+  pthread_mutexattr_t attr;
   reverse_socket_t *rc = calloc(1, sizeof(*rc));
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&rc->lock, &attr);
   gettimeofday(&rc->create_time, NULL);
   for(i=0;i<MAX_CHANNELS;i++)
     rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
@@ -164,9 +168,9 @@ noit_reverse_socket_free(void *vrc) {
     noit_hash_delete(&reverse_sockets, rc->id, strlen(rc->id), NULL, NULL);
     pthread_rwlock_unlock(&reverse_sockets_lock);
   }
-
   if(rc->buff) free(rc->buff);
   if(rc->id) free(rc->id);
+  pthread_mutex_destroy(&rc->lock);
   free(rc);
 }
 
