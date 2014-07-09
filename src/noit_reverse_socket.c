@@ -291,6 +291,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   channel_closure_t *cct = closure;
   ssize_t len;
   int write_success = 1, read_success = 1;
+  int needs_unlock = 0;
   int write_mask = EVENTER_EXCEPTION, read_mask = EVENTER_EXCEPTION;
 #define CHANNEL cct->parent->channels[cct->channel_id]
 
@@ -301,8 +302,16 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   if(CHANNEL.pair[0] != e->fd) {
    noitL(nlerr, "noit_reverse_socket_channel_handler: misaligned events, this is a bug\n");
    shutdown:
+    if(needs_unlock) {
+      pthread_mutex_unlock(&cct->parent->lock);
+      needs_unlock = 0;
+    }
     command_out(cct->parent, cct->channel_id, "SHUTDOWN");
    snip:
+    if(needs_unlock) {
+      pthread_mutex_unlock(&cct->parent->lock);
+      needs_unlock = 0;
+    }
     e->opset->close(e->fd, &write_mask, e);
     eventer_remove_fd(e->fd);
     CHANNEL.pair[0] = CHANNEL.pair[1] = -1;
@@ -313,6 +322,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   while(write_success || read_success) {
     read_success = write_success = 0;
     pthread_mutex_lock(&cct->parent->lock);
+    needs_unlock = 1;
 
     /* try to write some stuff */
     while(CHANNEL.incoming) {
@@ -354,6 +364,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
       read_success = 1;
     }
     pthread_mutex_unlock(&cct->parent->lock);
+    needs_unlock = 0;
   }
   return read_mask | write_mask | EVENTER_EXCEPTION;
 }
@@ -1076,6 +1087,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
   SSLCONFGET(ca, "ca_chain");
   SSLCONFGET(ciphers, "ciphers");
   SSLCONFGET(crl, "crl");
+
   sslctx = eventer_ssl_ctx_new(SSL_CLIENT, layer, cert, key, ca, ciphers);
   if(!sslctx) goto connect_error;
   if(crl) {
