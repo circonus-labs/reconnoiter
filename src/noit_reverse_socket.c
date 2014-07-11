@@ -199,7 +199,7 @@ static void APPEND_IN(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
   e = eventer_find_fd(rc->channels[id].pair[0]);
   if(!e) noitL(nlerr, "WHAT? No event on my side [%d] of the socketpair()\n", rc->channels[id].pair[0]);
   else {
-    noitL(nldeb, "APPEND_IN trigger? (%d, %x, %s) => %s\n",e->fd, e->mask, eventer_name_for_callback_e(e->callback, e), e->mask & EVENTER_WRITE ? "false" : "true");
+    noitL(nldeb, "APPEND_IN(%s,%d) => %s\n", rc->id, id, eventer_name_for_callback_e(e->callback, e));
     if(!(e->mask & EVENTER_WRITE)) eventer_trigger(e, EVENTER_WRITE|EVENTER_READ);
   }
 }
@@ -212,13 +212,15 @@ static void POP_OUT(reverse_socket_t *rc) {
   reverse_frame_free(f);
 }
 static void APPEND_OUT(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
+  int id;
   reverse_frame_t *frame = malloc(sizeof(*frame));
   memcpy(frame, frame_to_copy, sizeof(*frame));
   pthread_mutex_lock(&rc->lock);
   rc->out_bytes += frame->buff_len;
   rc->out_frames += 1;
-  rc->channels[(frame->channel_id & 0x7fff)].out_bytes += frame->buff_len;
-  rc->channels[(frame->channel_id & 0x7fff)].out_frames += 1;
+  id = frame->channel_id & 0x7fff;
+  rc->channels[id].out_bytes += frame->buff_len;
+  rc->channels[id].out_frames += 1;
   if(rc->outgoing_tail) {
     rc->outgoing_tail->next = frame;
     rc->outgoing_tail = frame;
@@ -229,7 +231,7 @@ static void APPEND_OUT(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
   pthread_mutex_unlock(&rc->lock);
   if(!rc->e) noitL(nlerr, "No event to trigger for reverse_socket framing\n");
   if(rc->e) {
-    noitL(nldeb, "APPEND_OUT (%d, %x, %s)\n", rc->e->fd, rc->e->mask, eventer_name_for_callback_e(rc->e->callback, rc->e));
+    noitL(nldeb, "APPEND_OUT(%s, %d) => %s\n", rc->id, id, eventer_name_for_callback_e(rc->e->callback, rc->e));
     eventer_trigger(rc->e, EVENTER_WRITE|EVENTER_READ);
   }
 }
@@ -246,12 +248,13 @@ command_out(reverse_socket_t *rc, uint16_t id, const char *command) {
 static void
 noit_reverse_socket_channel_shutdown(reverse_socket_t *rc, uint16_t i, eventer_t e) {
   eventer_t ce = NULL;
+  if(rc->channels[i].pair[0] >= 0)
+    noitL(nldeb, "noit_reverse_socket_channel_shutdown(%s, %d)\n", rc->id, i);
   pthread_mutex_lock(&rc->lock);
   if(rc->channels[i].pair[0] >= 0) {
     int fd = rc->channels[i].pair[0];
     eventer_t ce = eventer_find_fd(fd);
     rc->channels[i].pair[0] = -1;
-    noitL(nldeb, "noit_reverse_socket_channel_shutdown(%s, %d)\n", rc->id, i);
     if(!ce) close(fd);
   }
   pthread_mutex_unlock(&rc->lock);
@@ -273,8 +276,10 @@ noit_reverse_socket_channel_shutdown(reverse_socket_t *rc, uint16_t i, eventer_t
 
 static void
 noit_reverse_socket_shutdown(reverse_socket_t *rc, eventer_t e) {
+  pthread_mutex_t tmplock;
   char *id = rc->id;
   int mask, i;
+  noitL(nldeb, "noit_reverse_socket_shutdown(%s)\n", rc->id);
   if(rc->buff) free(rc->buff);
   if(rc->xbind) {
     free(rc->xbind);
@@ -298,9 +303,11 @@ noit_reverse_socket_shutdown(reverse_socket_t *rc, eventer_t e) {
   for(i=0;i<MAX_CHANNELS;i++) {
     noit_reverse_socket_channel_shutdown(rc, i, NULL);
   }
+  memcpy(&tmplock, &rc->lock, sizeof(rc->lock));
   memset(rc, 0, sizeof(*rc));
   /* Must preserve the ID, so we can be removed from our socket inventory later */
   rc->id = id;
+  memcpy(&rc->lock, &tmplock, sizeof(rc->lock));
   for(i=0;i<MAX_CHANNELS;i++) {
     rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
   }
