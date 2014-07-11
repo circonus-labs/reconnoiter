@@ -267,6 +267,7 @@ noit_reverse_socket_channel_shutdown(reverse_socket_t *rc, uint16_t i, eventer_t
     rc->channels[i].incoming = rc->channels[i].incoming->next;
     reverse_frame_free(f);
   }
+  rc->channels[i].incoming_tail = NULL;
   pthread_mutex_unlock(&rc->lock);
 }
 
