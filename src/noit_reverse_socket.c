@@ -153,8 +153,9 @@ static void *noit_reverse_socket_alloc() {
   pthread_mutexattr_t attr;
   reverse_socket_t *rc = calloc(1, sizeof(*rc));
   pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&rc->lock, &attr);
+  assert(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE) == 0);
+  assert(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) == 0);
+  assert(pthread_mutex_init(&rc->lock, &attr) == 0);
   gettimeofday(&rc->create_time, NULL);
   for(i=0;i<MAX_CHANNELS;i++)
     rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
@@ -185,17 +186,22 @@ static void APPEND_IN(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
   rc->channels[id].in_bytes += frame->buff_len;
   rc->channels[id].in_frames += 1;
   if(rc->channels[id].incoming_tail) {
+    assert(rc->channels[id].incoming);
     rc->channels[id].incoming_tail->next = frame;
     rc->channels[id].incoming_tail = frame;
   }
   else {
+    assert(!rc->channels[id].incoming);
     rc->channels[id].incoming = rc->channels[id].incoming_tail = frame;
   }
   pthread_mutex_unlock(&rc->lock);
   memset(frame_to_copy, 0, sizeof(*frame_to_copy));
   e = eventer_find_fd(rc->channels[id].pair[0]);
   if(!e) noitL(nlerr, "WHAT? No event on my side [%d] of the socketpair()\n", rc->channels[id].pair[0]);
-  if(e && !(e->mask & EVENTER_WRITE)) eventer_trigger(e, EVENTER_WRITE|EVENTER_READ);
+  else {
+    noitL(nldeb, "APPEND_IN trigger? (%d, %x, %s) => %s\n",e->fd, e->mask, eventer_name_for_callback_e(e->callback, e), e->mask & EVENTER_WRITE ? "false" : "true");
+    if(!(e->mask & EVENTER_WRITE)) eventer_trigger(e, EVENTER_WRITE|EVENTER_READ);
+  }
 }
 
 static void POP_OUT(reverse_socket_t *rc) {
@@ -222,7 +228,10 @@ static void APPEND_OUT(reverse_socket_t *rc, reverse_frame_t *frame_to_copy) {
   }
   pthread_mutex_unlock(&rc->lock);
   if(!rc->e) noitL(nlerr, "No event to trigger for reverse_socket framing\n");
-  if(rc->e) eventer_trigger(rc->e, EVENTER_WRITE|EVENTER_READ);
+  if(rc->e) {
+    noitL(nldeb, "APPEND_OUT (%d, %x, %s)\n", rc->e->fd, rc->e->mask, eventer_name_for_callback_e(rc->e->callback, rc->e));
+    eventer_trigger(rc->e, EVENTER_WRITE|EVENTER_READ);
+  }
 }
 
 static void
@@ -236,21 +245,29 @@ command_out(reverse_socket_t *rc, uint16_t id, const char *command) {
 
 static void
 noit_reverse_socket_channel_shutdown(reverse_socket_t *rc, uint16_t i, eventer_t e) {
+  eventer_t ce = NULL;
+  pthread_mutex_lock(&rc->lock);
   if(rc->channels[i].pair[0] >= 0) {
-    eventer_t ce = eventer_find_fd(rc->channels[i].pair[0]);
-    if(ce) eventer_trigger(ce, EVENTER_EXCEPTION);
-    else close(rc->channels[i].pair[0]);
+    int fd = rc->channels[i].pair[0];
+    eventer_t ce = eventer_find_fd(fd);
     rc->channels[i].pair[0] = -1;
+    noitL(nldeb, "noit_reverse_socket_channel_shutdown(%s, %d)\n", rc->id, i);
+    if(!ce) close(fd);
   }
+  pthread_mutex_unlock(&rc->lock);
+
+  if(ce) eventer_trigger(ce, EVENTER_EXCEPTION);
 
   rc->channels[i].in_bytes = rc->channels[i].out_bytes =
     rc->channels[i].in_frames = rc->channels[i].out_frames = 0;
 
+  pthread_mutex_lock(&rc->lock);
   while(rc->channels[i].incoming) {
     reverse_frame_t *f = rc->channels[i].incoming;
     rc->channels[i].incoming = rc->channels[i].incoming->next;
     reverse_frame_free(f);
   }
+  pthread_mutex_unlock(&rc->lock);
 }
 
 static void
@@ -299,6 +316,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   int write_mask = EVENTER_EXCEPTION, read_mask = EVENTER_EXCEPTION;
 #define CHANNEL cct->parent->channels[cct->channel_id]
 
+  noitL(nldeb, "noit_reverse_socket_channel_handler(%s, %d)\n", cct->parent->id, cct->channel_id);
   if(cct->parent->nctx && cct->parent->nctx->wants_permanent_shutdown) goto snip;
   if(mask & EVENTER_EXCEPTION) goto snip;
 
@@ -306,11 +324,11 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
   if(CHANNEL.pair[0] != e->fd) {
    noitL(nlerr, "noit_reverse_socket_channel_handler: misaligned events, this is a bug\n");
    shutdown:
+    command_out(cct->parent, cct->channel_id, "SHUTDOWN");
     if(needs_unlock) {
       pthread_mutex_unlock(&cct->parent->lock);
       needs_unlock = 0;
     }
-    command_out(cct->parent, cct->channel_id, "SHUTDOWN");
    snip:
     if(needs_unlock) {
       pthread_mutex_unlock(&cct->parent->lock);
@@ -499,13 +517,16 @@ socket_error:
       rc->frame_hdr_read = 0;
       goto next_frame;
     }
+    pthread_mutex_lock(&rc->lock);
     APPEND_IN(rc, &rc->incoming_inflight);
+    pthread_mutex_unlock(&rc->lock);
     rc->frame_hdr_read = 0;
     goto next_frame;
   }
 
   if(mask & EVENTER_WRITE) {
    try_writes:
+    pthread_mutex_lock(&rc->lock);
     if(rc->outgoing) {
       ssize_t len;
       reverse_frame_t *f = rc->outgoing;
@@ -536,6 +557,7 @@ socket_error:
       rc->frame_hdr_written = 0;
       POP_OUT(rc);
     }
+    pthread_mutex_unlock(&rc->lock);
   }
  done_for_now: 
   if(success && rc->nctx) noit_connection_update_timeout(rc->nctx);
@@ -810,6 +832,7 @@ int noit_reverse_socket_connect(const char *id, int existing_fd) {
         cct->parent = rc;
         e->closure = cct;
         e->mask = EVENTER_READ | EVENTER_EXCEPTION;
+        noitL(nlerr, "mapping reverse proxy on fd %d\n", existing_fd);
         eventer_add(e);
         APPEND_OUT(rc, &f);
       }
