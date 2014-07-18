@@ -465,7 +465,6 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
   eventer_ssl_set_peer_subject(ctx, x509ctx);
   eventer_ssl_set_peer_issuer(ctx, x509ctx);
 
-  /* If we've no preverified, we're screwed */
   if(!ok) {
     issuer[0] = '\0';
     if(err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) {
@@ -476,10 +475,8 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
              X509_verify_cert_error_string(err), depth, issuer, buf);
     if(ctx->cert_error) free(ctx->cert_error);
     ctx->cert_error = strdup(errstr);
-    return ok;
   }
 
-  /* We're good to rn a custom callback now */
   if(ctx->verify_cb)
     return ctx->verify_cb(ctx, ok, x509ctx, ctx->verify_cb_closure);
   return ok;
