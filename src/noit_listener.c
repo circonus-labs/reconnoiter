@@ -90,6 +90,7 @@ noit_listener_should_skip(const char *address, int port) {
 static int
 noit_listener_accept_ssl(eventer_t e, int mask,
                          void *closure, struct timeval *tv) {
+  const char *sslerr;
   int rv;
   listener_closure_t listener_closure = (listener_closure_t)closure;
   acceptor_closure_t *ac = NULL;
@@ -125,7 +126,10 @@ noit_listener_accept_ssl(eventer_t e, int mask,
   if(errno == EAGAIN) return mask|EVENTER_EXCEPTION;
 
  socketfail:
-  noitL(noit_error, "SSL accept failed: %s\n", eventer_ssl_get_last_error(eventer_get_eventer_ssl_ctx(e)));
+  sslerr = eventer_ssl_get_peer_error(eventer_get_eventer_ssl_ctx(e));
+  if(!sslerr) sslerr = eventer_ssl_get_last_error(eventer_get_eventer_ssl_ctx(e));
+  noitL(noit_error, "SSL accept failed: %s\n", sslerr);
+    
   if(listener_closure) free(listener_closure);
   if(ac) acceptor_closure_free(ac);
   eventer_remove_fd(e->fd);

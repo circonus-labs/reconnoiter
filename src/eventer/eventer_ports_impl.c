@@ -99,7 +99,7 @@ static void alter_fd(eventer_t e, int mask) {
     if(mask & EVENTER_EXCEPTION) events |= POLLERR;
     if(port_associate(spec->port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
       noitL(eventer_err,
-            "eventer port_associate failed: %s\n", strerror(errno));
+            "eventer port_associate failed(%d): %d/%s\n", e->fd, errno, strerror(errno));
       abort();
     }
   }
@@ -108,7 +108,7 @@ static void alter_fd(eventer_t e, int mask) {
       if(errno == ENOENT) return; /* Fine */
       if(errno == EBADFD) return; /* Fine */
       noitL(eventer_err,
-            "eventer port_dissociate failed: %s\n", strerror(errno));
+            "eventer port_dissociate failed(%d): %d/%s\n", e->fd, errno, strerror(errno));
       abort();
     }
   }

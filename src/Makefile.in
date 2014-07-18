@@ -204,7 +204,7 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(MAPFLAGS) \
 		$(LIBS)
 	@if test -x "$(CTFMERGE)" ; then \
-		$(CTFMERGE) -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
+		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
 
 stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
@@ -215,7 +215,7 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 		$(MAPFLAGS) \
 		$(LIBS)
 	@if test -x "$(CTFMERGE)" ; then \
-		$(CTFMERGE) -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
+		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
 	fi
 
 stratcon_datastore.o:	stratcon_datastore.c
