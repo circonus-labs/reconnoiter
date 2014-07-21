@@ -431,7 +431,7 @@ remove_emancipated_child_node(xmlNodePtr oldp, xmlNodePtr node) {
   if(oldp->children == NULL) return;
   if(oldp->children == node) {
     oldp->children = node->next;
-    node->next->prev = node->prev;
+    if (node->next) node->next->prev = node->prev;
   }
   else {
     xmlNodePtr prev = oldp->children;
