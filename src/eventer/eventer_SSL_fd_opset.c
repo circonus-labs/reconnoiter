@@ -159,6 +159,7 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
   /* now clip off the last ", " */
   i = strlen(ctx->last_error);
   if(i>=2) ctx->last_error[i-2] = '\0';
+  noitL(eventer_deb, "ssl error: %s\n", ctx->last_error);
 }
 
 static DH *
