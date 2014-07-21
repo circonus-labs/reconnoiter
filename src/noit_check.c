@@ -107,6 +107,7 @@ static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
+static noit_hash_table dns_ignore_list = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
 static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
@@ -592,6 +593,31 @@ noit_poller_reload(const char *xpath)
   noit_poller_initiate();
 }
 void
+noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
+  noit_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), NULL, NULL);
+}
+static void 
+noit_check_dns_ignore_list_init() {
+  noit_conf_section_t* dns;
+  int cnt;
+
+  dns = noit_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
+  if(dns) {
+    int i = 0;
+    for (i = 0; i < cnt; i++) {
+      char* extension;
+      char* ignore;
+      if(!noit_conf_get_string(dns[i], "self::node()/@value", &extension)) {
+        continue;
+      }
+      if(!noit_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
+        continue;
+      }
+      noit_check_dns_ignore_tld(extension, ignore);
+    }
+  }
+}
+void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
@@ -614,6 +640,7 @@ noit_poller_init() {
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
+  noit_check_dns_ignore_list_init();
   noit_poller_reload(NULL);
 }
 
@@ -901,8 +928,22 @@ noit_check_update(noit_check_t *new_check,
   /* This sets both the name and the target_addr */
   if(noit_check_set_ip(new_check, target, name)) {
     noit_boolean should_resolve;
+    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    const char *key, *value;
+    int klen;
+    char* extension = strrchr(target, '.');
     new_check->flags |= NP_RESOLVE;
     new_check->flags &= ~NP_RESOLVED;
+    /* If we match any of the extensions we're supposed to ignore,
+     * don't resolve */
+    if (extension && (strlen(extension) > 1)) {
+      while(noit_hash_next(&dns_ignore_list, &iter, &key, &klen, (void**)&value)) {
+        if ((!strcmp("true", value)) && (!strcmp(extension+1, key))) {
+            new_check->flags &= ~NP_RESOLVE;
+            break;
+        }
+      }
+    }
     if(noit_conf_should_resolve_targets(&should_resolve) && !should_resolve)
       flags |= NP_DISABLED | NP_UNCONFIG;
     noit_check_resolve(new_check);
