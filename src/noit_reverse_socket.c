@@ -848,7 +848,7 @@ int noit_reverse_socket_connect(const char *id, int existing_fd) {
   }
   pthread_rwlock_unlock(&reverse_sockets_lock);
   if(!rc)
-    noitL(nlerr, "noit_support_socket[%s] does not exist\n", id);
+    noitL(nldeb, "noit_support_socket[%s] does not exist\n", id);
   if(rc && fd < 0)
     noitL(nlerr, "noit_support_socket[%s] failed %s: %s\n", rc->id, op, strerror(errno));
   return fd;

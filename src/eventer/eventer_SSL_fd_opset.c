@@ -159,6 +159,7 @@ _eventer_ssl_ctx_save_last_error(eventer_ssl_ctx_t *ctx, int note_errno,
   /* now clip off the last ", " */
   i = strlen(ctx->last_error);
   if(i>=2) ctx->last_error[i-2] = '\0';
+  noitL(eventer_deb, "ssl error: %s\n", ctx->last_error);
 }
 
 static DH *
@@ -465,7 +466,6 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
   eventer_ssl_set_peer_subject(ctx, x509ctx);
   eventer_ssl_set_peer_issuer(ctx, x509ctx);
 
-  /* If we've no preverified, we're screwed */
   if(!ok) {
     issuer[0] = '\0';
     if(err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) {
@@ -476,10 +476,8 @@ verify_cb(int ok, X509_STORE_CTX *x509ctx) {
              X509_verify_cert_error_string(err), depth, issuer, buf);
     if(ctx->cert_error) free(ctx->cert_error);
     ctx->cert_error = strdup(errstr);
-    return ok;
   }
 
-  /* We're good to rn a custom callback now */
   if(ctx->verify_cb)
     return ctx->verify_cb(ctx, ok, x509ctx, ctx->verify_cb_closure);
   return ok;
