@@ -91,6 +91,8 @@ API_EXPORT(int) noit_conf_get_stringbuf(noit_conf_section_t section,
                                         const char *path, char *value, int len);
 API_EXPORT(int) noit_conf_get_int(noit_conf_section_t section,
                                   const char *path, int *value);
+API_EXPORT(int) noit_conf_get_int64(noit_conf_section_t section,
+                                    const char *path, int64_t *value);
 API_EXPORT(int) noit_conf_string_to_int(const char *str);
 API_EXPORT(int) noit_conf_get_float(noit_conf_section_t section,
                                     const char *path, float *value);

@@ -1265,6 +1265,16 @@ int noit_conf_get_int(noit_conf_section_t section,
   }
   return 0;
 }
+int noit_conf_get_int64(noit_conf_section_t section,
+                        const char *path, int64_t *value) {
+  char *str;
+  if(_noit_conf_get_string(section,NULL,path,&str)) {
+    *value = strtoll(str, NULL, 10);
+    xmlFree(str);
+    return 1;
+  }
+  return 0;
+}
 int noit_conf_set_int(noit_conf_section_t section,
                       const char *path, int value) {
   char buffer[32];
@@ -1588,9 +1598,29 @@ noit_conf_write_log() {
 struct log_rotate_crutch {
   noit_log_stream_t ls;
   int seconds;
+  int retain_seconds;
   size_t max_size;
+  ssize_t retain_size;
 };
 
+static int
+noit_conf_log_cull(eventer_t e, int mask, void *closure,
+                   struct timeval *now) {
+  struct log_rotate_crutch *lrc = closure;
+  if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
+  noit_log_stream_cull(lrc->ls, lrc->retain_seconds, lrc->retain_size);
+  return 0;
+}
+static void
+schedule_background_log_cull(struct log_rotate_crutch *lrc) {
+  eventer_t e;
+  if(lrc->retain_size < 0 && lrc->retain_seconds < 0) return;
+  e = eventer_alloc();
+  e->closure = lrc;
+  e->callback = noit_conf_log_cull;
+  e->mask = EVENTER_ASYNCH;
+  eventer_add(e);
+}
 static int
 noit_conf_log_rotate_size(eventer_t e, int mask, void *closure,
                           struct timeval *now) {
@@ -1598,6 +1628,7 @@ noit_conf_log_rotate_size(eventer_t e, int mask, void *closure,
   if(noit_log_stream_written(lrc->ls) > lrc->max_size) {
     noit_log_stream_rename(lrc->ls, NOIT_LOG_RENAME_AUTOTIME);
     noit_log_stream_reopen(lrc->ls);
+    schedule_background_log_cull(lrc);
   }
   /* Yes the 5 is arbitrary, but this is cheap */
   eventer_add_in_s_us(noit_conf_log_rotate_size, closure, 5, 0);
@@ -1613,6 +1644,7 @@ noit_conf_log_rotate_time(eventer_t e, int mask, void *closure,
   if(now) {
     noit_log_stream_rename(lrc->ls, NOIT_LOG_RENAME_AUTOTIME);
     noit_log_stream_reopen(lrc->ls);
+    schedule_background_log_cull(lrc);
   }
   
   newe = eventer_alloc();
@@ -1632,7 +1664,7 @@ noit_conf_log_rotate_time(eventer_t e, int mask, void *closure,
 }
 int
 noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
-  int i, cnt = 0, max_time, max_size, rv = 0;
+  int i, cnt = 0, max_time, max_size, retain_seconds = -1, retain_size = -1, rv = 0;
   noit_conf_section_t *log_configs;
   char path[256];
 
@@ -1662,10 +1694,15 @@ noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
         if(validate) { rv = -1; break; }
         else exit(-2);
       }
+      noit_conf_get_int(log_configs[i],
+                        "ancestor-or-self::node()/@retain_seconds",
+                        &retain_seconds);
       if(!validate) {
         lrc = calloc(1, sizeof(*lrc));
         lrc->ls = ls;
         lrc->seconds = max_time;
+        lrc->retain_size = -1;
+        lrc->retain_seconds = retain_seconds;
         noit_conf_log_rotate_time(NULL, EVENTER_TIMER, lrc, NULL);
       }
     }
@@ -1679,10 +1716,15 @@ noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
         if(validate) { rv = -1; break; }
         else exit(-2);
       }
+      noit_conf_get_int(log_configs[i],
+                        "ancestor-or-self::node()/@retain_bytes",
+                        &retain_size);
       if(!validate) {
         lrc = calloc(1, sizeof(*lrc));
         lrc->ls = ls;
         lrc->max_size = max_size;
+        lrc->retain_seconds = -1;
+        lrc->retain_size = retain_size;
         noit_conf_log_rotate_size(NULL, EVENTER_TIMER, lrc, NULL);
       }
     }

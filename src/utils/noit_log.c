@@ -236,6 +236,11 @@ membuf_logio_rename(noit_log_stream_t ls, const char *newname) {
   /* Not supported (and makes no sense) */
   return -1;
 }
+static int
+membuf_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
+  /* Could be supported, but wouldn't reduce memory usage, so why bother? */
+  return -1;
+}
 
 static logops_t membuf_logio_ops = {
   membuf_logio_open,
@@ -244,7 +249,8 @@ static logops_t membuf_logio_ops = {
   membuf_logio_writev,
   membuf_logio_close,
   membuf_logio_size,
-  membuf_logio_rename
+  membuf_logio_rename,
+  membuf_logio_cull
 };
 
 int
@@ -486,6 +492,116 @@ posix_logio_rename(noit_log_stream_t ls, const char *name) {
   if(lock) pthread_rwlock_unlock(lock);
   return rv;
 }
+struct log_finfo {
+  char *name;
+  int age;
+  size_t bytes;
+  struct log_finfo *next;
+};
+
+static int
+autoname_order(const void *av, const void *bv) {
+  struct log_finfo * const *a = av, * const *b = bv;
+  if((*a)->age < (*b)->age) return -1;
+  if((*a)->age == (*b)->age) return 0;
+  return 1;
+}
+static int
+posix_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
+  /* This only applies to auto-named things, so assume it is autonamed */
+  size_t cumm_size = 0;
+  time_t now;
+  struct log_finfo *candidates = NULL;
+  struct log_finfo **sortset;
+  DIR *d;
+  struct dirent *de, *entry;
+  char *filename;
+  char dir[PATH_MAX], path[PATH_MAX];
+  int size = 0, cnt = 0, pathlen, i;
+
+  noitL(noit_debug, "cull(%s, %d, %lld)\n", ls->path, age,
+        (long long)bytes);
+
+  strlcpy(dir, ls->path, sizeof(dir));
+  filename = strrchr(dir, IFS_CH);
+  if(!filename) return -1;
+  *filename++ = '\0';
+
+  d = opendir(dir);
+  if(!d) return -1;
+
+#ifdef _PC_NAME_MAX
+  size = pathconf(path, _PC_NAME_MAX);
+  if(size < 0) size = PATH_MAX + 128;
+#endif
+  size = MIN(size, PATH_MAX + 128);
+  de = alloca(size);
+
+  if(!d) return -1;
+  pathlen = strlen(filename);
+  now = time(NULL);
+  while(portable_readdir_r(d, de, &entry) == 0 && entry != NULL) {
+    int rv;
+    struct log_finfo *node;
+    struct stat sb;
+    time_t whence;
+    char *endptr = NULL;
+
+    if(strlen(entry->d_name) <= pathlen + 2) continue;      /* long enough */
+    if(memcmp(entry->d_name, filename, pathlen)) continue;  /* prefix matches */
+    if(entry->d_name[pathlen] != '.') continue;             /* with dot */
+    whence = strtoull(entry->d_name + pathlen + 1, &endptr, 10);
+    if(!endptr || *endptr != '\0') continue;                /* followed by ts */
+
+    node = malloc(sizeof(*node));
+    snprintf(path, sizeof(path), "%s%c%s", dir, IFS_CH, entry->d_name);
+    node->name = strdup(path);
+    node->age = now - whence;
+    while((rv = stat(node->name, &sb)) == -1 && errno == EINTR);
+    node->bytes = (rv == 0) ? sb.st_size : 0;
+    node->next = candidates;
+    candidates = node;
+    cnt++;
+  }
+  closedir(d);
+
+  if(cnt == 0) return 0;
+
+  /* construct a sorted set */
+  sortset = malloc(cnt * sizeof(*sortset));
+  i = 0;
+  while(candidates) {
+    assert(i < cnt);
+    sortset[i++] = candidates;
+    candidates = candidates->next;
+  }
+  qsort(sortset, cnt, sizeof(*sortset), autoname_order);
+
+  for(i=0;i<cnt;i++) {
+    int remove = 0;
+    char * old_str = "", *size_str = "";
+    if(age >= 0 && sortset[i]->age > age) {
+      remove = 1;
+      old_str = " [age]";
+    }
+    if(bytes >= 0 && cumm_size > bytes) {
+      remove = 1;
+      size_str = " [size]";
+    }
+    cumm_size += sortset[i]->bytes;
+
+    if(remove) {
+      noitL(noit_debug, "removing log %s%s%s\n", sortset[i]->name, old_str, size_str);
+      unlink(sortset[i]->name);
+    }
+
+    free(sortset[i]->name);
+    free(sortset[i]);
+  }
+  free(sortset);
+  return cnt;
+}
+
 static logops_t posix_logio_ops = {
   posix_logio_open,
   posix_logio_reopen,
@@ -493,7 +609,8 @@ static logops_t posix_logio_ops = {
   posix_logio_writev,
   posix_logio_close,
   posix_logio_size,
-  posix_logio_rename
+  posix_logio_rename,
+  posix_logio_cull
 };
 
 typedef struct jlog_line {
@@ -860,6 +977,11 @@ jlog_logio_rename(noit_log_stream_t ls, const char *newname) {
   /* Not supported (and makes no sense) */
   return -1;
 }
+static int
+jlog_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
+  /* Not supported (and makes no sense) */
+  return -1;
+}
 static logops_t jlog_logio_ops = {
   jlog_logio_open,
   jlog_logio_reopen,
@@ -867,7 +989,8 @@ static logops_t jlog_logio_ops = {
   NULL,
   jlog_logio_close,
   jlog_logio_size,
-  jlog_logio_rename
+  jlog_logio_rename,
+  jlog_logio_cull
 };
 
 void
@@ -1120,6 +1243,10 @@ void noit_log_stream_reopen(noit_log_stream_t ls) {
 
 int noit_log_stream_rename(noit_log_stream_t ls, const char *newname) {
   return (ls->ops && ls->ops->renameop) ? ls->ops->renameop(ls, newname) : -1;
+}
+
+int noit_log_stream_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
+  return (ls->ops && ls->ops->cullop) ? ls->ops->cullop(ls, age, bytes) : -1;
 }
 
 void

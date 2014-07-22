@@ -60,6 +60,7 @@ typedef struct {
   int (*closeop)(noit_log_stream_t);
   size_t (*sizeop)(noit_log_stream_t);
   int (*renameop)(noit_log_stream_t, const char *);
+  int (*cullop)(noit_log_stream_t, int age, ssize_t bytes);
 } logops_t;
 
 #define	NOIT_LOG_STREAM_ENABLED		0x01
@@ -103,6 +104,8 @@ API_EXPORT(noit_log_stream_t)
                  noit_log_stream_remove_stream(noit_log_stream_t ls,
                                                const char *name);
 API_EXPORT(void) noit_log_stream_reopen(noit_log_stream_t ls);
+API_EXPORT(int) noit_log_stream_cull(noit_log_stream_t ls,
+                                     int age, ssize_t bytes);
 
 #define NOIT_LOG_RENAME_AUTOTIME ((const char *)-1)
 
