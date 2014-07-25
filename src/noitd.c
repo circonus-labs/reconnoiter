@@ -189,7 +189,7 @@ static int child_main() {
       noit_conf_write_section(parts[i], 1);
     }
     free(parts);
-    exit(2);
+    exit(0);
   }
 
   noit_log_reopen_all();
