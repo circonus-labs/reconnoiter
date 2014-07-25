@@ -67,6 +67,7 @@ API_EXPORT(void)
 API_EXPORT(int) noit_conf_load(const char *path);
 API_EXPORT(int) noit_conf_save(const char *path);
 API_EXPORT(char *) noit_conf_config_filename();
+API_EXPORT(void) noit_conf_write_section(noit_conf_section_t node, int fd);
 
 API_EXPORT(void) noit_console_conf_init();
 

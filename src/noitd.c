@@ -68,6 +68,7 @@
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
 
 static char *config_file = ETC_DIR "/" APPNAME ".conf";
+static char *xpath = NULL;
 static const char *droptouser = NULL;
 static const char *droptogroup = NULL;
 static const char *chrootpath = NULL;
@@ -91,8 +92,12 @@ static void usage(const char *progname) {
 
 void parse_clargs(int argc, char **argv) {
   int c;
-  while((c = getopt(argc, argv, "Mhc:dDu:g:n:t:l:L:G:")) != EOF) {
+  while((c = getopt(argc, argv, "x:Mhc:dDu:g:n:t:l:L:G:")) != EOF) {
     switch(c) {
+      case 'x':
+        xpath = strdup(optarg);
+        foreground = 1;
+        break;
       case 'G':
         glider = strdup(optarg);
         break;
@@ -172,6 +177,18 @@ static int child_main() {
    * to ensure it is current w.r.t. to this child starting */
   if(noit_conf_load(config_file) == -1) {
     noitL(noit_error, "Cannot load config: '%s'\n", config_file);
+    exit(2);
+  }
+  if(xpath) {
+    int cnt, i;
+    noit_conf_section_t *parts = NULL;
+    parts = noit_conf_get_sections(NULL, xpath, &cnt);
+    if(cnt == 0) exit(2);
+    for(i=0; i<cnt; i++) {
+      fprintf(stdout, "%d: ", i); fflush(stdout);
+      noit_conf_write_section(parts[i], 1);
+    }
+    free(parts);
     exit(2);
   }
 

@@ -131,6 +131,17 @@ struct recurrent_journaler {
   void *jc_closure;
 };
 
+void noit_conf_write_section(noit_conf_section_t node, int fd) {
+  xmlOutputBufferPtr out;
+  xmlCharEncodingHandlerPtr enc;
+
+  enc = xmlGetCharEncodingHandler(XML_CHAR_ENCODING_UTF8);
+  out = xmlOutputBufferCreateFd(fd, enc);
+  xmlNodeDumpOutput(out, master_config, node, 2, 0, "utf8");
+  xmlOutputBufferClose(out);
+  write(2, "\n", 1);
+  xmlFree(enc);
+}
 void
 write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
   int i;
