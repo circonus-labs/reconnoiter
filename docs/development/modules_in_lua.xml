@@ -136,5 +136,61 @@ end
         <section><title><code>noit_check_t.unavailable()</code></title>
                  <para>Sets the check's <code>unavailable</code> field to <code>NP_UNAVAILABLE</code>.</para></section>
       </section>
+      <section>
+        <title>Non-blocking network functions</title>
+        <para>All networking functions in lua modules should use the <code>noit.socket</code> function to retrieve a socket with non-blocking methods attached.  These sockets support both UDP and TCP as well as SSL over TCP.</para>
+        <section><title><code>noit.socket(ipaddress[, protocol])</code></title>
+                 <para>Creates and returns a socket for the Internet family (IPv4 or IPv6) to which the <code>ipaddress</code> belongs. The <code>protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code>noit.eventer</code>.</para></section>
+        <section><title><code>noit.socket(family[, protocol])</code></title>
+                 <para>Creates and returns a socket of type <code>family</code> (either "inet" or "inet6"). The <code>protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code>noit.eventer</code>.</para></section>
+        <section><title><code>noit.eventer:accept()</code></title>
+                 <para>Accept a new socket from an existing listening socket. Returns a new non-blocking socket of type <code>noit.eventer</code></para></section>
+        <section><title><code>noit.eventer:bind(address, port)</code></title>
+                 <para>Bind the current socket to the specified <code>address</code> and <code>port</code>. Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:close()</code></title>
+                 <para>Closes the socket.</para></section>
+        <section><title><code>noit.eventer:connect(ipaddress, port)</code></title>
+                 <para>Establish a connection to the specified <code>ipaddress</code> and <code>port</code>. Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:listen(backlog)</code></title>
+                 <para>Use listen(2) to place the current socket in listening mode (ready to accept connections).  The <code>backlog</code> argument is passed to the listen system call.  Returns three arguments: a return code (0 on success), and possibly the <code>errno</code> and error message in the event of a failure condition.</para></section>
+        <section><title><code>noit.eventer:own()</code></title>
+                 <para>Each <code>noit.eventer</code> object to a lua coroutine.  If you pass an object to another coroutine to use, that coroutine should claim ownership of the object by invoking this function.</para></section>
+        <section><title><code>noit.eventer:read(length)</code></title>
+                 <para>Read <code>length</code> bytes from the socket and return them as a string.</para></section>
+        <section><title><code>noit.eventer:read(delimiter)</code></title>
+                 <para>Read bytes up to and including the string specified by <code>delimiter</code> return them as a string.</para></section>
+        <section><title><code>noit.eventer:recv(length)</code></title>
+                 <para>Read a packet of up to <code>length</code> bytes.  Returns two values: the length of the packet read and the contents of the packet.</para></section>
+        <section><title><code>noit.eventer:send(pkt)</code></title>
+                 <para>Send te string <code>pkt</code> over the socket.</para></section>
+        <section><title><code>noit.eventer:sendto(pkt, address, port)</code></title>
+                 <para>Send te string <code>pkt</code> over the socket to the specified <code>address</code> and <code>port</code>.</para></section>
+        <section><title><code>noit.eventer:setsockopt(type, value)</code></title>
+                 <para>Call the system setsockopt(2) function with the specified <code>value</code>.  Supported values for <code>type</code> are <code>"SO_BROADCAST"</code>, <code>"SO_REUSEADDR"</code>, <code>"SO_KEEPALIVE"</code>, <code>"SO_LINGER"</code>, <code>"SO_OOBINLINE"</code>, <code>"SO_SNDBUF"</code>, <code>"SO_RCVBUF"</code>, <code>"SO_DONTROUTE"</code>, <code>"SO_RCVLOWAT"</code>, <code>"SO_RCVTIMEO"</code>, <code>"SO_SNDLOWAT"</code>, and <code>"SO_SNDTIMEO"</code>.  Returns two values: a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:ssl_upgrade_socket(cert,key,ca,ciphers)</code></title>
+                 <para>Upgrade a connected socket to SSL.  The <code>cert</code>, <code>key</code>, and <code>ca</code> arguments specify the paths to files containing the certificate, key, and CA chain, respectively.  <code>ciphers</code> is a list of ciphers as understood by OpenSSL.  Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:ssl_ctx()</code></title>
+                 <para>Return the associated SSL context (of type <code>noit.eventer.ssl_ctx</code>).</para></section>
+        <section><title><code>noit.eventer:write(body)</code></title>
+                 <para>Write the string <code>body</code> over the socket.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:ciphers</code></title>
+                 <para>A lua table containing the names ciphers that have been negotiated on the context.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:current_cipher</code></title>
+                 <para>The name of the currently used cipher.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:error</code></title>
+                 <para>The error encountered when attempting to validate the peer.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:end_time</code></title>
+                 <para>The time at which the peer's certificate will no longer be valid (expire).  This time is measured in seconds since 1970.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:issuer</code></title>
+                 <para>The issuer of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:method</code></title>
+                 <para>The current SSL method being used.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:san_list</code></title>
+                 <para>The subject alternate names of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:subject</code></title>
+                 <para>The subject of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:start_time</code></title>
+                 <para>The time at which the peer's certificate begins validaity (issuance date).  This time is measured in seconds since 1970.</para></section>
+      </section>
     </section>
 </section>
