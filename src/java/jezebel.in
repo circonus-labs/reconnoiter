@@ -143,6 +143,13 @@ do
         fi
 done
 
+#If we can't configure anything, just use the default port and run
+#with that
+if [ "$COUNT" = "0" ]; then
+    PORTS="8083"
+    COUNT=`expr $COUNT + 1`
+fi
+
 #If we're running in debug or foreground mode, just run one intance of Jezebel
 #on the default port. Otherwise, spawn up to the requested number of Jezebel
 #processes, as specified in the Reconnoiter configuration file.
