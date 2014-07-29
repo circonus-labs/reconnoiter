@@ -17,6 +17,7 @@ fi
 JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
 DIRS="/ . lib @prefix@/java/lib @prefix@/java"
+NOITD="@prefix@/sbin/noitd"
 LOGFILE=/dev/null
 
 for i in $*
@@ -73,15 +74,86 @@ do
 		exit
 	fi
 done
+
+URLS=`$NOITD -c @prefix@/etc/noit.conf -x /noit/modules//lua/jezebel/config/url | sed -r -e 's#^.*<url>(.+)<\/url>$#\1#' -e 's#,# #g'`
+PORTS=""
+COUNT=0
+
+for url in $URLS
+do
+        parsed_data=`echo $url | sed -e 's#//##g' -e 's#:# #g' -e 's#/.*##g'`
+        port=`echo $parsed_data | awk '{ 
+          if (NF==3) {
+            if ($2 == "localhost" || $2 == "127.0.0.1") {
+              print $3;
+            }
+            else {
+              print "-1";
+            }
+          }
+          else if (NF==2) {
+            if ($1 == "http" || $1 == "https") {
+              if ($2 == "localhost" || $2 == "127.0.0.1") {
+                if ($1 == "http") print "80";
+                else if ($1 == "https") print "443";
+              }
+              else {
+                print "-1";
+              }
+            }
+            else if ($1 == "localhost" || $1 == "127.0.0.1") {
+              print $2;
+            }
+            else {
+              print "-1";
+            }
+          }
+          else if (NF==1) {
+            if ($1 == "localhost" || $1 == "127.0.0.1") {
+              print "80";
+            }
+            else {
+              print "-1";
+            }
+          }
+          else {
+            print "-1";
+          }
+        }'`
+        found=0
+        if [ "$port" != "-1" ]; then
+            for foundport in $PORTS
+            do
+                if [ "$foundport" = "$port" ]; then
+                    found=1
+                fi
+            done
+            if [ "$found" = "0" ]; then
+                PORTS="$PORTS$port "
+            fi
+            COUNT=`expr $COUNT + 1`
+        fi
+done
+
+#If we're running in debug or foreground mode, just run one intance of Jezebel
+#on the default port. Otherwise, spawn up to the requested number of Jezebel
+#processes, as specified in the Reconnoiter configuration file.
 if [ "$DEBUG" = "1" ]; then
         exec $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS
 elif [ "$FOREGROUND" = "1" ]; then
         $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS
 else
-        $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS < /dev/null > $LOGFILE 2>&1 &
-	PID=$!
-	if [ -n "$PIDFILE" ]; then
-		echo $PID > $PIDFILE
-  fi
+        for port in $PORTS 
+        do
+                $JAVA $JPARAMS -classpath $CP com.omniti.jezebel.Jezebel $ARGS -p $port < /dev/null > $LOGFILE 2>&1 &
+                PID=$!
+                if [ -n "$PIDFILE" ]; then
+                    #Go ahead and generate a PIDFILE if we're only spawning one Jezebel...
+                    #Otherwise, it makes no sense.
+                    if [ "$COUNT" = "1" ]; then
+                        echo $PID > $PIDFILE
+                    fi
+                fi
+        done
 fi
 
