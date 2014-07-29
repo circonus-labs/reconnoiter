@@ -44,10 +44,7 @@ function onload(image)
   <moduleconfig>
     <parameter name="url"
                required="required"
-               allowed=".+">The URL including schema and hostname (as you would type into a browser's location bar).</parameter>
-    <parameter name="port"
-               required="optional"
-               allowed="\d+">The TCP port can be specified to overide the default of 81.</parameter>
+               allowed=".+">A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name=".+" required="optional" allowed=".*">All check config values are passed through to jezebel for execution.</parameter>
@@ -90,9 +87,27 @@ function init(module)
 end
 
 local configs = {}
+local count = {}
+local urls = {}
+local current_url = {}
 
 function config(module, options)
-  configs[module.name()] = options
+  local name = module.name()
+  configs[name] = options
+  urls[name] = {}
+  count[name] = 0
+  current_url[name] = 0
+  urls[name][0] = "test"
+  if (options.url) then
+    local url_split = noit.extras.split(options.url, ",")
+    for index, url in ipairs(url_split) do
+      urls[name][count[name]] = url
+      count[name]=count[name]+1
+    end
+  else
+    urls[name][0] = 'http:///';
+    count[name]=count[name]+1
+  end
   return 0
 end
 
@@ -141,8 +156,10 @@ function constructXml(check)
 end
 
 function initiate(module, check)
-    local options = configs[module.name()]
-    local url = options.url or 'http:///'
+    local name = module.name()
+    local options = configs[name]
+    local url = urls[name][current_url[name]]
+    current_url[name] = (current_url[name] + 1) % count[name]
     url = url .. '/' .. module.name()
     local schema, host, port, uri =
         string.match(url, "^(https?)://([^/:]*):?([0-9]*)(.+)$");
