@@ -38,29 +38,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>The URL including schema and hostname (as you would type into a browser's location bar).</para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>port</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>\d+</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>The TCP port can be specified to overide the default of 81.</para>
+          <para>>A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</para>
         </listitem>
       </varlistentry>
     </variablelist>
