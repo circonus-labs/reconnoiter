@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -- `getopt l:p:fj:dD: $*`
+set -- `getopt l:p:c:fj:dD: $*`
 
 if [ ! -x "$JAVA" ]; then
 	JAVA=@JAVA@
@@ -30,6 +30,9 @@ do
 	-p)	PIDFILE=$2
 		shift 2
 		;;
+        -c)     CONFIG=$2
+                shift 2
+                ;;
         -f)
                 FOREGROUND=1
                 shift
@@ -75,7 +78,12 @@ do
 	fi
 done
 
-URLS=`$NOITD -c @prefix@/etc/noit.conf -x /noit/modules//lua/jezebel/config/url | sed -r -e 's#^.*<url>(.+)<\/url>$#\1#' -e 's#,# #g'`
+if [ -n "$CONFIG" ]; then
+    URLS=`$NOITD -c $CONFIG -x /noit/modules//jezebel/config/url | sed -r -e 's#^.*<url>(.+)<\/url>$#\1#' -e 's#,# #g'`
+else
+    URLS=`$NOITD -c @prefix@/etc/noit.conf -x /noit/modules//jezebel/config/url | sed -r -e 's#^.*<url>(.+)<\/url>$#\1#' -e 's#,# #g'`
+fi
+
 PORTS=""
 COUNT=0
 
