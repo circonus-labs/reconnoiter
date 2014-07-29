@@ -36,7 +36,7 @@
 API_EXPORT(int)
   noit_main(const char *appname,
             const char *config_filename, int debug, int foreground,
-            const char *glider,
+            int lock, const char *glider,
             const char *drop_to_user, const char *drop_to_group,
             int (*passed_child_main)(void));
 
