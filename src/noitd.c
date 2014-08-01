@@ -257,7 +257,10 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
+  int lock = 1;
   parse_clargs(argc, argv);
+  if (xpath) lock = 0;
   return noit_main(APPNAME, config_file, debug, foreground,
-                   glider, droptouser, droptogroup, child_main);
+                   lock, glider, droptouser, droptogroup, 
+                   child_main);
 }
