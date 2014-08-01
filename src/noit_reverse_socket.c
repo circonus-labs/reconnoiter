@@ -331,7 +331,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
 
   /* this damn-well better be our side of the socketpair */
   if(CHANNEL.pair[0] != e->fd) {
-   noitL(nlerr, "noit_reverse_socket_channel_handler: misaligned events, this is a bug\n");
+   noitL(nlerr, "noit_reverse_socket_channel_handler: misaligned events, this is a bug (%d != %d)\n", CHANNEL.pair[0], e->fd);
    shutdown:
     command_out(cct->parent, cct->channel_id, "SHUTDOWN");
     if(needs_unlock) {
