@@ -57,7 +57,7 @@
 #include <assert.h>
 #include <poll.h>
 
-#define MAX_CHANNELS 128
+#define MAX_CHANNELS 512
 static const int MAX_FRAME_LEN = 65530;
 static const int CMD_BUFF_LEN = 4096;
 
@@ -121,6 +121,7 @@ typedef struct {
     reverse_frame_t *incoming;
     reverse_frame_t *incoming_tail;
   } channels[MAX_CHANNELS];
+  int last_allocated_channel;
   char *buff;
   int buff_len;
   int buff_read;
@@ -795,48 +796,53 @@ socket_error:
 
 int noit_reverse_socket_connect(const char *id, int existing_fd) {
   const char *op = "";
-  int i, fd = -1;
+  int i, fd = -1, chan = -1;
   void *vrc;
   reverse_socket_t *rc = NULL;
 
   pthread_rwlock_rdlock(&reverse_sockets_lock);
   if(noit_hash_retrieve(&reverse_sockets, id, strlen(id), &vrc)) {
     rc = vrc;
-    for(i=0;i<MAX_CHANNELS;i++) if(rc->channels[i].pair[0] == -1) break;
+    i = rc->last_allocated_channel + 1;
+    for(i=0;i<MAX_CHANNELS;i++) {
+      chan = (rc->last_allocated_channel + i + 1) % MAX_CHANNELS;
+      if(rc->channels[chan].pair[0] == -1) break;
+    }
     if(i<MAX_CHANNELS) {
-      reverse_frame_t f = { i | 0x8000 };
+      reverse_frame_t f = { chan | 0x8000 };
       f.buff = strdup("CONNECT");
       f.buff_len = strlen(f.buff);
       op = "socketpair";
       if(existing_fd >= 0) {
         fd = existing_fd;
-        rc->channels[i].pair[0] = fd;
+        rc->channels[chan].pair[0] = fd;
       }
-      else if(socketpair(AF_LOCAL, SOCK_STREAM, 0, rc->channels[i].pair) < 0) {
-        rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
+      else if(socketpair(AF_LOCAL, SOCK_STREAM, 0, rc->channels[chan].pair) < 0) {
+        rc->channels[chan].pair[0] = rc->channels[chan].pair[1] = -1;
       }
       else {
         op = "O_NONBLOCK";
-        if(eventer_set_fd_nonblocking(rc->channels[i].pair[0]) ||
-           eventer_set_fd_nonblocking(rc->channels[i].pair[1])) {
-          close(rc->channels[i].pair[0]);
-          close(rc->channels[i].pair[1]);
-          rc->channels[i].pair[0] = rc->channels[i].pair[1] = -1;
+        if(eventer_set_fd_nonblocking(rc->channels[chan].pair[0]) ||
+           eventer_set_fd_nonblocking(rc->channels[chan].pair[1])) {
+          close(rc->channels[chan].pair[0]);
+          close(rc->channels[chan].pair[1]);
+          rc->channels[chan].pair[0] = rc->channels[chan].pair[1] = -1;
         }
         else {
-          fd = rc->channels[i].pair[1];
-          existing_fd = rc->channels[i].pair[0];
+          fd = rc->channels[chan].pair[1];
+          existing_fd = rc->channels[chan].pair[0];
         }
       }
+      rc->last_allocated_channel = chan;
       if(existing_fd) {
         eventer_t e;
         channel_closure_t *cct;
         e = eventer_alloc();
-        gettimeofday(&rc->channels[i].create_time, NULL);
+        gettimeofday(&rc->channels[chan].create_time, NULL);
         e->fd = existing_fd;
         e->callback = noit_reverse_socket_channel_handler;
         cct = malloc(sizeof(*cct));
-        cct->channel_id = i;
+        cct->channel_id = chan;
         cct->parent = rc;
         e->closure = cct;
         e->mask = EVENTER_READ | EVENTER_EXCEPTION;
@@ -1441,6 +1447,8 @@ noit_reverse_client_handler(eventer_t e, int mask, void *closure,
     /* We've been here before, we just need to complete the write */
     goto finish_write;
   }
+
+  gettimeofday(&rc->create_time, NULL);
 
   GET_CONF_STR(nctx, "endpoint", my_cn);
   GET_CONF_STR(nctx, "local_address", target);
