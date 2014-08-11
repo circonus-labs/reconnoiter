@@ -46,6 +46,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_skiplist.h"
+#include "utils/noit_watchdog.h"
 #include "noit_conf.h"
 #include "noit_check.h"
 #include "noit_module.h"
@@ -338,6 +339,12 @@ noit_poller_process_checks(const char *xpath) {
     noit_hash_table **moptions = NULL;
     noit_boolean moptions_used = noit_false;
 
+    /* We want to heartbeat here... otherwise, if a lot of checks are 
+     * configured or if we're running on a slower system, we could 
+     * end up getting watchdog killed before we get a chance to run 
+     * any checks */
+    noit_watchdog_child_heartbeat();
+
     if(reg_module_id > 0) {
       moptions = alloca(reg_module_id * sizeof(noit_hash_table *));
       memset(moptions, 0, reg_module_id * sizeof(noit_hash_table *));
@@ -486,6 +493,7 @@ noit_poller_initiate() {
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_activate((noit_check_t *)vcheck);
+    noit_watchdog_child_heartbeat();
   }
 }
 
