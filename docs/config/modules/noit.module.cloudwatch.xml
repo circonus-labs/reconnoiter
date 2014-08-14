@@ -185,7 +185,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>A comma-delimited list of statistics to pull per metric (Choices are: Average, Sum, SampleCount, Maximum, Minimum)</para>
+          <para>A comma-delimited list of statistics to pull per metric (Choices are: Average, Sum, SampleCount, Maximum, Minimum - "Default" may also be specified to pull recommended values)</para>
         </listitem>
       </varlistentry>
     </variablelist>

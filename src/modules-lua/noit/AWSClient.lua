@@ -32,6 +32,66 @@ AWSClient.__index = AWSClient;
 
 local HttpClient = require 'noit.HttpClient'
 
+-- Certain Cloudwatch metrics have suggested values to pull. This table
+-- defined these on a per-metric basis for each namespace. If no value is
+-- given for a namespace or a namespace/metric combo, we will default to
+-- using the "default" value to pull for that metric. This will only be used
+-- if a specific metric isn't specified - we will overwrite these values with
+-- any user-specified ones.
+--
+-- There are based on the AWS Development guide, located here:
+-- http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/CW_Support_For_AWS.html
+local default_cloudwatch_values = {
+  ["default"]={"Average"},
+  ["AWS/ELB"]={
+    ["HealthyHostCount"]={"Average"},
+    ["UnHealthyHostCount"]={"Average"},
+    ["RequestCount"]={"Sum"},
+    ["Latency"]={"Average"},
+    ["HTTPCode_ELB_4XX"]={"Sum"},
+    ["HTTPCode_ELB_5XX"]={"Sum"},
+    ["HTTPCode_Backend_2XX"]={"Sum"},
+    ["HTTPCode_Backend_3XX"]={"Sum"},
+    ["HTTPCode_Backend_4XX"]={"Sum"},
+    ["HTTPCode_Backend_5XX"]={"Sum"},
+    ["BackendConnectionErrors"]={"Sum"},
+    ["SurgeQueueLength"]={"Maximum"},
+    ["SpilloverCount"]={"Sum"}
+  },
+  ["AWS/SNS"]={
+    ["NumberOfMessagesPublished"]={"Sum"},
+    ["PublishSize"]={"Average"},
+    ["NumberOfNotificationsDelivered"]={"Sum"},
+    ["NumberOfNotificationsFailed"]={"Sum"}
+  },
+  ["AWS/SQS"]={
+    ["NumberOfMessagesSent"]={"Sum"},
+    ["SentMessageSize"]={"Average"},
+    ["NumberOfMessagesReceived"]={"Sum"},
+    ["NumberOfEmptyReceives"]={"Sum"},
+    ["NumberOfMessagesDeleted"]={"Sum"},
+    ["ApproximateNumberOfMessagesDelayed"]={"Average"},
+    ["ApproximateNumberOfMessagesVisible"]={"Average"},
+    ["ApproximateNumberOfMessagesNotVisible"]={"Average"}
+  },
+  ["AWS/DynamoDB"]={
+    ["SuccessfulRequestLatency"]={"Average"},
+    ["UserErrors"]={"Sum"},
+    ["SystemErrors"]={"Sum"},
+    ["ThrottledRequests"]={"Sum"},
+    ["ReadThrottleEvents"]={"Sum"},
+    ["WriteThrottleEvents"]={"Sum"},
+    ["ProvisionedReadCapacityUnits"]={"Average","Sum"},
+    ["ProvisionedWriteCapacityUnits"]={"Average","Sum"},
+    ["ConsumedWriteCapacityUnits"]={"Average","Sum"},
+    ["ReturnedItemCount"]={"Average","Sum"}
+  },
+  ["AWS/Route53"]={
+    ["HealthCheckStatus"]={"Minimum"},
+    ["HealthCheckPercentageHealthy"]={"Average"}
+  }
+}
+
 function __genOrderedIndex( t )
   local orderedIndex = {}
   for key in pairs(t) do
@@ -88,14 +148,19 @@ function find_xml_node(root, tofind)
   return nil
 end
 
-function AWSClient:new(params, metrics, statistics, dimensions)
+function AWSClient:new(params, metrics, statistics, dimensions, get_default)
   local obj = { }
   setmetatable(obj, AWSClient)
   obj.params = params or { }
   obj.metrics = metrics or { }
   obj.statistics = statistics or { }
   obj.dimensions = dimensions or { }
+  obj.get_default = get_default or 0
   return obj
+end
+
+function AWSClient:get_default_cloudwatch_values()
+  return default_cloudwatch_values
 end
 
 function AWSClient:constructBaseQuery(baseTable)
@@ -125,6 +190,7 @@ function AWSClient:perform(target, cache_table)
   local use_ssl     = self.params.use_ssl
   local statistics  = self.statistics
   local metrics     = self.metrics
+  local get_default = self.get_default
 
   local time = os.time()
   local timestamp = os.date("%Y-%m-%dT%H:%M:%S.000Z", time)
@@ -143,6 +209,7 @@ function AWSClient:perform(target, cache_table)
   local uri = ""
   local output = ''
   local period = granularity * 60
+  local namespace_table = default_cloudwatch_values[namespace]
 
   for index, metric in ipairs(metrics) do
     metric = string.gsub(metric, "^%s*(.-)%s*$", "%1")
@@ -159,7 +226,14 @@ function AWSClient:perform(target, cache_table)
                         Namespace = namespace }
   
     output = ''
-    for num, stat in ipairs(statistics) do
+    local stat_table = statistics
+    if (get_default == 1) then
+      stat_table = default_cloudwatch_values["default"]
+      if (namespace_table ~= nil and namespace_table[metric] ~= nil) then
+        stat_table = namespace_table[metric]
+      end
+    end
+    for num, stat in ipairs(stat_table) do
       stat = string.gsub(stat, "^%s*(.-)%s*$", "%1")
       local ind = 'Statistics.member.' .. num
       baseTable[ind] = stat
@@ -213,7 +287,14 @@ function AWSClient:perform(target, cache_table)
                       most_recent["timestamp"] = ts_value
                       most_recent["unit"] = unit_value
                       most_recent["results"] = {}
-                      for num, stat in ipairs(statistics) do
+                      local stats_table = statistics
+                      if (get_default == 1) then
+                        stats_table = default_cloudwatch_values["default"]
+                        if (namespace_table ~= nil and namespace_table[metric] ~= nil) then
+                          stats_table = namespace_table[metric]
+                        end
+                      end
+                      for num, stat in ipairs(stats_table) do
                         stat = string.gsub(stat, "^%s*(.-)%s*$", "%1")
                         local node = find_xml_node(entry, stat)
                         if node ~= nil then
