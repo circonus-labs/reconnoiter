@@ -43,8 +43,7 @@ PostgreSQL 8.4 is required.
 # svn co https://labs.omniti.com/reconnoiter/trunk reconnoiter
 # cd reconnoiter
 # autoconf
-# export LDFLAGS="-ldl -lm"
-# ./configure
+# LDFLAGS="-ldl -lm" ./configure
 # make
 }}}
 
