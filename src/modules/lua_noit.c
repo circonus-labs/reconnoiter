@@ -1897,6 +1897,19 @@ nl_hmac_sha256_encode(lua_State *L) {
 
   return 1;
 }
+static int
+nl_register_dns_ignore_domain(lua_State *L) {
+  size_t extension_len, ignore_len;
+  const unsigned char *extension, *ignore;
+  if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.nl_register_dns_ignore_domain");
+
+  extension = (const unsigned char *)lua_tolstring(L, 1, &extension_len);
+  ignore = (const unsigned char *)lua_tolstring(L, 2, &ignore_len);
+
+  noit_check_dns_ignore_tld(extension, ignore);
+
+  return 1;
+}
 static const char _hexchars[16] =
   {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 static int
@@ -3129,6 +3142,7 @@ static const luaL_Reg noitlib[] = {
   { "uuid", nl_uuid },
   { "socket", nl_socket },
   { "dns", nl_dns_lookup },
+  { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "log", nl_log },
   { "open", nl_open },

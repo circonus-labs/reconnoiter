@@ -258,5 +258,5 @@ int main(int argc, char **argv) {
   noit_memory_init();
   parse_clargs(argc, argv);
   return noit_main(APPNAME, config_file, debug, foreground,
-                   glider, droptouser, droptogroup, child_main);
+                   1, glider, droptouser, droptogroup, child_main);
 }

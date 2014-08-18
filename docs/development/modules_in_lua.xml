@@ -6,4 +6,191 @@
       xmlns:xlink="http://www.w3.org/1999/xlink"
       version="5.0">
       <title>Developing modules in lua</title>
+      <para>Reconnoiter modules can be written in <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.lua.org/"><citetitle>Lua</citetitle></link>.  Modules implementing check types as well as more generic non-check related modules can be authored in lua.</para>
+      <para>Due to Reconnoiter's event handling system, one must be careful when taking blocking actions in their lua modules as doing so can cause general malfunctions including watchdog timeouts where the process will be terminated and restarted.</para>
+      <para>Several lua bindings are available under the <code>noit</code> namespace are available to assist in leveraging the event system and supprting libraries.</para>
+      <section>
+        <title>Installing lua modules</title>
+        <para>Site to site locations may vary, but the search path for lua is specific in the <code>noit.conf</code> file where the lua loader is loaded.  Lua files should be installed relative to this path where modules namespaces are in their own directory heirarchy.  For example, <code>noit.module.example</code> should be in a file <code>noit/module/example.lua</code> relative to the search path.  In a typical Reconnoiter install, if the install prefix is <code>/opt/noit/prod</code>, then this file would be <code>/opt/noit/prod/libexec/noit/noit/module/example.lua</code>.</para>
+        <para>Lua files are simply copied to this location and are available to be included via the noit configuration system.</para>
+        <para>The lua loader itself should be loaded exactly once within the <code>modules</code> section of the configuration:</para>
+        <programlisting language="conf"><![CDATA[
+    <loader image="lua" name="lua">
+      <config>
+        <directory>/opt/noit/prod/libexec/noit/?.lua</directory>
+      </config>
+    </loader>
+]]></programlisting>
+        <para>Loading a lua module using that loader is also in the <code>modules</code> section:</para>
+        <programlisting language="conf"><![CDATA[
+    <module loader="lua" name="example" object="noit.module.example">
+      <config></config>
+    </module>
+]]></programlisting>
+      </section>
+      <section>
+        <title>Basic lua checks</title>
+        <para>As with any check module in Reconnoiter, there are four basic elements: documentation, initialization, configuration and performing a check.  In lua modules, the documentation is actually coded and injected during the loading of the module.</para>
+        <para>Every module should start with a <code>module</code> declaration and documentation chunk wrapped in the <code>onload</code> function.</para>
+        <programlisting language="lua"><![CDATA[
+/* Your copyright and license data here */
+
+module(..., package.seeall)
+
+function onload(image)
+  image.xml_description([=[
+<module>
+  <name>munin</name>
+  <description><para>Report the seconds since epoch and a random number.</para></description>
+  <loader>lua</loader>
+  <object>noit.module.example</object>
+  <moduleconfig />
+  <checkconfig />
+</module>
+]=]);
+  return 0
+end
+]]></programlisting>
+        <para>The module should then specify an initialization command and a configuration command. The options passed to the configuration function are the config parameters specified relative to the module in the configuration file, not a specific check's configuration.</para>
+        <programlisting language="lua"><![CDATA[
+function init(module)
+  return 0
+end
+
+function config(module, options)
+  return 0
+end
+]]></programlisting>
+
+        <para>Lastly, the module should provide an <code>initiate</code> functino that performs the check.</para>
+        <programlisting language="lua"><![CDATA[
+function initiate(module, check)
+  local now_seconds = noit.gettimeofday()
+  check.metric_int32("seconds_since_epoch", now_seconds)
+  check.metric_double("random", math.random())
+  check.available()
+  check.good()
+  check.status("had a good day")
+end
+]]></programlisting>
+    </section>
+    <section>
+      <title>Reconnoiter-specific lua</title>
+      <section>
+        <title>Module images and checks</title>
+        <para>Taking the <code>initiation</code> function as an example, the first argument <code>module</code> is of type <code>noit_module_t</code> and the second argument <code>check</code> is of type <code>noit_check_t</code>.  Each of these types has several functions and attributes.</para>
+        <section><title><code>noit_module_t.description([description])</code></title>
+                 <para>If an argument is provided, the description is updated to <code>description</code>. The description is returned.</para></section>
+        <section><title><code>noit_module_t.name([name])</code></title>
+                 <para>If an argument is provided, the name is updated to <code>name</code>. The name is returned.</para></section>
+        <section><title><code>noit_module_t.xml_description([xml])</code></title>
+                 <para>If an argument is provided, the XML description (documentation) is updated to <code>xml</code>.  The XML description is returned.</para></section>
+
+        <section><title><code>noit_check_t.available()</code></title>
+                 <para>Sets the check's <code>available</code> field to <code>NP_AVAILABLE</code>.</para></section>
+        <section><title><code>noit_check_t.availability()</code></title>
+                 <para>Returns the check's current <code>available</code> field.</para></section>
+        <section><title><code>noit_check_t.bad()</code></title>
+                 <para>Sets the check's <code>state</code> field to <code>NP_BAD</code>.</para></section>
+        <section><title><code>noit_check_t.config</code></title>
+                 <para>A lua table representing the check's config dictionary.</para></section>
+        <section><title><code>noit_check_t.flags(...)</code></title>
+                 <para>This function takes a list of string flags and bitwise ORs them together to create a mask.  This function returns the check's current flags bitwise ANDed with the mask.</para>
+                 <para>Possible string flags: <code>NP_RUNNING</code>, <code>NP_KILLED</code>, <code>NP_DISABLED</code>, <code>NP_UNCONFIG</code>, <code>NP_TRANSIENT</code>, <code>NP_RESOLVE</code>, <code>NP_RESOLVED</code>, <code>NP_SUPPRESS_STATUS</code>, <code>NP_PREFER_IPV6</code>, <code>NP_SINGLE_RESOLVE</code>, and <code>NP_PASSIVE_COLLECTION</code>.</para></section>
+        <section><title><code>noit_check_t.good()</code></title>
+                 <para>Sets the check's <code>state</code> field to <code>NP_GOOD</code>.</para></section>
+        <section><title><code>noit_check_t.interpolate([in])</code></title>
+                 <para>This function accepts a string or a table whose values are strings.  It applies check interpolation using the checks attributes and config and returns a new interpolated string or a copy of the table whose values are interpolated, respectively.</para></section>
+        <section><title><code>noit_check_t.module</code></title>
+                 <para>A string representing the name of the module.</para></section>
+        <section><title><code>noit_check_t.metric(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> guessing at its type.</para></section>
+        <section><title><code>noit_check_t.metric_double(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing (if possible) the type to a 64-bit double.</para></section>
+        <section><title><code>noit_check_t.metric_int32(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing (if possible) the type to a signed 32-bit integer.</para></section>
+        <section><title><code>noit_check_t.metric_int64(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing (if possible) the type to a signed 64-bit integer.</para></section>
+        <section><title><code>noit_check_t.metric_string(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing the type to a string.</para></section>
+        <section><title><code>noit_check_t.metric_uint32(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing (if possible) the type to an unsigned 32-bit integer.</para></section>
+        <section><title><code>noit_check_t.metric_uint64(name, value)</code></title>
+                 <para>Set a metric named <code>name</code> to the value <code>value</code> forcing (if possible) the type to a unsigned 64-bit integer.</para></section>
+        <section><title><code>noit_check_t.metric_json(json)</code></title>
+                 <para>Take a fully-formed JSON document and set metrics from them as is done by the resmon module.</para></section>
+        <section><title><code>noit_check_t.name</code></title>
+                 <para>A string representing the name of the check.</para></section>
+        <section><title><code>noit_check_t.period</code></title>
+                 <para>An integer representing the period of the check in milliseconds.</para></section>
+        <section><title><code>noit_check_t.state()</code></title>
+                 <para>This function returns the state of the check.</para></section>
+        <section><title><code>noit_check_t.status(msg)</code></title>
+                 <para>This function sets the status of the check to <code>msg</code>.</para></section>
+        <section><title><code>noit_check_t.target</code></title>
+                 <para>A string representing the target of the check.</para></section>
+        <section><title><code>noit_check_t.target_ip</code></title>
+                 <para>A string representing the resolved target IP address of the check.</para></section>
+        <section><title><code>noit_check_t.timeout</code></title>
+                 <para>An integer representing the timeout of the check in milliseconds.</para></section>
+        <section><title><code>noit_check_t.unavailable()</code></title>
+                 <para>Sets the check's <code>unavailable</code> field to <code>NP_UNAVAILABLE</code>.</para></section>
+      </section>
+      <section>
+        <title>Non-blocking network functions</title>
+        <para>All networking functions in lua modules should use the <code>noit.socket</code> function to retrieve a socket with non-blocking methods attached.  These sockets support both UDP and TCP as well as SSL over TCP.</para>
+        <section><title><code>noit.socket(ipaddress[, protocol])</code></title>
+                 <para>Creates and returns a socket for the Internet family (IPv4 or IPv6) to which the <code>ipaddress</code> belongs. The <code>protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code>noit.eventer</code>.</para></section>
+        <section><title><code>noit.socket(family[, protocol])</code></title>
+                 <para>Creates and returns a socket of type <code>family</code> (either "inet" or "inet6"). The <code>protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code>noit.eventer</code>.</para></section>
+        <section><title><code>noit.eventer:accept()</code></title>
+                 <para>Accept a new socket from an existing listening socket. Returns a new non-blocking socket of type <code>noit.eventer</code></para></section>
+        <section><title><code>noit.eventer:bind(address, port)</code></title>
+                 <para>Bind the current socket to the specified <code>address</code> and <code>port</code>. Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:close()</code></title>
+                 <para>Closes the socket.</para></section>
+        <section><title><code>noit.eventer:connect(ipaddress, port)</code></title>
+                 <para>Establish a connection to the specified <code>ipaddress</code> and <code>port</code>. Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:listen(backlog)</code></title>
+                 <para>Use listen(2) to place the current socket in listening mode (ready to accept connections).  The <code>backlog</code> argument is passed to the listen system call.  Returns three arguments: a return code (0 on success), and possibly the <code>errno</code> and error message in the event of a failure condition.</para></section>
+        <section><title><code>noit.eventer:own()</code></title>
+                 <para>Each <code>noit.eventer</code> object to a lua coroutine.  If you pass an object to another coroutine to use, that coroutine should claim ownership of the object by invoking this function.</para></section>
+        <section><title><code>noit.eventer:read(length)</code></title>
+                 <para>Read <code>length</code> bytes from the socket and return them as a string.</para></section>
+        <section><title><code>noit.eventer:read(delimiter)</code></title>
+                 <para>Read bytes up to and including the string specified by <code>delimiter</code> return them as a string.</para></section>
+        <section><title><code>noit.eventer:recv(length)</code></title>
+                 <para>Read a packet of up to <code>length</code> bytes.  Returns two values: the length of the packet read and the contents of the packet.</para></section>
+        <section><title><code>noit.eventer:send(pkt)</code></title>
+                 <para>Send te string <code>pkt</code> over the socket.</para></section>
+        <section><title><code>noit.eventer:sendto(pkt, address, port)</code></title>
+                 <para>Send te string <code>pkt</code> over the socket to the specified <code>address</code> and <code>port</code>.</para></section>
+        <section><title><code>noit.eventer:setsockopt(type, value)</code></title>
+                 <para>Call the system setsockopt(2) function with the specified <code>value</code>.  Supported values for <code>type</code> are <code>"SO_BROADCAST"</code>, <code>"SO_REUSEADDR"</code>, <code>"SO_KEEPALIVE"</code>, <code>"SO_LINGER"</code>, <code>"SO_OOBINLINE"</code>, <code>"SO_SNDBUF"</code>, <code>"SO_RCVBUF"</code>, <code>"SO_DONTROUTE"</code>, <code>"SO_RCVLOWAT"</code>, <code>"SO_RCVTIMEO"</code>, <code>"SO_SNDLOWAT"</code>, and <code>"SO_SNDTIMEO"</code>.  Returns two values: a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:ssl_upgrade_socket(cert,key,ca,ciphers)</code></title>
+                 <para>Upgrade a connected socket to SSL.  The <code>cert</code>, <code>key</code>, and <code>ca</code> arguments specify the paths to files containing the certificate, key, and CA chain, respectively.  <code>ciphers</code> is a list of ciphers as understood by OpenSSL.  Returns two values, a return code (0 on success) and a possible error message.</para></section>
+        <section><title><code>noit.eventer:ssl_ctx()</code></title>
+                 <para>Return the associated SSL context (of type <code>noit.eventer.ssl_ctx</code>).</para></section>
+        <section><title><code>noit.eventer:write(body)</code></title>
+                 <para>Write the string <code>body</code> over the socket.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:ciphers</code></title>
+                 <para>A lua table containing the names ciphers that have been negotiated on the context.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:current_cipher</code></title>
+                 <para>The name of the currently used cipher.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:error</code></title>
+                 <para>The error encountered when attempting to validate the peer.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:end_time</code></title>
+                 <para>The time at which the peer's certificate will no longer be valid (expire).  This time is measured in seconds since 1970.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:issuer</code></title>
+                 <para>The issuer of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:method</code></title>
+                 <para>The current SSL method being used.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:san_list</code></title>
+                 <para>The subject alternate names of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:subject</code></title>
+                 <para>The subject of the peer's certificate.</para></section>
+        <section><title><code>noit.eventer.ssl_ctx:start_time</code></title>
+                 <para>The time at which the peer's certificate begins validaity (issuance date).  This time is measured in seconds since 1970.</para></section>
+      </section>
+    </section>
 </section>

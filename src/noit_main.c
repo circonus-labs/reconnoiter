@@ -113,7 +113,7 @@ void cli_log_switches() {
 int
 noit_main(const char *appname,
           const char *config_filename, int debug, int foreground,
-          const char *_glider,
+          int lock, const char *_glider,
           const char *drop_to_user, const char *drop_to_group,
           int (*passed_child_main)(void)) {
   int fd, lockfd, watchdog_timeout = 0, rv;
@@ -218,9 +218,11 @@ noit_main(const char *appname,
   snprintf(appscratch, sizeof(appscratch), "/%s/@lockfile", appname);
   if(noit_conf_get_stringbuf(NULL, appscratch,
                              lockfile, sizeof(lockfile))) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
+    if (lock) {
+      if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+        noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+        exit(-1);
+      }
     }
   }
 
@@ -262,9 +264,11 @@ noit_main(const char *appname,
 
   /* Reacquire the lock */
   if(*lockfile) {
-    if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-      noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-      exit(-1);
+    if (lock) {
+      if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
+        noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+        exit(-1);
+      }
     }
   }
 

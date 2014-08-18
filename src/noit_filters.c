@@ -538,7 +538,7 @@ noit_filtersets_cull_unused() {
   char *buffer = NULL;
   noit_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
-  const char *declare_xpath = "//filterset[@name]";
+  const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
 
   declares = noit_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {

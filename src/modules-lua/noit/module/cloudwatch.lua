@@ -63,7 +63,7 @@ function onload(image)
     <parameter name="statistics"
                required="optional"
                allowed=".+"
-               default="Average">A comma-delimited list of statistics to pull per metric (Choices are: Average, Sum, SampleCount, Maximum, Minimum)</parameter>
+               default="Average">A comma-delimited list of statistics to pull per metric (Choices are: Average, Sum, SampleCount, Maximum, Minimum - "Default" may also be specified to pull recommended values)</parameter>
     <parameter name="version"
                required="optional"
                allowed=".+"
@@ -109,11 +109,13 @@ local cache_table = { }
 
 function init(module)
   cache_table = { }
+  noit.register_dns_ignore_domain("_aws", "true")
   return 0
 end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
+  local get_default = 0
   local params = {
     api_key            = config.api_key or "",
     api_secret         = config.api_secret or "",
@@ -123,9 +125,14 @@ function initiate(module, check)
   }
   local use_ssl = false
   local statistics = "Average"
-  if config.statistics then
+  if config.statistics and config.statistics ~= "Default" then
     statistics = config.statistics
+  else
+    statistics="Average"
+    get_default = 1
   end
+  local default_cloudwatch_values = AWSClient:get_default_cloudwatch_values()
+  local namespace_table = default_cloudwatch_values[config.namespace]
   local url = config.url or 'https://monitoring.amazonaws.com'
   local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
   if schema == nil then
@@ -191,10 +198,17 @@ function initiate(module, check)
           metric_count = metric_count + 1
         end
       else
-        for k, v in ipairs(statistics) do
+        local stat_table = statistics
+        if (get_default == 1) then
+          stat_table = default_cloudwatch_values["default"]
+          if (namespace_table ~= nil and namespace_table[name] ~= nil) then
+            stat_table = namespace_table[name]
+          end
+        end
+        for k, v in ipairs(stat_table) do
           local met_name = name
-          if k ~= 'Average' then
-            metric_name = name .. "_" .. k
+          if v ~= 'Average' then
+            met_name = name .. "_" .. v
           end
           check.metric_double(met_name, nil)
           metric_count = metric_count + 1
@@ -227,7 +241,7 @@ function initiate(module, check)
       return
     end
 
-    local aws = AWSClient:new(params, metrics, stats, dimensions)
+    local aws = AWSClient:new(params, metrics, stats, dimensions, get_default)
     local rv, err = aws:perform(r.a, cache_table[uuid]['metrics'])
     if rv ~= 0 then
       check.status(err or "unknown error")
