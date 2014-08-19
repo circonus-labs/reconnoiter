@@ -177,10 +177,17 @@ static int check_recycle_bin_processor(eventer_t, int, void *,
                                        struct timeval *);
 
 static int
-check_slots_find_smallest(int sec) {
+check_slots_find_smallest(int sec, struct timeval* period) {
   int i, j, cyclic, random_offset, jbase = 0, mini = 0, minj = 0;
   unsigned short min_running_i = 0xffff, min_running_j = 0xffff;
-  for(i=0;i<60;i++) {
+  int period_seconds = period->tv_sec;
+
+  /* If we're greater than sixty seconds, we should do our
+   * initial scheduling as if the period was sixty seconds. */
+  if (period_seconds > 60)
+    period_seconds = 60;
+
+  for(i=0;i<period_seconds;i++) {
     int adj_i = (i + sec) % 60;
     if(check_slots_seconds_count[adj_i] < min_running_i) {
       min_running_i = check_slots_seconds_count[adj_i];
@@ -283,7 +290,7 @@ noit_calc_rtype_flag(char *resolve_rtype) {
 void
 noit_check_fake_last_check(noit_check_t *check,
                            struct timeval *lc, struct timeval *_now) {
-  struct timeval now, period, marker;
+  struct timeval now, period, lc_copy;
   int balance_ms;
 
   if(!_now) {
@@ -294,29 +301,37 @@ noit_check_fake_last_check(noit_check_t *check,
   period.tv_usec = (check->period % 1000) * 1000;
   sub_timeval(*_now, period, lc);
 
-  if(!(check->flags & NP_TRANSIENT)) {
-    if(check->period) {
-      balance_ms = check_slots_find_smallest(_now->tv_sec+1);
-      lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
-      lc->tv_usec = (balance_ms % 1000) * 1000;
-      memcpy(&marker, lc, sizeof(marker));
-      if(compare_timeval(*_now, *lc) < 0) {
-        do {
-          sub_timeval(*lc, period, lc);
-        } while(compare_timeval(*_now, *lc) < 0);
-      }
-      else {
-        struct timeval test;
-        while(1) {
-          add_timeval(*lc, period, &test);
-          if(compare_timeval(*_now, test) < 0) break;
-          memcpy(lc, &test, sizeof(test));
-        }
+  /* We need to set the last check value based on the period, but
+   * we also need to store a value that is based around the one-minute
+   * time to properly increment the slots; otherwise, the slots will 
+   * get all messed up */
+  if(!(check->flags & NP_TRANSIENT) && check->period) {
+    balance_ms = check_slots_find_smallest(_now->tv_sec+1, &period);
+    lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
+    lc->tv_usec = (balance_ms % 1000) * 1000;
+    memcpy(&lc_copy, lc, sizeof(lc_copy));
+    if(compare_timeval(*_now, *lc) < 0) {
+      do {
+        sub_timeval(*lc, period, lc);
+      } while(compare_timeval(*_now, *lc) < 0);
+    }
+    else {
+      struct timeval test;
+      while(1) {
+        add_timeval(*lc, period, &test);
+        if(compare_timeval(*_now, test) < 0) break;
+        memcpy(lc, &test, sizeof(test));
       }
     }
     /* now, we're going to do an even distribution using the slots */
     check_slots_inc_tv(&marker);
   }
+  else {
+    memcpy(&lc_copy, lc, sizeof(lc_copy));
+  }
+  
+  /* now, we're going to do an even distribution using the slots */
+  if(!(check->flags & NP_TRANSIENT)) check_slots_inc_tv(&lc_copy);
 }
 void
 noit_poller_process_checks(const char *xpath) {
