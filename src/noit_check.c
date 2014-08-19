@@ -323,8 +323,6 @@ noit_check_fake_last_check(noit_check_t *check,
         memcpy(lc, &test, sizeof(test));
       }
     }
-    /* now, we're going to do an even distribution using the slots */
-    check_slots_inc_tv(&marker);
   }
   else {
     memcpy(&lc_copy, lc, sizeof(lc_copy));
