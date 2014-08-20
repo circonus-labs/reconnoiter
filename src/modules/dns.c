@@ -48,6 +48,12 @@
 #include "udns/udns.h"
 
 #define MAX_RR 256
+#define DEFAULT_MAX_CONTEXTS 1024
+
+typedef struct _mod_config {
+  noit_hash_table *options;
+  int contexts;
+} dns_mod_config_t;
 
 static void dns_module_eventer_dns_utm_fn(struct dns_ctx *, int, void *);
 static int dns_module_eventer_callback(eventer_t, int, void *, struct timeval *);
@@ -93,9 +99,11 @@ dns_debug_wrap(int code, const struct sockaddr *sa, unsigned salen,
                const struct dns_query *q, void *data) {
   noitL(nldeb, "dns code -> %d\n", code);
 }
-static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
+static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const char *ns, int port) {
   void *vh;
   char *hk = NULL;
+  dns_mod_config_t *conf = noit_module_get_userdata(self);
+  int randkey = random() % conf->contexts;
   dns_ctx_handle_t *h = NULL;
   if(ns && *ns == '\0') ns = NULL;
   pthread_mutex_lock(&dns_ctx_store_lock);
@@ -107,9 +115,9 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(const char *ns, int port) {
   }
 
   if (ns != NULL) {
-    int len = snprintf(NULL, 0, "%s:%d", ns, port); 
+    int len = snprintf(NULL, 0, "%s:%d:%d", ns, port, randkey); 
     hk = (char *)malloc(len+1);
-    snprintf(hk, len+1, "%s:%d", ns, port);
+    snprintf(hk, len+1, "%s:%d:%d", ns, port, randkey);
   }
 
   if(ns &&
@@ -383,8 +391,22 @@ static int dns_module_init(noit_module_t *self) {
   const struct dns_nameval *nv;
   struct dns_ctx *pctx;
   int i;
+  const char *config_val;
+  dns_mod_config_t *conf;
+
+  conf = noit_module_get_userdata(self);
+
   pthread_mutex_init(&dns_ctx_store_lock, NULL);
   pthread_mutex_init(&active_events_lock, NULL);
+
+  conf->contexts = DEFAULT_MAX_CONTEXTS;
+  if(noit_hash_retr_str(conf->options,
+                         "contexts", strlen("contexts"),
+                         (const char**)&config_val)) {
+    conf->contexts = atoi(config_val);
+    if (conf->contexts <= 0)
+      conf->contexts = DEFAULT_MAX_CONTEXTS;
+  }
   /* HASH the rr types */
   for(i=0, nv = dns_type_index(i); nv->name; nv = dns_type_index(++i))
     noit_hash_store(&dns_rtypes,
@@ -406,7 +428,7 @@ static int dns_module_init(noit_module_t *self) {
     return -1;
   }
   dns_free(pctx);
-  if(dns_module_dns_ctx_alloc(NULL, 0) == NULL) {
+  if(dns_module_dns_ctx_alloc(self, NULL, 0) == NULL) {
     noitL(nlerr, "Error setting up default dns resolver context.\n");
     return -1;
   }
@@ -817,7 +839,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     ci->h = NULL;
   }
   /* use the cached one, unless we don't have one */
-  if(!ci->h) ci->h = dns_module_dns_ctx_alloc(nameserver, port);
+  if(!ci->h) ci->h = dns_module_dns_ctx_alloc(self, nameserver, port);
   if(!ci->h) ci->error = strdup("bad nameserver");
 
   /* Lookup out class */
@@ -893,7 +915,19 @@ static int dns_initiate_check(noit_module_t *self, noit_check_t *check,
 }
 
 static int dns_config(noit_module_t *self, noit_hash_table *options) {
-  return 0;
+  dns_mod_config_t *conf;
+  conf = noit_module_get_userdata(self);
+  if(conf) {
+    if(conf->options) {
+      noit_hash_destroy(conf->options, free, free);
+      free(conf->options);
+    }
+  }
+  else
+    conf = calloc(1, sizeof(*conf));
+  conf->options = options;
+  noit_module_set_userdata(self, conf);
+  return 1;
 }
 
 static int dns_onload(noit_image_t *self) {
