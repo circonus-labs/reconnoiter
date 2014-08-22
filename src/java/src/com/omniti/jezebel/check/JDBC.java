@@ -45,6 +45,7 @@ import com.omniti.jezebel.JezebelTools;
 public abstract class JDBC implements JezebelCheck {
   public JDBC() { }
   protected abstract String jdbcConnectUrl(String host, String port, String db);
+  protected abstract Connection jdbcConnection(String url, Properties props) throws SQLException;
   protected abstract String defaultPort();
   protected abstract Map<String,String> setupBasicSSL();
 
@@ -72,6 +73,7 @@ public abstract class JDBC implements JezebelCheck {
 
     String sql = config.remove("sql");
     String url = jdbcConnectUrl(check.get("target_ip"), port, database);
+
     Properties props = new Properties();
     props.setProperty("user", username == null ? "" : username);
     props.setProperty("password", password == null ? "" : password);
@@ -130,7 +132,7 @@ public abstract class JDBC implements JezebelCheck {
     Connection conn = null;
     try {
       Date t1 = new Date();
-      conn = DriverManager.getConnection(url, props);
+      conn = jdbcConnection(url, props);
       Date t2 = new Date();
       rr.set("connect_duration", t2.getTime() - t1.getTime());
       queryToResmon(conn, config, sql, rr);
