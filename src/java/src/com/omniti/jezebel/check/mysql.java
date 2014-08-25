@@ -33,6 +33,8 @@
 package com.omniti.jezebel.check;
 import java.util.Map;
 import java.util.HashMap;
+import java.sql.*;
+import java.util.Properties;
 import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
 public class mysql extends JDBC implements JezebelCheck {
@@ -47,5 +49,8 @@ public class mysql extends JDBC implements JezebelCheck {
     props.put("useSSL", "true");
     props.put("verifyServerCertificate", "false");
     return props;
+  }
+  protected Connection jdbcConnection(String url, Properties props) throws SQLException {
+    return DriverManager.getConnection(url, props);
   }
 }

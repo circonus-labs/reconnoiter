@@ -33,6 +33,8 @@
 package com.omniti.jezebel.check;
 import java.util.Map;
 import java.util.HashMap;
+import java.sql.*;
+import java.util.Properties;
 import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
 public class postgres extends JDBC implements JezebelCheck {
@@ -47,5 +49,8 @@ public class postgres extends JDBC implements JezebelCheck {
     props.put("ssl", "true");
     props.put("sslfactory", "org.postgresql.ssl.NonValidatingFactory");
     return props;
+  }
+  protected Connection jdbcConnection(String url, Properties props) throws SQLException {
+    return DriverManager.getConnection(url, props);
   }
 }
