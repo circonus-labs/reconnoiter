@@ -148,6 +148,26 @@ function find_xml_node(root, tofind)
   return nil
 end
 
+function update_table(table, entry, ts_value, unit_value, statistics, namespace_table, get_default, metric)
+  table["timestamp"] = ts_value
+  table["unit"] = unit_value
+  table["results"] = {}
+  local stats_table = statistics
+  if (get_default == 1) then
+    stats_table = default_cloudwatch_values["default"]
+    if (namespace_table ~= nil and namespace_table[metric] ~= nil) then
+      stats_table = namespace_table[metric]
+    end
+  end
+  for num, stat in ipairs(stats_table) do
+    stat = string.gsub(stat, "^%s*(.-)%s*$", "%1")
+    local node = find_xml_node(entry, stat)
+    if node ~= nil then
+      table["results"][stat] = node:contents()
+    end
+  end
+end
+
 function AWSClient:new(params, metrics, statistics, dimensions, get_default)
   local obj = { }
   setmetatable(obj, AWSClient)
@@ -274,8 +294,13 @@ function AWSClient:perform(target, cache_table)
           --that we think it is.... otherwise, skip it
           if label ~= nil and label:contents() == metric then
             if datapoints ~= nil then
+              --Sometimes, the most recent value returned will contain incomplete values.
+              --We want to store next most recent value in case we want to use this.
               local most_recent = {timestamp = nil,
                                    value = nil }
+              local next_most_recent = {timestamp = nil,
+                                        value = nil }
+              local count = 0
               for entry in datapoints:children() do
                 if entry:name() == "member" then
                   local ts = find_xml_node(entry, "Timestamp")
@@ -283,29 +308,33 @@ function AWSClient:perform(target, cache_table)
                   if ts ~= nil and unit ~= nil then
                     local ts_value = ts:contents()
                     local unit_value = unit:contents()
+                    count = count + 1
+                    if most_recent["timestamp"] ~= nil and ts_value < most_recent["timestamp"] then
+                      if next_most_recent["timestamp"] == nil or ts_value > next_most_recent["timestamp"] then
+                        update_table(next_most_recent, entry, ts_value, unit_value, statistics, namespace_table, get_default, metric)
+                      end
+                    end
                     if most_recent["timestamp"] == nil or ts_value > most_recent["timestamp"] then
-                      most_recent["timestamp"] = ts_value
-                      most_recent["unit"] = unit_value
-                      most_recent["results"] = {}
-                      local stats_table = statistics
-                      if (get_default == 1) then
-                        stats_table = default_cloudwatch_values["default"]
-                        if (namespace_table ~= nil and namespace_table[metric] ~= nil) then
-                          stats_table = namespace_table[metric]
+                      if most_recent["timestamp"] ~= nil and ts_value > most_recent["timestamp"] then
+                        next_most_recent["timestamp"] = most_recent["timestamp"]
+                        next_most_recent["unit"] = most_recent["unit"]
+                        next_most_recent["results"] = {}
+                        for key, value in pairs(most_recent["results"]) do
+                          next_most_recent["results"][key] = value
                         end
                       end
-                      for num, stat in ipairs(stats_table) do
-                        stat = string.gsub(stat, "^%s*(.-)%s*$", "%1")
-                        local node = find_xml_node(entry, stat)
-                        if node ~= nil then
-                          most_recent["results"][stat] = node:contents()
-                        end
-                      end
+                      update_table(most_recent, entry, ts_value, unit_value, statistics, namespace_table, get_default, metric)
                     end
                   end
                 end
               end
-              cache_table[metric] = most_recent
+              --We want the most recent if we only have one data point or if we're
+              --billing
+              if count == 1 or namespace == "AWS/Billing" then
+                cache_table[metric] = most_recent
+              else
+                cache_table[metric] = next_most_recent
+              end
             end
           end
         end
