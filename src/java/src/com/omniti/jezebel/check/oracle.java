@@ -63,7 +63,7 @@ public class oracle extends JDBC implements JezebelCheck {
         Class<?> odsc = Class.forName("oracle.jdbc.pool.OracleDataSource");
         Object ods = odsc.newInstance();
 
-        Method m = odsc.getDeclaredMethod("setUrl", String.class);
+        Method m = odsc.getDeclaredMethod("setURL", String.class);
         m.invoke(ods, url);
 
         m = odsc.getDeclaredMethod("setFastConnectionFailoverEnabled", Boolean.class);
