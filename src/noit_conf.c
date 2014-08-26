@@ -107,6 +107,11 @@ static char *root_node_name = NULL;
 static char master_config_file[PATH_MAX] = "";
 static xmlXPathContextPtr xpath_ctxt = NULL;
 
+/* coalesced writing allows internals to change the XML structure and mark
+ * the tree dirty, but only write the config out once per second.
+ */
+static u_int32_t __coalesce_write = 0;
+
 /* This is used to notice config changes and journal the config out
  * using a user-specified function.  It supports allowing multiple config
  * changed to coalesce so you don't write out 1000 changes in a few seconds.
@@ -117,6 +122,9 @@ static u_int32_t __config_coalesce_time = 0;
 static u_int64_t max_gen_count = 0;
 void noit_conf_coalesce_changes(u_int32_t seconds) {
   __config_coalesce_time = seconds;
+}
+void noit_conf_request_write() {
+  __coalesce_write = 1;
 }
 void noit_conf_mark_changed() {
   /* increment the change counter -- in case anyone cares */
@@ -215,6 +223,11 @@ noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
   if(__config_coalesce > 0)
     __config_coalesce--;
 
+  if(__coalesce_write) {
+    noit_conf_write_file(NULL);
+    __coalesce_write = 0;
+  }
+
   /* Schedule the same event to fire a second form now */
   newe = eventer_alloc();
   gettimeofday(&newe->whence, NULL);
@@ -225,6 +238,7 @@ noit_conf_watch_config_and_journal(eventer_t e, int mask, void *closure,
   eventer_add(newe);
   return 0;
 }
+
 void
 noit_conf_watch_and_journal_watchdog(int (*f)(void *), void *c) {
   static int callbacknamed = 0;
@@ -1568,6 +1582,7 @@ noit_conf_write_log() {
   v = noit_log_stream_get_property(config_log, "notify_only");
   if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = noit_true;
 
+noitL(noit_error, "noit_conf_write_log (%d =? %d)\n", last_write_gen, __config_gen);
   /* We know we haven't changed */
   if(last_write_gen == __config_gen) return 0;
   gettimeofday(&__now, NULL);
