@@ -58,18 +58,22 @@ typedef struct _filterrule {
   pcre *target;
   pcre_extra *target_e;
   noit_hash_table *target_ht;
+  int target_auto_hash_max;
   pcre *module_override;
   pcre *module;
   pcre_extra *module_e;
   noit_hash_table *module_ht;
+  int module_auto_hash_max;
   pcre *name_override;
   pcre *name;
   pcre_extra *name_e;
   noit_hash_table *name_ht;
+  int name_auto_hash_max;
   pcre *metric_override;
   pcre *metric;
   pcre_extra *metric_e;
   noit_hash_table *metric_ht;
+  int metric_auto_hash_max;
   struct _filterrule *next;
 } filterrule_t;
 
@@ -149,12 +153,12 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     /* Compile any hash tables, should they exist */
 #define HT_COMPILE(rname) do { \
     noit_conf_section_t *htentries; \
-    int hte_cnt; \
+    int hte_cnt, hti, tablesize = 2, auto_max = 0; \
+    char *htstr; \
     htentries = noit_conf_get_sections(rules[j], #rname, &hte_cnt); \
-    if(hte_cnt) { \
-      int tablesize = 1; \
-      int hti; \
-      char *htstr; \
+    noit_conf_get_int(rules[j], "@" #rname "_auto_add", &auto_max); \
+    if(hte_cnt || auto_max > 0) { \
+      rule->rname##_auto_hash_max = auto_max; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
       while(tablesize < hte_cnt) tablesize <<= 1; \
       noit_hash_init_size(rule->rname##_ht, tablesize); \
@@ -262,6 +266,22 @@ noit_apply_filterrule(noit_hash_table *m,
   if(rc >= 0) return noit_true;
   return noit_false;
 }
+static int
+noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, const char *value) {
+  char xpath[1024];
+  xmlNodePtr rulenode, child;
+
+  snprintf(xpath, sizeof(xpath), "//filtersets/filterset[@name=\"%s\"]/rule[%d]", fname, idx);
+  rulenode = noit_conf_get_section(NULL, xpath);
+  if(!rulenode) return -1;
+  child = xmlNewNode(NULL, (xmlChar *)rname);
+  xmlNodeAddContent(child, (xmlChar *)value);
+  xmlAddChild(rulenode, child);
+  CONF_DIRTY(rulenode);
+  noit_conf_mark_changed();
+  noit_conf_request_write();
+  return 0;
+}
 noit_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
@@ -277,15 +297,37 @@ noit_apply_filterset(const char *filterset,
   if(noit_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
     filterrule_t *r;
+    int idx = 1;
     noit_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
-      if(MATCHES(target, check->target) &&
-         MATCHES(module, check->module) &&
-         MATCHES(name, check->name) &&
-         MATCHES(metric, metric->metric_name))
+      int need_target, need_module, need_name, need_metric;
+      need_target = !MATCHES(target, check->target);
+      need_module = !MATCHES(module, check->module);
+      need_name = !MATCHES(name, check->name);
+      need_metric = !MATCHES(metric, metric->metric_name);
+      if(!need_target && !need_module && !need_name && !need_metric) {
+noitL(noit_error, "Filterset[%p:%p / %s] -> %s\n", fs, r, metric->metric_name, (r->type == NOIT_FILTER_ACCEPT) ? "true" : "false");
         return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
+      }
+      /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
+#define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && noit_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
+      if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
+#define UPDATE_FILTER_RULE(rnum, rname, value) do { \
+  noit_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
+  if(noit_filter_update_conf_rule(fs->name, rnum, #rname, value) < 0) { \
+    noitL(noit_error, "Error updating configuration for new filter auto_add on %s=%s\n", #rname, value); \
+  } \
+} while(0)
+noitL(noit_error, "Adding '//filtersets/filterset[@name=\"%s\"]/rule[%d] -> %s'...\n", fs->name, idx, metric->metric_name);
+        if(need_target) UPDATE_FILTER_RULE(idx, target, check->target);
+        if(need_module) UPDATE_FILTER_RULE(idx, module, check->module);
+        if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
+        if(need_metric) UPDATE_FILTER_RULE(idx, metric, metric->metric_name);
+        return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
+      }
+      idx++;
     }
     filterset_free(fs);
     return noit_false;
