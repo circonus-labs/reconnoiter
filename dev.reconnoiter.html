@@ -1,11 +1,11 @@
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 10. Developer's Guide</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="pt04.html" title="Part IV. Development"><link rel="prev" href="pt04.html" title="Part IV. Development"><link rel="next" href="reference.html" title="Part V. Reference"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 10. Developer's Guide</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="pt04.html">Prev</a> </td><th width="60%" align="center">Part IV. Development</th><td width="20%" align="right"> <a accesskey="n" href="reference.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="dev.reconnoiter"></a>Chapter 10. Developer's Guide</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="dev.reconnoiter.html#dev.reconnoiter.internal">Internal APIs</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm122426514928">Hooks</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm122426489952">Developing modules in C</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm122426410736">Developing modules in lua</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm122426170272">Developing modules in Java</a></span></dt></dl></div>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 10. Developer's Guide</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="pt04.html" title="Part IV. Development"><link rel="prev" href="pt04.html" title="Part IV. Development"><link rel="next" href="reference.html" title="Part V. Reference"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 10. Developer's Guide</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="pt04.html">Prev</a> </td><th width="60%" align="center">Part IV. Development</th><td width="20%" align="right"> <a accesskey="n" href="reference.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="dev.reconnoiter"></a>Chapter 10. Developer's Guide</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="dev.reconnoiter.html#dev.reconnoiter.internal">Internal APIs</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm59688334048">Hooks</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm59688309152">Developing modules in C</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm59688296448">Developing modules in lua</a></span></dt><dt><span class="section"><a href="dev.reconnoiter.html#idm59688107888">Developing modules in Java</a></span></dt></dl></div>
   
   <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="dev.reconnoiter.internal"></a>Internal APIs</h2></div></div></div>
       
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426514928"></a>Hooks</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688334048"></a>Hooks</h2></div></div></div>
     
-    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426513536"></a>Abitrary Hooks</h3></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688332736"></a>Abitrary Hooks</h3></div></div></div>
  
  <p>Building a callout API makes sense for common, structured
  features in software, but occassionlly there is a need to provide
@@ -26,7 +26,7 @@
  routines.  Due to the nature of C, the macro calling conventions are
  less than elegant, but ultimately require no complicated implementation
  by the programmer.</p>
-   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426510112"></a>Hook Declaration</h4></div></div></div>
+   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688329056"></a>Hook Declaration</h4></div></div></div>
    <p>
    Declaring hooks is done by calling the NOIT_HOOK_PROTO macro with
    the name of the hook (a term that composes a valid C function name),
@@ -36,7 +36,7 @@
    </p>
    <p>The declaration of a hook "foo" will yield in two functions:
    foo_hook_invoke and foo_hook_register.</p>
-   <div class="example"><a name="idm122426508208"></a><p class="title"><b>Example 10.1. Declaring a foobarquux hook in a header.</b></p><div class="example-contents">
+   <div class="example"><a name="idm59688327424"></a><p class="title"><b>Example 10.1. Declaring a foobarquux hook in a header.</b></p><div class="example-contents">
    
    <p>A foobarquux hook prototype that takes a struct timeval * argument.</p>
    <pre class="programlisting">
@@ -44,7 +44,7 @@
                      void *, closure, (void *closure, struct timeval *now));
    </pre>
    </div></div><br class="example-break">
-   <div class="example"><a name="idm122426506224"></a><p class="title"><b>Example 10.2. Implementing a foobarquux hook in source.</b></p><div class="example-contents">
+   <div class="example"><a name="idm59688325408"></a><p class="title"><b>Example 10.2. Implementing a foobarquux hook in source.</b></p><div class="example-contents">
    
    <p>A foobarquux hok implementation that takes a struct timeval * argument.</p>
    <pre class="programlisting">
@@ -54,12 +54,12 @@
    </pre>
    </div></div><br class="example-break">
    </div>
-   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426504176"></a>Hook Usage</h4></div></div></div>
+   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688323408"></a>Hook Usage</h4></div></div></div>
    <p>Once the hook is implemented, it can be used by the application
    and instrumented by code at runtime. In the below example, we'll
    invoke the foobarquux instrumentation and assuming no issues arise,
    we'll invoke the original foobarquux_work() function.</p>
-   <div class="example"><a name="idm122426502848"></a><p class="title"><b>Example 10.3. Instrumenting a function conditionally.</b></p><div class="example-contents">
+   <div class="example"><a name="idm59688322080"></a><p class="title"><b>Example 10.3. Instrumenting a function conditionally.</b></p><div class="example-contents">
    
    <p>Before we instrument, suppose we have:</p>
    <pre class="programlisting">
@@ -81,7 +81,7 @@
    <p>In order to register a function that allows the above execution
    on every other subsequent execution one would provide the following:
    </p>
-   <div class="example"><a name="idm122426499040"></a><p class="title"><b>Example 10.4. A sample instrumentation of foobarquux</b></p><div class="example-contents">
+   <div class="example"><a name="idm59688318240"></a><p class="title"><b>Example 10.4. A sample instrumentation of foobarquux</b></p><div class="example-contents">
    
    <pre class="programlisting">
      static my_sample_hook(void *closure, struct timeval *now) {
@@ -96,9 +96,9 @@
    </div></div><br class="example-break">
    </div>
  </div>
-    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426497120"></a>Check Hooks</h3></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688316336"></a>Check Hooks</h3></div></div></div>
  
-   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426496000"></a>check_preflight</h4></div></div></div>
+   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688316112"></a>check_preflight</h4></div></div></div>
    <pre class="programlisting">
      noit_hook_return_t (*f)(void *closure, noit_module_t *self,
                              noit_check_t *check, noit_check_t *cause);
@@ -113,7 +113,7 @@
    <p>This instrumentation point can be used to audit intended check
    activity or prevent a check from running (such as an ACL).</p>
    </div>
-   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426492992"></a>check_postflight</h4></div></div></div>
+   <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688312240"></a>check_postflight</h4></div></div></div>
    <p>The check_postflight hook is invoked immediately subsequent to
    a check being commenced.  Note that due to the asynchronous nature
    of Reconnoiter, it is highly unlikely that the check will have 
@@ -126,7 +126,7 @@
    </div>
  </div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426489952"></a>Developing modules in C</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688309152"></a>Developing modules in C</h2></div></div></div>
       
       <p>As Reconnoiter is written in the C programming language, the native plugin development
             is done in C.  If C is not your preferred language, please see the sections regarding
@@ -136,19 +136,19 @@
       <div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">You must not block in module code</h3>
       <p>Reconnoiter uses an evented system that relies on normal code to act in a non-blocking fashion.  Performing network operations, filesystem access or invoking third-party library calls can block the Reconnoier event loop and cause the system to malfunction.  Reconnoiter provides a robust suite of APIs and services to manage non-blocking IO and run blocking operations in asynchronous thread pools.  These APIs are discussed in <a class="xref" href="dev.reconnoiter.html#dev.reconnoiter.internal" title="Internal APIs">the section called &#8220;Internal APIs&#8221;</a>.</p>
       </div>
-      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426485200"></a>Starting your project</h3></div></div></div>
+      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688304368"></a>Starting your project</h3></div></div></div>
         
 				<p>It is highly recommended that you start a new module based on the
 example module available at <a class="ulink" href="https://github.com/circonus-labs/reconnoiter/tree/master/src/modules/example" target="_top"><em class="citetitle">src/modules/example</em></a>.</p>
         <p>Reconnoiter ships a confguration helper called <span class="command"><strong>noit-config</strong></span>.  This tool can help you determine how to build and install plugin modules.</p>
         <p>There are three basic components of a C module: a Makefile, a source file and a documentation file. There can be multiple source iles for more complicated project, but herein we will assume a single source file for a module.</p>
-        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426481680"></a>Module documentation</h4></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688300896"></a>Module documentation</h4></div></div></div>
           
           <p>Reconnoiter module documentation is written in xml using a non-strict subset of docbook.  It describe the module, it's type, how it is loaded, the various confiruation parameters (including allowable values and default), and finally optional examples of the module in action.</p>
           <p>As all documentation is accessible in the <a class="ulink" href="https://github.com/circonus-labs/reconnoiter/tree/master/src/modules/" target="_top"><em class="citetitle">src/modules</em></a> directory in the reconnoiter repository, it is recommended that you reference that (and docbook documentation) for examples.</p>
           <p>While it is not recommended, producing an empty xml file as your module documentation is permitted, but may limit certain functionality.</p>
         </div>
-        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426478064"></a>Writing code</h4></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688297344"></a>Writing code</h4></div></div></div>
           
 					<p>Reconnoiter check modules have a few basic parts including code
                 that executes as the module is loaded, for module-level configuration,
@@ -335,7 +335,7 @@ noit_module_t example = {
 
 <p>The <code class="code">#include</code> of the <code class="code">.xmlh</code> file might look odd, but we'll get to how that is auto-generated from your XML documetation when we discuss writing our Makefile.  This specific include file provide a define for the the XML documentation as a C string; in this example it is named <code class="code">example_xml_description</code>.  The rest of the structure assignements connect the functions we've already written into the module definition so that <code class="code">noitd</code> knows which functions to run.</p>
         </div>
-        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426477808"></a>Writing a Makefile</h4></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688250976"></a>Writing a Makefile</h4></div></div></div>
           
           <p>Building an C app that is more than a toy requires a build environment.  While it is possible to set up projects in an IDE, we will tour through a minimal build system using <span class="command"><strong>make</strong></span>.</p>
           <p>Our makefile has 4 goals:</p>
@@ -402,12 +402,12 @@ install:  $(MODULES)
         </div>
       </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426410736"></a>Developing modules in lua</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688296448"></a>Developing modules in lua</h2></div></div></div>
       
       <p>Reconnoiter modules can be written in <a class="ulink" href="http://www.lua.org/" target="_top"><em class="citetitle">Lua</em></a>.  Modules implementing check types as well as more generic non-check related modules can be authored in lua.</p>
       <p>Due to Reconnoiter's event handling system, one must be careful when taking blocking actions in their lua modules as doing so can cause general malfunctions including watchdog timeouts where the process will be terminated and restarted.</p>
       <p>Several lua bindings are available under the <code class="code">noit</code> namespace are available to assist in leveraging the event system and supprting libraries.</p>
-      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426406976"></a>Installing lua modules</h3></div></div></div>
+      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688226192"></a>Installing lua modules</h3></div></div></div>
         
         <p>Site to site locations may vary, but the search path for lua is specific in the <code class="code">noit.conf</code> file where the lua loader is loaded.  Lua files should be installed relative to this path where modules namespaces are in their own directory heirarchy.  For example, <code class="code">noit.module.example</code> should be in a file <code class="code">noit/module/example.lua</code> relative to the search path.  In a typical Reconnoiter install, if the install prefix is <code class="code">/opt/noit/prod</code>, then this file would be <code class="code">/opt/noit/prod/libexec/noit/noit/module/example.lua</code>.</p>
         <p>Lua files are simply copied to this location and are available to be included via the noit configuration system.</p>
@@ -426,7 +426,7 @@ install:  $(MODULES)
     &lt;/module&gt;
 </pre>
       </div>
-      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426398944"></a>Basic lua checks</h3></div></div></div>
+      <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688218176"></a>Basic lua checks</h3></div></div></div>
         
         <p>As with any check module in Reconnoiter, there are four basic elements: documentation, initialization, configuration and performing a check.  In lua modules, the documentation is actually coded and injected during the loading of the module.</p>
         <p>Every module should start with a <code class="code">module</code> declaration and documentation chunk wrapped in the <code class="code">onload</code> function.</p>
@@ -472,127 +472,127 @@ function initiate(module, check)
 end
 </pre>
     </div>
-    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426391936"></a>Reconnoiter-specific lua</h3></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688211200"></a>Reconnoiter-specific lua</h3></div></div></div>
       
-      <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426391424"></a>Module images and checks</h4></div></div></div>
+      <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688210688"></a>Module images and checks</h4></div></div></div>
         
         <p>Taking the <code class="code">initiation</code> function as an example, the first argument <code class="code">module</code> is of type <code class="code">noit_module_t</code> and the second argument <code class="code">check</code> is of type <code class="code">noit_check_t</code>.  Each of these types has several functions and attributes.</p>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426387504"></a><code class="code">noit_module_t.description([description])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688206720"></a><code class="code">noit_module_t.description([description])</code></h5></div></div></div>
                  <p>If an argument is provided, the description is updated to <code class="code">description</code>. The description is returned.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426385760"></a><code class="code">noit_module_t.name([name])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688204976"></a><code class="code">noit_module_t.name([name])</code></h5></div></div></div>
                  <p>If an argument is provided, the name is updated to <code class="code">name</code>. The name is returned.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426384128"></a><code class="code">noit_module_t.xml_description([xml])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688203344"></a><code class="code">noit_module_t.xml_description([xml])</code></h5></div></div></div>
                  <p>If an argument is provided, the XML description (documentation) is updated to <code class="code">xml</code>.  The XML description is returned.</p></div>
 
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426382480"></a><code class="code">noit_check_t.available()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688201696"></a><code class="code">noit_check_t.available()</code></h5></div></div></div>
                  <p>Sets the check's <code class="code">available</code> field to <code class="code">NP_AVAILABLE</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426380528"></a><code class="code">noit_check_t.availability()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688199744"></a><code class="code">noit_check_t.availability()</code></h5></div></div></div>
                  <p>Returns the check's current <code class="code">available</code> field.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426378960"></a><code class="code">noit_check_t.bad()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688198176"></a><code class="code">noit_check_t.bad()</code></h5></div></div></div>
                  <p>Sets the check's <code class="code">state</code> field to <code class="code">NP_BAD</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426377008"></a><code class="code">noit_check_t.config</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688196224"></a><code class="code">noit_check_t.config</code></h5></div></div></div>
                  <p>A lua table representing the check's config dictionary.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426375840"></a><code class="code">noit_check_t.flags(...)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688195056"></a><code class="code">noit_check_t.flags(...)</code></h5></div></div></div>
                  <p>This function takes a list of string flags and bitwise ORs them together to create a mask.  This function returns the check's current flags bitwise ANDed with the mask.</p>
                  <p>Possible string flags: <code class="code">NP_RUNNING</code>, <code class="code">NP_KILLED</code>, <code class="code">NP_DISABLED</code>, <code class="code">NP_UNCONFIG</code>, <code class="code">NP_TRANSIENT</code>, <code class="code">NP_RESOLVE</code>, <code class="code">NP_RESOLVED</code>, <code class="code">NP_SUPPRESS_STATUS</code>, <code class="code">NP_PREFER_IPV6</code>, <code class="code">NP_SINGLE_RESOLVE</code>, and <code class="code">NP_PASSIVE_COLLECTION</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426374304"></a><code class="code">noit_check_t.good()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688193520"></a><code class="code">noit_check_t.good()</code></h5></div></div></div>
                  <p>Sets the check's <code class="code">state</code> field to <code class="code">NP_GOOD</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426367520"></a><code class="code">noit_check_t.interpolate([in])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688186736"></a><code class="code">noit_check_t.interpolate([in])</code></h5></div></div></div>
                  <p>This function accepts a string or a table whose values are strings.  It applies check interpolation using the checks attributes and config and returns a new interpolated string or a copy of the table whose values are interpolated, respectively.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426366160"></a><code class="code">noit_check_t.module</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688185376"></a><code class="code">noit_check_t.module</code></h5></div></div></div>
                  <p>A string representing the name of the module.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426365056"></a><code class="code">noit_check_t.metric(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688184272"></a><code class="code">noit_check_t.metric(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> guessing at its type.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426363024"></a><code class="code">noit_check_t.metric_double(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688182240"></a><code class="code">noit_check_t.metric_double(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing (if possible) the type to a 64-bit double.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426361024"></a><code class="code">noit_check_t.metric_int32(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688180240"></a><code class="code">noit_check_t.metric_int32(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing (if possible) the type to a signed 32-bit integer.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426358992"></a><code class="code">noit_check_t.metric_int64(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688178208"></a><code class="code">noit_check_t.metric_int64(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing (if possible) the type to a signed 64-bit integer.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426356960"></a><code class="code">noit_check_t.metric_string(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688176176"></a><code class="code">noit_check_t.metric_string(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing the type to a string.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426354928"></a><code class="code">noit_check_t.metric_uint32(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688174144"></a><code class="code">noit_check_t.metric_uint32(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing (if possible) the type to an unsigned 32-bit integer.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426352928"></a><code class="code">noit_check_t.metric_uint64(name, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688172144"></a><code class="code">noit_check_t.metric_uint64(name, value)</code></h5></div></div></div>
                  <p>Set a metric named <code class="code">name</code> to the value <code class="code">value</code> forcing (if possible) the type to a unsigned 64-bit integer.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426350896"></a><code class="code">noit_check_t.metric_json(json)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688170112"></a><code class="code">noit_check_t.metric_json(json)</code></h5></div></div></div>
                  <p>Take a fully-formed JSON document and set metrics from them as is done by the resmon module.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426349744"></a><code class="code">noit_check_t.name</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688168960"></a><code class="code">noit_check_t.name</code></h5></div></div></div>
                  <p>A string representing the name of the check.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426348528"></a><code class="code">noit_check_t.period</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688167744"></a><code class="code">noit_check_t.period</code></h5></div></div></div>
                  <p>An integer representing the period of the check in milliseconds.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426347312"></a><code class="code">noit_check_t.state()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688166528"></a><code class="code">noit_check_t.state()</code></h5></div></div></div>
                  <p>This function returns the state of the check.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426346208"></a><code class="code">noit_check_t.status(msg)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688165424"></a><code class="code">noit_check_t.status(msg)</code></h5></div></div></div>
                  <p>This function sets the status of the check to <code class="code">msg</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426344592"></a><code class="code">noit_check_t.target</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688163808"></a><code class="code">noit_check_t.target</code></h5></div></div></div>
                  <p>A string representing the target of the check.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426343488"></a><code class="code">noit_check_t.target_ip</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688162704"></a><code class="code">noit_check_t.target_ip</code></h5></div></div></div>
                  <p>A string representing the resolved target IP address of the check.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426342256"></a><code class="code">noit_check_t.timeout</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688161472"></a><code class="code">noit_check_t.timeout</code></h5></div></div></div>
                  <p>An integer representing the timeout of the check in milliseconds.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426341072"></a><code class="code">noit_check_t.unavailable()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688160288"></a><code class="code">noit_check_t.unavailable()</code></h5></div></div></div>
                  <p>Sets the check's <code class="code">unavailable</code> field to <code class="code">NP_UNAVAILABLE</code>.</p></div>
       </div>
-      <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426391168"></a>Non-blocking network functions</h4></div></div></div>
+      <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688210560"></a>Non-blocking network functions</h4></div></div></div>
         
         <p>All networking functions in lua modules should use the <code class="code">noit.socket</code> function to retrieve a socket with non-blocking methods attached.  These sockets support both UDP and TCP as well as SSL over TCP.</p>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426337328"></a><code class="code">noit.socket(ipaddress[, protocol])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688156528"></a><code class="code">noit.socket(ipaddress[, protocol])</code></h5></div></div></div>
                  <p>Creates and returns a socket for the Internet family (IPv4 or IPv6) to which the <code class="code">ipaddress</code> belongs. The <code class="code">protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code class="code">noit.eventer</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426334752"></a><code class="code">noit.socket(family[, protocol])</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688153952"></a><code class="code">noit.socket(family[, protocol])</code></h5></div></div></div>
                  <p>Creates and returns a socket of type <code class="code">family</code> (either "inet" or "inet6"). The <code class="code">protocol</code> argument can be "udp" or "tcp," defaulting to "tcp" is omitted. Returns an object of type <code class="code">noit.eventer</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426332176"></a><code class="code">noit.eventer:accept()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688151376"></a><code class="code">noit.eventer:accept()</code></h5></div></div></div>
                  <p>Accept a new socket from an existing listening socket. Returns a new non-blocking socket of type <code class="code">noit.eventer</code></p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426330688"></a><code class="code">noit.eventer:bind(address, port)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688149872"></a><code class="code">noit.eventer:bind(address, port)</code></h5></div></div></div>
                  <p>Bind the current socket to the specified <code class="code">address</code> and <code class="code">port</code>. Returns two values, a return code (0 on success) and a possible error message.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426328656"></a><code class="code">noit.eventer:close()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688147872"></a><code class="code">noit.eventer:close()</code></h5></div></div></div>
                  <p>Closes the socket.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426327536"></a><code class="code">noit.eventer:connect(ipaddress, port)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688146752"></a><code class="code">noit.eventer:connect(ipaddress, port)</code></h5></div></div></div>
                  <p>Establish a connection to the specified <code class="code">ipaddress</code> and <code class="code">port</code>. Returns two values, a return code (0 on success) and a possible error message.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426325440"></a><code class="code">noit.eventer:listen(backlog)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688144656"></a><code class="code">noit.eventer:listen(backlog)</code></h5></div></div></div>
                  <p>Use listen(2) to place the current socket in listening mode (ready to accept connections).  The <code class="code">backlog</code> argument is passed to the listen system call.  Returns three arguments: a return code (0 on success), and possibly the <code class="code">errno</code> and error message in the event of a failure condition.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426323232"></a><code class="code">noit.eventer:own()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688142448"></a><code class="code">noit.eventer:own()</code></h5></div></div></div>
                  <p>Each <code class="code">noit.eventer</code> object to a lua coroutine.  If you pass an object to another coroutine to use, that coroutine should claim ownership of the object by invoking this function.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426321472"></a><code class="code">noit.eventer:read(length)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688140688"></a><code class="code">noit.eventer:read(length)</code></h5></div></div></div>
                  <p>Read <code class="code">length</code> bytes from the socket and return them as a string.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426320544"></a><code class="code">noit.eventer:read(delimiter)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688139168"></a><code class="code">noit.eventer:read(delimiter)</code></h5></div></div></div>
                  <p>Read bytes up to and including the string specified by <code class="code">delimiter</code> return them as a string.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426199888"></a><code class="code">noit.eventer:recv(length)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688137536"></a><code class="code">noit.eventer:recv(length)</code></h5></div></div></div>
                  <p>Read a packet of up to <code class="code">length</code> bytes.  Returns two values: the length of the packet read and the contents of the packet.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426198368"></a><code class="code">noit.eventer:send(pkt)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688135968"></a><code class="code">noit.eventer:send(pkt)</code></h5></div></div></div>
                  <p>Send te string <code class="code">pkt</code> over the socket.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426196752"></a><code class="code">noit.eventer:sendto(pkt, address, port)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688134352"></a><code class="code">noit.eventer:sendto(pkt, address, port)</code></h5></div></div></div>
                  <p>Send te string <code class="code">pkt</code> over the socket to the specified <code class="code">address</code> and <code class="code">port</code>.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426194336"></a><code class="code">noit.eventer:setsockopt(type, value)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688131936"></a><code class="code">noit.eventer:setsockopt(type, value)</code></h5></div></div></div>
                  <p>Call the system setsockopt(2) function with the specified <code class="code">value</code>.  Supported values for <code class="code">type</code> are <code class="code">"SO_BROADCAST"</code>, <code class="code">"SO_REUSEADDR"</code>, <code class="code">"SO_KEEPALIVE"</code>, <code class="code">"SO_LINGER"</code>, <code class="code">"SO_OOBINLINE"</code>, <code class="code">"SO_SNDBUF"</code>, <code class="code">"SO_RCVBUF"</code>, <code class="code">"SO_DONTROUTE"</code>, <code class="code">"SO_RCVLOWAT"</code>, <code class="code">"SO_RCVTIMEO"</code>, <code class="code">"SO_SNDLOWAT"</code>, and <code class="code">"SO_SNDTIMEO"</code>.  Returns two values: a return code (0 on success) and a possible error message.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426193360"></a><code class="code">noit.eventer:ssl_upgrade_socket(cert,key,ca,ciphers)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688130960"></a><code class="code">noit.eventer:ssl_upgrade_socket(cert,key,ca,ciphers)</code></h5></div></div></div>
                  <p>Upgrade a connected socket to SSL.  The <code class="code">cert</code>, <code class="code">key</code>, and <code class="code">ca</code> arguments specify the paths to files containing the certificate, key, and CA chain, respectively.  <code class="code">ciphers</code> is a list of ciphers as understood by OpenSSL.  Returns two values, a return code (0 on success) and a possible error message.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426184160"></a><code class="code">noit.eventer:ssl_ctx()</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688121776"></a><code class="code">noit.eventer:ssl_ctx()</code></h5></div></div></div>
                  <p>Return the associated SSL context (of type <code class="code">noit.eventer.ssl_ctx</code>).</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426182592"></a><code class="code">noit.eventer:write(body)</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688120208"></a><code class="code">noit.eventer:write(body)</code></h5></div></div></div>
                  <p>Write the string <code class="code">body</code> over the socket.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426181024"></a><code class="code">noit.eventer.ssl_ctx:ciphers</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688118640"></a><code class="code">noit.eventer.ssl_ctx:ciphers</code></h5></div></div></div>
                  <p>A lua table containing the names ciphers that have been negotiated on the context.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426179920"></a><code class="code">noit.eventer.ssl_ctx:current_cipher</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688117536"></a><code class="code">noit.eventer.ssl_ctx:current_cipher</code></h5></div></div></div>
                  <p>The name of the currently used cipher.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426178704"></a><code class="code">noit.eventer.ssl_ctx:error</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688116320"></a><code class="code">noit.eventer.ssl_ctx:error</code></h5></div></div></div>
                  <p>The error encountered when attempting to validate the peer.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426177488"></a><code class="code">noit.eventer.ssl_ctx:end_time</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688115104"></a><code class="code">noit.eventer.ssl_ctx:end_time</code></h5></div></div></div>
                  <p>The time at which the peer's certificate will no longer be valid (expire).  This time is measured in seconds since 1970.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426176256"></a><code class="code">noit.eventer.ssl_ctx:issuer</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688113872"></a><code class="code">noit.eventer.ssl_ctx:issuer</code></h5></div></div></div>
                  <p>The issuer of the peer's certificate.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426175152"></a><code class="code">noit.eventer.ssl_ctx:method</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688112768"></a><code class="code">noit.eventer.ssl_ctx:method</code></h5></div></div></div>
                  <p>The current SSL method being used.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426174000"></a><code class="code">noit.eventer.ssl_ctx:san_list</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688111616"></a><code class="code">noit.eventer.ssl_ctx:san_list</code></h5></div></div></div>
                  <p>The subject alternate names of the peer's certificate.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426172784"></a><code class="code">noit.eventer.ssl_ctx:subject</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688110400"></a><code class="code">noit.eventer.ssl_ctx:subject</code></h5></div></div></div>
                  <p>The subject of the peer's certificate.</p></div>
-        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426171680"></a><code class="code">noit.eventer.ssl_ctx:start_time</code></h5></div></div></div>
+        <div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688109296"></a><code class="code">noit.eventer.ssl_ctx:start_time</code></h5></div></div></div>
                  <p>The time at which the peer's certificate begins validaity (issuance date).  This time is measured in seconds since 1970.</p></div>
       </div>
     </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426170272"></a>Developing modules in Java</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688107888"></a>Developing modules in Java</h2></div></div></div>
       
 </div>
 </div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="pt04.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="pt04.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="reference.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Part IV. Development </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Part V. Reference</td></tr></table></div></body></html>

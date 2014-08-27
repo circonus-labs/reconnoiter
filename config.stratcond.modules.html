@@ -1,6 +1,6 @@
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 8. stratcond modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.stratcond.html" title="Chapter 7. stratcond"><link rel="next" href="operation.html" title="Part III. Operation"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 8. stratcond modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.stratcond.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="operation.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.stratcond.modules"></a>Chapter 8. stratcond modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.stratcond.modules.html#idm122426713136">fq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426704896">rabbitmq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426696528">stomp_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426687936">postgres_ingestor</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426680144">handoff_ingestor</a></span></dt></dl></div>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 8. stratcond modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.stratcond.html" title="Chapter 7. stratcond"><link rel="next" href="operation.html" title="Part III. Operation"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 8. stratcond modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.stratcond.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="operation.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.stratcond.modules"></a>Chapter 8. stratcond modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.stratcond.modules.html#idm59688532272">fq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm59688524112">rabbitmq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm59688515648">stomp_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm59688507136">postgres_ingestor</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm59688499360">handoff_ingestor</a></span></dt></dl></div>
   
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426713136"></a>fq_driver</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688532272"></a>fq_driver</h2></div></div></div>
   
   <p>The fq_driver module allows publishing of metrics and status messages over the FQ protocol for use powering the IEP system.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -8,9 +8,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>fq_driver.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426708096"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688527312"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426707456"></a><p class="title"><b>Example 8.1. Loading the fq_driver.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688526672"></a><p class="title"><b>Example 8.1. Loading the fq_driver.</b></p><div class="example-contents">
       
       <p>This example loads the fq_driver and configures it.</p>
       <pre class="programlisting">
@@ -35,7 +35,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426704896"></a>rabbitmq_driver</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688524112"></a>rabbitmq_driver</h2></div></div></div>
   
   <p>The rabbitmq_driver module allows publishing of metrics and status messages over the AMQP protocol for use powering the IEP system.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -43,9 +43,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>rabbitmq_driver.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426699600"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688518816"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426698960"></a><p class="title"><b>Example 8.2. Loading the rabbitmq_driver.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688518176"></a><p class="title"><b>Example 8.2. Loading the rabbitmq_driver.</b></p><div class="example-contents">
       
       <p>This example loads the rabbitmq_driver and configures it.</p>
       <pre class="programlisting">
@@ -68,7 +68,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426696528"></a>stomp_driver</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688515648"></a>stomp_driver</h2></div></div></div>
   
   <p>The stomp_driver module allows publishing of metrics and status messages over the STOMP protocol for use powering the IEP system.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -76,9 +76,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>stomp_driver.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426691200"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688510416"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426690560"></a><p class="title"><b>Example 8.3. Loading the stomp_driver.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688509776"></a><p class="title"><b>Example 8.3. Loading the stomp_driver.</b></p><div class="example-contents">
       
       <p>This example loads the stomp_driver and configures it.</p>
       <pre class="programlisting">
@@ -104,7 +104,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426687936"></a>postgres_ingestor</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688507136"></a>postgres_ingestor</h2></div></div></div>
   
   <p>This module imports noitd data into postgres.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -112,9 +112,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>postgres_ingestor.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426682720"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688501936"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426682080"></a><p class="title"><b>Example 8.4. Using the postgres_ingestor.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688501296"></a><p class="title"><b>Example 8.4. Using the postgres_ingestor.</b></p><div class="example-contents">
       
       <p>This example loads the postgres_ingestor and configures it.</p>
       <pre class="programlisting">
@@ -209,7 +209,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426680144"></a>handoff_ingestor</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688499360"></a>handoff_ingestor</h2></div></div></div>
   
   <p>This module exposes the consolidated noitd journal files from stratcon to an external process. There is no configuration and one must write an external journal ingestor to have this module be of any use.</p>
   <p>The files stored in the database journal path are not deleted by stratcond and as they are added, their names are streamed using chunked HTTP to the external program currently requesting /handoff/jounrals from the wire protocol API via HTTP GET.  It is the external program's responsibility to delete the files once it has consumed them.</p>
@@ -218,9 +218,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>handoff_ingestor.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426673872"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688493088"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426673232"></a><p class="title"><b>Example 8.5. Loading the handoff_ingestor.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688492448"></a><p class="title"><b>Example 8.5. Loading the handoff_ingestor.</b></p><div class="example-contents">
       
       <p>This example loads the handoff_ingestor.</p>
       <pre class="programlisting">

@@ -1,6 +1,6 @@
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 6. noitd modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.noitd.html" title="Chapter 5. noitd configuration"><link rel="next" href="config.stratcond.html" title="Chapter 7. stratcond"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 6. noitd modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.noitd.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.stratcond.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.noitd.modules"></a>Chapter 6. noitd modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.noitd.modules.html#idm122422715536">check_test</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410216448">collectd</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410173264">custom_config</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410165104">dns</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410097168">external</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410028688">ganglia</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409995296">httptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409953744">ip_acl</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409945136">lua</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409928512">mysql</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409906832">cloudwatch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409837760">dhcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409798400">haproxy</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409748400">http</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409608400">imap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409523696">jezebel</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409499616">keynote</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409452656">keynote</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409417904">memcached</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409417520">monit</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122440049264">munin</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425615488">nginx</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425579312">nrpe</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425547568">ntp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425524880">pop3</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425465696">redis</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425429520">elasticsearch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425406704">resmon</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409316944">smtp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409193888">tcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426884720">varnish</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426973648">ping_icmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122427001424">postgres</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426979888">selfcheck</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426272160">snmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426219280">snmptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426311248">ssh2</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426817456">statsd</a></span></dt></dl></div>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 6. noitd modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.noitd.html" title="Chapter 5. noitd configuration"><link rel="next" href="config.stratcond.html" title="Chapter 7. stratcond"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 6. noitd modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.noitd.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.stratcond.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.noitd.modules"></a>Chapter 6. noitd modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.noitd.modules.html#idm59691480160">check_test</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59690716624">collectd</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737539344">custom_config</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737531536">dns</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737465168">external</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737396688">ganglia</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737363296">httptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737321744">ip_acl</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737313136">lua</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737296512">mysql</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737274832">cloudwatch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737205760">dhcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737166400">haproxy</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59737116400">http</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689640288">imap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689555536">jezebel</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689531456">keynote</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689484496">keynote_pulse</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689449744">memcached</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689449360">monit</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689362384">munin</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689339360">nginx</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689300192">nrpe</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689265744">ntp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689265360">pop3</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689176656">redis</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689137584">elasticsearch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689113024">resmon</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59689076576">smtp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688969792">tcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688899072">varnish</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688882160">ping_icmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688850112">postgres</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688828560">selfcheck</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688828176">snmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688759008">snmptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688729872">ssh2</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm59688636528">statsd</a></span></dt></dl></div>
   
-  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122422715536"></a>check_test</h2></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59691480160"></a>check_test</h2></div></div></div>
   
   <p>
             This module exposes an API endpoint to 
@@ -14,9 +14,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>check_test.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122422677216"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59695047552"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122422447840"></a><p class="title"><b>Example 6.1. Loading the check_test module.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59694254064"></a><p class="title"><b>Example 6.1. Loading the check_test module.</b></p><div class="example-contents">
       
       <p>This example loads the check_test module.</p>
       <pre class="programlisting">
@@ -28,10 +28,10 @@
     </pre>
     </div></div><br class="example-break">
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122411770832"></a>REST Endpoint</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59694239344"></a>REST Endpoint</h3></div></div></div>
     
     
-    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122410225712"></a>/checks/test</h4></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59693849104"></a>/checks/test</h4></div></div></div>
       
       <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd>
             <p>
@@ -53,7 +53,7 @@
                 format of the <code class="code">/check/show</code> REST command. It is a simpler set of
                 output as some of the results wouldn't make sense in this context.
             </p>
-      <div class="example"><a name="idm122410218160"></a><p class="title"><b>Example 6.2. REST /checks/test XML input.</b></p><div class="example-contents">
+      <div class="example"><a name="idm59690718256"></a><p class="title"><b>Example 6.2. REST /checks/test XML input.</b></p><div class="example-contents">
         
         <pre class="programlisting">
 &lt;?xml version="1.0" encoding="utf8"?&gt;
@@ -76,7 +76,7 @@
     </div>
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410216448"></a>collectd</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59690716624"></a>collectd</h2></div></div></div>
   
   <p>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</p>
   <p>Additionally, this module registers a REST handler to support collectd's write_http output plugin.  This exposes a REST endpoint at /module/collectd.</p>
@@ -85,7 +85,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>collectd.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410210720"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59690710912"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">collectd_port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -108,7 +108,7 @@
           <p>Specify whether collectd notifications are acted upon.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410195952"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59690696144"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">security_level</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -135,9 +135,9 @@
           <p>The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410177712"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737544000"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122410177072"></a><p class="title"><b>Example 6.3. Simple encrypted passive checking.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737543360"></a><p class="title"><b>Example 6.3. Simple encrypted passive checking.</b></p><div class="example-contents">
       
       <p>The following example allows a collectd agent to send any metric to the noit
       system.  In this example the collectd agent must be version 4.7.0 to support encryption 
@@ -188,7 +188,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410173264"></a>custom_config</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737539344"></a>custom_config</h2></div></div></div>
   
   <p>
           Allows config options to be namespaced into "custom"
@@ -198,9 +198,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>custom_config.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410168224"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737534400"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122410167584"></a><p class="title"><b>Example 6.4. Loading the custom_config module.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737533760"></a><p class="title"><b>Example 6.4. Loading the custom_config module.</b></p><div class="example-contents">
       
       <p>This example loads the custom_config module and creates a
              keyname=valuename config setting.
@@ -220,7 +220,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410165104"></a>dns</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737531536"></a>dns</h2></div></div></div>
   
   <p>The dns module leverages libudns to allow highly concurrent DNS lookups of a variety of DNS RR types.  In the event that you name a dns check <em class="parameter"><code>in-addr.arpa</code></em> with an rtype of <em class="parameter"><code>PTR</code></em>, the result of the query may be used throughout reconnoiter as the identifying hostname of that target.</p>
   <p>This module provides the <code class="function">inaddrarpa</code> interpolation method which will reverse a dot-delimited IP address.  This is particularly useful for constructing in-addr.arpa queries, but also used for checking blacklists, whitelists and other IP-based DNS databases.</p>
@@ -229,7 +229,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>dns.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410157872"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737524656"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">contexts</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -242,7 +242,7 @@
           <p>The maximum number of contexts to spawn per nameserver.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410149088"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737516736"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">nameserver</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -305,9 +305,9 @@
           <p>Sorts (strcmp) the answers if multiple RRs are returned in the result set.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410102272"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737470272"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122410101632"></a><p class="title"><b>Example 6.5. Establishing PTR records for hosts.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737469632"></a><p class="title"><b>Example 6.5. Establishing PTR records for hosts.</b></p><div class="example-contents">
       
       <p>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</p>
       <pre class="programlisting">
@@ -329,7 +329,7 @@
       &lt;/noit&gt;
     </pre>
     </div></div><br class="example-break">
-    <div class="example"><a name="idm122410099248"></a><p class="title"><b>Example 6.6. Checking labs.omniti.com.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737467248"></a><p class="title"><b>Example 6.6. Checking labs.omniti.com.</b></p><div class="example-contents">
       
       <p>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</p>
       <pre class="programlisting">
@@ -347,7 +347,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410097168"></a>external</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737465168"></a>external</h2></div></div></div>
   
   <p>The external module performs checks via external processes like more traditional monitoring systems.  While this approach is far less efficient and does not scale well on a single system, it provides easier transition from existing monitoring systems.  Checks should exit normally with an exit status of 0 for success, 1 or 2 for failure and 3 for unknown.  Exiting with a status of 3 is highly discouraged.  The standard output is provided as the status of the check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -355,7 +355,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>external.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410091456"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737459456"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">user</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -394,7 +394,7 @@
           <p>The default regular expression with which to parse Nagios data. Named values are "key", "value", and "uom" (unit of measurement)</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410063088"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737431088"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">command</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -437,9 +437,9 @@
           <p>This is a regular expression that is globally applied to the stdout of the command.  Each match is turned into a metric. It is a requirement to used named capturing in the regular expression where "key" is the named match of the metric name and "value" is the named match for the matric value.  A sample for extracting performance data from Nagios commands would be: (?&lt;key&gt;\S+)=(?&lt;value&gt;[^;\s]+)(?=[;\s]). "NAGIOS" may also be specified as a value, which will configure the external check to do Nagios parsing based on the nagios_regex module configuration parameter.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410031840"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737399840"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122410031200"></a><p class="title"><b>Example 6.7. Checking a service via the /path/to/check_foo command.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737399200"></a><p class="title"><b>Example 6.7. Checking a service via the /path/to/check_foo command.</b></p><div class="example-contents">
       
       <p>The hypothetical check_foo command takes a target host with the -H parameter, runs a check and returns its health via exit code and stdout. We set the environment variable QUUX to the value BAZ.  The check is against host 10.10.2.2.</p>
       <pre class="programlisting">
@@ -463,7 +463,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410028688"></a>ganglia</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737396688"></a>ganglia</h2></div></div></div>
   
   <p>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -471,7 +471,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>ganglia.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410023568"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737391568"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">multiaddr</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -511,7 +511,7 @@
         </dd></dl></div>
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409995296"></a>httptrap</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737363296"></a>httptrap</h2></div></div></div>
   
   <p>The httptrap module provides a simple way to push data into reconnoiter from other applications.  Simply structure a json document and use the PUT method against reconnoiter's psuedo-webserver on port 43191.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -519,7 +519,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>httptrap.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409990112"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737358112"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">asynch_metrics</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -532,7 +532,7 @@
           <p>Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409981232"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737349232"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">asynch_metrics</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -565,9 +565,9 @@
           <p>Specify the delimiter used when flattening metric nmes from the JSON hierarchy.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409957888"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737325888"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409957248"></a><p class="title"><b>Example 6.8. Posting a string and a number.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737325248"></a><p class="title"><b>Example 6.8. Posting a string and a number.</b></p><div class="example-contents">
       
       <p>
         <code class="code">curl -X PUT https://noit:43191/module/httptrap/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code>
@@ -595,7 +595,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409953744"></a>ip_acl</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737321744"></a>ip_acl</h2></div></div></div>
   
   <p>
           This module exposes hooks the pre-flight execution of
@@ -607,9 +607,9 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>ip_acl.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409948416"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737316416"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409947776"></a><p class="title"><b>Example 6.9. Loading the ip_acl module.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737315776"></a><p class="title"><b>Example 6.9. Loading the ip_acl module.</b></p><div class="example-contents">
       
       <p>This example loads the ip_acl module and creates a "global" ACL that denies
              any check running against the host 4.2.2.1 and the entier 10.0.0.0 RFC1819 space.
@@ -635,7 +635,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409945136"></a>lua</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737313136"></a>lua</h2></div></div></div>
   
   <p>The lua module is a loader that allows the authoring of checks in Lua.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -643,7 +643,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>lua.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409939920"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737307920"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">directory</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -656,9 +656,9 @@
           <p>This is the lua load path.  See the lua manual for more details on meaning and syntax.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409931216"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737299216"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409930480"></a><p class="title"><b>Example 6.10. Loading the lua loader.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737298480"></a><p class="title"><b>Example 6.10. Loading the lua loader.</b></p><div class="example-contents">
       
       <p>This example loads the lua VM and registers it as a module loader.</p>
       <pre class="programlisting">
@@ -675,7 +675,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409928512"></a>mysql</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737296512"></a>mysql</h2></div></div></div>
   
   <p>The mysql module allows queries to be performaed against targets as checks.  The results of the query are used as metrics.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -683,7 +683,7 @@
       </dd><dt><span class="term">image</span></dt><dd>
         <p>mysql.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409923264"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737291264"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">dsn</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -702,9 +702,9 @@
           <p>The query that will be executed.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409910112"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737278112"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409909472"></a><p class="title"><b>Example 6.11. Tracking MySQL database sizes.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737277472"></a><p class="title"><b>Example 6.11. Tracking MySQL database sizes.</b></p><div class="example-contents">
       
       <p>This will track the sizes of all databases on 10.225.209.35 and 10.225.209.56. We will connect to the mysql database as the user "noit" with password "noit." We only run this check every 5 minutes.</p>
       <pre class="programlisting">
@@ -729,14 +729,14 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409906832"></a>cloudwatch</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737274832"></a>cloudwatch</h2></div></div></div>
   
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
         <p>lua</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.cloudwatch</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409902128"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737270128"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -819,9 +819,9 @@
           <p>The dimensions to query for each metric. dim_foo will set a metric with dimension "foo".</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409901872"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737269872"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409840464"></a><p class="title"><b>Example 6.12. Checking Cloudwatch data</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737208464"></a><p class="title"><b>Example 6.12. Checking Cloudwatch data</b></p><div class="example-contents">
       
       <p>This example checks some Cloudwatch data</p>
       <pre class="programlisting">
@@ -847,7 +847,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409837760"></a>dhcp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737205760"></a>dhcp</h2></div></div></div>
   
   <p>DHCP metrics check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -855,7 +855,7 @@
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.dhcp</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409832704"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737200704"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">send_port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -898,9 +898,9 @@
           <p>The type of DHCP request message to send</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409801328"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737169328"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409800688"></a><p class="title"><b>Example 6.13. Checking DHCP connection.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737168688"></a><p class="title"><b>Example 6.13. Checking DHCP connection.</b></p><div class="example-contents">
       
       <p>This example checks DHCP connection</p>
       <pre class="programlisting">
@@ -924,7 +924,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409798400"></a>haproxy</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737166400"></a>haproxy</h2></div></div></div>
   
   <p>Monitor management metrics of a haproxy instance.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -932,7 +932,7 @@
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.haproxy</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409793024"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737161024"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">uri</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1003,9 +1003,9 @@
     </p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409751424"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737119424"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409750784"></a><p class="title"><b>Example 6.14. Monitor two haproxy instances</b></p><div class="example-contents">
+    <div class="example"><a name="idm59737118784"></a><p class="title"><b>Example 6.14. Monitor two haproxy instances</b></p><div class="example-contents">
       
       <p>The following example pulls all metrics available from haproxy running on 10.1.2.3 and 10.1.2.4</p>
       <pre class="programlisting">
@@ -1025,7 +1025,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409748400"></a>http</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59737116400"></a>http</h2></div></div></div>
   
   <p>The http module performs GET requests over either HTTP or HTTPS and checks the return code and optionally the body.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1033,7 +1033,7 @@
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.http</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409743184"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59737111184"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1210,9 +1210,9 @@
           <p>Sets the HTTP version for the check to use.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409742384"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689643568"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409610896"></a><p class="title"><b>Example 6.15. Checking an HTTP and HTTPS URL.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689642928"></a><p class="title"><b>Example 6.15. Checking an HTTP and HTTPS URL.</b></p><div class="example-contents">
       
       <p>This example checks the OmniTI Labs website over both HTTP and HTTPS.</p>
       <pre class="programlisting">
@@ -1238,7 +1238,7 @@
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409608400"></a>imap</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689640288"></a>imap</h2></div></div></div>
   
   <p>IMAP metrics check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1246,7 +1246,7 @@
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.imap</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409603200"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689635040"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1354,9 +1354,9 @@ SL checks).</p>
           <p>The host header to validate against the SSL certificate (for SSL checks).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409602944"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689634784"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409525360"></a><p class="title"><b>Example 6.16. Checking IMAP connection.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689557200"></a><p class="title"><b>Example 6.16. Checking IMAP connection.</b></p><div class="example-contents">
       
       <p>This example checks IMAP connection with and without SSL.</p>
       <pre class="programlisting">
@@ -1391,7 +1391,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409523696"></a>jezebel</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689555536"></a>jezebel</h2></div></div></div>
   
   <p>The jezebel module performs services checks against jezebel and simplifies its special-case Resmon output.</p>
   <p><a class="ulink" href="https://labs.omniti.com/trac/resmon" target="_top"><em class="citetitle">Resmon</em></a> is a light-weight resource monitor that exposes health of services over HTTP in XML.</p>
@@ -1401,7 +1401,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.jezebel</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409516512"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689548352"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1409,10 +1409,10 @@ SL checks).</p>
               </dd><dt><span class="term">allowed</span></dt><dd>
                 <p>.+</p>
               </dd></dl></div>
-          <p>&gt;A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</p>
+          <p>A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409509424"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689541264"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">.+</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1423,9 +1423,9 @@ SL checks).</p>
           <p>All check config values are passed through to jezebel for execution.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409502672"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689534512"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409502032"></a><p class="title"><b>Example 6.17. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689533872"></a><p class="title"><b>Example 6.17. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
       
       <p>This example checks the Resmon service on OmniTI Labs.</p>
       <pre class="programlisting">
@@ -1452,7 +1452,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409499616"></a>keynote</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689531456"></a>keynote</h2></div></div></div>
   
   <p>The keynote module fetches telemetry from Keynote(TM) API calls.</p>
   <p>This module rides on the http module and provides a secondary phase of JSON parsing transformation that turns the Keynote data into something useful.</p>
@@ -1461,7 +1461,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.keynote</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409493792"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689525632"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">base_url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1514,9 +1514,9 @@ SL checks).</p>
           <p>A human readable alias for a given slot id.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409455712"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689487552"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409455072"></a><p class="title"><b>Example 6.18. Checking Keynote services.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689486912"></a><p class="title"><b>Example 6.18. Checking Keynote services.</b></p><div class="example-contents">
       
       <p>This example checks two slots: 10 and 11.</p>
       <pre class="programlisting">
@@ -1544,7 +1544,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409452656"></a>keynote</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689484496"></a>keynote_pulse</h2></div></div></div>
   
   <p>The keynote module fetches telemetry from Keynote(TM) Pulse API.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1552,7 +1552,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.keynote_pulse</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409447392"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689479232"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">base_url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1589,9 +1589,9 @@ SL checks).</p>
           <p>The Keynote-issued agreement_id for the service.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409421024"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689452864"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409420384"></a><p class="title"><b>Example 6.19. Checking Keynote services.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689452224"></a><p class="title"><b>Example 6.19. Checking Keynote services.</b></p><div class="example-contents">
       
       <p>This example checks agreement_id: 1.</p>
       <pre class="programlisting">
@@ -1620,7 +1620,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409417904"></a>memcached</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689449744"></a>memcached</h2></div></div></div>
   
   <p>Monitor memcache usage metrics.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1628,7 +1628,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.memcached</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409412640"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689444480"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1641,9 +1641,9 @@ SL checks).</p>
           <p>Specifies the port on which the memcache interface can be reached.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409403872"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689435712"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409403232"></a><p class="title"><b>Example 6.20. Monitor two memcache instances with management on port 11211</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689435072"></a><p class="title"><b>Example 6.20. Monitor two memcache instances with management on port 11211</b></p><div class="example-contents">
       
       <p>The following example pulls all metrics available from memcached running on 10.1.2.3 and 10.1.2.4 using standard port</p>
       <pre class="programlisting">
@@ -1663,7 +1663,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409417520"></a>monit</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689449360"></a>monit</h2></div></div></div>
   
   <p>The Monit module parses XML data from the Monit service and returns the values as metrics.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1671,7 +1671,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.monit</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409395552"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689427392"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1756,9 +1756,9 @@ SL checks).</p>
           <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122467857680"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689427136"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122467773136"></a><p class="title"><b>Example 6.21. Checking Monit services on localhost</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689364848"></a><p class="title"><b>Example 6.21. Checking Monit services on localhost</b></p><div class="example-contents">
       
       <p>This example checks the Monit service on localhost.</p>
       <pre class="programlisting">
@@ -1784,7 +1784,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122440049264"></a>munin</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689362384"></a>munin</h2></div></div></div>
   
   <p>Monitor metrics exposed by a munin-node instance.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1792,7 +1792,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.munin</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425136896"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689357152"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1813,9 +1813,9 @@ SL checks).</p>
           <p>A list of space separated plugins from which to fetch metrics. If not specified, a list will be retrieved from the munin node.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425618400"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689342288"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425617760"></a><p class="title"><b>Example 6.22. Monitor a node running munun-node</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689341648"></a><p class="title"><b>Example 6.22. Monitor a node running munun-node</b></p><div class="example-contents">
       
       <p>The following example pulls all munin metrics from 10.1.2.3 and just "processes" metrics from 10.1.2.4</p>
       <pre class="programlisting">
@@ -1837,7 +1837,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425615488"></a>nginx</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689339360"></a>nginx</h2></div></div></div>
   
   <p>The nginx module gathers information from the nginx stub_status module</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1845,7 +1845,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.nginx</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425610624"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689334192"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1888,9 +1888,9 @@ SL checks).</p>
           <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425582400"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689303344"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425581760"></a><p class="title"><b>Example 6.23. Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689302704"></a><p class="title"><b>Example 6.23. Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</b></p><div class="example-contents">
       
       <p>The following example pulls metrics from Nginx's status module (http://wiki.nginx.org/HttpStubStatusModule) from http://10.1.2.3/nginx_status</p>
       <pre class="programlisting">
@@ -1912,7 +1912,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425579312"></a>nrpe</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689300192"></a>nrpe</h2></div></div></div>
   
   <p>Nagios NRPE (v2) check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1920,7 +1920,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.nrpe</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425574448"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689295072"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -1957,9 +1957,9 @@ SL checks).</p>
           <p>If the value comes back with a unit of measure, append it to the metric name.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425550448"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689268656"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425549808"></a><p class="title"><b>Example 6.24. Checking load via NRPE.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689268016"></a><p class="title"><b>Example 6.24. Checking load via NRPE.</b></p><div class="example-contents">
       
       <p>This check runs check_load on the remote host.</p>
       <pre class="programlisting">
@@ -1981,7 +1981,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425547568"></a>ntp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689265744"></a>ntp</h2></div></div></div>
   
   <p>Determine clock skew from an NTP source.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -1989,7 +1989,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.ntp</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425542704"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689260528"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2012,9 +2012,9 @@ SL checks).</p>
           <p>Use the NTP control protocol to learn about the other end.  If thise ois not true/on, then this check will determine the NTP telemetry of the target relative to the agent's local time.  If it is true/on, then the agent will request the NTP telemetry of the target regarding it's preferred peer.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425527648"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689243840"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425527008"></a><p class="title"><b>Example 6.25. Monitor an NTP service</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689243200"></a><p class="title"><b>Example 6.25. Monitor an NTP service</b></p><div class="example-contents">
       
       <p>The following example monitors an NTP services on 10.1.2.3.</p>
       <pre class="programlisting">
@@ -2033,7 +2033,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425524880"></a>pop3</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689265360"></a>pop3</h2></div></div></div>
   
   <p>POP3 metrics check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2041,7 +2041,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.pop3</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425520016"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689235968"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2121,9 +2121,9 @@ SL checks).</p>
           <p>The expected certificate name to validate against the SSL certificate (for SSL checks).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425519760"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689235712"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425468064"></a><p class="title"><b>Example 6.26. Checking POP3 connection.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689179104"></a><p class="title"><b>Example 6.26. Checking POP3 connection.</b></p><div class="example-contents">
       
       <p>This example checks the POP connection.</p>
       <pre class="programlisting">
@@ -2149,7 +2149,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425465696"></a>redis</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689176656"></a>redis</h2></div></div></div>
   
   <p>Redis check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2157,7 +2157,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.redis</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425460832"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689171600"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2208,9 +2208,9 @@ SL checks).</p>
     </p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425432272"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689140384"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425431632"></a><p class="title"><b>Example 6.27. Checking Redis</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689139744"></a><p class="title"><b>Example 6.27. Checking Redis</b></p><div class="example-contents">
       
       <p>This example checks Redis by issuing the INFO command</p>
       <pre class="programlisting">
@@ -2229,7 +2229,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425429520"></a>elasticsearch</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689137584"></a>elasticsearch</h2></div></div></div>
   
   <p>The elasticsearch module pulls JSON stats from Elasticsearch</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2237,7 +2237,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.resmon</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425424576"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689132272"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2260,9 +2260,9 @@ SL checks).</p>
           <p>The TCP port can be specified to overide the default of 9200.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425409504"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689115840"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122425408864"></a><p class="title"><b>Example 6.28. Checking elasticsearch services on a node es1.int.foo_</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689115200"></a><p class="title"><b>Example 6.28. Checking elasticsearch services on a node es1.int.foo_</b></p><div class="example-contents">
       
       <p>This example checks the Elasticsearch service on the es1.int.foo_ node.</p>
       <pre class="programlisting">
@@ -2283,7 +2283,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425406704"></a>resmon</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689113024"></a>resmon</h2></div></div></div>
   
   <p>The resmon module performs services checks against an HTTP server serving with Resmon XML or JSON.</p>
   <p><a class="ulink" href="https://labs.omniti.com/trac/resmon" target="_top"><em class="citetitle">Resmon</em></a> is a light-weight resource monitor that exposes health of services over HTTP in XML.</p>
@@ -2293,7 +2293,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.resmon</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425400080"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689105872"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2330,9 +2330,9 @@ SL checks).</p>
           <p>Allows the setting of arbitrary HTTP headers in the request.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409320128"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689079552"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409319488"></a><p class="title"><b>Example 6.29. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59689078912"></a><p class="title"><b>Example 6.29. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
       
       <p>This example checks the Resmon service on OmniTI Labs.</p>
       <pre class="programlisting">
@@ -2358,7 +2358,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409316944"></a>smtp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59689076576"></a>smtp</h2></div></div></div>
   
   <p>Send an email via an SMTP server.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2366,7 +2366,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.smtp</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409311664"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689071200"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2499,9 +2499,9 @@ SL checks).</p>
           <p>The SASL Authorization Identity</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409311408"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59689070944"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122409196320"></a><p class="title"><b>Example 6.30. Send an email to test SMTP service.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688972224"></a><p class="title"><b>Example 6.30. Send an email to test SMTP service.</b></p><div class="example-contents">
       
       <p>The following example sends an email via 10.80.117.6 from test@omniti.com to devnull@omniti.com</p>
       <pre class="programlisting">
@@ -2525,7 +2525,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409193888"></a>tcp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688969792"></a>tcp</h2></div></div></div>
   
   <p>TCP metrics check.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2533,7 +2533,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.tcp</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426946096"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688964672"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2621,9 +2621,9 @@ SL checks).</p>
           <p>The host header to validate against the SSL certificate (for SSL checks).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426945840"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688964416"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426887328"></a><p class="title"><b>Example 6.31. Checking TCP connection.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688901744"></a><p class="title"><b>Example 6.31. Checking TCP connection.</b></p><div class="example-contents">
       
       <p>This example checks IMAP connection with and without SSL.</p>
       <pre class="programlisting">
@@ -2656,7 +2656,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426884720"></a>varnish</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688899072"></a>varnish</h2></div></div></div>
   
   <p>Monitor maagement metrics of a Varnish instance.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2664,7 +2664,7 @@ SL checks).</p>
       </dd><dt><span class="term">object</span></dt><dd>
         <p>noit.module.varnish</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426879856"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688893856"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2677,9 +2677,9 @@ SL checks).</p>
           <p>Specifies the port on which the management interface can be reached.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426976592"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688885088"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426975952"></a><p class="title"><b>Example 6.32. Monitor two varnish instances with management on port 8081</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688884448"></a><p class="title"><b>Example 6.32. Monitor two varnish instances with management on port 8081</b></p><div class="example-contents">
       
       <p>The following example pulls are metrics available from Varnish running on 10.1.2.3 and 10.1.2.4</p>
       <pre class="programlisting">
@@ -2699,7 +2699,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426973648"></a>ping_icmp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688882160"></a>ping_icmp</h2></div></div></div>
   
   <p>The ping_icmp module provide ICMP checks against targets.  It sends a series of ICMP requests and waits for their responses tallying their turn-around time.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2707,7 +2707,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>ping_icmp.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426968624"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688876848"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">interval</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2740,9 +2740,9 @@ SL checks).</p>
           <p>The percentage of ICMP available required for the check to be considered "good."  By default, 100% of the ICMP requests must have responses for a good state.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122427004160"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688852880"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122427003520"></a><p class="title"><b>Example 6.33. Ping checks against a host</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688852240"></a><p class="title"><b>Example 6.33. Ping checks against a host</b></p><div class="example-contents">
       
       <p>Ping 4.2.2.1 once a second for ten seconds recurring every 60 seconds.</p>
       <pre class="programlisting">
@@ -2764,7 +2764,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122427001424"></a>postgres</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688850112"></a>postgres</h2></div></div></div>
   
   <p>The postgres module allows queries to be performaed against targets as checks.  The results of the query are used as metrics.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2772,7 +2772,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>postgres.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426996112"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688844800"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">dsn</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2791,9 +2791,9 @@ SL checks).</p>
           <p>The query that will be executed.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426983120"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688831840"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426982480"></a><p class="title"><b>Example 6.34. Tracking PostgreSQL database sizes.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688831200"></a><p class="title"><b>Example 6.34. Tracking PostgreSQL database sizes.</b></p><div class="example-contents">
       
       <p>This will track the sizes of all databases on 10.225.209.35 and 10.225.209.56. We will connect to the postgres database as the user "noit" with password "noit." We only run this check every 5 minutes.</p>
       <pre class="programlisting">
@@ -2818,7 +2818,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426979888"></a>selfcheck</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688828560"></a>selfcheck</h2></div></div></div>
   
   <p>The selfcheck module performs a self assessment on the host noitd instance.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2826,7 +2826,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>selfcheck.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426283664"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688823328"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">feedname</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2839,9 +2839,9 @@ SL checks).</p>
           <p>The name of the feed that will be sized.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426274992"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688814592"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426274352"></a><p class="title"><b>Example 6.35. Testing the local noitd instance.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688813952"></a><p class="title"><b>Example 6.35. Testing the local noitd instance.</b></p><div class="example-contents">
       
       <p>We self check the noitd instance every 5 seconds.  Here, the target doesn't mean anything in particular as the check is entirely internal.  The target should match the local noitd's IP address from the perspective of stratcond.</p>
       <pre class="programlisting">
@@ -2857,7 +2857,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426272160"></a>snmp</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688828176"></a>snmp</h2></div></div></div>
   
   <p>The snmp module provides SNMP polling support for reconnoiter.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -2865,7 +2865,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>snmp.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426266928"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688806624"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -2924,9 +2924,9 @@ SL checks).</p>
           <p>Whether or not to query each OID separately.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426223376"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688762976"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426222736"></a><p class="title"><b>Example 6.36. Simple snmp polling of two switchports</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688762336"></a><p class="title"><b>Example 6.36. Simple snmp polling of two switchports</b></p><div class="example-contents">
       
       <p>The following example configures SNMP checks against switchport 1 and 2
       on the switch with the IP address 10.80.116.3.</p>
@@ -2962,7 +2962,7 @@ SL checks).</p>
       &lt;/noit&gt;
     </pre>
     </div></div><br class="example-break">
-    <div class="example"><a name="idm122426221072"></a><p class="title"><b>Example 6.37. Example using config inheritance to show reuse</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688760672"></a><p class="title"><b>Example 6.37. Example using config inheritance to show reuse</b></p><div class="example-contents">
       
       <p>Accomplising the same goal, but by using reuse:</p>
       <pre class="programlisting">
@@ -3003,7 +3003,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426219280"></a>snmptrap</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688759008"></a>snmptrap</h2></div></div></div>
   
   <p>The snmptrap module provides SNMP trap daemon support for reconnoiter.  Reconnoiter comes with a <span class="command"><strong>snmptrap</strong></span>-based helper utility called <span class="command"><strong>noittrap</strong></span> aimed to assist with the complexities of forming valid SNMP traps to this module.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -3011,7 +3011,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>snmp.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426212992"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688752688"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -3030,7 +3030,7 @@ SL checks).</p>
           <p>The port on which traps are accepted.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426286896"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688739712"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -3041,9 +3041,9 @@ SL checks).</p>
           <p>The SNMP community string providing trap access (overrides modules config).</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426314304"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688733024"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426313664"></a><p class="title"><b>Example 6.38. Simple passive checking.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688732384"></a><p class="title"><b>Example 6.38. Simple passive checking.</b></p><div class="example-contents">
       
       <p>The following example configures a check prepared to accept traps from
       host 10.1.1.1.  Traps must be performed with the community name 's3cr3t'. Note that
@@ -3067,7 +3067,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426311248"></a>ssh2</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688729872"></a>ssh2</h2></div></div></div>
   
   <p>The ssh2 module allows reconnoiter to connect to servers over ssh protocol 2 and test the fingerprint.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -3075,7 +3075,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>ssh2.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426305952"></a>Check Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688724672"></a>Check Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -3168,9 +3168,9 @@ SL checks).</p>
           <p>The compress algorithm used from server to client.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426305696"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688724416"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426819664"></a><p class="title"><b>Example 6.39. Simple ssh polling of 4 machines</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688638800"></a><p class="title"><b>Example 6.39. Simple ssh polling of 4 machines</b></p><div class="example-contents">
       
       <p>The following checks ssh on 10.1.2.{3,4,5,6}</p>
       <pre class="programlisting">
@@ -3191,7 +3191,7 @@ SL checks).</p>
     </div></div><br class="example-break">
   </div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426817456"></a>statsd</h2></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm59688636528"></a>statsd</h2></div></div></div>
   
   <p>The statsd module provides a simple way to push data into reconnoiter from other applications.  See https://github.com/etsy/statsd for more details.</p>
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
@@ -3199,7 +3199,7 @@ SL checks).</p>
       </dd><dt><span class="term">image</span></dt><dd>
         <p>statsd.so</p>
       </dd></dl></div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426812048"></a>Module Configuration</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688631232"></a>Module Configuration</h3></div></div></div>
     
     <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
           <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
@@ -3230,9 +3230,9 @@ SL checks).</p>
           <p>A specific check to which all statsd data will be delegated.</p>
         </dd></dl></div>
   </div>
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426789824"></a>Examples</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688609024"></a>Examples</h3></div></div></div>
     
-    <div class="example"><a name="idm122426789184"></a><p class="title"><b>Example 6.40. A sample statsd configuration.</b></p><div class="example-contents">
+    <div class="example"><a name="idm59688608384"></a><p class="title"><b>Example 6.40. A sample statsd configuration.</b></p><div class="example-contents">
       
       <pre class="programlisting">
       &lt;noit&gt;

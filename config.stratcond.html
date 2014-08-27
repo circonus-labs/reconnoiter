@@ -1,6 +1,6 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 7. stratcond</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.noitd.modules.html" title="Chapter 6. noitd modules"><link rel="next" href="config.stratcond.modules.html" title="Chapter 8. stratcond modules"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 7. stratcond</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.noitd.modules.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.stratcond.modules.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.stratcond"></a>Chapter 7. stratcond</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.stratcond.html#config.stratcond.implicitinheritance">Implicit Inheritance</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stratcond.explicitinheritance">Explicit Inheritance</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stracond.section.eventer">The &lt;eventer&gt; section</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stratcond.section.logs">The &lt;logs&gt; section</a></span></dt></dl></div>
   
-  <div class="example"><a name="idm122426785920"></a><p class="title"><b>Example 7.1. Basic noitd configuration struture</b></p><div class="example-contents">
+  <div class="example"><a name="idm59688605072"></a><p class="title"><b>Example 7.1. Basic noitd configuration struture</b></p><div class="example-contents">
   
   <pre class="programlisting">
   &lt;noit&gt;
@@ -47,7 +47,7 @@ child is queried, merging values, replacing conflicts and so on until
 the youngest/deepest node is reached.
 </p>
 
-<div class="example"><a name="idm122426782208"></a><p class="title"><b>Example 7.2. Simple implicit inheritance configuration example</b></p><div class="example-contents">
+<div class="example"><a name="idm59688601376"></a><p class="title"><b>Example 7.2. Simple implicit inheritance configuration example</b></p><div class="example-contents">
 
 <pre class="programlisting">
       &lt;a foo="bar"&gt;
@@ -112,7 +112,7 @@ key/values with key/values directly beneath A.  The entire tree is
 searched for a node whose "id" matches A's "inherit" attribute.
 </p>
 
-<div class="example"><a name="idm122426765360"></a><p class="title"><b>Example 7.3. Simple explicity inheritance configuration example</b></p><div class="example-contents">
+<div class="example"><a name="idm59688584480"></a><p class="title"><b>Example 7.3. Simple explicity inheritance configuration example</b></p><div class="example-contents">
 
 <pre class="programlisting">
   &lt;config name="A"&gt;
@@ -277,7 +277,7 @@ descriptor 2 that has timestamps enabled.
   </p>
   </dd></dl></div>
 
-<div class="example"><a name="idm122426719376"></a><p class="title"><b>Example 7.4. Sample configuration for the log section</b></p><div class="example-contents">
+<div class="example"><a name="idm59688538512"></a><p class="title"><b>Example 7.4. Sample configuration for the log section</b></p><div class="example-contents">
 
 <pre class="programlisting">
   &lt;logs&gt;

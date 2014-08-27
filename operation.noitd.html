@@ -27,7 +27,7 @@ responses to sessions that commence with the terms: "DELETE"
       It is currently in rough draft status.
   </p>
 
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426662976"></a>General Operational Principles</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688482256"></a>General Operational Principles</h3></div></div></div>
     
     <p>
       The command line interface to the system available through the 
@@ -40,7 +40,7 @@ responses to sessions that commence with the terms: "DELETE"
     </p>
   </div>
 
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426660688"></a>Accessing the Interactive Console</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688479872"></a>Accessing the Interactive Console</h3></div></div></div>
     
     <p>
       The interactive console is accessed by telneting to the configured
@@ -54,7 +54,7 @@ responses to sessions that commence with the terms: "DELETE"
     </p>
   </div>
 
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426657888"></a>Basic Command List</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688477104"></a>Basic Command List</h3></div></div></div>
     
     <p>An example session of interaction showing the use of help and a few 
       operating modes is illustrative:
@@ -206,10 +206,10 @@ responses to sessions that commence with the terms: "DELETE"
     </p>
   </div>
 
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426625040"></a>Showing System Information</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688444256"></a>Showing System Information</h3></div></div></div>
     
     <p>The two main commands for showing system information are <span class="command"><strong>show</strong></span> and <span class="command"><strong>watch</strong></span>.  <span class="command"><strong>show</strong></span> is useful for one-off queries of information, and <span class="command"><strong>watch</strong></span> is useful for periodically redisplaying the same information (e.g. to see snapshots of activity while some other process is affecting the monitored system/information).</p>
-    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426622224"></a>show</h4></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688441440"></a>show</h4></div></div></div>
       
       <p><span class="command"><strong>show</strong></span> show accepts a number of arguments:</p>
       <div class="variablelist"><dl class="variablelist"><dt><span class="term">watches</span></dt><dd>
@@ -253,17 +253,17 @@ responses to sessions that commence with the terms: "DELETE"
           </dd></dl></div>
     </div>
 
-    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426609456"></a>watch</h4></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688428640"></a>watch</h4></div></div></div>
       
       <p><span class="command"><strong>watch {check id} {interval}</strong></span> redisplays information for a given check at a configurable interval. Interval is given in units of milliseconds.  If interval is omitted, presently, there is a bug where the check begins to output at its configured interval directly to the cli, but does not appear as a watch in <span class="command"><strong>show watches</strong></span> and <span class="command"><strong>no watch {id}</strong></span> has no effect.</p>
       <p>The currently active watches may be listed with <span class="command"><strong>show watches</strong></span>, and an active watch may be terminated with by issuing the command <span class="command"><strong>no watch {check id} {interval}</strong></span> where check id and interval are the ones used for the initial creation of the watch.</p>
     </div>
   </div>
 
-  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426605552"></a>Configuring the System</h3></div></div></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm59688424768"></a>Configuring the System</h3></div></div></div>
     
     <p>The focus of this section is configuring <span class="command"><strong>noitd</strong></span>'s behavior at run-time via the interactive console.  For documentation of <code class="filename">noitd.conf</code> itself, see <a class="link" href="configuration.html" title="Part II. Configuration">the main chapter on system configuration</a>.  As a general note, to store run-time configuration to the permanent configuration store, see the <span class="command"><strong>write file</strong></span> command above.</p>
-    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426602208"></a>Configure Terminal ("conf t") Mode</h4></div></div></div>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688422560"></a>Configure Terminal ("conf t") Mode</h4></div></div></div>
       
       <p>To enter the interactive configuration mode, first telnet to <span class="command"><strong>noitd</strong></span>'s telnet port and issue the "configure terminal" command, which may be abbreviated as "conf t" if desired. (Please see above information about default port, port configuration location, etc.)</p>
       <p>Configure terminal mode presents a different array of options than regular mode, which are summarized below.  (Some common commands have been ommitted as their function is identical within conf-t mode as within normal interactive mode, e.g. <span class="command"><strong>exit</strong></span>.)</p>
@@ -344,9 +344,9 @@ certificate authority recognized by the <span class="command"><strong>noitd</str
 instance.
 </p>
 
-<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426570944"></a>Manipulating Checks</h4></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688390144"></a>Manipulating Checks</h4></div></div></div>
 
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426569648"></a>/checks/delete/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688388848"></a>/checks/delete/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">DELETE</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/delete/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
   <p>
@@ -358,7 +358,7 @@ instance.
   ignored by the client.
   </p>
 </div>
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426563184"></a>/checks/set/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688382176"></a>/checks/set/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">PUT</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/set/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
   <p>
@@ -376,7 +376,7 @@ instance.
   The input is as follows:
   </p>
 
-  <div class="example"><a name="idm122426555280"></a><p class="title"><b>Example 9.1. REST /checks/set XML input.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59688374496"></a><p class="title"><b>Example 9.1. REST /checks/set XML input.</b></p><div class="example-contents">
     
     <pre class="programlisting">
 &lt;?xml version="1.0" encoding="utf8"?&gt;
@@ -397,7 +397,7 @@ instance.
     </pre>
   </div></div><br class="example-break">
 </div>
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426553152"></a>/checks/show/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688372320"></a>/checks/show/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">GET</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/show/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
   <p>
@@ -408,7 +408,7 @@ instance.
   a HTTP 404 code is returned.
   </p>
 
-  <div class="example"><a name="idm122426547056"></a><p class="title"><b>Example 9.2. REST /checks/show XML output.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59688366256"></a><p class="title"><b>Example 9.2. REST /checks/show XML output.</b></p><div class="example-contents">
     
     <p>Output from an HTTP GET of <code class="code">/checks/show/1b4e28ba-2fa1-11d2-883f-b9a761bde3aa</code></p>
     <pre class="programlisting">
@@ -449,9 +449,9 @@ instance.
 </div>
 </div>
 
-<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426544000"></a>Manipulating Filters</h4></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm59688364192"></a>Manipulating Filters</h4></div></div></div>
 
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426542704"></a>/filters/delete/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688361760"></a>/filters/delete/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">DELETE</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/delete/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
   <p>
@@ -463,7 +463,7 @@ instance.
   ignored by the client.
   </p>
 </div>
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426536256"></a>/filters/set/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688355408"></a>/filters/set/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">PUT</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/set/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
   <p>
@@ -478,7 +478,7 @@ instance.
   The input is as follows:
   </p>
 
-  <div class="example"><a name="idm122426529456"></a><p class="title"><b>Example 9.3. REST /filtert/set XML input.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59688348768"></a><p class="title"><b>Example 9.3. REST /filtert/set XML input.</b></p><div class="example-contents">
     
     <pre class="programlisting">
 &lt;?xml version="1.0" encoding="utf8"?&gt;
@@ -488,7 +488,7 @@ instance.
     </pre>
   </div></div><br class="example-break">
 </div>
-<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426527520"></a>/filters/show/</h5></div></div></div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm59688346704"></a>/filters/show/</h5></div></div></div>
 
   <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">GET</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/show/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
   <p>
@@ -499,7 +499,7 @@ instance.
   a HTTP 404 code is returned.
   </p>
 
-  <div class="example"><a name="idm122426521456"></a><p class="title"><b>Example 9.4. REST /filters/show XML output.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59688340672"></a><p class="title"><b>Example 9.4. REST /filters/show XML output.</b></p><div class="example-contents">
     
     <p>Output from an HTTP GET of <code class="code">/filters/show/default</code></p>
     <pre class="programlisting">

@@ -1,6 +1,6 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 5. noitd configuration</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.generic.html" title="Chapter 4. General config structures"><link rel="next" href="config.noitd.modules.html" title="Chapter 6. noitd modules"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 5. noitd configuration</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.generic.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.noitd.modules.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.noitd"></a>Chapter 5. noitd configuration</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.noitd.html#config.noitd.section.logs.special">Special log names</a></span></dt><dt><span class="section"><a href="config.noitd.html#config.noitd.section.checks.special">Configuring checks via configuration</a></span></dt><dt><span class="section"><a href="config.noitd.html#config.noitd.section.filtersets.special">Configuring filtersets via configuration</a></span></dt></dl></div>
   
-  <div class="example"><a name="idm122423429488"></a><p class="title"><b>Example 5.1. Basic noitd configuration struture</b></p><div class="example-contents">
+  <div class="example"><a name="idm59690797264"></a><p class="title"><b>Example 5.1. Basic noitd configuration struture</b></p><div class="example-contents">
   
   <pre class="programlisting">
   &lt;noit&gt;
@@ -79,7 +79,7 @@
   </p>
   </dd></dl></div>
 
-<div class="example"><a name="idm122410263072"></a><p class="title"><b>Example 5.2. Sample configuration for the log section</b></p><div class="example-contents">
+<div class="example"><a name="idm59690779296"></a><p class="title"><b>Example 5.2. Sample configuration for the log section</b></p><div class="example-contents">
 
 <pre class="programlisting">
   &lt;logs&gt;
@@ -163,7 +163,7 @@
   <code class="code">force-ipv4</code> indicates that only IPv4 resolution should be used, and
   <code class="code">force-ipv6</code> indicates that only IPv6 resolution should be used.
   </p></dd></dl></div>
-  <div class="example"><a name="idm122410242432"></a><p class="title"><b>Example 5.3. Sample noitd check configuration.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59690758640"></a><p class="title"><b>Example 5.3. Sample noitd check configuration.</b></p><div class="example-contents">
   
   <p>An example with http and ping_icmp check using inheritance.</p>
   <pre class="programlisting">
@@ -219,7 +219,7 @@
   to an operator if they are making incremental configuration changes via the console and believe they
   are the only one capable of writing the altered configuration.</p>
 
-  <div class="example"><a name="idm122410232192"></a><p class="title"><b>Example 5.4. Sample noitd 'default' filterset configuration.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59690732144"></a><p class="title"><b>Example 5.4. Sample noitd 'default' filterset configuration.</b></p><div class="example-contents">
   
   <p>A default filter that avoids metrics called "minimum", "maximum" and "count" on any ping_icmp check
   and metrics called "cert_start" and "cert_end" on any http check. A filter called "score" that requires
@@ -242,7 +242,7 @@
   </pre>
   </div></div><br class="example-break">
 
-  <div class="example"><a name="idm122410229392"></a><p class="title"><b>Example 5.5. Sample noitd dynamic filterset configuration.</b></p><div class="example-contents">
+  <div class="example"><a name="idm59690729296"></a><p class="title"><b>Example 5.5. Sample noitd dynamic filterset configuration.</b></p><div class="example-contents">
   
   <p>A filterset called "mystatsd" that will collect up 1000 unique metrics, excluding metrics that
   being with anything but a alpha character or are called "badmetric1" or "badmetric2"</p>
