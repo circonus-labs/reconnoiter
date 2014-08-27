@@ -1,0 +1,116 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>stratcond</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="exe.html" title="Reconnoiter Command Line Reference"><link rel="prev" href="executable.noitd.html" title="noitd"><link rel="next" href="the.index.html" title="Index"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">stratcond</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="executable.noitd.html">Prev</a> </td><th width="60%" align="center">Reconnoiter Command Line Reference</th><td width="20%" align="right"> <a accesskey="n" href="the.index.html">Next</a></td></tr></table><hr></div><div class="refentry"><a name="executable.stratcond"></a><div class="titlepage"></div>
+  
+
+  <div class="refnamediv"><h2>Name</h2><p>
+    stratcond
+     &#8212; Reconnoiter data collector/aggregator.
+  </p></div>
+
+  <div class="refsynopsisdiv"><h2>Synopsis</h2>
+    <div class="cmdsynopsis"><p>
+      <code class="command">stratcond</code> 
+       [-c]
+       [-M]
+       [-u <em class="replaceable"><code>user</code></em>]
+       [-g <em class="replaceable"><code>group</code></em>]
+       [-t <em class="replaceable"><code>path</code></em>]
+       [-n <em class="replaceable"><code>address:port</code></em>]
+       [-d]
+       [-D]
+       [-l <em class="replaceable"><code>logstream</code></em>]
+       [-L <em class="replaceable"><code>logstream</code></em>]
+       [-s]
+       [-r]
+       [-h]
+    </p></div>
+  </div>
+
+  <div class="refsect1"><a name="idm122426112960"></a><h2>Description</h2>
+    
+<p>
+  <span class="command"><strong>stratcond</strong></span> is the daemon that coordinates all
+  <span class="command"><strong>noitd</strong></span> daemons, processes their data feeds
+  (configuration updates, metrics, checks and statuses) and provides
+  that data to the backend business logic: storage services and
+  fault detection services.
+</p>
+
+<div class="variablelist"><dl class="variablelist"><dt><span class="term"><code class="option">-u</code></span></dt><dd>
+      <p>
+        Optionally specifies a username or uid under which to operate.
+      </p>
+    </dd><dt><span class="term"><code class="option">-g</code></span></dt><dd>
+      <p>
+        Optionally specifies a group name or gid under which to operate.
+      </p>
+    </dd><dt><span class="term"><code class="option">-t</code></span></dt><dd>
+      <p>
+        Optionally specifies a path to chroot(2) for operation.  Measures
+        must be taken to ensure that log files can be accessed in the
+        chrooted environment.
+      </p>
+    </dd><dt><span class="term"><code class="option">-n</code></span></dt><dd>
+      <p>
+        Optionally specifies an address to *not* listen on. It can be
+        a unix path (:port omitted), just a port (:port), or a complete
+        address (IP:port).  The parameter can be specified multiple times.
+        It will cause any listener configured on such an address to be
+        skipped during boot.
+      </p>
+    </dd><dt><span class="term"><code class="option">-c</code></span></dt><dd>
+      <p>
+        Specifies a configuration file to read.  The default location of the
+        configuration file is <code class="filename">stratcond.conf</code> in the
+        sysconfdir specified at build time.
+      </p>
+    </dd><dt><span class="term"><code class="option">-l</code></span></dt><dd>
+      <p>
+        Marks the enabled bit for the specified log stream.  This enables
+        the stream even if it is disabled in the configuration file.  It
+        must exist in the configuration file.
+      </p>
+    </dd><dt><span class="term"><code class="option">-L</code></span></dt><dd>
+      <p>
+        Disables the enabled bit for the specified log stream.  This disables
+        the stream even if it is enabled in the configuration file.  It
+        must exist in the configuration file.
+      </p>
+    </dd><dt><span class="term"><code class="option">-D</code></span></dt><dd>
+      <p>
+        Instructs <span class="command"><strong>stratcond</strong></span> to run in the foreground.
+        The process remains attached to the terminal.  This is primarily
+        for debugging purposes.
+      </p>
+      <p>
+        If this flag is specified more than once, <span class="command"><strong>stratcond</strong></span>
+        stay in the foreground, but the foreground process will actually
+        be the monitor process and the child will be forked off and
+        respawned on unexpected failures.
+      </p>
+    </dd><dt><span class="term"><code class="option">-d</code></span></dt><dd>
+      <p>
+        Enables the debug output facility despite configuration to the
+        contrary.
+      </p>
+    </dd><dt><span class="term"><code class="option">-M</code></span></dt><dd>
+      <p>
+        Instructs <span class="command"><strong>noitd</strong></span> to exit immediately if there
+        where any problems loading specified modules.
+      </p>
+    </dd><dt><span class="term"><code class="option">-s</code></span></dt><dd>
+      <p>
+        Disables pulling for durable logs from noits and subsequent
+        loading of data into the database.
+      </p>
+    </dd><dt><span class="term"><code class="option">-r</code></span></dt><dd>
+      <p>
+        Disables pulling for transient logs from noits and subsequent
+        submission to the message queue.
+      </p>
+    </dd><dt><span class="term"><code class="option">-h</code></span></dt><dd>
+      <p>
+        Displays the usage information.
+      </p>
+    </dd></dl></div>
+</div>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="executable.noitd.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="exe.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="the.index.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">noitd </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Index</td></tr></table></div></body></html>

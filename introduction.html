@@ -1,0 +1,44 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Introduction</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="index.html" title="Reconnoiter"><link rel="prev" href="index.html" title="Reconnoiter"><link rel="next" href="pt01.html" title="Part I. Architecture"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Introduction</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="pt01.html">Next</a></td></tr></table><hr></div><div class="preface"><div class="titlepage"><div><div><h1 class="title"><a name="introduction"></a>Introduction</h1></div></div></div>
+  
+  <p>
+    Reconnoiter is a monitoring and trend analysis system designed to cope
+    with large architectures (thousands of machines and hundreds of thousands
+    of metrics).
+  </p>
+  <p>
+    Heavy focus is placed on decoupling the various components of the system
+    to allow for disjoint evolution of each component as issues arise or new
+    requirements are identified.  Resource monitoring, metric aggregation,
+    metric analysis and visualization are all cleanly separated.
+  </p>
+  <p>
+    The monitor, <span class="command"><strong>noitd</strong></span>, is written in C and designed to 
+    support highly concurrent and rapid checks with an expected capability 
+    of monitoring 100,000 services per minute (6 million checks per hour.)  
+    While it is hard to make writing checks "easy" in this high-performance
+    environment, efforts have been made to ensure that custom check scripting
+    does not require the expertise of writing highly-concurrent, event-driven
+    C code.  Instead, glue is provided via scripting languages such as Lua
+    that attempt to handle aspects of this high-concurrency environment
+    transparently.  As with any high-performance system, you can easily
+    introduce non-performant code and jeopardize performance system-wide.
+  </p>
+  <p>
+    The aggregator, <span class="command"><strong>stratcond</strong></span>, is also written in C and 
+    responsible for the simple task of securely gathering data from all of the 
+    distributed <span class="command"><strong>noitd</strong></span> instances and transforming them into 
+    the data storage facility (currently PostgreSQL).
+  </p>
+  <p>
+    The data storage facility (PostgreSQL) holds all information about
+    individual checks, their statuses and the individual metrics associated
+    with them.  Automatic processes are in place that summarize the
+    numeric metrics into windowed averages for expedient graphing at
+    a variety of time window resolutions (hour, day, month, year, etc.).
+  </p>
+  <p>
+    The visualization interface (reconnoiter) draws from the data store
+    to visualize collected metrics and assist with monitoring, trending and
+    other visual analyses.  The visualization system is written in PHP.
+  </p>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="index.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="pt01.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Reconnoiter </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Part I. Architecture</td></tr></table></div></body></html>

@@ -1,0 +1,22 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 1. Reconnoiter Architecture Overview</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="pt01.html" title="Part I. Architecture"><link rel="prev" href="pt01.html" title="Part I. Architecture"><link rel="next" href="arch.noitd.html" title="Chapter 2. noitd"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 1. Reconnoiter Architecture Overview</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="pt01.html">Prev</a> </td><th width="60%" align="center">Part I. Architecture</th><td width="20%" align="right"> <a accesskey="n" href="arch.noitd.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="arch.overview"></a>Chapter 1. Reconnoiter Architecture Overview</h2></div></div></div>
+  
+    <p>
+      </p><div class="figure"><a name="over_arch_fig"></a><p class="title"><b>Figure 1.1. Some image properties</b></p><div class="figure-contents">
+        
+        <div class="mediaobject"><table border="0" summary="manufactured viewport for HTML img" style="cellpadding: 0; cellspacing: 0;" width="50%"><tr><td><img src="assets/noit-network-arch.png" width="100%" alt="A graphic illustrating the the various components of Reconnoiter and how they inter-operate."></td></tr></table></div>
+        <div class="caption"><p>The various interactions between Reconnoiter components.</p></div>
+      </div></div><p><br class="figure-break">
+    </p>
+    <p>
+      Both <span class="command"><strong>noitd</strong></span> and <span class="command"><strong>stratcond</strong></span> make heavy
+      use of SSL certificates. The SSL certificates are used for security 
+      purposes, and are required for correct operation. The common names of the
+      certs identify different system components to each other and must match 
+      or the components will fail to communicate.
+    </p>
+    <p>
+      It is strongly recommended that you use a certificate authority to manage
+      the certificates issued to each <span class="command"><strong>noitd</strong></span> and 
+      <span class="command"><strong>stratcond</strong></span> daemon.
+    </p>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="pt01.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="pt01.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="arch.noitd.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Part I. Architecture </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 2. noitd</td></tr></table></div></body></html>

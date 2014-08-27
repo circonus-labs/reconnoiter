@@ -1,0 +1,241 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 8. stratcond modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.stratcond.html" title="Chapter 7. stratcond"><link rel="next" href="operation.html" title="Part III. Operation"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 8. stratcond modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.stratcond.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="operation.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.stratcond.modules"></a>Chapter 8. stratcond modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.stratcond.modules.html#idm122426713136">fq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426704896">rabbitmq_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426696528">stomp_driver</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426687936">postgres_ingestor</a></span></dt><dt><span class="section"><a href="config.stratcond.modules.html#idm122426680144">handoff_ingestor</a></span></dt></dl></div>
+  
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426713136"></a>fq_driver</h2></div></div></div>
+  
+  <p>The fq_driver module allows publishing of metrics and status messages over the FQ protocol for use powering the IEP system.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>fq_driver.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426708096"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426707456"></a><p class="title"><b>Example 8.1. Loading the fq_driver.</b></p><div class="example-contents">
+      
+      <p>This example loads the fq_driver and configures it.</p>
+      <pre class="programlisting">
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="fq_driver" name="fq_driver" /&gt;
+        &lt;/modules&gt;
+        &lt;iep&gt;
+          &lt;mq type="fq"&gt;
+            &lt;port&gt;8765&lt;/port&gt;
+            &lt;hostname&gt;mq1,mq2:9999&lt;/hostname&gt;
+            &lt;exchange&gt;noit.firehose&lt;/exchange&gt;
+            &lt;routingkey&gt;check&lt;/routingkey&gt;
+            &lt;username&gt;stratcon&lt;/username&gt;
+            &lt;password&gt;youllneverguess&lt;/password&gt;
+            &lt;backlog&gt;10000&lt;/backlog&gt;
+            &lt;heartbeat&gt;1000&lt;/hearbeat&gt;
+          &lt;/mq&gt;
+        &lt;/iep&gt;
+      &lt;/stratcon&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426704896"></a>rabbitmq_driver</h2></div></div></div>
+  
+  <p>The rabbitmq_driver module allows publishing of metrics and status messages over the AMQP protocol for use powering the IEP system.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>rabbitmq_driver.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426699600"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426698960"></a><p class="title"><b>Example 8.2. Loading the rabbitmq_driver.</b></p><div class="example-contents">
+      
+      <p>This example loads the rabbitmq_driver and configures it.</p>
+      <pre class="programlisting">
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="rabbitmq_driver" name="rabbitmq_driver" /&gt;
+        &lt;/modules&gt;
+        &lt;iep&gt;
+          &lt;mq type="rabbitmq"&gt;
+            &lt;hostname&gt;mq1,mq2&lt;/hostname&gt;
+            &lt;exchange&gt;noit.firehose&lt;/exchange&gt;
+            &lt;exchangetype&gt;topic&lt;/exchangetype&gt;
+            &lt;routingkey&gt;check&lt;/routingkey&gt;
+            &lt;username&gt;stratcon&lt;/username&gt;
+            &lt;password&gt;youllneverguess&lt;/password&gt;
+          &lt;/mq&gt;
+        &lt;/iep&gt;
+      &lt;/stratcon&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426696528"></a>stomp_driver</h2></div></div></div>
+  
+  <p>The stomp_driver module allows publishing of metrics and status messages over the STOMP protocol for use powering the IEP system.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>stomp_driver.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426691200"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426690560"></a><p class="title"><b>Example 8.3. Loading the stomp_driver.</b></p><div class="example-contents">
+      
+      <p>This example loads the stomp_driver and configures it.</p>
+      <pre class="programlisting">
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="stomp_driver" name="stomp_driver" /&gt;
+        &lt;/modules&gt;
+        &lt;iep&gt;
+          &lt;mq type="stomp"&gt;
+            &lt;!--  exchange, username and password are all optional
+            &lt;exchange&gt;&lt;/exchange&gt;
+            &lt;username&gt;&lt;/username&gt;
+            &lt;password&gt;&lt;/password&gt;
+            --&gt;
+            &lt;!-- the following will default to the values shown --&gt;
+            &lt;destination&gt;/queue/noit.firehose&lt;/destination&gt;
+            &lt;hostname&gt;127.0.0.1&lt;/hostname&gt;
+            &lt;port&gt;61613&lt;/port&gt;
+          &lt;/mq&gt;
+        &lt;/iep&gt;
+      &lt;/stratcon&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426687936"></a>postgres_ingestor</h2></div></div></div>
+  
+  <p>This module imports noitd data into postgres.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>postgres_ingestor.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426682720"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426682080"></a><p class="title"><b>Example 8.4. Using the postgres_ingestor.</b></p><div class="example-contents">
+      
+      <p>This example loads the postgres_ingestor and configures it.</p>
+      <pre class="programlisting">
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="postgres_ingestor" name="postgres_ingestor" /&gt;
+        &lt;/modules&gt;
+        &lt;database&gt;
+          &lt;journal&gt;
+            &lt;path&gt;/var/log/stratcon.persist&lt;/path&gt;
+          &lt;/journal&gt;
+          &lt;dbconfig&gt;
+            &lt;host&gt;db1&lt;/host&gt;
+            &lt;dbname&gt;reconnoiter&lt;/dbname&gt;
+            &lt;user&gt;stratcon&lt;/user&gt;
+            &lt;password&gt;unguessable&lt;/password&gt;
+          &lt;/dbconfig&gt;
+          &lt;statements&gt;
+            &lt;!-- These are optional and used for stuff like setting search paths --&gt;
+            &lt;!--
+            &lt;metanodepostconnect&gt;
+              SELECT do_some_magic();
+            &lt;/metanodepostconnect&gt;
+            &lt;storagepostconnect&gt;
+              SELECT do_some_magic($1,$2);
+            &lt;/storagepostconnect&gt;
+            --&gt;
+            &lt;allchecks&gt;
+              SELECT remote_address, id, target, module, name
+                FROM check_currently
+            &lt;/allchecks&gt;
+            &lt;findcheck&gt;
+              SELECT remote_address, id, target, module, name
+                FROM check_currently
+               WHERE sid = $1
+            &lt;/findcheck&gt;
+            &lt;allstoragenodes&gt;
+              SELECT storage_node_id, fqdn, dsn
+                FROM stratcon.storage_node
+            &lt;/allstoragenodes&gt;
+            &lt;findstoragenode&gt;
+              SELECT fqdn, dsn
+                FROM stratcon.storage_node
+               WHERE storage_node_id = $1
+            &lt;/findstoragenode&gt;
+            &lt;mapallchecks&gt;
+              SELECT id, sid, noit as remote_cn, storage_node_id, fqdn, dsn
+                FROM stratcon.map_uuid_to_sid LEFT JOIN stratcon.storage_node USING (storage_node_id)
+            &lt;/mapallchecks&gt;
+            &lt;mapchecktostoragenode&gt;
+              SELECT o_storage_node_id as storage_node_id, o_sid as sid,
+                     o_fqdn as fqdn, o_dsn as dsn, o_noit as remote_cn
+                FROM stratcon.map_uuid_to_sid($1,$2)
+            &lt;/mapchecktostoragenode&gt;
+            &lt;check&gt;
+              INSERT INTO check_archive_%Y%m%d
+                          (remote_address, whence, sid, id, target, module, name)
+                   VALUES ($1, 'epoch'::timestamptz + ($2 || ' seconds')::interval,
+                           $3, $4, $5, $6, $7)
+            &lt;/check&gt;
+            &lt;status&gt;
+              INSERT INTO check_status_archive_%Y%m%d
+                          (whence, sid, state, availability, duration, status)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4, $5, $6)
+            &lt;/status&gt;
+            &lt;metric_numeric&gt;
+              INSERT INTO metric_numeric_archive_%Y%m%d
+                          (whence, sid, name, value)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4)
+            &lt;/metric_numeric&gt;
+            &lt;metric_text&gt;
+              INSERT INTO metric_text_archive_%Y%m%d
+                          ( whence, sid, name,value)
+                   VALUES ('epoch'::timestamptz + ($1 || ' seconds')::interval,
+                           $2, $3, $4)
+            &lt;/metric_text&gt;
+            &lt;config&gt;
+              SELECT stratcon.update_config
+                     ($1, $2, $3,
+                      'epoch'::timestamptz + ($4 || ' seconds')::interval,
+                      $5)
+            &lt;/config&gt;
+            &lt;findconfig&gt;
+              SELECT config FROM stratcon.current_node_config WHERE remote_cn = $1
+            &lt;/findconfig&gt;
+          &lt;/statements&gt;
+        &lt;/database&gt;
+      &lt;/stratcon&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426680144"></a>handoff_ingestor</h2></div></div></div>
+  
+  <p>This module exposes the consolidated noitd journal files from stratcon to an external process. There is no configuration and one must write an external journal ingestor to have this module be of any use.</p>
+  <p>The files stored in the database journal path are not deleted by stratcond and as they are added, their names are streamed using chunked HTTP to the external program currently requesting /handoff/jounrals from the wire protocol API via HTTP GET.  It is the external program's responsibility to delete the files once it has consumed them.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>handoff_ingestor.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426673872"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426673232"></a><p class="title"><b>Example 8.5. Loading the handoff_ingestor.</b></p><div class="example-contents">
+      
+      <p>This example loads the handoff_ingestor.</p>
+      <pre class="programlisting">
+      &lt;stratcon&gt;
+        &lt;modules&gt;
+          &lt;module image="handoff_ingestor" name="handoff_ingestor" /&gt;
+        &lt;/modules&gt;
+        &lt;database&gt;
+          &lt;journal&gt;
+            &lt;path&gt;/var/log/stratcon.persist&lt;/path&gt;
+          &lt;/journal&gt;
+        &lt;/database&gt;
+      &lt;/stratcon&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="config.stratcond.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="configuration.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="operation.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 7. stratcond </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Part III. Operation</td></tr></table></div></body></html>

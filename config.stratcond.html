@@ -1,0 +1,322 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 7. stratcond</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.noitd.modules.html" title="Chapter 6. noitd modules"><link rel="next" href="config.stratcond.modules.html" title="Chapter 8. stratcond modules"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 7. stratcond</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.noitd.modules.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.stratcond.modules.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.stratcond"></a>Chapter 7. stratcond</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.stratcond.html#config.stratcond.implicitinheritance">Implicit Inheritance</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stratcond.explicitinheritance">Explicit Inheritance</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stracond.section.eventer">The &lt;eventer&gt; section</a></span></dt><dt><span class="section"><a href="config.stratcond.html#config.stratcond.section.logs">The &lt;logs&gt; section</a></span></dt></dl></div>
+  
+  <div class="example"><a name="idm122426785920"></a><p class="title"><b>Example 7.1. Basic noitd configuration struture</b></p><div class="example-contents">
+  
+  <pre class="programlisting">
+  &lt;noit&gt;
+    &lt;eventer/&gt;
+    &lt;modules&gt;
+      &lt;...&gt;
+        &lt;module /&gt;
+      &lt;/...&gt;
+    &lt;/modules&gt;
+    &lt;logs&gt;
+      &lt;...&gt;
+        &lt;log&gt;
+          &lt;outlet /&gt;
+          &lt;outlet /&gt;
+        &lt;/log&gt;
+      &lt;/...&gt;
+    &lt;/logs&gt;
+    &lt;listeners&gt;
+      &lt;...&gt;
+        &lt;listener/&gt;
+        &lt;listener&gt;
+          &lt;config /&gt;
+          &lt;sslconfig /&gt;
+        &lt;listener&gt;
+      &lt;/...&gt;
+    &lt;/listeners&gt;
+    &lt;checks&gt;
+      &lt;...&gt;
+        &lt;check uuid="xxx" /&gt;
+      &lt;/...&gt;
+    &lt;/checks&gt;
+  &lt;/noit&gt;
+</pre>
+</div></div><br class="example-break">
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.stratcond.implicitinheritance"></a>Implicit Inheritance</h2></div></div></div>
+
+<p>
+Unless otherwise specified, elements and attributes are inherited from
+all ancestors.  As is typical with inheritance, the youngest/deepest
+value overrides values of ancestors.  If the value requested is a set
+of key/value pairs, the top-most ancestor is queried, then its
+child is queried, merging values, replacing conflicts and so on until
+the youngest/deepest node is reached.
+</p>
+
+<div class="example"><a name="idm122426782208"></a><p class="title"><b>Example 7.2. Simple implicit inheritance configuration example</b></p><div class="example-contents">
+
+<pre class="programlisting">
+      &lt;a foo="bar"&gt;
+        &lt;config&gt;
+          &lt;key1&gt;val a 1&lt;/key1&gt;
+          &lt;key2&gt;val a 2&lt;/key2&gt;
+        &lt;/config&gt;
+        &lt;b quux="baz"&gt;
+          &lt;config&gt;
+            &lt;key1&gt;val b 1&lt;/key1&gt;
+            &lt;key3&gt;val b 3&lt;/key3&gt;
+          &lt;/config&gt;
+          &lt;c foo="meme" /&gt;
+        &lt;/b&gt;
+      &lt;/a&gt;
+</pre>
+</div></div><br class="example-break">
+
+<p>
+When looking at the "foo" attribute we see the following values at nodes:
+</p>
+<div class="variablelist"><dl class="variablelist"><dt><span class="term">a</span></dt><dd><p>bar</p></dd><dt><span class="term">b</span></dt><dd><p>bar</p></dd><dt><span class="term">c</span></dt><dd><p>meme</p></dd></dl></div>
+
+<p>
+When looking at the "quux" attribute we see the following values at nodes:
+</p>
+<div class="variablelist"><dl class="variablelist"><dt><span class="term">a</span></dt><dd><p>(none)</p></dd><dt><span class="term">b</span></dt><dd><p>baz</p></dd><dt><span class="term">c</span></dt><dd><p>baz</p></dd></dl></div>
+
+<p>
+When looking at the key/value set "config" we see the following values at nodes:
+</p>
+<div class="variablelist"><dl class="variablelist"><dt><span class="term">a</span></dt><dd><p>{ key1: "val a 1", key2: "val a 2" }</p></dd><dt><span class="term">b</span></dt><dd><p>{ key1: "val b 1", key2: "val a 2", key3: "val b 3" }</p></dd><dt><span class="term">c</span></dt><dd><p>{ key1: "val b 1", key2: "val a 2", key3: "val b 3" } (same as b)</p></dd></dl></div>
+
+<p>
+This inheritance model allows for "non-repetitive" configuration
+approaches: "express yourself once and reuse."
+</p>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.stratcond.explicitinheritance"></a>Explicit Inheritance</h2></div></div></div>
+
+
+<p>
+Sometimes it is useful to define a configuration key/value set
+for reuse, but the strict parent-child inheritance model is awkward.
+Under these circumstances, the explicit inheritance often solves the
+issue at hand.  With explicit inheritance, a configuration can inherit
+from another named node elsewhere in the configuration.
+</p>
+<p>
+The &lt;config /&gt; stanzas can be identified, as is typical in XML, with
+the "id" attribute: &lt;config id="sample" /&gt;.  Additionally, any config
+may explicitly specify that it inherits from a named config by
+specifying the "inherit" attribute.
+</p>
+<p>
+Any &lt;config /&gt;, A, which has the "inherit" attribute will first
+inherit from its most direct parent, then supplement/replace those
+key/values with the configuration whose "id" attribute matches the
+"inherit" attribute of A, and finally supplement/replace those
+key/values with key/values directly beneath A.  The entire tree is
+searched for a node whose "id" matches A's "inherit" attribute.
+</p>
+
+<div class="example"><a name="idm122426765360"></a><p class="title"><b>Example 7.3. Simple explicity inheritance configuration example</b></p><div class="example-contents">
+
+<pre class="programlisting">
+  &lt;config name="A"&gt;
+    &lt;key1&gt;a&lt;/key1&gt;
+    &lt;key2&gt;b&lt;/key2&gt;
+    &lt;key3&gt;c&lt;/key3&gt;
+    &lt;config name="C" inherit="bob"&gt;
+      &lt;key1&gt;AAA&lt;/key1&gt;
+      &lt;key4&gt;DDD&lt;/key4&gt;
+    &lt;/config&gt;
+  &lt;/config&gt;
+  &lt;x&gt;
+    &lt;y&gt;
+      &lt;z&gt;
+        &lt;config name="B" id="bob"&gt;
+          &lt;key2&gt;bobB&lt;/key2&gt;
+          &lt;key5&gt;bobE&lt;/key5&gt;
+        &lt;/config&gt;
+      &lt;/z&gt;
+    &lt;/y&gt;
+  &lt;/x&gt;
+</pre>
+</div></div><br class="example-break">
+
+<p>The config named "A" contains:</p>
+<div class="variablelist"><dl class="variablelist compact"><dt><span class="term">key1</span></dt><dd><p>a</p></dd><dt><span class="term">key2</span></dt><dd><p>b</p></dd><dt><span class="term">key3</span></dt><dd><p>c</p></dd></dl></div>
+
+<p>The config named "C" contains:</p>
+<div class="variablelist"><dl class="variablelist"><dt><span class="term">key1</span></dt><dd><p>AAA</p></dd><dt><span class="term">key2</span></dt><dd><p>bobB</p></dd><dt><span class="term">key3</span></dt><dd><p>c</p></dd><dt><span class="term">key4</span></dt><dd><p>DDD</p></dd><dt><span class="term">key5</span></dt><dd><p>bobE</p></dd></dl></div>
+
+<p>
+It should be noted hat all config's include the one named "B" above
+follows this same inheritance model.
+</p>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.stracond.section.eventer"></a>The &lt;eventer&gt; section</h2></div></div></div>
+  
+
+<p>
+This section provides configuration directives to the eventing
+subsystem.  Think of the eventer as the engine that drives all I/O,
+jobs, and timed events.  To choose the eventer, the "implementation"
+attribute is used in the eventer node.  For example, to select the
+kqueue eventer (for Mac OS X or modern BSDs):
+</p>
+
+<pre class="programlisting">
+  &lt;eventer implementation="kqueue" /&gt;
+</pre>
+
+<p>
+The following eventer implementations exist: kqueue (Mac/BSD), epoll (Linux), ports (Solaris 10+).
+</p>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.stratcond.section.logs"></a>The &lt;logs&gt; section</h2></div></div></div>
+  
+
+<p>
+The logs section contains &lt;log&gt; elements at arbitrary depths.  A log
+requires several attributes to be useful:
+</p>
+
+<div class="variablelist"><dl class="variablelist"><dt><span class="term">name</span></dt><dd><p>
+   "name" this must me unique.  Several names have meaning within the
+   product.  If you match that name, you control how that information
+   is logged.
+  </p></dd><dt><span class="term">type</span></dt><dd><p>
+   "type" this specified ths underlying log writing implementation.
+   Valid options are "file" (the default if unspecified), "jlog" which
+   is the a binary 'auto-rotating', consumable, multi-subscriber log
+   format.
+  </p></dd><dt><span class="term">path</span></dt><dd><p>
+   "path" the path to the log (interpreted by the "type"
+   implementation).
+  </p></dd><dt><span class="term">debug</span></dt><dd><p>
+   "debug" (boolean: &lt;true|false&gt;, default false) that dictates
+   whether or not the file:line number of the callee will be included
+   in the log output.  This only applies loggers that have write
+   operations (like files and jlogs).
+  </p></dd><dt><span class="term">disabled</span></dt><dd><p>
+   "disabled" (boolean: &lt;true|false&gt;, default false) that dictates
+   whether the log implmenation will actually write anything.  If set
+   to true, the log will be silences and will not propagate input to
+   any attached outlets.
+  </p></dd><dt><span class="term">timestamps</span></dt><dd><p>
+   "debug" (boolean: &lt;true|false&gt;, default false) that dictates
+   whether or not a microsecond granular time will be included
+   in the log output.  This only applies loggers that have write
+   operations (like files and jlogs).
+  </p></dd><dt><span class="term">rotate_seconds</span></dt><dd><p>
+   "rotate_seconds" (integer: default unset, minimum 600) that specifies
+   how many seconds of data the given log file should contain.  Every
+   "rotate_seconds" seconds (aligned with UNIX epoch), the log will be
+   rotated to a file of the same name with the current UNIX timestamp
+   dot-appended.  This can be used in combination with "rotate_bytes"
+   for rather interesting results.
+  </p></dd><dt><span class="term">rotate_bytes</span></dt><dd><p>
+   "rotate_bytes" (integer: default unset, minimum 102400) that specifies
+   the maximum number of bytes the file may contain before rotation is
+   applied.  This is not enforced after each write, but instead
+   the file size is monitored "frequently" and rotation applied.  This
+   can mean that the file can grow slightly larger than the specified
+   amount.  This can be used in combination with "rotate_seconds" for
+   rather interesting results.
+  </p></dd></dl></div>
+<p>
+Within a &lt;log&gt; element, zero, one or many &lt;outlet&gt; elements may be
+present.  The outlet element must contain a "name" attribute (this
+attribute is not inherited) that matches a *previously* declared &lt;log&gt;
+by its "name" attribute.  Foreach &lt;outlet&gt; tag, a sink is created so
+that any input sent to the containing &lt;log&gt; will additionally be
+propagated to the &lt;outlet&gt;.
+</p>
+<p>
+There is an implicit log named "stderr" that is attached to file
+descriptor 2 that has timestamps enabled.
+</p>
+
+<div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="config.stratcond.section.logs.special"></a>Special log names</h3></div></div></div>
+  
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">stderr</span></dt><dd><p>
+   opened to file descriptor two during log initialization.
+  </p></dd><dt><span class="term">error</span></dt><dd><p>
+   destination for error messages.
+  </p></dd><dt><span class="term">debug</span></dt><dd><p>
+    destination for debugging output.
+  </p></dd><dt><span class="term">check</span></dt><dd><p>
+   When a check is altered in any way (including creation),
+   the identifying attributes, including the uuid, are logged to this
+   facility.
+
+   </p><pre class="programlisting">
+   'C' TIMESTAMP UUID TARGET MODULE NAME
+   </pre><p>
+  </p></dd><dt><span class="term">status</span></dt><dd><p>
+   When a check status changes (either availability or
+   state) and neither the new state nor the old state are "unknown", it
+   is considered a state change for the check.  The new availability
+   and new state are logged to this facility.
+
+   </p><pre class="programlisting">
+   'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+   </pre><p>
+  </p></dd><dt><span class="term">metrics</span></dt><dd><p>
+   Each time a check is completed, the various metrics
+   that were observed by the check are logged to this facility.  The
+   VALUE is always a string or [[null]] (never binary encoded/packed).
+   The TYPE indicates the datatype the check intended when it was
+   observed.
+
+   </p><pre class="programlisting">
+   'M' TIMESTAMP UUID NAME TYPE VALUE
+   </pre><p>
+
+   </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">NAME</span></dt><dd><p>is the name of the metric
+      and the encouraged format for this is "name`subname`subsubname`etc"</p></dd><dt><span class="term">TYPE</span></dt><dd>
+       <div class="variablelist"><dl class="variablelist"><dt><span class="term">i</span></dt><dd><p>INT32</p></dd><dt><span class="term">I</span></dt><dd><p>UINT32</p></dd><dt><span class="term">l</span></dt><dd><p>INT64</p></dd><dt><span class="term">L</span></dt><dd><p>UINT64</p></dd><dt><span class="term">n</span></dt><dd><p>DOUBLE</p></dd><dt><span class="term">s</span></dt><dd><p>STRING</p></dd></dl></div>
+       </dd></dl></div><p>
+  </p>
+  </dd></dl></div>
+
+<div class="example"><a name="idm122426719376"></a><p class="title"><b>Example 7.4. Sample configuration for the log section</b></p><div class="example-contents">
+
+<pre class="programlisting">
+  &lt;logs&gt;
+    &lt;console&gt;
+      &lt;outlet name="stderr" /&gt;
+      &lt;log name="error" /&gt;
+      &lt;log name="debug" disabled="true" /&gt;
+    &lt;/console&gt;
+    &lt;log name="feed" type="jlog" path="/var/log/noitd.feed" /&gt;
+    &lt;feeds&gt;
+      &lt;outlet name="feed" /&gt;
+      &lt;log name="check" /&gt;
+      &lt;log name="metrics" /&gt;
+      &lt;log name="status"&gt;
+        &lt;outlet name="error" /&gt;
+      &lt;/log&gt;
+    &lt;/feeds&gt;
+  &lt;/logs&gt;
+</pre>
+</div></div><br class="example-break">
+
+ <p>In the above example:</p>
+ <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+   a &lt;console&gt; metagroup is created for the purpose of inheriting the
+   "stderr" outlet.  The logs named "error" and "debug" are
+   instantiated and inherit the "stderr" outlet.  However, "debug" is
+   disabled, so no input to the "debug" log will be written anywhere.
+   </p></li><li class="listitem"><p>
+   a log named "feed" is created of type "jlog" writing to the
+   "/var/log/noitd.feed" directory (jlogs paths are directories, whereas 
+   "file" paths are filenames).
+   </p></li><li class="listitem"><p>
+   a &lt;feeds&gt; metagroup is created for the purpose of inheriting the
+   "feed" outlet.  The logs "check," "metrics," and "status" are
+   instantiated and will log via the "feed" outlet (all writing to the
+   same jlog).  Additionally, the "status" feed is given an additional
+   outlet named "error" so we will see inputs to status in both the
+   "feed" jlog and on the console ("stderr").
+   </p></li></ul></div>
+</div>
+</div>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="config.noitd.modules.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="configuration.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="config.stratcond.modules.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 6. noitd modules </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 8. stratcond modules</td></tr></table></div></body></html>

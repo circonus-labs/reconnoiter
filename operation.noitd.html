@@ -1,0 +1,517 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 9. Operating the noitd daemon</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="operation.html" title="Part III. Operation"><link rel="prev" href="operation.html" title="Part III. Operation"><link rel="next" href="pt04.html" title="Part IV. Development"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 9. Operating the noitd daemon</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="operation.html">Prev</a> </td><th width="60%" align="center">Part III. Operation</th><td width="20%" align="right"> <a accesskey="n" href="pt04.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="operation.noitd"></a>Chapter 9. Operating the noitd daemon</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="operation.noitd.html#noitd.interactive.console">Interactive Console Command Line Operation</a></span></dt><dt><span class="section"><a href="operation.noitd.html#noitd.wire.protocol"><span class="command"><strong>noitd/stratcond</strong></span> Wire Protocol</a></span></dt></dl></div>
+  
+
+<p>
+Once <span class="command"><strong>noitd</strong></span> is configured and running, there
+are several methods of interacting with the service.  The operator
+can interactively manage the instance via the integrated command line
+console (accessible via telnet on the port of your choice, as configured
+in noitd.conf via listener elements; by default port 32322) and
+programmatic access is available over the <span class="command"><strong>noitd</strong></span>
+wire protocol on port 43191.
+</p>
+
+<p>
+The wire protocol is a binary protocol that is leverage for
+inter-system communication.  While not entirely compliant with
+the HTTP specification, the protocol will give well formed HTTP
+responses to sessions that commence with the terms: "DELETE"
+"GET " "HEAD" "POST" "PUT ".
+</p>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="noitd.interactive.console"></a>Interactive Console Command Line Operation</h2></div></div></div>
+  
+  <p>
+      This section serves to document the basic methods of operation
+      available through the interactive console's command line interface.  
+      It is currently in rough draft status.
+  </p>
+
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426662976"></a>General Operational Principles</h3></div></div></div>
+    
+    <p>
+      The command line interface to the system available through the 
+      interactive console operates in a fashion similar to Cisco's <span class="trademark">IOS</span>&#8482;, 
+      in that there are various "levels" or "sets"/"sub-sets" of commands 
+      within the interface.  Operations and operands may be tab-completed 
+      or abbreviated to their un-ambiguous form as needed or desired 
+      (analogous to "configure terminal" becoming "conf t" in common IOS 
+      usage).  Command history and editing is available.
+    </p>
+  </div>
+
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426660688"></a>Accessing the Interactive Console</h3></div></div></div>
+    
+    <p>
+      The interactive console is accessed by telneting to the configured
+      access port on the host running <span class="command"><strong>noitd</strong></span>.  By default this is
+      port 32322.  The applicable configuration parameter in the <code class="filename">noitd.conf</code>
+      XML file is the port attribute of the "listener" element, e.g.:
+      </p><pre class="programlisting">
+      &lt;listener address="*" port="32322"&gt;
+        </pre><p> Please see the configuration section of
+      the manual for more information.
+    </p>
+  </div>
+
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426657888"></a>Basic Command List</h3></div></div></div>
+    
+    <p>An example session of interaction showing the use of help and a few 
+      operating modes is illustrative:
+      </p><pre class="screen">
+      noit# help
+      = Topics =
+      ==&gt; 'module'
+
+      = Commands =
+      ==&gt; 'apply'
+      ==&gt; 'configure'
+      ==&gt; 'exit'
+      ==&gt; 'no'
+      ==&gt; 'reload'
+      ==&gt; 'restart'
+      ==&gt; 'show'
+      ==&gt; 'shutdown'
+      ==&gt; 'watch'
+      ==&gt; 'write'
+      noit# help module
+      Help for 'module':
+      = Loaders and Modules =
+      lua
+      ping_icmp
+      smtp
+      ssh2
+      varnish
+      selfcheck
+      resmon
+      http
+      snmp
+      noit# configure {tab pressed twice}
+      apply     help      terminal
+      noit# conf t
+      noit(conf:/)# ls
+      == Section Settings ==
+      @lockfile: /var/run/noitd.lock
+      == Subsections ==
+      eventer
+      logs
+      modules
+      listeners
+      rest
+      checks
+      filtersets
+      config_templates
+      noit(conf:/)# help
+      -&gt; 'terminal'
+      = Topics =
+      ==&gt; 'module'
+
+      = Commands =
+      ==&gt; 'apply'
+      ==&gt; 'attribute'
+      ==&gt; 'cd'
+      ==&gt; 'check'
+      ==&gt; 'config'
+      ==&gt; 'exit'
+      ==&gt; 'filterset'
+      ==&gt; 'ls'
+      ==&gt; 'no'
+      ==&gt; 'section'
+      ==&gt; 'write'
+      noit(conf:/)# exit
+      noit# show
+      ==&gt; 'apply'
+      ==&gt; 'check'
+      ==&gt; 'checks'
+      ==&gt; 'eventer'
+      ==&gt; 'watches'
+      incomplete command.
+
+      </pre><p>
+
+      </p><div class="variablelist"><p class="title"><b>Command Descriptions</b></p><dl class="variablelist"><dt><span class="term">help</span></dt><dd>
+            <p><span class="command"><strong>help</strong></span> provides brief help information appropriate to a given context.</p>
+          </dd><dt><span class="term">show</span></dt><dd>
+            <p><span class="command"><strong>show</strong></span> shows various aspects of the system.  See the "Showing System Information" section below for further detail.</p>
+          </dd><dt><span class="term">watch</span></dt><dd>
+            <p><span class="command"><strong>watch</strong></span> is much like show except it re-displays the given information periodically.  See the "Showing System Information" section below for further detail.</p>
+          </dd><dt><span class="term">exit</span></dt><dd>
+            <p><span class="command"><strong>exit</strong></span> leaves the current "level" of session (e.g. returns to regular interactive session if used within a configuration sub-"level" or exits the current interactive session entirely and closes the connection if used within the regular interaction "level").</p>
+          </dd><dt><span class="term">configure</span></dt><dd>
+            <p><span class="command"><strong>configure</strong></span> causes the session to enter configuration mode if used with the <span class="command"><strong>terminal</strong></span> argument or with the <span class="command"><strong>apply</strong></span> argument allows for multiple configurations to be specified at once in an automated fashion (see below for coverage of <span class="command"><strong>apply</strong></span> and the "Configuring the System" section for more information about run-time configuration in general).</p>
+          </dd><dt><span class="term">write</span></dt><dd>
+            <p><span class="command"><strong>write</strong></span> writes the current operating configuration to: the permanent configuration store (<code class="filename">noitd.conf</code> by default, in the location specified either at startup with -c or in the default compile-time system directory) with <span class="command"><strong>file</strong></span> argument (<span class="command"><strong>memory</strong></span> is an alias), or to the current interactive display with the <span class="command"><strong>terminal</strong></span> argument.</p>
+          </dd><dt><span class="term">reload</span></dt><dd>
+            <p><span class="command"><strong>reload</strong></span> causes <span class="command"><strong>noitd</strong></span> to reload configuration information from the permanent configuration store (<code class="filename">noitd.conf</code> by default, in the location specified either at startup with -c or in the default compile-time system directory).</p>
+          </dd><dt><span class="term">restart</span></dt><dd>
+              <p><span class="command"><strong>restart</strong></span> causes <span class="command"><strong>noitd</strong></span> to restart, re-reading all configuration from the permanent configuration store in the process. As part of restarting, the current interactive session is terminated.</p>
+            </dd><dt><span class="term">shutdown</span></dt><dd>
+              <p><span class="command"><strong>shutdown</strong></span> causes <span class="command"><strong>noitd</strong></span> to shut down entirely.</p>
+            </dd><dt><span class="term">apply</span></dt><dd>
+              <p><span class="command"><strong>apply {variable name} {range specifier} {command}</strong></span> works much like a <span class="command"><strong>for {name} in {list}; do {command, optionally using $name}; done</strong></span> loop in the <span class="command"><strong>bash</strong></span> shell, in that it iterates over the given range, setting the variable name to each value in turn and executing the given command with $variablename set and available at each execution. A simple example is given below of executing an ssh2 check three times using apply:</p>
+              <pre class="screen">
+                noit# apply i 1..3 show check 002d58ff-20ff-4db0-9420-782fc1748dc4
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+                ==== 002d58ff-20ff-4db0-9420-782fc1748dc4 ====
+                name: ssh2 [from module]
+                module: ssh2
+                target: 127.0.0.1
+                period: 60000
+                timeout: 4000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: idle
+                last run: 31.104 seconds ago
+                availability/state: available/good
+                status: 59698f91c167393deb952564fe316dca
+                metrics:
+                duration[I] = 192
+                fingerprint[s] = 59698f91c167393deb952564fe316dca
+              </pre>
+            </dd><dt><span class="term">no</span></dt><dd>
+            <p><span class="command"><strong>no</strong></span> works much like "no" in <span class="trademark">IOS</span>&#8482;, negating or nullifying another command.  e.g. <span class="command"><strong>no watch {check id} {interval}</strong></span> to disable a given watch (see below for further details).</p>
+          </dd></dl></div><p>
+    </p>
+  </div>
+
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426625040"></a>Showing System Information</h3></div></div></div>
+    
+    <p>The two main commands for showing system information are <span class="command"><strong>show</strong></span> and <span class="command"><strong>watch</strong></span>.  <span class="command"><strong>show</strong></span> is useful for one-off queries of information, and <span class="command"><strong>watch</strong></span> is useful for periodically redisplaying the same information (e.g. to see snapshots of activity while some other process is affecting the monitored system/information).</p>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426622224"></a>show</h4></div></div></div>
+      
+      <p><span class="command"><strong>show</strong></span> show accepts a number of arguments:</p>
+      <div class="variablelist"><dl class="variablelist"><dt><span class="term">watches</span></dt><dd>
+            <p><span class="command"><strong>show watches</strong></span> displays a list of all active watches currently being serviced by <span class="command"><strong>noitd</strong></span>.</p>
+          </dd><dt><span class="term">checks</span></dt><dd>
+            <p><span class="command"><strong>show checks</strong></span> displays a list of checks that <span class="command"><strong>noitd</strong></span> is currently servicing.  Example output is illuminative:</p>
+              <pre class="screen">
+                noit# show checks
+                1b4e28ba-2fa1-11d2-883f-b9b761bde3fb 127.0.0.1`ping_icmp
+                cnt=5,avail=100,min=0.0000,max=0.0000,avg=0.0000
+                f7cea020-f19d-11dd-85a6-cb6d3a2207dc 127.0.0.1`selfcheck
+                ok
+                002d58ff-20ff-4db0-9420-782fc1748dc4 127.0.0.1`ssh2
+                59698f91c167393deb952564fe316dca
+              </pre>
+              <p>Each check's primary identifier is a hexadecimal GUID.  This may be tab-completed in common use from the longest unique string, much like commands. In the example above, for instance, "002" would be sufficient to tab complete a reference to the check 002d58ff-20ff-4db0-9420-782fc1748dc4. Each check is further identified as accessing a given IP/host and contains some description of what the check is doing as configured when the check was configured (see the "Configuring the System" section below, and/or <code class="filename">noitd.conf</code>). The second line for each check provides check-specific further information or status.</p>
+          </dd><dt><span class="term">check</span></dt><dd>
+            <p><span class="command"><strong>show check {check id}</strong></span>. See discussion above for referencing a particular check by id.  This provides more in-depth information about a specific check.  For example, using the check list mentioned above:</p>
+              <pre class="screen">
+                noit# show check 1b4e28ba-2fa1-11d2-883f-b9b761bde3fb
+                ==== 1b4e28ba-2fa1-11d2-883f-b9b761bde3fb ====
+                name: ping_icmp [from module]
+                module: ping_icmp
+                target: 127.0.0.1
+                period: 15000
+                timeout: 14000
+                oncheck: [undef]
+                filterset: default [inherited from @filterset]
+                disable: [undef]
+                currently: running
+                last run: 9.377 seconds ago
+                availability/state: available/good
+                status: cnt=5,avail=100,min=0.0000,max=0.0001,avg=0.0000
+                metrics:
+                available[n] = 1.000000000000e+02
+                *count[i] = 5
+                average[n] = 4.359999984445e-05
+                *maximum[n] = 5.400000009104e-05
+                *minimum[n] = 2.800000038405e-05
+              </pre>
+          </dd></dl></div>
+    </div>
+
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426609456"></a>watch</h4></div></div></div>
+      
+      <p><span class="command"><strong>watch {check id} {interval}</strong></span> redisplays information for a given check at a configurable interval. Interval is given in units of milliseconds.  If interval is omitted, presently, there is a bug where the check begins to output at its configured interval directly to the cli, but does not appear as a watch in <span class="command"><strong>show watches</strong></span> and <span class="command"><strong>no watch {id}</strong></span> has no effect.</p>
+      <p>The currently active watches may be listed with <span class="command"><strong>show watches</strong></span>, and an active watch may be terminated with by issuing the command <span class="command"><strong>no watch {check id} {interval}</strong></span> where check id and interval are the ones used for the initial creation of the watch.</p>
+    </div>
+  </div>
+
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426605552"></a>Configuring the System</h3></div></div></div>
+    
+    <p>The focus of this section is configuring <span class="command"><strong>noitd</strong></span>'s behavior at run-time via the interactive console.  For documentation of <code class="filename">noitd.conf</code> itself, see <a class="link" href="configuration.html" title="Part II. Configuration">the main chapter on system configuration</a>.  As a general note, to store run-time configuration to the permanent configuration store, see the <span class="command"><strong>write file</strong></span> command above.</p>
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426602208"></a>Configure Terminal ("conf t") Mode</h4></div></div></div>
+      
+      <p>To enter the interactive configuration mode, first telnet to <span class="command"><strong>noitd</strong></span>'s telnet port and issue the "configure terminal" command, which may be abbreviated as "conf t" if desired. (Please see above information about default port, port configuration location, etc.)</p>
+      <p>Configure terminal mode presents a different array of options than regular mode, which are summarized below.  (Some common commands have been ommitted as their function is identical within conf-t mode as within normal interactive mode, e.g. <span class="command"><strong>exit</strong></span>.)</p>
+      <div class="variablelist"><dl class="variablelist"><dt><span class="term">cd</span></dt><dd>
+              <p><span class="command"><strong>cd {location, e.g. ".." or "checks"}</strong></span> changes the point where the interactive configuration session is within the tree-like organizational structure of the configuration space in a fashion similar to <span class="command"><strong>cd</strong></span> within a filesystem directory tree.  (See note below.)</p>
+            </dd><dt><span class="term">section</span></dt><dd>
+                <p><span class="command"><strong>section {location}</strong></span> operates similarly to <span class="command"><strong>cd</strong></span>, except that it will create the new location if it does not exist.</p>
+            </dd><dt><span class="term">ls</span></dt><dd>
+              <p><span class="command"><strong>ls</strong></span> lists the configured entities at a given point within the tree-like organizational structure of the configuration space in a fashion similar to <span class="command"><strong>ls</strong></span> within a filesystem directory tree.  (See note below.) </p>
+            </dd><dt><span class="term">status</span></dt><dd>
+              <p><span class="command"><strong>status</strong></span> displays the fine-grained details about a particular leaf-node/entity within the configuration space.</p>
+            </dd><dt><span class="term">check</span></dt><dd>
+            <p><span class="command"><strong>check {check id}</strong></span> enters the configuration space for a particular leaf-node of the general configuration tree, i.e. the exact configuration for a particular check within the system. <span class="command"><strong>check new {params}</strong></span> may be used to set up a new check within the system, where params are dependent on what is required for a check using whichever module.  For example, <span class="command"><strong>check new target 127.0.0.1 module http period 60000 timeout 10000</strong></span> sets up a new http check on localhost running every minute and timing out after ten seconds.  By default the new check will be named "target`module", and after entry of the above command you will be placed into the configuration space for the new check as though you had run <span class="command"><strong>check {the new id}</strong></span> upon it.  Of note is that the new check is disabled by default (see <span class="command"><strong>status</strong></span> output), you must run <span class="command"><strong>no attribute disable</strong></span> to enable it.</p>
+          </dd><dt><span class="term">attribute</span></dt><dd>
+              <p><span class="command"><strong>attribute</strong></span> enables you to alter the fine-grained details about a particular leaf-node/entity within the configuration space; e.g. "no attr disable" to enable a check, or "attr port 2222" on an ssh2 check to have it check port 2222 instead of the default 22.</p>
+            </dd><dt><span class="term">filterset</span></dt><dd>
+              <p><span class="command"><strong>filterset</strong></span> is applicable only in the /filterset "directory" and has to do with the maintenance of filters, which are (briefly) exclusion patterns that filter out collected metrics from being reported upstream to <span class="command"><strong>stratcon</strong></span> (the noit daemon will still collect all of the data, but only the un-filtered metrics will propagate).</p>
+            </dd></dl></div>
+      <p>Configure terminal mode has a general tree-like organizational structure mimicing the xml in <code class="filename">noitd.conf</code>, hence commands like <span class="command"><strong>cd</strong></span> and <span class="command"><strong>ls</strong></span>. Within some leaf nodes of the tree (for instance, check entities' representations) <span class="command"><strong>status</strong></span> should be substituted for <span class="command"><strong>ls</strong></span> as the latter operates on entities rather than attributes of entities (which would be displayed by <span class="command"><strong>status</strong></span>).</p>
+      <p>An example configuration session is shown below to illustrate some of the above:</p>
+      <pre class="screen">
+        noit# conf t
+        noit(conf:/)# cd checks
+        noit(conf:/checks)# ls
+        == Section Settings ==
+        @filterset: default
+        @transient_min_period: 1000
+        @transient_period_granularity: 500
+        == Subsections ==
+        foo
+        == Checks ==
+        check[@uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc"] 127.0.0.1`selfcheck`selfcheck
+        check[@uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb"] 127.0.0.1`ping_icmp`ping_icmp
+        check[@uuid="002d58ff-20ff-4db0-9420-782fc1748dc4"] 127.0.0.1`ssh2`ssh2
+        check[@uuid="70a3633f-1629-4417-a7db-d48b9558c48e"] 127.0.0.1`http`http
+        noit(conf:/checks)# check 70a3633f-1629-4417-a7db-d48b9558c48e 
+        noit(conf:127.0.0.1`http)# status
+        ==== 70a3633f-1629-4417-a7db-d48b9558c48e ====
+        name: http [from module]
+        module: http
+        target: 127.0.0.1
+        period: 60000
+        timeout: 10000
+        oncheck: [undef]
+        filterset: default [inherited from @filterset]
+        disable: [undef]
+        currently: idle
+        last run: 46.432 seconds ago
+        availability/state: available/good
+        status: code=200,rt=0.001s,bytes=39
+        metrics:
+        tt_connect[I] = 0
+        bytes[i] = 39
+        code[s] = 200
+        tt_firstbyte[I] = 1
+        duration[I] = 1
+        noit(conf:127.0.0.1`http)# exit
+        noit(conf:/checks)# exit
+        noit# 
+      </pre>
+    </div>
+  </div>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="noitd.wire.protocol"></a><span class="command"><strong>noitd/stratcond</strong></span> Wire Protocol</h2></div></div></div>
+  
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="operation.wire.rest"></a>REST operation over HTTP</h3></div></div></div>
+
+
+<p>
+A variety of operational read and write operations are available over
+HTTP.  The HTTP layer is only available over SSL (HTTPS), operates on
+the IANA assigned port number 43191.  The SSL implementation of the
+wire protocol requires client certificates, so this REST mechansim is
+only available to HTTP clients that support both SSL and user-supplied
+client certificates.  The client certificates must be signed by a
+certificate authority recognized by the <span class="command"><strong>noitd</strong></span>
+instance.
+</p>
+
+<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426570944"></a>Manipulating Checks</h4></div></div></div>
+
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426569648"></a>/checks/delete/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">DELETE</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/delete/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
+  <p>
+  This call returns deletes the specified check.  If the check does not
+  exist, then a HTTP 404 code is returned.  If the check exists, but is
+  outside of the optional <code class="code">path</code>, then a HTTP 403 code is
+  returned.  Otherwise, the specified check is removed from the system
+  and a HTTP 200 is returned.  Any response payload returned should be
+  ignored by the client.
+  </p>
+</div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426563184"></a>/checks/set/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">PUT</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/set/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
+  <p>
+  This call accepts a document describing a check.  That check is
+  instantiated with the <code class="code">checkid</code> specified in the URL.  If the
+  check exists, but is not under the provided optional <code class="code">path</code> a
+  HTTP 403 code is returned.  If the check already exists under the specified
+  <code class="code">path</code>, the check is updated to reflect the new configuration.
+  The <code class="code">module</code> cannot be changed for existing checks.  All other
+  fields can be changed.  All fields are required except the
+  <code class="code">disable</code> field; if disable is omitted, it will inherit the
+  disable attribute from parents in the tree (use the default setting).
+  On success, a HTTP 200 is returned and an XML documented that matches the
+  format of the <code class="code">/check/show</code> REST command.
+  The input is as follows:
+  </p>
+
+  <div class="example"><a name="idm122426555280"></a><p class="title"><b>Example 9.1. REST /checks/set XML input.</b></p><div class="example-contents">
+    
+    <pre class="programlisting">
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;check&gt;
+  &lt;attributes&gt;
+    &lt;name&gt;http&lt;/name&gt;
+    &lt;module&gt;http&lt;/module&gt;
+    &lt;target&gt;8.8.38.5&lt;/target&gt;
+    &lt;period&gt;60000&lt;/period&gt;
+    &lt;timeout&gt;5000&lt;/timeout&gt;
+    &lt;filterset&gt;default&lt;/filterset&gt;
+  &lt;/attributes&gt;
+  &lt;config&gt;
+    &lt;code&gt;200&lt;/code&gt;
+    &lt;url&gt;https://labs.omniti.com/&lt;/url&gt;
+  &lt;/config&gt;
+&lt;/check&gt;
+    </pre>
+  </div></div><br class="example-break">
+</div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426553152"></a>/checks/show/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">GET</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/checks/show/&lt;path/&gt;&lt;checkid&gt;</code></p></dd></dl></div>
+  <p>
+  This call returns an XML document describing the current configuration and
+  state of the specific check.  The <code class="code">checkid</code> specified is located
+  under the optional <code class="code">path</code>.  If the check exists, but it under
+  another path, a HTTP 403 code is returned.  If the check does not exist,
+  a HTTP 404 code is returned.
+  </p>
+
+  <div class="example"><a name="idm122426547056"></a><p class="title"><b>Example 9.2. REST /checks/show XML output.</b></p><div class="example-contents">
+    
+    <p>Output from an HTTP GET of <code class="code">/checks/show/1b4e28ba-2fa1-11d2-883f-b9a761bde3aa</code></p>
+    <pre class="programlisting">
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;check&gt;
+  &lt;attributes&gt;
+    &lt;uuid&gt;1b4e28ba-2fa1-11d2-883f-b9a761bde3aa&lt;/uuid&gt;
+    &lt;name&gt;http&lt;/name&gt;
+    &lt;module inherited="/dc1/web/@module"&gt;http&lt;/module&gt;
+    &lt;target&gt;8.8.38.5&lt;/target&gt;
+    &lt;period inherited="/dc1/@period"&gt;60000&lt;/period&gt;
+    &lt;timeout inherited="/dc1/@timeout"&gt;5000&lt;/timeout&gt;
+    &lt;filterset inherited="/@filterset"&gt;default&lt;/filterset&gt;
+  &lt;/attributes&gt;
+  &lt;config&gt;
+    &lt;code&gt;200&lt;/code&gt;
+    &lt;url&gt;https://labs.omniti.com/&lt;/url&gt;
+  &lt;/config&gt;
+  &lt;state&gt;
+    &lt;running&gt;false&lt;/running&gt;
+    &lt;killed&gt;false&lt;/killed&gt;
+    &lt;configured&gt;true&lt;/configured&gt;
+    &lt;disabled&gt;false&lt;/disabled&gt;
+    &lt;last_run now="1253124365.131"&gt;1253124339.270&lt;/last_run&gt;
+    &lt;runtime&gt;4.408&lt;/runtime&gt;
+    &lt;availability&gt;available&lt;/availability&gt;
+    &lt;state&gt;good&lt;/state&gt;
+    &lt;status&gt;code=200,rt=4.409s,bytes=8958&lt;/status&gt;
+    &lt;metrics&gt;
+      &lt;duration type="I"&gt;4408&lt;/duration&gt;
+      &lt;code type="s"&gt;200&lt;/code&gt;
+      &lt;bytes type="i"&gt;8958&lt;/bytes&gt;
+    &lt;/metrics&gt;
+  &lt;/state&gt;
+&lt;/check&gt;
+    </pre>
+  </div></div><br class="example-break">
+</div>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122426544000"></a>Manipulating Filters</h4></div></div></div>
+
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426542704"></a>/filters/delete/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">DELETE</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/delete/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
+  <p>
+  This call returns deletes the specified filterset.  If the filterset does
+  not exist, then a HTTP 404 code is returned.  If the filterset exists, but
+  is outside of the optional <code class="code">path</code>, then a HTTP 403 code is
+  returned.  Otherwise, the specified filterset is removed from the system
+  and a HTTP 200 is returned.  Any response payload returned should be
+  ignored by the client.
+  </p>
+</div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426536256"></a>/filters/set/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">PUT</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/set/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
+  <p>
+  This call accepts a document describing a filterset.  That filterset is
+  instantiated with the name <code class="code">filterset</code> specified in the URL.
+  If the filterset exists, but is not under the provided optional
+  <code class="code">path</code> a HTTP 403 code is returned.  If the filterset already
+  exists under the specified <code class="code">path</code>, the filterset is replaced
+  with the configuration submitted.
+  On success, a HTTP 200 is returned and an XML documented that matches the
+  format of the <code class="code">/check/show</code> REST command.
+  The input is as follows:
+  </p>
+
+  <div class="example"><a name="idm122426529456"></a><p class="title"><b>Example 9.3. REST /filtert/set XML input.</b></p><div class="example-contents">
+    
+    <pre class="programlisting">
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;filterset&gt;
+  &lt;rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$"/&gt;
+&lt;/filterset&gt;
+    </pre>
+  </div></div><br class="example-break">
+</div>
+<div class="section"><div class="titlepage"><div><div><h5 class="title"><a name="idm122426527520"></a>/filters/show/</h5></div></div></div>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd><p><code class="code">GET</code></p></dd><dt><span class="term">uri</span></dt><dd><p><code class="code">/filters/show/&lt;path/&gt;&lt;filterset&gt;</code></p></dd></dl></div>
+  <p>
+  This call returns an XML document describing the current configuration 
+  of the specified filterset.  The <code class="code">filterset</code> specified is located
+  under the optional <code class="code">path</code>.  If the check exists, but it under
+  another path, a HTTP 403 code is returned.  If the check does not exist,
+  a HTTP 404 code is returned.
+  </p>
+
+  <div class="example"><a name="idm122426521456"></a><p class="title"><b>Example 9.4. REST /filters/show XML output.</b></p><div class="example-contents">
+    
+    <p>Output from an HTTP GET of <code class="code">/filters/show/default</code></p>
+    <pre class="programlisting">
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;filterset&gt;
+  &lt;rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$"/&gt;
+&lt;/filterset&gt;
+    </pre>
+  </div></div><br class="example-break">
+</div>
+</div>
+</div>
+</div>
+
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="operation.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="operation.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="pt04.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Part III. Operation </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Part IV. Development</td></tr></table></div></body></html>

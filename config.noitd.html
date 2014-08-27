@@ -1,0 +1,265 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 5. noitd configuration</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.generic.html" title="Chapter 4. General config structures"><link rel="next" href="config.noitd.modules.html" title="Chapter 6. noitd modules"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 5. noitd configuration</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.generic.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.noitd.modules.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.noitd"></a>Chapter 5. noitd configuration</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.noitd.html#config.noitd.section.logs.special">Special log names</a></span></dt><dt><span class="section"><a href="config.noitd.html#config.noitd.section.checks.special">Configuring checks via configuration</a></span></dt><dt><span class="section"><a href="config.noitd.html#config.noitd.section.filtersets.special">Configuring filtersets via configuration</a></span></dt></dl></div>
+  
+  <div class="example"><a name="idm122423429488"></a><p class="title"><b>Example 5.1. Basic noitd configuration struture</b></p><div class="example-contents">
+  
+  <pre class="programlisting">
+  &lt;noit&gt;
+    &lt;eventer/&gt;
+    &lt;modules&gt;
+      &lt;...&gt;
+        &lt;module /&gt;
+      &lt;/...&gt;
+    &lt;/modules&gt;
+    &lt;logs&gt;
+      &lt;...&gt;
+        &lt;log&gt;
+          &lt;outlet /&gt;
+          &lt;outlet /&gt;
+        &lt;/log&gt;
+      &lt;/...&gt;
+    &lt;/logs&gt;
+    &lt;listeners&gt;
+      &lt;...&gt;
+        &lt;listener/&gt;
+        &lt;listener&gt;
+          &lt;config /&gt;
+          &lt;sslconfig /&gt;
+        &lt;listener&gt;
+      &lt;/...&gt;
+    &lt;/listeners&gt;
+    &lt;checks&gt;
+      &lt;...&gt;
+        &lt;check uuid="xxx" /&gt;
+      &lt;/...&gt;
+    &lt;/checks&gt;
+    &lt;filtersets&gt;
+      &lt;filterset name="yyy"&gt;
+        &lt;...&gt;
+      &lt;/filterset&gt;
+    &lt;/filtersets&gt;
+  &lt;/noit&gt;
+</pre>
+</div></div><br class="example-break">
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.noitd.section.logs.special"></a>Special log names</h2></div></div></div>
+  
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">check</span></dt><dd><p>
+   When a check is altered in any way (including creation),
+   the identifying attributes, including the uuid, are logged to this
+   facility.
+
+   </p><pre class="programlisting">
+   'C' TIMESTAMP UUID TARGET MODULE NAME
+   </pre><p>
+  </p></dd><dt><span class="term">status</span></dt><dd><p>
+   When a check status changes (either availability or
+   state) and neither the new state nor the old state are "unknown", it
+   is considered a state change for the check.  The new availability
+   and new state are logged to this facility.
+
+   </p><pre class="programlisting">
+   'S' TIMESTAMP UUID STATE AVAILABILITY DURATION STATUS_MESSAGE
+   </pre><p>
+  </p></dd><dt><span class="term">metrics</span></dt><dd><p>
+   Each time a check is completed, the various metrics
+   that were observed by the check are logged to this facility.  The
+   VALUE is always a string or [[null]] (never binary encoded/packed).
+   The TYPE indicates the datatype the check intended when it was
+   observed.
+
+   </p><pre class="programlisting">
+   'M' TIMESTAMP UUID NAME TYPE VALUE
+   </pre><p>
+
+   </p><div class="variablelist"><dl class="variablelist"><dt><span class="term">NAME</span></dt><dd><p>is the name of the metric
+      and the encouraged format for this is "name`subname`subsubname`etc"</p></dd><dt><span class="term">TYPE</span></dt><dd>
+       <div class="variablelist"><dl class="variablelist"><dt><span class="term">i</span></dt><dd><p>INT32</p></dd><dt><span class="term">I</span></dt><dd><p>UINT32</p></dd><dt><span class="term">l</span></dt><dd><p>INT64</p></dd><dt><span class="term">L</span></dt><dd><p>UINT64</p></dd><dt><span class="term">n</span></dt><dd><p>DOUBLE</p></dd><dt><span class="term">s</span></dt><dd><p>STRING</p></dd></dl></div>
+       </dd></dl></div><p>
+  </p>
+  </dd></dl></div>
+
+<div class="example"><a name="idm122410263072"></a><p class="title"><b>Example 5.2. Sample configuration for the log section</b></p><div class="example-contents">
+
+<pre class="programlisting">
+  &lt;logs&gt;
+    &lt;console&gt;
+      &lt;outlet name="stderr" /&gt;
+      &lt;log name="error" /&gt;
+      &lt;log name="debug" disabled="true" /&gt;
+    &lt;/console&gt;
+    &lt;log name="feed" type="jlog" path="/var/log/noitd.feed" /&gt;
+    &lt;feeds&gt;
+      &lt;outlet name="feed" /&gt;
+      &lt;log name="check" /&gt;
+      &lt;log name="metrics" /&gt;
+      &lt;log name="status"&gt;
+        &lt;outlet name="error" /&gt;
+      &lt;/log&gt;
+    &lt;/feeds&gt;
+  &lt;/logs&gt;
+</pre>
+</div></div><br class="example-break">
+
+ <p>In the above example:</p>
+ <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem"><p>
+   a &lt;console&gt; metagroup is created for the purpose of inheriting the
+   "stderr" outlet.  The logs named "error" and "debug" are
+   instantiated and inherit the "stderr" outlet.  However, "debug" is
+   disabled, so no input to the "debug" log will be written anywhere.
+   </p></li><li class="listitem"><p>
+   a log named "feed" is created of type "jlog" writing to the
+   "/var/log/noitd.feed" directory (jlogs paths are directories, whereas 
+   "file" paths are filenames).
+   </p></li><li class="listitem"><p>
+   a &lt;feeds&gt; metagroup is created for the purpose of inheriting the
+   "feed" outlet.  The logs "check," "metrics," and "status" are
+   instantiated and will log via the "feed" outlet (all writing to the
+   same jlog).  Additionally, the "status" feed is given an additional
+   outlet named "error" so we will see inputs to status in both the
+   "feed" jlog and on the console ("stderr").
+   </p></li></ul></div>
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.noitd.section.checks.special"></a>Configuring checks via configuration</h2></div></div></div>
+  
+  <p>Each check in Reconnoiter must live underneath the <code class="code">&lt;checks&gt;</code>
+  XML node located immediately beneath the root of the tree.  The XML format of the
+  configuration file is quite loose alloing arbitrary nodes with arbitrary names to be
+  added to the tree with a few reserved-word exceptions.  One reserved-word exception
+  is the <code class="code">&lt;check&gt;</code> node name.  Each check node expresses a check to
+  be performed by <span class="command"><strong>noitd</strong></span>.</p>
+
+  <p>Each check node requires a set of attributes that inform its behavior.  These
+  attributed are inheritted from parent nodes in a "leaf wins" manner. The following
+  attributes are available:</p>
+
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">uuid</span></dt><dd><p>
+  a well-formed UUID that uniquely identifies this check in the universe.
+  </p></dd><dt><span class="term">name</span></dt><dd><p>
+  a convenience name (defaultint to the <code class="code">module</code>. The combination of check
+  <code class="code">target</code> and check <code class="code">name</code> must be unique in the running instance.
+  </p></dd><dt><span class="term">module</span></dt><dd><p>
+  a module that defines what code will run the check.  Modules can be configured to load
+  at boot time.  If a module is specified here that is not avaiable in the instance,
+  an error will be logged.
+  </p></dd><dt><span class="term">target</span></dt><dd><p>
+  specified the target "host" against which the check will be performed.  If this is not
+  a valid IPv4 or IPv6 address and the domain suffix (the part trailing the last period)
+  is not on the suppression list, the target will be resolved using DNS.  Note that checks
+  can and will run with target that fails to resolve and this can be desired with a check
+  might not need an actual Internet host as a target.
+  </p></dd><dt><span class="term">period</span></dt><dd><p>
+  the number of milliseconds between invocations of the check.
+  </p></dd><dt><span class="term">timeout</span></dt><dd><p>
+  the number of milliseconds allowed for the check to complete before it is aborted.
+  </p></dd><dt><span class="term">filterset</span></dt><dd><p>
+  the name of a filterset (specified in the filtersets section) that will potentially
+  limit the submission of gathered metrics upstream to <code class="code">stratcond</code>.
+  </p></dd><dt><span class="term">resolve_rtype</span></dt><dd><p>
+  define the nature of DNS resolution: <code class="code">prefer-ipv4</code> (default) indicates
+  that IPv6 resolution should be used only if IPv4 resolution fails, <code class="code">prefer-ipv6</code>
+  indicates that IPv4 resoulution should be used only if IPv6 resolution fails,
+  <code class="code">force-ipv4</code> indicates that only IPv4 resolution should be used, and
+  <code class="code">force-ipv6</code> indicates that only IPv6 resolution should be used.
+  </p></dd></dl></div>
+  <div class="example"><a name="idm122410242432"></a><p class="title"><b>Example 5.3. Sample noitd check configuration.</b></p><div class="example-contents">
+  
+  <p>An example with http and ping_icmp check using inheritance.</p>
+  <pre class="programlisting">
+    &lt;noit&gt;
+      &lt;checks resolve_rtype="prefer-ipv4" filterset="default" period="60000" timeout="55000"&gt;
+        &lt;dc1&gt;
+          &lt;labs target="labs.omniti.com"&gt;
+            &lt;check uuid="b33451e0-2deb-11e4-b187-7cd1c3dcddf7" module="http" name="mainsite"/&gt;
+              &lt;config&gt;&lt;url&gt;http://labs.omniti.com/&lt;/url&gt;&lt;/config&gt;
+            &lt;/check&gt;
+            &lt;check&gt; uuid="e5721962-2deb-11e4-a2b4-7cd1c3dcddf7" module="ping_icmp" name="netup"/&gt;
+          &lt;/labs&gt;
+        &lt;/dc1&gt;
+        &lt;dc2 resolve_rtype="prefer-ipv6" period="30000" timeout="29000"&gt;
+          &lt;check uuid="3b26427a-2dec-11e4-8288-7cd1c3dcddf7" module="http" name="vcs" target="github.com"/&gt;
+            &lt;config&gt;&lt;url&gt;https://github.com/&lt;/url&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/dc2&gt;
+      &lt;/checks&gt;
+    &lt;/noit&gt;
+  </pre>
+  </div></div><br class="example-break">
+</div>
+
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="config.noitd.section.filtersets.special"></a>Configuring filtersets via configuration</h2></div></div></div>
+  
+  <p>Filtersets control which metrics are passed upstream. By default, if no filterset
+  is specified, all metrics collected are passed upstream. This can be a recipe for
+  disaster requiring significant cleanup if a mistake is made and millions of unique
+  metric names are pushed into a check. (e.g. someone encodes userid into a metric name).
+  </p>
+
+  <p>Filtersets consist of rules each of which is processed in order.  The first rule
+  that matches a given metric terminates the matching algorithm with a result of the type
+  of that matching rule.  If no rules match, the metric does not match and it is considered
+  a <code class="code">deny</code>.</p>
+
+  <p>Filterset rules support both regular expression (PCRE) matching and direct O(1) hash table
+  lookups on each of <code class="code">target</code>, <code class="code">module</code>, <code class="code">name</code>, and
+  <code class="code">metric</code>.  If a hash table of matches is provided, the regular expression (if any)
+  for that field is not processed at all as if it were never specified (i.e. a hash table's
+  existence circumvents regular expression matching.</p>
+
+  <p>Hash table rules can be dynamically constructed via an <code class="code">auto_add</code> attribute
+  for each field: <code class="code">target_auto_add</code>, <code class="code">module_auto_add</code>, <code class="code">name_auto_add</code>,
+  and <code class="code">metric_auto_add</code>. This field is an integer and new elements will be added to
+  the appropriate hash table if the rule fails to match and the size of the hash table does not
+  exceed the value specified in this attribute.  This can be used to automatically collect up to
+  some constrained number of metrics on a given check without knowing a priori what those metric names
+  are. This is a useful technique for preventing a aforementioned disaster condition with
+  checks that can produce arbitrary metric names. As hash tables are automatically modified due to rule
+  misses, the configuration is automatically updated and written to disk. Note: this behaviour can be confusing
+  to an operator if they are making incremental configuration changes via the console and believe they
+  are the only one capable of writing the altered configuration.</p>
+
+  <div class="example"><a name="idm122410232192"></a><p class="title"><b>Example 5.4. Sample noitd 'default' filterset configuration.</b></p><div class="example-contents">
+  
+  <p>A default filter that avoids metrics called "minimum", "maximum" and "count" on any ping_icmp check
+  and metrics called "cert_start" and "cert_end" on any http check. A filter called "score" that requires
+  metrics to contain an underscore and not being with a number.</p>
+  <pre class="programlisting">
+    &lt;noit&gt;
+      &lt;filtersets&gt;
+        &lt;filterset name="default"&gt;
+          &lt;rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$" /&gt;
+          &lt;rule type="deny" module="^http$" metric="^cert_(?:start|end)$" /&gt;
+          &lt;rule type="allow"/&gt; &lt;!-- matches anything --&gt;
+        &lt;/filterset&gt;
+        &lt;filterset name="default"&gt;
+          &lt;rule type="deny" metric="^\d"/&gt;
+          &lt;rule type="allow" metric="_"/&gt;
+          &lt;!-- if we fall off the end here, we have a default deny rule --&gt;
+        &lt;/filterset&gt;
+      &lt;/filtersets&gt;
+    &lt;/noit&gt;
+  </pre>
+  </div></div><br class="example-break">
+
+  <div class="example"><a name="idm122410229392"></a><p class="title"><b>Example 5.5. Sample noitd dynamic filterset configuration.</b></p><div class="example-contents">
+  
+  <p>A filterset called "mystatsd" that will collect up 1000 unique metrics, excluding metrics that
+  being with anything but a alpha character or are called "badmetric1" or "badmetric2"</p>
+  <pre class="programlisting">
+    &lt;noit&gt;
+      &lt;filtersets&gt;
+        &lt;filterset name="mystatsd"&gt;
+          &lt;rule type="deny" metric="^[^a-zA-Z]" /&gt;
+          &lt;rule type="deny"&gt;
+            &lt;metric&gt;badmetric1&lt;/metric&gt;
+            &lt;metric&gt;badmetric2&lt;/metric&gt;
+          &lt;/rule&gt;
+          &lt;rule type="allow" metric_auto_add="1000"/&gt;
+        &lt;/filterset&gt;
+      &lt;/filtersets&gt;
+    &lt;/noit&gt;
+  </pre>
+  </div></div><br class="example-break">
+</div>
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="config.generic.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="configuration.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="config.noitd.modules.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 4. General config structures </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 6. noitd modules</td></tr></table></div></body></html>

@@ -1,0 +1,3254 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapter 6. noitd modules</title><link rel="stylesheet" type="text/css" href="css/manual-multipage.css"><meta name="generator" content="DocBook XSL Stylesheets V1.78.1"><link rel="home" href="index.html" title="Reconnoiter"><link rel="up" href="configuration.html" title="Part II. Configuration"><link rel="prev" href="config.noitd.html" title="Chapter 5. noitd configuration"><link rel="next" href="config.stratcond.html" title="Chapter 7. stratcond"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapter 6. noitd modules</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="config.noitd.html">Prev</a> </td><th width="60%" align="center">Part II. Configuration</th><td width="20%" align="right"> <a accesskey="n" href="config.stratcond.html">Next</a></td></tr></table><hr></div><div class="chapter"><div class="titlepage"><div><div><h2 class="title"><a name="config.noitd.modules"></a>Chapter 6. noitd modules</h2></div></div></div><div class="toc"><p><b>Table of Contents</b></p><dl class="toc"><dt><span class="section"><a href="config.noitd.modules.html#idm122422715536">check_test</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410216448">collectd</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410173264">custom_config</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410165104">dns</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410097168">external</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122410028688">ganglia</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409995296">httptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409953744">ip_acl</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409945136">lua</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409928512">mysql</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409906832">cloudwatch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409837760">dhcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409798400">haproxy</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409748400">http</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409608400">imap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409523696">jezebel</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409499616">keynote</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409452656">keynote</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409417904">memcached</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409417520">monit</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122440049264">munin</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425615488">nginx</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425579312">nrpe</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425547568">ntp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425524880">pop3</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425465696">redis</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425429520">elasticsearch</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122425406704">resmon</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409316944">smtp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122409193888">tcp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426884720">varnish</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426973648">ping_icmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122427001424">postgres</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426979888">selfcheck</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426272160">snmp</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426219280">snmptrap</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426311248">ssh2</a></span></dt><dt><span class="section"><a href="config.noitd.modules.html#idm122426817456">statsd</a></span></dt></dl></div>
+  
+  <div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122422715536"></a>check_test</h2></div></div></div>
+  
+  <p>
+            This module exposes an API endpoint to 
+            allow users to run a check once in transient mode to 
+            return the results inline back to the client.
+        </p>
+  <p>
+            The check runs once however it behaves almost exactly like a /check/set</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>check_test.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122422677216"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122422447840"></a><p class="title"><b>Example 6.1. Loading the check_test module.</b></p><div class="example-contents">
+      
+      <p>This example loads the check_test module.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="check_test" name="check_test" /&gt;
+        &lt;/modules&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122411770832"></a>REST Endpoint</h3></div></div></div>
+    
+    
+    <div class="section"><div class="titlepage"><div><div><h4 class="title"><a name="idm122410225712"></a>/checks/test</h4></div></div></div>
+      
+      <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd>
+            <p>
+              <code class="code">POST</code>
+            </p>
+          </dd><dt><span class="term">uri</span></dt><dd>
+            <p>
+              <code class="code">/checks/test</code>
+            </p>
+          </dd></dl></div>
+      <p>
+                This call accepts a document describing a check.  In the same request, the check will  
+                execute and return the results back to the user.  The check passes through the same validation
+                as the /check/set PUT REST call.  The check is marked as transient and won't appear 
+                in any persistent log streams.
+            </p>
+      <p>
+                On success, a HTTP 200 is returned and an XML documented that matches the
+                format of the <code class="code">/check/show</code> REST command. It is a simpler set of
+                output as some of the results wouldn't make sense in this context.
+            </p>
+      <div class="example"><a name="idm122410218160"></a><p class="title"><b>Example 6.2. REST /checks/test XML input.</b></p><div class="example-contents">
+        
+        <pre class="programlisting">
+&lt;?xml version="1.0" encoding="utf8"?&gt;
+&lt;check&gt;
+  &lt;attributes&gt;
+    &lt;name&gt;http&lt;/name&gt;
+    &lt;module&gt;http&lt;/module&gt;
+    &lt;target&gt;8.8.38.5&lt;/target&gt;
+    &lt;period&gt;60000&lt;/period&gt;
+    &lt;timeout&gt;5000&lt;/timeout&gt;
+    &lt;filterset&gt;default&lt;/filterset&gt;
+  &lt;/attributes&gt;
+  &lt;config&gt;
+    &lt;code&gt;200&lt;/code&gt;
+    &lt;url&gt;https://labs.omniti.com/&lt;/url&gt;
+  &lt;/config&gt;
+&lt;/check&gt;
+    </pre>
+      </div></div><br class="example-break">
+    </div>
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410216448"></a>collectd</h2></div></div></div>
+  
+  <p>The collectd module provides collectd support for Reconnoiter.  The collectd modules listens on a UDP port and waits for metrics to come from a collectd agent. It also provides support for signing and encrypting metrics from the collectd agent, which is supported in version 4.7.0 and above.  Only one is supported per target.</p>
+  <p>Additionally, this module registers a REST handler to support collectd's write_http output plugin.  This exposes a REST endpoint at /module/collectd.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>collectd.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410210720"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">collectd_port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>25826</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port which collectd packets are received</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">notifications</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>options</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|on|false|off)</p>
+              </dd></dl></div>
+          <p>Specify whether collectd notifications are acted upon.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410195952"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">security_level</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">username</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The collectd username for authenticating signed and encrypted packets. Also the username used for HTTP authentication when using the write_http ingestion method.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">secret</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410177712"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122410177072"></a><p class="title"><b>Example 6.3. Simple encrypted passive checking.</b></p><div class="example-contents">
+      
+      <p>The following example allows a collectd agent to send any metric to the noit
+      system.  In this example the collectd agent must be version 4.7.0 to support encryption 
+      and must be configured with parameters similar to the ones below.  Like the snmptrap 
+      module the collectd disregards the timeout value completely, but uses the period to
+      batch all the checks in one commit.  If there are &gt;1 metrics within the period the
+      check is marked as G and A for state and availability respectively.  The first program
+      listing shows a collectd configuration and the second listing shows the corresponding
+      check configuration in reconnoiter.</p>
+      <pre class="programlisting">
+      &lt;Plugin network&gt;
+        &lt;Server "127.0.0.1" "25826"&gt;
+          SecurityLevel "encrypt"
+          Username "us3rname"
+          Password "s3cr3t"
+        &lt;/Server&gt;
+      &lt;/Plugin&gt;
+
+      &lt;Plugin write_http&gt;
+        &lt;URL "https://127.0.0.1:43191/module/collectd/"&gt;
+          User "us3rname"
+          Password "s3cr3t"
+          VerifyPeer false
+          VerifyHost false
+          CACert "/etc/ssl/ca.crt"
+          Format "JSON"
+          StoreRates false
+        &lt;/URL&gt;
+      &lt;/Plugin&gt;
+      </pre>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="collectd" name="collectd"&gt;
+            &lt;config&gt;
+              &lt;username&gt;us3rname&lt;/username&gt;
+              &lt;secret&gt;s3cr3t&lt;/secret&gt;
+              &lt;security_level&gt;2&lt;/security_level&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="collectd"
+                 target="127.0.0.1" period="60000" timeout="30000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410173264"></a>custom_config</h2></div></div></div>
+  
+  <p>
+          Allows config options to be namespaced into "custom"
+        </p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>custom_config.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410168224"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122410167584"></a><p class="title"><b>Example 6.4. Loading the custom_config module.</b></p><div class="example-contents">
+      
+      <p>This example loads the custom_config module and creates a
+             keyname=valuename config setting.
+             </p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="custom_config" name="custom_config" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config xmlns:custom="noit://module/custom"&gt;
+            &lt;custom:keyname&gt;valuename&lt;/custom:keyname&gt;
+          &lt;/config&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410165104"></a>dns</h2></div></div></div>
+  
+  <p>The dns module leverages libudns to allow highly concurrent DNS lookups of a variety of DNS RR types.  In the event that you name a dns check <em class="parameter"><code>in-addr.arpa</code></em> with an rtype of <em class="parameter"><code>PTR</code></em>, the result of the query may be used throughout reconnoiter as the identifying hostname of that target.</p>
+  <p>This module provides the <code class="function">inaddrarpa</code> interpolation method which will reverse a dot-delimited IP address.  This is particularly useful for constructing in-addr.arpa queries, but also used for checking blacklists, whitelists and other IP-based DNS databases.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>dns.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410157872"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">contexts</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>1024</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The maximum number of contexts to spawn per nameserver.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410149088"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">nameserver</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>%[target_ip] or determined from underlying system</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The domain name server to query. If the name of the check is in-addr.arpa, the system default nameserver is used.  Otherwise, the nameserver is the %[target_ip] of the the check.  If set to the string "default" the underlying system default nameserver is used.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>53</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port on which the remote server's DNS service is running.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ctype</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>IN</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(IN|CH|HS)</p>
+              </dd></dl></div>
+          <p>The DNS class of the query. IN: Internet, CH: Chaos, HS: Hesoid.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">rtype</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>A|PTR</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(A|AAAA|TXT|MX|SOA|CNAME|PTR|NS|MB|MD|MF|MG|MR)</p>
+              </dd></dl></div>
+          <p>The DNS resource record type of the query.  If the name of the check is in-addr.arpa, the default is PTR, otherwise it is A.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">query</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>%[name]|%[:inaddrarpa:target_ip]</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The query to send.  If the name of the check is in-addr.arpa, the reverse IP octet notation of in-addr.arpa syntax is synthesized by default.  Otherwise the default query is the name of the check itself.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">want_sort</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(true|false|on|off)</p>
+              </dd></dl></div>
+          <p>Sorts (strcmp) the answers if multiple RRs are returned in the result set.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410102272"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122410101632"></a><p class="title"><b>Example 6.5. Establishing PTR records for hosts.</b></p><div class="example-contents">
+      
+      <p>The following established names for targets 10.1.2.{3,4,5,6} using the local nameserver (10.1.2.2) that provides service for that network.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="dns" name="dns"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config&gt;
+            &lt;nameserver&gt;10.1.2.2&lt;/nameserver&gt;
+          &lt;/config&gt;
+          &lt;ptr module="dns" name="in-addr.arpa"&gt;
+            &lt;check uuid="2cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" target="10.1.2.3"/&gt;
+            &lt;check uuid="2dd79110-76ff-11dd-9b54-739adc274a93" target="10.1.2.4"/&gt;
+            &lt;check uuid="5627560a-76ff-11dd-941f-4b75679cb908" target="10.1.2.5"/&gt;
+            &lt;check uuid="5fdcb8de-76ff-11dd-ae16-2740afc178ae" target="10.1.2.6"/&gt;
+          &lt;/ptr&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+    <div class="example"><a name="idm122410099248"></a><p class="title"><b>Example 6.6. Checking labs.omniti.com.</b></p><div class="example-contents">
+      
+      <p>The following checks the DNS server residing at 66.225.209.4 for the A record of labs.omniti.com.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="dns" name="dns"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;ns1 module="dns" target="66.225.209.4"&gt;
+            &lt;check uuid="3cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" name="labs.omniti.com"/&gt;
+          &lt;/ns1&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410097168"></a>external</h2></div></div></div>
+  
+  <p>The external module performs checks via external processes like more traditional monitoring systems.  While this approach is far less efficient and does not scale well on a single system, it provides easier transition from existing monitoring systems.  Checks should exit normally with an exit status of 0 for success, 1 or 2 for failure and 3 for unknown.  Exiting with a status of 3 is highly discouraged.  The standard output is provided as the status of the check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>external.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410091456"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The user under which the external checks should be executed.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">group</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The group under which the external checks should be executed.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">path</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>/</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The path under which all external commands to be executed will be located. Commands outside of this path will not be executed.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">nagios_regex</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>\'?(?&lt;key&gt;[^'=\s]+)\'?=(?&lt;value&gt;-?[0-9]+(\.[0-9]+)?)(?&lt;uom&gt;[a-zA-Z%]+)?(?=[;,\s])</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The default regular expression with which to parse Nagios data. Named values are "key", "value", and "uom" (unit of measurement)</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410063088"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">command</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The path to the command to be executed.  This is the first argument to the execve system call.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">arg0</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The program name.  If not specified, it is derived from the command argument. Normal interpolation rules apply.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">arg\d+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The arguments to the program.  The external module will start with arg1 and increment collecting arguments until argN is not found.  Normal interpolation rules apply.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">env_\S+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>These parameters allow the setting of environment variables for the command execution.  The text following env_ is the key and the parameter value is the value of the environment variable to be set via execve.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">output_extract</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This is a regular expression that is globally applied to the stdout of the command.  Each match is turned into a metric. It is a requirement to used named capturing in the regular expression where "key" is the named match of the metric name and "value" is the named match for the matric value.  A sample for extracting performance data from Nagios commands would be: (?&lt;key&gt;\S+)=(?&lt;value&gt;[^;\s]+)(?=[;\s]). "NAGIOS" may also be specified as a value, which will configure the external check to do Nagios parsing based on the nagios_regex module configuration parameter.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410031840"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122410031200"></a><p class="title"><b>Example 6.7. Checking a service via the /path/to/check_foo command.</b></p><div class="example-contents">
+      
+      <p>The hypothetical check_foo command takes a target host with the -H parameter, runs a check and returns its health via exit code and stdout. We set the environment variable QUUX to the value BAZ.  The check is against host 10.10.2.2.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="external" name="external"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1e8edc38-0d88-11de-93ee-af2195eab5d5"
+                 module="external" name="foo" target="10.10.2.2"&gt;
+            &lt;config&gt;
+              &lt;command&gt;/path/to/check_foo&lt;/command&gt;
+              &lt;arg1&gt;-H&lt;/arg1&gt;
+              &lt;arg2&gt;%[target]&lt;/arg2&gt;
+              &lt;env_QUUX&gt;BAZ&lt;/env_QUUX&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122410028688"></a>ganglia</h2></div></div></div>
+  
+  <p>The Ganglia module provides Ganglia support for Reconnoiter.  The ganglia modules joins a multicast group and waits for metrics to come from a gmond agent.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>ganglia.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122410023568"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">multiaddr</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>239.2.11.71</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The address of the multicast group from which which ganglia packets are received</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>8946</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port of the multicast group from which which ganglia packets are received</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">multiaddr6</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The address of the ipv6 multicast group from which which ganglia packets are received</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port6</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port of the ipv6 multicast group from which which ganglia packets are received</p>
+        </dd></dl></div>
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409995296"></a>httptrap</h2></div></div></div>
+  
+  <p>The httptrap module provides a simple way to push data into reconnoiter from other applications.  Simply structure a json document and use the PUT method against reconnoiter's psuedo-webserver on port 43191.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>httptrap.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409990112"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">asynch_metrics</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|on|false|off)</p>
+              </dd></dl></div>
+          <p>Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409981232"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">asynch_metrics</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|on|false|off)</p>
+              </dd></dl></div>
+          <p>Specify whether httptrap metrics are logged immediately or help until the status message is to be emitted.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">secret</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specify the secret with which metrics may be submitted.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">delimiter</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>`</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^.$</p>
+              </dd></dl></div>
+          <p>Specify the delimiter used when flattening metric nmes from the JSON hierarchy.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409957888"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409957248"></a><p class="title"><b>Example 6.8. Posting a string and a number.</b></p><div class="example-contents">
+      
+      <p>
+        <code class="code">curl -X PUT https://noit:43191/module/httptrap/1b4e28ba-2fa1-11d2-893f-e9b761bde3fb/s3cr3tk3y</code>
+      </p>
+      <p>PUT payload:</p>
+      <pre class="programlisting">
+      { "version": "1.alpha",
+        "requests": 123853,
+        "bignumber": { "_type": "L", "_value": "18426744073707551616" }
+      }
+      </pre>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="httptrap" name="httptrap"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="httptrap"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;secret&gt;s3cr3tk3y&lt;/secret&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409953744"></a>ip_acl</h2></div></div></div>
+  
+  <p>
+          This module exposes hooks the pre-flight execution of
+          checks and applies user-specified ACLs to possible
+          prevent the execution of the check.
+        </p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>ip_acl.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409948416"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409947776"></a><p class="title"><b>Example 6.9. Loading the ip_acl module.</b></p><div class="example-contents">
+      
+      <p>This example loads the ip_acl module and creates a "global" ACL that denies
+             any check running against the host 4.2.2.1 and the entier 10.0.0.0 RFC1819 space.
+             </p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="ip_acl" name="ip_acl" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;config xmlns:ip_acl="noit://module/ip_acl"&gt;
+            &lt;ip_acl:global/&gt;
+          &lt;/config&gt;
+        &lt;/checks&gt;
+        &lt;acls&gt;
+          &lt;acl name="global"&gt;
+            &lt;rule type="deny"&gt;4.2.2.1/32&lt;/rule&gt;
+            &lt;rule type="deny"&gt;10.0.0.0/8&lt;/rule&gt;
+          &lt;/acl&gt;
+        &lt;/acls&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409945136"></a>lua</h2></div></div></div>
+  
+  <p>The lua module is a loader that allows the authoring of checks in Lua.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>lua.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409939920"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">directory</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>/install/prefix/modules-lua/?.lua</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This is the lua load path.  See the lua manual for more details on meaning and syntax.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409931216"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409930480"></a><p class="title"><b>Example 6.10. Loading the lua loader.</b></p><div class="example-contents">
+      
+      <p>This example loads the lua VM and registers it as a module loader.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="lua" name="lua"&gt;
+            &lt;config&gt;
+              &lt;directory&gt;/some/other/path/?.lua&lt;/directory&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409928512"></a>mysql</h2></div></div></div>
+  
+  <p>The mysql module allows queries to be performaed against targets as checks.  The results of the query are used as metrics.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>mysql.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409923264"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">dsn</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The connect string for MySQL.  The syntax of this string is explained in the PostgreSQL documentation. See Database Connection Control Functions. The MySQL-specific behavior is explained in the mysql_real_connect documentation.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sql</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The query that will be executed.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409910112"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409909472"></a><p class="title"><b>Example 6.11. Tracking MySQL database sizes.</b></p><div class="example-contents">
+      
+      <p>This will track the sizes of all databases on 10.225.209.35 and 10.225.209.56. We will connect to the mysql database as the user "noit" with password "noit." We only run this check every 5 minutes.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="mysql" name="mysql"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;databases&gt;
+            &lt;mysql module="mysql" period="300000"&gt;
+              &lt;config&gt;
+                &lt;dsn&gt;host=%[target] dbname=%[name] user=noit password=noit&lt;/dsn&gt;
+                &lt;sql&gt;select table_schema "dbname", sum( data_length + index_length ) "size" from information_schema.tables group by table_schema&lt;/sql&gt;
+              &lt;/config&gt;
+              &lt;check uuid="8c5ca46c-77d7-11dd-ab5b-53bc639517d6" target="10.225.209.35"/&gt;
+              &lt;check uuid="90b8aea2-77d7-11dd-8447-0f281e6a48eb" target="10.225.209.56"/&gt;
+            &lt;/mysql&gt;
+          &lt;/databases&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409906832"></a>cloudwatch</h2></div></div></div>
+  
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.cloudwatch</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409902128"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>https://monitoring.amazonaws.com</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname for the Cloudwatch monitoring server.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">api_key</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The AWS API Key</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">api_secret</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The AWS API Secret</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">namespace</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The namespace to pull parameters from</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">cloudwatch_metrics</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A comma-delimited list of metrics to pull data for</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">granularity</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>5</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>1|5</p>
+              </dd></dl></div>
+          <p>The granularity of cloudwatch data to pull - one or five minutes</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">statistics</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>Average</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A comma-delimited list of statistics to pull per metric (Choices are: Average, Sum, SampleCount, Maximum, Minimum - "Default" may also be specified to pull recommended values)</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">version</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>2010-08-01</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The version of the Cloudwatch API to use.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">dim_.+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The dimensions to query for each metric. dim_foo will set a metric with dimension "foo".</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409901872"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409840464"></a><p class="title"><b>Example 6.12. Checking Cloudwatch data</b></p><div class="example-contents">
+      
+      <p>This example checks some Cloudwatch data</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="cloudwatch" object="noit.module.cloudwatch"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="cloudwatch" period="300000" target="176.32.99.241"&gt;
+            &lt;api_key&gt;this_is_a_dummy_key&lt;/api_key&gt;
+            &lt;api_secret&gt;this_is_a_dummy_secret&lt;/api_secret&gt;
+            &lt;namespace&gt;AWS/EC2&lt;/namespace&gt;
+            &lt;cloudwatch_metrics&gt;CPUUtilization&lt;/cloudwatch_metrics&gt;
+            &lt;statistics&gt;Average,Sum&lt;/statistics&gt;
+            &lt;dim_InstanceId&gt;dummyInstance&lt;/dim_InstanceId&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409837760"></a>dhcp</h2></div></div></div>
+  
+  <p>DHCP metrics check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.dhcp</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409832704"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">send_port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>67</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port to send DHCP request packets to</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">hardware_addr</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>00:00:00:00:00:00</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The hardware address of the host computer</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">host_ip</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0.0.0.0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The IP address of the host computer</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">request_type</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>1</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:1|8)</p>
+              </dd></dl></div>
+          <p>The type of DHCP request message to send</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409801328"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409800688"></a><p class="title"><b>Example 6.13. Checking DHCP connection.</b></p><div class="example-contents">
+      
+      <p>This example checks DHCP connection</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="dhcp" object="noit.module.dhcp" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+            &lt;check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="dhcp"&gt;
+              &lt;config&gt;
+                &lt;hardware_addr&gt;00:00:00:00:00:00&lt;/hardware_addr&gt;
+                &lt;host_ip&gt;10.80.1.2&lt;/host_ip&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409798400"></a>haproxy</h2></div></div></div>
+  
+  <p>Monitor management metrics of a haproxy instance.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.haproxy</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409793024"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">uri</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>/admin?stats;csv</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^/.+</p>
+              </dd></dl></div>
+          <p>
+      The URL excluding schema and hostname for the haproxy stats CSV export.
+      eg /admin?stats;csv
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">host</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>
+      Host name to include in HTTP request, defaults to target IP
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>80</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^[0-9]+$</p>
+              </dd></dl></div>
+          <p>
+      Port to connect to
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">select</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>.*</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>
+      Specifies a regular expression to pick which metrics to report. Will be matched
+      against the pxname and svname columns concatenated by a ","
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>[^:]*</p>
+              </dd></dl></div>
+          <p>
+      The user to authenticate as.
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.*</p>
+              </dd></dl></div>
+          <p>
+      The password to use during authentication.
+    </p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409751424"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409750784"></a><p class="title"><b>Example 6.14. Monitor two haproxy instances</b></p><div class="example-contents">
+      
+      <p>The following example pulls all metrics available from haproxy running on 10.1.2.3 and 10.1.2.4</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="haproxy" object="noit.module.haproxy"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="haproxy" target="10.1.2.3" /&gt;
+          &lt;check uuid="324c2234-7c7a-11dd-8585-cbb783f8267f" module="haproxy" target="10.1.2.4" /&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409748400"></a>http</h2></div></div></div>
+  
+  <p>The http module performs GET requests over either HTTP or HTTPS and checks the return code and optionally the body.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.http</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409743184"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">header_(\S+)</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Allows the setting of arbitrary HTTP headers in the request.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>GET</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\S+</p>
+              </dd></dl></div>
+          <p>The HTTP method to use.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">payload</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.*</p>
+              </dd></dl></div>
+          <p>The information transferred as the payload of an HTTP request.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_method</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:Basic|Digest|Auto)$</p>
+              </dd></dl></div>
+          <p>HTTP Authentication method to use.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>[^:]*</p>
+              </dd></dl></div>
+          <p>The user to authenticate as.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.*</p>
+              </dd></dl></div>
+          <p>The password to use during authentication.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">code</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>^200$</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The HTTP code that is expected.  If the code received does not match this regular expression, the check is marked as "bad."</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">redirects</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The maximum number of Location header redirects to follow.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">body</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This regular expression is matched against the body of the response. If a match is not found, the check will be marked as "bad."</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">body_match_*</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This regular expression is matched against the body of the response. If a match is found it is captured and added as a metric. For example, if setting is named 'body_match_foo_bar' and a match is found new metric called 'foo_bar' will be added.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">extract</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This regular expression is matched against the body of the response globally.  The first capturing match is the key and the second capturing match is the value.  Each key/value extracted is registered as a metric for the check.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">pcre_match_limit</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>10000</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>This sets the PCRE internal match limit (see pcreapi documentation).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">include_body</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Include whole response body as a metric with the key 'body'.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">read_limit</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Sets an approximate limit on the data read (0 means no limit).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">http_version</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>1.1</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(\d+\.\d+)?$</p>
+              </dd></dl></div>
+          <p>Sets the HTTP version for the check to use.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409742384"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409610896"></a><p class="title"><b>Example 6.15. Checking an HTTP and HTTPS URL.</b></p><div class="example-contents">
+      
+      <p>This example checks the OmniTI Labs website over both HTTP and HTTPS.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="http" object="noit.module.http" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;labs target="8.8.38.5" module="http"&gt;
+            &lt;check uuid="fe3e984c-7895-11dd-90c1-c74c31b431f0" name="http"&gt;
+              &lt;config&gt;&lt;url&gt;http://labs.omniti.com/&lt;/url&gt;&lt;/config&gt;
+            &lt;/check&gt;
+            &lt;check uuid="1ecd887a-7896-11dd-b28d-0b4216877f83" name="https"&gt;
+              &lt;config&gt;&lt;url&gt;https://labs.omniti.com/&lt;/url&gt;&lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/labs&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409608400"></a>imap</h2></div></div></div>
+  
+  <p>IMAP metrics check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.imap</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409603200"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The IMAP user.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The IMAP password.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">folder</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>INBOX</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The folder that should be examined.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">search</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specify an optional IMAP SEARCH operation to execute after EXAMINE</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">fetch</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|false|on|off)</p>
+              </dd></dl></div>
+          <p>Fetch either that highest UID or last SEARCH result.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">use_ssl</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Upgrade TCP connection to use SSL.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validat
+e the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote serv
+er (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for S
+SL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">header_Host</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The host header to validate against the SSL certificate (for SSL checks).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409602944"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409525360"></a><p class="title"><b>Example 6.16. Checking IMAP connection.</b></p><div class="example-contents">
+      
+      <p>This example checks IMAP connection with and without SSL.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="imap" object="noit.module.imap" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;imaps target="10.0.7.2" module="imap" period="10000" timeout="5000"&gt;
+            &lt;check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="imap"&gt;
+              &lt;config&gt;
+                &lt;port&gt;143&lt;/port&gt;
+                &lt;auth_user&gt;bob&lt;/auth_user&gt;
+                &lt;auth_password&gt;bob&lt;/auth_password&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+            &lt;check uuid="a18659c2-add8-11de-bd01-7ff0e1a67246" name="imaps"&gt;
+              &lt;config&gt;
+                &lt;port&gt;993&lt;/port&gt;
+                &lt;auth_user&gt;bob&lt;/auth_user&gt;
+                &lt;auth_password&gt;bob&lt;/auth_password&gt;
+                &lt;use_ssl&gt;true&lt;/use_ssl&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/imaps&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409523696"></a>jezebel</h2></div></div></div>
+  
+  <p>The jezebel module performs services checks against jezebel and simplifies its special-case Resmon output.</p>
+  <p><a class="ulink" href="https://labs.omniti.com/trac/resmon" target="_top"><em class="citetitle">Resmon</em></a> is a light-weight resource monitor that exposes health of services over HTTP in XML.</p>
+  <p>This module rides on the http module and provides a secondary phase of XML parsing on the contents that extracts Resmon status messages into metrics that can be trended.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.jezebel</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409516512"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>&gt;A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409509424"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">.+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.*</p>
+              </dd></dl></div>
+          <p>All check config values are passed through to jezebel for execution.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409502672"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409502032"></a><p class="title"><b>Example 6.17. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
+      
+      <p>This example checks the Resmon service on OmniTI Labs.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;jezebel&gt;
+            &lt;config&gt;
+              &lt;url&gt;http://127.0.0.1:8083/dispatch&lt;/url&gt;
+            &lt;/config&gt;
+            &lt;module loader="lua" name="com.omniti.jezebel.SampleCheck"
+                    object="noit.module.jezebel"/&gt;
+          &lt;/jezebel&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;labs target="8.8.38.5" module="com.omniti.jezebel.SampleCheck"&gt;
+            &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de"/&gt;
+          &lt;/labs&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409499616"></a>keynote</h2></div></div></div>
+  
+  <p>The keynote module fetches telemetry from Keynote(TM) API calls.</p>
+  <p>This module rides on the http module and provides a secondary phase of JSON parsing transformation that turns the Keynote data into something useful.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.keynote</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409493792"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">base_url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>https://api.keynote.com/keynote/api/</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">api_key</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The Keynote-issued API access key.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">transpagelist</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+(?:,\d+)*</p>
+              </dd></dl></div>
+          <p>A list of pages.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">pagecomponent</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.</p>
+              </dd></dl></div>
+          <p>Page component ID.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">slotid_list</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+(?:,\d+)*</p>
+              </dd></dl></div>
+          <p>A list of Keynote slot ids.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">slot_alias_(\d+)</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A human readable alias for a given slot id.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409455712"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409455072"></a><p class="title"><b>Example 6.18. Checking Keynote services.</b></p><div class="example-contents">
+      
+      <p>This example checks two slots: 10 and 11.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="keynote" object="noit.module.keynote"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;keynote target="api.keynote.com" module="keynote"&gt;
+            &lt;config&gt;
+              &lt;api_key&gt;917c1660-5136-11e3-afd7-7cd1c3dcddf7&lt;/api_key&gt;
+            &lt;/config&gt;
+            &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de" period="300000"&gt;
+              &lt;config&gt;
+                &lt;slotid_list&gt;10,11&lt;/slotid_list&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/keynote&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409452656"></a>keynote</h2></div></div></div>
+  
+  <p>The keynote module fetches telemetry from Keynote(TM) Pulse API.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.keynote_pulse</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409447392"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">base_url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>https://datapulse.keynote.com/</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The Keynote-issued Pulse API username.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The Keynote-issued Pulse API password.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">agreement_id</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The Keynote-issued agreement_id for the service.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409421024"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409420384"></a><p class="title"><b>Example 6.19. Checking Keynote services.</b></p><div class="example-contents">
+      
+      <p>This example checks agreement_id: 1.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="keynote_pulse" object="noit.module.keynote_pulse"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;keynote target="datapulse.keynote.com" module="keynote_pulse"&gt;
+            &lt;config&gt;
+              &lt;user&gt;bob&lt;/user&gt;
+              &lt;password&gt;bobspassword&lt;/password&gt;
+            &lt;/config&gt;
+            &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de" period="300000"&gt;
+              &lt;config&gt;
+                &lt;agreement_id&gt;1&lt;/agreement_id&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/keynote&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409417904"></a>memcached</h2></div></div></div>
+  
+  <p>Monitor memcache usage metrics.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.memcached</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409412640"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>11211</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the memcache interface can be reached.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409403872"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409403232"></a><p class="title"><b>Example 6.20. Monitor two memcache instances with management on port 11211</b></p><div class="example-contents">
+      
+      <p>The following example pulls all metrics available from memcached running on 10.1.2.3 and 10.1.2.4 using standard port</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="memcached" object="noit.module.memcached"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="memcached" target="10.1.2.3" /&gt;
+          &lt;check uuid="324c2234-7c7a-11dd-8585-cbb783f8267f" module="memcached" target="10.1.2.4" /&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409417520"></a>monit</h2></div></div></div>
+  
+  <p>The Monit module parses XML data from the Monit service and returns the values as metrics.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.monit</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409395552"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port on which the Monit server is running.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">read_limit</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Sets an approximate limit on the data read (0 means no limit).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">header_(\S+)</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Allows the setting of arbitrary HTTP headers in the request.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The Monit user</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The Monit password</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122467857680"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122467773136"></a><p class="title"><b>Example 6.21. Checking Monit services on localhost</b></p><div class="example-contents">
+      
+      <p>This example checks the Monit service on localhost.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="monit" object="noit.module.monit"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check target="127.0.0.1" module="monit" name="monit" uuid="a524f3fb-f60c-434f-98a4-060ab42e1b7d" period="10000" timeout="5000"&gt;
+            &lt;config&gt;
+              &lt;url&gt;http://127.0.0.1:2812/_status?format=xml&lt;/url&gt;
+              &lt;port&gt;2812&lt;/port&gt;
+              &lt;auth_user&gt;admin&lt;/auth_user&gt;
+              &lt;auth_password&gt;monit&lt;/auth_password&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122440049264"></a>munin</h2></div></div></div>
+  
+  <p>Monitor metrics exposed by a munin-node instance.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.munin</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425136896"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>4949</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">plugins</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of space separated plugins from which to fetch metrics. If not specified, a list will be retrieved from the munin node.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425618400"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425617760"></a><p class="title"><b>Example 6.22. Monitor a node running munun-node</b></p><div class="example-contents">
+      
+      <p>The following example pulls all munin metrics from 10.1.2.3 and just "processes" metrics from 10.1.2.4</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="munin" object="noit.module.munin"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="535cc224-9f66-11df-b198-8b094b17808a" module="munin" target="10.1.2.3" /&gt;
+          &lt;check uuid="5acce980-9f66-11df-8027-ebfe9d8b53e1" module="munin" target="10.1.2.4"&gt;
+            &lt;config&gt;&lt;plugins&gt;processes&lt;/plugins&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425615488"></a>nginx</h2></div></div></div>
+  
+  <p>The nginx module gathers information from the nginx stub_status module</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.nginx</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425610624"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname for the status output from nginx.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425582400"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425581760"></a><p class="title"><b>Example 6.23. Monitor an nginx server with a status page available at http://10.1.2.3/nginx_status</b></p><div class="example-contents">
+      
+      <p>The following example pulls metrics from Nginx's status module (http://wiki.nginx.org/HttpStubStatusModule) from http://10.1.2.3/nginx_status</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="nginx" object="noit.module.nginx"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+         &lt;check uuid="CAC1A58F-1670-4F71-8D15-21461D3F6624" name="nginx_10123" module="nginx" target="10.1.2.3"&gt;
+           &lt;config&gt;
+             &lt;url&gt;http://10.1.2.3/nginx_status&lt;/url&gt;
+           &lt;/config&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425579312"></a>nrpe</h2></div></div></div>
+  
+  <p>Nagios NRPE (v2) check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.nrpe</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425574448"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">use_ssl</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Upgrade TCP connection to use SSL.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">command</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Command to run on the remote node.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">append_uom</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|false|on|off)</p>
+              </dd></dl></div>
+          <p>If the value comes back with a unit of measure, append it to the metric name.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425550448"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425549808"></a><p class="title"><b>Example 6.24. Checking load via NRPE.</b></p><div class="example-contents">
+      
+      <p>This check runs check_load on the remote host.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="nrpe" object="noit.module.nrpe" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="load"
+                 target="10.0.7.2" module="nrpe" period="10000" timeout="5000"&gt;
+            &lt;config&gt;&lt;comand&gt;check_load&lt;/command&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425547568"></a>ntp</h2></div></div></div>
+  
+  <p>Determine clock skew from an NTP source.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.ntp</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425542704"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>123</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port to which we will attempt to speak NTP.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">control</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>^false$</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|on|false|off)$</p>
+              </dd></dl></div>
+          <p>Use the NTP control protocol to learn about the other end.  If thise ois not true/on, then this check will determine the NTP telemetry of the target relative to the agent's local time.  If it is true/on, then the agent will request the NTP telemetry of the target regarding it's preferred peer.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425527648"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425527008"></a><p class="title"><b>Example 6.25. Monitor an NTP service</b></p><div class="example-contents">
+      
+      <p>The following example monitors an NTP services on 10.1.2.3.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="ntp" object="noit.module.ntp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="4ee1a1e2-1e60-11df-8e99-bf796ca462ef" module="ntp" target="10.1.2.3" period="60000" timeout="5000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425524880"></a>pop3</h2></div></div></div>
+  
+  <p>POP3 metrics check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.pop3</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425520016"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The POP3 user.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">auth_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The POP3 password.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">use_ssl</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Upgrade TCP connection to use SSL.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validat
+e the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote serv
+er (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for S
+SL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">expected_certificate_name</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The expected certificate name to validate against the SSL certificate (for SSL checks).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425519760"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425468064"></a><p class="title"><b>Example 6.26. Checking POP3 connection.</b></p><div class="example-contents">
+      
+      <p>This example checks the POP connection.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="imap" object="noit.module.pop3" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check target="10.0.7.2" module="pop3" name="pop3" uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" period="10000" timeout="5000"&gt;
+            &lt;config&gt;
+              &lt;port&gt;110&lt;/port&gt;
+              &lt;auth_user&gt;bob&lt;/auth_user&gt;
+              &lt;auth_password&gt;bob&lt;/auth_password&gt;
+              &lt;use_ssl&gt;false&lt;/use_ssl&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425465696"></a>redis</h2></div></div></div>
+  
+  <p>Redis check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.redis</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425460832"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>6379</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>
+        Specifies the port on which redis is running.
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">command</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>INFO</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>
+        Command to send to redis server.
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">dbindex</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>
+        Index of the database the command will run against
+    </p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>
+        Auth password for redis
+    </p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425432272"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425431632"></a><p class="title"><b>Example 6.27. Checking Redis</b></p><div class="example-contents">
+      
+      <p>This example checks Redis by issuing the INFO command</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="redis" object="noit.module.redis" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="052852f2-fd09-4751-8889-a313a70c3c9c" module="redis" target="127.0.0.1" /&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425429520"></a>elasticsearch</h2></div></div></div>
+  
+  <p>The elasticsearch module pulls JSON stats from Elasticsearch</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.resmon</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425424576"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>http:///_nodes/_local/stats?os=true&amp;process=true&amp;fs=true</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>9200</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The TCP port can be specified to overide the default of 9200.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425409504"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122425408864"></a><p class="title"><b>Example 6.28. Checking elasticsearch services on a node es1.int.foo_</b></p><div class="example-contents">
+      
+      <p>This example checks the Elasticsearch service on the es1.int.foo_ node.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="elasticsearch" object="noit.module.resmon"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;es target="es1.int.foo_" module="elasticsearch"&gt;
+            &lt;check uuid="2503f08c-7a0f-11e3-9ba0-7cd1c3dcddf7"/&gt;
+          &lt;/es&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122425406704"></a>resmon</h2></div></div></div>
+  
+  <p>The resmon module performs services checks against an HTTP server serving with Resmon XML or JSON.</p>
+  <p><a class="ulink" href="https://labs.omniti.com/trac/resmon" target="_top"><em class="citetitle">Resmon</em></a> is a light-weight resource monitor that exposes health of services over HTTP in XML.</p>
+  <p>This module rides on the http module and provides a secondary phase of XML parsing on the contents that extracts Resmon status messages into metrics that can be trended.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.resmon</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122425400080"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">url</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The URL including schema and hostname (as you would type into a browser's location bar).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The TCP port can be specified to overide the default of 81.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">read_limit</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>0</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Sets an approximate limit on the data read (0 means no limit).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">header_(\S+)</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Allows the setting of arbitrary HTTP headers in the request.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409320128"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409319488"></a><p class="title"><b>Example 6.29. Checking resmon services on OmniTI Labs.</b></p><div class="example-contents">
+      
+      <p>This example checks the Resmon service on OmniTI Labs.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="resmon" object="noit.module.resmon"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;labs target="8.8.38.5" module="resmon"&gt;
+            &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de"&gt;
+              &lt;config&gt;
+                &lt;auth_user&gt;foo&lt;/auth_user&gt;
+                &lt;auth_password&gt;bar&lt;/auth_password&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/labs&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409316944"></a>smtp</h2></div></div></div>
+  
+  <p>Send an email via an SMTP server.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.smtp</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409311664"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>25</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the TCP port to connect to.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ehlo</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>noit.local</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specifies the EHLO parameter.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">from</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specifies the envelope sender.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">to</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specifies the envelope recipient, if blank issue quit.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">payload</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>Subject: Testing</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Specifies the payload sent (on the wire). CR LF DOT CR LF is appended automatically.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">starttls</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:true|false)</p>
+              </dd></dl></div>
+          <p>Specified if the client should attempt a STARTTLS upgrade</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sasl_authentication</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>off</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(?:off|login|plain)</p>
+              </dd></dl></div>
+          <p>Specifies the type of SASL Authentication to use</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sasl_user</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SASL Authentication username</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sasl_password</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SASL Authentication password</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sasl_auth_id</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SASL Authorization Identity</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122409311408"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122409196320"></a><p class="title"><b>Example 6.30. Send an email to test SMTP service.</b></p><div class="example-contents">
+      
+      <p>The following example sends an email via 10.80.117.6 from test@omniti.com to devnull@omniti.com</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="smtp" object="noit.module.smtp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="smtp" target="10.80.117.6"&gt;
+            &lt;config&gt;
+              &lt;from&gt;test@omniti.com&lt;/from&gt;
+              &lt;to&gt;devnull@omniti.com&lt;/to&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122409193888"></a>tcp</h2></div></div></div>
+  
+  <p>TCP metrics check.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.tcp</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426946096"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">banner_match</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This regular expression is matched against the response banner.  If a match is not found, the check will be marked as bad.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">send_body</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Data to send on the socket once connected and optionally SSL is negotiated, but before the body match is tested.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">body_match</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>This regular expression is matched against the body (the leftover data up to 1024 bytes) after the banner.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">use_ssl</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Upgrade TCP connection to use SSL.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ca_chain</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing all the certificate authorities that should be loaded to validat
+e the remote certificate (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">certificate_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing the client certificate that will be presented to the remote serv
+er (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">key_file</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A path to a file containing key to be used in conjunction with the cilent certificate (for S
+SL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">ciphers</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>A list of ciphers to be used in the SSL protocol (for SSL checks).</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">header_Host</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The host header to validate against the SSL certificate (for SSL checks).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426945840"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426887328"></a><p class="title"><b>Example 6.31. Checking TCP connection.</b></p><div class="example-contents">
+      
+      <p>This example checks IMAP connection with and without SSL.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="tcp" object="noit.module.tcp" /&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;imaps target="10.0.7.2" module="tcp" period="10000" timeout="5000"&gt;
+            &lt;check uuid="79ba881e-ad2e-11de-9fb0-a322e3288ca7" name="imap"&gt;
+              &lt;config&gt;
+                &lt;port&gt;143&lt;/port&gt;
+                &lt;banner_match&gt;^\* OK&lt;/banner_match&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+            &lt;check uuid="a18659c2-add8-11de-bd01-7ff0e1a67246" name="imaps"&gt;
+              &lt;config&gt;
+                &lt;port&gt;993&lt;/port&gt;
+                &lt;banner_match&gt;^\* OK&lt;/banner_match&gt;
+                &lt;use_ssl&gt;true&lt;/use_ssl&gt;
+              &lt;/config&gt;
+            &lt;/check&gt;
+          &lt;/imaps&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426884720"></a>varnish</h2></div></div></div>
+  
+  <p>Monitor maagement metrics of a Varnish instance.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>lua</p>
+      </dd><dt><span class="term">object</span></dt><dd>
+        <p>noit.module.varnish</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426879856"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>8081</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>Specifies the port on which the management interface can be reached.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426976592"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426975952"></a><p class="title"><b>Example 6.32. Monitor two varnish instances with management on port 8081</b></p><div class="example-contents">
+      
+      <p>The following example pulls are metrics available from Varnish running on 10.1.2.3 and 10.1.2.4</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="varnish" object="noit.module.varnish"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="varnish" target="10.1.2.3" /&gt;
+          &lt;check uuid="324c2234-7c7a-11dd-8585-cbb783f8267f" module="varnish" target="10.1.2.4" /&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426973648"></a>ping_icmp</h2></div></div></div>
+  
+  <p>The ping_icmp module provide ICMP checks against targets.  It sends a series of ICMP requests and waits for their responses tallying their turn-around time.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>ping_icmp.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426968624"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">interval</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>2000</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The number of milliseconds between ICMP requests.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">count</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>5</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The number of ICMP requests to send during a single check.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">avail_needed</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>100</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The percentage of ICMP available required for the check to be considered "good."  By default, 100% of the ICMP requests must have responses for a good state.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122427004160"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122427003520"></a><p class="title"><b>Example 6.33. Ping checks against a host</b></p><div class="example-contents">
+      
+      <p>Ping 4.2.2.1 once a second for ten seconds recurring every 60 seconds.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="ping_icmp" name="ping_icmp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;ping module="ping_icmp" period="60000"&gt;
+            &lt;config&gt;
+              &lt;count&gt;10&lt;/count&gt;
+              &lt;interval&gt;1000&lt;/interval&gt;
+            &lt;/config&gt;
+            &lt;check uuid="5b9fab60-77d4-11dd-99a4-97df794be4c8" target="4.2.2.1"/&gt;
+          &lt;/ping&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122427001424"></a>postgres</h2></div></div></div>
+  
+  <p>The postgres module allows queries to be performaed against targets as checks.  The results of the query are used as metrics.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>postgres.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426996112"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">dsn</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The connect string for PostgreSQL.  The syntax of this string is documented in your PostgreSQL documentation. See Database Connection Control Functions.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">sql</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The query that will be executed.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426983120"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426982480"></a><p class="title"><b>Example 6.34. Tracking PostgreSQL database sizes.</b></p><div class="example-contents">
+      
+      <p>This will track the sizes of all databases on 10.225.209.35 and 10.225.209.56. We will connect to the postgres database as the user "noit" with password "noit." We only run this check every 5 minutes.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="postgres" name="postgres"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;databases&gt;
+            &lt;postgres  module="postgres" period="300000"&gt;
+              &lt;config&gt;
+                &lt;dsn&gt;host=%[target] dbname=%[name] user=noit password=noit&lt;/dsn&gt;
+                &lt;sql&gt;select datname, pg_database_size(datname) as size, xact_commit, xact_rollback from pg_stat_database&lt;/sql&gt;
+              &lt;/config&gt;
+              &lt;check uuid="8c5ca46c-77d7-11dd-ab5b-53bc659517d6" target="10.225.209.35"/&gt;
+              &lt;check uuid="90b8aea2-77d7-11dd-8447-0f381e6a48eb" target="10.225.209.56"/&gt;
+            &lt;/postgres&gt;
+          &lt;/databases&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426979888"></a>selfcheck</h2></div></div></div>
+  
+  <p>The selfcheck module performs a self assessment on the host noitd instance.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>selfcheck.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426283664"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">feedname</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>feed</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The name of the feed that will be sized.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426274992"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426274352"></a><p class="title"><b>Example 6.35. Testing the local noitd instance.</b></p><div class="example-contents">
+      
+      <p>We self check the noitd instance every 5 seconds.  Here, the target doesn't mean anything in particular as the check is entirely internal.  The target should match the local noitd's IP address from the perspective of stratcond.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="selfcheck" name="selfcheck"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="6e65ffdc-f174-11dd-86fe-b7da9645ce7c" target="10.225.209.90" period="5000" timeout="4000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426272160"></a>snmp</h2></div></div></div>
+  
+  <p>The snmp module provides SNMP polling support for reconnoiter.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>snmp.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426266928"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>public</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SNMP community string providing read access.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>161</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The UDP port to which SNMP queries will be sent.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">version</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>2c</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>(1|2c|3)</p>
+              </dd></dl></div>
+          <p>The SNMP version used for queries.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">oid_.+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">type_.+</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>Defines a coercion for a metric type.  The name of the metric must identically match one of the oid_(.+) patterns. The value can be either one of the single letter codes in the metric_type_t enum or the following string variants: guess, int32, uint32, int64, uint64, double, string.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">separate_queries</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>false</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:true|false|on|off)$</p>
+              </dd></dl></div>
+          <p>Whether or not to query each OID separately.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426223376"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426222736"></a><p class="title"><b>Example 6.36. Simple snmp polling of two switchports</b></p><div class="example-contents">
+      
+      <p>The following example configures SNMP checks against switchport 1 and 2
+      on the switch with the IP address 10.80.116.3.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;switch target="10.80.116.3" module="snmp"&gt;
+            &lt;config&gt;
+              &lt;community&gt;SeKr3t&lt;/community&gt;
+              &lt;oid_description&gt;IF-MIB::ifName.%[name]&lt;/oid_description&gt;
+              &lt;oid_alias&gt;IF-MIB::ifAlias.%[name]&lt;/oid_alias&gt;
+              &lt;oid_speed&gt;IF-MIB::ifSpeed.%[name]&lt;/oid_speed&gt;
+              &lt;oid_adminstatus&gt;IF-MIB::ifAdminStatus.%[name]&lt;/oid_adminstatus&gt;
+              &lt;oid_operstatus&gt;IF-MIB::ifOperStatus.%[name]&lt;/oid_operstatus&gt;
+              &lt;oid_inoctets&gt;IF-MIB::ifHCInOctets.%[name]&lt;/oid_inoctets&gt;
+              &lt;oid_outoctets&gt;IF-MIB::ifHCOutOctets.%[name]&lt;/oid_outoctets&gt;
+              &lt;oid_inerrors&gt;IF-MIB::ifInErrors.%[name]&lt;/oid_inerrors&gt;
+              &lt;oid_outerrors&gt;IF-MIB::ifOutErrors.%[name]&lt;/oid_outerrors&gt;
+              &lt;oid_indiscards&gt;IF-MIB::ifInDiscards.%[name]&lt;/oid_indiscards&gt;
+              &lt;oid_outdiscards&gt;IF-MIB::ifOutDiscards.%[name]&lt;/oid_outdiscards&gt;
+              &lt;oid_inucastpkts&gt;IF-MIB::ifHCInUcastPkts.%[name]&lt;/oid_inucastpkts&gt;
+              &lt;oid_outucastpkts&gt;IF-MIB::ifHCOutUcastPkts.%[name]&lt;/oid_outucastpkts&gt;
+              &lt;oid_inbcastpkts&gt;IF-MIB::ifHCInBroadcastPkts.%[name]&lt;/oid_inbcastpkts&gt;
+              &lt;oid_outbcastpkts&gt;IF-MIB::ifHCOutBroadcastPkts.%[name]&lt;/oid_outbcastpkts&gt;
+            &lt;/config&gt;
+            &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/&gt;
+            &lt;check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/&gt;
+          &lt;/switch&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+    <div class="example"><a name="idm122426221072"></a><p class="title"><b>Example 6.37. Example using config inheritance to show reuse</b></p><div class="example-contents">
+      
+      <p>Accomplising the same goal, but by using reuse:</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmp"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;switch target="10.80.116.3" module="snmp"&gt;
+            &lt;config inherit="SwitchPortX"/&gt;
+              &lt;community&gt;SeKr3t&lt;/community&gt;
+            &lt;/config&gt;
+            &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" name="1"/&gt;
+            &lt;check uuid="4deb0724-ccee-4360-83bc-255e7b9d989d" name="2"/&gt;
+          &lt;/switch&gt;
+        &lt;/checks&gt;
+        &lt;config_templates&gt;
+          &lt;config id="SwitchPortX"&gt;
+            &lt;oid_description&gt;IF-MIB::ifName.%[name]&lt;/oid_description&gt;
+            &lt;oid_alias&gt;IF-MIB::ifAlias.%[name]&lt;/oid_alias&gt;
+            &lt;oid_speed&gt;IF-MIB::ifSpeed.%[name]&lt;/oid_speed&gt;
+            &lt;oid_adminstatus&gt;IF-MIB::ifAdminStatus.%[name]&lt;/oid_adminstatus&gt;
+            &lt;oid_operstatus&gt;IF-MIB::ifOperStatus.%[name]&lt;/oid_operstatus&gt;
+            &lt;oid_inoctets&gt;IF-MIB::ifHCInOctets.%[name]&lt;/oid_inoctets&gt;
+            &lt;oid_outoctets&gt;IF-MIB::ifHCOutOctets.%[name]&lt;/oid_outoctets&gt;
+            &lt;oid_inerrors&gt;IF-MIB::ifInErrors.%[name]&lt;/oid_inerrors&gt;
+            &lt;oid_outerrors&gt;IF-MIB::ifOutErrors.%[name]&lt;/oid_outerrors&gt;
+            &lt;oid_indiscards&gt;IF-MIB::ifInDiscards.%[name]&lt;/oid_indiscards&gt;
+            &lt;oid_outdiscards&gt;IF-MIB::ifOutDiscards.%[name]&lt;/oid_outdiscards&gt;
+            &lt;oid_inucastpkts&gt;IF-MIB::ifHCInUcastPkts.%[name]&lt;/oid_inucastpkts&gt;
+            &lt;oid_outucastpkts&gt;IF-MIB::ifHCOutUcastPkts.%[name]&lt;/oid_outucastpkts&gt;
+            &lt;oid_inbcastpkts&gt;IF-MIB::ifHCInBroadcastPkts.%[name]&lt;/oid_inbcastpkts&gt;
+            &lt;oid_outbcastpkts&gt;IF-MIB::ifHCOutBroadcastPkts.%[name]&lt;/oid_outbcastpkts&gt;
+          &lt;/config&gt;
+        &lt;/config_templates&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426219280"></a>snmptrap</h2></div></div></div>
+  
+  <p>The snmptrap module provides SNMP trap daemon support for reconnoiter.  Reconnoiter comes with a <span class="command"><strong>snmptrap</strong></span>-based helper utility called <span class="command"><strong>noittrap</strong></span> aimed to assist with the complexities of forming valid SNMP traps to this module.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>snmp.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426212992"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>required</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SNMP community string providing trap access.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">snmptrapd_port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The port on which traps are accepted.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426286896"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">community</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>.+</p>
+              </dd></dl></div>
+          <p>The SNMP community string providing trap access (overrides modules config).</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426314304"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426313664"></a><p class="title"><b>Example 6.38. Simple passive checking.</b></p><div class="example-contents">
+      
+      <p>The following example configures a check prepared to accept traps from
+      host 10.1.1.1.  Traps must be performed with the community name 's3cr3t'. Note that
+      because this check is passive, the timeout and period mean nothing to reconnoiter.
+      Though these values may be used by an upstream provider for fault detection.</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="snmp" name="snmptrap"&gt;
+            &lt;config&gt;
+              &lt;community&gt;s3cr3t&lt;/community&gt;
+            &lt;/config&gt;
+          &lt;/module&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-883f-e9b761bde3fb" module="snmptrap" name="magic"
+                 period="60000" timeout="30000"/&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426311248"></a>ssh2</h2></div></div></div>
+  
+  <p>The ssh2 module allows reconnoiter to connect to servers over ssh protocol 2 and test the fingerprint.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>ssh2.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426305952"></a>Check Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>22</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>\d+</p>
+              </dd></dl></div>
+          <p>The TCP port on which the remote server's ssh service is running.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_kex</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^diffie-hellman-(?:group1-sha1|group14-sha1|group-exchange-sha1)$</p>
+              </dd></dl></div>
+          <p>The key exchange method to use.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_hostkey</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:ssh-dss|ssh-rsa)$</p>
+              </dd></dl></div>
+          <p>The host key algorithm supported.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_crypt_cs</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$</p>
+              </dd></dl></div>
+          <p>The encryption algorithm used from client to server.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_crypt_sc</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:aes256-ctr|aes192-ctr|aes128-ctr|aes256-cbc|aes192-cbc|aes128-cbc|blowfish-cbc|arcfour128|arcfour|cast128-cbc|3des-cbc|none)$</p>
+              </dd></dl></div>
+          <p>The encryption algorithm used from server to client.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_mac_cs</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$</p>
+              </dd></dl></div>
+          <p>The message authentication code algorithm used from client to server.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_mac_sc</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p></p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:hmac-sha1|hmac-sha1-96|hmac-md5|hmac-md5-96|hmac-ripemd160|none)$</p>
+              </dd></dl></div>
+          <p>The message authentication code algorithm used from server to client.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_comp_cs</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>none</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:zlib|none)$</p>
+              </dd></dl></div>
+          <p>The compress algorithm used from client to server.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">method_comp_sc</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>none</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^(?:zlib|none)$</p>
+              </dd></dl></div>
+          <p>The compress algorithm used from server to client.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426305696"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426819664"></a><p class="title"><b>Example 6.39. Simple ssh polling of 4 machines</b></p><div class="example-contents">
+      
+      <p>The following checks ssh on 10.1.2.{3,4,5,6}</p>
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="ssh2" name="ssh2"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;ssh module="ssh2"&gt;
+            &lt;check uuid="1cddb2a8-76ff-11dd-83c8-f75cb8b93bd9" target="10.1.2.3"/&gt;
+            &lt;check uuid="1dd79110-76ff-11dd-9b54-739adc274a93" target="10.1.2.4"/&gt;
+            &lt;check uuid="4627560a-76ff-11dd-941f-4b75679cb908" target="10.1.2.5"/&gt;
+            &lt;check uuid="4fdcb8de-76ff-11dd-ae16-2740afc178ae" target="10.1.2.6"/&gt;
+          &lt;/ssh&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+<div class="section"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="idm122426817456"></a>statsd</h2></div></div></div>
+  
+  <p>The statsd module provides a simple way to push data into reconnoiter from other applications.  See https://github.com/etsy/statsd for more details.</p>
+  <div class="variablelist"><dl class="variablelist"><dt><span class="term">loader</span></dt><dd>
+        <p>C</p>
+      </dd><dt><span class="term">image</span></dt><dd>
+        <p>statsd.so</p>
+      </dd></dl></div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426812048"></a>Module Configuration</h3></div></div></div>
+    
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">port</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>8125</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^\d+$</p>
+              </dd></dl></div>
+          <p>The port on which to listen for statsd packets.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">packets_per_cycle</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">default</span></dt><dd>
+                <p>100</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^\d+$</p>
+              </dd></dl></div>
+          <p>The number of packets to recv() during each eventer cycle.</p>
+        </dd></dl></div>
+    <div class="variablelist"><dl class="variablelist"><dt><span class="term">check</span></dt><dd>
+          <div class="variablelist"><dl class="variablelist"><dt><span class="term">required</span></dt><dd>
+                <p>optional</p>
+              </dd><dt><span class="term">allowed</span></dt><dd>
+                <p>^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$</p>
+              </dd></dl></div>
+          <p>A specific check to which all statsd data will be delegated.</p>
+        </dd></dl></div>
+  </div>
+  <div class="section"><div class="titlepage"><div><div><h3 class="title"><a name="idm122426789824"></a>Examples</h3></div></div></div>
+    
+    <div class="example"><a name="idm122426789184"></a><p class="title"><b>Example 6.40. A sample statsd configuration.</b></p><div class="example-contents">
+      
+      <pre class="programlisting">
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;module image="statsd" name="statsd"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="1b4e28ba-2fa1-11d2-893f-e9b761bde3fb" module="statsd"
+            target="127.0.0.1" period="60000" timeout="30000"&gt;
+            &lt;config&gt;&lt;port&gt;8125&lt;/port&gt;&lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+      </pre>
+    </div></div><br class="example-break">
+  </div>
+</div>
+
+</div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="config.noitd.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="configuration.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="config.stratcond.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 5. noitd configuration </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 7. stratcond</td></tr></table></div></body></html>
