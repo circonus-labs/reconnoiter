@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <section xmlns="http://docbook.org/ns/docbook" version="5">
-  <title>keynote</title>
+  <title>keynote_pulse</title>
   <para>The keynote module fetches telemetry from Keynote(TM) Pulse API.</para>
   <variablelist>
     <varlistentry>
