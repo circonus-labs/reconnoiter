@@ -60,20 +60,23 @@ public class oracle extends JDBC implements JezebelCheck {
   }
   protected Connection jdbcConnection(String url, Properties props) throws SQLException {
     try {
-        Class<?> odsc = Class.forName("oracle.jdbc.pool.OracleDataSource");
-        Object ods = odsc.newInstance();
+      Class<?> odsc = Class.forName("oracle.jdbc.pool.OracleDataSource");
+      Object ods = odsc.newInstance();
 
-        Method m = odsc.getDeclaredMethod("setURL", String.class);
-        m.invoke(ods, url);
+      Method m = odsc.getDeclaredMethod("setURL", String.class);
+      m.invoke(ods, url);
 
-        m = odsc.getDeclaredMethod("setFastConnectionFailoverEnabled", Boolean.class);
-        m.invoke(ods, true);
+      m = odsc.getDeclaredMethod("setConnectionCachingEnabled", boolean.class);
+      m.invoke(ods, true);
 
-	m = odsc.getDeclaredMethod("getConnection", String.class, String.class, Properties.class);
-	return (Connection)m.invoke(ods, props.getProperty("user"), props.getProperty("password"), props);
+      m = odsc.getDeclaredMethod("setFastConnectionFailoverEnabled", boolean.class);
+      m.invoke(ods, true);
+
+      m = odsc.getDeclaredMethod("getConnection", String.class, String.class, Properties.class);
+      return (Connection)m.invoke(ods, props.getProperty("user"), props.getProperty("password"), props);
     }
     catch (Exception e) {
-	return DriverManager.getConnection(url, props);
+      return DriverManager.getConnection(url, props);
     }
   }
 }
