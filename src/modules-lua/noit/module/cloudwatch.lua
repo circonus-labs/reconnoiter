@@ -217,9 +217,9 @@ function initiate(module, check)
     end
   end
 
-  --Make sure we don't pull data from the API more frequently than the
-  --period
-  local cache_timeout = (params.granularity * 60) - 1
+  --Pull the data once a minute, but don't pull it more frequently than
+  --that.
+  local cache_timeout = 55
   if current_time - cache_table[uuid]['timestamp'] >= cache_timeout then
     -- We've gone over the cache timeout... get new values
     local dimension_count = 1
