@@ -33,8 +33,11 @@
 package com.omniti.jezebel.check;
 import java.util.Map;
 import java.util.HashMap;
+import java.sql.*;
+import java.util.Properties;
 import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
+import java.lang.reflect.Method;
 public class oracle extends JDBC implements JezebelCheck {
   static { try { Class.forName("oracle.jdbc.driver.OracleDriver"); }
            catch (Exception e) { throw new RuntimeException(e); } }
@@ -44,6 +47,9 @@ public class oracle extends JDBC implements JezebelCheck {
       return "jdbc:oracle:thin:@//" + host + ":" + port + db;
     if(db.startsWith(":"))
       return "jdbc:oracle:thin:@" + host + ":" + port + db;
+    // RAC connection description
+    if(db.startsWith("("))
+      return "jdbc:oracle:thin:@" + db;
     // Assume a SID (:name) as opposed to a SERVICE_NAME (/name)
     return "jdbc:oracle:thin:@" + host + ":" + port + ":" + db;
   }
@@ -51,5 +57,26 @@ public class oracle extends JDBC implements JezebelCheck {
     HashMap<String,String> props = new HashMap<String,String>();
     props.put("oracle.net.ssl_cipher_suites", "(SSL_DH_anon_WITH_3DES_EDE_CBC_SHA, SSL_DH_anon_WITH_RC4_128_MD5,SSL_DH_anon_WITH_DES_CBC_SHA)");
     return props;
+  }
+  protected Connection jdbcConnection(String url, Properties props) throws SQLException {
+    try {
+      Class<?> odsc = Class.forName("oracle.jdbc.pool.OracleDataSource");
+      Object ods = odsc.newInstance();
+
+      Method m = odsc.getDeclaredMethod("setURL", String.class);
+      m.invoke(ods, url);
+
+      m = odsc.getDeclaredMethod("setConnectionCachingEnabled", boolean.class);
+      m.invoke(ods, true);
+
+      m = odsc.getDeclaredMethod("setFastConnectionFailoverEnabled", boolean.class);
+      m.invoke(ods, true);
+
+      m = odsc.getDeclaredMethod("getConnection", String.class, String.class, Properties.class);
+      return (Connection)m.invoke(ods, props.getProperty("user"), props.getProperty("password"), props);
+    }
+    catch (Exception e) {
+      return DriverManager.getConnection(url, props);
+    }
   }
 }

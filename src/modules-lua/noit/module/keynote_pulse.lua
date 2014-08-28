@@ -32,7 +32,7 @@ module(..., package.seeall)
 function onload(image)
   image.xml_description([=[
 <module>
-  <name>keynote</name>
+  <name>keynote_pulse</name>
   <description><para>The keynote module fetches telemetry from Keynote(TM) Pulse API.</para>
   </description>
   <loader>lua</loader>

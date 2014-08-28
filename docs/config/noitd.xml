@@ -35,6 +35,11 @@
         <check uuid="xxx" />
       </...>
     </checks>
+    <filtersets>
+      <filterset name="yyy">
+        <...>
+      </filterset>
+    </filtersets>
   </noit>
 ]]></programlisting>
 </example>
@@ -143,5 +148,164 @@
    "feed" jlog and on the console ("stderr").
    </para></listitem>
  </itemizedlist>
+</section>
+
+<section xml:id="config.noitd.section.checks.special">
+  <title>Configuring checks via configuration</title>
+  <para>Each check in Reconnoiter must live underneath the <code>&lt;checks&gt;</code>
+  XML node located immediately beneath the root of the tree.  The XML format of the
+  configuration file is quite loose alloing arbitrary nodes with arbitrary names to be
+  added to the tree with a few reserved-word exceptions.  One reserved-word exception
+  is the <code>&lt;check&gt;</code> node name.  Each check node expresses a check to
+  be performed by <command>noitd</command>.</para>
+
+  <para>Each check node requires a set of attributes that inform its behavior.  These
+  attributed are inheritted from parent nodes in a "leaf wins" manner. The following
+  attributes are available:</para>
+
+  <variablelist>
+  <varlistentry><term>uuid</term><listitem><para>
+  a well-formed UUID that uniquely identifies this check in the universe.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>name</term><listitem><para>
+  a convenience name (defaultint to the <code>module</code>. The combination of check
+  <code>target</code> and check <code>name</code> must be unique in the running instance.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>module</term><listitem><para>
+  a module that defines what code will run the check.  Modules can be configured to load
+  at boot time.  If a module is specified here that is not avaiable in the instance,
+  an error will be logged.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>target</term><listitem><para>
+  specified the target "host" against which the check will be performed.  If this is not
+  a valid IPv4 or IPv6 address and the domain suffix (the part trailing the last period)
+  is not on the suppression list, the target will be resolved using DNS.  Note that checks
+  can and will run with target that fails to resolve and this can be desired with a check
+  might not need an actual Internet host as a target.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>period</term><listitem><para>
+  the number of milliseconds between invocations of the check.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>timeout</term><listitem><para>
+  the number of milliseconds allowed for the check to complete before it is aborted.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>filterset</term><listitem><para>
+  the name of a filterset (specified in the filtersets section) that will potentially
+  limit the submission of gathered metrics upstream to <code>stratcond</code>.
+  </para></listitem></varlistentry>
+
+  <varlistentry><term>resolve_rtype</term><listitem><para>
+  define the nature of DNS resolution: <code>prefer-ipv4</code> (default) indicates
+  that IPv6 resolution should be used only if IPv4 resolution fails, <code>prefer-ipv6</code>
+  indicates that IPv4 resoulution should be used only if IPv6 resolution fails,
+  <code>force-ipv4</code> indicates that only IPv4 resolution should be used, and
+  <code>force-ipv6</code> indicates that only IPv6 resolution should be used.
+  </para></listitem></varlistentry>
+
+  </variablelist>
+  <example>
+  <title>Sample noitd check configuration.</title>
+  <para>An example with http and ping_icmp check using inheritance.</para>
+  <programlisting><![CDATA[
+    <noit>
+      <checks resolve_rtype="prefer-ipv4" filterset="default" period="60000" timeout="55000">
+        <dc1>
+          <labs target="labs.omniti.com">
+            <check uuid="b33451e0-2deb-11e4-b187-7cd1c3dcddf7" module="http" name="mainsite"/>
+              <config><url>http://labs.omniti.com/</url></config>
+            </check>
+            <check> uuid="e5721962-2deb-11e4-a2b4-7cd1c3dcddf7" module="ping_icmp" name="netup"/>
+          </labs>
+        </dc1>
+        <dc2 resolve_rtype="prefer-ipv6" period="30000" timeout="29000">
+          <check uuid="3b26427a-2dec-11e4-8288-7cd1c3dcddf7" module="http" name="vcs" target="github.com"/>
+            <config><url>https://github.com/</url></config>
+          </check>
+        </dc2>
+      </checks>
+    </noit>
+  ]]></programlisting>
+  </example>
+</section>
+
+<section xml:id="config.noitd.section.filtersets.special">
+  <title>Configuring filtersets via configuration</title>
+  <para>Filtersets control which metrics are passed upstream. By default, if no filterset
+  is specified, all metrics collected are passed upstream. This can be a recipe for
+  disaster requiring significant cleanup if a mistake is made and millions of unique
+  metric names are pushed into a check. (e.g. someone encodes userid into a metric name).
+  </para>
+
+  <para>Filtersets consist of rules each of which is processed in order.  The first rule
+  that matches a given metric terminates the matching algorithm with a result of the type
+  of that matching rule.  If no rules match, the metric does not match and it is considered
+  a <code>deny</code>.</para>
+
+  <para>Filterset rules support both regular expression (PCRE) matching and direct O(1) hash table
+  lookups on each of <code>target</code>, <code>module</code>, <code>name</code>, and
+  <code>metric</code>.  If a hash table of matches is provided, the regular expression (if any)
+  for that field is not processed at all as if it were never specified (i.e. a hash table's
+  existence circumvents regular expression matching.</para>
+
+  <para>Hash table rules can be dynamically constructed via an <code>auto_add</code> attribute
+  for each field: <code>target_auto_add</code>, <code>module_auto_add</code>, <code>name_auto_add</code>,
+  and <code>metric_auto_add</code>. This field is an integer and new elements will be added to
+  the appropriate hash table if the rule fails to match and the size of the hash table does not
+  exceed the value specified in this attribute.  This can be used to automatically collect up to
+  some constrained number of metrics on a given check without knowing a priori what those metric names
+  are. This is a useful technique for preventing a aforementioned disaster condition with
+  checks that can produce arbitrary metric names. As hash tables are automatically modified due to rule
+  misses, the configuration is automatically updated and written to disk. Note: this behaviour can be confusing
+  to an operator if they are making incremental configuration changes via the console and believe they
+  are the only one capable of writing the altered configuration.</para>
+
+  <example>
+  <title>Sample noitd 'default' filterset configuration.</title>
+  <para>A default filter that avoids metrics called "minimum", "maximum" and "count" on any ping_icmp check
+  and metrics called "cert_start" and "cert_end" on any http check. A filter called "score" that requires
+  metrics to contain an underscore and not being with a number.</para>
+  <programlisting><![CDATA[
+    <noit>
+      <filtersets>
+        <filterset name="default">
+          <rule type="deny" module="^ping_icmp$" metric="^(?:minimum|maximum|count)$" />
+          <rule type="deny" module="^http$" metric="^cert_(?:start|end)$" />
+          <rule type="allow"/> <!-- matches anything -->
+        </filterset>
+        <filterset name="default">
+          <rule type="deny" metric="^\d"/>
+          <rule type="allow" metric="_"/>
+          <!-- if we fall off the end here, we have a default deny rule -->
+        </filterset>
+      </filtersets>
+    </noit>
+  ]]></programlisting>
+  </example>
+
+  <example>
+  <title>Sample noitd dynamic filterset configuration.</title>
+  <para>A filterset called "mystatsd" that will collect up 1000 unique metrics, excluding metrics that
+  being with anything but a alpha character or are called "badmetric1" or "badmetric2"</para>
+  <programlisting><![CDATA[
+    <noit>
+      <filtersets>
+        <filterset name="mystatsd">
+          <rule type="deny" metric="^[^a-zA-Z]" />
+          <rule type="deny">
+            <metric>badmetric1</metric>
+            <metric>badmetric2</metric>
+          </rule>
+          <rule type="allow" metric_auto_add="1000"/>
+        </filterset>
+      </filtersets>
+    </noit>
+  ]]></programlisting>
+  </example>
 </section>
 </chapter>

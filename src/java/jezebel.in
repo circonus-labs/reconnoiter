@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -- `getopt l:p:c:fj:dD: $*`
+set -- `getopt l:p:c:fj:J:dD: $*`
 
 if [ ! -x "$JAVA" ]; then
 	JAVA=@JAVA@
@@ -16,6 +16,7 @@ if [ ! -x $JAVA ]; then
 fi
 JPARAMS="-Xms32m -Xmx64m -XX:+UseConcMarkSweepGC -XX:+UseParNewGC"
 JARS=
+OJARS=
 DIRS="/ . lib @prefix@/java/lib @prefix@/java"
 NOITD="@prefix@/sbin/noitd"
 LOGFILE=/dev/null
@@ -46,9 +47,12 @@ do
         -D)     DIRS="$2 $DIRS"
                 shift 2
                 ;;
-	-j)	JARS="$JARS $2"
-		shift 2
-		;;
+        -j)     JARS="$JARS $2"
+                shift 2
+                ;;
+        -J)     OJARS="$OJARS $2"
+                shift 2
+                ;;
         --)     shift; break;;
         esac
 done
@@ -75,6 +79,22 @@ do
 	if [ -z "$found" ]; then
 		echo "Cannot find $jar" 2>&1
 		exit
+	fi
+done
+
+for jar in $OJARS
+do
+	found=
+	for dir in $DIRS
+	do
+		if [ -r "$dir/$jar" ]; then
+			found="$dir/$jar"
+			CP="$CP:$found"
+			break
+		fi
+	done
+	if [ -z "$found" ]; then
+		echo "Cannot find $jar, disabling support." 2>&1
 	fi
 done
 

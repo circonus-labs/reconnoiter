@@ -5,7 +5,12 @@
   </description>
   <loader>C</loader>
   <image>dns.so</image>
-  <moduleconfig />
+  <moduleconfig>
+    <parameter name="contexts"
+               required="optional"
+               default="1024"
+               allowed="\d+">The maximum number of contexts to spawn per nameserver.</parameter>
+  </moduleconfig>
   <checkconfig>
     <parameter name="nameserver"
                required="optional"

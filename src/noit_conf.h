@@ -132,6 +132,9 @@ API_EXPORT(int)
 API_EXPORT(int)
   noit_conf_write_file(char **err);
 
+API_EXPORT(void)
+  noit_conf_request_write();
+
 API_EXPORT(char *)
   noit_conf_xml_in_mem(size_t *len);
 

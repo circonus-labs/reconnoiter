@@ -38,7 +38,7 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>>A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</para>
+          <para>A comma-separated list of URLs including schema, hostname, and port (as you would type into a browser's location bar).</para>
         </listitem>
       </varlistentry>
     </variablelist>
