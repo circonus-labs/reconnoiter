@@ -308,7 +308,6 @@ noit_apply_filterset(const char *filterset,
       need_name = !MATCHES(name, check->name);
       need_metric = !MATCHES(metric, metric->metric_name);
       if(!need_target && !need_module && !need_name && !need_metric) {
-noitL(noit_error, "Filterset[%p:%p / %s] -> %s\n", fs, r, metric->metric_name, (r->type == NOIT_FILTER_ACCEPT) ? "true" : "false");
         return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
@@ -320,7 +319,6 @@ noitL(noit_error, "Filterset[%p:%p / %s] -> %s\n", fs, r, metric->metric_name, (
     noitL(noit_error, "Error updating configuration for new filter auto_add on %s=%s\n", #rname, value); \
   } \
 } while(0)
-noitL(noit_error, "Adding '//filtersets/filterset[@name=\"%s\"]/rule[%d] -> %s'...\n", fs->name, idx, metric->metric_name);
         if(need_target) UPDATE_FILTER_RULE(idx, target, check->target);
         if(need_module) UPDATE_FILTER_RULE(idx, module, check->module);
         if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
