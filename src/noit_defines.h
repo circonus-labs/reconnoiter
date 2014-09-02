@@ -145,7 +145,6 @@ typedef hrtime_t noit_hrtime_t;
 #include <time.h>
 static inline noit_hrtime_t noit_gethrtime() {
   struct timespec ts;
-  u_int64_t t;
   clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
   return ((ts.tv_sec * 1000000000) + ts.tv_nsec);
 }
