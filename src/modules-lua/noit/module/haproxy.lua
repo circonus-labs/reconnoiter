@@ -55,6 +55,24 @@ function onload(image)
     <parameter name="auth_password" required="optional" allowed=".*">
       The password to use during authentication.
     </parameter>
+    <parameter name="use_ssl" required="optional" allowed="^(?:true|false|on|off)$" default="false">
+      Upgrade TCP connection to use SSL.
+    </parameter>
+    <parameter name="ca_chain" required="optional" allowed=".+">
+      A path to a file containing all the certificate authorities that should be loaded to 
+      validate the remote certificate (for SSL checks).
+    </parameter>
+    <parameter name="certificate_file" required="optional" allowed=".+">
+      A path to a file containing the client certificate that will be presented to the remote 
+      server (for SSL checks).
+    </parameter>
+    <parameter name="key_file" required="optional" allowed=".+">
+      A path to a file containing key to be used in conjunction with the cilent certificate 
+      (for SSL checks).
+    </parameter>
+    <parameter name="ciphers" required="optional" allowed=".+">
+      A list of ciphers to be used in the SSL protocol (for SSL checks).
+    </parameter>
   </checkconfig>
   <examples>
     <example>
@@ -96,11 +114,17 @@ function initiate(module, check)
   local config = check.interpolate(check.config)
   local host = config.host or check.target_ip or check.target
   local port = config.port or 80
+  local use_ssl = config.use_ssl or "off"
+  local converted_use_ssl = false;
   local uri  = config.uri or "/admin?stats;csv"
 
   -- expect the worst
   check.bad()
   check.unavailable()
+
+  if use_ssl ~= nil and (use_ssl == "true" or use_ssl == "on") then
+    converted_use_ssl = true
+  end
 
   -- build request headers
   local headers = {}
@@ -122,12 +146,27 @@ function initiate(module, check)
   -- gather output from HttpClient
   local output = ''
   local callbacks = { }
+  local hdrs_in = { }
   callbacks.consume = function (str)
     output = output .. (str or '')
   end
+  callbacks.headers = function (t) 
+    hdrs_in = t 
+  end
+
+  -- setup SSL info
+  local default_ca_chain =
+      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+  callbacks.certfile = function () return config.certificate_file end
+  callbacks.keyfile = function () return config.key_file end
+  callbacks.cachain = function ()
+      return config.ca_chain and config.ca_chain
+                                    or default_ca_chain
+  end
+  callbacks.ciphers = function () return config.ciphers end
 
   local client = HttpClient:new(callbacks)
-  local rv, err = client:connect(check.target_ip, port, false)
+  local rv, err = client:connect(check.target_ip, port, converted_use_ssl)
  
   if rv ~= 0 then error(err or "unknown error") end
 

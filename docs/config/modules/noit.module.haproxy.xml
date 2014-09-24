@@ -182,6 +182,116 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>use_ssl</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^(?:true|false|on|off)$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Upgrade TCP connection to use SSL.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>ca_chain</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>certificate_file</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>key_file</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>ciphers</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>A list of ciphers to be used in the SSL protocol (for SSL checks).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <section>
     <title>Examples</title>
