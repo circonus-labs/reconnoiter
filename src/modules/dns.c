@@ -238,6 +238,7 @@ static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
   assert(noit_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
+  ci->check->flags &= ~NP_RUNNING;
   if(ci->h != NULL) {
     dns_module_dns_ctx_release(ci->h);
     ci->h = NULL;
@@ -456,7 +457,6 @@ static int dns_module_check_timeout(eventer_t e, int mask, void *closure,
   struct dns_check_info *ci;
   ci = closure;
   ci->timeout_event = NULL;
-  ci->check->flags &= ~NP_RUNNING;
   dns_check_log_results(ci);
   __deactivate_ci(ci);
   return 0;
@@ -732,7 +732,6 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
     ci->timeout_event = NULL;
     if(e) eventer_free(e);
   }
-  ci->check->flags &= ~NP_RUNNING;
   dns_check_log_results(ci);
   __deactivate_ci(ci);
 }
@@ -757,6 +756,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
 
   BAIL_ON_RUNNING_CHECK(check);
+  check->flags |= NP_RUNNING;
 
   gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));
@@ -821,8 +821,6 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     query = interpolated_query;
   }
   noit_hash_destroy(&check_attrs_hash, NULL, NULL);
-
-  check->flags |= NP_RUNNING;
   noitL(nldeb, "dns_check_send(%p,%s,%s,%s,%s,%s)\n",
         self, check->target, nameserver ? nameserver : "default",
         query ? query : "null", ctype, rtype);
@@ -882,7 +880,6 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
 
   if(ci->error) {
     /* Errors here are easy, fail and avoid scheduling a timeout */
-    ci->check->flags &= ~NP_RUNNING;
     dns_check_log_results(ci);
     __deactivate_ci(ci);
     return 0;

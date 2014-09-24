@@ -494,6 +494,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     eventer_wakeup();
   }
   pthread_cleanup_pop(0);
+  noit_atomic_dec32(&jobq->inflight);
   noit_atomic_dec32(&jobq->concurrency);
   pthread_exit(NULL);
   return NULL;
