@@ -204,11 +204,12 @@ public class EventHandler implements IEventHandler {
 	                  "name:" + ns.getCheck_name(),
 	                  "module:" + ns.getCheck_module(),
 	                  "noit:" + ns.getNoit(),
+	                  "availability:" + ns.getAvailability(),
 	                  "type:status" });
       e = new Event(ns.getCheck_target(), // host
                     "status", // service
                     ns.getState(), // state
-                    ns.getAvailability(), // description
+                    ns.getStatus(), // description
                     ns.getDuration(), // value
                     tags, // tags
                     ns.getTime()/1000, //time
