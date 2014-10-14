@@ -1355,6 +1355,12 @@ noit_ssl_ctx_index_func(lua_State *L) {
     case 'm':
       LUA_RETINTEGER(method, eventer_ssl_get_method(ssl_ctx));
       break;
+    case 'p':
+      if(!strcmp(k,"peer_certificate")) {
+        X509 *x509 = eventer_ssl_get_peer_certificate(ssl_ctx);
+        return noit_lua_crypto_newx509(L, x509);
+      }
+      break;
     case 's':
       LUA_RETSTRING(san_list, eventer_ssl_get_peer_san_list(ssl_ctx));
       LUA_RETSTRING(subject, eventer_ssl_get_peer_subject(ssl_ctx));

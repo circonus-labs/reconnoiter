@@ -261,6 +261,13 @@ eventer_ssl_verify_dates(eventer_ssl_ctx_t *ctx, int ok,
   if(X509_cmp_time(t, &now) < 0) return 1;
   return 0;
 }
+
+X509 *
+eventer_ssl_get_peer_certificate(eventer_ssl_ctx_t *ctx) {
+  X509 *peer = SSL_get_peer_certificate(ctx->ssl);
+  return peer;
+}
+
 int
 eventer_ssl_get_san_values(eventer_ssl_ctx_t *ctx,
                         X509_STORE_CTX *x509ctx) {
