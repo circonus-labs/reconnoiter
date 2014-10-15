@@ -602,7 +602,7 @@ function initiate(module, check)
       check.metric_string("cert_sig_alg", string.lower(peer.signature_algorithm))
       check.metric_string("ssl_session_version", string.lower(sess.ssl_version))
       check.metric_string("ssl_session_cipher", string.lower(sess.cipher))
-      check.metric_string("ssl_session_key_bits", sess.master_key_bits)
+      check.metric_int32("ssl_session_key_bits", sess.master_key_bits)
       local purposes = {}
       for k,v in pairs(peer.purpose) do
         if v == 1 then
