@@ -47,6 +47,8 @@
 #include <openssl/x509v3.h>
 
 #define EVENTER_SSL_DATANAME "eventer_ssl"
+#define DEFAULT_OPTS_STRING "all"
+#define DEFAULT_LAYER_STRING "tlsv1:all,!sslv2,!sslv3"
 
 #define SSL_CTX_KEYLEN (PATH_MAX * 4 + 5)
 struct cache_finfo {
@@ -597,9 +599,20 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                     const char *ca, const char *ciphers) {
   char ssl_ctx_key[SSL_CTX_KEYLEN];
   eventer_ssl_ctx_t *ctx;
+  const char *layer_str;
+  char *ctx_layer, *opts;
+  char *opts_fallback = DEFAULT_OPTS_STRING;
   time_t now;
   ctx = calloc(1, sizeof(*ctx));
   if(!ctx) return NULL;
+
+  layer_str = layer ? layer : DEFAULT_LAYER_STRING;
+  ctx_layer = alloca(strlen(layer_str)+1);
+  memcpy(ctx_layer, layer_str, strlen(layer_str)+1);
+  layer_str = ctx_layer;
+  opts = strchr(ctx_layer,':');
+  if(opts) *opts++ = '\0';
+  else opts = opts_fallback;
 
   now = time(NULL);
   ssl_ctx_key_write(ssl_ctx_key, sizeof(ssl_ctx_key),
@@ -619,7 +632,8 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   }
 
   if(!ctx->ssl_ctx_cn) {
-    long ctx_options = SSL_OP_ALL|SSL_OP_NO_SSLv2;
+    char *part, *brkt;
+    long ctx_options = 0;
     ssl_ctx_cache_node *existing_ctx_cn;
     ctx->ssl_ctx_cn = calloc(1, sizeof(*ctx->ssl_ctx_cn));
     ctx->ssl_ctx_cn->key = strdup(ssl_ctx_key);
@@ -636,11 +650,9 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
                                  SSLv3_server_method() : SSLv3_client_method());
 #endif
 #ifdef SSL_TXT_SSLV2
-#ifndef OPENSSL_NO_SSL2
     else if(layer && !strcasecmp(layer, SSL_TXT_SSLV2))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  SSLv2_server_method() : SSLv2_client_method());
-#endif
 #endif
 #ifdef SSL_TXT_TLSV1
     else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1))
@@ -657,10 +669,50 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  TLSv1_2_server_method() : TLSv1_2_client_method());
 #endif
+#ifdef SSL_TXT_SSLV3
+    else if(layer && !strcasecmp(layer, SSL_TXT_SSLV3))
+      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
+                                 SSLv23_server_method() : SSLv23_client_method());
+#endif
     if(ctx->ssl_ctx == NULL)
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  SSLv23_server_method() : SSLv23_client_method());
     if(!ctx->ssl_ctx) goto bail;
+
+    for(part = strtok_r(opts, ",", &brkt);
+        part;
+        part = strtok_r(NULL, ",", &brkt)) {
+      char *optname = part;
+      int neg = 0;
+      if(*optname == '!') neg = 1, optname++;
+
+#define SETBITOPT(name, neg, opt) \
+  if(!strcasecmp(optname, name)) { \
+    if(neg) ctx_options &= ~(opt); \
+    else    ctx_options |= (opt); \
+  }
+
+      SETBITOPT("all", neg, SSL_OP_ALL)
+#ifdef SSL_TXT_SSLV2
+      else SETBITOPT(SSL_TXT_SSLV2, !neg, SSL_OP_NO_SSLv2)
+#endif
+#ifdef SSL_TXT_SSLV3
+      else SETBITOPT(SSL_TXT_SSLV3, !neg, SSL_OP_NO_SSLv3)
+#endif
+#ifdef SSL_TXT_TLSV1
+      else SETBITOPT(SSL_TXT_TLSV1, !neg, SSL_OP_NO_TLSv1)
+#endif
+#ifdef SSL_TXT_TLSV1_1
+      else SETBITOPT(SSL_TXT_TLSV1_1, !neg, SSL_OP_NO_TLSv1_1)
+#endif
+#ifdef SSL_TXT_TLSV1_2
+      else SETBITOPT(SSL_TXT_TLSV1_2, !neg, SSL_OP_NO_TLSv1_2)
+#endif
+      else {
+        noitL(noit_error, "SSL layer part '%s' not understood.\n", optname);
+      }
+    }
+
     if (type == SSL_SERVER)
       SSL_CTX_set_session_id_context(ctx->ssl_ctx,
               (unsigned char *)EVENTER_SSL_DATANAME,
