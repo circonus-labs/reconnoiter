@@ -71,9 +71,9 @@ class IEPRiemann {
                    "        k (riemann.common/event-to-json e))))) " +
     "";
     Compiler.load(new StringReader(nadef));
-    riemann.bin.main(new String[] {
-      sconf.getIepParameter("riemann", "config") }
-    );
+    String configfile = sconf.getIepParameter("riemann", "config");
+    if(configfile == null) configfile = "riemann.config";
+    riemann.bin.main(new String[] { configfile });
     IMQMQ[] mqs = MQFactory.getMQs(sconf);
     IMQBroker broker = BrokerFactory.getBroker(sconf);
     EventHandler eh = new EventHandler(mqs, broker);

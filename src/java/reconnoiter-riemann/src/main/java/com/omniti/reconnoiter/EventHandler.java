@@ -148,6 +148,7 @@ public class EventHandler implements IEventHandler {
     Event e = null;
     NoitMetricNumeric nmn = null;
     NoitMetricText nmt = null;
+    NoitStatus ns = null;
     if (m instanceof NoitMetric) {
       NoitMetric nm = (NoitMetric)m;
       if(nm.isNumeric()) nmn = nm.getNumeric();
@@ -159,13 +160,17 @@ public class EventHandler implements IEventHandler {
     else if (m instanceof NoitMetricText) {
       nmt = (NoitMetricText)m;
     }
+    else if (m instanceof NoitStatus) {
+    	ns = (NoitStatus)m;
+    }
     if(nmn != null) {
       PersistentVector tags = PersistentVector.create(new java.lang.String[] {
                       "reconnoiter",
                       "check:" + nmn.getUuid(),
                       "name:" + nmn.getCheck_name(),
                       "module:" + nmn.getCheck_module(),
-                      "noit:" + nmn.getNoit() });
+                      "noit:" + nmn.getNoit(),
+                      "type:numeric" });
       e = new Event(nmn.getCheck_target(), // host
                     nmn.getName(), // service
                     null, // state
@@ -181,7 +186,8 @@ public class EventHandler implements IEventHandler {
                       "check:" + nmt.getUuid(),
                       "name:" + nmt.getCheck_name(),
                       "module:" + nmt.getCheck_module(),
-                      "noit:" + nmt.getNoit() });
+                      "noit:" + nmt.getNoit(),
+                      "type:text" });
       e = new Event(nmt.getCheck_target(), // host
                     nmt.getName(), // service
                     null, // state
@@ -190,6 +196,24 @@ public class EventHandler implements IEventHandler {
                     tags, // tags
                     nmt.getTime()/1000, //time
                     10); //ttl
+    }
+    if (ns != null) {
+      PersistentVector tags = PersistentVector.create(new java.lang.String[] {
+	                  "reconnoiter",
+	                  "check:" + ns.getUuid(),
+	                  "name:" + ns.getCheck_name(),
+	                  "module:" + ns.getCheck_module(),
+	                  "noit:" + ns.getNoit(),
+	                  "availability:" + ns.getAvailability(),
+	                  "type:status" });
+      e = new Event(ns.getCheck_target(), // host
+                    "status", // service
+                    ns.getState(), // state
+                    ns.getStatus(), // description
+                    ns.getDuration(), // value
+                    tags, // tags
+                    ns.getTime()/1000, //time
+                    10); //ttl)
     }
     if(e != null) {
       stream.invoke(core, e);

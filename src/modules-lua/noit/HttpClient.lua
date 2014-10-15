@@ -180,7 +180,9 @@ function te_length(self, content_enc_func, read_limit)
             len = len - string.len(str)
         end
         local decoded = content_enc_func(str)
-        self.content_bytes = self.content_bytes + string.len(decoded)
+        if decoded ~= nil then
+          self.content_bytes = self.content_bytes + string.len(decoded)
+        end
         if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
     until str == nil or len == 0
 end
@@ -200,7 +202,9 @@ function te_chunked(self, content_enc_func, read_limit)
         if string.len(str or "") ~= len then error("short chunked read") end
         self.raw_bytes = self.raw_bytes + string.len(str)
         local decoded = content_enc_func(str)
-        self.content_bytes = self.content_bytes + string.len(decoded)
+        if decoded ~= nil then
+          self.content_bytes = self.content_bytes + string.len(decoded)
+        end
         if self.hooks.consume ~= nil then self.hooks.consume(decoded) end
         if read_limit and read_limit > 0 then
           if self.content_bytes > read_limit then

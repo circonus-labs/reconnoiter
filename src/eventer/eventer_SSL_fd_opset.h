@@ -113,6 +113,10 @@ GET_SET_X509_NAME_PROTO(error);
 GET_SET_X509_NAME_PROTO(san_list);
 API_EXPORT(const char *)
   eventer_ssl_get_last_error(eventer_ssl_ctx_t *ctx);
+API_EXPORT(X509 *)
+  eventer_ssl_get_peer_certificate(eventer_ssl_ctx_t *ctx);
+API_EXPORT(SSL_SESSION *)
+  eventer_ssl_get_session(eventer_ssl_ctx_t *ctx);
 API_EXPORT(time_t)
   eventer_ssl_get_peer_start_time(eventer_ssl_ctx_t *ctx);
 API_EXPORT(time_t)

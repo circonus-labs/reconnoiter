@@ -32,7 +32,7 @@ my $boot_timeout = 5;
              $NOIT_API_PORT $NOIT_CLI_PORT
              $STRATCON_API_PORT $STRATCON_CLI_PORT
              $STRATCON_WEB_PORT $STOMP_PORT
-             pg make_noit_config start_noit stop_noit get_noit_log
+             pg make_noit_config start_noit stop_noit get_noit_log find_in_log
              make_stratcon_config start_stratcon stop_stratcon get_stratcon_log
              $MODULES_DIR $LUA_DIR $all_noit_modules $all_stratcon_modules
              safe_usleep);
@@ -371,6 +371,7 @@ sub make_iep_config {
     BAIL_OUT("cannot open target run-iep.sh");
   while(<$run>) {
     s%^DIRS="%DIRS="$cwd/../../src/java/reconnoiter-riemann/target %;
+    s%^JPARAMS="%JPARAMS="-Djava.security.egd=file:/dev/./urandom %;
     print $newrun $_;
   }
   close($run);
@@ -493,10 +494,10 @@ sub make_stratcon_config {
                              'stomp_driver' => { image => 'stomp_driver' },
                              'postgres_ingestor' => { image => 'postgres_ingestor' } };
   $options->{rest_acls} ||= [ { type => 'deny', rules => [ { type => 'allow' } ] } ];
-  $options->{iep}->{mq} ||= { 'stomp' => { 'port' => $STOMP_PORT },
+  $options->{iep}->{mq} ||= { 'stomp' => { 'port' => $STOMP_PORT, 'hostname' => '127.0.0.1' },
                               #'rabbitmq' => { 'hostname' => 'localhost' },
                             };
-  $options->{iep}->{broker} ||= { 'stomp' => { 'port' => $STOMP_PORT },
+  $options->{iep}->{broker} ||= { 'stomp' => { 'port' => $STOMP_PORT, 'hostname' => '127.0.0.1' },
                                   #'rabbitmq' => { 'hostname' => 'localhost' },
                                 };
   $options->{iep}->{riemann} ||= { 'config' => q~
@@ -535,7 +536,12 @@ $SIG{CHLD} = sub {
 sub find_in_log {
   my $logfile = shift;
   my $re = shift;
-  my $f = IO::File->new("<$logfile");
+  my $f;
+  if(ref $logfile && $logfile->isa("IO::File")) {
+    $f = $logfile;
+  } else {
+    $f = IO::File->new("<$logfile");
+  }
   return 0 unless $f;
   while(<$f>) {
     chomp;
