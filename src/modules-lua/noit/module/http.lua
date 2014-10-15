@@ -400,7 +400,7 @@ function initiate(module, check)
            config.auth_method == "Auto" then
         -- this is handled later as we need our challenge.
         local client = HttpClient:new()
-        local rv, err = client:connect(check.target_ip, port, use_ssl, host_header)
+        local rv, err = client:connect(check.target_ip, port, use_ssl, host_header, config.ssl_layer)
         if rv ~= 0 then
             check.status(err or "unknown error in HTTP connect for Auth")
             return
@@ -446,7 +446,7 @@ function initiate(module, check)
     starttime = noit.timeval.now()
     repeat
         local optclient = HttpClient:new(callbacks)
-        local rv, err = optclient:connect(target, port, use_ssl, host_header)
+        local rv, err = optclient:connect(target, port, use_ssl, host_header, config.ssl_layer)
         if rv ~= 0 then
             check.status(err or "unknown error in HTTP connect")
             return
@@ -594,11 +594,15 @@ function initiate(module, check)
     local ssl_ctx = client:ssl_ctx()
     if ssl_ctx ~= nil then
       local peer = ssl_ctx.peer_certificate
+      local sess = ssl_ctx.ssl_session;
       check.metric_uint32("cert_serial", peer.serial)
       check.metric_string("cert_ocsp", peer.ocsp)
       check.metric_string("cert_type", string.lower(peer.type))
       check.metric_string("cert_bits", string.lower(peer.bits))
       check.metric_string("cert_sig_alg", string.lower(peer.signature_algorithm))
+      check.metric_string("ssl_session_version", string.lower(sess.ssl_version))
+      check.metric_string("ssl_session_cipher", string.lower(sess.cipher))
+      check.metric_string("ssl_session_key_bits", sess.master_key_bits)
       local purposes = {}
       for k,v in pairs(peer.purpose) do
         if v == 1 then

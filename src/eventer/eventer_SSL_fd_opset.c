@@ -270,6 +270,11 @@ eventer_ssl_get_peer_certificate(eventer_ssl_ctx_t *ctx) {
   return peer;
 }
 
+SSL_SESSION *
+eventer_ssl_get_session(eventer_ssl_ctx_t *ctx) {
+  return SSL_get1_session(ctx->ssl);
+}
+
 int
 eventer_ssl_get_san_values(eventer_ssl_ctx_t *ctx,
                         X509_STORE_CTX *x509ctx) {

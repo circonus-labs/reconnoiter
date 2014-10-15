@@ -137,6 +137,7 @@ int noit_lua_dns_index_func(lua_State *L);
 int nl_dns_lookup(lua_State *L);
 int luaopen_noit(lua_State *L);
 int noit_lua_crypto_newx509(lua_State *L, X509 *x509);
+int noit_lua_crypto_new_ssl_session(lua_State *L, SSL_SESSION *sess);
 int luaopen_crypto(lua_State *L);
 int luaopen_pack(lua_State *L); /* from lua_lpack.c */
 int luaopen_bit(lua_State *L); /* from lua_bit.c */

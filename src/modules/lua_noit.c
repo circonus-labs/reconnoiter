@@ -1365,6 +1365,10 @@ noit_ssl_ctx_index_func(lua_State *L) {
       LUA_RETSTRING(san_list, eventer_ssl_get_peer_san_list(ssl_ctx));
       LUA_RETSTRING(subject, eventer_ssl_get_peer_subject(ssl_ctx));
       LUA_RETINTEGER(start_time, eventer_ssl_get_peer_start_time(ssl_ctx));
+      if(!strcmp(k,"ssl_session")) {
+        SSL_SESSION *ssl_session = eventer_ssl_get_session(ssl_ctx);
+        return noit_lua_crypto_new_ssl_session(L, ssl_session);
+      }
       break;
     default:
       break;
