@@ -1,4 +1,4 @@
-use Test::More tests => 31;
+use Test::More tests => 32;
 use WWW::Curl::Easy;
 use JSON;
 use XML::LibXML;
@@ -81,6 +81,13 @@ sub do_counts {
 
 my($st_t, $st_n) = do_counts();
 
+my $ready = 0;
+for(1 .. 60) {
+  $ready = find_in_log(get_stratcon_log(), qr/Loaded all (\d+) check states/);
+  last if $ready;
+  sleep(1);
+}
+ok($ready, 'IEP up and ready for action');
 ok(1, 'going to sleep 7 seconds for data to stream');
 usleep(7000000);
 my $sc = apiclient->new('localhost', $STRATCON_API_PORT, 'stratcon');
