@@ -200,8 +200,12 @@ noit_lua_crypto_ssl_session_index_func(lua_State *L) {
         const char *s = "unknown";
         if (ssl_session->ssl_version == SSL2_VERSION) s="SSLv2";
         else if (ssl_session->ssl_version == SSL3_VERSION) s="SSLv3";
+#ifdef TLS1_2_VERSION
         else if (ssl_session->ssl_version == TLS1_2_VERSION) s="TLSv1.2";
+#endif
+#ifdef TLS1_1_VERSION
         else if (ssl_session->ssl_version == TLS1_1_VERSION) s="TLSv1.1";
+#endif
         else if (ssl_session->ssl_version == TLS1_VERSION) s="TLSv1";
         else if (ssl_session->ssl_version == DTLS1_VERSION) s="DTLSv1";
         else if (ssl_session->ssl_version == DTLS1_BAD_VER) s="DTLSv1-bad";
