@@ -391,7 +391,6 @@ AC_CHECK_LIB(netsnmp-c1, snmp_sess_open_C1,
   [
 		AC_CHECK_LIB(netsnmp, snmp_sess_open,
 			[
-				BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
 				HAS_NETSNMP="yes"
 				SNMP_MODULE="no"
 				AC_MSG_WARN([*** snmp C implementation requires libnetsnmp-c1 ***])
