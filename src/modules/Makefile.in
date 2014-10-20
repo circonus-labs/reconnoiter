@@ -51,7 +51,7 @@ ip_acl.lo:	ip_acl.xmlh
 custom_config.lo:	custom_config.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_crypto.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -lnetsnmp
+	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -l@LIBNETSNMP@
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
@@ -167,7 +167,7 @@ dns.lo:	dns.c dns.xmlh
 	@echo "- compiling $<"
 
 snmp.@MODULEEXT@:	snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ snmp.lo -lnetsnmp
+	@$(MODULELD) $(SHLDFLAGS) -o $@ snmp.lo -l@LIBNETSNMP@
 	@echo "- linking $@"
 
 ssh2.@MODULEEXT@:	ssh2.lo

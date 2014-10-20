@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
@@ -121,7 +122,7 @@ typedef struct _mod_config {
 } snmp_mod_config_t;
 
 struct target_session {
-  void *sess_handle;
+  netsnmp_session *sess_handle;
   noit_module_t *self;
   char *key;
   char *target;
@@ -413,17 +414,14 @@ static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
 
 static int noit_snmp_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
-  fd_set fdset;
-  int fds, block = 0;
+  int block = 0;
   struct timeval timeout = { 0, 0 };
   struct target_session *ts = closure;
-  FD_ZERO(&fdset);
-  FD_SET(e->fd, &fdset);
-  fds = e->fd + 1;
-  snmp_sess_read(ts->sess_handle, &fdset);
+  snmp_sess_read_C1(ts->sess_handle, e->fd);
   if(noit_snmp_session_cleanse(ts, 0))
     return 0;
-  snmp_sess_select_info(ts->sess_handle, &fds, &fdset, &timeout, &block);
+  snmp_sess_select_info2_flags(ts->sess_handle, NULL, NULL,
+                             &timeout, &block, NETSNMP_SELECT_NOFLAGS);
   _set_ts_timeout(ts, block ? &timeout : NULL);
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -848,6 +846,7 @@ static void noit_snmp_sess_open(struct target_session *ts,
                                 noit_check_t *check) {
   const char *community;
   struct snmp_session sess;
+  netsnmp_transport *transport;
   struct check_info *info = check->closure;
   snmp_sess_init(&sess);
   sess.version = info->version;
@@ -860,7 +859,8 @@ static void noit_snmp_sess_open(struct target_session *ts,
   sess.community_len = strlen(community);
   sess.callback = noit_snmp_asynch_response;
   sess.callback_magic = ts;
-  ts->sess_handle = snmp_sess_open(&sess);
+  ts->sess_handle = snmp_sess_open_C1(&sess, &transport);
+  ts->fd = transport->sock;
   gettimeofday(&ts->last_open, NULL);
 }
 
@@ -982,16 +982,9 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
-    int fds, block;
     struct timeval timeout;
-    fd_set fdset;
+    netsnmp_session *rsess;
     noit_snmp_sess_open(ts, check);
-    block = 0;
-    fds = 0;
-    FD_ZERO(&fdset);
-    snmp_sess_select_info(ts->sess_handle, &fds, &fdset, &timeout, &block);
-    assert(fds > 0);
-    ts->fd = fds-1;
     newe = eventer_alloc();
     newe->fd = ts->fd;
     newe->callback = noit_snmp_handler;
@@ -1148,6 +1141,17 @@ register_console_snmp_commands(snmp_mod_config_t *conf) {
     NCSCMD("snmp", noit_console_show_snmp, NULL, NULL, conf));
 }
 
+static int
+_private_snmp_log(int majorID, int minorID, void *serverarg, void *clientarg) {
+  struct snmp_log_message *slm;
+  snmp_mod_config_t *conf;
+  conf = clientarg;
+  slm = serverarg;
+  noitL(((slm->priority < LOG_NOTICE) ? nlerr : nldeb), "[pri:%d] %s",
+        slm->priority, slm->msg);
+  return 1;
+}
+
 static int noit_snmp_init(noit_module_t *self) {
   const char *opt;
   snmp_mod_config_t *conf;
@@ -1159,6 +1163,17 @@ static int noit_snmp_init(noit_module_t *self) {
     read_premib_configs();
     read_configs();
     init_snmp("noitd");
+    snmp_disable_stderrlog();
+    snmp_register_callback(SNMP_CALLBACK_LIBRARY, SNMP_CALLBACK_LOGGING,
+                           _private_snmp_log, conf);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_EMERG);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_ALERT);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_CRIT);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_ERR);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_WARNING);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_NOTICE);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_INFO);
+    netsnmp_register_loghandler(NETSNMP_LOGHANDLER_CALLBACK, LOG_DEBUG);
     __snmp_initialize_once = 1;
   }
   if(strcmp(self->hdr.name, "snmp") == 0) {

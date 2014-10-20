@@ -381,11 +381,23 @@ HAS_NETSNMP="no"
 AC_CHECK_HEADERS(net-snmp/net-snmp-config.h)
 if test "$ac_cv_header_net_snmp_net_snmp_config_h" = "yes" ; then
 SAVELIBS="$LIBS"
-AC_CHECK_LIB(netsnmp, snmp_sess_open,
+AC_CHECK_LIB(netsnmp-c1, snmp_sess_open_C1,
 	[
 		BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
 		HAS_NETSNMP="yes"
 		SNMP_MODULE="yes"
+		LIBNETSNMP="netsnmp-c"
+	],
+  [
+		AC_CHECK_LIB(netsnmp, snmp_sess_open,
+			[
+				BUILD_MODULES="$BUILD_MODULES snmp.$MODULEEXT"
+				HAS_NETSNMP="yes"
+				SNMP_MODULE="no"
+				AC_MSG_WARN([*** snmp C implementation requires libnetsnmp-c1 ***])
+				LIBNETSNMP="netsnmp"
+			]
+		)
 	]
 )
 LIBS="$SAVELIBS"
@@ -409,6 +421,8 @@ if test "x$HAS_NETSNMP" = "xno"; then
 		AC_MSG_ERROR([*** lua specified, but no SNMP ***])
 	fi
 fi
+
+AC_SUBST(LIBNETSNMP)
 
 # Should we build ssh2 checks?
 SSH2_MODULE="no"
