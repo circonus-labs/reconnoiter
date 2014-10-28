@@ -535,6 +535,13 @@ posix_logio_reopen(noit_log_stream_t ls) {
       rv = 0;
     }
     if(lock) pthread_rwlock_unlock(lock);
+    if(actx->is_asynch) {
+      pthread_attr_t tattr;
+      pthread_attr_init(&tattr);
+      pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+      if(pthread_create(&actx->writer, &tattr, asynch_logio_writer, ls) != 0)
+        return -1;
+    }
     return rv;
   }
   return -1;
