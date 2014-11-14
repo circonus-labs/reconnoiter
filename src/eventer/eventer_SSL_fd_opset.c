@@ -649,35 +649,30 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
     populate_finfo(&ctx->ssl_ctx_cn->key_finfo, key);
     populate_finfo(&ctx->ssl_ctx_cn->ca_finfo, ca);
     ctx->ssl_ctx = NULL;
-#ifdef SSL_TXT_SSLV3
+#if defined(SSL_TXT_SSLV3) && defined(HAVE_SSLV3_SERVER) && defined(HAVE_SSLV3_CLIENT)
     if(layer && !strcasecmp(layer, SSL_TXT_SSLV3))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  SSLv3_server_method() : SSLv3_client_method());
 #endif
-#ifdef SSL_TXT_SSLV2
+#if defined(SSL_TXT_SSLV2) && defined(HAVE_SSLV2_SERVER) && defined(HAVE_SSLV2_CLIENT)
     else if(layer && !strcasecmp(layer, SSL_TXT_SSLV2))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  SSLv2_server_method() : SSLv2_client_method());
 #endif
-#ifdef SSL_TXT_TLSV1
+#if defined(SSL_TXT_TLSV1) && defined(HAVE_TLSV1_SERVER) && defined(HAVE_TLSV1_CLIENT)
     else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  TLSv1_server_method() : TLSv1_client_method());
 #endif
-#ifdef SSL_TXT_TLSV1_1
+#if defined(SSL_TXT_TLSV1_1) && defined(HAVE_TLSV1_1_SERVER) && defined(HAVE_TLSV1_1_CLIENT)
     else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1_1))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  TLSv1_1_server_method() : TLSv1_1_client_method());
 #endif
-#ifdef SSL_TXT_TLSV1_2
+#if defined(SSL_TXT_TLSV1_2) && defined(HAVE_TLSV1_2_SERVER) && defined(HAVE_TLSV1_2_CLIENT)
     else if(layer && !strcasecmp(layer, SSL_TXT_TLSV1_2))
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
                                  TLSv1_2_server_method() : TLSv1_2_client_method());
-#endif
-#ifdef SSL_TXT_SSLV3
-    else if(layer && !strcasecmp(layer, SSL_TXT_SSLV3))
-      ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?
-                                 SSLv23_server_method() : SSLv23_client_method());
 #endif
     if(ctx->ssl_ctx == NULL)
       ctx->ssl_ctx = SSL_CTX_new(type == SSL_SERVER ?

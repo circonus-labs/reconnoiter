@@ -177,7 +177,7 @@ static LJ_AINLINE int CALL_MUNMAP(void *ptr, size_t size)
 #if LJ_64
 /* 64 bit mode needs special support for allocating memory in the lower 2GB. */
 
-#if defined(MAP_32BIT)
+#if defined(MAP_32BIT) && !defined(BROKEN_MMAP_HINTS)
 
 /* Actually this only gives us max. 1GB in current Linux kernels. */
 static LJ_AINLINE void *CALL_MMAP(size_t size)

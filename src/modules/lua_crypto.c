@@ -307,7 +307,7 @@ noit_lua_crypto_rsa_gencsr(lua_State *L) {
   str = lua_isstring(L,-1) ? lua_tostring(L,-1) : fallback; \
   lua_pop(L,1); \
 } while(0)
-  GET_OR(lua_string, "digest", "sha1");
+  GET_OR(lua_string, "digest", "sha256");
   md = EVP_get_digestbyname(lua_string);
   if(!md) REQERR("unknown digest");
   pkey = EVP_PKEY_new();

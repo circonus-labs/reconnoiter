@@ -217,6 +217,7 @@ function initiate(module, check)
     local good = false
     local starttime = noit.timeval.now()
     local read_limit = tonumber(config.read_limit) or nil
+    local client
 
     -- assume the worst.
     check.bad()
@@ -247,6 +248,7 @@ function initiate(module, check)
     callbacks.headers = function (t) hdrs_in = t end
    
     -- perform the request
+    local rv, err
     local headers = {}
     headers.Host = host
     for header, value in pairs(config) do
@@ -272,8 +274,8 @@ function initiate(module, check)
            config.auth_method == "Auto" then
 
         -- this is handled later as we need our challenge.
-        local client = HttpClient:new()
-        local rv, err = client:connect(check.target_ip, port, use_ssl)
+        client = HttpClient:new(callbacks)
+        rv, err = client:connect(check.target_ip, port, use_ssl)
         if rv ~= 0 then
             check.status(str or "unknown error")
             return
@@ -284,6 +286,14 @@ function initiate(module, check)
         end
         client:do_request("GET", uri, headers_firstpass)
         client:get_response(read_limit)
+
+        -- if we got a 200 here, we needed no auth
+        if client.code == 200 then goto done_request end
+
+        -- not success.. clear what callbacks created
+        hdrs_in = {}
+        output = ''
+
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
             check.status("expected digest challenge, got " .. client.code)
@@ -309,8 +319,8 @@ function initiate(module, check)
         return
     end
 
-    local client = HttpClient:new(callbacks)
-    local rv, err = client:connect(check.target_ip, port, use_ssl)
+    client = HttpClient:new(callbacks)
+    rv, err = client:connect(check.target_ip, port, use_ssl)
     if rv ~= 0 then
         check.status(err or "unknown error")
         return
@@ -319,6 +329,7 @@ function initiate(module, check)
     client:do_request("GET", uri, headers)
     client:get_response(read_limit)
 
+::done_request::
     if helper and helper.fix_output then output = helper.fix_output(output) end
 
     if helper and helper.process then

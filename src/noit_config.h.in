@@ -291,4 +291,15 @@ typedef enum { noit_false = 0, noit_true } noit_boolean;
 #undef UNAME_N
 #undef UNAME_P
 
+#undef HAVE_SSLV2_SERVER
+#undef HAVE_SSLV2_CLIENT
+#undef HAVE_SSLV3_SERVER
+#undef HAVE_SSLV3_CLIENT
+#undef HAVE_TLSV1_SERVER
+#undef HAVE_TLSV1_CLIENT
+#undef HAVE_TLSV1_1_SERVER
+#undef HAVE_TLSV1_1_CLIENT
+#undef HAVE_TLSV1_2_SERVER
+#undef HAVE_TLSV1_2_CLIENT
+
 #endif

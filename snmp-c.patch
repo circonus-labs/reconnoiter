@@ -1,0 +1,555 @@
+diff --git a/include/net-snmp/session_api.h b/include/net-snmp/session_api.h
+index 88dbc41..7f04ca0 100644
+--- a/include/net-snmp/session_api.h
++++ b/include/net-snmp/session_api.h
+@@ -209,6 +209,10 @@ extern          "C" {
+      *  4. Replace snmp_send(ss,pdu) with snmp_sess_send(sessp,pdu)
+      */
+ 
++    struct netsnmp_transport_s;
++
++    NETSNMP_IMPORT
++    netsnmp_session *snmp_sess_open_C1(netsnmp_session *, struct netsnmp_transport_s **);
+     NETSNMP_IMPORT
+     void           *snmp_sess_open(netsnmp_session *);
+     NETSNMP_IMPORT
+@@ -239,6 +243,8 @@ extern          "C" {
+      * Returns 0 if success, -1 if fail.
+      */
+     NETSNMP_IMPORT
++    int             snmp_sess_read_C1(void *, int fd);
++    NETSNMP_IMPORT
+     int             snmp_sess_read(void *, fd_set *);
+     /*
+      * Similar to snmp_sess_read(), but accepts a pointer to a large file
+diff --git a/snmplib/Makefile.in b/snmplib/Makefile.in
+index 56f8e4a..ae75a51 100644
+--- a/snmplib/Makefile.in
++++ b/snmplib/Makefile.in
+@@ -132,7 +132,7 @@ INSTALLUCDHEADERS= asn1.h \
+ 	transform_oids.h
+ 
+ # libraries
+-INSTALLLIBS=libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
++INSTALLLIBS=libnetsnmp-c.$(LIB_EXTENSION)$(LIB_VERSION)
+ INSTALLUCDLIBS=libsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
+ 
+ #
+@@ -228,7 +228,7 @@ CPPFLAGS = $(TOP_INCLUDES) -I. 	$(SNMPLIB_INCLUDES) @CPPFLAGS@
+ all: standardall
+ 
+ # how to build the libraries.
+-libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
++libnetsnmp-c.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
+ 	$(LIB_LD_CMD) $@ $(TOBJS) @LD_NO_UNDEFINED@ $(LDFLAGS) @LNETSNMPLIBS@
+ 	$(RANLIB) $@
+ 
+diff --git a/snmplib/snmp_api.c b/snmplib/snmp_api.c
+index a35fd9c..b7c19f9 100644
+--- a/snmplib/snmp_api.c
++++ b/snmplib/snmp_api.c
+@@ -1601,6 +1601,96 @@ _sess_open(netsnmp_session * in_session)
+     return snmp_sess_add(in_session, transport, NULL, NULL);
+ }
+ 
++netsnmp_session *
++snmp_sess_open_C1(netsnmp_session * in_session, netsnmp_transport **out_t)
++{
++    netsnmp_session *out;
++    netsnmp_transport *transport = NULL;
++    int rc;
++
++    if(out_t) *out_t = NULL;
++
++    in_session->s_snmp_errno = 0;
++    in_session->s_errno = 0;
++
++    _init_snmp();
++
++    {
++        char *clientaddr_save = NULL;
++        int family;
++        struct in6_addr a;
++
++        if (NULL != in_session->localname) {
++            clientaddr_save =
++                netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
++                                      NETSNMP_DS_LIB_CLIENT_ADDR);
++            netsnmp_ds_set_string(NETSNMP_DS_LIBRARY_ID,
++                                  NETSNMP_DS_LIB_CLIENT_ADDR,
++                                  in_session->localname);
++        }
++
++        family = AF_INET6;
++        if(inet_pton(family, in_session->peername, &a) != 1) family = AF_INET;
++
++        if (in_session->flags & SNMP_FLAGS_STREAM_SOCKET) {
++            transport =
++                netsnmp_tdomain_transport_full("snmp", in_session->peername,
++                                               in_session->local_port,
++                                               (family == AF_INET) ? "tcp" : "tcp6",
++                                               NULL);
++        } else {
++            transport =
++                netsnmp_tdomain_transport_full("snmp", in_session->peername,
++                                               in_session->local_port,
++                                               (family == AF_INET) ? "udp" : "udp6",
++                                               NULL);
++        }
++
++        if (NULL != clientaddr_save)
++            netsnmp_ds_set_string(NETSNMP_DS_LIBRARY_ID,
++                                  NETSNMP_DS_LIB_CLIENT_ADDR, clientaddr_save);
++    }
++
++    if (transport == NULL) {
++        DEBUGMSGTL(("_sess_open", "couldn't interpret peername\n"));
++        in_session->s_snmp_errno = SNMPERR_BAD_ADDRESS;
++        in_session->s_errno = errno;
++        snmp_set_detail(in_session->peername);
++        return NULL;
++    }
++
++    /* Optional supplimental transport configuration information and
++       final call to actually open the transport */
++    if ((rc = netsnmp_sess_config_and_open_transport(in_session, transport))
++        != SNMPERR_SUCCESS) {
++        transport = NULL;
++        return NULL;
++    }
++
++#if defined(SO_BROADCAST) && defined(SOL_SOCKET)
++    if ( in_session->flags & SNMP_FLAGS_UDP_BROADCAST) {
++        int   b = 1;
++        int   rc;
++
++        rc = setsockopt(transport->sock, SOL_SOCKET, SO_BROADCAST,
++                        (char *)&b, sizeof(b));
++
++        if ( rc != 0 ) {
++            in_session->s_snmp_errno = SNMPERR_BAD_ADDRESS; /* good as any? */
++            in_session->s_errno = errno;
++
++            DEBUGMSGTL(("_sess_open", "couldn't enable UDP_BROADCAST\n"));
++            return NULL;
++        }
++    }
++#endif
++
++    if(out_t) *out_t = transport;
++
++    out = snmp_sess_add(in_session, transport, NULL, NULL);
++    if(!out) SET_SNMP_ERROR(in_session->s_snmp_errno);
++    return out;
++}
+ /*
+  * EXTENDED SESSION API ------------------------------------------ 
+  * 
+@@ -5833,6 +5923,370 @@ _sess_read(void *sessp, netsnmp_large_fd_set * fdset)
+ }
+ 
+ 
++int
++_sess_read_C1(void *sessp, int fd)
++{
++    struct session_list *slp = (struct session_list *) sessp;
++    netsnmp_session *sp = slp ? slp->session : NULL;
++    struct snmp_internal_session *isp = slp ? slp->internal : NULL;
++    netsnmp_transport *transport = slp ? slp->transport : NULL;
++    size_t          pdulen = 0, rxbuf_len = 65536;
++    u_char         *rxbuf = NULL;
++    int             length = 0, olength = 0, rc = 0;
++    void           *opaque = NULL;
++
++    if (!sp || !isp || !transport) {
++        DEBUGMSGTL(("sess_read", "read fail: closing...\n"));
++        return 0;
++    }
++
++    /* to avoid subagent crash */ 
++    if (transport->sock < 0) { 
++        snmp_log (LOG_INFO, "transport->sock got negative fd value %d\n", transport->sock);
++        return 0; 
++    }
++
++    if (fd != transport->sock) {
++        snmp_log (LOG_INFO, "transport->sock fd mismatch %d != %d\n", transport->sock, fd);
++        return 0;
++    }
++
++    sp->s_snmp_errno = 0;
++    sp->s_errno = 0;
++
++    if (transport->flags & NETSNMP_TRANSPORT_FLAG_LISTEN) {
++        int             data_sock = transport->f_accept(transport);
++
++        if (data_sock >= 0) {
++            /*
++             * We've successfully accepted a new stream-based connection.
++             * It's not too clear what should happen here if we are using the
++             * single-session API at this point.  Basically a "session
++             * accepted" callback is probably needed to hand the new session
++             * over to the application.
++             * 
++             * However, for now, as in the original snmp_api, we will ASSUME
++             * that we're using the traditional API, and simply add the new
++             * session to the list.  Note we don't have to get the Session
++             * list lock here, because under that assumption we already hold
++             * it (this is also why we don't just use snmp_add).
++             * 
++             * The moral of the story is: don't use listening stream-based
++             * transports in a multi-threaded environment because something
++             * will go HORRIBLY wrong (and also that SNMP/TCP is not trivial).
++             * 
++             * Another open issue: what should happen to sockets that have
++             * been accept()ed from a listening socket when that original
++             * socket is closed?  If they are left open, then attempting to
++             * re-open the listening socket will fail, which is semantically
++             * confusing.  Perhaps there should be some kind of chaining in
++             * the transport structure so that they can all be closed.
++             * Discuss.  ;-)
++             */
++
++	    netsnmp_transport *new_transport=netsnmp_transport_copy(transport);
++            if (new_transport != NULL) {
++                struct session_list *nslp = NULL;
++
++                new_transport->sock = data_sock;
++                new_transport->flags &= ~NETSNMP_TRANSPORT_FLAG_LISTEN;
++
++                nslp = (struct session_list *)snmp_sess_add_ex(sp,
++			  new_transport, isp->hook_pre, isp->hook_parse,
++			  isp->hook_post, isp->hook_build,
++			  isp->hook_realloc_build, isp->check_packet,
++			  isp->hook_create_pdu);
++
++                if (nslp != NULL) {
++                    nslp->next = Sessions;
++                    Sessions = nslp;
++                    /*
++                     * Tell the new session about its existance if possible.
++                     */
++                    DEBUGMSGTL(("sess_read",
++                                "perform callback with op=CONNECT\n"));
++                    (void)nslp->session->callback(NETSNMP_CALLBACK_OP_CONNECT,
++                                                  nslp->session, 0, NULL,
++                                                  sp->callback_magic);
++                }
++                return 0;
++            } else {
++                sp->s_snmp_errno = SNMPERR_MALLOC;
++                sp->s_errno = errno;
++                snmp_set_detail(strerror(errno));
++                return -1;
++            }
++        } else {
++            sp->s_snmp_errno = SNMPERR_BAD_RECVFROM;
++            sp->s_errno = errno;
++            snmp_set_detail(strerror(errno));
++            return -1;
++        }
++    }
++
++    /*
++     * Work out where to receive the data to.  
++     */
++
++    if (transport->flags & NETSNMP_TRANSPORT_FLAG_STREAM) {
++        if (isp->packet == NULL) {
++            /*
++             * We have no saved packet.  Allocate one.  
++             */
++            if ((isp->packet = (u_char *) malloc(rxbuf_len)) == NULL) {
++                DEBUGMSGTL(("sess_read", "can't malloc %" NETSNMP_PRIz
++                            "u bytes for rxbuf\n", rxbuf_len));
++                return 0;
++            } else {
++                rxbuf = isp->packet;
++                isp->packet_size = rxbuf_len;
++                isp->packet_len = 0;
++            }
++        } else {
++            /*
++             * We have saved a partial packet from last time.  Extend that, if
++             * necessary, and receive new data after the old data.  
++             */
++            u_char         *newbuf;
++
++            if (isp->packet_size < isp->packet_len + rxbuf_len) {
++                newbuf =
++                    (u_char *) realloc(isp->packet,
++                                       isp->packet_len + rxbuf_len);
++                if (newbuf == NULL) {
++                    DEBUGMSGTL(("sess_read",
++                                "can't malloc %" NETSNMP_PRIz
++                                "u more for rxbuf (%" NETSNMP_PRIz "u tot)\n",
++                                rxbuf_len, isp->packet_len + rxbuf_len));
++                    return 0;
++                } else {
++                    isp->packet = newbuf;
++                    isp->packet_size = isp->packet_len + rxbuf_len;
++                    rxbuf = isp->packet + isp->packet_len;
++                }
++            } else {
++                rxbuf = isp->packet + isp->packet_len;
++                rxbuf_len = isp->packet_size - isp->packet_len;
++            }
++        }
++    } else {
++        if ((rxbuf = (u_char *) malloc(rxbuf_len)) == NULL) {
++            DEBUGMSGTL(("sess_read", "can't malloc %" NETSNMP_PRIz
++                        "u bytes for rxbuf\n", rxbuf_len));
++            return 0;
++        }
++    }
++
++    length = netsnmp_transport_recv(transport, rxbuf, rxbuf_len, &opaque,
++                                    &olength);
++
++    if (length == -1 && !(transport->flags & NETSNMP_TRANSPORT_FLAG_STREAM)) {
++        sp->s_snmp_errno = SNMPERR_BAD_RECVFROM;
++        sp->s_errno = errno;
++        snmp_set_detail(strerror(errno));
++        SNMP_FREE(rxbuf);
++        SNMP_FREE(opaque);
++        return -1;
++    }
++
++    if (0 == length && transport->flags & NETSNMP_TRANSPORT_FLAG_EMPTY_PKT) {
++        /* this allows for a transport that needs to return from
++         * packet processing that doesn't necessarily have any
++         * consumable data in it. */
++
++        /* reset the flag since it's a per-message flag */
++        transport->flags &= (~NETSNMP_TRANSPORT_FLAG_EMPTY_PKT);
++
++        return 0;
++    }
++
++    /*
++     * Remote end closed connection.  
++     */
++
++    if (length <= 0 && transport->flags & NETSNMP_TRANSPORT_FLAG_STREAM) {
++        /*
++         * Alert the application if possible.  
++         */
++        if (sp->callback != NULL) {
++            DEBUGMSGTL(("sess_read", "perform callback with op=DISCONNECT\n"));
++            (void) sp->callback(NETSNMP_CALLBACK_OP_DISCONNECT, sp, 0,
++                                NULL, sp->callback_magic);
++        }
++        /*
++         * Close socket and mark session for deletion.  
++         */
++        DEBUGMSGTL(("sess_read", "fd %d closed\n", transport->sock));
++        transport->f_close(transport);
++        SNMP_FREE(isp->packet);
++        SNMP_FREE(opaque);
++        return -1;
++    }
++
++    if (transport->flags & NETSNMP_TRANSPORT_FLAG_STREAM) {
++        u_char *pptr = isp->packet;
++	void *ocopy = NULL;
++
++        isp->packet_len += length;
++
++        while (isp->packet_len > 0) {
++
++            /*
++             * Get the total data length we're expecting (and need to wait
++             * for).
++             */
++            if (isp->check_packet) {
++                pdulen = isp->check_packet(pptr, isp->packet_len);
++            } else {
++                pdulen = asn_check_packet(pptr, isp->packet_len);
++            }
++
++            DEBUGMSGTL(("sess_read",
++                        "  loop packet_len %" NETSNMP_PRIz "u, PDU length %"
++                        NETSNMP_PRIz "u\n", isp->packet_len, pdulen));
++
++            if (pdulen > MAX_PACKET_LENGTH) {
++                /*
++                 * Illegal length, drop the connection.  
++                 */
++                snmp_log(LOG_ERR, 
++			 "Received broken packet. Closing session.\n");
++		if (sp->callback != NULL) {
++		  DEBUGMSGTL(("sess_read",
++			      "perform callback with op=DISCONNECT\n"));
++		  (void)sp->callback(NETSNMP_CALLBACK_OP_DISCONNECT,
++				     sp, 0, NULL, sp->callback_magic);
++		}
++		DEBUGMSGTL(("sess_read", "fd %d closed\n", transport->sock));
++                transport->f_close(transport);
++                SNMP_FREE(opaque);
++                /** XXX-rks: why no SNMP_FREE(isp->packet); ?? */
++                return -1;
++            }
++
++            if (pdulen > isp->packet_len || pdulen == 0) {
++                /*
++                 * We don't have a complete packet yet.  If we've already
++                 * processed a packet, break out so we'll shift this packet
++                 * to the start of the buffer. If we're already at the
++                 * start, simply return and wait for more data to arrive.
++                 */
++                DEBUGMSGTL(("sess_read",
++                            "pkt not complete (need %" NETSNMP_PRIz "u got %"
++                            NETSNMP_PRIz "u so far)\n", pdulen,
++                            isp->packet_len));
++
++                if (pptr != isp->packet)
++                    break; /* opaque freed for us outside of loop. */
++
++                SNMP_FREE(opaque);
++                return 0;
++            }
++
++            /*  We have *at least* one complete packet in the buffer now.  If
++		we have possibly more than one packet, we must copy the opaque
++		pointer because we may need to reuse it for a later packet.  */
++
++	    if (pdulen < isp->packet_len) {
++		if (olength > 0 && opaque != NULL) {
++		    ocopy = malloc(olength);
++		    if (ocopy != NULL) {
++			memcpy(ocopy, opaque, olength);
++		    }
++		}
++	    } else if (pdulen == isp->packet_len) {
++		/*  Common case -- exactly one packet.  No need to copy the
++		    opaque pointer.  */
++		ocopy = opaque;
++		opaque = NULL;
++	    }
++
++            if ((rc = _sess_process_packet(sessp, sp, isp, transport,
++                                           ocopy, ocopy?olength:0, pptr,
++                                           pdulen))) {
++                /*
++                 * Something went wrong while processing this packet -- set the
++                 * errno.  
++                 */
++                if (sp->s_snmp_errno != 0) {
++                    SET_SNMP_ERROR(sp->s_snmp_errno);
++                }
++            }
++
++	    /*  ocopy has been free()d by _sess_process_packet by this point,
++		so set it to NULL.  */
++
++	    ocopy = NULL;
++
++	    /*  Step past the packet we've just dealt with.  */
++
++            pptr += pdulen;
++            isp->packet_len -= pdulen;
++        }
++
++	/*  If we had more than one packet, then we were working with copies
++	    of the opaque pointer, so we still need to free() the opaque
++	    pointer itself.  */
++
++	SNMP_FREE(opaque);
++
++        if (isp->packet_len >= MAXIMUM_PACKET_SIZE) {
++            /*
++             * Obviously this should never happen!  
++             */
++            snmp_log(LOG_ERR,
++                     "too large packet_len = %" NETSNMP_PRIz
++                     "u, dropping connection %d\n",
++                     isp->packet_len, transport->sock);
++            transport->f_close(transport);
++            /** XXX-rks: why no SNMP_FREE(isp->packet); ?? */
++            return -1;
++        } else if (isp->packet_len == 0) {
++            /*
++             * This is good: it means the packet buffer contained an integral
++             * number of PDUs, so we don't have to save any data for next
++             * time.  We can free() the buffer now to keep the memory
++             * footprint down.
++             */
++            SNMP_FREE(isp->packet);
++            isp->packet_size = 0;
++            isp->packet_len = 0;
++            return rc;
++        }
++
++        /*
++         * If we get here, then there is a partial packet of length
++         * isp->packet_len bytes starting at pptr left over.  Move that to the
++         * start of the buffer, and then realloc() the buffer down to size to
++         * reduce the memory footprint.  
++         */
++
++        memmove(isp->packet, pptr, isp->packet_len);
++        DEBUGMSGTL(("sess_read",
++                    "end: memmove(%p, %p, %" NETSNMP_PRIz "u); realloc(%p, %"
++                    NETSNMP_PRIz "u)\n",
++                    isp->packet, pptr, isp->packet_len,
++		    isp->packet, isp->packet_len));
++
++        if ((rxbuf = (u_char *)realloc(isp->packet, isp->packet_len)) == NULL) {
++            /*
++             * I don't see why this should ever fail, but it's not a big deal.
++             */
++            DEBUGMSGTL(("sess_read", "realloc() failed\n"));
++        } else {
++            DEBUGMSGTL(("sess_read", "realloc() okay, old buffer %p, new %p\n",
++                        isp->packet, rxbuf));
++            isp->packet = rxbuf;
++            isp->packet_size = isp->packet_len;
++        }
++        return rc;
++    } else {
++        rc = _sess_process_packet(sessp, sp, isp, transport, opaque,
++                                  olength, rxbuf, length);
++        SNMP_FREE(rxbuf);
++        return rc;
++    }
++}
+ 
+ /*
+  * returns 0 if success, -1 if fail 
+@@ -5851,6 +6305,22 @@ snmp_sess_read(void *sessp, fd_set * fdset)
+ }
+ 
+ int
++snmp_sess_read_C1(void *sessp, int fd)
++{
++    struct session_list *psl;
++    netsnmp_session *pss;
++    int             rc;
++
++    rc = _sess_read_C1(sessp, fd);
++    psl = (struct session_list *) sessp;
++    pss = psl->session;
++    if (rc && pss->s_snmp_errno) {
++        SET_SNMP_ERROR(pss->s_snmp_errno);
++    }
++    return rc;
++}
++
++int
+ snmp_sess_read2(void *sessp, netsnmp_large_fd_set * fdset)
+ {
+     struct session_list *psl;
+@@ -6029,11 +6499,11 @@ snmp_sess_select_info2_flags(void *sessp, int *numfds,
+         }
+ 
+         DEBUGMSG(("sess_select", "%d ", slp->transport->sock));
+-        if ((slp->transport->sock + 1) > *numfds) {
++        if (numfds && (slp->transport->sock + 1) > *numfds) {
+             *numfds = (slp->transport->sock + 1);
+         }
+ 
+-        NETSNMP_LARGE_FD_SET(slp->transport->sock, fdset);
++        if(fdset) NETSNMP_LARGE_FD_SET(slp->transport->sock, fdset);
+         if (slp->internal != NULL && slp->internal->requests) {
+             /*
+              * Found another session with outstanding requests.  
