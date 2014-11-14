@@ -599,7 +599,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   }
   if (!mask) {
     if (!ci->written) {
-      noitL(noit_error, "never wrote to external_proc for %d - marking check not running\n", ci->check_no);
+      noitL(noit_error, "never wrote to external_proc for %lld - marking check not running\n", (long long int)ci->check_no);
       ci->check->flags &= ~NP_RUNNING;
     }
     free(ecl);

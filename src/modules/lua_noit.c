@@ -1910,11 +1910,11 @@ nl_hmac_sha256_encode(lua_State *L) {
 static int
 nl_register_dns_ignore_domain(lua_State *L) {
   size_t extension_len, ignore_len;
-  const unsigned char *extension, *ignore;
+  const char *extension, *ignore;
   if(lua_gettop(L) != 2) luaL_error(L, "bad call to noit.nl_register_dns_ignore_domain");
 
-  extension = (const unsigned char *)lua_tolstring(L, 1, &extension_len);
-  ignore = (const unsigned char *)lua_tolstring(L, 2, &ignore_len);
+  extension = (const char *)lua_tolstring(L, 1, &extension_len);
+  ignore = (const char *)lua_tolstring(L, 2, &ignore_len);
 
   noit_check_dns_ignore_tld(extension, ignore);
 

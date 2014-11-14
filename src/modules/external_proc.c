@@ -124,7 +124,7 @@ static void process_siglist() {
     if(ps) {
       int rv = noit_skiplist_remove_compare(&active_procs, &ps->pid, NULL,  __proc_state_pid);
       if (!rv) {
-        noitL(noit_error, "error: couldn't remove PID %d from active_procs in external\n");
+        noitL(noit_error, "error: couldn't remove PID %d from active_procs in external\n", ps->pid);
       }
       noit_skiplist_insert(&done_procs, ps);
     }
