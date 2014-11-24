@@ -306,6 +306,7 @@ noit_lua_socket_recv(lua_State *L) {
         errno == EINTR);
   if(rv < 0) {
     if(errno == EAGAIN) {
+      eventer_remove_fd(e->fd);
       e->callback = noit_lua_socket_recv_complete;
       e->mask = EVENTER_READ | EVENTER_EXCEPTION;
       eventer_add(e);
