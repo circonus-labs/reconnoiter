@@ -168,7 +168,6 @@ function initiate(module, check)
 
     local crypt_response = noit.md5_hex(hexha1 .. ":" .. p.nonce .. ":" .. nc .. ":" .. cnonce .. ":" .. p.qop .. ":" .. huri);
     local response = string.format("charset=%s,username=\"%s\",realm=\"%s\",nonce=\"%s\",nc=\"%08x\",cnonce=\"%s\",digest-uri=\"%s\",response=%s,qop=%s", p.charset, config.sasl_user, p.realm, p.nonce, 1, cnonce, uri, crypt_response, p.qop);
-    print(response);
 
     local response = run_command(e, "auth response " .. noit.base64_encode(response));
     if not string.match(response, "authorized") then
