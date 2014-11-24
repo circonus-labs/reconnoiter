@@ -66,7 +66,7 @@ const static char *glider_path = NULL;
 const static char *trace_dir = "/var/tmp";
 static int retries = 5;
 static int span = 60;
-static int allow_async_dumps = 1;
+static int allow_async_dumps = 0;
 
 int noit_watchdog_glider(const char *path) {
   glider_path = path;
