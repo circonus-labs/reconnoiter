@@ -33,6 +33,7 @@ LUA=\
 	noit/HttpClient.lua \
 	noit/AWSClient.lua \
 	noit/extras.lua \
+	noit/module/ec_console.lua \
 	noit/module/varnish.lua \
 	noit/module/smtp.lua \
 	noit/module/http.lua \
