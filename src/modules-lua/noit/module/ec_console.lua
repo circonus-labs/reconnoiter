@@ -41,12 +41,12 @@ function onload(image)
   <checkconfig>
     <parameter name="port" required="optional" default="2025"
                allowed="\d+">Specifies the TCP port to connect to.</parameter>
-    <parameter name="command" required="required" default=""
+    <parameter name="command" required="optional" default="xml summary"
                allowed=".+">Specifies the ec_console command to run (must produce XML output).</parameter>
-    <parameter name="xpath" required="required" default=""
+    <parameter name="xpath" required="optional" default="/ServerSummary/*"
                allowed=".+">xpath to fetch objects from, should also include a trailing wildcard when requesting all objects (if the objects option is not defined)</parameter>
     <parameter name="objects" required="optional" default=""
-               allowed=".+">Objects to fetch from the xpath, comma-separated list.  If missing all objects will be fetched</parameter>
+               allowed=".*">Objects to fetch from the xpath, comma-separated list.  If missing all objects will be fetched</parameter>
     <parameter name="sasl_authentication"
                required="optional"
                default="off"
@@ -76,7 +76,10 @@ function onload(image)
           <check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="ec_console" target="10.0.0.1">
             <config>
               <command>xml summary</command>
-              <objects>Receptions,Rejections</objects>
+              <xpath>/ServerSummary/*</xpath>
+              <sasl_authentication>digest-md5</sasl_authentication>
+              <sasl_user>admin</sasl_user>
+              <sasl_password>admin</sasl_password>
             </config>
           </check>
         </checks>
@@ -85,7 +88,7 @@ function onload(image)
     </example>
   </examples>
 </module>
-]=]);
+]=])
   return 0
 end
 
@@ -98,48 +101,48 @@ function config(module, options)
 end
 
 local function run_command(e, command)
-  e:write(string.pack(">HH", 1, #command));
-  e:write(command);
-  local packet = e:read(2);
+  e:write(string.pack(">HH", 1, #command))
+  e:write(command)
+  local packet = e:read(2)
   if packet then
-    local len;
-    local count, packet_type = string.unpack(packet, ">H");
+    local len
+    local count, packet_type = string.unpack(packet, ">H")
 
     if tonumber(packet_type) == 1 then
-      count, len = tonumber(string.unpack(e:read(2), ">H"));
+      count, len = tonumber(string.unpack(e:read(2), ">H"))
     elseif tonumber(packet_type) == 2 then
-      count, len = string.unpack(e:read(4), ">I");
+      count, len = string.unpack(e:read(4), ">I")
     else
-      return nil;
+      return nil
     end
-    return e:read(len); 
+    return e:read(len) 
   else
-    return nil;
+    return nil
   end
 end
 
 local function walk_xpath(check, root, depth)
-  local has_children = false;
+  local has_children = false
 
   if depth == nil then 
-    depth = root:name();
+    depth = root:name()
   else 
-    depth = depth .. '`' .. root:name();
+    depth = depth .. '`' .. root:name()
   end
 
   for obj in root:children() do
-    walk_xpath(check, obj, depth);
-    has_children = true;
+    walk_xpath(check, obj, depth)
+    has_children = true
   end
     
   if not has_children then
     -- it was a leaf
-    local val = root:contents();
+    local val = root:contents()
 
     if tonumber(val) then
-      check.metric_double(depth, tonumber(val));
+      check.metric_double(depth, tonumber(val))
     else
-      check.metric_string(depth, tostring(val));
+      check.metric_string(depth, tostring(val))
     end
   end
 end
@@ -148,7 +151,7 @@ function initiate(module, check)
   local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
   local e = noit.socket(config.target_ip)
-  local port = config.port or 2025;
+  local port = config.port or 2025
   local rv, err = e:connect(check.target_ip, config.port or 2025)
   local action_result
   check.unavailable()
@@ -159,12 +162,12 @@ function initiate(module, check)
     return
   end
 
-  local version = run_command(e, "version");
+  local version = run_command(e, "version")
 
   if string.match(version, "Authorization required") and
      config.sasl_authentication == "digest-md5" then
-    local challenge = run_command(e, "auth DIGEST-MD5");
-    challenge = noit.base64_decode(challenge);
+    local challenge = run_command(e, "auth DIGEST-MD5")
+    challenge = noit.base64_decode(challenge)
     local nc = '00000001'
     local function rand_string(t, l)
         local n = #t
@@ -187,43 +190,46 @@ function initiate(module, check)
     for q in string.gmatch(p.qop, '([^,]+)') do
         if q == "auth" then p.qop = "auth" end
     end
-    local uri = "ec_console/" .. check.target_ip .. ":" .. port;
-    local huri = noit.md5_hex("AUTHENTICATE:" .. uri);
-    local secret = noit.md5(config.sasl_user .. ":" .. p.realm .. ":" .. config.sasl_password);
-    local hexha1 = noit.md5_hex(secret .. ":" .. p.nonce .. ":" .. cnonce);
+    local uri = "ec_console/" .. check.target_ip .. ":" .. port
+    local huri = noit.md5_hex("AUTHENTICATE:" .. uri)
+    local secret = noit.md5(config.sasl_user .. ":" .. p.realm .. ":" .. config.sasl_password)
+    local hexha1 = noit.md5_hex(secret .. ":" .. p.nonce .. ":" .. cnonce)
 
-    local crypt_response = noit.md5_hex(hexha1 .. ":" .. p.nonce .. ":" .. nc .. ":" .. cnonce .. ":" .. p.qop .. ":" .. huri);
-    local response = string.format("charset=%s,username=\"%s\",realm=\"%s\",nonce=\"%s\",nc=\"%08x\",cnonce=\"%s\",digest-uri=\"%s\",response=%s,qop=%s", p.charset, config.sasl_user, p.realm, p.nonce, 1, cnonce, uri, crypt_response, p.qop);
+    local crypt_response = noit.md5_hex(hexha1 .. ":" .. p.nonce .. ":" .. nc .. ":" .. cnonce .. ":" .. p.qop .. ":" .. huri)
+    local response = string.format("charset=%s,username=\"%s\",realm=\"%s\",nonce=\"%s\",nc=\"%08x\",cnonce=\"%s\",digest-uri=\"%s\",response=%s,qop=%s", p.charset, config.sasl_user, p.realm, p.nonce, 1, cnonce, uri, crypt_response, p.qop)
 
-    local response = run_command(e, "auth response " .. noit.base64_encode(response));
+    local response = run_command(e, "auth response " .. noit.base64_encode(response))
     if not string.match(response, "authorized") then
-      check.bad();
-      check.status(response or "authorization failed");
-      return;
-    end;
+      check.bad()
+      check.status(response or "authorization failed")
+      return
+    end
   end
 
   local good = true
-  local command = config.command;
+  local command = config.command or 'xml summary'
+  local xpath_str = config.xpath or '/ServerSummary/*'
   local status = 'connected'
 
   local response = run_command(e, command)
-  local doc = noit.parsexml(response);
+  local doc = noit.parsexml(response)
   if doc then
-    local xpath = doc:xpath(config.xpath);
+    local xpath = doc:xpath(xpath_str)
     if xpath then
       if config.objects then
-        xpath = xpath();
+        xpath = xpath()
         for object_name in string.gmatch(config.objects, "([^,]+),*") do
-          local obj = (doc:xpath(object_name, xpath))();
-          local num = obj and obj:contents();
-          if num then
-            check.metric_uint32(object_name, num);
+          local obj = (doc:xpath(object_name, xpath))()
+          local val = obj and obj:contents()
+          if val and tonumber(val) then
+            check.metric_double(object_name, tonumber(val))
+          elseif val then
+            check.metric_string(object_name, tostring(val))
           end
         end
       else
         for root in xpath do
-          walk_xpath(check, root, nil);
+          walk_xpath(check, root, nil)
         end
       end
     else

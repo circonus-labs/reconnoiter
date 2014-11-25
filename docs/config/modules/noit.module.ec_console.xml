@@ -54,13 +54,13 @@
             <varlistentry>
               <term>required</term>
               <listitem>
-                <para>required</para>
+                <para>optional</para>
               </listitem>
             </varlistentry>
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para/>
+                <para>xml summary</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -82,13 +82,13 @@
             <varlistentry>
               <term>required</term>
               <listitem>
-                <para>required</para>
+                <para>optional</para>
               </listitem>
             </varlistentry>
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para/>
+                <para>/ServerSummary/*</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -122,7 +122,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>.+</para>
+                <para>.*</para>
               </listitem>
             </varlistentry>
           </variablelist>
@@ -232,7 +232,10 @@
           &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="ec_console" target="10.0.0.1"&gt;
             &lt;config&gt;
               &lt;command&gt;xml summary&lt;/command&gt;
-              &lt;objects&gt;Receptions,Rejections&lt;/objects&gt;
+              &lt;xpath&gt;/ServerSummary/*&lt;/xpath&gt;
+              &lt;sasl_authentication&gt;digest-md5&lt;/sasl_authentication&gt;
+              &lt;sasl_user&gt;admin&lt;/sasl_user&gt;
+              &lt;sasl_password&gt;admin&lt;/sasl_password&gt;
             &lt;/config&gt;
           &lt;/check&gt;
         &lt;/checks&gt;
