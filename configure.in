@@ -93,6 +93,7 @@ case $host in
 	DTRACEOBJ=dtrace_stub.o
 	CFLAGS="$CFLAGS"
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
+	MDB_MODS="mdb-support/noitd.so mdb-support/stratcond.so"
 	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
@@ -173,6 +174,7 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 esac
+AC_SUBST(MDB_MODS)
 AC_SUBST(DTRACE)
 AC_SUBST(DTRACE_ENABLED)
 if test "x$DTRACE_ENABLED" = "x1" ; then
