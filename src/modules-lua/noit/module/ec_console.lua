@@ -44,9 +44,9 @@ function onload(image)
     <parameter name="command" required="required" default=""
                allowed=".+">Specifies the ec_console command to run (must produce XML output).</parameter>
     <parameter name="xpath" required="required" default=""
-               allowed=".+">xpath to fetch objects from</parameter>
-    <parameter name="objects" required="required" default=""
-               allowed=".+">Objects to fetch from the xpath, comma-separated list</parameter>
+               allowed=".+">xpath to fetch objects from, should also include a trailing wildcard when requesting all objects (if the objects option is not defined)</parameter>
+    <parameter name="objects" required="optional" default=""
+               allowed=".+">Objects to fetch from the xpath, comma-separated list.  If missing all objects will be fetched</parameter>
     <parameter name="sasl_authentication"
                required="optional"
                default="off"
@@ -118,6 +118,32 @@ local function run_command(e, command)
   end
 end
 
+local function walk_xpath(check, root, depth)
+  local has_children = false;
+
+  if depth == nil then 
+    depth = root:name();
+  else 
+    depth = depth .. '`' .. root:name();
+  end
+
+  for obj in root:children() do
+    walk_xpath(check, obj, depth);
+    has_children = true;
+  end
+    
+  if not has_children then
+    -- it was a leaf
+    local val = root:contents();
+
+    if tonumber(val) then
+      check.metric_double(depth, tonumber(val));
+    else
+      check.metric_string(depth, tostring(val));
+    end
+  end
+end
+
 function initiate(module, check)
   local config = check.interpolate(check.config)
   local starttime = noit.timeval.now()
@@ -184,13 +210,20 @@ function initiate(module, check)
   local response = run_command(e, command)
   local doc = noit.parsexml(response);
   if doc then
-    local xpath = (doc:xpath(config.xpath))();
+    local xpath = doc:xpath(config.xpath);
     if xpath then
-      for object_name in string.gmatch(config.objects, "([^,]+),*") do
-        local obj = (doc:xpath(object_name, xpath))();
-        local num = obj and obj:contents();
-        if num then
-          check.metric_uint32(object_name, num);
+      if config.objects then
+        xpath = xpath();
+        for object_name in string.gmatch(config.objects, "([^,]+),*") do
+          local obj = (doc:xpath(object_name, xpath))();
+          local num = obj and obj:contents();
+          if num then
+            check.metric_uint32(object_name, num);
+          end
+        end
+      else
+        for root in xpath do
+          walk_xpath(check, root, nil);
         end
       end
     else
