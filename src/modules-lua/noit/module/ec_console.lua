@@ -123,26 +123,27 @@ end
 
 local function walk_xpath(check, root, depth)
   local has_children = false
-
+  local metricname = depth
+  local rname = root:name()
   if depth == nil then 
-    depth = root:name()
+    depth = rname
   else 
-    depth = depth .. '`' .. root:name()
+    depth = depth .. '`' .. rname
   end
 
   for obj in root:children() do
     walk_xpath(check, obj, depth)
     has_children = true
   end
-    
-  if not has_children then
+
+  if not has_children and metricname ~= nil then
     -- it was a leaf
     local val = root:contents()
 
     if tonumber(val) then
-      check.metric_double(depth, tonumber(val))
+      check.metric(metricname, tonumber(val))
     else
-      check.metric_string(depth, tostring(val))
+      check.metric_string(metricname, tostring(val))
     end
   end
 end
@@ -214,10 +215,11 @@ function initiate(module, check)
   local response = run_command(e, command)
   local doc = noit.parsexml(response)
   if doc then
-    local xpath = doc:xpath(xpath_str)
-    if xpath then
-      if config.objects then
-        xpath = xpath()
+    check.available();
+    local nodes = doc:xpath(xpath_str)
+    if nodes then
+      if config.objects and string.len(config.objects) > 0 then
+        local xpath = nodes()
         for object_name in string.gmatch(config.objects, "([^,]+),*") do
           local obj = (doc:xpath(object_name, xpath))()
           local val = obj and obj:contents()
@@ -228,8 +230,8 @@ function initiate(module, check)
           end
         end
       else
-        for root in xpath do
-          walk_xpath(check, root, nil)
+        for root in nodes do
+          walk_xpath(check, root)
         end
       end
     else
