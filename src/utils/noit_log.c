@@ -59,6 +59,10 @@
 #define NOIT_LOG_LOG_ENABLED() 0
 #endif
 
+static int _noit_log_siglvl = 0;
+void noit_log_enter_sighandler() { _noit_log_siglvl++; }
+void noit_log_leave_sighandler() { _noit_log_siglvl--; }
+
 static int DEBUG_LOG_ENABLED() {
   static int enabled = -1;
   if(enabled == -1) {
@@ -555,7 +559,7 @@ posix_logio_write(noit_log_stream_t ls, const struct timeval *whence,
   (void)whence;
   if(!ls->op_ctx) return -1;
   actx = ls->op_ctx;
-  if(!actx->is_asynch) {
+  if(!actx->is_asynch || _noit_log_siglvl > 0) {
     pthread_rwlock_t *lock = ls->lock;
     int fd = (int)(vpsized_int)actx->userdata;
     if(lock) pthread_rwlock_rdlock(lock);
@@ -1000,6 +1004,16 @@ jlog_logio_write(noit_log_stream_t ls, const struct timeval *whence,
   (void)whence;
   if(!ls->op_ctx) return -1;
   actx = ls->op_ctx;
+  if(!actx->is_asynch || _noit_log_siglvl > 0) {
+    int rv;
+    jlog_ctx *log = actx->userdata;
+    rv = jlog_ctx_write(log, buf, len);
+    if(rv == -1) {
+      noitL(noit_error, "jlog_ctx_write failed(%d): %s\n",
+            jlog_ctx_errno(log), jlog_ctx_err_string(log));
+    }
+    return rv;
+  }
   line = calloc(1, sizeof(*line));
   if(len > sizeof(line->buf_static)) {
     line->buf_dynamic = malloc(len);
@@ -1479,7 +1493,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
 #else
     len = vsnprintf(buffer, sizeof(buffer), format, arg);
 #endif
-    if(len > sizeof(buffer)) {
+    if(len > sizeof(buffer) && _noit_log_siglvl == 0) {
       allocd = sizeof(buffer);
       while(len > allocd) { /* guaranteed true the first time */
         while(len > allocd) allocd <<= 2;
@@ -1500,6 +1514,9 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       free(dynbuff);
     }
     else {
+      /* This should only happen within a signal handler */
+      if(len > sizeof(buffer)) len = sizeof(buffer);
+
       NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
       if(IS_ENABLED_ON(ls))
         rv = noit_log_line(ls, NULL, now, tbuf, tbuflen, dbuf, dbuflen, buffer, len);

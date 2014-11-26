@@ -296,6 +296,7 @@ static void stop_other_threads() {
 }
 
 void emancipate(int sig) {
+  noit_log_enter_sighandler();
   signal(sig, SIG_DFL);
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
@@ -314,6 +315,7 @@ void emancipate(int sig) {
     }
     kill(noit_monitored_child_pid, sig);
   }
+  noit_log_leave_sighandler();
 }
 
 void subprocess_killed(int sig) {
