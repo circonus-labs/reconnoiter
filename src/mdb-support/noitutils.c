@@ -26,27 +26,55 @@ static int noit_skiplist_walk_step(mdb_walk_state_t *s) {
 static void noit_skiplist_walk_fini(mdb_walk_state_t *s) {
 }
 
+/* This section needs to be kept current with libck */
+#if defined(CK_F_PR_LOAD_8) && defined(CK_F_PR_STORE_8)
+#define CK_HT_WORD      uint8_t
+#elif defined(CK_F_PR_LOAD_16) && defined(CK_F_PR_STORE_16)
+#define CK_HT_WORD      uint16_t
+#elif defined(CK_F_PR_LOAD_32) && defined(CK_F_PR_STORE_32)
+#define CK_HT_WORD      uint32_t
+#else
+#error "ck_ht is not supported on your platform."
+#endif
+struct ck_ht_map {
+  unsigned int mode;
+  uint64_t deletions;
+  uint64_t probe_maximum;
+  uint64_t probe_length;
+  uint64_t probe_limit;
+  uint64_t size;
+  uint64_t n_entries;
+  uint64_t mask;
+  uint64_t capacity;
+  uint64_t step;
+  CK_HT_WORD *probe_bound;
+  struct ck_ht_entry *entries;
+};
+/* end libck sync section */
+
 struct hash_helper {
   int size;
   int bucket;
-  void **buckets;
-  void *last_bucket;
+  ck_ht_entry_t *buckets;
+  ck_ht_entry_t *vmem;
 };
 static int noit_hash_walk_init(mdb_walk_state_t *s) {
   noit_hash_table l;
+  struct ck_ht_map map;
   struct hash_helper *hh;
   void *dummy = NULL;
   if(mdb_vread(&l, sizeof(l), s->walk_addr) == -1) return WALK_ERR;
-  if(l.size == 0) return WALK_DONE;
-  hh = mdb_zalloc(sizeof(struct hash_helper), UM_SLEEP);
-  hh->size = l.table_size;
-  hh->buckets = mdb_alloc(sizeof(void *) * l.table_size, UM_SLEEP);
+  if(mdb_vread(&map, sizeof(map), (uintptr_t)l.ht.map) == -1) return WALK_ERR;
+  if(map.n_entries == 0) return WALK_DONE;
+  hh = mdb_zalloc(sizeof(struct hash_helper), UM_GC);
+  hh->size = map.capacity;
+  hh->buckets = mdb_alloc(sizeof(ck_ht_entry_t) * map.capacity, UM_GC);
   s->walk_data = hh;
-  mdb_vread(hh->buckets, sizeof(void *) * l.table_size, (uintptr_t)l.buckets);
-  for(;hh->bucket<l.table_size;hh->bucket++) {
-    if(hh->buckets[hh->bucket] != NULL) {
-      hh->last_bucket = hh->buckets[hh->bucket];
-      s->walk_addr = (uintptr_t)hh->buckets[hh->bucket];
+  hh->vmem = (ck_ht_entry_t *)map.entries;
+  mdb_vread(hh->buckets, sizeof(void *) * map.capacity, (uintptr_t)hh->vmem);
+  for(;hh->bucket<hh->size;hh->bucket++) {
+    if(hh->buckets[hh->bucket].key != 0) {
+      s->walk_addr = (uintptr_t)&hh->vmem[hh->bucket];
       s->walk_callback(s->walk_addr, &dummy, s->walk_cbdata);
       return WALK_NEXT;
     }
@@ -54,53 +82,39 @@ static int noit_hash_walk_init(mdb_walk_state_t *s) {
   return WALK_DONE;
 }
 static int noit_hash_walk_step(mdb_walk_state_t *s) {
-  noit_hash_bucket b, *ptr;
   void *dummy = NULL;
   struct hash_helper *hh = s->walk_data;
   if(s->walk_data == NULL) return WALK_DONE;
-  if(mdb_vread(&b, sizeof(b), (uintptr_t)hh->last_bucket) == -1) {
-    return WALK_ERR;
-  }
-  ptr = b.next;
-  if(!ptr) {
-    hh->bucket++;
-    for(;hh->bucket<hh->size;hh->bucket++) {
-      if(hh->buckets[hh->bucket] != NULL) {
-        ptr = hh->buckets[hh->bucket];
-        break;
-      }
+  hh->bucket++;
+  for(;hh->bucket<hh->size;hh->bucket++) {
+    if(!ck_ht_entry_empty(&hh->buckets[hh->bucket])) {
+      s->walk_addr = (uintptr_t)&hh->vmem[hh->bucket];
+      s->walk_callback(s->walk_addr, &dummy, s->walk_cbdata);
+      return WALK_NEXT;
     }
   }
-  if(!ptr) return WALK_DONE;
-  hh->last_bucket = ptr;
-  s->walk_addr = (uintptr_t)hh->last_bucket;
-  s->walk_callback(s->walk_addr, &dummy, s->walk_cbdata);
-  return WALK_NEXT;
+  return WALK_DONE;
 }
 static void noit_hash_walk_fini(mdb_walk_state_t *s) {
-  struct hash_helper *hh = s->walk_data;
-  if(hh) {
-    if(hh->buckets) mdb_free(hh->buckets, sizeof(void *) * hh->size);
-    mdb_free(hh, sizeof(struct hash_helper));
-  }
 }
 
 static int
 _print_hash_bucket_data_cb(uintptr_t addr, const void *u, void *data)
 {
-  noit_hash_bucket b;
+  ck_ht_entry_t b;
   if(mdb_vread(&b, sizeof(b), addr) == -1) return WALK_ERR;
-  mdb_printf("%p\n", b.data);
+  mdb_printf("%p\n", ck_ht_entry_value(&b));
   return WALK_NEXT;
 }
 
 static int
 noit_log_dcmd(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv) {
   noit_hash_table l;
-  void **buckets;
+  struct ck_ht_map map;
+  ck_ht_entry_t *buckets;
+  uintptr_t vmem;
   int bucket = 0;
   char logname[128];
-  noit_hash_bucket b, *ptr;
 
   if(argv == 0) {
     GElf_Sym sym;
@@ -113,25 +127,28 @@ noit_log_dcmd(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv) {
     return DCMD_USAGE;
   }
   if(mdb_readsym(&l, sizeof(l), "noit_loggers") == -1) return DCMD_ERR;
-  if(l.size == 0) return DCMD_OK;
-  buckets = mdb_alloc(sizeof(void *) * l.table_size, UM_SLEEP);
-  mdb_vread(buckets, sizeof(void *) * l.table_size, (uintptr_t)l.buckets);
-  for(;bucket<l.table_size;bucket++) {
-    if(buckets[bucket] != NULL) {
-      ptr = buckets[bucket];
-      while(ptr) {
-        if(mdb_vread(&b, sizeof(b), (uintptr_t)ptr) == -1) return DCMD_ERR;
-        if(mdb_readstr(logname, sizeof(logname), (uintptr_t)b.k) == -1) return DCMD_ERR;
-        if(!strcmp(logname, argv[0].a_un.a_str)) {
-          mdb_printf("%p\n", b.data);
-          goto done;
-        }
-        ptr = b.next;
+  if(mdb_vread(&map, sizeof(map), (uintptr_t)l.ht.map) == -1) return DCMD_ERR;
+  if(map.n_entries == 0) return DCMD_OK;
+  buckets = mdb_alloc(sizeof(*buckets) * map.capacity, UM_GC);
+  vmem = (uintptr_t)map.entries;
+  mdb_vread(buckets, sizeof(ck_ht_entry_t) * map.capacity, (uintptr_t)vmem);
+mdb_warn("capacity: %d entry size: %d\n", map.capacity, sizeof(ck_ht_entry_t));
+  for(;bucket<map.capacity;bucket++) {
+    if(!ck_ht_entry_empty(&buckets[bucket])) {
+      void *key;
+      uint16_t keylen;
+      key = ck_ht_entry_key(&buckets[bucket]);
+      keylen = ck_ht_entry_key_length(&buckets[bucket]);
+      logname[0] = '\0';
+      mdb_vread(logname, MIN(keylen, sizeof(logname)), (uintptr_t)key);
+      logname[sizeof(logname)-1] = '\0';
+mdb_warn("logname: %p (%p=\"%s\")\n", vmem + sizeof(ck_ht_entry_t) * bucket, key, logname);
+      if(!strcmp(logname, argv[0].a_un.a_str)) {
+        mdb_printf("%p\n", ck_ht_entry_value(&buckets[bucket]));
+        return DCMD_OK;
       }
     }
   }
- done:
-  mdb_free(buckets, sizeof(void *) * l.table_size);
   return DCMD_OK;
 }
 
