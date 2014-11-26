@@ -1170,8 +1170,8 @@ noit_poller_deschedule(uuid_t in) {
 
   noit_check_log_delete(checker);
 
-  noit_skiplist_remove(&polls_by_name, checker, NULL);
-  noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL);
+  assert(noit_skiplist_remove(&polls_by_name, checker, NULL));
+  assert(noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
 
   noit_poller_free_check(checker);
   return 0;
