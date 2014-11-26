@@ -77,6 +77,8 @@ extern noit_log_stream_t noit_notice;
 
 #define N_L_S_ON(ls) (*((unsigned *)ls) & NOIT_LOG_STREAM_ENABLED)
 
+API_EXPORT(void) noit_log_enter_sighandler();
+API_EXPORT(void) noit_log_leave_sighandler();
 API_EXPORT(int) noit_log_global_enabled();
 API_EXPORT(void) noit_log_init(int debug_on);
 API_EXPORT(int) noit_log_reopen_all();
