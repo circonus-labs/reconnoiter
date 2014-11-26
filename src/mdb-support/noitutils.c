@@ -132,7 +132,6 @@ noit_log_dcmd(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv) {
   buckets = mdb_alloc(sizeof(*buckets) * map.capacity, UM_GC);
   vmem = (uintptr_t)map.entries;
   mdb_vread(buckets, sizeof(ck_ht_entry_t) * map.capacity, (uintptr_t)vmem);
-mdb_warn("capacity: %d entry size: %d\n", map.capacity, sizeof(ck_ht_entry_t));
   for(;bucket<map.capacity;bucket++) {
     if(!ck_ht_entry_empty(&buckets[bucket])) {
       void *key;
@@ -142,7 +141,6 @@ mdb_warn("capacity: %d entry size: %d\n", map.capacity, sizeof(ck_ht_entry_t));
       logname[0] = '\0';
       mdb_vread(logname, MIN(keylen, sizeof(logname)), (uintptr_t)key);
       logname[sizeof(logname)-1] = '\0';
-mdb_warn("logname: %p (%p=\"%s\")\n", vmem + sizeof(ck_ht_entry_t) * bucket, key, logname);
       if(!strcmp(logname, argv[0].a_un.a_str)) {
         mdb_printf("%p\n", ck_ht_entry_value(&buckets[bucket]));
         return DCMD_OK;
