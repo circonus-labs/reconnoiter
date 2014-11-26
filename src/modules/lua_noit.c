@@ -1946,6 +1946,22 @@ nl_md5_hex(lua_State *L) {
   return 1;
 }
 static int
+nl_md5(lua_State *L) {
+  int i;
+  MD5_CTX ctx;
+  size_t inlen;
+  const char *in;
+  unsigned char md5[MD5_DIGEST_LENGTH];
+
+  if(lua_gettop(L) != 1) luaL_error(L, "bad call to noit.md5");
+  MD5_Init(&ctx);
+  in = lua_tolstring(L, 1, &inlen);
+  MD5_Update(&ctx, (const void *)in, (unsigned long)inlen);
+  MD5_Final(md5, &ctx);
+  lua_pushlstring(L, md5, sizeof(md5));
+  return 1;
+}
+static int
 nl_gettimeofday(lua_State *L) {
   struct timeval now;
   gettimeofday(&now, NULL);
@@ -3171,6 +3187,7 @@ static const luaL_Reg noitlib[] = {
   { "hmac_sha1_encode", nl_hmac_sha1_encode },
   { "hmac_sha256_encode", nl_hmac_sha256_encode },
   { "md5_hex", nl_md5_hex },
+  { "md5", nl_md5 },
   { "pcre", nl_pcre },
   { "gunzip", nl_gunzip },
   { "check", nl_check },
