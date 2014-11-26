@@ -1582,7 +1582,6 @@ noit_conf_write_log() {
   v = noit_log_stream_get_property(config_log, "notify_only");
   if(v && (!strcmp(v, "on") || !strcmp(v, "true"))) notify_only = noit_true;
 
-noitL(noit_error, "noit_conf_write_log (%d =? %d)\n", last_write_gen, __config_gen);
   /* We know we haven't changed */
   if(last_write_gen == __config_gen) return 0;
   gettimeofday(&__now, NULL);
