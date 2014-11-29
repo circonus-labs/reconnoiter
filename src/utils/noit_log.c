@@ -1378,19 +1378,28 @@ noit_log_writev(noit_log_stream_t ls, struct timeval *whence,
                 const struct iovec *iov, int iovcnt) {
   /* This emulates writev into a buffer for ops that don't support it */
   char stackbuff[4096], *tofree = NULL, *buff = NULL;
-  int i, s = 0, ins = 0;
+  int i, s = 0, ins = 0, maxi_nomalloc = 0;
 
   if(!ls->ops) return -1;
   if(ls->ops->writevop) return ls->ops->writevop(ls, whence, iov, iovcnt);
   if(!ls->ops->writeop) return -1;
   if(iovcnt == 1) return ls->ops->writeop(ls, whence, iov[0].iov_base, iov[0].iov_len);
 
-  for(i=0;i<iovcnt;i++) s+=iov[i].iov_len;
-  if(s > sizeof(stackbuff)) {
+  for(i=0;i<iovcnt;i++) {
+    s+=iov[i].iov_len;
+    if(s <= sizeof(stackbuff)) maxi_nomalloc = i;
+  }
+  buff = stackbuff;
+  if(_noit_log_siglvl > 0) {
+    /* If we're in a signal handler, we can't malloc.
+     * Instead, shorten iovcnt and write what we can.
+     */
+    iovcnt = maxi_nomalloc + 1;
+  }
+  else if(s > sizeof(stackbuff)) {
     tofree = buff = malloc(s);
     if(tofree == NULL) return -1;
   }
-  else buff = stackbuff;
   for(i=0;i<iovcnt;i++) {
     memcpy(buff + ins, iov[i].iov_base, iov[i].iov_len);
     ins += iov[i].iov_len;
