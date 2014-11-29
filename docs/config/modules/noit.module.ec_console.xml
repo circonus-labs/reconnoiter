@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <section xmlns="http://docbook.org/ns/docbook" version="5">
-  <title>haproxy</title>
-  <para>Monitor management metrics of a haproxy instance.</para>
+  <title>ec_console</title>
+  <para>Run an ec_console command, parse its results and return them</para>
   <variablelist>
     <varlistentry>
       <term>loader</term>
@@ -12,67 +12,12 @@
     <varlistentry>
       <term>object</term>
       <listitem>
-        <para>noit.module.haproxy</para>
+        <para>noit.module.ec_console</para>
       </listitem>
     </varlistentry>
   </variablelist>
   <section>
     <title>Check Configuration</title>
-    <variablelist>
-      <varlistentry>
-        <term>uri</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>required</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>default</term>
-              <listitem>
-                <para>/admin?stats;csv</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>^/.+</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>
-      The URL excluding schema and hostname for the haproxy stats CSV export.
-      eg /admin?stats;csv
-    </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>host</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>.+</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>
-      Host name to include in HTTP request, defaults to target IP
-    </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
     <variablelist>
       <varlistentry>
         <term>port</term>
@@ -87,25 +32,23 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>80</para>
+                <para>2025</para>
               </listitem>
             </varlistentry>
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>^[0-9]+$</para>
+                <para>\d+</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      Port to connect to
-    </para>
+          <para>Specifies the TCP port to connect to.</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>select</term>
+        <term>command</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -117,7 +60,7 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>.*</para>
+                <para>xml summary</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -127,64 +70,13 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      Specifies a regular expression to pick which metrics to report. Will be matched
-      against the pxname and svname columns concatenated by a ","
-    </para>
+          <para>Specifies the ec_console command to run (must produce XML output).</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>auth_user</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>[^:]*</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>
-      The user to authenticate as.
-    </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>auth_password</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>.*</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>
-      The password to use during authentication.
-    </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>use_ssl</term>
+        <term>xpath</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -196,31 +88,7 @@
             <varlistentry>
               <term>default</term>
               <listitem>
-                <para>false</para>
-              </listitem>
-            </varlistentry>
-            <varlistentry>
-              <term>allowed</term>
-              <listitem>
-                <para>^(?:true|false|on|off)$</para>
-              </listitem>
-            </varlistentry>
-          </variablelist>
-          <para>
-      Upgrade TCP connection to use SSL.
-    </para>
-        </listitem>
-      </varlistentry>
-    </variablelist>
-    <variablelist>
-      <varlistentry>
-        <term>ca_chain</term>
-        <listitem>
-          <variablelist>
-            <varlistentry>
-              <term>required</term>
-              <listitem>
-                <para>optional</para>
+                <para>/ServerSummary/*</para>
               </listitem>
             </varlistentry>
             <varlistentry>
@@ -230,16 +98,13 @@
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      A path to a file containing all the certificate authorities that should be loaded to 
-      validate the remote certificate (for SSL checks).
-    </para>
+          <para>xpath to fetch objects from, should also include a trailing wildcard when requesting all objects (if the objects option is not defined)</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>certificate_file</term>
+        <term>objects</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -249,22 +114,25 @@
               </listitem>
             </varlistentry>
             <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para/>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>.+</para>
+                <para>.*</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      A path to a file containing the client certificate that will be presented to the remote 
-      server (for SSL checks).
-    </para>
+          <para>Objects to fetch from the xpath, comma-separated list.  If missing all objects will be fetched</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>key_file</term>
+        <term>sasl_authentication</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -274,22 +142,25 @@
               </listitem>
             </varlistentry>
             <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>off</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>.+</para>
+                <para>(?:off|digest-md5)</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      A path to a file containing key to be used in conjunction with the cilent certificate 
-      (for SSL checks).
-    </para>
+          <para>Specifies the type of SASL Authentication to use</para>
         </listitem>
       </varlistentry>
     </variablelist>
     <variablelist>
       <varlistentry>
-        <term>ciphers</term>
+        <term>sasl_user</term>
         <listitem>
           <variablelist>
             <varlistentry>
@@ -299,15 +170,47 @@
               </listitem>
             </varlistentry>
             <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para/>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
               <term>allowed</term>
               <listitem>
                 <para>.+</para>
               </listitem>
             </varlistentry>
           </variablelist>
-          <para>
-      A list of ciphers to be used in the SSL protocol (for SSL checks).
-    </para>
+          <para>The SASL Authentication username</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>sasl_password</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para/>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SASL Authentication password</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -315,19 +218,26 @@
   <section>
     <title>Examples</title>
     <example>
-      <title>Monitor two haproxy instances</title>
-      <para>The following example pulls all metrics available from haproxy running on 10.1.2.3 and 10.1.2.4</para>
+      <title>Read the summary command</title>
+      <para>The following example to connect to 10.0.0.1 and read the summary command</para>
       <programlisting>
       &lt;noit&gt;
         &lt;modules&gt;
           &lt;loader image="lua" name="lua"&gt;
             &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
           &lt;/loader&gt;
-          &lt;module loader="lua" name="haproxy" object="noit.module.haproxy"/&gt;
+          &lt;module loader="lua" name="smtp" object="noit.module.ec_console"/&gt;
         &lt;/modules&gt;
         &lt;checks&gt;
-          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="haproxy" target="10.1.2.3" /&gt;
-          &lt;check uuid="324c2234-7c7a-11dd-8585-cbb783f8267f" module="haproxy" target="10.1.2.4" /&gt;
+          &lt;check uuid="2d42adbc-7c7a-11dd-a48f-4f59e0b654d3" module="ec_console" target="10.0.0.1"&gt;
+            &lt;config&gt;
+              &lt;command&gt;xml summary&lt;/command&gt;
+              &lt;xpath&gt;/ServerSummary/*&lt;/xpath&gt;
+              &lt;sasl_authentication&gt;digest-md5&lt;/sasl_authentication&gt;
+              &lt;sasl_user&gt;admin&lt;/sasl_user&gt;
+              &lt;sasl_password&gt;admin&lt;/sasl_password&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
         &lt;/checks&gt;
       &lt;/noit&gt;
       </programlisting>

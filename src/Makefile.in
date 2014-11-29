@@ -3,11 +3,14 @@
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
 CLINKFLAGS=@CLINKFLAGS@
 LUACFLAGS=@LUACFLAGS@
 PGCFLAGS=@PGCFLAGS@
 LDFLAGS=@LDFLAGS@
+SHLDFLAGS=@SHLDFLAGS@
 DEPFLAGS=@DEPFLAGS@
+MODULELD=@MODULELD@
 AR=@AR@
 RANLIB=@RANLIB@
 LIBS=@LIBS@
@@ -43,7 +46,7 @@ NOITD_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=noitd_%dtrace_stub.o)
 STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
 
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
-	jlog/jlogctl
+	jlog/jlogctl @MDB_MODS@
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
@@ -218,6 +221,28 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
 	fi
 
+mdb-support/mdb_help.lo:	mdb-support/mdb_help.c
+	@echo "- compiling $@"
+	@$(CC) -Imdb-support $(CPPFLAGS) $(SHCFLAGS) $(CFLAGS) -o $@ -c $<
+
+SHAREDMDBMODSRC=mdb-support/noitutils.c mdb-support/eventer.c
+
+mdb-support/noitd.lo:	mdb-support/noitd.c $(SHAREDMDBMODSRC)
+	@echo "- compiling $@"
+	@$(CC) -Imdb-support $(CPPFLAGS) $(SHCFLAGS) $(CFLAGS) -o $@ -c $<
+
+mdb-support/noitd.so:	mdb-support/noitd.lo mdb-support/mdb_help.lo
+	@echo "- linking $@"
+	@$(MODULELD) $(SHLDFLAGS) -o $@ mdb-support/noitd.lo mdb-support/mdb_help.lo
+
+mdb-support/stratcond.lo:	mdb-support/stratcond.c $(SHAREDMDBMODSRC)
+	@echo "- compiling $@"
+	@$(CC) -Imdb-support $(CPPFLAGS) $(SHCFLAGS) $(CFLAGS) -o $@ -c $<
+
+mdb-support/stratcond.so:	mdb-support/stratcond.lo mdb-support/mdb_help.lo
+	@echo "- linking $@"
+	@$(MODULELD) $(SHLDFLAGS) -o $@ mdb-support/stratcond.lo mdb-support/mdb_help.lo
+
 stratcon_datastore.o:	stratcon_datastore.c
 	@echo "- compiling $<"
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
@@ -298,6 +323,9 @@ install-dirs:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
+	if test -n "@MDB_MODS@" ; then \
+		$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)/usr/lib/mdb/proc/amd64 ; \
+	fi
 
 install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
@@ -323,12 +351,18 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 	(cd modules-lua && $(MAKE) install DESTDIR=$(DESTDIR))
 	(cd noit-web && tar cf - .) | (cd $(DESTDIR)$(datadir)/noit-web && tar xf -)
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
+	if test -n "@MDB_MODS@" ; then \
+		$(INSTALL) -m 0755 mdb-support/noitd.so $(DESTDIR)/usr/lib/mdb/proc/amd64/noitd.so ; \
+	fi
 
 install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	(cd modules && $(MAKE) install-smodules DESTDIR=$(DESTDIR))
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
+	if test -n "@MDB_MODS@" ; then \
+		$(INSTALL) -m 0755 mdb-support/stratcond.so $(DESTDIR)/usr/lib/mdb/proc/amd64/stratcond.so ; \
+	fi
 
 install-docs:
 	(cd man && $(MAKE) install DESTDIR=$(DESTDIR))
@@ -339,6 +373,7 @@ clean:
 	rm -f *.o $(TARGETS) $(LUA_OBJS)
 	rm -f module-online.h
 	rm -rf noit-objs stratcon-objs
+	rm -rf mdb-support/*.lo mdb-support/*.so
 	(cd jlog && $(MAKE) clean)
 	(cd eventer && $(MAKE) clean)
 	(cd udns && $(MAKE) clean)

@@ -42,7 +42,43 @@
 #include <sys/mman.h>
 #include <dirent.h>
 #if defined(__sun__)
+#define _STRUCTURED_PROC 1
+#include <sys/procfs.h>
 #include <sys/lwp.h>
+
+/* libproc.h pulls... I hate you illumos */
+#define PR_ARG_PIDS 0x1 /* Allow pid and /proc file arguments */
+#define PR_ARG_CORES    0x2 /* Allow core file arguments */
+#define PR_ARG_ANY  (PR_ARG_PIDS | PR_ARG_CORES)
+
+/* Flags accepted by Pgrab() */
+#define PGRAB_RETAIN    0x01    /* Retain tracing flags, else clear flags */
+#define PGRAB_FORCE 0x02    /* Open the process w/o O_EXCL */
+#define PGRAB_RDONLY    0x04    /* Open the process or core w/ O_RDONLY */
+#define PGRAB_NOSTOP    0x08    /* Open the process but do not stop it */
+#define PGRAB_INCORE    0x10    /* Use in-core data to build symbol tables */
+
+#define PRELEASE_RETAIN 0x20    /* Retain final tracing flags */
+
+#define G_NOPROC    1   /* No such process */
+
+struct ps_prochandle;
+
+typedef int proc_lwp_all_f(void *, const lwpstatus_t *, const lwpsinfo_t *);
+extern int Plwp_iter_all(struct ps_prochandle *, proc_lwp_all_f *, void *);
+
+extern int proc_lwp_in_set(const char *, lwpid_t);
+extern struct ps_prochandle *proc_arg_xgrab(const char *, const char *, int,
+    int, int *, const char **);
+extern pid_t proc_arg_psinfo(const char *, int, psinfo_t *, int *);
+
+extern void proc_unctrl_psinfo(psinfo_t *);
+extern  const psinfo_t *Ppsinfo(struct ps_prochandle *);
+extern  const pstatus_t *Pstatus(struct ps_prochandle *);
+
+extern  void    Prelease(struct ps_prochandle *, int);
+extern  void    Pfree(struct ps_prochandle *);
+
 #endif
 #if defined(__MACH__) && defined(__APPLE__)
 #include <libproc.h>
@@ -66,7 +102,7 @@ const static char *glider_path = NULL;
 const static char *trace_dir = "/var/tmp";
 static int retries = 5;
 static int span = 60;
-static int allow_async_dumps = 1;
+static int allow_async_dumps = 0;
 
 int noit_watchdog_glider(const char *path) {
   glider_path = path;
@@ -230,6 +266,7 @@ static void close_all_fds() {
 #endif
 }
 static void stop_other_threads() {
+#ifdef UNSAFE_STOP
 #if defined(__sun__)
   lwpid_t self;
   char path[PATH_MAX];
@@ -250,16 +287,16 @@ static void stop_other_threads() {
     if(entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
       lwpid_t tgt;
       tgt = atoi(entry->d_name);
-#ifdef UNSAFE_STOP
       if(tgt != self) _lwp_suspend(tgt);
-#endif
     }
   }
   closedir(root);
 #endif
+#endif
 }
 
 void emancipate(int sig) {
+  noit_log_enter_sighandler();
   signal(sig, SIG_DFL);
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
@@ -278,11 +315,84 @@ void emancipate(int sig) {
     }
     kill(noit_monitored_child_pid, sig);
   }
+  noit_log_leave_sighandler();
 }
 
 void subprocess_killed(int sig) {
   noitL(noit_error, "got a signal from spawned process.... exiting\n");
   exit(-1);
+}
+
+#if defined(__sun__)
+
+#define LWPFLAGS    \
+    (PR_STOPPED|PR_ISTOP|PR_DSTOP|PR_ASLEEP|PR_PCINVAL|PR_STEP \
+    |PR_AGENT|PR_DETACH|PR_DAEMON)
+
+#define PROCFLAGS   \
+    (PR_ISSYS|PR_VFORKP|PR_ORPHAN|PR_NOSIGCHLD|PR_WAITPID \
+    |PR_FORK|PR_RLC|PR_KLC|PR_ASYNC|PR_BPTADJ|PR_MSACCT|PR_MSFORK|PR_PTRACE)
+
+typedef struct look_arg {
+    int pflags;
+    const char *lwps;
+    int count;
+    int stopped;
+} look_arg_t;
+
+
+static int
+lwpisstopped(look_arg_t *arg, const lwpstatus_t *psp, const lwpsinfo_t *pip) {
+  int flags;
+  if(!proc_lwp_in_set(arg->lwps, pip->pr_lwpid))
+    return 0;
+  arg->count++;
+  flags = psp->pr_flags & LWPFLAGS;
+  if(flags & PR_STOPPED) arg->stopped++;
+  return 0;
+}
+
+#endif
+
+int wait_for_stop(pid_t pid) {
+#if defined(__sun__)
+  int gcode, gcode2;
+  look_arg_t lookarg;
+  pstatus_t pstatus;
+  psinfo_t psinfo;
+  const char *lwps;
+  struct ps_prochandle *Pr;
+  char pidstr[32];
+  snprintf(pidstr, sizeof(pidstr), "%u", (unsigned int)pid);
+  while(1) {
+    if ((Pr = proc_arg_xgrab(pidstr, NULL, PR_ARG_ANY,
+        PGRAB_RETAIN | PGRAB_FORCE | PGRAB_RDONLY | PGRAB_NOSTOP, &gcode,
+        &lookarg.lwps)) == NULL) {
+      if (gcode == G_NOPROC &&
+          proc_arg_psinfo(pidstr, PR_ARG_PIDS, &psinfo, &gcode2) > 0 &&
+          psinfo.pr_nlwp == 0) {
+        noitL(noit_error, "child %d defunct\n", (int)psinfo.pr_pid);
+        return 0;
+      }
+      return 0;
+    }
+    (void) memcpy(&pstatus, Pstatus(Pr), sizeof (pstatus_t));
+    (void) memcpy(&psinfo, Ppsinfo(Pr), sizeof (psinfo_t));
+    lookarg.pflags = pstatus.pr_flags;
+    lookarg.count = 0;
+    lookarg.stopped = 0;
+    (void) Plwp_iter_all(Pr, (proc_lwp_all_f *)lwpisstopped, &lookarg);
+    proc_unctrl_psinfo(&psinfo);
+    Prelease(Pr, PRELEASE_RETAIN);
+    if(lookarg.count == 0) return 0;
+    if(lookarg.count == lookarg.stopped) return 1;
+    noitL(noit_error, "Waiting for %d to STOP.\n", (int)psinfo.pr_pid);
+    sleep(1);
+  }
+  return 0;
+#else
+  return 0;
+#endif
 }
 
 /* monitoring...
@@ -396,6 +506,8 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         else if(it_ticks_crashed() && crashing_pid == -1) {
           crashing_pid = noit_monitored_child_pid;
           noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
+          /* We expect the child to be stopped here... */
+          if(wait_for_stop(crashing_pid) == 0) sleep(1);
           run_glider(crashing_pid);
           kill(crashing_pid, SIGCONT);
         }
