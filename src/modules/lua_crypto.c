@@ -144,6 +144,9 @@ noit_lua_crypto_x509_index_func(lua_State *L) {
 
 static int
 noit_lua_crypto_x509_gc(lua_State *L) {
+  void **udata;
+  udata = lua_touserdata(L,1);
+  X509_free((X509 *)*udata);
   return 0;
 }
 
