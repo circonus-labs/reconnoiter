@@ -253,4 +253,26 @@ int noit_hash_next_str(noit_hash_table *h, noit_hash_iter *iter,
   return rv;
 }
 
+/* This exists so that we have an instance of this to pull in the CTF
+ * definition so that mdb can "know" the type alias here.
+ */
+struct _noit_hash_bucket {
+#ifdef CK_HT_PP
+  uintptr_t key;
+  uintptr_t value CK_CC_PACKED;
+} CK_CC_ALIGN(16);
+#else
+  /* these are simply renamed to make them look like the same
+   * keys as the old noit_hash_bucket implelentation...
+   * If ck_ht is pointer-packed, it's not reasonable.
+   */
+  const char *k;
+  void *data;
+  uint64_t klen;
+  uint64_t hash;
+} CK_CC_ALIGN(32);
+#endif
+typedef struct _noit_hash_bucket noit_hash_bucket;
+static noit_hash_bucket __noit_hash_use_of_hash_bucket;
+
 /* vim: se sw=2 ts=2 et: */
