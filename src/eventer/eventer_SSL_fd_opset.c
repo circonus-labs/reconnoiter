@@ -456,6 +456,7 @@ eventer_ssl_get_local_commonname(eventer_ssl_ctx_t *ctx, char *buff, int len) {
       }
     }
   }
+  X509_free(cert);
   if(out) return strlen(out);
   return -1;
 }
