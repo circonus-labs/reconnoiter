@@ -42,6 +42,7 @@
 #include <sys/mman.h>
 #include <dirent.h>
 #if defined(__sun__)
+#include <ucontext.h>
 #define _STRUCTURED_PROC 1
 #include <sys/procfs.h>
 #include <sys/lwp.h>
@@ -295,9 +296,19 @@ static void stop_other_threads() {
 #endif
 }
 
-void emancipate(int sig) {
+#if defined(__sun__)
+static int simple_stack_print(uintptr_t pc, int sig, void *usrarg) {
+  lwpid_t self;
+  char addrline[128];
+  self = _lwp_self();
+  addrtosymstr((void *)pc, addrline, sizeof(addrline));
+  noitL(noit_error, "t@%d> %s\n", self, addrline);
+  return 0;
+}
+#endif
+
+void emancipate(int sig, siginfo_t *si, void *uc) {
   noit_log_enter_sighandler();
-  signal(sig, SIG_DFL);
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
     run_glider(noit_monitored_child_pid);
@@ -313,6 +324,10 @@ void emancipate(int sig) {
       it_ticks_crash_release(); /* notify parent that it can fork a new one */
       /* the subsequent dump may take a while on big processes and slow disks */
     }
+    /* attempt a simple stack trace */
+#if defined(__sun__)
+    walkcontext(uc, simple_stack_print, NULL);
+#endif
     kill(noit_monitored_child_pid, sig);
   }
   noit_log_leave_sighandler();
@@ -360,7 +375,6 @@ int wait_for_stop(pid_t pid) {
   look_arg_t lookarg;
   pstatus_t pstatus;
   psinfo_t psinfo;
-  const char *lwps;
   struct ps_prochandle *Pr;
   char pidstr[32];
   snprintf(pidstr, sizeof(pidstr), "%u", (unsigned int)pid);
@@ -442,13 +456,21 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     }
     if(child_pid == 0) {
       /* trace handlers */
+      struct sigaction sa;
       noit_monitored_child_pid = getpid();
       if(glider_path)
         noitL(noit_error, "catching faults with glider\n");
       else
         noitL(noit_error, "no glider, allowing a single emancipated minor.\n");
-      signal(SIGSEGV, emancipate);
-      signal(SIGABRT, emancipate);
+
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_sigaction = emancipate;
+      sa.sa_flags = SA_RESETHAND|SA_SIGINFO;
+      sigemptyset(&sa.sa_mask);
+      sigaddset(&sa.sa_mask, SIGSEGV);
+      sigaddset(&sa.sa_mask, SIGABRT);
+      sigaction(SIGSEGV, &sa, NULL);
+      sigaction(SIGABRT, &sa, NULL);
       /* run the program */
       exit(func());
     }
