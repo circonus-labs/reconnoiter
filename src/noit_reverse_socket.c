@@ -1374,7 +1374,7 @@ noit_connections_from_config(noit_hash_table *tracker, pthread_mutex_t *tracker_
 
   snprintf(path, sizeof(path), "/%s/%ss//%s", toplevel ? toplevel : "*", type, type);
   noit_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_error, "Found %d %s stanzas\n", cnt, path);
+  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char address[256];
     unsigned short port;
