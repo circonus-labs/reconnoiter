@@ -185,7 +185,7 @@ noit_check_schedule_next(noit_module_t *self,
   newe->closure = rcl;
 
   /* knuth's golden ratio approach */
-  newe->thr_owner = eventer_choose_owner(((int)(((vpsized_int)check)>>4))*2654435761);
+  newe->thr_owner = eventer_choose_owner(((int)(((vpsized_int)check)/sizeof(*check)))*2654435761);
   eventer_add(newe);
   check->fire_event = newe;
   return diffms;
