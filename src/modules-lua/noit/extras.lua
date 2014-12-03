@@ -34,6 +34,7 @@ local type = type
 local tonumber = tonumber
 local string = require("string")
 local table = require("table")
+local unpack = table.unpack or unpack
 local _G = _G
 
 module("noit.extras")
@@ -193,7 +194,7 @@ function noit_coros_resume(co,...)
   if _G.coroutine.status(co) == "dead" then
     _G.noit.cancel_coro(co)
   end
-  if type(rv) == "table" then return table.unpack(rv) end
+  if type(rv) == "table" then return unpack(rv) end
   return rv
 end
 

@@ -41,44 +41,10 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <dirent.h>
+#include <execinfo.h>
 #if defined(__sun__)
-#define _STRUCTURED_PROC 1
-#include <sys/procfs.h>
+#include <ucontext.h>
 #include <sys/lwp.h>
-
-/* libproc.h pulls... I hate you illumos */
-#define PR_ARG_PIDS 0x1 /* Allow pid and /proc file arguments */
-#define PR_ARG_CORES    0x2 /* Allow core file arguments */
-#define PR_ARG_ANY  (PR_ARG_PIDS | PR_ARG_CORES)
-
-/* Flags accepted by Pgrab() */
-#define PGRAB_RETAIN    0x01    /* Retain tracing flags, else clear flags */
-#define PGRAB_FORCE 0x02    /* Open the process w/o O_EXCL */
-#define PGRAB_RDONLY    0x04    /* Open the process or core w/ O_RDONLY */
-#define PGRAB_NOSTOP    0x08    /* Open the process but do not stop it */
-#define PGRAB_INCORE    0x10    /* Use in-core data to build symbol tables */
-
-#define PRELEASE_RETAIN 0x20    /* Retain final tracing flags */
-
-#define G_NOPROC    1   /* No such process */
-
-struct ps_prochandle;
-
-typedef int proc_lwp_all_f(void *, const lwpstatus_t *, const lwpsinfo_t *);
-extern int Plwp_iter_all(struct ps_prochandle *, proc_lwp_all_f *, void *);
-
-extern int proc_lwp_in_set(const char *, lwpid_t);
-extern struct ps_prochandle *proc_arg_xgrab(const char *, const char *, int,
-    int, int *, const char **);
-extern pid_t proc_arg_psinfo(const char *, int, psinfo_t *, int *);
-
-extern void proc_unctrl_psinfo(psinfo_t *);
-extern  const psinfo_t *Ppsinfo(struct ps_prochandle *);
-extern  const pstatus_t *Pstatus(struct ps_prochandle *);
-
-extern  void    Prelease(struct ps_prochandle *, int);
-extern  void    Pfree(struct ps_prochandle *);
-
 #endif
 #if defined(__MACH__) && defined(__APPLE__)
 #include <libproc.h>
@@ -103,6 +69,7 @@ const static char *trace_dir = "/var/tmp";
 static int retries = 5;
 static int span = 60;
 static int allow_async_dumps = 0;
+static int _global_stack_trace_fd = -1;
 
 int noit_watchdog_glider(const char *path) {
   glider_path = path;
@@ -295,9 +262,19 @@ static void stop_other_threads() {
 #endif
 }
 
-void emancipate(int sig) {
+#if defined(__sun__)
+static int simple_stack_print(uintptr_t pc, int sig, void *usrarg) {
+  lwpid_t self;
+  char addrline[128];
+  self = _lwp_self();
+  addrtosymstr((void *)pc, addrline, sizeof(addrline));
+  noitL(noit_error, "t@%d> %s\n", self, addrline);
+  return 0;
+}
+#endif
+
+void emancipate(int sig, siginfo_t *si, void *uc) {
   noit_log_enter_sighandler();
-  signal(sig, SIG_DFL);
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
     run_glider(noit_monitored_child_pid);
@@ -307,12 +284,34 @@ void emancipate(int sig) {
     it_ticks_crash(); /* slow notification path */
     kill(noit_monitored_child_pid, SIGSTOP); /* stop and wait for a glide */
 
+#if defined(__sun__)
+    walkcontext(uc, simple_stack_print, NULL);
+#else
+    if(_global_stack_trace_fd >= 0) {
+      struct stat sb;
+      char stackbuff[4096];
+      void* callstack[128];
+      int i, frames = backtrace(callstack, 128);
+      backtrace_symbols_fd(callstack, frames, _global_stack_trace_fd);
+      memset(&sb, 0, sizeof(sb));
+      while((i = fstat(_global_stack_trace_fd, &sb)) == -1 && errno == EINTR);
+      if(i != 0 || sb.st_size == 0) noitL(noit_error, "error writing backtrace\n");
+      lseek(_global_stack_trace_fd, SEEK_SET, 0);
+      i = read(_global_stack_trace_fd, stackbuff, MIN(sizeof(stackbuff), sb.st_size));
+      noitL(noit_error, "BACKTRACE:\n%.*s\n", i, stackbuff);
+    }
+    else {
+      noitL(noit_error, "backtrace unavailable\n");
+    }
+#endif
+
     if(allow_async_dumps) { 
       stop_other_threads(); /* suspend all peer threads... to safely */
       close_all_fds(); /* close all our FDs */
       it_ticks_crash_release(); /* notify parent that it can fork a new one */
       /* the subsequent dump may take a while on big processes and slow disks */
     }
+    /* attempt a simple stack trace */
     kill(noit_monitored_child_pid, sig);
   }
   noit_log_leave_sighandler();
@@ -323,77 +322,6 @@ void subprocess_killed(int sig) {
   exit(-1);
 }
 
-#if defined(__sun__)
-
-#define LWPFLAGS    \
-    (PR_STOPPED|PR_ISTOP|PR_DSTOP|PR_ASLEEP|PR_PCINVAL|PR_STEP \
-    |PR_AGENT|PR_DETACH|PR_DAEMON)
-
-#define PROCFLAGS   \
-    (PR_ISSYS|PR_VFORKP|PR_ORPHAN|PR_NOSIGCHLD|PR_WAITPID \
-    |PR_FORK|PR_RLC|PR_KLC|PR_ASYNC|PR_BPTADJ|PR_MSACCT|PR_MSFORK|PR_PTRACE)
-
-typedef struct look_arg {
-    int pflags;
-    const char *lwps;
-    int count;
-    int stopped;
-} look_arg_t;
-
-
-static int
-lwpisstopped(look_arg_t *arg, const lwpstatus_t *psp, const lwpsinfo_t *pip) {
-  int flags;
-  if(!proc_lwp_in_set(arg->lwps, pip->pr_lwpid))
-    return 0;
-  arg->count++;
-  flags = psp->pr_flags & LWPFLAGS;
-  if(flags & PR_STOPPED) arg->stopped++;
-  return 0;
-}
-
-#endif
-
-int wait_for_stop(pid_t pid) {
-#if defined(__sun__)
-  int gcode, gcode2;
-  look_arg_t lookarg;
-  pstatus_t pstatus;
-  psinfo_t psinfo;
-  const char *lwps;
-  struct ps_prochandle *Pr;
-  char pidstr[32];
-  snprintf(pidstr, sizeof(pidstr), "%u", (unsigned int)pid);
-  while(1) {
-    if ((Pr = proc_arg_xgrab(pidstr, NULL, PR_ARG_ANY,
-        PGRAB_RETAIN | PGRAB_FORCE | PGRAB_RDONLY | PGRAB_NOSTOP, &gcode,
-        &lookarg.lwps)) == NULL) {
-      if (gcode == G_NOPROC &&
-          proc_arg_psinfo(pidstr, PR_ARG_PIDS, &psinfo, &gcode2) > 0 &&
-          psinfo.pr_nlwp == 0) {
-        noitL(noit_error, "child %d defunct\n", (int)psinfo.pr_pid);
-        return 0;
-      }
-      return 0;
-    }
-    (void) memcpy(&pstatus, Pstatus(Pr), sizeof (pstatus_t));
-    (void) memcpy(&psinfo, Ppsinfo(Pr), sizeof (psinfo_t));
-    lookarg.pflags = pstatus.pr_flags;
-    lookarg.count = 0;
-    lookarg.stopped = 0;
-    (void) Plwp_iter_all(Pr, (proc_lwp_all_f *)lwpisstopped, &lookarg);
-    proc_unctrl_psinfo(&psinfo);
-    Prelease(Pr, PRELEASE_RETAIN);
-    if(lookarg.count == 0) return 0;
-    if(lookarg.count == lookarg.stopped) return 1;
-    noitL(noit_error, "Waiting for %d to STOP.\n", (int)psinfo.pr_pid);
-    sleep(1);
-  }
-  return 0;
-#else
-  return 0;
-#endif
-}
 
 /* monitoring...
  *
@@ -420,11 +348,55 @@ int wait_for_stop(pid_t pid) {
  *
  */
 
+void clear_signals() {
+  sigset_t all;
+  struct sigaction act;
+  struct itimerval izero;
+
+  memset(&izero, 0, sizeof(izero));
+  assert(setitimer(ITIMER_REAL, &izero, NULL) == 0);
+  sigfillset(&all);
+  sigprocmask(SIG_UNBLOCK, &all, NULL);
+  memset(&act, 0, sizeof(act));
+  sigaction(SIGCHLD, &act, NULL);
+  sigaction(SIGALRM, &act, NULL);
+}
+
+static void noop_sighndlr(int unused) { (void)unused; }
+
+void setup_signals(sigset_t *mysigs) {
+  struct itimerval one_second;
+  struct sigaction act;
+  
+  sigprocmask(SIG_BLOCK, mysigs, NULL);
+
+  act.sa_handler = noop_sighndlr;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = SA_SIGINFO;
+  sigaction(SIGCHLD, &act, NULL);
+
+  act.sa_handler = noop_sighndlr;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = SA_SIGINFO;
+  sigaction(SIGALRM, &act, NULL);
+
+  one_second.it_value.tv_sec = 1;
+  one_second.it_value.tv_usec = 0;
+  one_second.it_interval.tv_sec = 1;
+  one_second.it_interval.tv_usec = 0;
+  assert(setitimer(ITIMER_REAL, &one_second, NULL) == 0);
+}
+
 int noit_watchdog_start_child(const char *app, int (*func)(),
                               int child_watchdog_timeout) {
   int child_pid, crashing_pid = -1;
   time_t time_data[retries];
   int offset = 0;
+
+  char tmpfilename[MAXPATHLEN];
+  snprintf(tmpfilename, sizeof(tmpfilename), "/var/tmp/noit_%d_XXXXXX", (int)getpid());
+  _global_stack_trace_fd = mkstemp(tmpfilename);
+  if(_global_stack_trace_fd >= 0) unlink(tmpfilename);
 
   memset(time_data, 0, sizeof(time_data));
 
@@ -435,6 +407,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     unsigned long ltt = 0;
     /* This sets up things so we start alive */
     it_ticks_zero();
+    clear_signals();
     child_pid = fork();
     if(child_pid == -1) {
       noitL(noit_error, "fork failed: %s\n", strerror(errno));
@@ -442,96 +415,127 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     }
     if(child_pid == 0) {
       /* trace handlers */
+      struct sigaction sa;
       noit_monitored_child_pid = getpid();
       if(glider_path)
         noitL(noit_error, "catching faults with glider\n");
-      else
+      else if(allow_async_dumps)
         noitL(noit_error, "no glider, allowing a single emancipated minor.\n");
-      signal(SIGSEGV, emancipate);
-      signal(SIGABRT, emancipate);
+
+      memset(&sa, 0, sizeof(sa));
+      sa.sa_sigaction = emancipate;
+      sa.sa_flags = SA_RESETHAND|SA_SIGINFO;
+      sigemptyset(&sa.sa_mask);
+      sigaddset(&sa.sa_mask, SIGSEGV);
+      sigaddset(&sa.sa_mask, SIGABRT);
+      sigaction(SIGSEGV, &sa, NULL);
+      sigaction(SIGABRT, &sa, NULL);
       /* run the program */
       exit(func());
     }
     else {
+      sigset_t mysigs;
       int sig = -1, exit_val = -1;
+      sigemptyset(&mysigs);
+      sigaddset(&mysigs, SIGCHLD);
+      sigaddset(&mysigs, SIGALRM);
+      setup_signals(&mysigs);
       noit_monitored_child_pid = child_pid;
       while(1) {
         int status, rv;
-        sleep(1); /* Just check child status every second */
-        if(child_pid != crashing_pid && crashing_pid != -1) {
-          rv = waitpid(crashing_pid, &status, WNOHANG);
-          if(rv == crashing_pid) {
-            noitL(noit_error, "[monitor] emancipated child %d [%d/%d] reaped.\n",
-                  crashing_pid, WEXITSTATUS(status), WTERMSIG(status));
-            crashing_pid = -1;
-          }
+        if(sigwait(&mysigs, &sig) == -1) {
+          noitL(noit_error, "[monitor] sigwait error: %s\n", strerror(errno));
+          continue;
         }
-        rv = waitpid(child_pid, &status, WNOHANG);
-        if(rv == 0) {
-          /* Nothing */
-        }
-        else if (rv == child_pid) {
-          /* We died!... we need to relaunch, unless the status was a requested exit (2) */
-          int quit;
-          if(child_pid == crashing_pid) {
-            lifeline[1] = 0;
-            crashing_pid = -1;
-          }
-          noit_monitored_child_pid = -1;
-          sig = WTERMSIG(status);
-          exit_val = WEXITSTATUS(status);
-          quit = update_retries(&offset, time_data);
-          if (quit) {
-            noitL(noit_error, "[monitor] noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
-            exit(0);
-          }
-          else if(sig == SIGINT || sig == SIGQUIT ||
-             (sig == 0 && (exit_val == 2 || exit_val < 0))) {
-            noitL(noit_error, "[monitor] %s shutdown acknowledged.\n", app);
-            exit(0);
-          }
-          break;
-        }
-        else if(errno != ECHILD) {
-          noitL(noit_error, "[monitor] unexpected return from waitpid: %d (%s)\n", rv, strerror(errno));
-          exit(-1);
-        }
-        /* Now check out timeout */
-        if(it_ticks_crash_restart()) {
-          noitL(noit_error, "[monitor] %s %d is emancipated for dumping.\n", app, crashing_pid);
-          lifeline[1] = 0;
-          noit_monitored_child_pid = -1;
-          break;
-        }
-        else if(it_ticks_crashed() && crashing_pid == -1) {
-          crashing_pid = noit_monitored_child_pid;
-          noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
-          /* We expect the child to be stopped here... */
-          if(wait_for_stop(crashing_pid) == 0) sleep(1);
-          run_glider(crashing_pid);
-          kill(crashing_pid, SIGCONT);
-        }
-        else if(lifeline[1] == 0 && noit_monitored_child_pid == child_pid &&
-                (ltt = last_tick_time()) > child_watchdog_timeout) {
-          noitL(noit_error,
-                "[monitor] Watchdog timeout (%lu s)... terminating child\n",
-                ltt);
-          if(glider_path) {
-            kill(child_pid, SIGSTOP);
-            run_glider(child_pid);
-            kill(child_pid, SIGCONT);
-          }
-          kill(child_pid, SIGKILL);
-          noit_monitored_child_pid = -1;
+        switch(sig) {
+          case SIGCHLD:
+            if(child_pid != crashing_pid && crashing_pid != -1) {
+              noitL(noit_error, "[monitoring] spending services while reaping emancipated child %d\n", crashing_pid);
+              while((rv = waitpid(crashing_pid, &status, 0) == -1) && errno == EINTR);
+              if(rv == crashing_pid) {
+                noitL(noit_error, "[monitor] emancipated child %d [%d/%d] reaped.\n",
+                      crashing_pid, WEXITSTATUS(status), WTERMSIG(status));
+                crashing_pid = -1;
+              }
+              else if(errno != ECHILD) {
+                noitL(noit_error, "[monitor] unexpected return from emancipated waitpid: %d (%s)\n", rv, strerror(errno));
+                crashing_pid = -1;
+              }
+              noitL(noit_error, "[monitor] resuming serivces for child %d\n", child_pid);
+            }
+
+            rv = waitpid(child_pid, &status, WNOHANG|WUNTRACED);
+            if(rv == 0) {
+              /* Nothing */
+            }
+            else if (rv == child_pid) {
+              /* If we're stopped, we might have crashed */
+              if(WIFSTOPPED(status)) {
+                if(it_ticks_crashed() && crashing_pid == -1) {
+                  crashing_pid = noit_monitored_child_pid;
+                  noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
+                  run_glider(crashing_pid);
+                  kill(crashing_pid, SIGCONT);
+                }
+              } else {
+                /* We died!... we need to relaunch, unless the status was a requested exit (2) */
+                int quit;
+                if(child_pid == crashing_pid) {
+                  lifeline[1] = 0;
+                  crashing_pid = -1;
+                }
+                noit_monitored_child_pid = -1;
+                sig = WTERMSIG(status);
+                exit_val = WEXITSTATUS(status);
+                quit = update_retries(&offset, time_data);
+                if (quit) {
+                  noitL(noit_error, "[monitor] noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
+                  exit(0);
+                }
+                else if(sig == SIGINT || sig == SIGQUIT ||
+                   (sig == 0 && (exit_val == 2 || exit_val < 0))) {
+                  noitL(noit_error, "[monitor] %s shutdown acknowledged.\n", app);
+                  exit(0);
+                }
+                goto out_loop2;
+              }
+            }
+            else if(errno != ECHILD) {
+              noitL(noit_error, "[monitor] unexpected return from waitpid: %d (%s)\n", rv, strerror(errno));
+              exit(-1);
+            }
+            /* fall through */
+          case SIGALRM:
+            /* here we just wake up to check stuff */
+            if(it_ticks_crash_restart()) {
+              noitL(noit_error, "[monitor] %s %d is emancipated for dumping.\n", app, crashing_pid);
+              lifeline[1] = 0;
+              noit_monitored_child_pid = -1;
+              break;
+            }
+            else if(lifeline[1] == 0 && noit_monitored_child_pid == child_pid &&
+                    (ltt = last_tick_time()) > child_watchdog_timeout) {
+              noitL(noit_error,
+                    "[monitor] Watchdog timeout (%lu s)... terminating child\n",
+                    ltt);
+              if(glider_path) {
+                kill(child_pid, SIGSTOP);
+                run_glider(child_pid);
+                kill(child_pid, SIGCONT);
+              }
+              kill(child_pid, SIGKILL);
+              noit_monitored_child_pid = -1;
+            }
+            break;
+          default:
+            break;
         }
       }
+     out_loop2:
       if(sig >= 0) {
         noitL(noit_error, "[monitor] %s child died [%d/%d], restarting.\n",
               app, exit_val, sig);
       }
-    }
-    if((ltt = last_tick_time()) > 1) {
-      noitL(noit_debug, "[monitor] child hearbeat age: %lu\n", ltt);
     }
   }
 }
