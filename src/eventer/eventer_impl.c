@@ -60,7 +60,7 @@ struct eventer_impl_data {
   void *spec;
 };
 
-pthread_key_t tls_impl_data_key;
+static __thread struct eventer_impl_data *my_impl_data;
 static struct eventer_impl_data *eventer_impl_tls_data = NULL;
 
 #ifdef HAVE_KQUEUE
@@ -96,10 +96,13 @@ static noit_atomic32_t __loops_started = 0;
 static eventer_jobq_t __default_jobq;
 
 pthread_t eventer_choose_owner(int i) {
-  return eventer_impl_tls_data[((unsigned int)i)%__loop_concurrency].tid;
+  int idx = ((unsigned int)i)%__loop_concurrency;
+  noitL(eventer_deb, "eventer_choose -> %u %% %d = %d t@%d\n",
+        (unsigned int)i, __loop_concurrency, idx, eventer_impl_tls_data[idx].tid);
+  return eventer_impl_tls_data[idx].tid;
 }
 static struct eventer_impl_data *get_my_impl_data() {
-  return (struct eventer_impl_data *)pthread_getspecific(tls_impl_data_key);
+  return my_impl_data;
 }
 static struct eventer_impl_data *get_tls_impl_data(pthread_t tid) {
   int i;
@@ -200,7 +203,7 @@ static void eventer_per_thread_init(struct eventer_impl_data *t) {
   if(t->timed_events != NULL) return;
 
   t->tid = pthread_self();
-  pthread_setspecific(tls_impl_data_key, t);
+  my_impl_data = t;
 
   pthread_mutex_init(&t->te_lock, NULL);
   t->timed_events = calloc(1, sizeof(*t->timed_events));
@@ -304,7 +307,6 @@ int eventer_impl_init() {
     eventer_jobq_increase_concurrency(&__default_jobq);
 
   assert(eventer_impl_tls_data == NULL);
-  pthread_key_create(&tls_impl_data_key, NULL);
   eventer_impl_tls_data = calloc(__loop_concurrency, sizeof(*eventer_impl_tls_data));
 
   eventer_per_thread_init(&eventer_impl_tls_data[0]);
