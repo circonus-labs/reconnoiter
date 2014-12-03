@@ -896,6 +896,22 @@ noit_lua_setup_check(lua_State *L,
   }
   lua_setmetatable(L, -2);
 }
+
+static const char *
+noit_lua_type_name(int t) {
+  switch(t) {
+    case LUA_TNIL: return "nil";
+    case LUA_TNUMBER: return "number";
+    case LUA_TBOOLEAN: return "boolean";
+    case LUA_TSTRING: return "string";
+    case LUA_TTABLE: return "table";
+    case LUA_TFUNCTION: return "function";
+    case LUA_TUSERDATA: return "userdata";
+    case LUA_TTHREAD: return "thread";
+    case LUA_TLIGHTUSERDATA: return "lightuserdata";
+    default: return "unknown";
+  }
+}
 static int
 noit_lua_module_onload(noit_image_t *img) {
   int rv;
@@ -949,8 +965,8 @@ noit_lua_module_onload(noit_image_t *img) {
     lua_pop(L, 1);
     return rv;
   }
+  noitL(nlerr, "%s.onload must return a integer not %s (%s)\n", mc->object, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1));
   lua_pop(L,1);
-  noitL(nlerr, "%s.onload must return a integer\n", mc->object);
   return -1;
 }
 
@@ -980,8 +996,8 @@ noit_lua_module_onload(noit_image_t *img) {
     expr \
     return rv; \
   } \
+  noitL(nlerr, "%s.%s must return a integer not %s (%s)\n", object, func, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1)); \
   lua_pop(L,1); \
-  noitL(nlerr, "%s.%s must return a integer\n", object, func); \
 } while(0)
 
 static int 
