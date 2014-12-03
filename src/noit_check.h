@@ -338,6 +338,8 @@ API_EXPORT(noit_hash_table *)
 
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);
+API_EXPORT(void) noit_filterset_log_auto_add(char *filter, noit_check_t *check,
+                                             metric_t *m, noit_boolean allow);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
