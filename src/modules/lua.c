@@ -181,7 +181,7 @@ noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
   pthread_mutex_lock(&noit_lua_states_lock);
   while(noit_hash_next(&noit_lua_states, &iter, &key, &klen, &vri)) {
     lua_State **Lptr = (lua_State **)key;
-    pthread_t tgt = vri;
+    pthread_t tgt = (pthread_t)(vpsized_int)vri;
     if(!pthread_equal(me, tgt)) continue;
     nc_printf(ncct, "master (state:%p)\n", *Lptr);
     nc_printf(ncct, "\tmemory: %d kb\n", lua_gc(*Lptr, LUA_GCCOUNT, 0));
@@ -1375,7 +1375,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   pthread_mutex_lock(&noit_lua_states_lock);
   noit_hash_store(&noit_lua_states,
                   (const char *)Lptr, sizeof(*Lptr),
-                  pthread_self());
+                  (void *)(vpsized_int)pthread_self());
   pthread_mutex_unlock(&noit_lua_states_lock);
 
   return L;
