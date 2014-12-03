@@ -176,7 +176,7 @@ _noit_filterset_log_auto_add(noit_log_stream_t ls,
   return noit_log(ls, &__now, __FILE__, __LINE__,
                   "F1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
                   SECPART(&__now), MSECPART(&__now),
-                  filter, uuid_str, check->target, check->module, check->name, m->metric_name, allow ? "allow" : "deny");
+                  uuid_str, filter, check->target, check->module, check->name, m->metric_name, allow ? "allow" : "deny");
 }
 
 void
