@@ -186,7 +186,7 @@ noit_check_schedule_next(noit_module_t *self,
 
   /* knuth's golden ratio approach */
   if(!self->thread_unsafe) {
-    newe->thr_owner = eventer_choose_owner(((int)(((vpsized_int)check)/sizeof(*check)))*2654435761);
+    newe->thr_owner = CHOOSE_EVENTER_THREAD_FOR_CHECK(check);
   }
   eventer_add(newe);
   check->fire_event = newe;
