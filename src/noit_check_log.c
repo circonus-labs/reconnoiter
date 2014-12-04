@@ -66,6 +66,7 @@
  */
 
 static noit_log_stream_t check_log = NULL;
+static noit_log_stream_t filterset_log = NULL;
 static noit_log_stream_t status_log = NULL;
 static noit_log_stream_t metrics_log = NULL;
 static noit_log_stream_t delete_log = NULL;
@@ -161,6 +162,27 @@ noit_check_log_check(noit_check_t *check) {
     SETUP_LOG(check, return);
     _noit_check_log_check(check_log, check);
   }
+}
+
+static int
+_noit_filterset_log_auto_add(noit_log_stream_t ls,
+                             char *filter, noit_check_t *check, metric_t *m, noit_boolean allow) {
+  struct timeval __now;
+  char uuid_str[256*3+37];
+  SETUP_LOG(check, );
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
+
+  gettimeofday(&__now, NULL);
+  return noit_log(ls, &__now, __FILE__, __LINE__,
+                  "F1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+                  SECPART(&__now), MSECPART(&__now),
+                  uuid_str, filter, check->target, check->module, check->name, m->metric_name, allow ? "allow" : "deny");
+}
+
+void
+noit_filterset_log_auto_add(char *filter, noit_check_t *check, metric_t *m, noit_boolean allow) {
+  SETUP_LOG(filterset, return);
+  _noit_filterset_log_auto_add(filterset_log, filter, check, m, allow);
 }
 
 static int

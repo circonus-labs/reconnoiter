@@ -323,6 +323,7 @@ noit_apply_filterset(const char *filterset,
         if(need_module) UPDATE_FILTER_RULE(idx, module, check->module);
         if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
         if(need_metric) UPDATE_FILTER_RULE(idx, metric, metric->metric_name);
+        noit_filterset_log_auto_add(fs->name, check, metric, r->type == NOIT_FILTER_ACCEPT);
         return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
       }
       idx++;
