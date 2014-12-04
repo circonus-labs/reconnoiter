@@ -41,8 +41,10 @@
 #include <errno.h>
 #include <assert.h>
 #include <netinet/in.h>
+#include <hwloc.h>
 
 static struct timeval *eventer_impl_epoch = NULL;
+static int PARALLELISM_MULTIPLIER = 4;
 static int EVENTER_DEBUGGING = 0;
 static int desired_nofiles = 1024*1024;
 
@@ -91,12 +93,33 @@ noit_log_stream_t eventer_err = NULL;
 noit_log_stream_t eventer_deb = NULL;
 
 static int __default_queue_threads = 5;
-static int __loop_concurrency = 1;
+static int __loop_concurrency = 0;
 static noit_atomic32_t __loops_started = 0;
 static eventer_jobq_t __default_jobq;
 
+/* Multi-threaded event loops...
+
+   We will instantiate __loop_concurrency separate threads each running their
+   own event loop.  This event loops can concurrently fire callbacks, so it is
+   important that they be written in a thread-safe manner.
+
+   Sadly, some libraries that are leveraged simply aren't up to the challenge.
+
+   We reserve the first event loop to run all stuff that isn't multi-thread safe.
+   If you don't specify an thr_owner for an event, it will be assigned idx=0.
+   This can cause a lot of (unavoidable) contention on that event thread.  In
+   order to alleviate (or at least avoid) that contention, we will assist thread-
+   safe events by only choosing thr_owners other than idx=0.
+
+   This has the effect of using 1 thread for some checks and __loop_concurrency-1
+   for all the others.
+
+*/
+
 pthread_t eventer_choose_owner(int i) {
-  int idx = ((unsigned int)i)%__loop_concurrency;
+  int idx;
+  if(__loop_concurrency == 1) return eventer_impl_tls_data[0].tid;
+  idx = ((unsigned int)i)%(__loop_concurrency-1) + 1; /* see comment above */
   noitL(eventer_deb, "eventer_choose -> %u %% %d = %d t@%d\n",
         (unsigned int)i, __loop_concurrency, idx, eventer_impl_tls_data[idx].tid);
   return eventer_impl_tls_data[idx].tid;
@@ -134,7 +157,7 @@ void *eventer_get_spec_for_event(eventer_t e) {
 int eventer_impl_propset(const char *key, const char *value) {
   if(!strcasecmp(key, "concurrency")) {
     __loop_concurrency = atoi(value);
-    if(__loop_concurrency < 1) __loop_concurrency = 1;
+    if(__loop_concurrency < 1) __loop_concurrency = 0;
     return 0;
   }
   if(!strcasecmp(key, "default_queue_threads")) {
@@ -251,10 +274,43 @@ static void eventer_loop_prime() {
   while(__loops_started < __loop_concurrency);
 }
 
+hwloc_topology_t *topo;
+static int assess_hw_topo() {
+  topo = calloc(1, sizeof(*topo));
+  if(hwloc_topology_init(topo)) goto out;
+  if(hwloc_topology_load(*topo)) goto destroy_out;
+
+  return 0;
+
+ destroy_out:
+  hwloc_topology_destroy(*topo);
+ out:
+  free(topo);
+  topo = NULL;
+  return -1;
+}
+static int cpu_sockets_and_cores(int *sockets, int *cores) {
+  int depth, nsockets = 0, ncores = 0;
+
+  if(!topo) return -1;
+  depth = hwloc_get_type_depth(*topo, HWLOC_OBJ_SOCKET);
+  if(depth != HWLOC_TYPE_DEPTH_UNKNOWN)
+    nsockets = hwloc_get_nbobjs_by_depth(*topo, depth);
+  depth = hwloc_get_type_or_below_depth(*topo, HWLOC_OBJ_CORE);
+  if(depth != HWLOC_TYPE_DEPTH_UNKNOWN)
+    ncores = hwloc_get_nbobjs_by_depth(*topo, depth);
+
+  if(sockets) *sockets = nsockets;
+  if(cores) *cores = ncores;
+  return 0;
+}
+
 int eventer_impl_init() {
   struct rlimit rlim;
   int i, try;
   char *evdeb;
+
+  assess_hw_topo();
 
 #ifdef SOCK_CLOEXEC
   /* We can test, still might not work */
@@ -267,6 +323,16 @@ int eventer_impl_init() {
 #ifdef O_CLOEXEC
   NE_O_CLOEXEC = O_CLOEXEC;
 #endif
+
+  if(__loop_concurrency <= 0) {
+    int sockets = 0, cores = 0;
+    (void)cpu_sockets_and_cores(&sockets, &cores);
+    if(cores == 0) cores = sockets;
+    if(cores == 0) cores = 1;
+    __loop_concurrency = 1 + PARALLELISM_MULTIPLIER * cores;
+    noitL(noit_debug, "found %d sockets, %d cores -> concurrency %d\n",
+          sockets, cores, __loop_concurrency);
+  }
 
   evdeb = getenv("EVENTER_DEBUGGING");
   if(evdeb) {
@@ -317,7 +383,8 @@ int eventer_impl_init() {
 
 void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   eventer_job_t *job;
-  if(!eventer_is_loop(e->thr_owner)) e->thr_owner = eventer_choose_owner(0);
+  /* always use 0, if unspecified */
+  if(!eventer_is_loop(e->thr_owner)) e->thr_owner = eventer_impl_tls_data[0].tid;
   job = calloc(1, sizeof(*job));
   job->fd_event = e;
   job->jobq = q ? q : &__default_jobq;
