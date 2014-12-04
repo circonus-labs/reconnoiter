@@ -250,14 +250,12 @@ noit_console_show_lua(noit_console_closure_t ncct,
   pthread_mutex_init(&crutch.lock, NULL);
 
   me = pthread_self();
+  noit_console_lua_thread_reporter(NULL, 0, &crutch, NULL);
   first = eventer_choose_owner(i++);
-  do {
-    tgt = eventer_choose_owner(i++);
-    if(pthread_equal(me, tgt)) {
-      noit_console_lua_thread_reporter(NULL, 0, &crutch, NULL);
-    }
-    else {
+  if(!pthread_equal(first, me)) {
+    do {
       eventer_t e;
+      tgt = eventer_choose_owner(i++);
       e = eventer_alloc();
       memcpy(&e->whence, &old, sizeof(old));
       e->thr_owner = tgt;
@@ -266,8 +264,8 @@ noit_console_show_lua(noit_console_closure_t ncct,
       e->closure = &crutch;
       noit_atomic_inc32(&crutch.outstanding);
       eventer_add(e);
-    }
-  } while(!pthread_equal(first, tgt));
+    } while(!pthread_equal(first, tgt));
+  }
 
   /* Wait for completion */
   while(crutch.outstanding > 0) {
