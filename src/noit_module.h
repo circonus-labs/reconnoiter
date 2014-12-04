@@ -80,7 +80,7 @@ typedef struct _noit_module_loader {
  */
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
-#define NOIT_MODULE_ABI_VERSION   4
+#define NOIT_MODULE_ABI_VERSION   5
 
 typedef struct _noit_module {
   noit_image_t hdr;
@@ -89,6 +89,7 @@ typedef struct _noit_module {
   int (*initiate_check)(struct _noit_module *, noit_check_t *check,
                         int once, noit_check_t *cause);
   void (*cleanup)(struct _noit_module *, noit_check_t *);
+  unsigned thread_unsafe :1;
 } noit_module_t;
 
 /*         config: is called to pass the config into the module.

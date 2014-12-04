@@ -1244,7 +1244,8 @@ noit_module_t snmp = {
   noit_snmp_config,
   noit_snmp_init,
   noit_snmp_initiate_check,
-  NULL /* noit_snmp_cleanup */
+  NULL, /* noit_snmp_cleanup */
+  .thread_unsafe = 1
 };
 
 #include "snmptrap.xmlh"
@@ -1260,5 +1261,6 @@ noit_module_t snmptrap = {
   noit_snmp_config,
   noit_snmp_init,
   noit_snmptrap_initiate_check,
-  NULL /* noit_snmp_cleanup */
+  NULL, /* noit_snmp_cleanup */
+  .thread_unsafe = 1
 };
