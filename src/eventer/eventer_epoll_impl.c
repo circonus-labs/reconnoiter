@@ -237,8 +237,20 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
       noitL(noit_debug, "eventer %s(%p) epoll asked to modify descheduled fd: %d\n",
             cbname?cbname:"???", e->callback, fd);
     } else {
-      spec = eventer_get_spec_for_event(e);
-      assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
+      if(!pthread_equal(pthread_self(), e->thr_owner)) {
+        pthread_t tgt = e->thr_owner;
+        e->thr_owner = pthread_self();
+        spec = eventer_get_spec_for_event(e);
+        assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_DEL, fd, &_ev) == 0);
+        e->thr_owner = tgt;
+        spec = eventer_get_spec_for_event(e);
+        assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_ADD, fd, &_ev) == 0);
+        noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, pthread_self(), tgt);
+      }
+      else {
+        spec = eventer_get_spec_for_event(e);
+        assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_MOD, fd, &_ev) == 0);
+      }
     }
     /* Set our mask */
     e->mask = newmask;

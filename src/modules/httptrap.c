@@ -531,6 +531,20 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
     restc->call_closure_free = rest_json_payload_free;
   }
+  else rxc = restc->call_closure;
+
+  /* flip threads */
+  {
+    noit_http_connection *conn = noit_http_session_connection(ctx);
+    eventer_t e = noit_http_connection_event(conn);
+    if(e) {
+      pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
+      if(!pthread_equal(e->thr_owner, tgt)) {
+        e->thr_owner = tgt;
+        return EVENTER_READ | EVENTER_WRITE | EVENTER_EXCEPTION;
+      }
+    }
+  }
 
   rxc = rest_get_json_upload(restc, &mask, &complete);
   if(rxc == NULL && !complete) return mask;

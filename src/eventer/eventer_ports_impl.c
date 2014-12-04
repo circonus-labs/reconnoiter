@@ -219,11 +219,21 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
   noit_memory_end();
 
   if(newmask) {
-    alter_fd(e, newmask);
-    /* Set our mask */
-    e->mask = newmask;
-    noitLT(eventer_deb, &__now, "ports: complete on %d/(%x->%x) to %s(%p)\n",
-           fd, mask, newmask, cbname?cbname:"???", e->callback);
+    if(!pthread_equal(pthread_self(), e->thr_owner)) {
+      pthread_t tgt = e->thr_owner;
+      e->thr_owner = pthread_self();
+      alter_fd(e, 0);
+      e->thr_owner = tgt;
+      alter_fd(e, newmask);
+      noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, pthread_self(), tgt);
+    }
+    else {
+      alter_fd(e, newmask);
+      /* Set our mask */
+      e->mask = newmask;
+      noitLT(eventer_deb, &__now, "ports: complete on %d/(%x->%x) to %s(%p)\n",
+             fd, mask, newmask, cbname?cbname:"???", e->callback);
+    }
   }
   else {
     noitLT(eventer_deb, &__now, "ports: complete on %d/none to %s(%p)\n",

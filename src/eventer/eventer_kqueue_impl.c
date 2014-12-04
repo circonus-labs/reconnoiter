@@ -259,6 +259,25 @@ static eventer_t eventer_kqueue_impl_remove_fd(int fd) {
 static eventer_t eventer_kqueue_impl_find_fd(int fd) {
   return master_fds[fd].e;
 }
+static void
+alter_kqueue_mask(eventer_t e, int oldmask, int newmask) {
+  /* toggle the read bits if needed */
+  if(newmask & (EVENTER_READ | EVENTER_EXCEPTION)) {
+    if(!(oldmask & (EVENTER_READ | EVENTER_EXCEPTION)))
+      ke_change(e->fd, EVFILT_READ, EV_ADD | EV_ENABLE, e);
+  }
+  else if(oldmask & (EVENTER_READ | EVENTER_EXCEPTION))
+    ke_change(e->fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
+
+  /* toggle the write bits if needed */
+  if(newmask & EVENTER_WRITE) {
+    if(!(oldmask & EVENTER_WRITE))
+      ke_change(e->fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
+  }
+  else if(oldmask & EVENTER_WRITE)
+    ke_change(e->fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
+}
+
 static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
   ev_lock_state_t lockstate;
   struct timeval __now;
@@ -289,24 +308,19 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
   noit_memory_end();
 
   if(newmask) {
-    /* toggle the read bits if needed */
-    if(newmask & (EVENTER_READ | EVENTER_EXCEPTION)) {
-      if(!(oldmask & (EVENTER_READ | EVENTER_EXCEPTION)))
-        ke_change(fd, EVFILT_READ, EV_ADD | EV_ENABLE, e);
+    if(!pthread_equal(pthread_self(), e->thr_owner)) {
+      pthread_t tgt = e->thr_owner;
+      e->thr_owner = pthread_self();
+      alter_kqueue_mask(e, oldmask, 0);
+      e->thr_owner = tgt;
+      alter_kqueue_mask(e, 0, newmask);
+      noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, pthread_self(), tgt);
     }
-    else if(oldmask & (EVENTER_READ | EVENTER_EXCEPTION))
-      ke_change(fd, EVFILT_READ, EV_DELETE | EV_DISABLE, e);
-
-    /* toggle the write bits if needed */
-    if(newmask & EVENTER_WRITE) {
-      if(!(oldmask & EVENTER_WRITE))
-        ke_change(fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, e);
+    else {
+      alter_kqueue_mask(e, oldmask, newmask);
+      /* Set our mask */
+      e->mask = newmask;
     }
-    else if(oldmask & EVENTER_WRITE)
-      ke_change(fd, EVFILT_WRITE, EV_DELETE | EV_DISABLE, e);
-
-    /* Set our mask */
-    e->mask = newmask;
   }
   else {
     /*
