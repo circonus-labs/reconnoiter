@@ -71,11 +71,12 @@ static int noit_hash_walk_init(mdb_walk_state_t *s) {
   hh->buckets = mdb_alloc(sizeof(ck_ht_entry_t) * map.capacity, UM_GC);
   s->walk_data = hh;
   hh->vmem = (ck_ht_entry_t *)map.entries;
-  mdb_vread(hh->buckets, sizeof(void *) * map.capacity, (uintptr_t)hh->vmem);
+  mdb_vread(hh->buckets, sizeof(ck_ht_entry_t) * map.capacity, (uintptr_t)hh->vmem);
   for(;hh->bucket<hh->size;hh->bucket++) {
-    if(hh->buckets[hh->bucket].key != 0) {
+    if(!ck_ht_entry_empty(&hh->buckets[hh->bucket]) && hh->buckets[hh->bucket].key != CK_HT_KEY_TOMBSTONE) {
       s->walk_addr = (uintptr_t)&hh->vmem[hh->bucket];
       s->walk_callback(s->walk_addr, &dummy, s->walk_cbdata);
+      hh->bucket++;
       return WALK_NEXT;
     }
   }
@@ -85,11 +86,11 @@ static int noit_hash_walk_step(mdb_walk_state_t *s) {
   void *dummy = NULL;
   struct hash_helper *hh = s->walk_data;
   if(s->walk_data == NULL) return WALK_DONE;
-  hh->bucket++;
   for(;hh->bucket<hh->size;hh->bucket++) {
-    if(!ck_ht_entry_empty(&hh->buckets[hh->bucket])) {
+    if(!ck_ht_entry_empty(&hh->buckets[hh->bucket]) && hh->buckets[hh->bucket].key != CK_HT_KEY_TOMBSTONE) {
       s->walk_addr = (uintptr_t)&hh->vmem[hh->bucket];
       s->walk_callback(s->walk_addr, &dummy, s->walk_cbdata);
+      hh->bucket++;
       return WALK_NEXT;
     }
   }
@@ -133,14 +134,14 @@ noit_log_dcmd(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv) {
   vmem = (uintptr_t)map.entries;
   mdb_vread(buckets, sizeof(ck_ht_entry_t) * map.capacity, (uintptr_t)vmem);
   for(;bucket<map.capacity;bucket++) {
-    if(!ck_ht_entry_empty(&buckets[bucket])) {
+    if(!ck_ht_entry_empty(&buckets[bucket]) && buckets[bucket].key != CK_HT_KEY_TOMBSTONE) {
       void *key;
       uint16_t keylen;
       key = ck_ht_entry_key(&buckets[bucket]);
       keylen = ck_ht_entry_key_length(&buckets[bucket]);
       logname[0] = '\0';
       mdb_vread(logname, MIN(keylen, sizeof(logname)), (uintptr_t)key);
-      logname[sizeof(logname)-1] = '\0';
+      logname[MIN(keylen,sizeof(logname)-1)] = '\0';
       if(!strcmp(logname, argv[0].a_un.a_str)) {
         mdb_printf("%p\n", ck_ht_entry_value(&buckets[bucket]));
         return DCMD_OK;
