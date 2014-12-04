@@ -339,11 +339,11 @@ int eventer_impl_init() {
     if(strcmp(evdeb, "0")) {
       /* Set to anything but "0" turns debugging on */
       EVENTER_DEBUGGING = 1;
-      noitL(noit_error, "Disabling eventer debugging from environment\n");
+      noitL(noit_error, "Enabling eventer debugging from environment\n");
     }
     else {
-      EVENTER_DEBUGGING = 1;
-      noitL(noit_error, "Enabling eventer debugging from environment\n");
+      EVENTER_DEBUGGING = 0;
+      noitL(noit_error, "Disabling eventer debugging from environment\n");
     }
   }
   eventer_name_callback("eventer_jobq_execute_timeout",
@@ -391,7 +391,7 @@ void eventer_add_asynch(eventer_jobq_t *q, eventer_t e) {
   job->create_hrtime = eventer_gethrtime();
   /* If we're debugging the eventer, these cross thread timeouts will
    * make it impossible for us to slowly trace an asynch job. */
-  if(!EVENTER_DEBUGGING && e->whence.tv_sec) {
+  if(e->whence.tv_sec) {
     job->timeout_event = eventer_alloc();
     job->timeout_event->thr_owner = e->thr_owner;
     memcpy(&job->timeout_event->whence, &e->whence, sizeof(e->whence));
