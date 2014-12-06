@@ -27,15 +27,6 @@ static void noit_skiplist_walk_fini(mdb_walk_state_t *s) {
 }
 
 /* This section needs to be kept current with libck */
-#if defined(CK_F_PR_LOAD_8) && defined(CK_F_PR_STORE_8)
-#define CK_HT_WORD      uint8_t
-#elif defined(CK_F_PR_LOAD_16) && defined(CK_F_PR_STORE_16)
-#define CK_HT_WORD      uint16_t
-#elif defined(CK_F_PR_LOAD_32) && defined(CK_F_PR_STORE_32)
-#define CK_HT_WORD      uint32_t
-#else
-#error "ck_ht is not supported on your platform."
-#endif
 struct ck_ht_map {
   unsigned int mode;
   uint64_t deletions;
@@ -47,7 +38,7 @@ struct ck_ht_map {
   uint64_t mask;
   uint64_t capacity;
   uint64_t step;
-  CK_HT_WORD *probe_bound;
+  void *probe_bound;
   struct ck_ht_entry *entries;
 };
 /* end libck sync section */
