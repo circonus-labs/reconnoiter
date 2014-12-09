@@ -45,6 +45,7 @@
 #if HAVE_DIRENT_H
 #include <dirent.h>
 #endif
+#include <ck_pr.h>
 
 #define noit_log_impl
 #include "utils/noit_log.h"
@@ -393,46 +394,49 @@ static void materialize_deps(noit_log_stream_t ls) {
 }
 
 typedef struct asynch_log_line {
-  char *buf;
-  char buf_static[512];
+  volatile void *next;
   char *buf_dynamic;
+  char buf_static[512];
   int len;
-  void *next;
 } asynch_log_line;
 
 typedef struct asynch_log_ctx {
   char *name;
   int (*write)(struct asynch_log_ctx *, asynch_log_line *);
   void *userdata;
-  int is_asynch;
   pthread_t writer;
-  void *head;
+  volatile void *head;
   noit_atomic32_t gen;  /* generation */
+  int is_asynch;
 } asynch_log_ctx;
 
 static asynch_log_line *
 asynch_log_pop(asynch_log_ctx *actx, asynch_log_line **iter) {
-  asynch_log_line *h = NULL, *rev = NULL;
+  int tlen = 0;
+  volatile asynch_log_line *h = NULL;
+  asynch_log_line *rev = NULL;
 
   if(*iter) { /* we have more on the previous list */
     h = *iter;
-    *iter = h->next;
-    return h;
+    *iter = (asynch_log_line *)h->next;
+    return (asynch_log_line *)h;
   }
 
   while(1) {
-    h = (void *)(volatile void *)actx->head;
-    if(noit_atomic_casptr((volatile void **)&actx->head, NULL, h) == h) break;
+    h = ck_pr_load_ptr(&actx->head);
+    if(noit_atomic_casptr(&actx->head, NULL, h) == h) break;
     /* TODO: load-load */
   }
+  ck_pr_fence_acquire();
   while(h) {
     /* which unshifted things into the queue -- it's backwards, reverse it */
-    asynch_log_line *tmp = h;
-    h = h->next;
+    asynch_log_line *tmp = (asynch_log_line *)h;
+    h = (asynch_log_line *)h->next;
     tmp->next = rev;
     rev = tmp;
+    tlen++;
   }
-  if(rev) *iter = rev->next;
+  if(rev) *iter = (asynch_log_line *)rev->next;
   else *iter = NULL;
   return rev;
 }
@@ -440,9 +444,11 @@ asynch_log_pop(asynch_log_ctx *actx, asynch_log_line **iter) {
 static void
 asynch_log_push(asynch_log_ctx *actx, asynch_log_line *n) {
   while(1) {
-    n->next = (void *)(volatile void *)actx->head;
-    if(noit_atomic_casptr((volatile void **)&actx->head, n, n->next) == n->next) return;
-    /* TODO: load-load */
+    n->next = ck_pr_load_ptr(&actx->head);
+    if(noit_atomic_casptr(&actx->head, n, n->next) == n->next) {
+      ck_pr_fence_acquire();
+      return;
+    }
   }
 }
 
@@ -568,7 +574,8 @@ posix_logio_write(noit_log_stream_t ls, const struct timeval *whence,
     if(rv > 0) noit_atomic_add32(&ls->written, rv);
     return rv;
   }
-  line = calloc(1, sizeof(*line));
+  line = malloc(sizeof(*line));
+  line->buf_dynamic = NULL;
   if(len > sizeof(line->buf_static)) {
     line->buf_dynamic = malloc(len);
     memcpy(line->buf_dynamic, buf, len);
