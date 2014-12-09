@@ -26,6 +26,6 @@ provider eventer {
   probe write__return (int, char *, size_t, int, void *, int);
   probe close__entry (int, int, void *);
   probe close__return (int, int, void *, int);
-  probe callback__entry (void *, char *, int, int, int);
-  probe callback__return (void *, char *, int);
+  probe callback__entry (void *, void *, char *, int, int, int);
+  probe callback__return (void *, void *, char *, int);
 };
