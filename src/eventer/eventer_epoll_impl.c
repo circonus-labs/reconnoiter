@@ -221,9 +221,9 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
   noitLT(eventer_deb, &__now, "epoll: fire on %d/%x to %s(%p)\n",
          fd, mask, cbname?cbname:"???", e->callback);
   noit_memory_begin();
-  EVENTER_CALLBACK_ENTRY((void *)e->callback, (char *)cbname, fd, e->mask, mask);
+  EVENTER_CALLBACK_ENTRY((void *)e, (void *)e->callback, (char *)cbname, fd, e->mask, mask);
   newmask = e->callback(e, mask, e->closure, &__now);
-  EVENTER_CALLBACK_RETURN((void *)e->callback, (char *)cbname, newmask);
+  EVENTER_CALLBACK_RETURN((void *)e, (void *)e->callback, (char *)cbname, newmask);
   noit_memory_end();
 
   if(newmask) {

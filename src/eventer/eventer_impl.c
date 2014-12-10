@@ -477,11 +477,13 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
     }
     /* Make our call */
     noit_memory_begin();
-    EVENTER_CALLBACK_ENTRY((void *)timed_event->callback, (char *)cbname, -1,
+    EVENTER_CALLBACK_ENTRY((void *)timed_event,
+                           (void *)timed_event->callback, (char *)cbname, -1,
                            timed_event->mask, EVENTER_TIMER);
     newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                     timed_event->closure, now);
-    EVENTER_CALLBACK_RETURN((void *)timed_event->callback, (char *)cbname, newmask);
+    EVENTER_CALLBACK_RETURN((void *)timed_event,
+                            (void *)timed_event->callback, (char *)cbname, newmask);
     noit_memory_end();
     if(newmask)
       eventer_add_timed(timed_event);

@@ -45,6 +45,7 @@
 #if HAVE_DIRENT_H
 #include <dirent.h>
 #endif
+#include <ck_pr.h>
 
 #define noit_log_impl
 #include "utils/noit_log.h"
