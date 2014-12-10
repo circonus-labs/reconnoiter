@@ -1659,14 +1659,14 @@ nl_readdir(lua_State *L) {
   return 1;
 }
 static int
-nl_log(lua_State *L) {
+nl_log_up(lua_State *L) {
   int i, n;
   const char *log_dest, *message;
   noit_log_stream_t ls;
 
-  if(lua_gettop(L) < 2) luaL_error(L, "bad call to noit.log");
+  if(lua_gettop(L) < 1) luaL_error(L, "bad call to noit.log");
 
-  log_dest = lua_tostring(L, 1);
+  log_dest = lua_tostring(L, lua_upvalueindex(1));
   ls = noit_log_stream_find(log_dest);
   if(!ls) {
     noitL(noit_stderr, "Cannot find log stream: '%s'\n", log_dest);
@@ -1677,13 +1677,32 @@ nl_log(lua_State *L) {
   lua_getglobal(L, "string");
   lua_pushstring(L, "format");
   lua_gettable(L, -1);
-  for(i=2;i<=n;i++)
+  for(i=1;i<=n;i++)
     lua_pushvalue(L, i);
-  lua_call(L, n-1, 1);
+  lua_call(L, n, 1);
   message = lua_tostring(L, -1);
   noitL(ls, "%s", message);
   lua_pop(L, 1); /* formatted string */
   lua_pop(L, 1); /* "string" table */
+  return 0;
+}
+static int
+nl_print(lua_State *L) {
+  int n = lua_gettop(L);
+  lua_pushstring(L, "error");
+  lua_pushcclosure(L, nl_log_up, 1);
+  lua_insert(L, 1);
+  lua_call(L, n, 0);
+  return 0;
+}
+static int
+nl_log(lua_State *L) {
+  int n = lua_gettop(L);
+  lua_pushvalue(L,1);
+  lua_pushcclosure(L, nl_log_up, 1);
+  lua_remove(L,1);
+  lua_insert(L,1);
+  lua_call(L, n-1, 0);
   return 0;
 }
 static int
@@ -3172,6 +3191,7 @@ static const luaL_Reg noitlib[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "log", nl_log },
+  { "print", nl_print },
   { "open", nl_open },
   { "write", nl_write },
   { "close", nl_close },
@@ -3267,6 +3287,13 @@ int luaopen_noit(lua_State *L) {
   lua_setfield(L, -2, "__gc");
 
   luaL_openlib(L, "noit", noitlib, 0);
+
+  lua_getglobal(L, "_G");
+  lua_getglobal(L, "noit");
+  lua_getfield(L, -1, "print");
+  lua_remove(L, -2);
+  lua_setfield(L, -2, "print");
+  lua_pop(L, 1);
 
 #define LUA_DEFINE_INT(L, name) do { \
   lua_pushinteger(L, name); \
