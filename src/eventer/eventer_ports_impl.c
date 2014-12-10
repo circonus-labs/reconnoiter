@@ -60,6 +60,7 @@ struct _eventer_impl eventer_ports_impl;
 static const struct timeval __dyna_increment = { 0, 1000 }; /* 1 ms */
 struct ports_spec {
   int port_fd;
+  noit_spinlock_t wakeup_notify;
 };
 
 static void *eventer_ports_spec_alloc() {
@@ -69,6 +70,7 @@ static void *eventer_ports_spec_alloc() {
   if(spec->port_fd < 0) abort();
   return spec;
 }
+
 
 static int eventer_ports_impl_init() {
   struct rlimit rlim;
@@ -99,7 +101,7 @@ static void alter_fd(eventer_t e, int mask) {
     if(mask & EVENTER_EXCEPTION) events |= POLLERR;
     if(port_associate(spec->port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
       noitL(eventer_err,
-            "eventer port_associate failed(%d): %d/%s\n", e->fd, errno, strerror(errno));
+            "eventer port_associate failed(%d-%d): %d/%s\n", e->fd, spec->port_fd, errno, strerror(errno));
       abort();
     }
   }
@@ -108,7 +110,7 @@ static void alter_fd(eventer_t e, int mask) {
       if(errno == ENOENT) return; /* Fine */
       if(errno == EBADFD) return; /* Fine */
       noitL(eventer_err,
-            "eventer port_dissociate failed(%d): %d/%s\n", e->fd, errno, strerror(errno));
+            "eventer port_dissociate failed(%d-%d): %d/%s\n", e->fd, spec->port_fd, errno, strerror(errno));
       abort();
     }
   }
@@ -296,6 +298,7 @@ static int eventer_ports_impl_loop() {
 
     ret = port_getn(spec->port_fd, pevents, MAX_PORT_EVENTS, &fd_cnt,
                     &__ports_sleeptime);
+    spec->wakeup_notify = 0; /* force unlock */
     /* The timeout case is a tad complex with ports.  -1/ETIME is clearly
      * a timeout.  However, it i spossible that we got that and fd_cnt isn't
      * 0, which means we both timed out and got events... WTF?
@@ -354,7 +357,8 @@ static int eventer_ports_impl_loop() {
 static void
 eventer_ports_impl_wakeup(eventer_t e) {
   struct ports_spec *spec = eventer_get_spec_for_event(e);
-  port_send(spec->port_fd, 0, NULL);
+  if(noit_spinlock_trylock(&spec->wakeup_notify))
+    port_send(spec->port_fd, 0, NULL);
 }
 
 struct _eventer_impl eventer_ports_impl = {
