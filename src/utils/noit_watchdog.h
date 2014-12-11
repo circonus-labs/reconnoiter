@@ -98,4 +98,22 @@ API_EXPORT(int)
 API_EXPORT(void)
   noit_watchdog_ratelimit(int retry_val, int span_val);
 
+/* \fn void noit_watchdog_on_crash_close_add_fd(int fd)
+   \brief registers a file descriptor for close on crash
+   \param fd the file descripto
+
+   Registers a file descriptor to be close on crash in the event that ASYNCH_CORE_DUMP is set in the environment.
+ */
+API_EXPORT(void)
+  noit_watchdog_on_crash_close_add_fd(int fd);
+
+/* \fn void noit_watchdog_on_crash_close_remove_fd(int fd)
+   \brief deregisters a file descriptor for close on crash
+   \param fd the file descripto
+
+   Deregisters a file descriptor to be close on crash in the event that ASYNCH_CORE_DUMP is set in the environment.
+ */
+API_EXPORT(void)
+  noit_watchdog_on_crash_close_remove_fd(int fd);
+
 #endif

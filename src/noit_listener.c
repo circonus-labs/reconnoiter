@@ -44,6 +44,7 @@
 
 #include "eventer/eventer.h"
 #include "utils/noit_log.h"
+#include "utils/noit_watchdog.h"
 #include "noit_listener.h"
 #include "noit_conf.h"
 
@@ -368,6 +369,7 @@ noit_listener(char *host, unsigned short port, int type,
       return -1;
     }
   }
+  noit_watchdog_on_crash_close_add_fd(fd);
 
   listener_closure = calloc(1, sizeof(*listener_closure));
   listener_closure->family = family;
