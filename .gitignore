@@ -24,6 +24,7 @@ src/modules/*.dSYM
 src/noit_version.h
 src/noitd
 src/noit.conf
+src/scratch/
 src/test-noit.conf
 src/stratcond
 src/stratcon.conf
