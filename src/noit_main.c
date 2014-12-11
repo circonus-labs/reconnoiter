@@ -44,6 +44,7 @@
 #endif
 
 #include "utils/noit_log.h"
+#include "noit_main.h"
 #include "noit_conf.h"
 #include "utils/noit_security.h"
 #include "utils/noit_watchdog.h"
@@ -131,10 +132,11 @@ void cli_log_switches() {
 int
 noit_main(const char *appname,
           const char *config_filename, int debug, int foreground,
-          int lock, const char *_glider,
+          noit_lock_op_t lock, const char *_glider,
           const char *drop_to_user, const char *drop_to_group,
           int (*passed_child_main)(void)) {
   int fd, lockfd, watchdog_timeout = 0, rv;
+  int wait_for_lock;
   char conf_str[1024];
   char lockfile[PATH_MAX];
   char user[32], group[32];
@@ -145,7 +147,8 @@ noit_main(const char *appname,
   int retry_val;
   int span_val;
   int ret;
-  
+ 
+  wait_for_lock = (lock == NOIT_LOCK_OP_WAIT) ? 1 : 0;
    
   /* First initialize logging, so we can log errors */
   noit_log_init(debug);
@@ -234,14 +237,27 @@ noit_main(const char *appname,
   lockfd = -1;
   lockfile[0] = '\0';
   snprintf(appscratch, sizeof(appscratch), "/%s/@lockfile", appname);
-  if(noit_conf_get_stringbuf(NULL, appscratch,
+  if(lock != NOIT_LOCK_OP_NONE &&
+     noit_conf_get_stringbuf(NULL, appscratch,
                              lockfile, sizeof(lockfile))) {
-    if (lock) {
+    do {
       if((lockfd = noit_lockfile_acquire(lockfile)) < 0) {
-        noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
-        exit(-1);
+        if(!wait_for_lock) {
+          noitL(noit_stderr, "Failed to acquire lock: %s\n", lockfile);
+          exit(-1);
+        }
+        if(wait_for_lock == 1) {
+          noitL(noit_stderr, "%d failed to acquire lock(%s), waiting...\n",
+                (int)getpid(), lockfile);
+          wait_for_lock++;
+        }
+        usleep(1000);
       }
-    }
+      else {
+        if(wait_for_lock > 1) noitL(noit_stderr, "Lock acquired proceeding.\n");
+        wait_for_lock = 0;
+      }
+    } while(wait_for_lock);
   }
 
   if(foreground == 1) {
