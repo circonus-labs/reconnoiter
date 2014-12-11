@@ -33,10 +33,16 @@
 #ifndef _NOIT_MAIN_H
 #define _NOIT_MAIN_H
 
+typedef enum {
+  NOIT_LOCK_OP_NONE = 0,
+  NOIT_LOCK_OP_LOCK,
+  NOIT_LOCK_OP_WAIT
+} noit_lock_op_t;
+
 API_EXPORT(int)
   noit_main(const char *appname,
             const char *config_filename, int debug, int foreground,
-            int lock, const char *glider,
+            noit_lock_op_t lock, const char *glider,
             const char *drop_to_user, const char *drop_to_group,
             int (*passed_child_main)(void));
 

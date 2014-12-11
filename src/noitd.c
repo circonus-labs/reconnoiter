@@ -258,10 +258,10 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  int lock = 1;
+  int lock = NOIT_LOCK_OP_LOCK;
   noit_memory_init();
   parse_clargs(argc, argv);
-  if (xpath) lock = 0;
+  if (xpath) lock = NOIT_LOCK_OP_NONE;
   return noit_main(APPNAME, config_file, debug, foreground,
                    lock, glider, droptouser, droptogroup, 
                    child_main);

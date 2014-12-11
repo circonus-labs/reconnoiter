@@ -75,7 +75,7 @@ extern noit_log_stream_t noit_debug;
 extern noit_log_stream_t noit_error;
 extern noit_log_stream_t noit_notice;
 
-#define N_L_S_ON(ls) (*((unsigned *)ls) & NOIT_LOG_STREAM_ENABLED)
+#define N_L_S_ON(ls) ((ls != NULL) && (*((unsigned *)ls) & NOIT_LOG_STREAM_ENABLED))
 
 API_EXPORT(void) noit_log_enter_sighandler();
 API_EXPORT(void) noit_log_leave_sighandler();
