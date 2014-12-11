@@ -69,6 +69,7 @@ noit_main_disable_log(const char *name) {
 static int
 configure_eventer(const char *appname) {
   int rv = 0;
+  noit_boolean rlim_found = noit_false;
   noit_hash_table *table;
   char appscratch[1024];
 
@@ -80,11 +81,28 @@ configure_eventer(const char *appname) {
     int klen;
     while(noit_hash_next_str(table, &iter, &key, &klen, &value)) {
       int subrv;
+      /* We want to set a sane default if the user doesn't provide an
+       * rlim_nofiles value... however, we have to try to set the user
+       * value before we set the default, because otherwise, if snowth
+       * is being run as a non-privileged user and we set a default
+       * lower than the user specified one, we can't raise it. Ergo -
+       * try to set from the config first, then set a default if one
+       * isn't specified */
+      if ((strlen(key) == strlen("rlim_nofiles")) &&
+          (strncmp(key, "rlim_nofiles", strlen(key)) == 0) ) {
+        rlim_found = noit_true;
+      }
       if((subrv = eventer_propset(key, value)) != 0)
         rv = subrv;
     }
     noit_hash_destroy(table, free, free);
     free(table);
+  }
+
+  /* If no rlim_nofiles configuration was found, set a default
+   * of (2048*2048) */
+  if (!rlim_found) {
+    eventer_propset("rlim_nofiles", "4194304");
   }
   return rv;
 }
