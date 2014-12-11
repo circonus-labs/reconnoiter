@@ -417,7 +417,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
     }
     else {
       sigset_t mysigs;
-      int sig = -1, exit_val = -1;
+      int child_sig = -1, sig = -1, exit_val = -1;
       sigemptyset(&mysigs);
       sigaddset(&mysigs, SIGCHLD);
       sigaddset(&mysigs, SIGALRM);
@@ -467,15 +467,15 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                   crashing_pid = -1;
                 }
                 noit_monitored_child_pid = -1;
-                sig = WTERMSIG(status);
+                child_sig = WTERMSIG(status);
                 exit_val = WEXITSTATUS(status);
                 quit = update_retries(&offset, time_data);
                 if (quit) {
                   noitL(noit_error, "[monitor] noit exceeded retry limit of %d retries in %d seconds... exiting...\n", retries, span);
                   exit(0);
                 }
-                else if(sig == SIGINT || sig == SIGQUIT ||
-                   (sig == 0 && (exit_val == 2 || exit_val < 0))) {
+                else if(child_sig == SIGINT || child_sig == SIGQUIT ||
+                   (child_sig == 0 && (exit_val == 2 || exit_val < 0))) {
                   noitL(noit_error, "[monitor] %s shutdown acknowledged.\n", app);
                   exit(0);
                 }
@@ -514,7 +514,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         }
       }
      out_loop2:
-      if(sig >= 0) {
+      if(child_sig >= 0) {
         noitL(noit_error, "[monitor] %s child died [%d/%d], restarting.\n",
               app, exit_val, sig);
       }
