@@ -50,6 +50,7 @@
 #include "noit_reverse_socket.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_str.h"
+#include "utils/noit_watchdog.h"
 #include "noit_reverse_socket.h"
 #include "noit_dtrace_probes.h"
 
@@ -287,11 +288,13 @@ noit_reverse_socket_shutdown(reverse_socket_t *rc, eventer_t e) {
     if(rc->proxy_ip4_e) {
       eventer_remove_fd(rc->proxy_ip4_e->fd);
       rc->proxy_ip4_e->opset->close(rc->proxy_ip4_e->fd, &mask, rc->proxy_ip4_e);
+      noit_watchdog_on_crash_close_remove_fd(rc->proxy_ip4_e->fd);
       eventer_free(rc->proxy_ip4_e);
     }
     if(rc->proxy_ip6_e) {
       eventer_remove_fd(rc->proxy_ip6_e->fd);
       rc->proxy_ip6_e->opset->close(rc->proxy_ip6_e->fd, &mask, rc->proxy_ip4_e);
+      noit_watchdog_on_crash_close_remove_fd(rc->proxy_ip6_e->fd);
       eventer_free(rc->proxy_ip6_e);
     }
   }
@@ -673,6 +676,7 @@ noit_reverse_socket_proxy_setup(reverse_socket_t *rc) {
     if(-1 == listen(fd, 5)) goto bad4;
     salen = sizeof(rc->proxy_ip4);
     if(getsockname(fd, (struct sockaddr *)&rc->proxy_ip4, &salen)) goto bad4;
+    noit_watchdog_on_crash_close_add_fd(fd);
     rc->proxy_ip4_e = eventer_alloc();
     rc->proxy_ip4_e->fd = fd;
     rc->proxy_ip4_e->mask = EVENTER_READ | EVENTER_EXCEPTION;
@@ -690,6 +694,7 @@ noit_reverse_socket_proxy_setup(reverse_socket_t *rc) {
     if(-1 == listen(fd, 5)) goto bad6;
     salen = sizeof(rc->proxy_ip6);
     if(getsockname(fd, (struct sockaddr *)&rc->proxy_ip6, &salen)) goto bad6;
+    noit_watchdog_on_crash_close_add_fd(fd);
     rc->proxy_ip6_e = eventer_alloc();
     rc->proxy_ip6_e->fd = fd;
     rc->proxy_ip6_e->mask = EVENTER_READ | EVENTER_EXCEPTION;

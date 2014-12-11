@@ -1066,14 +1066,34 @@ int jlog_ctx_errno(jlog_ctx *ctx) {
 }
 
 int jlog_ctx_alter_safety(jlog_ctx *ctx, jlog_safety safety) {
-  if(ctx->context_mode != JLOG_NEW) return -1;
-  ctx->safety = safety;
-  return 0;
+  if(ctx->safety == safety) return 0;
+  if(ctx->context_mode == JLOG_APPEND ||
+     ctx->context_mode == JLOG_NEW) {
+    ctx->safety = safety;
+    if(ctx->context_mode == JLOG_APPEND) {
+      if(__jlog_save_metastore(ctx, 0) != 0) {
+        SYS_FAIL(JLOG_ERR_CREATE_META);
+      }
+    }
+    return 0;
+  }
+ finish:
+  return -1;
 }
 int jlog_ctx_alter_journal_size(jlog_ctx *ctx, size_t size) {
-  if(ctx->context_mode != JLOG_NEW) return -1;
-  ctx->unit_limit = size;
-  return 0;
+  if(ctx->unit_limit == size) return 0;
+  if(ctx->context_mode == JLOG_APPEND ||
+     ctx->context_mode == JLOG_NEW) {
+    ctx->unit_limit = size;
+    if(ctx->context_mode == JLOG_APPEND) {
+      if(__jlog_save_metastore(ctx, 0) != 0) {
+        SYS_FAIL(JLOG_ERR_CREATE_META);
+      }
+    }
+    return 0;
+  }
+ finish:
+  return -1;
 }
 int jlog_ctx_alter_mode(jlog_ctx *ctx, int mode) {
   ctx->file_mode = mode;

@@ -62,14 +62,16 @@
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
 #define CRASHY_CRASH 0x00dead00
 #define CRASHY_RESTART 0x99dead99
+#define MAX_CRASH_FDS 1024
 
 const static char *appname = "unknown";
 const static char *glider_path = NULL;
 const static char *trace_dir = "/var/tmp";
 static int retries = 5;
 static int span = 60;
-static int allow_async_dumps = 0;
+static int allow_async_dumps = 1;
 static int _global_stack_trace_fd = -1;
+static noit_atomic32_t on_crash_fds_to_close[MAX_CRASH_FDS];
 
 int noit_watchdog_glider(const char *path) {
   glider_path = path;
@@ -149,10 +151,13 @@ int noit_watchdog_child_heartbeat() {
   return 0;
 }
 int noit_watchdog_prefork_init() {
+  int i;
   const char *async;
   if(NULL != (async = getenv("ASYNCH_CORE_DUMP")))
     allow_async_dumps = atoi(async);
   watcher = getpid();
+  for(i=0;i<MAX_CRASH_FDS;i++)
+    on_crash_fds_to_close[i] = -1;
   lifeline = (int *)mmap(NULL, 2*sizeof(int), PROT_READ|PROT_WRITE,
                          MAP_SHARED|MAP_ANON, -1, 0);
   if(lifeline == (void *)-1) {
@@ -179,58 +184,13 @@ void run_glider(int pid) {
   (void)unused;
 }
 
-#ifdef HAVE_FDWALK
-static int fdwalker_close(void *unused, int fd) {
-  close(fd);
-  return 0;
-}
-#endif
-static void close_all_fds() {
-#if HAVE_FDWALK
-  fdwalk(fdwalker_close, NULL);
-#elif defined(linux) || defined(__linux) || defined(__linux__)
-  char path[PATH_MAX];
-  DIR *root;
-  struct dirent *de, *entry;
-  int size = 0;
-
-  snprintf(path, sizeof(path), "/proc/%d/fd", getpid());
-#ifdef _PC_NAME_MAX
-  size = pathconf(path, _PC_NAME_MAX);
-#endif
-  size = MAX(size, PATH_MAX + 128);
-  de = alloca(size);
-  close(3); /* hoping opendir uses 3 */
-  root = opendir(path);
-  if(!root) return;
-  while(portable_readdir_r(root, de, &entry) == 0 && entry != NULL) {
-    if(entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
-      int tgt;
-      tgt = atoi(entry->d_name);
-      if(tgt != 3) close(tgt);
+static void close_fds() {
+  int i;
+  for(i=0;i<MAX_CRASH_FDS;i++)
+    if(on_crash_fds_to_close[i] != -1) {
+      noitL(noit_error, "emancipate closing fd %d\n", on_crash_fds_to_close[i]);
+      close(on_crash_fds_to_close[i]);
     }
-  }
-  close(3);
-#elif defined(__MACH__) && defined(__APPLE__)
-  struct proc_fdinfo files[1024*16];
-  int rv, i = 0;
-
-  rv = proc_pidinfo(getpid(), PROC_PIDLISTFDS, 0, files, sizeof(files));
-  if(rv > 0 && (rv % sizeof(files[0])) == 0) {
-    rv /= sizeof(files[0]);
-    for(i=0;i<rv;i++) {
-      (void) close(files[i].proc_fd);
-    }
-  }
-#else
-  struct rlimit rl;
-  int i, reasonable_max;
-
-  getrlimit(RLIMIT_NOFILE, &rl);
-  reasonable_max = MIN(1<<14, rl.rlim_max);
-  for (i = 0; i < reasonable_max; i++)
-    (void) close(i);
-#endif
 }
 static void stop_other_threads() {
 #ifdef UNSAFE_STOP
@@ -254,7 +214,10 @@ static void stop_other_threads() {
     if(entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
       lwpid_t tgt;
       tgt = atoi(entry->d_name);
-      if(tgt != self) _lwp_suspend(tgt);
+      if(tgt != self) {
+        noitL(noit_error, "emancipate stoping thread %p\n", tgt);
+        _lwp_suspend(tgt);
+      }
     }
   }
   closedir(root);
@@ -273,6 +236,24 @@ static int simple_stack_print(uintptr_t pc, int sig, void *usrarg) {
 }
 #endif
 
+void noit_watchdog_on_crash_close_remove_fd(int fd) {
+  int i;
+  for(i=0; i<MAX_CRASH_FDS; i++) {
+    if(on_crash_fds_to_close[i] == fd) {
+      on_crash_fds_to_close[i] = -1;
+    }
+  }
+}
+void noit_watchdog_on_crash_close_add_fd(int fd) {
+  int i;
+  for(i=0; i<MAX_CRASH_FDS; i++)
+    if(noit_atomic_cas32(&on_crash_fds_to_close[i], fd, -1) == -1) return;
+
+  /* If we get here, it means that we failed to find a slot,
+   * so we can't safely dump core asynchronously anymore.
+   */
+  allow_async_dumps = 0;
+}
 void emancipate(int sig, siginfo_t *si, void *uc) {
   noit_log_enter_sighandler();
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
@@ -307,8 +288,9 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
 
     if(allow_async_dumps) { 
       stop_other_threads(); /* suspend all peer threads... to safely */
-      close_all_fds(); /* close all our FDs */
+      close_fds();          /* close all our FDs */
       it_ticks_crash_release(); /* notify parent that it can fork a new one */
+      sleep(20);
       /* the subsequent dump may take a while on big processes and slow disks */
     }
     /* attempt a simple stack trace */
@@ -457,7 +439,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                       crashing_pid, WEXITSTATUS(status), WTERMSIG(status));
                 crashing_pid = -1;
               }
-              else if(errno != ECHILD) {
+              else if(rv != 0 && errno != ECHILD) {
                 noitL(noit_error, "[monitor] unexpected return from emancipated waitpid: %d (%s)\n", rv, strerror(errno));
                 crashing_pid = -1;
               }
@@ -511,7 +493,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
               noitL(noit_error, "[monitor] %s %d is emancipated for dumping.\n", app, crashing_pid);
               lifeline[1] = 0;
               noit_monitored_child_pid = -1;
-              break;
+              goto out_loop2;
             }
             else if(lifeline[1] == 0 && noit_monitored_child_pid == child_pid &&
                     (ltt = last_tick_time()) > child_watchdog_timeout) {

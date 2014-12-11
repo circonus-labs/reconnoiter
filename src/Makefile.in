@@ -281,11 +281,13 @@ noit_tokenizer.c:
 	@re2c -o $@ noit_tokenizer.re
 
 test-noit.conf:	noit.conf.in Makefile
+	@mkdir -p scratch/var/log scratch/var/run
 	@sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
 		-e "s^%datarootdir%^`pwd`^g;" \
-		-e "s^%PKIPREFIX%^../test/test-^g;" < \
+		-e "s^%PKIPREFIX%^../test/test-^g;" \
+		-e "s^/var/^`pwd`/scratch/var/^g;" < \
 		noit.conf.in > \
 		test-noit.conf
 

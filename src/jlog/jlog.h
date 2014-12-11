@@ -134,6 +134,10 @@ JLOG_API(int)       jlog_ctx_open_reader(jlog_ctx *ctx, const char *subscriber);
 JLOG_API(int)       jlog_ctx_close(jlog_ctx *ctx);
 
 JLOG_API(int)       jlog_ctx_alter_mode(jlog_ctx *ctx, int mode);
+
+/* These are safe to call after new and before init...
+ * or if you are the *only* open writer.
+ */
 JLOG_API(int)       jlog_ctx_alter_journal_size(jlog_ctx *ctx, size_t size);
 JLOG_API(int)       jlog_ctx_alter_safety(jlog_ctx *ctx, jlog_safety safety);
 JLOG_API(int)       jlog_ctx_add_subscriber(jlog_ctx *ctx, const char *subscriber,
