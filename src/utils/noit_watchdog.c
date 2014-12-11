@@ -290,8 +290,8 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
       stop_other_threads(); /* suspend all peer threads... to safely */
       close_fds();          /* close all our FDs */
       it_ticks_crash_release(); /* notify parent that it can fork a new one */
-      sleep(20);
       /* the subsequent dump may take a while on big processes and slow disks */
+      noitL(noit_error, "crash resources released\n");
     }
     /* attempt a simple stack trace */
     kill(noit_monitored_child_pid, sig);
