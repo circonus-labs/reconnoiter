@@ -273,6 +273,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   if(job->inflight) {
     eventer_job_t *jobcopy;
     if(job->fd_event->mask & (EVENTER_CANCEL)) {
+      struct _event wakeupcopy;
       eventer_t my_precious = job->fd_event;
       /* we set this to null so we can't complete on it */
       job->fd_event = NULL;
@@ -309,8 +310,9 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
       job->finish_hrtime = eventer_gethrtime();
       eventer_jobq_maybe_spawn(jobcopy->jobq);
       eventer_jobq_finished_job(jobcopy->jobq, jobcopy);
+      memcpy(&wakeupcopy, jobcopy->fd_event, sizeof(wakeupcopy));
       eventer_jobq_enqueue(eventer_default_backq(jobcopy->fd_event), jobcopy);
-      eventer_wakeup(jobcopy->fd_event);
+      eventer_wakeup(&wakeupcopy);
     }
     else
       pthread_kill(job->executor, JOBQ_SIGNAL);
@@ -378,6 +380,7 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
 
   noit_memory_begin();
   while(1) {
+    struct _event wakeupcopy;
     pthread_setspecific(jobq->activejob, NULL);
     noit_memory_end();
     noit_memory_maintenance();
@@ -425,8 +428,9 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       EVENTER_CALLBACK_RETURN((void *)job->fd_event,
                               (void *)job->fd_event->callback, NULL, -1);
       eventer_jobq_finished_job(jobq, job);
+      memcpy(&wakeupcopy, job->fd_event, sizeof(wakeupcopy));
       eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
-      eventer_wakeup(job->fd_event);
+      eventer_wakeup(&wakeupcopy);
       continue;
     }
     pthread_mutex_unlock(&job->lock);
@@ -515,8 +519,9 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
     }
     job->finish_hrtime = eventer_gethrtime();
     eventer_jobq_finished_job(jobq, job);
+    memcpy(&wakeupcopy, job->fd_event, sizeof(wakeupcopy));
     eventer_jobq_enqueue(eventer_default_backq(job->fd_event), job);
-    eventer_wakeup(job->fd_event);
+    eventer_wakeup(&wakeupcopy);
   }
   noit_memory_end();
   noit_memory_maintenance();
