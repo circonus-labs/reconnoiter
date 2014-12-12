@@ -58,6 +58,7 @@ struct _eventer_impl eventer_kqueue_impl;
 static const struct timeval __dyna_increment = { 0, 10000 }; /* 10 ms */
 typedef struct kqueue_spec {
   int kqueue_fd;
+  noit_spinlock_t wakeup_notify;
   pthread_mutex_t lock;
   struct {
     struct kevent *__ke_vec;
@@ -375,28 +376,13 @@ static int eventer_kqueue_impl_loop() {
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);
 
-    /* If we're the master, we need to lock the master_kqs and make mods */
-    if(ke_vec_used && 0) {
-      struct timespec __zerotime = { 0, 0 };
-      pthread_mutex_lock(&kqs->lock);
-      fd_cnt = kevent(kqs->kqueue_fd,
-                      ke_vec, ke_vec_used,
-                      NULL, 0,
-                      &__zerotime);
-      if(ke_vec_used) noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqs->kqueue_fd, ke_vec_used, fd_cnt);
-      if(fd_cnt < 0) {
-        noitLT(eventer_err, &__now, "kevent(u/%d): %s\n", kqs->kqueue_fd, strerror(errno));
-      }
-      ke_vec_used = 0;
-      pthread_mutex_unlock(&kqs->lock);
-    }
-
     /* Now we move on to our fd-based events */
     __kqueue_sleeptime.tv_sec = __sleeptime.tv_sec;
     __kqueue_sleeptime.tv_nsec = __sleeptime.tv_usec * 1000;
     fd_cnt = kevent(kqs->kqueue_fd, ke_vec, ke_vec_used,
                     ke_vec, ke_vec_a,
                     &__kqueue_sleeptime);
+    kqs->wakeup_notify = 0;
     if(ke_vec_used) noitLT(eventer_deb, &__now, "debug: kevent(%d, [], %d) => %d\n", kqs->kqueue_fd, ke_vec_used, fd_cnt);
     ke_vec_used = 0;
     if(fd_cnt < 0) {
@@ -465,7 +451,8 @@ static int eventer_kqueue_impl_loop() {
 void eventer_kqueue_impl_wakeup(eventer_t e) {
   KQUEUE_DECL;
   KQUEUE_SETUP(e);
-  eventer_kqueue_impl_wakeup_spec(kqs);
+  if(noit_spinlock_trylock(&kqs->wakeup_notify))
+    eventer_kqueue_impl_wakeup_spec(kqs);
 }
 
 struct _eventer_impl eventer_kqueue_impl = {
