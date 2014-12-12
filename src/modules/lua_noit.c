@@ -1977,7 +1977,7 @@ nl_md5(lua_State *L) {
   in = lua_tolstring(L, 1, &inlen);
   MD5_Update(&ctx, (const void *)in, (unsigned long)inlen);
   MD5_Final(md5, &ctx);
-  lua_pushlstring(L, md5, sizeof(md5));
+  lua_pushlstring(L, (char *)md5, sizeof(md5));
   return 1;
 }
 static int

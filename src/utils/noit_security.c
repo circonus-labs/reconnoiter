@@ -46,6 +46,7 @@
 
 #define BAIL(a...) do { noitL(noit_error, a); return -1; } while(0)
 
+extern int chroot(const char *);
 int
 noit_security_chroot(const char *path) {
   if(chroot(path)) BAIL("chroot: %s\n", strerror(errno));

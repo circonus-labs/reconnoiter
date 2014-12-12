@@ -29,7 +29,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
+#ifndef _REENTRANT
 #define _REENTRANT
+#endif
 
 #include "noit_defines.h"
 #include "noit_module.h"

@@ -315,7 +315,8 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
       alter_kqueue_mask(e, oldmask, 0);
       e->thr_owner = tgt;
       alter_kqueue_mask(e, 0, newmask);
-      noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, pthread_self(), tgt);
+      noitL(eventer_deb, "moved event[%p] from t@%u to t@%u\n",
+            e, (unsigned int)pthread_self(), (unsigned int)tgt);
     }
     else {
       alter_kqueue_mask(e, oldmask, newmask);

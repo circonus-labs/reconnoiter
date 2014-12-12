@@ -120,8 +120,9 @@ pthread_t eventer_choose_owner(int i) {
   int idx;
   if(__loop_concurrency == 1) return eventer_impl_tls_data[0].tid;
   idx = ((unsigned int)i)%(__loop_concurrency-1) + 1; /* see comment above */
-  noitL(eventer_deb, "eventer_choose -> %u %% %d = %d t@%d\n",
-        (unsigned int)i, __loop_concurrency, idx, eventer_impl_tls_data[idx].tid);
+  noitL(eventer_deb, "eventer_choose -> %u %% %d = %d t@%u\n",
+        (unsigned int)i, __loop_concurrency, idx,
+        (unsigned int)eventer_impl_tls_data[idx].tid);
   return eventer_impl_tls_data[idx].tid;
 }
 static struct eventer_impl_data *get_my_impl_data() {

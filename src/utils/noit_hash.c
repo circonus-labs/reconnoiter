@@ -273,6 +273,6 @@ struct _noit_hash_bucket {
 } CK_CC_ALIGN(32);
 #endif
 typedef struct _noit_hash_bucket noit_hash_bucket;
-static noit_hash_bucket __noit_hash_use_of_hash_bucket;
+static noit_hash_bucket __noit_hash_use_of_hash_bucket __attribute__((unused));
 
 /* vim: se sw=2 ts=2 et: */
