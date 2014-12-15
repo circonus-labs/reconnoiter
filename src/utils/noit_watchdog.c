@@ -485,6 +485,8 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
             else if(errno != ECHILD) {
               noitL(noit_error, "[monitor] unexpected return from waitpid: %d (%s)\n", rv, strerror(errno));
               exit(-1);
+            } else if(rv > 0) {
+              noitL(noit_error, "[monitor] reaped pid: %d\n", rv);
             }
             /* fall through */
           case SIGALRM:
