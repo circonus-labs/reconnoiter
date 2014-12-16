@@ -46,6 +46,7 @@
 #include <dirent.h>
 #endif
 #include <ck_pr.h>
+#include <ck_fifo.h>
 
 #define noit_log_impl
 #include "utils/noit_log.h"
@@ -394,71 +395,69 @@ static void materialize_deps(noit_log_stream_t ls) {
 }
 
 typedef struct asynch_log_line {
-  volatile void *next;
   char *buf_dynamic;
   char buf_static[512];
   int len;
 } asynch_log_line;
 
 typedef struct asynch_log_ctx {
+  ck_fifo_mpmc_t q;
+  ck_fifo_mpmc_entry_t *qhead;
   char *name;
   int (*write)(struct asynch_log_ctx *, asynch_log_line *);
   void *userdata;
   pthread_t writer;
-  volatile void *head;
+  pthread_mutex_t singleton;
   noit_atomic32_t gen;  /* generation */
   int is_asynch;
 } asynch_log_ctx;
 
 static asynch_log_line *
-asynch_log_pop(asynch_log_ctx *actx, asynch_log_line **iter) {
-  int tlen = 0;
-  volatile asynch_log_line *h = NULL;
-  asynch_log_line *rev = NULL;
-
-  if(*iter) { /* we have more on the previous list */
-    h = *iter;
-    *iter = (asynch_log_line *)h->next;
-    return (asynch_log_line *)h;
+asynch_log_pop(asynch_log_ctx *actx) {
+  ck_fifo_mpmc_entry_t *garbage;
+  asynch_log_line *ll = NULL;
+  if(ck_fifo_mpmc_dequeue(&actx->q, &ll, &garbage) == true) {
+    /* We can free this only because this fifo is used as a
+     * multi-producer and *single* consumer */
+    if(garbage != actx->qhead) free(garbage);
+    return ll;
   }
-
-  while(1) {
-    h = ck_pr_load_ptr(&actx->head);
-    if(noit_atomic_casptr(&actx->head, NULL, h) == h) break;
-    /* TODO: load-load */
-  }
-  ck_pr_fence_acquire();
-  while(h) {
-    /* which unshifted things into the queue -- it's backwards, reverse it */
-    asynch_log_line *tmp = (asynch_log_line *)h;
-    h = (asynch_log_line *)h->next;
-    tmp->next = rev;
-    rev = tmp;
-    tlen++;
-  }
-  if(rev) *iter = (asynch_log_line *)rev->next;
-  else *iter = NULL;
-  return rev;
+  return NULL;
 }
 
 static void
 asynch_log_push(asynch_log_ctx *actx, asynch_log_line *n) {
-  while(1) {
-    n->next = ck_pr_load_ptr(&actx->head);
-    if(noit_atomic_casptr(&actx->head, n, n->next) == n->next) {
-      ck_pr_fence_acquire();
-      return;
-    }
+  ck_fifo_mpmc_entry_t *fifo_entry;
+  fifo_entry = malloc(sizeof(ck_fifo_mpmc_entry_t));
+  ck_fifo_mpmc_enqueue(&actx->q, fifo_entry, n);
+}
+
+asynch_log_ctx *asynch_log_ctx_alloc() {
+  asynch_log_ctx *actx;
+  actx = calloc(1, sizeof(*actx));
+  actx->qhead = calloc(1, sizeof(*actx->qhead));
+  ck_fifo_mpmc_init(&actx->q, actx->qhead);
+  pthread_mutex_init(&actx->singleton, NULL);
+  return actx;
+}
+void asynch_log_ctx_free(asynch_log_ctx *tf) {
+  asynch_log_line *ll;
+  while((ll = asynch_log_pop(tf)) != NULL) {
+    if(ll->buf_dynamic) free(ll->buf_dynamic);
+    free(ll);
   }
+  if(tf->qhead) free(tf->qhead);
+  pthread_mutex_destroy(&tf->singleton);
+  free(tf);
 }
 
 static void *
 asynch_logio_writer(void *vls) {
   noit_log_stream_t ls = vls;
   asynch_log_ctx *actx = ls->op_ctx;
-  asynch_log_line *iter = NULL;
   int gen;
   gen = noit_atomic_inc32(&actx->gen);
+  pthread_mutex_lock(&actx->singleton);
   noitL(noit_debug, "starting asynchronous %s writer[%d/%p]\n",
         actx->name, (int)getpid(), (void *)(vpsized_int)pthread_self());
   while(gen == actx->gen) {
@@ -467,7 +466,7 @@ asynch_logio_writer(void *vls) {
     asynch_log_line *line;
     lock = ls->lock;
     if(lock) pthread_rwlock_rdlock(lock);
-    while(max > 0 && NULL != (line = asynch_log_pop(actx, &iter))) {
+    while(max > 0 && NULL != (line = asynch_log_pop(actx))) {
       if(actx->write(actx, line) == -1) abort();
       if(line->buf_dynamic != NULL) free(line->buf_dynamic);
       free(line);
@@ -483,6 +482,7 @@ asynch_logio_writer(void *vls) {
   }
   noitL(noit_debug, "stopping asynchronous %s writer[%d/%p]\n",
         actx->name, (int)getpid(), (void *)(vpsized_int)pthread_self());
+  pthread_mutex_unlock(&actx->singleton);
   pthread_exit((void *)0);
 }
 static int
@@ -511,7 +511,7 @@ posix_logio_open(noit_log_stream_t ls) {
   while((rv = fstat(fd, &sb)) != 0 && errno == EINTR);
   if(rv == 0) ls->written = (int32_t)sb.st_size;
 
-  actx = calloc(1, sizeof(*actx));
+  actx = asynch_log_ctx_alloc();
   actx->userdata = (void *)(vpsized_int)fd;
   actx->name = "posix";
   actx->write = posix_logio_asynch_write;
@@ -992,7 +992,7 @@ jlog_logio_open(noit_log_stream_t ls) {
     jlog_ctx_list_subscribers_dispose(log, subs);
   }
 
-  actx = calloc(1, sizeof(*actx));
+  actx = asynch_log_ctx_alloc();
   actx->userdata = log;
   actx->name = "jlog";
   actx->write = jlog_logio_asynch_write;
@@ -1174,7 +1174,7 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   noit_log_stream_t ls;
   asynch_log_ctx *actx;
   ls = calloc(1, sizeof(*ls));
-  actx = calloc(1, sizeof(*actx));
+  actx = asynch_log_ctx_alloc();
   actx->name = "posix";
   actx->write = posix_logio_asynch_write;
   actx->userdata = (void *)(vpsized_int)fd;
@@ -1194,7 +1194,7 @@ noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
     free(lsname);
     free(ls->name);
     free(ls);
-    free(actx);
+    asynch_log_ctx_free(actx);
     return NULL;
   }
   return ls;
