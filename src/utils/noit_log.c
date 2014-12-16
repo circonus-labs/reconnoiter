@@ -409,6 +409,7 @@ typedef struct asynch_log_ctx {
   pthread_t writer;
   pthread_mutex_t singleton;
   noit_atomic32_t gen;  /* generation */
+  int pid;
   int is_asynch;
 } asynch_log_ctx;
 
@@ -495,10 +496,31 @@ posix_logio_asynch_write(asynch_log_ctx *actx, asynch_log_line *line) {
                           line->len);
   return rv;
 }
+
+static int
+asynch_thread_create(noit_log_stream_t ls, asynch_log_ctx *actx, void* function) {
+  pthread_attr_t tattr;
+  int pid = getpid();
+
+  if (actx->pid != pid) {
+    if (actx->pid) {
+      pthread_mutex_destroy(&actx->singleton);
+    }
+    pthread_mutex_init(&actx->singleton, NULL);
+    noit_atomic_inc32(&actx->gen);
+    actx->pid = pid;
+  }
+  pthread_attr_init(&tattr);
+  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+  if(pthread_create(&actx->writer, &tattr, function, ls) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
 static int
 posix_logio_open(noit_log_stream_t ls) {
   int fd, rv;
-  pthread_attr_t tattr;
   struct stat sb;
   asynch_log_ctx *actx;
   ls->mode = 0664;
@@ -517,12 +539,10 @@ posix_logio_open(noit_log_stream_t ls) {
   actx->write = posix_logio_asynch_write;
   ls->op_ctx = actx;
 
-  pthread_attr_init(&tattr);
-  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if(pthread_create(&actx->writer, &tattr, asynch_logio_writer, ls) != 0)
+  if (asynch_thread_create(ls, actx, asynch_logio_writer)) {
     return -1;
+  }
   actx->is_asynch = 1;
-
   return 0;
 }
 static int
@@ -546,11 +566,9 @@ posix_logio_reopen(noit_log_stream_t ls) {
     }
     if(lock) pthread_rwlock_unlock(lock);
     if(actx->is_asynch) {
-      pthread_attr_t tattr;
-      pthread_attr_init(&tattr);
-      pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-      if(pthread_create(&actx->writer, &tattr, asynch_logio_writer, ls) != 0)
+      if(asynch_thread_create(ls, actx, asynch_logio_writer)) {
         return -1;
+      }
     }
     return rv;
   }
@@ -851,7 +869,6 @@ jlog_logio_reopen(noit_log_stream_t ls) {
   asynch_log_ctx *actx = ls->op_ctx;
   pthread_rwlock_t *lock = ls->lock;
   jlog_ctx *log = actx->userdata;
-  pthread_attr_t tattr;
   int i;
   /* reopening only has the effect of removing temporary subscriptions */
   /* (they start with ~ in our hair-brained model */
@@ -869,10 +886,9 @@ jlog_logio_reopen(noit_log_stream_t ls) {
  bail:
   if(lock) pthread_rwlock_unlock(lock);
 
-  pthread_attr_init(&tattr);
-  pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-  if(pthread_create(&actx->writer, &tattr, asynch_logio_writer, ls) != 0)
+  if (asynch_thread_create(ls, actx, asynch_logio_writer)) {
     return -1;
+  }
   actx->is_asynch = 1;
   
   return 0;
