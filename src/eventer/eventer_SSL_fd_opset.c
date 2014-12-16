@@ -618,7 +618,10 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
   layer_str = ctx_layer;
   opts = strchr(ctx_layer,':');
   if(opts) *opts++ = '\0';
-  else opts = opts_fallback;
+  else {
+    opts = alloca(strlen(opts_fallback)+1);
+    memcpy(opts, opts_fallback, strlen(opts_fallback)+1);
+  }
 
   now = time(NULL);
   ssl_ctx_key_write(ssl_ctx_key, sizeof(ssl_ctx_key),
