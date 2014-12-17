@@ -434,18 +434,17 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
         switch(sig) {
           case SIGCHLD:
             if(child_pid != crashing_pid && crashing_pid != -1) {
-              noitL(noit_error, "[monitoring] spending services while reaping emancipated child %d\n", crashing_pid);
+              noitL(noit_error, "[monitoring] suspending services while reaping emancipated child %d\n", crashing_pid);
               while((rv = waitpid(crashing_pid, &status, 0) == -1) && errno == EINTR);
               if(rv == crashing_pid) {
                 noitL(noit_error, "[monitor] emancipated child %d [%d/%d] reaped.\n",
                       crashing_pid, WEXITSTATUS(status), WTERMSIG(status));
-                crashing_pid = -1;
               }
               else if(rv != 0 && errno != ECHILD) {
                 noitL(noit_error, "[monitor] unexpected return from emancipated waitpid: %d (%s)\n", rv, strerror(errno));
-                crashing_pid = -1;
               }
               noitL(noit_error, "[monitor] resuming serivces for child %d\n", child_pid);
+              crashing_pid =-1;
             }
 
             rv = waitpid(child_pid, &status, WNOHANG|WUNTRACED);
@@ -455,6 +454,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
             else if (rv == child_pid) {
               /* If we're stopped, we might have crashed */
               if(WIFSTOPPED(status)) {
+                noitL(noit_error, "[monitor] %s %d has stopped.\n", app, rv);
                 if(it_ticks_crashed() && crashing_pid == -1) {
                   crashing_pid = noit_monitored_child_pid;
                   noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
@@ -481,6 +481,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                   noitL(noit_error, "[monitor] %s shutdown acknowledged.\n", app);
                   exit(0);
                 }
+                noitL(noit_error, "[monitor] reaped pid: %d.\n", rv);
                 goto out_loop2;
               }
             }
