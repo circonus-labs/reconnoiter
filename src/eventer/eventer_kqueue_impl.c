@@ -123,6 +123,7 @@ static void *eventer_kqueue_spec_alloc() {
   spec = calloc(1, sizeof(*spec));
   spec->kqueue_fd = kqueue();
   if(spec->kqueue_fd == -1) abort();
+  kqs_init(spec);
   pthread_mutex_init(&spec->lock, NULL);
   return spec;
 }
