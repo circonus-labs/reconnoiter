@@ -273,6 +273,8 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
       char stackbuff[4096];
       void* callstack[128];
       int i, frames = backtrace(callstack, 128);
+      lseek(_global_stack_trace_fd, 0, SEEK_SET);
+      ftruncate(_global_stack_trace_fd, 0);
       backtrace_symbols_fd(callstack, frames, _global_stack_trace_fd);
       memset(&sb, 0, sizeof(sb));
       while((i = fstat(_global_stack_trace_fd, &sb)) == -1 && errno == EINTR);
