@@ -133,6 +133,7 @@ noit_livestream_logio_close(noit_log_stream_t ls) {
   return 0;
 }
 static logops_t noit_livestream_logio_ops = {
+  noit_false,
   noit_livestream_logio_open,
   noit_livestream_logio_reopen,
   noit_livestream_logio_write,

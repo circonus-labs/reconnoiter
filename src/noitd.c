@@ -195,6 +195,7 @@ static int child_main() {
 
   noit_log_reopen_all();
   noitL(noit_notice, "process starting: %d\n", (int)getpid());
+  noit_log_go_asynch();
 
   signal(SIGHUP, request_conf_reload);
 
