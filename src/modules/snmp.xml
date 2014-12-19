@@ -3,7 +3,12 @@
   <description><para>The snmp module provides SNMP polling support for reconnoiter.</para></description>
   <loader>C</loader>
   <image>snmp.so</image>
-  <moduleconfig />
+  <moduleconfig>
+    <parameter name="debugging"
+               required="optional"
+               default="0"
+               allowed="\d+">Enable debugging output within libnetsnmp-c.</parameter>
+  </moduleconfig>
   <checkconfig>
     <parameter name="community"
                required="optional"
@@ -16,7 +21,41 @@
     <parameter name="version"
                required="optional"
                default="2c"
-               allowed="(1|2c|3)">The SNMP version used for queries.</parameter>
+               allowed="(?:1|2c|3)">The SNMP version used for queries.</parameter>
+    <parameter name="separate_queries"
+               required="optional"
+               default="false"
+               allowed="(?:true|on|false|off)">Issue a separate query (PDU) for each OID; only applicable to v1 and v2c.</parameter>
+    <parameter name="context_name"
+               required="optional"
+               allowed=".*">The SNMPv3 context name.</parameter>
+    <parameter name="context_engine"
+               required="optional"
+               allowed="[0-9a-fA-F]+">The SNMPv3 context engine id.</parameter>
+    <parameter name="security_level"
+               required="optional"
+               default="nanp"
+               allowed="(?:nanp|anp|ap)">The SNMPv3 security level. nanp: noAuthNoPriv, anp: authNoPriv, ap, authPriv.</parameter>
+    <parameter name="security_name"
+               required="optional"
+               allowed=".*">The SNMPv3 security name (user).</parameter>
+    <parameter name="security_engine"
+               required="optional"
+               default=""
+               allowed="[0-9a-fA-F]+">The SNMPv3 security engine id.</parameter>
+    <parameter name="auth_protocol"
+               required="optional"
+               default="MD5"
+               allowed="(?:MD5|SHA)">The SNMPv3 security authorization hashing algorithm.</parameter>
+    <parameter name="auth_passphrase"
+               required="optional"
+               allowed=".*">The SNMPv3 security authorization passphrase</parameter>
+    <parameter name="privacy_protocol"
+               required="optional"
+               allowed="(?:DES|AES)">The SNMPv3 security encryption algorithm.</parameter>
+    <parameter name="privacy_passphrase"
+               required="optional"
+               allowed=".*">The SNMPv3 security privacy passphrase</parameter>
     <parameter name="oid_.+"
                required="optional"
                allowed=".+">Defines a metric to query.  Key oid_foo will establish a metric called foo.  The value of the parameter should be an OID either in decimal notation or MIB name.</parameter>

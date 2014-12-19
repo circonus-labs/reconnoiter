@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <errno.h>
 #include <assert.h>
 #include <math.h>
@@ -52,6 +53,7 @@
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static int __snmp_initialize_once = 0;
+static void ensure_usm_user(const char *username, u_char *engineID, size_t engineIDLen);
 
 #define SNMPV2_TRAPS_PREFIX     SNMP_OID_SNMPMODULES,1,1,5
 oid trap_prefix[]    = { SNMPV2_TRAPS_PREFIX };
@@ -122,7 +124,8 @@ typedef struct _mod_config {
 } snmp_mod_config_t;
 
 struct target_session {
-  netsnmp_session *sess_handle;
+  struct synch_state state;
+  struct session_list *slp;
   noit_module_t *self;
   char *key;
   char *target;
@@ -134,23 +137,36 @@ struct target_session {
   struct timeval last_open;
 };
 
+#define sess_handle slp->session
+
 struct snmp_check_closure {
   noit_module_t *self;
   noit_check_t *check;
 };
 
+struct v3_probe_magic {
+  eventer_t timeoutevent;
+  netsnmp_callback cb;
+  noit_check_t *check;
+  struct target_session *ts; /* for timeout */
+  struct snmp_pdu *pdu;
+};
+
 struct check_info {
-  int reqid;
   int timedout;
   struct {
+     int reqid;
      char *confname;
      char *oidname;
      oid oid[MAX_OID_LEN];
      size_t oidlen;
      metric_type_t type_override;
      noit_boolean type_should_override;
+     int seen;
   } *oids;
   int noids;
+  int noids_seen;
+  int nresults;
   eventer_t timeoutevent;
   noit_module_t *self;
   noit_check_t *check;
@@ -167,7 +183,9 @@ struct check_info {
  */
 noit_hash_table active_checks = NOIT_HASH_EMPTY;
 static void add_check(struct check_info *c) {
-  noit_hash_store(&active_checks, (char *)&c->reqid, sizeof(c->reqid), c);
+  int i;
+  for(i=0; i<c->noids; i++)
+    noit_hash_store(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid), c);
 }
 static struct check_info *get_check(int reqid) {
   void *vc;
@@ -175,9 +193,20 @@ static struct check_info *get_check(int reqid) {
     return (struct check_info *)vc;
   return NULL;
 }
-static void remove_check(struct check_info *c) {
-  noit_hash_delete(&active_checks, (char *)&c->reqid, sizeof(c->reqid),
+static void remove_check_req(struct check_info *c, int reqid) {
+  (void)c;
+  noit_hash_delete(&active_checks, (char *)&reqid, sizeof(reqid),
                    NULL, NULL);
+}
+static void remove_check(struct check_info *c) {
+  int i, lastreq = -1;
+  for(i=0; i<c->noids; i++) {
+    if(c->oids[i].reqid != lastreq) {
+      noit_hash_delete(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid),
+                       NULL, NULL);
+      lastreq = c->oids[i].reqid;
+    }
+  }
 }
 
 struct target_session *
@@ -205,46 +234,27 @@ _get_target_session(noit_module_t *self, char *target, int version) {
   return (struct target_session *)vts;
 }
 
-/* Handling of results */
-static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
-                                  struct snmp_pdu *pdu) {
+static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pdu) {
   struct check_info *info = check->closure;
   struct variable_list *vars;
-  struct timeval duration;
-  char buff[128];
-  int nresults = 0;
-
-  noit_check_stats_clear(check, &check->stats.inprogress);
 
   if(pdu)
     for(vars = pdu->variables; vars; vars = vars->next_variable)
-      nresults++;
-
-  gettimeofday(&check->stats.inprogress.whence, NULL);
-  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  check->stats.inprogress.available = pdu ? NP_AVAILABLE : NP_UNAVAILABLE;
-  check->stats.inprogress.state = (nresults == info->noids) ? NP_GOOD : NP_BAD;
-  snprintf(buff, sizeof(buff), "%d/%d gets", nresults, info->noids);
-  check->stats.inprogress.status = buff;
-
-  /* We have no results over which to iterate. */
-  if(!pdu) {
-    noit_check_set_stats(check, &check->stats.inprogress);
-    noit_check_stats_clear(check, &check->stats.inprogress);
-    return;
-  }
+      info->nresults++;
 
   /* manipulate the information ourselves */
-  nresults = 0;
   for(vars = pdu->variables; vars; vars = vars->next_variable) {
     char *sp;
+    int nresults = 0;
     int oid_idx;
     double float_conv;
     u_int64_t u64;
     int64_t i64;
     char *endptr;
     char varbuff[256];
+
+    snprint_variable(varbuff, sizeof(varbuff),
+                     vars->name, vars->name_length, vars);
 
     /* find the oid to which this is the response */
     oid_idx = nresults; /* our check->stats.inprogress idx is the most likely */
@@ -254,23 +264,25 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
       /* Not the most obvious guess */
       for(oid_idx = info->noids - 1; oid_idx >= 0; oid_idx--) {
         if(info->oids[oid_idx].oidlen == vars->name_length &&
-           memcmp(info->oids[oid_idx].oid, vars->name,
+           !memcmp(info->oids[oid_idx].oid, vars->name,
                   vars->name_length * sizeof(oid))) break;
       }
     }
     if(oid_idx < 0) {
-      snprint_variable(varbuff, sizeof(varbuff),
-                       vars->name, vars->name_length, vars);
       noitL(nlerr, "Unexpected oid results to %s`%s`%s: %s\n",
             check->target, check->module, check->name, varbuff);
       nresults++;
+      info->nresults++;
       continue;
+    }
+    if(info->oids[oid_idx].seen == 0) {
+      info->oids[oid_idx].seen = 1;
+      info->noids_seen++;
     }
 
 #define SETM(a,b) noit_stats_set_metric(check, &check->stats.inprogress, \
                                         info->oids[oid_idx].confname, a, b)
     if(info->oids[oid_idx].type_should_override) {
-      snprint_value(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
       sp = strchr(varbuff, ' ');
       if(sp) sp++;
       noit_stats_set_metric_coerce(check, &check->stats.inprogress, info->oids[oid_idx].confname,
@@ -326,12 +338,13 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
         case ASN_DOUBLE:
           SETM(METRIC_DOUBLE, vars->val.doubleVal);
           break;
+        case ASN_NULL:
+          noitL(nldeb, "snmp[null]: %s\n", varbuff);
         case SNMP_NOSUCHOBJECT:
         case SNMP_NOSUCHINSTANCE:
           SETM(METRIC_STRING, NULL);
           break;
         default:
-          snprint_variable(varbuff, sizeof(varbuff), vars->name, vars->name_length, vars);
           /* Advance passed the first space and use that unless there
            * is no space or we have no more string left.
            */
@@ -342,14 +355,34 @@ static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check,
       }
     }
     nresults++;
+    info->nresults++;
   }
+  return (info->noids_seen == info->noids) ? 1 : 0;
+}
+
+/* Handling of results */
+static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check, const char *err) {
+  struct check_info *info = check->closure;
+  struct timeval duration;
+  char buff[128];
+
+  gettimeofday(&check->stats.inprogress.whence, NULL);
+  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
+  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  check->stats.inprogress.available = (info->nresults > 0) ? NP_AVAILABLE : NP_UNAVAILABLE;
+  check->stats.inprogress.state = (info->noids_seen == info->noids) ? NP_GOOD : NP_BAD;
+  if(err) snprintf(buff, sizeof(buff), "%s", err);
+  else snprintf(buff, sizeof(buff), "%d/%d gets", info->noids_seen, info->noids);
+  check->stats.inprogress.status = buff;
+
   noit_check_set_stats(check, &check->stats.inprogress);
   noit_check_stats_clear(check, &check->stats.inprogress);
+  return;
 }
 
 static int noit_snmp_session_cleanse(struct target_session *ts,
                                      int needs_free) {
-  if(ts->refcnt == 0 && ts->sess_handle) {
+  if(ts->refcnt == 0 && ts->slp) {
     eventer_t e = eventer_remove_fd(ts->fd);
     if(needs_free) eventer_free(e);
     ts->fd = -1;
@@ -357,8 +390,8 @@ static int noit_snmp_session_cleanse(struct target_session *ts,
       eventer_remove(ts->timeoutevent);
       ts->timeoutevent = NULL;
     }
-    snmp_sess_close(ts->sess_handle);
-    ts->sess_handle = NULL;
+    snmp_sess_close(ts->slp);
+    ts->slp = NULL;
     if(!ts->in_table) {
       free(ts);
     }
@@ -370,7 +403,7 @@ static int noit_snmp_session_cleanse(struct target_session *ts,
 static int noit_snmp_session_timeout(eventer_t e, int mask, void *closure,
                                      struct timeval *now) {
   struct target_session *ts = closure;
-  snmp_sess_timeout(ts->sess_handle);
+  if(ts->slp) snmp_sess_timeout(ts->slp);
   noit_snmp_session_cleanse(ts, 1);
   if(ts->timeoutevent == e)
     ts->timeoutevent = NULL; /* this will be freed on return */
@@ -380,6 +413,7 @@ static int noit_snmp_session_timeout(eventer_t e, int mask, void *closure,
 static int noit_snmp_check_timeout(eventer_t e, int mask, void *closure,
                                    struct timeval *now) {
   struct check_info *info = closure;
+  info->timeoutevent = NULL;
   info->timedout = 1;
   if(info->ts) {
     info->ts->refcnt--;
@@ -414,15 +448,18 @@ static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
 
 static int noit_snmp_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
-  int block = 0;
+  int block = 0, rv, liberr, snmperr;
   struct timeval timeout = { 0, 0 };
   struct target_session *ts = closure;
-  snmp_sess_read_C1(ts->sess_handle, e->fd);
+  char *errmsg;
+
+  rv = snmp_sess_read_C1(ts->slp, e->fd);
   if(noit_snmp_session_cleanse(ts, 0))
     return 0;
-  snmp_sess_select_info2_flags(ts->sess_handle, NULL, NULL,
-                             &timeout, &block, NETSNMP_SELECT_NOFLAGS);
+  snmp_sess_select_info2_flags(ts->slp, NULL, NULL,
+                               &timeout, &block, NETSNMP_SELECT_NOFLAGS);
   _set_ts_timeout(ts, block ? &timeout : NULL);
+
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
@@ -825,46 +862,141 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
 
   info = get_check(reqid);
   if(!info) return 1;
-  if(info->ts) {
-    info->ts->refcnt--;
-    info->ts = NULL;
-  }
-  remove_check(info);
-  if(info->timeoutevent) {
-    eventer_remove(info->timeoutevent);
-    eventer_free(info->timeoutevent);
-    info->timeoutevent = NULL;
-  }
+  remove_check_req(info, reqid);
 
-  /* Log our findings */
-  noit_snmp_log_results(info->self, info->check, pdu);
-  info->check->flags &= ~NP_RUNNING;
+
+  if(noit_snmp_accumulate_results(info->check, pdu)) {
+    noitL(nldeb, "snmp %s pdu completed check requirements\n", info->check->name);
+    if(info->timeoutevent) {
+      eventer_remove(info->timeoutevent);
+      eventer_free(info->timeoutevent);
+      info->timeoutevent = NULL;
+    }
+    if(info->ts) {
+      info->ts->refcnt--;
+      info->ts = NULL;
+    }
+    info->check->flags &= ~NP_RUNNING;
+  }
   return 1;
 }
 
 static void noit_snmp_sess_open(struct target_session *ts,
                                 noit_check_t *check) {
-  const char *community;
+  size_t bsize, offset;
+  u_char _buf[512];
+  u_char *buf = _buf;
+  const char *cval;
   struct snmp_session sess;
   netsnmp_transport *transport;
   struct check_info *info = check->closure;
+  memset(&sess, 0, sizeof(sess));
   snmp_sess_init(&sess);
   sess.version = info->version;
   sess.peername = ts->target;
-  if(!noit_hash_retr_str(check->config, "community", strlen("community"),
-                         &community)) {
-    community = "public";
+  u_char contextEngineID_buf[256];
+  u_char securityEngineID_buf[256];
+
+/*
+final String walk_base             = config.remove("walk");
+*/
+
+#define CONF_GET(name, tgt) \
+  noit_hash_retr_str(check->config, name, strlen(name), tgt)
+#define SESS_SET_STRING(value, len, key, default) do {    \
+  const char *_cval = NULL;                               \
+  if(!CONF_GET(key, &_cval)) {                            \
+    _cval = default;                                      \
+  }                                                       \
+  value = ( __typeof__ (value) )(_cval);                  \
+  len = strlen(_cval);                                    \
+} while(0)
+
+  SESS_SET_STRING(sess.community, sess.community_len, "community", "public");
+  /* TCP/UDP -> session_flags |= SNMP_FLAGS_STREAM_SOCKET */
+  /* securityEngineID? */
+  /* contextEngineID? */
+  SESS_SET_STRING(sess.contextName, sess.contextNameLen, "context_name", "");
+  if(CONF_GET("context_engine", &cval)) {
+    bsize = sizeof(buf);
+    offset = 0;
+    if (netsnmp_hex_to_binary(&buf,&bsize,&offset,0,cval,".")) {
+	    sess.contextEngineID = contextEngineID_buf;
+	    memcpy(sess.contextEngineID, buf, bsize);
+	    sess.contextEngineIDLen = bsize;
+    }
+	}
+  SESS_SET_STRING(sess.securityName, sess.securityNameLen, "security_name", "");
+  if(sess.securityName) sess.securityLevel = SNMP_SEC_LEVEL_NOAUTH;
+  if(CONF_GET("security_engine", &cval)) {
+    bsize = sizeof(buf);
+    offset = 0;
+    if (netsnmp_hex_to_binary(&buf,&bsize,&offset,0,cval,".")) {
+	    sess.securityEngineID = securityEngineID_buf;
+	    memcpy(sess.securityEngineID, buf, bsize);
+	    sess.securityEngineIDLen = bsize;
+    }
+	}
+  if(CONF_GET("security_level", &cval)) {
+    if(!strcasecmp(cval, "nanp")) sess.securityLevel = SNMP_SEC_LEVEL_NOAUTH;
+    else if(!strcasecmp(cval, "anp")) sess.securityLevel = SNMP_SEC_LEVEL_AUTHNOPRIV;
+    else if(!strcasecmp(cval, "ap")) sess.securityLevel = SNMP_SEC_LEVEL_AUTHPRIV;
   }
-  sess.community = (unsigned char *)community;
-  sess.community_len = strlen(community);
+  if(CONF_GET("auth_protocol", &cval)) {
+    if (!strcasecmp(cval,"MD5")) {
+      sess.securityAuthProto = usmHMACMD5AuthProtocol;
+      sess.securityAuthProtoLen = USM_AUTH_PROTO_MD5_LEN;
+    }
+    else if (!strcasecmp(cval,"SHA")) {
+      sess.securityAuthProto = usmHMACSHA1AuthProtocol;
+      sess.securityAuthProtoLen = USM_AUTH_PROTO_SHA_LEN;
+    }
+  }
+  if(CONF_GET("auth_passphrase", &cval)) {
+    if(sess.securityAuthProto == NULL) {
+      sess.securityAuthProto = usmHMACMD5AuthProtocol;
+      sess.securityAuthProtoLen = USM_AUTH_PROTO_MD5_LEN;
+    }
+    sess.securityAuthKeyLen = USM_AUTH_KU_LEN;
+    if(generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
+                   (u_char *)cval, strlen(cval),
+                   sess.securityAuthKey, &sess.securityAuthKeyLen) != SNMPERR_SUCCESS) {
+      /* What do we do? */
+      noitL(nlerr, "auth_passphrase failed to gen master key\n");
+    }
+  }
+  if(CONF_GET("privacy_protocol", &cval)) {
+    if (!strcasecmp(cval,"DES")) {
+      sess.securityPrivProto = usmDESPrivProtocol;
+      sess.securityPrivProtoLen = USM_PRIV_PROTO_DES_LEN;
+    }
+    else if (!strcasecmp(cval,"AES")) {
+      sess.securityPrivProto = usmAESPrivProtocol;
+      sess.securityPrivProtoLen = USM_PRIV_PROTO_AES_LEN;
+    }
+  }
+  if(CONF_GET("privacy_passphrase", &cval)) {
+    if(sess.securityPrivProto == NULL) {
+      sess.securityPrivProto = usmDESPrivProtocol;
+      sess.securityPrivProtoLen = USM_PRIV_PROTO_DES_LEN;
+    }
+    sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
+    if(generate_Ku(sess.securityPrivProto, sess.securityPrivProtoLen,
+                   (u_char *)cval, strlen(cval),
+                   sess.securityPrivKey, &sess.securityPrivKeyLen) != SNMPERR_SUCCESS) {
+      /* What do we do? */
+    }
+  }
   sess.callback = noit_snmp_asynch_response;
   sess.callback_magic = ts;
-  ts->sess_handle = snmp_sess_open_C1(&sess, &transport);
+  sess.flags |= SNMP_FLAGS_DONT_PROBE;
+  ts->slp = snmp_sess_open_C1(&sess, &transport);
+  ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
   ts->fd = transport->sock;
   gettimeofday(&ts->last_open, NULL);
 }
 
-static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
+static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   int i, klen;
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   const char *name, *value;
@@ -880,6 +1012,8 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
     free(info->oids);
   }
   info->noids = 0;
+  info->nresults = 0;
+  info->noids_seen = 0;
   info->oids = NULL;
 
   /* Figure our how many. */
@@ -908,10 +1042,20 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
                              &check_attrs_hash, check->config);
       info->oids[i].oidname = strdup(oidbuff);
       info->oids[i].oidlen = MAX_OID_LEN;
-      if(oidbuff[0] == '.')
-        read_objid(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
-      else
-        get_node(oidbuff, info->oids[i].oid, &info->oids[i].oidlen);
+      if(oidbuff[0] == '.') {
+        if(!read_objid(oidbuff, info->oids[i].oid, &info->oids[i].oidlen)) {
+          noitL(nlerr, "Failed to translate oid: %s\n", oidbuff);
+          info->noids--;
+          continue;
+        }
+      }
+      else {
+        if(!get_node(oidbuff, info->oids[i].oid, &info->oids[i].oidlen)) {
+          noitL(nlerr, "Failed to translate oid: %s\n", oidbuff);
+          info->noids--;
+          continue;
+        }
+      }
       snprintf(typestr, sizeof(typestr), "type_%s", name);
       if(noit_hash_retr_str(check->config, typestr, strlen(typestr),
                             &type_override)) {
@@ -942,7 +1086,6 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
           default: break;
         }
       }
-      snmp_add_null_var(req, info->oids[i].oid, info->oids[i].oidlen);
       i++;
     }
   }
@@ -950,13 +1093,177 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check) {
   noit_hash_destroy(&check_attrs_hash, NULL, NULL);
   return info->noids;
 }
+static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check, int idx) {
+  int i;
+  struct check_info *info = check->closure;
+
+  if(idx == -1) {
+    for(i=0; i<info->noids; i++)
+      snmp_add_null_var(req, info->oids[i].oid, info->oids[i].oidlen);
+    return info->noids;
+  }
+
+  assert(idx >= 0 && idx <info->noids);
+  snmp_add_null_var(req, info->oids[idx].oid, info->oids[idx].oidlen);
+  return 1;
+}
+
+static void
+ensure_usm_user(const char *username, u_char *engineID, size_t engineIDLen) {
+  struct usmUser *user;
+  user = usm_get_user(NULL, 0, (char *)username);
+  if (user == NULL) {
+    user = (struct usmUser *) calloc(1, sizeof(struct usmUser));
+    user->name = strdup(username);
+    user->secName = strdup(username);
+    user->authProtocolLen = sizeof(usmNoAuthProtocol) / sizeof(oid);
+    user->authProtocol =
+        snmp_duplicate_objid(usmNoAuthProtocol, user->authProtocolLen);
+    user->privProtocolLen = sizeof(usmNoPrivProtocol) / sizeof(oid);
+    user->privProtocol =
+        snmp_duplicate_objid(usmNoPrivProtocol, user->privProtocolLen);
+    if(engineIDLen) {
+      user->engineID = malloc(engineIDLen);
+      memcpy(user->engineID, engineID, engineIDLen);
+      user->engineIDLen = engineIDLen;
+    }
+    usm_add_user(user);
+    noitL(nldeb, "usm adding user: %s\n", username);
+  }
+}
+
+/* Shenanigans to work around snmp v3 probes blocking */
+static int
+snmpv3_build_probe_pdu(netsnmp_pdu **pdu) {
+    struct usmUser *user;
+
+    /*
+     * create the pdu
+     */
+    if (!pdu)
+        return -1;
+    *pdu = snmp_pdu_create(SNMP_MSG_GET);
+    if (!(*pdu))
+        return -1;
+    (*pdu)->version = SNMP_VERSION_3;
+    (*pdu)->securityName = strdup("");
+    (*pdu)->securityNameLen = strlen((*pdu)->securityName);
+    (*pdu)->securityLevel = SNMP_SEC_LEVEL_NOAUTH;
+    (*pdu)->securityModel = SNMP_SEC_MODEL_USM;
+
+    /*
+     * create the empty user
+     */
+    ensure_usm_user((*pdu)->securityName, NULL, 0);
+    return 0;
+}
+
+static int
+noit_snmpv3_probe_timeout(eventer_t e, int mask, void *closure,
+                          struct timeval *now) {
+  struct v3_probe_magic *magic = closure;
+  struct check_info *info = magic->check->closure;
+  struct target_session *ts = magic->ts;
+  if(ts && ts->slp) {
+    ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
+  }
+  if(ts) ts->refcnt--;
+  magic->timeoutevent = NULL;
+  return 0;
+}
+
+static void
+copy_auth_to_pdu(struct snmp_session *sp, struct snmp_pdu *pdu) {
+#define pdu_copystring(name) do { \
+  if(pdu->name) free(pdu->name); \
+  pdu->name = NULL; \
+  if(sp->name) pdu->name = strdup(sp->name); \
+  pdu->name##Len = strlen(pdu->name); \
+} while(0)
+#define pdu_copyoid(oid) do { \
+  if(pdu->oid) free(pdu->oid); \
+  pdu->oid = NULL; \
+  pdu->oid = snmp_duplicate_objid(sp->oid, sp->oid##Len); \
+  pdu->oid##Len = sp->oid##Len; \
+} while(0)
+
+  pdu_copystring(securityName);
+  pdu->securityModel = sp->securityModel;
+  pdu->securityLevel = sp->securityLevel;
+}
+
+static int
+probe_engine_step1_cb(int operation,
+                      struct snmp_session *sp,
+                      int reqid,
+                      struct snmp_pdu *pdu,
+                      void *arg) {
+  struct v3_probe_magic *magic = arg;
+  struct check_info *info = magic->check->closure;
+  struct target_session *ts = info->ts;
+  int ret = 1;
+
+  if(magic->timeoutevent) {
+    eventer_remove(magic->timeoutevent);
+    eventer_free(magic->timeoutevent);
+    magic->timeoutevent = NULL;
+  }
+  /* Did we receive the appropriate Report message? */
+  if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE &&
+      pdu && pdu->command == SNMP_MSG_REPORT) {
+    int reqid, i;
+    if(pdu->securityEngineIDLen) {
+      if(sp->securityEngineID) free(sp->securityEngineID);
+      sp->securityEngineID = malloc(sizeof(*sp->securityEngineID)*pdu->securityEngineIDLen);
+      memcpy(sp->securityEngineID, pdu->securityEngineID, sizeof(*sp->securityEngineID)*pdu->securityEngineIDLen);
+      sp->securityEngineIDLen = pdu->securityEngineIDLen;
+    }
+    if(pdu->contextEngineIDLen) {
+      if(sp->contextEngineID) free(sp->contextEngineID);
+      sp->contextEngineID = malloc(sizeof(*sp->contextEngineID)*pdu->contextEngineIDLen);
+      memcpy(sp->contextEngineID, pdu->contextEngineID, sizeof(*sp->contextEngineID)*pdu->contextEngineIDLen);
+      sp->contextEngineIDLen = pdu->contextEngineIDLen;
+    }
+    i = usm_create_user_from_session(sp);
+    noitL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
+    copy_auth_to_pdu(sp, magic->pdu);
+    reqid = snmp_sess_send(ts->slp, magic->pdu);
+    if(reqid == 0) {
+      int liberr, snmperr;
+      char *errmsg;
+      snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
+      noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+      snmp_free_pdu(magic->pdu);
+      magic->pdu = NULL;
+      goto probe_failed;
+    }
+    for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
+    noitL(nldeb, "Probe followup sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
+    add_check(info);
+    ts->refcnt--;
+    goto out;
+  }
+
+ probe_failed:
+  if(magic->pdu) snmp_free_pdu(magic->pdu);
+  sp->flags &= ~SNMP_FLAGS_DONT_PROBE;
+  ret = magic->cb(NETSNMP_CALLBACK_OP_SEND_FAILED,
+                  sp, reqid, pdu, info);
+
+ out:
+  return ret;
+}
+
 static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
                           noit_check_t *cause) {
-  struct snmp_pdu *req;
+  struct timeval when, to;
+  struct snmp_pdu *req = NULL;
   struct target_session *ts;
   struct check_info *info = check->closure;
-  int port = 161;
-  const char *portstr, *versstr;
+  int port = 161, i;
+  noit_boolean separate_queries = noit_false;
+  const char *portstr, *versstr, *sepstr;
+  const char *err = "unknown err";
   char target_port[64];
 
   info->version = SNMP_VERSION_2c;
@@ -967,6 +1274,11 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
+  if(noit_hash_retr_str(check->config, "separate_queries",
+                        strlen("separate_queries"), &sepstr)) {
+    if(!strcasecmp(sepstr, "on") || !strcasecmp(sepstr, "true"))
+      separate_queries = noit_true;
+  }
   if(noit_hash_retr_str(check->config, "port", strlen("port"),
                         &portstr)) {
     port = atoi(portstr);
@@ -992,45 +1304,123 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     newe->mask = EVENTER_READ | EVENTER_EXCEPTION;
     eventer_add(newe);
   }
-  if(!ts->sess_handle) {
-    /* Error */
-    /* No need to do anything, this will be handled in the else below */
-  }
+  if(!ts->slp) goto bail;
   ts->refcnt++; /* Increment here, decrement when this check completes */
 
-  req = snmp_pdu_create(SNMP_MSG_GET);
-  if(req) {
-    noit_snmp_fill_req(req, check);
-    req->version = info->version;
-  }
-  /* Setup out snmp requests */
-  if(ts->sess_handle && req &&
-     (info->reqid = snmp_sess_send(ts->sess_handle, req)) != 0) {
-    struct timeval when, to;
-    info->ts = ts;
-    info->timeoutevent = eventer_alloc();
-    info->timeoutevent->callback = noit_snmp_check_timeout;
-    info->timeoutevent->closure = info;
-    info->timeoutevent->mask = EVENTER_TIMER;
+  noit_snmp_fill_oidinfo(check);
+  /* Do we need probing? */
+  if (info->version == SNMP_VERSION_3 &&
+      ts->sess_handle->securityEngineIDLen == 0 &&
+      (0 == (ts->sess_handle->flags & SNMP_FLAGS_DONT_PROBE))) {
+    /* Allocate some "magic" structure to remember PDU, callback and argument*/
+    struct v3_probe_magic *magic = calloc(1, sizeof(struct v3_probe_magic));
+    netsnmp_pdu *probe = NULL;
 
-    noitL(nldeb, "Sending snmp get\n");
+noitL(nldeb, "Probing for v3\n");
+    if (!magic) goto bail;
+    magic->cb = noit_snmp_asynch_response;
+    magic->check = check;
+    magic->ts = ts;
+  
+    if (snmpv3_build_probe_pdu(&probe) != 0) {
+      free(magic);
+      goto bail;
+    }
+
+    /* Send it. */
+    ts->sess_handle->flags |= SNMP_FLAGS_DONT_PROBE; /* prevent recursion */
+    ts->refcnt++;
+
+    magic->pdu = snmp_pdu_create(SNMP_MSG_GET);
+    noit_snmp_fill_req(magic->pdu, check, -1);
+    magic->pdu->version = info->version;
+
+    if (!snmp_sess_async_send(ts->slp, probe, probe_engine_step1_cb, magic)) {
+      ts->refcnt--;
+      snmp_free_pdu(probe);
+      free(magic);
+      ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
+      goto bail;
+    }
+
+    magic->timeoutevent = eventer_alloc();
+    magic->timeoutevent->callback = noit_snmpv3_probe_timeout;
+    magic->timeoutevent->closure = magic;
+    magic->timeoutevent->mask = EVENTER_TIMER;
+  
     gettimeofday(&when, NULL);
-    to.tv_sec = check->timeout / 1000;
-    to.tv_usec = (check->timeout % 1000) * 1000;
-    add_timeval(when, to, &info->timeoutevent->whence);
-    eventer_add(info->timeoutevent);
-    add_check(info);
+    to.tv_sec = 5;
+    to.tv_usec = 0;
+    add_timeval(when, to, &magic->timeoutevent->whence);
+    eventer_add(magic->timeoutevent);
   }
   else {
-    ts->refcnt--;
-    noitL(nlerr, "Error sending snmp get request.\n");
-    noit_snmp_session_cleanse(ts, 1);
-    /* Error */
-    if(req) snmp_free_pdu(req);
-    /* Log our findings */
-    noit_snmp_log_results(self, check, NULL);
-    check->flags &= ~NP_RUNNING;
+    /* Separate queries is not supported on v3... it makes no sense */
+    if(separate_queries && info->version != SNMP_VERSION_3) {
+      int reqid, i;
+      noitL(nldeb, "Regular old get...\n");
+      for(i=0;i<info->noids;i++) {
+        req = snmp_pdu_create(SNMP_MSG_GET);
+        if(!req) continue;
+        noit_snmp_fill_req(req, check, i);
+        req->version = info->version;
+        reqid = snmp_sess_send(ts->slp, req);
+        if(reqid == 0) {
+          int liberr, snmperr;
+          char *errmsg;
+          snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
+          noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+          snmp_free_pdu(req);
+          continue;
+        }
+        info->oids[i].reqid = reqid;
+        noitL(nldeb, "Sent snmp get[%d/%d] -> reqid:%d\n", i, info->noids, reqid);
+      }
+    }
+    else {
+      int reqid, i;
+      noitL(nldeb, "Regular old get...\n");
+      req = snmp_pdu_create(SNMP_MSG_GET);
+      if(!req) goto bail;
+      noit_snmp_fill_req(req, check, -1);
+      if(info->version == SNMP_VERSION_3 && ts->sess_handle->securityName) {
+        i = usm_create_user_from_session(ts->sess_handle);
+        noitL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
+      }
+      req->version = info->version;
+      reqid = snmp_sess_send(ts->slp, req);
+      if(reqid == 0) {
+        int liberr, snmperr;
+        char *errmsg;
+        snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
+        noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+        err = errmsg;
+        if(reqid == 0) goto bail;
+      }
+      for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
+      noitL(nldeb, "Sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
+    }
   }
+  info->ts = ts;
+  info->timeoutevent = eventer_alloc();
+  info->timeoutevent->callback = noit_snmp_check_timeout;
+  info->timeoutevent->closure = info;
+  info->timeoutevent->mask = EVENTER_TIMER;
+
+  gettimeofday(&when, NULL);
+  to.tv_sec = check->timeout / 1000;
+  to.tv_usec = (check->timeout % 1000) * 1000;
+  add_timeval(when, to, &info->timeoutevent->whence);
+  eventer_add(info->timeoutevent);
+  add_check(info);
+  return 0;
+
+ bail:
+  ts->refcnt--;
+  noit_snmp_log_results(self, check, err);
+  noit_snmp_session_cleanse(ts, 1);
+  if(req) snmp_free_pdu(req);
+  check->flags &= ~NP_RUNNING;
   return 0;
 }
 
@@ -1141,14 +1531,27 @@ register_console_snmp_commands(snmp_mod_config_t *conf) {
     NCSCMD("snmp", noit_console_show_snmp, NULL, NULL, conf));
 }
 
+static __thread char linebuf[1024] = "\0";
 static int
 _private_snmp_log(int majorID, int minorID, void *serverarg, void *clientarg) {
   struct snmp_log_message *slm;
   snmp_mod_config_t *conf;
+  size_t len;
   conf = clientarg;
   slm = serverarg;
+  len = strlcat(linebuf, slm->msg, sizeof(linebuf));
+  if(len > sizeof(linebuf)-1) {
+    linebuf[sizeof(linebuf)-2] = '\n';
+    linebuf[sizeof(linebuf)-1] = '\0';
+  }
+  else if(linebuf[len-1] == '\n') {
+  }
+  else {
+    return 1;
+  }
   noitL(((slm->priority < LOG_NOTICE) ? nlerr : nldeb), "[pri:%d] %s",
-        slm->priority, slm->msg);
+        slm->priority, linebuf);
+  linebuf[0] = '\0';
   return 1;
 }
 
@@ -1157,6 +1560,9 @@ static int noit_snmp_init(noit_module_t *self) {
   snmp_mod_config_t *conf;
 
   conf = noit_module_get_userdata(self);
+  if(noit_hash_retr_str(conf->options, "debugging", strlen("debugging"), &opt)) {
+    snmp_set_do_debugging(atoi(opt));
+  }
 
   if(!__snmp_initialize_once) {
     register_mib_handlers();
@@ -1210,10 +1616,10 @@ static int noit_snmp_init(noit_module_t *self) {
     session->callback_magic = (void *) ts;
     session->authenticator = NULL;
     session->isAuthoritative = SNMP_SESS_UNKNOWNAUTH;
-    ts->sess_handle = snmp_sess_add(session, transport, NULL, NULL);
+    ts->slp = snmp_sess_add(session, transport, NULL, NULL);
 
     FD_ZERO(&fdset);
-    snmp_sess_select_info(ts->sess_handle, &fds, &fdset, &timeout, &block);
+    snmp_sess_select_info(ts->slp, &fds, &fdset, &timeout, &block);
     assert(fds > 0);
     for(i=0; i<fds; i++) {
       if(FD_ISSET(i, &fdset)) {
