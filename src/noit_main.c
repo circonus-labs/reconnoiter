@@ -135,6 +135,7 @@ noit_main(const char *appname,
           noit_lock_op_t lock, const char *_glider,
           const char *drop_to_user, const char *drop_to_group,
           int (*passed_child_main)(void)) {
+  noit_conf_section_t watchdog_conf;
   int fd, lockfd, watchdog_timeout = 0, rv;
   int wait_for_lock;
   char conf_str[1024];
@@ -180,14 +181,15 @@ noit_main(const char *appname,
     noit_log_stream_set_flags(noit_debug, noit_log_stream_get_flags(noit_debug) | NOIT_LOG_STREAM_ENABLED);
   }
 
-  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@glider", appname);
-  if(!glider) (void) noit_conf_get_string(NULL, appscratch, &glider);
+  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog|/%s/include/watchdog", appname, appname);
+  watchdog_conf = noit_conf_get_section(NULL, appscratch);
+
+  if(!glider) (void) noit_conf_get_string(watchdog_conf, "@glider", &glider);
   if(noit_watchdog_glider(glider)) {
     noitL(noit_stderr, "Invalid glider, exiting.\n");
     exit(-1);
   }
-  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@tracedir", appname);
-  (void)noit_conf_get_string(NULL, appscratch, &trace_dir);
+  (void)noit_conf_get_string(watchdog_conf, "@tracedir", &trace_dir);
   if(trace_dir) {
     if(noit_watchdog_glider_trace_dir(trace_dir)) {
       noitL(noit_stderr, "Invalid glider tracedir, exiting.\n");
@@ -195,13 +197,11 @@ noit_main(const char *appname,
     }
   }
 
-  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@retries", appname);
-  ret = noit_conf_get_int(NULL, appscratch, &retry_val);
+  ret = noit_conf_get_int(watchdog_conf, "@retries", &retry_val);
   if((ret == 0) || (retry_val == 0)){
     retry_val = 5;
   }
-  snprintf(appscratch, sizeof(appscratch), "/%s/watchdog/@span", appname);
-  ret = noit_conf_get_int(NULL, appscratch, &span_val);
+  ret = noit_conf_get_int(watchdog_conf, "@span", &span_val);
   if((ret == 0) || (span_val == 0)){
     span_val = 60;
   }
