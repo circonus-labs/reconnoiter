@@ -61,7 +61,7 @@ void noit_memory_maintenance() {
        epoch_temporary.n_dispatch != epoch_rec->n_dispatch) {
       noitL(noit_debug,
             "summary: [%u/%u/%u] %u pending, %u peak, %lu reclamations -> "
-              "[%u/%u/%u] %u pending, %u peak, %lu reclamations\n\n",
+              "[%u/%u/%u] %u pending, %u peak, %lu reclamations\n",
               epoch_temporary.state, epoch_temporary.epoch,epoch_temporary.active,
               epoch_temporary.n_pending, epoch_temporary.n_peak, epoch_temporary.n_dispatch,
               epoch_rec->state, epoch_rec->epoch,epoch_rec->active,
