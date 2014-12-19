@@ -65,6 +65,8 @@ static int _noit_log_siglvl = 0;
 void noit_log_enter_sighandler() { _noit_log_siglvl++; }
 void noit_log_leave_sighandler() { _noit_log_siglvl--; }
 
+#define SUPPORTS_ASYNC(ls) ((ls) && (ls)->ops && (ls)->path && (ls)->ops->supports_async)
+
 static int DEBUG_LOG_ENABLED() {
   static int enabled = -1;
   if(enabled == -1) {
@@ -1645,7 +1647,7 @@ noit_log_go_asynch() {
 
   while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
     ls = data;
-    if(ls->ops && ls->ops->supports_async) {
+    if(SUPPORTS_ASYNC(ls)) {
       asynch_log_ctx *actx = ls->op_ctx;
       noit_atomic_inc32(&actx->gen);
       actx->is_asynch = 1;
@@ -1665,7 +1667,7 @@ noit_log_go_synch() {
 
   while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
     ls = data;
-    if(ls->ops && ls->ops->supports_async) {
+    if(SUPPORTS_ASYNC(ls)) {
       asynch_log_ctx *actx = ls->op_ctx;
       noit_atomic_inc32(&actx->gen);
       actx->is_asynch = 0;
