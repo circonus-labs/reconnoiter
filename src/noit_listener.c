@@ -358,7 +358,9 @@ noit_listener(char *host, unsigned short port, int type,
     sockaddr_len = (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6);
   }
   if(bind(fd, (struct sockaddr *)&s, sockaddr_len) < 0) {
-    noitL(noit_error, "bind failed[%s]: %s\n", host, strerror(errno));
+    noitL(noit_error, "bind failed[%s:%s:%d]: %s\n",
+          (family == AF_INET) ? "IPv4" : "IPv6",
+          host, port, strerror(errno));
     close(fd);
     return -1;
   }
