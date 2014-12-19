@@ -163,7 +163,7 @@ write_out_include_files(include_node_t *include_nodes, int include_node_cnt) {
     uid_t uid = 0;
     gid_t gid = 0;
 
-    if(include_nodes[i].ro) {
+    if(include_nodes[i].ro || !include_nodes[i].doc) {
       write_out_include_files(include_nodes[i].children, include_nodes[i].child_count);
       continue;
     }
@@ -275,7 +275,14 @@ static struct {
   { NULL, NULL }
 };
 
-void noit_conf_xml_console_error_func(void *ctx, const char *format, ...) {
+#define MAX_SUPPRESSIONS 128
+static struct {
+  xmlErrorDomain domain;
+  xmlParserErrors  code;
+} suppressions[MAX_SUPPRESSIONS];
+
+static void
+noit_conf_xml_console_error_func(void *ctx, const char *format, ...) {
   noit_console_closure_t ncct = ctx;
   va_list arg;
   if(!ncct) return;
@@ -284,9 +291,13 @@ void noit_conf_xml_console_error_func(void *ctx, const char *format, ...) {
   va_end(arg);
 }
 
-void noit_conf_xml_console_error_ext_func(void *ctx, xmlErrorPtr err) {
+static void
+noit_conf_xml_console_error_ext_func(void *ctx, xmlErrorPtr err) {
+  int i;
   noit_console_closure_t ncct = ctx;
   if(!ctx) return;
+  for(i=0;i<MAX_SUPPRESSIONS;i++)
+    if(suppressions[i].domain == err->domain && suppressions[i].code == err->code) return;
   if(err->file)
     nc_printf(ncct, "XML error [%d/%d] in %s on line %d %s\n",
               err->domain, err->code, err->file, err->line, err->message);
@@ -295,7 +306,35 @@ void noit_conf_xml_console_error_ext_func(void *ctx, xmlErrorPtr err) {
               err->domain, err->code, err->message);
 }
 
-void noit_conf_xml_error_func(void *ctx, const char *format, ...) {
+static void
+noit_conf_suppress_xml_error(xmlErrorDomain domain, xmlParserErrors code) {
+  int i, first_hole = -1;
+  for(i=0;i<MAX_SUPPRESSIONS;i++) {
+    if(suppressions[i].domain == domain && suppressions[i].code == code) return;
+    if(first_hole == -1 &&
+       suppressions[i].domain == XML_FROM_NONE &&
+       suppressions[i].code == XML_ERR_OK)
+      first_hole = i;
+  }
+  if(first_hole >= 0) {
+    suppressions[first_hole].domain = domain;
+    suppressions[first_hole].code = code;
+  }
+}
+static void
+noit_conf_express_xml_error(xmlErrorDomain domain, xmlParserErrors code) {
+  int i;
+  for(i=0;i<MAX_SUPPRESSIONS;i++) {
+    if(suppressions[i].domain == domain && suppressions[i].code == code) {
+      suppressions[i].domain = XML_FROM_NONE;
+      suppressions[i].code = XML_ERR_OK;
+      return;
+    }
+  }
+}
+
+static void
+noit_conf_xml_error_func(void *ctx, const char *format, ...) {
   struct timeval __now;
   noit_log_stream_t ls = ctx;
   va_list arg;
@@ -305,10 +344,14 @@ void noit_conf_xml_error_func(void *ctx, const char *format, ...) {
   noit_vlog(ls, &__now, __FILE__, __LINE__, format, arg);
   va_end(arg);
 }
-void noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
+static void
+noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
+  int i;
   struct timeval __now;
   noit_log_stream_t ls = ctx;
   if(!ls) return;
+  for(i=0;i<MAX_SUPPRESSIONS;i++)
+    if(suppressions[i].domain == err->domain && suppressions[i].code == err->code) return;
   gettimeofday(&__now,  NULL);
   if(err->file)
     noit_log(ls, &__now, err->file, err->line,
@@ -319,7 +362,6 @@ void noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
              "XML error [%d/%d] %s\n",
              err->domain, err->code, err->message);
 }
-
 
 void
 noit_conf_poke(const char *toplevel, const char *key, const char *val) {
@@ -891,8 +933,11 @@ noit_conf_magic_mix(const char *parentfile, xmlDocPtr doc, include_node_t* inc_n
     ro = (char *)xmlGetProp(node, (xmlChar *)"readonly");
     if (ro && !strcmp(ro, "true")) include_nodes[i].ro = 1;
     if (ro) xmlFree(ro);
-    if (include_nodes[i].snippet)
+    if (include_nodes[i].snippet) {
+      noit_conf_suppress_xml_error(XML_FROM_IO, XML_IO_LOAD_ERROR);
       include_nodes[i].doc = xmlParseEntity(infile);
+      noit_conf_express_xml_error(XML_FROM_IO, XML_IO_LOAD_ERROR);
+    }
     else
       include_nodes[i].doc = xmlReadFile(infile, "utf8", XML_PARSE_NOENT);
     if((include_nodes[i].doc) || (include_nodes[i].snippet)) {
