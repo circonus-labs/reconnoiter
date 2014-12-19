@@ -94,6 +94,11 @@ struct _noit_log_stream {
   unsigned flags_below;
 };
 
+struct posix_op_ctx {
+  int fd;
+  struct stat sb;
+};
+
 typedef struct {
   u_int64_t head;
   u_int64_t tail;
@@ -249,6 +254,7 @@ membuf_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
 }
 
 static logops_t membuf_logio_ops = {
+  noit_false,
   membuf_logio_open,
   membuf_logio_reopen,
   membuf_logio_write,
@@ -486,14 +492,15 @@ asynch_logio_writer(void *vls) {
   pthread_mutex_unlock(&actx->singleton);
   pthread_exit((void *)0);
 }
+
 static int
 posix_logio_asynch_write(asynch_log_ctx *actx, asynch_log_line *line) {
-  int fd, rv = -1;
-  fd = (int)(vpsized_int)actx->userdata;
-  if(fd >= 0) rv = write(fd, line->buf_dynamic ?
-                                 line->buf_dynamic :
-                                 line->buf_static,
-                          line->len);
+  struct posix_op_ctx *po;
+  int rv = -1;
+  po = actx->userdata;
+  if(po && po->fd >= 0)
+    rv = write(po->fd, line->buf_dynamic ? line->buf_dynamic : line->buf_static,
+               line->len);
   return rv;
 }
 
@@ -523,6 +530,7 @@ posix_logio_open(noit_log_stream_t ls) {
   int fd, rv;
   struct stat sb;
   asynch_log_ctx *actx;
+  struct posix_op_ctx *po;
   ls->mode = 0664;
   fd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
   debug_printf("opened '%s' => %d\n", ls->path, fd);
@@ -530,40 +538,73 @@ posix_logio_open(noit_log_stream_t ls) {
     ls->op_ctx = NULL;
     return -1;
   }
+
+  po = malloc(sizeof(*po));
+  po->fd = fd;
   while((rv = fstat(fd, &sb)) != 0 && errno == EINTR);
-  if(rv == 0) ls->written = (int32_t)sb.st_size;
+  if(rv == 0) {
+    memcpy(&po->sb, &sb, sizeof(sb));
+    ls->written = (int32_t)sb.st_size;
+  }
 
   actx = asynch_log_ctx_alloc();
-  actx->userdata = (void *)(vpsized_int)fd;
+
+  actx->userdata = po;
   actx->name = "posix";
   actx->write = posix_logio_asynch_write;
   ls->op_ctx = actx;
 
-  if (asynch_thread_create(ls, actx, asynch_logio_writer)) {
+  if (actx->is_asynch &&
+      asynch_thread_create(ls, actx, asynch_logio_writer)) {
     return -1;
   }
-  actx->is_asynch = 1;
   return 0;
 }
 static int
 posix_logio_reopen(noit_log_stream_t ls) {
   if(ls->path) {
+    struct posix_op_ctx *po;
+    struct stat newpathsb, sb;
     asynch_log_ctx *actx;
     pthread_rwlock_t *lock = ls->lock;
-    int newfd, oldfd, rv = -1;
+    int newfd, rv = -1, oldrv = -1;
     if(lock) pthread_rwlock_wrlock(lock);
     actx = ls->op_ctx;
-    oldfd = (int)(vpsized_int)actx->userdata;
+    po = actx->userdata;
+
+    /* Let's see if the we're looking at the right file already */
+    while((oldrv = fstat(po->fd, &po->sb)) != 0 && errno == EINTR);
+    while((rv = stat(ls->path, &newpathsb)) != 0 && errno == EINTR);
+    if(oldrv == 0 && rv == 0 &&
+       po->sb.st_dev == newpathsb.st_dev &&
+       po->sb.st_ino == newpathsb.st_ino) {
+      /* reopening wouldn't do anything... skip the work */
+      /* rv is already 0... */
+      goto out;
+    }
+
     newfd = open(ls->path, O_CREAT|O_WRONLY|O_APPEND, ls->mode);
     ls->written = 0;
     if(newfd >= 0) {
-      struct stat sb;
-      actx->userdata = (void *)(vpsized_int)newfd;
-      if(oldfd >= 0) close(oldfd);
+      int fd_to_close = po->fd;
+      po->fd = newfd;
+      if(fd_to_close >= 0) close(fd_to_close);
       while((rv = fstat(newfd, &sb)) != 0 && errno == EINTR);
-      if(rv == 0) ls->written = (int32_t)sb.st_size;
+      if(rv == 0) {
+        if(oldrv == 0 && /* have ownership of old file */
+           (po->sb.st_uid != sb.st_uid || po->sb.st_gid != sb.st_gid)) {
+          /* doesn't match the new one, set the new one like the old one */
+          (void)fchown(newfd, po->sb.st_uid, po->sb.st_gid);
+          /* Not much we can do if it fails. */
+          sb.st_uid = po->sb.st_uid;
+          sb.st_gid = po->sb.st_gid;
+          memcpy(&po->sb, &sb, sizeof(sb));
+        }
+        ls->written = (int32_t)sb.st_size;
+      }
       rv = 0;
     }
+   out:
     if(lock) pthread_rwlock_unlock(lock);
     if(actx->is_asynch) {
       if(asynch_thread_create(ls, actx, asynch_logio_writer)) {
@@ -584,10 +625,11 @@ posix_logio_write(noit_log_stream_t ls, const struct timeval *whence,
   if(!ls->op_ctx) return -1;
   actx = ls->op_ctx;
   if(!actx->is_asynch || _noit_log_siglvl > 0) {
+    struct posix_op_ctx *po;
     pthread_rwlock_t *lock = ls->lock;
-    int fd = (int)(vpsized_int)actx->userdata;
+    po = actx->userdata;
     if(lock) pthread_rwlock_rdlock(lock);
-    if(fd >= 0) rv = write(fd, buf, len);
+    if(po && po->fd >= 0) rv = write(po->fd, buf, len);
     if(lock) pthread_rwlock_unlock(lock);
     if(rv > 0) noit_atomic_add32(&ls->written, rv);
     return rv;
@@ -608,29 +650,31 @@ posix_logio_write(noit_log_stream_t ls, const struct timeval *whence,
 }
 static int
 posix_logio_close(noit_log_stream_t ls) {
-  int fd, rv;
+  int rv;
+  struct posix_op_ctx *po;
   asynch_log_ctx *actx;
   pthread_rwlock_t *lock = ls->lock;
   if(lock) pthread_rwlock_wrlock(lock);
   actx = ls->op_ctx;
-  fd = (int)(vpsized_int)actx->userdata;
-  rv = close(fd);
-  actx->userdata = (void *)(vpsized_int)-1;
+  po = actx->userdata;
+  actx->userdata = NULL;
+  rv = close(po->fd);
   if(lock) pthread_rwlock_unlock(lock);
   return rv;
 }
 static size_t
 posix_logio_size(noit_log_stream_t ls) {
-  int fd;
+  int rv;
+  struct posix_op_ctx *po;
   size_t s = (size_t)-1;
-  struct stat sb;
   asynch_log_ctx *actx = ls->op_ctx;
   pthread_rwlock_t *lock = ls->lock;
   if(lock) pthread_rwlock_rdlock(lock);
   actx = ls->op_ctx;
-  fd = (int)(vpsized_int)actx->userdata;
-  if(fstat(fd, &sb) == 0) {
-    s = (size_t)sb.st_size;
+  po = actx->userdata;
+  if(po && po->fd >= 0) {
+    while((rv = fstat(po->fd, &po->sb)) == -1 && errno == EINTR);
+    if(rv == 0) s = (size_t)po->sb.st_size;
   }
   if(lock) pthread_rwlock_unlock(lock);
   return s;
@@ -763,6 +807,7 @@ posix_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
 }
 
 static logops_t posix_logio_ops = {
+  noit_true,
   posix_logio_open,
   posix_logio_reopen,
   posix_logio_write,
@@ -823,7 +868,7 @@ jlog_logio_cleanse(noit_log_stream_t ls) {
   char path[PATH_MAX];
   int size = 0;
 
-  actx = (asynch_log_ctx *)ls->op_ctx;
+  actx = ls->op_ctx;
   if(!actx) return -1;
   log = actx->userdata;
   if(!log) return -1;
@@ -886,10 +931,10 @@ jlog_logio_reopen(noit_log_stream_t ls) {
  bail:
   if(lock) pthread_rwlock_unlock(lock);
 
-  if (asynch_thread_create(ls, actx, asynch_logio_writer)) {
+  if (actx->is_asynch &&
+      asynch_thread_create(ls, actx, asynch_logio_writer)) {
     return -1;
   }
-  actx->is_asynch = 1;
   
   return 0;
 }
@@ -1084,6 +1129,7 @@ jlog_logio_cull(noit_log_stream_t ls, int age, ssize_t bytes) {
   return -1;
 }
 static logops_t jlog_logio_ops = {
+  noit_true,
   jlog_logio_open,
   jlog_logio_reopen,
   jlog_logio_write,
@@ -1187,13 +1233,16 @@ noit_log_init_rwlock(noit_log_stream_t ls) {
 noit_log_stream_t
 noit_log_stream_new_on_fd(const char *name, int fd, noit_hash_table *config) {
   char *lsname;
+  struct posix_op_ctx *po;
   noit_log_stream_t ls;
   asynch_log_ctx *actx;
   ls = calloc(1, sizeof(*ls));
   actx = asynch_log_ctx_alloc();
   actx->name = "posix";
   actx->write = posix_logio_asynch_write;
-  actx->userdata = (void *)(vpsized_int)fd;
+  po = calloc(1, sizeof(*po));
+  po->fd = fd;
+  actx->userdata = po;
   ls->name = strdup(name);
   ls->ops = &posix_logio_ops;
   ls->op_ctx = actx;
@@ -1564,6 +1613,62 @@ noit_log(noit_log_stream_t ls, struct timeval *now,
   va_start(arg, format);
   rv = noit_vlog(ls, now, file, line, format, arg);
   va_end(arg);
+  return rv;
+}
+
+int
+noit_log_reopen_type(const char *type) {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen, rv = 0;
+  void *data;
+  noit_log_stream_t ls;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    ls = data;
+    if(ls->ops && ls->type && !strcmp(ls->type, type))
+      if(ls->ops->reopenop(ls) < 0) rv = -1;
+  }
+  return rv;
+}
+
+int
+noit_log_go_asynch() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen, rv = 0;
+  void *data;
+  noit_log_stream_t ls;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    ls = data;
+    if(ls->ops && ls->ops->supports_async) {
+      asynch_log_ctx *actx = ls->op_ctx;
+      noit_atomic_inc32(&actx->gen);
+      actx->is_asynch = 1;
+      if(ls->ops->reopenop(ls) < 0) rv = -1;
+    }
+  }
+  return rv;
+}
+
+int
+noit_log_go_synch() {
+  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  const char *k;
+  int klen, rv = 0;
+  void *data;
+  noit_log_stream_t ls;
+
+  while(noit_hash_next(&noit_loggers, &iter, &k, &klen, &data)) {
+    ls = data;
+    if(ls->ops && ls->ops->supports_async) {
+      asynch_log_ctx *actx = ls->op_ctx;
+      noit_atomic_inc32(&actx->gen);
+      actx->is_asynch = 0;
+      if(ls->ops->reopenop(ls) < 0) rv = -1;
+    }
+  }
   return rv;
 }
 

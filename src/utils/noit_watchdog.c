@@ -513,6 +513,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
               kill(child_pid, SIGKILL);
               noit_monitored_child_pid = -1;
             }
+            noit_log_reopen_type("file");
             break;
           default:
             break;

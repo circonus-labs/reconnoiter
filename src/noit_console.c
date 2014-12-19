@@ -527,6 +527,7 @@ noit_console_logio_close(noit_log_stream_t ls) {
   return 0;
 }
 static logops_t noit_console_logio_ops = {
+  noit_false,
   noit_console_logio_open,
   noit_console_logio_reopen,
   noit_console_logio_write,

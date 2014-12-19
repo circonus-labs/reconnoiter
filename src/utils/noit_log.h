@@ -53,6 +53,7 @@ struct _noit_log_stream_outlet_list {
 };
 
 typedef struct {
+  noit_boolean supports_async;
   int (*openop)(noit_log_stream_t);
   int (*reopenop)(noit_log_stream_t);
   int (*writeop)(noit_log_stream_t, const struct timeval *whence, const void *, size_t);
@@ -81,7 +82,10 @@ API_EXPORT(void) noit_log_enter_sighandler();
 API_EXPORT(void) noit_log_leave_sighandler();
 API_EXPORT(int) noit_log_global_enabled();
 API_EXPORT(void) noit_log_init(int debug_on);
+API_EXPORT(int) noit_log_go_asynch();
+API_EXPORT(int) noit_log_go_synch();
 API_EXPORT(int) noit_log_reopen_all();
+API_EXPORT(int) noit_log_reopen_type(const char *type);
 API_EXPORT(void) noit_register_logops(const char *name, logops_t *ops);
 API_EXPORT(void *) noit_log_stream_get_ctx(noit_log_stream_t);
 API_EXPORT(void) noit_log_stream_set_ctx(noit_log_stream_t, void *);
