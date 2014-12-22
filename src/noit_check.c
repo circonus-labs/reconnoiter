@@ -439,32 +439,13 @@ noit_poller_process_checks(const char *xpath) {
     flags |= noit_calc_rtype_flag(resolve_rtype);
 
 
-    if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE,
-                          &vcheck)) {
-      noit_check_t *existing_check = (noit_check_t *)vcheck;
-      /* Once set, it cannot be checked if the check is live */
-      assert(!existing_check->module || !existing_check->module[0] ||
-             !strcmp(existing_check->module, module) ||
-             !NOIT_CHECK_LIVE(existing_check));
-      /* Set it if it is unset or being changed */
-      if(!existing_check->module || !existing_check->module[0] ||
-         strcmp(existing_check->module, module)) {
-        if(existing_check->module) free(existing_check->module);
-        existing_check->module = strdup(module);
-      }
-      noit_check_update(existing_check, target, name, filterset, options,
-                           moptions_used ? moptions : NULL,
-                           period, timeout, oncheck[0] ? oncheck : NULL,
-                           flags);
-      noitL(noit_debug, "reloaded uuid: %s\n", uuid_str);
-    }
-    else {
-      noit_poller_schedule(target, module, name, filterset, options,
-                           moptions_used ? moptions : NULL,
-                           period, timeout, oncheck[0] ? oncheck : NULL,
-                           flags, uuid, out_uuid);
-      noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
-    }
+    if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck))
+      noit_poller_deschedule(uuid);
+    noit_poller_schedule(target, module, name, filterset, options,
+                         moptions_used ? moptions : NULL,
+                         period, timeout, oncheck[0] ? oncheck : NULL,
+                         flags, uuid, out_uuid);
+    noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
 
     for(ridx=0; ridx<reg_module_id; ridx++) {
       if(moptions[ridx]) {
