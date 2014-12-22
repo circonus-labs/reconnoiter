@@ -913,6 +913,18 @@ noit_check_update(noit_check_t *new_check,
   int mask = NP_DISABLED | NP_UNCONFIG;
 
   assert(name);
+
+  if(NOIT_CHECK_RUNNING(new_check)) {
+    char module[256];
+    uuid_t id, dummy;
+    uuid_copy(id, new_check->checkid);
+    strlcpy(module, new_check->module, sizeof(module));
+    noit_poller_deschedule(id);
+    return noit_poller_schedule(target, module, name, filterset,
+                                config, mconfigs, period, timeout, oncheck,
+                                flags, id, dummy);
+  }
+
   new_check->generation = __config_load_generation;
   if(new_check->target) free(new_check->target);
   new_check->target = strdup(target);
