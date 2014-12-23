@@ -160,6 +160,11 @@ reversion:
 noit_version.h:
 	@$(top_srcdir)/buildtools/mkversion.sh noit_version.h
 
+noit.env:	noit_version.h noit_config.h
+	awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
+	cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_HASH=\""$$4"\"";}' >> $@
+	awk '/^#define[ 	]+UNAME_/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
+
 man/noitd.usage.h:	make-man
 
 man/stratcond.usage.h:	make-man
@@ -347,6 +352,7 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
+	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/noit.env
 	$(INSTALL) -m 0644 config_templates.conf $(DESTDIR)$(sysconfdir)/config_templates.conf
 	$(INSTALL) -m 0644 default-ca-chain.crt $(DESTDIR)$(sysconfdir)/default-ca-chain.crt
 	(cd modules && $(MAKE) install-modules DESTDIR=$(DESTDIR))
@@ -360,6 +366,7 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
+	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/stratcon.env
 	(cd modules && $(MAKE) install-smodules DESTDIR=$(DESTDIR))
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-iep DESTDIR=$(DESTDIR))
 	if test -n "@MDB_MODS@" ; then \
