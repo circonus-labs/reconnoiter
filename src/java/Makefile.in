@@ -109,7 +109,7 @@ lib/jezebel.jar:	$(J_FILE)
 	@echo "- creating $@"
 	@(cd classes && $(JAR) cf ../$@ $(J_CLASS))
 
-$(IEPJAR):
+$(IEPJAR):	lib/reconnoiter.jar
 	@echo "- building a maven-like repo layout in lib"
 	@(cd lib && ./stub-as-maven.sh)
 	@echo "- building reconnoiter-riemann"
