@@ -41,35 +41,43 @@ libnoitedit.a:   $(FABHEADERS) $(OBJS)
 	@echo "- compiling $<"
 
 vi.h: vi.c makelist
-	@sh ./makelist -h vi.c > $@
+	@sh ./makelist -h vi.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 emacs.h: emacs.c makelist
-	@sh ./makelist -h emacs.c > $@
+	@sh ./makelist -h emacs.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 common.h: common.c makelist
-	@sh ./makelist -h common.c > $@
+	@sh ./makelist -h common.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 fcns.h: vi.h emacs.h common.h makelist
-	@sh ./makelist -fh vi.h emacs.h common.h > $@
+	@sh ./makelist -fh vi.h emacs.h common.h > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 fcns.c: fcns.h
-	@sh ./makelist -fc vi.h emacs.h common.h > $@
+	@sh ./makelist -fc vi.h emacs.h common.h > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 help.c: vi.c emacs.c common.c makelist
-	@sh ./makelist -bc vi.c emacs.c common.c > $@
+	@sh ./makelist -bc vi.c emacs.c common.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 help.h: vi.c emacs.c common.c makelist
-	@sh ./makelist -bh vi.c emacs.c common.c > $@
+	@sh ./makelist -bh vi.c emacs.c common.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 editline.c: vi.c emacs.c common.c makelist
-	@sh ./makelist -e vi.c emacs.c common.c > $@
+	@sh ./makelist -e vi.c emacs.c common.c > $@.tmp
+	@mv $@.tmp $@
 	@echo "- makelist $@"
 
 clean:
