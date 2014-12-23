@@ -163,7 +163,7 @@ noit_version.h:
 noit.env:	noit_version.h noit_config.h
 	awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
 	cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_TSTAMP=\""$$4"\"";}' >> $@
-	awk '/^#define[ 	]+UNAME_/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
+	awk '/^#define[ 	]+UNAME_[^V]/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
 
 man/noitd.usage.h:	make-man
 
@@ -380,7 +380,7 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 
 clean:
 	rm -f *.o $(TARGETS) $(LUA_OBJS)
-	rm -f module-online.h
+	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
 	(cd jlog && $(MAKE) clean)
