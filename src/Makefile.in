@@ -347,7 +347,7 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
+install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl noit.env
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
@@ -363,7 +363,7 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl
 		$(INSTALL) -m 0755 mdb-support/noitd.so $(DESTDIR)/usr/lib/mdb/proc/amd64/noitd.so ; \
 	fi
 
-install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits
+install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits noit.env
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/stratcon.env
