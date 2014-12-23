@@ -162,7 +162,7 @@ noit_version.h:
 
 noit.env:	noit_version.h noit_config.h
 	awk '/^#define[ 	]+NOIT_BRANCH/{print $$2"="$$3;}' < noit_version.h > $@
-	cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_HASH=\""$$4"\"";}' >> $@
+	cat noit_version.h | tr '[".]' ' ' | awk '/^#define[ 	]+NOIT_VERSION/{print $$2"=\""$$3"\""; print $$2"_TSTAMP=\""$$4"\"";}' >> $@
 	awk '/^#define[ 	]+UNAME_/{print "BUILD_"$$2"="$$3;}' < noit_config.h >> $@
 
 man/noitd.usage.h:	make-man
