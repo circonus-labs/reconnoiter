@@ -2,440 +2,379 @@
 bundle.pb-c.o: bundle.pb-c.c bundle.pb-c.h
 
 noit_capabilities_listener.o: noit_capabilities_listener.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noit_version.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noit_listener.h utils/noit_hash.h \
-  utils/noit_log.h utils/noit_sem.h noit_capabilities_listener.h \
-  noit_module.h noit_check.h utils/noit_skiplist.h utils/noit_hooks.h \
-  noit_conf.h noit_console.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h \
+  noit_config.h noitedit/strlcpy.h noit_version.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h noit_listener.h \
+  noit_capabilities_listener.h noit_module.h noit_check.h \
+  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h \
   noit_xml.h \
+  noit_rest.h noit_http.h json-lib/json.h json-lib/bits.h \
+  json-lib/debug.h json-lib/linkhash.h json-lib/arraylist.h \
+  json-lib/json_util.h json-lib/json_object.h json-lib/json_tokener.h \
 
 noit_check.o: noit_check.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h dtrace_probes.h  \
-  utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_hash.h utils/noit_skiplist.h \
-  noit_conf.h noit_console.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
-  noit_console_telnet.h  \
-  noit_check.h utils/noit_hooks.h noit_module.h noit_check_tools.h \
+  noitedit/strlcpy.h dtrace_probes.h  \
+  utils/noit_log.h utils/noit_hash.h \
+  utils/noit_skiplist.h utils/noit_watchdog.h noit_conf.h noit_console.h \
+  eventer/eventer.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/histedit.h noit_console_telnet.h \
+  noit_check.h \
+  utils/noit_hooks.h noit_module.h noit_check_tools.h \
   noit_check_tools_shared.h noit_check_resolver.h
 
 noit_check_log.o: noit_check_log.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h dtrace_probes.h  \
-  noit_check.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_hash.h \
-  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noitedit/strlcpy.h dtrace_probes.h  \
+  noit_check.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h utils/noit_skiplist.h \
+  utils/noit_hooks.h noit_conf.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h  \
-  noit_filters.h utils/noit_log.h jlog/jlog.h jlog/jlog_config.h \
-  bundle.pb-c.h noit_check_log_helpers.h
+  noit_filters.h jlog/jlog.h jlog/jlog_config.h bundle.pb-c.h \
+  noit_check_log_helpers.h
 
 noit_check_log_helpers.o: noit_check_log_helpers.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noit_check.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_hash.h \
-  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noit_check.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h utils/noit_skiplist.h \
+  utils/noit_hooks.h noit_conf.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h  \
-  noit_check_log_helpers.h utils/noit_b64.h noit_config.h noit_defines.h \
-  utils/noit_str.h utils/noit_log.h bundle.pb-c.h
+  noit_check_log_helpers.h utils/noit_b64.h utils/noit_str.h \
+  bundle.pb-c.h
 
 noit_check_resolver.o: noit_check_resolver.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h \
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   utils/noit_skiplist.h udns/udns.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
-  utils/noit_hash.h
+  noit_console_telnet.h
 
 noit_check_rest.o: noit_check_rest.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h  \
-  noit_listener.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  utils/noit_hash.h noit_http.h utils/noit_atomic.h utils/noit_hooks.h \
-  noit_rest.h noit_check.h utils/noit_skiplist.h noit_conf.h \
-  noit_console.h noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noitedit/strlcpy.h \
+  noit_listener.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_http.h utils/noit_hooks.h noit_rest.h noit_check.h \
+  utils/noit_skiplist.h noit_conf.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h  \
   noit_check_tools.h noit_module.h noit_check_tools_shared.h \
-  noit_conf_private.h noit_filters.h
+  noit_conf_private.h noit_filters.h json-lib/json.h json-lib/bits.h \
+  json-lib/debug.h json-lib/linkhash.h json-lib/arraylist.h \
+  json-lib/json_util.h json-lib/json_object.h json-lib/json_tokener.h
 
 noit_check_tools.o: noit_check_tools.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h dtrace_probes.h  \
+  noitedit/strlcpy.h dtrace_probes.h  \
   noit_check_tools.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  noit_module.h utils/noit_hash.h noit_check.h utils/noit_skiplist.h \
-  utils/noit_hooks.h noit_conf.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h noit_module.h noit_check.h \
+  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h \
   noit_check_tools_shared.h \
-  utils/noit_str.h noit_defines.h json-lib/json.h json-lib/bits.h \
-  json-lib/debug.h json-lib/linkhash.h json-lib/arraylist.h \
-  json-lib/json_util.h json-lib/json_object.h json-lib/json_object.h \
-  json-lib/json_tokener.h
+  utils/noit_str.h json-lib/json.h json-lib/bits.h json-lib/debug.h \
+  json-lib/linkhash.h json-lib/arraylist.h json-lib/json_util.h \
+  json-lib/json_object.h json-lib/json_tokener.h
 
 noit_check_tools_shared.o: noit_check_tools_shared.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noit_check_tools.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noit_module.h utils/noit_hash.h \
-  noit_check.h utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h \
-  noit_console.h noitedit/histedit.h noit_defines.h eventer/eventer.h \
-  noit_console_telnet.h  \
-  noit_check_tools_shared.h utils/noit_str.h noit_defines.h
+  noit_config.h noitedit/strlcpy.h noit_check_tools.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h noit_module.h noit_check.h \
+  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h \
+  noit_check_tools_shared.h \
+  utils/noit_str.h
 
 noit_conf.o: noit_conf.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h noit_version.h \
-  noit_conf.h utils/noit_hash.h \
-  noit_config.h noit_console.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h utils/noit_atomic.h \
-  noit_config.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
+  noit_conf.h utils/noit_hash.h noit_console.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
   noit_check.h \
-  utils/noit_hooks.h noit_xml.h utils/noit_log.h utils/noit_b64.h \
-  noit_defines.h
+  utils/noit_hooks.h noit_version.h noit_xml.h utils/noit_b64.h \
+  utils/noit_watchdog.h
 
 noit_conf_checks.o: noit_conf_checks.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h  \
-  noit_conf.h utils/noit_hash.h \
-  noit_config.h noit_console.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h utils/noit_atomic.h \
-  noit_config.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
+  noitedit/strlcpy.h \
+  noit_conf.h utils/noit_hash.h noit_console.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
   noit_conf_private.h \
   noit_conf_checks.h noit_check.h utils/noit_hooks.h noit_check_tools.h \
-  noit_module.h noit_check_tools_shared.h noit_filters.h utils/noit_log.h
+  noit_module.h noit_check_tools_shared.h noit_filters.h
 
 noit_console.o: noit_console.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h noit_listener.h \
-  utils/noit_hash.h noit_console.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
-  noit_tokenizer.h noitedit/sys.h noitedit/el.h noitedit/tty.h \
-  noit_defines.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
-  noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_listener.h noit_console.h noitedit/histedit.h \
+  noit_console_telnet.h utils/noit_skiplist.h noit_tokenizer.h \
+  noitedit/sys.h noitedit/el.h noitedit/tty.h noitedit/prompt.h \
+  noitedit/key.h noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
   noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
-  noitedit/fcns.h noitedit/common.h noitedit/search.h noitedit/hist.h \
-  noitedit/map.h noitedit/parse.h noitedit/sig.h noitedit/help.h \
-  noitedit/fcns.h noitedit/map.h
+  noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
+  noitedit/sig.h noitedit/help.h
 
 noit_console_complete.o: noit_console_complete.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  utils/noit_log.h noit_listener.h utils/noit_hash.h noit_console.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_listener.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h utils/noit_skiplist.h noit_tokenizer.h \
-  noitedit/sys.h noitedit/el.h noitedit/tty.h noit_defines.h \
-  noitedit/histedit.h noitedit/prompt.h noitedit/key.h noitedit/el_term.h \
-  noitedit/refresh.h noitedit/chared.h noitedit/common.h noitedit/vi.h \
-  noitedit/emacs.h noitedit/search.h noitedit/fcns.h noitedit/common.h \
-  noitedit/search.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
-  noitedit/sig.h noitedit/help.h noitedit/fcns.h noitedit/map.h
+  noitedit/sys.h noitedit/el.h noitedit/tty.h noitedit/prompt.h \
+  noitedit/key.h noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
+  noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
+  noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
+  noitedit/sig.h noitedit/help.h
 
 noit_console_state.o: noit_console_state.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noit_version.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  eventer/eventer_jobq.h utils/noit_log.h utils/noit_hash.h \
-  noit_listener.h noit_console.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
-  noit_tokenizer.h noit_module.h noit_check.h utils/noit_hooks.h \
-  noit_conf.h 
+  noitedit/strlcpy.h noit_version.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_listener.h noit_console.h noitedit/histedit.h \
+  noit_console_telnet.h utils/noit_skiplist.h noit_tokenizer.h \
+  noit_module.h noit_check.h utils/noit_hooks.h noit_conf.h \
 
 noit_console_telnet.o: noit_console_telnet.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noit_console.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
-  noit_console_telnet.h utils/noit_hash.h utils/noit_skiplist.h
+  noitedit/strlcpy.h noit_console.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h
+
+noit_events_rest.o: noit_events_rest.c noit_defines.h noit_config.h \
+  noitedit/strlcpy.h noit_listener.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_http.h \
+  utils/noit_hooks.h noit_rest.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
+  json-lib/json.h \
+  json-lib/bits.h json-lib/debug.h json-lib/linkhash.h \
+  json-lib/arraylist.h json-lib/json_util.h json-lib/json_object.h \
+  json-lib/json_tokener.h
 
 noit_filters.o: noit_filters.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h noit_conf.h noit_console.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
+  noitedit/strlcpy.h utils/noit_hash.h utils/noit_atomic.h \
+  utils/noit_watchdog.h noit_conf.h noit_console.h eventer/eventer.h \
+  utils/noit_log.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
   noit_check.h \
   utils/noit_hooks.h noit_conf_checks.h noit_filters.h \
+  noit_capabilities_listener.h \
 
 noit_filters_rest.o: noit_filters_rest.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h  \
-  noit_listener.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  utils/noit_hash.h noit_http.h utils/noit_atomic.h utils/noit_hooks.h \
-  noit_rest.h noit_filters.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
+  noitedit/strlcpy.h \
+  noit_listener.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_http.h utils/noit_hooks.h noit_rest.h noit_filters.h \
+  noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h noit_conf.h \
   noit_check.h \
   noit_check_tools.h noit_module.h noit_check_tools_shared.h \
   noit_conf_private.h
 
 noit_http.o: noit_http.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h noit_http.h  \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_hash.h \
-  utils/noit_atomic.h utils/noit_hooks.h noit_listener.h utils/noit_str.h \
-  noit_defines.h
+  noit_http.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_hooks.h noit_listener.h utils/noit_str.h
 
 noit_jlog_listener.o: noit_jlog_listener.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noit_listener.h utils/noit_hash.h \
-  utils/noit_log.h jlog/jlog.h jlog/jlog_config.h jlog/jlog_private.h \
-  jlog/jlog.h jlog/jlog_io.h noit_jlog_listener.h
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_listener.h jlog/jlog.h jlog/jlog_config.h jlog/jlog_private.h \
+  jlog/jlog_io.h noit_jlog_listener.h noit_rest.h noit_http.h \
+  utils/noit_hooks.h
 
 noit_listener.o: noit_listener.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h noit_listener.h \
-  utils/noit_hash.h noit_conf.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
-  utils/noit_skiplist.h 
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_watchdog.h noit_listener.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
 
 noit_livestream_listener.o: noit_livestream_listener.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h \
-  noit_listener.h utils/noit_hash.h utils/noit_log.h utils/noit_sem.h \
-  noit_livestream_listener.h noit_check.h utils/noit_skiplist.h \
-  utils/noit_hooks.h noit_conf.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_listener.h noit_livestream_listener.h noit_check.h \
+  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h \
 
 noit_main.o: noit_main.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h noit_conf.h utils/noit_hash.h noit_console.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
+  utils/noit_log.h utils/noit_hash.h noit_main.h noit_conf.h \
+  noit_console.h eventer/eventer.h utils/noit_atomic.h \
+  eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
+  eventer/eventer_jobq.h utils/noit_sem.h noitedit/histedit.h \
+  noit_console_telnet.h utils/noit_skiplist.h \
   utils/noit_security.h \
-  utils/noit_watchdog.h noit_config.h utils/noit_lockfile.h
+  utils/noit_watchdog.h utils/noit_lockfile.h
 
 noit_module.o: noit_module.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h  \
-  noit_module.h utils/noit_hash.h \
-  noit_config.h noit_check.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h utils/noit_atomic.h \
-  noit_config.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_skiplist.h \
-  utils/noit_hooks.h noit_conf.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
-  utils/noit_log.h \
+  noitedit/strlcpy.h \
+  noit_module.h utils/noit_hash.h noit_check.h eventer/eventer.h \
+  utils/noit_log.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h \
   module-online.h
 
 noit_rest.o: noit_rest.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h noit_listener.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_hash.h noit_http.h \
-  utils/noit_atomic.h utils/noit_hooks.h noit_rest.h noit_conf.h \
-  noit_console.h noitedit/histedit.h noit_defines.h eventer/eventer.h \
-  noit_console_telnet.h utils/noit_skiplist.h \
+  noit_listener.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_http.h \
+  utils/noit_hooks.h noit_rest.h noit_conf.h noit_console.h \
+  noitedit/histedit.h noit_console_telnet.h utils/noit_skiplist.h \
+
+noit_reverse_socket.o: noit_reverse_socket.c noit_defines.h noit_config.h \
+  noitedit/strlcpy.h noit_listener.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
+  utils/noit_skiplist.h  \
+  noit_rest.h noit_http.h \
+  utils/noit_hooks.h noit_reverse_socket.h utils/noit_str.h \
+  utils/noit_watchdog.h 
 
 noit_tokenizer.o: noit_tokenizer.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h
+  noitedit/strlcpy.h
 
 noit_xml.o: noit_xml.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h noit_xml.h  \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_mkdir.h noit_config.h
+  noit_xml.h \
+  utils/noit_log.h utils/noit_hash.h utils/noit_mkdir.h
 
 noitd.o: noitd.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h noit_main.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h utils/noit_hash.h \
-  utils/noit_security.h utils/noit_watchdog.h noit_config.h \
-  noit_defines.h utils/noit_lockfile.h noit_listener.h noit_console.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  noit_main.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_security.h utils/noit_watchdog.h utils/noit_lockfile.h \
+  noit_listener.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h utils/noit_skiplist.h noit_jlog_listener.h \
-  noit_rest.h noit_http.h  \
-  utils/noit_atomic.h utils/noit_hooks.h noit_check_rest.h noit_check.h \
-  noit_conf.h  \
+  noit_rest.h noit_http.h \
+  utils/noit_hooks.h noit_reverse_socket.h noit_check_rest.h \
+  noit_check.h noit_conf.h  \
   noit_check_tools.h noit_module.h noit_check_tools_shared.h \
-  noit_livestream_listener.h noit_capabilities_listener.h \
-  noit_conf_checks.h noit_filters.h man/noitd.usage.h
+  noit_events_rest.h noit_livestream_listener.h \
+  noit_capabilities_listener.h noit_conf_checks.h noit_filters.h \
+  man/noitd.usage.h
 
 stratcon_datastore.o: stratcon_datastore.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h utils/noit_b64.h \
-  noit_config.h noit_defines.h utils/noit_str.h utils/noit_mkdir.h \
-  utils/noit_getip.h stratcon_datastore.h utils/noit_hash.h \
-  stratcon_realtime_http.h noit_conf.h noit_console.h noitedit/histedit.h \
-  noit_defines.h eventer/eventer.h noit_console_telnet.h \
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_b64.h utils/noit_str.h utils/noit_mkdir.h \
+  utils/noit_getip.h stratcon_datastore.h stratcon_realtime_http.h \
+  noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h  \
-  stratcon_iep.h stratcon_jlog_streamer.h utils/noit_atomic.h jlog/jlog.h \
-  jlog/jlog_config.h noit_check.h utils/noit_hooks.h noit_rest.h \
-  noit_listener.h noit_http.h  \
+  stratcon_iep.h stratcon_jlog_streamer.h jlog/jlog.h jlog/jlog_config.h \
+  noit_reverse_socket.h noit_check.h utils/noit_hooks.h noit_rest.h \
+  noit_listener.h noit_http.h \
 
 stratcon_iep.o: stratcon_iep.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h noit_defines.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h utils/noit_b64.h \
-  noit_config.h noit_defines.h noit_jlog_listener.h \
-  stratcon_jlog_streamer.h noit_conf.h utils/noit_hash.h noit_console.h \
-  noitedit/histedit.h noit_defines.h eventer/eventer.h \
-  noit_console_telnet.h utils/noit_skiplist.h \
-  utils/noit_atomic.h \
-  jlog/jlog.h jlog/jlog_config.h stratcon_datastore.h \
-  stratcon_realtime_http.h stratcon_iep.h noit_check.h utils/noit_hooks.h
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_b64.h noit_jlog_listener.h stratcon_jlog_streamer.h \
+  noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
+  utils/noit_skiplist.h  \
+  jlog/jlog.h jlog/jlog_config.h noit_reverse_socket.h \
+  stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
+  noit_check.h utils/noit_hooks.h
 
 stratcon_jlog_streamer.o: stratcon_jlog_streamer.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h dtrace_probes.h \
-  eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h noit_conf.h \
-  utils/noit_hash.h noit_console.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
-  utils/noit_log.h \
-  utils/noit_getip.h noit_config.h noit_defines.h noit_jlog_listener.h \
-  noit_rest.h noit_listener.h noit_http.h \
-  utils/noit_atomic.h utils/noit_hooks.h stratcon_datastore.h \
-  stratcon_realtime_http.h stratcon_jlog_streamer.h jlog/jlog.h \
-  jlog/jlog_config.h stratcon_iep.h
+  noit_config.h noitedit/strlcpy.h dtrace_probes.h  \
+  eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
+  utils/noit_skiplist.h  \
+  utils/noit_getip.h noit_jlog_listener.h noit_rest.h noit_listener.h \
+  noit_http.h \
+  utils/noit_hooks.h stratcon_datastore.h stratcon_realtime_http.h \
+  stratcon_jlog_streamer.h jlog/jlog.h jlog/jlog_config.h \
+  noit_reverse_socket.h stratcon_iep.h
 
 stratcon_realtime_http.o: stratcon_realtime_http.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  noit_defines.h eventer/eventer.h eventer/eventer_SSL_fd_opset.h \
-  eventer/eventer_jobq.h utils/noit_atomic.h utils/noit_sem.h noit_conf.h \
-  utils/noit_hash.h noit_console.h noitedit/histedit.h noit_defines.h \
-  eventer/eventer.h noit_console_telnet.h utils/noit_skiplist.h \
-  utils/noit_log.h \
-  utils/noit_str.h noit_defines.h jlog/jlog.h jlog/jlog_config.h \
-  noit_jlog_listener.h noit_listener.h noit_http.h \
-  utils/noit_atomic.h utils/noit_hooks.h noit_rest.h noit_check.h \
-  noit_check_log_helpers.h noit_livestream_listener.h \
-  stratcon_realtime_http.h stratcon_jlog_streamer.h stratcon_datastore.h
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
+  utils/noit_skiplist.h  \
+  utils/noit_str.h jlog/jlog.h jlog/jlog_config.h noit_jlog_listener.h \
+  noit_listener.h noit_http.h \
+  utils/noit_hooks.h noit_rest.h noit_check.h noit_check_log_helpers.h \
+  noit_livestream_listener.h stratcon_realtime_http.h \
+  stratcon_jlog_streamer.h noit_reverse_socket.h stratcon_datastore.h
 
 stratcond.o: stratcond.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h noit_defines.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_atomic.h utils/noit_sem.h utils/noit_log.h utils/noit_hash.h \
-  utils/noit_security.h utils/noit_watchdog.h noit_config.h \
-  noit_defines.h utils/noit_lockfile.h noit_main.h noit_listener.h \
-  noit_console.h noitedit/histedit.h noit_defines.h eventer/eventer.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_security.h utils/noit_watchdog.h utils/noit_lockfile.h \
+  noit_main.h noit_listener.h noit_console.h noitedit/histedit.h \
   noit_console_telnet.h utils/noit_skiplist.h noit_module.h noit_check.h \
   utils/noit_hooks.h noit_conf.h \
   noit_rest.h noit_http.h \
-  utils/noit_atomic.h noit_capabilities_listener.h \
+  noit_reverse_socket.h noit_events_rest.h noit_capabilities_listener.h \
   stratcon_jlog_streamer.h jlog/jlog.h jlog/jlog_config.h \
   stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
   man/stratcond.usage.h
 
-t.o: t.c noit_config.h noit_defines.h noitedit/strlcpy.h noit_config.h
-
 utils/noit_b32.o: utils/noit_b32.c noit_config.h utils/noit_b64.h \
-  noit_defines.h noit_config.h noitedit/strlcpy.h noit_config.h
+  noit_defines.h noitedit/strlcpy.h
 
 utils/noit_b64.o: utils/noit_b64.c noit_config.h utils/noit_b64.h \
-  noit_defines.h noit_config.h noitedit/strlcpy.h noit_config.h
+  noit_defines.h noitedit/strlcpy.h
 
 utils/noit_btrie.o: utils/noit_btrie.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_btrie.h
+  noitedit/strlcpy.h utils/noit_btrie.h
 
 utils/noit_getip.o: utils/noit_getip.c noit_config.h utils/noit_getip.h \
-  noit_config.h noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h
+  noit_defines.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h
 
 utils/noit_hash.o: utils/noit_hash.c noit_config.h utils/noit_hash.h
 
 utils/noit_lockfile.o: utils/noit_lockfile.c noit_config.h \
-  utils/noit_lockfile.h noit_config.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h
+  utils/noit_lockfile.h noit_defines.h noitedit/strlcpy.h
 
 utils/noit_log.o: utils/noit_log.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_hash.h utils/noit_atomic.h \
-  jlog/jlog.h jlog/jlog_config.h jlog/jlog_private.h jlog/jlog.h \
+  noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h jlog/jlog.h jlog/jlog_config.h jlog/jlog_private.h \
   jlog/jlog_io.h dtrace_probes.h  \
 
 utils/noit_mkdir.o: utils/noit_mkdir.c noit_config.h utils/noit_mkdir.h \
-  noit_config.h noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h utils/noit_log.h utils/noit_hash.h
+  noit_defines.h noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h
 
 utils/noit_security.o: utils/noit_security.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noit_config.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_security.h
+  noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_security.h
 
 utils/noit_sem.o: utils/noit_sem.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_sem.h
+  noitedit/strlcpy.h utils/noit_sem.h
 
 utils/noit_skiplist.o: utils/noit_skiplist.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_skiplist.h
+  noitedit/strlcpy.h utils/noit_skiplist.h
 
 utils/noit_str.o: utils/noit_str.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h
+  noitedit/strlcpy.h
 
 utils/noit_watchdog.o: utils/noit_watchdog.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  utils/noit_log.h utils/noit_watchdog.h
+  utils/noit_watchdog.h
 
 jlog/getopt_long.o: jlog/getopt_long.c jlog/jlog_config.h jlog/getopt_long.h
 
@@ -476,6 +415,8 @@ udns/udns_dntosp.o: udns/udns_dntosp.c udns/udns.h
 
 udns/udns_init.o: udns/udns_init.c udns/udns.h
 
+udns/udns_jran.o: udns/udns_jran.c udns/udns.h
+
 udns/udns_misc.o: udns/udns_misc.c udns/udns.h
 
 udns/udns_parse.o: udns/udns_parse.c udns/udns.h
@@ -497,74 +438,44 @@ udns/udns_rr_txt.o: udns/udns_rr_txt.c udns/udns.h
 eventer/OETS_asn1_helper.o: eventer/OETS_asn1_helper.c
 
 eventer/eventer.o: eventer/eventer.c eventer/eventer.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
-  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  utils/noit_hash.h
+  noit_config.h noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h
 
 eventer/eventer_POSIX_fd_opset.o: eventer/eventer_POSIX_fd_opset.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
 
 eventer/eventer_SSL_fd_opset.o: eventer/eventer_SSL_fd_opset.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h utils/noit_log.h eventer/eventer_SSL_fd_opset.h \
-  eventer/OETS_asn1_helper.h
-
-eventer/eventer_epoll_impl.o: eventer/eventer_epoll_impl.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h utils/noit_atomic.h utils/noit_skiplist.h \
-  utils/noit_log.h dtrace_probes.h  \
-  eventer/eventer_impl_private.h
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  eventer/OETS_asn1_helper.h 
 
 eventer/eventer_impl.o: eventer/eventer_impl.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  utils/noit_log.h utils/noit_skiplist.h dtrace_probes.h \
+  utils/noit_skiplist.h utils/noit_watchdog.h dtrace_probes.h \
 
 eventer/eventer_jobq.o: eventer/eventer_jobq.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   dtrace_probes.h  
 
 eventer/eventer_kqueue_impl.o: eventer/eventer_kqueue_impl.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h utils/noit_atomic.h utils/noit_skiplist.h \
-  utils/noit_log.h dtrace_probes.h  \
-  eventer/eventer_impl_private.h
-
-eventer/eventer_ports_impl.o: eventer/eventer_ports_impl.c noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h utils/noit_atomic.h utils/noit_skiplist.h \
-  utils/noit_log.h dtrace_probes.h  \
+  noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  utils/noit_skiplist.h dtrace_probes.h  \
   eventer/eventer_impl_private.h
 
 noitedit/chared.o: noitedit/chared.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/el.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/el.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -573,10 +484,9 @@ noitedit/chared.o: noitedit/chared.c noitedit/compat.h noit_defines.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/common.o: noitedit/common.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/el.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/el.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -585,10 +495,9 @@ noitedit/common.o: noitedit/common.c noitedit/compat.h noit_defines.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/el.o: noitedit/el.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -597,10 +506,9 @@ noitedit/el.o: noitedit/el.c noitedit/compat.h noit_defines.h noit_config.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/emacs.o: noitedit/emacs.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -609,40 +517,32 @@ noitedit/emacs.o: noitedit/emacs.c noitedit/compat.h noit_defines.h noit_config.
   noitedit/sig.h noitedit/help.h
 
 noitedit/fcns.o: noitedit/fcns.c noitedit/sys.h noit_config.h noitedit/el.h \
-  noit_defines.h noit_config.h noitedit/strlcpy.h noit_config.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_defines.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  noitedit/tty.h noit_defines.h noitedit/histedit.h eventer/eventer.h \
-  noitedit/prompt.h noitedit/key.h noitedit/el_term.h noitedit/refresh.h \
-  noitedit/chared.h noitedit/common.h noitedit/vi.h noitedit/emacs.h \
-  noitedit/search.h noitedit/fcns.h noitedit/common.h noitedit/search.h \
-  noitedit/hist.h noitedit/map.h noitedit/parse.h noitedit/sig.h \
-  noitedit/help.h
+  noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
+  noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
+  noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
+  noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
+  noitedit/sig.h noitedit/help.h
 
 noitedit/fgetln.o: noitedit/fgetln.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/compat.h noit_defines.h \
-  noitedit/fgetln.h
+  noitedit/strlcpy.h noitedit/compat.h noitedit/fgetln.h
 
 noitedit/help.o: noitedit/help.c noitedit/sys.h noit_config.h noitedit/el.h \
-  noit_defines.h noit_config.h noitedit/strlcpy.h noit_config.h \
-  eventer/eventer.h noit_defines.h utils/noit_log.h noit_defines.h \
-  utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_defines.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  noitedit/tty.h noit_defines.h noitedit/histedit.h eventer/eventer.h \
-  noitedit/prompt.h noitedit/key.h noitedit/el_term.h noitedit/refresh.h \
-  noitedit/chared.h noitedit/common.h noitedit/vi.h noitedit/emacs.h \
-  noitedit/search.h noitedit/fcns.h noitedit/common.h noitedit/search.h \
-  noitedit/hist.h noitedit/map.h noitedit/parse.h noitedit/sig.h \
-  noitedit/help.h
+  noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
+  noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
+  noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
+  noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
+  noitedit/sig.h noitedit/help.h
 
 noitedit/hist.o: noitedit/hist.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -651,17 +551,15 @@ noitedit/hist.o: noitedit/hist.c noitedit/compat.h noit_defines.h noit_config.h 
   noitedit/sig.h noitedit/help.h
 
 noitedit/history.o: noitedit/history.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/histedit.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/histedit.h eventer/eventer.h utils/noit_log.h \
+  utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h
 
 noitedit/key.o: noitedit/key.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -670,10 +568,9 @@ noitedit/key.o: noitedit/key.c noitedit/compat.h noit_defines.h noit_config.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/map.o: noitedit/map.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -682,10 +579,9 @@ noitedit/map.o: noitedit/map.c noitedit/compat.h noit_defines.h noit_config.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/parse.o: noitedit/parse.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -694,10 +590,9 @@ noitedit/parse.o: noitedit/parse.c noitedit/compat.h noit_defines.h noit_config.
   noitedit/sig.h noitedit/help.h noitedit/tokenizer.h
 
 noitedit/prompt.o: noitedit/prompt.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/el.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/el.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -706,10 +601,9 @@ noitedit/prompt.o: noitedit/prompt.c noitedit/compat.h noit_defines.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/read.o: noitedit/read.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -718,23 +612,20 @@ noitedit/read.o: noitedit/read.c noitedit/compat.h noit_defines.h noit_config.h 
   noitedit/sig.h noitedit/help.h
 
 noitedit/readline.o: noitedit/readline.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/histedit.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/histedit.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/readline/readline.h noitedit/sys.h noitedit/el.h \
-  noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
-  noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
-  noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
-  noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
-  noitedit/sig.h noitedit/help.h noitedit/fcns.h
+  noitedit/tty.h noitedit/prompt.h noitedit/key.h noitedit/el_term.h \
+  noitedit/refresh.h noitedit/chared.h noitedit/common.h noitedit/vi.h \
+  noitedit/emacs.h noitedit/search.h noitedit/fcns.h noitedit/hist.h \
+  noitedit/map.h noitedit/parse.h noitedit/sig.h noitedit/help.h
 
 noitedit/refresh.o: noitedit/refresh.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/el.h eventer/eventer.h noit_defines.h \
-  utils/noit_log.h noit_defines.h utils/noit_hash.h noit_config.h \
-  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/el.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -743,22 +634,20 @@ noitedit/refresh.o: noitedit/refresh.c noitedit/compat.h noit_defines.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/search.o: noitedit/search.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noit_defines.h noitedit/sys.h noitedit/el.h eventer/eventer.h \
-  noit_defines.h utils/noit_log.h noit_defines.h utils/noit_hash.h \
-  noit_config.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
-  eventer/eventer.h eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h \
-  utils/noit_sem.h noitedit/tty.h noitedit/histedit.h noitedit/prompt.h \
-  noitedit/key.h noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/el.h eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
+  eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
+  noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
+  noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
   noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
   noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/sig.o: noitedit/sig.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -767,13 +656,12 @@ noitedit/sig.o: noitedit/sig.c noitedit/compat.h noit_defines.h noit_config.h \
   noitedit/sig.h noitedit/help.h
 
 noitedit/strlcpy.o: noitedit/strlcpy.c noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h
+  noitedit/strlcpy.h
 
 noitedit/term.o: noitedit/term.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -782,26 +670,24 @@ noitedit/term.o: noitedit/term.c noitedit/compat.h noit_defines.h noit_config.h 
   noitedit/sig.h noitedit/help.h
 
 noitedit/tokenizer.o: noitedit/tokenizer.c noitedit/compat.h noit_defines.h \
-  noit_config.h noitedit/strlcpy.h noit_config.h noitedit/fgetln.h \
-  noitedit/sys.h noitedit/tokenizer.h
+  noit_config.h noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h \
+  noitedit/tokenizer.h
 
 noitedit/tty.o: noitedit/tty.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
   noitedit/common.h noitedit/vi.h noitedit/emacs.h noitedit/search.h \
   noitedit/fcns.h noitedit/hist.h noitedit/map.h noitedit/parse.h \
-  noitedit/sig.h noitedit/help.h noitedit/tty.h
+  noitedit/sig.h noitedit/help.h
 
 noitedit/vi.o: noitedit/vi.c noitedit/compat.h noit_defines.h noit_config.h \
-  noitedit/strlcpy.h noit_config.h noitedit/fgetln.h noitedit/sys.h \
-  noitedit/el.h eventer/eventer.h noit_defines.h utils/noit_log.h \
-  noit_defines.h utils/noit_hash.h noit_config.h utils/noit_atomic.h \
-  eventer/eventer_POSIX_fd_opset.h eventer/eventer.h \
+  noitedit/strlcpy.h noitedit/fgetln.h noitedit/sys.h noitedit/el.h \
+  eventer/eventer.h utils/noit_log.h utils/noit_hash.h \
+  utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noitedit/tty.h noitedit/histedit.h noitedit/prompt.h noitedit/key.h \
   noitedit/el_term.h noitedit/refresh.h noitedit/chared.h \
@@ -832,8 +718,8 @@ json-lib/printbuf.o: json-lib/printbuf.c noit_config.h json-lib/bits.h \
   json-lib/debug.h json-lib/printbuf.h
 
 yajl-lib/yajl.o: yajl-lib/yajl.c yajl-lib/yajl_parse.h yajl-lib/yajl_common.h \
-  yajl-lib/yajl_lex.h yajl-lib/yajl_common.h yajl-lib/yajl_parser.h \
-  yajl-lib/yajl_bytestack.h yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h
+  yajl-lib/yajl_lex.h yajl-lib/yajl_parser.h yajl-lib/yajl_bytestack.h \
+  yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h
 
 yajl-lib/yajl_alloc.o: yajl-lib/yajl_alloc.c yajl-lib/yajl_alloc.h \
   yajl-lib/yajl_common.h
@@ -843,24 +729,24 @@ yajl-lib/yajl_buf.o: yajl-lib/yajl_buf.c yajl-lib/yajl_buf.h \
 
 yajl-lib/yajl_encode.o: yajl-lib/yajl_encode.c yajl-lib/yajl_encode.h \
   yajl-lib/yajl_buf.h yajl-lib/yajl_common.h yajl-lib/yajl_alloc.h \
-  yajl-lib/yajl_gen.h yajl-lib/yajl_common.h
+  yajl-lib/yajl_gen.h
 
 yajl-lib/yajl_gen.o: yajl-lib/yajl_gen.c yajl-lib/yajl_gen.h \
-  yajl-lib/yajl_common.h yajl-lib/yajl_buf.h yajl-lib/yajl_common.h \
-  yajl-lib/yajl_alloc.h yajl-lib/yajl_encode.h
+  yajl-lib/yajl_common.h yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h \
+  yajl-lib/yajl_encode.h
 
 yajl-lib/yajl_lex.o: yajl-lib/yajl_lex.c yajl-lib/yajl_lex.h \
   yajl-lib/yajl_common.h yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h
 
 yajl-lib/yajl_parser.o: yajl-lib/yajl_parser.c yajl-lib/yajl_parse.h \
-  yajl-lib/yajl_common.h yajl-lib/yajl_lex.h yajl-lib/yajl_common.h \
-  yajl-lib/yajl_parser.h yajl-lib/yajl_bytestack.h yajl-lib/yajl_buf.h \
-  yajl-lib/yajl_alloc.h yajl-lib/yajl_encode.h yajl-lib/yajl_gen.h
+  yajl-lib/yajl_common.h yajl-lib/yajl_lex.h yajl-lib/yajl_parser.h \
+  yajl-lib/yajl_bytestack.h yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h \
+  yajl-lib/yajl_encode.h yajl-lib/yajl_gen.h
 
 yajl-lib/yajl_tree.o: yajl-lib/yajl_tree.c yajl-lib/yajl_tree.h \
   yajl-lib/yajl_common.h yajl-lib/yajl_parse.h yajl-lib/yajl_parser.h \
-  yajl-lib/yajl_bytestack.h yajl-lib/yajl_common.h yajl-lib/yajl_buf.h \
-  yajl-lib/yajl_alloc.h yajl-lib/yajl_lex.h
+  yajl-lib/yajl_bytestack.h yajl-lib/yajl_buf.h yajl-lib/yajl_alloc.h \
+  yajl-lib/yajl_lex.h
 
 yajl-lib/yajl_version.o: yajl-lib/yajl_version.c yajl-lib/yajl_version.h \
   yajl-lib/yajl_common.h
