@@ -106,7 +106,7 @@ noit_check_tools_shared.o: noit_check_tools_shared.c noit_defines.h \
   noit_check_tools_shared.h utils/noit_str.h noit_defines.h
 
 noit_conf.o: noit_conf.c noit_defines.h noit_config.h noitedit/strlcpy.h \
-  noit_config.h  \
+  noit_config.h noit_version.h \
   noit_conf.h utils/noit_hash.h \
   noit_config.h noit_console.h eventer/eventer.h noit_defines.h \
   utils/noit_log.h noit_defines.h utils/noit_hash.h utils/noit_atomic.h \
