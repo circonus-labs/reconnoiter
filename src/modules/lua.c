@@ -388,7 +388,10 @@ noit_lua_check_register_event(noit_lua_resume_info_t *ci, eventer_t e) {
   eventer_t *eptr;
   eptr = calloc(1, sizeof(*eptr));
   memcpy(eptr, &e, sizeof(*eptr));
-  if(!ci->events) ci->events = calloc(1, sizeof(*ci->events));
+  if(!ci->events) {
+    ci->events = calloc(1, sizeof(*ci->events));
+    noit_hash_init(ci->events);
+  }
   assert(noit_hash_store(ci->events, (const char *)eptr, sizeof(*eptr), eptr));
 }
 void
