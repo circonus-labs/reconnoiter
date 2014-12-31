@@ -162,18 +162,20 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean effect
     if((effective ? seteuid(uid) : setuid(uid)) != 0) 
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
 
-    if(!effective && getpflags(PRIV_AWARE)) {
+    if(!effective) {
 #if defined(CAP_SUPPORTED) && defined(HAVE_SETPPRIV)
-      int rv;
-      priv_set_t *set;
-      set = priv_allocset();
-      priv_addset(set, "proc_setid");
-      rv = setppriv(PRIV_OFF, PRIV_EFFECTIVE, set);
-      if(rv) BAIL("setppriv(off, effective, proc_setid) failed");
-      getppriv(PRIV_EFFECTIVE, set);
-      rv = setppriv(PRIV_SET, PRIV_PERMITTED, set);
-      if(rv) BAIL("setppriv(effective -> permitted) failed");
-      priv_freeset(set);
+      if(getpflags(PRIV_AWARE)) {
+        int rv;
+        priv_set_t *set;
+        set = priv_allocset();
+        priv_addset(set, "proc_setid");
+        rv = setppriv(PRIV_OFF, PRIV_EFFECTIVE, set);
+        if(rv) BAIL("setppriv(off, effective, proc_setid) failed");
+        getppriv(PRIV_EFFECTIVE, set);
+        rv = setppriv(PRIV_SET, PRIV_PERMITTED, set);
+        if(rv) BAIL("setppriv(effective -> permitted) failed");
+        priv_freeset(set);
+      }
 #endif
 
       if(setuid(0) == 0) BAIL("setuid(0) worked, and it shouldn't have.\n");
