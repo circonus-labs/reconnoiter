@@ -1924,6 +1924,7 @@ noit_conf_security_init(const char *toplevel, const char *user,
 
   if(user) {
     strlcpy(username, user, sizeof(username));
+    user = username;
   }
   else if(secnode &&
           noit_conf_get_stringbuf(secnode, "self::node()/@user",
@@ -1932,6 +1933,7 @@ noit_conf_security_init(const char *toplevel, const char *user,
   }
   if(group) {
     strlcpy(groupname, group, sizeof(groupname));
+    group = groupname;
   }
   else if(secnode &&
           noit_conf_get_stringbuf(secnode, "self::node()/@group",
@@ -1940,6 +1942,7 @@ noit_conf_security_init(const char *toplevel, const char *user,
   }
   if(chrootpath) {
     strlcpy(chrootpathname, chrootpath, sizeof(chrootpathname));
+    chrootpath = chrootpathname;
   }
   else if(secnode &&
           noit_conf_get_stringbuf(secnode, "self::node()/@chrootpath",
