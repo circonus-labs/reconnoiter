@@ -52,6 +52,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_b64.h"
 #include "utils/noit_watchdog.h"
+#include "utils/noit_security.h"
 
 const char *_noit_branch = NOIT_BRANCH;
 const char *_noit_version = NOIT_VERSION;
@@ -1803,10 +1804,20 @@ noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
   return rv;
 }
 void
-noit_conf_log_init(const char *toplevel) {
+noit_conf_log_init(const char *toplevel,
+                   const char *drop_to_user, const char *drop_to_group) {
   int i, cnt = 0, o, ocnt = 0;
   noit_conf_section_t *log_configs, *outlets;
-  char path[256];
+  char path[256], user[128], group[128];
+
+  snprintf(user, sizeof(user), "%d", getuid());
+  snprintf(group, sizeof(group), "%d", getgid());
+  if(!drop_to_user) drop_to_user = user;
+  if(!drop_to_group) drop_to_group = group;
+  if(noit_security_usergroup(drop_to_user, drop_to_group, noit_true)) {
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(-1);
+  }
 
   snprintf(path, sizeof(path), "/%s/logs//log", toplevel);
   log_configs = noit_conf_get_sections(NULL, path, &cnt);
@@ -1892,6 +1903,104 @@ noit_conf_log_init(const char *toplevel) {
   }
   if(log_configs) free(log_configs);
   if(noit_conf_log_init_rotate(toplevel, noit_true)) exit(-1);
+
+  if(noit_security_usergroup(user, group, noit_true)) {
+    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
+    exit(-1);
+  }
+}
+
+void
+noit_conf_security_init(const char *toplevel, const char *user,
+                        const char *group, const char *chrootpath) {
+  int i, ccnt = 0;
+  noit_conf_section_t *secnode, *caps;
+  char path[256];
+  char username[128], groupname[128], chrootpathname[PATH_MAX];
+
+  snprintf(path, sizeof(path), "/%s/security|/%s/include/security",
+           toplevel, toplevel);
+  secnode = noit_conf_get_section(NULL, path);
+
+  if(user) {
+    strlcpy(username, user, sizeof(username));
+  }
+  else if(secnode &&
+          noit_conf_get_stringbuf(secnode, "self::node()/@user",
+                                  username, sizeof(username))) {
+    user = username;
+  }
+  if(group) {
+    strlcpy(groupname, group, sizeof(groupname));
+  }
+  else if(secnode &&
+          noit_conf_get_stringbuf(secnode, "self::node()/@group",
+                                  groupname, sizeof(groupname))) {
+    group = groupname;
+  }
+  if(chrootpath) {
+    strlcpy(chrootpathname, chrootpath, sizeof(chrootpathname));
+  }
+  else if(secnode &&
+          noit_conf_get_stringbuf(secnode, "self::node()/@chrootpath",
+                                  chrootpathname, sizeof(chrootpathname))) {
+    chrootpath = chrootpathname;
+  }
+
+  /* chroot first */
+  if(chrootpath && noit_security_chroot(chrootpath)) {
+    noitL(noit_stderr, "Failed to chroot(), exiting.\n");
+    exit(2);
+  }
+
+  caps = noit_conf_get_sections(secnode,
+                                "self::node()//capabilities//capability", &ccnt);
+  noitL(noit_debug, "Found %d capabilities.\n", ccnt);
+
+  for(i=0; i<ccnt; i++) {
+    /* articulate capabilities */
+    char platform[32], captype_str[32];
+    char *capstring;
+    noit_security_captype_t captype;
+    if(noit_conf_get_stringbuf(caps[i], "ancestor-or-self::node()/@platform",
+                               platform, sizeof(platform)) &&
+       strcasecmp(platform, CAP_PLATFORM)) {
+      noitL(noit_debug, "skipping cap for platform %s\n", platform);
+      continue;
+    }
+
+    captype_str[0] = '\0'; 
+    noit_conf_get_stringbuf(caps[i], "ancestor-or-self::node()/@type",
+                            captype_str, sizeof(captype_str));
+    if(!strcasecmp(captype_str, "permitted"))
+      captype = NOIT_SECURITY_CAP_PERMITTED;
+    else if(!strcasecmp(captype_str, "effective"))
+      captype = NOIT_SECURITY_CAP_EFFECTIVE;
+    else if(!strcasecmp(captype_str, "inheritable"))
+      captype = NOIT_SECURITY_CAP_INHERITABLE;
+    else {
+      noitL(noit_error, "Unsupport capability type: '%s'\n", captype_str);
+      exit(2);
+    }
+
+    capstring = NULL;
+    noit_conf_get_string(caps[i], "self::node()", &capstring);
+    if(capstring) {
+      if(noit_security_setcaps(captype, capstring) != 0) {
+        noitL(noit_error, "Failed to set security capabilities: %s / %s\n",
+              captype_str, capstring);
+        exit(2);
+      }
+      free(capstring);
+    }
+  }
+  if(caps) free(caps);
+
+  /* drop uid/gid last */
+  if(noit_security_usergroup(user, group, noit_false)) { /* no take backs */
+    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
+    exit(2);
+  }
 }
 
 static void

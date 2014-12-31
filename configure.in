@@ -73,6 +73,7 @@ DTRACEHDR=dtrace_probes.h
 
 case $host in
 *-*-darwin*)
+	CAP_PLATFORM="darwin"
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
@@ -88,6 +89,8 @@ case $host in
 	fi
 	;;
 *-*-solaris*)
+	CAP_PLATFORM="illumos"
+	CAP_SUPPORTED=1
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	DTRACEOBJ=dtrace_stub.o
@@ -137,6 +140,7 @@ case $host in
 	NOWHOLE_ARCHIVE="-Wl,-z -Wl,defaultextract"
 	;;
 *-*-openbsd*)
+	CAP_PLATFORM="openbsd"
 	PICFLAGS="-fpic"
 	LDFLAGS="$LDFLAGS -Wl,-E"
 	MODULELD="$CC -shared"
@@ -149,6 +153,7 @@ case $host in
 	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
 	;;
 *-*-linux*)
+	CAP_PLATFORM="linux"
 	LDFLAGS="$LDFLAGS -Wl,-E"
 	CPPFLAGS="$CPPFLAGS -D_SVID_SOURCE -D_BSD_SOURCE"
 	PICFLAGS="-fpic"
@@ -160,6 +165,7 @@ case $host in
 	NOWHOLE_ARCHIVE="-Wl,--no-whole-archive"
 	;;
 *-*-freebsd*)
+	CAP_PLATFORM="freebsd"
 	PICFLAGS="-fpic"
 	MODULELD="$CC -shared"
 	LDFLAGS="$LDFLAGS -export-dynamic -L/usr/local/lib"
@@ -175,6 +181,10 @@ case $host in
 	;;
 esac
 AC_SUBST(MDB_MODS)
+AC_DEFINE_UNQUOTED(CAP_PLATFORM, "$CAP_PLATFORM", [capabilities platform])
+if test "x$CAP_SUPPORTED" = "x1" ; then
+	AC_DEFINE(CAP_SUPPORTED)
+fi
 AC_SUBST(DTRACE)
 AC_SUBST(DTRACE_ENABLED)
 if test "x$DTRACE_ENABLED" = "x1" ; then
@@ -250,6 +260,9 @@ AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 	[AC_MSG_ERROR(libprotobuf-c required)])
+
+AC_CHECK_HEADERS(priv.h)
+AC_CHECK_FUNCS(setppriv)
 
 AC_CHECK_FUNC(uuid_generate, , [
 	AC_MSG_WARN([uuid_generate not available])

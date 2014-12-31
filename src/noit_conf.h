@@ -141,8 +141,13 @@ API_EXPORT(char *)
 API_EXPORT(int)
   noit_conf_write_log();
 
-API_EXPORT(void) noit_conf_log_init(const char *toplevel);
+API_EXPORT(void) noit_conf_log_init(const char *toplevel,
+                                    const char *user, const char *group);
 API_EXPORT(int) noit_conf_log_init_rotate(const char *, noit_boolean);
+
+API_EXPORT(void)
+  noit_conf_security_init(const char *toplevel, const char *user,
+                          const char *group, const char *chrootpath);
 
 API_EXPORT(void) noit_conf_include_remove(noit_conf_section_t node);
 API_EXPORT(void) noit_conf_backingstore_remove(noit_conf_section_t node);

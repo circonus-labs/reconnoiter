@@ -62,4 +62,23 @@ API_EXPORT(int) noit_security_chroot(const char *path);
 API_EXPORT(int) noit_security_usergroup(const char *user, const char *group,
                                         noit_boolean effective);
 
+typedef enum {
+  NOIT_SECURITY_CAP_PERMITTED,
+  NOIT_SECURITY_CAP_EFFECTIVE,
+  NOIT_SECURITY_CAP_INHERITABLE
+} noit_security_captype_t;
+
+/*! \fn int noit_security_setcaps(noit_security_captype_t type,
+                                  const char *capstring)
+    \brief change the capabilities of the process
+    \param which the effective, inherited or both
+    \param capstring alteration to the capabilities
+    \return Zero is returned on success.
+
+    noit_security_setcaps will change the capability set of the current
+    process.
+ */
+API_EXPORT(int) noit_security_setcaps(noit_security_captype_t type,
+                                      const char *capstring);
+
 #endif
