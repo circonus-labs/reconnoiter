@@ -234,20 +234,14 @@ static int child_main() {
     exit(2);
   }
 
+  noit_listener_init(APPNAME);
+
   /* Drop privileges */
-  if(chrootpath && noit_security_chroot(chrootpath)) {
-    noitL(noit_stderr, "Failed to chroot(), exiting.\n");
-    exit(2);
-  }
-  if(noit_security_usergroup(droptouser, droptogroup, noit_false)) {
-    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(2);
-  }
+  noit_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
 
   /* Prepare for launch... */
   noit_filters_init();
   noit_poller_init();
-  noit_listener_init(APPNAME);
 
   /* Write our log out, and setup a watchdog to write it out on change. */
   noit_conf_write_log(NULL);

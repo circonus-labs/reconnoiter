@@ -46,7 +46,6 @@
 #include "utils/noit_log.h"
 #include "noit_main.h"
 #include "noit_conf.h"
-#include "utils/noit_security.h"
 #include "utils/noit_watchdog.h"
 #include "utils/noit_lockfile.h"
 #include "eventer/eventer.h"
@@ -140,7 +139,6 @@ noit_main(const char *appname,
   int wait_for_lock;
   char conf_str[1024];
   char lockfile[PATH_MAX];
-  char user[32], group[32];
   char *trace_dir = NULL;
   char appscratch[1024];
   char *glider = (char *)_glider;
@@ -164,19 +162,10 @@ noit_main(const char *appname,
     exit(-1);
   }
 
-  /* Reinitialize the logging system now that we have a config */
-  snprintf(user, sizeof(user), "%d", getuid());
-  snprintf(group, sizeof(group), "%d", getgid());
-  if(noit_security_usergroup(drop_to_user, drop_to_group, noit_true)) {
-    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(-1);
-  }
-  noit_conf_log_init(appname);
   cli_log_switches();
-  if(noit_security_usergroup(user, group, noit_true)) {
-    noitL(noit_stderr, "Failed to regain privileges, exiting.\n");
-    exit(-1);
-  }
+
+  /* Reinitialize the logging system now that we have a config */
+  noit_conf_log_init(appname, drop_to_user, drop_to_group);
   if(debug) {
     noit_log_stream_set_flags(noit_debug, noit_log_stream_get_flags(noit_debug) | NOIT_LOG_STREAM_ENABLED);
   }

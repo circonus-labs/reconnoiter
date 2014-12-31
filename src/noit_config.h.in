@@ -36,6 +36,9 @@
 /* define inline unless that is what the compiler already calls it. */
 #undef inline
 
+#undef CAP_SUPPORTED
+#undef CAP_PLATFORM
+
 #undef DTRACE_ENABLED
 #ifndef DTRACE_ENABLED
 #define DTRACE_PROBES_DISABLED 1
@@ -59,6 +62,7 @@
 #undef HAVE_SYS_FILIO_H
 #undef HAVE_STROPTS_H
 #undef HAVE_SYS_STREAM_H
+#undef HAVE_PRIV_H
 #undef HAVE_UTIL_H
 #undef HAVE_BSD_LIBUTIL_H
 #undef HAVE_LIBUTIL_H
@@ -133,6 +137,7 @@
 #undef HAVE_GETOPT
 #undef HAVE_POLL
 #undef HAVE_VASPRINTF
+#undef HAVE_SETPPRIV
 
 /* Kernel kqueue() support */
 #undef HAVE_KQUEUE

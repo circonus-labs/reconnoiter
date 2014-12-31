@@ -44,6 +44,10 @@
 #include "utils/noit_log.h"
 #include "utils/noit_security.h"
 
+#ifdef HAVE_PRIV_H
+#include <priv.h>
+#endif
+
 #define BAIL(a...) do { noitL(noit_error, a); return -1; } while(0)
 
 extern int chroot(const char *);
@@ -135,6 +139,20 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean effect
     }
   }
 
+  if(!user && !group) return 0;
+
+#if defined(CAP_SUPPORTED) && defined(HAVE_SETPPRIV)
+  if(!effective && getpflags(PRIV_AWARE)) {
+    int rv;
+    priv_set_t *set;
+    set = priv_allocset();
+    priv_addset(set, "proc_setid");
+    rv = setppriv(PRIV_ON, PRIV_EFFECTIVE, set);
+    priv_freeset(set);
+    if(rv) BAIL("setppriv(proc_setid) failed");
+  }
+#endif
+
   if(group) {
     if(!effective && gid == 0) BAIL("Cannot use this function to setgid(0)\n");
     if((effective ? setegid(gid) : setgid(gid)) != 0)
@@ -144,10 +162,67 @@ noit_security_usergroup(const char *user, const char *group, noit_boolean effect
     if(!effective && uid == 0) BAIL("Cannot use this function to setuid(0)\n");
     if((effective ? seteuid(uid) : setuid(uid)) != 0) 
       BAIL("setgid(%d) failed: %s\n", (int)gid, strerror(errno));
-    if(!effective && setuid(0) == 0)
-      BAIL("setuid(0) worked, and it shouldn't have.\n");
-    if(!effective && setgid(0) == 0)
-      BAIL("setgid(0) worked, and it shouldn't have.\n");
+
+    if(!effective && getpflags(PRIV_AWARE)) {
+#if defined(CAP_SUPPORTED) && defined(HAVE_SETPPRIV)
+      int rv;
+      priv_set_t *set;
+      set = priv_allocset();
+      priv_addset(set, "proc_setid");
+      rv = setppriv(PRIV_OFF, PRIV_EFFECTIVE, set);
+      if(rv) BAIL("setppriv(off, effective, proc_setid) failed");
+      getppriv(PRIV_EFFECTIVE, set);
+      rv = setppriv(PRIV_SET, PRIV_PERMITTED, set);
+      if(rv) BAIL("setppriv(effective -> permitted) failed");
+      priv_freeset(set);
+#endif
+
+      if(setuid(0) == 0) BAIL("setuid(0) worked, and it shouldn't have.\n");
+      if(setgid(0) == 0) BAIL("setgid(0) worked, and it shouldn't have.\n");
+    }
   }
+
   return 0;
+}
+
+int noit_security_setcaps(noit_security_captype_t type,
+                          const char *capstring) {
+#ifndef CAP_SUPPORTED
+  noitL(noit_error, "Capabilities not supported on this platform.\n");
+  return -1;
+#endif
+#ifdef HAVE_SETPPRIV
+  int rv;
+  const char *endptr;
+  char *str;
+  priv_set_t *set, *old;
+  priv_ptype_t ptype = "Permitted";
+  set = priv_str_to_set(capstring, ",", &endptr);
+  if(!set) {
+    noitL(noit_error, "Cannot translate '%s' to privilege set.\n", capstring);
+    return -1;
+  }
+  switch(type) {
+    case NOIT_SECURITY_CAP_PERMITTED: ptype = "Permitted"; break;
+    case NOIT_SECURITY_CAP_EFFECTIVE: ptype = "Effective"; break;
+    case NOIT_SECURITY_CAP_INHERITABLE: ptype = "Inheritable"; break;
+  }
+
+  old = priv_allocset();
+  getppriv(ptype, old);
+  str = priv_set_to_str(old, ',', PRIV_STR_PORT);
+  noitL(noit_debug, "Old privs(%s) -> %s\n", ptype, str);
+  priv_freeset(old);
+  free(str);
+  rv = setppriv(PRIV_SET, ptype, set);
+  str = priv_set_to_str(set, ',', PRIV_STR_PORT);
+  noitL(noit_debug, "%s privs(%s) -> %s\n",
+        (rv == 0) ? "Changed to" : "Failed to change to", ptype, str);
+  free(str);
+  priv_freeset(set);
+
+  return rv;
+#else
+  return -1;
+#endif
 }

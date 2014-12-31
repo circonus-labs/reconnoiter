@@ -228,14 +228,7 @@ static int child_main() {
     stratcon_datastore_init();
 
   /* Drop privileges */
-  if(chrootpath && noit_security_chroot(chrootpath)) {
-    noitL(noit_stderr, "Failed to chroot(), exiting.\n");
-    exit(-1);
-  }
-  if(noit_security_usergroup(droptouser, droptogroup, noit_false)) {
-    noitL(noit_stderr, "Failed to drop privileges, exiting.\n");
-    exit(-1);
-  }
+  noit_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
 
   stratcon_jlog_streamer_init(APPNAME);
 
