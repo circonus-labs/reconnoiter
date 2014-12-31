@@ -587,6 +587,7 @@ void noit_check_resolver_init() {
   if(dns_init(dns_ctx, 0) != 0 ||
      dns_open(dns_ctx) < 0) {
     noitL(noit_error, "dns initialization failed.\n");
+    exit(-1);
   }
   eventer_name_callback("dns_cache_callback", dns_cache_callback);
   dns_set_tmcbck(dns_ctx, dns_cache_utm_fn, dns_ctx);
