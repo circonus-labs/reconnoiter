@@ -21,6 +21,8 @@
     #!/bin/sh
     # portmaster -g /usr/ports/misc/e2fsprogs-libuuid
     # portmaster -g /usr/ports/devel/pcre
+    # portmaster -g /usr/ports/devel/concurrencykit
+    # portmaster -g /usr/ports/devel/hwloc
     # portmaster -g /usr/ports/databases/postgresql-libpqxx
     # portmaster -g /usr/ports/net-mgmt/net-snmp
     # portmaster -g /usr/ports/devel/re2c
@@ -47,7 +49,7 @@
 		zlib1g-dev uuid-dev libpcre3-dev libssl-dev libpq-dev \
 		libxslt-dev libapr1-dev libaprutil1-dev xsltproc \
 		libncurses5-dev python libssh2-1-dev libsnmp-dev \
-		sun-java6-jdk libprotobuf-c0-dev
+		sun-java6-jdk libprotobuf-c0-dev hwloc-nox-dev libck0-dev
 		# apt-get libdbi-perl libdbd-pg-perl libwww-curl-perl # if you want to run the tests
 		# git clone https://github.com/circonus-labs/reconnoiter
 		# cd reconnoiter
@@ -64,7 +66,7 @@
     	apr-devel apr-util-devel java-devel libssh2-devel libtermcap-devel \
     	libxslt-devel ncurses-devel net-snmp-devel openldap-devel openssl-devel \
     	pcre-devel postgresql-devel udns-devel uuid-devel zlib-devel \
-    	libuuid-devel protobuf-c-devel
+    	libuuid-devel protobuf-c-devel hwloc-devel ck
     # git clone https://github.com/circonus-labs/reconnoiter
     # cd reconnoiter
     # autoconf
@@ -76,7 +78,8 @@
 	# pkg set-publisher -g http://pkg.omniti.com/omniti-ms/ ms.omniti.com
 	# pkg install developer/git developer/build/autoconf system/header \
 		developer/gcc48 omniti/library/protobuf-c omniti/library/libpq5 \
-		developer/build/gnu-make omniti/library/apr omniti/library/libssh2
+		developer/build/gnu-make omniti/library/apr omniti/library/libssh2 \
+    omniti/library/hwloc omniti/library/ck
 	# git clone git@github.com:circonus-labs/reconnoiter.git
 	# cd reconnoiter
 	# autoconf
