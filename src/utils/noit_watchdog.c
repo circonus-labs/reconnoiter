@@ -73,6 +73,11 @@ static int allow_async_dumps = 1;
 static int _global_stack_trace_fd = -1;
 static noit_atomic32_t on_crash_fds_to_close[MAX_CRASH_FDS];
 
+typedef enum {
+  GLIDE_CRASH,
+  GLIDE_WATCHDOG
+} glide_reason_t;
+
 int noit_watchdog_glider(const char *path) {
   glider_path = path;
   if(glider_path) {
@@ -170,14 +175,20 @@ int noit_watchdog_prefork_init() {
 
 int noit_monitored_child_pid = -1;
 
-void run_glider(int pid) {
+void run_glider(int pid, glide_reason_t glide_reason) {
+  const char *glide_reason_str = "unkown";
   char cmd[1024], unused;
   if(glider_path) {
     char *oldpath, oldpath_buf[PATH_MAX];
     oldpath = getcwd(oldpath_buf, sizeof(oldpath_buf));
     if(oldpath) chdir(trace_dir);
-    snprintf(cmd, sizeof(cmd), "%s %d > %s/%s.%d.trc",
-             glider_path, pid, trace_dir, appname, pid);
+    switch(glide_reason) {
+      case GLIDE_CRASH: glide_reason_str = "crash"; break;
+      case GLIDE_WATCHDOG: glide_reason_str = "watchdog"; break;
+      default: glide_reason_str = "unknown";
+    }
+    snprintf(cmd, sizeof(cmd), "%s %d %s > %s/%s.%d.trc",
+             glider_path, pid, glide_reason_str, trace_dir, appname, pid);
     unused = system(cmd);
     if(oldpath) chdir(oldpath);
   }
@@ -258,7 +269,7 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
   noit_log_enter_sighandler();
   noitL(noit_error, "emancipate: process %d, monitored %d, signal %d\n", getpid(), noit_monitored_child_pid, sig);
   if(getpid() == watcher) {
-    run_glider(noit_monitored_child_pid);
+    run_glider(noit_monitored_child_pid, GLIDE_CRASH);
     kill(noit_monitored_child_pid, sig);
   }
   else if (getpid() == noit_monitored_child_pid){
@@ -458,7 +469,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                 if(it_ticks_crashed() && crashing_pid == -1) {
                   crashing_pid = noit_monitored_child_pid;
                   noitL(noit_error, "[monitor] %s %d has crashed.\n", app, crashing_pid);
-                  run_glider(crashing_pid);
+                  run_glider(crashing_pid, GLIDE_CRASH);
                   kill(crashing_pid, SIGCONT);
                 }
               } else {
@@ -507,7 +518,7 @@ int noit_watchdog_start_child(const char *app, int (*func)(),
                     ltt);
               if(glider_path) {
                 kill(child_pid, SIGSTOP);
-                run_glider(child_pid);
+                run_glider(child_pid, GLIDE_WATCHDOG);
                 kill(child_pid, SIGCONT);
               }
               kill(child_pid, SIGKILL);
