@@ -251,10 +251,10 @@ uint32_t noit_http_session_ref_inc(noit_http_session_ctx *ctx) {
   return noit_atomic_inc32(&ctx->ref_cnt);
 }
 eventer_t noit_http_connection_event(noit_http_connection *conn) {
-  return conn->e;
+  return conn ? conn->e : NULL;
 }
 eventer_t noit_http_connection_event_float(noit_http_connection *conn) {
-  eventer_t e = conn->e;
+  eventer_t e = conn ? conn->e : NULL;
   if(e) {
     conn->e = eventer_alloc();
     memcpy(conn->e, e, sizeof(*e));
