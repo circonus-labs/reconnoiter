@@ -277,6 +277,26 @@ noit_lua_crypto_newrsa(lua_State *L) {
 }
 
 static int
+noit_lua_crypto_newreq(lua_State *L) {
+  X509_REQ *req = NULL;
+  const char *pem;
+  size_t len;
+  BIO *bio;
+
+  pem = lua_tolstring(L, 1, &len);
+  if(pem == NULL) luaL_error(L, "crypto.newreq needs string");
+  bio = BIO_new_mem_buf((void *)pem, len);
+  if(bio && PEM_read_bio_X509_REQ(bio, &req, NULL, NULL)) {
+    BIO_free(bio);
+    PUSH_OBJ(L, "crypto.req", req);
+    return 1;
+  }
+  if(bio) BIO_free(bio);
+  lua_pushnil(L);
+  return 1;
+}
+
+static int
 noit_lua_crypto_rsa_gencsr(lua_State *L) {
   RSA *rsa;
   X509_REQ *req = NULL;
@@ -444,7 +464,7 @@ noit_lua_crypto_req_as_pem(lua_State *L) {
 static int
 noit_lua_crypto_req_index_func(lua_State *L) {
   const char *k;
-  void *udata;
+  void **udata;
   assert(lua_gettop(L) == 2);
   if(!luaL_checkudata(L, 1, "crypto.req")) {
     luaL_error(L, "metatable error, arg1 not a crypto.req!");
@@ -454,6 +474,15 @@ noit_lua_crypto_req_index_func(lua_State *L) {
   if(!strcmp(k,"pem")) {
     lua_pushlightuserdata(L, udata);
     lua_pushcclosure(L, noit_lua_crypto_req_as_pem, 1);
+    return 1;
+  }
+  if(!strcmp(k,"subject")) {
+    char buf[1024];
+    X509_NAME *name;
+    X509_REQ *req = ((X509_REQ *)*udata);
+    name = X509_REQ_get_subject_name(req);
+    X509_NAME_oneline(name, buf, sizeof(buf)-1);
+    lua_pushstring(L, buf);
     return 1;
   }
   luaL_error(L, "crypto.req no such element: %s", k);
@@ -470,6 +499,7 @@ noit_lua_crypto_req_gc(lua_State *L) {
 
 static const struct luaL_Reg crupto_funcs[] = {
   { "newrsa",  noit_lua_crypto_newrsa },
+  { "newreq",  noit_lua_crypto_newreq },
   { NULL, NULL }
 };
 
