@@ -1498,13 +1498,15 @@ int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
-  if(type == METRIC_GUESS)
-    type = noit_metric_guess_type((char *)value, &replacement);
-  if(type == METRIC_GUESS) return -1;
 
   m->metric_name = noit_memory_safe_malloc(strlen(name)+1);
   memcpy(m->metric_name, name, strlen(name)+1);
   m->metric_type = type;
+
+  if(type == METRIC_GUESS)
+    type = noit_metric_guess_type((char *)value, &replacement);
+  if(type == METRIC_GUESS) return -1;
+
   if(replacement)
     m->metric_value.vp = replacement;
   else if(value) {
