@@ -302,7 +302,7 @@ end
 function initiate(module, check)
     local config = check.interpolate(check.config)
     local url = config.url or 'http:///'
-    local schema, host, port, uri = string.match(url, "^(https?)://([^:/]*):?([0-9]*)(/?.*)$");
+    local schema, host, sep, port, uri = string.match(url, "^(https?)://([^:/]*)(:?)([0-9]*)(/?.*)$");
     local use_ssl = false
     local codere = noit.pcre(config.code or '^200$')
     local good = false
@@ -321,7 +321,9 @@ function initiate(module, check)
     check.unavailable()
 
     if host == nil then host = check.target end
-    if host_header == nil then host_header = host end
+    if host_header == nil then
+        host_header = host .. (sep or '') .. (port or '')
+    end
     if schema == nil then
         schema = 'http'
         uri = '/'
