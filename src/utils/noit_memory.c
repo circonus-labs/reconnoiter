@@ -93,6 +93,23 @@ void *noit_memory_safe_malloc(size_t r) {
   return b + 1;
 }
 
+void *noit_memory_safe_calloc(size_t nelem, size_t elsize) {
+  void *buf;
+  size_t size = nelem * elsize;
+  if(size < nelem || size < elsize) return NULL;
+  buf = noit_memory_safe_malloc(size);
+  if(buf) memset(buf, 0, size);
+  return buf;
+}
+
+char *noit_memory_safe_strdup(const char *in) {
+  char *out;
+  size_t inlen = strlen(in);
+  out = noit_memory_safe_malloc(inlen+1);
+  if(out) memcpy(out, in, inlen+1);
+  return out;
+}
+
 void *noit_memory_ck_malloc(size_t r) {
   return noit_memory_safe_malloc(r);
 }
