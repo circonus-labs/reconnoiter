@@ -1536,6 +1536,7 @@ noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
                       const void *value) {
   metric_t *m = noit_memory_safe_malloc(sizeof(*m));
+  memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
