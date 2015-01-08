@@ -2527,6 +2527,7 @@ noit_lua_xpath(lua_State *L) {
 
   xpi = (struct xpath_iter *)lua_newuserdata(L, sizeof(*xpi));
   xpi->ctxt = ctxt;
+  noit_conf_xml_errors_to_debug();
   xpi->pobj = xmlXPathEval((xmlChar *)xpathexpr, xpi->ctxt);
   if(!xpi->pobj || xpi->pobj->type != XPATH_NODESET)
     xpi->cnt = 0;
@@ -2673,6 +2674,7 @@ noit_lua_xml_tostring(lua_State *L) {
   if(docptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
   if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
+  noit_conf_xml_errors_to_debug();
   xmlstring = noit_xmlSaveToBuffer(*docptr);
   lua_pushstring(L, xmlstring);
   free(xmlstring);
@@ -2746,6 +2748,7 @@ nl_parsexml(lua_State *L) {
   if(lua_gettop(L) != 1) luaL_error(L, "parsexml requires one argument"); 
 
   in = lua_tolstring(L, 1, &inlen);
+  noit_conf_xml_errors_to_debug();
   doc = xmlParseMemory(in, inlen);
   if(!doc) {
     lua_pushnil(L);

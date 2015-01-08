@@ -138,6 +138,9 @@ API_EXPORT(void)
 API_EXPORT(char *)
   noit_conf_xml_in_mem(size_t *len);
 
+API_EXPORT(void)
+  noit_conf_xml_errors_to_debug();
+
 API_EXPORT(int)
   noit_conf_write_log();
 

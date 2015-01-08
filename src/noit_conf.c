@@ -365,6 +365,11 @@ noit_conf_xml_error_ext_func(void *ctx, xmlErrorPtr err) {
 }
 
 void
+noit_conf_xml_errors_to_debug() {
+  XML2LOG(xml_debug);
+}
+
+void
 noit_conf_poke(const char *toplevel, const char *key, const char *val) {
   char keystr[256];
   snprintf(keystr, sizeof(keystr), key, toplevel);
