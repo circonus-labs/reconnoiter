@@ -10,6 +10,11 @@
       <ssl_dhparam1024_file>%sysconfdir%/dhparam1024.txt</ssl_dhparam1024_file>
     </config>
   </eventer>
+  <resolver>
+    <server>8.8.8.8</server>
+    <server>4.2.2.1</server>
+    <!-- <search>dev.circonus.net</search> -->
+  </resolver>
   <logs>
     <log name="internal" type="memory" path="10000,100000"/>
     <console_output>

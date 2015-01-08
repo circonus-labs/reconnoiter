@@ -46,6 +46,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_hash.h"
+#include "noit_conf.h"
 #include "udns/udns.h"
 #include "noit_console.h"
 
@@ -57,6 +58,7 @@ static struct dns_ctx *dns_ctx;
 static noit_skiplist nc_dns_cache;
 static eventer_t dns_cache_timeout = NULL;
 static noit_hash_table etc_hosts_cache;
+static int dns_search_flag = DNS_NOSRCH;
 
 typedef struct {
   time_t last_needed;
@@ -256,7 +258,7 @@ static void dns_cache_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
 
 static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
                               enum dns_type rtype) {
-  int i, ttl, acnt, r = dns_status(ctx);
+  int i, ttl, acnt, r = dns_status(ctx), idnlen;
   dns_cache_node *n = data;
   unsigned char idn[DNS_MAXDN], dn[DNS_MAXDN];
   struct dns_parse p;
@@ -268,6 +270,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   if(!result) goto blank;
 
   dns_dntodn(n->dn, idn, sizeof(idn));
+  idnlen = dns_dnlen(idn);
 
   pkt = result; end = pkt + r; cur = dns_payload(pkt);
   dns_getdn(pkt, &cur, end, dn, sizeof(dn));
@@ -278,7 +281,13 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   ttl = 0;
 
   while((r = dns_nextrr(&p, &rr)) > 0) {
-    if (!dns_dnequal(idn, rr.dnsrr_dn)) continue;
+    int dnlen = dns_dnlen(rr.dnsrr_dn);
+    /* if we aren't searching and the don't match...
+     * or if we are searching and the prefixes don't match...
+     */
+    if ((dns_search_flag && !dns_dnequal(idn, rr.dnsrr_dn)) ||
+        (dns_search_flag == 0 &&
+         (idnlen > dnlen || memcmp(idn, rr.dnsrr_dn, idnlen-1)))) continue;
     if (DNS_C_IN == rr.dnsrr_cls && rtype == rr.dnsrr_typ) ++nrr;
     else if (rr.dnsrr_typ == DNS_T_CNAME && !nrr) {
       if (dns_getdn(pkt, &rr.dnsrr_dptr, end,
@@ -290,6 +299,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
         if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
           ttl = rr.dnsrr_ttl;
         dns_dntodn(p.dnsp_dnbuf, idn, sizeof(idn));
+        idnlen = dns_dnlen(idn);
       }
     }
   }
@@ -302,7 +312,10 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   acnt = 0;
   while(dns_nextrr(&p, &rr) && nrr < MAX_RR) {
     char buff[INET6_ADDRSTRLEN];
-    if (!dns_dnequal(idn, rr.dnsrr_dn)) continue;
+    int dnlen = dns_dnlen(rr.dnsrr_dn);
+    if ((dns_search_flag && !dns_dnequal(idn, rr.dnsrr_dn)) ||
+        (dns_search_flag == 0 &&
+         (idnlen > dnlen || memcmp(idn, rr.dnsrr_dn, idnlen-1)))) continue;
     if (p.dnsp_rrl && !rr.dnsrr_dn[0] && rr.dnsrr_typ == DNS_T_OPT) continue;
     if (rtype == rr.dnsrr_typ) {
       if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
@@ -397,7 +410,7 @@ void noit_check_resolver_maintain() {
         if(!n->lookup_inflight_v4) {
           n->lookup_inflight_v4 = noit_true;
           if(!dns_submit_dn(dns_ctx, n->dn, DNS_C_IN, DNS_T_A,
-                            abs | DNS_NOSRCH, NULL, dns_cache_resolve_v4, n))
+                            abs | dns_search_flag, NULL, dns_cache_resolve_v4, n))
             blank_update_v4(n);
           else
             dns_timeouts(dns_ctx, -1, now);
@@ -405,7 +418,7 @@ void noit_check_resolver_maintain() {
         if(!n->lookup_inflight_v6) {
           n->lookup_inflight_v6 = noit_true;
           if(!dns_submit_dn(dns_ctx, n->dn, DNS_C_IN, DNS_T_AAAA,
-                            abs | DNS_NOSRCH, NULL, dns_cache_resolve_v6, n))
+                            abs | dns_search_flag, NULL, dns_cache_resolve_v6, n))
             blank_update_v6(n);
           else
             dns_timeouts(dns_ctx, -1, now);
@@ -580,13 +593,61 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
 }
 
 void noit_check_resolver_init() {
+  int cnt;
+  noit_conf_section_t *servers, *searchdomains;
   eventer_t e;
   if(dns_init(NULL, 0) < 0)
     noitL(noit_error, "dns initialization failed.\n");
   dns_ctx = dns_new(NULL);
-  if(dns_init(dns_ctx, 0) != 0 ||
-     dns_open(dns_ctx) < 0) {
+  if(dns_init(dns_ctx, 0) != 0) {
     noitL(noit_error, "dns initialization failed.\n");
+    exit(-1);
+  }
+
+  /* Optional servers */
+  servers = noit_conf_get_sections(NULL, "//resolver//server", &cnt);
+  if(cnt) {
+    int i;
+    char server[128];
+    dns_add_serv(dns_ctx, NULL); /* reset */
+    for(i=0;i<cnt;i++) {
+      if(noit_conf_get_stringbuf(servers[i], "self::node()",
+                                 server, sizeof(server))) {
+        if(dns_add_serv(dns_ctx, server) < 0) {
+          noitL(noit_error, "Failed adding DNS server: %s\n", server);
+        }
+      }
+    }
+    free(servers);
+  }
+  searchdomains = noit_conf_get_sections(NULL, "//resolver//search", &cnt);
+  if(cnt) {
+    int i;
+    char search[128];
+    dns_add_srch(dns_ctx, NULL); /* reset */
+    for(i=0;i<cnt;i++) {
+      if(noit_conf_get_stringbuf(searchdomains[i], "self::node()",
+                                 search, sizeof(search))) {
+        if(dns_add_srch(dns_ctx, search) < 0) {
+          noitL(noit_error, "Failed adding DNS search path: %s\n", search);
+        }
+        else if(dns_search_flag) dns_search_flag = 0; /* enable search */
+      }
+    }
+    free(searchdomains);
+  }
+
+  if(noit_conf_get_int(NULL, "//resolver/@ndots", &cnt))
+    dns_set_opt(dns_ctx, DNS_OPT_NDOTS, cnt);
+
+  if(noit_conf_get_int(NULL, "//resolver/@ntries", &cnt))
+    dns_set_opt(dns_ctx, DNS_OPT_NTRIES, cnt);
+
+  if(noit_conf_get_int(NULL, "//resolver/@timeout", &cnt))
+    dns_set_opt(dns_ctx, DNS_OPT_TIMEOUT, cnt);
+
+  if(dns_open(dns_ctx) < 0) {
+    noitL(noit_error, "dns open failed.\n");
     exit(-1);
   }
   eventer_name_callback("dns_cache_callback", dns_cache_callback);
