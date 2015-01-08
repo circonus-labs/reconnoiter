@@ -402,8 +402,8 @@ noit_listener_reconfig(const char *toplevel) {
   noit_conf_section_t *listener_configs;
   char path[256];
 
-  snprintf(path, sizeof(path), "/%s/listeners//listener",
-           toplevel ? toplevel : "*");
+  snprintf(path, sizeof(path), "/%s/listeners//listener|/%s/include/listeners//listener",
+           toplevel ? toplevel : "*", toplevel ? toplevel : "*");
   listener_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {

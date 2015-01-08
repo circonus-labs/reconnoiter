@@ -1739,7 +1739,7 @@ noit_conf_log_init_rotate(const char *toplevel, noit_boolean validate) {
   noit_conf_section_t *log_configs;
   char path[256];
 
-  snprintf(path, sizeof(path), "/%s/logs//log", toplevel);
+  snprintf(path, sizeof(path), "/%s/logs//log|/%s/include/logs//log", toplevel, toplevel);
   log_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
@@ -1819,7 +1819,7 @@ noit_conf_log_init(const char *toplevel,
     exit(-1);
   }
 
-  snprintf(path, sizeof(path), "/%s/logs//log", toplevel);
+  snprintf(path, sizeof(path), "/%s/logs//log|/%s/include/logs//log", toplevel, toplevel);
   log_configs = noit_conf_get_sections(NULL, path, &cnt);
   noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
