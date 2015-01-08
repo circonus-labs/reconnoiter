@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -55,10 +56,14 @@
 #define DEFAULT_PURGE_AGE  1200 /* 20 minutes */
 
 static struct dns_ctx *dns_ctx;
+static pthread_mutex_t nc_dns_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 static noit_skiplist nc_dns_cache;
 static eventer_t dns_cache_timeout = NULL;
 static noit_hash_table etc_hosts_cache;
 static int dns_search_flag = DNS_NOSRCH;
+
+#define DCLOCK() pthread_mutex_lock(&nc_dns_cache_lock)
+#define DCUNLOCK() pthread_mutex_unlock(&nc_dns_cache_lock)
 
 typedef struct {
   time_t last_needed;
@@ -120,21 +125,24 @@ static int refresh_idx_k(const void *akv, const void *bv) {
 void noit_check_resolver_remind(const char *target) {
   dns_cache_node *n;
   if(!target) return;
+  DCLOCK();
   n = noit_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
     n->last_needed = time(NULL);
+    DCUNLOCK();
     return; 
   }
   n = calloc(1, sizeof(*n));
   n->target = strdup(target);
   n->last_needed = time(NULL);
   noit_skiplist_insert(&nc_dns_cache, n);
+  DCUNLOCK();
 }
 
 
 int noit_check_resolver_fetch(const char *target, char *buff, int len,
                               uint8_t prefer_family) {
-  int i;
+  int i, rv;
   uint8_t progression[2];
   dns_cache_node *n;
   void *vnode;
@@ -164,32 +172,35 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
     }
   }
 
+  rv = -1;
+  DCLOCK();
   n = noit_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
-    int rv;
-    if(n->last_updated == 0) return -1; /* not resolved yet */
+    if(n->last_updated == 0) goto leave; /* not resolved yet */
     rv = n->ip4_cnt + n->ip6_cnt;
     for(i=0; i<2; i++) {
       switch(progression[i]) {
         case AF_INET:
           if(n->ip4_cnt > 0) {
             strlcpy(buff, n->ip4[0], len);
-            return rv;
+            goto leave;
           }
           break;
         case AF_INET6:
           if(n->ip6_cnt > 0) {
             strlcpy(buff, n->ip6[0], len);
-            return rv;
+            goto leave;
           }
           break;
       }
     }
-    return rv;
   }
-  return -1;
+ leave:
+  DCUNLOCK();
+  return rv;
 }
 
+/* You are assumed to be holding the lock when in these blanking functions */
 static void blank_update_v4(dns_cache_node *n) {
   int i;
   for(i=0;i<n->ip4_cnt;i++) if(n->ip4[i]) free(n->ip4[i]);
@@ -357,9 +368,11 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
     if(result) free(result);
      return;
   }
+  DCLOCK();
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   noit_skiplist_insert(&nc_dns_cache, n);
+  DCUNLOCK();
   noitL(noit_debug, "Resolved %s/%s -> %d records\n", n->target,
         (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")),
         acnt);
@@ -367,8 +380,10 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   return;
 
  blank:
+  DCLOCK();
   if(rtype == DNS_T_A) blank_update_v4(n);
   if(rtype == DNS_T_AAAA) blank_update_v6(n);
+  DCUNLOCK();
   noitL(noit_debug, "Resolved %s/%s -> blank\n", n->target,
         (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")));
   if(result) free(result);
@@ -464,6 +479,7 @@ noit_console_show_dns_cache(noit_console_closure_t ncct,
                             void *closure) {
   int i;
 
+  DCLOCK();
   if(argc == 0) {
     noit_skiplist_node *sn;
     for(sn = noit_skiplist_getlist(&nc_dns_cache); sn;
@@ -477,6 +493,7 @@ noit_console_show_dns_cache(noit_console_closure_t ncct,
     n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
     nc_print_dns_cache_node(ncct, argv[i], n);
   }
+  DCUNLOCK();
   return 0;
 }
 static int
@@ -489,11 +506,13 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
     nc_printf(ncct, "dns_cache what?\n");
     return 0;
   }
+  DCLOCK();
   if(closure == NULL) {
     /* adding */
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      if(NULL != (n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL))) {
+      n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      if(NULL != n) {
         nc_printf(ncct, " == Already in system ==\n");
         nc_print_dns_cache_node(ncct, argv[i], n);
       }
@@ -506,7 +525,8 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
   else {
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      if(NULL != (n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL))) {
+      n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      if(NULL != n) {
         if(n->lookup_inflight_v4 || n->lookup_inflight_v6)
           nc_printf(ncct, "%s is currently resolving and cannot be removed.\n");
         else {
@@ -517,6 +537,7 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
       else nc_printf(ncct, "%s not in system.\n", argv[i]);
     }
   }
+  DCUNLOCK();
   return 0;
 }
 
