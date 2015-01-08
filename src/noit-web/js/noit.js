@@ -2,8 +2,9 @@ var local_skew = 0;
 var check_search = "";
 var capa = {};
 var startTime = +new Date();
+var noit_api_base = "/";
 function refresh_capa() {
-  $.ajax("/capa.json").done(function (x) {
+  $.ajax(noit_api_base + "capa.json").done(function (x) {
     capa = x;
     var endTime = +new Date();
     var lat_ms = (endTime - startTime)/2;
@@ -35,7 +36,6 @@ function refresh_capa() {
     var $sul = $("<ul/>").addClass("noit-listener");
     for(var s in capa.services) {
       var service = {};
-      console.log(s);
       for (var cmd in capa.services[s].commands) {
         var detail = capa.services[s].commands[cmd];
         if(!service.hasOwnProperty(detail.name + "/" + detail.version))
@@ -56,7 +56,6 @@ function refresh_capa() {
       }
       $li.append($sub);
       $sul.append($li);
-      console.log(service);
     }
     $("#noit-services").append($sul);
   });
@@ -209,29 +208,29 @@ function update_eventer(uri, id, mkrow) {
   };
 }
 
-setInterval(update_eventer("/eventer/sockets.json",
+setInterval(update_eventer(noit_api_base + "eventer/sockets.json",
                            "eventer-sockets", mk_socket_row),
             5000);
 $('#eventer-sockets').on('shown.bs.collapse', function () {
-  update_eventer("/eventer/sockets.json",
+  update_eventer(noit_api_base + "eventer/sockets.json",
                  "eventer-sockets", mk_socket_row)();
 });
-update_eventer("/eventer/sockets.json",
+update_eventer(noit_api_base + "eventer/sockets.json",
                "eventer-sockets", mk_socket_row)(true);
 
-setInterval(update_eventer("/eventer/timers.json",
+setInterval(update_eventer(noit_api_base + "eventer/timers.json",
                            "eventer-timers", mk_timer_row),
             5000);
 $('#eventer-timers').on('shown.bs.collapse', function () {
-  update_eventer("/eventer/timers.json",
+  update_eventer(noit_api_base + "eventer/timers.json",
                  "eventer-timers", mk_timer_row)();
 });
 
-setInterval(update_eventer("/eventer/jobq.json",
+setInterval(update_eventer(noit_api_base + "eventer/jobq.json",
                            "eventer-jobq", mk_jobq_row),
             5000);
 $('#eventer-jobq').on('shown.bs.collapse', function () {
-  update_eventer("/eventer/jobq.json",
+  update_eventer(noit_api_base + "eventer/jobq.json",
                  "eventer-jobq", mk_jobq_row)();
 });
 
@@ -241,7 +240,7 @@ function check_refresh(check) {
       clearInterval(check.intervalId);
       return;
     }
-    var st = $.ajax("/checks/show/" + check.id + ".json");
+    var st = $.ajax(noit_api_base + "checks/show/" + check.id + ".json");
     st.done(function(x) {
       var $c = $("tr#check-details-"+check.id + " td div");
       $c.find(".check-detail-uuid").text(check.id);
@@ -317,7 +316,7 @@ function start_check_details(x) {
 }
 
 function refresh_checks() {
-  var st = jQuery.ajax("/checks/show.json");
+  var st = jQuery.ajax(noit_api_base + "checks/show.json");
   st.done(function( checks ) {
     // First unmark all our rows
     var $tbody = $("tbody#check-table");
@@ -445,7 +444,7 @@ function refresh_logs(force) {
     qs = "?since=" + last_log_idx;
   else
     qs = "?last=100";
-  $.ajax("/eventer/logs/internal.json" + qs).done(function (logs) {
+  $.ajax(noit_api_base + "eventer/logs/internal.json" + qs).done(function (logs) {
     var atend = force || Math.abs(($c[0].scrollTop + $c[0].clientHeight - $c[0].scrollHeight));
     for(var i in logs) {
       var log = logs[i];
