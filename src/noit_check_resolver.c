@@ -374,7 +374,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   p.dnsp_qtyp = rtype;
   if(rtype == DNS_T_A)
     answers4 = calloc(nrr, sizeof(*answers4));
-  else if(rtype == DNS_T_A)
+  else if(rtype == DNS_T_AAAA)
     answers6 = calloc(nrr, sizeof(*answers6));
   acnt = 0;
   while(dns_nextrr(&p, &rr) && nrr < MAX_RR) {
