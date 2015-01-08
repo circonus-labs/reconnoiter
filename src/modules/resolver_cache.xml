@@ -1,0 +1,38 @@
+<module>
+    <name>resolver_cache</name>
+    <description>
+        <para>
+        Provides a backing store for the dns_cache used for check resolving.
+        </para></description>
+    <loader>C</loader>
+    <image>resolver_cache.so</image>
+    <moduleconfig>
+      <parameter name="cachefile"
+                 required="optional"
+                 default="/install/prefix/etc/resovler.cache"
+                 allowed=".+">This is the path to the cache file.</parameter>
+      <parameter name="interval"
+                 required="optional"
+                 default="120"
+                 allowed=".+">How often the cache should be written out (in seconds).</parameter>
+    </moduleconfig>
+    <checkconfig />
+    <examples>
+        <example>
+            <title>Loading the resolver_cache module.</title>
+            <para>This example loads the resolver_cache module.
+             </para>
+            <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <generic image="resolver_cache" name="resolver_cache">
+            <config>
+              <cachefile>/path/to/resolver.cache</cachefile>
+            </config>
+          </generic>
+        </modules>
+      </noit>
+    ]]></programlisting>
+        </example>
+    </examples>
+</module>

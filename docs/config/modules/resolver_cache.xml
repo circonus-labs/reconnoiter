@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
+  <title>resolver_cache</title>
+  <para>
+        Provides a backing store for the dns_cache used for check resolving.
+        </para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>C</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>image</term>
+      <listitem>
+        <para>resolver_cache.so</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>cachefile</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>/install/prefix/etc/resovler.cache</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>This is the path to the cache file.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>interval</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>120</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>How often the cache should be written out (in seconds).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Loading the resolver_cache module.</title>
+      <para>This example loads the resolver_cache module.
+             </para>
+      <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;generic image="resolver_cache" name="resolver_cache"&gt;
+            &lt;config&gt;
+              &lt;cachefile&gt;/path/to/resolver.cache&lt;/cachefile&gt;
+            &lt;/config&gt;
+          &lt;/generic&gt;
+        &lt;/modules&gt;
+      &lt;/noit&gt;
+    </programlisting>
+    </example>
+  </section>
+</section>

@@ -147,6 +147,8 @@ struct noit_hook_##HOOKNAME##_list { \
 }; \
 static volatile void *nh_##HOOKNAME##_list = NULL; \
  \
+noit_boolean \
+HOOKNAME##_hook_exists() { return nh_##HOOKNAME##_list != NULL; } \
 noit_hook_return_t \
 HOOKNAME##_hook_invoke HOOKPROTO_NC { \
   noit_hook_return_t rv = NOIT_HOOK_CONTINUE; \

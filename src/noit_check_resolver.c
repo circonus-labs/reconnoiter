@@ -47,6 +47,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_hash.h"
+#include "utils/noit_hooks.h"
 #include "noit_conf.h"
 #include "udns/udns.h"
 #include "noit_console.h"
@@ -62,22 +63,80 @@ static eventer_t dns_cache_timeout = NULL;
 static noit_hash_table etc_hosts_cache;
 static int dns_search_flag = DNS_NOSRCH;
 
+NOIT_HOOK_IMPL(noit_resolver_cache_store,
+               (const char *key, const void *data, int len),
+               void *, closure,
+               (void *closure, const char *key, const void *data, int len),
+               (closure,key,data,len))
+
+NOIT_HOOK_IMPL(noit_resolver_cache_load,
+               (char **key, void **data, int *len),
+               void *, closure,
+               (void *closure, char **key, void **data, int *len),
+               (closure,key,data,len))
+
 #define DCLOCK() pthread_mutex_lock(&nc_dns_cache_lock)
 #define DCUNLOCK() pthread_mutex_unlock(&nc_dns_cache_lock)
 
+#define dns_cache_SHARED \
+  time_t last_needed; \
+  time_t last_updated; \
+  time_t ttl; \
+  int ip4_cnt; \
+  int ip6_cnt; \
+  unsigned char dn[DNS_MAXDN]
+
 typedef struct {
-  time_t last_needed;
-  time_t last_updated;
+  dns_cache_SHARED;
+  char *target;
   noit_boolean lookup_inflight_v4;
   noit_boolean lookup_inflight_v6;
-  char *target;
-  unsigned char dn[DNS_MAXDN];
-  time_t ttl;
-  int ip4_cnt;
-  char **ip4;
-  int ip6_cnt;
-  char **ip6;
+  struct in_addr *ip4;
+  struct in6_addr *ip6;
 } dns_cache_node;
+
+typedef struct {
+  dns_cache_SHARED;
+} dns_cache_serial_t;
+
+static int dns_cache_node_serialize(void *b, int blen, dns_cache_node *n) {
+  int needed_len, ip4len, ip6len;
+  ip4len = n->ip4_cnt * sizeof(struct in_addr);
+  ip6len = n->ip6_cnt * sizeof(struct in6_addr);
+  needed_len = sizeof(dns_cache_serial_t) + ip4len + ip6len;
+
+  if(needed_len > blen) return -1;
+  memcpy(b, n, sizeof(dns_cache_serial_t));
+  memcpy(b + sizeof(dns_cache_serial_t), n->ip4, ip4len);
+  memcpy(b + sizeof(dns_cache_serial_t) + ip4len, n->ip6, ip6len);
+  return needed_len;
+}
+
+static int dns_cache_node_deserialize(dns_cache_node *n, void *b, int blen) {
+  int ip4len, ip6len;
+  if(n->ip4) free(n->ip4);
+  n->ip4 = NULL;
+  if(n->ip6) free(n->ip6);
+  n->ip6 = NULL;
+  if(blen < sizeof(dns_cache_serial_t)) return -1;
+  memcpy(n, b, sizeof(dns_cache_serial_t));
+  ip4len = n->ip4_cnt * sizeof(struct in_addr);
+  ip6len = n->ip6_cnt * sizeof(struct in6_addr);
+  if(blen != (sizeof(dns_cache_serial_t) + ip4len + ip6len)) {
+    n->ip4_cnt = 0;
+    n->ip6_cnt = 0;
+    return -1;
+  }
+  if(ip4len) {
+    n->ip4 = malloc(ip4len);
+    memcpy(n->ip4, b + sizeof(dns_cache_serial_t), ip4len);
+  }
+  if(ip6len) {
+    n->ip6 = malloc(ip6len);
+    memcpy(n->ip6, b + sizeof(dns_cache_serial_t) + ip4len, ip6len);
+  }
+  return sizeof(dns_cache_serial_t) + ip4len + ip6len;
+}
 
 typedef struct {
   char *target;
@@ -89,11 +148,8 @@ typedef struct {
 
 void dns_cache_node_free(void *vn) {
   dns_cache_node *n = vn;
-  int i;
   if(!n) return;
   if(n->target) free(n->target);
-  for(i=0;i<n->ip4_cnt;i++) if(n->ip4[i]) free(n->ip4[i]);
-  for(i=0;i<n->ip6_cnt;i++) if(n->ip6[i]) free(n->ip6[i]);
   if(n->ip4) free(n->ip4);
   if(n->ip6) free(n->ip6);
   free(n);
@@ -182,13 +238,13 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
       switch(progression[i]) {
         case AF_INET:
           if(n->ip4_cnt > 0) {
-            strlcpy(buff, n->ip4[0], len);
+            inet_ntop(AF_INET, &n->ip4[0], buff, len);
             goto leave;
           }
           break;
         case AF_INET6:
           if(n->ip6_cnt > 0) {
-            strlcpy(buff, n->ip6[0], len);
+            inet_ntop(AF_INET6, &n->ip6[0], buff, len);
             goto leave;
           }
           break;
@@ -202,8 +258,6 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
 
 /* You are assumed to be holding the lock when in these blanking functions */
 static void blank_update_v4(dns_cache_node *n) {
-  int i;
-  for(i=0;i<n->ip4_cnt;i++) if(n->ip4[i]) free(n->ip4[i]);
   if(n->ip4) free(n->ip4);
   n->ip4 = NULL;
   n->ip4_cnt = 0;
@@ -216,8 +270,6 @@ static void blank_update_v4(dns_cache_node *n) {
   noit_skiplist_insert(&nc_dns_cache, n);
 }
 static void blank_update_v6(dns_cache_node *n) {
-  int i;
-  for(i=0;i<n->ip6_cnt;i++) if(n->ip6[i]) free(n->ip6[i]);
   if(n->ip6) free(n->ip6);
   n->ip6 = NULL;
   n->ip6_cnt = 0;
@@ -269,13 +321,14 @@ static void dns_cache_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
 
 static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
                               enum dns_type rtype) {
-  int i, ttl, acnt, r = dns_status(ctx), idnlen;
+  int ttl, acnt, r = dns_status(ctx), idnlen;
   dns_cache_node *n = data;
   unsigned char idn[DNS_MAXDN], dn[DNS_MAXDN];
   struct dns_parse p;
   struct dns_rr rr;
   unsigned nrr;
-  char **answers;
+  struct in_addr *answers4;
+  struct in6_addr *answers6;
   const unsigned char *pkt, *cur, *end;
 
   if(!result) goto blank;
@@ -319,10 +372,12 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   dns_rewind(&p, NULL);
   p.dnsp_qcls = DNS_C_IN;
   p.dnsp_qtyp = rtype;
-  answers = calloc(nrr, sizeof(*answers));
+  if(rtype == DNS_T_A)
+    answers4 = calloc(nrr, sizeof(*answers4));
+  else if(rtype == DNS_T_A)
+    answers6 = calloc(nrr, sizeof(*answers6));
   acnt = 0;
   while(dns_nextrr(&p, &rr) && nrr < MAX_RR) {
-    char buff[INET6_ADDRSTRLEN];
     int dnlen = dns_dnlen(rr.dnsrr_dn);
     if ((dns_search_flag && !dns_dnequal(idn, rr.dnsrr_dn)) ||
         (dns_search_flag == 0 &&
@@ -334,13 +389,11 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
       switch(rr.dnsrr_typ) {
         case DNS_T_A:
           if(rr.dnsrr_dsz != 4) continue;
-          inet_ntop(AF_INET, rr.dnsrr_dptr, buff, sizeof(buff));
-          answers[acnt++] = strdup(buff);
+          memcpy(&answers4[acnt++], rr.dnsrr_dptr, rr.dnsrr_dsz);
           break;
         case DNS_T_AAAA:
           if(rr.dnsrr_dsz != 16) continue;
-          inet_ntop(AF_INET6, rr.dnsrr_dptr, buff, sizeof(buff));
-          answers[acnt++] = strdup(buff);
+          memcpy(&answers6[acnt++], rr.dnsrr_dptr, rr.dnsrr_dsz);
           break;
         default:
           break;
@@ -350,23 +403,20 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
 
   n->ttl = ttl;
   if(rtype == DNS_T_A) {
-    for(i=0;i<n->ip4_cnt;i++) if(n->ip4[i]) free(n->ip4[i]);
     if(n->ip4) free(n->ip4);
     n->ip4_cnt = acnt;
-    n->ip4 = answers;
+    n->ip4 = answers4;
     n->lookup_inflight_v4 = noit_false;
   }
   else if(rtype == DNS_T_AAAA) {
-    for(i=0;i<n->ip6_cnt;i++) if(n->ip6[i]) free(n->ip6[i]);
     if(n->ip6) free(n->ip6);
     n->ip6_cnt = acnt;
-    n->ip6 = answers;
+    n->ip6 = answers6;
     n->lookup_inflight_v6 = noit_false;
   }
   else {
-    if(answers) free(answers);
     if(result) free(result);
-     return;
+    return;
   }
   DCLOCK();
   noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
@@ -443,6 +493,26 @@ void noit_check_resolver_maintain() {
       continue;
     }
   }
+
+  /* If we have a cache implementation */
+  if(noit_resolver_cache_store_hook_exists()) {
+    /* And that implementation is interested in getting a dump... */
+    if(noit_resolver_cache_store_hook_invoke(NULL, NULL, 0) == NOIT_HOOK_CONTINUE) {
+      noit_skiplist_node *sn;
+      /* dump it all */
+      DCLOCK();
+      for(sn = noit_skiplist_getlist(&nc_dns_cache); sn;
+          noit_skiplist_next(&nc_dns_cache, &sn)) {
+        int sbuffsize;
+        char sbuff[1024];
+        dns_cache_node *n = (dns_cache_node *)sn->data;
+        sbuffsize = dns_cache_node_serialize(sbuff, sizeof(sbuff), n);
+        if(sbuffsize > 0)
+          noit_resolver_cache_store_hook_invoke(n->target, sbuff, sbuffsize);
+      }
+      DCUNLOCK();
+    }
+  }
 }
 
 int noit_check_resolver_loop(eventer_t e, int mask, void *c,
@@ -459,16 +529,21 @@ nc_print_dns_cache_node(noit_console_closure_t ncct,
   if(!n) nc_printf(ncct, "NOT FOUND\n");
   else {
     int i;
+    char buff[INET6_ADDRSTRLEN];
     time_t now = time(NULL);
     nc_printf(ncct, "%16s: %ds ago\n", "last needed", now - n->last_needed);
     nc_printf(ncct, "%16s: %ds ago\n", "resolved", now - n->last_updated);
     nc_printf(ncct, "%16s: %ds\n", "ttl", n->ttl);
     if(n->lookup_inflight_v4) nc_printf(ncct, "actively resolving A RRs\n");
     if(n->lookup_inflight_v6) nc_printf(ncct, "actively resolving AAAA RRs\n");
-    for(i=0;i<n->ip4_cnt;i++)
-      nc_printf(ncct, "%17s %s\n", i?"":"IPv4:", n->ip4[i]);
-    for(i=0;i<n->ip6_cnt;i++)
-      nc_printf(ncct, "%17s %s\n", i?"":"IPv6:", n->ip6[i]);
+    for(i=0;i<n->ip4_cnt;i++) {
+      inet_ntop(AF_INET, &n->ip4[i], buff, sizeof(buff));
+      nc_printf(ncct, "%17s %s\n", i?"":"IPv4:", buff);
+    }
+    for(i=0;i<n->ip6_cnt;i++) {
+      inet_ntop(AF_INET6, &n->ip6[i], buff, sizeof(buff));
+      nc_printf(ncct, "%17s %s\n", i?"":"IPv6:", buff);
+    }
   }
   return 0;
 }
@@ -683,6 +758,46 @@ void noit_check_resolver_init() {
   noit_skiplist_init(&nc_dns_cache);
   noit_skiplist_set_compare(&nc_dns_cache, name_lookup, name_lookup_k);
   noit_skiplist_add_index(&nc_dns_cache, refresh_idx, refresh_idx_k);
+
+  /* maybe load it from cache */
+  if(noit_resolver_cache_load_hook_exists()) {
+    struct timeval now;
+    char *key;
+    void *data;
+    int len;
+    gettimeofday(&now, NULL);
+    while(noit_resolver_cache_load_hook_invoke(&key, &data, &len) == NOIT_HOOK_CONTINUE) {
+      dns_cache_node *n;
+      n = calloc(1, sizeof(*n));
+      if(dns_cache_node_deserialize(n, data, len) >= 0) {
+        n->target = strdup(key);
+        /* if the TTL indicates that it will expire in less than 60 seconds
+         * (including stuff that should have already expired), then fudge
+         * the last_updated time to make it expire some random time within
+         * the next 60 seconds.
+         */
+        if(n->last_needed > now.tv_sec || n->last_updated > now.tv_sec)
+          break; /* impossible */
+
+        n->last_needed = now.tv_sec;
+        if(n->last_updated + n->ttl < now.tv_sec + 60) {
+          int fudge = MIN(60, n->ttl);
+          n->last_updated = now.tv_sec - n->ttl + (lrand48() % fudge);
+        }
+        DCLOCK();
+        noit_skiplist_insert(&nc_dns_cache, n);
+        DCUNLOCK();
+        n = NULL;
+      }
+      else {
+        noitL(noit_error, "Failed to deserialize resolver cache record.\n");
+      }
+      if(n) dns_cache_node_free(n);
+      if(key) free(key);
+      if(data) free(data);
+    }
+  }
+
   noit_check_resolver_loop(NULL, 0, NULL, NULL);
   register_console_dns_cache_commands();
 

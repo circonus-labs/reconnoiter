@@ -95,6 +95,7 @@
       <module loader="lua" name="jmx" object="noit.module.jezebel"/>
       <module loader="lua" name="snmp" object="noit.module.jezebel"/>
     </jezebel>
+    <generic image="resolver_cache" name="resolver_cache"/>
     <generic image="check_test" name="check_test"/>
     <generic image="lua" name="lua_web">
       <config>
