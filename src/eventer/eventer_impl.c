@@ -328,8 +328,8 @@ int eventer_impl_init() {
   if(__loop_concurrency <= 0) {
     int sockets = 0, cores = 0;
     (void)cpu_sockets_and_cores(&sockets, &cores);
+    if(sockets == 0) sockets = 1;
     if(cores == 0) cores = sockets;
-    if(cores == 0) cores = 1;
     __loop_concurrency = 1 + PARALLELISM_MULTIPLIER * cores;
     noitL(noit_debug, "found %d sockets, %d cores -> concurrency %d\n",
           sockets, cores, __loop_concurrency);
