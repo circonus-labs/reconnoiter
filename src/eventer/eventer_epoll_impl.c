@@ -153,7 +153,7 @@ static eventer_t eventer_epoll_impl_remove(eventer_t e) {
       if(epoll_ctl(spec->epoll_fd, EPOLL_CTL_DEL, e->fd, &_ev) != 0) {
         noitL(noit_error, "epoll_ctl(%d, EPOLL_CTL_DEL, %d) -> %s\n",
               spec->epoll_fd, e->fd, strerror(errno));
-        abort();
+        if(errno != ENOENT) abort();
       }
     }
     release_master_fd(e->fd, lockstate);
@@ -206,7 +206,7 @@ static eventer_t eventer_epoll_impl_remove_fd(int fd) {
     if(epoll_ctl(spec->epoll_fd, EPOLL_CTL_DEL, fd, &_ev) != 0) {
       noitL(noit_error, "epoll_ctl(%d, EPOLL_CTL_DEL, %d) -> %s\n",
             spec->epoll_fd, fd, strerror(errno));
-      abort();
+      if(errno != ENOENT) abort();
     }
     release_master_fd(fd, lockstate);
   }
