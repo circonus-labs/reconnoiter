@@ -75,10 +75,11 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   recur_closure_t *rcl = closure;
   int ms;
-  rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   noit_check_resolve(rcl->check);
   ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
                                 rcl->dispatch, NULL);
+  if(ms == 0)
+    rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   if(NOIT_CHECK_RESOLVED(rcl->check)) {
     if(NOIT_HOOK_CONTINUE ==
        check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
@@ -188,8 +189,8 @@ noit_check_schedule_next(noit_module_t *self,
   if(!self->thread_unsafe) {
     newe->thr_owner = CHOOSE_EVENTER_THREAD_FOR_CHECK(check);
   }
-  eventer_add(newe);
   check->fire_event = newe;
+  eventer_add(newe);
   return diffms;
 }
 
