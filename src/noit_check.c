@@ -1494,12 +1494,23 @@ noit_metric_guess_type(const char *s, void **replacement) {
   free(copy);
   return type;
 }
+
+static void
+cleanse_metric_name(char *m) {
+  char *cp;
+  for(cp = m; *cp; cp++)
+    if(!isprint(*cp)) *cp=' ';
+  for(cp--; *cp == ' ' && cp > m; cp--) /* always leave first char */
+    *cp = '\0';
+}
+
 int
 noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
 
   m->metric_name = noit_memory_safe_strdup(name);
+  cleanse_metric_name(m->metric_name);
 
   if(type == METRIC_GUESS)
     type = noit_metric_guess_type((char *)value, &replacement);
