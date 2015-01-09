@@ -152,7 +152,7 @@ public abstract class StratconMessage {
       return smf.make(parts);
     }
     catch(Exception e) {
-      System.err.println("makeMessage: " + e);
+      System.err.println("makeMessage failed: '" + jlog + "'");
       e.printStackTrace();
     }
     return null;
