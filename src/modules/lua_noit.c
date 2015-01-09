@@ -3084,6 +3084,12 @@ int nl_spawn(lua_State *L) {
 }
 
 static int
+nl_thread_self(lua_State *L) {
+  lua_pushinteger(L, (int)pthread_self());
+  return 1;
+}
+
+static int
 noit_lua_process_wait(lua_State *L) {
   int rv, status;
   struct spawn_info *spawn_info;
@@ -3231,6 +3237,7 @@ static const luaL_Reg noitlib[] = {
   { "parsexml", nl_parsexml },
   { "parsejson", nl_parsejson },
   { "spawn", nl_spawn },
+  { "thread_self", nl_thread_self },
   { NULL, NULL }
 };
 

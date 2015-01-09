@@ -45,6 +45,7 @@
 #endif
 #include <assert.h>
 
+static pthread_t loader_main_thread;
 static noit_log_stream_t nlerr = NULL;
 static noit_log_stream_t nldeb = NULL;
 static noit_hash_table noit_lua_states = NOIT_HASH_EMPTY;
@@ -336,11 +337,11 @@ static lua_module_closure_t *lmc_tls_get(noit_image_t *mod) {
   lmc = pthread_getspecific(c->key);
   return lmc;
 }
-static lua_module_closure_t *noit_lua_setup_lmc(noit_image_t *mod, const char **obj) {
+static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char **obj) {
   lua_module_closure_t *lmc;
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
-  mc = noit_image_get_userdata(mod);
+  mc = noit_image_get_userdata(&mod->hdr);
   if(obj) *obj = mc->object;
   lmc = pthread_getspecific(mc->c->key);
   if(lmc == NULL) {
@@ -349,17 +350,17 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_image_t *mod, const char **
     lmc->owner = pthread_self();
     lmc->resume = noit_lua_check_resume;
     pthread_setspecific(mc->c->key, lmc);
-    noitL(nldeb, "lua_state[%s]: new state\n", mod->name);
-    lmc->lua_state = noit_lua_open(mod->name, lmc, mc->c->script_dir);
+    noitL(nldeb, "lua_state[%s]: new state\n", mod->hdr.name);
+    lmc->lua_state = noit_lua_open(mod->hdr.name, lmc, mc->c->script_dir);
   }
-  mtlsc = __get_module_tls_conf(mod);
+  mtlsc = __get_module_tls_conf(&mod->hdr);
   if(!mtlsc->loaded) {
-    if(mod->onload(mod) == -1) {
+    if(mod->hdr.onload(&mod->hdr) == -1) {
       return NULL;
     }
     mtlsc->loaded = 1;
   }
-  noitL(nldeb, "lua_state[%s]: %p\n", mod->name, lmc->lua_state);
+  noitL(nldeb, "lua_state[%s]: %p\n", mod->hdr.name, lmc->lua_state);
   return lmc;
 }
 static void
@@ -464,8 +465,12 @@ static int
 noit_lua_module_set_description(lua_State *L) {
   noit_module_t *module;
   module = lua_touserdata(L, lua_upvalueindex(1));
-  if(lua_gettop(L) == 1)
-    module->hdr.description = strdup(lua_tostring(L, 1));
+  if(lua_gettop(L) == 1) {
+    if(pthread_equal(pthread_self(), loader_main_thread)) {
+      if(module->hdr.description) free(module->hdr.description);
+      module->hdr.description = strdup(lua_tostring(L, 1));
+    }
+  }
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.description);
@@ -475,8 +480,12 @@ static int
 noit_lua_module_set_name(lua_State *L) {
   noit_module_t *module;
   module = lua_touserdata(L, lua_upvalueindex(1));
-  if(lua_gettop(L) == 1)
-    module->hdr.name = strdup(lua_tostring(L, 1));
+  if(lua_gettop(L) == 1) {
+    if(pthread_equal(pthread_self(), loader_main_thread)) {
+      if(module->hdr.name) free(module->hdr.name);
+      module->hdr.name = strdup(lua_tostring(L, 1));
+    }
+  }
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
   lua_pushstring(L, module->hdr.name);
@@ -487,8 +496,10 @@ noit_lua_module_set_xml_description(lua_State *L) {
   noit_module_t *module;
   module = lua_touserdata(L, lua_upvalueindex(1));
   if(lua_gettop(L) == 1) {
-    if(module->hdr.xml_description) free(module->hdr.xml_description);
-    module->hdr.xml_description = strdup(lua_tostring(L, 1));
+    if(pthread_equal(pthread_self(), loader_main_thread)) {
+      if(module->hdr.xml_description) free(module->hdr.xml_description);
+      module->hdr.xml_description = strdup(lua_tostring(L, 1));
+    }
   }
   else if(lua_gettop(L) > 1)
     luaL_error(L, "wrong number of arguments");
@@ -975,7 +986,7 @@ noit_lua_module_onload(noit_image_t *img) {
   lua_State *L; \
   lua_module_closure_t *lmc; \
   const char *object; \
-  lmc = noit_lua_setup_lmc(&mod->hdr, &object); \
+  lmc = noit_lua_setup_lmc(mod, &object); \
   L = lmc->lua_state
 #define SETUP_CALL(L, object, func, failure) do { \
   noitL(nldeb, "lua calling %s->%s\n", object, func); \
@@ -1029,13 +1040,22 @@ noit_lua_module_config(noit_module_t *mod,
 }
 static int
 noit_lua_module_init(noit_module_t *mod) {
+  struct module_conf *mc;
+  struct module_tls_conf *mtlsc;
   LMC_DECL(L, mod, object);
+
+  mc = noit_module_get_userdata(mod);
+  mtlsc = __get_module_tls_conf(&mod->hdr);
+  if(mtlsc->initialized) return mtlsc->initialized;
+
   SETUP_CALL(L, object, "init", return 0);
 
   noit_lua_setup_module(L, mod);
   lua_pcall(L, 1, 1, 0);
 
-  RETURN_INT(L, object, "init", );
+  RETURN_INT(L, object, "init",
+             { mtlsc->initialized = rv = (rv == 0) ? 1 : rv; });
+  mtlsc->initialized = -1;
   return -1;
 }
 static void
@@ -1228,8 +1248,9 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
-  /* this will config if it hasn't happened yet */
+  /* this will config & init if it hasn't happened yet */
   noit_lua_module_config(self, NULL);
+  noit_lua_module_init(self);
 
   ci->self = self;
   ci->check = check;
@@ -1413,7 +1434,7 @@ noit_lua_loader_load(noit_module_loader_t *loader,
   pthread_key_create(&mc->key, NULL);
   noit_module_set_userdata(m, mc);
 
-  lmc = noit_lua_setup_lmc(&m->hdr, NULL);
+  lmc = noit_lua_setup_lmc(m, NULL);
   if(lmc != NULL) L = lmc->lua_state;
   if(L == NULL) {
    load_failed:
@@ -1450,7 +1471,7 @@ noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
 }
 static int
 noit_lua_loader_onload(noit_image_t *self) {
-  pthread_key_t *key;
+  loader_main_thread = pthread_self();
   nlerr = noit_log_stream_find("error/lua");
   nldeb = noit_log_stream_find("debug/lua");
   if(!nlerr) nlerr = noit_stderr;
