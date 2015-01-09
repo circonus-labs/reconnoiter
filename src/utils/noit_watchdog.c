@@ -276,6 +276,7 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
     it_ticks_crash(); /* slow notification path */
     kill(noit_monitored_child_pid, SIGSTOP); /* stop and wait for a glide */
 
+    /* attempt a simple stack trace */
 #if defined(__sun__)
     walkcontext(uc, simple_stack_print, NULL);
 #else
@@ -306,7 +307,7 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
       /* the subsequent dump may take a while on big processes and slow disks */
       noitL(noit_error, "crash resources released\n");
     }
-    /* attempt a simple stack trace */
+    chdir(trace_dir); /* switch to this directory to drop our core */
     kill(noit_monitored_child_pid, sig);
   }
   noit_log_leave_sighandler();
