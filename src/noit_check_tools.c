@@ -75,6 +75,9 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
   recur_closure_t *rcl = closure;
   int ms;
+
+  if(e != rcl->check->fire_event) return 0;
+
   noit_check_resolve(rcl->check);
   ms = noit_check_schedule_next(rcl->self, NULL, rcl->check, now,
                                 rcl->dispatch, NULL);
@@ -115,7 +118,6 @@ noit_check_schedule_next(noit_module_t *self,
   int initial = last_check ? 1 : 0;
 
   assert(cause == NULL);
-  assert(check->fire_event == NULL);
   if(check->period == 0) return 0;
 
   /* if last_check is not passed, we use the initial_schedule_time
