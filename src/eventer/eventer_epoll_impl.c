@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -245,7 +246,7 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
         e->thr_owner = tgt;
         spec = eventer_get_spec_for_event(e);
         assert(epoll_ctl(spec->epoll_fd, EPOLL_CTL_ADD, fd, &_ev) == 0);
-        noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, pthread_self(), tgt);
+        noitL(eventer_deb, "moved event[%p] from t@%d to t@%d\n", e, (int)pthread_self(), (int)tgt);
       }
       else {
         spec = eventer_get_spec_for_event(e);
@@ -275,14 +276,17 @@ static int eventer_epoll_impl_loop() {
 
     __sleeptime = eventer_max_sleeptime;
 
+    gettimeofday(&__now, NULL);
     eventer_dispatch_timed(&__now, &__sleeptime);
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);
 
     /* Now we move on to our fd-based events */
-    fd_cnt = epoll_wait(spec->epoll_fd, epev, maxfds,
-                        __sleeptime.tv_sec * 1000 + __sleeptime.tv_usec / 1000);
+    do {
+      fd_cnt = epoll_wait(spec->epoll_fd, epev, maxfds,
+                          __sleeptime.tv_sec * 1000 + __sleeptime.tv_usec / 1000);
+    } while(fd_cnt < 0 && errno == EINTR);
     noitLT(eventer_deb, &__now, "debug: epoll_wait(%d, [], %d) => %d\n",
            spec->epoll_fd, maxfds, fd_cnt);
     if(fd_cnt < 0) {
