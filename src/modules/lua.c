@@ -66,7 +66,9 @@ struct module_conf {
 struct module_tls_conf {
   int loaded;
   int configured;
+  int configured_return;
   int initialized;
+  int initialized_return;
 };
 static struct module_tls_conf *__get_module_tls_conf(noit_image_t *img) {
   struct module_conf *mc;
@@ -1028,7 +1030,7 @@ noit_lua_module_config(noit_module_t *mod,
   }
   else options = mc->options;
   mtlsc = __get_module_tls_conf(&mod->hdr);
-  if(mtlsc->configured) return mtlsc->configured;
+  if(mtlsc->configured) return mtlsc->configured_return;
 
   SETUP_CALL(L, object, "config", return 0);
 
@@ -1039,8 +1041,9 @@ noit_lua_module_config(noit_module_t *mod,
   /* If rv == 0, the caller will free options. We've
    * already freed options, that would be bad. fudge -> 1 */
   RETURN_INT(L, object, "config",
-             { mtlsc->configured = rv = (rv == 0) ? 1 : rv; });
-  mtlsc->configured = -1;
+             { mtlsc->configured = 1; mtlsc->configured_return = rv; });
+  mtlsc->configured = 1;
+  mtlsc->configured_return = -1;
   return -1;
 }
 static int
@@ -1051,7 +1054,7 @@ noit_lua_module_init(noit_module_t *mod) {
 
   mc = noit_module_get_userdata(mod);
   mtlsc = __get_module_tls_conf(&mod->hdr);
-  if(mtlsc->initialized) return mtlsc->initialized;
+  if(mtlsc->initialized) return mtlsc->initialized_return;
 
   SETUP_CALL(L, object, "init", return 0);
 
@@ -1059,8 +1062,9 @@ noit_lua_module_init(noit_module_t *mod) {
   lua_pcall(L, 1, 1, 0);
 
   RETURN_INT(L, object, "init",
-             { mtlsc->initialized = rv = (rv == 0) ? 1 : rv; });
-  mtlsc->initialized = -1;
+             { mtlsc->initialized = 1; mtlsc->initialized_return = rv; });
+  mtlsc->initialized = 1;
+  mtlsc->initialized_return = -1;
   return -1;
 }
 static void
