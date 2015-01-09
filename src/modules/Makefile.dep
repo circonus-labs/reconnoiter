@@ -1,375 +1,400 @@
 
 check_test.lo: check_test.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_rest.h ../noit_listener.h ../noit_http.h \
-  ../utils/noit_atomic.h ../noit_check_rest.h ../noit_check_tools.h \
-  ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
-  check_test.xmlh
-
-collectd.lo: collectd.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h  \
-  ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
-  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
   ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
-  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
-  ../eventer/eventer_jobq.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
   ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
   ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
-  ../noit_defines.h ../eventer/eventer.h ../noit_console_telnet.h \
-  ../noit_check.h ../noit_check_tools.h \
-  ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
-  ../utils/noit_hash.h collectd.xmlh
+  ../noit_console_telnet.h  \
+  ../noit_rest.h ../noit_listener.h ../noit_http.h \
+  ../noit_check_rest.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h check_test.xmlh
 
-ganglia.lo: ganglia.c ../noit_defines.h ../utils/noit_str.h \
-	../noit_module.h ../noit_check.h ../noit_check_tools.h \
-	../noit_rest.h ../utils/noit_log.h ../utils/noit_hash.h \
-	../utils/noit_b64.h ganglia.xmlh
+collectd.lo: collectd.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../utils/noit_str.h ../noit_module.h \
+  ../utils/noit_hash.h ../noit_check.h ../eventer/eventer.h \
+  ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
+  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../noit_rest.h ../noit_listener.h \
+  ../noit_http.h \
+  ../yajl-lib/yajl_parse.h ../yajl-lib/yajl_common.h ../utils/noit_b64.h \
+  collectd.xmlh
+
+custom_config.lo: custom_config.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../utils/noit_btrie.h custom_config.xmlh
 
 dns.lo: dns.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
-  ../noit_config.h ../noit_module.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+  ../noit_module.h ../utils/noit_hash.h ../noit_check.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_atomic.h ../udns/udns.h dns.xmlh
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../udns/udns.h dns.xmlh
+
+evil1.lo: evil1.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h
 
 external.lo: external.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h  \
-  ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
-  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
-  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
-  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../noitedit/strlcpy.h  \
+  ../noit_module.h ../utils/noit_hash.h ../noit_check.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h ../noit_check_tools.h \
-  ../noit_module.h ../noit_check_tools_shared.h ../utils/noit_log.h \
-  ../utils/noit_security.h external_proc.h ../eventer/eventer.h \
-  ../utils/noit_atomic.h ../utils/noit_hash.h external.xmlh
+  ../noitedit/histedit.h ../noit_console_telnet.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../utils/noit_security.h external_proc.h \
+  external.xmlh
 
 external_proc.lo: external_proc.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../utils/noit_skiplist.h \
-  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h external_proc.h ../eventer/eventer.h ../noit_defines.h \
-  ../utils/noit_log.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_atomic.h \
-  ../utils/noit_hash.h
+  ../noitedit/strlcpy.h ../utils/noit_skiplist.h ../utils/noit_log.h \
+  ../utils/noit_hash.h external_proc.h ../eventer/eventer.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h
 
-handoff_ingestor.lo: handoff_ingestor.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+fq_driver.lo: fq_driver.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_realtime_http.h \
+  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../noit_reverse_socket.h fq_driver.xmlh
+
+ganglia.lo: ganglia.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../utils/noit_str.h ../noit_module.h \
+  ../utils/noit_hash.h ../noit_check.h ../eventer/eventer.h \
+  ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../noit_rest.h ../noit_listener.h \
+  ../noit_http.h \
+  ../utils/noit_b64.h ganglia.xmlh
+
+handoff_ingestor.lo: handoff_ingestor.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_b64.h \
-  ../utils/noit_str.h ../utils/noit_mkdir.h ../utils/noit_getip.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_realtime_http.h ../stratcon_iep.h ../stratcon_datastore.h \
-  ../stratcon_jlog_streamer.h ../utils/noit_atomic.h ../jlog/jlog.h \
-  ../jlog/jlog_config.h ../noit_conf.h ../noit_check.h ../noit_rest.h \
-  ../noit_listener.h ../noit_http.h  \
+  ../utils/noit_b64.h ../utils/noit_str.h ../utils/noit_mkdir.h \
+  ../utils/noit_getip.h ../stratcon_datastore.h \
+  ../stratcon_realtime_http.h ../stratcon_iep.h \
+  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../noit_reverse_socket.h ../noit_rest.h ../noit_listener.h \
+  ../noit_http.h \
   handoff_ingestor.xmlh
 
 httptrap.lo: httptrap.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../noit_rest.h ../noit_listener.h ../noit_http.h \
-  ../utils/noit_atomic.h ../yajl-lib/yajl_parse.h \
-  ../yajl-lib/yajl_common.h ../utils/noit_log.h ../utils/noit_hash.h \
-  httptrap.xmlh
+  ../noit_check_tools.h ../noit_check_tools_shared.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
+  ../yajl-lib/yajl_parse.h ../yajl-lib/yajl_common.h httptrap.xmlh
 
 ip_acl.lo: ip_acl.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h ../utils/noit_btrie.h \
-  ip_acl.xmlh
+  ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../utils/noit_btrie.h ip_acl.xmlh
 
 libstomp.lo: libstomp.c  \
   libstomp.h \
 
 lua.lo: lua.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
-  ../noit_config.h ../noit_conf.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h ../noit_console.h ../eventer/eventer.h \
-  ../noit_defines.h ../utils/noit_log.h ../noit_defines.h \
-  ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+  ../noit_conf.h ../utils/noit_hash.h ../noit_console.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/histedit.h \
-  ../noit_defines.h ../eventer/eventer.h ../noit_console_telnet.h \
-  ../utils/noit_skiplist.h  ../noit_module.h \
-  ../noit_check.h ../utils/noit_hooks.h ../noit_conf.h ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h lua_noit.h ../../src/LuaJIT/src/lua.h \
-  ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h \
-  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/lualib.h lua.xmlh
+  ../noit_console_telnet.h ../utils/noit_skiplist.h \
+  ../noit_module.h \
+  ../noit_check.h ../utils/noit_hooks.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h lua_noit.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
+  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h lua.xmlh
 
 lua_bit.lo: lua_bit.c ../../src/LuaJIT/src/lua.h \
-  ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h \
-  ../../src/LuaJIT/src/lua.h
+  ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h
+
+lua_crypto.lo: lua_crypto.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_conf.h ../utils/noit_hash.h \
+  ../noit_console.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../utils/noit_skiplist.h  \
+  lua_noit.h ../noit_module.h ../noit_check.h ../utils/noit_hooks.h \
+  ../noit_check_tools.h ../noit_check_tools_shared.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
+  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h
 
 lua_dns.lo: lua_dns.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_conf.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_console.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/histedit.h \
-  ../noit_defines.h ../eventer/eventer.h ../noit_console_telnet.h \
-  ../utils/noit_skiplist.h  lua_noit.h \
-  ../noit_module.h ../noit_check.h ../utils/noit_hooks.h ../noit_conf.h \
-  ../noit_check.h ../noit_check_tools.h ../noit_module.h \
-  ../noit_check_tools_shared.h ../utils/noit_log.h \
+  ../noitedit/strlcpy.h ../noit_conf.h ../utils/noit_hash.h \
+  ../noit_console.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../utils/noit_skiplist.h  \
+  lua_noit.h ../noit_module.h ../noit_check.h ../utils/noit_hooks.h \
+  ../noit_check_tools.h ../noit_check_tools_shared.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
   ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
-  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lua.h \
-  ../../src/LuaJIT/src/lualib.h ../udns/udns.h
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h \
+  ../udns/udns.h
+
+lua_general.lo: lua_general.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  ../noit_http.h \
+  ../noit_listener.h ../noit_rest.h ../noit_filters.h \
+  ../noit_reverse_socket.h lua_noit.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../../src/LuaJIT/src/lua.h \
+  ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h \
+  ../../src/LuaJIT/src/lualib.h lua_http.h
+
+lua_http.lo: lua_http.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  lua_http.h ../noit_http.h \
+  ../noit_listener.h ../noit_rest.h ../../src/LuaJIT/src/lua.h \
+  ../../src/LuaJIT/src/luaconf.h lua_noit.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../../src/LuaJIT/src/lauxlib.h \
+  ../../src/LuaJIT/src/lualib.h
 
 lua_lpack.lo: lua_lpack.c lua_noit.h ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_conf.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_console.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/histedit.h \
-  ../noit_defines.h ../eventer/eventer.h ../noit_console_telnet.h \
-  ../utils/noit_skiplist.h  ../noit_module.h \
-  ../noit_check.h ../utils/noit_hooks.h ../noit_conf.h ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../../src/LuaJIT/src/lua.h \
-  ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h \
-  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/lualib.h
+  ../noitedit/strlcpy.h ../noit_conf.h ../utils/noit_hash.h \
+  ../noit_console.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../utils/noit_skiplist.h  \
+  ../noit_module.h ../noit_check.h ../utils/noit_hooks.h \
+  ../noit_check_tools.h ../noit_check_tools_shared.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
+  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h
 
 lua_noit.lo: lua_noit.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h  \
-  ../noit_conf.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_console.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h \
-  ../utils/noit_sem.h ../noitedit/histedit.h ../noit_defines.h \
-  ../eventer/eventer.h ../noit_console_telnet.h \
-  ../utils/noit_skiplist.h  ../noit_module.h \
-  ../noit_check.h ../utils/noit_hooks.h ../noit_conf.h ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../noit_xml.h ../utils/noit_log.h ../utils/noit_str.h \
-  ../utils/noit_b32.h ../utils/noit_b64.h ../eventer/eventer.h \
-  ../json-lib/json.h ../json-lib/bits.h ../json-lib/debug.h \
-  ../json-lib/linkhash.h ../json-lib/arraylist.h ../json-lib/json_util.h \
-  ../json-lib/json_object.h ../json-lib/json_object.h \
-  ../json-lib/json_tokener.h lua_noit.h ../../src/LuaJIT/src/lua.h \
+  ../noitedit/strlcpy.h \
+  ../noit_conf.h ../utils/noit_hash.h ../noit_console.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
+  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h ../utils/noit_skiplist.h \
+  ../noit_module.h \
+  ../noit_check.h ../utils/noit_hooks.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../noit_xml.h ../utils/noit_str.h \
+  ../utils/noit_b32.h ../utils/noit_b64.h ../json-lib/json.h \
+  ../json-lib/bits.h ../json-lib/debug.h ../json-lib/linkhash.h \
+  ../json-lib/arraylist.h ../json-lib/json_util.h \
+  ../json-lib/json_object.h ../json-lib/json_tokener.h lua_noit.h \
+  ../noit_rest.h ../noit_listener.h ../noit_http.h \
+  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h
+
+lua_snmp.lo: lua_snmp.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h lua_noit.h ../noit_conf.h ../utils/noit_hash.h \
+  ../noit_console.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../utils/noit_skiplist.h  \
+  ../noit_module.h ../noit_check.h ../utils/noit_hooks.h \
+  ../noit_check_tools.h ../noit_check_tools_shared.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
+  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/luaconf.h \
+  ../../src/LuaJIT/src/lauxlib.h ../../src/LuaJIT/src/lualib.h
+
+lua_web.lo: lua_web.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  ../noit_http.h \
+  ../noit_listener.h ../noit_rest.h lua_noit.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../../src/LuaJIT/src/lua.h \
   ../../src/LuaJIT/src/luaconf.h ../../src/LuaJIT/src/lauxlib.h \
-  ../../src/LuaJIT/src/lua.h ../../src/LuaJIT/src/lualib.h
+  ../../src/LuaJIT/src/lualib.h lua_http.h
 
 mysql.lo: mysql.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
-  ../noit_config.h ../noit_module.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+  ../noit_module.h ../utils/noit_hash.h ../noit_check.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h \
-  mysql.xmlh
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h mysql.xmlh
 
 ping_icmp.lo: ping_icmp.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ping_icmp.xmlh
+  ../noit_check_tools.h ../noit_check_tools_shared.h ping_icmp.xmlh
 
 postgres.lo: postgres.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h \
-  postgres.xmlh
+  ../noit_check_tools.h ../noit_check_tools_shared.h postgres.xmlh
 
 postgres_ingestor.lo: postgres_ingestor.c ../noit_defines.h \
-  ../noit_config.h ../noitedit/strlcpy.h ../noit_config.h \
-  ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
-  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
-  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
-  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../noit_config.h ../noitedit/strlcpy.h ../noit_module.h \
+  ../utils/noit_hash.h ../noit_check.h ../eventer/eventer.h \
+  ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_b64.h \
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../utils/noit_b64.h \
   ../utils/noit_str.h ../utils/noit_mkdir.h ../utils/noit_getip.h \
   ../utils/noit_watchdog.h ../stratcon_datastore.h \
-  ../stratcon_realtime_http.h ../stratcon_realtime_http.h \
-  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_jlog_streamer.h \
-  ../utils/noit_atomic.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_conf.h ../noit_check.h ../noit_check_log_helpers.h \
-  ../noit_rest.h ../noit_listener.h ../noit_http.h \
+  ../stratcon_realtime_http.h ../stratcon_iep.h \
+  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../noit_reverse_socket.h ../noit_check_log_helpers.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
   postgres_ingestor.xmlh ../bundle.pb-c.h
 
 rabbitmq_driver.lo: rabbitmq_driver.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../eventer/eventer.h ../utils/noit_log.h ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h ../utils/noit_atomic.h ../jlog/jlog.h \
-  ../jlog/jlog_config.h ../noit_conf.h librabbitmq/amqp.h \
-  librabbitmq/amqp_framing.h rabbitmq_driver.xmlh
+  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_realtime_http.h \
+  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../noit_reverse_socket.h librabbitmq/amqp.h librabbitmq/amqp_framing.h \
+  rabbitmq_driver.xmlh
+
+resolver_cache.lo: resolver_cache.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
+  ../noit_console_telnet.h  \
+  ../noit_check_resolver.h ../utils/noit_btrie.h resolver_cache.xmlh
 
 selfcheck.lo: selfcheck.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_version.h \
-  ../noit_module.h ../noit_defines.h ../utils/noit_hash.h \
-  ../noit_config.h ../noit_check.h ../eventer/eventer.h ../noit_defines.h \
-  ../utils/noit_log.h ../noit_defines.h ../utils/noit_hash.h \
-  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
-  ../eventer/eventer.h ../eventer/eventer_SSL_fd_opset.h \
+  ../noitedit/strlcpy.h ../noit_version.h ../noit_module.h \
+  ../utils/noit_hash.h ../noit_check.h ../eventer/eventer.h \
+  ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../noit_jlog_listener.h ../utils/noit_log.h ../utils/noit_hash.h \
-  selfcheck.xmlh
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ../noit_jlog_listener.h selfcheck.xmlh
 
 snmp.lo: snmp.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
-  ../noit_config.h ../noit_module.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+  ../noit_module.h ../utils/noit_hash.h ../noit_check.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
-  ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h snmp.xmlh snmptrap.xmlh
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h snmp.xmlh snmptrap.xmlh
+
+snmp_evil.lo: snmp_evil.c
 
 ssh2.lo: ssh2.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
-  ../noit_config.h ../noit_module.h ../noit_defines.h \
-  ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
+  ../noit_module.h ../utils/noit_hash.h ../noit_check.h \
+  ../eventer/eventer.h ../utils/noit_log.h ../utils/noit_atomic.h \
+  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer_SSL_fd_opset.h \
   ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/histedit.h ../noit_console_telnet.h \
+  ../noit_check_tools.h \
+  ../noit_check_tools_shared.h ssh2.xmlh
+
+statsd.lo: statsd.c ../noit_defines.h ../noit_config.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h  \
-  ssh2.xmlh
+  ../noit_check_tools.h ../noit_check_tools_shared.h statsd.xmlh
 
 stomp_driver.lo: stomp_driver.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../eventer/eventer.h ../utils/noit_log.h ../stratcon_iep.h \
-  ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h ../utils/noit_atomic.h ../jlog/jlog.h \
-  ../jlog/jlog_config.h ../noit_conf.h libstomp.h \
+  ../stratcon_iep.h ../stratcon_datastore.h ../stratcon_realtime_http.h \
+  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
+  ../noit_reverse_socket.h libstomp.h  \
   stomp_driver.xmlh
 
 test_abort.lo: test_abort.c ../noit_defines.h ../noit_config.h \
-  ../noitedit/strlcpy.h ../noit_config.h ../noit_module.h \
-  ../noit_defines.h ../utils/noit_hash.h ../noit_config.h ../noit_check.h \
-  ../eventer/eventer.h ../noit_defines.h ../utils/noit_log.h \
-  ../noit_defines.h ../utils/noit_hash.h ../utils/noit_atomic.h \
-  ../eventer/eventer_POSIX_fd_opset.h ../eventer/eventer.h \
-  ../eventer/eventer_SSL_fd_opset.h  \
-  ../eventer/eventer_jobq.h ../utils/noit_sem.h ../utils/noit_skiplist.h \
-  ../utils/noit_hooks.h ../noit_conf.h ../noit_console.h \
-  ../noitedit/histedit.h ../noit_defines.h ../eventer/eventer.h \
+  ../noitedit/strlcpy.h ../noit_module.h ../utils/noit_hash.h \
+  ../noit_check.h ../eventer/eventer.h ../utils/noit_log.h \
+  ../utils/noit_atomic.h ../eventer/eventer_POSIX_fd_opset.h \
+  ../eventer/eventer_SSL_fd_opset.h ../eventer/eventer_jobq.h \
+  ../utils/noit_sem.h ../utils/noit_skiplist.h ../utils/noit_hooks.h \
+  ../noit_conf.h ../noit_console.h ../noitedit/histedit.h \
   ../noit_console_telnet.h  \
-  ../noit_check.h \
-  ../noit_check_tools.h ../noit_module.h ../noit_check_tools_shared.h \
-  ../utils/noit_log.h ../utils/noit_hash.h
+  ../noit_check_tools.h ../noit_check_tools_shared.h
