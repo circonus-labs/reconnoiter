@@ -781,7 +781,7 @@ void noit_check_resolver_init() {
 
         n->last_needed = now.tv_sec;
         if(n->last_updated + n->ttl < now.tv_sec + 60) {
-          int fudge = MIN(60, n->ttl);
+          int fudge = MIN(60, n->ttl) + 1;
           n->last_updated = now.tv_sec - n->ttl + (lrand48() % fudge);
         }
         DCLOCK();
