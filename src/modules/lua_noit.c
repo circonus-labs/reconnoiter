@@ -166,6 +166,9 @@ noit_lua_socket_close(lua_State *L) {
   e = *eptr;
   if (e == NULL) return 0;
 
+  /* Simply null it out so if we try to use it, we'll notice */
+  *eptr = NULL;
+
   ci = noit_lua_get_resume_info(L);
   assert(ci);
 
@@ -198,6 +201,7 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
 
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
+  (*cl->eptr)->mask = 0;
   noit_lua_check_register_event(ci, *cl->eptr);
 
   if(getsockopt(e->fd,SOL_SOCKET,SO_ERROR, &aerrno, &aerrno_len) == 0)
@@ -276,6 +280,7 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
+  (*cl->eptr)->mask = 0;
   noit_lua_check_register_event(ci, *cl->eptr);
   ci->lmc->resume(ci, args);
   return 0;
@@ -381,6 +386,7 @@ noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
+  (*cl->eptr)->mask = 0;
   noit_lua_check_register_event(ci, *cl->eptr);
   ci->lmc->resume(ci, args);
   return 0;
@@ -619,7 +625,6 @@ noit_lua_socket_accept_complete(eventer_t e, int mask, void *vcl,
 
   newe = eventer_alloc();
   newe->fd = fd;
-  newe->mask = EVENTER_EXCEPTION;
   newe->callback = NULL;
   newe->closure = newcl;
   newcl->eptr = noit_lua_event(cl->L, newe);
@@ -632,6 +637,7 @@ noit_lua_socket_accept_complete(eventer_t e, int mask, void *vcl,
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
+  (*cl->eptr)->mask = 0;
   noit_lua_check_register_event(ci, *cl->eptr);
   ci->lmc->resume(ci, nargs);
   return 0;
@@ -718,7 +724,6 @@ noit_lua_socket_accept(lua_State *L) {
   if(fd < 0) {
     if(errno == EAGAIN) {
       /* Need completion */
-      eventer_remove_fd(e->fd);
       e->callback = noit_lua_socket_accept_complete;
       e->mask = newmask | EVENTER_EXCEPTION;
       eventer_add(e);
@@ -745,7 +750,6 @@ noit_lua_socket_accept(lua_State *L) {
 
   e = eventer_alloc();
   e->fd = fd;
-  e->mask = EVENTER_EXCEPTION;
   e->callback = NULL;
   e->closure = cl;
   cl->eptr = noit_lua_event(L, e);
@@ -1189,6 +1193,7 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
   noit_lua_check_deregister_event(ci, e, 0);
   *(cl->eptr) = eventer_alloc();
   memcpy(*cl->eptr, e, sizeof(*e));
+  (*cl->eptr)->mask = 0;
   noit_lua_check_register_event(ci, *cl->eptr);
   ci->lmc->resume(ci, args);
   return 0;
@@ -3145,6 +3150,7 @@ noit_lua_eventer_gc(lua_State *L) {
   eptr = (eventer_t *)lua_touserdata(L,1);
   /* Simply null it out so if we try to use it, we'll notice */
   e = *eptr;
+  *eptr = NULL;
   if(e) {
     noit_lua_resume_info_t *ci;
     struct nl_slcl *cl = e->closure;
@@ -3153,12 +3159,12 @@ noit_lua_eventer_gc(lua_State *L) {
     ci = noit_lua_get_resume_info(cl->L);
     assert(ci);
     noit_lua_check_deregister_event(ci, e, 0);
-    eventer_remove_fd(e->fd);
+    if(e->mask & (EVENTER_EXCEPTION|EVENTER_READ|EVENTER_WRITE))
+      eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
     eventer_free(e);
     if(cl->free) cl->free(cl);
   }
-  *eptr = NULL;
   return 0;
 }
 
