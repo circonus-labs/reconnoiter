@@ -1020,7 +1020,12 @@ noit_lua_module_config(noit_module_t *mod,
   LMC_DECL(L, mod, object);
 
   mc = noit_module_get_userdata(mod);
-  if(options) mc->options = options;
+  if(options) {
+    assert(mc->options == NULL);
+    mc->options = calloc(1, sizeof(*mc->options));
+    noit_hash_init(mc->options);
+    noit_hash_merge_as_dict(mc->options, options);
+  }
   else options = mc->options;
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(mtlsc->configured) return mtlsc->configured;
