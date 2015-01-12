@@ -279,7 +279,7 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
     /* attempt a simple stack trace */
 #if defined(__sun__)
     walkcontext(uc, simple_stack_print, NULL);
-#else
+#elif !defined(linux) && !defined(__linux) && !defined(__linux__)
     if(_global_stack_trace_fd >= 0) {
       struct stat sb;
       char stackbuff[4096];
@@ -298,6 +298,8 @@ void emancipate(int sig, siginfo_t *si, void *uc) {
     else {
       noitL(noit_error, "backtrace unavailable\n");
     }
+#else
+    noitL(noit_error, "backtrace unavailable\n");
 #endif
 
     if(allow_async_dumps) { 
