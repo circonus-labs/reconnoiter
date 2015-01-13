@@ -102,6 +102,7 @@ struct vp_w_free {
   void (*freefunc)(void *);
 };
 
+static noit_boolean system_needs_causality = noit_false;
 static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
@@ -530,6 +531,12 @@ noit_poller_make_causal_map() {
   int klen;
   void *vcheck;
 
+  if(!system_needs_causality) return;
+
+  /* set it to false, we'll set it to true during the scan if we
+   * find anything causal.  */
+  system_needs_causality = noit_false;
+
   /* Cleanup any previous causal map */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
@@ -553,6 +560,7 @@ noit_poller_make_causal_map() {
       char *name = check->oncheck;
       char *target = NULL;
 
+      system_needs_causality = noit_true;
       noitL(noit_debug, "Searching for upstream trigger on %s\n", name);
       parent = NULL;
       if(uuid_parse(check->oncheck, id) == 0) {
@@ -586,6 +594,8 @@ noit_poller_make_causal_map() {
       }
     }
   }
+  /* We found some causal checks, so we might need to activate stuff */
+  if(system_needs_causality) noit_poller_initiate();
 }
 void
 noit_poller_reload(const char *xpath)
@@ -596,7 +606,6 @@ noit_poller_reload(const char *xpath)
     noit_poller_flush_epoch(__config_load_generation);
   }
   noit_poller_make_causal_map();
-  noit_poller_initiate();
 }
 void
 noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
@@ -999,6 +1008,7 @@ noit_check_update(noit_check_t *new_check,
   }
   if(new_check->oncheck) free(new_check->oncheck);
   new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
+  if(new_check->oncheck) system_needs_causality = noit_true;
   new_check->period = period;
   new_check->timeout = timeout;
 
@@ -1006,6 +1016,9 @@ noit_check_update(noit_check_t *new_check,
   new_check->flags = (new_check->flags & ~mask) | flags;
 
   check_config_fixup_hook_invoke(new_check);
+
+  if((new_check->flags & NP_TRANSIENT) == 0)
+    noit_check_activate(new_check);
 
   noit_check_add_to_list(new_check, NULL);
   noit_check_log_check(new_check);
