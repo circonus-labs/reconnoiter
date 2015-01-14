@@ -527,10 +527,12 @@ void eventer_cross_thread_trigger(eventer_t e, int mask) {
   ctt = malloc(sizeof(*ctt));
   ctt->e = e;
   ctt->mask = mask;
+  noitL(noit_error, "queueing fd:%d from t@%d to t@%d\n", e->fd, (int)pthread_self(), (int)e->thr_owner);
   pthread_mutex_lock(&t->cross_lock);
   ctt->next = t->cross;
   t->cross = ctt;
   pthread_mutex_unlock(&t->cross_lock);
+  eventer_wakeup(e);
 }
 void eventer_cross_thread_process() {
   struct eventer_impl_data *t;
@@ -542,6 +544,7 @@ void eventer_cross_thread_process() {
     if(ctt) t->cross = ctt->next;
     pthread_mutex_unlock(&t->cross_lock);
     if(ctt) {
+      noitL(noit_error, "executing queued fd:%d / %x\n", ctt->e->fd, ctt->mask);
       eventer_trigger(ctt->e, ctt->mask);
       free(ctt);
     }
