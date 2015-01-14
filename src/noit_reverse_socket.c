@@ -727,6 +727,7 @@ socket_error:
     noit_reverse_socket_shutdown(rc, e);
     eventer_remove_fd(e->fd);
     noitL(nlerr, "reverse_socket: %s\n", socket_error_string);
+    e->opset->close(e->fd, &mask, e);
     return 0;
   }
 
@@ -773,6 +774,18 @@ socket_error:
       rc->id = strdup(rc->buff + 5);
       free(rc->buff);
       rc->buff = NULL;
+
+      /* Validate the client certs for noit/ connections, they're special */
+      if(!strncmp(rc->id, "noit/", 5)) {
+        if(strcmp(rc->id+5, ac->remote_cn ? ac->remote_cn : "")) {
+          noitL(noit_error, "attempted reverse connection '%s' invalid remote '%s'\n",
+                rc->id+5, ac->remote_cn ? ac->remote_cn : "");
+          free(rc->id);
+          rc->id = NULL;
+          goto socket_error;
+        }
+      }
+
       break;
     }
   }
