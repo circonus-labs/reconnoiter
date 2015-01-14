@@ -58,6 +58,7 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "noit_reverse_socket.h"
 #include "noit_xml.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
@@ -840,6 +841,25 @@ noit_lua_socket_connect(lua_State *L) {
     luaL_error(L, "must be called as method");
   e = *eptr;
   target = lua_tostring(L, 2);
+
+  if(!strncmp(target, "reverse:", 8)) {
+    int fd = noit_reverse_socket_connect(target+8, -1);
+    if(fd < 0) {
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Reverse connection unavailable");
+      return 2;
+    }
+    if(dup2(fd, e->fd) < 0) {
+      close(fd);
+      lua_pushinteger(L, -1);
+      lua_pushfstring(L, "Reverse connection dup2 failed");
+      return 2;
+    }
+    close(fd);
+    lua_pushinteger(L, 0);
+    return 1;
+  }
+
   if(!target) target = "";
   port = lua_tointeger(L, 3);
 
@@ -2054,7 +2074,8 @@ nl_socket(lua_State *L) {
   if(n > 0 && lua_isstring(L,1)) {
     const char *fam = lua_tostring(L,1);
     if(!fam) fam = "";
-    if(!strcmp(fam, "inet")) family = AF_INET;
+    if(!strncmp(fam, "reverse:", 8)) family = AF_INET;
+    else if(!strcmp(fam, "inet")) family = AF_INET;
     else if(!strcmp(fam, "inet6")) family = AF_INET6;
     else if(inet_pton(AF_INET, fam, &a) == 1) family = AF_INET;
     else if(inet_pton(AF_INET6, fam, &a) == 1) family = AF_INET6;
