@@ -35,46 +35,46 @@ demoCA-dir:
 	@test -f demoCA/serial || echo 00 > demoCA/serial
 
 test-ca.key:
-	openssl genrsa -out test-ca.key
+	openssl genrsa -out test-ca.key 4096
 
 test-ca.csr:	test-ca.key
-	openssl req -key test-ca.key -days 365 -new -out test-ca.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=Reconnoiter Test CA"
+	openssl req -sha256 -key test-ca.key -days 365 -new -out test-ca.csr -config demo-openssl.cnf -extensions v3_ca -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=Reconnoiter Test CA"
 
 test-ca.crt:	test-ca.key test-ca.csr
-	openssl x509 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt
+	openssl x509 -sha256 -req -in test-ca.csr -signkey test-ca.key -out test-ca.crt -extfile demo-openssl.cnf -extensions v3_ca -days 365
 
 client.key:
-	openssl genrsa -out client.key
+	openssl genrsa -out client.key 2048
 
 client.csr:	client.key
-	openssl req -key client.key -days 365 -new -out client.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=sampleclient"
+	openssl req -sha256 -key client.key -days 365 -new -out client.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=sampleclient"
 
 client.crt:	client.csr test-ca.key test-ca.crt
 	openssl ca -batch -config demo-openssl.cnf -in client.csr -out client.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 badclient.key:
-	openssl genrsa -out badclient.key
+	openssl genrsa -out badclient.key 2048
 
 badclient.csr:	badclient.key
-	openssl req -key badclient.key -days 365 -new -out badclient.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=samplebadclient"
+	openssl req -sha256 -key badclient.key -days 365 -new -out badclient.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=samplebadclient"
 
 badclient.crt:	badclient.csr test-ca.key test-ca.crt
 	openssl ca -batch -config demo-openssl.cnf -in badclient.csr -out badclient.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 test-noit.key:
-	openssl genrsa -out test-noit.key
+	openssl genrsa -out test-noit.key 2048
 
 test-noit.csr:	test-noit.key
-	openssl req -key test-noit.key -days 365 -new -out test-noit.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=noit-test"
+	openssl req -sha256 -key test-noit.key -days 365 -new -out test-noit.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=noit-test"
 
 test-noit.crt:	test-noit.csr test-ca.key test-ca.crt
 	openssl ca -batch -config demo-openssl.cnf -in test-noit.csr -out test-noit.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
 
 test-stratcon.key:
-	openssl genrsa -out test-stratcon.key
+	openssl genrsa -out test-stratcon.key 2048
 
 test-stratcon.csr:	test-stratcon.key
-	openssl req -key test-stratcon.key -days 365 -new -out test-stratcon.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=stratcon"
+	openssl req -sha256 -key test-stratcon.key -days 365 -new -out test-stratcon.csr -config demo-openssl.cnf -subj "/C=US/ST=Maryland/O=OmniTI Labs/CN=stratcon"
 
 test-stratcon.crt:	test-stratcon.csr test-ca.key
 	openssl ca -batch -config demo-openssl.cnf -in test-stratcon.csr -out test-stratcon.crt -outdir . -keyfile test-ca.key -cert test-ca.crt -days 120
