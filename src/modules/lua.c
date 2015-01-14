@@ -878,6 +878,12 @@ noit_check_index_func(lua_State *L) {
         lua_pushinteger(L, NP_UNAVAILABLE);
         lua_pushcclosure(L, noit_lua_set_available, 2);
       }
+      else if(!strcmp(k, "uuid")) {
+        char uuid_str[UUID_STR_LEN+1];
+        uuid_unparse_lower(check->checkid, uuid_str);
+        lua_pushstring(L, uuid_str);
+        return 1;
+      }
       else break;
       return 1;
     default:
