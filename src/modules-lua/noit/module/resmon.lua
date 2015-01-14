@@ -206,6 +206,7 @@ function xml_to_metrics(check, doc)
 end
 
 function initiate(module, check)
+    local reverse_str = "reverse:check/" .. check.uuid
     local config = check.interpolate(check.config)
     local helper = helpers[module.name()]
     if helper and helper.fix_config then config = helper.fix_config(config) end
@@ -275,7 +276,10 @@ function initiate(module, check)
 
         -- this is handled later as we need our challenge.
         client = HttpClient:new(callbacks)
-        rv, err = client:connect(check.target_ip, port, use_ssl)
+        rv, err = client:connect(reverse_str, port, use_ssl)
+        if rv ~= 0 then
+            rv, err = client:connect(check.target_ip, port, use_ssl)
+        end
         if rv ~= 0 then
             check.status(str or "unknown error")
             return
@@ -320,7 +324,10 @@ function initiate(module, check)
     end
 
     client = HttpClient:new(callbacks)
-    rv, err = client:connect(check.target_ip, port, use_ssl)
+    rv, err = client:connect(reverse_str, port, use_ssl)
+    if rv ~= 0 then
+        rv, err = client:connect(check.target_ip, port, use_ssl)
+    end
     if rv ~= 0 then
         check.status(err or "unknown error")
         return
