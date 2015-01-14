@@ -30,7 +30,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	dns.@MODULEEXT@ selfcheck.@MODULEEXT@ custom_config.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
-	resolver_cache.@MODULEEXT@ \
+	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 SMODULES=@BUILD_SMODULES@ \
@@ -122,6 +122,10 @@ handoff_ingestor.@MODULEEXT@:	handoff_ingestor.lo
 handoff_ingestor.lo: handoff_ingestor.c
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
+
+histogram.@MODULEEXT@:	histogram.lo histogram_impl.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo histogram_impl.lo
+	@echo "- linking $@"
 
 stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	@$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
