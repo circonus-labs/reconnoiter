@@ -48,6 +48,11 @@ static int PARALLELISM_MULTIPLIER = 4;
 static int EVENTER_DEBUGGING = 0;
 static int desired_nofiles = 1024*1024;
 
+struct cross_thread_trigger {
+  struct cross_thread_trigger *next;
+  eventer_t e;
+  int mask;
+};
 struct eventer_impl_data {
   int id;
   pthread_t tid;
@@ -59,6 +64,8 @@ struct eventer_impl_data {
     eventer_t e;
     struct recurrent_events *next;
   } *recurrent_events;
+  pthread_mutex_t cross_lock;
+  struct cross_thread_trigger *cross;
   void *spec;
 };
 
@@ -229,6 +236,7 @@ static void eventer_per_thread_init(struct eventer_impl_data *t) {
   t->tid = pthread_self();
   my_impl_data = t;
 
+  pthread_mutex_init(&t->cross_lock, NULL);
   pthread_mutex_init(&t->te_lock, NULL);
   t->timed_events = calloc(1, sizeof(*t->timed_events));
   noit_skiplist_init(t->timed_events);
@@ -509,6 +517,35 @@ eventer_foreach_timedevent (void (*f)(eventer_t e, void *), void *closure) {
       if(iter->data) f(iter->data, closure);
     }
     pthread_mutex_unlock(&t->te_lock);
+  }
+}
+
+void eventer_cross_thread_trigger(eventer_t e, int mask) {
+  struct eventer_impl_data *t;
+  struct cross_thread_trigger *ctt;
+  t = get_event_impl_data(e);
+  ctt = malloc(sizeof(*ctt));
+  ctt->e = e;
+  ctt->mask = mask;
+  pthread_mutex_lock(&t->cross_lock);
+  ctt->next = t->cross;
+  t->cross = ctt;
+  pthread_mutex_unlock(&t->cross_lock);
+}
+void eventer_cross_thread_process() {
+  struct eventer_impl_data *t;
+  struct cross_thread_trigger *ctt = NULL;
+  t = get_my_impl_data();
+  while(1) {
+    pthread_mutex_lock(&t->cross_lock);
+    ctt = t->cross;
+    if(ctt) t->cross = ctt->next;
+    pthread_mutex_unlock(&t->cross_lock);
+    if(ctt) {
+      eventer_trigger(ctt->e, ctt->mask);
+      free(ctt);
+    }
+    else break;
   }
 }
 

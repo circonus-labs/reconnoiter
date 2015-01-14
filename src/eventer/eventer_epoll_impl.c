@@ -225,6 +225,10 @@ static void eventer_epoll_impl_trigger(eventer_t e, int mask) {
 
   fd = e->fd;
   if(e != master_fds[fd].e) return;
+  if(!pthread_equal(pthread_self(), e->thr_owner)) {
+    eventer_cross_thread_trigger(e,mask);
+    return;
+  }
   lockstate = acquire_master_fd(fd);
   if(lockstate == EV_ALREADY_OWNED) return;
   assert(lockstate == EV_OWNED);
@@ -290,6 +294,9 @@ static int eventer_epoll_impl_loop() {
 
     gettimeofday(&__now, NULL);
     eventer_dispatch_timed(&__now, &__sleeptime);
+
+    /* Handle cross_thread dispatches */
+    eventer_cross_thread_process();
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);

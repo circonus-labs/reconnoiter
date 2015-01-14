@@ -206,6 +206,10 @@ eventer_ports_impl_trigger(eventer_t e, int mask) {
 
   fd = e->fd;
   if(e != master_fds[fd].e) return;
+  if(!pthread_equal(pthread_self(), e->thr_owner)) {
+    eventer_cross_thread_trigger(e,mask);
+    return;
+  }
   lockstate = acquire_master_fd(fd);
   if(lockstate == EV_ALREADY_OWNED) return;
   assert(lockstate == EV_OWNED);
@@ -285,6 +289,9 @@ static int eventer_ports_impl_loop() {
 
     if(compare_timeval(__sleeptime, __dyna_sleep) > 0)
       __sleeptime = __dyna_sleep;
+
+    /* Handle cross_thread dispatches */
+    eventer_cross_thread_process();
 
     /* Handle recurrent events */
     eventer_dispatch_recurrent(&__now);

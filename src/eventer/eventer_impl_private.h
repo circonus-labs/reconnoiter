@@ -69,3 +69,5 @@ LOCAL_EVENTER_foreach_fdevent (void (*f)(eventer_t e, void *),
 }
 
 void eventer_wakeup_noop(eventer_t);
+void eventer_cross_thread_trigger(eventer_t e, int mask);
+void eventer_cross_thread_process();
