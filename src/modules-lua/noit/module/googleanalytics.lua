@@ -104,9 +104,9 @@ local cache_table = { }
 
 -- default values for api key, client id, and client secret
 -- these can be overwritten with the config file
-local api_key       = 'AIzaSyAFVxaNSE-pb4qps0nzIZ_oWii2iKrFu6Y'
-local client_id     = '533505616497.apps.googleusercontent.com'
-local client_secret = 'od72EKgrkPYUpOk5cs5qoeA1'
+local api_key       = ''
+local client_id     = ''
+local client_secret = ''
 
 function init(module)
   cache_table = { }
