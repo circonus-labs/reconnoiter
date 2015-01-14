@@ -362,6 +362,7 @@ noit_reverse_socket_channel_handler(eventer_t e, int mask, void *closure,
     while(CHANNEL.incoming) {
       reverse_frame_t *f = CHANNEL.incoming;
       assert(f->buff_len == f->buff_filled); /* we only expect full frames here */
+noitL(noit_error, "reverse_socket_channel %s to write\n", f->command ? "command" : "data");
       if(f->command) {
         IFCMD(f, "RESET") goto snip;
         IFCMD(f, "CLOSE") goto snip;
@@ -463,6 +464,8 @@ socket_error:
       if(rc->incoming_inflight.channel_id & 0x8000) {
         rc->incoming_inflight.channel_id &= 0x7fff;
         rc->incoming_inflight.command = 1;
+      } else {
+        rc->incoming_inflight.command = 0;
       }
       rc->incoming_inflight.buff_len = ntohl(nframelen);
       noitL(nldeb, "next_frame_in(%s%d,%llu)\n",
@@ -765,7 +768,7 @@ socket_error:
         goto socket_error;
       }
       *crlf = '\0'; /* end of line */
-      for(crlf = rc->buff; *crlf && !isspace(*crlf); crlf++);
+      for(crlf = rc->buff+5; *crlf && !isspace(*crlf); crlf++);
       *crlf = '\0'; /* end of line */
       rc->id = strdup(rc->buff + 5);
       free(rc->buff);
