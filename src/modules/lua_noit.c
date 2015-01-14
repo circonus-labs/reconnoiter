@@ -842,7 +842,7 @@ noit_lua_socket_connect(lua_State *L) {
   e = *eptr;
   target = lua_tostring(L, 2);
 
-  if(!strncmp(target, "reverse:", 8)) {
+  if(target && !strncmp(target, "reverse:", 8)) {
     int fd = noit_reverse_socket_connect(target+8, -1);
     if(fd < 0) {
       lua_pushinteger(L, -1);
