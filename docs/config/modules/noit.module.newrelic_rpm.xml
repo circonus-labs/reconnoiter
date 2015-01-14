@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<section xmlns="http://docbook.org/ns/docbook" version="5">
+  <title>newrelic_rpm</title>
+  <para>The newrelic_rpm module imports Rails application metrics from NewRelic's RPM service.</para>
+  <para><ulink url="http://support.newrelic.com/faqs/docs/data-api"><citetitle>NewRelic RPM</citetitle></ulink> profiles Rails applications and stores metrics about the performance of the application.  These metrics are available over NewRelic's RPM data-api.</para>
+  <para>This module rides on the http module and provides a secondary phase of XML parsing on the output of NewRelic's RPM data-api into metrics that can be trended.</para>
+  <variablelist>
+    <varlistentry>
+      <term>loader</term>
+      <listitem>
+        <para>lua</para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term>object</term>
+      <listitem>
+        <para>noit.module.newrelic_rpm</para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>acct_id</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The account ID passed to NewRelic RPM's data-api.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>application_id</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The application ID passed to NewRelic RPM's data-api.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>license_key</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The license key passed to NewRelic RPM's data-api.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>api_key</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The API key passed to NewRelic's REST API.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Examples</title>
+    <example>
+      <title>Import NewRelic RPM metrics for a test application.</title>
+      <para>This example pulls metrics from an imaginary application profiled by the NewRelic RPM service.</para>
+      <programlisting>
+      &lt;noit&gt;
+        &lt;modules&gt;
+          &lt;loader image="lua" name="lua"&gt;
+            &lt;config&gt;&lt;directory&gt;/opt/reconnoiter/libexec/modules-lua/?.lua&lt;/directory&gt;&lt;/config&gt;
+          &lt;/loader&gt;
+          &lt;module loader="lua" name="newrelic_rpm" object="noit.module.newrelic_rpm"/&gt;
+        &lt;/modules&gt;
+        &lt;checks&gt;
+          &lt;check uuid="36b8ba72-7968-11dd-a67f-d39a2cc3f9de" module="newrelic_rpm" target="65.74.177.194" disable="no" period="60000" timeout="10000"&gt;
+            &lt;config&gt;
+              &lt;acct_id&gt;12345&lt;/acct_id&gt;
+              &lt;application_id&gt;67890&lt;/application_id&gt;
+              &lt;license_key&gt;c80c4e6r3ea73f3bc27e1c949c9449663abd2f4d&lt;/license_key&gt;
+            &lt;/config&gt;
+          &lt;/check&gt;
+        &lt;/checks&gt;
+      &lt;/noit&gt;
+    </programlisting>
+    </example>
+  </section>
+</section>
