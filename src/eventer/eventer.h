@@ -193,6 +193,7 @@ API_EXPORT(eventer_t) eventer_remove_recurrent(eventer_t e);
 API_EXPORT(void) eventer_add_recurrent(eventer_t e);
 API_EXPORT(int) eventer_get_epoch(struct timeval *epoch);
 API_EXPORT(void *) eventer_get_spec_for_event(eventer_t);
+API_EXPORT(int) eventer_cpu_sockets_and_cores(int *sockets, int *cores);
 API_EXPORT(pthread_t) eventer_choose_owner(int);
 
 /* Helpers to schedule timed events */

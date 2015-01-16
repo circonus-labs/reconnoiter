@@ -298,7 +298,7 @@ static int assess_hw_topo() {
   topo = NULL;
   return -1;
 }
-static int cpu_sockets_and_cores(int *sockets, int *cores) {
+int eventer_cpu_sockets_and_cores(int *sockets, int *cores) {
   int depth, nsockets = 0, ncores = 0;
 
   if(!topo) return -1;
@@ -335,7 +335,7 @@ int eventer_impl_init() {
 
   if(__loop_concurrency <= 0) {
     int sockets = 0, cores = 0;
-    (void)cpu_sockets_and_cores(&sockets, &cores);
+    (void)eventer_cpu_sockets_and_cores(&sockets, &cores);
     if(sockets == 0) sockets = 1;
     if(cores == 0) cores = sockets;
     __loop_concurrency = 1 + PARALLELISM_MULTIPLIER * cores;
