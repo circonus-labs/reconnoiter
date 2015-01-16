@@ -203,6 +203,7 @@ noit_listener_acceptor(eventer_t e, int mask,
         SSLCONFGET(ciphers, "ciphers");
         ctx = eventer_ssl_ctx_new(SSL_SERVER, layer, cert, key, ca, ciphers);
         if(!ctx) {
+          noitL(noit_error, "Failed to create SSL context.\n");
           newe->opset->close(newe->fd, &newmask, e);
           eventer_free(newe);
           goto socketfail;

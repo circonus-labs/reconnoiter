@@ -770,6 +770,8 @@ eventer_ssl_ctx_new(eventer_ssl_orientation_t type,
 
  bail:
   eventer_ssl_ctx_save_last_error(ctx, 1);
+  noitL(noit_error, "SSL context creation failed: %s\n",
+        ctx->last_error ? ctx->last_error : "unknown cause");
   eventer_ssl_ctx_free(ctx);
   return NULL;
 }
