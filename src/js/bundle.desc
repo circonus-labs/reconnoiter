@@ -1,0 +1,28 @@
+
+Á
+bundle.proto"˜
+Metric
+name (	
+
+metricType (
+valueDbl (
+valueI64 (
+	valueUI64 (
+valueI32 (
+	valueUI32 (
+valueStr (	"L
+Status
+	available (
+state (
+duration (
+status (	"&
+Metadata
+key (	
+value (	"y
+Bundle
+status (2.Status
+metrics (2.Metric
+metadata (2	.Metadata
+period (
+timeout (B%
+com.omniti.reconnoiterBCheckStatus

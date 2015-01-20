@@ -1,0 +1,17 @@
+{
+  "name": "noit",
+  "version": "0.0.1",
+  "description": "Noit Connection Utilities",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no test specified\" && exit 0"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "protobuf": "^0.11.0",
+    "fq": "^0.3.0",
+    "pg": "^4.1.1",
+    "amqp": "^0.2.0"
+  }
+}

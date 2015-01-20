@@ -429,6 +429,9 @@ distclean-subdirs:
 distclean:	clean distclean-subdirs
 	rm -f Makefile noit_config.h scripts/noit-config
 
+js/bundle.desc:	bundle.proto
+	protoc -ojs/bundle.desc bundle.proto
+
 bundle:
 	protoc bundle.proto --java_out=java
 	protoc-c bundle.proto --c_out=.
