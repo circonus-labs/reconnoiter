@@ -213,7 +213,7 @@ function AWSClient:perform(target, cache_table)
   local get_default = self.get_default
 
   local time = os.time()
-  local timestamp = os.date("%Y-%m-%dT%H:%M:%S.000Z", time)
+  local timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time)
   time = time - (time % 60)
   local start_time
   local end_time
