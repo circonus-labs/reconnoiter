@@ -272,10 +272,6 @@ noit_listener(char *host, unsigned short port, int type,
   } s;
   const char *event_name;
 
-  noitL(nldeb, "noit_listener(%s, %d, %d, %d, %s, %p)\n",
-        host, port, type, backlog,
-        (event_name = eventer_name_for_callback(handler))?event_name:"??",
-        service_ctx);
   if(host[0] == '/') {
     family = AF_UNIX;
   }
@@ -286,11 +282,17 @@ noit_listener(char *host, unsigned short port, int type,
       family = AF_INET6;
       rv = inet_pton(family, host, &a);
       if(rv != 1) {
-        if(!strcmp(host, "*")) {
+        if(!strcmp(host, "*") || !strcmp(host, "inet:*")) {
           family = AF_INET;
           a.addr4.s_addr = INADDR_ANY;
+        } else if(!strcmp(host, "inet6:*")) {
+          family = AF_INET6;
+          memset(&a.addr6,0,sizeof(a.addr6));
         } else {
-          noitL(noit_error, "Cannot translate '%s' to IP\n", host);
+          noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> bad address\n",
+                host, port, type, backlog,
+                (event_name = eventer_name_for_callback(handler))?event_name:"??",
+                service_ctx);
           return -1;
         }
       }
@@ -299,14 +301,19 @@ noit_listener(char *host, unsigned short port, int type,
 
   fd = socket(family, NE_SOCK_CLOEXEC|type, 0);
   if(fd < 0) {
-    noitL(noit_error, "Cannot create socket: %s\n", strerror(errno));
+    noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> socket: %s\n",
+          host, port, type, backlog,
+          (event_name = eventer_name_for_callback(handler))?event_name:"??",
+          service_ctx, strerror(errno));
     return -1;
   }
 
   if(eventer_set_fd_nonblocking(fd)) {
     close(fd);
-    noitL(noit_error, "Cannot make socket non-blocking: %s\n",
-          strerror(errno));
+    noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> nonblock: %s\n",
+          host, port, type, backlog,
+          (event_name = eventer_name_for_callback(handler))?event_name:"??",
+          service_ctx, strerror(errno));
     return -1;
   }
 
@@ -314,7 +321,10 @@ noit_listener(char *host, unsigned short port, int type,
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                  (void*)&reuse, sizeof(reuse)) != 0) {
     close(fd);
-    noitL(noit_error, "Cannot set SO_REUSEADDR: %s\n", strerror(errno));
+    noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> SO_REUSEADDR: %s\n",
+          host, port, type, backlog,
+          (event_name = eventer_name_for_callback(handler))?event_name:"??",
+          service_ctx, strerror(errno));
     return -1;
   }
 
@@ -325,7 +335,10 @@ noit_listener(char *host, unsigned short port, int type,
     /* coverity[fs_check_call] */
     if(stat(host, &sb) == -1) {
       if(errno != ENOENT) {
-        noitL(noit_error, "%s: %s\n", host, strerror(errno));
+        noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> stat: %s\n",
+              host, port, type, backlog,
+              (event_name = eventer_name_for_callback(handler))?event_name:"??",
+              service_ctx, strerror(errno));
         close(fd);
         return -1;
       }
@@ -336,7 +349,10 @@ noit_listener(char *host, unsigned short port, int type,
         unlink(host);
       }
       else {
-        noitL(noit_error, "unlink %s failed: %s\n", host, strerror(errno));
+        noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> unlink: %s\n",
+              host, port, type, backlog,
+              (event_name = eventer_name_for_callback(handler))?event_name:"??",
+              service_ctx, strerror(errno));
         close(fd);
         return -1;
       }
@@ -359,15 +375,20 @@ noit_listener(char *host, unsigned short port, int type,
     sockaddr_len = (family == AF_INET) ?  sizeof(s.addr4) : sizeof(s.addr6);
   }
   if(bind(fd, (struct sockaddr *)&s, sockaddr_len) < 0) {
-    noitL(noit_error, "bind failed[%s:%s:%d]: %s\n",
-          (family == AF_INET) ? "IPv4" : "IPv6",
-          host, port, strerror(errno));
+    noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> bind: %s\n",
+          host, port, type, backlog,
+          (event_name = eventer_name_for_callback(handler))?event_name:"??",
+          service_ctx, strerror(errno));
     close(fd);
     return -1;
   }
 
   if(type == SOCK_STREAM) {
     if(listen(fd, backlog) < 0) {
+      noitL(noit_error, "noit_listener(%s, %d, %d, %d, %s, %p) -> listen: %s\n",
+            host, port, type, backlog,
+            (event_name = eventer_name_for_callback(handler))?event_name:"??",
+            service_ctx, strerror(errno));
       close(fd);
       return -1;
     }
@@ -394,6 +415,10 @@ noit_listener(char *host, unsigned short port, int type,
   event->closure = listener_closure;
 
   eventer_add(event);
+  noitL(nldeb, "noit_listener(%s, %d, %d, %d, %s, %p) -> success\n",
+        host, port, type, backlog,
+        (event_name = eventer_name_for_callback(handler))?event_name:"??",
+        service_ctx);
   return 0;
 }
 
