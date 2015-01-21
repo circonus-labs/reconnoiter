@@ -32,6 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 var sys = require('sys'),
     fs = require('fs'),
     net = require('net'),
+    util = require('util'),
+    https = require('https'),
     crypto = require('crypto'),
     tls = require('tls'),
     loginfo = require('./log'),
@@ -55,6 +57,9 @@ var nc = function(port,host,creds,cn) {
   this.options = creds;
   this.options.host = host;
   this.options.port = port;
+  if(!this.options.hasOwnProperty('rejectUnauthorized')) {
+    this.options.rejectUnauthorized = false;
+  }
   if(cn) {
     this.cn = cn;
     this.options.servername = cn;
@@ -63,6 +68,32 @@ var nc = function(port,host,creds,cn) {
 };
 
 sys.inherits(nc, EventEmitter);
+
+nc.prototype.request = function(ext, payload, cb) {
+  if(typeof(payload) == 'function') {
+    cb = payload;
+    payload = null;
+  }
+  var options = { };
+  for(var k in this.options) options[k] = this.options[k];
+  options.hostname = this.options.host;
+  options.path = ext.path;
+  options.method = ext.method || 'GET';
+  options.headers = ext.headers || {};
+  if(ext.rejectUnauthorized !== undefined)
+    options.rejectUnauthorized = ext.rejectUnauthorized;
+  if(payload && payload.length)
+    options.headers['Content-Length'] = payload.length;
+  var req = https.request(options, function(res) {
+    var data = '';
+    var cert = req.connection.getPeerCertificate();
+    res.on('data', function(d) { data = data + d; });
+    res.on('end', function() { cb(res.statusCode, data); });
+  });
+  req.on('error', function(err) { cb(500, err); });
+  if(payload && payload.length) req.write(payload);
+  req.end();
+}
 
 function htonl(buf,b) {
   buf[0] = (b >> 24) & 0xff;
@@ -407,12 +438,17 @@ console.log('recv', frame.channel_id, frame.command ? "comm" : "data", frame.buf
         }
       }
       catch(e) {
-console.log(e, e.stack);
+        console.log(e, e.stack);
         parent.reverse_cleanup();
         parent.socket.end();
       }
     });
   });
+}
+
+exports.setCA =
+nc.prototype.setCA = function(file) {
+  https.globalAgent.options.ca = [ fs.readFileSync(file, {encoding:'utf8'}) ];
 }
 
 exports.connection = nc;
