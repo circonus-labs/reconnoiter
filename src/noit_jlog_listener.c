@@ -45,7 +45,8 @@
 #include <poll.h>
 #include <assert.h>
 #define MAX_ROWS_AT_ONCE 1000
-#define DEFAULT_SECONDS_BETWEEN_BATCHES 10
+#define DEFAULT_MSECONDS_BETWEEN_BATCHES 10000
+#define DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES 500
 
 static noit_atomic32_t tmpfeedcounter = 0;
 static int rest_show_feed(noit_http_rest_closure_t *restc,
@@ -181,7 +182,7 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
 
 void *
 noit_jlog_thread_main(void *e_vptr) {
-  int mask, bytes_read;
+  int mask, bytes_read, sleeptime, max_sleeptime;
   eventer_t e = e_vptr;
   acceptor_closure_t *ac = e->closure;
   noit_jlog_closure_t *jcl = ac->service_ctx;
@@ -190,10 +191,14 @@ noit_jlog_thread_main(void *e_vptr) {
   noit_memory_init_thread();
   eventer_set_fd_blocking(e->fd);
 
+  max_sleeptime = DEFAULT_MSECONDS_BETWEEN_BATCHES;
+  if(ac->cmd == NOIT_JLOG_DATA_TEMP_FEED)
+    max_sleeptime = DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES;
+
+  sleeptime = max_sleeptime;
   while(1) {
     jlog_id client_chkpt;
-    int sleeptime = (ac->cmd == NOIT_JLOG_DATA_TEMP_FEED) ?
-                      1 : DEFAULT_SECONDS_BETWEEN_BATCHES;
+    sleeptime = MIN(sleeptime, max_sleeptime);
     jlog_get_checkpoint(jcl->jlog, ac->remote_cn, &jcl->chkpt);
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
     if(jcl->count < 0) {
@@ -278,7 +283,10 @@ noit_jlog_thread_main(void *e_vptr) {
         goto alldone;
       }
     }
-    if(sleeptime) sleep(sleeptime);
+    if(sleeptime) {
+      usleep(sleeptime * 1000); /* us -> ms */
+      sleeptime += 1000; /* 1 s */
+    }
   }
 
  alldone:
