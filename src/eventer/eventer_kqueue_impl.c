@@ -114,7 +114,7 @@ static void eventer_kqueue_impl_wakeup_spec(struct kqueue_spec *spec) {
 static int eventer_kqueue_impl_register_wakeup(struct kqueue_spec *spec) {
   struct kevent kev;
   EV_SET(&kev, 0, EVFILT_USER, EV_ADD|EV_ONESHOT, NOTE_FFNOP, 0, NULL);
-  noitL(noit_debug, "wakeup... reregister\n");
+  noitL(eventer_deb, "wakeup... reregister\n");
   return kevent(spec->kqueue_fd, &kev, 1, NULL, 0, NULL);
 }
 
