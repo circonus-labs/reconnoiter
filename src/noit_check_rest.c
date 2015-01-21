@@ -96,7 +96,7 @@ add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
   }
 }
 xmlNodePtr
-noit_check_state_as_xml(noit_check_t *check) {
+noit_check_state_as_xml(noit_check_t *check, int full) {
   xmlNodePtr state, tmp, metrics;
   struct timeval now;
   stats_t *c = &check->stats.current;
@@ -120,25 +120,27 @@ noit_check_state_as_xml(noit_check_t *check) {
              f.tv_sec + (f.tv_usec / 1000000.0));
     xmlNodeAddContent(tmp, (xmlChar *)timestr);
   }
-  if(c->available) { /* truth here means the check has been run */
-    char buff[20], *compiler_warning;
-    snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
-    compiler_warning = buff;
-    NODE_CONTENT(state, "runtime", compiler_warning);
-  }
-  NODE_CONTENT(state, "availability",
-               noit_check_available_string(c->available));
-  NODE_CONTENT(state, "state", noit_check_state_string(c->state));
-  NODE_CONTENT(state, "status", c->status ? c->status : "");
-  xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-  add_metrics_to_node(&check->stats.inprogress, metrics, "inprogress", 0);
-  if(check->stats.current.whence.tv_sec) {
+  if(full) {
+    if(c->available) { /* truth here means the check has been run */
+      char buff[20], *compiler_warning;
+      snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
+      compiler_warning = buff;
+      NODE_CONTENT(state, "runtime", compiler_warning);
+    }
+    NODE_CONTENT(state, "availability",
+                 noit_check_available_string(c->available));
+    NODE_CONTENT(state, "state", noit_check_state_string(c->state));
+    NODE_CONTENT(state, "status", c->status ? c->status : "");
     xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-    add_metrics_to_node(&check->stats.current, metrics, "current", 1);
-  }
-  if(check->stats.previous.whence.tv_sec) {
-    xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-    add_metrics_to_node(&check->stats.previous, metrics, "previous", 1);
+    add_metrics_to_node(&check->stats.inprogress, metrics, "inprogress", 0);
+    if(check->stats.current.whence.tv_sec) {
+      xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+      add_metrics_to_node(&check->stats.current, metrics, "current", 1);
+    }
+    if(check->stats.previous.whence.tv_sec) {
+      xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
+      add_metrics_to_node(&check->stats.previous, metrics, "previous", 1);
+    }
   }
   return state;
 }
@@ -168,8 +170,8 @@ stats_to_json(stats_t *c) {
   return doc;
 }
 
-static struct json_object *
-noit_check_to_json(noit_check_t *check, int full) {
+struct json_object *
+noit_check_state_as_json(noit_check_t *check, int full) {
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
   struct timeval *t;
@@ -282,7 +284,7 @@ json_check_accum(noit_check_t *check, void *closure) {
   struct json_object *cobj, *doc = closure;
   char id_str[UUID_STR_LEN+1];
   uuid_unparse_lower(check->checkid, id_str);
-  cobj = noit_check_to_json(check, 0);
+  cobj = noit_check_state_as_json(check, 0);
   json_object_object_del(cobj, "id");
   json_object_object_add(doc, id_str, cobj);
   return 1;
@@ -327,7 +329,7 @@ rest_show_check_json(noit_http_rest_closure_t *restc,
     return 0;
   }
 
-  doc = noit_check_to_json(check, 1);
+  doc = noit_check_state_as_json(check, 1);
   
   noit_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
@@ -474,7 +476,7 @@ rest_show_check(noit_http_rest_closure_t *restc,
     xmlSetProp(state, (xmlChar *)"error", (xmlChar *)"true");
   }
   else
-    state = noit_check_state_as_xml(check);
+    state = noit_check_state_as_xml(check, 1);
   xmlAddChild(root, state);
   noit_http_response_ok(ctx, "text/xml");
   noit_http_response_xml(ctx, doc);

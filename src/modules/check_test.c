@@ -47,6 +47,7 @@ static noit_log_stream_t nldeb = NULL;
 struct check_test_closure {
   noit_check_t *check;
   noit_http_rest_closure_t *restc;
+  enum { WANTS_XML = 0, WANTS_JSON } output;
 };
 
 static noit_skiplist in_progress;
@@ -187,8 +188,6 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
 
 static void
 rest_test_check_result(struct check_test_closure *cl) {
-  xmlDocPtr doc = NULL;
-  xmlNodePtr root, state;
   noit_http_session_ctx *ctx = cl->restc->http_ctx;
 
   noitL(nlerr, "Flushing check test result\n");
@@ -200,17 +199,34 @@ rest_test_check_result(struct check_test_closure *cl) {
   cl->restc->fastpath = NULL;
 
   if(ctx) {
-    eventer_t conne = noit_http_connection_event(noit_http_session_connection(ctx));
+    eventer_t conne;
 
-    doc = xmlNewDoc((xmlChar *)"1.0");
-    root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
-    xmlDocSetRootElement(doc, root);
-    state = noit_check_state_as_xml(cl->check);
-    xmlAddChild(root, state);
-    noit_http_response_ok(ctx, "text/xml");
-    noit_http_response_xml(ctx, doc);
+    if(cl->output == WANTS_JSON) {
+      struct json_object *doc;
+      const char *jsonstr;
+
+      doc = noit_check_state_as_json(cl->check, 1);
+      noit_http_response_ok(ctx, "application/json");
+      jsonstr = json_object_to_json_string(doc);
+      noit_http_response_append(ctx, jsonstr, strlen(jsonstr));
+      noit_http_response_append(ctx, "\n", 1);
+      json_object_put(doc);
+    } else {
+      xmlDocPtr doc = NULL;
+      xmlNodePtr root, state;
+  
+      doc = xmlNewDoc((xmlChar *)"1.0");
+      root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
+      xmlDocSetRootElement(doc, root);
+      state = noit_check_state_as_xml(cl->check, 1);
+      xmlAddChild(root, state);
+      noit_http_response_ok(ctx, "text/xml");
+      noit_http_response_xml(ctx, doc);
+      xmlFreeDoc(doc);
+    }
     noit_http_response_end(ctx);
   
+    conne = noit_http_connection_event(noit_http_session_connection(ctx));
     if(conne) {
       // The event already exists, why re-add it?  Did we want to update it?
       //eventer_add(conne);
@@ -219,7 +235,6 @@ rest_test_check_result(struct check_test_closure *cl) {
   }
 
   noit_poller_free_check(cl->check);
-  xmlFreeDoc(doc);
   free(cl);
 }
 
@@ -307,6 +322,8 @@ rest_test_check(noit_http_rest_closure_t *restc,
     /* push the check and the context into a queue to complete on */
     struct check_test_closure *cl;
     cl = calloc(1, sizeof(*cl));
+    if(npats == 1 && !strcmp(pats[0], ".json"))
+      cl->output = WANTS_JSON;
     cl->check = tcheck;
     cl->restc = restc;
     noit_skiplist_insert(&in_progress, cl);
@@ -337,7 +354,7 @@ rest_test_check(noit_http_rest_closure_t *restc,
 static int
 check_test_init(noit_module_generic_t *self) {
   assert(noit_http_rest_register(
-    "POST", "/checks/", "^test$",
+    "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
   ) == 0);
   return 0;

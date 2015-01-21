@@ -38,6 +38,7 @@
 #include "noit_conf.h"
 
 #include <libxml/tree.h>
+#include "json-lib/json.h"
 
 #ifndef NOIT_CHECK_REST_H
 #define NOIT_CHECK_REST_H
@@ -50,6 +51,9 @@ API_EXPORT(int)
                                 const char **error);
 
 API_EXPORT(xmlNodePtr)
-  noit_check_state_as_xml(noit_check_t *check);
+  noit_check_state_as_xml(noit_check_t *check, int full);
+
+API_EXPORT(struct json_object *)
+  noit_check_state_as_json(noit_check_t *check, int full);
 
 #endif
