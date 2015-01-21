@@ -1,0 +1,110 @@
+name = "simple noit"
+plan = 10
+requires = ['prereq']
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    fs = require('fs'),
+    async = require('async');
+
+var expected_comms = 
+  { '0x50555420': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0x47455420': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0x48454144': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0xda7afeed': { name: 'log_transit', version: '1.0' },
+    '0x44454c45': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0x7e66feed': { name: 'log_transit', version: '1.0' },
+    '0x52455645': { name: 'reverse_socket_accept' },
+    '0x504f5354': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0xfa57feed': { name: 'livestream_transit', version: '1.0' },
+    '0x43415041': { name: 'capabilities_transit', version: '1.0' },
+    '0x4d455247': { name: 'noit_wire_rest_api', version: '1.0' } };
+
+var noit = new tools.noit("103", { 'logs_debug': { '': 'false' } });
+var conn = noit.get_connection();
+
+function check_caps(test, noit, callback) {
+  var reqtime = Date.now();
+  conn.request({ path: '/capa.json' }, function(code,data) {
+    var caps = {}, restime = Date.now();
+    try { caps = JSON.parse(data); } catch(e) {}
+
+    test.like(caps.current_time, /^\d+$/, 'current_time is a number');
+    var reqdur = restime - reqtime;
+    var remote_time = parseInt(caps.current_time) + reqdur/2.0;
+    var time_error = Math.abs(remote_time - restime);
+    test.ok(time_error < reqdur, 'time skew check')
+
+    for (var p in caps.services) {
+      if(caps.services[p].control_dispatch == 'control_dispatch') {
+        var comms = caps.services[p].commands;
+        test.is_deeply(comms, expected_comms, "capabilities");
+        return callback();
+      }
+    }
+    callback();
+  });
+}
+
+function check_check(uuid, cb) {
+  conn.request({path: '/checks/show/' + uuid + '.json'}, cb);
+}
+
+function put_check(uuid, cb) {
+  conn.request({path: '/checks/set/' + uuid, method: 'PUT' },
+    '<?xml version="1.0" encoding="utf8"?>' +
+    '<check>' +
+    '<attributes>' +
+    '  <target>127.0.0.1</target>' +
+    '  <period>1000</period>' +
+    '  <timeout>500</timeout>' +
+    '  <name>selfcheck</name>' +
+    '  <filterset>allowall</filterset>' +
+    '  <module>selfcheck</module>' +
+    '</attributes>' +
+    '<config/>' +
+    '</check>',
+    cb);
+}
+
+test = function() {
+  var test = this;
+  noit.on('exit', function(code, signal) {
+    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
+  });
+  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
+  noit.on('boot', function(pid, port) {
+    test.ok(true, 'noit booted');
+    test.is(port, noit.get_api_port(), 'API port matches');
+    async.series([
+      function(callback) { check_caps(test, noit, callback); },
+      function(callback) {
+        check_check('f7cea020-f19d-11dd-85a6-cb6d3a2207dc', function(code, data) {
+          test.is(code, 404, 'show check absent');
+          callback();
+        })
+      },
+      function(callback) {
+        put_check('f7cea020-f19d-11dd-85a6-cb6d3a2207dc', function(code, data) {
+          test.is(code, 200, 'put check');
+          callback();
+        })
+      },
+      function(callback) { setTimeout(callback, 1000); }, /* wait for check to run */
+      function(callback) {
+        check_check('f7cea020-f19d-11dd-85a6-cb6d3a2207dc', function(code, data) {
+          test.is(code, 200, 'show check absent');
+          try {
+            var json = JSON.parse(data);
+            test.is(json.status.good, true, 'show check run');
+          }
+          catch(e) { test.fail('show check run'); }
+          callback();
+        })
+      },
+      function(callback) { noit.stop(); callback(); },
+    ]);
+  });
+  noit.start();
+}

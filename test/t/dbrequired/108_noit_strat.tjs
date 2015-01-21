@@ -1,0 +1,305 @@
+name = "noit with stratcon"
+plan = 26;
+requires = ['database']
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    xml2js = require('xml2js'),
+    async = require('async');
+
+var parser = new xml2js.Parser();
+parser.on('error', function(err) { console.log("XML Parse error", err); });
+
+var noit = new tools.noit("108");
+var noitconn = noit.get_connection();
+var stratcon = new tools.stratcon("108",
+  { 'noits': [ { 'address': '127.0.0.1', 'port': noit.get_api_port() } ],
+    'iep': { 'queries': [] } });
+var stratconn = stratcon.get_connection();
+var firehose = stratcon.get_stomp_connection('/queue/noit.firehose');
+var alerts = stratcon.get_stomp_connection('/topic/noit.alerts.numeric');
+var firehose_data = { count: 0, messages: [], errors: 0 };
+var alert_data = { count: 0, messages: [], errors: 0 };
+firehose.on('message', function(m) {
+  firehose_data.count++;
+  firehose_data.messages.push(m);
+});
+firehose.on('error', function() { firehose_data.errors++; });
+alerts.on('message', function(m) {
+  alert_data.count++;
+  try {
+    alert_data.messages.push(JSON.parse(m.body[0]));
+  } catch(e) { alert_data.errors++; }
+});
+alerts.on('error', function() { alert_data.errors++; });
+
+var uuid_re = /^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$/,
+    uuid = '9c2163aa-f4bd-11df-851b-979bd290a553',
+    sid = -1,
+    selfcheck_xml = '<?xml version="1.0" encoding="utf8"?>' +
+                    '<check><attributes><target>127.0.0.1</target>' +
+                    '<period>1000</period>' +
+                    '<timeout>500</timeout>' +
+                    '<name>selfcheck</name>' +
+                    '<filterset>allowall</filterset>' +
+                    '<module>selfcheck</module>'+
+                    '</attributes><config/></check>';
+
+/* This function waits for a notice of data push in stratcon's log
+ * then runs a query map the uuid to the sid... if it returns no rows
+ * it continues waiting repeats itself.
+ * All up to the timeout.
+ */
+var find_sid = function(cb, timeout, tracker) {
+  var starttime = Date.now();
+  if(!tracker) tracker = { offset: 0 };
+  stratcon.wait_for_log(/Finished batch.*\/noit-test to/, timeout, function() {
+    tools.pgclient(function(err, client, dbdone) {
+      if(err) {
+        console.log(err);
+        return cb(-1);
+        dbdone();
+      }
+      client.query('select sid from stratcon.map_uuid_to_sid where id = $1', [uuid],
+        function(err, result) {
+          if(err) {
+            console.log(err);
+            cb(-1);
+          }
+          else if(result.rows.length == 0) {
+            /* nothing yet... wait some more */
+            timeout = timeout - (Date.now() - starttime);
+            if(timeout < 0) cb(-1);
+            else find_sid(cb, timeout, tracker);
+          }
+          else cb(result.rows[0].sid);
+          dbdone();
+        });
+    }, 'reconnoiter', 'reconnoiter');
+  }, tracker);
+}
+
+function fetch_metric_counts(tgt,sid,done) {
+  async.parallel({
+    text: function(done) {
+      tools.pgclient(function(err, client, dbdone) {
+        if(err) { dbdone(); return done(err, 0); }
+        client.query('select count(*) from noit.metric_text_archive where sid = $1', [sid],
+          function(err, results) {
+            if(err) { dbdone(); return done(err, 0); }
+            done(null, results.rows[0].count);
+            dbdone();
+          });
+      }, 'reconnoiter', 'reconnoiter');
+    },
+    numeric: function(done) {
+      tools.pgclient(function(err, client, dbdone) {
+        if(err) { dbdone(); return done(err, 0); }
+        client.query('select count(*) from noit.metric_numeric_archive where sid = $1', [sid],
+          function(err, results) {
+            if(err) { dbdone(); return done(err, 0); }
+            done(null, results.rows[0].count);
+            dbdone();
+          });
+      }, 'reconnoiter', 'reconnoiter');
+    },
+  },
+  function(err, results) {
+    for(var k in results) if(results.hasOwnProperty(k)) tgt[k] = results[k];
+    done(err, results);
+  });
+}
+
+function noits_to_session_events(results) {
+  var iep_cnt = -1, storage_cnt = -1;
+  try {
+    var iep_events = results.noits.noit
+      .filter(function(a) { return a['$'].type == 'transient/iep' })
+      .map(function(a) { return parseInt(a['$'].session_events); });
+    if(iep_events.length) iep_cnt = iep_events[0];
+    var storage_events = results.noits.noit
+      .filter(function(a) { return a['$'].type == 'durable/storage' })
+      .map(function(a) { return parseInt(a['$'].session_events); });
+    if(storage_events.length) storage_cnt = storage_events[0];
+  } catch(e) {}
+  return { iep: iep_cnt, storage: storage_cnt };
+}
+
+test = function() {
+  var test = this;
+  var procs = 2;
+
+  /* Noit setup */
+  noit.on('exit', function(code, signal) {
+    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
+  });
+  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
+  noit.on('boot', function(pid, port) {
+    test.ok(true, 'noit booted');
+
+    async.series([
+      function(done) {
+        noitconn.request({path:'/checks/show/'+uuid}, function(code, data) {
+          test.is(code, 404, 'check does not exist');
+          done();
+        });
+      },
+      function(done) {
+        noitconn.request({path:'/checks/set/'+uuid, method:'PUT'}, selfcheck_xml,
+                         function(code, data) {
+          test.is(code, 200, 'add selfcheck');
+          done();
+        });
+      },
+      function(done) { noit.wait_for_log(/`selfcheck <-/, 2000, function() {done();}) },
+      function(done) {
+        noitconn.request({path: '/checks/show/' + uuid + '.json'}, function(code,json) {
+          test.is(code, 200, 'show check');
+          try {
+            var data = JSON.parse(json);
+            test.is(data.status.good, true, 'show check run');
+          }
+          catch(e) { test.fail('show check run'); }
+          done();
+        });
+      },
+      function(done) {
+        if(--procs == 0) {
+          noit.stop();
+          stratcon.stop();
+        }
+        done();
+      }
+    ]);
+  });
+
+  /* Stratcon setup */
+  var start_metrics = {}, end_metrics = {};
+  stratcon.on('exit', function(code, signal) {
+    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
+  });
+  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
+  stratcon.on('boot', function(pid, port) {
+    test.ok(true, 'stratcon booted');
+
+    async.series([
+      function(done) {
+        stratcon.wait_for_log(/Loaded all (\d+) check states/, 60000, function(found) {
+          test.ok(found, "IEP is ready");
+          firehose.connect();
+          alerts.connect();
+          done();
+        });
+      },
+      function(done) {
+         find_sid(function(_sid) {
+           sid = _sid; /* set for global use */
+           test.ok(sid > 0, 'mapped uuid to sid');
+           done();
+         }, 20000);
+      },
+      function(done) {
+        fetch_metric_counts(start_metrics, sid, function(err,results) {
+          test.ok(!err, 'metric count' + (err ? ': ' + err : ''));
+          done();
+        });
+      },
+      /* Wait 3 seconds */
+      function(done) { setTimeout(function() { done(); }, 3000); },
+      function(done) {
+        var ot = { offset: stratcon.logsize(), start: Date.now() }
+        stratcon.wait_for_log(/Finished batch.*\/noit-test to/, 10000, function(found) {
+          test.ok(found, "batch loaded (" + (Date.now() - ot.start) + "ms)");
+          done();
+        }, ot);
+      },
+      function(done) {
+        fetch_metric_counts(end_metrics, sid, function(err,results) {
+          test.ok(!err, 'metric count' + (err ? ': ' + err : ''));
+          test.ok(end_metrics.numeric > start_metrics.numeric, 'numeric metrics loaded');
+          test.ok(end_metrics.text > start_metrics.text, 'text metrics loaded');
+          done();
+        });
+      },
+      function(done) {
+        stratconn.request({path:'/noits/show'}, function(code, xml) {
+          test.is(code, 200, 'show noits');
+          parser.parseString(xml, function(err, results) {
+            var counts = noits_to_session_events(results);
+            test.ok(counts.iep > 0, 'transient/iep connection (events)');
+            test.ok(counts.storage > 0, 'durable/storage connection (events)');
+            done();
+          });
+        });
+      },
+      function(done) {
+        test.is(firehose_data.errors, 0, 'no firehose stomp errors');
+        test.is(alert_data.errors, 0, 'no alert stomp errors');
+        test.isnt(firehose_data.count, 0, 'seen firehose messages');
+        test.isnt(alert_data.count, 0, 'seen alert messages');
+
+        /* We're looking for a noit selfcheck, so pare it down to "metrics_collected" metrics */
+        alert_data.messages = alert_data.messages || []
+        alert_data.messages = alert_data.messages.filter(function(a) { return a.service == 'metrics_collected' });
+
+        /* explot the tags list into a hash */
+        var taglist = alert_data.messages.length ? alert_data.messages[0].tags : [];
+        taglist = taglist || [];
+        var tags = {}
+        taglist.forEach(function(tag) {
+          var m = tag.split(/:/);
+          tags[m[0]] = (m.length>1) ? m[1] : 'true';
+        });
+
+        test.is(tags['reconnoiter'], 'true', 'reconnoiter alert');
+        test.is(tags['check'], uuid, 'alert: selfcheck uuid');
+        test.is(tags['module'], 'selfcheck', 'alert: selfcheck module');
+        test.is(tags['type'], 'numeric', 'alert: numeric type');
+        done();
+      },
+      function(done) {
+        if(--procs == 0) {
+          noit.stop();
+          stratcon.stop();
+        }
+        done();
+      }
+    ]);
+  });
+
+  noit.start();
+  stratcon.start();
+}
+/*
+my $stomp;
+my $payload;
+my $json;
+
+$stomp = stomp->new();
+ok($stomp, 'stomp connection');
+ok($stomp->subscribe('/queue/noit.firehose'), 'subscribed');
+$payload = $stomp->get({timeout => 6});
+undef $stomp;
+ok($payload, 'firehose traffic');
+
+$stomp = stomp->new();
+ok($stomp, 'stomp connection');
+ok($stomp->subscribe('/topic/noit.alerts.numeric'), 'subscribed');
+$payload = $stomp->get({timeout => 6});
+eval { die "no data" unless defined($payload);
+       $json = from_json($payload); };
+is($@, '', 'json numeric payload');
+undef $stomp;
+$json ||= { tags => [] };
+my %tags;
+foreach my $tag (@{$json->{tags}}) {
+  $tags{$1} = $2 if $tag =~ /([^:]+):(.*)/;
+}
+like($tags{check} || '', $uuid_re, 'numeric match has uuid');
+is($tags{module} || '', 'selfcheck', 'modules is set');
+
+ok(stop_noit, 'shutdown noit');
+ok(stop_stratcon, 'shutdown stratcon');
+1;
+*/

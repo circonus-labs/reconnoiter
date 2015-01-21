@@ -1,13 +1,10 @@
-#!/usr/bin/perl
+#!/bin/bash
 
-push @INC, '.';
+ARGS="-v -i"
+if [ -n "$*" ]; then
+	ARGS=$*
+fi
+export PATH=$PATH:/opt/circonus/bin:/opt/omni/bin
 
-use Test::Harness;
-
-my @files = sort <*.t>;
-@files = @ARGV if(@ARGV);
-
-$Test::Harness::verbose=1;
-runtests(@files);
-
-1;
+npm install .
+exec node ./runtests.js $ARGS

@@ -1,0 +1,48 @@
+name = "stratcon IP test"
+plan = 5
+requires = ['database']
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    net = require('net'),
+    async = require('async');
+
+
+var starttime = new Date();
+var stratcon = new tools.stratcon("106");
+
+test = function() {
+  var test = this;
+  stratcon.on('exit', function(code, signal) {
+    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
+  });
+  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
+  stratcon.on('boot', function(pid, port) {
+    test.ok(true, 'stratcon booted');
+    async.series([
+      function(done) { stratcon.wait_for_log(/Finished batch/, 10000, function() { done(); }); },
+      function(done) {
+        tools.pgclient(function(err, client, dbdone) {
+          test.ok(!err, "connected");
+          client.query('select remote_address from stratcon.current_node_config where whence >= $1::timestamptz',
+                       [starttime.toISOString()],
+                       function(err, result) {
+            if(err || result.rows.length == 0) {
+              test.fail('remote_address is IP');
+              test.fail('remote_address is not 0.0.0.0');
+            }
+            else {
+              test.ok(net.isIP(result.rows[0].remote_address), 'remote_address is IP');
+              test.isnt(result.rows[0].remote_address, '0.0.0.0', 'remote_address is not 0.0.0.0');
+            }
+            dbdone();
+            done();
+          });
+        }, 'reconnoiter','reconnoiter');
+      },
+      function(done) { stratcon.stop(); done(); }
+    ]);
+  });
+  stratcon.start();
+}

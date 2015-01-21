@@ -1,0 +1,89 @@
+name = "module (self) tests"
+plan = 6
+requires = ['prereq']
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    async = require('async');
+
+var noit = new tools.noit("110",
+  {
+    'generics': { 'check_test': { 'image': 'check_test' } },
+    'modules': { 'dns': { 'image': 'dns' },
+                 'interp': { 'loader': 'lua', 'object': 'noit.test.interp' } },
+    'logs_debug': { '': 'false' }
+  });
+
+var checkno = 0;
+function mkcheckxml(target,module,config) {
+   config = config || {};
+   checkno++;
+   var configxml = [];
+   for(var k in config) {
+     if(config.hasOwnProperty(k))
+       configxml.push("<" + k + ">" + config[k] + "</" + k + ">");
+   }
+   return '<?xml version="1.0" encoding="utf8"?>' +
+          '<check><attributes><target>' + target + '</target>' +
+                             '<period>5000</period>' +
+                             '<timeout>1000</timeout>' +
+                             '<name>test.' + checkno + '</name>' +
+                             '<filterset>allowall</filterset>' +
+                             '<module>' + module + '</module>' +
+                 '</attributes>'+
+                 '<config>' + configxml.join('') + '</config></check>';
+}
+
+var expected = {};
+var interp_tests = ['broken', 'copy', 'name', 'module',
+                    'inaddrarpa', 'reverseip', 'ccns',
+                    'randint', 'randuuid', 'randbroken'];
+interp_tests.forEach(function (k) { expected[k] = 'SUCCESS'; });
+
+var conn = noit.get_connection();
+
+var munge_metrics = function(json) {
+  var data = JSON.parse(json);
+  var recv = {}, current = data.metrics.current
+  for(var k in current) {
+    if(current.hasOwnProperty(k)) {
+      recv[k] = current[k]._value.replace(/:.*/,'');
+    }
+  }
+  return recv;
+}
+test = function() {
+  var test = this;
+  noit.on('exit', function(code, signal) {
+    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
+  });
+  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
+  noit.on('boot', function(pid, port) {
+    test.ok(true, 'noit booted');
+    async.parallel([
+      function(done) {
+        conn.request({path:'/checks/test.json', method:'POST'},
+                     mkcheckxml('192.168.19.12', 'interp', {key:"foofoo"}),
+                     function(code,json) {
+          test.is(code, 200, 'test interp ipv4');
+          try { test.is_deeply(munge_metrics(json), expected, 'successful run'); }
+          catch(e) { test.fail('successful run: ' + e); }
+          done();
+        });
+      },
+      function(done) {
+        conn.request({path:'/checks/test.json', method:'POST'},
+                     mkcheckxml('fe80::7ed1:c3ff:fedc:ddf7', 'interp', {key:"quuxer"}),
+                     function(code,json) {
+          test.is(code, 200, 'test interp ipv6');
+          try { test.is_deeply(munge_metrics(json), expected, 'successful run'); }
+          catch(e) { test.fail('successful run: ' + e); }
+          done();
+        });
+      },
+      ],
+      function() { noit.stop(); });
+  });
+  noit.start();
+}

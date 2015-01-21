@@ -1,0 +1,27 @@
+name = 'prereq';
+plan = 5;
+provides = ['prereq'];
+test = function() {
+  var fs = require('fs');
+  var self = this;
+  var progs = ['pg_ctl', 'initdb', 'psql', 'rm'];
+  progs.forEach(function (prog) {
+    var found = false;
+    process.env['PATH'].split(/:/).forEach(function (dir) {
+      try {
+        var stat = fs.statSync(dir + "/" + prog);
+        if(stat.isFile() && (stat.mode & 0111)) found = true;
+      } catch (e)  { }
+    });
+    if(found) self.ok(true, 'found ' + prog);
+    else self.fail(prog + ' is required, but not in your path');
+  });
+  try { fs.mkdirSync("logs"); } catch(e) {}
+  var mkdir_success = false;
+  try { 
+    var stat = fs.statSync("logs");
+    if(stat.isDirectory()) mkdir_success = true;
+  } catch(e) {}
+  self.ok(mkdir_success, "logs dir exists");
+}
+

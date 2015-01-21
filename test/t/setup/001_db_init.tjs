@@ -1,0 +1,90 @@
+name = 'database initialization'
+plan = process.env['SKIP_DB'] ? 1 : 6
+requires = ['prereq']
+provides = ['db_init']
+
+var fs = require('fs'),
+    spawn = require('child_process').spawn,
+    tools = require('./testconfig');
+
+function cleanup(test, cb) {
+  try {
+    var stat = fs.statSync(tools.NOIT_TEST_DB);
+    if(stat.isDirectory()) {
+      var c = spawn('pg_ctl', [ '-D', tools.NOIT_TEST_DB, '-w', '-m', 'immediate', 'stop' ],
+                    { stdio: [ 'ignore', 'pipe', 'pipe' ] });
+      var output = '';
+      c.stdio[1].on('data', function(d) { output = output + d; });
+      c.stdio[2].on('data', function(d) { output = output + d; });
+      c.on('exit', function(code) {
+        if(test) test.ok(code == 0 || code == 1, 'db shutdown' + (code ? (": " + output) : ""));
+        if(code != 0 && code != 1) { if(test) test.skip('cleaned up old DB'); return cb(); }
+        spawn('rm', [ '-rf', tools.NOIT_TEST_DB ], { stdio: 'ignore' }).on('exit', function(code) {
+          if(test) test.ok(code == 0, 'cleaned up old DB');
+          cb();
+        });
+      });
+    }
+  }
+  catch(e) {
+    if(test) {
+      if(e.code == 'ENOENT') {
+        test.succeed('db shutdown (noop)');
+        test.succeed('db cleanup (noop)');
+      } else {
+        test.fail('db shutdown: ' + e);
+        test.fail('db cleanup: ' + e); 
+      }
+    } else console.log("error cleaning up", e);
+    cb();
+  }
+}
+
+function init(test) {
+  test.ok(fs.existsSync('../../sql/reconnoiter_ddl_dump.sql'), 'SQL DDL exists');
+  var c = spawn('initdb', [ '-A', 'trust', tools.NOIT_TEST_DB ], { stdio: [ 'ignore', 'pipe', 'pipe' ] });
+  var output = '';
+  c.stdio[1].on('data', function(d) { output = output + d; });
+  c.stdio[2].on('data', function(d) { output = output + d; });
+  c.on('error', function(err) {
+    test.fail('initialized db: error ' + err);
+    test.skip('started db');
+    test.skip('connect to db');
+  });
+  c.on('exit', function(code) { 
+    if(code != 0) {
+      test.fail('initialized db: exit ' + code + "\n" + output);
+      test.skip('started db');
+      test.skip('connect to db');
+      return;
+    }
+    test.ok(code == 0, 'initialized db');
+
+    fs.writeFileSync(tools.NOIT_TEST_DB + "/postgresql.conf",
+      "listen_addresses = 'localhost'\n" +
+      "unix_socket_directory = '" + tools.NOIT_TEST_DB + "'\n" +
+      "port = " + tools.NOIT_TEST_DB_PORT + "\n");
+    var output = '';
+    var c = spawn('pg_ctl', [ '-D', tools.NOIT_TEST_DB, '-l', tools.NOIT_TEST_DB + '/serverlog',
+                              '-s', '-w', 'start' ], { stdio: [ 'ignore', 'pipe', 'pipe' ] });
+    c.stdio[1].on('data', function(d) { output = output + d; });
+    c.stdio[2].on('data', function(d) { output = output + d; });
+    c.on('error', function(code) { test.fail('started database'); test.skip('connect to db'); });
+    c.on('exit', function(code) {
+      test.ok(code == 0, 'started database' + (code ? ": " + output : ""));
+      tools.pgclient(function(err, client) {
+        test.ok(!err, 'connect to db' + (err ? ": " + err : ""));
+      });
+    });
+  });
+}
+test = function() {
+  var test = this;
+  if(process.env['SKIP_DB']) {
+    test.skip('skipping db');
+    return;
+  }
+  if(process.env['SKIP_DB_CLEANUP'] != 1)
+    tools.cleanup(function(cb) { cleanup(null, cb); });
+  cleanup(test, function() { init(test); });
+}

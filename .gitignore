@@ -20,6 +20,7 @@ src/**/Makefile
 src/dhparam*.txt
 src/*.dSYM
 src/js/node_modules/
+test/t/node_modules/
 src/lua/src/lua
 src/modules/*.dSYM
 src/noit_version.h

@@ -1,0 +1,43 @@
+name = "REST permissions"
+plan = 4
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    fs = require('fs'),
+    async = require('async');
+
+var noit = new tools.noit("107",
+    { 'logs_debug': { '': 'false' },
+      'rest_acls': [ { 'type': 'deny',
+                       'rules': [
+                         { 'type': 'allow', 'url': '^/checks/show/' },
+                       ] }
+                   ] });
+
+var conn = noit.get_connection();
+
+test = function() {
+  var test = this;
+  noit.on('exit', function(code, signal) {
+    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
+  });
+  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
+  noit.on('boot', function(pid, port) {
+    test.ok(true, 'noit booted');
+    async.parallel([
+        function(callback) {
+          conn.request({path: '/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc'},
+            function(code, d) { test.is(code, 404, 'get checks'); callback(); });
+        },
+        function(callback) {
+          conn.request({path: '/checks/set/f7cea020-f19d-11dd-85a6-cb6d3a2207dc', method: 'PUT'},
+            '<?xml version="1.0" encoding="utf8"?><check><attributes><target>127.0.0.1</target><period>5000</period><timeout>1000</timeout><name>selfcheck</name><filterset>allowall</filerset><module>selfcheck</module></attributes><config/></check>',
+            function(code, d) { test.is(code, 403, 'add selfcheck denied'); callback(); });
+        }
+      ],
+      function() { noit.stop(); }
+    );
+  });
+  noit.start();
+}

@@ -1,0 +1,45 @@
+name = 'database schema load'
+plan = process.env['SKIP_DB'] ? 1 : 3
+requires = ['db_init']
+provides = ['database']
+
+var tools = require('./testconfig'),
+    spawn = require('child_process').spawn;
+
+function schema_load(test, cb) {
+  tools.pgclient(function(err, client, done) {
+    done();
+    if(!err) { test.skip('ddl load'); return cb(); }
+    var c = spawn('psql', [ '-h', 'localhost',
+                            '-p', tools.NOIT_TEST_DB_PORT, 'postgres',
+                            '-f', '../../sql/reconnoiter_ddl_dump.sql' ],
+                  { stdio: [ 'ignore', 'ignore', 'pipe' ] });
+    var output = '';
+    c.stdio[2].on('data', function(d) { output = output + d; });
+    c.on('exit', function(code) {
+      var bad = output.split(/\n/).filter(function(s) { return !/\b(NOTICE|INFO)\b/.test(s); }).join("\n");
+      if(code != 0 || bad.length) test.fail('schema load: ' + code + '/' + bad);
+      else test.ok(true, 'schema load');
+      cb();
+    });
+  }, 'reconnoiter','reconnoiter');
+}
+
+test = function() {
+  var test = this;
+  if(process.env['SKIP_DB']) {
+    test.skip('skipping db');
+    return;
+  }
+  schema_load(test, function() {
+    tools.pgclient(function(err, client, done) {
+      test.ok(!err, "connected");
+      client.query('select count(*) as rollups from noit.metric_numeric_rollup_config', function(err, result) {
+        if(err) test.fail('query rollups: ' + err);
+        else test.is(result.rows[0].rollups, 6, 'query rollups');
+        done();
+      });
+    }, 'reconnoiter','reconnoiter');
+  });
+}
+

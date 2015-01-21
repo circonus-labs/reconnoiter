@@ -1,0 +1,69 @@
+name = "simple stratcon"
+plan = 10
+requires = ['database']
+
+'use strict';
+var tools = require('./testconfig'),
+    nc = require('../../src/js/index'),
+    parseString = require('xml2js').parseString,
+    async = require('async');
+
+var stratcon = new tools.stratcon("104");
+var conn = stratcon.get_connection();
+
+test = function() {
+  var test = this;
+  stratcon.on('exit', function(code, signal) {
+    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
+  });
+  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
+  stratcon.on('boot', function(pid, port) {
+    test.ok(true, 'stratcon booted');
+    async.series([
+      function(done) {
+        conn.request({path:'/noits/show'}, function(code, xml) {
+          test.is(code, 200, 'show noits');
+          parseString(xml, function (err, result) {
+            test.is(result.noits, '', 'no noits configured');
+            done();
+          });
+        });
+      },
+      function(done) {
+        conn.request({path:'/noits/set/127.0.0.1:1023',method:'PUT'}, function(code, xml) {
+          test.is(code, 200, 'add noit');
+          done();
+        });
+      },
+      function(done) {
+        conn.request({path:'/noits/show'}, function(code, xml) {
+          test.is(code, 200, 'show noits');
+          parseString(xml, function (err, result) {
+            test.is(result.noits.noit.length, 2, 'two noit slots');
+            done();
+          });
+        });
+      },
+      function(done) {
+        conn.request({path:'/noits/delete/127.0.0.1:1023',method:'DELETE'}, function(code, xml) {
+          test.is(code, 200, 'remove noit');
+          done();
+        });
+      },
+      function(done) {
+        conn.request({path:'/noits/show'}, function(code, xml) {
+          test.is(code, 200, 'show noits');
+          parseString(xml, function (err, result) {
+            test.is(result.noits, '', 'no noits configured');
+            done();
+          });
+        });
+      },
+      function(done) {
+        stratcon.stop();
+        done();
+      }
+    ]);
+  });
+  stratcon.start();
+}
