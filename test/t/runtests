@@ -5,22 +5,74 @@ if [ -n "$*" ]; then
 	ARGS=$*
 fi
 
+function croak() {
+	echo $*
+	exit 2
+}
+
 PATH=$PATH:/opt/circonus/bin:/opt/omni/bin
 
-for GCCPATH in "`find /opt -maxdepth 1 -type d -name gcc\* | sort -r`"; do
-  PATH=$PATH:$GCCPATH/bin
+# On OmniOS gcc is in /opt/gcc-{VER} and postgres is /opt/pgsql{VER}
+# We need those in the path... doesn't much matter which version, so
+# make a half-baked attempt at the most recent.
+
+for LPATH in "`find /opt -maxdepth 1 -type d -name gcc\* | sort -r | head -1`"; do
+  PATH=$PATH:$LPATH/bin
+done
+for LPATH in "`find /opt -maxdepth 1 -type d -name pg\* | sort -r | head -1`"; do
+  PATH=$PATH:$LPATH/bin
 done
 
 export PATH
+
+# If we have gmake, we should assume that 'make' is real UNIX make.
+# NPM is quite insistent upon invoking make as if it were UNIX make.
+# So, if gmake works, we should set MAKE=gmake so that NPM can still
+# function in spite of its child-like denial.
 
 gmake -v >/dev/null 2>&1
 if [ $? -eq 0 ]; then
   export MAKE=gmake
 fi
 
+# The NPM install can take a really long time because the protobuf
+# modules requirement in src/js.  If the user has all these modules
+# installed globally already, they can skil it by setting
+# SKIP_NPM_INSTALL=1 the environment.
+
 if [ "x$SKIP_NPM_INSTALL" != "x1" ]; then
+	# Someone should be kicked for this
 	npm config set color false
-	(cd ../../src/js && npm install)
-	npm install
+
+  # npm install is going to actually build software.
+  # npm install really has no idea how to do this well.
+  # The best help we can give it is to pull the includes and linker flags
+  # from the parent build of Reconnoiter to "help" npm find libraries
+  # and headers it wouldn't otherwise find.
+
+	INC=`grep '^CFLAGS=' ../../src/Makefile | sed -e 's/^[^=]*=/ /;' -e 's/ -[^I][^ ]*//g;'`
+	LDF=`grep '^LDFLAGS=' ../../src/Makefile | sed -e 's/^[^=]*=/ /;' -e 's/ [0-9a-z-][^LRW][^ ]*//g;'`
+
+	pushd ../../src/js >/dev/null || croak "can't change to ../../src/js"
+	# Because npm link is a pile of shit that doen't work, we're going to
+	# have to try to link shit up ourselves.  protobuf and fq are the only
+	# modules requiringa compiler... so we'll start and end there.
+  mkdir -p node_modules
+	NPMROOT=`npm root -g`
+	for mod in protobuf fq; do
+		if [ -d "$NPMROOT/$mod" ]; then
+			if [ ! -e node_modules/$mod ]; then
+				echo "Hacking a link from node_modules/$mod -> $NPMROOT/$mod"
+				ln -s "$NPMROOT/$mod" node_modules/$mod
+			fi
+		fi
+	done
+	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install
+	popd >/dev/null
+
+	# Install dependencies for the test suite itself
+	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install
 fi
+
+# Finally, run the test suite.
 exec node ./runtests.js $ARGS
