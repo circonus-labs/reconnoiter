@@ -57,7 +57,7 @@ if [ "x$SKIP_NPM_INSTALL" != "x1" ]; then
 	# Because npm link is a pile of shit that doen't work, we're going to
 	# have to try to link shit up ourselves.  protobuf and fq are the only
 	# modules requiringa compiler... so we'll start and end there.
-  mkdir -p node_modules
+	mkdir -p node_modules
 	NPMROOT=`npm root -g`
 	for mod in protobuf fq; do
 		if [ -d "$NPMROOT/$mod" ]; then
