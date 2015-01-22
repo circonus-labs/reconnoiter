@@ -87,7 +87,7 @@ test = function() {
           callback();
         })
       },
-      function(callback) { setTimeout(callback, 1000); }, /* wait for check to run */
+      function(done) { noit.wait_for_log(/`selfcheck <-/, 2000, function() {done();}) },
       function(callback) {
         check_check('f7cea020-f19d-11dd-85a6-cb6d3a2207dc', function(code, data) {
           test.is(code, 200, 'show check absent');
