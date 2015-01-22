@@ -30,9 +30,10 @@ var all_noit_modules = {
 };
 
 var NOIT_TEST_DB =
-    "/tmp/noit-test-db-" + process.getuid() + 
-    (process.env['BUILD_NUMBER'] || "");
-var NOIT_TEST_DB_PORT = 23816 + (process.env['BUILD_NUMBER'] || 0);
+    "/tmp/noit-test-db-" + process.getuid() + "-" +
+    (process.env['BUILD_NUMBER'] || "0");
+var NOIT_TEST_DB_PORT = 23816 +
+    (parseInt(process.env['BUILD_NUMBER']) || 0) % 10000;
 
 var testconfig = function() {
   // Jitter the ports up (in blocks of 10 for 10k ports)
