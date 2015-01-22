@@ -225,17 +225,17 @@ test = function() {
         });
       },
       function(done) {
-        test.is(firehose_data.errors, 0, 'no firehose stomp errors');
-        test.is(alert_data.errors, 0, 'no alert stomp errors');
-        test.isnt(firehose_data.count, 0, 'seen firehose messages');
-        test.isnt(alert_data.count, 0, 'seen alert messages');
+        test.is(firehose_data.errors, 0, 'no firehose stomp errors: ' + firehose_data.errors);
+        test.is(alert_data.errors, 0, 'no alert stomp errors: ' + alert_data.errors);
+        test.isnt(firehose_data.count, 0, 'seen firehose messages: ' + firehose_data.count);
+        test.isnt(alert_data.count, 0, 'seen alert messages: ' + alert_data.count);
 
         /* We're looking for a noit selfcheck, so pare it down to "metrics_collected" metrics */
         alert_data.messages = alert_data.messages || []
-        alert_data.messages = alert_data.messages.filter(function(a) { return a.service == 'metrics_collected' });
+        var interesting = alert_data.messages;
 
         /* explot the tags list into a hash */
-        var taglist = alert_data.messages.length ? alert_data.messages[0].tags : [];
+        var taglist = interesting.length ? interesting[0].tags : [];
         taglist = taglist || [];
         var tags = {}
         taglist.forEach(function(tag) {
@@ -244,7 +244,7 @@ test = function() {
         });
 
         test.is(tags['reconnoiter'], 'true', 'reconnoiter alert');
-        test.is(tags['check'], uuid, 'alert: selfcheck uuid');
+        test.like(tags['check'], uuid_re, 'alert: selfcheck uuid');
         test.is(tags['module'], 'selfcheck', 'alert: selfcheck module');
         test.is(tags['type'], 'numeric', 'alert: numeric type');
         done();
