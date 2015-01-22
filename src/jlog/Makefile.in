@@ -34,7 +34,7 @@ AOBJS= \
 SOOBJS= \
 	jlog.lo jlog_hash.lo jlog_io.lo
 
-all:	libjlog.$(DOTSO) libjlog.a jlogctl test
+all:	libjlog.$(DOTSO) libjlog.a jlogctl test jlogtail
 
 .c.o:
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
@@ -50,6 +50,9 @@ jlogperl:
 
 jlogctl:	libjlog.a jlogctl.o getopt_long.o
 	$(CC) $(CFLAGS) -o jlogctl jlogctl.o getopt_long.o libjlog.a $(LDFLAGS) $(LIBS)
+
+jlogtail:	libjlog.a jlogtail.o
+	$(CC) $(CFLAGS) -o jlogtail jlogtail.o libjlog.a $(LDFLAGS) $(LIBS)
 
 jthreadtest:	libjlog.a jthreadtest.o getopt_long.o
 	$(CC) $(CFLAGS) -o jthreadtest jthreadtest.o getopt_long.o libjlog.a $(LDFLAGS) $(LIBS)
@@ -75,7 +78,7 @@ install:
 	cd perl ; make install DESTDIR=$(DESTDIR) INSTALLDIRS=vendor
 
 clean:
-	rm -f *.o *.lo *.$(DOTSO) *.a jthreadtest
+	rm -f *.o *.lo *.$(DOTSO) *.a jthreadtest jlogctl jlogtail
 	-if test -f perl/Makefile ; then cd perl ; make clean ; fi
 
 distclean: 	clean

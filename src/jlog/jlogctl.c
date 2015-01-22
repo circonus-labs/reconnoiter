@@ -91,7 +91,7 @@ static int is_datafile(const char *f, u_int32_t *logid) {
 static void analyze_datafile(jlog_ctx *ctx, u_int32_t logid) {
   char idxfile[MAXPATHLEN];
 
-  if (jlog_inspect_datafile(ctx, logid) > 0) {
+  if (jlog_inspect_datafile(ctx, logid, verbose) > 0) {
     fprintf(stderr, "One or more errors were found.\n");
     if(repair_datafiles) {
       jlog_repair_datafile(ctx, logid);
@@ -125,16 +125,16 @@ static void process_jlog(const char *file, const char *sub) {
   }
   if(!sub) {
     if(jlog_ctx_open_writer(log)) {
-      fprintf(stderr, "error opening '%s'\n", file);
-      goto out;
+      fprintf(stderr, "error opening '%s': %s\n", file, jlog_ctx_err_string(log));
+      return;
     }
   } else {
     if(jlog_ctx_open_reader(log, sub)) {
-      fprintf(stderr, "error opening '%s'\n", file);
-      goto out;
+      fprintf(stderr, "error opening '%s': %s\n", file, jlog_ctx_err_string(log));
+      return;
     }
   }
-  if(show_progress && sub) {
+  if(show_progress) {
     jlog_id id, id2, id3;
     char buff[20], buff2[20], buff3[20];
     jlog_get_checkpoint(log, sub, &id);
@@ -175,7 +175,7 @@ static void process_jlog(const char *file, const char *sub) {
     dir = opendir(file);
     if(!dir) {
       fprintf(stderr, "error opening '%s'\n", file);
-      goto out;
+      return;
     }
     while((de = readdir(dir)) != NULL) {
       u_int32_t logid;
@@ -194,7 +194,6 @@ static void process_jlog(const char *file, const char *sub) {
                             de->d_name, (unsigned long long)st.st_size, readers);
           if(show_index_info && !quiet) {
             struct stat sb;
-            /* coverity[fs_check_call] */
             if (stat(fullidx, &sb)) {
               printf("\t\t idx: none\n");
             } else {
@@ -211,7 +210,6 @@ static void process_jlog(const char *file, const char *sub) {
           if (analyze_datafiles) analyze_datafile(log, logid);
           if((readers == 0) && cleanup) {
             unlink(fullfile);
-            /* coverity[toctou] */
             unlink(fullidx);
           }
         }
@@ -219,7 +217,6 @@ static void process_jlog(const char *file, const char *sub) {
     }
     closedir(dir);
   }
- out:
   jlog_ctx_close(log);
 }
 int main(int argc, char **argv) {
@@ -277,7 +274,6 @@ int main(int argc, char **argv) {
   }
   for(i=optind; i<argc; i++) {
     if(!quiet) printf("%s\n", argv[i]);
-    /* coverity[tainted_string] */
     process_jlog(argv[i], subscriber);
   }
   return 0;

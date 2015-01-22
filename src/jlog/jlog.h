@@ -43,7 +43,11 @@
 #   define JLOG_API(x) __declspec(dllimport) x
 #  endif
 # else
-#  define JLOG_API(x)  x
+#  ifdef __cplusplus
+#    define JLOG_API(x)  extern "C" x
+#  else
+#    define JLOG_API(x)  x
+#  endif
 # endif
 #endif
 
@@ -114,6 +118,7 @@ typedef enum {
   JLOG_ERR_SUBSCRIBER_EXISTS,
   JLOG_ERR_CHECKPOINT,
   JLOG_ERR_NOT_SUPPORTED,
+  JLOG_ERR_CLOSE_LOGID,
 } jlog_err;
 
 typedef void (*jlog_error_func) (void *ctx, const char *msg, ...);
@@ -134,10 +139,6 @@ JLOG_API(int)       jlog_ctx_open_reader(jlog_ctx *ctx, const char *subscriber);
 JLOG_API(int)       jlog_ctx_close(jlog_ctx *ctx);
 
 JLOG_API(int)       jlog_ctx_alter_mode(jlog_ctx *ctx, int mode);
-
-/* These are safe to call after new and before init...
- * or if you are the *only* open writer.
- */
 JLOG_API(int)       jlog_ctx_alter_journal_size(jlog_ctx *ctx, size_t size);
 JLOG_API(int)       jlog_ctx_alter_safety(jlog_ctx *ctx, jlog_safety safety);
 JLOG_API(int)       jlog_ctx_add_subscriber(jlog_ctx *ctx, const char *subscriber,
@@ -159,6 +160,5 @@ JLOG_API(int)       jlog_ctx_last_log_id(jlog_ctx *ctx, jlog_id *id);
 JLOG_API(int)       jlog_ctx_advance_id(jlog_ctx *ctx, jlog_id *cur, 
                                         jlog_id *start, jlog_id *finish);
 JLOG_API(int)       jlog_clean(const char *path);
-
 
 #endif

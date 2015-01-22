@@ -46,7 +46,7 @@ NOITD_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=noitd_%dtrace_stub.o)
 STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
 
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
-	jlog/jlogctl @MDB_MODS@
+	jlog/jlogctl jlog/jlogtail @MDB_MODS@
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
@@ -151,6 +151,10 @@ java-bits:
 jlog/jlogctl:
 	@echo "- building jlogctl"
 	@(cd jlog && $(MAKE) -s jlogctl)
+
+jlog/jlogtail:
+	@echo "- building jlogtail"
+	@(cd jlog && $(MAKE) -s jlogtail)
 
 .PHONY:	reversion
 
@@ -347,9 +351,10 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl noit.env
+install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlog/jlogtail noit.env
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
+	$(INSTALL) -m 0755 jlog/jlogtail $(DESTDIR)$(bindir)/noit_jlogtail
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/noit.env

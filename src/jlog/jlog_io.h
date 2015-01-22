@@ -93,9 +93,18 @@ int jlog_file_pwrite(jlog_file *f, const void *buf, size_t nbyte, off_t offset);
 int jlog_file_sync(jlog_file *f);
 
 /**
- * maps the entirety of a jlog_file into memory for reading
+ * maps the entirety of a jlog_file into memory for reading and writing
  * @param[in] f the jlog_file on which you are operating
  * @param[out] base is set to the base of the mapped region
+ * @param[out] len is set to the length of the mapped region
+ * @return 1 on success, 0 on failure
+ * @internal
+ */
+int jlog_file_map_rdwr(jlog_file *f, void **base, size_t *len);
+
+/**
+ * maps the entirety of a jlog_file into memory for reading
+ * @param[out] map is set to the base of the mapped region
  * @param[out] len is set to the length of the mapped region
  * @return 1 on success, 0 on failure
  * @internal

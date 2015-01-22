@@ -30,10 +30,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * We want the single unix spec, so this define is needed on
- * the identity crisis that is Linux. pread()/pwrite()
- */
 #include "jlog_config.h"
 #include "jlog_hash.h"
 #include "jlog_io.h"
@@ -77,7 +73,6 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
 
   if (pthread_mutex_lock(&jlog_files_lock) != 0) return NULL;
 
-  /* coverity[fs_check_call] */
   if (stat(path, &sb) == 0) {
     if (!S_ISREG(sb.st_mode)) goto out;
     memset(&id, 0, sizeof(id));
@@ -94,7 +89,6 @@ jlog_file *jlog_file_open(const char *path, int flags, int mode)
     }
   }
 
-  /* coverity[toctou] */
   if ((fd = open(path, realflags, mode)) == -1) goto out;
   if (fstat(fd, &sb) != 0) {
     while (close(fd) == -1 && errno == EINTR) ;
@@ -213,6 +207,23 @@ int jlog_file_sync(jlog_file *f)
 #endif
   if (rv == 0) return 1;
   return 0;
+}
+
+int jlog_file_map_rdwr(jlog_file *f, void **base, size_t *len)
+{
+  struct stat sb;
+  void *my_map;
+  int flags = 0;
+
+#ifdef MAP_SHARED
+  flags = MAP_SHARED;
+#endif
+  if (fstat(f->fd, &sb) != 0) return 0;
+  my_map = mmap(NULL, sb.st_size, PROT_READ|PROT_WRITE, flags, f->fd, 0);
+  if (my_map == MAP_FAILED) return 0;
+  *base = my_map;
+  *len = sb.st_size;
+  return 1;
 }
 
 int jlog_file_map_read(jlog_file *f, void **base, size_t *len)

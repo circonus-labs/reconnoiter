@@ -36,6 +36,7 @@
 
 #include "jlog_config.h"
 #include "jlog.h"
+#include "jlog_private.h"
 
 #define MASTER     "master"
 #define LOGNAME    "/tmp/jtest.foo"
@@ -43,11 +44,12 @@
 int writer_done = 0;
 int only_read = 0;
 int only_write = 0;
+int error = 0;
 
 static void _croak(int lineno)
 {
   fprintf(stderr, "croaked at line %d\n", lineno);
-  exit(2);
+  error=1;
 }
 #define croak() _croak(__LINE__)
 
@@ -77,7 +79,8 @@ void jcreate(jlog_safety s) {
 void *writer(void *unused) {
   jlog_ctx *ctx;
   int i;
-  char foo[1523];
+  size_t newsize;
+  char foo[72];
   ctx = jlog_new(LOGNAME);
   memset(foo, 'X', sizeof(foo)-1);
   foo[sizeof(foo)-1] = '\0';
@@ -85,15 +88,21 @@ void *writer(void *unused) {
     fprintf(stderr, "jlog_ctx_open_writer failed: %d %s\n", jlog_ctx_err(ctx), jlog_ctx_err_string(ctx));
     croak();
   }
-  for(i=0;i<1000;i++) {
+
+#ifdef TEST_UNIT_LIMIT
+  newsize = 1024*1024 + (((intptr_t)unused) % (1024 * 1024));
+  fprintf(stderr, "writer setting new unit_limit to %d\n", (int)newsize);
+  jlog_ctx_alter_journal_size(ctx, newsize);
+#endif
+  for(i=0;i<10000;i++) {
     int rv;
-    fprintf(stderr, "writer...\n");
     rv = jlog_ctx_write(ctx, foo, strlen(foo));
     if(rv != 0) {
       fprintf(stderr, "jlog_ctx_write_message failed: %d %s\n", jlog_ctx_err(ctx), jlog_ctx_err_string(ctx));
       /* abort(); */
     }
   }
+  fprintf(stderr, "writer thinks unit_limit is %d\n", ctx->meta->unit_limit);
   jlog_ctx_close(ctx);
   writer_done = 1;
   return 0;
@@ -102,7 +111,7 @@ void *writer(void *unused) {
 void *reader(void *unused) {
   jlog_ctx *ctx;
   char subname[32];
-  int tcount = 0;
+  int tcount = 0, fcount = 0;
   int prev_err = 0;
   int subno = (int)unused;
   snprintf(subname, sizeof(subname), "sub-%02d", subno);
@@ -144,12 +153,17 @@ reader_retry:
     jlog_snprint_logid(ends, sizeof(ends), &end);
     if(count > 0) {
       int i;
-      fprintf(stderr, "[%02d] reader (%s, %s] count: %d\n", subno, begins, ends, count);
+      //fprintf(stderr, "[%02d] reader (%s, %s] count: %d\n", subno, begins, ends, count);
       for(i=0; i<count; i++, JLOG_ID_ADVANCE(&begin)) {
         end = begin;
         if(jlog_ctx_read_message(ctx, &begin, &message) != 0) {
-          jlog_snprint_logid(begins, sizeof(begins), &begin);
-          fprintf(stderr, "[%02d] read failed @ %s: %d %s\n", subno, begins, jlog_ctx_err(ctx), jlog_ctx_err_string(ctx));
+          if(jlog_ctx_err(ctx) == JLOG_ERR_CLOSE_LOGID) {
+            /* fine */
+          } else {
+            fcount++;
+            jlog_snprint_logid(begins, sizeof(begins), &begin);
+            fprintf(stderr, "[%02d] read failed @ %s: %d %s\n", subno, begins, jlog_ctx_err(ctx), jlog_ctx_err_string(ctx));
+          }
         } else {
           tcount++;
           jlog_snprint_logid(begins, sizeof(begins), &begin);
@@ -166,8 +180,9 @@ reader_retry:
       if(writer_done == 1) break;
     }
   }
+  fprintf(stderr, "[%02d] reader read %d, failed %d\n", subno, tcount, fcount);
   jlog_ctx_close(ctx);
-  return (void *)tcount;
+  return (void *)(uintptr_t)tcount;
 }
 
 static void usage(void)
@@ -179,11 +194,12 @@ static void usage(void)
 }
 
 #define THRCNT 20
+#define WTHRCNT 5
 int main(int argc, char **argv) {
   int i;
   char *toremove = NULL;
   jlog_safety safety = JLOG_ALMOST_SAFE;
-  pthread_t tid[THRCNT];
+  pthread_t tid[THRCNT], wtid[WTHRCNT];
   void *foo;
  
 #if _WIN32 
@@ -230,13 +246,16 @@ int main(int argc, char **argv) {
   }
   if(!only_write) {
     for(i=0; i<THRCNT; i++) {
-      pthread_create(&tid[i], NULL, reader, (void *)i);
+      pthread_create(&tid[i], NULL, reader, (void *)(uintptr_t)i);
       fprintf(stderr, "[%d] started reader\n", (int)tid[i]);
     }
   }
   if(!only_read) {
-    fprintf(stderr, "starting writer...\n");
-    writer(NULL);
+    fprintf(stderr, "starting writers..\n");
+    for(i=0; i<WTHRCNT; i++) {
+      pthread_create(&wtid[i], NULL, writer, (void *)(uintptr_t)i);
+      fprintf(stderr, "[%d] started writer\n", (int)wtid[i]);
+    }
   } else {
     sleep(5);
     writer_done = 1;
@@ -247,6 +266,13 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[%d] joined, read %d\n", i, (int)foo);
     }
   }
+  if(!only_read) {
+    for(i=0; i<WTHRCNT; i++) {
+      pthread_join(wtid[i], &foo);
+      fprintf(stderr, "[%d] joined, write %d\n", i, (int)foo);
+    }
+  }
+  if(error) fprintf(stderr, "errors occurred\n");
   return 0;
 }
 /* vim:se ts=2 sw=2 et: */
