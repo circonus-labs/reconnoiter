@@ -69,17 +69,16 @@ static void *eventer_epoll_spec_alloc() {
 }
 
 static int eventer_epoll_impl_init() {
-  struct rlimit rlim;
   int rv;
+
+  maxfds = eventer_impl_setrlimit();
+  master_fds = calloc(maxfds, sizeof(*master_fds));
+  masks = calloc(maxfds, sizeof(*masks));
 
   /* super init */
   if((rv = eventer_impl_init()) != 0) return rv;
 
   signal(SIGPIPE, SIG_IGN);
-  getrlimit(RLIMIT_NOFILE, &rlim);
-  maxfds = rlim.rlim_cur;
-  master_fds = calloc(maxfds, sizeof(*master_fds));
-  masks = calloc(maxfds, sizeof(*masks));
   return 0;
 }
 static int eventer_epoll_impl_propset(const char *key, const char *value) {

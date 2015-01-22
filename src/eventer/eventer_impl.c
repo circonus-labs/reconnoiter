@@ -314,13 +314,27 @@ int eventer_cpu_sockets_and_cores(int *sockets, int *cores) {
   return 0;
 }
 
-int eventer_impl_init() {
+int eventer_impl_setrlimit() {
   struct rlimit rlim;
+  int try;
+  getrlimit(RLIMIT_NOFILE, &rlim);
+  rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
+  while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > 1024) {
+    noit_watchdog_child_heartbeat();
+    rlim.rlim_cur = rlim.rlim_max = (try /= 2);
+  }
+  getrlimit(RLIMIT_NOFILE, &rlim);
+  noitL(noit_debug, "rlim { %u, %u }\n", (u_int32_t)rlim.rlim_cur, (u_int32_t)rlim.rlim_max);
+  return rlim.rlim_cur;
+}
+
+int eventer_impl_init() {
   int i, try;
   char *evdeb;
 
   assess_hw_topo();
 
+  (void)try;
 #ifdef SOCK_CLOEXEC
   /* We can test, still might not work */
   try = socket(AF_INET, SOCK_CLOEXEC|SOCK_STREAM, IPPROTO_TCP);
@@ -359,15 +373,6 @@ int eventer_impl_init() {
                         eventer_jobq_execute_timeout);
   eventer_name_callback("eventer_jobq_consume_available",
                         eventer_jobq_consume_available);
-
-  getrlimit(RLIMIT_NOFILE, &rlim);
-  rlim.rlim_cur = rlim.rlim_max = try = desired_nofiles;
-  while(setrlimit(RLIMIT_NOFILE, &rlim) != 0 && errno == EPERM && try > 1024) {
-    noit_watchdog_child_heartbeat();
-    rlim.rlim_cur = rlim.rlim_max = --try;
-  }
-  getrlimit(RLIMIT_NOFILE, &rlim);
-  noitL(noit_debug, "rlim { %u, %u }\n", (u_int32_t)rlim.rlim_cur, (u_int32_t)rlim.rlim_max);
 
   eventer_impl_epoch = malloc(sizeof(struct timeval));
   gettimeofday(eventer_impl_epoch, NULL);

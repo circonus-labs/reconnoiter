@@ -179,6 +179,7 @@ API_EXPORT(eventer_hrtime_t) eventer_gethrtime(void);
 
 API_EXPORT(eventer_jobq_t *) eventer_default_backq(eventer_t);
 API_EXPORT(int) eventer_impl_propset(const char *key, const char *value);
+API_EXPORT(int) eventer_impl_setrlimit();
 API_EXPORT(int) eventer_impl_init();
 API_EXPORT(void) eventer_add_asynch(eventer_jobq_t *q, eventer_t e);
 API_EXPORT(void) eventer_add_timed(eventer_t e);
