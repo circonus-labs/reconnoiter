@@ -26,6 +26,6 @@ trial.on('complete', function(code) {
 if(runenv.verbose > 1) {
   console.log("Registering verbose progress tracker...");
   trial.on('progress', function(trial, test, msg, status) {
-    console.log(" -> " + test.name + "/" + msg.name + " : " + status);
+    console.log(" -> " + test.file + "/" + msg.name + " : " + status);
   });
 }
