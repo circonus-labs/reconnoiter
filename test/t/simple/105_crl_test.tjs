@@ -8,28 +8,23 @@ var tools = require('./testconfig'),
     fs = require('fs'),
     async = require('async');
 
-var noit = new tools.noit("105",
-                          { 'logs_debug': { '': 'false' },
-                            'rest_acls': [ { 'type': 'deny',
-                                             'rules': [ { 'cn': '.',
-                                                          'type': 'allow' }
-                                                      ] }
-                                         ]
-                          });
 
 test = function() {
   var test = this;
+  var noit = new tools.noit(test, "105",
+                            { 'logs_debug': { '': 'false' },
+                              'rest_acls': [ { 'type': 'deny',
+                                               'rules': [ { 'cn': '.',
+                                                            'type': 'allow' }
+                                                        ] }
+                                           ]
+                            });
   var goodconn = noit.get_connection();
   var badconn = noit.get_connection(null, null,
     { 'key': fs.readFileSync('../badclient.key', {encoding:'utf8'}),
       'cert': fs.readFileSync('../badclient.crt', {encoding:'utf8'}) });
-  noit.on('exit', function(code, signal) {
-    test.ok(code == 0 || signal == 'SIGKILL',
-            'noit exited cleanly: ' + code + "/" + signal);
-  });
-  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
-  noit.on('boot', function(pid, port) {
-    test.ok(true, 'noit booted');
+
+  noit.start(function(pid,port) {
     async.parallel([
       function(callback) {
         goodconn.request({'path':'/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc'},
@@ -50,5 +45,4 @@ test = function() {
       noit.stop();
     });
   });
-  noit.start();
 }

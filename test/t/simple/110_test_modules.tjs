@@ -7,14 +7,6 @@ var tools = require('./testconfig'),
     nc = require('../../src/js/index'),
     async = require('async');
 
-var noit = new tools.noit("110",
-  {
-    'generics': { 'check_test': { 'image': 'check_test' } },
-    'modules': { 'dns': { 'image': 'dns' },
-                 'interp': { 'loader': 'lua', 'object': 'noit.test.interp' } },
-    'logs_debug': { '': 'false' }
-  });
-
 var checkno = 0;
 function mkcheckxml(target,module,config) {
    config = config || {};
@@ -41,8 +33,6 @@ var interp_tests = ['broken', 'copy', 'name', 'module',
                     'randint', 'randuuid', 'randbroken'];
 interp_tests.forEach(function (k) { expected[k] = 'SUCCESS'; });
 
-var conn = noit.get_connection();
-
 var munge_metrics = function(json) {
   var data = JSON.parse(json);
   var recv = {}, current = data.metrics.current
@@ -55,12 +45,16 @@ var munge_metrics = function(json) {
 }
 test = function() {
   var test = this;
-  noit.on('exit', function(code, signal) {
-    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
-  });
-  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
-  noit.on('boot', function(pid, port) {
-    test.ok(true, 'noit booted');
+  var noit = new tools.noit(test, "110",
+    {
+      'generics': { 'check_test': { 'image': 'check_test' } },
+      'modules': { 'dns': { 'image': 'dns' },
+                   'interp': { 'loader': 'lua', 'object': 'noit.test.interp' } },
+      'logs_debug': { '': 'false' }
+    });
+  var conn = noit.get_connection();
+
+  noit.start(function(pid,port) {
     async.parallel([
       function(done) {
         conn.request({path:'/checks/test.json', method:'POST'},
@@ -85,5 +79,4 @@ test = function() {
       ],
       function() { noit.stop(); });
   });
-  noit.start();
 }

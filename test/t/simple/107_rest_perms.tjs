@@ -7,24 +7,19 @@ var tools = require('./testconfig'),
     fs = require('fs'),
     async = require('async');
 
-var noit = new tools.noit("107",
+
+
+test = function() {
+  var test = this;
+  var noit = new tools.noit(test, "107",
     { 'logs_debug': { '': 'false' },
       'rest_acls': [ { 'type': 'deny',
                        'rules': [
                          { 'type': 'allow', 'url': '^/checks/show/' },
                        ] }
                    ] });
-
-var conn = noit.get_connection();
-
-test = function() {
-  var test = this;
-  noit.on('exit', function(code, signal) {
-    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
-  });
-  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
-  noit.on('boot', function(pid, port) {
-    test.ok(true, 'noit booted');
+  var conn = noit.get_connection();
+  noit.start(function(pid,port) {
     async.parallel([
         function(callback) {
           conn.request({path: '/checks/show/f7cea020-f19d-11dd-85a6-cb6d3a2207dc'},
@@ -39,5 +34,4 @@ test = function() {
       function() { noit.stop(); }
     );
   });
-  noit.start();
 }

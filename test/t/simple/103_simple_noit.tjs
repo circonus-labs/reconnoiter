@@ -21,8 +21,7 @@ var expected_comms =
     '0x43415041': { name: 'capabilities_transit', version: '1.0' },
     '0x4d455247': { name: 'noit_wire_rest_api', version: '1.0' } };
 
-var noit = new tools.noit("103", { 'logs_debug': { '': 'false' } });
-var conn = noit.get_connection();
+var noit, conn;
 
 function check_caps(test, noit, callback) {
   var reqtime = Date.now();
@@ -70,12 +69,9 @@ function put_check(uuid, cb) {
 
 test = function() {
   var test = this;
-  noit.on('exit', function(code, signal) {
-    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
-  });
-  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
-  noit.on('boot', function(pid, port) {
-    test.ok(true, 'noit booted');
+  noit = new tools.noit(test, "103", { 'logs_debug': { '': 'false' } });
+  conn = noit.get_connection();
+  noit.start(function(pid, port) {
     test.is(port, noit.get_api_port(), 'API port matches');
     async.series([
       function(callback) { check_caps(test, noit, callback); },
@@ -106,5 +102,4 @@ test = function() {
       function(callback) { noit.stop(); callback(); },
     ]);
   });
-  noit.start();
 }

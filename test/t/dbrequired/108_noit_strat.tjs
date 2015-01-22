@@ -11,28 +11,8 @@ var tools = require('./testconfig'),
 var parser = new xml2js.Parser();
 parser.on('error', function(err) { console.log("XML Parse error", err); });
 
-var noit = new tools.noit("108");
-var noitconn = noit.get_connection();
-var stratcon = new tools.stratcon("108",
-  { 'noits': [ { 'address': '127.0.0.1', 'port': noit.get_api_port() } ],
-    'iep': { 'queries': [] } });
-var stratconn = stratcon.get_connection();
-var firehose = stratcon.get_stomp_connection('/queue/noit.firehose');
-var alerts = stratcon.get_stomp_connection('/topic/noit.alerts.numeric');
-var firehose_data = { count: 0, messages: [], errors: 0 };
-var alert_data = { count: 0, messages: [], errors: 0 };
-firehose.on('message', function(m) {
-  firehose_data.count++;
-  firehose_data.messages.push(m);
-});
-firehose.on('error', function() { firehose_data.errors++; });
-alerts.on('message', function(m) {
-  alert_data.count++;
-  try {
-    alert_data.messages.push(JSON.parse(m.body[0]));
-  } catch(e) { alert_data.errors++; }
-});
-alerts.on('error', function() { alert_data.errors++; });
+var noit, noitconn, stratcon, stratconn,
+    firehose, alerts, firehose_data, alert_data;
 
 var uuid_re = /^[0-9a-fA-F]{4}(?:[0-9a-fA-F]{4}-){4}[0-9a-fA-F]{12}$/,
     uuid = '9c2163aa-f4bd-11df-851b-979bd290a553',
@@ -130,14 +110,31 @@ test = function() {
   var test = this;
   var procs = 2;
 
-  /* Noit setup */
-  noit.on('exit', function(code, signal) {
-    test.ok(code == 0, 'noit exited cleanly: ' + code + "/" + signal);
+  noit = new tools.noit(test, "108");
+  noitconn = noit.get_connection();
+  stratcon = new tools.stratcon(test, "108",
+  { 'noits': [ { 'address': '127.0.0.1', 'port': noit.get_api_port() } ],
+    'iep': { 'queries': [] } });
+  stratconn = stratcon.get_connection();
+  firehose = stratcon.get_stomp_connection('/queue/noit.firehose');
+  alerts = stratcon.get_stomp_connection('/topic/noit.alerts.numeric');
+  firehose_data = { count: 0, messages: [], errors: 0 };
+  alert_data = { count: 0, messages: [], errors: 0 };
+  firehose.on('message', function(m) {
+    firehose_data.count++;
+    firehose_data.messages.push(m);
   });
-  noit.on('error', function(err) { test.fail('noit booted: ' + err); });
-  noit.on('boot', function(pid, port) {
-    test.ok(true, 'noit booted');
+  firehose.on('error', function() { firehose_data.errors++; });
+  alerts.on('message', function(m) {
+    alert_data.count++;
+    try {
+      alert_data.messages.push(JSON.parse(m.body[0]));
+    } catch(e) { alert_data.errors++; }
+  });
+  alerts.on('error', function() { alert_data.errors++; });
 
+  /* Noit setup */
+  noit.start(function(pid,port) {
     async.series([
       function(done) {
         noitconn.request({path:'/checks/show/'+uuid}, function(code, data) {
@@ -176,13 +173,7 @@ test = function() {
 
   /* Stratcon setup */
   var start_metrics = {}, end_metrics = {};
-  stratcon.on('exit', function(code, signal) {
-    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
-  });
-  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
-  stratcon.on('boot', function(pid, port) {
-    test.ok(true, 'stratcon booted');
-
+  stratcon.start(function(pid,port) {
     async.series([
       function(done) {
         stratcon.wait_for_log(/Loaded all (\d+) check states/, 60000, function(found) {
@@ -267,39 +258,4 @@ test = function() {
       }
     ]);
   });
-
-  noit.start();
-  stratcon.start();
 }
-/*
-my $stomp;
-my $payload;
-my $json;
-
-$stomp = stomp->new();
-ok($stomp, 'stomp connection');
-ok($stomp->subscribe('/queue/noit.firehose'), 'subscribed');
-$payload = $stomp->get({timeout => 6});
-undef $stomp;
-ok($payload, 'firehose traffic');
-
-$stomp = stomp->new();
-ok($stomp, 'stomp connection');
-ok($stomp->subscribe('/topic/noit.alerts.numeric'), 'subscribed');
-$payload = $stomp->get({timeout => 6});
-eval { die "no data" unless defined($payload);
-       $json = from_json($payload); };
-is($@, '', 'json numeric payload');
-undef $stomp;
-$json ||= { tags => [] };
-my %tags;
-foreach my $tag (@{$json->{tags}}) {
-  $tags{$1} = $2 if $tag =~ /([^:]+):(.*)/;
-}
-like($tags{check} || '', $uuid_re, 'numeric match has uuid');
-is($tags{module} || '', 'selfcheck', 'modules is set');
-
-ok(stop_noit, 'shutdown noit');
-ok(stop_stratcon, 'shutdown stratcon');
-1;
-*/

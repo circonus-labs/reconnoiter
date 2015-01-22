@@ -8,17 +8,12 @@ var tools = require('./testconfig'),
     parseString = require('xml2js').parseString,
     async = require('async');
 
-var stratcon = new tools.stratcon("104");
-var conn = stratcon.get_connection();
-
 test = function() {
   var test = this;
-  stratcon.on('exit', function(code, signal) {
-    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
-  });
-  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
-  stratcon.on('boot', function(pid, port) {
-    test.ok(true, 'stratcon booted');
+  var stratcon = new tools.stratcon(test, "104");
+  var conn = stratcon.get_connection();
+
+  stratcon.start(function(pid, port) {
     async.series([
       function(done) {
         conn.request({path:'/noits/show'}, function(code, xml) {
@@ -65,5 +60,4 @@ test = function() {
       }
     ]);
   });
-  stratcon.start();
 }

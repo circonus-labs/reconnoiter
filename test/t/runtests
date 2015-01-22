@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARGS="-v -i"
+ARGS="-v -i -s"
 if [ -n "$*" ]; then
 	ARGS=$*
 fi

@@ -35,7 +35,10 @@ var NOIT_TEST_DB =
 var NOIT_TEST_DB_PORT = 23816 +
     (parseInt(process.env['BUILD_NUMBER']) || 0) % 10000;
 
-var testconfig = function() {
+var testconfig = function(test, name, opts) {
+  this.test = test;
+  this.name = name;
+  this.opts = opts || {};
   // Jitter the ports up (in blocks of 10 for 10k ports)
   var jitter = Math.floor(Math.random() * 10000 / 10) * 10;
   this.NOIT_API_PORT = 42364 + jitter;
@@ -563,8 +566,18 @@ testconfig.prototype.logsize = function() {
   var stat = fs.statSync(this.log);
   return stat.size;
 }
-testconfig.prototype.start = function() {
+testconfig.prototype.start = function(cb, ntests) {
   var self = this;
+
+  self.on('exit', function(code, signal) {
+    self.test.ok(code == 0, self._program + ' exited cleanly: ' + code + "/" + signal);
+  });
+  self.on('error', function(err) { self.test.fail(self._program + ' booted: ' + err); cb(0,0); });
+  self.on('boot', function(pid, port) {
+    self.test.ok(true, self._program + ' booted');
+    cb(pid,port);
+  });
+
   var _program = self._program;
   self.opts['name'] = self.name;
   if(self.child) {
@@ -632,11 +645,9 @@ testconfig.prototype.get_connection = function(port, host, opts, cn) {
 
 /* Our noit subclass */
 
-var noit = function(name, opts) {
-  noit.super_.call(this);
+var noit = function(test, name, opts) {
+  noit.super_.call(this, test, name, opts);
   this._program = 'noitd';
-  this.name = name;
-  this.opts = opts || {};
 }
 
 sys.inherits(noit, testconfig);
@@ -647,11 +658,9 @@ noit.prototype.get_keyname = function() { return 'client'; }
 
 /* Our stratcon subclass */
 
-var stratcon = function(name, opts) {
-  stratcon.super_.call(this);
+var stratcon = function(test, name, opts) {
+  stratcon.super_.call(this, test, name, opts);
   this._program = 'stratcond';
-  this.name = name;
-  this.opts = opts || {};
 }
 
 sys.inherits(stratcon, testconfig);

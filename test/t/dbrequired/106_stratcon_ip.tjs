@@ -8,18 +8,12 @@ var tools = require('./testconfig'),
     net = require('net'),
     async = require('async');
 
-
 var starttime = new Date();
-var stratcon = new tools.stratcon("106");
 
 test = function() {
   var test = this;
-  stratcon.on('exit', function(code, signal) {
-    test.ok(code == 0, 'stratcon exited cleanly: ' + code + "/" + signal);
-  });
-  stratcon.on('error', function(err) { test.fail('stratcon booted: ' + err); });
-  stratcon.on('boot', function(pid, port) {
-    test.ok(true, 'stratcon booted');
+  var stratcon = new tools.stratcon(test, "106");
+  stratcon.start(function(pid,port) {
     async.series([
       function(done) { stratcon.wait_for_log(/Finished batch/, 10000, function() { done(); }); },
       function(done) {
@@ -44,5 +38,4 @@ test = function() {
       function(done) { stratcon.stop(); done(); }
     ]);
   });
-  stratcon.start();
 }
