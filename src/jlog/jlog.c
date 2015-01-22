@@ -582,7 +582,7 @@ static int __jlog_restore_metastore(jlog_ctx *ctx, int ilocked)
        * we need to extend it by four bytes, but we know the hdr was
        * previously 0, so we write out zero.
        */
-       uint32_t dummy = 0;
+       u_int32_t dummy = 0;
        jlog_file_pwrite(ctx->metastore, &dummy, sizeof(dummy), 12);
        rv = jlog_file_map_rdwr(ctx->metastore, &base, &len);
     }
