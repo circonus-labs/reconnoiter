@@ -12,7 +12,7 @@ fh.prototype.parse = function(s, cb) { loginfo.parse(s, cb); };
 fh.prototype.defaults = function() {
   return {
     exchange: 'noit.firehose',
-    routing_key: 'check.',
+    program: 'prefix:"check." sample(1)',
     queuename: process.argv[1].replace(/.+\//, '') + '-firehose-' + os.hostname() + '-' + process.pid
   };
 };

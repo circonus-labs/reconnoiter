@@ -68,7 +68,8 @@ var fh = function(params, stats) {
   this.stats.messages_in = 0;
   this.stats.messages_out = 0;
   this.params = {};
-  if(debug) params.debug = debug;
+  if(typeof debug !== 'undefined' && !params.hasOwnProperty('debug'))
+    params.debug = debug;
   for (var key in params)
     this.params[key] = params[key];
   this.mq = null;
@@ -94,19 +95,19 @@ fh.prototype.listen = function() {
     options = f;
     f = arguments[2];
   }
-  this.options = mixin(this.defaults(), options);
   this.hidx = (this.hidx + 1) % this.hosts.length;
   this.params.host = this.hosts[this.hidx];
   this.params.heartbeat = 2000;
   this.log('connect[' + this.hidx + ']: ' + this.params.host);
   this.emit('connecting');
   this.stats.connects++;
+  this.options = mixin(this.defaults(), options, this.params);
 
   var client = new FQ(this.params);
   client.connect();
   client.on('ready', function(){
     p.emit('connect');
-    client.bind(p.options.exchange,'prefix:"check." sample(1)',0,
+    client.bind(p.options.exchange,p.options.program,0,
                 function(err, res) {
                   client.consume();
                 });
@@ -123,7 +124,7 @@ fh.prototype.listen = function() {
     }
     var str = msg.payload.toString();
     p.stats.messages_in++;
-    if(debug) {
+    if(p.params.debug) {
       var tidx = str.indexOf('\t');
       console.log("mq["+p.options.routing_key+"] <- " +
                   (tidx > 0 ? str.substring(0, tidx) : "??"));
@@ -134,7 +135,7 @@ fh.prototype.listen = function() {
       p.stats.messages_out += cnt;
       for(;i<cnt;i++) {
         var info = infos[i]
-        if(debug) console.log("mq["+p.options.routing_key+"] -> " +
+        if(p.params.debug) console.log("mq["+p.options.routing_key+"] -> " +
                               info.type + ":" + info.id);
         p.emit('message', str, info);
       }

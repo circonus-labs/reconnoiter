@@ -1,8 +1,12 @@
 {
   "name": "noit",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Noit Connection Utilities",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/circonus-labs/reconnoiter.git"
+  },
   "scripts": {
     "test": "echo \"no test specified\" && exit 0"
   },
@@ -13,5 +17,7 @@
     "fq": "^0.3.0",
     "pg": "^4.1.1",
     "amqp": "^0.2.0"
-  }
+  },
+  "readmeFilename": "README.md",
+  "readme": "# Reconnoiter API library for node.js\n\n    var noit = require('noit');\n\n## Livestreaming check data\n\n    var creds = noit.utils.hashToCreds({\n      key: keyfile,\n      cert: certfile,\n      ca: cafile\n    });\n    var conn = new noit.connection(43191, host, creds, cn || host);\n\n    conn.livestream(uuid, period_in_ms);\n    conn.on('live', function(uuid,period,r,i) {\n      console.log(this.r,i);\n    });\n\n## Reverse TCP tunnel\n\n    var creds = noit.utils.hashToCreds({ ca: cafile });\n    var proxy = new noit.connection(43191, host, creds, cn || host);\n    var tgt_host = '127.0.0.1', tgt_port = 2609;\n    proxy.reverse('check/' + uuid, tgt_host, tgt_port);\n\n## Tap the firehose\n\n    var params = { host: fqhost, exchange:'noit.firehose' },\n        stats = {},\n        hose = new noit.firehose(params, stats);\n\n    hose.on('message', function(str, info) {\n      console.log(info);\n    });\n    hose.listen();\n    setInterval(function() { console.log(stats); }, 1000);\n"
 }
