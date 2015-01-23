@@ -10,7 +10,7 @@
                allowed="\d+">The address of the multicast group from which which ganglia packets are received</parameter>
     <parameter name="port"
                required="required"
-               default="8946"
+               default="8649"
                allowed="\d+">The port of the multicast group from which which ganglia packets are received</parameter>
     <parameter name="multiaddr6"
                required="optional"
