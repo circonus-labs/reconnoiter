@@ -477,10 +477,10 @@ testconfig.prototype.make_stratcon_config = function(name, opts) {
     opts['iep']['riemann'] = { 'config':
 "(logging/init :file \"riemann.log\")\n\
 (streams \n\
-  (where (and (not (tagged \"riemann\"))\n\
+  (where (and (tagged \"type:numeric\")\n\
               (not (nil? :metric)))\n\
     (reconnoiter/alert-key \"numeric\"))\n\
-  prn)\n"
+)\n"
     };
   var cwd = opts['cwd'];
   var file = cwd + "/logs/" + name + "_stratcon.conf";
