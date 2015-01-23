@@ -94,7 +94,7 @@ union ifd {
 };
 
 static noit_boolean
-noit_collects_check_aynsch(noit_module_t *self,
+noit_collects_check_asynch(noit_module_t *self,
                            noit_check_t *check) {
   const char *config_val;
   ganglia_mod_config_t *conf = noit_module_get_userdata(self);
@@ -104,6 +104,8 @@ noit_collects_check_aynsch(noit_module_t *self,
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       is_asynch = noit_false;
+    else if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      is_asynch = noit_true;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
@@ -125,7 +127,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
 
   if (!check || strcmp(check->module, "ganglia")) return 0;
 
-  immediate = noit_collects_check_aynsch(pkt->self, check);
+  immediate = noit_collects_check_asynch(pkt->self, check);
   if(check->closure)
     gcl = check->closure;
   else
@@ -276,7 +278,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   /* If we're immediately logging things and we've done so within the
    * check's period... we've no reason to passively log now.
    */
-  immediate = noit_collects_check_aynsch(self, check);
+  immediate = noit_collects_check_asynch(self, check);
   sub_timeval(now, check->stats.current.whence, &age);
   if(immediate && (age.tv_sec * 1000 + age.tv_usec / 1000) < check->period)
     return 0;

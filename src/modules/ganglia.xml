@@ -4,6 +4,10 @@
   <loader>C</loader>
   <image>ganglia.so</image>
   <moduleconfig>
+    <parameter name="asynch_metrics"
+               required="required"
+               default="true"
+               allowed="(?:true|false)">Determines if metrics should be reported on arrival or queued into periodic bundles.</parameter>
     <parameter name="multiaddr"
                required="required"
                default="239.2.11.71"
@@ -20,5 +24,8 @@
                allowed="\d+">The port of the ipv6 multicast group from which which ganglia packets are received</parameter>
   </moduleconfig>
   <checkconfig>
+    <parameter name="asynch_metrics"
+               required="optional"
+               allowed="(?:true|false)">Determines if metrics should be reported on arrival or queued into periodic bundles.</parameter>
   </checkconfig>
 </module>

@@ -20,6 +20,34 @@
     <title>Module Configuration</title>
     <variablelist>
       <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>required</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>true</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|false)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Determines if metrics should be reported on arrival or queued into periodic bundles.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
         <term>multiaddr</term>
         <listitem>
           <variablelist>
@@ -115,6 +143,31 @@
             </varlistentry>
           </variablelist>
           <para>The port of the ipv6 multicast group from which which ganglia packets are received</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
+    <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|false)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Determines if metrics should be reported on arrival or queued into periodic bundles.</para>
         </listitem>
       </varlistentry>
     </variablelist>
