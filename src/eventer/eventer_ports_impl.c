@@ -101,7 +101,7 @@ static void alter_fd(eventer_t e, int mask) {
     if(port_associate(spec->port_fd, PORT_SOURCE_FD, e->fd, events, (void *)(vpsized_int)e->fd) == -1) {
       noitL(eventer_err,
             "eventer port_associate failed(%d-%d): %d/%s\n", e->fd, spec->port_fd, errno, strerror(errno));
-      abort();
+      assert(0);
     }
   }
   else {
@@ -110,7 +110,7 @@ static void alter_fd(eventer_t e, int mask) {
       if(errno == EBADFD) return; /* Fine */
       noitL(eventer_err,
             "eventer port_dissociate failed(%d-%d): %d/%s\n", e->fd, spec->port_fd, errno, strerror(errno));
-      abort();
+      assert(0);
     }
   }
 }
