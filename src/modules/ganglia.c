@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Circonus, Inc.
+ * Copyright (c) 2013-2015, Circonus, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,6 @@ typedef struct _mod_config {
 } ganglia_mod_config_t;
 
 typedef struct ganglia_closure_s {
-  stats_t current;
   int stats_count;
   int ntfy_count;
 } ganglia_closure_t;
@@ -116,7 +115,6 @@ noit_collects_check_asynch(noit_module_t *self,
 static void clear_closure(noit_check_t *check, ganglia_closure_t *gcl) {
   gcl->stats_count = 0;
   gcl->ntfy_count = 0;
-  noit_check_stats_clear(check, &gcl->current);
 }
 
 static int
@@ -128,10 +126,8 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
   if (!check || strcmp(check->module, "ganglia")) return 0;
 
   immediate = noit_collects_check_asynch(pkt->self, check);
-  if(check->closure)
-    gcl = check->closure;
-  else
-   gcl = check->closure = calloc(1, sizeof(ganglia_closure_t));
+  if(check->closure) check->closure = calloc(1, sizeof(ganglia_closure_t));
+  gcl = check->closure;
 
   switch(pkt->type) {
     case gmetadata_full:
@@ -143,7 +139,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
     case gmetric_int:{
       int *val = pkt->payload;
       *val = ntohl(*val);
-      noit_stats_set_metric(check, &gcl->current, pkt->name, METRIC_INT32, val);
+      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_INT32, val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_INT32, val);
       break;
                      }
@@ -151,7 +147,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
     case gmetric_uint:{
       uint32_t *val = pkt->payload;
       *val = ntohl(*val);
-      noit_stats_set_metric(check, &gcl->current, pkt->name, METRIC_UINT32, val);
+      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_UINT32, val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_UINT32, val);
       break;
                       }
@@ -160,7 +156,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       *len = ntohl(*len);
       pkt->payload += 4;
       char *str = pkt->payload;
-      noit_stats_set_metric(check, &gcl->current, pkt->name, METRIC_STRING, str);
+      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_STRING, str);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_STRING, str);
       break;
                         }
@@ -169,7 +165,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       union ifd *ptr = pkt->payload;
       ptr->i = ntohl(ptr->i);
       val = (double) ptr->f;
-      noit_stats_set_metric(check, &gcl->current, pkt->name, METRIC_DOUBLE, &val);
+      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_DOUBLE, &val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_DOUBLE, &val);
       break;    
                        }
@@ -179,7 +175,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       ptr->i = ntohl(ptr->i);
       (ptr+4)->i = ntohl((ptr+4)->i);
       val = ptr->d;
-      noit_stats_set_metric(check, &gcl->current, pkt->name, METRIC_DOUBLE, &val);
+      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_DOUBLE, &val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_DOUBLE, &val);
       break;
                         }
@@ -286,29 +282,31 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   if(!check->closure) {
     gcl = check->closure = (void *)calloc(1, sizeof(ganglia_closure_t)); 
     memset(gcl, 0, sizeof(ganglia_closure_t));
-    memcpy(&gcl->current.whence, &now, sizeof(now));
+    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
   } else {
     /*  Don't count the first run */
     char human_buffer[256];
     gcl = (ganglia_closure_t*)check->closure; 
-    memcpy(&gcl->current.whence, &now, sizeof(now));
-    sub_timeval(gcl->current.whence, check->last_fire_time, &duration);
-    gcl->current.duration = duration.tv_sec; /*  + duration.tv_usec / (1000 * 1000); */
+    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
+    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
+    check->stats.inprogress.duration = duration.tv_sec; /*  + duration.tv_usec / (1000 * 1000); */
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d,ntfy=%d", gcl->current.duration, 
+             "dur=%d,run=%d,stats=%d,ntfy=%d", check->stats.inprogress.duration, 
              check->generation, gcl->stats_count, gcl->ntfy_count);
     noitL(noit_debug, "ganglia(%s) [%s]\n", check->target, human_buffer);
 
-    gcl->current.available = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
+    check->stats.inprogress.available = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
         NP_AVAILABLE : NP_UNAVAILABLE;
-    gcl->current.state = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
+    check->stats.inprogress.state = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
         NP_GOOD : NP_BAD;
-    gcl->current.status = human_buffer;
-    noit_check_passive_set_stats(check, &gcl->current);
+    check->stats.inprogress.status = human_buffer;
+    if(check->last_fire_time.tv_sec)
+      noit_check_passive_set_stats(check, &check->stats.inprogress);
 
-    memcpy(&check->last_fire_time, &gcl->current.whence, sizeof(duration));
+    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
   }
+  noit_check_stats_clear(check, &check->stats.inprogress);
   clear_closure(check, gcl);
   return 0;
 }
