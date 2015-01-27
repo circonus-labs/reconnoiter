@@ -130,6 +130,7 @@ update_check(noit_check_t *check, const char *key, char type,
   statsd_closure_t *ccl;
   metric_t *m;
 
+  if (sample == 0.0) return; /* would be a div-by-zero */
   if (check->closure == NULL) return;
   ccl = check->closure;
 
@@ -162,7 +163,7 @@ update_check(noit_check_t *check, const char *key, char type,
            (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
   m = noit_stats_get_metric(check, &check->stats.inprogress, buff);
   if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
-    if(type == 'c') (*m->metric_value.n) += diff;
+    if(type == 'c') (*m->metric_value.n) += (diff * (1.0/sample));
     else {
       double new_avg = ((double)(cnt - 1) * (*m->metric_value.n) + diff) / (double)cnt;
       (*m->metric_value.n) = new_avg;
