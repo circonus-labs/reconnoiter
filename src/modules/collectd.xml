@@ -13,6 +13,15 @@
                required="options"
                default="true"
                allowed="(?:true|on|false|off)">Specify whether collectd notifications are acted upon.</parameter>
+    <parameter name="security_level"
+               required="optional"
+               allowed="\d+">An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</parameter>
+    <parameter name="username"
+               required="optional"
+               allowed=".+">The collectd username for authenticating signed and encrypted packets. Also the username used for HTTP authentication when using the write_http ingestion method.</parameter>
+    <parameter name="secret"
+               required="optional"
+               allowed=".+">The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</parameter>
   </moduleconfig>
   <checkconfig>
     <parameter name="security_level"

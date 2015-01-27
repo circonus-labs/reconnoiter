@@ -1415,7 +1415,9 @@ push_packet_at_check(noit_check_t *check, void *closure) {
   // Default to NONE
   ccl->security_level = SECURITY_LEVEL_NONE;
   if (noit_hash_retr_str(check->config, "security_level", strlen("security_level"),
-                         (const char**)&security_buffer)) 
+                         (const char**)&security_buffer) ||
+      noit_hash_retr_str(conf->options, "security_level", strlen("security_level"),
+                         (const char**)&security_buffer))
   {
     ccl->security_level = atoi(security_buffer);
   }
