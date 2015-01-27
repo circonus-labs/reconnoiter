@@ -126,7 +126,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
   if (!check || strcmp(check->module, "ganglia")) return 0;
 
   immediate = noit_collects_check_asynch(pkt->self, check);
-  if(check->closure) check->closure = calloc(1, sizeof(ganglia_closure_t));
+  if(!check->closure) check->closure = calloc(1, sizeof(ganglia_closure_t));
   gcl = check->closure;
 
   switch(pkt->type) {
