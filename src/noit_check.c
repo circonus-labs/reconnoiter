@@ -178,9 +178,9 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
     }
-    pthread_mutex_unlock(&polls_lock);
     if(oldname) free(oldname);
   }
+  pthread_mutex_unlock(&polls_lock);
   return 1;
 }
 
