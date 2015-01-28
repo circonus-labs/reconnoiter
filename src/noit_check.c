@@ -109,6 +109,7 @@ static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
 static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
+static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
 static noit_hash_table polls = NOIT_HASH_EMPTY;
 static noit_hash_table dns_ignore_list = NOIT_HASH_EMPTY;
 static noit_skiplist watchlist = { 0 };
@@ -116,6 +117,22 @@ static noit_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
+
+static noit_check_t *
+noit_poller_lookup__nolock(uuid_t in) {
+  void *vcheck;
+  if(noit_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
+    return (noit_check_t *)vcheck;
+  return NULL;
+}
+static noit_check_t *
+noit_poller_lookup_by_name__nolock(char *target, char *name) {
+  noit_check_t tmp_check;
+  memset(&tmp_check, 0, sizeof(tmp_check));
+  tmp_check.target = target;
+  tmp_check.name = name;
+  return noit_skiplist_find(&polls_by_name, &tmp_check, NULL);
+}
 
 static int
 noit_console_show_timing_slots(noit_console_closure_t ncct,
@@ -138,6 +155,13 @@ noit_console_show_timing_slots(noit_console_closure_t ncct,
 }
 static int
 noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
+  char *oldname = NULL, *newnamecopy;
+  if(newname) {
+    /* track this stuff outside the lock to avoid allocs */
+    oldname = new_check->name;
+    newnamecopy = strdup(newname);
+  }
+  pthread_mutex_lock(&polls_lock);
   if(!(new_check->flags & NP_TRANSIENT)) {
     assert(new_check->name || newname);
     /* This remove could fail -- no big deal */
@@ -145,10 +169,7 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
       noit_skiplist_remove(&polls_by_name, new_check, NULL);
 
     /* optional update the name (at the critical point) */
-    if(newname) {
-      if(new_check->name) free(new_check->name);
-      new_check->name = strdup(newname);
-    }
+    if(newname) new_check->name = newnamecopy;
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
@@ -157,6 +178,8 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
     }
+    pthread_mutex_unlock(&polls_lock);
+    if(oldname) free(oldname);
   }
   return 1;
 }
@@ -334,7 +357,7 @@ noit_check_fake_last_check(noit_check_t *check,
 }
 void
 noit_poller_process_checks(const char *xpath) {
-  int i, flags, cnt = 0;
+  int i, flags, cnt = 0, found;
   noit_conf_section_t *sec;
   __config_load_generation++;
   sec = noit_conf_get_sections(NULL, xpath, &cnt);
@@ -439,8 +462,10 @@ noit_poller_process_checks(const char *xpath) {
 
     flags |= noit_calc_rtype_flag(resolve_rtype);
 
-
-    if(noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck))
+    pthread_mutex_lock(&polls_lock);
+    found = noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+    pthread_mutex_unlock(&polls_lock);
+    if(found)
       noit_poller_deschedule(uuid);
     noit_poller_schedule(target, module, name, filterset, options,
                          moptions_used ? moptions : NULL,
@@ -489,6 +514,7 @@ noit_poller_initiate() {
   uuid_t key_id;
   int klen;
   void *vcheck;
+  /* This is only ever called in the beginning, no lock needed */
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_activate((noit_check_t *)vcheck);
@@ -500,28 +526,27 @@ void
 noit_poller_flush_epoch(int oldest_allowed) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
-  int klen;
-  noit_check_t *tofree = NULL;
+  int klen, i;
   void *vcheck;
+#define TOFREE_PER_ITER 1024
+  noit_check_t *tofree[TOFREE_PER_ITER];
 
   /* Cleanup any previous causal map */
-  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
-                       &vcheck)) {
-    noit_check_t *check = (noit_check_t *)vcheck;
-    /* We don't free the one we're looking at... we free it on the next
-     * pass.  This leaves out iterator in good shape.  We just need to
-     * remember to free it one last time outside the while loop, down...
-     */
-    if(tofree) {
-      noit_poller_deschedule(tofree->checkid);
-      tofree = NULL;
+  while(1) {
+    i = 0;
+    pthread_mutex_lock(&polls_lock);
+    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+                         &vcheck) && i < TOFREE_PER_ITER) {
+      noit_check_t *check = (noit_check_t *)vcheck;
+      if(check->generation < oldest_allowed) {
+        tofree[i++] = check;
+      }
     }
-    if(check->generation < oldest_allowed) {
-      tofree = check;
-    }
+    pthread_mutex_unlock(&polls_lock);
+    if(i==0) break;
+    while(i>0) noit_poller_deschedule(tofree[--i]->checkid);
   }
-  /* ... here */
-  if(tofree) noit_poller_deschedule(tofree->checkid);
+#undef TOFREE_PER_ITER
 }
 
 void
@@ -538,6 +563,7 @@ noit_poller_make_causal_map() {
   system_needs_causality = noit_false;
 
   /* Cleanup any previous causal map */
+  pthread_mutex_lock(&polls_lock);
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_t *check = (noit_check_t *)vcheck;
@@ -565,17 +591,17 @@ noit_poller_make_causal_map() {
       parent = NULL;
       if(uuid_parse(check->oncheck, id) == 0) {
         target = "";
-        parent = noit_poller_lookup(id);
+        parent = noit_poller_lookup__nolock(id);
       }
       else if((target = strchr(check->oncheck, '`')) != NULL) {
         strlcpy(fullcheck, check->oncheck, target + 1 - check->oncheck);
         name = target + 1;
         target = fullcheck;
-        parent = noit_poller_lookup_by_name(target, name);
+        parent = noit_poller_lookup_by_name__nolock(target, name);
       }
       else {
         target = check->target;
-        parent = noit_poller_lookup_by_name(target, name);
+        parent = noit_poller_lookup_by_name__nolock(target, name);
       }
 
       if(!parent) {
@@ -594,6 +620,7 @@ noit_poller_make_causal_map() {
       }
     }
   }
+  pthread_mutex_unlock(&polls_lock);
   /* We found some causal checks, so we might need to activate stuff */
   if(system_needs_causality) noit_poller_initiate();
 }
@@ -1186,32 +1213,49 @@ noit_poller_deschedule(uuid_t in) {
 
 noit_check_t *
 noit_poller_lookup(uuid_t in) {
-  void *vcheck;
-  if(noit_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
-    return (noit_check_t *)vcheck;
-  return NULL;
+  noit_check_t *check;
+  pthread_mutex_lock(&polls_lock);
+  check = noit_poller_lookup__nolock(in);
+  pthread_mutex_unlock(&polls_lock);
+  return check;
 }
 noit_check_t *
 noit_poller_lookup_by_name(char *target, char *name) {
-  noit_check_t *check, *tmp_check;
-  tmp_check = calloc(1, sizeof(*tmp_check));
-  tmp_check->target = target;
-  tmp_check->name = name;
-  check = noit_skiplist_find(&polls_by_name, tmp_check, NULL);
-  free(tmp_check);
+  noit_check_t *check;
+  pthread_mutex_lock(&polls_lock);
+  check = noit_poller_lookup_by_name__nolock(target,name);
+  pthread_mutex_unlock(&polls_lock);
   return check;
 }
 int
 noit_poller_target_ip_do(const char *target_ip,
                          int (*f)(noit_check_t *, void *),
                          void *closure) {
-  int count = 0;
+  int i, count = 0, todo_count = 0;
   noit_check_t pivot;
   noit_skiplist *tlist;
   noit_skiplist_node *next;
+  noit_check_t *todo_onstack[8192];
+  noit_check_t **todo = todo_onstack;
 
   tlist = noit_skiplist_find(polls_by_name.index,
                              __check_target_ip_compare, NULL);
+
+  pthread_mutex_lock(&polls_lock);
+  /* First pass to count */
+  memset(&pivot, 0, sizeof(pivot));
+  strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
+  pivot.name = "";
+  pivot.target = "";
+  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  while(next && next->data) {
+    noit_check_t *check = next->data;
+    if(strcmp(check->target_ip, target_ip)) break;
+    todo_count++;
+    noit_skiplist_next(tlist, &next);
+  }
+
+  if(todo_count > 8192) todo = malloc(todo_count * sizeof(*todo));
 
   memset(&pivot, 0, sizeof(pivot));
   strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
@@ -1221,21 +1265,45 @@ noit_poller_target_ip_do(const char *target_ip,
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target_ip, target_ip)) break;
-    count += f(check,closure);
+    if(count < todo_count) todo[count++] = check;
     noit_skiplist_next(tlist, &next);
   }
+  pthread_mutex_unlock(&polls_lock);
+
+  todo_count = count;
+  count = 0;
+  for(i=0;i<todo_count;i++)
+    count += f(todo[i],closure);
+
+  if(todo != todo_onstack) free(todo);
   return count;
 }
 int
 noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
-  int count = 0;
+  int i, todo_count = 0, count = 0;
   noit_check_t pivot;
   noit_skiplist *tlist;
   noit_skiplist_node *next;
+  noit_check_t *todo_onstack[8192];
+  noit_check_t **todo = todo_onstack;
 
   tlist = noit_skiplist_find(polls_by_name.index,
                              __check_target_compare, NULL);
+
+  pthread_mutex_lock(&polls_lock);
+  memset(&pivot, 0, sizeof(pivot));
+  pivot.name = "";
+  pivot.target = (char *)target;
+  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  while(next && next->data) {
+    noit_check_t *check = next->data;
+    if(strcmp(check->target, target)) break;
+    todo_count++;
+    noit_skiplist_next(tlist, &next);
+  }
+
+  if(todo_count > 8192) todo = malloc(todo_count * sizeof(*todo));
 
   memset(&pivot, 0, sizeof(pivot));
   pivot.name = "";
@@ -1244,9 +1312,17 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target, target)) break;
-    count += f(check,closure);
+    if(count < todo_count) todo[count++] = check;
     noit_skiplist_next(tlist, &next);
   }
+  pthread_mutex_unlock(&polls_lock);
+
+  todo_count = count;
+  count = 0;
+  for(i=0;i<todo_count;i++)
+    count += f(todo[i],closure);
+
+  if(todo != todo_onstack) free(todo);
   return count;
 }
 
@@ -1254,11 +1330,26 @@ int
 noit_poller_do(int (*f)(noit_check_t *, void *),
                void *closure) {
   noit_skiplist_node *iter;
-  int count = 0;
+  int i, count = 0, max_count = 0;
+  noit_check_t **todo;
+
+  if(polls_by_name.size == 0) return 0;
+
+  max_count = polls_by_name.size;
+  todo = malloc(max_count * sizeof(*todo));
+
+  pthread_mutex_lock(&polls_lock);
   for(iter = noit_skiplist_getlist(&polls_by_name); iter;
       noit_skiplist_next(&polls_by_name, &iter)) {
-    count += f((noit_check_t *)iter->data, closure);
+    if(count < max_count) todo[count++] = (noit_check_t *)iter->data;
   }
+  pthread_mutex_unlock(&polls_lock);
+
+  max_count = count;
+  count = 0;
+  for(i=0;i<max_count;i++)
+    count += f(todo[i], closure);
+  free(todo);
   return count;
 }
 
@@ -1646,24 +1737,29 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 
 void
 noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
+  int i, nwatches = 0;
   noit_skiplist_node *next;
   noit_check_t n;
+  noit_check_t *watches[8192];
 
   uuid_copy(n.checkid, check->checkid);
   n.period = 0;
 
   noit_check_set_stats(check,newstate);
+
+  pthread_mutex_lock(&polls_lock);
   noit_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
-  while(next && next->data) {
-    stats_t backup;
+  while(next && next->data && nwatches < 8192) {
     noit_check_t *wcheck = next->data;
     if(uuid_compare(n.checkid, wcheck->checkid)) break;
-
-    /* We advance before we use because the functions below could
-     * destroy the watchlist item we're looking at right now
-     */
+    watches[nwatches++] = wcheck;
     noit_skiplist_next(&watchlist, &next);
+  }
+  pthread_mutex_unlock(&polls_lock);
 
+  for(i=0;i<nwatches;i++) {
+    stats_t backup;
+    noit_check_t *wcheck = watches[i];
     /* Swap the real check's stats into place */
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
     memcpy(&wcheck->stats.current, &check->stats.current, sizeof(stats_t));
@@ -1753,11 +1849,21 @@ noit_console_show_watchlist(noit_console_closure_t ncct,
                             noit_console_state_t *dstate,
                             void *closure) {
   noit_skiplist_node *iter, *fiter;
+  int nwatches = 0, i;
+  noit_check_t *watches[8192];
+
   nc_printf(ncct, "%d active watches.\n", watchlist.size);
-  for(iter = noit_skiplist_getlist(&watchlist); iter;
+  pthread_mutex_lock(&polls_lock);
+  for(iter = noit_skiplist_getlist(&watchlist); iter && nwatches < 8192;
       noit_skiplist_next(&watchlist, &iter)) {
-    char uuid_str[UUID_STR_LEN + 1];
     noit_check_t *check = iter->data;
+    watches[nwatches++] = check;
+  }
+  pthread_mutex_unlock(&polls_lock);
+
+  for(i=0;i<nwatches;i++) {
+    noit_check_t *check = watches[i];
+    char uuid_str[UUID_STR_LEN + 1];
 
     uuid_unparse_lower(check->checkid, uuid_str);
     nc_printf(ncct, "%s:\n\t[%s`%s`%s]\n\tPeriod: %dms\n\tFeeds[%d]:\n",
@@ -1801,6 +1907,7 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
       if(idx == i) return strdup("new");
       i++;
     }
+    pthread_mutex_lock(&polls_lock);
     while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                          &vcheck)) {
       noit_check_t *check = (noit_check_t *)vcheck;
@@ -1809,14 +1916,21 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
       uuid_unparse_lower(check->checkid, uuid_str);
       if(!strncmp(out, argv[0], strlen(argv[0]))) {
-        if(idx == i) return strdup(out);
+        if(idx == i) {
+          pthread_mutex_unlock(&polls_lock);
+          return strdup(out);
+        }
         i++;
       }
       if(!strncmp(uuid_str, argv[0], strlen(argv[0]))) {
-        if(idx == i) return strdup(uuid_str);
+        if(idx == i) {
+          pthread_mutex_unlock(&polls_lock);
+          return strdup(uuid_str);
+        }
         i++;
       }
     }
+    pthread_mutex_unlock(&polls_lock);
   }
   if(argc == 2) {
     cmd_info_t *cmd;
@@ -1839,6 +1953,7 @@ noit_console_check_opts(noit_console_closure_t ncct,
 
   if(argc == 1) {
     void *vcheck;
+    pthread_mutex_lock(&polls_lock);
     while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                          &vcheck)) {
       char out[512];
@@ -1847,14 +1962,21 @@ noit_console_check_opts(noit_console_closure_t ncct,
       snprintf(out, sizeof(out), "%s`%s", check->target, check->name);
       uuid_unparse_lower(check->checkid, uuid_str);
       if(!strncmp(out, argv[0], strlen(argv[0]))) {
-        if(idx == i) return strdup(out);
+        if(idx == i) {
+          pthread_mutex_unlock(&polls_lock);
+          return strdup(out);
+        }
         i++;
       }
       if(!strncmp(uuid_str, argv[0], strlen(argv[0]))) {
-        if(idx == i) return strdup(uuid_str);
+        if(idx == i) {
+          pthread_mutex_unlock(&polls_lock);
+          return strdup(uuid_str);
+        }
         i++;
       }
     }
+    pthread_mutex_unlock(&polls_lock);
   }
   if(argc == 2) {
     return noit_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
@@ -1869,24 +1991,52 @@ noit_console_show_checks(noit_console_closure_t ncct,
                          void *closure) {
   noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
   uuid_t key_id;
-  int klen;
+  int klen, i = 0, nchecks;
   void *vcheck;
+  noit_check_t **checks;
 
+  nchecks = noit_hash_size(&polls);
+  if(nchecks == 0) return 0;
+  checks = malloc(nchecks * sizeof(*checks));
+
+  pthread_mutex_lock(&polls_lock);
   while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
-    nc_printf_check_brief(ncct, (noit_check_t *)vcheck);
+    if(i<nchecks) checks[i++] = vcheck;
   }
+  pthread_mutex_unlock(&polls_lock);
+
+  nchecks = i;
+  for(i=0;i<nchecks;i++)
+    nc_printf_check_brief(ncct,checks[i]);
+
+  free(checks);
   return 0;
 }
 
 static int
 noit_console_short_checks_sl(noit_console_closure_t ncct,
                              noit_skiplist *tlist) {
+  int max_count, i = 0;
+  noit_check_t **todo;
   noit_skiplist_node *iter;
-  for(iter = noit_skiplist_getlist(tlist); iter;
+
+  max_count = tlist->size;
+  if(max_count == 0) return 0;
+  todo = malloc(max_count * sizeof(*todo));
+
+  pthread_mutex_lock(&polls_lock);
+  for(iter = noit_skiplist_getlist(tlist); i < max_count && iter;
       noit_skiplist_next(tlist, &iter)) {
-    nc_printf_check_brief(ncct, (noit_check_t *)iter->data);
+    todo[i++] = iter->data;
   }
+  pthread_mutex_unlock(&polls_lock);
+
+  max_count = i;
+  for(i=0;i<max_count;i++)
+    nc_printf_check_brief(ncct, todo[i]);
+
+  free(todo);
   return 0;
 }
 static int
