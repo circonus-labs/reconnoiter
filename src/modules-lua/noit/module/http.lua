@@ -430,7 +430,11 @@ function initiate(module, check)
                 "Digest " .. client:auth_digest(method, uri,
                                          user, password, challenge)
         else
-            check.status("Unexpected auth '" .. ameth .. "' in challenge")
+            if ameth then
+                check.status("Unexpected auth '" .. ameth .. "' in challenge")
+            else
+                check.status("Unknown auth method in challenge")
+            end
             return
         end
     elseif config.auth_method ~= nil then
