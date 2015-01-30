@@ -11,6 +11,7 @@
 #include "amqp.h"
 #include "amqp_framing.h"
 #include "amqp_private.h"
+#include "utils/noit_log.h"
 
 #include <assert.h>
 
@@ -388,8 +389,16 @@ int amqp_send_frame(amqp_connection_state_t state,
       (void)AMQP_CHECK_RESULT(write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
       (void)AMQP_CHECK_RESULT(write(state->sockfd, encoded.bytes, payload_len));
       {
-	assert(FOOTER_SIZE == 1);
 	unsigned char frame_end_byte = AMQP_FRAME_END;
+	assert(FOOTER_SIZE == 1);
+        /* Yeah, yeah, this is kinda hacky. We're seeing this byte appearing wrong on 
+           the mq side and we need to log/verify that there's a problem if it's on
+           this side somehow. Once figured out further, this check should probably
+           be removed */
+        if (frame_end_byte != 206) {
+          noitL(noit_error, "ERROR: frame end byte is %d, should be 206\n", frame_end_byte);
+          frame_end_byte = 206;
+        }
 	(void)AMQP_CHECK_RESULT(write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
       }
       return 0;
