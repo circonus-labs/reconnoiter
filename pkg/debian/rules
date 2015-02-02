@@ -10,7 +10,7 @@ build: build-stamp
 
 build-stamp:
 	autoconf
-	./configure --prefix=/usr --libexecdir=/usr/lib --sysconfdir=/etc/reconnoiter --localstatedir=/var/lib/reconnoiter --datarootdir=/usr/share --with-java-libdir=/usr/share/java
+	LDFLAGS="-ldl -lm" ./configure --prefix=/usr --libexecdir=/usr/lib --sysconfdir=/etc/reconnoiter --localstatedir=/var/lib/reconnoiter --datarootdir=/usr/share --with-java-libdir=/usr/share/java
 	$(MAKE)
 	touch $@
 
