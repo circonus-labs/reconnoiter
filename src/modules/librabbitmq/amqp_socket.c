@@ -101,7 +101,7 @@ static char *header() {
 }
 
 int amqp_send_header(amqp_connection_state_t state) {
-  return write(state->sockfd, header(), 8);
+  return eintr_safe_write(state->sockfd, header(), 8);
 }
 
 int amqp_send_header_to(amqp_connection_state_t state,

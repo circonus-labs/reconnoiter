@@ -11,7 +11,6 @@
 #include "amqp.h"
 #include "amqp_framing.h"
 #include "amqp_private.h"
-#include "utils/noit_log.h"
 
 #include <assert.h>
 
@@ -382,15 +381,15 @@ int amqp_send_frame(amqp_connection_state_t state,
   separate_body = inner_send_frame(state, frame, &encoded, &payload_len);
   switch (separate_body) {
     case 0:
-      (void)AMQP_CHECK_RESULT(write(state->sockfd,
+      (void)AMQP_CHECK_RESULT(eintr_safe_write(state->sockfd,
 			      state->outbound_buffer.bytes,
 			      payload_len + (HEADER_SIZE + FOOTER_SIZE)));
       return 0;
 
     case 1:
-      (void)AMQP_CHECK_RESULT(write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
-      (void)AMQP_CHECK_RESULT(write(state->sockfd, encoded.bytes, payload_len));
-      (void)AMQP_CHECK_RESULT(write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
+      (void)AMQP_CHECK_RESULT(eintr_safe_write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
+      (void)AMQP_CHECK_RESULT(eintr_safe_write(state->sockfd, encoded.bytes, payload_len));
+      (void)AMQP_CHECK_RESULT(eintr_safe_write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
       return 0;
 
     default:

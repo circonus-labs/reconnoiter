@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 #include <arpa/inet.h> /* ntohl, htonl, ntohs, htons */
+#include <unistd.h> /* write */
 
 /*
  * Connection states:
@@ -76,6 +77,12 @@ struct amqp_connection_state_t_ {
   amqp_basic_return_fn_t basic_return_callback;
   void *basic_return_callback_data;
 };
+
+static inline int eintr_safe_write(int fd, const void *buf, size_t count) {
+  int ret=-1;
+  while ((ret = write(fd, buf, count)) == -1 && (errno == EINTR));
+  return ret;
+}
 
 #define CHECK_LIMIT(b, o, l, v) ({ if ((o + l) > (b).len) { return -EFAULT; } (v); })
 #define BUF_AT(b, o) (&(((uint8_t *) (b).bytes)[o]))
