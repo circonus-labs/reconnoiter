@@ -2,15 +2,15 @@ etc/reconnoiter/config_templates.conf
 etc/reconnoiter/noit.conf
 usr/bin/noit-config
 usr/bin/noittrap
-usr/bin/jezebel
+src/java/jezebel usr/bin
 usr/bin/noit_jlogctl
 usr/lib/noit/
 usr/sbin/noitd
-usr/share/java/jezebel.jar
-usr/share/java/log4j-1.2.15.jar
-usr/share/java/jetty-6.1.20.jar
-usr/share/java/servlet-api-2.5-20081211.jar
-usr/share/java/jetty-util-6.1.20.jar
-usr/share/java/commons-cli-1.1.jar
-usr/share/java/commons-logging-1.1.1.jar
+src/java/lib/jezebel.jar usr/share/java
+src/java/lib/log4j-1.2.15.jar usr/share/java
+src/java/lib/jetty-6.1.20.jar usr/share/java
+src/java/lib/servlet-api-2.5-20081211.jar usr/share/java
+src/java/lib/jetty-util-6.1.20.jar usr/share/java
+src/java/lib/commons-cli-1.1.jar usr/share/java
+src/java/lib/commons-logging-1.1.1.jar usr/share/java
 usr/share/man/man8/noitd.8
