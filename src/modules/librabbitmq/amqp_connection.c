@@ -29,6 +29,8 @@
 		_check_state->state);					\
   }
 
+static unsigned char frame_end_byte = AMQP_FRAME_END;
+
 amqp_connection_state_t amqp_new_connection(void) {
   amqp_connection_state_t state =
     (amqp_connection_state_t) calloc(1, sizeof(struct amqp_connection_state_t_));
@@ -376,7 +378,6 @@ int amqp_send_frame(amqp_connection_state_t state,
   amqp_bytes_t encoded = { .len = 0, .bytes = NULL };
   int payload_len;
   int separate_body;
-  unsigned char frame_end_byte = AMQP_FRAME_END;
 
   separate_body = inner_send_frame(state, frame, &encoded, &payload_len);
   switch (separate_body) {
@@ -389,15 +390,6 @@ int amqp_send_frame(amqp_connection_state_t state,
     case 1:
       (void)AMQP_CHECK_RESULT(write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE));
       (void)AMQP_CHECK_RESULT(write(state->sockfd, encoded.bytes, payload_len));
-      assert(FOOTER_SIZE == 1);
-      /* Yeah, yeah, this is kinda hacky. We're seeing this byte appearing wrong on 
-         the mq side and we need to log/verify that there's a problem if it's on
-         this side somehow. Once figured out further, this check should probably
-         be removed */
-      if (frame_end_byte != 206) {
-        noitL(noit_error, "ERROR: frame end byte is %d, should be 206\n", frame_end_byte);
-        frame_end_byte = 206;
-      }
       (void)AMQP_CHECK_RESULT(write(state->sockfd, &frame_end_byte, FOOTER_SIZE));
       return 0;
 
@@ -426,11 +418,7 @@ int amqp_send_frame_to(amqp_connection_state_t state,
     case 1:
       (void)AMQP_CHECK_RESULT(fn(context, state->outbound_buffer.bytes, HEADER_SIZE));
       (void)AMQP_CHECK_RESULT(fn(context, encoded.bytes, payload_len));
-      {
-	assert(FOOTER_SIZE == 1);
-	unsigned char frame_end_byte = AMQP_FRAME_END;
-	(void)AMQP_CHECK_RESULT(fn(context, &frame_end_byte, FOOTER_SIZE));
-      }
+      (void)AMQP_CHECK_RESULT(fn(context, &frame_end_byte, FOOTER_SIZE));
       return 0;
 
     default:
