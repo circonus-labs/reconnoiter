@@ -51,7 +51,7 @@
 #define DEFAULT_RCVBUF (1 << 20)
 
 static socklen_t desired_sndbuf = DEFAULT_SNDBUF;
-static socklet_t desired_rcvbuf = DEFAULT_RCVBUF;
+static socklen_t desired_rcvbuf = DEFAULT_RCVBUF;
 
 static pthread_mutex_t driver_lock;
 struct amqp_driver {
