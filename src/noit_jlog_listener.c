@@ -285,8 +285,8 @@ noit_jlog_thread_main(void *e_vptr) {
     }
     if(sleeptime) {
       usleep(sleeptime * 1000); /* us -> ms */
-      sleeptime += 1000; /* 1 s */
     }
+    sleeptime += 1000; /* 1 s */
   }
 
  alldone:
