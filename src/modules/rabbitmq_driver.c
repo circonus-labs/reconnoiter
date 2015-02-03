@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2015, Circonus, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,9 +43,15 @@
 #include <poll.h>
 #include <unistd.h>
 #include <assert.h>
+#include <errno.h>
 
 #define MAX_CONCURRENCY 16
 #define MAX_HOSTS 10
+#define DEFAULT_SNDBUF (1 << 20)
+#define DEFAULT_RCVBUF (1 << 20)
+
+static long desired_sndbuf = DEFAULT_SNDBUF;
+static long desired_rcvbuf = DEFAULT_RCVBUF;
 
 static pthread_mutex_t driver_lock;
 struct amqp_driver {
@@ -222,6 +229,10 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
             driver->hostname[sidx], driver->port);
       return -1;
     }
+    if(setsockopt(driver->sockfd, SOL_SOCKET, SO_SNDBUF, &desired_sndbuf, sizeof(desired_sndbuf)) < 0)
+      noitL(noit_debug, "rabbitmq: setsockopt(SO_SNDBUF, %ld) -> %s\n", desired_sndbuf, strerror(errno));
+    if(setsockopt(driver->sockfd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0)
+      noitL(noit_debug, "rabbitmq: setsockopt(SO_RCVBUF, %ld) -> %s\n", desired_rcvbuf, strerror(errno));
     driver->has_error = 0;
     driver->connection = amqp_new_connection();
     amqp_set_basic_return_cb(driver->connection, noit_rabbitmq_brcb, driver);
@@ -391,6 +402,11 @@ mq_driver_t mq_driver_rabbitmq = {
 };
 
 static int noit_rabbimq_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
+  const char *intstr;
+  if(noit_hash_retr_str(o, "sndbuf", strlen("sndbuf"), &intstr))
+    desired_sndbuf = atoi(intstr);
+  if(noit_hash_retr_str(o, "rcvbuf", strlen("rcvbuf"), &intstr))
+    desired_rcvbuf = atoi(intstr);
   return 0;
 }
 static int noit_rabbimq_driver_onload(noit_image_t *self) {

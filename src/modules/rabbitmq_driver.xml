@@ -4,6 +4,14 @@
   <loader>C</loader>
   <image>rabbitmq_driver.so</image>
   <moduleconfig>
+    <parameter name="sndbuf"
+               required="optional"
+               default="1048576"
+               allowed="^\d+$">The SO_SNDBUF size for setsockopt(2).</parameter>
+    <parameter name="rcvbuf"
+               required="optional"
+               default="1048576"
+               allowed="^\d+$">The SO_RCVBUF size for setsockopt(2).</parameter>
   </moduleconfig>
   <checkconfig />
   <examples>

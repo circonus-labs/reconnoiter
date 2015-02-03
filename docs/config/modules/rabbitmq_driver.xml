@@ -17,6 +17,65 @@
     </varlistentry>
   </variablelist>
   <section>
+    <title>Module Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>sndbuf</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>1048576</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^\d+$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SO_SNDBUF size for setsockopt(2).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>rcvbuf</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>1048576</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>^\d+$</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The SO_RCVBUF size for setsockopt(2).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+  <section>
     <title>Examples</title>
     <example>
       <title>Loading the rabbitmq_driver.</title>
