@@ -448,7 +448,7 @@ static EVP_CIPHER_CTX* network_get_aes256_cypher (collectd_closure_t *ccl, /* {{
     success = EVP_DecryptInit(ctx_ptr, EVP_aes_256_ofb(), password_hash, iv);
     if (success != 1)
     {
-      noitL(noit_error, "collectd: EVP_DecryptInit returned: %d\n",
+      noitL(nlerr, "collectd: EVP_DecryptInit returned: %d\n",
           success);
       return (NULL);
     }
@@ -475,7 +475,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < 15)
   {
-    noitL(noit_error,"collectd: packet is too short: "
+    noitL(nlerr,"collectd: packet is too short: "
         "buffer_len = %zu\n", buffer_len);
     return (-1);
   }
@@ -498,7 +498,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
     + pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
   if (buffer_len < exp_size)
   {
-    noitL(noit_error, "collectd: parse_part_values: "
+    noitL(nlerr, "collectd: parse_part_values: "
         "Packet too short: "
         "Chunk of size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -520,7 +520,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
   {
     sfree (pkg_types);
     sfree (pkg_values);
-    noitL(noit_error, "collectd: parse_part_values: malloc failed.\n");
+    noitL(nlerr, "collectd: parse_part_values: malloc failed.\n");
     return (-1);
   }
 
@@ -583,7 +583,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
   if ((size_t) buffer_len < exp_size)
   {
-    noitL(noit_error, "collectd: parse_part_number: "
+    noitL(nlerr, "collectd: parse_part_number: "
         "Packet too short: "
         "Chunk of size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -621,7 +621,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < header_size)
   {
-    noitL(noit_error, "collectd: parse_part_string: "
+    noitL(nlerr, "collectd: parse_part_string: "
         "Packet too short: "
         "Chunk of at least size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -639,7 +639,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   /* Check that packet fits in the input buffer */
   if (pkg_length > buffer_len)
   {
-    noitL(noit_error, "collectd: parse_part_string: "
+    noitL(nlerr, "collectd: parse_part_string: "
         "Packet too big: "
         "Chunk of size %"PRIu16" received, "
         "but buffer has only %zu bytes left.\n",
@@ -650,7 +650,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   /* Check that pkg_length is in the valid range */
   if (pkg_length <= header_size)
   {
-    noitL(noit_error, "collectd: parse_part_string: "
+    noitL(nlerr, "collectd: parse_part_string: "
         "Packet too short: "
         "Header claims this packet is only %hu "
         "bytes long.\n", pkg_length);
@@ -663,7 +663,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   if ((output_len < 0)
       || ((size_t) output_len < ((size_t) pkg_length - header_size)))
   {
-    noitL(noit_error, "collectd: parse_part_string: "
+    noitL(nlerr, "collectd: parse_part_string: "
         "Output buffer too small.\n");
     return (-1);
   }
@@ -677,7 +677,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
    * this statement. */
   if (output[output_len - 1] != 0)
   {
-    noitL(noit_error, "collectd: parse_part_string: "
+    noitL(nlerr, "collectd: parse_part_string: "
         "Received string does not end "
         "with a NULL-byte.\n");
     return (-1);
@@ -752,7 +752,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((pss_head_length <= PART_SIGNATURE_SHA256_SIZE)
       || (pss_head_length > buffer_len))
   {
-    noitL(noit_error, "collectd: HMAC-SHA-256 with invalid length received.\n");
+    noitL(nlerr, "collectd: HMAC-SHA-256 with invalid length received.\n");
     return (-1);
   }
 
@@ -774,7 +774,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Match up the username with the expected username */
   if (strcmp(ccl->username, pss.username) != 0)
   {
-    noitL(noit_error, "collectd: User: %s and Given User: %s don't match\n", ccl->username, pss.username);
+    noitL(nlerr, "collectd: User: %s and Given User: %s don't match\n", ccl->username, pss.username);
     sfree (pss.username);
     return (-ENOENT);
   }
@@ -786,7 +786,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
       hash,         &length);
   if (hash_ptr == NULL)
   {
-    noitL(noit_error, "collectd: Creating HMAC-SHA-256 object failed.\n");
+    noitL(nlerr, "collectd: Creating HMAC-SHA-256 object failed.\n");
     sfree (pss.username);
     return (-1);
   }
@@ -796,7 +796,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
 
   if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
   {
-    noitL(noit_error, "collectd: Verifying HMAC-SHA-256 signature failed: "
+    noitL(nlerr, "collectd: Verifying HMAC-SHA-256 signature failed: "
         "Hash mismatch.\n");
   }
   else
@@ -885,7 +885,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Match up the username with the expected username */
   if (strcmp(ccl->username, pea.username) != 0)
   {
-    noitL(noit_error, "collectd: Username received and server side username don't match\n");
+    noitL(nlerr, "collectd: Username received and server side username don't match\n");
     sfree (pea.username);
     return (-ENOENT);
   }
@@ -906,7 +906,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
       part_size - buffer_offset);
   if (err != 1)
   {
-    noitL(noit_error, "collectd: openssl returned: %d\n", err);
+    noitL(nlerr, "collectd: openssl returned: %d\n", err);
     return (-1);
   }
 
@@ -929,7 +929,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   EVP_DigestFinal(&ctx_md, hash, &hash_length);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
-    noitL(noit_error, "collectd: Decryption failed: Checksum mismatch.\n");
+    noitL(nlerr, "collectd: Decryption failed: Checksum mismatch.\n");
     return (-1);
   }
 
@@ -995,7 +995,7 @@ static int parse_packet (/* {{{ */
           &buffer, &buffer_size, flags);
       if (status != 0)
       {
-        noitL(noit_error, "collectd: Decrypting AES256 "
+        noitL(nlerr, "collectd: Decrypting AES256 "
             "part failed "
             "with status %i.\n", status);
         break;
@@ -1019,7 +1019,7 @@ static int parse_packet (/* {{{ */
                                         &buffer, &buffer_size, flags);
       if (status != 0)
       {
-        noitL(noit_error, "collectd: Verifying HMAC-SHA-256 "
+        noitL(nlerr, "collectd: Verifying HMAC-SHA-256 "
             "signature failed "
             "with status %i.\n", status);
         break;
@@ -1054,7 +1054,7 @@ static int parse_packet (/* {{{ */
       }
       else
       {
-        noitL(noit_error,
+        noitL(nlerr,
               "collectd: NOT dispatching values [%lld,%s:%s:%s]\n",
               (long long int)vl.time.tv_sec, vl.host, vl.plugin, vl.type);
       }
@@ -1152,7 +1152,7 @@ static int parse_packet (/* {{{ */
           && (n.severity != NOTIF_WARNING)
           && (n.severity != NOTIF_OKAY))
       {
-        noitL(noit_error, "collectd: "
+        noitL(nlerr, "collectd: "
             "Ignoring notification with "
             "unknown severity %i.\n",
             n.severity);
@@ -1160,21 +1160,21 @@ static int parse_packet (/* {{{ */
 /* Time proves untrustworthy... and we don't use it.
       else if (n.time <= 0)
       {
-        noitL(noit_error, "collectd: "
+        noitL(nlerr, "collectd: "
             "Ignoring notification with "
             "time == 0.\n");
       }
 */
       else if (strlen (n.message) <= 0)
       {
-        noitL(noit_error, "collectd: "
+        noitL(nlerr, "collectd: "
             "Ignoring notification with "
             "an empty message.\n");
       }
       else
       {
         queue_notifications(ccl, self, check, &n);
-        noitL(noit_error, "collectd: "
+        noitL(nlerr, "collectd: "
             "DISPATCH NOTIFICATION\n");
       }
     }
@@ -1188,7 +1188,7 @@ static int parse_packet (/* {{{ */
     }
     else
     {
-      noitL(noit_error, "collectd: parse_packet: Unknown part"
+      noitL(nlerr, "collectd: parse_packet: Unknown part"
           " type: 0x%04hx\n", pkg_type);
       buffer = ((char *) buffer) + pkg_length;
     }
@@ -2164,14 +2164,14 @@ static int noit_collectd_init(noit_module_t *self) {
 
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
-    noitL(noit_error, "collectd: socket failed: %s\n",
+    noitL(nlerr, "collectd: socket failed: %s\n",
           strerror(errno));
   }
   else {
     if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
       close(conf->ipv4_fd);
       conf->ipv4_fd = -1;
-      noitL(noit_error,
+      noitL(nlerr,
             "collectd: could not set socket non-blocking: %s\n",
             strerror(errno));
     }
@@ -2182,14 +2182,12 @@ static int noit_collectd_init(noit_module_t *self) {
   skaddr.sin_port = htons(port);
 
   sockaddr_len = sizeof(skaddr);
-  if(conf->ipv4_fd <= 0) {
-    noitL(noit_error, "failed to setup ipv4 socket[%s]\n", host);
-    return -1;
-  }
-  if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-    noitL(noit_error, "bind failed[%s]: %s\n", host, strerror(errno));
-    close(conf->ipv4_fd);
-    return -1;
+  if(conf->ipv4_fd >= 0) {
+    if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
+      noitL(nlerr, "collectd: bind failed[%s]: %s\n", host, strerror(errno));
+      close(conf->ipv4_fd);
+      conf->ipv4_fd = -1;
+    }
   }
 
   if(conf->ipv4_fd >= 0) {
@@ -2204,14 +2202,14 @@ static int noit_collectd_init(noit_module_t *self) {
 
   conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv6_fd < 0) {
-    noitL(noit_error, "collectd: IPv6 socket failed: %s\n",
+    noitL(nlerr, "collectd: IPv6 socket failed: %s\n",
           strerror(errno));
   }
   else {
     if(eventer_set_fd_nonblocking(conf->ipv6_fd)) {
       close(conf->ipv6_fd);
       conf->ipv6_fd = -1;
-      noitL(noit_error,
+      noitL(nlerr,
             "collectd: could not set socket non-blocking: %s\n",
                strerror(errno));
     }
@@ -2224,7 +2222,7 @@ static int noit_collectd_init(noit_module_t *self) {
 
   if(conf->ipv6_fd >= 0 &&
      bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
-    noitL(noit_error, "bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
+    noitL(nlerr, "collectd: bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
     close(conf->ipv6_fd);
     conf->ipv6_fd = -1;
   }
