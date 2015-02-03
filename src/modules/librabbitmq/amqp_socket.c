@@ -11,6 +11,7 @@
 #include "amqp.h"
 #include "amqp_framing.h"
 #include "amqp_private.h"
+#include "utils/noit_log.h"
 
 #include <eventer/eventer.h>
 #include <sys/types.h>
@@ -101,7 +102,11 @@ static char *header() {
 }
 
 int amqp_send_header(amqp_connection_state_t state) {
-  return eintr_safe_write(state->sockfd, header(), 8);
+  int ret = eintr_safe_write(state->sockfd, header(), 8);
+  if (ret < 0) {
+    noitL(noit_error, "Failed to write header in amqp_send_header, size 8\n");
+  }
+  return ret;
 }
 
 int amqp_send_header_to(amqp_connection_state_t state,
@@ -184,6 +189,7 @@ static int wait_frame_inner(amqp_connection_state_t state,
 		  state->sock_inbound_buffer.bytes,
 		  state->sock_inbound_buffer.len);
     if (result < 0) {
+      noitL(noit_error, "Failed to read message in wait_frame_inner, size %d\n", state->sock_inbound_buffer.len);
       return -errno;
     }
     if (result == 0) {
