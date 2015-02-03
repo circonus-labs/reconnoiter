@@ -180,7 +180,7 @@ static int wait_frame_inner(amqp_connection_state_t state,
       assert(result != 0);
     }	
 
-    result = read(state->sockfd,
+    result = eintr_safe_read(state->sockfd,
 		  state->sock_inbound_buffer.bytes,
 		  state->sock_inbound_buffer.len);
     if (result < 0) {

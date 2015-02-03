@@ -84,6 +84,12 @@ static inline int eintr_safe_write(int fd, const void *buf, size_t count) {
   return ret;
 }
 
+static inline int eintr_safe_read(int fd, void *buf, size_t count) {
+  int ret=-1;
+  while ((ret = read(fd, buf, count)) == -1 && (errno == EINTR));
+  return ret;
+}
+
 #define CHECK_LIMIT(b, o, l, v) ({ if ((o + l) > (b).len) { return -EFAULT; } (v); })
 #define BUF_AT(b, o) (&(((uint8_t *) (b).bytes)[o]))
 
