@@ -82,6 +82,7 @@ struct iep_job_closure {
   char *line;       /* This is a copy and gets trashed during processing */
   char *remote;
   char *doc_str;
+  struct timeval start;
 };
 
 static void
@@ -374,6 +375,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   double age;
   struct iep_job_closure *job = closure;
   char *line;
+  struct timeval diff;
   /* We only play when it is an asynch event */
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
 
@@ -385,6 +387,15 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
       if(job->doc_str) free(job->doc_str);
       free(job);
     }
+    return 0;
+  }
+
+  /* If we're greater than 10 seconds old,
+     just quit. */
+  sub_timeval(*now, job->start, &diff);
+  if (diff.tv_sec >= 10) {
+    noitL(noit_debug, "Skipping event from %s - waiting in eventer for more than 10 seconds\n",
+                        job->remote ? job->remote : "(null)");
     return 0;
   }
 
@@ -429,7 +440,6 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   char remote_str[128];
   struct iep_job_closure *jc;
   eventer_t newe;
-  struct timeval __now, iep_timeout = { 10L, 0L };
   /* We only care about inserts */
 
   if(op == DS_OP_CHKPT) {
@@ -458,15 +468,14 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   }
 
   /* process operand and push onto queue */
-  gettimeofday(&__now, NULL);
   newe = eventer_alloc();
   newe->thr_owner = eventer_choose_owner(0);
   newe->mask = EVENTER_ASYNCH;
-  add_timeval(__now, iep_timeout, &newe->whence);
   newe->callback = stratcon_iep_submitter;
   jc = calloc(1, sizeof(*jc));
   jc->line = operand;
   jc->remote = strdup(remote_str);
+  gettimeofday(&jc->start, NULL);
   newe->closure = jc;
 
   eventer_add_asynch(&iep_jobq, newe);
