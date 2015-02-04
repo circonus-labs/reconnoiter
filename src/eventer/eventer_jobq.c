@@ -83,7 +83,7 @@ eventer_jobq_handler(int signo)
   assert(jobq);
   env = pthread_getspecific(jobq->threadenv);
   job = pthread_getspecific(jobq->activejob);
-  if(env && job && job->fd_event->mask & EVENTER_EVIL_BRUTAL)
+  if(env && job && job->fd_event && job->fd_event->mask & EVENTER_EVIL_BRUTAL)
     if(noit_atomic_cas32(&job->inflight, 0, 1) == 1)
        siglongjmp(*env, 1);
 }
@@ -272,7 +272,7 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
   noitL(eventer_deb, "%p jobq -> timeout job [%p]\n", pthread_self_ptr(), job);
   if(job->inflight) {
     eventer_job_t *jobcopy;
-    if(job->fd_event->mask & (EVENTER_CANCEL)) {
+    if(job->fd_event && (job->fd_event->mask & EVENTER_CANCEL)) {
       struct _event wakeupcopy;
       eventer_t my_precious = job->fd_event;
       /* we set this to null so we can't complete on it */
@@ -330,22 +330,24 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
   assert(jobq);
   while((job = eventer_jobq_dequeue_nowait(jobq)) != NULL) {
     int newmask;
-    noit_memory_begin();
-    EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
-                           (void *)job->fd_event->callback, NULL,
-                           job->fd_event->fd, job->fd_event->mask,
-                           job->fd_event->mask);
-    newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
-                                      job->fd_event->closure, now);
-    EVENTER_CALLBACK_RETURN((void *)job->fd_event,
-                            (void *)job->fd_event->callback, NULL, newmask);
-    noit_memory_end();
-    if(!newmask) eventer_free(job->fd_event);
-    else {
-      job->fd_event->mask = newmask;
-      eventer_add(job->fd_event);
+    if(job->fd_event) {
+      noit_memory_begin();
+      EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
+                             (void *)job->fd_event->callback, NULL,
+                             job->fd_event->fd, job->fd_event->mask,
+                             job->fd_event->mask);
+      newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
+                                        job->fd_event->closure, now);
+      EVENTER_CALLBACK_RETURN((void *)job->fd_event,
+                              (void *)job->fd_event->callback, NULL, newmask);
+      noit_memory_end();
+      if(!newmask) eventer_free(job->fd_event);
+      else {
+        job->fd_event->mask = newmask;
+        eventer_add(job->fd_event);
+      }
+      job->fd_event = NULL;
     }
-    job->fd_event = NULL;
     assert(job->timeout_event == NULL);
     noit_atomic_dec32(&jobq->inflight);
     free(job);
