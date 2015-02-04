@@ -174,7 +174,7 @@ static iep_thread_driver_t *noit_fq_allocate(noit_conf_section_t conf) {
   if(!noit_conf_get_int(conf, "heartbeat", &global_fq_ctx.heartbeat))
     global_fq_ctx.heartbeat = 2000;
   if(!noit_conf_get_int(conf, "backlog", &global_fq_ctx.backlog))
-    global_fq_ctx.backlog = 2000;
+    global_fq_ctx.backlog = 10000;
   if(!noit_conf_get_int(conf, "port", &global_fq_ctx.port))
     global_fq_ctx.port = 8765;
   (void)noit_conf_get_string(conf, "hostname", &hostname);
