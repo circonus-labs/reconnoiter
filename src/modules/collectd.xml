@@ -5,6 +5,10 @@
   <loader>C</loader>
   <image>collectd.so</image>
   <moduleconfig>
+    <parameter name="asynch_metrics"
+               required="optional"
+               default="false"
+               allowed="(?:true|false)">Report metrics asthey arrive, not on the period provided.</parameter>
     <parameter name="collectd_port"
                required="required"
                default="25826"
@@ -24,6 +28,10 @@
                allowed=".+">The collectd password for authenticating signed and encrypted packets. Also the password used for HTTP authentication when using the write_http ingestion method.</parameter>
   </moduleconfig>
   <checkconfig>
+    <parameter name="asynch_metrics"
+               required="optional"
+               default="false"
+               allowed="(?:true|false)">Report metrics asthey arrive, not on the period provided.</parameter>
     <parameter name="security_level"
                required="optional"
                allowed="\d+">An integer detailing the security level which to allow.  0 for all packets allowed, 1 for signed and encrypted packets allowed, 2 for only encrypted packets allowed.</parameter>

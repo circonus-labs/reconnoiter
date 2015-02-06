@@ -21,6 +21,34 @@
     <title>Module Configuration</title>
     <variablelist>
       <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>false</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|false)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Report metrics asthey arrive, not on the period provided.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+    <variablelist>
+      <varlistentry>
         <term>collectd_port</term>
         <listitem>
           <variablelist>
@@ -144,6 +172,34 @@
   </section>
   <section>
     <title>Check Configuration</title>
+    <variablelist>
+      <varlistentry>
+        <term>asynch_metrics</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>default</term>
+              <listitem>
+                <para>false</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>(?:true|false)</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>Report metrics asthey arrive, not on the period provided.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
     <variablelist>
       <varlistentry>
         <term>security_level</term>
