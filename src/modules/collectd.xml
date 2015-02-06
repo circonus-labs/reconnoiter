@@ -5,6 +5,26 @@
   <loader>C</loader>
   <image>collectd.so</image>
   <moduleconfig>
+    <parameter name="host_len"
+               required="optional"
+               default="64"
+               allowed="\d+">Maximum length of the host field [64, 256].</parameter>
+    <parameter name="plugin_len"
+               required="optional"
+               default="64"
+               allowed="\d+">Maximum length of the plugin field [64, 256].</parameter>
+    <parameter name="plugin_instance_len"
+               required="optional"
+               default="64"
+               allowed="\d+">Maximum length of the plugin_instance field [64, 256].</parameter>
+    <parameter name="type_len"
+               required="optional"
+               default="64"
+               allowed="\d+">Maximum length of the type_instance field [64, 256].</parameter>
+    <parameter name="type_instance_len"
+               required="optional"
+               default="64"
+               allowed="\d+">Maximum length of the type_instance field [64, 256].</parameter>
     <parameter name="asynch_metrics"
                required="optional"
                default="false"

@@ -81,6 +81,7 @@
     <module image="ssh2" name="ssh2"/>
     <module image="httptrap" name="httptrap"/>
     <module image="statsd" name="statsd"/>
+    <module image="collectd" name="collectd"/>
     <module image="ganglia" name="ganglia"/>
     <module loader="lua" name="varnish" object="noit.module.varnish"/>
     <module loader="lua" name="http" object="noit.module.http"/>

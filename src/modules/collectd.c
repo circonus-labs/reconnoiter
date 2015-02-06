@@ -139,7 +139,13 @@ typedef struct meta_data_s meta_data_t;
 #define TYPE_SIGN_SHA256     0x0200
 #define TYPE_ENCR_AES256     0x0210
 
-#define DATA_MAX_NAME_LEN 64
+#define OVERSIZED_DATA_MAX_NAME_LEN 256
+
+static int HOST_DATA_MAX_NAME_LEN = 64;
+static int PLUGIN_DATA_MAX_NAME_LEN = 64;
+static int PLUGIN_INSTANCE_DATA_MAX_NAME_LEN = 64;
+static int TYPE_DATA_MAX_NAME_LEN = 64;
+static int TYPE_INSTANCE_DATA_MAX_NAME_LEN = 64;
 
 #define NOTIF_MAX_MSG_LEN 256
 #define NOTIF_FAILURE 1
@@ -204,11 +210,11 @@ struct value_list_s
   int      values_len;
   struct timeval time;
   int      interval;
-  char     host[DATA_MAX_NAME_LEN];
-  char     plugin[DATA_MAX_NAME_LEN];
-  char     plugin_instance[DATA_MAX_NAME_LEN];
-  char     type[DATA_MAX_NAME_LEN];
-  char     type_instance[DATA_MAX_NAME_LEN];
+  char     host[OVERSIZED_DATA_MAX_NAME_LEN];
+  char     plugin[OVERSIZED_DATA_MAX_NAME_LEN];
+  char     plugin_instance[OVERSIZED_DATA_MAX_NAME_LEN];
+  char     type[OVERSIZED_DATA_MAX_NAME_LEN];
+  char     type_instance[OVERSIZED_DATA_MAX_NAME_LEN];
   meta_data_t *meta;
   uint8_t  *types;
 };
@@ -226,7 +232,7 @@ enum notification_meta_type_e
 
 typedef struct notification_meta_s
 {
-  char name[DATA_MAX_NAME_LEN];
+  char name[OVERSIZED_DATA_MAX_NAME_LEN];
   enum notification_meta_type_e type;
   union
   {
@@ -244,11 +250,11 @@ typedef struct notification_s
   int    severity;
   struct timeval time;
   char   message[NOTIF_MAX_MSG_LEN];
-  char   host[DATA_MAX_NAME_LEN];
-  char   plugin[DATA_MAX_NAME_LEN];
-  char   plugin_instance[DATA_MAX_NAME_LEN];
-  char   type[DATA_MAX_NAME_LEN];
-  char   type_instance[DATA_MAX_NAME_LEN];
+  char   host[OVERSIZED_DATA_MAX_NAME_LEN];
+  char   plugin[OVERSIZED_DATA_MAX_NAME_LEN];
+  char   plugin_instance[OVERSIZED_DATA_MAX_NAME_LEN];
+  char   type[OVERSIZED_DATA_MAX_NAME_LEN];
+  char   type_instance[OVERSIZED_DATA_MAX_NAME_LEN];
   notification_meta_t *meta;
 } notification_t;
 
@@ -1101,43 +1107,43 @@ static int parse_packet (/* {{{ */
     else if (pkg_type == TYPE_HOST)
     {
       status = parse_part_string (&buffer, &buffer_size,
-          vl.host, sizeof (vl.host));
+          vl.host, MIN(HOST_DATA_MAX_NAME_LEN, sizeof (vl.host)));
       if (status == 0)
-        sstrncpy (n.host, vl.host, sizeof (n.host));
+        sstrncpy (n.host, vl.host, MIN(HOST_DATA_MAX_NAME_LEN, sizeof (n.host)));
     }
     else if (pkg_type == TYPE_PLUGIN)
     {
       status = parse_part_string (&buffer, &buffer_size,
-          vl.plugin, sizeof (vl.plugin));
+          vl.plugin, MIN(PLUGIN_DATA_MAX_NAME_LEN, sizeof (vl.plugin)));
       if (status == 0)
         sstrncpy (n.plugin, vl.plugin,
-            sizeof (n.plugin));
+            MIN(PLUGIN_DATA_MAX_NAME_LEN, sizeof (n.plugin)));
     }
     else if (pkg_type == TYPE_PLUGIN_INSTANCE)
     {
       status = parse_part_string (&buffer, &buffer_size,
           vl.plugin_instance,
-          sizeof (vl.plugin_instance));
+          MIN(PLUGIN_INSTANCE_DATA_MAX_NAME_LEN, sizeof (vl.plugin_instance)));
       if (status == 0)
         sstrncpy (n.plugin_instance,
             vl.plugin_instance,
-            sizeof (n.plugin_instance));
+            MIN(PLUGIN_INSTANCE_DATA_MAX_NAME_LEN, sizeof (n.plugin_instance)));
     }
     else if (pkg_type == TYPE_TYPE)
     {
       status = parse_part_string (&buffer, &buffer_size,
-          vl.type, sizeof (vl.type));
+          vl.type, MIN(TYPE_DATA_MAX_NAME_LEN, sizeof (vl.type)));
       if (status == 0)
-        sstrncpy (n.type, vl.type, sizeof (n.type));
+        sstrncpy (n.type, vl.type, MIN(TYPE_DATA_MAX_NAME_LEN, sizeof (n.type)));
     }
     else if (pkg_type == TYPE_TYPE_INSTANCE)
     {
       status = parse_part_string (&buffer, &buffer_size,
           vl.type_instance,
-          sizeof (vl.type_instance));
+          MIN(TYPE_INSTANCE_DATA_MAX_NAME_LEN, sizeof (vl.type_instance)));
       if (status == 0)
         sstrncpy (n.type_instance, vl.type_instance,
-            sizeof (n.type_instance));
+            MIN(TYPE_INSTANCE_DATA_MAX_NAME_LEN, sizeof (n.type_instance)));
     }
     else if (pkg_type == TYPE_MESSAGE)
     {
@@ -1252,7 +1258,7 @@ static int queue_notifications(collectd_closure_t *ccl,
       noit_module_t *self, noit_check_t *check, notification_t *n) {
   stats_t tmpstats;
   noit_boolean immediate;
-  char buffer[DATA_MAX_NAME_LEN*4 + 128];
+  char buffer[OVERSIZED_DATA_MAX_NAME_LEN*4 + 128];
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
 
@@ -1278,7 +1284,7 @@ static int queue_notifications(collectd_closure_t *ccl,
 static int queue_values(collectd_closure_t *ccl,
       noit_module_t *self, noit_check_t *check, value_list_t *vl) {
   noit_boolean immediate;
-  char buffer[DATA_MAX_NAME_LEN*4 + 4 + 1 + 20];
+  char buffer[OVERSIZED_DATA_MAX_NAME_LEN*4 + 4 + 1 + 20];
   int i, len = 0;
 
   // Concat all the names together so they fit into the flat noitd model 
@@ -1526,6 +1532,8 @@ static int noit_collectd_initiate_check(noit_module_t *self,
 }
 
 static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
+  const char *istr;
+  int len;
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
@@ -1537,6 +1545,22 @@ static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
   else
     conf = calloc(1, sizeof(*conf));
   conf->options = options;
+
+  /* Set out sizes up optionally */
+#define SET_ATTR_LEN(attr, TGT_LEN) do { \
+  if(noit_hash_retr_str(conf->options, attr, strlen(attr), &istr)) { \
+    len = atoi(istr); \
+    if(len < 64) len = 64; \
+    if(len > 256) len = 256; \
+    TGT_LEN = len; \
+  } \
+} while(0)
+  SET_ATTR_LEN("host_len", HOST_DATA_MAX_NAME_LEN);
+  SET_ATTR_LEN("plugin_len", PLUGIN_DATA_MAX_NAME_LEN);
+  SET_ATTR_LEN("plugin_instance_len", PLUGIN_INSTANCE_DATA_MAX_NAME_LEN);
+  SET_ATTR_LEN("type_len", TYPE_DATA_MAX_NAME_LEN);
+  SET_ATTR_LEN("type_instance_len", TYPE_INSTANCE_DATA_MAX_NAME_LEN);
+
   noit_module_set_userdata(self, conf);
   return 1;
 }
@@ -1552,11 +1576,11 @@ static int noit_collectd_onload(noit_image_t *self) {
 }
 
 struct cd_object {
-  char host[DATA_MAX_NAME_LEN];
-  char plugin[DATA_MAX_NAME_LEN];
-  char plugin_instance[DATA_MAX_NAME_LEN];
-  char type[DATA_MAX_NAME_LEN];
-  char type_instance[DATA_MAX_NAME_LEN];
+  char host[OVERSIZED_DATA_MAX_NAME_LEN];
+  char plugin[OVERSIZED_DATA_MAX_NAME_LEN];
+  char plugin_instance[OVERSIZED_DATA_MAX_NAME_LEN];
+  char type[OVERSIZED_DATA_MAX_NAME_LEN];
+  char type_instance[OVERSIZED_DATA_MAX_NAME_LEN];
   time_t time;
   metric_t *metrics;
   int nvalues;
@@ -1688,7 +1712,7 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
 
 void cd_object_process(struct rest_json_payload *rxc) {
   int i, cnt;
-  char metric_name[256];
+  char metric_name[512];
 
   /* First validate the object */
   if(!(*rxc->o->host && *rxc->o->plugin && *rxc->o->type)) return;
@@ -1843,16 +1867,17 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
       json->metric_idx++;
       json->o->nnames = MAX(json->o->nnames, json->metric_idx);
       return 1;
-#define STRING_CASE(c, attr) \
+#define STRING_CASE(c, attr, lim) \
     case c: \
-      strlcpy(json->o->attr, stringVal, MIN(DATA_MAX_NAME_LEN, stringLen+1)); \
+noitL(noit_error, "Copying '%s' into %s limit %d\n", stringVal, #attr, MIN(lim, MIN(sizeof(json->o->attr), stringLen+1)));\
+      strlcpy(json->o->attr, stringVal, MIN(lim, MIN(sizeof(json->o->attr), stringLen+1))); \
       json->state = CD_OBJECT; \
       return 1
-    STRING_CASE(CD_HOST, host);
-    STRING_CASE(CD_PLUGIN, plugin);
-    STRING_CASE(CD_PLUGIN_INST, plugin_instance);
-    STRING_CASE(CD_TYPE, type);
-    STRING_CASE(CD_TYPE_INST, type_instance);
+    STRING_CASE(CD_HOST, host, HOST_DATA_MAX_NAME_LEN);
+    STRING_CASE(CD_PLUGIN, plugin, PLUGIN_DATA_MAX_NAME_LEN);
+    STRING_CASE(CD_PLUGIN_INST, plugin_instance, PLUGIN_INSTANCE_DATA_MAX_NAME_LEN);
+    STRING_CASE(CD_TYPE, type, TYPE_DATA_MAX_NAME_LEN);
+    STRING_CASE(CD_TYPE_INST, type_instance, TYPE_INSTANCE_DATA_MAX_NAME_LEN);
     default: break;
   }
   noitL(nldebp, "yajl string in state %s\n", cd_state_name(json->state));
