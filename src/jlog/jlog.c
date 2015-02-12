@@ -857,6 +857,7 @@ ___jlog_resync_index(jlog_ctx *ctx, u_int32_t log, jlog_id *last,
 
 #define RESTART do { \
   if (second_try == 0) { \
+    jlog_file_truncate(ctx->index, index_off); \
     jlog_file_unlock(ctx->index); \
     second_try = 1; \
     ctx->last_error = JLOG_ERR_SUCCESS; \
@@ -986,7 +987,6 @@ restart:
     }
     if(closed) *closed = 1;
   }
-  jlog_file_truncate(ctx->index, index_off);
 #undef RESTART
 
 finish:
