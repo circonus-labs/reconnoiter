@@ -121,6 +121,14 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     } else if(!strcmp((char *)a->name, "resolve_rtype")) 
       resolve_rtype = (char *)xmlNodeGetContent(a);
   }
+  if(!noit_check_validate_target(target)) {
+    *error = "malformed target";
+    goto error;
+  }
+  if(!noit_check_validate_name(name)) {
+    *error = "malformed name";
+    goto error;
+  }
   if(module) m = noit_module_lookup(module);
   if(!m) {
     *error = "cannot find requested module";

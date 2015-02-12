@@ -243,6 +243,24 @@ void check_slots_inc_tv(struct timeval *tv) {
 void check_slots_dec_tv(struct timeval *tv) {
   check_slots_adjust_tv(tv, -1);
 }
+static int
+noit_check_generic_safe_string(const char *p) {
+  if(!p) return 0;
+  for(;*p;p++) {
+    if(!isprint(*p)) return 0;
+  }
+  return 1;
+}
+int
+noit_check_validate_target(const char *p) {
+  if(!noit_check_generic_safe_string(p)) return 0;
+  return 1;
+}
+int
+noit_check_validate_name(const char *p) {
+  if(!noit_check_generic_safe_string(p)) return 0;
+  return 1;
+}
 const char *
 noit_check_available_string(int16_t available) {
   switch(available) {
@@ -411,6 +429,10 @@ noit_poller_process_checks(const char *xpath) {
       noitL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
       busted = noit_true;
     }
+    if(!noit_check_validate_target(target)) {
+      noitL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
+      busted = noit_true;
+    }
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
       noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
       busted = noit_true;
@@ -424,6 +446,11 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!MYATTR(stringbuf, name, name, sizeof(name)))
       strlcpy(name, module, sizeof(name));
+
+    if(!noit_check_validate_name(name)) {
+      noitL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
+      busted = noit_true;
+    }
 
     if(!INHERIT(int, period, &period) || period == 0)
       no_period = 1;

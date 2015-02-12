@@ -327,6 +327,11 @@ API_EXPORT(int)
 API_EXPORT(const char *)
   noit_check_registered_module(int);
 
+API_EXPORT(int)
+  noit_check_validate_target(const char *);
+API_EXPORT(int)
+  noit_check_validate_name(const char *);
+
 API_EXPORT(void)
   noit_check_set_module_metadata(noit_check_t *, int, void *, void (*freefunc)(void *));
 API_EXPORT(void)
