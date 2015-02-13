@@ -820,14 +820,13 @@ noit_http_request_release(noit_http_session_ctx *ctx) {
   }
   RELEASE_BCHAIN(ctx->req.current_request_chain);
   if(ctx->req.orig_qs) free(ctx->req.orig_qs);
-  memset(&ctx->req.state, 0,
-         sizeof(ctx->req) - (unsigned long)&(((noit_http_request *)0)->state));
   /* If someone has jammed in a payload, clean that up too */
   if(ctx->req.upload.freefunc) {
     ctx->req.upload.freefunc(ctx->req.upload.data, ctx->req.upload.size,
                              ctx->req.upload.freeclosure);
   }
-  memset(&ctx->req.upload, 0, sizeof(ctx->req.upload));
+  memset(&ctx->req.state, 0,
+         sizeof(ctx->req) - (unsigned long)&(((noit_http_request *)0)->state));
 }
 void
 noit_http_response_release(noit_http_session_ctx *ctx) {
