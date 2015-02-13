@@ -3,7 +3,7 @@ var tools = require('./testconfig'),
     runtests = require('trial').runtests,
     runenv = { require: require, tools: tools, suppress: {}, verbose: 0 },
     dir = '.', i,
-    deadman = 300; # Five minute deadman default
+    deadman = 300; /* Five minute deadman default */
 
 for(i=2, stop=false; i<process.argv.length; i++) {
   switch(process.argv[i]) {
