@@ -1869,7 +1869,6 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
       return 1;
 #define STRING_CASE(c, attr, lim) \
     case c: \
-noitL(noit_error, "Copying '%s' into %s limit %d\n", stringVal, #attr, MIN(lim, MIN(sizeof(json->o->attr), stringLen+1)));\
       strlcpy(json->o->attr, stringVal, MIN(lim, MIN(sizeof(json->o->attr), stringLen+1))); \
       json->state = CD_OBJECT; \
       return 1
