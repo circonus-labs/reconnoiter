@@ -66,7 +66,7 @@ resolver_cache_onload(noit_image_t *self) {
 }
 
 static int
-resolver_cache_config(noit_module_generic_t *self, noit_hash_table *o) {
+resolver_cache_config(noit_dso_generic_t *self, noit_hash_table *o) {
   const char *write_interval_str;
   noit_hash_retr_str(o, "cachefile", strlen("cachefile"), &resolver_cache_file);
   if(noit_hash_retr_str(o, "interval", strlen("interval"), &write_interval_str))
@@ -165,7 +165,7 @@ resolver_cache_load_impl(void *closure, char **key, void **b, int *blen) {
 }
 
 static int
-resolver_cache_init(noit_module_generic_t *self) {
+resolver_cache_init(noit_dso_generic_t *self) {
   if(resolver_cache_file == NULL) {
     const char ifs_str[2] = { IFS_CH, '\0' };
     char path[MAXPATHLEN];
@@ -183,7 +183,7 @@ resolver_cache_init(noit_module_generic_t *self) {
   return 0;
 }
 
-noit_module_generic_t resolver_cache = {
+noit_dso_generic_t resolver_cache = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

@@ -33,6 +33,7 @@
 #include "noit_defines.h"
 
 #include "noit_conf.h"
+#include "noit_dso.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
@@ -81,7 +82,7 @@ static struct module_tls_conf *__get_module_tls_conf(noit_image_t *img) {
   }
   return mtlsc;
 }
-static struct loader_conf *__get_loader_conf(noit_module_loader_t *self) {
+static struct loader_conf *__get_loader_conf(noit_dso_loader_t *self) {
   struct loader_conf *c;
   c = noit_image_get_userdata(&self->hdr);
   if(!c) {
@@ -92,13 +93,13 @@ static struct loader_conf *__get_loader_conf(noit_module_loader_t *self) {
   return c;
 }
 static void
-noit_lua_loader_set_directory(noit_module_loader_t *self, const char *dir) {
+noit_lua_loader_set_directory(noit_dso_loader_t *self, const char *dir) {
   struct loader_conf *c = __get_loader_conf(self);
   if(c->script_dir) free(c->script_dir);
   c->script_dir = strdup(dir);
 }
 static const char *
-noit_lua_loader_get_directory(noit_module_loader_t *self) {
+noit_lua_loader_get_directory(noit_dso_loader_t *self) {
   struct loader_conf *c = __get_loader_conf(self);
   return c->script_dir;
 }
@@ -1417,8 +1418,8 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
 
   return L;
 }
-static noit_module_t *
-noit_lua_loader_load(noit_module_loader_t *loader,
+static noit_image_t *
+noit_lua_loader_load(noit_dso_loader_t *loader,
                      char *module_name,
                      noit_conf_section_t section) {
   int rv;
@@ -1474,11 +1475,11 @@ noit_lua_loader_load(noit_module_loader_t *loader,
     noitL(nlerr, "lua failed to register '%s' as a module\n", m->hdr.name);
     goto load_failed;
   }
-  return m;
+  return (noit_image_t *)m;
 }
 
 static int
-noit_lua_loader_config(noit_module_loader_t *self, noit_hash_table *o) {
+noit_lua_loader_config(noit_dso_loader_t *self, noit_hash_table *o) {
   const char *dir = ".";
   (void)noit_hash_retr_str(o, "directory", strlen("directory"), &dir);
   noit_lua_loader_set_directory(self, dir);
@@ -1497,7 +1498,7 @@ noit_lua_loader_onload(noit_image_t *self) {
 }
 
 #include "lua.xmlh"
-noit_module_loader_t lua = {
+noit_dso_loader_t lua = {
   {
     .magic = NOIT_LOADER_MAGIC,
     .version = NOIT_LOADER_ABI_VERSION,

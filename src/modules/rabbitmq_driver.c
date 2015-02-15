@@ -401,7 +401,7 @@ mq_driver_t mq_driver_rabbitmq = {
   noit_rabbimq_deallocate
 };
 
-static int noit_rabbimq_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
+static int noit_rabbimq_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
   const char *intstr;
   if(noit_hash_retr_str(o, "sndbuf", strlen("sndbuf"), &intstr))
     desired_sndbuf = atoi(intstr);
@@ -455,7 +455,7 @@ register_console_rabbitmq_commands() {
     NCSCMD("rabbitmq", noit_console_show_rabbitmq, NULL, NULL, NULL));
 }
 
-static int noit_rabbimq_driver_init(noit_module_generic_t *self) {
+static int noit_rabbimq_driver_init(noit_dso_generic_t *self) {
   pthread_mutex_init(&driver_lock, NULL);
   memset(&stats, 0, sizeof(stats));
   stratcon_iep_mq_driver_register("rabbitmq", &mq_driver_rabbitmq);
@@ -463,7 +463,7 @@ static int noit_rabbimq_driver_init(noit_module_generic_t *self) {
   return 0;
 }
 
-noit_module_generic_t rabbitmq_driver = {
+noit_dso_generic_t rabbitmq_driver = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

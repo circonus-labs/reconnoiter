@@ -218,8 +218,9 @@ static int child_main() {
   noit_capabilities_listener_init();
   noit_listener_init(APPNAME);
 
-  noit_module_init();
-  if(strict_module_load && noit_module_load_failures() > 0) {
+  noit_dso_init();
+  noit_dso_post_init();
+  if(strict_module_load && noit_dso_load_failures() > 0) {
     noitL(noit_stderr, "Failed to load some modules and -M given.\n");
     exit(2);
   }

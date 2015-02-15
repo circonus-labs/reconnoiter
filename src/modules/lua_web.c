@@ -50,7 +50,7 @@ typedef struct lua_web_conf {
 } lua_web_conf_t;
 
 static lua_web_conf_t *the_one_conf = NULL;
-static lua_web_conf_t *get_config(noit_module_generic_t *self) {
+static lua_web_conf_t *get_config(noit_dso_generic_t *self) {
   if(the_one_conf) return the_one_conf;
   the_one_conf = noit_image_get_userdata(&self->hdr);
   if(the_one_conf) return the_one_conf;
@@ -250,7 +250,7 @@ noit_lua_web_driver_onload(noit_image_t *self) {
 }
 
 static int
-noit_lua_web_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
+noit_lua_web_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
   lua_web_conf_t *conf = get_config(self);
   conf->script_dir = "";
   conf->dispatch = NULL;
@@ -268,7 +268,7 @@ static noit_hook_return_t late_stage_rest_register(void *cl) {
   return NOIT_HOOK_CONTINUE;
 }
 static int
-noit_lua_web_driver_init(noit_module_generic_t *self) {
+noit_lua_web_driver_init(noit_dso_generic_t *self) {
   lua_web_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
   lmc->resume = lua_web_resume;
@@ -276,11 +276,11 @@ noit_lua_web_driver_init(noit_module_generic_t *self) {
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
   if(lmc->lua_state == NULL) return -1;
   lmc->pending = calloc(1, sizeof(*lmc->pending));
-  module_post_init_hook_register("web_lua", late_stage_rest_register, NULL);
+  dso_post_init_hook_register("web_lua", late_stage_rest_register, NULL);
   return 0;
 }
 
-noit_module_generic_t lua_web = {
+noit_dso_generic_t lua_web = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

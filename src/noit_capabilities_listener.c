@@ -119,6 +119,7 @@ noit_capabilities_tobuff_json(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     int klen, i, nmods;
     void *data;
     struct timeval now;
+    struct dso_type *t;
 
     struct json_object *doc;
     struct json_object *svcs, *bi, *ri, *mods, *feat;
@@ -235,9 +236,8 @@ noit_capabilities_tobuff_json(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     } \
     if(mod_names) free(mod_names); \
 } while(0)
-    list_modules_json(noit_module_list_loaders, "loader");
-    list_modules_json(noit_module_list_modules, "module");
-    list_modules_json(noit_module_list_generics, "generic");
+    for(t = noit_dso_get_types(); t; t = t->next)
+      list_modules_json(t->list, t->name);
     json_object_object_add(doc, "modules", mods);
 
     /* Write it out to a buffer and copy it for writing */
@@ -258,6 +258,7 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     int klen, i, nmods;
     void *data;
     struct timeval now;
+    struct dso_type *t;
 
     xmlDocPtr xmldoc;
     xmlNodePtr root, cmds, bi, ri, mods, feat;
@@ -376,9 +377,8 @@ noit_capabilities_tobuff(noit_capsvc_closure_t *cl, eventer_func_t curr) {
     } \
     if(mod_names) free(mod_names); \
 } while(0)
-    list_modules(noit_module_list_loaders, "loader");
-    list_modules(noit_module_list_modules, "module");
-    list_modules(noit_module_list_generics, "generic");
+    for(t = noit_dso_get_types(); t; t = t->next)
+      list_modules(t->list, t->name);
 
     /* Write it out to a buffer and copy it for writing */
     cl->buff = noit_xmlSaveToBuffer(xmldoc);

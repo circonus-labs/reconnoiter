@@ -270,13 +270,13 @@ static ingestor_api_t handoff_ingestor_api = {
   .save_config = stratcon_ingest_saveconfig
 };
 
-static int handoff_ingestor_config(noit_module_generic_t *self, noit_hash_table *o) {
+static int handoff_ingestor_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 static int handoff_ingestor_onload(noit_image_t *self) {
   return 0;
 }
-static int handoff_ingestor_init(noit_module_generic_t *self) {
+static int handoff_ingestor_init(noit_dso_generic_t *self) {
   ds_err = noit_log_stream_find("error/datastore");
   ds_deb = noit_log_stream_find("debug/datastore");
   ingest_err = noit_log_stream_find("error/ingest");
@@ -295,7 +295,7 @@ static int handoff_ingestor_init(noit_module_generic_t *self) {
   return stratcon_datastore_set_ingestor(&handoff_ingestor_api);
 }
 
-noit_module_generic_t handoff_ingestor = {
+noit_dso_generic_t handoff_ingestor = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

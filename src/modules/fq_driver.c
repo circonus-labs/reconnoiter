@@ -280,7 +280,7 @@ mq_driver_t mq_driver_fq = {
   noit_fq_deallocate
 };
 
-static int noit_fq_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
+static int noit_fq_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 static int noit_fq_driver_onload(noit_image_t *self) {
@@ -359,7 +359,7 @@ fq_status_checker(eventer_t e, int mask, void *closure, struct timeval *now) {
   return 0;
 }
 
-static int noit_fq_driver_init(noit_module_generic_t *self) {
+static int noit_fq_driver_init(noit_dso_generic_t *self) {
   if(!nlerr) nlerr = noit_log_stream_find("error/fq_driver");
   if(!nlerr) nlerr = noit_error;
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
@@ -368,7 +368,7 @@ static int noit_fq_driver_init(noit_module_generic_t *self) {
   return 0;
 }
 
-noit_module_generic_t fq_driver = {
+noit_dso_generic_t fq_driver = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

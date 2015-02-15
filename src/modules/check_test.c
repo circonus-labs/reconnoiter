@@ -84,7 +84,7 @@ check_test_onload(noit_image_t *self) {
 }
 
 static int
-check_test_config(noit_module_generic_t *self, noit_hash_table *o) {
+check_test_config(noit_dso_generic_t *self, noit_hash_table *o) {
   const char *str;
   int new_interval = 0;
   if(noit_hash_retr_str(o, "sweep_interval", strlen("sweep_interval"),
@@ -360,7 +360,7 @@ rest_test_check(noit_http_rest_closure_t *restc,
 }
 
 static int
-check_test_init(noit_module_generic_t *self) {
+check_test_init(noit_dso_generic_t *self) {
   assert(noit_http_rest_register(
     "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
@@ -368,7 +368,7 @@ check_test_init(noit_module_generic_t *self) {
   return 0;
 }
 
-noit_module_generic_t check_test = {
+noit_dso_generic_t check_test = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

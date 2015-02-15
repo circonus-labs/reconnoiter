@@ -296,7 +296,7 @@ noit_main(const char *appname,
   }
 
   signal(SIGHUP, SIG_IGN);
-  rv = noit_watchdog_start_child("noitd", passed_child_main, watchdog_timeout);
+  rv = noit_watchdog_start_child(appname, passed_child_main, watchdog_timeout);
   noit_lockfile_release(lockfd);
   return rv;
 }

@@ -54,7 +54,7 @@ typedef struct lua_general_conf {
   lua_State *L;
 } lua_general_conf_t;
 
-static lua_general_conf_t *get_config(noit_module_generic_t *self) {
+static lua_general_conf_t *get_config(noit_dso_generic_t *self) {
   lua_general_conf_t *conf = noit_image_get_userdata(&self->hdr);
   if(conf) return conf;
   conf = calloc(1, sizeof(*conf));
@@ -126,7 +126,7 @@ lua_general_new_resume_info(lua_module_closure_t *lmc) {
 }
 
 static int
-lua_general_handler(noit_module_generic_t *self) {
+lua_general_handler(noit_dso_generic_t *self) {
   int status, rv;
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
@@ -214,11 +214,11 @@ lua_general_coroutine_spawn(lua_State *Lp) {
 
 int
 dispatch_general(eventer_t e, int mask, void *cl, struct timeval *now) {
-  return lua_general_handler((noit_module_generic_t *)cl);
+  return lua_general_handler((noit_dso_generic_t *)cl);
 }
 
 static int
-noit_lua_general_config(noit_module_generic_t *self, noit_hash_table *o) {
+noit_lua_general_config(noit_dso_generic_t *self, noit_hash_table *o) {
   lua_general_conf_t *conf = get_config(self);
   conf->script_dir = "";
   conf->module = NULL;
@@ -302,7 +302,7 @@ static const luaL_Reg general_lua_funcs[] =
 
 
 static int
-noit_lua_general_init(noit_module_generic_t *self) {
+noit_lua_general_init(noit_dso_generic_t *self) {
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
 
@@ -334,7 +334,7 @@ noit_lua_general_onload(noit_image_t *self) {
   return 0;
 }
 
-noit_module_generic_t lua_general = {
+noit_dso_generic_t lua_general = {
   {
     NOIT_GENERIC_MAGIC,
     NOIT_GENERIC_ABI_VERSION,

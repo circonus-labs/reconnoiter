@@ -47,7 +47,7 @@ histogram_onload(noit_image_t *self) {
 }
 
 static int
-histogram_config(noit_module_generic_t *self, noit_hash_table *o) {
+histogram_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 
@@ -436,7 +436,7 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
   return NOIT_HOOK_CONTINUE;
 }
 static int
-histogram_init(noit_module_generic_t *self) {
+histogram_init(noit_dso_generic_t *self) {
   check_stats_set_metric_hook_register("histogram", histogram_hook_impl, NULL);
   check_stats_set_metric_coerce_hook_register("histogram", histogram_hook_special_impl, NULL);
   check_log_stats_hook_register("histogram", histogram_logger, NULL);
@@ -445,7 +445,7 @@ histogram_init(noit_module_generic_t *self) {
   return 0;
 }
 
-noit_module_generic_t histogram = {
+noit_dso_generic_t histogram = {
   {
     NOIT_GENERIC_MAGIC,
     NOIT_GENERIC_ABI_VERSION,

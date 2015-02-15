@@ -1609,7 +1609,7 @@ static ingestor_api_t postgres_ingestor_api = {
   .save_config = stratcon_ingest_saveconfig
 };
 
-static int postgres_ingestor_config(noit_module_generic_t *self, noit_hash_table *o) {
+static int postgres_ingestor_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 static int postgres_ingestor_onload(noit_image_t *self) {
@@ -1619,7 +1619,7 @@ static int is_postgres_ingestor_file(const char *file) {
   noit_watchdog_child_heartbeat();
   return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
 }
-static int postgres_ingestor_init(noit_module_generic_t *self) {
+static int postgres_ingestor_init(noit_dso_generic_t *self) {
   stratcon_datastore_core_init();
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
@@ -1641,7 +1641,7 @@ static int postgres_ingestor_init(noit_module_generic_t *self) {
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }
 
-noit_module_generic_t postgres_ingestor = { 
+noit_dso_generic_t postgres_ingestor = { 
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

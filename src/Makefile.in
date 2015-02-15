@@ -59,7 +59,7 @@ HEADERS=noit_capabilities_listener.h noit_check.h noit_check_resolver.h \
 	noit_version.h \
 	noit_config.h noit_console.h noit_console_telnet.h noit_defines.h \
 	noit_filters.h noit_http.h noit_jlog_listener.h noit_listener.h \
-	noit_livestream_listener.h noit_main.h noit_module.h noit_rest.h \
+	noit_livestream_listener.h noit_main.h noit_dso.h noit_module.h noit_rest.h \
 	noit_tokenizer.h noit_xml.h \
 	stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
 	stratcon_realtime_http.h \
@@ -85,7 +85,7 @@ NOIT_OBJS=noitd.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_check_resolver.o \
 	noit_check_tools_shared.o noit_check_log_helpers.o \
-	noit_check.o noit_check_log.o noit_check_tools.o \
+	noit_check.o noit_check_log.o noit_check_tools.o noit_dso.o \
 	noit_module.o noit_conf.o noit_conf_checks.o noit_tokenizer.o \
 	noit_capabilities_listener.o noit_xml.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
@@ -103,7 +103,7 @@ STRATCON_OBJS=stratcond.o noit_main.o noit_listener.o \
 	noit_console.o noit_console_state.o noit_console_telnet.o \
 	noit_console_complete.o noit_xml.o \
 	noit_conf.o noit_http.o noit_rest.o noit_tokenizer.o \
-	noit_capabilities_listener.o noit_module.o \
+	noit_capabilities_listener.o noit_dso.o \
 	noit_events_rest.o noit_check_tools_shared.o noit_check_log_helpers.o \
 	noit_reverse_socket.o \
 	stratcon_realtime_http.o \

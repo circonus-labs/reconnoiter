@@ -167,21 +167,21 @@ mq_driver_t mq_driver_stomp = {
   noit_stomp_deallocate
 };
 
-static int noit_stomp_driver_config(noit_module_generic_t *self, noit_hash_table *o) {
+static int noit_stomp_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 static int noit_stomp_driver_onload(noit_image_t *self) {
   return 0;
 }
 
-static int noit_stomp_driver_init(noit_module_generic_t *self) {
+static int noit_stomp_driver_init(noit_dso_generic_t *self) {
   apr_initialize();
   atexit(apr_terminate);
   stratcon_iep_mq_driver_register("stomp", &mq_driver_stomp);
   return 0;
 }
 
-noit_module_generic_t stomp_driver = {
+noit_dso_generic_t stomp_driver = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

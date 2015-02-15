@@ -114,7 +114,7 @@ ip_acl_onload(noit_image_t *self) {
 }
 
 static int
-ip_acl_config(noit_module_generic_t *self, noit_hash_table *o) {
+ip_acl_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 
@@ -162,12 +162,12 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   return NOIT_HOOK_DONE;
 }
 static int
-ip_acl_init(noit_module_generic_t *self) {
+ip_acl_init(noit_dso_generic_t *self) {
   check_preflight_hook_register("ip_acl", ip_acl_hook_impl, NULL);
   return 0;
 }
 
-noit_module_generic_t ip_acl = {
+noit_dso_generic_t ip_acl = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,

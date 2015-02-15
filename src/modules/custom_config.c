@@ -52,7 +52,7 @@ custom_config_onload(noit_image_t *self) {
 }
 
 static int
-custom_config_config(noit_module_generic_t *self, noit_hash_table *o) {
+custom_config_config(noit_dso_generic_t *self, noit_hash_table *o) {
   return 0;
 }
 
@@ -67,12 +67,12 @@ custom_config_hook_impl(void *closure, noit_check_t *check) {
 }
 
 static int
-custom_config_init(noit_module_generic_t *self) {
+custom_config_init(noit_dso_generic_t *self) {
   check_config_fixup_hook_register("custom_config", custom_config_hook_impl, NULL);
   return 0;
 }
 
-noit_module_generic_t custom_config = {
+noit_dso_generic_t custom_config = {
   {
     .magic = NOIT_GENERIC_MAGIC,
     .version = NOIT_GENERIC_ABI_VERSION,
