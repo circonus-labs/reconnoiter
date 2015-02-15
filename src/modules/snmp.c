@@ -876,6 +876,7 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
       info->ts->refcnt--;
       info->ts = NULL;
     }
+    noit_snmp_log_results(info->self, info->check, NULL);
     info->check->flags &= ~NP_RUNNING;
   }
   return 1;
@@ -1274,6 +1275,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
 
+  gettimeofday(&check->last_fire_time, NULL);
   if(noit_hash_retr_str(check->config, "separate_queries",
                         strlen("separate_queries"), &sepstr)) {
     if(!strcasecmp(sepstr, "on") || !strcasecmp(sepstr, "true"))
@@ -1316,7 +1318,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     struct v3_probe_magic *magic = calloc(1, sizeof(struct v3_probe_magic));
     netsnmp_pdu *probe = NULL;
 
-noitL(nldeb, "Probing for v3\n");
+    noitL(nldeb, "Probing for v3\n");
     if (!magic) goto bail;
     magic->cb = noit_snmp_asynch_response;
     magic->check = check;
