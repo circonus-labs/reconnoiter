@@ -26,6 +26,7 @@ src/modules/*.dSYM
 src/noit_version.h
 src/noitd
 src/noit.conf
+src/noit.env
 src/scratch/
 src/test-noit.conf
 src/stratcond
@@ -61,6 +62,7 @@ src/LuaJIT/src/luajit
 src/LuaJIT/src/host/buildvm
 src/LuaJIT/src/host/buildvm_arch.h
 src/LuaJIT/src/host/minilua
+src/libnoit-ll.so*
 src/libnoit.so*
 src/libnoit*dylib
 src/libnoit_dtrace_probes.h

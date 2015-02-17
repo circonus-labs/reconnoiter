@@ -40,6 +40,7 @@
 #include "utils/noit_getip.h"
 #include "utils/noit_watchdog.h"
 #include "stratcon_datastore.h"
+#include "stratcon_ingest.h"
 #include "stratcon_realtime_http.h"
 #include "stratcon_iep.h"
 #include "noit_conf.h"

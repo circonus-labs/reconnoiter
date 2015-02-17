@@ -475,8 +475,9 @@ install:	install-dirs install-docs install-headers install-noitd install-stratco
 
 clean:
 	rm -f *.lo *.o $(TARGETS) $(LUA_OBJS)
+	rm -f $(LIBNOIT) $(LIBNOIT_V) $(LIBNOITLL) $(LIBNOITLL_V)
 	rm -f module-online.h noit.env
-	rm -rf noit-objs stratcon-objs libnoit-objs
+	rm -rf noit-objs stratcon-objs libnoit-objs libnoit-ll-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
 	(cd jlog && $(MAKE) clean)
 	(cd eventer && $(MAKE) clean)
