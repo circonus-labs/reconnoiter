@@ -1,6 +1,9 @@
+.SUFFIXES:	.lo
+
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
 DEPFLAGS=@DEPFLAGS@
 LDFLAGS=@LDFLAGS@
 AR=@AR@
@@ -35,6 +38,10 @@ libnoitedit.a:   $(FABHEADERS) $(OBJS)
 	@$(AR) cq $@ $(OBJS)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
+
+.c.lo:	vi.h emacs.h common.h fcns.h help.h
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
 
 .c.o:	vi.h emacs.h common.h fcns.h help.h
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

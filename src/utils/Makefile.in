@@ -1,6 +1,9 @@
+.SUFFIXES:	.lo
+
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
 DEPFLAGS=@DEPFLAGS@
 LDFLAGS=@LDFLAGS@
 AR=@AR@
@@ -38,6 +41,10 @@ noit_atomic_sol_x86_32.o:	noit_atomic_sol.s
 noit_atomic_sol_x86_64.o:	noit_atomic_sol.s
 	@as -P -xarch=generic64 -o $@ noit_atomic_sol.s
 	@echo "- assembling $@"
+
+.c.lo:
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

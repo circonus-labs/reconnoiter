@@ -2,27 +2,6 @@
 
 LIBNOIT_VERSION=0.0.1
 
-CC=@CC@
-SHLD=@SHLD@
-CPPFLAGS=@CPPFLAGS@
-CFLAGS=@CFLAGS@
-SHCFLAGS=@SHCFLAGS@
-CLINKFLAGS=@CLINKFLAGS@
-LUACFLAGS=@LUACFLAGS@
-PGCFLAGS=@PGCFLAGS@
-LDFLAGS=@LDFLAGS@
-SHLDFLAGS=@SHLDFLAGS@
-DEPFLAGS=@DEPFLAGS@
-MODULELD=@MODULELD@
-AR=@AR@
-RANLIB=@RANLIB@
-LIBS=@LIBS@
-INSTALL=@INSTALL@
-XML2H=@top_srcdir@/buildtools/xml2h
-MAPFLAGS=@MAPFLAGS@
-CTFCONVERT=@CTFCONVERT@
-CTFMERGE=@CTFMERGE@
-
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
@@ -41,13 +20,35 @@ srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 MODULES_DIR=@MODULES_DIR@
 
+CC=@CC@
+SHLD=@SHLD@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
+CLINKFLAGS=@CLINKFLAGS@
+LUACFLAGS=@LUACFLAGS@
+PGCFLAGS=@PGCFLAGS@
+LDFLAGS=@LDFLAGS@ -L$(libdir) @RLDFLAG@$(libdir)
+SHLDFLAGS=@SHLDFLAGS@
+LIBNOIT_LIBS=@LIBNOIT_LIBS@
+DEPFLAGS=@DEPFLAGS@
+MODULELD=@MODULELD@
+AR=@AR@
+RANLIB=@RANLIB@
+LIBS=@LIBS@
+INSTALL=@INSTALL@
+XML2H=@top_srcdir@/buildtools/xml2h
+MAPFLAGS=@MAPFLAGS@
+CTFCONVERT=@CTFCONVERT@
+CTFMERGE=@CTFMERGE@
+
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
 DTRACEOBJ=@DTRACEOBJ@
 NOITD_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=noitd_%dtrace_stub.o)
 STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
-LIBNOIT_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=libnoit_%dtrace_stub.o)
+LIBNOIT_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=libnoit_%dtrace_stub.lo)
 LIBNOIT_V=libnoit@DOTSO@.$(LIBNOIT_VERSION)@DOTDYLIB@
 LIBNOIT=libnoit@DOTSO@@DOTDYLIB@
 
@@ -198,13 +199,13 @@ dtrace_probes.h:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@ libnoit_@DTRACEHDR@
 $(LIBNOIT):	$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(LIBNOIT)
 
-$(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS)
+$(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS) $(LIBNOIT_DTRACEOBJ)
 	@echo "- linking $@"
-	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_DTRACEOBJ)
+	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_DTRACEOBJ) $(LIBNOIT_LIBS)
 
-libnoit_@DTRACEOBJ@:    $(FINAL_SHARED_OBJS)
-	@echo "- assembling $@" && \
-	@DTRACE@ @DTRACEFLAGS@ -Z -G -s libnoit_dtrace_probes.d -o libnoit_@DTRACEOBJ@ $(FINAL_SHARED_OBJS)
+$(LIBNOIT_DTRACEOBJ):    $(FINAL_LIBNOIT_OBJS)
+	@echo "- assembling $@"
+	@DTRACE@ @DTRACEFLAGS@ -Z -G -s libnoit_dtrace_probes.d -o $(LIBNOIT_DTRACEOBJ) $(FINAL_LIBNOIT_OBJS)
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@" && \
@@ -392,7 +393,7 @@ install-libnoit:	install-dirs
 		$(INSTALL) -m 0755 mdb-support/libnoit.so $(DESTDIR)/usr/lib/mdb/proc/amd64/libnoit.so ; \
 	fi
 
-install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlog/jlogtail noit.env
+install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlog/jlogtail noit.env install-libnoit
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 jlog/jlogtail $(DESTDIR)$(bindir)/noit_jlogtail
@@ -406,7 +407,7 @@ install-noitd:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlo
 	(cd noit-web && tar cf - .) | (cd $(DESTDIR)$(datadir)/noit-web && tar xf -)
 	-test -n "@JAVAPARTS@" && (cd @JAVAPARTS@ && $(MAKE) install-jezebel DESTDIR=$(DESTDIR))
 
-install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits noit.env
+install-stratcond:	install-dirs reversion stratcond stratcon.conf java-bits noit.env install-libnoit
 	$(INSTALL) -m 0755 stratcond $(DESTDIR)$(sbindir)/stratcond
 	$(INSTALL) -m 0644 stratcon.conf $(DESTDIR)$(sysconfdir)/stratcon.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/stratcon.env
@@ -440,12 +441,14 @@ Makefile.noit.dep:
 	find noit-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
 	for impl in kqueue ports epoll; do \
 		echo "noit-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
+		echo "noit-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
 	done
 
 Makefile.stratcon.dep:
 	find stratcon-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
 	for impl in kqueue ports epoll; do \
 		echo "stratcon-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
+		echo "stratcon-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
 	done
 
 Makefile.dep:
@@ -454,6 +457,10 @@ Makefile.dep:
 		$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) $$d/*.c | \
 		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#'$$d'/$$1#;' >> \
 		Makefile.dep ; \
+	done
+	for impl in kqueue ports epoll; do \
+		echo "libnoit-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
+		echo "libnoit-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
 	done
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 

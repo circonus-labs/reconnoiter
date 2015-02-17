@@ -102,7 +102,7 @@ case $host in
 	DTRACEOBJ=dtrace_stub.o
 	CFLAGS="$CFLAGS"
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
-	MDB_MODS="mdb-support/noitd.so mdb-support/stratcond.so"
+	MDB_MODS="mdb-support/libnoit.so"
 	if test "x$GCC" != "xyes" ; then
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
@@ -110,18 +110,18 @@ case $host in
 		MAPFLAGS="-Wl,-M -Wl,map64bit"
 		if test -n "`isalist | grep sparc`"; then
 			AC_MSG_RESULT([sparc 64])
-			ATOMIC_OBJS="noit_atomic_sol_sparcv9.o"
+			ATOMIC_OBJS="noit_atomic_sol_sparcv9.lo"
 		else
 			AC_MSG_RESULT([intel 64])
-			ATOMIC_OBJS="noit_atomic_sol_x86_64.o"
+			ATOMIC_OBJS="noit_atomic_sol_x86_64.lo"
 		fi
 	else
 		if test -n "`isalist | grep sparc`"; then
 			AC_MSG_RESULT([sparc 32])
-			ATOMIC_OBJS="noit_atomic_sol_sparcv8plus.o"
+			ATOMIC_OBJS="noit_atomic_sol_sparcv8plus.lo"
 		else
 			AC_MSG_RESULT([intel 32])
-			ATOMIC_OBJS="noit_atomic_sol_x86_32.o"
+			ATOMIC_OBJS="noit_atomic_sol_x86_32.lo"
 		fi
 	fi
 	fi
@@ -269,8 +269,6 @@ AC_CHECK_LIB(rt, sem_init, , [
 ])
 AC_CHECK_LIB(posix4, sem_wait, , )
 AC_CHECK_LIB(pthread, pthread_create, , )
-AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
-	[AC_MSG_ERROR(libprotobuf-c required)])
 
 AC_CHECK_HEADERS(priv.h)
 AC_CHECK_FUNCS(setppriv)
@@ -305,6 +303,12 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 		AC_MSG_ERROR([libssl not found, but required])
 	]
 )
+
+LIBNOIT_LIBS=$LIBS
+AC_SUBST(LIBNOIT_LIBS)
+
+AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
+	[AC_MSG_ERROR(libprotobuf-c required)])
 
 AC_CHECK_FUNC(SSLv2_server_method, [ AC_DEFINE(HAVE_SSLV2_SERVER) ])
 AC_CHECK_FUNC(SSLv2_client_method, [ AC_DEFINE(HAVE_SSLV2_CLIENT) ])
@@ -625,7 +629,7 @@ AC_CACHE_CHECK([for epoll support], ac_cv_have_epoll, [
 ])
 if test "x$ac_cv_have_epoll" = "xyes" ; then
 	AC_DEFINE(HAVE_EPOLL)
-	EVENTER_OBJS="$EVENTER_OBJS eventer_epoll_impl.o"
+	EVENTER_OBJS="$EVENTER_OBJS eventer_epoll_impl.lo"
 	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "epoll")
 	have_epoll=1
 fi
@@ -640,7 +644,7 @@ AC_CACHE_CHECK([for kqueue support], ac_cv_have_kqueue, [
 ])
 if test "x$ac_cv_have_kqueue" = "xyes" ; then
 	AC_DEFINE(HAVE_KQUEUE)
-	EVENTER_OBJS="$EVENTER_OBJS eventer_kqueue_impl.o"
+	EVENTER_OBJS="$EVENTER_OBJS eventer_kqueue_impl.lo"
 	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "kqueue")
 	have_kqueue=1
 fi
@@ -655,7 +659,7 @@ AC_CACHE_CHECK([for Solaris ports support], ac_cv_have_ports, [
 ])
 if test "x$ac_cv_have_ports" = "xyes" ; then
 	AC_DEFINE(HAVE_PORTS)
-	EVENTER_OBJS="$EVENTER_OBJS eventer_ports_impl.o"
+	EVENTER_OBJS="$EVENTER_OBJS eventer_ports_impl.lo"
 	AC_DEFINE_UNQUOTED(DEFAULT_EVENTER, "ports")
 	have_ports=1
 fi

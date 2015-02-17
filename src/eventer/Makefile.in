@@ -1,6 +1,9 @@
+.SUFFIXES:	.lo
+
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
 LDFLAGS=@LDFLAGS@
 DEPFLAGS=@DEPFLAGS@
 AR=@AR@
@@ -23,6 +26,10 @@ libeventer.a:	$(OBJS)
 	@$(AR) cq $@ $(OBJS)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
+
+.c.lo:
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<

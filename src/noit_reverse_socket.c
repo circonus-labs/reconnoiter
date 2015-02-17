@@ -52,7 +52,7 @@
 #include "utils/noit_str.h"
 #include "utils/noit_watchdog.h"
 #include "noit_reverse_socket.h"
-#include "noit_dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 
 #include <errno.h>
 #include <assert.h>
@@ -886,7 +886,7 @@ noit_connection_close(noit_connection_ctx_t *ctx, eventer_t e) {
   int mask = 0;
   const char *cn_expected;
   GET_EXPECTED_CN(ctx, cn_expected);
-  NOIT_CONNECT_CLOSE(e->fd, ctx->remote_str,
+  LIBNOIT_REVERSE_CONNECT_CLOSE(e->fd, ctx->remote_str,
                      (char *)cn_expected,
                      ctx->wants_shutdown, errno);
   eventer_remove_fd(e->fd);
@@ -1030,7 +1030,7 @@ noit_connection_schedule_reattempt(noit_connection_ctx_t *ctx,
   ctx->retry_event->closure = ctx;
   ctx->retry_event->mask = EVENTER_TIMER;
   add_timeval(*now, interval, &ctx->retry_event->whence);
-  NOIT_RESCHEDULE(-1, ctx->remote_str, (char *)cn_expected, ctx->current_backoff);
+  LIBNOIT_REVERSE_RESCHEDULE(-1, ctx->remote_str, (char *)cn_expected, ctx->current_backoff);
   eventer_add(ctx->retry_event);
 }
 
@@ -1044,7 +1044,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   eventer_ssl_ctx_t *sslctx = NULL;
 
   GET_EXPECTED_CN(nctx, cn_expected);
-  NOIT_CONNECT_SSL(e->fd, nctx->remote_str, (char *)cn_expected);
+  LIBNOIT_REVERSE_CONNECT_SSL(e->fd, nctx->remote_str, (char *)cn_expected);
 
   if(mask & EVENTER_EXCEPTION) goto error;
 
@@ -1075,7 +1075,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
         goto error;
       }
     }
-    NOIT_CONNECT_SSL_SUCCESS(e->fd, nctx->remote_str, (char *)cn_expected);
+    LIBNOIT_REVERSE_CONNECT_SSL_SUCCESS(e->fd, nctx->remote_str, (char *)cn_expected);
     return e->callback(e, mask, e->closure, now);
   }
   if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
@@ -1083,7 +1083,7 @@ noit_connection_ssl_upgrade(eventer_t e, int mask, void *closure,
   noitL(noit_debug, "noit SSL upgrade failed.\n");
 
  error:
-  NOIT_CONNECT_SSL_FAILED(e->fd,
+  LIBNOIT_REVERSE_CONNECT_SSL_FAILED(e->fd,
                           nctx->remote_str, (char *)cn_expected,
                           (char *)error, errno);
   if(error) {
@@ -1139,7 +1139,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
     }
     noitL(noit_error, "Error connecting to %s (%s): %s\n",
           remote_str, cn_expected ? cn_expected : "(null)", strerror(aerrno));
-    NOIT_CONNECT_FAILED(e->fd, remote_str, (char *)cn_expected, aerrno);
+    LIBNOIT_REVERSE_CONNECT_FAILED(e->fd, remote_str, (char *)cn_expected, aerrno);
     nctx->close(nctx, e);
     nctx->schedule_reattempt(nctx, now);
     return 0;
@@ -1170,7 +1170,7 @@ noit_connection_complete_connect(eventer_t e, int mask, void *closure,
                              nctx->sslconfig);
   EVENTER_ATTACH_SSL(e, sslctx);
   e->callback = noit_connection_ssl_upgrade;
-  NOIT_CONNECT_SUCCESS(e->fd, nctx->remote_str, (char *)cn_expected);
+  LIBNOIT_REVERSE_CONNECT_SUCCESS(e->fd, nctx->remote_str, (char *)cn_expected);
   return e->callback(e, mask, closure, now);
 }
 
@@ -1227,7 +1227,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   GET_EXPECTED_CN(nctx, cn_expected);
   nctx->e = NULL;
   if(nctx->wants_permanent_shutdown) {
-    NOIT_SHUTDOWN_PERMANENT(-1, nctx->remote_str, (char *)cn_expected);
+    LIBNOIT_REVERSE_SHUTDOWN_PERMANENT(-1, nctx->remote_str, (char *)cn_expected);
     noit_connection_ctx_dealloc(nctx);
     return;
   }
@@ -1292,7 +1292,7 @@ noit_connection_initiate_connection(noit_connection_ctx_t *nctx) {
   nctx->e = e;
   eventer_add(e);
 
-  NOIT_CONNECT(e->fd, nctx->remote_str, (char *)cn_expected);
+  LIBNOIT_REVERSE_CONNECT(e->fd, nctx->remote_str, (char *)cn_expected);
   noit_connection_update_timeout(nctx);
   return;
  reschedule:

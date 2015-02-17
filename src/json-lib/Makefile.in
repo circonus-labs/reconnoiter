@@ -1,6 +1,9 @@
+.SUFFIXES:	.lo
+
 CC=@CC@
 CPPFLAGS=@CPPFLAGS@
 CFLAGS=@CFLAGS@
+SHCFLAGS=@SHCFLAGS@
 DEPFLAGS=@DEPFLAGS@
 LDFLAGS=@LDFLAGS@
 AR=@AR@
@@ -20,6 +23,10 @@ libnoitjson.a:	$(OBJS)
 	@$(AR) cq $@ $(OBJS)
 	@echo "- archiving $@"
 	@$(RANLIB) $@
+
+.c.lo:
+	@$(CC) $(CPPFLAGS) $(SHCFLAGS) -c $< -o $@
+	@echo "- compiling $<"
 
 .c.o:
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
