@@ -72,6 +72,7 @@ CPPFLAGS="$CPPFLAGS -D_REENTRANT -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED -D
 DTRACEHDR=dtrace_probes.h
 DOTSO=.so
 LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
+LD_LIBNOITLL_VERSION='-Wl,-soname,libnoit-ll.so.$(LIBNOIT_VERSION)'
 
 case $host in
 *-*-darwin*)
@@ -86,6 +87,7 @@ case $host in
 	SHLD="$CC -dynamiclib -single_module -undefined dynamic_lookup -fPIC"
   DOTDYLIB=.dylib
 	LD_LIBNOIT_VERSION='-current_version $(LIBNOIT_VERSION) -install_name $(libdir)/libnoit.$(LIBNOIT_VERSION).dylib'
+	LD_LIBNOITLL_VERSION='-current_version $(LIBNOIT_VERSION) -install_name $(libdir)/libnoit-ll.$(LIBNOIT_VERSION).dylib'
 	MODULEEXT=bundle
 	# This is needed for luajit on Mac OS X
 	if test "x$ENABLE_LUA" = "xLuaJIT"; then
@@ -188,6 +190,7 @@ esac
 AC_SUBST(DOTSO)
 AC_SUBST(DOTDYLIB)
 AC_SUBST(LD_LIBNOIT_VERSION)
+AC_SUBST(LD_LIBNOITLL_VERSION)
 AC_SUBST(MDB_MODS)
 AC_DEFINE_UNQUOTED(CAP_PLATFORM, "$CAP_PLATFORM", [capabilities platform])
 if test "x$CAP_SUPPORTED" = "x1" ; then
@@ -306,8 +309,14 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 LIBNOIT_LIBS=$LIBS
 AC_SUBST(LIBNOIT_LIBS)
 
+old_LIBS="$LIBS"
+LIBS=""
 AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
 	[AC_MSG_ERROR(libprotobuf-c required)])
+AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
+LIBNOITLL_LIBS=$LIBS
+AC_SUBST(LIBNOITLL_LIBS)
+LIBS="$old_LIBS"
 
 AC_CHECK_FUNC(SSLv2_server_method, [ AC_DEFINE(HAVE_SSLV2_SERVER) ])
 AC_CHECK_FUNC(SSLv2_client_method, [ AC_DEFINE(HAVE_SSLV2_CLIENT) ])

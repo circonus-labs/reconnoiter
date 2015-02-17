@@ -63,6 +63,9 @@ API_EXPORT(int)
   noit_check_stats_from_json_str(noit_check_t *check, stats_t *s,
                                  const char *json_str, int len);
 
+API_EXPORT(void)
+  noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs);
+
 #define CHOOSE_EVENTER_THREAD_FOR_CHECK(check) \
   eventer_choose_owner(((int)(((vpsized_int)(check))/sizeof(*(check))))*2654435761)
 

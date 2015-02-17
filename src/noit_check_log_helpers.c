@@ -31,7 +31,7 @@
  */
 
 #include "noit_defines.h"
-#include "noit_check.h"
+#include "noit_metric.h"
 #include "noit_check_log_helpers.h"
 #include <stdio.h>
 #include <zlib.h>

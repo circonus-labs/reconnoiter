@@ -45,6 +45,7 @@
 #include "utils/noit_hooks.h"
 #include "noit_conf.h"
 #include "noit_console.h"
+#include "noit_metric.h"
 
 /*
  * Checks:
@@ -100,30 +101,6 @@
 #define NP_UNAVAILABLE 'U'         /* stats_t.available */
 #define NP_BAD 'B'                 /* stats_t.state */
 #define NP_GOOD 'G'                /* stats_t.state */
-
-typedef enum {
-  METRIC_GUESS = '0',
-  METRIC_INT32 = 'i',
-  METRIC_UINT32 = 'I',
-  METRIC_INT64 = 'l',
-  METRIC_UINT64 = 'L',
-  METRIC_DOUBLE = 'n',
-  METRIC_STRING = 's'
-} metric_type_t;
-
-typedef struct {
-  char *metric_name;
-  metric_type_t metric_type;
-  union {
-    double *n;
-    int32_t *i;
-    u_int32_t *I;
-    int64_t *l;
-    u_int64_t *L;
-    char *s;
-    void *vp; /* used for clever assignments */
-  } metric_value;
-} metric_t;
 
 typedef struct {
   struct timeval whence;

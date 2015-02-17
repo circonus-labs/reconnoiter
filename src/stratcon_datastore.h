@@ -100,10 +100,4 @@ API_EXPORT(int)
 API_EXPORT(void)
   stratcon_datastore_set_enabled(int);
 
-API_EXPORT(void)
-  stratcon_ingest_sweep_journals(int (*test)(const char *),
-                                 int (*ingest)(const char *fullpath,
-                                               const char *remote_str,
-                                               const char *remote_cn,
-                                               const char *id_str));
 #endif

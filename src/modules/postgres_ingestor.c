@@ -1636,7 +1636,7 @@ static int postgres_ingestor_init(noit_dso_generic_t *self) {
   }
   stratcon_ingest_all_check_info();
   stratcon_ingest_all_storagenode_info();
-  stratcon_ingest_sweep_journals(is_postgres_ingestor_file,
+  stratcon_ingest_sweep_journals(basejpath, is_postgres_ingestor_file,
                                  stratcon_ingest_launch_file_ingestion);
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }

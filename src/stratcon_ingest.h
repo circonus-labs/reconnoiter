@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,38 +31,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NOIT_CHECK_TOOLS_SHARED_H
-#define _NOIT_CHECK_TOOLS_SHARED_H
-
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "noit_module.h"
-#include "utils/noit_hash.h"
-
-typedef int (*intperpolate_oper_fn)(char *, int len,
-                                    const char *key, const char *replacement);
-
-API_EXPORT(int)
-  noit_check_interpolate_register_oper_fn(const char *name,
-                                          intperpolate_oper_fn f);
-
-API_EXPORT(int)
-  noit_check_interpolate(char *buff, int len, const char *fmt,
-                         noit_hash_table *attrs,
-                         noit_hash_table *config);
+#ifndef _NOIT_STRATCON_INGEST_H
+#define _NOIT_STRATCON_INGEST_H
 
 API_EXPORT(void)
-  noit_check_release_attrs(noit_hash_table *attrs);
-
-
-API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
-                                              char *target, int target_len,
-                                              char *module, int module_len,
-                                              char *name, int name_len,
-                                              char *uuid, int uuid_len);
-
-API_EXPORT(void)
-  noit_check_tools_shared_init();
-
+  stratcon_ingest_sweep_journals(const char *base, 
+                                 int (*test)(const char *),
+                                 int (*ingest)(const char *fullpath,
+                                               const char *remote_str,
+                                               const char *remote_cn,
+                                               const char *id_str));
 #endif
-

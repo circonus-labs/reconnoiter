@@ -191,14 +191,6 @@ noit_check_extended_id_split(const char *in, int len,
 }
 
 void
-noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs) {
-#define CA_STORE(a,b) noit_hash_store(attrs, a, strlen(a), b)
-  CA_STORE("target", check->target);
-  CA_STORE("target_ip", check->target_ip);
-  CA_STORE("name", check->name);
-  CA_STORE("module", check->module);
-}
-void
 noit_check_release_attrs(noit_hash_table *attrs) {
   noit_hash_destroy(attrs, NULL, NULL);
 }
