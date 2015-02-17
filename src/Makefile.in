@@ -438,12 +438,14 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-libnoit:	install-dirs
+install-libnoit:    $(LIBNOIT_V) $(LIBNOITLL_V) @MDB_MODS@
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT)
 	$(INSTALL) -m 0755 $(LIBNOITLL_V) $(DESTDIR)$(libdir)/$(LIBNOITLL_V)
 	ln -sf $(LIBNOITLL_V) $(DESTDIR)$(libdir)/$(LIBNOITLL)
 	if test -n "@MDB_MODS@" ; then \
+		$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)/usr/lib/mdb/proc/amd64 ; \
 		$(INSTALL) -m 0755 mdb-support/libnoit.so $(DESTDIR)/usr/lib/mdb/proc/amd64/libnoit.so ; \
 	fi
 
