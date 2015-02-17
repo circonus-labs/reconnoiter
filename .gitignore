@@ -61,6 +61,9 @@ src/LuaJIT/src/luajit
 src/LuaJIT/src/host/buildvm
 src/LuaJIT/src/host/buildvm_arch.h
 src/LuaJIT/src/host/minilua
+src/libnoit.so*
+src/libnoit*dylib
+src/libnoit_dtrace_probes.h
 src/noit_dtrace_probes.h
 src/stratcon_dtrace_probes.h
 test/Makefile

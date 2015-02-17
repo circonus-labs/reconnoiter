@@ -36,7 +36,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_atomic.h"
 #include "eventer/eventer.h"
-#include "dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 #include <errno.h>
 #include <setjmp.h>
 #include <assert.h>
@@ -295,12 +295,12 @@ eventer_jobq_execute_timeout(eventer_t e, int mask, void *closure,
          */
         if(my_precious) {
           gettimeofday(&job->finish_time, NULL); /* We're done */
-          EVENTER_CALLBACK_ENTRY((void *)my_precious, (void *)my_precious->callback, NULL,
+          LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)my_precious, (void *)my_precious->callback, NULL,
                                  my_precious->fd, my_precious->mask,
                                  EVENTER_ASYNCH_CLEANUP);
           my_precious->callback(my_precious, EVENTER_ASYNCH_CLEANUP,
                                 my_precious->closure, &job->finish_time);
-          EVENTER_CALLBACK_RETURN((void *)my_precious, (void *)my_precious->callback, NULL, -1);
+          LIBNOIT_EVENTER_CALLBACK_RETURN((void *)my_precious, (void *)my_precious->callback, NULL, -1);
         }
       }
       jobcopy = malloc(sizeof(*jobcopy));
@@ -332,13 +332,13 @@ eventer_jobq_consume_available(eventer_t e, int mask, void *closure,
     int newmask;
     if(job->fd_event) {
       noit_memory_begin();
-      EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
+      LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
                              (void *)job->fd_event->callback, NULL,
                              job->fd_event->fd, job->fd_event->mask,
                              job->fd_event->mask);
       newmask = job->fd_event->callback(job->fd_event, job->fd_event->mask,
                                         job->fd_event->closure, now);
-      EVENTER_CALLBACK_RETURN((void *)job->fd_event,
+      LIBNOIT_EVENTER_CALLBACK_RETURN((void *)job->fd_event,
                               (void *)job->fd_event->callback, NULL, newmask);
       noit_memory_end();
       if(!newmask) eventer_free(job->fd_event);
@@ -421,13 +421,13 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
             (float)diff.tv_sec + (float)diff.tv_usec/1000000.0,
             (float)diff2.tv_sec + (float)diff2.tv_usec/1000000.0);
       pthread_mutex_unlock(&job->lock);
-      EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
+      LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
                              (void *)job->fd_event->callback, NULL,
                              job->fd_event->fd, job->fd_event->mask,
                              EVENTER_ASYNCH_CLEANUP);
       job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                               job->fd_event->closure, &job->finish_time);
-      EVENTER_CALLBACK_RETURN((void *)job->fd_event,
+      LIBNOIT_EVENTER_CALLBACK_RETURN((void *)job->fd_event,
                               (void *)job->fd_event->callback, NULL, -1);
       eventer_jobq_finished_job(jobq, job);
       memcpy(&wakeupcopy, job->fd_event, sizeof(wakeupcopy));
@@ -471,13 +471,13 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
           struct timeval start_time;
           gettimeofday(&start_time, NULL);
           noitL(eventer_deb, "jobq[%s] -> dispatch BEGIN\n", jobq->queue_name);
-          EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
+          LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
                                  (void *)job->fd_event->callback, NULL,
                                  job->fd_event->fd, job->fd_event->mask,
                                  EVENTER_ASYNCH_WORK);
           job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_WORK,
                                   job->fd_event->closure, &start_time);
-          EVENTER_CALLBACK_RETURN((void *)job->fd_event,
+          LIBNOIT_EVENTER_CALLBACK_RETURN((void *)job->fd_event,
                                   (void *)job->fd_event->callback, NULL, -1);
           noitL(eventer_deb, "jobq[%s] -> dispatch END\n", jobq->queue_name);
           if(job->fd_event && job->fd_event->mask & EVENTER_CANCEL)
@@ -509,13 +509,13 @@ eventer_jobq_consumer(eventer_jobq_t *jobq) {
       /* threaded issue, need to recheck. */
       /* coverity[check_after_deref] */
       if(job->fd_event) {
-        EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
+        LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)job->fd_event,
                                (void *)job->fd_event->callback, NULL,
                                job->fd_event->fd, job->fd_event->mask,
                                EVENTER_ASYNCH_CLEANUP);
         job->fd_event->callback(job->fd_event, EVENTER_ASYNCH_CLEANUP,
                                 job->fd_event->closure, &job->finish_time);
-        EVENTER_CALLBACK_RETURN((void *)job->fd_event,
+        LIBNOIT_EVENTER_CALLBACK_RETURN((void *)job->fd_event,
                                 (void *)job->fd_event->callback, NULL, -1);
       }
     }

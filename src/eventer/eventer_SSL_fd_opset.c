@@ -35,7 +35,7 @@
 #include "utils/noit_log.h"
 #include "eventer/eventer_SSL_fd_opset.h"
 #include "eventer/OETS_asn1_helper.h"
-#include "noit_dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 
 #include <sys/socket.h>
 #include <unistd.h>
@@ -969,9 +969,9 @@ eventer_SSL_renegotiate(eventer_t e) {
 int
 eventer_SSL_accept(eventer_t e, int *mask) {
   int rv;
-  EVENTER_ACCEPT_ENTRY(e->fd, NULL, 0, *mask, e->opset_ctx);
+  LIBNOIT_EVENTER_ACCEPT_ENTRY(e->fd, NULL, 0, *mask, e->opset_ctx);
   rv = eventer_SSL_rw(SSL_OP_ACCEPT, e->fd, NULL, 0, mask, e);
-  EVENTER_ACCEPT_RETURN(e->fd, NULL, 0, *mask, e->opset_ctx, rv);
+  LIBNOIT_EVENTER_ACCEPT_RETURN(e->fd, NULL, 0, *mask, e->opset_ctx, rv);
   return rv;
 }
 int
@@ -981,18 +981,18 @@ eventer_SSL_connect(eventer_t e, int *mask) {
 static int
 eventer_SSL_read(int fd, void *buffer, size_t len, int *mask, void *closure) {
   int rv;
-  EVENTER_READ_ENTRY(fd, buffer, len, *mask, closure);
+  LIBNOIT_EVENTER_READ_ENTRY(fd, buffer, len, *mask, closure);
   rv = eventer_SSL_rw(SSL_OP_READ, fd, buffer, len, mask, closure);
-  EVENTER_READ_RETURN(fd, buffer, len, *mask, closure, rv);
+  LIBNOIT_EVENTER_READ_RETURN(fd, buffer, len, *mask, closure, rv);
   return rv;
 }
 static int
 eventer_SSL_write(int fd, const void *buffer, size_t len, int *mask,
                   void *closure) {
   int rv;
-  EVENTER_WRITE_ENTRY(fd, (char *)buffer, len, *mask, closure);
+  LIBNOIT_EVENTER_WRITE_ENTRY(fd, (char *)buffer, len, *mask, closure);
   rv = eventer_SSL_rw(SSL_OP_WRITE, fd, (void *)buffer, len, mask, closure);
-  EVENTER_WRITE_RETURN(fd, (char *)buffer, len, *mask, closure, rv);
+  LIBNOIT_EVENTER_WRITE_RETURN(fd, (char *)buffer, len, *mask, closure, rv);
   return rv;
 }
 
@@ -1002,13 +1002,13 @@ eventer_SSL_close(int fd, int *mask, void *closure) {
   int rv;
   eventer_t e = closure;
   eventer_ssl_ctx_t *ctx = e->opset_ctx;
-  EVENTER_CLOSE_ENTRY(fd, *mask, closure);
+  LIBNOIT_EVENTER_CLOSE_ENTRY(fd, *mask, closure);
   SSL_shutdown(ctx->ssl);
   eventer_ssl_ctx_free(ctx);
   rv = close(fd);
   if(mask) *mask = 0;
   e->opset_ctx = NULL;
-  EVENTER_CLOSE_RETURN(fd, *mask, closure, rv);
+  LIBNOIT_EVENTER_CLOSE_RETURN(fd, *mask, closure, rv);
   return 0;
 }
 

@@ -55,10 +55,10 @@
 #include "jlog/jlog.h"
 #include "jlog/jlog_private.h"
 #ifdef DTRACE_ENABLED
-#include "dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 #else
-#define NOIT_LOG_LOG(a,b,c,d)
-#define NOIT_LOG_LOG_ENABLED() 0
+#define LIBNOIT_LOG(a,b,c,d)
+#define LIBNOIT_LOG_ENABLED() 0
 #endif
 
 static int _noit_log_siglvl = 0;
@@ -355,7 +355,7 @@ noit_log_stream_t noit_debug = NULL;
 noit_log_stream_t noit_notice = NULL;
 
 int noit_log_global_enabled() {
-  return NOIT_LOG_LOG_ENABLED();
+  return LIBNOIT_LOG_ENABLED();
 }
 
 static void
@@ -1549,7 +1549,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
   va_list copy;
 #endif
 
-  if(IS_ENABLED_ON(ls) || NOIT_LOG_LOG_ENABLED()) {
+  if(IS_ENABLED_ON(ls) || LIBNOIT_LOG_ENABLED()) {
     int len;
     char tbuf[48], dbuf[80];
     int tbuflen = 0, dbuflen = 0;
@@ -1591,7 +1591,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
         len = vsnprintf(dynbuff, allocd, format, arg);
 #endif
       }
-      NOIT_LOG_LOG(ls->name, (char *)file, line, dynbuff);
+      LIBNOIT_LOG(ls->name, (char *)file, line, dynbuff);
       if(IS_ENABLED_ON(ls))
         rv = noit_log_line(ls, NULL, now, tbuf, tbuflen, dbuf, dbuflen, dynbuff, len);
       free(dynbuff);
@@ -1600,7 +1600,7 @@ noit_vlog(noit_log_stream_t ls, struct timeval *now,
       /* This should only happen within a signal handler */
       if(len > sizeof(buffer)) len = sizeof(buffer);
 
-      NOIT_LOG_LOG(ls->name, (char *)file, line, buffer);
+      LIBNOIT_LOG(ls->name, (char *)file, line, buffer);
       if(IS_ENABLED_ON(ls))
         rv = noit_log_line(ls, NULL, now, tbuf, tbuflen, dbuf, dbuflen, buffer, len);
     }

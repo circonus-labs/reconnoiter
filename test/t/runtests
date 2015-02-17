@@ -75,4 +75,6 @@ if [ "x$SKIP_NPM_INSTALL" != "x1" ]; then
 fi
 
 # Finally, run the test suite.
+export DYLD_LIBRARY_PATH=`pwd`/../../src
+export LD_LIBRARY_PATH=`pwd`/../../src
 exec node ./runtests.js $ARGS

@@ -36,7 +36,7 @@
 #include "utils/noit_log.h"
 #include "utils/noit_skiplist.h"
 #include "utils/noit_watchdog.h"
-#include "dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
@@ -483,20 +483,20 @@ void eventer_dispatch_timed(struct timeval *now, struct timeval *next) {
     pthread_mutex_unlock(&t->te_lock);
     if(timed_event == NULL) break;
     if(EVENTER_DEBUGGING ||
-       EVENTER_CALLBACK_ENTRY_ENABLED() ||
-       EVENTER_CALLBACK_RETURN_ENABLED()) {
+       LIBNOIT_EVENTER_CALLBACK_ENTRY_ENABLED() ||
+       LIBNOIT_EVENTER_CALLBACK_RETURN_ENABLED()) {
       cbname = eventer_name_for_callback_e(timed_event->callback, timed_event);
       noitLT(eventer_deb, now, "debug: timed dispatch(%s)\n",
              cbname ? cbname : "???");
     }
     /* Make our call */
     noit_memory_begin();
-    EVENTER_CALLBACK_ENTRY((void *)timed_event,
+    LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)timed_event,
                            (void *)timed_event->callback, (char *)cbname, -1,
                            timed_event->mask, EVENTER_TIMER);
     newmask = timed_event->callback(timed_event, EVENTER_TIMER,
                                     timed_event->closure, now);
-    EVENTER_CALLBACK_RETURN((void *)timed_event,
+    LIBNOIT_EVENTER_CALLBACK_RETURN((void *)timed_event,
                             (void *)timed_event->callback, (char *)cbname, newmask);
     noit_memory_end();
     if(newmask)

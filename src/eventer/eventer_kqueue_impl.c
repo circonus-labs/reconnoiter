@@ -37,7 +37,7 @@
 #include "utils/noit_skiplist.h"
 #include "utils/noit_memory.h"
 #include "utils/noit_log.h"
-#include "dtrace_probes.h"
+#include "libnoit_dtrace_probes.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -309,9 +309,9 @@ static void eventer_kqueue_impl_trigger(eventer_t e, int mask) {
   noitLT(eventer_deb, &__now, "kqueue: fire on %d/%x to %s(%p)\n",
          fd, masks[fd], cbname?cbname:"???", e->callback);
   noit_memory_begin();
-  EVENTER_CALLBACK_ENTRY((void *)e, (void *)e->callback, (char *)cbname, fd, e->mask, mask);
+  LIBNOIT_EVENTER_CALLBACK_ENTRY((void *)e, (void *)e->callback, (char *)cbname, fd, e->mask, mask);
   newmask = e->callback(e, mask, e->closure, &__now);
-  EVENTER_CALLBACK_RETURN((void *)e, (void *)e->callback, (char *)cbname, newmask);
+  LIBNOIT_EVENTER_CALLBACK_RETURN((void *)e, (void *)e->callback, (char *)cbname, newmask);
   noit_memory_end();
 
   if(newmask) {

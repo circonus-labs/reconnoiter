@@ -70,16 +70,22 @@ SHLDFLAGS="$LDFLAGS"
 
 CPPFLAGS="$CPPFLAGS -D_REENTRANT -D_XOPEN_SOURCE=600 -D_XOPEN_SOURCE_EXTENDED -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200112L "'-I$(top_srcdir)/src'
 DTRACEHDR=dtrace_probes.h
+DOTSO=.so
+LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
 
 case $host in
 *-*-darwin*)
 	CAP_PLATFORM="darwin"
+	DOTSO=
+	DOTDYLIB=dylib
 	DTRACE=/usr/sbin/dtrace
 	DTRACE_ENABLED=1
 	PICFLAGS="-fPIC"
 	CPPFLAGS="$CPPFLAGS -D_DARWIN_C_SOURCE -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6 -Wno-deprecated-declarations"
 	MODULELD="$CC -bundle -flat_namespace -undefined suppress"
-	SHLD="$CC -dynamiclib -flat_namespace -undefined suppress"
+	SHLD="$CC -dynamiclib -single_module -undefined dynamic_lookup -fPIC"
+  DOTDYLIB=.dylib
+	LD_LIBNOIT_VERSION='-current_version $(LIBNOIT_VERSION) -install_name $(libdir)/libnoit.$(LIBNOIT_VERSION).dylib'
 	MODULEEXT=bundle
 	RLDFLAG="-Wl,--rpath="
 	# This is needed for luajit on Mac OS X
@@ -180,6 +186,9 @@ case $host in
 	RLDFLAG="-Wl,--rpath="
 	;;
 esac
+AC_SUBST(DOTSO)
+AC_SUBST(DOTDYLIB)
+AC_SUBST(LD_LIBNOIT_VERSION)
 AC_SUBST(MDB_MODS)
 AC_DEFINE_UNQUOTED(CAP_PLATFORM, "$CAP_PLATFORM", [capabilities platform])
 if test "x$CAP_SUPPORTED" = "x1" ; then
