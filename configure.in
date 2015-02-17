@@ -87,7 +87,6 @@ case $host in
   DOTDYLIB=.dylib
 	LD_LIBNOIT_VERSION='-current_version $(LIBNOIT_VERSION) -install_name $(libdir)/libnoit.$(LIBNOIT_VERSION).dylib'
 	MODULEEXT=bundle
-	RLDFLAG="-Wl,--rpath="
 	# This is needed for luajit on Mac OS X
 	if test "x$ENABLE_LUA" = "xLuaJIT"; then
 		LDFLAGS="$LDFLAGS -pagezero_size 10000 -image_base 100000000"
