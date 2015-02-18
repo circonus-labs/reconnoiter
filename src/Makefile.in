@@ -466,7 +466,9 @@ install-headers:	$(HEADERS)
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-install-libs:    $(LIBNOIT_V) $(LIBNOITLL_V) @MDB_MODS@
+noitlibs:	$(LIBNOIT_V) $(LIBNOITLL_V) @MDB_MODS@
+
+install-libs:    noitlibs
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT)
