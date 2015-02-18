@@ -50,8 +50,7 @@
 
 static noit_hash_table dns_rtypes = NOIT_HASH_EMPTY;
 static noit_hash_table dns_ctypes = NOIT_HASH_EMPTY;
-static noit_hash_table dns_ctx_store = NOIT_HASH_EMPTY;
-static pthread_mutex_t dns_ctx_store_lock;
+static __thread noit_hash_table *dns_ctx_store = NULL;
 
 typedef struct dns_ctx_handle {
   char *ns;
@@ -74,7 +73,7 @@ typedef struct dns_lookup_ctx {
   noit_atomic32_t refcnt;
 } dns_lookup_ctx_t;
 
-static dns_ctx_handle_t *default_ctx_handle = NULL;
+static __thread dns_ctx_handle_t *default_ctx_handle = NULL;
 
 static int noit_lua_dns_eventer(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
@@ -110,7 +109,9 @@ static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
     }
   }
   if(e) eventer_free(e);
-  if(newe) eventer_add(newe);
+  if(newe) {
+    eventer_add(newe);
+  }
   h->timeout = newe;
 }
 
@@ -134,7 +135,7 @@ static void dns_ctx_handle_free(void *vh) {
 static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
   void *vh;
   dns_ctx_handle_t *h = NULL;
-  pthread_mutex_lock(&dns_ctx_store_lock);
+  if(!dns_ctx_store) dns_ctx_store = calloc(1, sizeof(*dns_ctx_store));
   if(ns == NULL && default_ctx_handle != NULL) {
     /* special case -- default context */
     h = default_ctx_handle;
@@ -142,7 +143,7 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     goto bail;
   }
   if(ns &&
-     noit_hash_retrieve(&dns_ctx_store, ns, strlen(ns), &vh)) {
+     noit_hash_retrieve(dns_ctx_store, ns, strlen(ns), &vh)) {
     h = (dns_ctx_handle_t *)vh;
     noit_atomic_inc32(&h->refcnt);
   }
@@ -175,10 +176,9 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     if(!ns)
       default_ctx_handle = h;
     else
-      noit_hash_store(&dns_ctx_store, h->ns, strlen(h->ns), h);
+      noit_hash_store(dns_ctx_store, h->ns, strlen(h->ns), h);
   }
  bail:
-  pthread_mutex_unlock(&dns_ctx_store_lock);
   return h;
 }
 
@@ -188,13 +188,12 @@ static void dns_ctx_release(dns_ctx_handle_t *h) {
     noit_atomic_dec32(&h->refcnt);
     return;
   }
-  pthread_mutex_lock(&dns_ctx_store_lock);
+  if(!dns_ctx_store) dns_ctx_store = calloc(1, sizeof(*dns_ctx_store));
   if(noit_atomic_dec32(&h->refcnt) == 0) {
     /* I was the last one */
-    assert(noit_hash_delete(&dns_ctx_store, h->ns, strlen(h->ns),
+    assert(noit_hash_delete(dns_ctx_store, h->ns, strlen(h->ns),
                             NULL, dns_ctx_handle_free));
   }
-  pthread_mutex_unlock(&dns_ctx_store_lock);
 }
 
 void lookup_ctx_release(dns_lookup_ctx_t *v) {
