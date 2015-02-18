@@ -109,8 +109,6 @@ case $host in
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	MDB_MODS="mdb-support/libnoit.so"
 	if test "x$GCC" != "xyes" ; then
-	# Foul and disgusting unwinding issues require libgcc_s
-	LUALIBS="-lgcc_s"
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
 		DTRACEFLAGS=-64
@@ -138,6 +136,8 @@ case $host in
 		MODULELD="$CC -G"
 		SHLD="$CC -G"
 	else
+		# Foul and disgusting unwinding issues require libgcc_s
+		LUALIBS="-lgcc_s"
 		if test -n "`echo $CFLAGS | grep m64`" ; then
 			DTRACEFLAGS=-64
 			MAPFLAGS="-Wl,-M -Wl,map64bit"

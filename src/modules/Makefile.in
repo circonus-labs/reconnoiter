@@ -23,6 +23,7 @@ XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
 XML2H=@top_srcdir@/buildtools/xml2h
 LUADIR=LuaJIT
+LUALIBS=@LUALIBS@
 
 top_srcdir=@top_srcdir@
 
@@ -38,8 +39,6 @@ SMODULES=@BUILD_SMODULES@ \
 
 all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
 
-include ../Makefile.objs
-
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
@@ -54,7 +53,7 @@ custom_config.lo:	custom_config.xmlh
 resolver_cache.lo:	resolver_cache.xmlh
 
 lua.@MODULEEXT@:	lua.lo lua_noit.lo lua_crypto.lo lua_lpack.lo lua_dns.lo lua_bit.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo $(LUAJITO) -l@LIBNETSNMP@
+	@$(MODULELD) $(SHLDFLAGS) -o $@ lua.lo lua_noit.lo lua_crypto.lo lua_dns.lo lua_bit.lo lua_lpack.lo lua_web.lo lua_http.lo lua_general.lo lua_snmp.lo -l@LIBNETSNMP@ $(LUALIBS)
 	@echo "- linking $@"
 
 lua.lo:	lua.c lua.xmlh
