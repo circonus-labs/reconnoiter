@@ -437,12 +437,7 @@ stratcon.conf:	stratcon.conf.in Makefile
 install-dirs:
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sbindir)
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(sysconfdir)
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
-	if test -n "@MDB_MODS@" ; then \
-		$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)/usr/lib/mdb/proc/amd64 ; \
-	fi
 
 install-noitd-headers:	$(NOIT_HEADERS) install-headers
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
@@ -485,6 +480,7 @@ install-libs:    $(LIBNOIT_V) $(LIBNOITLL_V) @MDB_MODS@
 install-noitd:	install-libs install-noitd-nolibs
 
 install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlog/jlogtail noit.env
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
 	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
 	$(INSTALL) -m 0755 jlog/jlogtail $(DESTDIR)$(bindir)/noit_jlogtail
