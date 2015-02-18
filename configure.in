@@ -105,6 +105,8 @@ case $host in
 	CPPFLAGS="$CPPFLAGS -D_XPG6 -D__EXTENSIONS__"
 	MDB_MODS="mdb-support/libnoit.so"
 	if test "x$GCC" != "xyes" ; then
+	# Foul and disgusting unwinding issues require libgcc_s
+	LUALIBS="-lgcc_s"
 	AC_MSG_CHECKING([32 or 64 bit Solaris assembly])
 	if test -n "`echo $CFLAGS | grep m64`" ; then
 		DTRACEFLAGS=-64
@@ -260,6 +262,18 @@ AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long int, 4)
 AC_CHECK_SIZEOF(long long int, 8)
 AC_CHECK_SIZEOF(void *, 1)
+
+# Check for lua libraries
+OLD_LIBS=$LIBS
+LIBS=
+if test "x$ENABLE_LUA" = "xLuaJIT"; then
+	AC_CHECK_LIB(luajit-5.1, luaL_newstate, [], [AC_MSG_ERROR(*** libluajit-5.1 required ***)])
+elif test "x$ENABLE_LUA" = "xlua52"; then
+	AC_MSG_ERROR(*** liblua52 required ***)
+fi
+LUALIBS="$LUALIBS $LIBS"
+AC_SUBST(LUALIBS)
+LIBS=$OLD_LIBS
 
 AC_CHECK_HEADER(ck_pr.h, [], [AC_MSG_ERROR(*** libck (headers) required ***)])
 AC_CHECK_LIB(ck, ck_ht_init, , [AC_MSG_ERROR(*** concurrencyckit (libck) is required ***)])

@@ -31,33 +31,8 @@ YAJL_LIB_OBJS=yajl-lib/yajl.lo yajl-lib/yajl_alloc.lo yajl-lib/yajl_buf.lo \
 
 ENABLE_LUA=@ENABLE_LUA@
 
+LUALIBS=@LUALIBS@
 ifeq (LuaJIT,$(ENABLE_LUA))
-LUAJIT= lib_base.o lib_math.o lib_bit.o lib_string.o lib_table.o \
-	lib_io.o lib_os.o lib_package.o lib_debug.o lib_jit.o lib_ffi.o \
-	lj_vm.o lj_gc.o lj_err.o lj_char.o lj_bc.o lj_obj.o \
-	lj_str.o lj_tab.o lj_func.o lj_udata.o lj_meta.o lj_debug.o \
-	lj_state.o lj_dispatch.o lj_vmevent.o lj_vmmath.o lj_strscan.o \
-	lj_api.o lj_lex.o lj_parse.o lj_bcread.o lj_bcwrite.o lj_load.o \
-	lj_ir.o lj_opt_mem.o lj_opt_fold.o lj_opt_narrow.o \
-	lj_opt_dce.o lj_opt_loop.o lj_opt_split.o lj_opt_sink.o \
-	lj_mcode.o lj_snap.o lj_record.o lj_crecord.o lj_ffrecord.o \
-	lj_asm.o lj_trace.o lj_gdbjit.o \
-	lj_ctype.o lj_cdata.o lj_cconv.o lj_ccall.o lj_ccallback.o \
-	lj_carith.o lj_clib.o lj_cparse.o \
-	lj_lib.o lj_alloc.o lib_aux.o \
-	lib_init.o
-LUADIR=LuaJIT
-LUACFLAGS+=-DLUAJIT_UNWIND_INTERNAL
-LUA_OBJS=$(LUAJIT:%=$(LUADIR)/src/%)
-
-$(LUADIR)/src/host/minilua:
-	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" host/minilua
-
-$(LUADIR)/src/host/buildvm:
-	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" host/buildvm
-
-$(LUADIR)/src/%.o:	$(LUADIR)/src/host/minilua $(LUADIR)/src/host/buildvm
-	@$(MAKE) -s -C $(LUADIR)/src HOST_CC="gcc $(LUACFLAGS)" TARGET_CFLAGS="$(LUACFLAGS)" `echo $@ | sed -e 's/.*\///g;'`
 else
 ifeq (lua52,$(ENABLE_LUA))
 LUA52= lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
