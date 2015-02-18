@@ -51,6 +51,10 @@ AC_PATH_PROGS(JAR, jar, , $JAVA_HOME/bin)
 AC_PATH_PROG(NROFF, nroff)
 AC_PATH_PROG(CTFCONVERT, ctfconvert)
 AC_PATH_PROG(CTFMERGE, ctfmerge)
+AC_PATH_PROG(LUA, luajit)
+if test -z "$ac_cv_path_LUA"; then
+	AC_PATH_PROG(LUA, lua)
+fi
 AC_SUBST(PERL)
 
 ENABLE_LUA=$enable_lua
@@ -948,11 +952,9 @@ AC_DEFINE_UNQUOTED(UNAME_P, "$UNAME_P")
 AC_OUTPUT([
 Makefile
 src/Makefile
-src/Makefile.objs
 src/eventer/Makefile
 src/jlog/Makefile
 src/jlog/perl/Makefile.PL
-src/lua/Makefile
 src/udns/Makefile
 src/json-lib/Makefile
 src/yajl-lib/Makefile

@@ -108,7 +108,40 @@ HEADERS=noit_metric.h noit_capabilities_listener.h noit_conf.h noit_version.h \
 	yajl-lib/yajl_lex.h yajl-lib/yajl_parse.h yajl-lib/yajl_parser.h \
 	yajl-lib/yajl_tree.h yajl-lib/yajl_version.h
 
-include Makefile.objs
+
+UDNS_LIB_OBJS=udns/udns_dn.o udns/udns_dntosp.o udns/udns_parse.o \
+        udns/udns_resolver.o udns/udns_init.o udns/udns_misc.o \
+        udns/udns_XtoX.o udns/udns_rr_a.o udns/udns_rr_ptr.o udns/udns_rr_mx.o \
+        udns/udns_rr_txt.o udns/udns_bl.o udns/udns_rr_srv.o \
+        udns/udns_rr_naptr.o udns/udns_codes.o udns/udns_jran.o
+JSON_LIB_OBJS=json-lib/arraylist.lo json-lib/debug.lo json-lib/json_object.lo \
+        json-lib/json_tokener.lo json-lib/json_util.lo json-lib/linkhash.lo \
+        json-lib/printbuf.lo
+NOITEDIT_LIB_OBJS=noitedit/chared.lo noitedit/common.lo noitedit/el.lo \
+        noitedit/emacs.lo noitedit/fcns.lo noitedit/fgetln.lo noitedit/help.lo \
+        noitedit/hist.lo noitedit/history.lo noitedit/key.lo noitedit/map.lo \
+        noitedit/parse.lo noitedit/prompt.lo noitedit/read.lo noitedit/readline.lo \
+        noitedit/refresh.lo noitedit/search.lo noitedit/sig.lo noitedit/strlcpy.lo \
+        noitedit/term.lo noitedit/tokenizer.lo noitedit/tty.lo noitedit/vi.lo
+JLOG_LIB_OBJS=jlog/jlog.lo jlog/jlog_hash.lo jlog/jlog_io.lo
+EVENTER_OBJS=@EVENTER_OBJS@
+EVENTER_IMPL_OBJS=$(EVENTER_OBJS:%.lo=eventer/%.lo)
+ATOMIC_REL_OBJS=@ATOMIC_OBJS@
+ATOMIC_OBJS=$(ATOMIC_REL_OBJS:%.lo=utils/%.lo)
+EVENTER_LIB_OBJS=eventer/OETS_asn1_helper.lo eventer/eventer.lo \
+        eventer/eventer_POSIX_fd_opset.lo eventer/eventer_SSL_fd_opset.lo \
+        eventer/eventer_impl.lo eventer/eventer_jobq.lo $(EVENTER_IMPL_OBJS)
+NOIT_UTILS_OBJS=utils/noit_b32.lo utils/noit_b64.lo utils/noit_btrie.lo \
+        utils/noit_getip.lo utils/noit_hash.lo utils/noit_lockfile.lo \
+        utils/noit_log.lo utils/noit_mkdir.lo utils/noit_security.lo \
+        utils/noit_sem.lo utils/noit_skiplist.lo utils/noit_str.lo \
+        utils/noit_watchdog.lo utils/noit_memory.lo $(ATOMIC_OBJS)
+YAJL_LIB_OBJS=yajl-lib/yajl.lo yajl-lib/yajl_alloc.lo yajl-lib/yajl_buf.lo \
+        yajl-lib/yajl_encode.lo yajl-lib/yajl_gen.lo yajl-lib/yajl_lex.lo \
+        yajl-lib/yajl_parser.lo yajl-lib/yajl_tree.lo yajl-lib/yajl_version.lo
+
+ENABLE_LUA=@ENABLE_LUA@
+LUALIBS=@LUALIBS@
 
 LIBNOIT_OBJS=noit_main.lo noit_listener.lo \
 	noit_console.lo noit_console_state.lo noit_console_telnet.lo \
