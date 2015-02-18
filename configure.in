@@ -324,6 +324,30 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 	]
 )
 
+AC_MSG_CHECKING([libxml2 cflags])
+XML2CFLAGS=`xml2-config --cflags`
+CFLAGS="$CFLAGS $XML2CFLAGS"
+AC_MSG_RESULT([$XML2CFLAGS])
+
+AC_MSG_CHECKING([libxml2 libs])
+XML2LIBS=`xml2-config --libs`
+LIBS="$LIBS $XML2LIBS"
+AC_MSG_RESULT([$XML2LIBS])
+
+AC_CHECK_FUNC(xmlParseDocument, , [AC_MSG_ERROR(*** libxml2 is required ***)])
+
+AC_MSG_CHECKING([libxslt cflags])
+XSLTCFLAGS=`xslt-config --cflags`
+CFLAGS="$CFLAGS $XSLTCFLAGS"
+AC_MSG_RESULT([$XSLTCFLAGS])
+
+AC_MSG_CHECKING([libxslt libs])
+XSLTLIBS=`xslt-config --libs`
+LIBS="$LIBS $XSLTLIBS"
+AC_MSG_RESULT([$XSLTLIBS])
+
+AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
+
 LIBNOIT_LIBS=$LIBS
 AC_SUBST(LIBNOIT_LIBS)
 
@@ -503,30 +527,6 @@ AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
 	]
 )
 LIBS="$SAVELIBS"
-
-AC_MSG_CHECKING([libxml2 cflags])
-XML2CFLAGS=`xml2-config --cflags`
-CFLAGS="$CFLAGS $XML2CFLAGS"
-AC_MSG_RESULT([$XML2CFLAGS])
-
-AC_MSG_CHECKING([libxml2 libs])
-XML2LIBS=`xml2-config --libs`
-LIBS="$LIBS $XML2LIBS"
-AC_MSG_RESULT([$XML2LIBS])
-
-AC_CHECK_FUNC(xmlParseDocument, , [AC_MSG_ERROR(*** libxml2 is required ***)])
-
-AC_MSG_CHECKING([libxslt cflags])
-XSLTCFLAGS=`xslt-config --cflags`
-CFLAGS="$CFLAGS $XSLTCFLAGS"
-AC_MSG_RESULT([$XSLTCFLAGS])
-
-AC_MSG_CHECKING([libxslt libs])
-XSLTLIBS=`xslt-config --libs`
-LIBS="$LIBS $XSLTLIBS"
-AC_MSG_RESULT([$XSLTLIBS])
-
-AC_CHECK_FUNC(xsltParseStylesheetDoc, , [AC_MSG_ERROR(*** libxslt is required ***)])
 
 STOMP_DRIVER_MODULE="no"
 AC_MSG_CHECKING([apr-1-config for needed for stomp support])
