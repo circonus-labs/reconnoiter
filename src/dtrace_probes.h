@@ -30,5 +30,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "libnoit_dtrace_probes.h"
 #include "noit_dtrace_probes.h"
 #include "stratcon_dtrace_probes.h"
