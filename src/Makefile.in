@@ -176,9 +176,6 @@ FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
 FINAL_LIBNOITLL_OBJS=$(LIBNOITLL_OBJS:%.lo=libnoit-ll-objs/%.lo)
 
-lua/src/lua:
-	(cd lua/src && $(MAKE) lua)
-
 noit-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
@@ -526,8 +523,6 @@ clean:
 	(cd json-lib && $(MAKE) clean)
 	(cd yajl-lib && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
-	(cd LuaJIT && $(MAKE) clean)
-	(cd lua/src && $(MAKE) clean)
 
 Makefile.noit.dep:
 	find noit-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
@@ -561,7 +556,7 @@ include Makefile.noit.dep
 include Makefile.stratcon.dep
 
 distclean-subdirs:
-	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib LuaJIT lua/src java ; do \
+	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 
