@@ -1,8 +1,0 @@
-getopt_long.o: getopt_long.c jlog_config.h getopt_long.h
-jlog.o: jlog.c jlog_config.h jlog_private.h jlog.h jlog_io.h
-jlog_hash.o: jlog_hash.c jlog_config.h jlog_hash.h
-jlog_io.o: jlog_io.c jlog_config.h jlog_hash.h jlog_io.h
-jlogctl.o: jlogctl.c jlog_config.h jlog_private.h jlog.h jlog_io.h \
-  getopt_long.h
-jtest.o: jtest.c jlog.h jlog_config.h
-jthreadtest.o: jthreadtest.c jlog_config.h jlog.h

@@ -81,8 +81,7 @@ fq_driver.lo: fq_driver.c ../noit_defines.h ../noit_config.h \
   ../utils/noit_hooks.h \
   ../noit_check.h ../noit_metric.h ../stratcon_iep.h \
   ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_reverse_socket.h fq_driver.xmlh
+  ../stratcon_jlog_streamer.h ../noit_reverse_socket.h fq_driver.xmlh
 
 ganglia.lo: ganglia.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../utils/noit_str.h ../noit_module.h \
@@ -108,9 +107,8 @@ handoff_ingestor.lo: handoff_ingestor.c ../noit_defines.h ../noit_config.h \
   ../noit_check.h ../noit_metric.h ../utils/noit_b64.h \
   ../utils/noit_str.h ../utils/noit_mkdir.h ../utils/noit_getip.h \
   ../stratcon_datastore.h ../stratcon_realtime_http.h ../stratcon_iep.h \
-  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_reverse_socket.h ../noit_rest.h ../noit_listener.h \
-  ../noit_http.h \
+  ../stratcon_jlog_streamer.h ../noit_reverse_socket.h ../noit_rest.h \
+  ../noit_listener.h ../noit_http.h \
   handoff_ingestor.xmlh
 
 histogram.lo: histogram.c ../noit_defines.h ../noit_config.h \
@@ -167,7 +165,7 @@ lua.lo: lua.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   lua_noit.h ../noit_rest.h ../noit_listener.h ../noit_http.h \
   lua.xmlh
 
-lua_bit.lo: lua_bit.c  \
+lua_bit.lo: lua_bit.c
 
 lua_crypto.lo: lua_crypto.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_conf.h ../utils/noit_hash.h \
@@ -205,8 +203,7 @@ lua_general.lo: lua_general.c ../noit_defines.h ../noit_config.h \
   ../noit_check.h ../noit_metric.h ../noit_http.h \
   ../noit_listener.h ../noit_rest.h ../noit_filters.h \
   ../noit_reverse_socket.h lua_noit.h ../noit_check_tools.h \
-  ../noit_check_tools_shared.h  \
-  lua_http.h
+  ../noit_check_tools_shared.h lua_http.h
 
 lua_http.lo: lua_http.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_module.h ../noit_dso.h ../noit_conf.h \
@@ -217,9 +214,8 @@ lua_http.lo: lua_http.c ../noit_defines.h ../noit_config.h \
   ../noit_console_telnet.h ../utils/noit_skiplist.h \
   ../utils/noit_hooks.h \
   ../noit_check.h ../noit_metric.h lua_http.h ../noit_http.h \
-  ../noit_listener.h ../noit_rest.h  \
-  lua_noit.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../noit_listener.h ../noit_rest.h lua_noit.h ../noit_check_tools.h \
+  ../noit_check_tools_shared.h
 
 lua_lpack.lo: lua_lpack.c lua_noit.h ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_conf.h ../utils/noit_hash.h \
@@ -247,7 +243,7 @@ lua_noit.lo: lua_noit.c ../noit_defines.h ../noit_config.h \
   ../json-lib/bits.h ../json-lib/debug.h ../json-lib/linkhash.h \
   ../json-lib/arraylist.h ../json-lib/json_util.h \
   ../json-lib/json_object.h ../json-lib/json_tokener.h lua_noit.h \
-  ../noit_rest.h ../noit_listener.h ../noit_http.h \
+  ../noit_rest.h ../noit_listener.h ../noit_http.h
 
 lua_snmp.lo: lua_snmp.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h lua_noit.h ../noit_conf.h ../utils/noit_hash.h \
@@ -270,8 +266,7 @@ lua_web.lo: lua_web.c ../noit_defines.h ../noit_config.h \
   ../utils/noit_hooks.h \
   ../noit_check.h ../noit_metric.h ../noit_http.h \
   ../noit_listener.h ../noit_rest.h lua_noit.h ../noit_check_tools.h \
-  ../noit_check_tools_shared.h  \
-  lua_http.h
+  ../noit_check_tools_shared.h lua_http.h
 
 mysql.lo: mysql.c ../noit_defines.h ../noit_config.h ../noitedit/strlcpy.h \
   ../noit_module.h ../noit_dso.h ../noit_conf.h ../utils/noit_hash.h \
@@ -317,9 +312,9 @@ postgres_ingestor.lo: postgres_ingestor.c ../noit_defines.h \
   ../utils/noit_str.h ../utils/noit_mkdir.h ../utils/noit_getip.h \
   ../utils/noit_watchdog.h ../stratcon_datastore.h \
   ../stratcon_realtime_http.h ../stratcon_ingest.h ../stratcon_iep.h \
-  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_reverse_socket.h ../noit_check_log_helpers.h ../noit_rest.h \
-  ../noit_listener.h ../noit_http.h \
+  ../stratcon_jlog_streamer.h ../noit_reverse_socket.h \
+  ../noit_check_log_helpers.h ../noit_rest.h ../noit_listener.h \
+  ../noit_http.h \
   postgres_ingestor.xmlh ../bundle.pb-c.h
 
 rabbitmq_driver.lo: rabbitmq_driver.c ../noit_defines.h ../noit_config.h \
@@ -332,9 +327,8 @@ rabbitmq_driver.lo: rabbitmq_driver.c ../noit_defines.h ../noit_config.h \
   ../utils/noit_hooks.h \
   ../noit_check.h ../noit_metric.h ../stratcon_iep.h \
   ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_reverse_socket.h librabbitmq/amqp.h librabbitmq/amqp_framing.h \
-  rabbitmq_driver.xmlh
+  ../stratcon_jlog_streamer.h ../noit_reverse_socket.h \
+  librabbitmq/amqp.h librabbitmq/amqp_framing.h rabbitmq_driver.xmlh
 
 resolver_cache.lo: resolver_cache.c ../noit_defines.h ../noit_config.h \
   ../noitedit/strlcpy.h ../noit_module.h ../noit_dso.h ../noit_conf.h \
@@ -402,8 +396,7 @@ stomp_driver.lo: stomp_driver.c ../noit_defines.h ../noit_config.h \
   ../utils/noit_hooks.h \
   ../noit_check.h ../noit_metric.h ../stratcon_iep.h \
   ../stratcon_datastore.h ../stratcon_realtime_http.h \
-  ../stratcon_jlog_streamer.h ../jlog/jlog.h ../jlog/jlog_config.h \
-  ../noit_reverse_socket.h libstomp.h  \
+  ../stratcon_jlog_streamer.h ../noit_reverse_socket.h libstomp.h \
   stomp_driver.xmlh
 
 test_abort.lo: test_abort.c ../noit_defines.h ../noit_config.h \

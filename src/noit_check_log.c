@@ -39,7 +39,6 @@
 #include "noit_check.h"
 #include "noit_filters.h"
 #include "utils/noit_log.h"
-#include "jlog/jlog.h"
 
 #include "bundle.pb-c.h"
 #include "noit_check_log_helpers.h"

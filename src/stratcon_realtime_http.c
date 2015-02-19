@@ -36,7 +36,7 @@
 #include "utils/noit_hash.h"
 #include "utils/noit_log.h"
 #include "utils/noit_str.h"
-#include "jlog/jlog.h"
+#include <jlog.h>
 #include "noit_jlog_listener.h"
 #include "noit_listener.h"
 #include "noit_http.h"

@@ -60,7 +60,7 @@ LIBNOITLL_V=libnoit-ll@DOTSO@.$(LIBNOIT_VERSION)@DOTDYLIB@
 LIBNOITLL=libnoit-ll@DOTSO@@DOTDYLIB@
 
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
-	$(LIBNOIT) $(LIBNOITLL) jlog/jlogctl jlog/jlogtail @MDB_MODS@
+	$(LIBNOIT) $(LIBNOITLL) @MDB_MODS@
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
@@ -97,8 +97,6 @@ HEADERS=noit_metric.h noit_capabilities_listener.h noit_conf.h noit_version.h \
 	noitedit/map.h noitedit/parse.h noitedit/prompt.h noitedit/refresh.h \
 	noitedit/search.h noitedit/sig.h noitedit/strlcpy.h noitedit/sys.h \
 	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
-	jlog/jlog.h jlog/jlog_config.h jlog/jlog_hash.h jlog/jlog_io.h \
-	jlog/jlog_private.h \
 	json-lib/arraylist.h json-lib/bits.h json-lib/debug.h \
 	json-lib/json_object_private.h json-lib/json_object.h \
 	json-lib/json_tokener.h json-lib/json_util.h json-lib/json.h \
@@ -123,7 +121,6 @@ NOITEDIT_LIB_OBJS=noitedit/chared.lo noitedit/common.lo noitedit/el.lo \
         noitedit/parse.lo noitedit/prompt.lo noitedit/read.lo noitedit/readline.lo \
         noitedit/refresh.lo noitedit/search.lo noitedit/sig.lo noitedit/strlcpy.lo \
         noitedit/term.lo noitedit/tokenizer.lo noitedit/tty.lo noitedit/vi.lo
-JLOG_LIB_OBJS=jlog/jlog.lo jlog/jlog_hash.lo jlog/jlog_io.lo
 EVENTER_OBJS=@EVENTER_OBJS@
 EVENTER_IMPL_OBJS=$(EVENTER_OBJS:%.lo=eventer/%.lo)
 ATOMIC_REL_OBJS=@ATOMIC_OBJS@
@@ -151,7 +148,7 @@ LIBNOIT_OBJS=noit_main.lo noit_listener.lo \
 	noit_capabilities_listener.lo noit_dso.lo \
 	noit_events_rest.lo \
 	$(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
-	$(JLOG_LIB_OBJS) $(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS)
+	$(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS)
 
 LIBNOITLL_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo
@@ -222,14 +219,6 @@ make-modules:
 
 java-bits:
 	@-test -n "@JAVAPARTS@" && (cd java && $(MAKE) -s)
-
-jlog/jlogctl:
-	@echo "- building jlogctl"
-	@(cd jlog && $(MAKE) -s jlogctl)
-
-jlog/jlogtail:
-	@echo "- building jlogtail"
-	@(cd jlog && $(MAKE) -s jlogtail)
 
 .PHONY:	reversion
 
@@ -316,7 +305,7 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ) $(LIBNOIT) $(LIBN
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
-		$(LIBS) -L. -lnoit -lnoit-ll $(LUALIBS)
+		$(LIBS) -L. -lnoit -lnoit-ll $(LUALIBS) -ljlog
 	@if test -x "$(CTFMERGE)" ; then \
 		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
@@ -454,7 +443,6 @@ install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/eventer
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/utils
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/noitedit
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/jlog
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/json-lib
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/yajl-lib
 	$(INSTALL) -m 0755 ../buildtools/xml2h $(DESTDIR)$(bindir)/noit-xml2h
@@ -478,11 +466,9 @@ install-libs:    noitlibs
 
 install-noitd:	install-libs install-noitd-nolibs
 
-install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits jlog/jlogctl jlog/jlogtail noit.env
+install-noitd-nolibs:	install-dirs reversion noitd noit.conf java-bits noit.env
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(datadir)/noit-web
 	$(INSTALL) -m 0755 scripts/noittrap $(DESTDIR)$(bindir)/noittrap
-	$(INSTALL) -m 0755 jlog/jlogctl $(DESTDIR)$(bindir)/noit_jlogctl
-	$(INSTALL) -m 0755 jlog/jlogtail $(DESTDIR)$(bindir)/noit_jlogtail
 	$(INSTALL) -m 0755 noitd $(DESTDIR)$(sbindir)/noitd
 	$(INSTALL) -m 0644 noit.conf $(DESTDIR)$(sysconfdir)/noit.conf.sample
 	$(INSTALL) -m 0644 noit.env $(DESTDIR)$(sysconfdir)/noit.env
@@ -513,7 +499,6 @@ clean:
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs libnoit-ll-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
-	(cd jlog && $(MAKE) clean)
 	(cd eventer && $(MAKE) clean)
 	(cd udns && $(MAKE) clean)
 	(cd man && $(MAKE) clean)
@@ -540,7 +525,7 @@ Makefile.stratcon.dep:
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
-	for d in utils jlog udns eventer noitedit json-lib yajl-lib; do \
+	for d in utils udns eventer noitedit json-lib yajl-lib; do \
 		$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) $$d/*.c | \
 		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#'$$d'/$$1#;' >> \
 		Makefile.dep ; \
@@ -556,7 +541,7 @@ include Makefile.noit.dep
 include Makefile.stratcon.dep
 
 distclean-subdirs:
-	for dir in jlog eventer udns man modules modules-lua noitedit utils json-lib yajl-lib java ; do \
+	for dir in eventer udns man modules modules-lua noitedit utils json-lib yajl-lib java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 

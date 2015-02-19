@@ -52,8 +52,8 @@
 #include "utils/noit_log.h"
 #include "utils/noit_hash.h"
 #include "utils/noit_atomic.h"
-#include "jlog/jlog.h"
-#include "jlog/jlog_private.h"
+#include <jlog.h>
+#include <jlog_private.h>
 #ifdef DTRACE_ENABLED
 #include "libnoit_dtrace_probes.h"
 #else

@@ -35,7 +35,7 @@
 
 #include "noit_conf.h"
 #include "utils/noit_atomic.h"
-#include "jlog/jlog.h"
+#include <jlog.h>
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <arpa/inet.h>

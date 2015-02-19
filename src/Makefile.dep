@@ -35,8 +35,7 @@ noit_check_log.o noit_check_log.lo: noit_check_log.c noit_defines.h noit_config.
   utils/noit_skiplist.h utils/noit_hooks.h noit_conf.h noit_console.h \
   noitedit/histedit.h noit_console_telnet.h \
   noit_metric.h \
-  noit_filters.h jlog/jlog.h jlog/jlog_config.h bundle.pb-c.h \
-  noit_check_log_helpers.h
+  noit_filters.h bundle.pb-c.h noit_check_log_helpers.h
 
 noit_check_log_helpers.o noit_check_log_helpers.lo: noit_check_log_helpers.c noit_defines.h \
   noit_config.h noitedit/strlcpy.h noit_metric.h \
@@ -202,8 +201,7 @@ noit_jlog_listener.o noit_jlog_listener.lo: noit_jlog_listener.c noit_defines.h 
   noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
   utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
-  noit_listener.h utils/noit_memory.h jlog/jlog.h jlog/jlog_config.h \
-  jlog/jlog_private.h jlog/jlog_io.h noit_jlog_listener.h noit_rest.h \
+  noit_listener.h utils/noit_memory.h noit_jlog_listener.h noit_rest.h \
   noit_http.h \
   utils/noit_hooks.h
 
@@ -293,10 +291,9 @@ stratcon_datastore.o stratcon_datastore.lo: stratcon_datastore.c noit_defines.h 
   utils/noit_getip.h stratcon_datastore.h stratcon_realtime_http.h \
   noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h  \
-  stratcon_ingest.h stratcon_iep.h stratcon_jlog_streamer.h jlog/jlog.h \
-  jlog/jlog_config.h noit_reverse_socket.h noit_check.h \
-  utils/noit_hooks.h noit_metric.h noit_rest.h noit_listener.h \
-  noit_http.h \
+  stratcon_ingest.h stratcon_iep.h stratcon_jlog_streamer.h \
+  noit_reverse_socket.h noit_check.h utils/noit_hooks.h noit_metric.h \
+  noit_rest.h noit_listener.h noit_http.h \
 
 stratcon_iep.o stratcon_iep.lo: stratcon_iep.c noit_defines.h noit_config.h \
   noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
@@ -305,9 +302,8 @@ stratcon_iep.o stratcon_iep.lo: stratcon_iep.c noit_defines.h noit_config.h \
   utils/noit_b64.h noit_jlog_listener.h stratcon_jlog_streamer.h \
   noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h  \
-  jlog/jlog.h jlog/jlog_config.h noit_reverse_socket.h \
-  stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
-  noit_check.h utils/noit_hooks.h noit_metric.h
+  noit_reverse_socket.h stratcon_datastore.h stratcon_realtime_http.h \
+  stratcon_iep.h noit_check.h utils/noit_hooks.h noit_metric.h
 
 stratcon_ingest.o stratcon_ingest.lo: stratcon_ingest.c noit_defines.h noit_config.h \
   noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
@@ -317,10 +313,9 @@ stratcon_ingest.o stratcon_ingest.lo: stratcon_ingest.c noit_defines.h noit_conf
   utils/noit_getip.h stratcon_datastore.h stratcon_realtime_http.h \
   noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h  \
-  stratcon_ingest.h stratcon_iep.h stratcon_jlog_streamer.h jlog/jlog.h \
-  jlog/jlog_config.h noit_reverse_socket.h noit_check.h \
-  utils/noit_hooks.h noit_metric.h noit_rest.h noit_listener.h \
-  noit_http.h \
+  stratcon_ingest.h stratcon_iep.h stratcon_jlog_streamer.h \
+  noit_reverse_socket.h noit_check.h utils/noit_hooks.h noit_metric.h \
+  noit_rest.h noit_listener.h noit_http.h \
 
 stratcon_jlog_streamer.o stratcon_jlog_streamer.lo: stratcon_jlog_streamer.c noit_defines.h \
   noit_config.h noitedit/strlcpy.h dtrace_probes.h \
@@ -333,8 +328,7 @@ stratcon_jlog_streamer.o stratcon_jlog_streamer.lo: stratcon_jlog_streamer.c noi
   utils/noit_getip.h noit_jlog_listener.h noit_rest.h noit_listener.h \
   noit_http.h \
   utils/noit_hooks.h stratcon_datastore.h stratcon_realtime_http.h \
-  stratcon_jlog_streamer.h jlog/jlog.h jlog/jlog_config.h \
-  noit_reverse_socket.h stratcon_iep.h
+  stratcon_jlog_streamer.h noit_reverse_socket.h stratcon_iep.h
 
 stratcon_realtime_http.o stratcon_realtime_http.lo: stratcon_realtime_http.c noit_defines.h \
   noit_config.h noitedit/strlcpy.h eventer/eventer.h utils/noit_log.h \
@@ -342,8 +336,7 @@ stratcon_realtime_http.o stratcon_realtime_http.lo: stratcon_realtime_http.c noi
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   noit_conf.h noit_console.h noitedit/histedit.h noit_console_telnet.h \
   utils/noit_skiplist.h  \
-  utils/noit_str.h jlog/jlog.h jlog/jlog_config.h noit_jlog_listener.h \
-  noit_listener.h noit_http.h \
+  utils/noit_str.h noit_jlog_listener.h noit_listener.h noit_http.h \
   utils/noit_hooks.h noit_rest.h noit_check.h noit_metric.h \
   noit_check_log_helpers.h noit_livestream_listener.h \
   stratcon_realtime_http.h stratcon_jlog_streamer.h \
@@ -360,9 +353,8 @@ stratcond.o stratcond.lo: stratcond.c noit_defines.h noit_config.h noitedit/strl
   utils/noit_hooks.h \
   noit_check.h noit_metric.h noit_rest.h noit_http.h \
   noit_reverse_socket.h noit_events_rest.h noit_capabilities_listener.h \
-  stratcon_jlog_streamer.h jlog/jlog.h jlog/jlog_config.h \
-  stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
-  man/stratcond.usage.h
+  stratcon_jlog_streamer.h stratcon_datastore.h stratcon_realtime_http.h \
+  stratcon_iep.h man/stratcond.usage.h
 
 t.o t.lo: t.c
 
@@ -387,8 +379,7 @@ utils/noit_lockfile.o utils/noit_lockfile.lo: utils/noit_lockfile.c noit_config.
 
 utils/noit_log.o utils/noit_log.lo: utils/noit_log.c noit_defines.h noit_config.h \
   noitedit/strlcpy.h utils/noit_log.h utils/noit_hash.h \
-  utils/noit_atomic.h jlog/jlog.h jlog/jlog_config.h jlog/jlog_private.h \
-  jlog/jlog_io.h libnoit_dtrace_probes.h
+  utils/noit_atomic.h libnoit_dtrace_probes.h
 
 utils/noit_memory.o utils/noit_memory.lo: utils/noit_memory.c utils/noit_log.h noit_defines.h \
   noit_config.h noitedit/strlcpy.h utils/noit_hash.h
@@ -414,26 +405,6 @@ utils/noit_watchdog.o utils/noit_watchdog.lo: utils/noit_watchdog.c noit_defines
   utils/noit_hash.h utils/noit_atomic.h eventer/eventer_POSIX_fd_opset.h \
   eventer/eventer_SSL_fd_opset.h eventer/eventer_jobq.h utils/noit_sem.h \
   utils/noit_watchdog.h
-
-jlog/getopt_long.o jlog/getopt_long.lo: jlog/getopt_long.c jlog/jlog_config.h jlog/getopt_long.h
-
-jlog/jlog.o jlog/jlog.lo: jlog/jlog.c jlog/jlog_config.h jlog/jlog_private.h jlog/jlog.h \
-  jlog/jlog_io.h
-
-jlog/jlog_hash.o jlog/jlog_hash.lo: jlog/jlog_hash.c jlog/jlog_config.h jlog/jlog_hash.h
-
-jlog/jlog_io.o jlog/jlog_io.lo: jlog/jlog_io.c jlog/jlog_config.h jlog/jlog_hash.h \
-  jlog/jlog_io.h
-
-jlog/jlogctl.o jlog/jlogctl.lo: jlog/jlogctl.c jlog/jlog_config.h jlog/jlog_private.h \
-  jlog/jlog.h jlog/jlog_io.h jlog/getopt_long.h
-
-jlog/jlogtail.o jlog/jlogtail.lo: jlog/jlogtail.c jlog/jlog.h jlog/jlog_config.h
-
-jlog/jtest.o jlog/jtest.lo: jlog/jtest.c jlog/jlog.h jlog/jlog_config.h
-
-jlog/jthreadtest.o jlog/jthreadtest.lo: jlog/jthreadtest.c jlog/jlog_config.h jlog/jlog.h \
-  jlog/jlog_private.h jlog/jlog_io.h
 
 udns/dnsget.o udns/dnsget.lo: udns/dnsget.c udns/udns.h udns/getopt.c
 
