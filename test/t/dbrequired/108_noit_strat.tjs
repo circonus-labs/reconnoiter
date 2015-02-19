@@ -68,7 +68,7 @@ function fetch_metric_counts(tgt,sid,done) {
         client.query('select count(*) from noit.metric_text_archive where sid = $1', [sid],
           function(err, results) {
             if(err) { dbdone(); return done(err, 0); }
-            done(null, results.rows[0].count);
+            done(null, parseInt(results.rows[0].count));
             dbdone();
           });
       }, 'reconnoiter', 'reconnoiter');
@@ -79,7 +79,7 @@ function fetch_metric_counts(tgt,sid,done) {
         client.query('select count(*) from noit.metric_numeric_archive where sid = $1', [sid],
           function(err, results) {
             if(err) { dbdone(); return done(err, 0); }
-            done(null, results.rows[0].count);
+            done(null, parseInt(results.rows[0].count));
             dbdone();
           });
       }, 'reconnoiter', 'reconnoiter');

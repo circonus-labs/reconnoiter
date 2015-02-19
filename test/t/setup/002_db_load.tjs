@@ -36,7 +36,7 @@ test = function() {
       test.ok(!err, "connected");
       client.query('select count(*) as rollups from noit.metric_numeric_rollup_config', function(err, result) {
         if(err) test.fail('query rollups: ' + err);
-        else test.is(result.rows[0].rollups, 6, 'query rollups');
+        else test.is(parseInt(result.rows[0].rollups), 6, 'query rollups');
         done();
       });
     }, 'reconnoiter','reconnoiter');
