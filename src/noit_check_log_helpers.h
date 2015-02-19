@@ -53,6 +53,6 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
                                      unsigned int len_out);
 
 int
-noit_check_log_b_to_sm(const char *line, int len, char ***out);
+noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip);
 
 #endif

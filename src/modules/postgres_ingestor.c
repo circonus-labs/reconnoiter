@@ -1048,7 +1048,7 @@ expand_b_record(ds_line_detail **head, ds_line_detail **last,
   int i, cnt;
   ds_line_detail *next;
 
-  cnt = noit_check_log_b_to_sm(line, len, &outrows);
+  cnt = noit_check_log_b_to_sm(line, len, &outrows, 0);
   for(i=0;i<cnt;i++) {
     if(outrows[i] == NULL) continue;
     next = calloc(sizeof(*next), 1);

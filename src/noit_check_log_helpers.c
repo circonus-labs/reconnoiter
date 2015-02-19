@@ -171,13 +171,13 @@ noit_stats_snprint_metric_value(char *b, int l, metric_t *m) {
 }
 
 int
-noit_check_log_b_to_sm(const char *line, int len, char ***out) {
+noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   Bundle *bundle = NULL;
   noit_compression_type_t ctype;
   unsigned int ulen;
   int i, size, cnt = 0, has_status = 0;
   const char *cp1, *cp2, *rest, *error_str = NULL;
-  char *timestamp, *uuid_str, *target, *module, *name, *ulen_str;
+  char *timestamp, *uuid_str, *target, *module, *name, *ulen_str, *nipstr = NULL;
   unsigned char *raw_protobuf = NULL;
 
   *out = NULL;
@@ -202,6 +202,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out) {
   tgt[cp2 - cp1] = '\0'; \
   cp1 = cp2 + 1; \
 } while(0)
+  if(noit_ip) SET_FIELD_FROM_BUNDLE(nipstr);
   SET_FIELD_FROM_BUNDLE(timestamp);
   SET_FIELD_FROM_BUNDLE(uuid_str);
   SET_FIELD_FROM_BUNDLE(target);

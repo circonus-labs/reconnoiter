@@ -172,7 +172,7 @@ stratcon_line_to_javascript(noit_http_session_ctx *ctx, char *in_buff,
 
   noitL(noit_error, "recv(%s)\n", in_buff);
   if(in_buff[0] == 'B' && in_buff[1] != '\0' && in_buff[2] == '\t') {
-    cnt = noit_check_log_b_to_sm(in_buff, strlen(in_buff), &outrows);
+    cnt = noit_check_log_b_to_sm(in_buff, strlen(in_buff), &outrows, 0);
   }
   else {
     cnt = 1;
