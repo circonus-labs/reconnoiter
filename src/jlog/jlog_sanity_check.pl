@@ -1,9 +1,11 @@
-#!/opt/msys/3rdParty/bin/perl
+#!/usr/bin/perl
 use strict;
 use warnings;
-use Fcntl;
+use Fcntl qw/SEEK_CUR SEEK_SET O_RDONLY O_WRONLY/;
+sub systell { sysseek($_[0], 0, SEEK_CUR) }
 
-my $le = undef;
+my $le = 1;
+my $jlog = shift;
 my $jlog_endian = shift;
 if (defined $jlog_endian) {
   if ($jlog_endian =~ /^(little|le)$/) {
@@ -13,9 +15,8 @@ if (defined $jlog_endian) {
   }
 }
 
-my $jlog = shift;
 if (!defined $le or !defined $jlog) {
-  print "Usage: $0 <jlog endianness (be or le)> <path to jlog>\n";
+  print "Usage: $0 <path to jlog> <jlog endianness (be or le)>\n";
   exit 1;
 }
 
@@ -58,10 +59,10 @@ foreach (@$files) {
 }
 undef $files;
 
-if ((stat "$jlog/metastore")[7] != 12) {
+if ((stat "$jlog/metastore")[7] != 16) {
   die "metastore has invalid size\n";
 }
-my ($current_segment, $unit_limit, $safety);
+my ($current_segment, $unit_limit, $safety, $hdr_magic);
 sysopen(META, "$jlog/metastore", O_RDONLY)
   or die "could not sysopen $jlog/metastore: $!";
 my $data;
@@ -71,6 +72,8 @@ sysread(META, $data, 4) == 4 or die "metastore read error: $!";
 $unit_limit = unpack_32($data);
 sysread(META, $data, 4) == 4 or die "metastore read error: $!";
 $safety = unpack_32($data);
+sysread(META, $data, 4) == 4 or die "metastore read error: $!";
+$hdr_magic = unpack_32($data);
 close META;
 
 my $oldest_cp_segment = 0xffffffff;
@@ -101,7 +104,7 @@ foreach my $cp (@$checkpoints) {
   };
 }
 if (!scalar keys %$cpbyname) {
-  die "no valid checkpoints\n";
+  warn "no valid checkpoints\n";
 }
 
 my $lastnum = $oldest_cp_segment;
@@ -157,6 +160,8 @@ foreach my $segdata (@$segments) {
     $idx_len = (stat IDX)[7];
   }
 
+  my $nrec = 0;
+  my @fixers = ();
   while ($data_off < $data_len) {
     if (!$warned_toobig and ($data_off > $unit_limit)) {
       print "segment $seg has message offset larger than unit limit\n";
@@ -166,15 +171,17 @@ foreach my $segdata (@$segments) {
       print "segment $seg offset $data_off: not enough room for message header\n";
       last;
     }
+    my $offset = systell(*SEG);
     sysread(SEG, $data, 16) == 16
       or die "segment $seg offset $data_off: read error: $!";
     my $reserved = unpack_32(substr $data, 0, 4);
     my $tv_sec = unpack_32(substr $data, 4, 4);
     my $tv_usec = unpack_32(substr $data, 8, 4);
     my $mlen = unpack_32(substr $data, 12, 4);
-    if ($reserved) {
-      print "segment $seg offset $data_off: reserved field not 0\n";
-      last;
+    if ($reserved != $hdr_magic) {
+      printf "segment $seg offset $data_off: reserved field (%08x != %08x)\n",
+             $reserved, $hdr_magic;
+      push @fixers, $offset if ($reserved == 0);
     }
     if (!$warned_timewarp) {
       if ($tv_sec < $last_tv_sec or
@@ -194,7 +201,7 @@ foreach my $segdata (@$segments) {
     sysread(SEG, $data, $mlen) == $mlen
       or die "segment $seg offset $data_off + 16: read error: $!";
     $last_marker++;
-
+    $nrec++;
     if ($idx) {
       if ($idx_off == $idx_len) {
         if ($current_segment > hex $seg) {
@@ -224,6 +231,15 @@ foreach my $segdata (@$segments) {
   }
   if ($data_off == $data_len) {
     $segdata->[2] = $last_marker;
+    foreach my $offset (@fixers) {
+      printf "writing new hdr_magic at off: %d\n", $offset;
+      sysopen(FIX, "$jlog/$seg", O_WRONLY) or die "could not sysopen $jlog/$seg: $!";
+      sysseek(FIX, $offset, SEEK_SET);
+      my $hdr_blob = pack('V1', $hdr_magic);
+      die unless length($hdr_blob) == 4;
+      syswrite(FIX, pack('V1', $hdr_magic), 4);
+      close FIX;
+    }
   } else {
     close IDX;
     undef $idx;
@@ -249,6 +265,7 @@ foreach my $segdata (@$segments) {
     }
     close IDX;
   }
+  printf "segment $seg has %d records\n", $nrec;
 }
 
 foreach my $cp (keys %$cpbyname) {
