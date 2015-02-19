@@ -12,11 +12,15 @@ function croak() {
 
 PATH=$PATH:/opt/circonus/bin:/opt/omni/bin
 
-# On OmniOS gcc is in /opt/gcc-{VER} and postgres is /opt/pgsql{VER}
+# On OmniOS gcc is in /opt/gcc-{VER} and postgres is either in
+# /opt/pgsql{VER} or /opt/circonus/pgsql{VER}
 # We need those in the path... doesn't much matter which version, so
 # make a half-baked attempt at the most recent.
 
 for LPATH in "`find /opt -maxdepth 1 -type d -name gcc\* | sort -r | head -1`"; do
+  PATH=$PATH:$LPATH/bin
+done
+for LPATH in "`find /opt/circonus -maxdepth 1 -type d -name pg\* | sort -r | head -1`"; do
   PATH=$PATH:$LPATH/bin
 done
 for LPATH in "`find /opt -maxdepth 1 -type d -name pg\* | sort -r | head -1`"; do
