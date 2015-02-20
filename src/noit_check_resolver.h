@@ -36,6 +36,7 @@
 #include "utils/noit_hooks.h"
 
 API_EXPORT(void) noit_check_resolver_init();
+API_EXPORT(int)  noit_check_should_resolve_targets(noit_boolean *);
 API_EXPORT(void) noit_check_resolver_remind(const char *);
 API_EXPORT(int)  noit_check_resolver_fetch(const char *, char *buff, int len,
                                            uint8_t prefer_family);

@@ -804,3 +804,15 @@ void noit_check_resolver_init() {
   noit_hash_init(&etc_hosts_cache);
   noit_check_etc_hosts_cache_refresh(NULL, 0, NULL, NULL);
 }
+
+int noit_check_should_resolve_targets(noit_boolean *should_resolve) {
+  static int inited = 0, cached_rv;;
+  static noit_boolean cached_should_resolve;
+  if(!inited) {
+    cached_rv = noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
+                                      &cached_should_resolve);
+    inited = 1;
+  }
+  *should_resolve = cached_should_resolve;
+  return cached_rv;
+}
