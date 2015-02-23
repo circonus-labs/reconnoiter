@@ -34,10 +34,13 @@
 #include "mtev_defines.h"
 
 #include <string.h>
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
 #define LUA_COMPAT_MODULE
 #include "lua_noit.h"
+
+#ifdef HAVE_NETSNMP
+
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
 
 static int
 nl_convert_mib(lua_State *L) {
@@ -94,10 +97,13 @@ static const luaL_Reg snmp_funcs[] =
   { "init_snmp", nl_init_mib },
   { NULL, NULL }
 };
+#endif
 
 int luaopen_snmp(lua_State *L)
 {
+#ifdef HAVE_NETSNMP
   luaL_openlib(L, "snmp", snmp_funcs, 0);
+#endif
   return 0;
 }
 

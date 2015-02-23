@@ -99,6 +99,7 @@
 #undef HAVE_GETPWNAM_R_POSIX
 #undef HAVE_GETGRNAM_R
 #undef HAVE_GETGRNAM_R_POSIX
+#undef HAVE_NETSNMP
 
 #ifdef HAVE_STRING_H
 #include <string.h>

@@ -513,8 +513,10 @@ LIBS="$SAVELIBS"
 if test "x$HAS_NETSNMP" = "xno"; then
 	AC_MSG_WARN([No libnetsnmp, skipping snmp module])
 	if test -n "$LUA_MODULE"; then
-		AC_MSG_ERROR([*** lua specified, but no SNMP ***])
+		AC_MSG_WARN([*** lua specified, but no SNMP (things will get weird) ***])
 	fi
+else
+	AC_DEFINE(HAVE_NETSNMP)
 fi
 
 AC_SUBST(LIBNETSNMP)
