@@ -9,17 +9,17 @@ var tools = require('./testconfig'),
     async = require('async');
 
 var expected_comms = 
-  { '0x50555420': { name: 'noit_wire_rest_api', version: '1.0' },
-    '0x47455420': { name: 'noit_wire_rest_api', version: '1.0' },
-    '0x48454144': { name: 'noit_wire_rest_api', version: '1.0' },
+  { '0x50555420': { name: 'mtev_wire_rest_api', version: '1.0' },
+    '0x47455420': { name: 'mtev_wire_rest_api', version: '1.0' },
+    '0x48454144': { name: 'mtev_wire_rest_api', version: '1.0' },
     '0xda7afeed': { name: 'log_transit', version: '1.0' },
-    '0x44454c45': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0x44454c45': { name: 'mtev_wire_rest_api', version: '1.0' },
     '0x7e66feed': { name: 'log_transit', version: '1.0' },
     '0x52455645': { name: 'reverse_socket_accept' },
-    '0x504f5354': { name: 'noit_wire_rest_api', version: '1.0' },
+    '0x504f5354': { name: 'mtev_wire_rest_api', version: '1.0' },
     '0xfa57feed': { name: 'livestream_transit', version: '1.0' },
     '0x43415041': { name: 'capabilities_transit', version: '1.0' },
-    '0x4d455247': { name: 'noit_wire_rest_api', version: '1.0' } };
+    '0x4d455247': { name: 'mtev_wire_rest_api', version: '1.0' } };
 
 var noit, conn;
 

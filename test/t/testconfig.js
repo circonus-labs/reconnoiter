@@ -621,7 +621,7 @@ testconfig.prototype.start = function(cb, ntests) {
       return;
     }
     var m = self.find_in_log(self.logfd, /process starting: (\d+)/);
-    var l = self.find_in_log(self.logfd, /noit_listener\([^,]+, (\d+), \d+, \d+, control_dispatch,.* success/);
+    var l = self.find_in_log(self.logfd, /mtev_listener\([^,]+, (\d+), \d+, \d+, control_dispatch,.* success/);
     if(m && l) {
       self.emit('boot', m[0], l[0]);
       return;
