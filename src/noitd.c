@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,7 +30,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "noit_defines.h"
+
+#include "noit_config.h"
+#include <mtev_defines.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -43,25 +46,27 @@
 #include <sys/wait.h>
 #endif
 
-#include "noit_main.h"
-#include "eventer/eventer.h"
-#include "utils/noit_memory.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_security.h"
-#include "utils/noit_watchdog.h"
-#include "utils/noit_lockfile.h"
-#include "noit_listener.h"
-#include "noit_console.h"
+#include <mtev_main.h>
+#include <eventer/eventer.h>
+#include <mtev_memory.h>
+#include <mtev_log.h>
+#include <mtev_hash.h>
+#include <mtev_security.h>
+#include <mtev_watchdog.h>
+#include <mtev_lockfile.h>
+#include <mtev_listener.h>
+#include <mtev_console.h>
+#include <mtev_rest.h>
+#include <mtev_reverse_socket.h>
+#include <mtev_capabilities_listener.h>
+#include <mtev_conf.h>
+#include <mtev_events_rest.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
-#include "noit_rest.h"
-#include "noit_reverse_socket.h"
 #include "noit_check_rest.h"
-#include "noit_events_rest.h"
 #include "noit_livestream_listener.h"
-#include "noit_capabilities_listener.h"
 #include "noit_module.h"
-#include "noit_conf.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
 
@@ -110,19 +115,19 @@ void parse_clargs(int argc, char **argv) {
         exit(1);
         break;
       case 'l':
-        noit_main_enable_log(optarg);
+        mtev_main_enable_log(optarg);
         break;
       case 'L':
-        noit_main_disable_log(optarg);
+        mtev_main_disable_log(optarg);
         break;
       case 'n':
         {
           char *cp = optarg ? strchr(optarg, ':') : NULL;
-          if(!cp) noit_listener_skip(optarg, 0);
+          if(!cp) mtev_listener_skip(optarg, 0);
           else {
             if(cp == optarg) optarg = NULL;
             *cp++ = '\0';
-            noit_listener_skip(optarg, atoi(cp));
+            mtev_listener_skip(optarg, atoi(cp));
           }
         }
         break;
@@ -156,11 +161,11 @@ static void request_conf_reload(int sig) {
     __reload_needed = 1;
   }
 }
-static int noitice_hup(eventer_t e, int mask, void *unused, struct timeval *now) {
+static int notice_hup(eventer_t e, int mask, void *unused, struct timeval *now) {
   if(__reload_needed) {
-    noitL(noit_error, "SIGHUP received, performing reload\n");
-    if(noit_conf_load(config_file) == -1) {
-      noitL(noit_error, "Cannot load config: '%s'\n", config_file);
+    mtevL(noit_error, "SIGHUP received, performing reload\n");
+    if(mtev_conf_load(config_file) == -1) {
+      mtevL(noit_error, "Cannot load config: '%s'\n", config_file);
       exit(-1);
     }
     noit_poller_reload(NULL);
@@ -168,99 +173,111 @@ static int noitice_hup(eventer_t e, int mask, void *unused, struct timeval *now)
   }
   return 0;
 }
+
+static int noit_console_stopword(const char *word) {
+  return(!strcmp(word, "check") ||
+         !strcmp(word, "noit") ||
+         !strcmp(word, "filterset") ||
+         !strcmp(word, "config"));
+}
+const char *reverse_prefix = "noit/";
+const char *reverse_prefix_cns[] = { "noit/", NULL };
+
 static int child_main() {
   eventer_t e;
 
   /* Send out a birth notice. */
-  noit_watchdog_child_heartbeat();
+  mtev_watchdog_child_heartbeat();
+  mtev_override_console_stopword(noit_console_stopword);
 
   /* Load our config...
    * to ensure it is current w.r.t. to this child starting */
-  if(noit_conf_load(config_file) == -1) {
-    noitL(noit_error, "Cannot load config: '%s'\n", config_file);
+  if(mtev_conf_load(config_file) == -1) {
+    mtevL(noit_error, "Cannot load config: '%s'\n", config_file);
     exit(2);
   }
   if(xpath) {
     int cnt, i;
-    noit_conf_section_t *parts = NULL;
-    parts = noit_conf_get_sections(NULL, xpath, &cnt);
+    mtev_conf_section_t *parts = NULL;
+    parts = mtev_conf_get_sections(NULL, xpath, &cnt);
     if(cnt == 0) exit(2);
     for(i=0; i<cnt; i++) {
       fprintf(stdout, "%d: ", i); fflush(stdout);
-      noit_conf_write_section(parts[i], 1);
+      mtev_conf_write_section(parts[i], 1);
     }
     free(parts);
     exit(0);
   }
 
-  noit_log_reopen_all();
-  noitL(noit_notice, "process starting: %d\n", (int)getpid());
-  noit_log_go_asynch();
+  mtev_log_reopen_all();
+  mtevL(noit_notice, "process starting: %d\n", (int)getpid());
+  mtev_log_go_asynch();
 
   signal(SIGHUP, request_conf_reload);
 
   /* initialize the eventer */
   if(eventer_init() == -1) {
-    noitL(noit_stderr, "Cannot initialize eventer\n");
+    mtevL(noit_stderr, "Cannot initialize eventer\n");
     exit(-1);
   }
   /* rotation init requires, eventer_init() */
-  noit_conf_log_init_rotate(APPNAME, noit_false);
+  mtev_conf_log_init_rotate(APPNAME, mtev_false);
 
   /* Setup our heartbeat */
-  noit_watchdog_child_eventer_heartbeat();
+  mtev_watchdog_child_eventer_heartbeat();
 
   e = eventer_alloc();
   e->mask = EVENTER_RECURRENT;
-  e->callback = noitice_hup;
+  e->callback = notice_hup;
   eventer_add_recurrent(e);
 
   /* Initialize all of our listeners */
-  noit_console_init(APPNAME);
-  noit_console_conf_init();
+  mtev_console_init(APPNAME);
+  mtev_console_conf_init();
+  mtev_capabilities_listener_init();
+  mtev_http_rest_init();
+  mtev_reverse_socket_init(reverse_prefix, reverse_prefix_cns);
+  mtev_events_rest_init();
   noit_console_conf_checks_init();
-  noit_capabilities_listener_init();
   noit_jlog_listener_init();
-  noit_http_rest_init();
-  noit_reverse_socket_init();
-  noit_events_rest_init();
   noit_check_rest_init();
   noit_filters_rest_init();
   noit_livestream_listener_init();
 
-  noit_dso_init();
+  mtev_dso_init();
   noit_module_init();
-  noit_dso_post_init();
+  mtev_dso_post_init();
   if(strict_module_load &&
-     (noit_dso_load_failures() > 0 || noit_module_load_failures() > 0)) {
-    noitL(noit_stderr, "Failed to load some modules and -M given.\n");
+     (mtev_dso_load_failures() > 0 || noit_module_load_failures() > 0)) {
+    mtevL(noit_stderr, "Failed to load some modules and -M given.\n");
     exit(2);
   }
 
-  noit_listener_init(APPNAME);
+  mtev_listener_init(APPNAME);
 
   /* Drop privileges */
-  noit_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
+  mtev_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
 
   /* Prepare for launch... */
   noit_filters_init();
   noit_poller_init();
 
   /* Write our log out, and setup a watchdog to write it out on change. */
-  noit_conf_write_log(NULL);
-  noit_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
-  noit_conf_watch_and_journal_watchdog(noit_conf_write_log, NULL);
+  mtev_conf_write_log(NULL);
+  mtev_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
+  mtev_conf_watch_and_journal_watchdog(mtev_conf_write_log, NULL);
 
   eventer_loop();
   return 0;
 }
 
 int main(int argc, char **argv) {
-  int lock = NOIT_LOCK_OP_LOCK;
-  noit_memory_init();
+  int lock = MTEV_LOCK_OP_LOCK;
+  noit_mtev_bridge_init();
+  mtev_memory_init();
   parse_clargs(argc, argv);
-  if (xpath) lock = NOIT_LOCK_OP_NONE;
-  return noit_main(APPNAME, config_file, debug, foreground,
+  if (xpath) lock = MTEV_LOCK_OP_NONE;
+  return mtev_main(APPNAME, config_file, debug, foreground,
                    lock, glider, droptouser, droptogroup, 
                    child_main);
 }

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2011-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,33 +29,37 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "noit_check.h"
-#include "noit_rest.h"
-#include "noit_check_rest.h"
-#include "utils/noit_log.h"
-#include "check_test.xmlh"
+#include <mtev_defines.h>
 
 #include <assert.h>
 
+#include <mtev_rest.h>
+#include <mtev_log.h>
+
+#include "noit_mtev_bridge.h"
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_rest.h"
+
+#include "check_test.xmlh"
+
 static void check_test_schedule_sweeper();
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 struct check_test_closure {
   noit_check_t *check;
-  noit_http_rest_closure_t *restc;
+  mtev_http_rest_closure_t *restc;
   enum { WANTS_XML = 0, WANTS_JSON } output;
 };
 
-static noit_skiplist in_progress;
+static mtev_skiplist in_progress;
 static eventer_t sweeper_event = NULL;
 static int default_sweep_interval = 10; /* 10ms seems good */
 
 static int
 check_complete_heap_key(const void *av, const void *bv) {
-  const noit_http_rest_closure_t *restc = av;
+  const mtev_http_rest_closure_t *restc = av;
   const struct check_test_closure *b = bv;
   if(restc < b->restc) return -1;
   if(restc == b->restc) return 0;
@@ -72,22 +75,22 @@ check_complete_heap(const void *av, const void *bv) {
 }
 
 static int
-check_test_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/checktest");
-  nldeb = noit_log_stream_find("debug/checktest");
+check_test_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/checktest");
+  nldeb = mtev_log_stream_find("debug/checktest");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
-  noit_skiplist_init(&in_progress);
-  noit_skiplist_set_compare(&in_progress, check_complete_heap,
+  mtev_skiplist_init(&in_progress);
+  mtev_skiplist_set_compare(&in_progress, check_complete_heap,
                             check_complete_heap_key);
   return 0;
 }
 
 static int
-check_test_config(noit_dso_generic_t *self, noit_hash_table *o) {
+check_test_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   const char *str;
   int new_interval = 0;
-  if(noit_hash_retr_str(o, "sweep_interval", strlen("sweep_interval"),
+  if(mtev_hash_retr_str(o, "sweep_interval", strlen("sweep_interval"),
                         &str))
     new_interval = atoi(str);
   if(new_interval > 0) default_sweep_interval = new_interval;
@@ -102,8 +105,8 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
   noit_module_t *m = NULL;
   noit_check_t *c = NULL;
   xmlNodePtr a, co;
-  noit_hash_table *conf_hash = NULL;
-  noit_hash_table **moptions = NULL;
+  mtev_hash_table *conf_hash = NULL;
+  mtev_hash_table **moptions = NULL;
 
   for(a = attr->children; a; a = a->next) {
     if(!strcmp((char *)a->name, "target"))
@@ -142,7 +145,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
       name = strdup((char *)co->name);
       tmp_val = xmlNodeGetContent(co);
       val = strdup(tmp_val ? (char *)tmp_val : "");
-      noit_hash_replace(conf_hash, name, strlen(name), val, free, free);
+      mtev_hash_replace(conf_hash, name, strlen(name), val, free, free);
       xmlFree(tmp_val);
     }
   }
@@ -152,10 +155,10 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     memset(moptions, 0, mod_cnt * sizeof(*moptions));
     for(i=0; i<mod_cnt; i++) {
       const char *name;
-      noit_conf_section_t checks;
+      mtev_conf_section_t checks;
       name = noit_check_registered_module(i);
-      checks = noit_conf_get_section(NULL, "/noit/checks");
-      if(name) moptions[i] = noit_conf_get_namespaced_hash(checks, "config", name);
+      checks = mtev_conf_get_section(NULL, "/noit/checks");
+      if(name) moptions[i] = mtev_conf_get_namespaced_hash(checks, "config", name);
     }
   }
   if(!m->initiate_check) {
@@ -175,13 +178,13 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
 
  error:
   if(conf_hash) {
-    noit_hash_destroy(conf_hash, free, free);
+    mtev_hash_destroy(conf_hash, free, free);
     free(conf_hash);
   }
   if(moptions) {
     for(i=0; i<mod_cnt; i++) {
       if(moptions[i]) {
-        noit_hash_destroy(moptions[i], free, free);
+        mtev_hash_destroy(moptions[i], free, free);
         free(moptions[i]);
       }
     }
@@ -196,9 +199,9 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
 
 static void
 rest_test_check_result(struct check_test_closure *cl) {
-  noit_http_session_ctx *ctx = cl->restc->http_ctx;
+  mtev_http_session_ctx *ctx = cl->restc->http_ctx;
 
-  noitL(nlerr, "Flushing check test result\n");
+  mtevL(nlerr, "Flushing check test result\n");
 
   if(cl->restc->call_closure_free)
     cl->restc->call_closure_free(cl->restc->call_closure);
@@ -214,10 +217,10 @@ rest_test_check_result(struct check_test_closure *cl) {
       const char *jsonstr;
 
       doc = noit_check_state_as_json(cl->check, 1);
-      noit_http_response_ok(ctx, "application/json");
+      mtev_http_response_ok(ctx, "application/json");
       jsonstr = json_object_to_json_string(doc);
-      noit_http_response_append(ctx, jsonstr, strlen(jsonstr));
-      noit_http_response_append(ctx, "\n", 1);
+      mtev_http_response_append(ctx, jsonstr, strlen(jsonstr));
+      mtev_http_response_append(ctx, "\n", 1);
       json_object_put(doc);
     } else {
       xmlDocPtr doc = NULL;
@@ -228,13 +231,13 @@ rest_test_check_result(struct check_test_closure *cl) {
       xmlDocSetRootElement(doc, root);
       state = noit_check_state_as_xml(cl->check, 1);
       xmlAddChild(root, state);
-      noit_http_response_ok(ctx, "text/xml");
-      noit_http_response_xml(ctx, doc);
+      mtev_http_response_ok(ctx, "text/xml");
+      mtev_http_response_xml(ctx, doc);
       xmlFreeDoc(doc);
     }
-    noit_http_response_end(ctx);
+    mtev_http_response_end(ctx);
   
-    conne = noit_http_connection_event(noit_http_session_connection(ctx));
+    conne = mtev_http_connection_event(mtev_http_session_connection(ctx));
     if(conne) {
       // The event already exists, why re-add it?  Did we want to update it?
       //eventer_add(conne);
@@ -250,13 +253,13 @@ static int
 check_test_sweeper(eventer_t e, int mask, void *closure,
                    struct timeval *now) {
   int left = 0;
-  noit_skiplist_node *iter = NULL;
+  mtev_skiplist_node *iter = NULL;
   sweeper_event = NULL;
-  iter = noit_skiplist_getlist(&in_progress);
+  iter = mtev_skiplist_getlist(&in_progress);
   while(iter) {
     struct check_test_closure *cl = iter->data;
     /* advance here, we might delete */
-    noit_skiplist_next(&in_progress,&iter);
+    mtev_skiplist_next(&in_progress,&iter);
     if(NOIT_CHECK_DISABLED(cl->check)) {
       if(NOIT_CHECK_SHOULD_RESOLVE(cl->check))
         noit_check_resolve(cl->check);
@@ -264,15 +267,15 @@ check_test_sweeper(eventer_t e, int mask, void *closure,
         noit_module_t *m = noit_module_lookup(cl->check->module);
         cl->check->flags &= ~NP_DISABLED;
         if(NOIT_CHECK_SHOULD_RESOLVE(cl->check))
-          noitL(nldeb, "translated to %s\n", cl->check->target_ip);
+          mtevL(nldeb, "translated to %s\n", cl->check->target_ip);
         if(m) m->initiate_check(m, cl->check, 1, NULL);
       }
       left++;
     }
     else if(NOIT_CHECK_RUNNING(cl->check)) left++;
     else
-      noit_skiplist_remove(&in_progress, cl->restc,
-                           (noit_freefunc_t)rest_test_check_result);
+      mtev_skiplist_remove(&in_progress, cl->restc,
+                           (mtev_freefunc_t)rest_test_check_result);
   }
 
   if(left) check_test_schedule_sweeper();
@@ -294,22 +297,22 @@ check_test_schedule_sweeper() {
 }
 
 static int
-rest_test_check_err(noit_http_rest_closure_t *restc,
+rest_test_check_err(mtev_http_rest_closure_t *restc,
                     int npats, char **pats) {
-  noit_http_response *res = noit_http_session_response(restc->http_ctx);
-  noit_skiplist_remove(&in_progress, restc,
-                       (noit_freefunc_t)rest_test_check_result);
-  if(noit_http_response_complete(res) != noit_true) {
-    noit_http_response_standard(restc->http_ctx, 500, "ERROR", "text/html");
-    noit_http_response_end(restc->http_ctx);
+  mtev_http_response *res = mtev_http_session_response(restc->http_ctx);
+  mtev_skiplist_remove(&in_progress, restc,
+                       (mtev_freefunc_t)rest_test_check_result);
+  if(mtev_http_response_complete(res) != mtev_true) {
+    mtev_http_response_standard(restc->http_ctx, 500, "ERROR", "text/html");
+    mtev_http_response_end(restc->http_ctx);
   }
   return 0;
 }
 static int
-rest_test_check(noit_http_rest_closure_t *restc,
+rest_test_check(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
   noit_check_t *tcheck;
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   int mask, complete = 0;
   int error_code = 500;
   const char *error = "internal error";
@@ -334,7 +337,7 @@ rest_test_check(noit_http_rest_closure_t *restc,
       cl->output = WANTS_JSON;
     cl->check = tcheck;
     cl->restc = restc;
-    noit_skiplist_insert(&in_progress, cl);
+    mtev_skiplist_insert(&in_progress, cl);
     check_test_schedule_sweeper();
     if(restc->call_closure_free)
       restc->call_closure_free(restc->call_closure);
@@ -345,13 +348,13 @@ rest_test_check(noit_http_rest_closure_t *restc,
   }
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/xml");
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
   xmlDocSetRootElement(doc, root);
   xmlNodeAddContent(root, (xmlChar *)error);
-  noit_http_response_xml(ctx, doc);
-  noit_http_response_end(ctx);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -360,18 +363,18 @@ rest_test_check(noit_http_rest_closure_t *restc,
 }
 
 static int
-check_test_init(noit_dso_generic_t *self) {
-  assert(noit_http_rest_register(
+check_test_init(mtev_dso_generic_t *self) {
+  assert(mtev_http_rest_register(
     "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
   ) == 0);
   return 0;
 }
 
-noit_dso_generic_t check_test = {
+mtev_dso_generic_t check_test = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "check_test",
     .description = "Check Tester",
     .xml_description = check_test_xml_description,

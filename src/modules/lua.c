@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2010-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,15 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-
-#include "noit_conf.h"
-#include "noit_dso.h"
-#include "noit_module.h"
-#include "noit_check.h"
-#include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "lua_noit.h"
+#include <mtev_defines.h>
 
 #include <unistd.h>
 #ifdef HAVE_ALLOCA_H
@@ -46,12 +39,24 @@
 #endif
 #include <assert.h>
 
+#include <mtev_conf.h>
+#include <mtev_dso.h>
+#include <mtev_log.h>
+
+#include "noit_config.h"
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
+#include "noit_mtev_bridge.h"
+
+#include "lua_noit.h"
+
 static pthread_t loader_main_thread;
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
-static noit_hash_table noit_lua_states = NOIT_HASH_EMPTY;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
+static mtev_hash_table noit_lua_states = MTEV_HASH_EMPTY;
 static pthread_mutex_t noit_lua_states_lock = PTHREAD_MUTEX_INITIALIZER;
-static noit_hash_table noit_coros = NOIT_HASH_EMPTY;
+static mtev_hash_table noit_coros = MTEV_HASH_EMPTY;
 static pthread_mutex_t coro_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct loader_conf {
@@ -61,7 +66,7 @@ struct loader_conf {
 struct module_conf {
   struct loader_conf *c;
   char *object;
-  noit_hash_table *options;
+  mtev_hash_table *options;
   pthread_key_t key;
 };
 struct module_tls_conf {
@@ -71,10 +76,10 @@ struct module_tls_conf {
   int initialized;
   int initialized_return;
 };
-static struct module_tls_conf *__get_module_tls_conf(noit_image_t *img) {
+static struct module_tls_conf *__get_module_tls_conf(mtev_image_t *img) {
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
-  mc = noit_image_get_userdata(img);
+  mc = mtev_image_get_userdata(img);
   mtlsc = pthread_getspecific(mc->key);
   if(mtlsc == NULL) {
     mtlsc = calloc(1, sizeof(*mtlsc));
@@ -82,24 +87,24 @@ static struct module_tls_conf *__get_module_tls_conf(noit_image_t *img) {
   }
   return mtlsc;
 }
-static struct loader_conf *__get_loader_conf(noit_dso_loader_t *self) {
+static struct loader_conf *__get_loader_conf(mtev_dso_loader_t *self) {
   struct loader_conf *c;
-  c = noit_image_get_userdata(&self->hdr);
+  c = mtev_image_get_userdata(&self->hdr);
   if(!c) {
     c = calloc(1, sizeof(*c));
     pthread_key_create(&c->key, NULL);
-    noit_image_set_userdata(&self->hdr, c);
+    mtev_image_set_userdata(&self->hdr, c);
   }
   return c;
 }
 static void
-noit_lua_loader_set_directory(noit_dso_loader_t *self, const char *dir) {
+noit_lua_loader_set_directory(mtev_dso_loader_t *self, const char *dir) {
   struct loader_conf *c = __get_loader_conf(self);
   if(c->script_dir) free(c->script_dir);
   c->script_dir = strdup(dir);
 }
 static const char *
-noit_lua_loader_get_directory(noit_dso_loader_t *self) {
+noit_lua_loader_get_directory(mtev_dso_loader_t *self) {
   struct loader_conf *c = __get_loader_conf(self);
   return c->script_dir;
 }
@@ -110,9 +115,9 @@ noit_lua_cancel_coro(noit_lua_resume_info_t *ci) {
   luaL_unref(ci->lmc->lua_state, -1, ci->coro_state_ref);
   lua_pop(ci->lmc->lua_state, 1);
   lua_gc(ci->lmc->lua_state, LUA_GCCOLLECT, 0);
-  noitL(nldeb, "coro_store <- %p\n", ci->coro_state);
+  mtevL(nldeb, "coro_store <- %p\n", ci->coro_state);
   pthread_mutex_lock(&coro_lock);
-  assert(noit_hash_delete(&noit_coros,
+  assert(mtev_hash_delete(&noit_coros,
                           (const char *)&ci->coro_state, sizeof(ci->coro_state),
                           NULL, NULL));
   pthread_mutex_unlock(&coro_lock);
@@ -122,15 +127,15 @@ void
 noit_lua_set_resume_info(lua_State *L, noit_lua_resume_info_t *ri) {
   lua_getglobal(L, "noit_internal_lmc");
   ri->lmc = lua_touserdata(L, lua_gettop(L));
-  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  mtevL(nldeb, "coro_store -> %p\n", ri->coro_state);
   pthread_mutex_lock(&coro_lock);
-  noit_hash_store(&noit_coros,
+  mtev_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri); 
   pthread_mutex_unlock(&coro_lock);
 }
 static void
-describe_lua_context(noit_console_closure_t ncct,
+describe_lua_context(mtev_console_closure_t ncct,
                      noit_lua_resume_info_t *ri) {
   switch(ri->context_magic) {
     case LUA_CHECK_INFO_MAGIC:
@@ -162,16 +167,16 @@ describe_lua_context(noit_console_closure_t ncct,
 
 struct lua_reporter {
   pthread_mutex_t lock;
-  noit_console_closure_t ncct;
-  noit_atomic32_t outstanding;
+  mtev_console_closure_t ncct;
+  mtev_atomic32_t outstanding;
 };
 
 static int
 noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   struct lua_reporter *reporter = closure;
-  noit_console_closure_t ncct = reporter->ncct;
-  noit_hash_iter zero = NOIT_HASH_ITER_ZERO, iter;
+  mtev_console_closure_t ncct = reporter->ncct;
+  mtev_hash_iter zero = MTEV_HASH_ITER_ZERO, iter;
   const char *key;
   int klen;
   void *vri;
@@ -183,7 +188,7 @@ noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
 
   memcpy(&iter, &zero, sizeof(zero));
   pthread_mutex_lock(&noit_lua_states_lock);
-  while(noit_hash_next(&noit_lua_states, &iter, &key, &klen, &vri)) {
+  while(mtev_hash_next(&noit_lua_states, &iter, &key, &klen, &vri)) {
     lua_State **Lptr = (lua_State **)key;
     pthread_t tgt = (pthread_t)(vpsized_int)vri;
     if(!pthread_equal(me, tgt)) continue;
@@ -195,7 +200,7 @@ noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
 
   memcpy(&iter, &zero, sizeof(zero));
   pthread_mutex_lock(&coro_lock);
-  while(noit_hash_next(&noit_coros, &iter, &key, &klen, &vri)) {
+  while(mtev_hash_next(&noit_coros, &iter, &key, &klen, &vri)) {
     noit_lua_resume_info_t *ri;
     int level = 1;
     lua_Debug ar;
@@ -235,14 +240,14 @@ noit_console_lua_thread_reporter(eventer_t e, int mask, void *closure,
     nc_printf(ncct, "\n");
   }
   pthread_mutex_unlock(&coro_lock);
-  noit_atomic_dec32(&reporter->outstanding);
+  mtev_atomic_dec32(&reporter->outstanding);
   pthread_mutex_unlock(&reporter->lock);
   return 0;
 }
 static int
-noit_console_show_lua(noit_console_closure_t ncct,
+noit_console_show_lua(mtev_console_closure_t ncct,
                       int argc, char **argv,
-                      noit_console_state_t *dstate,
+                      mtev_console_state_t *dstate,
                       void *closure) {
   int i = 0;
   pthread_t me, tgt, first;
@@ -266,7 +271,7 @@ noit_console_show_lua(noit_console_closure_t ncct,
       e->mask = EVENTER_TIMER;
       e->callback = noit_console_lua_thread_reporter;
       e->closure = &crutch;
-      noit_atomic_inc32(&crutch.outstanding);
+      mtev_atomic_inc32(&crutch.outstanding);
       eventer_add(e);
     } while(!pthread_equal(first, tgt));
   }
@@ -282,13 +287,13 @@ noit_console_show_lua(noit_console_closure_t ncct,
 
 static void
 register_console_lua_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("lua", noit_console_show_lua, NULL, NULL, NULL));
 }
 
@@ -298,7 +303,7 @@ noit_lua_get_resume_info(lua_State *L) {
   lua_module_closure_t *lmc;
   void *v = NULL;
   pthread_mutex_lock(&coro_lock);
-  if(noit_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v)) {
+  if(mtev_hash_retrieve(&noit_coros, (const char *)&L, sizeof(L), &v)) {
     pthread_mutex_unlock(&coro_lock);
     ri = v;
     assert(pthread_equal(pthread_self(), ri->bound_thread));
@@ -310,12 +315,12 @@ noit_lua_get_resume_info(lua_State *L) {
   lua_getglobal(L, "noit_internal_lmc");;
   ri->lmc = lua_touserdata(L, lua_gettop(L));
   lua_pop(L, 1);
-  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  mtevL(nldeb, "coro_store -> %p\n", ri->coro_state);
   lua_getglobal(L, "noit_coros");
   lua_pushthread(L);
   ri->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
-  noit_hash_store(&noit_coros,
+  mtev_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
   pthread_mutex_unlock(&coro_lock);
@@ -326,15 +331,15 @@ int_cl_free(void *vcl) {
   free(vcl);
 }
 
-static lua_module_closure_t *lmc_tls_get(noit_image_t *mod) {
+static lua_module_closure_t *lmc_tls_get(mtev_image_t *mod) {
   lua_module_closure_t *lmc;
   struct loader_conf *c;
-  if(mod->magic == NOIT_LOADER_MAGIC) {
-    c = noit_image_get_userdata(mod);
+  if(mod->magic == MTEV_LOADER_MAGIC) {
+    c = mtev_image_get_userdata(mod);
   }
   else {
     struct module_conf *mc;
-    mc = noit_image_get_userdata(mod);
+    mc = mtev_image_get_userdata(mod);
     c = mc->c;
   }
   lmc = pthread_getspecific(c->key);
@@ -344,7 +349,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
   lua_module_closure_t *lmc;
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
-  mc = noit_image_get_userdata(&mod->hdr);
+  mc = mtev_image_get_userdata(&mod->hdr);
   if(obj) *obj = mc->object;
   lmc = pthread_getspecific(mc->c->key);
   if(lmc == NULL) {
@@ -353,7 +358,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
     lmc->owner = pthread_self();
     lmc->resume = noit_lua_check_resume;
     pthread_setspecific(mc->c->key, lmc);
-    noitL(nldeb, "lua_state[%s]: new state\n", mod->hdr.name);
+    mtevL(nldeb, "lua_state[%s]: new state\n", mod->hdr.name);
     lmc->lua_state = noit_lua_open(mod->hdr.name, lmc, mc->c->script_dir);
   }
   mtlsc = __get_module_tls_conf(&mod->hdr);
@@ -363,7 +368,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
     }
     mtlsc->loaded = 1;
   }
-  noitL(nldeb, "lua_state[%s]: %p\n", mod->hdr.name, lmc->lua_state);
+  mtevL(nldeb, "lua_state[%s]: %p\n", mod->hdr.name, lmc->lua_state);
   return lmc;
 }
 static void
@@ -371,12 +376,12 @@ noit_event_dispose(void *ev) {
   int mask;
   eventer_t *value = ev;
   eventer_t removed, e = *value;
-  noitL(nldeb, "lua check cleanup: dropping (%p)->fd (%d)\n", e, e->fd);
+  mtevL(nldeb, "lua check cleanup: dropping (%p)->fd (%d)\n", e, e->fd);
   removed = eventer_remove(e);
-  noitL(nldeb, "    remove from eventer system %s\n",
+  mtevL(nldeb, "    remove from eventer system %s\n",
         removed ? "succeeded" : "failed");
   if(e->mask & (EVENTER_READ|EVENTER_WRITE|EVENTER_EXCEPTION)) {
-    noitL(nldeb, "    closing down fd %d\n", e->fd);
+    mtevL(nldeb, "    closing down fd %d\n", e->fd);
     e->opset->close(e->fd, &mask, e);
   }
   if(e->closure) {
@@ -394,21 +399,21 @@ noit_lua_check_register_event(noit_lua_resume_info_t *ci, eventer_t e) {
   memcpy(eptr, &e, sizeof(*eptr));
   if(!ci->events) {
     ci->events = calloc(1, sizeof(*ci->events));
-    noit_hash_init(ci->events);
+    mtev_hash_init(ci->events);
   }
-  assert(noit_hash_store(ci->events, (const char *)eptr, sizeof(*eptr), eptr));
+  assert(mtev_hash_store(ci->events, (const char *)eptr, sizeof(*eptr), eptr));
 }
 void
 noit_lua_check_deregister_event(noit_lua_resume_info_t *ci, eventer_t e,
                                 int tofree) {
   assert(ci->events);
-  assert(noit_hash_delete(ci->events, (const char *)&e, sizeof(e),
+  assert(mtev_hash_delete(ci->events, (const char *)&e, sizeof(e),
                           NULL, tofree ? noit_event_dispose : free));
 }
 void
 noit_lua_resume_clean_events(noit_lua_resume_info_t *ci) {
   if(ci->events == NULL) return;
-  noit_hash_destroy(ci->events, NULL, noit_event_dispose);
+  mtev_hash_destroy(ci->events, NULL, noit_event_dispose);
   free(ci->events);
   ci->events = NULL;
 }
@@ -430,9 +435,9 @@ noit_lua_pushmodule(lua_State *L, const char *m) {
     else stack_pos = -1;
   }
 }
-noit_hash_table *
+mtev_hash_table *
 noit_lua_table_to_hash(lua_State *L, int idx) {
-  noit_hash_table *t;
+  mtev_hash_table *t;
   if(lua_gettop(L) < idx || !lua_istable(L,idx))
     luaL_error(L, "table_to_hash: not a table");
 
@@ -443,21 +448,21 @@ noit_lua_table_to_hash(lua_State *L, int idx) {
     size_t klen;
     key = lua_tolstring(L, -2, &klen);
     value = lua_tostring(L, -1);
-    noit_hash_store(t, key, klen, (void *)value);
+    mtev_hash_store(t, key, klen, (void *)value);
     lua_pop(L, 1);
   }
   return t;
 }
 void
 noit_lua_hash_to_table(lua_State *L,
-                       noit_hash_table *t) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+                       mtev_hash_table *t) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key, *value;
   int klen, kcnt;
-  kcnt = t ? noit_hash_size(t) : 0;
+  kcnt = t ? mtev_hash_size(t) : 0;
   lua_createtable(L, 0, kcnt);
   if(t) {
-    while(noit_hash_next_str(t, &iter, &key, &klen, &value)) {
+    while(mtev_hash_next_str(t, &iter, &key, &klen, &value)) {
       lua_pushlstring(L, value, strlen(value));
       lua_setfield(L, -2, key);
     }
@@ -716,7 +721,7 @@ noit_lua_set_metric(lua_State *L) {
 static int
 noit_lua_interpolate(lua_State *L) {
   noit_check_t *check;
-  noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
   char buff[2048];
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
@@ -751,7 +756,7 @@ noit_lua_interpolate(lua_State *L) {
 			lua_setfield(L, -3, key); /* tgt table is -3 */
     }
   }
-  noit_hash_destroy(&check_attrs_hash, NULL, NULL);
+  mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
   return 1;
 }
 static int
@@ -934,13 +939,13 @@ noit_lua_type_name(int t) {
   }
 }
 static int
-noit_lua_module_onload(noit_image_t *img) {
+noit_lua_module_onload(mtev_image_t *img) {
   int rv;
   lua_State *L;
   lua_module_closure_t *lmc;
   struct module_conf *mc;
 
-  mc = noit_image_get_userdata(img);
+  mc = mtev_image_get_userdata(img);
   noit_lua_init();
 
   lmc = lmc_tls_get(img);
@@ -950,14 +955,14 @@ noit_lua_module_onload(noit_image_t *img) {
   rv = lua_pcall(L, 1, 1, 0);
   if(rv) {
     int i;
-    noitL(nlerr, "lua: %s.onload failed\n", mc->object);
+    mtevL(nlerr, "lua: %s.onload failed\n", mc->object);
     i = lua_gettop(L);
     if(i>0) {
       if(lua_isstring(L, i)) {
         const char *err;
         size_t len;
         err = lua_tolstring(L, i, &len);
-        noitL(nlerr, "lua: %s\n", err);
+        mtevL(nlerr, "lua: %s\n", err);
       }
     }
     lua_pop(L,i);
@@ -968,7 +973,7 @@ noit_lua_module_onload(noit_image_t *img) {
   noit_lua_pushmodule(L, mc->object);
   if(lua_isnil(L, -1)) {
     lua_pop(L, 1);
-    noitL(nlerr, "lua: no such object %s\n", mc->object);
+    mtevL(nlerr, "lua: no such object %s\n", mc->object);
     return -1;
   }
   lua_getfield(L, -1, "onload");
@@ -986,7 +991,7 @@ noit_lua_module_onload(noit_image_t *img) {
     lua_pop(L, 1);
     return rv;
   }
-  noitL(nlerr, "%s.onload must return a integer not %s (%s)\n", mc->object, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1));
+  mtevL(nlerr, "%s.onload must return a integer not %s (%s)\n", mc->object, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1));
   lua_pop(L,1);
   return -1;
 }
@@ -998,7 +1003,7 @@ noit_lua_module_onload(noit_image_t *img) {
   lmc = noit_lua_setup_lmc(mod, &object); \
   L = lmc->lua_state
 #define SETUP_CALL(L, object, func, failure) do { \
-  noitL(nldeb, "lua calling %s->%s\n", object, func); \
+  mtevL(nldeb, "lua calling %s->%s\n", object, func); \
   noit_lua_pushmodule(L, object); \
   lua_getfield(L, -1, func); \
   lua_remove(L, -2); \
@@ -1017,13 +1022,13 @@ noit_lua_module_onload(noit_image_t *img) {
     expr \
     return rv; \
   } \
-  noitL(nlerr, "%s.%s must return a integer not %s (%s)\n", object, func, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1)); \
+  mtevL(nlerr, "%s.%s must return a integer not %s (%s)\n", object, func, noit_lua_type_name(lua_type(L,-1)), lua_tostring(L,-1)); \
   lua_pop(L,1); \
 } while(0)
 
 static int 
 noit_lua_module_config(noit_module_t *mod,
-                       noit_hash_table *options) {
+                       mtev_hash_table *options) {
   struct module_conf *mc;
   struct module_tls_conf *mtlsc;
   LMC_DECL(L, mod, object);
@@ -1032,8 +1037,8 @@ noit_lua_module_config(noit_module_t *mod,
   if(options) {
     assert(mc->options == NULL);
     mc->options = calloc(1, sizeof(*mc->options));
-    noit_hash_init(mc->options);
-    noit_hash_merge_as_dict(mc->options, options);
+    mtev_hash_init(mc->options);
+    mtev_hash_merge_as_dict(mc->options, options);
   }
   else options = mc->options;
   mtlsc = __get_module_tls_conf(&mod->hdr);
@@ -1117,7 +1122,7 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
 }
 int
 noit_lua_yield(noit_lua_resume_info_t *ci, int nargs) {
-  noitL(nldeb, "lua: %p yielding\n", ci->coro_state);
+  mtevL(nldeb, "lua: %p yielding\n", ci->coro_state);
   return lua_yield(ci->coro_state, nargs);
 }
 int
@@ -1129,7 +1134,7 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
 
   assert(pthread_equal(pthread_self(), ri->bound_thread));
 
-  noitL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
+  mtevL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
 #if LUA_VERSION_NUM >= 502
   result = lua_resume(ri->coro_state, ri->lmc->lua_state, nargs);
 #else
@@ -1143,7 +1148,7 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
     case 0: /* success */
       if(lua_status(ri->coro_state) == 0 && lua_gettop(ri->coro_state) == 0) {
         /* LUA_OK status with no stack means we're dead (good or bad) */
-        noitL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
+        mtevL(nldeb, "lua_State(%p) -> %d [check: %p]\n", ri->coro_state,
               lua_status(ri->coro_state), ci ? ci->check: NULL);
       }
       break;
@@ -1154,7 +1159,7 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
       lua_gc(ri->lmc->lua_state, LUA_GCCOLLECT, 0);
       goto done;
     default: /* Errors */
-      noitL(nldeb, "lua resume returned: %d\n", result);
+      mtevL(nldeb, "lua resume returned: %d\n", result);
       if(check)  {
         if(check->stats.inprogress.status) free(check->stats.inprogress.status);
         check->stats.inprogress.status = strdup(ci->timed_out ? "timeout" : "unknown error from lua");
@@ -1167,8 +1172,8 @@ noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs) {
           const char *err, *nerr;
           err = lua_tostring(ri->coro_state, base);
           nerr = lua_tostring(ri->coro_state, base - 2);
-          if(err) noitL(nldeb, "err -> %s\n", err);
-          if(nerr) noitL(nldeb, "nerr -> %s\n", nerr);
+          if(err) mtevL(nldeb, "err -> %s\n", err);
+          if(nerr) mtevL(nldeb, "nerr -> %s\n", nerr);
           if(nerr && *nerr == 31) nerr = NULL; // 31? WTF lua?
           if(err) {
             nerr = strchr(err, ' '); /* advance past the file */
@@ -1208,7 +1213,7 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
   struct nl_intcl *int_cl = closure;
   noit_lua_resume_info_t *ri = int_cl->ri;
   noit_lua_resume_check_info_t *ci = ri->context_data;
-  noitL(nldeb, "lua: %p ->check_timeout\n", ri->coro_state);
+  mtevL(nldeb, "lua: %p ->check_timeout\n", ri->coro_state);
   ci->timed_out = 1;
   noit_lua_check_deregister_event(ri, e, 0);
 
@@ -1296,9 +1301,9 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ri->check = check; /* This is the coroutine from which the check is run */
   ri->coro_state_ref = luaL_ref(L, -2);
   lua_pop(L, 1); /* pops noit_coros */
-  noitL(nldeb, "coro_store -> %p\n", ri->coro_state);
+  mtevL(nldeb, "coro_store -> %p\n", ri->coro_state);
   pthread_mutex_lock(&coro_lock);
-  noit_hash_store(&noit_coros,
+  mtev_hash_store(&noit_coros,
                   (const char *)&ri->coro_state, sizeof(ri->coro_state),
                   ri);
   pthread_mutex_unlock(&coro_lock);
@@ -1333,7 +1338,7 @@ static int noit_lua_panic(lua_State *L) {
     const char *err = lua_tostring(L,2);
     
     while (lua_getstack(L, level++, &ar));
-    noitL(noit_error, "lua panic[top:%d]: %s\n", lua_gettop(L), err);
+    mtevL(noit_error, "lua panic[top:%d]: %s\n", lua_gettop(L), err);
     while (level > 0 && lua_getstack(L, --level, &ar)) {
       lua_getinfo(L, "Sl", &ar);
       lua_getinfo(L, "n", &ar);
@@ -1346,7 +1351,7 @@ static int noit_lua_panic(lua_State *L) {
         }
         else cp = "???";
         if(ar.name == NULL) ar.name = "???";
-        noitL(noit_error, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
+        mtevL(noit_error, "\t%s:%s(%s):%d\n", cp, ar.namewhat, ar.name, ar.currentline);
       }
     }
   }
@@ -1396,7 +1401,7 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   lua_pushstring(L, #a); \
   rv = lua_pcall(L, 1, 1, 0); \
   if(rv != 0) { \
-    noitL(noit_stderr, "Loading %s: %d (%s)\n", #a, rv, lua_tostring(L,-1)); \
+    mtevL(noit_stderr, "Loading %s: %d (%s)\n", #a, rv, lua_tostring(L,-1)); \
     lua_close(L); \
     return NULL; \
   } \
@@ -1411,17 +1416,17 @@ noit_lua_open(const char *module_name, void *lmc, const char *script_dir) {
   Lptr = malloc(sizeof(*Lptr));
   *Lptr = L;
   pthread_mutex_lock(&noit_lua_states_lock);
-  noit_hash_store(&noit_lua_states,
+  mtev_hash_store(&noit_lua_states,
                   (const char *)Lptr, sizeof(*Lptr),
                   (void *)(vpsized_int)pthread_self());
   pthread_mutex_unlock(&noit_lua_states_lock);
 
   return L;
 }
-static noit_image_t *
-noit_lua_loader_load(noit_dso_loader_t *loader,
+static mtev_image_t *
+noit_lua_loader_load(mtev_dso_loader_t *loader,
                      char *module_name,
-                     noit_conf_section_t section) {
+                     mtev_conf_section_t section) {
   int rv;
   noit_module_t *m;
   lua_State *L = NULL;
@@ -1430,9 +1435,9 @@ noit_lua_loader_load(noit_dso_loader_t *loader,
   struct loader_conf *c;
   char *object;
 
-  noitL(nldeb, "Loading lua module: %s\n", module_name);
-  if(noit_conf_get_string(section, "@object", &object) == 0) {
-    noitL(nlerr, "Lua module %s require object attribute.\n", module_name);
+  mtevL(nldeb, "Loading lua module: %s\n", module_name);
+  if(mtev_conf_get_string(section, "@object", &object) == 0) {
+    mtevL(nlerr, "Lua module %s require object attribute.\n", module_name);
     return NULL;
   }
 
@@ -1472,24 +1477,24 @@ noit_lua_loader_load(noit_dso_loader_t *loader,
   m->cleanup = noit_lua_module_cleanup;
 
   if(noit_register_module(m)) {
-    noitL(nlerr, "lua failed to register '%s' as a module\n", m->hdr.name);
+    mtevL(nlerr, "lua failed to register '%s' as a module\n", m->hdr.name);
     goto load_failed;
   }
-  return (noit_image_t *)m;
+  return (mtev_image_t *)m;
 }
 
 static int
-noit_lua_loader_config(noit_dso_loader_t *self, noit_hash_table *o) {
+noit_lua_loader_config(mtev_dso_loader_t *self, mtev_hash_table *o) {
   const char *dir = ".";
-  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &dir);
+  (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &dir);
   noit_lua_loader_set_directory(self, dir);
   return 0;
 }
 static int
-noit_lua_loader_onload(noit_image_t *self) {
+noit_lua_loader_onload(mtev_image_t *self) {
   loader_main_thread = pthread_self();
-  nlerr = noit_log_stream_find("error/lua");
-  nldeb = noit_log_stream_find("debug/lua");
+  nlerr = mtev_log_stream_find("error/lua");
+  nldeb = mtev_log_stream_find("debug/lua");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("lua/check_timeout", noit_lua_check_timeout);
@@ -1498,10 +1503,10 @@ noit_lua_loader_onload(noit_image_t *self) {
 }
 
 #include "lua.xmlh"
-noit_dso_loader_t lua = {
+mtev_dso_loader_t lua = {
   {
-    .magic = NOIT_LOADER_MAGIC,
-    .version = NOIT_LOADER_ABI_VERSION,
+    .magic = MTEV_LOADER_MAGIC,
+    .version = MTEV_LOADER_ABI_VERSION,
     .name = "lua",
     .description = "Lua check loader",
     .xml_description = lua_xml_description,

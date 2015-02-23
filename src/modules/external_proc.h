@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,10 +34,10 @@
 #ifndef MODULES_EXTERNAL_PROC_H
 #define MODULES_EXTERNAL_PROC_H
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_atomic.h"
-#include "utils/noit_hash.h"
+#include <mtev_defines.h>
+#include <eventer/eventer.h>
+#include <mtev_atomic.h>
+#include <mtev_hash.h>
 
 typedef enum {
   EXTERNAL_DEFAULT_TYPE = 0,
@@ -54,8 +55,8 @@ struct external_response {
   char *stderrbuff;
 };
 typedef struct {
-  noit_log_stream_t nlerr;
-  noit_log_stream_t nldeb;
+  mtev_log_stream_t nlerr;
+  mtev_log_stream_t nldeb;
   int child;
   int pipe_n2e[2];
   int pipe_e2n[2];
@@ -63,9 +64,9 @@ typedef struct {
   char* nagios_regex;
   external_special_t type;
   eventer_jobq_t *jobq;
-  noit_atomic64_t check_no_seq;
-  noit_hash_table external_checks;
-  noit_hash_table *options;
+  mtev_atomic64_t check_no_seq;
+  mtev_hash_table external_checks;
+  mtev_hash_table *options;
 
   struct external_response *cr;
 } external_data_t;

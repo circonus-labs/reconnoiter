@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
- * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -12,10 +11,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,26 +28,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NOIT_MAIN_H
-#define _NOIT_MAIN_H
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_console.h>
 
-typedef enum {
-  NOIT_LOCK_OP_NONE = 0,
-  NOIT_LOCK_OP_LOCK,
-  NOIT_LOCK_OP_WAIT
-} noit_lock_op_t;
-
-API_EXPORT(int)
-  noit_main(const char *appname,
-            const char *config_filename, int debug, int foreground,
-            noit_lock_op_t lock, const char *glider,
-            const char *drop_to_user, const char *drop_to_group,
-            int (*passed_child_main)(void));
-
-API_EXPORT(void)
-  noit_main_enable_log(const char *);
-
-API_EXPORT(void)
-  noit_main_disable_log(const char *);
-
-#endif
+static int noit_console_handler(eventer_t e, int mask, void *closure,
+                                struct timeval *now) {
+  return mtev_console_handler(e,mask,closure,now);
+}
+void noit_mtev_bridge_init() {
+  eventer_name_callback("noit_console", noit_console_handler);
+}

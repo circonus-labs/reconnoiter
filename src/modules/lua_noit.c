@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2010-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <assert.h>
 #include <math.h>
@@ -54,23 +55,26 @@
 #include <openssl/md5.h>
 #include <openssl/hmac.h>
 
-#include "noit_conf.h"
+#include <mtev_conf.h>
+#include <mtev_reverse_socket.h>
+#include <mtev_xml.h>
+#include <mtev_log.h>
+#include <mtev_str.h>
+#include <mtev_b32.h>
+#include <mtev_b64.h>
+#include <eventer/eventer.h>
+#include <mtev_json.h>
+
+#include "noit_config.h"
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_reverse_socket.h"
-#include "noit_xml.h"
-#include "utils/noit_log.h"
-#include "utils/noit_str.h"
-#include "utils/noit_b32.h"
-#include "utils/noit_b64.h"
-#include "eventer/eventer.h"
-#include "json-lib/json.h"
 #define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 #define DEFLATE_CHUNK_SIZE 32768
 #define ON_STACK_LUA_STRLEN 2048
@@ -134,11 +138,11 @@ inbuff_addlstring(struct nl_slcl *cl, const char *b, int l) {
   char *newbuf;
 
   if (cl->inbuff_len < 0 || l < 0) {
-    noitL(nldeb, "Invalid Argument: An argument was negative");
+    mtevL(nldeb, "Invalid Argument: An argument was negative");
     abort();
   }
   if (cl->inbuff_len + l < 0) {
-    noitL(nldeb, "Error: Addition Overflow");
+    mtevL(nldeb, "Error: Addition Overflow");
     abort();
   }
 
@@ -192,7 +196,7 @@ noit_lua_socket_connect_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -235,7 +239,7 @@ noit_lua_socket_recv_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -342,7 +346,7 @@ noit_lua_socket_send_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -595,7 +599,7 @@ noit_lua_socket_accept_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -708,7 +712,7 @@ noit_lua_socket_accept(lua_State *L) {
   ci = noit_lua_get_resume_info(L);
   assert(ci);
 
-  noitL(nldeb, "accept starting\n");
+  mtevL(nldeb, "accept starting\n");
   eptr = lua_touserdata(L, lua_upvalueindex(1));
   if(eptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
@@ -716,7 +720,7 @@ noit_lua_socket_accept(lua_State *L) {
   cl = e->closure;
 
   if(cl->L != L) {
-    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    mtevL(nlerr, "cross-coroutine socket call: use event:own()\n");
     luaL_error(L, "cross-coroutine socket call: use event:own()");
   }
 
@@ -728,10 +732,10 @@ noit_lua_socket_accept(lua_State *L) {
       e->callback = noit_lua_socket_accept_complete;
       e->mask = newmask | EVENTER_EXCEPTION;
       eventer_add(e);
-      noitL(nldeb, "accept rescheduled\n");
+      mtevL(nldeb, "accept rescheduled\n");
       return noit_lua_yield(ci, 0);
     }
-    noitL(nldeb, "accept error: %s\n", strerror(errno));
+    mtevL(nldeb, "accept error: %s\n", strerror(errno));
     lua_pushnil(L);
     return 1;
   }
@@ -843,7 +847,7 @@ noit_lua_socket_connect(lua_State *L) {
   target = lua_tostring(L, 2);
 
   if(target && !strncmp(target, "reverse:", 8)) {
-    int fd = noit_reverse_socket_connect(target+8, -1);
+    int fd = mtev_reverse_socket_connect(target+8, -1);
     if(fd < 0) {
       lua_pushinteger(L, -1);
       lua_pushfstring(L, "Reverse connection unavailable");
@@ -1060,7 +1064,7 @@ noit_lua_socket_read_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -1106,7 +1110,7 @@ noit_lua_socket_read(lua_State *L) {
   cl->read_terminator = NULL;
 
   if(cl->L != L) {
-    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    mtevL(nlerr, "cross-coroutine socket call: use event:own()\n");
     luaL_error(L, "cross-coroutine socket call: use event:own()");
   }
 
@@ -1171,7 +1175,7 @@ noit_lua_socket_write_complete(eventer_t e, int mask, void *vcl,
 
   /* If the pointer has been cleared, this has been gc'd */
   if(!*(cl->eptr)) {
-    noitL(nlerr, "noit.eventer callback post GC\n");
+    mtevL(nlerr, "noit.eventer callback post GC\n");
     return 0;
   }
 
@@ -1237,7 +1241,7 @@ noit_lua_socket_write(lua_State *L) {
   cl->outbuff = lua_tolstring(L, 2, &cl->write_goal);
 
   if(cl->L != L) {
-    noitL(nlerr, "cross-coroutine socket call: use event:own()\n");
+    mtevL(nlerr, "cross-coroutine socket call: use event:own()\n");
     luaL_error(L, "cross-coroutine socket call: use event:own()");
   }
 
@@ -1418,10 +1422,10 @@ nl_waitfor_notify(lua_State *L) {
     return 0;
   }
   key = lua_tostring(L, 1);
-  if(!noit_hash_retrieve(ci->lmc->pending, key, strlen(key), &vptr)) {
+  if(!mtev_hash_retrieve(ci->lmc->pending, key, strlen(key), &vptr)) {
     return 0;
   }
-  noit_hash_delete(ci->lmc->pending, key, strlen(key), free, NULL);
+  mtev_hash_delete(ci->lmc->pending, key, strlen(key), free, NULL);
   cl = vptr;
   lua_xmove(L, cl->L, nargs);
 
@@ -1444,7 +1448,7 @@ nl_waitfor_timeout(eventer_t e, int mask, void *vcl, struct timeval *now) {
   ci = noit_lua_get_resume_info(cl->L);
   assert(ci);
   noit_lua_check_deregister_event(ci, e, 0);
-  noit_hash_delete(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), free, NULL);
+  mtev_hash_delete(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), free, NULL);
   free(cl);
   ci->lmc->resume(ci, 0);
   return 0;
@@ -1473,7 +1477,7 @@ nl_waitfor(lua_State *L) {
   key = lua_tostring(L, 1);
   if(!key) luaL_error(L, "waitfor called without key");
   cl->inbuff = strdup(key);
-  if(!noit_hash_store(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), cl)) {
+  if(!mtev_hash_store(ci->lmc->pending, cl->inbuff, strlen(cl->inbuff), cl)) {
     nl_extended_free(cl);
     luaL_error(L, "waitfor called with duplicate key");
   }
@@ -1687,14 +1691,14 @@ static int
 nl_log_up(lua_State *L) {
   int i, n;
   const char *log_dest, *message;
-  noit_log_stream_t ls;
+  mtev_log_stream_t ls;
 
   if(lua_gettop(L) < 1) luaL_error(L, "bad call to noit.log");
 
   log_dest = lua_tostring(L, lua_upvalueindex(1));
-  ls = noit_log_stream_find(log_dest);
+  ls = mtev_log_stream_find(log_dest);
   if(!ls) {
-    noitL(noit_stderr, "Cannot find log stream: '%s'\n", log_dest);
+    mtevL(noit_stderr, "Cannot find log stream: '%s'\n", log_dest);
     return 0;
   }
 
@@ -1706,7 +1710,7 @@ nl_log_up(lua_State *L) {
     lua_pushvalue(L, i);
   lua_call(L, n, 1);
   message = lua_tostring(L, -1);
-  noitL(ls, "%s", message);
+  mtevL(ls, "%s", message);
   lua_pop(L, 1); /* formatted string */
   lua_pop(L, 1); /* "string" table */
   return 0;
@@ -1762,7 +1766,7 @@ nl_base32_decode(lua_State *L) {
     needs_free = 1;
   }
   if(!decoded) luaL_error(L, "out-of-memory");
-  decoded_len = noit_b32_decode(message, inlen, decoded, MAX(1,inlen));
+  decoded_len = mtev_b32_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
   if(needs_free) free(decoded);
   return 1;
@@ -1786,7 +1790,7 @@ nl_base32_encode(lua_State *L) {
     needs_free = 1;
   }
   if(!encoded) luaL_error(L, "out-of-memory");
-  encoded_len = noit_b32_encode(message, inlen, encoded, encoded_len);
+  encoded_len = mtev_b32_encode(message, inlen, encoded, encoded_len);
   lua_pushlstring(L, (char *)encoded, encoded_len);
   if(needs_free) free(encoded);
   return 1;
@@ -1809,7 +1813,7 @@ nl_base64_decode(lua_State *L) {
     needs_free = 1;
   }
   if(!decoded) luaL_error(L, "out-of-memory");
-  decoded_len = noit_b64_decode(message, inlen, decoded, MAX(1,inlen));
+  decoded_len = mtev_b64_decode(message, inlen, decoded, MAX(1,inlen));
   lua_pushlstring(L, (char *)decoded, decoded_len);
   if(needs_free) free(decoded);
   return 1;
@@ -1833,7 +1837,7 @@ nl_base64_encode(lua_State *L) {
     needs_free = 1;
   }
   if(!encoded) luaL_error(L, "out-of-memory");
-  encoded_len = noit_b64_encode(message, inlen, encoded, encoded_len);
+  encoded_len = mtev_b64_encode(message, inlen, encoded, encoded_len);
   lua_pushlstring(L, (char *)encoded, encoded_len);
   if(needs_free) free(encoded);
   return 1;
@@ -1925,7 +1929,7 @@ nl_hmac_sha1_encode(lua_State *L) {
   key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
 
   HMAC(EVP_sha1(), key, keylen, message, messagelen, result, &md_len);
-  encoded_len = noit_b64_encode(result, md_len, encoded, encoded_len);
+  encoded_len = mtev_b64_encode(result, md_len, encoded, encoded_len);
 
   lua_pushlstring(L, (char *)encoded, encoded_len);
 
@@ -1946,7 +1950,7 @@ nl_hmac_sha256_encode(lua_State *L) {
   key = (const unsigned char *)lua_tolstring(L, 2, &keylen);
 
   HMAC(EVP_sha256(), key, keylen, message, messagelen, result, &md_len);
-  encoded_len = noit_b64_encode(result, md_len, encoded, encoded_len);
+  encoded_len = mtev_b64_encode(result, md_len, encoded, encoded_len);
 
   lua_pushlstring(L, (char *)encoded, encoded_len);
 
@@ -2257,7 +2261,7 @@ noit_lua_pcre_match(lua_State *L) {
   }
   if(lua_gettop(L) > 1) {
     if(!lua_istable(L, 2)) {
-      noitL(nldeb, "pcre match called with second argument that is not a table\n");
+      mtevL(nldeb, "pcre match called with second argument that is not a table\n");
     }
     else {
       lua_pushstring(L, "limit");
@@ -2360,20 +2364,20 @@ nl_conf_get_string(lua_State *L) {
   char *val;
   const char *path = lua_tostring(L,1);
   if(path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section || !element) lua_pushboolean(L, 0);
     else {
-      noit_conf_set_string(section, element, lua_tostring(L,2));
+      mtev_conf_set_string(section, element, lua_tostring(L,2));
       lua_pushboolean(L, 1);
     }
     return 1;
   }
   if(path &&
-     noit_conf_get_string(NULL, path, &val)) {
+     mtev_conf_get_string(NULL, path, &val)) {
     lua_pushstring(L,val);
     free(val);
   }
@@ -2385,20 +2389,20 @@ nl_conf_get_integer(lua_State *L) {
   int val;
   const char *path = lua_tostring(L,1);
   if(path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section || !element) lua_pushboolean(L, 0);
     else {
-      noit_conf_set_string(section, element, lua_tostring(L,2));
+      mtev_conf_set_string(section, element, lua_tostring(L,2));
       lua_pushboolean(L, 1);
     }
     return 1;
   }
   if(path &&
-     noit_conf_get_int(NULL, path, &val)) {
+     mtev_conf_get_int(NULL, path, &val)) {
     lua_pushinteger(L,val);
   }
   else lua_pushnil(L);
@@ -2406,23 +2410,23 @@ nl_conf_get_integer(lua_State *L) {
 }
 static int
 nl_conf_get_boolean(lua_State *L) {
-  noit_boolean val;
+  mtev_boolean val;
   const char *path = lua_tostring(L,1);
   if(path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section || !element) lua_pushboolean(L, 0);
     else {
-      noit_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
+      mtev_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
       lua_pushboolean(L, 1);
     }
     return 1;
   }
   if(path &&
-     noit_conf_get_boolean(NULL, path, &val)) {
+     mtev_conf_get_boolean(NULL, path, &val)) {
     lua_pushboolean(L,val);
   }
   else lua_pushnil(L);
@@ -2433,20 +2437,20 @@ nl_conf_get_float(lua_State *L) {
   float val;
   const char *path = lua_tostring(L,1);
   if(path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section || !element) lua_pushboolean(L, 0);
     else {
-      noit_conf_set_string(section, element, lua_tostring(L,2));
+      mtev_conf_set_string(section, element, lua_tostring(L,2));
       lua_pushboolean(L, 1);
     }
     return 1;
   }
   if(path &&
-     noit_conf_get_float(NULL, path, &val)) {
+     mtev_conf_get_float(NULL, path, &val)) {
     lua_pushnumber(L,val);
   }
   else lua_pushnil(L);
@@ -2456,22 +2460,22 @@ static int
 nl_conf_replace_value(lua_State *L) {
   const char *path = lua_tostring(L,1);
   if (path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     if (!element) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    while (NULL != (section = noit_conf_get_section(NULL, path))) {
-      noit_conf_remove_section(section);
+    while (NULL != (section = mtev_conf_get_section(NULL, path))) {
+      mtev_conf_remove_section(section);
     }
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    noit_conf_set_string(section, element, lua_tostring(L,2));
+    mtev_conf_set_string(section, element, lua_tostring(L,2));
     lua_pushboolean(L, 1);
   }
   else lua_pushnil(L);
@@ -2481,22 +2485,22 @@ static int
 nl_conf_replace_boolean(lua_State *L) {
   const char *path = lua_tostring(L,1);
   if (path && lua_gettop(L) == 2) {
-    noit_conf_section_t section;
+    mtev_conf_section_t section;
     char *element, *base;
     SPLIT_PATH(path, base, element);
     if (!element) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    while (NULL != (section = noit_conf_get_section(NULL, path))) {
-      noit_conf_remove_section(section);
+    while (NULL != (section = mtev_conf_get_section(NULL, path))) {
+      mtev_conf_remove_section(section);
     }
-    section = noit_conf_get_section(NULL, base);
+    section = mtev_conf_get_section(NULL, base);
     if(!section) {
       lua_pushboolean(L, 0);
       return 1;
     }
-    noit_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
+    mtev_conf_set_string(section, element, lua_toboolean(L,2) ? "true" : "false");
     lua_pushboolean(L, 1);
   }
   else lua_pushnil(L);
@@ -2553,7 +2557,7 @@ noit_lua_xpath(lua_State *L) {
 
   xpi = (struct xpath_iter *)lua_newuserdata(L, sizeof(*xpi));
   xpi->ctxt = ctxt;
-  noit_conf_xml_errors_to_debug();
+  mtev_conf_xml_errors_to_debug();
   xpi->pobj = xmlXPathEval((xmlChar *)xpathexpr, xpi->ctxt);
   if(!xpi->pobj || xpi->pobj->type != XPATH_NODESET)
     xpi->cnt = 0;
@@ -2700,8 +2704,8 @@ noit_lua_xml_tostring(lua_State *L) {
   if(docptr != lua_touserdata(L, 1))
     luaL_error(L, "must be called as method");
   if(n != 1) luaL_error(L, "expects no arguments, got %d", n - 1);
-  noit_conf_xml_errors_to_debug();
-  xmlstring = noit_xmlSaveToBuffer(*docptr);
+  mtev_conf_xml_errors_to_debug();
+  xmlstring = mtev_xmlSaveToBuffer(*docptr);
   lua_pushstring(L, xmlstring);
   free(xmlstring);
   return 1;
@@ -2774,7 +2778,7 @@ nl_parsexml(lua_State *L) {
   if(lua_gettop(L) != 1) luaL_error(L, "parsexml requires one argument"); 
 
   in = lua_tolstring(L, 1, &inlen);
-  noit_conf_xml_errors_to_debug();
+  mtev_conf_xml_errors_to_debug();
   doc = xmlParseMemory(in, inlen);
   if(!doc) {
     lua_pushnil(L);
@@ -3040,13 +3044,13 @@ int nl_spawn(lua_State *L) {
   filea = (posix_spawn_file_actions_t *)alloca(sizeof(*filea));
   if(posix_spawn_file_actions_init(filea)) {
     spawn_info->last_errno = errno;
-    noitL(nlerr, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
+    mtevL(nlerr, "posix_spawn_file_actions_init -> %s\n", strerror(spawn_info->last_errno));
     goto err;
   }
 #define PIPE_SAFE(p, idx, tfd) do { \
   if(pipe(p) < 0) { \
     spawn_info->last_errno = errno; \
-    noitL(nlerr, "pipe -> %s\n", strerror(spawn_info->last_errno)); \
+    mtevL(nlerr, "pipe -> %s\n", strerror(spawn_info->last_errno)); \
     goto err; \
   } \
   posix_spawn_file_actions_adddup2(filea, p[idx], tfd); \
@@ -3061,14 +3065,14 @@ int nl_spawn(lua_State *L) {
   if(posix_spawnattr_init(attr)) {
     attr = NULL;
     spawn_info->last_errno = errno;
-    noitL(nlerr, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
+    mtevL(nlerr, "posix_spawnattr_init(%d) -> %s\n", errno, strerror(errno));
     goto err;
   }
   rv = posix_spawnp(&spawn_info->pid, path, filea, attr,
                    (char * const *)argv, (char * const *)envp);
   if(rv != 0) {
     spawn_info->last_errno = errno;
-    noitL(nlerr, "posix_spawn(%d) -> %s\n", errno, strerror(errno));
+    mtevL(nlerr, "posix_spawn(%d) -> %s\n", errno, strerror(errno));
     goto err;
   }
   /* Cleanup the parent half */
@@ -3096,7 +3100,7 @@ int nl_spawn(lua_State *L) {
   return 4;
 
  err:
-  noitL(nlerr, "nl_spawn -> %s\n", strerror(spawn_info->last_errno));
+  mtevL(nlerr, "nl_spawn -> %s\n", strerror(spawn_info->last_errno));
   if(in[0] != -1) close(in[0]);
   if(in[1] != -1) close(in[1]);
   if(out[0] != -1) close(out[0]);
@@ -3376,8 +3380,8 @@ void noit_lua_init() {
   eventer_name_callback("lua/socket_accept",
                         noit_lua_socket_accept_complete);
   eventer_name_callback("lua/ssl_upgrade", noit_lua_ssl_upgrade);
-  nlerr = noit_log_stream_find("error/lua");
-  nldeb = noit_log_stream_find("debug/lua");
+  nlerr = mtev_log_stream_find("error/lua");
+  nldeb = mtev_log_stream_find("debug/lua");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   noit_lua_init_dns();

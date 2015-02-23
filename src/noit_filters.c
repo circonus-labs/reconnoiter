@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,22 +31,24 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
-#include "utils/noit_hash.h"
-#include "utils/noit_atomic.h"
-#include "utils/noit_watchdog.h"
-#include "noit_conf.h"
+#include <mtev_hash.h>
+#include <mtev_atomic.h>
+#include <mtev_watchdog.h>
+#include <mtev_capabilities_listener.h>
+#include <mtev_conf.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_check.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
-#include "noit_capabilities_listener.h"
 
 #include <pcre.h>
 #include <assert.h>
 #include <libxml/tree.h>
 
-static noit_hash_table *filtersets = NULL;
+static mtev_hash_table *filtersets = NULL;
 static pthread_mutex_t filterset_lock;
 static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
@@ -57,28 +60,28 @@ typedef struct _filterrule {
   pcre *target_override;
   pcre *target;
   pcre_extra *target_e;
-  noit_hash_table *target_ht;
+  mtev_hash_table *target_ht;
   int target_auto_hash_max;
   pcre *module_override;
   pcre *module;
   pcre_extra *module_e;
-  noit_hash_table *module_ht;
+  mtev_hash_table *module_ht;
   int module_auto_hash_max;
   pcre *name_override;
   pcre *name;
   pcre_extra *name_e;
-  noit_hash_table *name_ht;
+  mtev_hash_table *name_ht;
   int name_auto_hash_max;
   pcre *metric_override;
   pcre *metric;
   pcre_extra *metric_e;
-  noit_hash_table *metric_ht;
+  mtev_hash_table *metric_ht;
   int metric_auto_hash_max;
   struct _filterrule *next;
 } filterrule_t;
 
 typedef struct {
-  noit_atomic32_t ref_cnt;
+  mtev_atomic32_t ref_cnt;
   char *name;
   filterrule_t *rules;
 } filterset_t;
@@ -87,7 +90,7 @@ typedef struct {
   if(r->a) pcre_free(r->a); \
   if(r->a##_e) pcre_free(r->a##_e); \
   if(r->a##_ht) { \
-    noit_hash_destroy(r->a##_ht, free, NULL); \
+    mtev_hash_destroy(r->a##_ht, free, NULL); \
     free(r->a##_ht); \
   } \
 } while(0)
@@ -105,8 +108,8 @@ static void
 filterset_free(void *vp) {
   filterset_t *fs = vp;
   filterrule_t *r;
-  if(noit_atomic_dec32(&fs->ref_cnt) != 0) return;
-  noitL(noit_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
+  if(mtev_atomic_dec32(&fs->ref_cnt) != 0) return;
+  mtevL(noit_debug, "Freeing filterset [%d]: %s\n", fs->ref_cnt, fs->name);
   while(fs->rules) {
     r = fs->rules->next;
     filterrule_free(fs->rules);
@@ -116,14 +119,14 @@ filterset_free(void *vp) {
   free(fs);
 }
 void
-noit_filter_compile_add(noit_conf_section_t setinfo) {
-  noit_conf_section_t *rules;
+noit_filter_compile_add(mtev_conf_section_t setinfo) {
+  mtev_conf_section_t *rules;
   int j, fcnt;
   char filterset_name[256];
   filterset_t *set;
-  if(!noit_conf_get_stringbuf(setinfo, "@name",
+  if(!mtev_conf_get_stringbuf(setinfo, "@name",
                               filterset_name, sizeof(filterset_name))) {
-    noitL(noit_error,
+    mtevL(noit_error,
           "filterset with no name, skipping as it cannot be referenced.\n");
     return;
   }
@@ -131,42 +134,42 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
   set->ref_cnt = 1;
   set->name = strdup(filterset_name);
 
-  rules = noit_conf_get_sections(setinfo, "rule", &fcnt);
+  rules = mtev_conf_get_sections(setinfo, "rule", &fcnt);
   /* Here we will work through the list backwards pushing the rules on
    * the front of the list.  That way we can simply walk them in order
    * for the application process.
    */
-  noitL(noit_debug, "Compiling filterset '%s'\n", set->name);
+  mtevL(noit_debug, "Compiling filterset '%s'\n", set->name);
   for(j=fcnt-1; j>=0; j--) {
     filterrule_t *rule;
     char buffer[256];
-    if(!noit_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
+    if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
        (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny"))) {
-      noitL(noit_error, "rule must have type 'accept' or 'allow' or 'deny'\n");
+      mtevL(noit_error, "rule must have type 'accept' or 'allow' or 'deny'\n");
       continue;
     }
-    noitL(noit_debug, "Prepending %s into %s\n", buffer, set->name);
+    mtevL(noit_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
     rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
                    NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
 
     /* Compile any hash tables, should they exist */
 #define HT_COMPILE(rname) do { \
-    noit_conf_section_t *htentries; \
+    mtev_conf_section_t *htentries; \
     int hte_cnt, hti, tablesize = 2, auto_max = 0; \
     char *htstr; \
-    htentries = noit_conf_get_sections(rules[j], #rname, &hte_cnt); \
-    noit_conf_get_int(rules[j], "@" #rname "_auto_add", &auto_max); \
+    htentries = mtev_conf_get_sections(rules[j], #rname, &hte_cnt); \
+    mtev_conf_get_int(rules[j], "@" #rname "_auto_add", &auto_max); \
     if(hte_cnt || auto_max > 0) { \
       rule->rname##_auto_hash_max = auto_max; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
       while(tablesize < hte_cnt) tablesize <<= 1; \
-      noit_hash_init_size(rule->rname##_ht, tablesize); \
+      mtev_hash_init_size(rule->rname##_ht, tablesize); \
       for(hti=0; hti<hte_cnt; hti++) { \
-        if(!noit_conf_get_string(htentries[hti], "self::node()", &htstr)) \
-          noitL(noit_error, "Error fetching text content from filter match.\n"); \
+        if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
+          mtevL(noit_error, "Error fetching text content from filter match.\n"); \
         else \
-          noit_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
+          mtev_hash_replace(rule->rname##_ht, htstr, strlen(htstr), NULL, free, NULL); \
       } \
     } \
     free(htentries); \
@@ -179,12 +182,12 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
     /* Compile our rules */
 #define RULE_COMPILE(rname) do { \
   char *longre = NULL; \
-  if(noit_conf_get_string(rules[j], "@" #rname, &longre)) { \
+  if(mtev_conf_get_string(rules[j], "@" #rname, &longre)) { \
     const char *error; \
     int erroffset; \
     rule->rname = pcre_compile(longre, 0, &error, &erroffset, NULL); \
     if(!rule->rname) { \
-      noitL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
+      mtevL(noit_debug, "set '%s' rule '%s: %s' compile failed: %s\n", \
             set->name, #rname, longre, error ? error : "???"); \
       rule->rname##_override = fallback_no_match; \
     } \
@@ -208,7 +211,7 @@ noit_filter_compile_add(noit_conf_section_t setinfo) {
   }
   free(rules);
   LOCKFS();
-  noit_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
+  mtev_hash_replace(filtersets, set->name, strlen(set->name), (void *)set,
                     NULL, filterset_free);
   UNLOCKFS();
 }
@@ -217,54 +220,54 @@ noit_filter_exists(const char *name) {
   int exists;
   void *v;
   LOCKFS();
-  exists = noit_hash_retrieve(filtersets, name, strlen(name), &v);
+  exists = mtev_hash_retrieve(filtersets, name, strlen(name), &v);
   UNLOCKFS();
   return exists;
 }
 int
-noit_filter_remove(noit_conf_section_t vnode) {
+noit_filter_remove(mtev_conf_section_t vnode) {
   int removed;
   char *name = (char *)xmlGetProp(vnode, (xmlChar *)"name");
   if(!name) return 0;
   LOCKFS();
-  removed = noit_hash_delete(filtersets, name, strlen(name),
+  removed = mtev_hash_delete(filtersets, name, strlen(name),
                              NULL, filterset_free);
   UNLOCKFS();
   return removed;
 }
 void
 noit_filters_from_conf() {
-  noit_conf_section_t *sets;
+  mtev_conf_section_t *sets;
   int i, cnt;
 
-  sets = noit_conf_get_sections(NULL, "/noit/filtersets//filterset", &cnt);
+  sets = mtev_conf_get_sections(NULL, "/noit/filtersets//filterset", &cnt);
   for(i=0; i<cnt; i++) {
-    noit_watchdog_child_heartbeat();
+    mtev_watchdog_child_heartbeat();
     noit_filter_compile_add(sets[i]);
   }
   free(sets);
 }
 
 void
-noit_refresh_filtersets(noit_console_closure_t ncct,
-                        noit_conf_t_userdata_t *info) {
+noit_refresh_filtersets(mtev_console_closure_t ncct,
+                        mtev_conf_t_userdata_t *info) {
   noit_filters_from_conf();
   nc_printf(ncct, "Reloaded %d filtersets.\n",
-            filtersets ? noit_hash_size(filtersets) : 0);
+            filtersets ? mtev_hash_size(filtersets) : 0);
 }
 
-static noit_boolean
-noit_apply_filterrule(noit_hash_table *m,
+static mtev_boolean
+noit_apply_filterrule(mtev_hash_table *m,
                       pcre *p, pcre_extra *pe, const char *subj) {
   int rc, ovector[30];
   if(m) {
     void *vptr;
-    return noit_hash_retrieve(m, subj, strlen(subj), &vptr);
+    return mtev_hash_retrieve(m, subj, strlen(subj), &vptr);
   }
-  if(!p) return noit_true;
+  if(!p) return mtev_true;
   rc = pcre_exec(p, pe, subj, strlen(subj), 0, 0, ovector, 30);
-  if(rc >= 0) return noit_true;
-  return noit_false;
+  if(rc >= 0) return mtev_true;
+  return mtev_false;
 }
 static int
 noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, const char *value) {
@@ -272,17 +275,17 @@ noit_filter_update_conf_rule(const char *fname, int idx, const char *rname, cons
   xmlNodePtr rulenode, child;
 
   snprintf(xpath, sizeof(xpath), "//filtersets/filterset[@name=\"%s\"]/rule[%d]", fname, idx);
-  rulenode = noit_conf_get_section(NULL, xpath);
+  rulenode = mtev_conf_get_section(NULL, xpath);
   if(!rulenode) return -1;
   child = xmlNewNode(NULL, (xmlChar *)rname);
   xmlNodeAddContent(child, (xmlChar *)value);
   xmlAddChild(rulenode, child);
   CONF_DIRTY(rulenode);
-  noit_conf_mark_changed();
-  noit_conf_request_write();
+  mtev_conf_mark_changed();
+  mtev_conf_request_write();
   return 0;
 }
-noit_boolean
+mtev_boolean
 noit_apply_filterset(const char *filterset,
                      noit_check_t *check,
                      metric_t *metric) {
@@ -290,15 +293,15 @@ noit_apply_filterset(const char *filterset,
    * a filterset other than check->filterset.. You never know.
    */
   void *vfs;
-  if(!filterset) return noit_true;   /* No filter */
-  if(!filtersets) return noit_false; /* Couldn't possibly match */
+  if(!filterset) return mtev_true;   /* No filter */
+  if(!filtersets) return mtev_false; /* Couldn't possibly match */
 
   LOCKFS();
-  if(noit_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
+  if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
     filterrule_t *r;
     int idx = 1;
-    noit_atomic_inc32(&fs->ref_cnt);
+    mtev_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
@@ -308,15 +311,15 @@ noit_apply_filterset(const char *filterset,
       need_name = !MATCHES(name, check->name);
       need_metric = !MATCHES(metric, metric->metric_name);
       if(!need_target && !need_module && !need_name && !need_metric) {
-        return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
+        return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
-#define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && noit_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
+#define CHECK_ADD(rname) (!need_##rname || (r->rname##_auto_hash_max > 0 && r->rname##_ht && mtev_hash_size(r->rname##_ht) < r->rname##_auto_hash_max))
       if(CHECK_ADD(target) && CHECK_ADD(module) && CHECK_ADD(name) && CHECK_ADD(metric)) {
 #define UPDATE_FILTER_RULE(rnum, rname, value) do { \
-  noit_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
+  mtev_hash_replace(r->rname##_ht, strdup(value), strlen(value), NULL, free, NULL); \
   if(noit_filter_update_conf_rule(fs->name, rnum, #rname, value) < 0) { \
-    noitL(noit_error, "Error updating configuration for new filter auto_add on %s=%s\n", #rname, value); \
+    mtevL(noit_error, "Error updating configuration for new filter auto_add on %s=%s\n", #rname, value); \
   } \
 } while(0)
         if(need_target) UPDATE_FILTER_RULE(idx, target, check->target);
@@ -324,27 +327,27 @@ noit_apply_filterset(const char *filterset,
         if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
         if(need_metric) UPDATE_FILTER_RULE(idx, metric, metric->metric_name);
         noit_filterset_log_auto_add(fs->name, check, metric, r->type == NOIT_FILTER_ACCEPT);
-        return (r->type == NOIT_FILTER_ACCEPT) ? noit_true : noit_false;
+        return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
       }
       idx++;
     }
     filterset_free(fs);
-    return noit_false;
+    return mtev_false;
   }
   UNLOCKFS();
-  return noit_false;
+  return mtev_false;
 }
 
 static char *
 conf_t_filterset_prompt(EditLine *el) {
-  noit_console_closure_t ncct;
-  noit_conf_t_userdata_t *info;
+  mtev_console_closure_t ncct;
+  mtev_conf_t_userdata_t *info;
   static char *tl = "noit(conf)# ";
   static char *pfmt = "noit(conf:filterset:%.*s%s)# ";
   int max_space, namelen;
   el_get(el, EL_USERDATA, (void *)&ncct);
   if(!ncct) return tl;
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) return tl;
   max_space = sizeof(info->prompt) - strlen(pfmt) + 6 - 1;
   namelen = strlen(info->filter_name);
@@ -358,39 +361,39 @@ conf_t_filterset_prompt(EditLine *el) {
 }
 
 static int
-noit_console_filter_show(noit_console_closure_t ncct,
+noit_console_filter_show(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *state,
+                         mtev_console_state_t *state,
                          void *closure) {
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   char xpath[1024];
   xmlNodePtr fsnode;
-  noit_conf_section_t *rules;
+  mtev_conf_section_t *rules;
   int i, rulecnt;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
-  fsnode = noit_conf_get_section(NULL, xpath);
+  fsnode = mtev_conf_get_section(NULL, xpath);
   if(!fsnode) {
     nc_printf(ncct, "internal error\n");
     return -1;
   }
-  rules = noit_conf_get_sections(fsnode, "rule", &rulecnt);
+  rules = mtev_conf_get_sections(fsnode, "rule", &rulecnt);
   for(i=0; i<rulecnt; i++) {
     char val[256];
     val[0] = '\0';
-    noit_conf_get_stringbuf(rules[i], "@type", val, sizeof(val));
+    mtev_conf_get_stringbuf(rules[i], "@type", val, sizeof(val));
     nc_printf(ncct, "Rule %d [%s]:\n", i+1, val);
 #define DUMP_ATTR(a) do { \
   char *vstr; \
-  noit_conf_section_t ht; \
+  mtev_conf_section_t ht; \
   int cnt; \
-  ht = noit_conf_get_sections(rules[i], #a, &cnt); \
+  ht = mtev_conf_get_sections(rules[i], #a, &cnt); \
   if(ht && cnt) { \
     nc_printf(ncct, "\t%s: hash match of %d items\n", #a, cnt); \
   } \
-  else if(noit_conf_get_string(rules[i], "@" #a, &vstr)) { \
+  else if(mtev_conf_get_string(rules[i], "@" #a, &vstr)) { \
     nc_printf(ncct, "\t%s: /%s/\n", #a, val); \
     free(vstr); \
   } \
@@ -405,18 +408,18 @@ noit_console_filter_show(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_console_rule_configure(noit_console_closure_t ncct,
+noit_console_rule_configure(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *state,
+                            mtev_console_state_t *state,
                             void *closure) {
   xmlNodePtr fsnode = NULL;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   char xpath[1024];
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   snprintf(xpath, sizeof(xpath), "/%s",
            info->path);
-  fsnode = noit_conf_get_section(NULL, xpath);
+  fsnode = mtev_conf_get_section(NULL, xpath);
   if(!fsnode) {
     nc_printf(ncct, "internal error");
     return -1;
@@ -431,7 +434,7 @@ noit_console_rule_configure(noit_console_closure_t ncct,
     }
     rulenum = atoi(argv[0]);
     snprintf(xpath, sizeof(xpath), "rule[%d]", rulenum);
-    byebye = noit_conf_get_section(fsnode, xpath);
+    byebye = mtev_conf_get_section(fsnode, xpath);
     if(!byebye) {
       nc_printf(ncct, "cannot find rule\n");
       return -1;
@@ -451,7 +454,7 @@ noit_console_rule_configure(noit_console_closure_t ncct,
     if(!strcmp(argv[0], "before") || !strcmp(argv[0], "after")) {
       int rulenum = atoi(argv[1]);
       snprintf(xpath, sizeof(xpath), "rule[%d]", rulenum);
-      add_arg = noit_conf_get_section(fsnode, xpath);
+      add_arg = mtev_conf_get_section(fsnode, xpath);
       if(!add_arg) {
         nc_printf(ncct, "%s rule not found\n", xpath);
         return -1;
@@ -481,21 +484,21 @@ noit_console_rule_configure(noit_console_closure_t ncct,
     for(i=0;i<argc;i+=2)
       xmlSetProp(new_rule, (xmlChar *)argv[i], (xmlChar *)argv[i+1]);
     add_func(add_arg, new_rule);
-    noit_filter_compile_add((noit_conf_section_t *)fsnode);
+    noit_filter_compile_add((mtev_conf_section_t *)fsnode);
   }
   return 0;
 }
 static int
-noit_console_filter_configure(noit_console_closure_t ncct,
+noit_console_filter_configure(mtev_console_closure_t ncct,
                               int argc, char **argv,
-                              noit_console_state_t *state,
+                              mtev_console_state_t *state,
                               void *closure) {
   xmlNodePtr parent, fsnode = NULL;
   int rv = -1;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   char xpath[1024];
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
     nc_printf(ncct, "internal error\n");
     goto cleanup;
@@ -511,13 +514,13 @@ noit_console_filter_configure(noit_console_closure_t ncct,
     goto cleanup;
   }
   snprintf(xpath, sizeof(xpath), "/%s", info->path);
-  parent = noit_conf_get_section(NULL, xpath);
+  parent = mtev_conf_get_section(NULL, xpath);
   if(!parent) {
     nc_printf(ncct, "internal error, can't final current working path\n");
     goto cleanup;
   }
   snprintf(xpath, sizeof(xpath), "filterset[@name=\"%s\"]", argv[0]);
-  fsnode = noit_conf_get_section(parent, xpath);
+  fsnode = mtev_conf_get_section(parent, xpath);
   if(closure) {
     int removed;
     removed = noit_filter_remove(fsnode);
@@ -535,7 +538,7 @@ noit_console_filter_configure(noit_console_closure_t ncct,
     void *vfs;
     nc_printf(ncct, "Cannot find filterset '%s'\n", argv[0]);
     LOCKFS();
-    if(noit_hash_retrieve(filtersets, argv[0], strlen(argv[0]), &vfs)) {
+    if(mtev_hash_retrieve(filtersets, argv[0], strlen(argv[0]), &vfs)) {
       UNLOCKFS();
       nc_printf(ncct, "filter of the same name already exists\n");
       goto cleanup;
@@ -556,8 +559,8 @@ noit_console_filter_configure(noit_console_closure_t ncct,
     free(xmlpath);
     strlcpy(info->filter_name, argv[0], sizeof(info->filter_name));
     if(state) {
-      noit_console_state_push_state(ncct, state);
-      noit_console_state_init(ncct);
+      mtev_console_state_push_state(ncct, state);
+      mtev_console_state_init(ncct);
     }
   }
  cleanup:
@@ -566,28 +569,28 @@ noit_console_filter_configure(noit_console_closure_t ncct,
 
 static int
 filterset_accum(noit_check_t *check, void *closure) {
-  noit_hash_table *active = closure;
+  mtev_hash_table *active = closure;
   if(!check->filterset) return 0;
-  if(noit_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
+  if(mtev_hash_delete(active, check->filterset, strlen(check->filterset), free, NULL))
     return 1;
   return 0;
 }
 
 int
 noit_filtersets_cull_unused() {
-  noit_hash_table active = NOIT_HASH_EMPTY;
+  mtev_hash_table active = MTEV_HASH_EMPTY;
   char *buffer = NULL;
-  noit_conf_section_t *declares;
+  mtev_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
   const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
 
-  declares = noit_conf_get_sections(NULL, declare_xpath, &n_declares);
+  declares = mtev_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {
     /* store all unit filtersets used */
     for(i=0;i<n_declares;i++) {
       if(!buffer) buffer = malloc(128);
-      if(noit_conf_get_stringbuf(declares[i], "@name", buffer, 128)) {
-        if(noit_hash_store(&active, buffer, strlen(buffer), declares[i])) {
+      if(mtev_conf_get_stringbuf(declares[i], "@name", buffer, 128)) {
+        if(mtev_hash_store(&active, buffer, strlen(buffer), declares[i])) {
           buffer = NULL;
         }
       }
@@ -598,12 +601,12 @@ noit_filtersets_cull_unused() {
 
   n_uses = noit_poller_do(filterset_accum, &active);
 
-  if(n_uses > 0 && noit_hash_size(&active) > 0) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  if(n_uses > 0 && mtev_hash_size(&active) > 0) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *filter_name;
     int filter_name_len;
     void *vnode;
-    while(noit_hash_next(&active, &iter, &filter_name, &filter_name_len,
+    while(mtev_hash_next(&active, &iter, &filter_name, &filter_name_len,
                          &vnode)) {
       if(noit_filter_remove(vnode)) {
         CONF_REMOVE(vnode);
@@ -614,19 +617,19 @@ noit_filtersets_cull_unused() {
     }
   }
 
-  noit_hash_destroy(&active, free, NULL);
+  mtev_hash_destroy(&active, free, NULL);
   return removed;
 }
 
 static int
-noit_console_filter_cull(noit_console_closure_t ncct,
+noit_console_filter_cull(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *state,
+                         mtev_console_state_t *state,
                          void *closure) {
   int rv = 0;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) {
     nc_printf(ncct, "internal error\n");
     return -1;
@@ -643,44 +646,44 @@ noit_console_filter_cull(noit_console_closure_t ncct,
 }
 static void
 register_console_filter_commands() {
-  noit_console_state_t *tl, *filterset_state, *nostate;
+  mtev_console_state_t *tl, *filterset_state, *nostate;
   cmd_info_t *confcmd, *conf_t_cmd, *no_cmd;
 
-  tl = noit_console_state_initial();
-  confcmd = noit_console_state_get_cmd(tl, "configure");
+  tl = mtev_console_state_initial();
+  confcmd = mtev_console_state_get_cmd(tl, "configure");
   assert(confcmd && confcmd->dstate);
 
-  conf_t_cmd = noit_console_state_get_cmd(confcmd->dstate, "terminal");
+  conf_t_cmd = mtev_console_state_get_cmd(confcmd->dstate, "terminal");
   assert(conf_t_cmd && conf_t_cmd->dstate);
 
-  nostate = noit_console_state_alloc();
-  noit_console_state_add_cmd(nostate,
+  nostate = mtev_console_state_alloc();
+  mtev_console_state_add_cmd(nostate,
     NCSCMD("rule", noit_console_rule_configure, NULL, NULL, (void *)1));
 
-  filterset_state = noit_console_state_alloc();
-  noit_console_state_add_cmd(filterset_state,
-    NCSCMD("exit", noit_console_config_cd, NULL, NULL, ".."));
-  noit_console_state_add_cmd(filterset_state,
+  filterset_state = mtev_console_state_alloc();
+  mtev_console_state_add_cmd(filterset_state,
+    NCSCMD("exit", mtev_console_config_cd, NULL, NULL, ".."));
+  mtev_console_state_add_cmd(filterset_state,
     NCSCMD("status", noit_console_filter_show, NULL, NULL, NULL));
-  noit_console_state_add_cmd(filterset_state,
+  mtev_console_state_add_cmd(filterset_state,
     NCSCMD("rule", noit_console_rule_configure, NULL, NULL, NULL));
-  noit_console_state_add_cmd(filterset_state,
-    NCSCMD("no", noit_console_state_delegate, noit_console_opt_delegate,
+  mtev_console_state_add_cmd(filterset_state,
+    NCSCMD("no", mtev_console_state_delegate, mtev_console_opt_delegate,
            nostate, NULL));
 
   filterset_state->console_prompt_function = conf_t_filterset_prompt;
 
-  noit_console_state_add_cmd(conf_t_cmd->dstate,
+  mtev_console_state_add_cmd(conf_t_cmd->dstate,
     NCSCMD("filterset", noit_console_filter_configure,
            NULL, filterset_state, NULL));
 
-  noit_console_state_add_cmd(conf_t_cmd->dstate,
+  mtev_console_state_add_cmd(conf_t_cmd->dstate,
     NCSCMD("cull", noit_console_filter_cull,
            NULL, NULL, NULL));
 
-  no_cmd = noit_console_state_get_cmd(conf_t_cmd->dstate, "no");
+  no_cmd = mtev_console_state_get_cmd(conf_t_cmd->dstate, "no");
   assert(no_cmd && no_cmd->dstate);
-  noit_console_state_add_cmd(no_cmd->dstate,
+  mtev_console_state_add_cmd(no_cmd->dstate,
     NCSCMD("filterset", noit_console_filter_configure, NULL, NULL, (void *)1));
 }
 
@@ -689,13 +692,13 @@ noit_filters_init() {
   const char *error;
   int erroffset;
   pthread_mutex_init(&filterset_lock, NULL);
-  filtersets = calloc(1, sizeof(noit_hash_table));
+  filtersets = calloc(1, sizeof(mtev_hash_table));
   fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
   if(!fallback_no_match) {
-    noitL(noit_error, "Filter initialization failed (nomatch filter)\n");
+    mtevL(noit_error, "Filter initialization failed (nomatch filter)\n");
     exit(-1);
   }
-  noit_capabilities_add_feature("filterset:hash", NULL);
+  mtev_capabilities_add_feature("filterset:hash", NULL);
   register_console_filter_commands();
   noit_filters_from_conf();
 }

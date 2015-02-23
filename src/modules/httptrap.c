@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2011-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -37,24 +38,25 @@
 #include <assert.h>
 #include <math.h>
 #include <ctype.h>
+#include <yajl/yajl_parse.h>
+
+#include <mtev_rest.h>
+#include <mtev_hash.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_rest.h"
-#include "yajl-lib/yajl_parse.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_mtev_bridge.h"
 
 #define DEFAULT_HTTPTRAP_DELIMITER '`'
 #define MAX_DEPTH 32
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 typedef struct _mod_config {
-  noit_hash_table *options;
-  noit_boolean asynch_metrics;
+  mtev_hash_table *options;
+  mtev_boolean asynch_metrics;
 } httptrap_mod_config_t;
 
 typedef struct httptrap_closure_s {
@@ -82,7 +84,7 @@ struct rest_json_payload {
   metric_type_t last_type;
   struct value_list *last_value;
   int cnt;
-  noit_boolean immediate;
+  mtev_boolean immediate;
 };
 
 #define NEW_LV(json,a) do { \
@@ -92,22 +94,22 @@ struct rest_json_payload {
   json->last_value = nlv; \
 } while(0)
 
-static noit_boolean
-noit_httptrap_check_aynsch(noit_module_t *self,
+static mtev_boolean
+mtev_httptrap_check_aynsch(noit_module_t *self,
                            noit_check_t *check) {
   const char *config_val;
   httptrap_mod_config_t *conf;
-  if(!self) return noit_true;
+  if(!self) return mtev_true;
   conf = noit_module_get_userdata(self);
-  if(!conf) return noit_true;
-  noit_boolean is_asynch = conf->asynch_metrics;
-  if(noit_hash_retr_str(check->config,
+  if(!conf) return mtev_true;
+  mtev_boolean is_asynch = conf->asynch_metrics;
+  if(mtev_hash_retr_str(check->config,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      is_asynch = noit_false;
+      is_asynch = mtev_false;
     else if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
-      is_asynch = noit_true;
+      is_asynch = mtev_true;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
@@ -259,7 +261,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
   json->depth--;
   if(json->saw_complex_type == 0x3) {
     long double total = 0, cnt = 0;
-    noit_boolean use_avg = noit_false;
+    mtev_boolean use_avg = mtev_false;
     for(p=json->last_value;p;p=p->next) {
       noit_stats_set_metric_coerce(json->check, json->stats,
           json->keys[json->depth], json->last_type, p->v);
@@ -270,7 +272,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
           json->last_type == 'n')) {
         total += strtold(p->v, NULL);
         cnt = cnt + 1;
-        use_avg = noit_true;
+        use_avg = mtev_true;
       }
       json->cnt++;
     }
@@ -372,21 +374,21 @@ rest_json_payload_free(void *f) {
 }
 
 static struct rest_json_payload *
-rest_get_json_upload(noit_http_rest_closure_t *restc,
+rest_get_json_upload(mtev_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_json_payload *rxc;
-  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
   httptrap_closure_t *ccl;
   int content_length;
   char buffer[32768];
 
-  content_length = noit_http_request_content_length(req);
+  content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
   ccl = rxc->check->closure;
-  rxc->immediate = noit_httptrap_check_aynsch(ccl->self, rxc->check);
+  rxc->immediate = mtev_httptrap_check_aynsch(ccl->self, rxc->check);
   while(!rxc->complete) {
     int len;
-    len = noit_http_session_req_consume(
+    len = mtev_http_session_req_consume(
             restc->http_ctx, buffer,
             MIN(content_length - rxc->len, sizeof(buffer)),
             sizeof(buffer),
@@ -409,8 +411,8 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    content_length = noit_http_request_content_length(req);
-    if((noit_http_request_payload_chunked(req) && len == 0) ||
+    content_length = mtev_http_request_content_length(req);
+    if((mtev_http_request_payload_chunked(req) && len == 0) ||
        (rxc->len == content_length)) {
       rxc->complete = 1;
       yajl_complete_parse(rxc->parser);
@@ -428,7 +430,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  noit_httptrap_check_aynsch(self, check);
+  mtev_httptrap_check_aynsch(self, check);
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t)); 
     memset(ccl, 0, sizeof(httptrap_closure_t));
@@ -444,7 +446,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%d,run=%d,stats=%d", check->stats.inprogress.duration,
              check->generation, ccl->stats_count);
-    noitL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
+    mtevL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
     check->stats.inprogress.available = (ccl->stats_count > 0) ?
@@ -465,13 +467,13 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
 static int
 push_payload_at_check(struct rest_json_payload *rxc) {
   httptrap_closure_t *ccl;
-  noit_boolean immediate;
+  mtev_boolean immediate;
   char key[256];
 
   if (!rxc->check || strcmp(rxc->check->module, "httptrap")) return 0;
   if (rxc->check->closure == NULL) return 0;
   ccl = rxc->check->closure;
-  immediate = noit_httptrap_check_aynsch(ccl->self,rxc->check);
+  immediate = mtev_httptrap_check_aynsch(ccl->self,rxc->check);
 
   /* do it here */
   ccl->stats_count = rxc->cnt;
@@ -479,12 +481,12 @@ push_payload_at_check(struct rest_json_payload *rxc) {
 }
 
 static int
-rest_httptrap_handler(noit_http_rest_closure_t *restc,
+rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   int mask, complete = 0, cnt;
   struct rest_json_payload *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   char json_out[128];
   noit_check_t *check;
   uuid_t check_id;
@@ -508,13 +510,13 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
       error = "no such httptrap check";
       goto error;
     }
-    (void)noit_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
+    (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
     if(!secret) secret = "";
     if(strcmp(pats[1], secret)) {
       error = "secret mismatch";
       goto error;
     }
-    (void)noit_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
+    (void)mtev_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
     if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
     ccl = check->closure;
@@ -535,8 +537,8 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
 
   /* flip threads */
   {
-    noit_http_connection *conn = noit_http_session_connection(ctx);
-    eventer_t e = noit_http_connection_event(conn);
+    mtev_http_connection *conn = mtev_http_session_connection(ctx);
+    eventer_t e = mtev_http_connection_event(conn);
     if(e) {
       pthread_t tgt = CHOOSE_EVENTER_THREAD_FOR_CHECK(rxc->check);
       if(!pthread_equal(e->thr_owner, tgt)) {
@@ -554,24 +556,24 @@ rest_httptrap_handler(noit_http_rest_closure_t *restc,
 
   cnt = push_payload_at_check(rxc);
 
-  noit_http_response_ok(ctx, "application/json");
+  mtev_http_response_ok(ctx, "application/json");
   snprintf(json_out, sizeof(json_out),
            "{ \"stats\": %d }", cnt);
-  noit_http_response_append(ctx, json_out, strlen(json_out));
-  noit_http_response_end(ctx);
+  mtev_http_response_append(ctx, json_out, strlen(json_out));
+  mtev_http_response_end(ctx);
   return 0;
 
  error:
-  noit_http_response_server_error(ctx, "application/json");
-  noit_http_response_append(ctx, "{ error: \"", 10);
+  mtev_http_response_server_error(ctx, "application/json");
+  mtev_http_response_append(ctx, "{ error: \"", 10);
   if(rxc && rxc->error) error = rxc->error;
-  noit_http_response_append(ctx, error, strlen(error));
-  noit_http_response_append(ctx, "\" }", 3);
-  noit_http_response_end(ctx);
+  mtev_http_response_append(ctx, error, strlen(error));
+  mtev_http_response_append(ctx, "\" }", 3);
+  mtev_http_response_end(ctx);
   return 0;
 }
 
-static int noit_httptrap_initiate_check(noit_module_t *self,
+static int mtev_httptrap_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
@@ -584,12 +586,12 @@ static int noit_httptrap_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_httptrap_config(noit_module_t *self, noit_hash_table *options) {
+static int mtev_httptrap_config(noit_module_t *self, mtev_hash_table *options) {
   httptrap_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
     if(conf->options) {
-      noit_hash_destroy(conf->options, free, free);
+      mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
@@ -600,34 +602,34 @@ static int noit_httptrap_config(noit_module_t *self, noit_hash_table *options) {
   return 1;
 }
 
-static int noit_httptrap_onload(noit_image_t *self) {
-  if(!nlerr) nlerr = noit_log_stream_find("error/httptrap");
-  if(!nldeb) nldeb = noit_log_stream_find("debug/httptrap");
+static int mtev_httptrap_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/httptrap");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/httptrap");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   return 0;
 }
 
-static int noit_httptrap_init(noit_module_t *self) {
+static int mtev_httptrap_init(noit_module_t *self) {
   const char *config_val;
   httptrap_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
 
-  conf->asynch_metrics = noit_true;
-  if(noit_hash_retr_str(conf->options,
+  conf->asynch_metrics = mtev_true;
+  if(mtev_hash_retr_str(conf->options,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      conf->asynch_metrics = noit_false;
+      conf->asynch_metrics = mtev_false;
   }
 
   noit_module_set_userdata(self, conf);
 
   /* register rest handler */
-  noit_http_rest_register("PUT", "/module/httptrap/",
+  mtev_http_rest_register("PUT", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_handler);
-  noit_http_rest_register("POST", "/module/httptrap/",
+  mtev_http_rest_register("POST", "/module/httptrap/",
                           "^(" UUID_REGEX ")/([^/]*).*$",
                           rest_httptrap_handler);
   return 0;
@@ -641,10 +643,10 @@ noit_module_t httptrap = {
     .name = "httptrap",
     .description = "httptrap collection",
     .xml_description = httptrap_xml_description,
-    .onload = noit_httptrap_onload
+    .onload = mtev_httptrap_onload
   },
-  noit_httptrap_config,
-  noit_httptrap_init,
-  noit_httptrap_initiate_check,
+  mtev_httptrap_config,
+  mtev_httptrap_init,
+  mtev_httptrap_initiate_check,
   NULL
 };

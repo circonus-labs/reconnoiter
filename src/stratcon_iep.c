@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,16 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
-#include "utils/noit_b64.h"
-#include "noit_jlog_listener.h"
-#include "stratcon_jlog_streamer.h"
-#include "stratcon_datastore.h"
-#include "stratcon_iep.h"
-#include "noit_conf.h"
-#include "noit_check.h"
+#include <mtev_defines.h>
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
@@ -56,12 +48,24 @@
 #include <errno.h>
 #include <assert.h>
 
-eventer_jobq_t iep_jobq;
-static noit_log_stream_t noit_iep = NULL;
-static noit_log_stream_t noit_iep_debug = NULL;
-static noit_spinlock_t iep_conn_cnt = 0;
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_b64.h>
+#include <mtev_conf.h>
 
-static noit_hash_table mq_drivers = NOIT_HASH_EMPTY;
+#include "noit_mtev_bridge.h"
+#include "noit_jlog_listener.h"
+#include "stratcon_jlog_streamer.h"
+#include "stratcon_datastore.h"
+#include "stratcon_iep.h"
+#include "noit_check.h"
+
+eventer_jobq_t iep_jobq;
+static mtev_log_stream_t noit_iep = NULL;
+static mtev_log_stream_t noit_iep_debug = NULL;
+static mtev_spinlock_t iep_conn_cnt = 0;
+
+static mtev_hash_table mq_drivers = MTEV_HASH_EMPTY;
 struct driver_thread_data {
   mq_driver_t *mq_driver;
   struct iep_thread_driver *driver_data;
@@ -69,7 +73,7 @@ struct driver_thread_data {
 struct driver_list {
   mq_driver_t *mq_driver;
   pthread_key_t iep_connection;
-  noit_conf_section_t section;
+  mtev_conf_section_t section;
   struct driver_list *next;
 } *drivers;
 
@@ -146,25 +150,25 @@ submit_statement_node(struct statement_node *stmt) {
     if(*cp == '\n') *cp = ' ';
     cp++;
   }
-  noitL(noit_iep, "submitting statement: %s\n", line);
+  mtevL(noit_iep, "submitting statement: %s\n", line);
   stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, line, NULL);
   stmt->marked = 1;
 }
 void stratcon_iep_submit_statements() {
   int i, cnt = 0;
-  noit_conf_section_t *statement_configs;
+  mtev_conf_section_t *statement_configs;
   char path[256];
   struct statement_node *stmt;
   void *vstmt;
-  noit_hash_table stmt_by_id = NOIT_HASH_EMPTY;
-  noit_hash_table stmt_by_provider = NOIT_HASH_EMPTY;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_table stmt_by_id = MTEV_HASH_EMPTY;
+  mtev_hash_table stmt_by_provider = MTEV_HASH_EMPTY;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, mgen = 0;
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
-  statement_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
+  statement_configs = mtev_conf_get_sections(NULL, path, &cnt);
+  mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
 
   /* Phase 1: sweep in all the statements */
   for(i=0; i<cnt; i++) {
@@ -172,34 +176,34 @@ void stratcon_iep_submit_statements() {
     char provides[256];
     char *statement;
 
-    if(!noit_conf_get_stringbuf(statement_configs[i],
+    if(!mtev_conf_get_stringbuf(statement_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
-      noitL(noit_iep, "No uuid specified in query\n");
+      mtevL(noit_iep, "No uuid specified in query\n");
       continue;
     }
-    if(!noit_conf_get_stringbuf(statement_configs[i],
+    if(!mtev_conf_get_stringbuf(statement_configs[i],
                                 "ancestor-or-self::node()/@provides",
                                 provides, sizeof(provides))) {
       provides[0] = '\0';
     }
-    if(!noit_conf_get_string(statement_configs[i], "self::node()/epl",
+    if(!mtev_conf_get_string(statement_configs[i], "self::node()/epl",
                              &statement)) {
-      noitL(noit_iep, "No contents specified in statement\n");
+      mtevL(noit_iep, "No contents specified in statement\n");
       continue;
     }
     stmt = calloc(1, sizeof(*stmt));
     stmt->id = strdup(id);
     stmt->statement = statement;
     stmt->provides = provides[0] ? strdup(provides) : NULL;
-    if(!noit_hash_store(&stmt_by_id, stmt->id, strlen(stmt->id), stmt)) {
-      noitL(noit_iep, "Duplicate statement id: %s\n", stmt->id);
+    if(!mtev_hash_store(&stmt_by_id, stmt->id, strlen(stmt->id), stmt)) {
+      mtevL(noit_iep, "Duplicate statement id: %s\n", stmt->id);
       exit(-1);
     }
     if(stmt->provides) {
-      if(!noit_hash_store(&stmt_by_provider, stmt->provides,
+      if(!mtev_hash_store(&stmt_by_provider, stmt->provides,
                           strlen(stmt->provides), stmt)) {
-        noitL(noit_iep, "Two statements provide: '%s'\n", stmt->provides);
+        mtevL(noit_iep, "Two statements provide: '%s'\n", stmt->provides);
         exit(-1);
       }
     }
@@ -210,32 +214,32 @@ void stratcon_iep_submit_statements() {
     char id[UUID_STR_LEN+1];
     int rcnt, j;
     char *requires;
-    noit_conf_section_t *reqs;
+    mtev_conf_section_t *reqs;
 
-    if(!noit_conf_get_stringbuf(statement_configs[i],
+    if(!mtev_conf_get_stringbuf(statement_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
-      noitL(noit_iep, "No uuid specified in query\n");
+      mtevL(noit_iep, "No uuid specified in query\n");
       continue;
     }
-    if(!noit_hash_retrieve(&stmt_by_id, id, strlen(id), &vstmt)) {
-      noitL(noit_iep, "Cannot find statement: %s\n", id);
+    if(!mtev_hash_retrieve(&stmt_by_id, id, strlen(id), &vstmt)) {
+      mtevL(noit_iep, "Cannot find statement: %s\n", id);
       exit(-1);
     }
     stmt = vstmt;
-    reqs = noit_conf_get_sections(statement_configs[i],
+    reqs = mtev_conf_get_sections(statement_configs[i],
                                   "self::node()/requires", &rcnt);
     if(rcnt > 0) {
       stmt->requires = malloc(rcnt * sizeof(*(stmt->requires)));
       for(j=0; j<rcnt; j++) {
         void *vrstmt;
-        if(!noit_conf_get_string(reqs[j], "self::node()",
+        if(!mtev_conf_get_string(reqs[j], "self::node()",
                                  &requires) || requires[0] == '\0') {
           continue;
         }
-        if(!noit_hash_retrieve(&stmt_by_provider, requires, strlen(requires),
+        if(!mtev_hash_retrieve(&stmt_by_provider, requires, strlen(requires),
                                &vrstmt)) {
-          noitL(noit_iep,
+          mtevL(noit_iep,
                 "Statement %s requires %s which no one provides.\n",
                 stmt->id, requires);
           exit(-1);
@@ -248,41 +252,41 @@ void stratcon_iep_submit_statements() {
   /* Phase 3: Recursive sweep and mark to detect cycles.
      We're walking the graph backwards here from dependent to provider,
      but a cycle is a cycle, so this validates the graph. */
-  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+  while(mtev_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
     stmt = vstmt;
     if(stmt_mark_dag(stmt, ++mgen) < 0) {
-      noitL(noit_iep, "Statement %s has a cyclic requirement\n", stmt->id);
+      mtevL(noit_iep, "Statement %s has a cyclic requirement\n", stmt->id);
       exit(-1);
     }
   }
 
   /* Phase 4: clean the markings */
   memset(&iter, 0, sizeof(iter));
-  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+  while(mtev_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
     stmt = vstmt;
     stmt->marked = 0;
   }
 
   /* Phase 5: do the load */
   memset(&iter, 0, sizeof(iter));
-  while(noit_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
+  while(mtev_hash_next(&stmt_by_id, &iter, &key, &klen, &vstmt)) {
     stmt = vstmt;
     submit_statement_node(stmt);
   }
 
-  noit_hash_destroy(&stmt_by_provider, NULL, NULL);
-  noit_hash_destroy(&stmt_by_id, NULL, statement_node_free);
+  mtev_hash_destroy(&stmt_by_provider, NULL, NULL);
+  mtev_hash_destroy(&stmt_by_id, NULL, statement_node_free);
   free(statement_configs);
 }
 
 void stratcon_iep_submit_queries() {
   int i, cnt = 0;
-  noit_conf_section_t *query_configs;
+  mtev_conf_section_t *query_configs;
   char path[256];
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//query");
-  query_configs = noit_conf_get_sections(NULL, path, &cnt);
-  noitL(noit_debug, "Found %d %s stanzas\n", cnt, path);
+  query_configs = mtev_conf_get_sections(NULL, path, &cnt);
+  mtevL(noit_debug, "Found %d %s stanzas\n", cnt, path);
   for(i=0; i<cnt; i++) {
     char id[UUID_STR_LEN+1];
     char topic[256];
@@ -290,21 +294,21 @@ void stratcon_iep_submit_queries() {
     char *line;
     int line_len;
 
-    if(!noit_conf_get_stringbuf(query_configs[i],
+    if(!mtev_conf_get_stringbuf(query_configs[i],
                                 "self::node()/@id",
                                 id, sizeof(id))) {
-      noitL(noit_iep, "No uuid specified in query\n");
+      mtevL(noit_iep, "No uuid specified in query\n");
       continue;
     }
-    if(!noit_conf_get_stringbuf(query_configs[i],
+    if(!mtev_conf_get_stringbuf(query_configs[i],
                                 "ancestor-or-self::node()/@topic",
                                 topic, sizeof(topic))) {
-      noitL(noit_iep, "No topic specified in query\n");
+      mtevL(noit_iep, "No topic specified in query\n");
       continue;
     }
-    if(!noit_conf_get_string(query_configs[i], "self::node()/epl",
+    if(!mtev_conf_get_string(query_configs[i], "self::node()/epl",
                              &query)) {
-      noitL(noit_iep, "No contents specified in query\n");
+      mtevL(noit_iep, "No contents specified in query\n");
       continue;
     }
     line_len = 4 /* 3 tabs + \0 */ +
@@ -351,7 +355,7 @@ connect_iep_driver(struct driver_list *d) {
 static int
 setup_iep_connection_callback(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
-  noit_spinlock_unlock(&iep_conn_cnt);
+  mtev_spinlock_unlock(&iep_conn_cnt);
   stratcon_iep_line_processor(DS_OP_INSERT, NULL, NULL, NULL, NULL);
   return 0;
 }
@@ -359,7 +363,7 @@ setup_iep_connection_callback(eventer_t e, int mask, void *closure,
 static void
 setup_iep_connection_later(int seconds) {
   eventer_t newe;
-  if(!noit_spinlock_trylock(&iep_conn_cnt)) return;
+  if(!mtev_spinlock_trylock(&iep_conn_cnt)) return;
   newe = eventer_alloc();
   gettimeofday(&newe->whence, NULL);
   newe->whence.tv_sec += seconds;
@@ -394,7 +398,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
      just quit. */
   sub_timeval(*now, job->start, &diff);
   if (diff.tv_sec >= 10) {
-    noitL(noit_debug, "Skipping event from %s - waiting in eventer for more than 10 seconds\n",
+    mtevL(noit_debug, "Skipping event from %s - waiting in eventer for more than 10 seconds\n",
                         job->remote ? job->remote : "(null)");
     return 0;
   }
@@ -402,7 +406,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
   if(!job->line || job->line[0] == '\0') return 0;
 
   if((age = stratcon_iep_age_from_line(job->line, *now)) > 60) {
-    noitL(noit_debug, "Skipping old event from %s, %f seconds old.\n",
+    mtevL(noit_debug, "Skipping old event from %s, %f seconds old.\n",
           job->remote ? job->remote : "(null)", age);
     return 0;
   }
@@ -425,7 +429,7 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     if(tls && tls->driver_data) {
       if(tls->mq_driver->submit(tls->driver_data, job->doc_str,
                                 line_len + remote_len + 1) != 0) {
-        noitL(noit_debug, "failed to MQ submit.\n");
+        mtevL(noit_debug, "failed to MQ submit.\n");
       }
     }
   }
@@ -529,10 +533,10 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
    read_error:
     kill(info->child, SIGKILL);
     if(waitpid(info->child, &rv, 0) != info->child) {
-      noitL(noit_iep, "Failed to reap IEP daemon\n");
+      mtevL(noit_iep, "Failed to reap IEP daemon\n");
       exit(-1);
     }
-    noitL(noit_iep, "IEP daemon is done, starting a new one\n");
+    mtevL(noit_iep, "IEP daemon is done, starting a new one\n");
     start_iep_daemon();
     eventer_remove_fd(e->fd);
     iep_daemon_info_free(info);
@@ -545,7 +549,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     if(len <= 0) goto read_error;
     assert(len < sizeof(buff));
     buff[len] = '\0';
-    noitL(noit_iep_debug, "%s", buff);
+    mtevL(noit_iep_debug, "%s", buff);
   }
 }
 
@@ -555,9 +559,9 @@ start_iep_daemon() {
   struct iep_daemon_info *info;
   char *cmd = NULL;
 
-  if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@command",
+  if(!mtev_conf_get_string(NULL, "/stratcon/iep/start/@command",
                            &cmd)) {
-    noitL(noit_iep, "No IEP start command provided.  You're on your own.\n");
+    mtevL(noit_iep, "No IEP start command provided.  You're on your own.\n");
     setup_iep_connection_later(0);
     return;
   }
@@ -567,27 +571,27 @@ start_iep_daemon() {
   info->stderr_pipe[0] = info->stderr_pipe[1] = -1;
   info->command = cmd;
 
-  if(!noit_conf_get_string(NULL, "/stratcon/iep/start/@directory",
+  if(!mtev_conf_get_string(NULL, "/stratcon/iep/start/@directory",
                            &info->directory))
     info->directory = strdup(".");
   if(pipe(info->stdin_pipe) != 0 ||
      pipe(info->stderr_pipe) != 0) {
-    noitL(noit_iep, "pipe: %s\n", strerror(errno));
+    mtevL(noit_iep, "pipe: %s\n", strerror(errno));
     goto bail;
   }
   info->child = fork();
   if(info->child == -1) {
-    noitL(noit_iep, "fork: %s\n", strerror(errno));
+    mtevL(noit_iep, "fork: %s\n", strerror(errno));
     goto bail;
   }
   if(info->child == 0) {
     char *argv[3] = { "run-iep", NULL, NULL };
     int stdout_fileno;
 
-    argv[1] = noit_conf_config_filename();
+    argv[1] = mtev_conf_config_filename();
 
     if(chdir(info->directory) != 0) {
-      noitL(noit_iep, "Starting IEP daemon, chdir failed: %s\n",
+      mtevL(noit_iep, "Starting IEP daemon, chdir failed: %s\n",
             strerror(errno));
       exit(-1);
     }
@@ -624,47 +628,47 @@ start_iep_daemon() {
 
  bail:
   iep_daemon_info_free(info);
-  noitL(noit_iep, "Failed to start IEP daemon\n");
+  mtevL(noit_iep, "Failed to start IEP daemon\n");
   exit(-1);
   return;
 }
 
 void
 stratcon_iep_mq_driver_register(const char *name, mq_driver_t *d) {
-  noit_hash_replace(&mq_drivers, strdup(name), strlen(name), d, free, NULL);
+  mtev_hash_replace(&mq_drivers, strdup(name), strlen(name), d, free, NULL);
 }
 
 void
 stratcon_iep_init() {
-  noit_conf_section_t *mqs;
+  mtev_conf_section_t *mqs;
   int i, cnt;
-  noit_boolean disabled = noit_false;
+  mtev_boolean disabled = mtev_false;
   char mq_type[128] = "stomp";
   struct driver_list *newdriver;
   void *vdriver;
 
-  noit_iep = noit_log_stream_find("error/iep");
-  noit_iep_debug = noit_log_stream_find("debug/iep");
+  noit_iep = mtev_log_stream_find("error/iep");
+  noit_iep_debug = mtev_log_stream_find("debug/iep");
   if(!noit_iep) noit_iep = noit_error;
   if(!noit_iep_debug) noit_iep_debug = noit_debug;
 
-  if(noit_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
-     disabled == noit_true) {
-    noitL(noit_iep, "IEP system is disabled!\n");
+  if(mtev_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
+     disabled == mtev_true) {
+    mtevL(noit_iep, "IEP system is disabled!\n");
     return;
   }
 
-  mqs = noit_conf_get_sections(NULL, "/stratcon/iep/mq", &cnt);
+  mqs = mtev_conf_get_sections(NULL, "/stratcon/iep/mq", &cnt);
   for(i=0; i<cnt; i++) {
-    if(!noit_conf_get_stringbuf(mqs[i], "@type",
+    if(!mtev_conf_get_stringbuf(mqs[i], "@type",
                                 mq_type, sizeof(mq_type))) {
-      noitL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");
+      mtevL(noit_iep, "You must specify an <mq type=\"...\"> that is valid.\n");
       exit(-2);
     }
-    if(!noit_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
+    if(!mtev_hash_retrieve(&mq_drivers, mq_type, strlen(mq_type), &vdriver) ||
        vdriver == NULL) {
-      noitL(noit_iep, "Cannot find MQ driver type: %s\n", mq_type);
-      noitL(noit_iep, "Did you forget to load a module?\n");
+      mtevL(noit_iep, "Cannot find MQ driver type: %s\n", mq_type);
+      mtevL(noit_iep, "Did you forget to load a module?\n");
       exit(-2);
     }
     newdriver = calloc(1, sizeof(*newdriver));

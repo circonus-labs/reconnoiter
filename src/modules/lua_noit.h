@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,27 +34,27 @@
 #ifndef LUA_NOIT_H
 #define LUA_NOIT_H
 
-#include "noit_defines.h"
-
-#include "noit_conf.h"
-#include "noit_module.h"
-#include "noit_check.h"
-#include "noit_check_tools.h"
-#include "noit_rest.h"
-#include "utils/noit_log.h"
+#include <mtev_defines.h>
 
 #include <assert.h>
 #include <openssl/x509.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
-#include "lua.h"
-#include "lauxlib.h"
-#include "lualib.h"
+#include <mtev_conf.h>
+#include <mtev_rest.h>
+#include <mtev_log.h>
+
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
 
 typedef struct noit_lua_resume_info noit_lua_resume_info_t;
 
 typedef struct lua_module_closure {
   lua_State *lua_state;
-  noit_hash_table *pending;
+  mtev_hash_table *pending;
   int (*resume)(noit_lua_resume_info_t *ci, int nargs);
   pthread_t owner;
 } lua_module_closure_t;
@@ -63,7 +64,7 @@ struct noit_lua_resume_info {
   lua_module_closure_t *lmc;
   lua_State *coro_state;
   int coro_state_ref;
-  noit_hash_table *events; /* Any eventers we need to cleanup */
+  mtev_hash_table *events; /* Any eventers we need to cleanup */
   int context_magic;
   void *context_data;
   noit_check_t *check; /* If this is null, we're in a daemonized coroutine */
@@ -82,7 +83,7 @@ typedef struct noit_lua_resume_check_info {
 #define LUA_CHECK_INFO_MAGIC 0x22113322
 
 typedef struct noit_lua_resume_rest_info {
-  noit_http_rest_closure_t *restc;
+  mtev_http_rest_closure_t *restc;
   char *err;
   int httpcode;
 } noit_lua_resume_rest_info_t;
@@ -130,8 +131,8 @@ void noit_lua_resume_clean_events(noit_lua_resume_info_t *ci);
 void noit_lua_pushmodule(lua_State *L, const char *m);
 int noit_lua_check_resume(noit_lua_resume_info_t *ri, int nargs);
 void noit_lua_init_dns();
-noit_hash_table *noit_lua_table_to_hash(lua_State *L, int idx);
-void noit_lua_hash_to_table(lua_State *L, noit_hash_table *t);
+mtev_hash_table *noit_lua_table_to_hash(lua_State *L, int idx);
+void noit_lua_hash_to_table(lua_State *L, mtev_hash_table *t);
 int noit_lua_dns_gc(lua_State *L);
 int noit_lua_dns_index_func(lua_State *L);
 int nl_dns_lookup(lua_State *L);

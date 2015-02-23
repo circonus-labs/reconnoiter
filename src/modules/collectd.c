@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Circonus, Inc.
+ * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
  * Copyright (c) 2005-2009  Florian Forster
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * Copyright (c) 2009, Dan Di Spaltro
@@ -22,8 +22,7 @@
  *
  */
 
-#include "noit_defines.h"
-#include "utils/noit_str.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -39,27 +38,29 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <yajl/yajl_parse.h>
+
+#include <mtev_str.h>
+#include <mtev_rest.h>
+#include <mtev_hash.h>
+#include <mtev_b64.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_rest.h"
-#include "yajl-lib/yajl_parse.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_b64.h"
+#include "noit_mtev_bridge.h"
 
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
-static noit_log_stream_t nldebp = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nldebp = NULL;
 static noit_module_t *global_collectd = NULL;
 
 typedef struct _mod_config {
-  noit_hash_table *options;
-  noit_hash_table target_sessions;
-  noit_boolean support_notifications;
-  noit_boolean asynch_metrics;
+  mtev_hash_table *options;
+  mtev_hash_table target_sessions;
+  mtev_boolean support_notifications;
+  mtev_boolean asynch_metrics;
   int ipv4_fd;
   int ipv6_fd;
 } collectd_mod_config_t;
@@ -403,17 +404,17 @@ static u_int64_t collectd_ntohll (u_int64_t n)
 
 #define ntohd(d) (d)
 
-static noit_boolean
+static mtev_boolean
 noit_collects_check_aynsch(noit_module_t *self,
                            noit_check_t *check) {
   const char *config_val;
   collectd_mod_config_t *conf = noit_module_get_userdata(self);
-  noit_boolean is_asynch = conf->asynch_metrics;
-  if(noit_hash_retr_str(check->config,
+  mtev_boolean is_asynch = conf->asynch_metrics;
+  if(mtev_hash_retr_str(check->config,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      is_asynch = noit_false;
+      is_asynch = mtev_false;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
@@ -454,7 +455,7 @@ static EVP_CIPHER_CTX* network_get_aes256_cypher (collectd_closure_t *ccl, /* {{
     success = EVP_DecryptInit(ctx_ptr, EVP_aes_256_ofb(), password_hash, iv);
     if (success != 1)
     {
-      noitL(nlerr, "collectd: EVP_DecryptInit returned: %d\n",
+      mtevL(nlerr, "collectd: EVP_DecryptInit returned: %d\n",
           success);
       return (NULL);
     }
@@ -481,7 +482,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < 15)
   {
-    noitL(nlerr,"collectd: packet is too short: "
+    mtevL(nlerr,"collectd: packet is too short: "
         "buffer_len = %zu\n", buffer_len);
     return (-1);
   }
@@ -504,7 +505,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
     + pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
   if (buffer_len < exp_size)
   {
-    noitL(nlerr, "collectd: parse_part_values: "
+    mtevL(nlerr, "collectd: parse_part_values: "
         "Packet too short: "
         "Chunk of size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -514,7 +515,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
 
   if (pkg_length != exp_size)
   {
-    noitL(nldeb, "collectd: parse_part_values: "
+    mtevL(nldeb, "collectd: parse_part_values: "
         "Length and number of values "
         "in the packet don't match.\n");
     return (-1);
@@ -526,7 +527,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
   {
     sfree (pkg_types);
     sfree (pkg_values);
-    noitL(nlerr, "collectd: parse_part_values: malloc failed.\n");
+    mtevL(nlerr, "collectd: parse_part_values: malloc failed.\n");
     return (-1);
   }
 
@@ -556,7 +557,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
         break;
 
       default:
-        noitL(nldeb, "collectd: parse_part_values: "
+        mtevL(nldeb, "collectd: parse_part_values: "
       "Don't know how to handle data source type %"PRIu8 "\n",
       pkg_types[i]);
         sfree (pkg_types);
@@ -589,7 +590,7 @@ static int parse_part_number (void **ret_buffer, size_t *ret_buffer_len,
 
   if ((size_t) buffer_len < exp_size)
   {
-    noitL(nlerr, "collectd: parse_part_number: "
+    mtevL(nlerr, "collectd: parse_part_number: "
         "Packet too short: "
         "Chunk of size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -627,7 +628,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
 
   if (buffer_len < header_size)
   {
-    noitL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string: "
         "Packet too short: "
         "Chunk of at least size %zu expected, "
         "but buffer has only %zu bytes left.\n",
@@ -645,7 +646,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   /* Check that packet fits in the input buffer */
   if (pkg_length > buffer_len)
   {
-    noitL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string: "
         "Packet too big: "
         "Chunk of size %"PRIu16" received, "
         "but buffer has only %zu bytes left.\n",
@@ -656,7 +657,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   /* Check that pkg_length is in the valid range */
   if (pkg_length <= header_size)
   {
-    noitL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string: "
         "Packet too short: "
         "Header claims this packet is only %hu "
         "bytes long.\n", pkg_length);
@@ -669,7 +670,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
   if ((output_len < 0)
       || ((size_t) output_len < ((size_t) pkg_length - header_size)))
   {
-    noitL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string: "
         "Output buffer too small.\n");
     return (-1);
   }
@@ -683,7 +684,7 @@ static int parse_part_string (void **ret_buffer, size_t *ret_buffer_len,
    * this statement. */
   if (output[output_len - 1] != 0)
   {
-    noitL(nlerr, "collectd: parse_part_string: "
+    mtevL(nlerr, "collectd: parse_part_string: "
         "Received string does not end "
         "with a NULL-byte.\n");
     return (-1);
@@ -733,14 +734,14 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
 
   if (ccl->username == NULL)
   {
-    noitL(nldeb, "collectd: Received signed network packet but can't verify "
+    mtevL(nldeb, "collectd: Received signed network packet but can't verify "
         "it because no user has been configured. Will accept it.\n");
     return (0);
   }
 
   if (ccl->secret == NULL)
   {
-    noitL(nldeb, "collectd: Received signed network packet but can't verify "
+    mtevL(nldeb, "collectd: Received signed network packet but can't verify "
         "it because no secret has been configured. Will accept it.\n");
     return (0);
   }
@@ -758,7 +759,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((pss_head_length <= PART_SIGNATURE_SHA256_SIZE)
       || (pss_head_length > buffer_len))
   {
-    noitL(nlerr, "collectd: HMAC-SHA-256 with invalid length received.\n");
+    mtevL(nlerr, "collectd: HMAC-SHA-256 with invalid length received.\n");
     return (-1);
   }
 
@@ -780,7 +781,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Match up the username with the expected username */
   if (strcmp(ccl->username, pss.username) != 0)
   {
-    noitL(nlerr, "collectd: User: %s and Given User: %s don't match\n", ccl->username, pss.username);
+    mtevL(nlerr, "collectd: User: %s and Given User: %s don't match\n", ccl->username, pss.username);
     sfree (pss.username);
     return (-ENOENT);
   }
@@ -792,7 +793,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
       hash,         &length);
   if (hash_ptr == NULL)
   {
-    noitL(nlerr, "collectd: Creating HMAC-SHA-256 object failed.\n");
+    mtevL(nlerr, "collectd: Creating HMAC-SHA-256 object failed.\n");
     sfree (pss.username);
     return (-1);
   }
@@ -802,7 +803,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
 
   if (memcmp (pss.hash, hash, sizeof (pss.hash)) != 0)
   {
-    noitL(nlerr, "collectd: Verifying HMAC-SHA-256 signature failed: "
+    mtevL(nlerr, "collectd: Verifying HMAC-SHA-256 signature failed: "
         "Hash mismatch.\n");
   }
   else
@@ -841,7 +842,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Make sure at least the header if available. */
   if (buffer_len <= PART_ENCRYPTION_AES256_SIZE)
   {
-    noitL(nldeb, "collectd: parse_part_encr_aes256: "
+    mtevL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding short packet.\n");
     return (-1);
   }
@@ -857,7 +858,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((part_size <= PART_ENCRYPTION_AES256_SIZE)
       || (part_size > buffer_len))
   {
-    noitL(nldeb, "collectd: parse_part_encr_aes256: "
+    mtevL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding part with invalid size.\n");
     return (-1);
   }
@@ -869,7 +870,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   if ((username_len <= 0)
       || (username_len > (part_size - (PART_ENCRYPTION_AES256_SIZE + 1))))
   {
-    noitL(nldeb, "collectd: parse_part_encr_aes256: "
+    mtevL(nldeb, "collectd: parse_part_encr_aes256: "
         "Discarding part with invalid username length.\n");
     return (-1);
   }
@@ -891,7 +892,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   /* Match up the username with the expected username */
   if (strcmp(ccl->username, pea.username) != 0)
   {
-    noitL(nlerr, "collectd: Username received and server side username don't match\n");
+    mtevL(nlerr, "collectd: Username received and server side username don't match\n");
     sfree (pea.username);
     return (-ENOENT);
   }
@@ -912,7 +913,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
       part_size - buffer_offset);
   if (err != 1)
   {
-    noitL(nlerr, "collectd: openssl returned: %d\n", err);
+    mtevL(nlerr, "collectd: openssl returned: %d\n", err);
     return (-1);
   }
 
@@ -935,7 +936,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   EVP_DigestFinal(&ctx_md, hash, &hash_length);
   if (memcmp (hash, pea.hash, sizeof (hash)) != 0)
   {
-    noitL(nlerr, "collectd: Decryption failed: Checksum mismatch.\n");
+    mtevL(nlerr, "collectd: Decryption failed: Checksum mismatch.\n");
     return (-1);
   }
 
@@ -1001,7 +1002,7 @@ static int parse_packet (/* {{{ */
           &buffer, &buffer_size, flags);
       if (status != 0)
       {
-        noitL(nlerr, "collectd: Decrypting AES256 "
+        mtevL(nlerr, "collectd: Decrypting AES256 "
             "part failed "
             "with status %i.\n", status);
         break;
@@ -1012,7 +1013,7 @@ static int parse_packet (/* {{{ */
     {
       if (printed_ignore_warning == 0)
       {
-        noitL(nldeb, "collectd: Unencrypted packet or "
+        mtevL(nldeb, "collectd: Unencrypted packet or "
             "part has been ignored.\n");
         printed_ignore_warning = 1;
       }
@@ -1025,7 +1026,7 @@ static int parse_packet (/* {{{ */
                                         &buffer, &buffer_size, flags);
       if (status != 0)
       {
-        noitL(nlerr, "collectd: Verifying HMAC-SHA-256 "
+        mtevL(nlerr, "collectd: Verifying HMAC-SHA-256 "
             "signature failed "
             "with status %i.\n", status);
         break;
@@ -1037,7 +1038,7 @@ static int parse_packet (/* {{{ */
     {
       if (printed_ignore_warning == 0)
       {
-        noitL(nldeb, "collectd: Unsigned packet or "
+        mtevL(nldeb, "collectd: Unsigned packet or "
             "part has been ignored.\n");
         printed_ignore_warning = 1;
       }
@@ -1060,7 +1061,7 @@ static int parse_packet (/* {{{ */
       }
       else
       {
-        noitL(nlerr,
+        mtevL(nlerr,
               "collectd: NOT dispatching values [%lld,%s:%s:%s]\n",
               (long long int)vl.time.tv_sec, vl.host, vl.plugin, vl.type);
       }
@@ -1158,7 +1159,7 @@ static int parse_packet (/* {{{ */
           && (n.severity != NOTIF_WARNING)
           && (n.severity != NOTIF_OKAY))
       {
-        noitL(nlerr, "collectd: "
+        mtevL(nlerr, "collectd: "
             "Ignoring notification with "
             "unknown severity %i.\n",
             n.severity);
@@ -1166,21 +1167,21 @@ static int parse_packet (/* {{{ */
 /* Time proves untrustworthy... and we don't use it.
       else if (n.time <= 0)
       {
-        noitL(nlerr, "collectd: "
+        mtevL(nlerr, "collectd: "
             "Ignoring notification with "
             "time == 0.\n");
       }
 */
       else if (strlen (n.message) <= 0)
       {
-        noitL(nlerr, "collectd: "
+        mtevL(nlerr, "collectd: "
             "Ignoring notification with "
             "an empty message.\n");
       }
       else
       {
         queue_notifications(ccl, self, check, &n);
-        noitL(nlerr, "collectd: "
+        mtevL(nlerr, "collectd: "
             "DISPATCH NOTIFICATION\n");
       }
     }
@@ -1194,7 +1195,7 @@ static int parse_packet (/* {{{ */
     }
     else
     {
-      noitL(nlerr, "collectd: parse_packet: Unknown part"
+      mtevL(nlerr, "collectd: parse_packet: Unknown part"
           " type: 0x%04hx\n", pkg_type);
       buffer = ((char *) buffer) + pkg_length;
     }
@@ -1230,7 +1231,7 @@ static int infer_type(char *buffer, int buffer_len, value_list_t *vl, int index)
     char buf[20];
     snprintf(buf, sizeof(buf), "%d", index);
     strcat(buffer, buf);
-    noitL(nldeb, "collectd: parsing multiple values" 
+    mtevL(nldeb, "collectd: parsing multiple values" 
         " and guessing on the type for plugin[%s] and type[%s]"
         , vl->plugin, vl->type);
   }
@@ -1257,7 +1258,7 @@ static void concat_metrics(char *buffer, char* plugin, char* plugin_inst, char* 
 static int queue_notifications(collectd_closure_t *ccl, 
       noit_module_t *self, noit_check_t *check, notification_t *n) {
   stats_t tmpstats;
-  noit_boolean immediate;
+  mtev_boolean immediate;
   char buffer[OVERSIZED_DATA_MAX_NAME_LEN*4 + 128];
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
@@ -1276,14 +1277,14 @@ static int queue_notifications(collectd_closure_t *ccl,
   if(immediate)
     noit_stats_log_immediate_metric(check, buffer, METRIC_STRING, n->message);
   noit_check_passive_set_stats(check, &tmpstats);
-  noitL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
+  mtevL(nldeb, "collectd: dispatch_notifications(%s, %s, %s)\n",check->target, buffer, n->message);
   return 0;
 }
 
 
 static int queue_values(collectd_closure_t *ccl,
       noit_module_t *self, noit_check_t *check, value_list_t *vl) {
-  noit_boolean immediate;
+  mtev_boolean immediate;
   char buffer[OVERSIZED_DATA_MAX_NAME_LEN*4 + 4 + 1 + 20];
   int i, len = 0;
 
@@ -1323,23 +1324,23 @@ static int queue_values(collectd_closure_t *ccl,
         break;
 
       default:
-        noitL(nldeb, "collectd: parse_part_values: "
+        mtevL(nldeb, "collectd: parse_part_values: "
               "Don't know how to handle data source type %"PRIu8 "\n",
               vl->types[i]);
         return (-1);
     } /* switch (value_types[i]) */
     ccl->stats_count++;
-    noitL(nldeb, "collectd: queue_values(%s, %s)\n", buffer, check->target);
+    mtevL(nldeb, "collectd: queue_values(%s, %s)\n", buffer, check->target);
   }
   return 0;
 }
 
 static int
 collectd_submit_internal(noit_module_t *self, noit_check_t *check,
-                         noit_check_t *cause, noit_boolean direct) {
+                         noit_check_t *cause, mtev_boolean direct) {
   collectd_closure_t *ccl;
   struct timeval now, duration, age;
-  noit_boolean immediate;
+  mtev_boolean immediate;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
@@ -1369,7 +1370,7 @@ collectd_submit_internal(noit_module_t *self, noit_check_t *check,
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%d,run=%d,stats=%d,ntfy=%d", check->stats.inprogress.duration, 
              check->generation, ccl->stats_count, ccl->ntfy_count);
-    noitL(nldeb, "collectd(%s) [%s]\n", check->target, human_buffer);
+    mtevL(nldeb, "collectd(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
     check->stats.inprogress.available = (ccl->ntfy_count > 0 || ccl->stats_count > 0) ? 
@@ -1390,7 +1391,7 @@ collectd_submit_internal(noit_module_t *self, noit_check_t *check,
 static int
 collectd_submit(noit_module_t *self, noit_check_t *check,
                 noit_check_t *cause) {
-  return collectd_submit_internal(self, check, cause, noit_false);
+  return collectd_submit_internal(self, check, cause, mtev_false);
 }
 
 struct collectd_pkt {
@@ -1420,42 +1421,42 @@ push_packet_at_check(noit_check_t *check, void *closure) {
   }
   // Default to NONE
   ccl->security_level = SECURITY_LEVEL_NONE;
-  if (noit_hash_retr_str(check->config, "security_level", strlen("security_level"),
+  if (mtev_hash_retr_str(check->config, "security_level", strlen("security_level"),
                          (const char**)&security_buffer) ||
-      noit_hash_retr_str(conf->options, "security_level", strlen("security_level"),
+      mtev_hash_retr_str(conf->options, "security_level", strlen("security_level"),
                          (const char**)&security_buffer))
   {
     ccl->security_level = atoi(security_buffer);
   }
 
   // Is this outside to keep updates happening?
-  if (!noit_hash_retr_str(check->config, "username", strlen("username"),
+  if (!mtev_hash_retr_str(check->config, "username", strlen("username"),
                          (const char**)&ccl->username) &&
-      !noit_hash_retr_str(conf->options, "username", strlen("username"),
+      !mtev_hash_retr_str(conf->options, "username", strlen("username"),
                          (const char**)&ccl->username)) 
   {
     if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
-      noitL(nlerr, "collectd: no username defined for check.\n");
+      mtevL(nlerr, "collectd: no username defined for check.\n");
       return 0;
     } else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
-      noitL(nlerr, "collectd: no username defined for check, "
+      mtevL(nlerr, "collectd: no username defined for check, "
           "will accept any signed packet.\n");
     }
   }
 
   if(!ccl->secret)
-    (void)noit_hash_retr_str(check->config, "secret", strlen("secret"),
+    (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"),
                        (const char**)&ccl->secret);
   if(!ccl->secret)
-    (void)noit_hash_retr_str(conf->options, "secret", strlen("secret"),
+    (void)mtev_hash_retr_str(conf->options, "secret", strlen("secret"),
                        (const char**)&ccl->secret);
   if(!ccl->secret) {
     if (ccl->security_level == SECURITY_LEVEL_ENCRYPT) {
-      noitL(nlerr, "collectd: no secret defined for check.\n");
+      mtevL(nlerr, "collectd: no secret defined for check.\n");
       return 0;
     }
     else if (ccl->security_level == SECURITY_LEVEL_SIGN) {
-      noitL(nlerr, "collectd: no secret defined for check, "
+      mtevL(nlerr, "collectd: no secret defined for check, "
           "will accept any signed packet.\n");
     }
   }
@@ -1490,23 +1491,23 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
 
     if(inlen < 0) {
       if(errno == EAGAIN || errno == EINTR) break;
-      noitLT(nlerr, now, "collectd: recvfrom: %s\n", strerror(errno));
+      mtevLT(nlerr, now, "collectd: recvfrom: %s\n", strerror(errno));
       break;
     }
     if (from_len == sizeof(remote.skaddr)) {
       if (!inet_ntop(AF_INET, &(remote.skaddr.sin_addr), ip_p, INET_ADDRSTRLEN)) {
-        noitLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
+        mtevLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
         break;
       }
     }
     else if(from_len == sizeof(remote.skaddr6)) {
       if (!inet_ntop(AF_INET6, &(remote.skaddr6.sin6_addr), ip_p, INET6_ADDRSTRLEN)) {
-        noitLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
+        mtevLT(nlerr, now, "collectd: inet_ntop failed: %s\n", strerror(errno));
         break;
       }
     }
     else {
-      noitLT(nlerr, now, "collectd: could not determine address family of remote\n");
+      mtevLT(nlerr, now, "collectd: could not determine address family of remote\n");
       break;
     }
 
@@ -1515,7 +1516,7 @@ static int noit_collectd_handler(eventer_t e, int mask, void *closure,
     pkt.len = inlen;
     check_cnt = noit_poller_target_ip_do(ip_p, push_packet_at_check ,&pkt);
     if(check_cnt == 0)
-      noitL(nlerr, "collectd: No defined check from ip [%s].\n", ip_p);
+      mtevL(nlerr, "collectd: No defined check from ip [%s].\n", ip_p);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -1531,14 +1532,14 @@ static int noit_collectd_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
+static int noit_collectd_config(noit_module_t *self, mtev_hash_table *options) {
   const char *istr;
   int len;
   collectd_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
     if(conf->options) {
-      noit_hash_destroy(conf->options, free, free);
+      mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
@@ -1548,7 +1549,7 @@ static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
 
   /* Set out sizes up optionally */
 #define SET_ATTR_LEN(attr, TGT_LEN) do { \
-  if(noit_hash_retr_str(conf->options, attr, strlen(attr), &istr)) { \
+  if(mtev_hash_retr_str(conf->options, attr, strlen(attr), &istr)) { \
     len = atoi(istr); \
     if(len < 64) len = 64; \
     if(len > 256) len = 256; \
@@ -1565,10 +1566,10 @@ static int noit_collectd_config(noit_module_t *self, noit_hash_table *options) {
   return 1;
 }
 
-static int noit_collectd_onload(noit_image_t *self) {
-  if(!nlerr) nlerr = noit_log_stream_find("error/collectd");
-  if(!nldeb) nldeb = noit_log_stream_find("debug/collectd");
-  if(!nldebp) nldebp = noit_log_stream_find("debug/collectd_yajl");
+static int noit_collectd_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/collectd");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/collectd");
+  if(!nldebp) nldebp = mtev_log_stream_find("debug/collectd_yajl");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_collectd/handler", noit_collectd_handler);
@@ -1653,14 +1654,14 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
   const char *user, *pass;
   struct rest_json_payload *json = rxc;
   collectd_closure_t *ccl;
-  noit_boolean immediate, needs_immediate = noit_false;
+  mtev_boolean immediate, needs_immediate = mtev_false;
   collectd_mod_config_t *conf = noit_module_get_userdata(global_collectd);
 
   if(strcmp(check->module, "collectd")) return 0;
-  if(!(noit_hash_retr_str(check->config, "secret", 6, &pass) ||
-       noit_hash_retr_str(conf->options, "secret", 6, &pass)) ||
-     !(noit_hash_retr_str(check->config, "username", 8, &user) ||
-       noit_hash_retr_str(conf->options, "username", 8, &user))) {
+  if(!(mtev_hash_retr_str(check->config, "secret", 6, &pass) ||
+       mtev_hash_retr_str(conf->options, "secret", 6, &pass)) ||
+     !(mtev_hash_retr_str(check->config, "username", 8, &user) ||
+       mtev_hash_retr_str(conf->options, "username", 8, &user))) {
     json->access_failures += json->o->nnames;
     return 0;
   }
@@ -1683,11 +1684,11 @@ int cd_object_on_check(noit_check_t *check, void *rxc) {
 
   for(i=0; i<json->o->nnames; i++) {
     metric_t *m = &json->o->metrics[i];
-    noitL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
+    mtevL(nldeb, "collectd(%s) -> %s\n", check->name, m->metric_name);
     noit_stats_set_metric(check, &check->stats.inprogress, m->metric_name,
                           m->metric_type, m->metric_value.vp);
     if(immediate) {
-      needs_immediate = noit_true;
+      needs_immediate = mtev_true;
       noit_stats_log_immediate_metric(check, m->metric_name,
                                       m->metric_type, m->metric_value.vp);
     }
@@ -1774,7 +1775,7 @@ rest_json_payload_free(void *f) {
 static int
 collectd_yajl_cb_null(void *ctx) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> null\n");
+  mtevL(nldebp, "-> null\n");
   switch(json->state) {
     case CD_OBJECT:
     case CD_DONTCARE:
@@ -1787,20 +1788,20 @@ collectd_yajl_cb_null(void *ctx) {
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl null in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl null in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
 collectd_yajl_cb_boolean(void *ctx, int boolVal) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> boolean(%s)\n", boolVal ? "true" : "false");
+  mtevL(nldebp, "-> boolean(%s)\n", boolVal ? "true" : "false");
   switch(json->state) {
     case CD_OBJECT:
     case CD_DONTCARE:
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl boolean in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl boolean in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
@@ -1811,7 +1812,7 @@ collectd_yajl_cb_number(void *ctx, const char * numberValu,
   if(numberLen > 127) return 0;
   memcpy(numberVal, numberValu, numberLen);
   numberVal[numberLen] = '\0';
-  noitL(nldebp, "-> number(%s)\n", numberVal);
+  mtevL(nldebp, "-> number(%s)\n", numberVal);
   switch(json->state) {
     case CD_OBJECT:
     case CD_DONTCARE: return 1;
@@ -1839,7 +1840,7 @@ collectd_yajl_cb_number(void *ctx, const char * numberValu,
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl number in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl number in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
@@ -1847,7 +1848,7 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
                         size_t stringLen) {
   char *stringVal = (char *)stringValu;
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> string(%.*s)\n", (int)stringLen, stringVal);
+  mtevL(nldebp, "-> string(%.*s)\n", (int)stringLen, stringVal);
   switch(json->state) {
     case CD_OBJECT:
     case CD_DONTCARE: return 1;
@@ -1863,7 +1864,7 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
       if(json->o->metrics[json->metric_idx].metric_name)
 	free(json->o->metrics[json->metric_idx].metric_name);
       json->o->metrics[json->metric_idx].metric_name =
-	noit__strndup(stringVal, stringLen);
+	mtev__strndup(stringVal, stringLen);
       json->metric_idx++;
       json->o->nnames = MAX(json->o->nnames, json->metric_idx);
       return 1;
@@ -1879,13 +1880,13 @@ collectd_yajl_cb_string(void *ctx, const unsigned char * stringValu,
     STRING_CASE(CD_TYPE_INST, type_instance, TYPE_INSTANCE_DATA_MAX_NAME_LEN);
     default: break;
   }
-  noitL(nldebp, "yajl string in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl string in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
 collectd_yajl_cb_start_map(void *ctx) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> start_map\n");
+  mtevL(nldebp, "-> start_map\n");
   switch(json->state) {
     case CD_LIST:
       json->state = CD_OBJECT;
@@ -1901,13 +1902,13 @@ collectd_yajl_cb_start_map(void *ctx) {
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl start_map in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl start_map in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
 collectd_yajl_cb_end_map(void *ctx) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> end_map\n");
+  mtevL(nldebp, "-> end_map\n");
   switch(json->state) {
     case CD_OBJECT:
       json->state = CD_LIST;
@@ -1927,13 +1928,13 @@ collectd_yajl_cb_end_map(void *ctx) {
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl end_map in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl end_map in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
 collectd_yajl_cb_start_array(void *ctx) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> start_array\n");
+  mtevL(nldebp, "-> start_array\n");
   switch(json->state) {
     case CD_NONE:
       json->state = CD_LIST;
@@ -1951,13 +1952,13 @@ collectd_yajl_cb_start_array(void *ctx) {
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl start_array in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl start_array in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
 collectd_yajl_cb_end_array(void *ctx) {
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> end_array\n");
+  mtevL(nldebp, "-> end_array\n");
   switch(json->state) {
     case CD_LIST: json->state = CD_NONE; return 1;
     case CD_DONTCARE:
@@ -1973,7 +1974,7 @@ collectd_yajl_cb_end_array(void *ctx) {
       return 1;
     default: break;
   }
-  noitL(nldebp, "yajl end_array in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl end_array in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static int
@@ -1981,7 +1982,7 @@ collectd_yajl_cb_map_key(void *ctx, const unsigned char * keyu,
                          size_t keyLen) {
   char *key = (char *)keyu;
   struct rest_json_payload *json = ctx;
-  noitL(nldebp, "-> map_key(%.*s)\n", (int)keyLen, key);
+  mtevL(nldebp, "-> map_key(%.*s)\n", (int)keyLen, key);
   if(json->state == CD_DONTCARE) return 1;
   if(json->state == CD_OBJECT) {
 #define MAP_NAME(str, st) \
@@ -1997,7 +1998,7 @@ collectd_yajl_cb_map_key(void *ctx, const unsigned char * keyu,
     else json->state = CD_OBJECT;
     return 1;
   }
-  noitL(nldebp, "yajl map_key in state %s\n", cd_state_name(json->state));
+  mtevL(nldebp, "yajl map_key in state %s\n", cd_state_name(json->state));
   return 0;
 }
 static yajl_callbacks collectd_yajl_callbacks = {
@@ -2013,18 +2014,18 @@ static yajl_callbacks collectd_yajl_callbacks = {
 };
 
 static struct rest_json_payload *
-rest_get_json_upload(noit_http_rest_closure_t *restc,
+rest_get_json_upload(mtev_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_json_payload *rxc;
-  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
   int content_length;
   char buffer[32768];
 
-  content_length = noit_http_request_content_length(req);
+  content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
   while(!rxc->complete) {
     int len;
-    len = noit_http_session_req_consume(
+    len = mtev_http_session_req_consume(
             restc->http_ctx, buffer,
             MIN(content_length - rxc->len, sizeof(buffer)),
             sizeof(buffer),
@@ -2047,8 +2048,8 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
       *complete = 1;
       return NULL;
     }
-    content_length = noit_http_request_content_length(req);
-    if((noit_http_request_payload_chunked(req) && len == 0) ||
+    content_length = mtev_http_request_content_length(req);
+    if((mtev_http_request_payload_chunked(req) && len == 0) ||
        (rxc->len == content_length)) {
       rxc->complete = 1;
       yajl_complete_parse(rxc->parser);
@@ -2060,15 +2061,15 @@ rest_get_json_upload(noit_http_rest_closure_t *restc,
 }
 
 static int
-rest_collectd_handler(noit_http_rest_closure_t *restc,
+rest_collectd_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   int mask, complete = 0, len;
   char json_out[128], *cp;
   struct rest_json_payload *rxc = NULL;
   const char *error = "internal error";
-  noit_http_session_ctx *ctx = restc->http_ctx;
-  noit_http_request *req;
-  noit_hash_table *hdrs;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_request *req;
+  mtev_hash_table *hdrs;
   const char *v;
 
   rxc = restc->call_closure;
@@ -2082,13 +2083,13 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
     yajl_config(rxc->parser, yajl_allow_partial_values, 1);
     restc->call_closure_free = rest_json_payload_free;
 
-    req = noit_http_session_request(ctx);
-    hdrs = noit_http_request_headers_table(req);
-    if(!noit_hash_retr_str(hdrs, "authorization", 13, &v)) goto unauth;
+    req = mtev_http_session_request(ctx);
+    hdrs = mtev_http_request_headers_table(req);
+    if(!mtev_hash_retr_str(hdrs, "authorization", 13, &v)) goto unauth;
   
     if(strncmp(v, "Basic ", 6)) goto unauth;
     rxc->user = strdup(v);
-    len = noit_b64_decode(v+6, strlen(v)-6,
+    len = mtev_b64_decode(v+6, strlen(v)-6,
                           (unsigned char *)rxc->user, strlen(v));
     if(len < 0) goto unauth;
   	rxc->user[len] = '\0';
@@ -2105,38 +2106,38 @@ rest_collectd_handler(noit_http_rest_closure_t *restc,
   if(rxc->immediate_checks) {
     struct check_list *p;
     for(p=rxc->immediate_checks;p;p=p->next) {
-      collectd_submit_internal(global_collectd, p->check, NULL, noit_true);
+      collectd_submit_internal(global_collectd, p->check, NULL, mtev_true);
     }
   }
   if(rxc->error) goto error;
 
-  noit_http_response_ok(ctx, "application/json");
+  mtev_http_response_ok(ctx, "application/json");
   snprintf(json_out, sizeof(json_out),
            "{ \"metrics\": %d, \"checks\": %d, \"misses\": %d, \"access_failures\": %d }",
 	   rxc->hits, rxc->nchecks, rxc->misses, rxc->access_failures);
-  noit_http_response_append(ctx, json_out, strlen(json_out));
-  noit_http_response_end(ctx);
+  mtev_http_response_append(ctx, json_out, strlen(json_out));
+  mtev_http_response_end(ctx);
   return 0;
 
  unauth:
-	noit_http_response_header_set(ctx, "WWW-Authenticate", "Basic realm=\"collectd\"");
-  noit_http_response_standard(ctx, 401, "AUTH", "text/plain");
-  noit_http_response_append(ctx, "Must Auth\r\n", strlen("Must Auth\r\n"));
-  noit_http_response_end(ctx);
+	mtev_http_response_header_set(ctx, "WWW-Authenticate", "Basic realm=\"collectd\"");
+  mtev_http_response_standard(ctx, 401, "AUTH", "text/plain");
+  mtev_http_response_append(ctx, "Must Auth\r\n", strlen("Must Auth\r\n"));
+  mtev_http_response_end(ctx);
   return 0;
 
  denied:
-  noit_http_response_denied(ctx, "text/plain");
-  noit_http_response_end(ctx);
+  mtev_http_response_denied(ctx, "text/plain");
+  mtev_http_response_end(ctx);
   return 0;
 
  error:
-  noit_http_response_server_error(ctx, "application/json");
-  noit_http_response_append(ctx, "{ error: \"", 10);
+  mtev_http_response_server_error(ctx, "application/json");
+  mtev_http_response_append(ctx, "{ error: \"", 10);
   if(rxc && rxc->error) error = rxc->error;
-  noit_http_response_append(ctx, error, strlen(error));
-  noit_http_response_append(ctx, "\" }", 3);
-  noit_http_response_end(ctx);
+  mtev_http_response_append(ctx, error, strlen(error));
+  mtev_http_response_append(ctx, "\" }", 3);
+  mtev_http_response_end(ctx);
   return 0;
 }
 
@@ -2154,30 +2155,30 @@ static int noit_collectd_init(noit_module_t *self) {
 
   if(global_collectd) return -1;
   memset(&in6addr_any, 0, sizeof(in6addr_any));
-  conf->support_notifications = noit_true;
-  if(noit_hash_retr_str(conf->options,
+  conf->support_notifications = mtev_true;
+  if(mtev_hash_retr_str(conf->options,
                         "notifications", strlen("notifications"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      conf->support_notifications = noit_false;
+      conf->support_notifications = mtev_false;
   }
-  conf->asynch_metrics = noit_true;
-  if(noit_hash_retr_str(conf->options,
+  conf->asynch_metrics = mtev_true;
+  if(mtev_hash_retr_str(conf->options,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      conf->asynch_metrics = noit_false;
+      conf->asynch_metrics = mtev_false;
   }
 
   /* Default Collectd port */
   portint = NET_DEFAULT_PORT;
-  if(noit_hash_retr_str(conf->options,
+  if(mtev_hash_retr_str(conf->options,
                          "collectd_port", strlen("collectd_port"),
                          (const char**)&config_val))
     portint = atoi(config_val);
 
 
-  if(!noit_hash_retr_str(conf->options,
+  if(!mtev_hash_retr_str(conf->options,
                          "collectd_host", strlen("collectd_host"),
                          (const char**)&host))
     host = "*";
@@ -2188,14 +2189,14 @@ static int noit_collectd_init(noit_module_t *self) {
 
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
-    noitL(nlerr, "collectd: socket failed: %s\n",
+    mtevL(nlerr, "collectd: socket failed: %s\n",
           strerror(errno));
   }
   else {
     if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
       close(conf->ipv4_fd);
       conf->ipv4_fd = -1;
-      noitL(nlerr,
+      mtevL(nlerr,
             "collectd: could not set socket non-blocking: %s\n",
             strerror(errno));
     }
@@ -2208,7 +2209,7 @@ static int noit_collectd_init(noit_module_t *self) {
   sockaddr_len = sizeof(skaddr);
   if(conf->ipv4_fd >= 0) {
     if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sockaddr_len) < 0) {
-      noitL(nlerr, "collectd: bind failed[%s]: %s\n", host, strerror(errno));
+      mtevL(nlerr, "collectd: bind failed[%s]: %s\n", host, strerror(errno));
       close(conf->ipv4_fd);
       conf->ipv4_fd = -1;
     }
@@ -2226,14 +2227,14 @@ static int noit_collectd_init(noit_module_t *self) {
 
   conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv6_fd < 0) {
-    noitL(nlerr, "collectd: IPv6 socket failed: %s\n",
+    mtevL(nlerr, "collectd: IPv6 socket failed: %s\n",
           strerror(errno));
   }
   else {
     if(eventer_set_fd_nonblocking(conf->ipv6_fd)) {
       close(conf->ipv6_fd);
       conf->ipv6_fd = -1;
-      noitL(nlerr,
+      mtevL(nlerr,
             "collectd: could not set socket non-blocking: %s\n",
                strerror(errno));
     }
@@ -2246,7 +2247,7 @@ static int noit_collectd_init(noit_module_t *self) {
 
   if(conf->ipv6_fd >= 0 &&
      bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sockaddr_len) < 0) {
-    noitL(nlerr, "collectd: bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
+    mtevL(nlerr, "collectd: bind(IPv6) failed[%s]: %s\n", host, strerror(errno));
     close(conf->ipv6_fd);
     conf->ipv6_fd = -1;
   }
@@ -2264,7 +2265,7 @@ static int noit_collectd_init(noit_module_t *self) {
   noit_module_set_userdata(self, conf);
 
   /* register rest handler */
-  noit_http_rest_register("POST", "/module/",
+  mtev_http_rest_register("POST", "/module/",
                           "^collectd/?(.*)$",
                           rest_collectd_handler);
   global_collectd = self;

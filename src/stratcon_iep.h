@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,14 +34,16 @@
 #ifndef _NOIT_STRATCON_IEP_H
 #define _NOIT_STRATCON_IEP_H
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_hash.h"
-#include "stratcon_datastore.h"
-#include "stratcon_jlog_streamer.h"
+#include <mtev_defines.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <eventer/eventer.h>
+#include <mtev_hash.h>
+
+#include "stratcon_datastore.h"
+#include "stratcon_jlog_streamer.h"
 
 API_EXPORT(void)
   stratcon_iep_init();
@@ -56,7 +59,7 @@ API_EXPORT(jlog_streamer_ctx_t *)
 typedef struct iep_thread_driver iep_thread_driver_t;
 
 typedef struct mq_driver {
-  iep_thread_driver_t *(*allocate)(noit_conf_section_t);
+  iep_thread_driver_t *(*allocate)(mtev_conf_section_t);
 
   int (*connect)(iep_thread_driver_t *driver);
   /* connect returns:

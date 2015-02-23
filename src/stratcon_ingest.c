@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007-2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,20 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
-#include "utils/noit_b64.h"
-#include "utils/noit_str.h"
-#include "utils/noit_mkdir.h"
-#include "utils/noit_getip.h"
-#include "stratcon_datastore.h"
-#include "stratcon_ingest.h"
-#include "stratcon_realtime_http.h"
-#include "stratcon_iep.h"
-#include "noit_conf.h"
-#include "noit_check.h"
-#include "noit_rest.h"
+#include <mtev_defines.h>
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -56,6 +44,21 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_b64.h>
+#include <mtev_str.h>
+#include <mtev_mkdir.h>
+#include <mtev_getip.h>
+#include <mtev_conf.h>
+#include <mtev_rest.h>
+
+#include "noit_mtev_bridge.h"
+#include "stratcon_datastore.h"
+#include "stratcon_ingest.h"
+#include "stratcon_realtime_http.h"
+#include "stratcon_iep.h"
+#include "noit_check.h"
 
 static void
 stratcon_ingest_sweep_journals_int(const char *base,

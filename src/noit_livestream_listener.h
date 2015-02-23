@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,7 +34,7 @@
 #ifndef _NOIT_LIVESTREAM_LISTENER_H
 #define _NOIT_LIVESTREAM_LISTENER_H
 
-#include "noit_defines.h"
+#include "mtev_defines.h"
 #include "eventer/eventer.h"
 
 #define NOIT_LIVESTREAM_DATA_FEED 0xfa57feed

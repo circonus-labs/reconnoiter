@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2013, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2013-2015, Circonus, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,13 +28,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "noit_http.h"
-#include "noit_rest.h"
+#include <mtev_defines.h>
+
+#include <assert.h>
+
+#include <mtev_dso.h>
+#include <mtev_http.h>
+#include <mtev_rest.h>
+
 #include "lua_noit.h"
 #include "lua_http.h"
-#include <assert.h>
 
 #define DEFAULT_MAX_POST_SIZE 1024*1024
 #define lua_web_driver_xml_description  ""
@@ -50,12 +52,12 @@ typedef struct lua_web_conf {
 } lua_web_conf_t;
 
 static lua_web_conf_t *the_one_conf = NULL;
-static lua_web_conf_t *get_config(noit_dso_generic_t *self) {
+static lua_web_conf_t *get_config(mtev_dso_generic_t *self) {
   if(the_one_conf) return the_one_conf;
-  the_one_conf = noit_image_get_userdata(&self->hdr);
+  the_one_conf = mtev_image_get_userdata(&self->hdr);
   if(the_one_conf) return the_one_conf;
   the_one_conf = calloc(1, sizeof(*the_one_conf));
-  noit_image_set_userdata(&self->hdr, the_one_conf);
+  mtev_image_set_userdata(&self->hdr, the_one_conf);
   return the_one_conf;
 }
 
@@ -74,21 +76,21 @@ rest_lua_ctx_free(void *cl) {
 }
 
 static int
-lua_web_restc_fastpath(noit_http_rest_closure_t *restc,
+lua_web_restc_fastpath(mtev_http_rest_closure_t *restc,
                        int npats, char **pats) {
   noit_lua_resume_info_t *ri = restc->call_closure;
-  noit_http_response *res = noit_http_session_response(restc->http_ctx);
+  mtev_http_response *res = mtev_http_session_response(restc->http_ctx);
   noit_lua_resume_rest_info_t *ctx = ri->context_data;
 
-  if(noit_http_response_complete(res) != noit_true) {
-    noit_http_response_standard(restc->http_ctx,
+  if(mtev_http_response_complete(res) != mtev_true) {
+    mtev_http_response_standard(restc->http_ctx,
                                 (ctx && ctx->httpcode) ? ctx->httpcode : 500,
                                 "ERROR", "text/html");
-    if(ctx->err) noit_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
-    noit_http_response_end(restc->http_ctx);
+    if(ctx->err) mtev_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
+    mtev_http_response_end(restc->http_ctx);
   }
 
-  noit_http_rest_clean_request(restc);
+  mtev_http_rest_clean_request(restc);
   return 0;
 }
 
@@ -97,8 +99,8 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
   noit_lua_resume_rest_info_t *ctx = ri->context_data;
-  noit_http_rest_closure_t *restc = ctx->restc;
-  eventer_t conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
+  mtev_http_rest_closure_t *restc = ctx->restc;
+  eventer_t conne = mtev_http_connection_event(mtev_http_session_connection(restc->http_ctx));
 
   assert(pthread_equal(pthread_self(), ri->bound_thread));
 
@@ -119,7 +121,7 @@ lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
       if(base>=0) {
         if(lua_isstring(ri->coro_state, base-1)) {
           err = lua_tostring(ri->coro_state, base-1);
-          noitL(noit_error, "err -> %s\n", err);
+          mtevL(mtev_error, "err -> %s\n", err);
           if(!ctx->err) ctx->err = strdup(err);
         }
       }
@@ -137,7 +139,7 @@ static void req_payload_free(void *d, int64_t s, void *c) {
   if(d) free(d);
 }
 static int
-lua_web_handler(noit_http_rest_closure_t *restc,
+lua_web_handler(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
   int status, base, rv, mask = 0;
   int complete = 0;
@@ -147,20 +149,20 @@ lua_web_handler(noit_http_rest_closure_t *restc,
   noit_lua_resume_rest_info_t *ctx = NULL;
   lua_State *L;
   eventer_t conne;
-  noit_http_request *req = noit_http_session_request(restc->http_ctx);
-  noit_http_response *res = noit_http_session_response(restc->http_ctx);
+  mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
+  mtev_http_response *res = mtev_http_session_response(restc->http_ctx);
 
   if(!lmc || !conf || !conf->dispatch) {
     goto boom;
   }
 
-  if(noit_http_request_get_upload(req, NULL) == NULL &&
-     noit_http_request_has_payload(req)) {
+  if(mtev_http_request_get_upload(req, NULL) == NULL &&
+     mtev_http_request_has_payload(req)) {
     const void *payload = NULL;
     int payload_len = 0;
     payload = rest_get_raw_upload(restc, &mask, &complete, &payload_len);
     if(!complete) return mask;
-    noit_http_request_set_upload(req, (char *)payload, (int64_t)payload_len,
+    mtev_http_request_set_upload(req, (char *)payload, (int64_t)payload_len,
                                  req_payload_free, NULL);
     restc->call_closure_free(restc->call_closure);
     restc->call_closure = NULL;
@@ -195,14 +197,14 @@ lua_web_handler(noit_http_rest_closure_t *restc,
   rv = lua_pcall(L, 1, 1, 0);
   if(rv) {
     int i;
-    noitL(noit_error, "lua: require %s failed\n", conf->dispatch);
+    mtevL(mtev_error, "lua: require %s failed\n", conf->dispatch);
     i = lua_gettop(L);
     if(i>0) {
       if(lua_isstring(L, i)) {
         const char *err;
         size_t len;
         err = lua_tolstring(L, i, &len);
-        noitL(noit_error, "lua: %s\n", err);
+        mtevL(mtev_error, "lua: %s\n", err);
       }
     }
     lua_pop(L,i);
@@ -226,49 +228,49 @@ lua_web_handler(noit_http_rest_closure_t *restc,
   noit_lua_setup_restc(L, restc);
   noit_lua_hash_to_table(L, restc->ac->config);
 
-  conne = noit_http_connection_event(noit_http_session_connection(restc->http_ctx));
+  conne = mtev_http_connection_event(mtev_http_session_connection(restc->http_ctx));
   eventer_remove(conne);
   restc->fastpath = lua_web_restc_fastpath;
 
   status = lmc->resume(ri, 2);
   if(status == 0) return 0;
 
-  if(noit_http_response_complete(res) != noit_true) {
+  if(mtev_http_response_complete(res) != mtev_true) {
  boom:
-    noit_http_response_standard(restc->http_ctx,
+    mtev_http_response_standard(restc->http_ctx,
                                 (ctx && ctx->httpcode) ? ctx->httpcode : 500,
                                 "ERROR", "text/plain");
-    if(ctx && ctx->err) noit_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
-    noit_http_response_end(restc->http_ctx);
+    if(ctx && ctx->err) mtev_http_response_append(restc->http_ctx, ctx->err, strlen(ctx->err));
+    mtev_http_response_end(restc->http_ctx);
   }
   return 0;
 }
 
 static int
-noit_lua_web_driver_onload(noit_image_t *self) {
+noit_lua_web_driver_onload(mtev_image_t *self) {
   return 0;
 }
 
 static int
-noit_lua_web_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
+noit_lua_web_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   lua_web_conf_t *conf = get_config(self);
   conf->script_dir = "";
   conf->dispatch = NULL;
-  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
+  (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
-  (void)noit_hash_retr_str(o, "dispatch", strlen("dispatch"), &conf->dispatch);
+  (void)mtev_hash_retr_str(o, "dispatch", strlen("dispatch"), &conf->dispatch);
   if(conf->dispatch) conf->dispatch = strdup(conf->dispatch);
   conf->max_post_size = DEFAULT_MAX_POST_SIZE;
   return 0;
 }
 
-static noit_hook_return_t late_stage_rest_register(void *cl) {
-  assert(noit_http_rest_register("GET", "/", "(.*)$", lua_web_handler) == 0);
-  assert(noit_http_rest_register("POST", "/", "(.*)$", lua_web_handler) == 0);
-  return NOIT_HOOK_CONTINUE;
+static mtev_hook_return_t late_stage_rest_register(void *cl) {
+  assert(mtev_http_rest_register("GET", "/", "(.*)$", lua_web_handler) == 0);
+  assert(mtev_http_rest_register("POST", "/", "(.*)$", lua_web_handler) == 0);
+  return MTEV_HOOK_CONTINUE;
 }
 static int
-noit_lua_web_driver_init(noit_dso_generic_t *self) {
+noit_lua_web_driver_init(mtev_dso_generic_t *self) {
   lua_web_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
   lmc->resume = lua_web_resume;
@@ -280,10 +282,10 @@ noit_lua_web_driver_init(noit_dso_generic_t *self) {
   return 0;
 }
 
-noit_dso_generic_t lua_web = {
+mtev_dso_generic_t lua_web = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "lua_web",
     .description = "web services in lua",
     .xml_description = lua_web_driver_xml_description,

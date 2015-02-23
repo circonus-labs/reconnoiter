@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2012-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,26 +27,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "noit_defines.h"
+
+#include <mtev_defines.h>
+
 #include <assert.h>
-#include "utils/noit_b64.h"
-#include "histogram_impl.h"
+
+#include <mtev_log.h>
+#include <mtev_b64.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
+#include "histogram_impl.h"
 
-static noit_log_stream_t metrics_log = NULL;
+static mtev_log_stream_t metrics_log = NULL;
 static int histogram_module_id = -1;
 
 static int
-histogram_onload(noit_image_t *self) {
+histogram_onload(mtev_image_t *self) {
   histogram_module_id = noit_check_register_module("histogram");
   if(histogram_module_id < 0) return -1;
   return 0;
 }
 
 static int
-histogram_config(noit_dso_generic_t *self, noit_hash_table *o) {
+histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 
@@ -67,15 +72,15 @@ debug_print_hist(histogram_t *ht) {
       u_int64_t cnt;
       double v;
       hist_bucket_idx(ht, i, &v, &cnt);
-      noitL(noit_debug, "  %7.2g : %llu\n", v, cnt);
+      mtevL(noit_debug, "  %7.2g : %llu\n", v, cnt);
     }
   }
 }
 static void
 log_histo(noit_check_t *check, u_int64_t whence_s,
           const char *metric_name, histogram_t *h,
-          noit_boolean live_feed) {
-  noit_boolean extended_id = noit_false;
+          mtev_boolean live_feed) {
+  mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
   char *hist_serial = NULL;
@@ -87,8 +92,8 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
 
   SETUP_LOG(metrics, );
   if(metrics_log) {
-    v = noit_log_stream_get_property(metrics_log, "extended_id");
-    if(v && !strcmp(v, "on")) extended_id = noit_true;
+    v = mtev_log_stream_get_property(metrics_log, "extended_id");
+    if(v && !strcmp(v, "on")) extended_id = mtev_true;
   }
   uuid_str[0] = '\0';
   if(extended_id) {
@@ -107,35 +112,35 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
   est = hist_serialize_estimate(h);
   hist_serial = malloc(est);
   if(!hist_serial) {
-    noitL(noit_error, "malloc(%d) failed\n", (int)est);
+    mtevL(noit_error, "malloc(%d) failed\n", (int)est);
     goto cleanup;
   }
   enc_est = ((est + 2)/3)*4;
   hist_encode = malloc(enc_est);
   if(!hist_encode) {
-    noitL(noit_error, "malloc(%d) failed\n", (int)enc_est);
+    mtevL(noit_error, "malloc(%d) failed\n", (int)enc_est);
     goto cleanup;
   }
   if(hist_serialize(h, hist_serial, est) != est) {
-    noitL(noit_error, "histogram serialization failure\n");
+    mtevL(noit_error, "histogram serialization failure\n");
     goto cleanup;
   }
-  enc_est = noit_b64_encode((unsigned char *)hist_serial, est,
+  enc_est = mtev_b64_encode((unsigned char *)hist_serial, est,
                             hist_encode, enc_est);
   if(enc_est < 0) {
-    noitL(noit_error, "base64 histogram encoding failure\n");
+    mtevL(noit_error, "base64 histogram encoding failure\n");
     goto cleanup;
   }
 
   if(live_feed && check->feeds) {
-    noit_skiplist_node *curr, *next;
-    curr = next = noit_skiplist_getlist(check->feeds);
+    mtev_skiplist_node *curr, *next;
+    curr = next = mtev_skiplist_getlist(check->feeds);
     while(curr) {
       const char *feed_name = (char *)curr->data;
-      noit_log_stream_t ls = noit_log_stream_find(feed_name);
-      noit_skiplist_next(check->feeds, &next);
+      mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
+      mtev_skiplist_next(check->feeds, &next);
       if(!ls ||
-         noit_log(ls, &whence, __FILE__, __LINE__,
+         mtev_log(ls, &whence, __FILE__, __LINE__,
            "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
            SECPART(&whence), MSECPART(&whence),
            uuid_str, metric_name, (int)enc_est, hist_encode))
@@ -146,7 +151,7 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
 
   if(!live_feed) {
     SETUP_LOG(metrics, goto cleanup);
-    noit_log(metrics_log, &whence, __FILE__, __LINE__,
+    mtev_log(metrics_log, &whence, __FILE__, __LINE__,
              "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
              SECPART(&whence), MSECPART(&whence),
              uuid_str, metric_name, (int)enc_est, hist_encode);
@@ -192,7 +197,7 @@ sweep_roll_n_log(noit_check_t *check, histotier *ht, const char *name) {
   }
 
   /* push this out to the log streams */
-  log_histo(check, aligned_seconds, name, tgt, noit_false);
+  log_histo(check, aligned_seconds, name, tgt, mtev_false);
   debug_print_hist(tgt);
 
   /* drop the tgt, it's ours */
@@ -248,7 +253,7 @@ update_histotier(histotier *ht, u_int64_t s, noit_check_t *check,
     last_bucket = last_second % 10;
     if(ht->secs[last_bucket] && hist_num_buckets(ht->secs[last_bucket]))
       log_histo(check, last_minute * 60 + last_second,
-                name, ht->secs[last_bucket], noit_true);
+                name, ht->secs[last_bucket], mtev_true);
   }
   if(minute > ht->last_minute) {
     sweep_roll_n_log(check, ht, name);
@@ -275,23 +280,23 @@ static void free_histotier(void *vht) {
     if(ht->tensecs[i]) hist_free(ht->tensecs[i]);
 }
 static void free_hash_o_histotier(void *vh) {
-  noit_hash_table *h = vh;
-  noit_hash_destroy(h, free, free_histotier);
+  mtev_hash_table *h = vh;
+  mtev_hash_destroy(h, free, free_histotier);
   free(h);
 }
-static noit_hook_return_t
+static mtev_hook_return_t
 histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
                     metric_t *m) {
   void *vht;
   histotier *ht;
-  noit_hash_table *config, *metrics;
+  mtev_hash_table *config, *metrics;
   const char *track = "";
 
   config = noit_check_get_module_config(check, histogram_module_id);
-  if(!config || noit_hash_size(config) == 0) return NOIT_HOOK_CONTINUE;
-  noit_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
+  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
+  mtev_hash_retr_str(config, m->metric_name, strlen(m->metric_name), &track);
   if(!track || strcmp(track, "add"))
-    return NOIT_HOOK_CONTINUE;
+    return MTEV_HOOK_CONTINUE;
 
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
@@ -299,11 +304,11 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }
-  if(!noit_hash_retrieve(metrics, m->metric_name, strlen(m->metric_name),
+  if(!mtev_hash_retrieve(metrics, m->metric_name, strlen(m->metric_name),
                          &vht)) {
     ht = calloc(1, sizeof(*ht));
     vht = ht;
-    noit_hash_store(metrics, strdup(m->metric_name), strlen(m->metric_name),
+    mtev_hash_store(metrics, strdup(m->metric_name), strlen(m->metric_name),
                     vht);
   }
   else ht = vht;
@@ -324,25 +329,25 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
         break;
     }
   }
-  return NOIT_HOOK_CONTINUE;
+  return MTEV_HOOK_CONTINUE;
 }
 
-static noit_hook_return_t
+static mtev_hook_return_t
 histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
                             const char *metric_name, metric_type_t type, const char *v,
-                            noit_boolean success) {
+                            mtev_boolean success) {
   void *vht;
   histotier *ht;
-  noit_hash_table *config, *metrics;
+  mtev_hash_table *config, *metrics;
   const char *track = "";
 
-  if(success) return NOIT_HOOK_CONTINUE;
+  if(success) return MTEV_HOOK_CONTINUE;
 
   config = noit_check_get_module_config(check, histogram_module_id);
-  if(!config || noit_hash_size(config) == 0) return NOIT_HOOK_CONTINUE;
-  noit_hash_retr_str(config, metric_name, strlen(metric_name), &track);
+  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
+  mtev_hash_retr_str(config, metric_name, strlen(metric_name), &track);
   if(!track || strcmp(track, "add"))
-    return NOIT_HOOK_CONTINUE;
+    return MTEV_HOOK_CONTINUE;
 
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
@@ -350,11 +355,11 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }
-  if(!noit_hash_retrieve(metrics, metric_name, strlen(metric_name),
+  if(!mtev_hash_retrieve(metrics, metric_name, strlen(metric_name),
                          &vht)) {
     ht = calloc(1, sizeof(*ht));
     vht = ht;
-    noit_hash_store(metrics, strdup(metric_name), strlen(metric_name),
+    mtev_hash_store(metrics, strdup(metric_name), strlen(metric_name),
                     vht);
   }
   else ht = vht;
@@ -364,61 +369,61 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
     char *endptr;
     double bucket;
     u_int64_t cnt;
-    if(v[0] != 'H' || v[1] != '[') return NOIT_HOOK_CONTINUE;
-    if(NULL == (lhs = strchr(v+2, ']'))) return NOIT_HOOK_CONTINUE;
+    if(v[0] != 'H' || v[1] != '[') return MTEV_HOOK_CONTINUE;
+    if(NULL == (lhs = strchr(v+2, ']'))) return MTEV_HOOK_CONTINUE;
     lhs++;
-    if(*lhs++ != '=') return NOIT_HOOK_CONTINUE;
+    if(*lhs++ != '=') return MTEV_HOOK_CONTINUE;
     bucket = strtod(v+2, &endptr);
-    if(endptr == v+2) return NOIT_HOOK_CONTINUE;
+    if(endptr == v+2) return MTEV_HOOK_CONTINUE;
     cnt = strtoull(lhs, &endptr, 10);
-    if(endptr == lhs) return NOIT_HOOK_CONTINUE;
+    if(endptr == lhs) return MTEV_HOOK_CONTINUE;
     update_histotier(ht, time(NULL), check, metric_name, bucket, cnt);
   }
-  return NOIT_HOOK_CONTINUE;
+  return MTEV_HOOK_CONTINUE;
 }
 
-static noit_hook_return_t
-_histogram_logger_impl(void *closure, noit_check_t *check, noit_boolean passive) {
+static mtev_hook_return_t
+_histogram_logger_impl(void *closure, noit_check_t *check, mtev_boolean passive) {
   const char *track = "";
-  noit_hash_table *config;
+  mtev_hash_table *config;
 
   config = noit_check_get_module_config(check, histogram_module_id);
-  if(!config || noit_hash_size(config) == 0) return NOIT_HOOK_CONTINUE;
-  noit_hash_retr_str(config, "metrics", strlen("metrics"), &track);
+  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
+  mtev_hash_retr_str(config, "metrics", strlen("metrics"), &track);
   if(!track || strcmp(track, "replace"))
-    return NOIT_HOOK_CONTINUE;
+    return MTEV_HOOK_CONTINUE;
   /* If we're replacing other metrics, then we prevent logging */
-  if(strcmp(track, "replace") == 0) return NOIT_HOOK_DONE;
-  return NOIT_HOOK_CONTINUE;
+  if(strcmp(track, "replace") == 0) return MTEV_HOOK_DONE;
+  return MTEV_HOOK_CONTINUE;
 }
-static noit_hook_return_t
+static mtev_hook_return_t
 histogram_logger(void *closure, noit_check_t *check) {
-  return _histogram_logger_impl(closure, check, noit_false);
+  return _histogram_logger_impl(closure, check, mtev_false);
 }
-static noit_hook_return_t
+static mtev_hook_return_t
 histogram_logger_passive(void *closure, noit_check_t *check) {
-  return _histogram_logger_impl(closure, check, noit_true);
+  return _histogram_logger_impl(closure, check, mtev_true);
 }
 static void
-heartbeat_all_metrics(noit_check_t *check, noit_hash_table *metrics) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+heartbeat_all_metrics(noit_check_t *check, mtev_hash_table *metrics) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
   u_int64_t s = time(NULL);
-  while(noit_hash_next(metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     histotier *ht = data;
     update_histotier(ht, s, check, k, 0, 0);
   }
 }
-static noit_hook_return_t
+static mtev_hook_return_t
 histogram_hb_hook_impl(void *closure, noit_module_t *self,
                        noit_check_t *check, noit_check_t *cause) {
   /* We'll use this as an artificial heartbeat to induce a histo sweep-n-roll
    * if no new data has come in yet.
    */
   noit_check_t *metrics_source = check;
-  noit_hash_table *metrics;
+  mtev_hash_table *metrics;
 #define NEED_PARENT (NP_TRANSIENT | NP_PASSIVE_COLLECTION)
 
   /* If this is a passive check, we should be looking at the source
@@ -427,16 +432,16 @@ histogram_hb_hook_impl(void *closure, noit_module_t *self,
    */
   if((check->flags & NEED_PARENT) == NEED_PARENT) {
     metrics_source = noit_poller_lookup(check->checkid);
-    if(metrics_source == NULL) return NOIT_HOOK_CONTINUE;
+    if(metrics_source == NULL) return MTEV_HOOK_CONTINUE;
   }
   /* quick disqualifictaion */
   metrics = noit_check_get_module_metadata(metrics_source, histogram_module_id);
-  if(!metrics || noit_hash_size(metrics) == 0) return NOIT_HOOK_CONTINUE;
+  if(!metrics || mtev_hash_size(metrics) == 0) return MTEV_HOOK_CONTINUE;
   heartbeat_all_metrics(check, metrics);
-  return NOIT_HOOK_CONTINUE;
+  return MTEV_HOOK_CONTINUE;
 }
 static int
-histogram_init(noit_dso_generic_t *self) {
+histogram_init(mtev_dso_generic_t *self) {
   check_stats_set_metric_hook_register("histogram", histogram_hook_impl, NULL);
   check_stats_set_metric_coerce_hook_register("histogram", histogram_hook_special_impl, NULL);
   check_log_stats_hook_register("histogram", histogram_logger, NULL);
@@ -445,10 +450,10 @@ histogram_init(noit_dso_generic_t *self) {
   return 0;
 }
 
-noit_dso_generic_t histogram = {
+mtev_dso_generic_t histogram = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
+    MTEV_GENERIC_MAGIC,
+    MTEV_GENERIC_ABI_VERSION,
     "histogram",
     "Passive histogram support for metrics collection",
     "",

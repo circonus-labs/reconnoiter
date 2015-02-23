@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -38,11 +39,13 @@
 #include <assert.h>
 #include <math.h>
 
+#include <mtev_hash.h>
+
+#include "noit_config.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_mtev_bridge.h"
 
 #ifdef HAVE_MYSQL_H
 #include <mysql.h>
@@ -64,13 +67,13 @@ typedef struct {
   double query_duration_d;
   double *query_duration;
   int rv;
-  noit_hash_table attrs;
+  mtev_hash_table attrs;
   int timed_out;
   char *error;
 } mysql_check_info_t;
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
   mysql_check_info_t *ci = check->closure;
@@ -90,7 +93,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
     ncols = mysql_num_fields(ci->result);
     MYSQL_FIELD *cdesc = mysql_fetch_fields(ci->result);
     for (i=0; i<nrows; i++) {
-      noitL(nldeb, "mysql: row %d [%d cols]:\n", i, ncols);
+      mtevL(nldeb, "mysql: row %d [%d cols]:\n", i, ncols);
       if(ncols<2) continue;
       MYSQL_ROW row = mysql_fetch_row(ci->result);
       if(NULL == row[0]) continue;
@@ -104,7 +107,7 @@ static void mysql_ingest_stats(mysql_check_info_t *ci) {
   
         snprintf(mname, sizeof(mname), "%s`%s", row[0], cdesc[j].name);
         coltype = cdesc[j].type;
-        noitL(nldeb, "mysql:   col %d (%s) type %d:\n", j, mname, coltype);
+        mtevL(nldeb, "mysql:   col %d (%s) type %d:\n", j, mname, coltype);
         switch(coltype) {
           case FIELD_TYPE_TINY:
           case FIELD_TYPE_SHORT:
@@ -181,7 +184,7 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
-  if(!noit_hash_retrieve(check->config, #key, strlen(#key), (void **)&key)) \
+  if(!mtev_hash_retrieve(check->config, #key, strlen(#key), (void **)&key)) \
     key = str; \
 } while(0)
 
@@ -198,7 +201,7 @@ static void mysql_log_results(noit_module_t *self, noit_check_t *check) {
   } \
   ci->timed_out = 0; \
   ci->error = strdup(str); \
-  noit_hash_destroy(&dsn_h, free, free); \
+  mtev_hash_destroy(&dsn_h, free, free); \
   return 0; \
 } while(0)
 
@@ -214,7 +217,7 @@ __noit__strndup(const char *src, int len) {
   return dst;
 }
 
-void mysql_parse_dsn(const char *dsn, noit_hash_table *h) {
+void mysql_parse_dsn(const char *dsn, mtev_hash_table *h) {
   const char *a=dsn, *b=NULL, *c=NULL;
   while (a && (NULL != (b = strchr(a, '=')))) {
     char *key, *val=NULL;
@@ -227,7 +230,7 @@ void mysql_parse_dsn(const char *dsn, noit_hash_table *h) {
         val = strdup(b);
       }
     }
-    noit_hash_replace(h, key, key?strlen(key):0, val, free, free);
+    mtev_hash_replace(h, key, key?strlen(key):0, val, free, free);
     a = c;
     if (a) a++;
   }
@@ -241,7 +244,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   mysql_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
   struct timeval t1, t2, diff;
-  noit_hash_table dsn_h = NOIT_HASH_EMPTY;
+  mtev_hash_table dsn_h = MTEV_HASH_EMPTY;
   const char *host=NULL;
   const char *user=NULL;
   const char *password=NULL;
@@ -273,16 +276,16 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
                              &ci->attrs, check->config);
 
       mysql_parse_dsn(dsn_buff, &dsn_h);
-      noit_hash_retrieve(&dsn_h, "host", strlen("host"), (void**)&host);
-      noit_hash_retrieve(&dsn_h, "user", strlen("user"), (void**)&user);
-      noit_hash_retrieve(&dsn_h, "password", strlen("password"), (void**)&password);
-      noit_hash_retrieve(&dsn_h, "dbname", strlen("dbname"), (void**)&dbname);
-      noit_hash_retrieve(&dsn_h, "port", strlen("port"), (void**)&port_s);
-      if(noit_hash_retrieve(&dsn_h, "sslmode", strlen("sslmode"), (void**)&sslmode) &&
+      mtev_hash_retrieve(&dsn_h, "host", strlen("host"), (void**)&host);
+      mtev_hash_retrieve(&dsn_h, "user", strlen("user"), (void**)&user);
+      mtev_hash_retrieve(&dsn_h, "password", strlen("password"), (void**)&password);
+      mtev_hash_retrieve(&dsn_h, "dbname", strlen("dbname"), (void**)&dbname);
+      mtev_hash_retrieve(&dsn_h, "port", strlen("port"), (void**)&port_s);
+      if(mtev_hash_retrieve(&dsn_h, "sslmode", strlen("sslmode"), (void**)&sslmode) &&
          !strcmp(sslmode, "require"))
         client_flag |= CLIENT_SSL;
       port = port_s ? strtol(port_s, NULL, 10) : 3306;
-      noit_hash_retrieve(&dsn_h, "socket", strlen("socket"), (void**)&socket);
+      mtev_hash_retrieve(&dsn_h, "socket", strlen("socket"), (void**)&socket);
 
       ci->conn = mysql_init(NULL); /* allocate us a handle */
       if(!ci->conn) AVAIL_BAIL("mysql_init failed");
@@ -290,7 +293,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       mysql_options(ci->conn, MYSQL_OPT_CONNECT_TIMEOUT, (const char *)&timeout);
       if(!mysql_real_connect(ci->conn, host, user, password,
                              dbname, port, socket, client_flag)) {
-        noitL(noit_stderr, "error during mysql_real_connect: %s\n",
+        mtevL(noit_stderr, "error during mysql_real_connect: %s\n",
           mysql_error(ci->conn));
         AVAIL_BAIL(mysql_error(ci->conn));
       }
@@ -305,7 +308,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
          * return value from mysql_get_ssl_cipher().
          */
         if (mysql_get_ssl_cipher(ci->conn) == NULL) {
-          noitL(nldeb, "mysql_get_ssl_cipher() returns NULL, but SSL mode required.");
+          mtevL(nldeb, "mysql_get_ssl_cipher() returns NULL, but SSL mode required.");
           AVAIL_BAIL("mysql_get_ssl_cipher() returns NULL, but SSL mode required.");
         }
       }
@@ -342,7 +345,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
         mysql_close(conn_swap);
       }
       ci->timed_out = 0;
-      noit_hash_destroy(&dsn_h, free, free);
+      mtev_hash_destroy(&dsn_h, free, free);
       return 0;
       break;
     case EVENTER_ASYNCH_CLEANUP:
@@ -385,9 +388,9 @@ static int mysql_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int mysql_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/mysql");
-  nldeb = noit_log_stream_find("debug/mysql");
+static int mysql_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/mysql");
+  nldeb = mtev_log_stream_find("debug/mysql");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,21 +31,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
 #include <math.h>
+#include <libpq-fe.h>
+
+#include <mtev_hash.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-
-#include <libpq-fe.h>
+#include "noit_mtev_bridge.h"
 
 /* Ripped from postgres 8.3.3 */
 #ifndef BOOLOID
@@ -79,13 +80,13 @@ typedef struct {
   double *connect_duration;
   double query_duration_d;
   double *query_duration;
-  noit_hash_table attrs;
+  mtev_hash_table attrs;
   int timed_out;
   char *error;
 } postgres_check_info_t;
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
   postgres_check_info_t *ci = check->closure;
@@ -105,7 +106,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
     ncols = PQnfields(ci->result);
     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "row_count", METRIC_INT32, &nrows);
     for (i=0; i<nrows; i++) {
-      noitL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
+      mtevL(nldeb, "postgres: row %d [%d cols]:\n", i, ncols);
       if(ncols<2) continue;
       if(PQgetisnull(ci->result, i, 0)) continue;
       for (j=1; j<ncols; j++) {
@@ -119,7 +120,7 @@ static void postgres_ingest_stats(postgres_check_info_t *ci) {
         snprintf(mname, sizeof(mname), "%s`%s",
                  PQgetvalue(ci->result, i, 0), PQfname(ci->result, j));
         coltype = PQftype(ci->result, j);
-        noitL(nldeb, "postgres:   col %d (%s) type %d: %s\n", j, mname, coltype,
+        mtevL(nldeb, "postgres:   col %d (%s) type %d: %s\n", j, mname, coltype,
               PQgetisnull(ci->result, i, j) ? "[[null]]" : PQgetvalue(ci->result, i, j));
         switch(coltype) {
           case BOOLOID:
@@ -194,7 +195,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
-  if(!noit_hash_retr_str(check->config, #key, strlen(#key), &key)) \
+  if(!mtev_hash_retr_str(check->config, #key, strlen(#key), &key)) \
     key = str; \
 } while(0)
 
@@ -319,9 +320,9 @@ static int postgres_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int postgres_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/postgres");
-  nldeb = noit_log_stream_find("debug/postgres");
+static int postgres_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/postgres");
+  nldeb = mtev_log_stream_find("debug/postgres");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 

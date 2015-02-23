@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2013, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,17 +34,18 @@
 #ifndef _NOIT_CHECK_H
 #define _NOIT_CHECK_H
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <uuid/uuid.h>
 #include <netinet/in.h>
 
-#include "eventer/eventer.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_skiplist.h"
-#include "utils/noit_hooks.h"
-#include "noit_conf.h"
-#include "noit_console.h"
+#include <eventer/eventer.h>
+#include <mtev_hash.h>
+#include <mtev_skiplist.h>
+#include <mtev_hooks.h>
+#include <mtev_conf.h>
+#include <mtev_console.h>
+
 #include "noit_metric.h"
 
 /*
@@ -108,7 +109,7 @@ typedef struct {
   int8_t state;
   u_int32_t duration;
   char *status;
-  noit_hash_table metrics;
+  mtev_hash_table metrics;
 } stats_t;
 
 typedef struct dep_list {
@@ -127,7 +128,7 @@ typedef struct noit_check {
   char *module;
   char *name;
   char *filterset;
-  noit_hash_table *config;
+  mtev_hash_table *config;
   char *oncheck;               /* target`name of the check that fires us */
   u_int32_t period;            /* period of checks in milliseconds */
   u_int32_t timeout;           /* timeout of check in milliseconds */
@@ -144,10 +145,10 @@ typedef struct noit_check {
   u_int32_t generation;        /* This can roll, we don't care */
   void *closure;
 
-  noit_skiplist *feeds;
+  mtev_skiplist *feeds;
   char target_ip[INET6_ADDRSTRLEN];
   void **module_metadata;
-  noit_hash_table **module_configs;
+  mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
 } noit_check_t;
 
@@ -182,8 +183,8 @@ API_EXPORT(int)
                        const char *module,
                        const char *name,
                        const char *filterset,
-                       noit_hash_table *config,
-                       noit_hash_table **mconfig,
+                       mtev_hash_table *config,
+                       mtev_hash_table **mconfig,
                        u_int32_t period,
                        u_int32_t timeout,
                        const char *oncheck,
@@ -199,14 +200,14 @@ API_EXPORT(int)
                     const char *target,
                     const char *name,
                     const char *filterset,
-                    noit_hash_table *config,
-                    noit_hash_table **mconfig,
+                    mtev_hash_table *config,
+                    mtev_hash_table **mconfig,
                     u_int32_t period,
                     u_int32_t timeout,
                     const char *oncheck,
                     int flags);
 
-API_EXPORT(noit_boolean)
+API_EXPORT(mtev_boolean)
   noit_check_is_valid_target(const char *str);
 
 API_EXPORT(int)
@@ -312,16 +313,16 @@ API_EXPORT(int)
 API_EXPORT(void)
   noit_check_set_module_metadata(noit_check_t *, int, void *, void (*freefunc)(void *));
 API_EXPORT(void)
-  noit_check_set_module_config(noit_check_t *, int, noit_hash_table *);
+  noit_check_set_module_config(noit_check_t *, int, mtev_hash_table *);
 API_EXPORT(void *)
   noit_check_get_module_metadata(noit_check_t *, int);
-API_EXPORT(noit_hash_table *)
+API_EXPORT(mtev_hash_table *)
   noit_check_get_module_config(noit_check_t *, int);
 
 /* These are from noit_check_log.c */
 API_EXPORT(void) noit_check_log_check(noit_check_t *check);
 API_EXPORT(void) noit_filterset_log_auto_add(char *filter, noit_check_t *check,
-                                             metric_t *m, noit_boolean allow);
+                                             metric_t *m, mtev_boolean allow);
 API_EXPORT(void) noit_check_log_status(noit_check_t *check);
 API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
@@ -336,42 +337,42 @@ API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
 
 
 API_EXPORT(char *)
-  noit_console_check_opts(noit_console_closure_t ncct,
-                          noit_console_state_stack_t *stack,
-                          noit_console_state_t *dstate,
+  noit_console_check_opts(mtev_console_closure_t ncct,
+                          mtev_console_state_stack_t *stack,
+                          mtev_console_state_t *dstate,
                           int argc, char **argv, int idx);
 API_EXPORT(char *)
-  noit_console_conf_check_opts(noit_console_closure_t ncct,
-                               noit_console_state_stack_t *stack,
-                               noit_console_state_t *dstate,
+  noit_console_conf_check_opts(mtev_console_closure_t ncct,
+                               mtev_console_state_stack_t *stack,
+                               mtev_console_state_t *dstate,
                                int argc, char **argv, int idx);
 
 API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
 
-NOIT_HOOK_PROTO(check_config_fixup,
+MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),
                 void *, closure,
                 (void *closure, noit_check_t *check))
 
-NOIT_HOOK_PROTO(check_stats_set_metric,
+MTEV_HOOK_PROTO(check_stats_set_metric,
                 (noit_check_t *check, stats_t *stats, metric_t *m),
                 void *, closure,
                 (void *closure, noit_check_t *check, stats_t *stats, metric_t *m))
 
-NOIT_HOOK_PROTO(check_stats_set_metric_coerce,
+MTEV_HOOK_PROTO(check_stats_set_metric_coerce,
                 (noit_check_t *check, stats_t *stats, const char *name,
-                 metric_type_t type, const char *v, noit_boolean success),
+                 metric_type_t type, const char *v, mtev_boolean success),
                 void *, closure,
                 (void *closure, noit_check_t *check, stats_t *stats, const char *name,
-                 metric_type_t type, const char *v, noit_boolean success))
+                 metric_type_t type, const char *v, mtev_boolean success))
 
-NOIT_HOOK_PROTO(check_passive_log_stats,
+MTEV_HOOK_PROTO(check_passive_log_stats,
                 (noit_check_t *check),
                 void *, closure,
                 (void *closure, noit_check_t *check))
 
-NOIT_HOOK_PROTO(check_log_stats,
+MTEV_HOOK_PROTO(check_log_stats,
                 (noit_check_t *check),
                 void *, closure,
                 (void *closure, noit_check_t *check))

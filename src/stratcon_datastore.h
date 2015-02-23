@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,13 +34,15 @@
 #ifndef _NOIT_STRATCON_DATASTORE_H
 #define _NOIT_STRATCON_DATASTORE_H
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "utils/noit_hash.h"
-#include "stratcon_realtime_http.h"
+#include <mtev_defines.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <eventer/eventer.h>
+#include <mtev_hash.h>
+
+#include "stratcon_realtime_http.h"
 
 typedef struct {
   int (*launch_file_ingestion)(const char *file, const char *ip,

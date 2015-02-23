@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,27 +31,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
-#include "noit_listener.h"
-#include "noit_http.h"
-#include "noit_rest.h"
+
+#include <mtev_listener.h>
+#include <mtev_http.h>
+#include <mtev_rest.h>
+#include <mtev_conf.h>
+#include <mtev_conf_private.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_filters.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_conf.h"
-#include "noit_conf_private.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
 static int
-rest_show_filter(noit_http_rest_closure_t *restc,
+rest_show_filter(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
   xmlNodePtr node, root;
   char xpath[1024];
@@ -61,25 +66,25 @@ rest_show_filter(noit_http_rest_closure_t *restc,
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
 
-  node = noit_conf_get_section(NULL, xpath);
+  node = mtev_conf_get_section(NULL, xpath);
   if(!node) goto not_found;
 
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlCopyNode(node, 1);
   xmlDocSetRootElement(doc, root);
-  noit_http_response_ok(ctx, "text/xml");
-  noit_http_response_xml(ctx, doc);
-  noit_http_response_end(ctx);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
-  noit_http_response_not_found(ctx, "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -94,7 +99,7 @@ make_conf_path(char *path) {
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[strlen(fullpath)-1] = '\0';
-  start = noit_conf_get_section(NULL, "/noit/filtersets");
+  start = mtev_conf_get_section(NULL, "/noit/filtersets");
   if(!start) return NULL;
   for (tok = strtok_r(fullpath, "/", &brk);
        tok;
@@ -134,9 +139,9 @@ validate_filter_post(xmlDocPtr doc) {
   return root;
 }
 static int
-rest_delete_filter(noit_http_rest_closure_t *restc,
+rest_delete_filter(mtev_http_rest_closure_t *restc,
                    int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlNodePtr node;
   char xpath[1024];
   int error_code = 500;
@@ -145,28 +150,28 @@ rest_delete_filter(noit_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  node = noit_conf_get_section(NULL, xpath);
+  node = mtev_conf_get_section(NULL, xpath);
   if(!node) goto not_found;
   if(noit_filter_remove(node) == 0) goto not_found;
   CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
 
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
-  noit_http_response_ok(ctx, "text/html");
-  noit_http_response_end(ctx);
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  mtev_conf_mark_changed();
+  mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
-  noit_http_response_not_found(ctx, "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -174,25 +179,25 @@ rest_delete_filter(noit_http_rest_closure_t *restc,
 }
 
 static int
-rest_cull_filter(noit_http_rest_closure_t *restc,
+rest_cull_filter(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   int rv;
   char cnt_str[32];
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
 
   rv = noit_filtersets_cull_unused();
-  if(rv > 0) noit_conf_mark_changed();
+  if(rv > 0) mtev_conf_mark_changed();
   snprintf(cnt_str, sizeof(cnt_str), "%d", rv);
-  noit_http_response_ok(ctx, "text/html");
-  noit_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);
-  noit_http_response_end(ctx);
+  mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_header_set(ctx, "X-Filters-Removed", cnt_str);
+  mtev_http_response_end(ctx);
   return 0;
 }
 
 static int
-rest_set_filter(noit_http_rest_closure_t *restc,
+rest_set_filter(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL, indoc = NULL;
   xmlNodePtr node, parent, root, newfilter;
   char xpath[1024];
@@ -207,7 +212,7 @@ rest_set_filter(noit_http_rest_closure_t *restc,
 
   snprintf(xpath, sizeof(xpath), "//filtersets%sfilterset[@name=\"%s\"]",
            pats[0], pats[1]);
-  node = noit_conf_get_section(NULL, xpath);
+  node = mtev_conf_get_section(NULL, xpath);
   if(!node && noit_filter_exists(pats[1])) {
     /* It's someone else's */
     error_code = 403;
@@ -227,9 +232,9 @@ rest_set_filter(noit_http_rest_closure_t *restc,
   xmlAddChild(parent, newfilter);
   CONF_DIRTY(newfilter);
 
-  noit_conf_mark_changed();
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
   noit_filter_compile_add(newfilter);
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
   restc->call_closure_free = NULL;
@@ -238,13 +243,13 @@ rest_set_filter(noit_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
   xmlDocSetRootElement(doc, root);
   xmlNodeAddContent(root, (xmlChar *)error);
-  noit_http_response_xml(ctx, doc);
-  noit_http_response_end(ctx);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -254,21 +259,21 @@ rest_set_filter(noit_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
-    rest_show_filter, noit_http_rest_client_cert_auth
+    rest_show_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "PUT", "/filters/", "^set(/.*)(?<=/)([^/]+)$",
-    rest_set_filter, noit_http_rest_client_cert_auth
+    rest_set_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "DELETE", "/filters/", "^delete(/.*)(?<=/)([^/]+)$",
-    rest_delete_filter, noit_http_rest_client_cert_auth
+    rest_delete_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "POST", "/filters/", "^cull$",
-    rest_cull_filter, noit_http_rest_client_cert_auth
+    rest_cull_filter, mtev_http_rest_client_cert_auth
   ) == 0);
 }
 

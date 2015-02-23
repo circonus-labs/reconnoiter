@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,20 +34,20 @@
 #ifndef _NOIT_CHECK_RESOLVER_H
 #define _NOIT_CHECK_RESOLVER_H
 
-#include "utils/noit_hooks.h"
+#include <mtev_hooks.h>
 
 API_EXPORT(void) noit_check_resolver_init();
-API_EXPORT(int)  noit_check_should_resolve_targets(noit_boolean *);
+API_EXPORT(int)  noit_check_should_resolve_targets(mtev_boolean *);
 API_EXPORT(void) noit_check_resolver_remind(const char *);
 API_EXPORT(int)  noit_check_resolver_fetch(const char *, char *buff, int len,
                                            uint8_t prefer_family);
 
-NOIT_HOOK_PROTO(noit_resolver_cache_store,
+MTEV_HOOK_PROTO(noit_resolver_cache_store,
                 (const char *key, const void *data, int len),
                 void *, closure,
                 (void *closure, const char *key, const void *data, int len))
 
-NOIT_HOOK_PROTO(noit_resolver_cache_load,
+MTEV_HOOK_PROTO(noit_resolver_cache_load,
                 (char **key, void **data, int *len),
                 void *, closure,
                 (void *closure, char **key, void **data, int *len));

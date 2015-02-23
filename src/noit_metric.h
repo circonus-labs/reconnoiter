@@ -34,7 +34,7 @@
 #ifndef _NOIT_METRIC_H
 #define _NOIT_METRIC_H
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 typedef enum {
   METRIC_GUESS = '0',

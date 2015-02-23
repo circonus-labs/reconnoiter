@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, 2008, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,16 +34,16 @@
 #ifndef _NOIT_MODULE_H
 #define _NOIT_MODULE_H
 
-#include "noit_defines.h"
-#include "noit_dso.h"
+#include <mtev_defines.h>
+#include <mtev_dso.h>
 #include "noit_check.h"
 
 #define NOIT_MODULE_MAGIC         0x4017DA7A
 #define NOIT_MODULE_ABI_VERSION   5
 
 typedef struct _noit_module {
-  noit_image_t hdr;
-  int (*config)(struct _noit_module *, noit_hash_table *options);
+  mtev_image_t hdr;
+  int (*config)(struct _noit_module *, mtev_hash_table *options);
   int (*init)(struct _noit_module *);
   int (*initiate_check)(struct _noit_module *, noit_check_t *check,
                         int once, noit_check_t *cause);

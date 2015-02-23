@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -42,11 +43,12 @@
 #endif
 #include <dlfcn.h>
 
+#include <mtev_hash.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_mtev_bridge.h"
 
 #include <libssh2.h>
 #ifdef HAVE_GCRYPT_H
@@ -81,8 +83,8 @@ typedef struct {
   eventer_t timeout_event; /* Only used for connect() */
 } ssh2_check_info_t;
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 static void ssh2_cleanup(noit_module_t *self, noit_check_t *check) {
   ssh2_check_info_t *ci = check->closure;
@@ -123,7 +125,7 @@ static int ssh2_init(noit_module_t *self) {
 #endif
   return 0;
 }
-static int ssh2_config(noit_module_t *self, noit_hash_table *options) {
+static int ssh2_config(noit_module_t *self, mtev_hash_table *options) {
   return 0;
 }
 static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
@@ -344,13 +346,13 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
   /* Make it non-blocking */
   if(eventer_set_fd_nonblocking(fd)) goto fail;
 
-  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+  if(mtev_hash_retr_str(check->config, "port", strlen("port"),
                         &port_str)) {
     ssh_port = (unsigned short)atoi(port_str);
   }
 #define config_method(a) do { \
   const char *v; \
-  if(noit_hash_retr_str(check->config, "method_" #a, strlen("method_" #a), \
+  if(mtev_hash_retr_str(check->config, "method_" #a, strlen("method_" #a), \
                         &v)) \
     ci->methods.a = strdup(v); \
 } while(0)
@@ -417,9 +419,9 @@ static int ssh2_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int ssh2_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/ssh2");
-  nldeb = noit_log_stream_find("debug/ssh2");
+static int ssh2_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/ssh2");
+  nldeb = mtev_log_stream_find("debug/ssh2");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 

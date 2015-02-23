@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,8 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "noit_defines.h"
-#include "utils/noit_str.h"
+
+#include <mtev_defines.h>
 
 #include <stdlib.h>
 #include <errno.h>
@@ -41,20 +40,22 @@
 #include <unistd.h>
 #include <string.h>
 
+#include <mtev_str.h>
+#include <mtev_rest.h>
+#include <mtev_hash.h>
+#include <mtev_b64.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_rest.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_b64.h"
+#include "noit_mtev_bridge.h"
 
 #define GANGLIA_DEFAULT_MCAST_ADDR "239.2.11.71"
 #define GANGLIA_DEFAULT_MCAST_PORT 8649
 
 typedef struct _mod_config {
-  noit_hash_table *options;
-  noit_boolean asynch_metrics;
+  mtev_hash_table *options;
+  mtev_boolean asynch_metrics;
   int ipv4_fd;
   int ipv6_fd;
 } ganglia_mod_config_t;
@@ -92,19 +93,19 @@ union ifd {
   double d;
 };
 
-static noit_boolean
+static mtev_boolean
 noit_collects_check_asynch(noit_module_t *self,
                            noit_check_t *check) {
   const char *config_val;
   ganglia_mod_config_t *conf = noit_module_get_userdata(self);
-  noit_boolean is_asynch = conf->asynch_metrics;
-  if(noit_hash_retr_str(check->config,
+  mtev_boolean is_asynch = conf->asynch_metrics;
+  if(mtev_hash_retr_str(check->config,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      is_asynch = noit_false;
+      is_asynch = mtev_false;
     else if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
-      is_asynch = noit_true;
+      is_asynch = mtev_true;
   }
 
   if(is_asynch) check->flags |= NP_SUPPRESS_METRICS;
@@ -120,7 +121,7 @@ static void clear_closure(noit_check_t *check, ganglia_closure_t *gcl) {
 static int
 ganglia_process_dgram(noit_check_t *check, void *closure) {
   struct ganglia_dgram *pkt = closure;
-  noit_boolean immediate;
+  mtev_boolean immediate;
   ganglia_closure_t *gcl;
 
   if (!check || strcmp(check->module, "ganglia")) return 0;
@@ -180,7 +181,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       break;
                         }
     default:
-      noitL(noit_error, "ganglia: unknown packet type received\n");
+      mtevL(noit_error, "ganglia: unknown packet type received\n");
       return 0;
   }
 
@@ -208,7 +209,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
     if(inlen < 0) {
       if(errno == EAGAIN) break; /* out of data to read, hand it back to eventer
                                     and wait to be scheduled again */
-      noitLT(noit_error, now, "ganglia: recvfrom: %s\n", strerror(errno));
+      mtevLT(noit_error, now, "ganglia: recvfrom: %s\n", strerror(errno));
       break;
     }
 
@@ -219,7 +220,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
     len = payload;
     *len = ntohl(*len);
     if(!*len) {
-      noitL(noit_error, "ganglia: empty host\n");
+      mtevL(noit_error, "ganglia: empty host\n");
       return -1;
     }
     payload += 4;
@@ -229,7 +230,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
     len = payload;
     *len = ntohl(*len);
     if(!*len) {
-      noitL(noit_error, "ganglia: empty name\n");
+      mtevL(noit_error, "ganglia: empty name\n");
       return -1;
     }
     payload += 4;
@@ -254,7 +255,7 @@ static int noit_ganglia_handler(eventer_t e, int mask, void *closure,
     pkt.name = name;
 
     if(!noit_poller_target_do(host, ganglia_process_dgram, &pkt))
-      noitL(noit_error, "ganglia: no checks from host: %s\n", host);
+      mtevL(noit_error, "ganglia: no checks from host: %s\n", host);
   }
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
@@ -265,7 +266,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   /* almost entirely pulled from collectd.c:collectd_submit_internal() */
   ganglia_closure_t *gcl;
   struct timeval now, duration, age;
-  noit_boolean immediate;
+  mtev_boolean immediate;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
@@ -294,7 +295,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
     snprintf(human_buffer, sizeof(human_buffer),
              "dur=%d,run=%d,stats=%d,ntfy=%d", check->stats.inprogress.duration, 
              check->generation, gcl->stats_count, gcl->ntfy_count);
-    noitL(noit_debug, "ganglia(%s) [%s]\n", check->target, human_buffer);
+    mtevL(noit_debug, "ganglia(%s) [%s]\n", check->target, human_buffer);
 
     check->stats.inprogress.available = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
         NP_AVAILABLE : NP_UNAVAILABLE;
@@ -319,11 +320,11 @@ static int noit_ganglia_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_ganglia_config(noit_module_t *self, noit_hash_table *options) {
+static int noit_ganglia_config(noit_module_t *self, mtev_hash_table *options) {
   ganglia_mod_config_t *conf = noit_module_get_userdata(self);
   if(conf) {
     if(conf->options) {
-      noit_hash_destroy(conf->options, free, free);
+      mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
@@ -334,7 +335,7 @@ static int noit_ganglia_config(noit_module_t *self, noit_hash_table *options) {
   return 1;
 }
 
-static int noit_ganglia_onload(noit_image_t *self) {
+static int noit_ganglia_onload(mtev_image_t *self) {
   eventer_name_callback("noit_ganglia/handler", noit_ganglia_handler);
   return 0;
 }
@@ -351,23 +352,23 @@ static int noit_ganglia_init(noit_module_t *self) {
   int portint=0;
   unsigned short port;
 
-  conf->asynch_metrics = noit_true;
-  if(noit_hash_retr_str(conf->options,
+  conf->asynch_metrics = mtev_true;
+  if(mtev_hash_retr_str(conf->options,
                         "asynch_metrics", strlen("asynch_metrics"),
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
-      conf->asynch_metrics = noit_false;
+      conf->asynch_metrics = mtev_false;
   }
 
   /* Default Collectd port */
   portint = GANGLIA_DEFAULT_MCAST_PORT;
-  if(noit_hash_retr_str(conf->options,
+  if(mtev_hash_retr_str(conf->options,
                          "port", strlen("port"),
                          (const char**)&config_val))
     portint = atoi(config_val);
   port = (unsigned short) portint;
 
-  if(!noit_hash_retr_str(conf->options,
+  if(!mtev_hash_retr_str(conf->options,
                          "multiaddr", strlen("multiaddr"),
                          (const char**)&multiaddr))
     multiaddr = GANGLIA_DEFAULT_MCAST_ADDR;
@@ -379,13 +380,13 @@ static int noit_ganglia_init(noit_module_t *self) {
   conf->ipv4_fd = socket(PF_INET, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
   if(conf->ipv4_fd < 0) {
     close(conf->ipv4_fd);
-    noitL(noit_error, "ganglia: ipv4 socket failed: %s\n", strerror(errno));
+    mtevL(noit_error, "ganglia: ipv4 socket failed: %s\n", strerror(errno));
     return -1;
   }
 
   if(eventer_set_fd_nonblocking(conf->ipv4_fd)) {
     close(conf->ipv4_fd);
-    noitL(noit_error, "ganglia: could not set ipv4 socket non-blocking: %s\n", strerror(errno));
+    mtevL(noit_error, "ganglia: could not set ipv4 socket non-blocking: %s\n", strerror(errno));
     return -1;
   }
 
@@ -397,7 +398,7 @@ static int noit_ganglia_init(noit_module_t *self) {
 
   if(bind(conf->ipv4_fd, (struct sockaddr *)&skaddr, sizeof(skaddr))) {
     close(conf->ipv4_fd);
-    noitL(noit_error, "ganglia: ipv4 binding failed: %s\n", strerror(errno));
+    mtevL(noit_error, "ganglia: ipv4 binding failed: %s\n", strerror(errno));
     return -1;
   }
 
@@ -410,7 +411,7 @@ static int noit_ganglia_init(noit_module_t *self) {
 
   if(setsockopt(conf->ipv4_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) {
     close(conf->ipv4_fd);
-    noitL(noit_error, "ganglia: ipv4 multicast join failed: %s\n", strerror(errno));
+    mtevL(noit_error, "ganglia: ipv4 multicast join failed: %s\n", strerror(errno));
     return -1;
   }
 
@@ -421,16 +422,16 @@ static int noit_ganglia_init(noit_module_t *self) {
   newe->callback = noit_ganglia_handler;
   newe->closure = self;
   eventer_add(newe);
-  noitL(noit_debug, "ganglia: Added ipv4 handler!\n");
+  mtevL(noit_debug, "ganglia: Added ipv4 handler!\n");
 
   portint = GANGLIA_DEFAULT_MCAST_PORT;
-  if(noit_hash_retr_str(conf->options,
+  if(mtev_hash_retr_str(conf->options,
                          "port6", strlen("port6"),
                          (const char**)&config_val))
     portint = atoi(config_val);
   port = (unsigned short) portint;
 
-  if(!noit_hash_retr_str(conf->options,
+  if(!mtev_hash_retr_str(conf->options,
                          "multiaddr6", strlen("multiaddr6"),
                          (const char**)&multiaddr6))
     /* ganglia doesn't have a default ipv6 multicast */
@@ -440,10 +441,10 @@ static int noit_ganglia_init(noit_module_t *self) {
   if(multiaddr6) { 
     conf->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_DGRAM, IPPROTO_UDP);
     if(conf->ipv6_fd < 0) {
-      noitL(noit_error, "ganglia: IPv6 socket creation failed: %s\n", strerror(errno));
+      mtevL(noit_error, "ganglia: IPv6 socket creation failed: %s\n", strerror(errno));
     }
     else if(eventer_set_fd_nonblocking(conf->ipv6_fd)) {
-      noitL(noit_error, "ganglia: could not set socket non-blocking: %s\n", strerror(errno));
+      mtevL(noit_error, "ganglia: could not set socket non-blocking: %s\n", strerror(errno));
       close(conf->ipv6_fd);
       conf->ipv6_fd =  -1;
     }
@@ -456,7 +457,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     skaddr6.sin6_addr = in6addr_any;
     skaddr6.sin6_port = htons(port);
     if(bind(conf->ipv6_fd, (struct sockaddr *)&skaddr6, sizeof(skaddr6))) {
-      noitL(noit_error, "ganglia: ipv6 binding failed: %s\n", strerror(errno));
+      mtevL(noit_error, "ganglia: ipv6 binding failed: %s\n", strerror(errno));
       close(conf->ipv6_fd);
       conf->ipv6_fd = -1;
     }
@@ -471,7 +472,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     mreqv6.ipv6mr_interface = 0;
 
     if(setsockopt(conf->ipv6_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreqv6, sizeof(mreqv6))) {
-      noitL(noit_error, "ganglia: ipv6 multicast join failed: %s\n", strerror(errno));
+      mtevL(noit_error, "ganglia: ipv6 multicast join failed: %s\n", strerror(errno));
       close(conf->ipv6_fd);
       conf->ipv6_fd = -1;
     }
@@ -485,7 +486,7 @@ static int noit_ganglia_init(noit_module_t *self) {
     newe->callback = noit_ganglia_handler;
     newe->closure = self;
     eventer_add(newe);
-    noitL(noit_debug, "ganglia: Added ipv6 handler!\n");
+    mtevL(noit_debug, "ganglia: Added ipv6 handler!\n");
   }
 
   noit_module_set_userdata(self, conf);

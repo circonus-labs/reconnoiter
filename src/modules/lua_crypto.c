@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2014, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2014-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,16 +28,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
-#include "noit_conf.h"
-#include "lua_noit.h"
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include <mtev_conf.h>
+
+#include "noit_mtev_bridge.h"
+
+#include "lua_noit.h"
 #ifndef sk_OPENSSL_STRING_num
 #define sk_OPENSSL_STRING_num sk_num
 #endif
@@ -351,10 +353,10 @@ noit_lua_crypto_rsa_gencsr(lua_State *L) {
     const char *subj_value = lua_tostring(L, -1);
 
     if((nid=OBJ_txt2nid(subj_part)) == NID_undef) {
-      noitL(noit_error, "crypto.rsa:gencsr unknown subject part %s\n", subj_part);
+      mtevL(noit_error, "crypto.rsa:gencsr unknown subject part %s\n", subj_part);
     }
     else if(subj_value == NULL || *subj_value == '\0') {
-      noitL(noit_error, "crypto.rsa:gencsr subject part %s is blank\n", subj_part);
+      mtevL(noit_error, "crypto.rsa:gencsr subject part %s is blank\n", subj_part);
     }
     else if(!X509_NAME_add_entry_by_NID(subject, nid, MBSTRING_ASC,
                                         (unsigned char*)subj_value,-1,-1,0)) {

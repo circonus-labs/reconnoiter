@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -38,11 +39,12 @@
 #include <assert.h>
 #include <math.h>
 
+#include <mtev_hash.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_mtev_bridge.h"
 
 #ifndef BOOLOID
 #define BOOLOID                  16
@@ -76,8 +78,8 @@ typedef struct {
   int ignore_signals;
 } test_abort_check_info_t;
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 static void test_abort_cleanup(noit_module_t *self, noit_check_t *check) {
   test_abort_check_info_t *ci = check->closure;
@@ -101,7 +103,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
     noit_check_stats_clear(check, &check->stats.inprogress);
     check->stats.inprogress.available = NP_AVAILABLE;
     check->stats.inprogress.state = ci->timed_out ? NP_BAD : NP_GOOD;
-    noitL(nlerr, "test_abort: EVENTER_READ | EVENTER_WRITE\n");
+    mtevL(nlerr, "test_abort: EVENTER_READ | EVENTER_WRITE\n");
     noit_check_set_stats(check, &check->stats.inprogress);
     noit_check_stats_clear(check, &check->stats.inprogress);
     check->flags &= ~NP_RUNNING;
@@ -109,7 +111,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
   }
   switch(mask) {
     case EVENTER_ASYNCH_WORK:
-      noitL(nlerr, "test_abort: EVENTER_ASYNCH_WORK\n");
+      mtevL(nlerr, "test_abort: EVENTER_ASYNCH_WORK\n");
       r = modf(ci->timeout, &i);
       ci->timed_out = 1;
 
@@ -136,13 +138,13 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
         rqtp.tv_nsec = (int)(r * 1000000000.0);
         nanosleep(&rqtp,NULL);
       }
-      noitL(nlerr, "test_abort: EVENTER_ASYNCH_WORK (done)\n");
+      mtevL(nlerr, "test_abort: EVENTER_ASYNCH_WORK (done)\n");
       ci->timed_out = 0;
       return 0;
       break;
     case EVENTER_ASYNCH_CLEANUP:
       /* This sets us up for a completion call. */
-      noitL(nlerr, "test_abort: EVENTER_ASYNCH_CLEANUP\n");
+      mtevL(nlerr, "test_abort: EVENTER_ASYNCH_CLEANUP\n");
       e->mask = EVENTER_READ | EVENTER_WRITE;
       break;
     default:
@@ -157,7 +159,7 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
   struct timeval __now;
   const char *v;
 
-  noitL(nlerr, "test_abort_initiate\n");
+  mtevL(nlerr, "test_abort_initiate\n");
   /* We cannot be running */
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
@@ -165,17 +167,17 @@ static int test_abort_initiate(noit_module_t *self, noit_check_t *check,
   ci->self = self;
   ci->check = check;
   ci->timeout = 30;
-  if(noit_hash_retr_str(check->config, "sleep", strlen("sleep"), &v)) {
+  if(mtev_hash_retr_str(check->config, "sleep", strlen("sleep"), &v)) {
     ci->timeout = atof(v);
   }
   ci->ignore_signals = 0;
-  if(noit_hash_retr_str(check->config, "ignore_signals", strlen("ignore_signals"), &v)) {
+  if(mtev_hash_retr_str(check->config, "ignore_signals", strlen("ignore_signals"), &v)) {
     if(!strcmp(v, "true")) ci->ignore_signals = 1;
   }
   ci->timed_out = 1;
 
   ci->method = 0;
-  if(noit_hash_retr_str(check->config, "method", strlen("method"), &v)) {
+  if(mtev_hash_retr_str(check->config, "method", strlen("method"), &v)) {
     if(!strcmp(v, "evil")) ci->method = EVENTER_EVIL_BRUTAL;
     else if(!strcmp(v, "deferred")) ci->method = EVENTER_CANCEL_DEFERRED;
     else if(!strcmp(v, "asynch")) ci->method = EVENTER_CANCEL_ASYNCH;
@@ -195,9 +197,9 @@ static int test_abort_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int test_abort_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/test_abort");
-  nldeb = noit_log_stream_find("debug/test_abort");
+static int test_abort_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/test_abort");
+  nldeb = mtev_log_stream_find("debug/test_abort");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 

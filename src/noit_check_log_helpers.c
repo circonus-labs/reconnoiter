@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,15 +31,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_metric.h"
-#include "noit_check_log_helpers.h"
+#include <mtev_defines.h>
+
 #include <stdio.h>
 #include <zlib.h>
-#include "utils/noit_b64.h"
-#include "utils/noit_str.h"
-#include "utils/noit_log.h"
+
+#include <mtev_b64.h>
+#include <mtev_str.h>
+#include <mtev_log.h>
+
+#include "noit_mtev_bridge.h"
 #include "bundle.pb-c.h"
+#include "noit_metric.h"
+#include "noit_check_log_helpers.h"
 
 int
 noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
@@ -58,7 +63,7 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
       if(!compbuff) return -1;
       if(Z_OK != compress2((Bytef *)compbuff, &dlen,
                            (Bytef *)buf_in, len_in, 9)) {
-        noitL(noit_error, "Error compressing bundled metrics.\n");
+        mtevL(noit_error, "Error compressing bundled metrics.\n");
         free(compbuff);
         return -1;
       }
@@ -78,11 +83,11 @@ noit_check_log_bundle_compress_b64(noit_compression_type_t ctype,
     if(ctype == NOIT_COMPRESS_ZLIB) free(compbuff);
     return -1;
   }
-  dlen = noit_b64_encode((unsigned char *)compbuff, dlen,
+  dlen = mtev_b64_encode((unsigned char *)compbuff, dlen,
                          (char *)b64buff, initial_dlen);
   if(ctype == NOIT_COMPRESS_ZLIB) free(compbuff);
   if(dlen == 0) {
-    noitL(noit_error, "Error base64'ing bundled metrics.\n");
+    mtevL(noit_error, "Error base64'ing bundled metrics.\n");
     free(b64buff);
     return -1;
   }
@@ -105,10 +110,10 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
   initial_dlen = ((len_in / 4) * 3);
   compbuff = malloc(initial_dlen);
   if (!compbuff) return -1;
-  dlen = noit_b64_decode((char *)buf_in, len_in,
+  dlen = mtev_b64_decode((char *)buf_in, len_in,
                          (unsigned char *)compbuff, initial_dlen);
   if(dlen == 0) {
-    noitL(noit_error, "Error base64'ing bundled metrics.\n");
+    mtevL(noit_error, "Error base64'ing bundled metrics.\n");
     free(compbuff);
     return -1;
   }
@@ -120,7 +125,7 @@ noit_check_log_bundle_decompress_b64(noit_compression_type_t ctype,
       if(Z_OK != (rv = uncompress((Bytef *)buf_out, &rawlen,
                                   (Bytef *)compbuff, dlen)) ||
          rawlen != len_out) {
-        noitL(noit_error, "Error decompressing bundle: %d (%u != %u).\n",
+        mtevL(noit_error, "Error decompressing bundle: %d (%u != %u).\n",
               rv, (unsigned int)rawlen, (unsigned int)len_out);
         free(compbuff);
         return -1;
@@ -214,20 +219,20 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   ulen = strtoul(ulen_str, NULL, 10);
   raw_protobuf = malloc(ulen);
   if(!raw_protobuf) {
-    noitL(noit_error, "bundle decode: memory exhausted\n");
+    mtevL(noit_error, "bundle decode: memory exhausted\n");
     goto bad_line;
   }
   if(noit_check_log_bundle_decompress_b64(ctype,
                                           rest, len - (rest - line),
                                           (char *)raw_protobuf,
                                           ulen)) {
-    noitL(noit_error, "bundle decode: failed to decompress\n");
+    mtevL(noit_error, "bundle decode: failed to decompress\n");
     goto bad_line;
   }
   /* decode the protobuf */
   bundle = bundle__unpack(&protobuf_c_system_allocator, ulen, raw_protobuf);
   if(!bundle) {
-    noitL(noit_error, "bundle decode: protobuf invalid\n");
+    mtevL(noit_error, "bundle decode: protobuf invalid\n");
     goto bad_line;
   }
   has_status = bundle->status ? 1 : 0;
@@ -311,7 +316,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
     free(*out);
     *out = NULL;
   }
-  if(error_str) noitL(noit_error, "bundle: bad line due to %s\n", error_str);
+  if(error_str) mtevL(noit_error, "bundle: bad line due to %s\n", error_str);
  good_line:
   if(bundle) bundle__free_unpacked(bundle, &protobuf_c_system_allocator);
   if(raw_protobuf) free(raw_protobuf);

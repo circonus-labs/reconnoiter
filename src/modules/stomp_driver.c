@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,12 +31,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
+#include <mtev_defines.h>
+
+#include <mtev_dso.h>
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_conf.h>
+
 #include "stratcon_iep.h"
-#include "noit_conf.h"
 #include "libstomp.h"
 #include "stomp_driver.xmlh"
 
@@ -50,21 +53,21 @@ struct stomp_driver {
   int port;
 };
 
-static iep_thread_driver_t *noit_stomp_allocate(noit_conf_section_t conf) {
+static iep_thread_driver_t *noit_stomp_allocate(mtev_conf_section_t conf) {
   struct stomp_driver *dr;
   dr = calloc(1, sizeof(*dr));
   if(apr_pool_create(&dr->pool, NULL) != APR_SUCCESS) {
     free(dr);
     return NULL;
   }
-  (void)noit_conf_get_string(conf, "exchange", &dr->exchange);
-  if(!noit_conf_get_string(conf, "destination", &dr->destination))
+  (void)mtev_conf_get_string(conf, "exchange", &dr->exchange);
+  if(!mtev_conf_get_string(conf, "destination", &dr->destination))
   if(!dr->destination) dr->destination = strdup("/queue/noit.firehose");
-  (void)noit_conf_get_string(conf, "username", &dr->user);
-  (void)noit_conf_get_string(conf, "password", &dr->pass);
-  (void)noit_conf_get_string(conf, "hostname", &dr->hostname);
+  (void)mtev_conf_get_string(conf, "username", &dr->user);
+  (void)mtev_conf_get_string(conf, "password", &dr->pass);
+  (void)mtev_conf_get_string(conf, "hostname", &dr->hostname);
   if(!dr->hostname) dr->hostname = strdup("127.0.0.1");
-  if(!noit_conf_get_int(conf, "port", &dr->port))
+  if(!mtev_conf_get_int(conf, "port", &dr->port))
     dr->port = 61613;
   return (iep_thread_driver_t *)dr;
 }
@@ -95,7 +98,7 @@ static int noit_stomp_connect(iep_thread_driver_t *dr) {
   if(!driver->connection) {
     if(stomp_connect(&driver->connection, driver->hostname, driver->port,
                      driver->pool)!= APR_SUCCESS) {
-      noitL(noit_error, "MQ connection failed\n");
+      mtevL(mtev_error, "MQ connection failed\n");
       stomp_disconnect(&driver->connection);
       return -1;
     }
@@ -117,11 +120,11 @@ static int noit_stomp_connect(iep_thread_driver_t *dr) {
     frame.body_length = -1;
     rc = stomp_write(driver->connection, &frame, driver->pool);
     if(rc != APR_SUCCESS) {
-      noitL(noit_error, "MQ STOMP CONNECT failed, %d\n", rc);
+      mtevL(mtev_error, "MQ STOMP CONNECT failed, %d\n", rc);
       stomp_disconnect(&driver->connection);
       return -1;
     }
-    noitL(noit_debug, "MQ STOMP connection established.\n");
+    mtevL(mtev_debug, "MQ STOMP connection established.\n");
     return 0;
   }
   /* 1 means already connected */
@@ -150,11 +153,11 @@ static int noit_stomp_submit(iep_thread_driver_t *dr,
   out.body = (char *)payload;
   rc = stomp_write(driver->connection, &out, dummy);
   if(rc != APR_SUCCESS) {
-    noitL(noit_error, "STOMP send failed, disconnecting\n");
+    mtevL(mtev_error, "STOMP send failed, disconnecting\n");
     if(driver->connection) stomp_disconnect(&driver->connection);
     driver->connection = NULL;
   }
-  else noitL(noit_debug, "STOMP send succeeded\n");
+  else mtevL(mtev_debug, "STOMP send succeeded\n");
   apr_pool_destroy(dummy);
   return (rc == APR_SUCCESS) ? 0 : -1;
 }
@@ -167,24 +170,24 @@ mq_driver_t mq_driver_stomp = {
   noit_stomp_deallocate
 };
 
-static int noit_stomp_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
+static int noit_stomp_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
-static int noit_stomp_driver_onload(noit_image_t *self) {
+static int noit_stomp_driver_onload(mtev_image_t *self) {
   return 0;
 }
 
-static int noit_stomp_driver_init(noit_dso_generic_t *self) {
+static int noit_stomp_driver_init(mtev_dso_generic_t *self) {
   apr_initialize();
   atexit(apr_terminate);
   stratcon_iep_mq_driver_register("stomp", &mq_driver_stomp);
   return 0;
 }
 
-noit_dso_generic_t stomp_driver = {
+mtev_dso_generic_t stomp_driver = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "stomp_driver",
     .description = "STOMP driver for IEP MQ submission",
     .xml_description = stomp_driver_xml_description,

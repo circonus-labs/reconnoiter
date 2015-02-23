@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,10 +34,10 @@
 #ifndef _NOIT_FILTERS_H
 #define _NOIT_FILTERS_H
 
-#include "noit_defines.h"
-#include "utils/noit_hash.h"
-#include "noit_console.h"
-#include "noit_conf.h"
+#include <mtev_defines.h>
+#include <mtev_hash.h>
+#include <mtev_console.h>
+#include <mtev_conf.h>
 #include "noit_check.h"
 
 API_EXPORT(void)
@@ -45,16 +46,16 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_refresh_filtersets();
 
-API_EXPORT(noit_boolean)
+API_EXPORT(mtev_boolean)
   noit_apply_filterset(const char *filterset,
                        noit_check_t *check,
                        metric_t *metric);
 
 API_EXPORT(void)
-  noit_filter_compile_add(noit_conf_section_t setinfo);
+  noit_filter_compile_add(mtev_conf_section_t setinfo);
 
 API_EXPORT(int)
-  noit_filter_remove(noit_conf_section_t setinfo);
+  noit_filter_remove(mtev_conf_section_t setinfo);
 
 API_EXPORT(int)
   noit_filter_exists(const char *name);

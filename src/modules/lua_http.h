@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2013, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,18 +31,19 @@
 #ifndef MODULES_LUA_HTTP_H
 #define MODULES_LUA_HTTP_H
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
+#include <mtev_http.h>
+#include <mtev_rest.h>
+
 #include "noit_module.h"
-#include "noit_http.h"
-#include "noit_rest.h"
 #include "lua.h"
 
 void
 noit_lua_setup_http_ctx(lua_State *L,
-                        noit_http_session_ctx *http_ctx);
+                        mtev_http_session_ctx *http_ctx);
 
 void
 noit_lua_setup_restc(lua_State *L,
-                     noit_http_rest_closure_t *restc);
+                     mtev_http_rest_closure_t *restc);
 
 #endif

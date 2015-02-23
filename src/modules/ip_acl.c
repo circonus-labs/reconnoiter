@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2011,2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,46 +29,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
+
+#include <assert.h>
+
+#include <mtev_hash.h>
+#include <mtev_btrie.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_btrie.h"
 #include "ip_acl.xmlh"
-#include <assert.h>
 
 #define DENY_PTR (void *)-1
 #define ALLOW_PTR (void *)1
 
 static int ip_acl_module_id = -1;
 
-static noit_hash_table acls = NOIT_HASH_EMPTY;
+static mtev_hash_table acls = MTEV_HASH_EMPTY;
 
 static void
 free_btrie(void *vb) {
   btrie *acl = vb;
   if(acl) {
-    noit_drop_tree(acl, NULL);
+    mtev_drop_tree(acl, NULL);
     free(acl);
   }
 }
 static int
-ip_acl_onload(noit_image_t *self) {
+ip_acl_onload(mtev_image_t *self) {
   int i, cnt;
-  noit_conf_section_t *acl_c;
+  mtev_conf_section_t *acl_c;
   ip_acl_module_id = noit_check_register_module("ip_acl");
   if(ip_acl_module_id < 0) return -1;
 
-  acl_c = noit_conf_get_sections(NULL, "/noit/acls//acl", &cnt);
+  acl_c = mtev_conf_get_sections(NULL, "/noit/acls//acl", &cnt);
   if(acl_c) {
     for(i=0; i<cnt; i++) {
       char *name;
       int j, rcnt, arcnt = 0;
-      noit_conf_section_t *rule_c;
-      if(noit_conf_get_string(acl_c[i], "@name", &name)) {
-        rule_c = noit_conf_get_sections(acl_c[i], "rule", &rcnt);
+      mtev_conf_section_t *rule_c;
+      if(mtev_conf_get_string(acl_c[i], "@name", &name)) {
+        rule_c = mtev_conf_get_sections(acl_c[i], "rule", &rcnt);
         if(rule_c) {
           btrie *acl = calloc(1, sizeof(*acl));
           for(j=0; j<rcnt; j++) {
@@ -81,29 +83,29 @@ ip_acl_onload(noit_image_t *self) {
               struct in6_addr addr6;
             } a;
 
-            noit_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
+            mtev_conf_get_stringbuf(rule_c[j], "self::node()", target, sizeof(target));
             if(NULL != (cp = strchr(target, '/'))) {
               *cp++ = '\0';
               mask = atoi(cp);
             }
-            if(!noit_conf_get_stringbuf(rule_c[j], "@type", dirstr, sizeof(dirstr)) ||
+            if(!mtev_conf_get_stringbuf(rule_c[j], "@type", dirstr, sizeof(dirstr)) ||
                (strcmp(dirstr, "deny") && strcmp(dirstr, "allow"))) {
-              noitL(noit_error, "Unknown acl rule type \"%s\" in acl \"%s\"\n",
+              mtevL(noit_error, "Unknown acl rule type \"%s\" in acl \"%s\"\n",
                     dirstr, name);
             }
             else if(inet_pton(AF_INET, target, &a) == 1) {
               if(mask == -1) mask = 32;
-              noit_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+              mtev_add_route_ipv4(acl, &a.addr4, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
               arcnt++;
             }
             else if(inet_pton(AF_INET6, target, &a) == 1) {
               if(mask == -1) mask = 128;
-              noit_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
+              mtev_add_route_ipv6(acl, &a.addr6, mask, strcmp(dirstr, "allow") ? DENY_PTR : ALLOW_PTR);
               arcnt++;
             }
           }
-          noitL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
-          noit_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
+          mtevL(noit_debug, "ACL %s/%p -> %d/%d rules\n", name, acl, arcnt, rcnt);
+          mtev_hash_replace(&acls, name, strlen(name), acl, free, free_btrie);
           free(rule_c);
         }
       }
@@ -114,41 +116,41 @@ ip_acl_onload(noit_image_t *self) {
 }
 
 static int
-ip_acl_config(noit_dso_generic_t *self, noit_hash_table *o) {
+ip_acl_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 
-static noit_hook_return_t
+static mtev_hook_return_t
 ip_acl_hook_impl(void *closure, noit_module_t *self,
                  noit_check_t *check, noit_check_t *cause) {
   char deny_msg[128];
-  noit_hash_table *config;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_table *config;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k = NULL;
   int klen;
   void *data;
   config = noit_check_get_module_config(check, ip_acl_module_id);
-  if(!config || noit_hash_size(config) == 0) return NOIT_HOOK_CONTINUE;
-  while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+  if(!config || mtev_hash_size(config) == 0) return MTEV_HOOK_CONTINUE;
+  while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
     if(k) {
       void *dir = NULL;
       unsigned char mask;
-      if(noit_hash_retrieve(&acls, k, strlen(k), &data)) {
+      if(mtev_hash_retrieve(&acls, k, strlen(k), &data)) {
         btrie *acl = data;
         if(check->target_family == AF_INET) {
-          dir = noit_find_bpm_route_ipv4(acl, &check->target_addr.addr, &mask);
+          dir = mtev_find_bpm_route_ipv4(acl, &check->target_addr.addr, &mask);
           if(dir == DENY_PTR) goto prevent;
-          else if(dir == ALLOW_PTR) return NOIT_HOOK_CONTINUE;
+          else if(dir == ALLOW_PTR) return MTEV_HOOK_CONTINUE;
         }
         else if(check->target_family == AF_INET6) {
-          dir = noit_find_bpm_route_ipv6(acl, &check->target_addr.addr6, &mask);
+          dir = mtev_find_bpm_route_ipv6(acl, &check->target_addr.addr6, &mask);
           if(dir == DENY_PTR) goto prevent;
-          else if(dir == ALLOW_PTR) return NOIT_HOOK_CONTINUE;
+          else if(dir == ALLOW_PTR) return MTEV_HOOK_CONTINUE;
         }
       }
     }
   }
-  return NOIT_HOOK_CONTINUE;
+  return MTEV_HOOK_CONTINUE;
 
  prevent:
   noit_check_stats_clear(check, &check->stats.inprogress);
@@ -159,18 +161,18 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   check->stats.inprogress.status = deny_msg;
   noit_check_set_stats(check, &check->stats.inprogress);
   noit_check_stats_clear(check, &check->stats.inprogress);
-  return NOIT_HOOK_DONE;
+  return MTEV_HOOK_DONE;
 }
 static int
-ip_acl_init(noit_dso_generic_t *self) {
+ip_acl_init(mtev_dso_generic_t *self) {
   check_preflight_hook_register("ip_acl", ip_acl_hook_impl, NULL);
   return 0;
 }
 
-noit_dso_generic_t ip_acl = {
+mtev_dso_generic_t ip_acl = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "ip_acl",
     .description = "IP Access Controls for Checks",
     .xml_description = ip_acl_xml_description,

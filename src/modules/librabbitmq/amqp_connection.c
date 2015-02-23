@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <mtev_log.h>
 
 #include <unistd.h>
 #include <sys/uio.h>
@@ -11,7 +12,6 @@
 #include "amqp.h"
 #include "amqp_framing.h"
 #include "amqp_private.h"
-#include "utils/noit_log.h"
 
 #include <assert.h>
 
@@ -386,7 +386,7 @@ int amqp_send_frame(amqp_connection_state_t state,
       err = eintr_safe_write(state->sockfd, state->outbound_buffer.bytes,
 			     payload_len + (HEADER_SIZE + FOOTER_SIZE));
       if (err < 0) {
-        noitL(noit_error, "Error writing %d bytes in amqp_send_frame (separate body: false)\n", 
+        mtevL(mtev_error, "Error writing %d bytes in amqp_send_frame (separate body: false)\n", 
               payload_len + (HEADER_SIZE + FOOTER_SIZE));
         return err;
       }
@@ -395,17 +395,17 @@ int amqp_send_frame(amqp_connection_state_t state,
     case 1:
       err = eintr_safe_write(state->sockfd, state->outbound_buffer.bytes, HEADER_SIZE);
       if (err < 0) {
-        noitL(noit_error, "Error writing header in amqp_send_frame, size %d\n", HEADER_SIZE);
+        mtevL(mtev_error, "Error writing header in amqp_send_frame, size %d\n", HEADER_SIZE);
         return err;
       }
       err = eintr_safe_write(state->sockfd, encoded.bytes, payload_len);
       if (err < 0) {
-        noitL(noit_error, "Error writing body in amqp_send_frame, size %d\n", payload_len);
+        mtevL(mtev_error, "Error writing body in amqp_send_frame, size %d\n", payload_len);
         return err;
       }
       err = eintr_safe_write(state->sockfd, &frame_end_byte, FOOTER_SIZE);
       if (err < 0) {
-        noitL(noit_error, "Error writing footer in amqp_send_frame, size %d\n", FOOTER_SIZE);
+        mtevL(mtev_error, "Error writing footer in amqp_send_frame, size %d\n", FOOTER_SIZE);
         return err;
       }
       return 0;

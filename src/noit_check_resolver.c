@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include "noit_config.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,14 +44,15 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
-#include "utils/noit_skiplist.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_hooks.h"
-#include "noit_conf.h"
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_skiplist.h>
+#include <mtev_hash.h>
+#include <mtev_hooks.h>
+#include <mtev_conf.h>
+#include <mtev_console.h>
+#include "noit_mtev_bridge.h"
 #include "udns/udns.h"
-#include "noit_console.h"
 
 #define MAX_RR 256
 #define DEFAULT_FAILED_TTL 60
@@ -58,18 +60,18 @@
 
 static struct dns_ctx *dns_ctx;
 static pthread_mutex_t nc_dns_cache_lock = PTHREAD_MUTEX_INITIALIZER;
-static noit_skiplist nc_dns_cache;
+static mtev_skiplist nc_dns_cache;
 static eventer_t dns_cache_timeout = NULL;
-static noit_hash_table etc_hosts_cache;
+static mtev_hash_table etc_hosts_cache;
 static int dns_search_flag = DNS_NOSRCH;
 
-NOIT_HOOK_IMPL(noit_resolver_cache_store,
+MTEV_HOOK_IMPL(noit_resolver_cache_store,
                (const char *key, const void *data, int len),
                void *, closure,
                (void *closure, const char *key, const void *data, int len),
                (closure,key,data,len))
 
-NOIT_HOOK_IMPL(noit_resolver_cache_load,
+MTEV_HOOK_IMPL(noit_resolver_cache_load,
                (char **key, void **data, int *len),
                void *, closure,
                (void *closure, char **key, void **data, int *len),
@@ -89,8 +91,8 @@ NOIT_HOOK_IMPL(noit_resolver_cache_load,
 typedef struct {
   dns_cache_SHARED;
   char *target;
-  noit_boolean lookup_inflight_v4;
-  noit_boolean lookup_inflight_v6;
+  mtev_boolean lookup_inflight_v4;
+  mtev_boolean lookup_inflight_v6;
   struct in_addr *ip4;
   struct in6_addr *ip6;
 } dns_cache_node;
@@ -182,7 +184,7 @@ void noit_check_resolver_remind(const char *target) {
   dns_cache_node *n;
   if(!target) return;
   DCLOCK();
-  n = noit_skiplist_find(&nc_dns_cache, target, NULL);
+  n = mtev_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
     n->last_needed = time(NULL);
     DCUNLOCK();
@@ -191,7 +193,7 @@ void noit_check_resolver_remind(const char *target) {
   n = calloc(1, sizeof(*n));
   n->target = strdup(target);
   n->last_needed = time(NULL);
-  noit_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(&nc_dns_cache, n);
   DCUNLOCK();
 }
 
@@ -208,7 +210,7 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
   progression[0] = prefer_family;
   progression[1] = (prefer_family == AF_INET) ? AF_INET6 : AF_INET;
 
-  if(noit_hash_retrieve(&etc_hosts_cache, target, strlen(target), &vnode)) {
+  if(mtev_hash_retrieve(&etc_hosts_cache, target, strlen(target), &vnode)) {
     static_host_node *node = vnode;
     for(i=0; i<2; i++) {
       switch(progression[i]) {
@@ -230,7 +232,7 @@ int noit_check_resolver_fetch(const char *target, char *buff, int len,
 
   rv = -1;
   DCLOCK();
-  n = noit_skiplist_find(&nc_dns_cache, target, NULL);
+  n = mtev_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
     if(n->last_updated == 0) goto leave; /* not resolved yet */
     rv = n->ip4_cnt + n->ip6_cnt;
@@ -261,25 +263,25 @@ static void blank_update_v4(dns_cache_node *n) {
   if(n->ip4) free(n->ip4);
   n->ip4 = NULL;
   n->ip4_cnt = 0;
-  noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   if (n->lookup_inflight_v6) {
     n->ttl = DEFAULT_FAILED_TTL;
   }
-  n->lookup_inflight_v4 = noit_false;
-  noit_skiplist_insert(&nc_dns_cache, n);
+  n->lookup_inflight_v4 = mtev_false;
+  mtev_skiplist_insert(&nc_dns_cache, n);
 }
 static void blank_update_v6(dns_cache_node *n) {
   if(n->ip6) free(n->ip6);
   n->ip6 = NULL;
   n->ip6_cnt = 0;
-  noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
   if (n->lookup_inflight_v4) {
     n->ttl = DEFAULT_FAILED_TTL;
   }
-  n->lookup_inflight_v6 = noit_false;
-  noit_skiplist_insert(&nc_dns_cache, n);
+  n->lookup_inflight_v6 = mtev_false;
+  mtev_skiplist_insert(&nc_dns_cache, n);
 }
 static void blank_update(dns_cache_node *n) {
   blank_update_v4(n);
@@ -406,24 +408,24 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
     if(n->ip4) free(n->ip4);
     n->ip4_cnt = acnt;
     n->ip4 = answers4;
-    n->lookup_inflight_v4 = noit_false;
+    n->lookup_inflight_v4 = mtev_false;
   }
   else if(rtype == DNS_T_AAAA) {
     if(n->ip6) free(n->ip6);
     n->ip6_cnt = acnt;
     n->ip6 = answers6;
-    n->lookup_inflight_v6 = noit_false;
+    n->lookup_inflight_v6 = mtev_false;
   }
   else {
     if(result) free(result);
     return;
   }
   DCLOCK();
-  noit_skiplist_remove(&nc_dns_cache, n->target, NULL);
+  mtev_skiplist_remove(&nc_dns_cache, n->target, NULL);
   n->last_updated = time(NULL);
-  noit_skiplist_insert(&nc_dns_cache, n);
+  mtev_skiplist_insert(&nc_dns_cache, n);
   DCUNLOCK();
-  noitL(noit_debug, "Resolved %s/%s -> %d records\n", n->target,
+  mtevL(noit_debug, "Resolved %s/%s -> %d records\n", n->target,
         (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")),
         acnt);
   if(result) free(result);
@@ -434,7 +436,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
   if(rtype == DNS_T_A) blank_update_v4(n);
   if(rtype == DNS_T_AAAA) blank_update_v6(n);
   DCUNLOCK();
-  noitL(noit_debug, "Resolved %s/%s -> blank\n", n->target,
+  mtevL(noit_debug, "Resolved %s/%s -> blank\n", n->target,
         (rtype == DNS_T_AAAA ? "IPv6" : (rtype == DNS_T_A ? "IPv4" : "???")));
   if(result) free(result);
   return;
@@ -448,23 +450,23 @@ static void dns_cache_resolve_v6(struct dns_ctx *ctx, void *result, void *data) 
 
 void noit_check_resolver_maintain() {
   time_t now;
-  noit_skiplist *tlist;
-  noit_skiplist_node *sn;
+  mtev_skiplist *tlist;
+  mtev_skiplist_node *sn;
 
   now = time(NULL);
-  sn = noit_skiplist_getlist(nc_dns_cache.index);
+  sn = mtev_skiplist_getlist(nc_dns_cache.index);
   assert(sn);
   tlist = sn->data;
   assert(tlist);
-  sn = noit_skiplist_getlist(tlist);
+  sn = mtev_skiplist_getlist(tlist);
   while(sn) {
     dns_cache_node *n = sn->data;
-    noit_skiplist_next(tlist, &sn); /* move forward */
+    mtev_skiplist_next(tlist, &sn); /* move forward */
     /* remove if needed */
     if(n->last_updated + n->ttl > now) break;
     if(n->last_needed + DEFAULT_PURGE_AGE < now &&
        !(n->lookup_inflight_v4 || n->lookup_inflight_v6))
-      noit_skiplist_remove(&nc_dns_cache, n->target, dns_cache_node_free);
+      mtev_skiplist_remove(&nc_dns_cache, n->target, dns_cache_node_free);
     else {
       int abs;
       if(!dns_ptodn(n->target, strlen(n->target),
@@ -473,7 +475,7 @@ void noit_check_resolver_maintain() {
       }
       else {
         if(!n->lookup_inflight_v4) {
-          n->lookup_inflight_v4 = noit_true;
+          n->lookup_inflight_v4 = mtev_true;
           if(!dns_submit_dn(dns_ctx, n->dn, DNS_C_IN, DNS_T_A,
                             abs | dns_search_flag, NULL, dns_cache_resolve_v4, n))
             blank_update_v4(n);
@@ -481,7 +483,7 @@ void noit_check_resolver_maintain() {
             dns_timeouts(dns_ctx, -1, now);
         }
         if(!n->lookup_inflight_v6) {
-          n->lookup_inflight_v6 = noit_true;
+          n->lookup_inflight_v6 = mtev_true;
           if(!dns_submit_dn(dns_ctx, n->dn, DNS_C_IN, DNS_T_AAAA,
                             abs | dns_search_flag, NULL, dns_cache_resolve_v6, n))
             blank_update_v6(n);
@@ -489,7 +491,7 @@ void noit_check_resolver_maintain() {
             dns_timeouts(dns_ctx, -1, now);
         }
       }
-      noitL(noit_debug, "Firing lookup for '%s'\n", n->target);
+      mtevL(noit_debug, "Firing lookup for '%s'\n", n->target);
       continue;
     }
   }
@@ -497,12 +499,12 @@ void noit_check_resolver_maintain() {
   /* If we have a cache implementation */
   if(noit_resolver_cache_store_hook_exists()) {
     /* And that implementation is interested in getting a dump... */
-    if(noit_resolver_cache_store_hook_invoke(NULL, NULL, 0) == NOIT_HOOK_CONTINUE) {
-      noit_skiplist_node *sn;
+    if(noit_resolver_cache_store_hook_invoke(NULL, NULL, 0) == MTEV_HOOK_CONTINUE) {
+      mtev_skiplist_node *sn;
       /* dump it all */
       DCLOCK();
-      for(sn = noit_skiplist_getlist(&nc_dns_cache); sn;
-          noit_skiplist_next(&nc_dns_cache, &sn)) {
+      for(sn = mtev_skiplist_getlist(&nc_dns_cache); sn;
+          mtev_skiplist_next(&nc_dns_cache, &sn)) {
         int sbuffsize;
         char sbuff[1024];
         dns_cache_node *n = (dns_cache_node *)sn->data;
@@ -523,7 +525,7 @@ int noit_check_resolver_loop(eventer_t e, int mask, void *c,
 }
 
 static int
-nc_print_dns_cache_node(noit_console_closure_t ncct,
+nc_print_dns_cache_node(mtev_console_closure_t ncct,
                         const char *target, dns_cache_node *n) {
   nc_printf(ncct, "==== %s ====\n", target);
   if(!n) nc_printf(ncct, "NOT FOUND\n");
@@ -548,33 +550,33 @@ nc_print_dns_cache_node(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_console_show_dns_cache(noit_console_closure_t ncct,
+noit_console_show_dns_cache(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *dstate,
+                            mtev_console_state_t *dstate,
                             void *closure) {
   int i;
 
   DCLOCK();
   if(argc == 0) {
-    noit_skiplist_node *sn;
-    for(sn = noit_skiplist_getlist(&nc_dns_cache); sn;
-        noit_skiplist_next(&nc_dns_cache, &sn)) {
+    mtev_skiplist_node *sn;
+    for(sn = mtev_skiplist_getlist(&nc_dns_cache); sn;
+        mtev_skiplist_next(&nc_dns_cache, &sn)) {
       dns_cache_node *n = (dns_cache_node *)sn->data;
       nc_print_dns_cache_node(ncct, n->target, n);
     }
   }
   for(i=0;i<argc;i++) {
     dns_cache_node *n;
-    n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
+    n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
     nc_print_dns_cache_node(ncct, argv[i], n);
   }
   DCUNLOCK();
   return 0;
 }
 static int
-noit_console_manip_dns_cache(noit_console_closure_t ncct,
+noit_console_manip_dns_cache(mtev_console_closure_t ncct,
                              int argc, char **argv,
-                             noit_console_state_t *dstate,
+                             mtev_console_state_t *dstate,
                              void *closure) {
   int i;
   if(argc == 0) {
@@ -586,7 +588,7 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
     /* adding */
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
       if(NULL != n) {
         nc_printf(ncct, " == Already in system ==\n");
         nc_print_dns_cache_node(ncct, argv[i], n);
@@ -600,12 +602,12 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
   else {
     for(i=0;i<argc;i++) {
       dns_cache_node *n;
-      n = noit_skiplist_find(&nc_dns_cache, argv[i], NULL);
+      n = mtev_skiplist_find(&nc_dns_cache, argv[i], NULL);
       if(NULL != n) {
         if(n->lookup_inflight_v4 || n->lookup_inflight_v6)
           nc_printf(ncct, "%s is currently resolving and cannot be removed.\n");
         else {
-          noit_skiplist_remove(&nc_dns_cache, argv[i], dns_cache_node_free);
+          mtev_skiplist_remove(&nc_dns_cache, argv[i], dns_cache_node_free);
           nc_printf(ncct, "%s removed.\n", argv[i]);
         }
       }
@@ -618,23 +620,23 @@ noit_console_manip_dns_cache(noit_console_closure_t ncct,
 
 static void
 register_console_dns_cache_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd, *nocmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
 
-  nocmd = noit_console_state_get_cmd(tl, "no");
+  nocmd = mtev_console_state_get_cmd(tl, "no");
   assert(nocmd && nocmd->dstate);
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("dns_cache", noit_console_show_dns_cache, NULL, NULL, NULL));
 
-  noit_console_state_add_cmd(tl,
+  mtev_console_state_add_cmd(tl,
     NCSCMD("dns_cache", noit_console_manip_dns_cache, NULL, NULL, NULL));
 
-  noit_console_state_add_cmd(nocmd->dstate,
+  mtev_console_state_add_cmd(nocmd->dstate,
     NCSCMD("dns_cache", noit_console_manip_dns_cache, NULL, NULL, (void *)0x1));
 }
 
@@ -654,17 +656,17 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
   memcpy(&last_stat, &sb, sizeof(sb));
 
   if(reload) {
-    noit_hash_delete_all(&etc_hosts_cache, free, free);
+    mtev_hash_delete_all(&etc_hosts_cache, free, free);
     while(NULL != (ent = gethostent())) {
       int i = 0;
       char *name = ent->h_name;
       while(name) {
         void *vnode;
         static_host_node *node;
-        if(!noit_hash_retrieve(&etc_hosts_cache, name, strlen(name), &vnode)) {
+        if(!mtev_hash_retrieve(&etc_hosts_cache, name, strlen(name), &vnode)) {
           vnode = node = calloc(1, sizeof(*node));
           node->target = strdup(name);
-          noit_hash_store(&etc_hosts_cache, node->target, strlen(node->target), node);
+          mtev_hash_store(&etc_hosts_cache, node->target, strlen(node->target), node);
         }
         node = vnode;
   
@@ -681,7 +683,7 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
       }
     }
     endhostent();
-    noitL(noit_debug, "reloaded %d /etc/hosts targets\n", noit_hash_size(&etc_hosts_cache));
+    mtevL(noit_debug, "reloaded %d /etc/hosts targets\n", mtev_hash_size(&etc_hosts_cache));
   }
 
   eventer_add_in_s_us(noit_check_etc_hosts_cache_refresh, NULL, 1, 0);
@@ -690,42 +692,42 @@ noit_check_etc_hosts_cache_refresh(eventer_t e, int mask, void *closure,
 
 void noit_check_resolver_init() {
   int cnt;
-  noit_conf_section_t *servers, *searchdomains;
+  mtev_conf_section_t *servers, *searchdomains;
   eventer_t e;
   if(dns_init(NULL, 0) < 0)
-    noitL(noit_error, "dns initialization failed.\n");
+    mtevL(noit_error, "dns initialization failed.\n");
   dns_ctx = dns_new(NULL);
   if(dns_init(dns_ctx, 0) != 0) {
-    noitL(noit_error, "dns initialization failed.\n");
+    mtevL(noit_error, "dns initialization failed.\n");
     exit(-1);
   }
 
   /* Optional servers */
-  servers = noit_conf_get_sections(NULL, "//resolver//server", &cnt);
+  servers = mtev_conf_get_sections(NULL, "//resolver//server", &cnt);
   if(cnt) {
     int i;
     char server[128];
     dns_add_serv(dns_ctx, NULL); /* reset */
     for(i=0;i<cnt;i++) {
-      if(noit_conf_get_stringbuf(servers[i], "self::node()",
+      if(mtev_conf_get_stringbuf(servers[i], "self::node()",
                                  server, sizeof(server))) {
         if(dns_add_serv(dns_ctx, server) < 0) {
-          noitL(noit_error, "Failed adding DNS server: %s\n", server);
+          mtevL(noit_error, "Failed adding DNS server: %s\n", server);
         }
       }
     }
     free(servers);
   }
-  searchdomains = noit_conf_get_sections(NULL, "//resolver//search", &cnt);
+  searchdomains = mtev_conf_get_sections(NULL, "//resolver//search", &cnt);
   if(cnt) {
     int i;
     char search[128];
     dns_add_srch(dns_ctx, NULL); /* reset */
     for(i=0;i<cnt;i++) {
-      if(noit_conf_get_stringbuf(searchdomains[i], "self::node()",
+      if(mtev_conf_get_stringbuf(searchdomains[i], "self::node()",
                                  search, sizeof(search))) {
         if(dns_add_srch(dns_ctx, search) < 0) {
-          noitL(noit_error, "Failed adding DNS search path: %s\n", search);
+          mtevL(noit_error, "Failed adding DNS search path: %s\n", search);
         }
         else if(dns_search_flag) dns_search_flag = 0; /* enable search */
       }
@@ -733,17 +735,17 @@ void noit_check_resolver_init() {
     free(searchdomains);
   }
 
-  if(noit_conf_get_int(NULL, "//resolver/@ndots", &cnt))
+  if(mtev_conf_get_int(NULL, "//resolver/@ndots", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_NDOTS, cnt);
 
-  if(noit_conf_get_int(NULL, "//resolver/@ntries", &cnt))
+  if(mtev_conf_get_int(NULL, "//resolver/@ntries", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_NTRIES, cnt);
 
-  if(noit_conf_get_int(NULL, "//resolver/@timeout", &cnt))
+  if(mtev_conf_get_int(NULL, "//resolver/@timeout", &cnt))
     dns_set_opt(dns_ctx, DNS_OPT_TIMEOUT, cnt);
 
   if(dns_open(dns_ctx) < 0) {
-    noitL(noit_error, "dns open failed.\n");
+    mtevL(noit_error, "dns open failed.\n");
     exit(-1);
   }
   eventer_name_callback("dns_cache_callback", dns_cache_callback);
@@ -755,9 +757,9 @@ void noit_check_resolver_init() {
   e->fd = dns_sock(dns_ctx);
   eventer_add(e);
 
-  noit_skiplist_init(&nc_dns_cache);
-  noit_skiplist_set_compare(&nc_dns_cache, name_lookup, name_lookup_k);
-  noit_skiplist_add_index(&nc_dns_cache, refresh_idx, refresh_idx_k);
+  mtev_skiplist_init(&nc_dns_cache);
+  mtev_skiplist_set_compare(&nc_dns_cache, name_lookup, name_lookup_k);
+  mtev_skiplist_add_index(&nc_dns_cache, refresh_idx, refresh_idx_k);
 
   /* maybe load it from cache */
   if(noit_resolver_cache_load_hook_exists()) {
@@ -766,7 +768,7 @@ void noit_check_resolver_init() {
     void *data;
     int len;
     gettimeofday(&now, NULL);
-    while(noit_resolver_cache_load_hook_invoke(&key, &data, &len) == NOIT_HOOK_CONTINUE) {
+    while(noit_resolver_cache_load_hook_invoke(&key, &data, &len) == MTEV_HOOK_CONTINUE) {
       dns_cache_node *n;
       n = calloc(1, sizeof(*n));
       if(dns_cache_node_deserialize(n, data, len) >= 0) {
@@ -785,12 +787,12 @@ void noit_check_resolver_init() {
           n->last_updated = now.tv_sec - n->ttl + (lrand48() % fudge);
         }
         DCLOCK();
-        noit_skiplist_insert(&nc_dns_cache, n);
+        mtev_skiplist_insert(&nc_dns_cache, n);
         DCUNLOCK();
         n = NULL;
       }
       else {
-        noitL(noit_error, "Failed to deserialize resolver cache record.\n");
+        mtevL(noit_error, "Failed to deserialize resolver cache record.\n");
       }
       if(n) dns_cache_node_free(n);
       if(key) free(key);
@@ -801,15 +803,15 @@ void noit_check_resolver_init() {
   noit_check_resolver_loop(NULL, 0, NULL, NULL);
   register_console_dns_cache_commands();
 
-  noit_hash_init(&etc_hosts_cache);
+  mtev_hash_init(&etc_hosts_cache);
   noit_check_etc_hosts_cache_refresh(NULL, 0, NULL, NULL);
 }
 
-int noit_check_should_resolve_targets(noit_boolean *should_resolve) {
+int noit_check_should_resolve_targets(mtev_boolean *should_resolve) {
   static int inited = 0, cached_rv;;
-  static noit_boolean cached_should_resolve;
+  static mtev_boolean cached_should_resolve;
   if(!inited) {
-    cached_rv = noit_conf_get_boolean(NULL, "//checks/@resolve_targets",
+    cached_rv = mtev_conf_get_boolean(NULL, "//checks/@resolve_targets",
                                       &cached_should_resolve);
     inited = 1;
   }

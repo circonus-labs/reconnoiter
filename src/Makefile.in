@@ -1,5 +1,10 @@
 .SUFFIXES: .lo .re .c
 
+Q=
+ifeq ($(V),)
+	Q=@
+endif
+
 LIBNOIT_VERSION=0.0.1
 
 prefix=@prefix@
@@ -35,7 +40,6 @@ ifneq ($(strip $(RLDFLAG)),)
 endif
 SHLDFLAGS=@SHLDFLAGS@
 LIBNOIT_LIBS=@LIBNOIT_LIBS@
-LIBNOITLL_LIBS=@LIBNOITLL_LIBS@
 DEPFLAGS=@DEPFLAGS@
 MODULELD=@MODULELD@
 AR=@AR@
@@ -53,18 +57,18 @@ NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 DTRACEOBJ=@DTRACEOBJ@
 NOITD_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=noitd_%dtrace_stub.o)
 STRATCOND_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=stratcond_%dtrace_stub.o)
-LIBNOIT_DTRACEOBJ=$(DTRACEOBJ:%dtrace_stub.o=libnoit_%dtrace_stub.lo)
 LIBNOIT_V=libnoit@DOTSO@.$(LIBNOIT_VERSION)@DOTDYLIB@
 LIBNOIT=libnoit@DOTSO@@DOTDYLIB@
-LIBNOITLL_V=libnoit-ll@DOTSO@.$(LIBNOIT_VERSION)@DOTDYLIB@
-LIBNOITLL=libnoit-ll@DOTSO@@DOTDYLIB@
 
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
-	$(LIBNOIT) $(LIBNOITLL) @MDB_MODS@
+	$(LIBNOIT) @MDB_MODS@
 
 all:	reversion $(TARGETS) java-bits make-modules make-man
 
 MODDIR=modules
+
+HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h \
+	stratcon_ingest.h
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h \
@@ -75,94 +79,26 @@ NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
 	stratcon_realtime_http.h
 
-HEADERS=noit_metric.h noit_capabilities_listener.h noit_conf.h noit_version.h \
-	noit_check_log_helpers.h noit_check_tools_shared.h \
-	noit_config.h noit_console.h noit_console_telnet.h \
-	noit_defines.h noit_events_rest.h \
-	noit_http.h noit_listener.h \
-	noit_main.h noit_dso.h noit_reverse_socket.h noit_rest.h \
-	noit_tokenizer.h noit_xml.h \
-  stratcon_ingest.h \
-	eventer/OETS_asn1_helper.h eventer/eventer.h \
-	eventer/eventer_POSIX_fd_opset.h eventer/eventer_SSL_fd_opset.h \
-	eventer/eventer_jobq.h \
-	utils/noit_atomic.h utils/noit_b64.h utils/noit_hash.h \
-	utils/noit_log.h utils/noit_mkdir.h utils/noit_security.h \
-	utils/noit_sem.h utils/noit_skiplist.h utils/noit_str.h \
-	utils/noit_watchdog.h utils/noit_lockfile.h \
-	utils/noit_hooks.h \
-	noitedit/chared.h noitedit/common.h noitedit/compat.h noitedit/el.h \
-	noitedit/el_term.h noitedit/emacs.h noitedit/fcns.h noitedit/fgetln.h \
-	noitedit/help.h noitedit/hist.h noitedit/histedit.h noitedit/key.h \
-	noitedit/map.h noitedit/parse.h noitedit/prompt.h noitedit/refresh.h \
-	noitedit/search.h noitedit/sig.h noitedit/strlcpy.h noitedit/sys.h \
-	noitedit/tokenizer.h noitedit/tty.h noitedit/vi.h \
-	json-lib/arraylist.h json-lib/bits.h json-lib/debug.h \
-	json-lib/json_object_private.h json-lib/json_object.h \
-	json-lib/json_tokener.h json-lib/json_util.h json-lib/json.h \
-	json-lib/linkhash.h json-lib/printbuf.h \
-	yajl-lib/yajl_alloc.h yajl-lib/yajl_buf.h yajl-lib/yajl_bytestack.h \
-	yajl-lib/yajl_common.h yajl-lib/yajl_encode.h yajl-lib/yajl_gen.h \
-	yajl-lib/yajl_lex.h yajl-lib/yajl_parse.h yajl-lib/yajl_parser.h \
-	yajl-lib/yajl_tree.h yajl-lib/yajl_version.h
-
-
 UDNS_LIB_OBJS=udns/udns_dn.o udns/udns_dntosp.o udns/udns_parse.o \
         udns/udns_resolver.o udns/udns_init.o udns/udns_misc.o \
         udns/udns_XtoX.o udns/udns_rr_a.o udns/udns_rr_ptr.o udns/udns_rr_mx.o \
         udns/udns_rr_txt.o udns/udns_bl.o udns/udns_rr_srv.o \
         udns/udns_rr_naptr.o udns/udns_codes.o udns/udns_jran.o
-JSON_LIB_OBJS=json-lib/arraylist.lo json-lib/debug.lo json-lib/json_object.lo \
-        json-lib/json_tokener.lo json-lib/json_util.lo json-lib/linkhash.lo \
-        json-lib/printbuf.lo
-NOITEDIT_LIB_OBJS=noitedit/chared.lo noitedit/common.lo noitedit/el.lo \
-        noitedit/emacs.lo noitedit/fcns.lo noitedit/fgetln.lo noitedit/help.lo \
-        noitedit/hist.lo noitedit/history.lo noitedit/key.lo noitedit/map.lo \
-        noitedit/parse.lo noitedit/prompt.lo noitedit/read.lo noitedit/readline.lo \
-        noitedit/refresh.lo noitedit/search.lo noitedit/sig.lo noitedit/strlcpy.lo \
-        noitedit/term.lo noitedit/tokenizer.lo noitedit/tty.lo noitedit/vi.lo
-EVENTER_OBJS=@EVENTER_OBJS@
-EVENTER_IMPL_OBJS=$(EVENTER_OBJS:%.lo=eventer/%.lo)
-ATOMIC_REL_OBJS=@ATOMIC_OBJS@
-ATOMIC_OBJS=$(ATOMIC_REL_OBJS:%.lo=utils/%.lo)
-EVENTER_LIB_OBJS=eventer/OETS_asn1_helper.lo eventer/eventer.lo \
-        eventer/eventer_POSIX_fd_opset.lo eventer/eventer_SSL_fd_opset.lo \
-        eventer/eventer_impl.lo eventer/eventer_jobq.lo $(EVENTER_IMPL_OBJS)
-NOIT_UTILS_OBJS=utils/noit_b32.lo utils/noit_b64.lo utils/noit_btrie.lo \
-        utils/noit_getip.lo utils/noit_hash.lo utils/noit_lockfile.lo \
-        utils/noit_log.lo utils/noit_mkdir.lo utils/noit_security.lo \
-        utils/noit_sem.lo utils/noit_skiplist.lo utils/noit_str.lo \
-        utils/noit_watchdog.lo utils/noit_memory.lo $(ATOMIC_OBJS)
-YAJL_LIB_OBJS=yajl-lib/yajl.lo yajl-lib/yajl_alloc.lo yajl-lib/yajl_buf.lo \
-        yajl-lib/yajl_encode.lo yajl-lib/yajl_gen.lo yajl-lib/yajl_lex.lo \
-        yajl-lib/yajl_parser.lo yajl-lib/yajl_tree.lo yajl-lib/yajl_version.lo
-
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
 
-LIBNOIT_OBJS=noit_main.lo noit_listener.lo \
-	noit_console.lo noit_console_state.lo noit_console_telnet.lo \
-	noit_console_complete.lo noit_xml.lo \
-	noit_conf.lo noit_http.lo noit_rest.lo noit_tokenizer.lo \
-	noit_reverse_socket.lo \
-	noit_capabilities_listener.lo noit_dso.lo \
-	noit_events_rest.lo \
-	$(NOITEDIT_LIB_OBJS) $(EVENTER_LIB_OBJS) \
-	$(NOIT_UTILS_OBJS) $(JSON_LIB_OBJS) $(YAJL_LIB_OBJS)
-
-LIBNOITLL_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
+LIBNOIT_OBJS=noit_check_log_helpers.lo bundle.pb-c.lo \
 	noit_check_tools_shared.lo stratcon_ingest.lo
 
-NOIT_OBJS=noitd.o \
+NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check_resolver.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
 	noit_check_rest.o noit_filters_rest.o \
-	$(UDNS_LIB_OBJS) \
-	$(LUA_OBJS)
+	$(UDNS_LIB_OBJS)
 
-STRATCON_OBJS=stratcond.o \
+STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
 	stratcon_iep.o \
@@ -171,7 +107,6 @@ STRATCON_OBJS=stratcond.o \
 FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
 FINAL_LIBNOIT_OBJS=$(LIBNOIT_OBJS:%.lo=libnoit-objs/%.lo)
-FINAL_LIBNOITLL_OBJS=$(LIBNOITLL_OBJS:%.lo=libnoit-ll-objs/%.lo)
 
 noit-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
@@ -191,10 +126,10 @@ libnoit-objs/%.lo:	%.lo
 		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
 	fi
 
-libnoit-ll-objs/%.lo:	%.lo
+libnoit-objs/%.lo:	%.lo
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
-	@cp $(@:libnoit-ll-objs/%.lo=%.lo) $@
+	@cp $(@:libnoit-objs/%.lo=%.lo) $@
 	@if test -x "$(CTFCONVERT)" ; then \
 		echo "- making CTF ($@)" ; \
 		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
@@ -249,20 +184,9 @@ dtrace_probes.h:	noit_@DTRACEHDR@ stratcon_@DTRACEHDR@ libnoit_@DTRACEHDR@
 $(LIBNOIT):	$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(LIBNOIT)
 
-$(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS) $(LIBNOIT_DTRACEOBJ)
+$(LIBNOIT_V):	$(FINAL_LIBNOIT_OBJS)
 	@echo "- linking $@"
-	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_DTRACEOBJ) $(LIBNOIT_LIBS)
-
-$(LIBNOITLL):	$(LIBNOITLL_V)
-	ln -sf $(LIBNOITLL_V) $(LIBNOITLL)
-
-$(LIBNOITLL_V):	$(FINAL_LIBNOITLL_OBJS) $(LIBNOIT)
-	@echo "- linking $@"
-	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOITLL_VERSION@ $(FINAL_LIBNOITLL_OBJS) $(LIBNOITLL_LIBS) -L. -lnoit
-
-$(LIBNOIT_DTRACEOBJ):    $(FINAL_LIBNOIT_OBJS)
-	@echo "- assembling $@"
-	@DTRACE@ @DTRACEFLAGS@ -Z -G -s libnoit_dtrace_probes.d -o $(LIBNOIT_DTRACEOBJ) $(FINAL_LIBNOIT_OBJS)
+	$(SHLD) $(SHLDFLAGS) -o $@ @LD_LIBNOIT_VERSION@ $(FINAL_LIBNOIT_OBJS) $(LIBNOIT_LIBS) -L. -lmtev
 
 stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 	@echo "- assembling $@" && \
@@ -271,15 +195,6 @@ stratcond_@DTRACEOBJ@:    $(FINAL_STRATCON_OBJS)
 noitd_@DTRACEOBJ@:    $(FINAL_NOIT_OBJS)
 	@echo "- assembling $@" && \
 	@DTRACE@ @DTRACEFLAGS@ -Z -G -s noit_dtrace_probes.d -o noitd_@DTRACEOBJ@ $(FINAL_NOIT_OBJS)
-
-libnoit_@DTRACEHDR@:    libnoit_dtrace_probes.d
-	@if test -z "@DTRACE@" ; then \
-		echo "- faking dtrace header" ; \
-		cp ./libnoit_@DTRACEHDR@.stock ./libnoit_@DTRACEHDR@ ; \
-	else \
-		echo "- building dtrace header $@" ; \
-		@DTRACE@ -h -s libnoit_dtrace_probes.d ; \
-	fi
 
 noit_@DTRACEHDR@:    noit_dtrace_probes.d
 	@if test -z "@DTRACE@" ; then \
@@ -299,24 +214,24 @@ stratcon_@DTRACEHDR@:    stratcon_dtrace_probes.d
 		@DTRACE@ -h -s stratcon_dtrace_probes.d ; \
 	fi
 
-noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ) $(LIBNOIT) $(LIBNOITLL)
+noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ) $(LIBNOIT)
 	@echo "- linking $@"
 	@$(CC) $(CLINKFLAGS) -o $@ $(FINAL_NOIT_OBJS) \
 		$(NOITD_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
-		$(LIBS) -L. -lnoit -lnoit-ll $(LUALIBS) -ljlog
+		$(LIBS) -L. -lmtev -lnoit $(LUALIBS) -ljlog
 	@if test -x "$(CTFMERGE)" ; then \
 		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
 
-stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) $(LIBNOIT) $(LIBNOITLL)
+stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) $(LIBNOIT)
 	@echo "- linking $@"
 	$(CC) $(CLINKFLAGS) -o $@ $(FINAL_STRATCON_OBJS) \
 		$(STRATCOND_DTRACEOBJ) \
 		$(LDFLAGS) \
 		$(MAPFLAGS) \
-		$(LIBS) -L. -lnoit -lnoit-ll
+		$(LIBS) -L. -lmtev -lnoit
 	@if test -x "$(CTFMERGE)" ; then \
 		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
 	fi
@@ -325,22 +240,14 @@ mdb-support/mdb_help.lo:	mdb-support/mdb_help.c
 	@echo "- compiling $@"
 	@$(CC) -Imdb-support $(CPPFLAGS) $(SHCFLAGS) $(CFLAGS) -o $@ -c $<
 
-SHAREDMDBMODSRC=mdb-support/noitutils.c mdb-support/eventer.c
-
-mdb-support/libnoit.lo:	mdb-support/libnoit.c $(SHAREDMDBMODSRC)
-	@echo "- compiling $@"
-	@$(CC) -Imdb-support $(CPPFLAGS) $(SHCFLAGS) $(CFLAGS) -o $@ -c $<
-
-mdb-support/libnoit.so:	mdb-support/libnoit.lo mdb-support/mdb_help.lo
-	@echo "- linking $@"
-	@$(MODULELD) $(SHLDFLAGS) -o $@ mdb-support/libnoit.lo mdb-support/mdb_help.lo
+SHAREDMDBMODSRC=
 
 stratcon_datastore.o:	stratcon_datastore.c
 	@echo "- compiling $<"
 	@$(CC) $(CPPFLAGS) $(PGCFLAGS) $(CFLAGS) -c $<
 
 .c.lo:
-	@if [ "`dirname $@`" != "." ] ; then \
+	$(Q)if [ "`dirname $@`" != "." ] ; then \
 		(cd "`dirname $@`" && $(MAKE) "`basename $@`") ; \
 	else \
 		echo "- compiling $<" ; \
@@ -348,7 +255,7 @@ stratcon_datastore.o:	stratcon_datastore.c
 	fi
 
 .c.o:
-	@if [ "`dirname $@`" != "." ] ; then \
+	$(Q)if [ "`dirname $@`" != "." ] ; then \
 		(cd "`dirname $@`" && $(MAKE) "`basename $@`") ; \
 	else \
 		echo "- compiling $<" ; \
@@ -358,27 +265,11 @@ stratcon_datastore.o:	stratcon_datastore.c
 udns/udns_codes.c:
 	@(cd udns && $(MAKE) udns_codes.c)
 
-utils/noit_atomic_sol_sparcv8plus.o:	utils/noit_atomic_sol.s
-	@(cd utils && $(MAKE) noit_atomic_sol_sparcv8plus.o)
-
-utils/noit_atomic_sol_sparcv9.o:	utils/noit_atomic_sol.s
-	@(cd utils && $(MAKE) noit_atomic_sol_sparcv9.o)
-
-utils/noit_atomic_sol_x86_32.o:	utils/noit_atomic_sol.s
-	@(cd utils && $(MAKE) noit_atomic_sol_x86_32.o)
-
-utils/noit_atomic_sol_x86_64.o:	utils/noit_atomic_sol.s
-	@(cd utils && $(MAKE) noit_atomic_sol_x86_64.o)
-
 noit_module.o:	module-online.h
 
 module-online.h:	modules/module-online.xsl
 	@echo "- making module-online.h (StyleSheet include)"
 	@$(XML2H) helpStyleXML < modules/module-online.xsl > $@
-
-noit_tokenizer.c:
-	@echo "- re2c noit_tokenizer.re"
-	@re2c -o $@ noit_tokenizer.re
 
 test-noit.conf:	noit.conf.in Makefile
 	@mkdir -p scratch/var/log scratch/var/run
@@ -440,29 +331,18 @@ install-stratcond-headers:	$(STRATCON_HEADERS) install-headers
 install-headers:	$(HEADERS)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(bindir)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/eventer
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/utils
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/noitedit
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/json-lib
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(includedir)/yajl-lib
 	$(INSTALL) -m 0755 ../buildtools/xml2h $(DESTDIR)$(bindir)/noit-xml2h
 	$(INSTALL) -m 0755 scripts/noit-config $(DESTDIR)$(bindir)/noit-config
 	for file in $(HEADERS) ; do \
 		$(INSTALL) -m 0644 $$file $(DESTDIR)$(includedir)/$$file ; \
 	done
 
-noitlibs:	$(LIBNOIT_V) $(LIBNOITLL_V) @MDB_MODS@
+noitlibs:	$(LIBNOIT_V) @MDB_MODS@
 
 install-libs:    noitlibs
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)
 	$(INSTALL) -m 0755 $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT_V)
 	ln -sf $(LIBNOIT_V) $(DESTDIR)$(libdir)/$(LIBNOIT)
-	$(INSTALL) -m 0755 $(LIBNOITLL_V) $(DESTDIR)$(libdir)/$(LIBNOITLL_V)
-	ln -sf $(LIBNOITLL_V) $(DESTDIR)$(libdir)/$(LIBNOITLL)
-	if test -n "@MDB_MODS@" ; then \
-		$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)/usr/lib/mdb/proc/amd64 ; \
-		$(INSTALL) -m 0755 mdb-support/libnoit.so $(DESTDIR)/usr/lib/mdb/proc/amd64/libnoit.so ; \
-	fi
 
 install-noitd:	install-libs install-noitd-nolibs
 
@@ -494,54 +374,34 @@ install-docs:
 install:	install-dirs install-docs install-headers install-noitd install-stratcond install-noitd-headers install-stratcond-headers
 
 clean:
-	rm -f *.lo *.o $(TARGETS) $(LUA_OBJS)
-	rm -f $(LIBNOIT) $(LIBNOIT_V) $(LIBNOITLL) $(LIBNOITLL_V)
+	rm -f *.lo *.o $(TARGETS)
+	rm -f $(LIBNOIT)
 	rm -f module-online.h noit.env
-	rm -rf noit-objs stratcon-objs libnoit-objs libnoit-ll-objs
+	rm -rf noit-objs stratcon-objs libnoit-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
-	(cd eventer && $(MAKE) clean)
 	(cd udns && $(MAKE) clean)
 	(cd man && $(MAKE) clean)
 	(cd modules && $(MAKE) clean)
-	(cd noitedit && $(MAKE) clean)
-	(cd utils && $(MAKE) clean)
-	(cd json-lib && $(MAKE) clean)
-	(cd yajl-lib && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
 
 Makefile.noit.dep:
-	find noit-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
-	for impl in kqueue ports epoll; do \
-		echo "noit-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
-		echo "noit-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
-	done
+	find noit-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "noit-objs/"$$1": "$$1;}' > $@
 
 Makefile.stratcon.dep:
-	find stratcon-objs -name \*.o | grep -v 'eventer_.*_impl.o' | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
-	for impl in kqueue ports epoll; do \
-		echo "stratcon-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
-		echo "stratcon-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
-	done
+	find stratcon-objs -name \*.o | sort | awk '{gsub("^.+-objs/", ""); print "stratcon-objs/"$$1": "$$1;}' > $@
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
-	for d in utils udns eventer noitedit json-lib yajl-lib; do \
-		$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) $$d/*.c | \
-		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#'$$d'/$$1#;' >> \
-		Makefile.dep ; \
-	done
-	for impl in kqueue ports epoll; do \
-		echo "libnoit-objs/eventer/eventer_$${impl}_impl.o: eventer/eventer_$${impl}_impl.o" >> $@ ; \
-		echo "libnoit-objs/eventer/eventer_$${impl}_impl.lo: eventer/eventer_$${impl}_impl.lo" >> $@ ; \
-	done
-	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
+	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) udns/*.c | \
+		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#udns/$$1#;' >> \
+		Makefile.dep
 
 include Makefile.dep
 include Makefile.noit.dep
 include Makefile.stratcon.dep
 
 distclean-subdirs:
-	for dir in eventer udns man modules modules-lua noitedit utils json-lib yajl-lib java ; do \
+	for dir in udns man modules modules-lua java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 

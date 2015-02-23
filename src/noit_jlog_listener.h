@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,15 +34,15 @@
 #ifndef _NOIT_JLOG_LISTENER_H
 #define _NOIT_JLOG_LISTENER_H
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
+#include <mtev_defines.h>
+#include <eventer/eventer.h>
 
 #define NOIT_JLOG_DATA_FEED 0xda7afeed
 #define NOIT_JLOG_DATA_TEMP_FEED 0x7e66feed
 
 typedef struct {
   char *feed_name;
-  noit_atomic32_t connections;
+  mtev_atomic32_t connections;
   struct timeval last_connection;
   struct timeval last_checkpoint;
 } jlog_feed_stats_t;

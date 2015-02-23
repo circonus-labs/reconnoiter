@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include "noit_config.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,50 +44,52 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#include "dtrace_probes.h"
-#include "utils/noit_memory.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_skiplist.h"
-#include "utils/noit_watchdog.h"
-#include "noit_conf.h"
+#include <eventer/eventer.h>
+#include <mtev_memory.h>
+#include <mtev_log.h>
+#include <mtev_hash.h>
+#include <mtev_skiplist.h>
+#include <mtev_watchdog.h>
+#include <mtev_conf.h>
+#include <mtev_console.h>
+
+#include "noit_mtev_bridge.h"
+#include "noit_dtrace_probes.h"
 #include "noit_check.h"
 #include "noit_module.h"
-#include "noit_console.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
-#include "eventer/eventer.h"
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
 #define RECYCLE_INTERVAL 60
 
-NOIT_HOOK_IMPL(check_config_fixup,
+MTEV_HOOK_IMPL(check_config_fixup,
   (noit_check_t *check),
   void *, closure,
   (void *closure, noit_check_t *check),
   (closure,check))
 
-NOIT_HOOK_IMPL(check_stats_set_metric,
+MTEV_HOOK_IMPL(check_stats_set_metric,
   (noit_check_t *check, stats_t *stats, metric_t *m),
   void *, closure,
   (void *closure, noit_check_t *check, stats_t *stats, metric_t *m),
   (closure,check,stats,m))
 
-NOIT_HOOK_IMPL(check_stats_set_metric_coerce,
+MTEV_HOOK_IMPL(check_stats_set_metric_coerce,
   (noit_check_t *check, stats_t *stats, const char *name,
-   metric_type_t type, const char *v, noit_boolean success),
+   metric_type_t type, const char *v, mtev_boolean success),
   void *, closure,
   (void *closure, noit_check_t *check, stats_t *stats, const char *name,
-   metric_type_t type, const char *v, noit_boolean success),
+   metric_type_t type, const char *v, mtev_boolean success),
   (closure,check,stats,name,type,v,success))
 
-NOIT_HOOK_IMPL(check_passive_log_stats,
+MTEV_HOOK_IMPL(check_passive_log_stats,
   (noit_check_t *check),
   void *, closure,
   (void *closure, noit_check_t *check),
   (closure,check))
 
-NOIT_HOOK_IMPL(check_log_stats,
+MTEV_HOOK_IMPL(check_log_stats,
   (noit_check_t *check),
   void *, closure,
   (void *closure, noit_check_t *check),
@@ -102,7 +106,7 @@ struct vp_w_free {
   void (*freefunc)(void *);
 };
 
-static noit_boolean system_needs_causality = noit_false;
+static mtev_boolean system_needs_causality = mtev_false;
 static int text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
 static int reg_module_id = 0;
 static char *reg_module_names[MAX_MODULE_REGISTRATIONS] = { NULL };
@@ -110,10 +114,10 @@ static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
 static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
-static noit_hash_table polls = NOIT_HASH_EMPTY;
-static noit_hash_table dns_ignore_list = NOIT_HASH_EMPTY;
-static noit_skiplist watchlist = { 0 };
-static noit_skiplist polls_by_name = { 0 };
+static mtev_hash_table polls = MTEV_HASH_EMPTY;
+static mtev_hash_table dns_ignore_list = MTEV_HASH_EMPTY;
+static mtev_skiplist watchlist = { 0 };
+static mtev_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
@@ -121,7 +125,7 @@ static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
   void *vcheck;
-  if(noit_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
+  if(mtev_hash_retrieve(&polls, (char *)in, UUID_SIZE, &vcheck))
     return (noit_check_t *)vcheck;
   return NULL;
 }
@@ -131,13 +135,13 @@ noit_poller_lookup_by_name__nolock(char *target, char *name) {
   memset(&tmp_check, 0, sizeof(tmp_check));
   tmp_check.target = target;
   tmp_check.name = name;
-  return noit_skiplist_find(&polls_by_name, &tmp_check, NULL);
+  return mtev_skiplist_find(&polls_by_name, &tmp_check, NULL);
 }
 
 static int
-noit_console_show_timing_slots(noit_console_closure_t ncct,
+noit_console_show_timing_slots(mtev_console_closure_t ncct,
                                int argc, char **argv,
-                               noit_console_state_t *dstate,
+                               mtev_console_state_t *dstate,
                                void *closure) {
   int i, j;
   const int upl = (60000 / SCHEDULE_GRANULARITY) / 60;
@@ -166,15 +170,15 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
     assert(new_check->name || newname);
     /* This remove could fail -- no big deal */
     if(new_check->name != NULL)
-      noit_skiplist_remove(&polls_by_name, new_check, NULL);
+      mtev_skiplist_remove(&polls_by_name, new_check, NULL);
 
     /* optional update the name (at the critical point) */
     if(newname) new_check->name = newnamecopy;
 
     /* This insert could fail.. which means we have a conflict on
      * target`name.  That should result in the check being disabled. */
-    if(!noit_skiplist_insert(&polls_by_name, new_check)) {
-      noitL(noit_error, "Check %s`%s disabled due to naming conflict\n",
+    if(!mtev_skiplist_insert(&polls_by_name, new_check)) {
+      mtevL(noit_error, "Check %s`%s disabled due to naming conflict\n",
             new_check->target, new_check->name);
       new_check->flags |= NP_DISABLED;
     }
@@ -188,9 +192,9 @@ u_int64_t noit_check_metric_count() {
   return check_metrics_seen;
 }
 void noit_check_metric_count_add(int add) {
-  noit_atomic64_t *n = (noit_atomic64_t *)&check_metrics_seen;
-  noit_atomic64_t v = (noit_atomic64_t)add;
-  noit_atomic_add64(n, v);
+  mtev_atomic64_t *n = (mtev_atomic64_t *)&check_metrics_seen;
+  mtev_atomic64_t v = (mtev_atomic64_t)add;
+  mtev_atomic_add64(n, v);
 }
 
 u_int64_t noit_check_completion_count() {
@@ -376,9 +380,9 @@ noit_check_fake_last_check(noit_check_t *check,
 void
 noit_poller_process_checks(const char *xpath) {
   int i, flags, cnt = 0, found;
-  noit_conf_section_t *sec;
+  mtev_conf_section_t *sec;
   __config_load_generation++;
-  sec = noit_conf_get_sections(NULL, xpath, &cnt);
+  sec = mtev_conf_get_sections(NULL, xpath, &cnt);
   for(i=0; i<cnt; i++) {
     void *vcheck;
     char uuid_str[37];
@@ -392,50 +396,50 @@ noit_poller_process_checks(const char *xpath) {
     int no_period = 0;
     int no_oncheck = 0;
     int period = 0, timeout = 0;
-    noit_boolean disabled = noit_false, busted = noit_false;
+    mtev_boolean disabled = mtev_false, busted = mtev_false;
     uuid_t uuid, out_uuid;
-    noit_hash_table *options;
-    noit_hash_table **moptions = NULL;
-    noit_boolean moptions_used = noit_false;
+    mtev_hash_table *options;
+    mtev_hash_table **moptions = NULL;
+    mtev_boolean moptions_used = mtev_false;
 
     /* We want to heartbeat here... otherwise, if a lot of checks are 
      * configured or if we're running on a slower system, we could 
      * end up getting watchdog killed before we get a chance to run 
      * any checks */
-    noit_watchdog_child_heartbeat();
+    mtev_watchdog_child_heartbeat();
 
     if(reg_module_id > 0) {
-      moptions = alloca(reg_module_id * sizeof(noit_hash_table *));
-      memset(moptions, 0, reg_module_id * sizeof(noit_hash_table *));
-      moptions_used = noit_true;
+      moptions = alloca(reg_module_id * sizeof(mtev_hash_table *));
+      memset(moptions, 0, reg_module_id * sizeof(mtev_hash_table *));
+      moptions_used = mtev_true;
     }
 
-#define NEXT(...) noitL(noit_stderr, __VA_ARGS__); continue
-#define MYATTR(type,a,...) noit_conf_get_##type(sec[i], "@" #a, __VA_ARGS__)
+#define NEXT(...) mtevL(noit_stderr, __VA_ARGS__); continue
+#define MYATTR(type,a,...) mtev_conf_get_##type(sec[i], "@" #a, __VA_ARGS__)
 #define INHERIT(type,a,...) \
-  noit_conf_get_##type(sec[i], "ancestor-or-self::node()/@" #a, __VA_ARGS__)
+  mtev_conf_get_##type(sec[i], "ancestor-or-self::node()/@" #a, __VA_ARGS__)
 
     if(!MYATTR(stringbuf, uuid, uuid_str, sizeof(uuid_str))) {
-      noitL(noit_stderr, "check %d has no uuid\n", i+1);
+      mtevL(noit_stderr, "check %d has no uuid\n", i+1);
       continue;
     }
 
     if(uuid_parse(uuid_str, uuid)) {
-      noitL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
+      mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
       continue;
     }
 
     if(!INHERIT(stringbuf, target, target, sizeof(target))) {
-      noitL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
-      busted = noit_true;
+      mtevL(noit_stderr, "check uuid: '%s' has no target\n", uuid_str);
+      busted = mtev_true;
     }
     if(!noit_check_validate_target(target)) {
-      noitL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
-      busted = noit_true;
+      mtevL(noit_stderr, "check uuid: '%s' has malformed target\n", uuid_str);
+      busted = mtev_true;
     }
     if(!INHERIT(stringbuf, module, module, sizeof(module))) {
-      noitL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
-      busted = noit_true;
+      mtevL(noit_stderr, "check uuid: '%s' has no module\n", uuid_str);
+      busted = mtev_true;
     }
 
     if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
@@ -448,8 +452,8 @@ noit_poller_process_checks(const char *xpath) {
       strlcpy(name, module, sizeof(name));
 
     if(!noit_check_validate_name(name)) {
-      noitL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
-      busted = noit_true;
+      mtevL(noit_stderr, "check uuid: '%s' has malformed name\n", uuid_str);
+      busted = mtev_true;
     }
 
     if(!INHERIT(int, period, &period) || period == 0)
@@ -459,26 +463,26 @@ noit_poller_process_checks(const char *xpath) {
       no_oncheck = 1;
 
     if(no_period && no_oncheck) {
-      noitL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
+      mtevL(noit_stderr, "check uuid: '%s' has neither period nor oncheck\n",
             uuid_str);
-      busted = noit_true;
+      busted = mtev_true;
     }
     if(!(no_period || no_oncheck)) {
-      noitL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
+      mtevL(noit_stderr, "check uuid: '%s' has oncheck and period.\n",
             uuid_str);
-      busted = noit_true;
+      busted = mtev_true;
     }
     if(!INHERIT(int, timeout, &timeout)) {
-      noitL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
-      busted = noit_true;
+      mtevL(noit_stderr, "check uuid: '%s' has no timeout\n", uuid_str);
+      busted = mtev_true;
     }
     if(!no_period && timeout >= period) {
-      noitL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
+      mtevL(noit_stderr, "check uuid: '%s' timeout > period\n", uuid_str);
       timeout = period/2;
     }
-    options = noit_conf_get_hash(sec[i], "config");
+    options = mtev_conf_get_hash(sec[i], "config");
     for(ridx=0; ridx<reg_module_id; ridx++) {
-      moptions[ridx] = noit_conf_get_namespaced_hash(sec[i], "config",
+      moptions[ridx] = mtev_conf_get_namespaced_hash(sec[i], "config",
                                                      reg_module_names[ridx]);
     }
 
@@ -490,7 +494,7 @@ noit_poller_process_checks(const char *xpath) {
     flags |= noit_calc_rtype_flag(resolve_rtype);
 
     pthread_mutex_lock(&polls_lock);
-    found = noit_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+    found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
     pthread_mutex_unlock(&polls_lock);
     if(found)
       noit_poller_deschedule(uuid);
@@ -498,15 +502,15 @@ noit_poller_process_checks(const char *xpath) {
                          moptions_used ? moptions : NULL,
                          period, timeout, oncheck[0] ? oncheck : NULL,
                          flags, uuid, out_uuid);
-    noitL(noit_debug, "loaded uuid: %s\n", uuid_str);
+    mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
 
     for(ridx=0; ridx<reg_module_id; ridx++) {
       if(moptions[ridx]) {
-        noit_hash_destroy(moptions[ridx], free, free);
+        mtev_hash_destroy(moptions[ridx], free, free);
         free(moptions[ridx]);
       }
     }
-    noit_hash_destroy(options, free, free);
+    mtev_hash_destroy(options, free, free);
     free(options);
   }
   if(sec) free(sec);
@@ -523,12 +527,12 @@ noit_check_activate(noit_check_t *check) {
       return 1;
     }
     else
-      noitL(noit_debug, "Skipping %s`%s, disabled.\n",
+      mtevL(noit_debug, "Skipping %s`%s, disabled.\n",
             check->target, check->name);
   }
   else {
     if(!mod) {
-      noitL(noit_stderr, "Cannot find module '%s'\n", check->module);
+      mtevL(noit_stderr, "Cannot find module '%s'\n", check->module);
       check->flags |= NP_DISABLED;
     }
   }
@@ -537,21 +541,21 @@ noit_check_activate(noit_check_t *check) {
 
 void
 noit_poller_initiate() {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
   void *vcheck;
   /* This is only ever called in the beginning, no lock needed */
-  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+  while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_activate((noit_check_t *)vcheck);
-    noit_watchdog_child_heartbeat();
+    mtev_watchdog_child_heartbeat();
   }
 }
 
 void
 noit_poller_flush_epoch(int oldest_allowed) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i;
   void *vcheck;
@@ -562,7 +566,7 @@ noit_poller_flush_epoch(int oldest_allowed) {
   while(1) {
     i = 0;
     pthread_mutex_lock(&polls_lock);
-    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+    while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                          &vcheck) && i < TOFREE_PER_ITER) {
       noit_check_t *check = (noit_check_t *)vcheck;
       if(check->generation < oldest_allowed) {
@@ -578,7 +582,7 @@ noit_poller_flush_epoch(int oldest_allowed) {
 
 void
 noit_poller_make_causal_map() {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
   void *vcheck;
@@ -587,11 +591,11 @@ noit_poller_make_causal_map() {
 
   /* set it to false, we'll set it to true during the scan if we
    * find anything causal.  */
-  system_needs_causality = noit_false;
+  system_needs_causality = mtev_false;
 
   /* Cleanup any previous causal map */
   pthread_mutex_lock(&polls_lock);
-  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+  while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_t *check = (noit_check_t *)vcheck;
     dep_list_t *dep;
@@ -603,7 +607,7 @@ noit_poller_make_causal_map() {
 
   memset(&iter, 0, sizeof(iter));
   /* Walk all checks and add check dependencies to their parents */
-  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+  while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     noit_check_t *check = (noit_check_t *)vcheck, *parent;
     if(check->oncheck) {
@@ -613,8 +617,8 @@ noit_poller_make_causal_map() {
       char *name = check->oncheck;
       char *target = NULL;
 
-      system_needs_causality = noit_true;
-      noitL(noit_debug, "Searching for upstream trigger on %s\n", name);
+      system_needs_causality = mtev_true;
+      mtevL(noit_debug, "Searching for upstream trigger on %s\n", name);
       parent = NULL;
       if(uuid_parse(check->oncheck, id) == 0) {
         target = "";
@@ -633,7 +637,7 @@ noit_poller_make_causal_map() {
 
       if(!parent) {
         check->flags |= NP_DISABLED;
-        noitL(noit_stderr, "Disabling check %s`%s, can't find oncheck %s`%s\n",
+        mtevL(noit_stderr, "Disabling check %s`%s, can't find oncheck %s`%s\n",
               check->target, check->name, target, name);
       }
       else {
@@ -642,7 +646,7 @@ noit_poller_make_causal_map() {
         dep->check = check;
         dep->next = parent->causal_checks;
         parent->causal_checks = dep;
-        noitL(noit_debug, "Causal map %s`%s --> %s`%s\n",
+        mtevL(noit_debug, "Causal map %s`%s --> %s`%s\n",
               parent->target, parent->name, check->target, check->name);
       }
     }
@@ -663,23 +667,23 @@ noit_poller_reload(const char *xpath)
 }
 void
 noit_check_dns_ignore_tld(const char* extension, const char* ignore) {
-  noit_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), NULL, NULL);
+  mtev_hash_replace(&dns_ignore_list, strdup(extension), strlen(extension), strdup(ignore), NULL, NULL);
 }
 static void 
 noit_check_dns_ignore_list_init() {
-  noit_conf_section_t* dns;
+  mtev_conf_section_t* dns;
   int cnt;
 
-  dns = noit_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
+  dns = mtev_conf_get_sections(NULL, "/noit/dns/extension", &cnt);
   if(dns) {
     int i = 0;
     for (i = 0; i < cnt; i++) {
       char* extension;
       char* ignore;
-      if(!noit_conf_get_string(dns[i], "self::node()/@value", &extension)) {
+      if(!mtev_conf_get_string(dns[i], "self::node()/@value", &extension)) {
         continue;
       }
-      if(!noit_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
+      if(!mtev_conf_get_string(dns[i], "self::node()/@ignore", &ignore)) {
         continue;
       }
       noit_check_dns_ignore_tld(extension, ignore);
@@ -691,21 +695,21 @@ noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
   noit_check_resolver_init();
   noit_check_tools_init();
-  noit_skiplist_init(&polls_by_name);
-  noit_skiplist_set_compare(&polls_by_name, __check_name_compare,
+  mtev_skiplist_init(&polls_by_name);
+  mtev_skiplist_set_compare(&polls_by_name, __check_name_compare,
                             __check_name_compare);
-  noit_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
+  mtev_skiplist_add_index(&polls_by_name, __check_target_ip_compare,
                             __check_target_ip_compare);
-  noit_skiplist_add_index(&polls_by_name, __check_target_compare,
+  mtev_skiplist_add_index(&polls_by_name, __check_target_compare,
                             __check_target_compare);
-  noit_skiplist_init(&watchlist);
-  noit_skiplist_set_compare(&watchlist, __watchlist_compare,
+  mtev_skiplist_init(&watchlist);
+  mtev_skiplist_set_compare(&watchlist, __watchlist_compare,
                             __watchlist_compare);
   register_console_check_commands();
   eventer_name_callback("check_recycle_bin_processor",
                         check_recycle_bin_processor);
   eventer_add_in_s_us(check_recycle_bin_processor, NULL, RECYCLE_INTERVAL, 0);
-  noit_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
+  mtev_conf_get_int(NULL, "noit/@text_size_limit", &text_size_limit);
   if (text_size_limit <= 0) {
     text_size_limit = DEFAULT_TEXT_METRIC_SIZE_LIMIT;
   }
@@ -728,7 +732,7 @@ noit_check_clone(uuid_t in) {
   int i;
   noit_check_t *checker, *new_check;
   void *vcheck;
-  if(noit_hash_retrieve(&polls,
+  if(mtev_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         &vcheck) == 0) {
     return NULL;
@@ -749,17 +753,17 @@ noit_check_clone(uuid_t in) {
   memset(&new_check->stats, 0, sizeof(new_check->stats));
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
-  noit_hash_merge_as_dict(new_check->config, checker->config);
+  mtev_hash_merge_as_dict(new_check->config, checker->config);
   new_check->module_configs = NULL;
   new_check->module_metadata = NULL;
 
   for(i=0; i<reg_module_id; i++) {
     void *src_metadata;
-    noit_hash_table *src_mconfig;
+    mtev_hash_table *src_mconfig;
     src_mconfig = noit_check_get_module_config(checker, i);
     if(src_mconfig) {
-      noit_hash_table *t = calloc(1, sizeof(*new_check->config));
-      noit_hash_merge_as_dict(t, src_mconfig);
+      mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
+      mtev_hash_merge_as_dict(t, src_mconfig);
       noit_check_set_module_config(new_check, i, t);
     }
     if(checker->flags & NP_PASSIVE_COLLECTION)
@@ -773,28 +777,28 @@ noit_check_t *
 noit_check_watch(uuid_t in, int period) {
   /* First look for a copy that is being watched */
   int minimum_pi = 1000, granularity_pi = 500;
-  noit_conf_section_t check_node;
+  mtev_conf_section_t check_node;
   char uuid_str[UUID_STR_LEN + 1];
   char xpath[1024];
   noit_check_t n, *f;
 
   uuid_unparse_lower(in, uuid_str);
 
-  noitL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
+  mtevL(noit_debug, "noit_check_watch(%s,%d)\n", uuid_str, period);
   if(period == 0) {
     return noit_poller_lookup(in);
   }
 
   /* Find the check */
   snprintf(xpath, sizeof(xpath), "//checks//check[@uuid=\"%s\"]", uuid_str);
-  check_node = noit_conf_get_section(NULL, xpath);
-  noit_conf_get_int(NULL, "//checks/@transient_min_period", &minimum_pi);
-  noit_conf_get_int(NULL, "//checks/@transient_period_granularity", &granularity_pi);
+  check_node = mtev_conf_get_section(NULL, xpath);
+  mtev_conf_get_int(NULL, "//checks/@transient_min_period", &minimum_pi);
+  mtev_conf_get_int(NULL, "//checks/@transient_period_granularity", &granularity_pi);
   if(check_node) {
-    noit_conf_get_int(check_node,
+    mtev_conf_get_int(check_node,
                       "ancestor-or-self::node()/@transient_min_period",
                       &minimum_pi);
-    noit_conf_get_int(check_node,
+    mtev_conf_get_int(check_node,
                       "ancestor-or-self::node()/@transient_period_granularity",
                       &granularity_pi);
   }
@@ -807,15 +811,15 @@ noit_check_watch(uuid_t in, int period) {
   uuid_copy(n.checkid, in);
   n.period = period;
 
-  f = noit_skiplist_find(&watchlist, &n, NULL);
+  f = mtev_skiplist_find(&watchlist, &n, NULL);
   if(f) return f;
   f = noit_check_clone(in);
   if(!f) return NULL;
   f->period = period;
   f->timeout = period - 10;
   f->flags |= NP_TRANSIENT;
-  noitL(noit_debug, "Watching %s@%d\n", uuid_str, period);
-  noit_skiplist_insert(&watchlist, f);
+  mtevL(noit_debug, "Watching %s@%d\n", uuid_str, period);
+  mtev_skiplist_insert(&watchlist, f);
   return f;
 }
 
@@ -826,7 +830,7 @@ noit_check_get_watch(uuid_t in, int period) {
   uuid_copy(n.checkid, in);
   n.period = period;
 
-  f = noit_skiplist_find(&watchlist, &n, NULL);
+  f = mtev_skiplist_find(&watchlist, &n, NULL);
   return f;
 }
 
@@ -835,35 +839,35 @@ noit_check_transient_add_feed(noit_check_t *check, const char *feed) {
   char *feedcopy;
   if(!check->feeds) {
     check->feeds = calloc(1, sizeof(*check->feeds));
-    noit_skiplist_init(check->feeds);
-    noit_skiplist_set_compare(check->feeds,
-                              (noit_skiplist_comparator_t)strcmp,
-                              (noit_skiplist_comparator_t)strcmp);
+    mtev_skiplist_init(check->feeds);
+    mtev_skiplist_set_compare(check->feeds,
+                              (mtev_skiplist_comparator_t)strcmp,
+                              (mtev_skiplist_comparator_t)strcmp);
   }
   feedcopy = strdup(feed);
   /* No error on failure -- it's already there */
-  if(noit_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
-  noitL(noit_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
+  if(mtev_skiplist_insert(check->feeds, feedcopy) == NULL) free(feedcopy);
+  mtevL(noit_debug, "check %s`%s @ %dms has %d feed(s): %s.\n",
         check->target, check->name, check->period, check->feeds->size, feed);
 }
 void
 noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   if(!check->feeds) return;
   if(feed) {
-    noitL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
+    mtevL(noit_debug, "check %s`%s @ %dms removing 1 of %d feeds: %s.\n",
           check->target, check->name, check->period, check->feeds->size, feed);
-    noit_skiplist_remove(check->feeds, feed, free);
+    mtev_skiplist_remove(check->feeds, feed, free);
   }
   if(check->feeds->size == 0) {
     char uuid_str[UUID_STR_LEN + 1];
     uuid_unparse_lower(check->checkid, uuid_str);
-    noitL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
-    noit_skiplist_remove(&watchlist, check, NULL);
-    noit_skiplist_destroy(check->feeds, free);
+    mtevL(noit_debug, "Unwatching %s@%d\n", uuid_str, check->period);
+    mtev_skiplist_remove(&watchlist, check, NULL);
+    mtev_skiplist_destroy(check->feeds, free);
     free(check->feeds);
     check->feeds = NULL;
     if(check->flags & NP_TRANSIENT) {
-      noitL(noit_debug, "check %s`%s @ %dms has no more listeners.\n",
+      mtevL(noit_debug, "check %s`%s @ %dms has no more listeners.\n",
             check->target, check->name, check->period);
       check->flags |= NP_KILLED;
     }
@@ -871,7 +875,7 @@ noit_check_transient_remove_feed(noit_check_t *check, const char *feed) {
   }
 }
 
-noit_boolean
+mtev_boolean
 noit_check_is_valid_target(const char *target) {
   int8_t family;
   int rv;
@@ -886,10 +890,10 @@ noit_check_is_valid_target(const char *target) {
     family = AF_INET6;
     rv = inet_pton(family, target, &a);
     if(rv != 1) {
-      return noit_false;
+      return mtev_false;
     }
   }
-  return noit_true;
+  return mtev_true;
 }
 int
 noit_check_set_ip(noit_check_t *new_check,
@@ -929,7 +933,7 @@ noit_check_set_ip(noit_check_t *new_check,
                  &new_check->target_addr,
                  new_check->target_ip,
                  sizeof(new_check->target_ip)) == NULL) {
-      noitL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
+      mtevL(noit_error, "inet_ntop failed [%s] -> %d\n", ip_str, errno);
     }
   /*
    * new_check->name could be null if this check is being set for the
@@ -967,8 +971,8 @@ noit_check_update(noit_check_t *new_check,
                   const char *target,
                   const char *name,
                   const char *filterset,
-                  noit_hash_table *config,
-                  noit_hash_table **mconfigs,
+                  mtev_hash_table *config,
+                  mtev_hash_table **mconfigs,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
@@ -1008,8 +1012,8 @@ noit_check_update(noit_check_t *new_check,
 
   /* This sets both the name and the target_addr */
   if(noit_check_set_ip(new_check, target, name)) {
-    noit_boolean should_resolve;
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_boolean should_resolve;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *key, *value;
     int klen;
     char* extension = strrchr(target, '.');
@@ -1018,7 +1022,7 @@ noit_check_update(noit_check_t *new_check,
     /* If we match any of the extensions we're supposed to ignore,
      * don't resolve */
     if (extension && (strlen(extension) > 1)) {
-      while(noit_hash_next(&dns_ignore_list, &iter, &key, &klen, (void**)&value)) {
+      while(mtev_hash_next(&dns_ignore_list, &iter, &key, &klen, (void**)&value)) {
         if ((!strcmp("true", value)) && (!strcmp(extension+1, key))) {
             new_check->flags &= ~NP_RESOLVE;
             break;
@@ -1034,35 +1038,35 @@ noit_check_update(noit_check_t *new_check,
   new_check->filterset = filterset ? strdup(filterset): NULL;
 
   if(config != NULL) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *k;
     int klen;
     void *data;
-    if(new_check->config) noit_hash_delete_all(new_check->config, free, free);
+    if(new_check->config) mtev_hash_delete_all(new_check->config, free, free);
     else new_check->config = calloc(1, sizeof(*new_check->config));
-    while(noit_hash_next(config, &iter, &k, &klen, &data)) {
-      noit_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
+    while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
+      mtev_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
     }
   }
   if(mconfigs != NULL) {
     int i;
     for(i=0; i<reg_module_id; i++) {
-      noit_hash_table *t;
+      mtev_hash_table *t;
       if(NULL != (t = noit_check_get_module_config(new_check, i))) {
         noit_check_set_module_config(new_check, i, NULL);
-        noit_hash_destroy(t, free, free);
+        mtev_hash_destroy(t, free, free);
         free(t);
       }
       if(mconfigs[i]) {
-        noit_hash_table *t = calloc(1, sizeof(*new_check->config));
-        noit_hash_merge_as_dict(t, mconfigs[i]);
+        mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
+        mtev_hash_merge_as_dict(t, mconfigs[i]);
         noit_check_set_module_config(new_check, i, t);
       }
     }
   }
   if(new_check->oncheck) free(new_check->oncheck);
   new_check->oncheck = oncheck ? strdup(oncheck) : NULL;
-  if(new_check->oncheck) system_needs_causality = noit_true;
+  if(new_check->oncheck) system_needs_causality = mtev_true;
   new_check->period = period;
   new_check->timeout = timeout;
 
@@ -1083,8 +1087,8 @@ noit_poller_schedule(const char *target,
                      const char *module,
                      const char *name,
                      const char *filterset,
-                     noit_hash_table *config,
-                     noit_hash_table **mconfigs,
+                     mtev_hash_table *config,
+                     mtev_hash_table **mconfigs,
                      u_int32_t period,
                      u_int32_t timeout,
                      const char *oncheck,
@@ -1104,7 +1108,7 @@ noit_poller_schedule(const char *target,
 
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, flags);
-  assert(noit_hash_store(&polls,
+  assert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
   uuid_copy(out, new_check->checkid);
@@ -1130,9 +1134,9 @@ static void recycle_check(noit_check_t *checker) {
 void
 free_metric(metric_t *m) {
   if(!m) return;
-  if(m->metric_name) noit_memory_safe_free(m->metric_name);
-  if(m->metric_value.i) noit_memory_safe_free(m->metric_value.i);
-  noit_memory_safe_free(m);
+  if(m->metric_name) mtev_memory_safe_free(m->metric_name);
+  if(m->metric_value.i) mtev_memory_safe_free(m->metric_value.i);
+  mtev_memory_safe_free(m);
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
@@ -1156,7 +1160,7 @@ noit_poller_free_check(noit_check_t *checker) {
   if(checker->module) free(checker->module);
   if(checker->name) free(checker->name);
   if(checker->config) {
-    noit_hash_destroy(checker->config, free, free);
+    mtev_hash_destroy(checker->config, free, free);
     free(checker->config);
     checker->config = NULL;
   }
@@ -1176,20 +1180,20 @@ noit_poller_free_check(noit_check_t *checker) {
     int i;
     for(i=0; i<reg_module_id; i++) {
       if(checker->module_configs[i]) {
-        noit_hash_destroy(checker->module_configs[i], free, free);
+        mtev_hash_destroy(checker->module_configs[i], free, free);
         free(checker->module_configs[i]);
       }
     }
     free(checker->module_configs);
   }
   if(checker->stats.inprogress.status) free(checker->stats.inprogress.status);
-  noit_hash_destroy(&checker->stats.inprogress.metrics, NULL,
+  mtev_hash_destroy(&checker->stats.inprogress.metrics, NULL,
                     (void (*)(void *))free_metric);
   if(checker->stats.current.status) free(checker->stats.current.status);
-  noit_hash_destroy(&checker->stats.current.metrics, NULL,
+  mtev_hash_destroy(&checker->stats.current.metrics, NULL,
                     (void (*)(void *))free_metric);
   if(checker->stats.previous.status) free(checker->stats.previous.status);
-  noit_hash_destroy(&checker->stats.previous.metrics, NULL,
+  mtev_hash_destroy(&checker->stats.previous.metrics, NULL,
                     (void (*)(void *))free_metric);
   free(checker);
 }
@@ -1198,10 +1202,10 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   static struct timeval one_minute = { RECYCLE_INTERVAL, 0L };
   struct _checker_rcb *prev = NULL, *curr = checker_rcb;
-  noitL(noit_debug, "Scanning check recycle bin\n");
+  mtevL(noit_debug, "Scanning check recycle bin\n");
   while(curr) {
     if(!(curr->checker->flags & NP_RUNNING)) {
-      noitL(noit_debug, "Check is ready to free.\n");
+      mtevL(noit_debug, "Check is ready to free.\n");
       noit_poller_free_check(curr->checker);
       if(prev) prev->next = curr->next;
       else checker_rcb = curr->next;
@@ -1221,7 +1225,7 @@ int
 noit_poller_deschedule(uuid_t in) {
   void *vcheck;
   noit_check_t *checker;
-  if(noit_hash_retrieve(&polls,
+  if(mtev_hash_retrieve(&polls,
                         (char *)in, UUID_SIZE,
                         &vcheck) == 0) {
     return -1;
@@ -1231,8 +1235,8 @@ noit_poller_deschedule(uuid_t in) {
 
   noit_check_log_delete(checker);
 
-  assert(noit_skiplist_remove(&polls_by_name, checker, NULL));
-  assert(noit_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+  assert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
+  assert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
 
   noit_poller_free_check(checker);
   return 0;
@@ -1260,12 +1264,12 @@ noit_poller_target_ip_do(const char *target_ip,
                          void *closure) {
   int i, count = 0, todo_count = 0;
   noit_check_t pivot;
-  noit_skiplist *tlist;
-  noit_skiplist_node *next;
+  mtev_skiplist *tlist;
+  mtev_skiplist_node *next;
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
-  tlist = noit_skiplist_find(polls_by_name.index,
+  tlist = mtev_skiplist_find(polls_by_name.index,
                              __check_target_ip_compare, NULL);
 
   pthread_mutex_lock(&polls_lock);
@@ -1274,12 +1278,12 @@ noit_poller_target_ip_do(const char *target_ip,
   strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
   pivot.name = "";
   pivot.target = "";
-  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target_ip, target_ip)) break;
     todo_count++;
-    noit_skiplist_next(tlist, &next);
+    mtev_skiplist_next(tlist, &next);
   }
 
   if(todo_count > 8192) todo = malloc(todo_count * sizeof(*todo));
@@ -1288,12 +1292,12 @@ noit_poller_target_ip_do(const char *target_ip,
   strlcpy(pivot.target_ip, (char*)target_ip, sizeof(pivot.target_ip));
   pivot.name = "";
   pivot.target = "";
-  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target_ip, target_ip)) break;
     if(count < todo_count) todo[count++] = check;
-    noit_skiplist_next(tlist, &next);
+    mtev_skiplist_next(tlist, &next);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -1310,24 +1314,24 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
                       void *closure) {
   int i, todo_count = 0, count = 0;
   noit_check_t pivot;
-  noit_skiplist *tlist;
-  noit_skiplist_node *next;
+  mtev_skiplist *tlist;
+  mtev_skiplist_node *next;
   noit_check_t *todo_onstack[8192];
   noit_check_t **todo = todo_onstack;
 
-  tlist = noit_skiplist_find(polls_by_name.index,
+  tlist = mtev_skiplist_find(polls_by_name.index,
                              __check_target_compare, NULL);
 
   pthread_mutex_lock(&polls_lock);
   memset(&pivot, 0, sizeof(pivot));
   pivot.name = "";
   pivot.target = (char *)target;
-  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target, target)) break;
     todo_count++;
-    noit_skiplist_next(tlist, &next);
+    mtev_skiplist_next(tlist, &next);
   }
 
   if(todo_count > 8192) todo = malloc(todo_count * sizeof(*todo));
@@ -1335,12 +1339,12 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
   memset(&pivot, 0, sizeof(pivot));
   pivot.name = "";
   pivot.target = (char *)target;
-  noit_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
+  mtev_skiplist_find_neighbors(tlist, &pivot, NULL, NULL, &next);
   while(next && next->data) {
     noit_check_t *check = next->data;
     if(strcmp(check->target, target)) break;
     if(count < todo_count) todo[count++] = check;
-    noit_skiplist_next(tlist, &next);
+    mtev_skiplist_next(tlist, &next);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -1356,7 +1360,7 @@ noit_poller_target_do(const char *target, int (*f)(noit_check_t *, void *),
 int
 noit_poller_do(int (*f)(noit_check_t *, void *),
                void *closure) {
-  noit_skiplist_node *iter;
+  mtev_skiplist_node *iter;
   int i, count = 0, max_count = 0;
   noit_check_t **todo;
 
@@ -1366,8 +1370,8 @@ noit_poller_do(int (*f)(noit_check_t *, void *),
   todo = malloc(max_count * sizeof(*todo));
 
   pthread_mutex_lock(&polls_lock);
-  for(iter = noit_skiplist_getlist(&polls_by_name); iter;
-      noit_skiplist_next(&polls_by_name, &iter)) {
+  for(iter = mtev_skiplist_getlist(&polls_by_name); iter;
+      mtev_skiplist_next(&polls_by_name, &iter)) {
     if(count < max_count) todo[count++] = (noit_check_t *)iter->data;
   }
   pthread_mutex_unlock(&polls_lock);
@@ -1484,7 +1488,7 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 
 void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
-  noit_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+  mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))free_metric);
 }
 
@@ -1596,7 +1600,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scanint:
    if(negative) {
      int64_t *v;
-     v = noit_memory_safe_malloc(sizeof(*v));
+     v = mtev_memory_safe_malloc(sizeof(*v));
      *v = strtoll(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_INT64;
@@ -1604,7 +1608,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
    }
    else {
      u_int64_t *v;
-     v = noit_memory_safe_malloc(sizeof(*v));
+     v = mtev_memory_safe_malloc(sizeof(*v));
      *v = strtoull(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_UINT64;
@@ -1613,7 +1617,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scandouble:
    {
      double *v;
-     v = noit_memory_safe_malloc(sizeof(*v));
+     v = mtev_memory_safe_malloc(sizeof(*v));
      *v = strtod(rpl, NULL);
      *replacement = v;
      type = METRIC_DOUBLE;
@@ -1640,7 +1644,7 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
 
-  m->metric_name = noit_memory_safe_strdup(name);
+  m->metric_name = mtev_memory_safe_strdup(name);
   cleanse_metric_name(m->metric_name);
 
   if(type == METRIC_GUESS)
@@ -1654,7 +1658,7 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
-    m->metric_value.vp = noit_memory_safe_malloc(len);
+    m->metric_value.vp = mtev_memory_safe_malloc(len);
     memcpy(m->metric_value.vp, value, len);
     if (type == METRIC_STRING) {
       m->metric_value.s[len-1] = 0;
@@ -1668,7 +1672,7 @@ metric_t *
 noit_stats_get_metric(noit_check_t *check,
                       stats_t *newstate, const char *name) {
   void *v;
-  if(noit_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
+  if(mtev_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
     return (metric_t *)v;
   return NULL;
 }
@@ -1677,7 +1681,7 @@ void
 noit_stats_set_metric(noit_check_t *check,
                       stats_t *newstate, const char *name, metric_type_t type,
                       const void *value) {
-  metric_t *m = noit_memory_safe_calloc(1, sizeof(*m));
+  metric_t *m = mtev_memory_safe_calloc(1, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
@@ -1693,7 +1697,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   char *endptr;
   if(v == NULL) {
    bogus:
-    check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_false);
+    check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, mtev_false);
     noit_stats_set_metric(check, stat, name, t, NULL);
     return;
   }
@@ -1745,14 +1749,14 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       noit_stats_set_metric(check, stat, name, t, v);
       break;
   }
-  check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, noit_true);
+  check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, mtev_true);
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 void *value) {
   struct timeval now;
-  metric_t *m = noit_memory_safe_malloc(sizeof(*m));
+  metric_t *m = mtev_memory_safe_malloc(sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
@@ -1765,7 +1769,7 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 void
 noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
   int i, nwatches = 0;
-  noit_skiplist_node *next;
+  mtev_skiplist_node *next;
   noit_check_t n;
   noit_check_t *watches[8192];
 
@@ -1775,12 +1779,12 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
   noit_check_set_stats(check,newstate);
 
   pthread_mutex_lock(&polls_lock);
-  noit_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
+  mtev_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
   while(next && next->data && nwatches < 8192) {
     noit_check_t *wcheck = next->data;
     if(uuid_compare(n.checkid, wcheck->checkid)) break;
     watches[nwatches++] = wcheck;
-    noit_skiplist_next(&watchlist, &next);
+    mtev_skiplist_next(&watchlist, &next);
   }
   pthread_mutex_unlock(&polls_lock);
 
@@ -1791,7 +1795,7 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
     memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
     memcpy(&wcheck->stats.current, &check->stats.current, sizeof(stats_t));
 
-    if(check_passive_log_stats_hook_invoke(check) == NOIT_HOOK_CONTINUE) {
+    if(check_passive_log_stats_hook_invoke(check) == MTEV_HOOK_CONTINUE) {
       /* Write out our status */
       noit_check_log_status(wcheck);
       /* Write out all metrics */
@@ -1808,7 +1812,7 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
   dep_list_t *dep;
   if(check->stats.previous.status)
     free(check->stats.previous.status);
-  noit_hash_destroy(&check->stats.previous.metrics, NULL,
+  mtev_hash_destroy(&check->stats.previous.metrics, NULL,
                     (void (*)(void *))free_metric);
   memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
   if(newstate)
@@ -1828,10 +1832,10 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
      check->stats.current.state != check->stats.previous.state)
     report_change = 1;
 
-  noitL(noit_debug, "%s`%s <- [%s]\n", check->target, check->name,
+  mtevL(noit_debug, "%s`%s <- [%s]\n", check->target, check->name,
         check->stats.current.status);
   if(report_change) {
-    noitL(noit_debug, "%s`%s -> [%s:%s]\n",
+    mtevL(noit_debug, "%s`%s -> [%s:%s]\n",
           check->target, check->name,
           noit_check_available_string(check->stats.current.available),
           noit_check_state_string(check->stats.current.state));
@@ -1846,7 +1850,7 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
                       check->stats.current.status);
   }
 
-  if(check_log_stats_hook_invoke(check) == NOIT_HOOK_CONTINUE) {
+  if(check_log_stats_hook_invoke(check) == MTEV_HOOK_CONTINUE) {
     /* Write out the bundled information */
     noit_check_log_bundle(check);
   }
@@ -1860,7 +1864,7 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
       bad_check_initiate(mod, dep->check, 1, check);
     }
     else {
-      noitL(noit_debug, "Firing %s`%s in response to %s`%s\n",
+      mtevL(noit_debug, "Firing %s`%s in response to %s`%s\n",
             dep->check->target, dep->check->name,
             check->target, check->name);
       if((dep->check->flags & NP_DISABLED) == 0)
@@ -1871,18 +1875,18 @@ noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
 }
 
 static int
-noit_console_show_watchlist(noit_console_closure_t ncct,
+noit_console_show_watchlist(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *dstate,
+                            mtev_console_state_t *dstate,
                             void *closure) {
-  noit_skiplist_node *iter, *fiter;
+  mtev_skiplist_node *iter, *fiter;
   int nwatches = 0, i;
   noit_check_t *watches[8192];
 
   nc_printf(ncct, "%d active watches.\n", watchlist.size);
   pthread_mutex_lock(&polls_lock);
-  for(iter = noit_skiplist_getlist(&watchlist); iter && nwatches < 8192;
-      noit_skiplist_next(&watchlist, &iter)) {
+  for(iter = mtev_skiplist_getlist(&watchlist); iter && nwatches < 8192;
+      mtev_skiplist_next(&watchlist, &iter)) {
     noit_check_t *check = iter->data;
     watches[nwatches++] = check;
   }
@@ -1897,8 +1901,8 @@ noit_console_show_watchlist(noit_console_closure_t ncct,
               uuid_str, check->target, check->module, check->name,
               check->period, check->feeds ? check->feeds->size : 0);
     if(check->feeds && check->feeds->size) {
-      for(fiter = noit_skiplist_getlist(check->feeds); fiter;
-          noit_skiplist_next(check->feeds, &fiter)) {
+      for(fiter = mtev_skiplist_getlist(check->feeds); fiter;
+          mtev_skiplist_next(check->feeds, &fiter)) {
         nc_printf(ncct, "\t\t%s\n", (const char *)fiter->data);
       }
     }
@@ -1907,7 +1911,7 @@ noit_console_show_watchlist(noit_console_closure_t ncct,
 }
 
 static void
-nc_printf_check_brief(noit_console_closure_t ncct,
+nc_printf_check_brief(mtev_console_closure_t ncct,
                       noit_check_t *check) {
   char out[512];
   char uuid_str[37];
@@ -1920,11 +1924,11 @@ nc_printf_check_brief(noit_console_closure_t ncct,
 }
 
 char *
-noit_console_conf_check_opts(noit_console_closure_t ncct,
-                             noit_console_state_stack_t *stack,
-                             noit_console_state_t *dstate,
+noit_console_conf_check_opts(mtev_console_closure_t ncct,
+                             mtev_console_state_stack_t *stack,
+                             mtev_console_state_t *dstate,
                              int argc, char **argv, int idx) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i = 0;
   void *vcheck;
@@ -1935,7 +1939,7 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
       i++;
     }
     pthread_mutex_lock(&polls_lock);
-    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+    while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                          &vcheck)) {
       noit_check_t *check = (noit_check_t *)vcheck;
       char out[512];
@@ -1962,26 +1966,26 @@ noit_console_conf_check_opts(noit_console_closure_t ncct,
   if(argc == 2) {
     cmd_info_t *cmd;
     if(!strcmp("new", argv[0])) return NULL;
-    cmd = noit_skiplist_find(&dstate->cmds, "attribute", NULL);
+    cmd = mtev_skiplist_find(&dstate->cmds, "attribute", NULL);
     if(!cmd) return NULL;
-    return noit_console_opt_delegate(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
+    return mtev_console_opt_delegate(ncct, stack, cmd->dstate, argc-1, argv+1, idx);
   }
   return NULL;
 }
 
 char *
-noit_console_check_opts(noit_console_closure_t ncct,
-                        noit_console_state_stack_t *stack,
-                        noit_console_state_t *dstate,
+noit_console_check_opts(mtev_console_closure_t ncct,
+                        mtev_console_state_stack_t *stack,
+                        mtev_console_state_t *dstate,
                         int argc, char **argv, int idx) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i = 0;
 
   if(argc == 1) {
     void *vcheck;
     pthread_mutex_lock(&polls_lock);
-    while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+    while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                          &vcheck)) {
       char out[512];
       char uuid_str[37];
@@ -2006,28 +2010,28 @@ noit_console_check_opts(noit_console_closure_t ncct,
     pthread_mutex_unlock(&polls_lock);
   }
   if(argc == 2) {
-    return noit_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
+    return mtev_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
   }
   return NULL;
 }
 
 static int
-noit_console_show_checks(noit_console_closure_t ncct,
+noit_console_show_checks(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *dstate,
+                         mtev_console_state_t *dstate,
                          void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen, i = 0, nchecks;
   void *vcheck;
   noit_check_t **checks;
 
-  nchecks = noit_hash_size(&polls);
+  nchecks = mtev_hash_size(&polls);
   if(nchecks == 0) return 0;
   checks = malloc(nchecks * sizeof(*checks));
 
   pthread_mutex_lock(&polls_lock);
-  while(noit_hash_next(&polls, &iter, (const char **)key_id, &klen,
+  while(mtev_hash_next(&polls, &iter, (const char **)key_id, &klen,
                        &vcheck)) {
     if(i<nchecks) checks[i++] = vcheck;
   }
@@ -2042,19 +2046,19 @@ noit_console_show_checks(noit_console_closure_t ncct,
 }
 
 static int
-noit_console_short_checks_sl(noit_console_closure_t ncct,
-                             noit_skiplist *tlist) {
+noit_console_short_checks_sl(mtev_console_closure_t ncct,
+                             mtev_skiplist *tlist) {
   int max_count, i = 0;
   noit_check_t **todo;
-  noit_skiplist_node *iter;
+  mtev_skiplist_node *iter;
 
   max_count = tlist->size;
   if(max_count == 0) return 0;
   todo = malloc(max_count * sizeof(*todo));
 
   pthread_mutex_lock(&polls_lock);
-  for(iter = noit_skiplist_getlist(tlist); i < max_count && iter;
-      noit_skiplist_next(tlist, &iter)) {
+  for(iter = mtev_skiplist_getlist(tlist); i < max_count && iter;
+      mtev_skiplist_next(tlist, &iter)) {
     todo[i++] = iter->data;
   }
   pthread_mutex_unlock(&polls_lock);
@@ -2067,61 +2071,61 @@ noit_console_short_checks_sl(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_console_show_checks_name(noit_console_closure_t ncct,
+noit_console_show_checks_name(mtev_console_closure_t ncct,
                               int argc, char **argv,
-                              noit_console_state_t *dstate,
+                              mtev_console_state_t *dstate,
                               void *closure) {
   return noit_console_short_checks_sl(ncct, &polls_by_name);
 }
 
 static int
-noit_console_show_checks_target(noit_console_closure_t ncct,
+noit_console_show_checks_target(mtev_console_closure_t ncct,
                                    int argc, char **argv,
-                                   noit_console_state_t *dstate,
+                                   mtev_console_state_t *dstate,
                                    void *closure) {
   return noit_console_short_checks_sl(ncct,
-           noit_skiplist_find(polls_by_name.index,
+           mtev_skiplist_find(polls_by_name.index,
            __check_target_compare, NULL));
 }
 
 static int
-noit_console_show_checks_target_ip(noit_console_closure_t ncct,
+noit_console_show_checks_target_ip(mtev_console_closure_t ncct,
                                    int argc, char **argv,
-                                   noit_console_state_t *dstate,
+                                   mtev_console_state_t *dstate,
                                    void *closure) {
   return noit_console_short_checks_sl(ncct,
-           noit_skiplist_find(polls_by_name.index,
+           mtev_skiplist_find(polls_by_name.index,
            __check_target_ip_compare, NULL));
 }
 
 static void
 register_console_check_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("timing_slots", noit_console_show_timing_slots, NULL, NULL, NULL));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks", noit_console_show_checks, NULL, NULL, NULL));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks:name", noit_console_show_checks_name, NULL,
            NULL, NULL));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks:target", noit_console_show_checks_target, NULL,
            NULL, NULL));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("checks:target_ip", noit_console_show_checks_target_ip, NULL,
            NULL, NULL));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("watches", noit_console_show_watchlist, NULL, NULL, NULL));
 }
 
@@ -2131,10 +2135,10 @@ noit_check_register_module(const char *name) {
   for(i=0; i<reg_module_id; i++)
     if(!strcmp(reg_module_names[i], name)) return i;
   if(reg_module_id >= MAX_MODULE_REGISTRATIONS) return -1;
-  noitL(noit_debug, "Registered module %s as %d\n", name, i);
+  mtevL(noit_debug, "Registered module %s as %d\n", name, i);
   i = reg_module_id++;
   reg_module_names[i] = strdup(name);
-  noit_conf_set_namespace(reg_module_names[i]);
+  mtev_conf_set_namespace(reg_module_names[i]);
   return i;
 }
 int
@@ -2162,11 +2166,11 @@ noit_check_set_module_metadata(noit_check_t *c, int idx, void *md, void (*freefu
   tuple->freefunc = freefunc;
 }
 void
-noit_check_set_module_config(noit_check_t *c, int idx, noit_hash_table *config) {
+noit_check_set_module_config(noit_check_t *c, int idx, mtev_hash_table *config) {
   if(reg_module_used < 0) reg_module_used = reg_module_id;
   assert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0) return;
-  if(!c->module_configs) c->module_configs = calloc(reg_module_id, sizeof(noit_hash_table *));
+  if(!c->module_configs) c->module_configs = calloc(reg_module_id, sizeof(mtev_hash_table *));
   c->module_configs[idx] = config;
 }
 void *
@@ -2178,7 +2182,7 @@ noit_check_get_module_metadata(noit_check_t *c, int idx) {
   tuple = c->module_metadata[idx];
   return tuple ? tuple->ptr : NULL;
 }
-noit_hash_table *
+mtev_hash_table *
 noit_check_get_module_config(noit_check_t *c, int idx) {
   if(reg_module_used < 0) reg_module_used = reg_module_id;
   assert(reg_module_used == reg_module_id);

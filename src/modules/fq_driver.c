@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2011, OmniTI Computer Consulting, Inc.
- * Copyright (c) 2013, Circonus, Inc.
  * All rights reserved.
+ * Copyright (c) 2013, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,28 +33,31 @@
 #define _REENTRANT
 #endif
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
-#include "stratcon_iep.h"
-#include "noit_conf.h"
-#include "fq.h"
-#include "fq_driver.xmlh"
-#include <assert.h>
+#include <mtev_defines.h>
 
-static noit_log_stream_t nlerr = NULL;
+#include <assert.h>
+#include <fq.h>
+
+#include <mtev_dso.h>
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_conf.h>
+
+#include "stratcon_iep.h"
+#include "fq_driver.xmlh"
+
+static mtev_log_stream_t nlerr = NULL;
 
 typedef struct {
-  noit_atomic64_t publications;
-  noit_atomic64_t client_tx_drop;
-  noit_atomic64_t error_messages;
-  noit_atomic64_t no_exchange;
-  noit_atomic64_t no_route;
-  noit_atomic64_t routed;
-  noit_atomic64_t dropped;
-  noit_atomic64_t msgs_in;
-  noit_atomic64_t msgs_out;
+  mtev_atomic64_t publications;
+  mtev_atomic64_t client_tx_drop;
+  mtev_atomic64_t error_messages;
+  mtev_atomic64_t no_exchange;
+  mtev_atomic64_t no_route;
+  mtev_atomic64_t routed;
+  mtev_atomic64_t dropped;
+  mtev_atomic64_t msgs_in;
+  mtev_atomic64_t msgs_out;
 } fq_stats_t;
 
 #define MAX_HOSTS 10
@@ -77,7 +80,7 @@ struct fq_driver {
 
 struct fq_driver global_fq_ctx = { 0 };
 
-#define BUMPSTAT(i,a) noit_atomic_inc64(&global_fq_ctx.stats[i].a)
+#define BUMPSTAT(i,a) mtev_atomic_inc64(&global_fq_ctx.stats[i].a)
 
 /* This is very specific to an internal implementation somewhere...
  * and thus unlikely to be useful unless people name their checks:
@@ -148,7 +151,7 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
 
 static void fq_logger(fq_client c, const char *err) {
   int i;
-  noitL(nlerr, "fq: %s\n", err);
+  mtevL(nlerr, "fq: %s\n", err);
   for(i=0;i<global_fq_ctx.nhosts;i++) {
     if(c == global_fq_ctx.client[i]) {
       BUMPSTAT(i, error_messages);
@@ -157,11 +160,11 @@ static void fq_logger(fq_client c, const char *err) {
   }
 }
 
-static iep_thread_driver_t *noit_fq_allocate(noit_conf_section_t conf) {
+static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
   char *hostname, *cp, *brk;
   int i;
 
-#define GETCONFSTR(w) noit_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
+#define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
   snprintf(global_fq_ctx.exchange, sizeof(global_fq_ctx.exchange), "%s",
            "noit.firehose");
   GETCONFSTR(exchange);
@@ -171,13 +174,13 @@ static iep_thread_driver_t *noit_fq_allocate(noit_conf_section_t conf) {
   GETCONFSTR(username);
   snprintf(global_fq_ctx.password, sizeof(global_fq_ctx.password), "%s", "guest");
   GETCONFSTR(password);
-  if(!noit_conf_get_int(conf, "heartbeat", &global_fq_ctx.heartbeat))
+  if(!mtev_conf_get_int(conf, "heartbeat", &global_fq_ctx.heartbeat))
     global_fq_ctx.heartbeat = 2000;
-  if(!noit_conf_get_int(conf, "backlog", &global_fq_ctx.backlog))
+  if(!mtev_conf_get_int(conf, "backlog", &global_fq_ctx.backlog))
     global_fq_ctx.backlog = 10000;
-  if(!noit_conf_get_int(conf, "port", &global_fq_ctx.port))
+  if(!mtev_conf_get_int(conf, "port", &global_fq_ctx.port))
     global_fq_ctx.port = 8765;
-  (void)noit_conf_get_string(conf, "hostname", &hostname);
+  (void)mtev_conf_get_string(conf, "hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) global_fq_ctx.nhosts++;
   if(global_fq_ctx.nhosts > MAX_HOSTS) global_fq_ctx.nhosts = MAX_HOSTS;
@@ -252,7 +255,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
   }
   driver->msg_cnt++;
   fq_msg_exchange(msg, driver->exchange, strlen(driver->exchange));
-  noitL(noit_debug, "route[%s] -> %s\n", driver->exchange, routingkey);
+  mtevL(mtev_debug, "route[%s] -> %s\n", driver->exchange, routingkey);
   fq_msg_route(msg, routingkey, strlen(routingkey));
   fq_msg_id(msg, NULL);
 
@@ -280,17 +283,17 @@ mq_driver_t mq_driver_fq = {
   noit_fq_deallocate
 };
 
-static int noit_fq_driver_config(noit_dso_generic_t *self, noit_hash_table *o) {
+static int noit_fq_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
-static int noit_fq_driver_onload(noit_image_t *self) {
+static int noit_fq_driver_onload(mtev_image_t *self) {
   return 0;
 }
 
 static int
-noit_console_show_fq(noit_console_closure_t ncct,
+noit_console_show_fq(mtev_console_closure_t ncct,
                      int argc, char **argv,
-                     noit_console_state_t *dstate,
+                     mtev_console_state_t *dstate,
                      void *closure) {
   int i;
   nc_printf(ncct, " == FQ ==\n");
@@ -317,13 +320,13 @@ noit_console_show_fq(noit_console_closure_t ncct,
 
 static void
 register_console_fq_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("fq", noit_console_show_fq, NULL, NULL, NULL));
 }
 
@@ -359,19 +362,19 @@ fq_status_checker(eventer_t e, int mask, void *closure, struct timeval *now) {
   return 0;
 }
 
-static int noit_fq_driver_init(noit_dso_generic_t *self) {
-  if(!nlerr) nlerr = noit_log_stream_find("error/fq_driver");
-  if(!nlerr) nlerr = noit_error;
+static int noit_fq_driver_init(mtev_dso_generic_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/fq_driver");
+  if(!nlerr) nlerr = mtev_error;
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
   register_console_fq_commands();
   eventer_add_in_s_us(fq_status_checker, NULL, 0, 0);
   return 0;
 }
 
-noit_dso_generic_t fq_driver = {
+mtev_dso_generic_t fq_driver = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "fq_driver",
     .description = "FQ driver for IEP MQ submission",
     .xml_description = fq_driver_xml_description,

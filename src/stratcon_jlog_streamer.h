@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,13 +34,15 @@
 #ifndef _STRATCON_LOG_STREAMER_H
 #define _STRATCON_LOG_STREAMER_H
 
-#include "noit_conf.h"
-#include "utils/noit_atomic.h"
+#include <mtev_conf.h>
+#include <mtev_atomic.h>
+#include <mtev_reverse_socket.h>
+
 #include <jlog.h>
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
-#include "noit_reverse_socket.h"
+
 #include "stratcon_datastore.h"
 
 typedef struct jlog_streamer_ctx_t {

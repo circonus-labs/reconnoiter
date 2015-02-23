@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <assert.h>
 #include <math.h>
@@ -44,18 +45,21 @@
 #include <sys/filio.h>
 #endif
 
-#include "noit_conf.h"
+#include <mtev_conf.h>
+
+#include "noit_mtev_bridge.h"
+
 #include "lua_noit.h"
 #include "udns/udns.h"
 
-static noit_hash_table dns_rtypes = NOIT_HASH_EMPTY;
-static noit_hash_table dns_ctypes = NOIT_HASH_EMPTY;
-static __thread noit_hash_table *dns_ctx_store = NULL;
+static mtev_hash_table dns_rtypes = MTEV_HASH_EMPTY;
+static mtev_hash_table dns_ctypes = MTEV_HASH_EMPTY;
+static __thread mtev_hash_table *dns_ctx_store = NULL;
 
 typedef struct dns_ctx_handle {
   char *ns;
   struct dns_ctx *ctx;
-  noit_atomic32_t refcnt;
+  mtev_atomic32_t refcnt;
   eventer_t e; /* eventer handling UDP traffic */
   eventer_t timeout; /* the timeout managed by libudns */
 } dns_ctx_handle_t;
@@ -70,7 +74,7 @@ typedef struct dns_lookup_ctx {
   enum dns_class query_ctype;
   enum dns_type query_rtype;
   int active;
-  noit_atomic32_t refcnt;
+  mtev_atomic32_t refcnt;
 } dns_lookup_ctx_t;
 
 static __thread dns_ctx_handle_t *default_ctx_handle = NULL;
@@ -139,13 +143,13 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
   if(ns == NULL && default_ctx_handle != NULL) {
     /* special case -- default context */
     h = default_ctx_handle;
-    noit_atomic_inc32(&h->refcnt);
+    mtev_atomic_inc32(&h->refcnt);
     goto bail;
   }
   if(ns &&
-     noit_hash_retrieve(dns_ctx_store, ns, strlen(ns), &vh)) {
+     mtev_hash_retrieve(dns_ctx_store, ns, strlen(ns), &vh)) {
     h = (dns_ctx_handle_t *)vh;
-    noit_atomic_inc32(&h->refcnt);
+    mtev_atomic_inc32(&h->refcnt);
   }
   else {
     int failed = 0;
@@ -159,7 +163,7 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     }
     if(dns_open(h->ctx) < 0) failed++;
     if(failed) {
-      noitL(noit_error, "dns_open failed\n");
+      mtevL(noit_error, "dns_open failed\n");
       free(h->ns);
       free(h);
       h = NULL;
@@ -176,7 +180,7 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     if(!ns)
       default_ctx_handle = h;
     else
-      noit_hash_store(dns_ctx_store, h->ns, strlen(h->ns), h);
+      mtev_hash_store(dns_ctx_store, h->ns, strlen(h->ns), h);
   }
  bail:
   return h;
@@ -185,13 +189,13 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
 static void dns_ctx_release(dns_ctx_handle_t *h) {
   if(h->ns == NULL) {
     /* Special case for the default */
-    noit_atomic_dec32(&h->refcnt);
+    mtev_atomic_dec32(&h->refcnt);
     return;
   }
   if(!dns_ctx_store) dns_ctx_store = calloc(1, sizeof(*dns_ctx_store));
-  if(noit_atomic_dec32(&h->refcnt) == 0) {
+  if(mtev_atomic_dec32(&h->refcnt) == 0) {
     /* I was the last one */
-    assert(noit_hash_delete(dns_ctx_store, h->ns, strlen(h->ns),
+    assert(mtev_hash_delete(dns_ctx_store, h->ns, strlen(h->ns),
                             NULL, dns_ctx_handle_free));
   }
 }
@@ -202,7 +206,7 @@ void lookup_ctx_release(dns_lookup_ctx_t *v) {
   v->results = NULL;
   if(v->error) free(v->error);
   v->error = NULL;
-  if(noit_atomic_dec32(&v->refcnt) == 0) {
+  if(mtev_atomic_dec32(&v->refcnt) == 0) {
     dns_ctx_release(v->h);
     free(v);
   }
@@ -426,25 +430,25 @@ static int noit_lua_dns_lookup(lua_State *L) {
   for(d = rtype_up, c = rtype; *c; d++, c++) *d = toupper(*c);
   *d = '\0';
 
-  if(!noit_hash_retrieve(&dns_ctypes, ctype_up, strlen(ctype_up), &vnv_pair))
+  if(!mtev_hash_retrieve(&dns_ctypes, ctype_up, strlen(ctype_up), &vnv_pair))
     dlc->error = strdup("bad class");
   else
     dlc->query_ctype = (enum dns_class)((struct dns_nameval *)vnv_pair)->val;
 
-  if(!noit_hash_retrieve(&dns_rtypes, rtype_up, strlen(rtype_up), &vnv_pair)) 
+  if(!mtev_hash_retrieve(&dns_rtypes, rtype_up, strlen(rtype_up), &vnv_pair)) 
     dlc->error = strdup("bad rr type");
   else
     dlc->query_rtype = (enum dns_type)((struct dns_nameval *)vnv_pair)->val;
 
   dlc->active = 1;
-  noit_atomic_inc32(&dlc->refcnt);
+  mtev_atomic_inc32(&dlc->refcnt);
   if(!dlc->error) {
     int abs;
     if(!dns_ptodn(query, strlen(query), dlc->dn, sizeof(dlc->dn), &abs) ||
        !dns_submit_dn(dlc->h->ctx, dlc->dn, dlc->query_ctype, dlc->query_rtype,
                       abs | DNS_NOSRCH, NULL, dns_cb, dlc)) {
       dlc->error = strdup("submission error");
-      noit_atomic_dec32(&dlc->refcnt);
+      mtev_atomic_dec32(&dlc->refcnt);
     }
     else {
       struct timeval now;
@@ -496,12 +500,12 @@ void noit_lua_init_dns() {
 
   /* HASH the rr types */
   for(i=0, nv = dns_type_index(i); nv->name; nv = dns_type_index(++i))
-    noit_hash_store(&dns_rtypes,
+    mtev_hash_store(&dns_rtypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);
   /* HASH the class types */
   for(i=0, nv = dns_class_index(i); nv->name; nv = dns_class_index(++i))
-    noit_hash_store(&dns_ctypes,
+    mtev_hash_store(&dns_ctypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);
 
@@ -509,7 +513,7 @@ void noit_lua_init_dns() {
   eventer_name_callback("lua/dns_timeouts", noit_lua_dns_timeouts);
 
   if (dns_init(NULL, 0) < 0 || (pctx = dns_new(NULL)) == NULL) {
-    noitL(noit_error, "Unable to initialize dns subsystem\n");
+    mtevL(noit_error, "Unable to initialize dns subsystem\n");
   }
   else
     dns_free(pctx);

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,8 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_version.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -39,17 +39,19 @@
 #include <assert.h>
 #include <math.h>
 
+#include <mtev_hash.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
+#include "noit_jlog_listener.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_jlog_listener.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_version.h"
 
 typedef struct {
   noit_module_t *self;
   noit_check_t *check;
-  noit_hash_table attrs;
+  mtev_hash_table attrs;
   size_t logsize;
   int timed_out;
 } selfcheck_info_t;
@@ -58,8 +60,8 @@ struct threadq_crutch {
   noit_check_t *check;
 };
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   selfcheck_info_t *ci = check->closure;
@@ -152,7 +154,7 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
 }
 
 #define FETCH_CONFIG_OR(key, str) do { \
-  if(!noit_hash_retr_str(check->config, #key, strlen(#key), &key)) \
+  if(!mtev_hash_retr_str(check->config, #key, strlen(#key), &key)) \
     key = str; \
 } while(0)
 
@@ -162,7 +164,7 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
   noit_check_t *check = ci->check;
   const char *feedname;
   char feedname_buff[128];
-  noit_log_stream_t feed;
+  mtev_log_stream_t feed;
 
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
     /* this case is impossible from the eventer.  It is called as
@@ -179,9 +181,9 @@ static int selfcheck_log_size(eventer_t e, int mask, void *closure,
       FETCH_CONFIG_OR(feedname, "feed");
       noit_check_interpolate(feedname_buff, sizeof(feedname_buff), feedname,
                              &ci->attrs, check->config);
-      feed = noit_log_stream_find(feedname_buff);
+      feed = mtev_log_stream_find(feedname_buff);
       if(!feed) ci->logsize = -1;
-      else ci->logsize = noit_log_stream_size(feed);
+      else ci->logsize = mtev_log_stream_size(feed);
       ci->timed_out = 0;
       return 0;
       break;
@@ -224,9 +226,9 @@ static int selfcheck_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int selfcheck_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/selfcheck");
-  nldeb = noit_log_stream_find("debug/selfcheck");
+static int selfcheck_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/selfcheck");
+  nldeb = mtev_log_stream_find("debug/selfcheck");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
 

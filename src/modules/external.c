@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -50,11 +51,12 @@
 #endif
 #include <pcre.h>
 
+#include <mtev_security.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_security.h"
+#include "noit_mtev_bridge.h"
 #include "external_proc.h"
 
 typedef enum {
@@ -109,12 +111,12 @@ typedef struct external_closure {
  *     string of errlen -> complete .end
  */
 
-static int external_config(noit_module_t *self, noit_hash_table *options) {
+static int external_config(noit_module_t *self, mtev_hash_table *options) {
   external_data_t *data;
   data = noit_module_get_userdata(self);
   if(data) {
     if(data->options) {
-      noit_hash_destroy(data->options, free, free);
+      mtev_hash_destroy(data->options, free, free);
       free(data->options);
     }
   }
@@ -136,7 +138,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
 
-  noitL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
+  mtevL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
         check->target, ci->errortype, ci->exit_code);
 
   gettimeofday(&check->stats.inprogress.whence, NULL);
@@ -167,7 +169,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     int ovector[30];
     char* output = ci->output;
     len = strlen(output);
-    noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
+    mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     if (data->type == EXTERNAL_NAGIOS_TYPE) {
       pcre *matcher;
       const char *error;
@@ -218,7 +220,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
       char metric[128];
       char value[128];
       startoffset = ovector[1];
-      noitL(data->nldeb, "matched at offset %d\n", rc);
+      mtevL(data->nldeb, "matched at offset %d\n", rc);
       if(pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "key", metric, sizeof(metric)) > 0 &&
          pcre_copy_named_substring(ci->matcher, output, ovector, rc,
@@ -242,9 +244,9 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
           noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
         }
       }
-      noitL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
+      mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
-    noitL(data->nldeb, "match failed.... %d\n", rc);
+    mtevL(data->nldeb, "match failed.... %d\n", rc);
   }
 
   if (!check->stats.inprogress.status)
@@ -260,7 +262,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
      (ci->error && *ci->error)) {
     char uuid_str[37];
     uuid_unparse_lower(check->checkid, uuid_str);
-    noitL(data->nlerr, "external/%s: (sig:%d%s) [%s]\n", uuid_str,
+    mtevL(data->nlerr, "external/%s: (sig:%d%s) [%s]\n", uuid_str,
           WTERMSIG(ci->exit_code), WCOREDUMP(ci->exit_code)?", cored":"",
           ci->error ? ci->error : "");
   }
@@ -405,7 +407,7 @@ static int external_handler(eventer_t e, int mask,
     gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
     /* Lookup data in check_no hash */
-    if(noit_hash_retrieve(&data->external_checks,
+    if(mtev_hash_retrieve(&data->external_checks,
                           (const char *)&data->cr->check_no,
                           sizeof(data->cr->check_no),
                           &vci) == 0)
@@ -414,7 +416,7 @@ static int external_handler(eventer_t e, int mask,
 
     /* We've seen it, it ain't coming again...
      * remove it, we'll free it ourselves */
-    noit_hash_delete(&data->external_checks,
+    mtev_hash_delete(&data->external_checks,
                      (const char *)&data->cr->check_no,
                      sizeof(data->cr->check_no), NULL, NULL);
 
@@ -447,7 +449,7 @@ static int external_handler(eventer_t e, int mask,
   }
 
  widowed:
-  noitL(noit_error, "external module terminated, must restart.\n");
+  mtevL(noit_error, "external module terminated, must restart.\n");
   exit(1);
 }
 
@@ -457,15 +459,15 @@ static int external_init(noit_module_t *self) {
 
   data = noit_module_get_userdata(self);
   if(!data) data = calloc(1, sizeof(*data));
-  data->nlerr = noit_log_stream_find("error/external");
-  data->nldeb = noit_log_stream_find("debug/external");
+  data->nlerr = mtev_log_stream_find("error/external");
+  data->nldeb = mtev_log_stream_find("debug/external");
 
   data->jobq = calloc(1, sizeof(*data->jobq));
   eventer_jobq_init(data->jobq, "external");
   eventer_jobq_increase_concurrency(data->jobq);
 
   if (data->options) {
-    (void)noit_hash_retr_str(data->options, "path", strlen("path"), &path);
+    (void)mtev_hash_retr_str(data->options, "path", strlen("path"), &path);
     if (path) {
       if (path[strlen(path)-1] == '/') {
         data->path = strdup(path);
@@ -482,7 +484,7 @@ static int external_init(noit_module_t *self) {
        * anywhere */
       data->path = strdup("/");
     }
-    (void)noit_hash_retr_str(data->options, "nagios_regex", strlen("nagios_regex"), &nagios_regex);
+    (void)mtev_hash_retr_str(data->options, "nagios_regex", strlen("nagios_regex"), &nagios_regex);
     if (nagios_regex) {
       data->nagios_regex = strdup(nagios_regex);
     }
@@ -498,7 +500,7 @@ static int external_init(noit_module_t *self) {
 
   if(socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_n2e) != 0 ||
      socketpair(AF_UNIX, SOCK_STREAM, 0, data->pipe_e2n) != 0) {
-    noitL(noit_error, "external: pipe() failed: %s\n", strerror(errno));
+    mtevL(noit_error, "external: pipe() failed: %s\n", strerror(errno));
     free(data->jobq);
     free(data);
     return -1;
@@ -507,7 +509,7 @@ static int external_init(noit_module_t *self) {
   data->child = fork();
   if(data->child == -1) {
     /* No child, bail. */
-    noitL(noit_error, "external: fork() failed: %s\n", strerror(errno));
+    mtevL(noit_error, "external: fork() failed: %s\n", strerror(errno));
     free(data->jobq);
     free(data);
     return -1;
@@ -524,7 +526,7 @@ static int external_init(noit_module_t *self) {
     if(eventer_set_fd_nonblocking(data->pipe_e2n[0]) == -1) {
       close(data->pipe_n2e[1]);
       close(data->pipe_e2n[0]);
-      noitL(noit_error,
+      mtevL(noit_error,
             "external: could not set pipe non-blocking: %s\n",
             strerror(errno));
       free(data);
@@ -541,10 +543,10 @@ static int external_init(noit_module_t *self) {
   else {
     const char *user = NULL, *group = NULL;
     if(data->options) {
-      (void)noit_hash_retr_str(data->options, "user", strlen("user"), &user);
-      (void)noit_hash_retr_str(data->options, "group", strlen("group"), &group);
+      (void)mtev_hash_retr_str(data->options, "user", strlen("user"), &user);
+      (void)mtev_hash_retr_str(data->options, "group", strlen("group"), &group);
     }
-    noit_security_usergroup(user, group, noit_false);
+    mtev_security_usergroup(user, group, mtev_false);
     exit(external_child(data));
   }
   noit_module_set_userdata(self, data);
@@ -582,7 +584,7 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
     } \
   } \
   if (written_bytes != l) { \
-    noitL(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
+    mtevL(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
     abort(); \
   } \
 } while (0)
@@ -599,7 +601,7 @@ static int external_enqueue(eventer_t e, int mask, void *closure,
   }
   if (!mask) {
     if (!ci->written) {
-      noitL(noit_error, "never wrote to external_proc for %lld - marking check not running\n", (long long int)ci->check_no);
+      mtevL(noit_error, "never wrote to external_proc for %lld - marking check not running\n", (long long int)ci->check_no);
       ci->check->flags &= ~NP_RUNNING;
     }
     free(ecl);
@@ -631,9 +633,9 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   struct check_info *ci = (struct check_info *)check->closure;
   eventer_t newe;
   external_data_t *data;
-  noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
   int i, klen;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *name, *value, *command;
   char resolved_path[PATH_MAX];
   char interp_fmt[4096], interp_buff[4096];
@@ -643,7 +645,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
-  noitL(data->nldeb, "external_invoke(%p,%s)\n",
+  mtevL(data->nldeb, "external_invoke(%p,%s)\n",
         self, check->target);
 
   /* remove a timeout if we still have one -- we should unless someone
@@ -662,11 +664,11 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   memcpy(&check->last_fire_time, &when, sizeof(when));
 
   /* Setup all our check bits */
-  ci->check_no = noit_atomic_inc64(&data->check_no_seq);
+  ci->check_no = mtev_atomic_inc64(&data->check_no_seq);
   ci->check = check;
 
   /* Pull the command value */
-  if(noit_hash_retr_str(check->config, "command", strlen("command"),
+  if(mtev_hash_retr_str(check->config, "command", strlen("command"),
                         &command) == 0) {
     command = "/bin/true";
   }
@@ -683,7 +685,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   }
 
   /* We might want to extract metrics */
-  if(noit_hash_retr_str(check->config,
+  if(mtev_hash_retr_str(check->config,
                         "output_extract", strlen("output_extract"),
                         &value) != 0) {
     const char *error;
@@ -697,7 +699,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
       ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
     }
     if(!ci->matcher) {
-      noitL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
+      mtevL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
             value, erroffset, error);
     }
   }
@@ -709,7 +711,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   while(1) {
     char argname[10];
     snprintf(argname, sizeof(argname), "arg%d", i);
-    if(noit_hash_retr_str(check->config, argname, strlen(argname),
+    if(mtev_hash_retr_str(check->config, argname, strlen(argname),
                           &value) == 0) break;
     i++;
   }
@@ -725,7 +727,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   while(1) {
     char argname[10];
     snprintf(argname, sizeof(argname), "arg%d", i);
-    if(noit_hash_retr_str(check->config, argname, strlen(argname),
+    if(mtev_hash_retr_str(check->config, argname, strlen(argname),
                           &value) == 0) {
       if(i == 0) {
         /* if we don't have arg0, make it last element of path */
@@ -745,14 +747,14 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   /* Make the environment */
   memset(&iter, 0, sizeof(iter));
   ci->envcnt = 0;
-  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value))
+  while(mtev_hash_next_str(check->config, &iter, &name, &klen, &value))
     if(!strncasecmp(name, "env_", 4))
       ci->envcnt++;
   memset(&iter, 0, sizeof(iter));
   ci->envlens = calloc(ci->envcnt, sizeof(*ci->envlens));
   ci->envs = calloc(ci->envcnt, sizeof(*ci->envs));
   ci->envcnt = 0;
-  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value))
+  while(mtev_hash_next_str(check->config, &iter, &name, &klen, &value))
     if(!strncasecmp(name, "env_", 4)) {
       snprintf(interp_fmt, sizeof(interp_fmt), "%s=%s", name+4, value);
       noit_check_interpolate(interp_buff, sizeof(interp_buff), interp_fmt,
@@ -762,9 +764,9 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
       ci->envcnt++;
     }
 
-  noit_hash_destroy(&check_attrs_hash, NULL, NULL);
+  mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
 
-  noit_hash_store(&data->external_checks,
+  mtev_hash_store(&data->external_checks,
                   (const char *)&ci->check_no, sizeof(ci->check_no),
                   ci);
 
@@ -803,7 +805,7 @@ static int external_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int external_onload(noit_image_t *self) {
+static int external_onload(mtev_image_t *self) {
   eventer_name_callback("external/timeout", external_timeout);
   eventer_name_callback("external/handler", external_handler);
   return 0;

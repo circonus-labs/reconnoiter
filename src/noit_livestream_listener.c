@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,20 +31,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "noit_listener.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_memory.h"
-#include "utils/noit_log.h"
-#include "utils/noit_sem.h"
+#include <mtev_defines.h>
+#include <eventer/eventer.h>
+#include <mtev_listener.h>
+#include <mtev_memory.h>
+#include <mtev_sem.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_livestream_listener.h"
 #include "noit_check.h"
 
 #include <unistd.h>
 #include <errno.h>
 
-static noit_atomic32_t ls_counter = 0;
+static mtev_atomic32_t ls_counter = 0;
 
 struct log_entry {
   int len;
@@ -53,7 +54,7 @@ struct log_entry {
 
 typedef struct {
   u_int32_t period;
-  noit_boolean period_read;
+  mtev_boolean period_read;
   struct log_entry *lqueue;
   struct log_entry *lqueue_end;
   sem_t lqueue_sem;
@@ -88,22 +89,22 @@ noit_livestream_closure_free(noit_livestream_closure_t *jcl) {
 }
 
 static int
-noit_livestream_logio_open(noit_log_stream_t ls) {
+noit_livestream_logio_open(mtev_log_stream_t ls) {
   return 0;
 }
 static int
-noit_livestream_logio_reopen(noit_log_stream_t ls) {
+noit_livestream_logio_reopen(mtev_log_stream_t ls) {
   /* no op */
   return 0;
 }
 static int
-noit_livestream_logio_write(noit_log_stream_t ls, const struct timeval *whence,
+noit_livestream_logio_write(mtev_log_stream_t ls, const struct timeval *whence,
                             const void *buf, size_t len) {
   noit_livestream_closure_t *jcl;
   struct log_entry *le;
   (void)whence;
 
-  jcl = noit_log_stream_get_ctx(ls);
+  jcl = mtev_log_stream_get_ctx(ls);
   if(!jcl) return 0;
 
   if(jcl->wants_shutdown) {
@@ -125,15 +126,15 @@ noit_livestream_logio_write(noit_log_stream_t ls, const struct timeval *whence,
   return len;
 }
 static int
-noit_livestream_logio_close(noit_log_stream_t ls) {
+noit_livestream_logio_close(mtev_log_stream_t ls) {
   noit_livestream_closure_t *jcl;
-  jcl = noit_log_stream_get_ctx(ls);
+  jcl = mtev_log_stream_get_ctx(ls);
   if(jcl) noit_livestream_closure_free(jcl);
-  noit_log_stream_set_ctx(ls, NULL);
+  mtev_log_stream_set_ctx(ls, NULL);
   return 0;
 }
 static logops_t noit_livestream_logio_ops = {
-  noit_false,
+  mtev_false,
   noit_livestream_logio_open,
   noit_livestream_logio_reopen,
   noit_livestream_logio_write,
@@ -145,9 +146,9 @@ static logops_t noit_livestream_logio_ops = {
 
 void
 noit_livestream_listener_init() {
-  noit_register_logops("noit_livestream", &noit_livestream_logio_ops);
+  mtev_register_logops("noit_livestream", &noit_livestream_logio_ops);
   eventer_name_callback("livestream_transit/1.0", noit_livestream_handler);
-  noit_control_dispatch_delegate(noit_control_dispatch,
+  mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_LIVESTREAM_DATA_FEED,
                                  noit_livestream_handler);
 }
@@ -171,10 +172,10 @@ noit_livestream_thread_main(void *e_vptr) {
   acceptor_closure_t *ac = e->closure;
   noit_livestream_closure_t *jcl = ac->service_ctx;
 
-  noit_memory_init_thread();
+  mtev_memory_init_thread();
   /* Go into blocking mode */
   if(eventer_set_fd_blocking(e->fd) == -1) {
-    noitL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",
+    mtevL(noit_error, "failed setting livestream to blocking: [%d] [%s]\n",
           errno, strerror(errno));
     goto alldone;
   }
@@ -199,12 +200,12 @@ noit_livestream_thread_main(void *e_vptr) {
     /* Here we actually push the message */
     netlen = htonl(le->len);
     if((rv = Ewrite(&netlen, sizeof(netlen))) != sizeof(netlen)) {
-      noitL(noit_error, "Error writing le header over SSL %d != %d\n",
+      mtevL(noit_error, "Error writing le header over SSL %d != %d\n",
             rv, (int)sizeof(netlen));
       goto alldone;
     }
     if((rv = Ewrite(le->buff, le->len)) != le->len) {
-      noitL(noit_error, "Error writing livestream message over SSL %d != %d\n",
+      mtevL(noit_error, "Error writing livestream message over SSL %d != %d\n",
             rv, le->len);
       goto alldone;
     }
@@ -214,7 +215,7 @@ noit_livestream_thread_main(void *e_vptr) {
   e->opset->close(e->fd, &mask, e);
   jcl->wants_shutdown = 1;
   acceptor_closure_free(ac);
-  noit_memory_maintenance();
+  mtev_memory_maintenance();
   /* Our semaphores are counting semaphores, not locks. */
   /* coverity[missing_unlock] */
   return NULL;
@@ -245,15 +246,15 @@ socket_error:
     if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
     jcl = ac->service_ctx;
     /* Setup logger to this channel */
-    noitL(noit_debug, "livestream initializing on fd %d\n", e->fd);
+    mtevL(noit_debug, "livestream initializing on fd %d\n", e->fd);
     if(!jcl->period_read) {
       u_int32_t nperiod;
       len = e->opset->read(e->fd, &nperiod, sizeof(nperiod), &mask, e);
       if(len == -1 && errno == EAGAIN) return mask | EVENTER_EXCEPTION;
       if(len != sizeof(nperiod)) goto socket_error;
       jcl->period = ntohl(nperiod);
-      jcl->period_read = noit_true;
-      noitL(noit_debug, "livestream initializing on fd %d [period %d]\n",
+      jcl->period_read = mtev_true;
+      mtevL(noit_debug, "livestream initializing on fd %d [period %d]\n",
             e->fd, jcl->period);
     }
     while(jcl->uuid_read < 36) {
@@ -264,15 +265,15 @@ socket_error:
     }
     jcl->uuid_str[36] = '\0';
     if(uuid_parse(jcl->uuid_str, jcl->uuid)) {
-      noitL(noit_error, "bad uuid received in livestream handler '%s'\n", jcl->uuid_str);
+      mtevL(noit_error, "bad uuid received in livestream handler '%s'\n", jcl->uuid_str);
       goto socket_error;
     }
-    noitL(noit_debug, "livestream initializing on fd %d [uuid %s]\n",
+    mtevL(noit_debug, "livestream initializing on fd %d [uuid %s]\n",
           e->fd, jcl->uuid_str);
 
     jcl->feed = malloc(32);
-    snprintf(jcl->feed, 32, "livestream/%d", noit_atomic_inc32(&ls_counter));
-    noit_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
+    snprintf(jcl->feed, 32, "livestream/%d", mtev_atomic_inc32(&ls_counter));
+    mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
                         jcl, NULL);
 
 

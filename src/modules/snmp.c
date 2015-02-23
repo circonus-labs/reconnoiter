@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2010-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -44,14 +45,15 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+#include <mtev_hash.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
+#include "noit_mtev_bridge.h"
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 static int __snmp_initialize_once = 0;
 static void ensure_usm_user(const char *username, u_char *engineID, size_t engineIDLen);
 
@@ -119,8 +121,8 @@ size_t reconnoiter_check_status_msg_oid_len =
   OID_LENGTH(reconnoiter_check_status_msg_oid);
 
 typedef struct _mod_config {
-  noit_hash_table *options;
-  noit_hash_table target_sessions;
+  mtev_hash_table *options;
+  mtev_hash_table target_sessions;
 } snmp_mod_config_t;
 
 struct target_session {
@@ -161,7 +163,7 @@ struct check_info {
      oid oid[MAX_OID_LEN];
      size_t oidlen;
      metric_type_t type_override;
-     noit_boolean type_should_override;
+     mtev_boolean type_should_override;
      int seen;
   } *oids;
   int noids;
@@ -181,28 +183,28 @@ struct check_info {
  *   then we know we can remove the timeout and  complete the check. 
  *   If we don't find them, the timeout fired and removed the check.
  */
-noit_hash_table active_checks = NOIT_HASH_EMPTY;
+mtev_hash_table active_checks = MTEV_HASH_EMPTY;
 static void add_check(struct check_info *c) {
   int i;
   for(i=0; i<c->noids; i++)
-    noit_hash_store(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid), c);
+    mtev_hash_store(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid), c);
 }
 static struct check_info *get_check(int reqid) {
   void *vc;
-  if(noit_hash_retrieve(&active_checks, (char *)&reqid, sizeof(reqid), &vc))
+  if(mtev_hash_retrieve(&active_checks, (char *)&reqid, sizeof(reqid), &vc))
     return (struct check_info *)vc;
   return NULL;
 }
 static void remove_check_req(struct check_info *c, int reqid) {
   (void)c;
-  noit_hash_delete(&active_checks, (char *)&reqid, sizeof(reqid),
+  mtev_hash_delete(&active_checks, (char *)&reqid, sizeof(reqid),
                    NULL, NULL);
 }
 static void remove_check(struct check_info *c) {
   int i, lastreq = -1;
   for(i=0; i<c->noids; i++) {
     if(c->oids[i].reqid != lastreq) {
-      noit_hash_delete(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid),
+      mtev_hash_delete(&active_checks, (char *)&c->oids[i].reqid, sizeof(c->oids[i].reqid),
                        NULL, NULL);
       lastreq = c->oids[i].reqid;
     }
@@ -217,7 +219,7 @@ _get_target_session(noit_module_t *self, char *target, int version) {
   snmp_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   snprintf(key, sizeof(key), "%s:v%d", target, version);
-  if(!noit_hash_retrieve(&conf->target_sessions,
+  if(!mtev_hash_retrieve(&conf->target_sessions,
                          key, strlen(key), &vts)) {
     ts = calloc(1, sizeof(*ts));
     ts->self = self;
@@ -227,7 +229,7 @@ _get_target_session(noit_module_t *self, char *target, int version) {
     ts->target = strdup(target);
     ts->key = strdup(key);
     ts->in_table = 1;
-    noit_hash_store(&conf->target_sessions,
+    mtev_hash_store(&conf->target_sessions,
                     ts->key, strlen(ts->key), ts);
     vts = ts;
   }
@@ -269,7 +271,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
       }
     }
     if(oid_idx < 0) {
-      noitL(nlerr, "Unexpected oid results to %s`%s`%s: %s\n",
+      mtevL(nlerr, "Unexpected oid results to %s`%s`%s: %s\n",
             check->target, check->module, check->name, varbuff);
       nresults++;
       info->nresults++;
@@ -339,7 +341,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
           SETM(METRIC_DOUBLE, vars->val.doubleVal);
           break;
         case ASN_NULL:
-          noitL(nldeb, "snmp[null]: %s\n", varbuff);
+          mtevL(nldeb, "snmp[null]: %s\n", varbuff);
         case SNMP_NOSUCHOBJECT:
         case SNMP_NOSUCHINSTANCE:
           SETM(METRIC_STRING, NULL);
@@ -351,7 +353,7 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
           sp = strchr(varbuff, ' ');
           if(sp) sp++;
           SETM(METRIC_STRING, (sp && *sp) ? sp : NULL);
-          noitL(nlerr, "snmp: unknown type[%d] %s\n", vars->type, varbuff);
+          mtevL(nlerr, "snmp: unknown type[%d] %s\n", vars->type, varbuff);
       }
     }
     nresults++;
@@ -491,7 +493,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
    */
   if(template_v1pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
     if(template_v1pdu->enterprise_length + 2 > MAX_OID_LEN) {
-      noitL(nlerr, "send_trap: enterprise_length too large\n");
+      mtevL(nlerr, "send_trap: enterprise_length too large\n");
       snmp_free_pdu(template_v2pdu);
       return NULL;
     }
@@ -512,7 +514,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
                                 ASN_OBJECT_ID,
                                 (u_char*)enterprise,
                                 enterprise_len*sizeof(oid))) {
-    noitL(nlerr, "send_trap: failed to insert copied snmpTrapOID varbind\n");
+    mtevL(nlerr, "send_trap: failed to insert copied snmpTrapOID varbind\n");
     snmp_free_pdu(template_v2pdu);
     return NULL;
   }
@@ -528,7 +530,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
                                 ASN_TIMETICKS,
                                 (u_char*)&(template_v1pdu->time), 
                                 sizeof(template_v1pdu->time))) {
-    noitL(nlerr, "send_trap: failed to insert copied sysUptime varbind\n");
+    mtevL(nlerr, "send_trap: failed to insert copied sysUptime varbind\n");
     snmp_free_pdu(template_v2pdu);
     return NULL;
   }
@@ -552,7 +554,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
                                   ASN_IPADDRESS,
                                   (u_char*)&(template_v1pdu->agent_addr), 
                                   sizeof(template_v1pdu->agent_addr)))
-      noitL(nlerr, "send_trap: failed to append snmpTrapAddr varbind\n");
+      mtevL(nlerr, "send_trap: failed to append snmpTrapAddr varbind\n");
   }
   var = find_varbind_in_list(template_v2pdu->variables,
                              community_oid, community_oid_len);
@@ -562,7 +564,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
                                   ASN_OCTET_STR,
                                   template_v1pdu->community, 
                                   template_v1pdu->community_len))
-      noitL(nlerr, "send_trap: failed to append snmpTrapCommunity varbind\n");
+      mtevL(nlerr, "send_trap: failed to append snmpTrapCommunity varbind\n");
   }
   var = find_varbind_in_list(template_v2pdu->variables,
                              snmptrapenterprise_oid,
@@ -575,7 +577,7 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu ) {
                                   ASN_OBJECT_ID,
                                   (u_char*)template_v1pdu->enterprise, 
                                   template_v1pdu->enterprise_length*sizeof(oid)))
-      noitL(nlerr, "send_trap: failed to append snmpEnterprise varbind\n");
+      mtevL(nlerr, "send_trap: failed to append snmpEnterprise varbind\n");
   }
   return template_v2pdu;
 }
@@ -586,14 +588,14 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
 
   uuid_str = out ? out : _uuid_str;
   if(l != reconnoiter_check_oid_len) {
-    noitL(nlerr, "unsupported (length) trap recieved\n");
+    mtevL(nlerr, "unsupported (length) trap recieved\n");
     return -1;
   }
   if(netsnmp_oid_equals(o,
                         reconnoiter_check_prefix_oid_len,
                         reconnoiter_check_prefix_oid,
                         reconnoiter_check_prefix_oid_len) != 0) {
-    noitL(nlerr, "unsupported (wrong namespace) trap recieved\n");
+    mtevL(nlerr, "unsupported (wrong namespace) trap recieved\n");
     return -1;
   }
   /* encode this as a uuid */
@@ -603,7 +605,7 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
       i++) {
     oid v = o[i + reconnoiter_check_prefix_oid_len];
     if(v > 0xffff) {
-      noitL(nlerr, "trap target oid [%ld] out of range\n", (long int)v);
+      mtevL(nlerr, "trap target oid [%ld] out of range\n", (long int)v);
       return -1;
     }
     snprintf(cp, 5, "%04x", (unsigned short)(v & 0xffff));
@@ -612,7 +614,7 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
     if(i > 0 && i < 5) *cp++ = '-';
   }
   if(uuid_parse(uuid_str, checkid) != 0) {
-    noitL(nlerr, "unexpected error decoding trap uuid '%s'\n", uuid_str);
+    mtevL(nlerr, "unexpected error decoding trap uuid '%s'\n", uuid_str);
     return -1;
   }
   return 0;
@@ -692,14 +694,14 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
     len = var->name[reconnoiter_metric_prefix_oid_len];
     if(var->name_length != (reconnoiter_metric_prefix_oid_len + 1 + len) ||
        len > sizeof(metric_name) - 1) {
-      noitL(nlerr, "snmp trap, malformed metric name\n");
+      mtevL(nlerr, "snmp trap, malformed metric name\n");
       return -1;
     }
     for(i=0;i<len;i++) {
       ((unsigned char *)metric_name)[i] =
         (unsigned char)var->name[reconnoiter_metric_prefix_oid_len + 1 + i];
       if(!isprint(metric_name[i])) {
-        noitL(nlerr, "metric_name contains unprintable characters\n");
+        mtevL(nlerr, "metric_name contains unprintable characters\n");
         return -1;
       }
     }
@@ -747,9 +749,9 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
                               METRIC_STRING, (cp && *cp) ? cp : NULL);
         break;
       default:
-        noitL(nlerr, "snmp trap unsupport data type %d\n", var->type);
+        mtevL(nlerr, "snmp trap unsupport data type %d\n", var->type);
     }
-    noitL(nldeb, "metric_name -> '%s'\n", metric_name);
+    mtevL(nldeb, "metric_name -> '%s'\n", metric_name);
   }
   else {
     /* No idea what this is */
@@ -788,7 +790,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   }
 
   if (!var || var->type != ASN_OBJECT_ID) {
-    noitL(nlerr, "unsupport trap (not a trap?) received\n");
+    mtevL(nlerr, "unsupport trap (not a trap?) received\n");
     goto cleanup;
   }
 
@@ -799,23 +801,23 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
                               checkid, uuid_str)) {
     goto cleanup;
   }
-  noitL(nldeb, "recieved trap for %s\n", uuid_str);
+  mtevL(nldeb, "recieved trap for %s\n", uuid_str);
   check = noit_poller_lookup(checkid);
   if(!check) {
-    noitL(nlerr, "trap received for non-existent check '%s'\n", uuid_str);
+    mtevL(nlerr, "trap received for non-existent check '%s'\n", uuid_str);
     goto cleanup;
   }
-  if(!noit_hash_retr_str(check->config, "community", strlen("community"),
+  if(!mtev_hash_retr_str(check->config, "community", strlen("community"),
                          &community) &&
-     !noit_hash_retr_str(conf->options, "community", strlen("community"),
+     !mtev_hash_retr_str(conf->options, "community", strlen("community"),
                          &community)) {
-    noitL(nlerr, "No community defined for check, dropping trap\n");
+    mtevL(nlerr, "No community defined for check, dropping trap\n");
     goto cleanup;
   }
 
   if(strlen(community) != newpdu->community_len ||
      memcmp(community, newpdu->community, newpdu->community_len)) {
-    noitL(nlerr, "trap attempt with wrong community string\n");
+    mtevL(nlerr, "trap attempt with wrong community string\n");
     goto cleanup;
   }
 
@@ -866,7 +868,7 @@ static int noit_snmp_asynch_response(int operation, struct snmp_session *sp,
 
 
   if(noit_snmp_accumulate_results(info->check, pdu)) {
-    noitL(nldeb, "snmp %s pdu completed check requirements\n", info->check->name);
+    mtevL(nldeb, "snmp %s pdu completed check requirements\n", info->check->name);
     if(info->timeoutevent) {
       eventer_remove(info->timeoutevent);
       eventer_free(info->timeoutevent);
@@ -903,7 +905,7 @@ final String walk_base             = config.remove("walk");
 */
 
 #define CONF_GET(name, tgt) \
-  noit_hash_retr_str(check->config, name, strlen(name), tgt)
+  mtev_hash_retr_str(check->config, name, strlen(name), tgt)
 #define SESS_SET_STRING(value, len, key, default) do {    \
   const char *_cval = NULL;                               \
   if(!CONF_GET(key, &_cval)) {                            \
@@ -963,7 +965,7 @@ final String walk_base             = config.remove("walk");
                    (u_char *)cval, strlen(cval),
                    sess.securityAuthKey, &sess.securityAuthKeyLen) != SNMPERR_SUCCESS) {
       /* What do we do? */
-      noitL(nlerr, "auth_passphrase failed to gen master key\n");
+      mtevL(nlerr, "auth_passphrase failed to gen master key\n");
     }
   }
   if(CONF_GET("privacy_protocol", &cval)) {
@@ -999,10 +1001,10 @@ final String walk_base             = config.remove("walk");
 
 static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   int i, klen;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *name, *value;
   struct check_info *info = check->closure;
-  noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
 
   /* Toss the old set and bail if we have zero */
   if(info->oids) {
@@ -1018,7 +1020,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   info->oids = NULL;
 
   /* Figure our how many. */
-  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
+  while(mtev_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
       info->noids++;
     }
@@ -1033,7 +1035,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   info->oids = calloc(info->noids, sizeof(*info->oids));
   memset(&iter, 0, sizeof(iter));
   i = 0;
-  while(noit_hash_next_str(check->config, &iter, &name, &klen, &value)) {
+  while(mtev_hash_next_str(check->config, &iter, &name, &klen, &value)) {
     if(!strncasecmp(name, "oid_", 4)) {
       const char *type_override;
       char oidbuff[2048], typestr[256];
@@ -1045,20 +1047,20 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
       info->oids[i].oidlen = MAX_OID_LEN;
       if(oidbuff[0] == '.') {
         if(!read_objid(oidbuff, info->oids[i].oid, &info->oids[i].oidlen)) {
-          noitL(nlerr, "Failed to translate oid: %s\n", oidbuff);
+          mtevL(nlerr, "Failed to translate oid: %s\n", oidbuff);
           info->noids--;
           continue;
         }
       }
       else {
         if(!get_node(oidbuff, info->oids[i].oid, &info->oids[i].oidlen)) {
-          noitL(nlerr, "Failed to translate oid: %s\n", oidbuff);
+          mtevL(nlerr, "Failed to translate oid: %s\n", oidbuff);
           info->noids--;
           continue;
         }
       }
       snprintf(typestr, sizeof(typestr), "type_%s", name);
-      if(noit_hash_retr_str(check->config, typestr, strlen(typestr),
+      if(mtev_hash_retr_str(check->config, typestr, strlen(typestr),
                             &type_override)) {
         int type_enum_fake = *type_override;
 
@@ -1083,7 +1085,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
           case METRIC_INT64: case METRIC_UINT64:
           case METRIC_DOUBLE: case METRIC_STRING:
             info->oids[i].type_override = *type_override;
-            info->oids[i].type_should_override = noit_true;
+            info->oids[i].type_should_override = mtev_true;
           default: break;
         }
       }
@@ -1091,7 +1093,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
     }
   }
   assert(info->noids == i);
-  noit_hash_destroy(&check_attrs_hash, NULL, NULL);
+  mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
   return info->noids;
 }
 static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check, int idx) {
@@ -1129,7 +1131,7 @@ ensure_usm_user(const char *username, u_char *engineID, size_t engineIDLen) {
       user->engineIDLen = engineIDLen;
     }
     usm_add_user(user);
-    noitL(nldeb, "usm adding user: %s\n", username);
+    mtevL(nldeb, "usm adding user: %s\n", username);
   }
 }
 
@@ -1226,20 +1228,20 @@ probe_engine_step1_cb(int operation,
       sp->contextEngineIDLen = pdu->contextEngineIDLen;
     }
     i = usm_create_user_from_session(sp);
-    noitL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
+    mtevL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
     copy_auth_to_pdu(sp, magic->pdu);
     reqid = snmp_sess_send(ts->slp, magic->pdu);
     if(reqid == 0) {
       int liberr, snmperr;
       char *errmsg;
       snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
-      noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+      mtevL(nlerr, "Error sending snmp get request: %s\n", errmsg);
       snmp_free_pdu(magic->pdu);
       magic->pdu = NULL;
       goto probe_failed;
     }
     for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
-    noitL(nldeb, "Probe followup sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
+    mtevL(nldeb, "Probe followup sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
     add_check(info);
     ts->refcnt--;
     goto out;
@@ -1262,7 +1264,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   struct target_session *ts;
   struct check_info *info = check->closure;
   int port = 161, i;
-  noit_boolean separate_queries = noit_false;
+  mtev_boolean separate_queries = mtev_false;
   const char *portstr, *versstr, *sepstr;
   const char *err = "unknown err";
   char target_port[64];
@@ -1276,16 +1278,16 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   check->flags |= NP_RUNNING;
 
   gettimeofday(&check->last_fire_time, NULL);
-  if(noit_hash_retr_str(check->config, "separate_queries",
+  if(mtev_hash_retr_str(check->config, "separate_queries",
                         strlen("separate_queries"), &sepstr)) {
     if(!strcasecmp(sepstr, "on") || !strcasecmp(sepstr, "true"))
-      separate_queries = noit_true;
+      separate_queries = mtev_true;
   }
-  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+  if(mtev_hash_retr_str(check->config, "port", strlen("port"),
                         &portstr)) {
     port = atoi(portstr);
   }
-  if(noit_hash_retr_str(check->config, "version", strlen("version"),
+  if(mtev_hash_retr_str(check->config, "version", strlen("version"),
                         &versstr)) {
     /* We don't care about 2c or others... as they all default to 2c */
     if(!strcmp(versstr, "1")) info->version = SNMP_VERSION_1;
@@ -1318,7 +1320,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     struct v3_probe_magic *magic = calloc(1, sizeof(struct v3_probe_magic));
     netsnmp_pdu *probe = NULL;
 
-    noitL(nldeb, "Probing for v3\n");
+    mtevL(nldeb, "Probing for v3\n");
     if (!magic) goto bail;
     magic->cb = noit_snmp_asynch_response;
     magic->check = check;
@@ -1360,7 +1362,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
     /* Separate queries is not supported on v3... it makes no sense */
     if(separate_queries && info->version != SNMP_VERSION_3) {
       int reqid, i;
-      noitL(nldeb, "Regular old get...\n");
+      mtevL(nldeb, "Regular old get...\n");
       for(i=0;i<info->noids;i++) {
         req = snmp_pdu_create(SNMP_MSG_GET);
         if(!req) continue;
@@ -1371,23 +1373,23 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
           int liberr, snmperr;
           char *errmsg;
           snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
-          noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+          mtevL(nlerr, "Error sending snmp get request: %s\n", errmsg);
           snmp_free_pdu(req);
           continue;
         }
         info->oids[i].reqid = reqid;
-        noitL(nldeb, "Sent snmp get[%d/%d] -> reqid:%d\n", i, info->noids, reqid);
+        mtevL(nldeb, "Sent snmp get[%d/%d] -> reqid:%d\n", i, info->noids, reqid);
       }
     }
     else {
       int reqid, i;
-      noitL(nldeb, "Regular old get...\n");
+      mtevL(nldeb, "Regular old get...\n");
       req = snmp_pdu_create(SNMP_MSG_GET);
       if(!req) goto bail;
       noit_snmp_fill_req(req, check, -1);
       if(info->version == SNMP_VERSION_3 && ts->sess_handle->securityName) {
         i = usm_create_user_from_session(ts->sess_handle);
-        noitL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
+        mtevL(nldeb, "usm_create_user_from_session(...) -> %d\n", i);
       }
       req->version = info->version;
       reqid = snmp_sess_send(ts->slp, req);
@@ -1395,12 +1397,12 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
         int liberr, snmperr;
         char *errmsg;
         snmp_sess_error(ts->slp, &liberr, &snmperr, &errmsg);
-        noitL(nlerr, "Error sending snmp get request: %s\n", errmsg);
+        mtevL(nlerr, "Error sending snmp get request: %s\n", errmsg);
         err = errmsg;
         if(reqid == 0) goto bail;
       }
       for(i=0; i<info->noids; i++) info->oids[i].reqid = reqid;
-      noitL(nldeb, "Sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
+      mtevL(nldeb, "Sent snmp get[all/%d] -> reqid:%d\n", info->noids, reqid);
     }
   }
   info->ts = ts;
@@ -1443,12 +1445,12 @@ static int noit_snmptrap_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int noit_snmp_config(noit_module_t *self, noit_hash_table *options) {
+static int noit_snmp_config(noit_module_t *self, mtev_hash_table *options) {
   snmp_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
     if(conf->options) {
-      noit_hash_destroy(conf->options, free, free);
+      mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
@@ -1458,9 +1460,9 @@ static int noit_snmp_config(noit_module_t *self, noit_hash_table *options) {
   noit_module_set_userdata(self, conf);
   return 1;
 }
-static int noit_snmp_onload(noit_image_t *self) {
-  if(!nlerr) nlerr = noit_log_stream_find("error/snmp");
-  if(!nldeb) nldeb = noit_log_stream_find("debug/snmp");
+static int noit_snmp_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/snmp");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/snmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_snmp/check_timeout", noit_snmp_check_timeout);
@@ -1469,9 +1471,9 @@ static int noit_snmp_onload(noit_image_t *self) {
   return 0;
 }
 
-static int noit_snmptrap_onload(noit_image_t *self) {
-  if(!nlerr) nlerr = noit_log_stream_find("error/snmp");
-  if(!nldeb) nldeb = noit_log_stream_find("debug/snmp");
+static int noit_snmptrap_onload(mtev_image_t *self) {
+  if(!nlerr) nlerr = mtev_log_stream_find("error/snmp");
+  if(!nldeb) nldeb = mtev_log_stream_find("debug/snmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("noit_snmp/session_timeout", noit_snmp_session_timeout);
@@ -1480,7 +1482,7 @@ static int noit_snmptrap_onload(noit_image_t *self) {
 }
 
 static void
-nc_printf_snmpts_brief(noit_console_closure_t ncct,
+nc_printf_snmpts_brief(mtev_console_closure_t ncct,
                        struct target_session *ts) {
   char fd[32];
   struct timeval now, diff;
@@ -1502,17 +1504,17 @@ nc_printf_snmpts_brief(noit_console_closure_t ncct,
 }
 
 static int
-noit_console_show_snmp(noit_console_closure_t ncct,
+noit_console_show_snmp(mtev_console_closure_t ncct,
                        int argc, char **argv,
-                       noit_console_state_t *dstate,
+                       mtev_console_state_t *dstate,
                        void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
   void *vts;
   snmp_mod_config_t *conf = closure;
 
-  while(noit_hash_next(&conf->target_sessions, &iter,
+  while(mtev_hash_next(&conf->target_sessions, &iter,
                        (const char **)key_id, &klen,
                        &vts)) {
     struct target_session *ts = vts;
@@ -1523,13 +1525,13 @@ noit_console_show_snmp(noit_console_closure_t ncct,
 
 static void
 register_console_snmp_commands(snmp_mod_config_t *conf) {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("snmp", noit_console_show_snmp, NULL, NULL, conf));
 }
 
@@ -1551,7 +1553,7 @@ _private_snmp_log(int majorID, int minorID, void *serverarg, void *clientarg) {
   else {
     return 1;
   }
-  noitL(((slm->priority < LOG_NOTICE) ? nlerr : nldeb), "[pri:%d] %s",
+  mtevL(((slm->priority < LOG_NOTICE) ? nlerr : nldeb), "[pri:%d] %s",
         slm->priority, linebuf);
   linebuf[0] = '\0';
   return 1;
@@ -1562,7 +1564,7 @@ static int noit_snmp_init(noit_module_t *self) {
   snmp_mod_config_t *conf;
 
   conf = noit_module_get_userdata(self);
-  if(noit_hash_retr_str(conf->options, "debugging", strlen("debugging"), &opt)) {
+  if(mtev_hash_retr_str(conf->options, "debugging", strlen("debugging"), &opt)) {
     snmp_set_do_debugging(atoi(opt));
   }
 
@@ -1597,14 +1599,14 @@ static int noit_snmp_init(noit_module_t *self) {
     netsnmp_transport *transport;
     netsnmp_session sess, *session = &sess;
 
-    if(!noit_hash_retrieve(conf->options,
+    if(!mtev_hash_retrieve(conf->options,
                            "snmptrapd_port", strlen("snmptrapd_port"),
                            (void **)&opt))
       opt = "162";
 
     transport = netsnmp_transport_open_server("snmptrap", opt);
     if(!transport) {
-      noitL(nlerr, "cannot open netsnmp transport for trap daemon\n");
+      mtevL(nlerr, "cannot open netsnmp transport for trap daemon\n");
       return -1;
     }
     ts = _get_target_session(self, "snmptrapd", SNMP_DEFAULT_VERSION);

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,23 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "eventer/eventer.h"
-#include "utils/noit_log.h"
-#include "utils/noit_b64.h"
-#include "utils/noit_str.h"
-#include "utils/noit_mkdir.h"
-#include "utils/noit_getip.h"
-#include "utils/noit_watchdog.h"
-#include "stratcon_datastore.h"
-#include "stratcon_ingest.h"
-#include "stratcon_realtime_http.h"
-#include "stratcon_iep.h"
-#include "noit_conf.h"
-#include "noit_check.h"
-#include "noit_check_log_helpers.h"
-#include "noit_rest.h"
+#include <mtev_defines.h>
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -58,8 +44,28 @@
 #include <zlib.h>
 #include <assert.h>
 #include <errno.h>
-#include "postgres_ingestor.xmlh"
+
+#include <eventer/eventer.h>
+#include <mtev_log.h>
+#include <mtev_b64.h>
+#include <mtev_str.h>
+#include <mtev_mkdir.h>
+#include <mtev_getip.h>
+#include <mtev_watchdog.h>
+#include <mtev_conf.h>
+#include <mtev_rest.h>
+
+#include "noit_mtev_bridge.h"
+#include "noit_module.h"
+#include "stratcon_datastore.h"
+#include "stratcon_ingest.h"
+#include "stratcon_realtime_http.h"
+#include "stratcon_iep.h"
+#include "noit_check.h"
+#include "noit_check_log_helpers.h"
 #include "bundle.pb-c.h"
+
+#include "postgres_ingestor.xmlh"
 
 #define DECL_STMT(codename,confname) \
 static char *codename = NULL; \
@@ -80,14 +86,14 @@ DECL_STMT(metric_insert_text, metric_text);
 DECL_STMT(config_insert, config);
 DECL_STMT(config_get, findconfig);
 
-static noit_log_stream_t ds_err = NULL;
-static noit_log_stream_t ds_deb = NULL;
-static noit_log_stream_t ds_pool_deb = NULL;
-static noit_log_stream_t ingest_err = NULL;
+static mtev_log_stream_t ds_err = NULL;
+static mtev_log_stream_t ds_deb = NULL;
+static mtev_log_stream_t ds_pool_deb = NULL;
+static mtev_log_stream_t ingest_err = NULL;
 
 #define GET_QUERY(a) do { \
   if(a == NULL) \
-    if(!noit_conf_get_string(NULL, a ## _conf, &(a))) \
+    if(!mtev_conf_get_string(NULL, a ## _conf, &(a))) \
       goto bad_row; \
 } while(0)
 
@@ -177,7 +183,7 @@ free_params(ds_single_detail *d) {
 
 static char *basejpath = NULL;
 static pthread_mutex_t ds_conns_lock;
-static noit_hash_table ds_conns;
+static mtev_hash_table ds_conns;
 
 /* the fqdn cache needs to be thread safe */
 typedef struct {
@@ -191,9 +197,9 @@ typedef struct {
   char *fqdn;
   char *dsn;
 } storagenode_info;
-noit_hash_table uuid_to_info_cache;
+mtev_hash_table uuid_to_info_cache;
 pthread_mutex_t storagenode_to_info_cache_lock;
-noit_hash_table storagenode_to_info_cache;
+mtev_hash_table storagenode_to_info_cache;
 
 /* Thread-safe connection pools */
 
@@ -211,7 +217,7 @@ release_conn_q_forceable(conn_q *cq, int forcefree) {
     cq->pool->in_pool++;
   }
   pthread_mutex_unlock(&cq->pool->lock);
-  noitL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)(vpsized_int)pthread_self(),
+  mtevL(ds_pool_deb, "[%p] release %s [%s]\n", (void *)(vpsized_int)pthread_self(),
         putback ? "to pool" : "and destroy", cq->pool->queue_name);
   pthread_cond_signal(&cq->pool->cv);
   if(putback) return;
@@ -259,7 +265,7 @@ ttl_purge_conn_pool(conn_pool *pool) {
     release_conn_q_forceable(prev, 1);
   }
   if(old_cnt != new_cnt)
-    noitL(ds_pool_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
+    mtevL(ds_pool_deb, "reduced db pool %d -> %d [%s]\n", old_cnt, new_cnt,
           pool->queue_name);
 }
 static void
@@ -278,7 +284,7 @@ get_conn_pool_for_remote(const char *remote_str,
            fqdn ? fqdn : "default",
            remote_cn ? remote_cn : "default");
   pthread_mutex_lock(&ds_conns_lock);
-  if(noit_hash_retrieve(&ds_conns, (const char *)queue_name,
+  if(mtev_hash_retrieve(&ds_conns, (const char *)queue_name,
                         strlen(queue_name), &vcpool))
     cpool = vcpool;
   pthread_mutex_unlock(&ds_conns_lock);
@@ -292,9 +298,9 @@ get_conn_pool_for_remote(const char *remote_str,
     cpool->max_in_pool = 1;
     cpool->max_allocated = 1;
     pthread_mutex_lock(&ds_conns_lock);
-    if(!noit_hash_store(&ds_conns, cpool->queue_name, strlen(cpool->queue_name),
+    if(!mtev_hash_store(&ds_conns, cpool->queue_name, strlen(cpool->queue_name),
                         cpool)) {
-      noit_hash_retrieve(&ds_conns, (const char *)queue_name,
+      mtev_hash_retrieve(&ds_conns, (const char *)queue_name,
                          strlen(queue_name), &vcpool);
     }
     pthread_mutex_unlock(&ds_conns_lock);
@@ -325,7 +331,7 @@ get_conn_q_for_remote(const char *remote_str,
   conn_pool *cpool;
   conn_q *cq;
   cpool = get_conn_pool_for_remote(remote_str, remote_cn, fqdn);
-  noitL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)(vpsized_int)pthread_self(),
+  mtevL(ds_pool_deb, "[%p] requesting [%s]\n", (void *)(vpsized_int)pthread_self(),
         cpool->queue_name);
   pthread_mutex_lock(&cpool->lock);
  again:
@@ -340,10 +346,10 @@ get_conn_q_for_remote(const char *remote_str,
     return cq;
   }
   if(cpool->in_pool + cpool->outstanding >= cpool->max_allocated) {
-    noitL(ds_pool_deb, "[%p] over-subscribed, waiting [%s]\n",
+    mtevL(ds_pool_deb, "[%p] over-subscribed, waiting [%s]\n",
           (void *)(vpsized_int)pthread_self(), cpool->queue_name);
     pthread_cond_wait(&cpool->cv, &cpool->lock);
-    noitL(ds_pool_deb, "[%p] waking up and trying again [%s]\n",
+    mtevL(ds_pool_deb, "[%p] waking up and trying again [%s]\n",
           (void *)(vpsized_int)pthread_self(), cpool->queue_name);
     goto again;
   }
@@ -372,7 +378,7 @@ typedef enum {
 } execute_outcome_t;
 
 #define DECLARE_PARAM_STR(str, len) do { \
-  d->paramValues[d->nparams] = noit__strndup(str, len); \
+  d->paramValues[d->nparams] = mtev__strndup(str, len); \
   d->paramLengths[d->nparams] = len; \
   d->paramFormats[d->nparams] = 0; \
   d->paramAllocd[d->nparams] = 1; \
@@ -410,7 +416,7 @@ typedef enum {
     const char *pgerr = PQresultErrorMessage(d->res); \
     const char *pgerr_end = strchr(pgerr, '\n'); \
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
-    noitL(ds_err, "[%s] stratcon_datasource.c:%d bad (%d): %.*s\n", \
+    mtevL(ds_err, "[%s] stratcon_datasource.c:%d bad (%d): %.*s\n", \
           cq->fqdn ? cq->fqdn : "metanode", __LINE__, d->rv, \
           (int)(pgerr_end - pgerr), pgerr); \
     PQclear(d->res); \
@@ -433,7 +439,7 @@ typedef enum {
     const char *pgerr = PQresultErrorMessage(d->res); \
     const char *pgerr_end = strchr(pgerr, '\n'); \
     if(!pgerr_end) pgerr_end = pgerr + strlen(pgerr); \
-    noitL(ds_err, "stratcon_datasource.c:%d bad (%d): %.*s time: %llu\n", \
+    mtevL(ds_err, "stratcon_datasource.c:%d bad (%d): %.*s time: %llu\n", \
           __LINE__, d->rv, (int)(pgerr_end - pgerr), pgerr, \
           (long long unsigned)whence); \
     PQclear(d->res); \
@@ -455,7 +461,7 @@ stratcon_ingest_check_loadall(void *vsn) {
   i = 0;
   while(stratcon_database_connect(cq)) {
     if(i++ > 4) {
-      noitL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
+      mtevL(noit_error, "giving up on storage node: %s\n", sn->fqdn);
       release_conn_q(cq);
       free(d);
       return (void *)(vpsized_int)good;
@@ -487,7 +493,7 @@ stratcon_ingest_check_loadall(void *vsn) {
       sin = (struct sockaddr *)&sin6;
       rv = inet_pton(family, remote, &sin6.sin6_addr);
       if(rv != 1) {
-        noitL(noit_stderr, "Cannot translate '%s' to IP\n", remote);
+        mtevL(noit_stderr, "Cannot translate '%s' to IP\n", remote);
         sin = NULL;
       }
     }
@@ -496,7 +502,7 @@ stratcon_ingest_check_loadall(void *vsn) {
     stratcon_iep_line_processor(DS_OP_INSERT, sin, NULL, strdup(buff), NULL);
     good++;
   }
-  noitL(noit_error, "Staged %d/%d remembered checks from %s into IEP\n",
+  mtevL(noit_error, "Staged %d/%d remembered checks from %s into IEP\n",
         good, row_count, sn->fqdn);
  bad_row:
   free_params((ds_single_detail *)d);
@@ -514,16 +520,16 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
   pthread_mutex_lock(&storagenode_to_info_cache_lock);
-  nodes = noit_hash_size(&storagenode_to_info_cache);
+  nodes = mtev_hash_size(&storagenode_to_info_cache);
   jobs = calloc(MAX(1,nodes), sizeof(*jobs));
   sns = calloc(MAX(1,nodes), sizeof(*sns));
   if(nodes == 0) sns[nodes++] = &self;
   else {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *k;
     void *v;
     int klen;
-    while(noit_hash_next(&storagenode_to_info_cache,
+    while(mtev_hash_next(&storagenode_to_info_cache,
                          &iter, &k, &klen, &v)) {
       sns[i++] = (storagenode_info *)v;
     }
@@ -533,7 +539,7 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
   for(i=0; i<nodes; i++) {
     if(pthread_create(&jobs[i], NULL,
                       stratcon_ingest_check_loadall, sns[i]) != 0) {
-      noitL(noit_error, "Failed to spawn thread: %s\n", strerror(errno));
+      mtevL(noit_error, "Failed to spawn thread: %s\n", strerror(errno));
     }
   }
   for(i=0; i<nodes; i++) {
@@ -543,7 +549,7 @@ stratcon_ingest_asynch_drive_iep(eventer_t e, int mask, void *closure,
   }
   free(jobs);
   free(sns);
-  noitL(noit_error, "Loaded all %d check states.\n", tcnt);
+  mtevL(noit_error, "Loaded all %d check states.\n", tcnt);
   return 0;
 }
 static void
@@ -576,7 +582,7 @@ stratcon_ingest_find(ds_rt_detail *d) {
                                  &storagenode_id, &remote_cn, &fqdn, &dsn))
       continue;
 
-    noitL(noit_debug, "stratcon_ingest_find <- (%d, %s) @ %s\n",
+    mtevL(noit_debug, "stratcon_ingest_find <- (%d, %s) @ %s\n",
           node->sid, remote_cn ? remote_cn : "(null)", dsn ? dsn : "(null)");
 
     /* We might be able to find the IP from our config if someone has
@@ -585,7 +591,7 @@ stratcon_ingest_find(ds_rt_detail *d) {
     if(stratcon_find_noit_ip_by_cn(remote_cn,
                                    remote_ip, sizeof(remote_ip)) == 0) {
       node->noit = strdup(remote_ip);
-      noitL(noit_debug, "lookup(cache): %s -> %s\n", remote_cn, node->noit);
+      mtevL(noit_debug, "lookup(cache): %s -> %s\n", remote_cn, node->noit);
       continue;
     }
 
@@ -597,7 +603,7 @@ stratcon_ingest_find(ds_rt_detail *d) {
     PG_EXEC(check_find);
     row_count = PQntuples(d->res);
     if(row_count != 1) {
-      noitL(noit_debug, "lookup (sid:%d): NOT THERE!\n", node->sid);
+      mtevL(noit_debug, "lookup (sid:%d): NOT THERE!\n", node->sid);
       PQclear(d->res);
       goto bad_row;
     }
@@ -605,12 +611,12 @@ stratcon_ingest_find(ds_rt_detail *d) {
     /* Get the remote_address (which noit owns this) */
     PG_GET_STR_COL(val, 0, "remote_address");
     if(!val) {
-      noitL(noit_debug, "lookup: %s -> NOT THERE!\n", remote_cn);
+      mtevL(noit_debug, "lookup: %s -> NOT THERE!\n", remote_cn);
       PQclear(d->res);
       goto bad_row;
     }
     node->noit = strdup(val);
-    noitL(noit_debug, "lookup: %s -> %s\n", remote_cn, node->noit);
+    mtevL(noit_debug, "lookup: %s -> %s\n", remote_cn, node->noit);
    bad_row: 
     free_params((ds_single_detail *)d);
     d->nparams = 0;
@@ -676,22 +682,22 @@ stratcon_ingest_execute(conn_q *cq, const char *r, const char *remote_cn,
          */
         PROCESS_LAST_FIELD(token, len);
         /* We can in-place decode this */
-        len = noit_b64_decode((char *)token, len,
+        len = mtev_b64_decode((char *)token, len,
                               (unsigned char *)token, len);
         if(len <= 0) {
-          noitL(noit_error, "noitd config base64 decoding error.\n");
+          mtevL(noit_error, "noitd config base64 decoding error.\n");
           free(final_buff);
           goto bad_row;
         }
         actual_final_len = final_len;
         if(Z_OK != uncompress((Bytef *)final_buff, &actual_final_len,
                               (unsigned char *)token, len)) {
-          noitL(noit_error, "noitd config decompression failure.\n");
+          mtevL(noit_error, "noitd config decompression failure.\n");
           free(final_buff);
           goto bad_row;
         }
         if(final_len != actual_final_len) {
-          noitL(noit_error, "noitd config decompression error.\n");
+          mtevL(noit_error, "noitd config decompression error.\n");
           free(final_buff);
           goto bad_row;
         }
@@ -846,35 +852,35 @@ stratcon_database_post_connect(conn_q *cq) {
 static int
 stratcon_database_connect(conn_q *cq) {
   char *dsn, dsn_meta[512];
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k, *v;
   int klen;
-  noit_hash_table *t;
+  mtev_hash_table *t;
 
   dsn_meta[0] = '\0';
   if(!cq->dsn) {
-    t = noit_conf_get_hash(NULL, "/stratcon/database/dbconfig");
-    while(noit_hash_next_str(t, &iter, &k, &klen, &v)) {
+    t = mtev_conf_get_hash(NULL, "/stratcon/database/dbconfig");
+    while(mtev_hash_next_str(t, &iter, &k, &klen, &v)) {
       if(dsn_meta[0]) strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, k, sizeof(dsn_meta));
       strlcat(dsn_meta, "=", sizeof(dsn_meta));
       strlcat(dsn_meta, v, sizeof(dsn_meta));
     }
-    noit_hash_destroy(t, free, free);
+    mtev_hash_destroy(t, free, free);
     free(t);
     dsn = dsn_meta;
   }
   else {
     char options[32];
     strlcpy(dsn_meta, cq->dsn, sizeof(dsn_meta));
-    if(noit_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/user",
+    if(mtev_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/user",
                                options, sizeof(options))) {
       strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, "user", sizeof(dsn_meta));
       strlcat(dsn_meta, "=", sizeof(dsn_meta));
       strlcat(dsn_meta, options, sizeof(dsn_meta));
     }
-    if(noit_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/password",
+    if(mtev_conf_get_stringbuf(NULL, "/stratcon/database/dbconfig/password",
                                options, sizeof(options))) {
       strlcat(dsn_meta, " ", sizeof(dsn_meta));
       strlcat(dsn_meta, "password", sizeof(dsn_meta));
@@ -888,13 +894,13 @@ stratcon_database_connect(conn_q *cq) {
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
     PQreset(cq->dbh);
     if(PQstatus(cq->dbh) != CONNECTION_OK) {
-      noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
+      mtevL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
             dsn, PQerrorMessage(cq->dbh));
       return -1;
     }
     if(stratcon_database_post_connect(cq)) return -1;
     if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
-    noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
+    mtevL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
           dsn, PQerrorMessage(cq->dbh));
     return -1;
   }
@@ -902,13 +908,13 @@ stratcon_database_connect(conn_q *cq) {
   cq->dbh = PQconnectdb(dsn);
   if(!cq->dbh) return -1;
   if(PQstatus(cq->dbh) != CONNECTION_OK) {
-    noitL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
+    mtevL(noit_error, "Error reconnecting to database: '%s'\nError: %s\n",
           dsn, PQerrorMessage(cq->dbh));
     return -1;
   }
   if(stratcon_database_post_connect(cq)) return -1;
   if(PQstatus(cq->dbh) == CONNECTION_OK) return 0;
-  noitL(noit_error, "Error connection to database: '%s'\nError: %s\n",
+  mtevL(noit_error, "Error connection to database: '%s'\nError: %s\n",
         dsn, PQerrorMessage(cq->dbh));
   return -1;
 }
@@ -994,7 +1000,7 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
   int found = 0;
   storagenode_info *info = NULL;
   pthread_mutex_lock(&storagenode_to_info_cache_lock);
-  if(noit_hash_retrieve(&storagenode_to_info_cache, (void *)&id, sizeof(id),
+  if(mtev_hash_retrieve(&storagenode_to_info_cache, (void *)&id, sizeof(id),
                         &vinfo)) {
     found = 1;
     info = vinfo;
@@ -1035,7 +1041,7 @@ get_dsn_from_storagenode_id(int id, int can_use_db, char **fqdn_out) {
     info->dsn = dsn;
     info->storagenode_id = id;
     pthread_mutex_lock(&storagenode_to_info_cache_lock);
-    noit_hash_store(&storagenode_to_info_cache,
+    mtev_hash_store(&storagenode_to_info_cache,
                     (void *)&info->storagenode_id, sizeof(int), info);
     pthread_mutex_unlock(&storagenode_to_info_cache_lock);
   }
@@ -1070,14 +1076,14 @@ build_insert_batch(pg_interim_journal_t *ij) {
   if(ij->fd < 0) {
     ij->fd = open(ij->filename, O_RDONLY);
     if(ij->fd < 0) {
-      noitL(noit_error, "Cannot open interim journal '%s': %s\n",
+      mtevL(noit_error, "Cannot open interim journal '%s': %s\n",
             ij->filename, strerror(errno));
       assert(ij->fd >= 0);
     }
   }
   while((rv = fstat(ij->fd, &st)) == -1 && errno == EINTR);
   if(rv == -1) {
-      noitL(noit_error, "Cannot stat interim journal '%s': %s\n",
+      mtevL(noit_error, "Cannot stat interim journal '%s': %s\n",
             ij->filename, strerror(errno));
     assert(rv != -1);
   }
@@ -1085,7 +1091,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
   if(len > 0) {
     buff = mmap(NULL, len, PROT_READ, MAP_PRIVATE, ij->fd, 0);
     if(buff == (void *)-1) {
-      noitL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
+      mtevL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
             ij->filename, strerror(errno));
       assert(buff != (void *)-1);
     }
@@ -1104,7 +1110,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
               expand_b_record(&head, &last, lcp, cp - lcp);
             break;
           default:
-            noitL(noit_error, "unknown bundle version %c\n", lcp[1]);
+            mtevL(noit_error, "unknown bundle version %c\n", lcp[1]);
         }
       }
       else {
@@ -1153,13 +1159,13 @@ stratcon_ingest_asynch_execute(eventer_t e, int mask, void *closure,
   }
   cq = get_conn_q_for_remote(ij->remote_str, ij->remote_cn,
                              ij->fqdn, dsn);
-  noitL(ds_deb, "stratcon_ingest_asynch_execute[%s,%s,%s]\n",
+  mtevL(ds_deb, "stratcon_ingest_asynch_execute[%s,%s,%s]\n",
         ij->remote_str, ij->remote_cn, ij->fqdn);
  full_monty:
   /* Make sure we have a connection */
   i = 1;
   while(stratcon_database_connect(cq)) {
-    noitL(noit_error, "Error connecting to database: %s\n",
+    mtevL(noit_error, "Error connecting to database: %s\n",
           ij->fqdn ? ij->fqdn : "(null)");
     sleep(i);
     i *= 2;
@@ -1167,7 +1173,7 @@ stratcon_ingest_asynch_execute(eventer_t e, int mask, void *closure,
   }
 
   if(head == NULL) head = build_insert_batch(ij);
-  noitL(ds_deb, "Starting batch from %s/%s to %s\n",
+  mtevL(ds_deb, "Starting batch from %s/%s to %s\n",
         ij->remote_str ? ij->remote_str : "(null)",
         ij->remote_cn ? ij->remote_cn : "(null)",
         ij->fqdn ? ij->fqdn : "(null)");
@@ -1201,7 +1207,7 @@ stratcon_ingest_asynch_execute(eventer_t e, int mask, void *closure,
         case DS_EXEC_ROW_FAILED:
           /* rollback to savepoint, mark this record as bad and start again */
           if(current->data[0] != 'n')
-            noitL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
+            mtevL(ingest_err, "%d\t%s\n", ij->storagenode_id, current->data);
           current->problematic = 1;
           current = last_sp;
           success = sp_success;
@@ -1209,14 +1215,14 @@ stratcon_ingest_asynch_execute(eventer_t e, int mask, void *closure,
           ROLLBACK_TO_SAVEPOINT("batch");
           break;
         case DS_EXEC_TXN_FAILED:
-          noitL(noit_error, "txn failed '%s', retrying\n", ij->filename);
+          mtevL(noit_error, "txn failed '%s', retrying\n", ij->filename);
           BUSTED(cq);
       }
     }
   }
   if(last_sp) RELEASE_SAVEPOINT("batch");
   if(stratcon_ingest_do(cq, "COMMIT")) {
-    noitL(noit_error, "txn commit failed '%s', retrying\n", ij->filename);
+    mtevL(noit_error, "txn commit failed '%s', retrying\n", ij->filename);
     BUSTED(cq);
   }
   /* Cleanup the mess */
@@ -1228,7 +1234,7 @@ stratcon_ingest_asynch_execute(eventer_t e, int mask, void *closure,
     free_params((ds_single_detail *)tofree);
     free(tofree);
   }
-  noitL(ds_deb, "Finished batch %s/%s to %s [%d/%d]\n",
+  mtevL(ds_deb, "Finished batch %s/%s to %s [%d/%d]\n",
         ij->remote_str ? ij->remote_str : "(null)",
         ij->remote_cn ? ij->remote_cn : "(null)",
         ij->fqdn ? ij->fqdn : "(null)", success, total);
@@ -1249,7 +1255,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
   char *dsn = NULL;
   char *new_remote_cn = NULL;
   int storagenode_id = 0, sid = 0;
-  if(!noit_hash_retrieve(&uuid_to_info_cache, uuid_str, strlen(uuid_str),
+  if(!mtev_hash_retrieve(&uuid_to_info_cache, uuid_str, strlen(uuid_str),
                          &vuuidinfo)) {
     int row_count = 0;
     char *tmpint;
@@ -1309,7 +1315,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     uuidinfo->uuid_str = strdup(uuid_str);
     uuidinfo->storagenode_id = storagenode_id;
     uuidinfo->remote_cn = new_remote_cn ? strdup(new_remote_cn) : strdup(remote_cn);
-    noit_hash_store(&uuid_to_info_cache,
+    mtev_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
     /* Also, we may have just witnessed a new storage node, store it */
     if(storagenode_id) {
@@ -1319,12 +1325,12 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
       info->dsn = dsn ? strdup(dsn) : NULL;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
       pthread_mutex_lock(&storagenode_to_info_cache_lock);
-      if(!noit_hash_retrieve(&storagenode_to_info_cache,
+      if(!mtev_hash_retrieve(&storagenode_to_info_cache,
                              (void *)&storagenode_id, sizeof(int), &vinfo)) {
         /* hack to save memory -- we *never* remove from these caches,
            so we can use the same fqdn value in the above cache for the key
            in the cache below -- (no strdup) */
-        noit_hash_store(&storagenode_to_info_cache,
+        mtev_hash_store(&storagenode_to_info_cache,
                         (void *)&info->storagenode_id, sizeof(int), info);
       }
       else needs_free = 1;
@@ -1343,7 +1349,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
     if((!dsn && dsn_out) || (!fqdn && fqdn_out)) {
       /* we don't have dsn and we actually want it */
       pthread_mutex_lock(&storagenode_to_info_cache_lock);
-      if(noit_hash_retrieve(&storagenode_to_info_cache,
+      if(mtev_hash_retrieve(&storagenode_to_info_cache,
                             (void *)&uuidinfo->storagenode_id, sizeof(int),
                             &vinfo))
         info = vinfo;
@@ -1382,7 +1388,7 @@ stratcon_ingest_saveconfig() {
 
   r.s_addr = htonl((4 << 24) | (2 << 16) | (2 << 8) | 1);
   memset(&l, 0, sizeof(l));
-  noit_getip_ipv4(r, &l);
+  mtev_getip_ipv4(r, &l);
   /* Ignore the error.. what are we going to do anyway */
   if(inet_ntop(AF_INET, &l, ipv4_str, sizeof(ipv4_str)) == NULL)
     strlcpy(ipv4_str, "0.0.0.0", sizeof(ipv4_str));
@@ -1392,7 +1398,7 @@ stratcon_ingest_saveconfig() {
   if(stratcon_database_connect(cq) == 0) {
     char time_as_str[20];
     size_t len;
-    buff = noit_conf_xml_in_mem(&len);
+    buff = mtev_conf_xml_in_mem(&len);
     if(!buff) goto bad_row;
 
     snprintf(time_as_str, sizeof(time_as_str), "%lu", (long unsigned int)time(NULL));
@@ -1427,7 +1433,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   if(strcmp(path + strlen(path) - 3, ".pg")) {
     snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
     if(link(path, pgfile) < 0 && errno != EEXIST) {
-      noitL(noit_error, "cannot link journal %s: %s\n", path, strerror(errno));
+      mtevL(noit_error, "cannot link journal %s: %s\n", path, strerror(errno));
       return -1;
     }
   }
@@ -1436,7 +1442,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ij = calloc(1, sizeof(*ij));
   ij->fd = open(pgfile, O_RDONLY);
   if(ij->fd < 0) {
-    noitL(noit_error, "cannot open journal '%s': %s\n",
+    mtevL(noit_error, "cannot open journal '%s': %s\n",
           pgfile, strerror(errno));
     free(ij);
     return -1;
@@ -1449,7 +1455,7 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   ij->storagenode_id = atoi(id_str);
   ij->cpool = get_conn_pool_for_remote(ij->remote_str, ij->remote_cn,
                                        ij->fqdn);
-  noitL(noit_debug, "ingesting payload: %s\n", ij->filename);
+  mtevL(noit_debug, "ingesting payload: %s\n", ij->filename);
   ingest = eventer_alloc();
   ingest->mask = EVENTER_ASYNCH;
   ingest->callback = stratcon_ingest_asynch_execute;
@@ -1466,7 +1472,7 @@ stratcon_ingest_all_storagenode_info() {
   cq = get_conn_q_for_metanode();
 
   while(stratcon_database_connect(cq)) {
-    noitL(noit_error, "Error connecting to database\n");
+    mtevL(noit_error, "Error connecting to database\n");
     sleep(1);
   }
 
@@ -1484,27 +1490,27 @@ stratcon_ingest_all_storagenode_info() {
     PG_GET_STR_COL(tmpint, i, "storage_node_id");
     storagenode_id = tmpint ? atoi(tmpint) : 0;
 
-    if(!noit_hash_retrieve(&storagenode_to_info_cache,
+    if(!mtev_hash_retrieve(&storagenode_to_info_cache,
                            (void *)&storagenode_id, sizeof(int), &vinfo)) {
       storagenode_info *info;
       info = calloc(1, sizeof(*info));
       info->storagenode_id = storagenode_id;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
       info->dsn = dsn ? strdup(dsn) : NULL;
-      noit_hash_store(&storagenode_to_info_cache,
+      mtev_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
-      noitL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
+      mtevL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
             info->storagenode_id,
             info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
-    noit_watchdog_child_heartbeat();
+    mtev_watchdog_child_heartbeat();
   }
   PQclear(d->res);
  bad_row:
   free_params(d);
 
   release_conn_q(cq);
-  noitL(noit_error, "Loaded %d storage nodes\n", cnt);
+  mtevL(noit_error, "Loaded %d storage nodes\n", cnt);
   return cnt;
 }
 int
@@ -1515,7 +1521,7 @@ stratcon_ingest_all_check_info() {
   cq = get_conn_q_for_metanode();
 
   while(stratcon_database_connect(cq)) {
-    noitL(noit_error, "Error connecting to database\n");
+    mtevL(noit_error, "Error connecting to database\n");
     sleep(1);
   }
 
@@ -1543,32 +1549,32 @@ stratcon_ingest_all_check_info() {
     uuidinfo->remote_cn = strdup(remote_cn);
     uuidinfo->storagenode_id = storagenode_id;
     uuidinfo->sid = sid;
-    noit_hash_store(&uuid_to_info_cache,
+    mtev_hash_store(&uuid_to_info_cache,
                     uuidinfo->uuid_str, strlen(uuidinfo->uuid_str), uuidinfo);
-    noitL(ds_deb, "CHECK[%s] -> { remote_cn: '%s', storagenode_id: '%d' }\n",
+    mtevL(ds_deb, "CHECK[%s] -> { remote_cn: '%s', storagenode_id: '%d' }\n",
           uuidinfo->uuid_str, uuidinfo->remote_cn, uuidinfo->storagenode_id);
     loaded++;
-    if(!noit_hash_retrieve(&storagenode_to_info_cache,
+    if(!mtev_hash_retrieve(&storagenode_to_info_cache,
                            (void *)&storagenode_id, sizeof(int), &vinfo)) {
       storagenode_info *info;
       info = calloc(1, sizeof(*info));
       info->storagenode_id = storagenode_id;
       info->fqdn = fqdn ? strdup(fqdn) : NULL;
       info->dsn = dsn ? strdup(dsn) : NULL;
-      noit_hash_store(&storagenode_to_info_cache,
+      mtev_hash_store(&storagenode_to_info_cache,
                       (void *)&info->storagenode_id, sizeof(int), info);
-      noitL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
+      mtevL(ds_deb, "SN[%d] -> { fqdn: '%s', dsn: '%s' }\n",
             info->storagenode_id,
             info->fqdn ? info->fqdn : "", info->dsn ? info->dsn : "");
     }
-    noit_watchdog_child_heartbeat();
+    mtev_watchdog_child_heartbeat();
   }
   PQclear(d->res);
  bad_row:
   free_params(d);
 
   release_conn_q(cq);
-  noitL(noit_error, "Loaded %d uuid -> (sid,storage_node_id) mappings\n", loaded);
+  mtevL(noit_error, "Loaded %d uuid -> (sid,storage_node_id) mappings\n", loaded);
   return loaded;
 }
 
@@ -1610,29 +1616,29 @@ static ingestor_api_t postgres_ingestor_api = {
   .save_config = stratcon_ingest_saveconfig
 };
 
-static int postgres_ingestor_config(noit_dso_generic_t *self, noit_hash_table *o) {
+static int postgres_ingestor_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
-static int postgres_ingestor_onload(noit_image_t *self) {
+static int postgres_ingestor_onload(mtev_image_t *self) {
   return 0;
 }
 static int is_postgres_ingestor_file(const char *file) {
-  noit_watchdog_child_heartbeat();
+  mtev_watchdog_child_heartbeat();
   return (strlen(file) == 19 && !strcmp(file + 16, ".pg"));
 }
-static int postgres_ingestor_init(noit_dso_generic_t *self) {
+static int postgres_ingestor_init(mtev_dso_generic_t *self) {
   stratcon_datastore_core_init();
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
-  ds_err = noit_log_stream_find("error/datastore");
-  ds_deb = noit_log_stream_find("debug/datastore");
-  ds_pool_deb = noit_log_stream_find("debug/datastore_pool");
-  ingest_err = noit_log_stream_find("error/ingest");
+  ds_err = mtev_log_stream_find("error/datastore");
+  ds_deb = mtev_log_stream_find("debug/datastore");
+  ds_pool_deb = mtev_log_stream_find("debug/datastore_pool");
+  ingest_err = mtev_log_stream_find("error/ingest");
   if(!ds_err) ds_err = noit_error;
   if(!ingest_err) ingest_err = noit_error;
-  if(!noit_conf_get_string(NULL, "/stratcon/database/journal/path",
+  if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",
                            &basejpath)) {
-    noitL(noit_error, "/stratcon/database/journal/path is unspecified\n");
+    mtevL(noit_error, "/stratcon/database/journal/path is unspecified\n");
     exit(-1);
   }
   stratcon_ingest_all_check_info();
@@ -1642,10 +1648,10 @@ static int postgres_ingestor_init(noit_dso_generic_t *self) {
   return stratcon_datastore_set_ingestor(&postgres_ingestor_api);
 }
 
-noit_dso_generic_t postgres_ingestor = { 
+mtev_dso_generic_t postgres_ingestor = { 
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "postgres_ingestor",
     .description = "postgres drive for data ingestion",
     .xml_description = postgres_ingestor_xml_description,

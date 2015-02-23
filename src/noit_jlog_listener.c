@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007-2011, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,16 +31,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
-#include "noit_listener.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_memory.h"
-#include "utils/noit_log.h"
+#include <mtev_defines.h>
+#include <eventer/eventer.h>
+#include <mtev_listener.h>
+#include <mtev_hash.h>
+#include <mtev_memory.h>
+#include <mtev_rest.h>
+
 #include <jlog.h>
 #include <jlog_private.h>
+#include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
-#include "noit_rest.h"
 
 #include <unistd.h>
 #include <poll.h>
@@ -48,28 +50,28 @@
 #define DEFAULT_MSECONDS_BETWEEN_BATCHES 10000
 #define DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES 500
 
-static noit_atomic32_t tmpfeedcounter = 0;
-static int rest_show_feed(noit_http_rest_closure_t *restc,
+static mtev_atomic32_t tmpfeedcounter = 0;
+static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats);
-static int rest_delete_feed(noit_http_rest_closure_t *restc,
+static int rest_delete_feed(mtev_http_rest_closure_t *restc,
                             int npats, char **pats);
 
 void
 noit_jlog_listener_init() {
   eventer_name_callback("log_transit/1.0", noit_jlog_handler);
-  noit_control_dispatch_delegate(noit_control_dispatch,
+  mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
                                  noit_jlog_handler);
-  noit_control_dispatch_delegate(noit_control_dispatch,
+  mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_TEMP_FEED,
                                  noit_jlog_handler);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/", "^feed$",
-    rest_show_feed, noit_http_rest_client_cert_auth
+    rest_show_feed, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "DELETE", "/feed/", "^(.+)$",
-    rest_delete_feed, noit_http_rest_client_cert_auth
+    rest_delete_feed, mtev_http_rest_client_cert_auth
   ) == 0);
 }
 
@@ -104,27 +106,27 @@ noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
   free(jcl);
 }
 
-static noit_hash_table feed_stats = NOIT_HASH_EMPTY;
+static mtev_hash_table feed_stats = MTEV_HASH_EMPTY;
 
 jlog_feed_stats_t *
 noit_jlog_feed_stats(const char *sub) {
   void *vs = NULL;
   jlog_feed_stats_t *s = NULL;
-  if(noit_hash_retrieve(&feed_stats, sub, strlen(sub), &vs))
+  if(mtev_hash_retrieve(&feed_stats, sub, strlen(sub), &vs))
     return (jlog_feed_stats_t *)vs;
   s = calloc(1, sizeof(*s));
   s->feed_name = strdup(sub);
-  noit_hash_store(&feed_stats, s->feed_name, strlen(s->feed_name), s);
+  mtev_hash_store(&feed_stats, s->feed_name, strlen(s->feed_name), s);
   return s;
 }
 int
 noit_jlog_foreach_feed_stats(int (*f)(jlog_feed_stats_t *, void *),
                              void *c) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, cnt = 0;
   void *vs;
-  while(noit_hash_next(&feed_stats, &iter, &key, &klen, &vs)) {
+  while(mtev_hash_next(&feed_stats, &iter, &key, &klen, &vs)) {
     cnt += f((jlog_feed_stats_t *)vs, c);
   }
   return cnt;
@@ -162,12 +164,12 @@ noit_jlog_push(eventer_t e, noit_jlog_closure_t *jcl) {
     payload.n_usec = htonl(msg.header->tv_usec);
     payload.n_len  = htonl(msg.mess_len);
     if((rv = Ewrite(&payload, sizeof(payload))) != sizeof(payload)) {
-      noitL(noit_error, "Error writing jlog header over SSL %d != %d\n",
+      mtevL(noit_error, "Error writing jlog header over SSL %d != %d\n",
             rv, (int)sizeof(payload));
       return -1;
     }
     if((rv = Ewrite(msg.mess, msg.mess_len)) != msg.mess_len) {
-      noitL(noit_error, "Error writing jlog message over SSL %d != %d\n",
+      mtevL(noit_error, "Error writing jlog message over SSL %d != %d\n",
             rv, msg.mess_len);
       return -1;
     }
@@ -188,7 +190,7 @@ noit_jlog_thread_main(void *e_vptr) {
   noit_jlog_closure_t *jcl = ac->service_ctx;
   char inbuff[sizeof(jlog_id)];
 
-  noit_memory_init_thread();
+  mtev_memory_init_thread();
   eventer_set_fd_blocking(e->fd);
 
   max_sleeptime = DEFAULT_MSECONDS_BETWEEN_BATCHES;
@@ -203,14 +205,14 @@ noit_jlog_thread_main(void *e_vptr) {
     jcl->count = jlog_ctx_read_interval(jcl->jlog, &jcl->start, &jcl->finish);
     if(jcl->count < 0) {
       char idxfile[PATH_MAX];
-      noitL(noit_error, "jlog_ctx_read_interval: %s\n",
+      mtevL(noit_error, "jlog_ctx_read_interval: %s\n",
             jlog_ctx_err_string(jcl->jlog));
       switch (jlog_ctx_err(jcl->jlog)) {
         case JLOG_ERR_FILE_CORRUPT:
         case JLOG_ERR_IDX_CORRUPT:
           jlog_repair_datafile(jcl->jlog, jcl->start.log);
           jlog_repair_datafile(jcl->jlog, jcl->start.log + 1);
-          noitL(noit_error,
+          mtevL(noit_error,
                 "jlog reconstructed, deleting corresponding index.\n");
           STRSETDATAFILE(jcl->jlog, idxfile, jcl->start.log);
           strlcat(idxfile, INDEX_EXT, sizeof(idxfile));
@@ -253,7 +255,7 @@ noit_jlog_thread_main(void *e_vptr) {
       client_chkpt.marker = ntohl(client_chkpt.marker);
   
       if(memcmp(&jcl->chkpt, &client_chkpt, sizeof(jlog_id))) {
-        noitL(noit_error,
+        mtevL(noit_error,
               "client %s submitted invalid checkpoint %u:%u expected %u:%u\n",
               ac->remote_cn, client_chkpt.log, client_chkpt.marker,
               jcl->chkpt.log, jcl->chkpt.marker);
@@ -278,7 +280,7 @@ noit_jlog_thread_main(void *e_vptr) {
          * data on this socket (true even though this is SSL). So, if we're
          * here then "shit went wrong"
          */
-        noitL(noit_error, "jlog client %s disconnected while idle\n",
+        mtevL(noit_error, "jlog client %s disconnected while idle\n",
               ac->remote_cn);
         goto alldone;
       }
@@ -291,10 +293,10 @@ noit_jlog_thread_main(void *e_vptr) {
 
  alldone:
   e->opset->close(e->fd, &mask, e);
-  noit_atomic_dec32(&jcl->feed_stats->connections);
+  mtev_atomic_dec32(&jcl->feed_stats->connections);
   noit_jlog_closure_free(jcl);
   acceptor_closure_free(ac);
-  noit_memory_maintenance();
+  mtev_memory_maintenance();
   return NULL;
 }
 
@@ -326,39 +328,39 @@ socket_error:
   }
 
   if(!ac->service_ctx) {
-    noit_log_stream_t ls;
+    mtev_log_stream_t ls;
     const char *logname, *type;
     int first_attempt = 1;
     char path[PATH_MAX], subscriber[256], *sub;
     jcl = ac->service_ctx = noit_jlog_closure_alloc();
-    if(!noit_hash_retr_str(ac->config,
+    if(!mtev_hash_retr_str(ac->config,
                            "log_transit_feed_name",
                            strlen("log_transit_feed_name"),
                            &logname)) {
       errstr = "No 'log_transit_feed_name' specified in log_transit.";
-      noitL(noit_error, "%s\n", errstr);
+      mtevL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
-    ls = noit_log_stream_find(logname);
+    ls = mtev_log_stream_find(logname);
     if(!ls) {
       snprintf(errbuff, sizeof(errbuff),
                "Could not find log '%s' for log_transit.", logname);
       errstr = errbuff;
-      noitL(noit_error, "%s\n", errstr);
+      mtevL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
-    type = noit_log_stream_get_type(ls);
+    type = mtev_log_stream_get_type(ls);
     if(!type || strcmp(type, "jlog")) {
       snprintf(errbuff, sizeof(errbuff),
                "Log '%s' for log_transit is not a jlog.", logname);
       errstr = errbuff;
-      noitL(noit_error, "%s\n", errstr);
+      mtevL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
     if(ac->cmd == NOIT_JLOG_DATA_FEED) {
       if(!ac->remote_cn) {
         errstr = "jlog transit started to unidentified party.";
-        noitL(noit_error, "%s\n", errstr);
+        mtevL(noit_error, "%s\n", errstr);
         goto socket_error;
       }
       strlcpy(subscriber, ac->remote_cn, sizeof(subscriber));
@@ -367,11 +369,11 @@ socket_error:
     else {
       jcl->feed_stats = noit_jlog_feed_stats("~");
       snprintf(subscriber, sizeof(subscriber),
-               "~%07d", noit_atomic_inc32(&tmpfeedcounter));
+               "~%07d", mtev_atomic_inc32(&tmpfeedcounter));
     }
     jcl->subscriber = strdup(subscriber);
 
-    strlcpy(path, noit_log_stream_get_path(ls), sizeof(path));
+    strlcpy(path, mtev_log_stream_get_path(ls), sizeof(path));
     sub = strchr(path, '(');
     if(sub) {
       char *esub = strchr(sub, ')');
@@ -389,7 +391,7 @@ socket_error:
                  "jlog reader[%s] error: %s", jcl->subscriber,
                  jlog_ctx_err_string(jcl->jlog));
         errstr = errbuff;
-        noitL(noit_error, "%s\n", errstr);
+        mtevL(noit_error, "%s\n", errstr);
       }
     }
     if(jlog_ctx_open_reader(jcl->jlog, jcl->subscriber) == -1) {
@@ -405,7 +407,7 @@ socket_error:
                "jlog reader[%s] error: %s", jcl->subscriber,
                jlog_ctx_err_string(jcl->jlog));
       errstr = errbuff;
-      noitL(noit_error, "%s\n", errstr);
+      mtevL(noit_error, "%s\n", errstr);
       goto socket_error;
     }
   }
@@ -419,7 +421,7 @@ socket_error:
   pthread_attr_init(&tattr);
   pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
   gettimeofday(&jcl->feed_stats->last_connection, NULL);
-  noit_atomic_inc32(&jcl->feed_stats->connections);
+  mtev_atomic_inc32(&jcl->feed_stats->connections);
   if(pthread_create(&tid, &tattr, noit_jlog_thread_main, newe) == 0) {
     return 0;
   }
@@ -431,22 +433,22 @@ socket_error:
   return 0;
 }
 
-static int rest_show_feed(noit_http_rest_closure_t *restc,
+static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   const char *err = "unknown error";
   const char *jpath_with_sub;
   char jlogpath[PATH_MAX], *cp, **subs = NULL;
   int nsubs, i;
-  noit_log_stream_t feed;
+  mtev_log_stream_t feed;
   jlog_ctx *jctx = NULL;
   xmlDocPtr doc = NULL;
   xmlNodePtr root = NULL, subnodes;
 
-  feed = noit_log_stream_find("feed");
+  feed = mtev_log_stream_find("feed");
   if(!feed) { err = "cannot find feed"; goto error; }
 
-  jpath_with_sub = noit_log_stream_get_path(feed);
+  jpath_with_sub = mtev_log_stream_get_path(feed);
   strlcpy(jlogpath, jpath_with_sub, sizeof(jlogpath));
   cp = strchr(jlogpath, '(');
   if(cp) *cp = '\0';
@@ -467,9 +469,9 @@ static int rest_show_feed(noit_http_rest_closure_t *restc,
   }
   xmlAddChild(root, subnodes);
 
-  noit_http_response_ok(restc->http_ctx, "text/xml");
-  noit_http_response_xml(restc->http_ctx, doc);
-  noit_http_response_end(restc->http_ctx);
+  mtev_http_response_ok(restc->http_ctx, "text/xml");
+  mtev_http_response_xml(restc->http_ctx, doc);
+  mtev_http_response_end(restc->http_ctx);
   if(subs) jlog_ctx_list_subscribers_dispose(jctx, subs);
   xmlFreeDoc(doc);
   jlog_ctx_close(jctx);
@@ -478,27 +480,27 @@ static int rest_show_feed(noit_http_rest_closure_t *restc,
  error:
   if(doc) xmlFreeDoc(doc);
   if(subs) jlog_ctx_list_subscribers_dispose(jctx, subs);
-  noit_http_response_server_error(ctx, "text/plain");
-  noit_http_response_append(ctx, err, strlen(err));
-  noit_http_response_end(ctx);
+  mtev_http_response_server_error(ctx, "text/plain");
+  mtev_http_response_append(ctx, err, strlen(err));
+  mtev_http_response_end(ctx);
   if(jctx) jlog_ctx_close(jctx);
   return 0;
 }
 
-static int rest_delete_feed(noit_http_rest_closure_t *restc,
+static int rest_delete_feed(mtev_http_rest_closure_t *restc,
                             int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   const char *err = "unknown error";
   const char *jpath_with_sub;
   char jlogpath[PATH_MAX], *cp;
   int rv;
-  noit_log_stream_t feed;
+  mtev_log_stream_t feed;
   jlog_ctx *jctx;
 
-  feed = noit_log_stream_find("feed");
+  feed = mtev_log_stream_find("feed");
   if(!feed) { err = "cannot find feed"; goto error; }
 
-  jpath_with_sub = noit_log_stream_get_path(feed);
+  jpath_with_sub = mtev_log_stream_get_path(feed);
   strlcpy(jlogpath, jpath_with_sub, sizeof(jlogpath));
   cp = strchr(jlogpath, '(');
   if(cp) *cp = '\0';
@@ -515,19 +517,19 @@ static int rest_delete_feed(noit_http_rest_closure_t *restc,
   jlog_clean(jlogpath);
 
   if(rv == 0) {
-    noit_http_response_not_found(ctx, "text/plain");
-    noit_http_response_end(ctx);
+    mtev_http_response_not_found(ctx, "text/plain");
+    mtev_http_response_end(ctx);
     return 0;
   }
 
-  noit_http_response_standard(ctx, 204, "OK", "text/plain");
-  noit_http_response_end(ctx);
+  mtev_http_response_standard(ctx, 204, "OK", "text/plain");
+  mtev_http_response_end(ctx);
   return 0;
 
  error:
-  noit_http_response_server_error(ctx, "text/plain");
-  noit_http_response_append(ctx, err, strlen(err));
-  noit_http_response_end(ctx);
+  mtev_http_response_server_error(ctx, "text/plain");
+  mtev_http_response_append(ctx, err, strlen(err));
+  mtev_http_response_end(ctx);
   return 0;
 }
 

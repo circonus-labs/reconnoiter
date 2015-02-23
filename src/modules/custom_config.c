@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2014, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2014-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,52 +29,55 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
+
+#include <assert.h>
+
+#include <mtev_hash.h>
+
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_btrie.h"
+#include "noit_mtev_bridge.h"
+
 #include "custom_config.xmlh"
-#include <assert.h>
 
 static int custom_config_module_id = -1;
 
 static int
-custom_config_onload(noit_image_t *self) {
+custom_config_onload(mtev_image_t *self) {
   int i, cnt;
-  noit_conf_section_t *acl_c;
+  mtev_conf_section_t *acl_c;
   custom_config_module_id = noit_check_register_module("custom");
   if(custom_config_module_id < 0) return -1;
   return 0;
 }
 
 static int
-custom_config_config(noit_dso_generic_t *self, noit_hash_table *o) {
+custom_config_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 
-static noit_hook_return_t
+static mtev_hook_return_t
 custom_config_hook_impl(void *closure, noit_check_t *check) {
-  noit_hash_table *config;
+  mtev_hash_table *config;
   config = noit_check_get_module_config(check, custom_config_module_id);
-  if(config && noit_hash_size(config)) {
-    noit_hash_merge_as_dict(check->config, config);
+  if(config && mtev_hash_size(config)) {
+    mtev_hash_merge_as_dict(check->config, config);
   }
-  return NOIT_HOOK_CONTINUE;
+  return MTEV_HOOK_CONTINUE;
 }
 
 static int
-custom_config_init(noit_dso_generic_t *self) {
+custom_config_init(mtev_dso_generic_t *self) {
   check_config_fixup_hook_register("custom_config", custom_config_hook_impl, NULL);
   return 0;
 }
 
-noit_dso_generic_t custom_config = {
+mtev_dso_generic_t custom_config = {
   {
-    .magic = NOIT_GENERIC_MAGIC,
-    .version = NOIT_GENERIC_ABI_VERSION,
+    .magic = MTEV_GENERIC_MAGIC,
+    .version = MTEV_GENERIC_ABI_VERSION,
     .name = "custom_config",
     .description = "config namespaces",
     .xml_description = custom_config_xml_description,

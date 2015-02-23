@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -55,10 +56,12 @@
 #define MAXFLOAT FLT_MAX
 #endif
 
+#include <eventer/eventer.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
 
 #define PING_INTERVAL 2000 /* 2000ms = 2s */
 #define PING_COUNT    5
@@ -94,8 +97,8 @@ struct ping_closure {
   int payload_len;
   int icp_len;
 };
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 static int in_cksum(u_short *addr, int len);
 static vpsized_uint random_num;
 
@@ -103,10 +106,10 @@ static vpsized_uint random_num;
 typedef struct  {
   int ipv4_fd;
   int ipv6_fd;
-  noit_hash_table *in_flight;
+  mtev_hash_table *in_flight;
 } ping_icmp_data_t;
 
-static int ping_icmp_config(noit_module_t *self, noit_hash_table *options) {
+static int ping_icmp_config(noit_module_t *self, mtev_hash_table *options) {
   return 0;
 }
 static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
@@ -115,7 +118,7 @@ static int ping_icmp_is_complete(noit_module_t *self, noit_check_t *check) {
   data = (struct check_info *)check->closure;
   for(i=0; i<data->expected_count; i++)
     if(data->turnaround[i] < 0.0) {
-      noitL(nldeb, "ping_icmp: %s %d is still outstanding.\n",
+      mtevL(nldeb, "ping_icmp: %s %d is still outstanding.\n",
             check->target_ip, i);
       return 0;
     }
@@ -152,14 +155,14 @@ static void ping_icmp_log_results(noit_module_t *self, noit_check_t *check) {
     avg /= (float)points;
   }
 
-  if(noit_hash_retr_str(check->config, "avail_needed", strlen("avail_needed"),
+  if(mtev_hash_retr_str(check->config, "avail_needed", strlen("avail_needed"),
                         &config_val))
     avail_needed = atoi(config_val);
 
   snprintf(human_buffer, sizeof(human_buffer),
            "cnt=%d,avail=%0.0f,min=%0.4f,max=%0.4f,avg=%0.4f",
            (int)cnt, 100.0*avail, min, max, avg);
-  noitL(nldeb, "ping_icmp(%s) [%s]\n", check->target_ip, human_buffer);
+  mtevL(nldeb, "ping_icmp(%s) [%s]\n", check->target_ip, human_buffer);
 
   gettimeofday(&check->stats.inprogress.whence, NULL);
   sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
@@ -196,7 +199,7 @@ static int ping_icmp_timeout(eventer_t e, int mask,
   ping_data = noit_module_get_userdata(pcl->self);
   k.addr_of_check = (vpsized_uint)pcl->check ^ random_num;
   uuid_copy(k.checkid, pcl->check->checkid);
-  noit_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
+  mtev_hash_delete(ping_data->in_flight, (const char *)&k, sizeof(k),
                    free, NULL);
   free(pcl);
   return 0;
@@ -236,7 +239,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
 
     if(inlen < 0) {
       if(errno == EAGAIN || errno == EINTR) break;
-      noitLT(nldeb, now, "ping_icmp recvfrom: %s\n", strerror(errno));
+      mtevLT(nldeb, now, "ping_icmp recvfrom: %s\n", strerror(errno));
       break;
     }
 
@@ -244,18 +247,18 @@ static int ping_icmp_handler(eventer_t e, int mask,
       struct icmp *icp4;
       iphlen = ((struct ip *)packet)->ip_hl << 2;
       if((inlen-iphlen) != sizeof(struct icmp)+PING_PAYLOAD_LEN) {
-        noitLT(nldeb, now,
+        mtevLT(nldeb, now,
                "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
         continue;
       }
       icp4 = (struct icmp *)(packet + iphlen);
       payload = (struct ping_payload *)(icp4 + 1);
       if(icp4->icmp_type != ICMP_ECHOREPLY) {
-        noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
+        mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp4->icmp_type);
         continue;
       }
       if(icp4->icmp_id != (((vpsized_uint)self) & 0xffff)) {
-        noitLT(nldeb, now,
+        mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp4->icmp_id, ntohs(icp4->icmp_seq),
                  (unsigned long)(((vpsized_uint)self) & 0xffff));
@@ -265,17 +268,17 @@ static int ping_icmp_handler(eventer_t e, int mask,
     else if(family == AF_INET6) {
       struct icmp6_hdr *icp6 = (struct icmp6_hdr *)packet;
       if((inlen) != sizeof(struct icmp6_hdr)+PING_PAYLOAD_LEN) {
-        noitLT(nldeb, now,
+        mtevLT(nldeb, now,
                "ping_icmp bad size: %d+%d\n", iphlen, inlen-iphlen); 
         continue;
       }
       payload = (struct ping_payload *)(icp6+1);
       if(icp6->icmp6_type != ICMP6_ECHO_REPLY) {
-        noitLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
+        mtevLT(nldeb, now, "ping_icmp bad type: %d\n", icp6->icmp6_type);
         continue;
       }
       if(icp6->icmp6_id != (((vpsized_uint)self) & 0xffff)) {
-        noitLT(nldeb, now,
+        mtevLT(nldeb, now,
                  "ping_icmp not sent from this instance (%d:%d) vs. %lu\n",
                  icp6->icmp6_id, ntohs(icp6->icmp6_seq),
                  (unsigned long)(((vpsized_uint)self) & 0xffff));
@@ -289,7 +292,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
     check = NULL;
     k.addr_of_check = payload->addr_of_check;
     uuid_copy(k.checkid, payload->checkid);
-    if(noit_hash_retrieve(ping_data->in_flight,
+    if(mtev_hash_retrieve(ping_data->in_flight,
                           (const char *)&k, sizeof(k),
                           &vcheck))
       check = vcheck;
@@ -298,12 +301,12 @@ static int ping_icmp_handler(eventer_t e, int mask,
     if(!check) {
       char uuid_str[37];
       uuid_unparse_lower(payload->checkid, uuid_str);
-      noitLT(nldeb, now,
+      mtevLT(nldeb, now,
              "ping_icmp response for unknown check '%s'\n", uuid_str);
       continue;
     }
     if((check->generation & 0xffff) != payload->generation) {
-      noitLT(nldeb, now,
+      mtevLT(nldeb, now,
              "ping_icmp response in generation gap\n");
       continue;
     }
@@ -332,7 +335,7 @@ static int ping_icmp_handler(eventer_t e, int mask,
       check->flags &= ~NP_RUNNING;
       k.addr_of_check = (vpsized_uint)check ^ random_num;
       uuid_copy(k.checkid, check->checkid);
-      noit_hash_delete(ping_data->in_flight, (const char *)&k,
+      mtev_hash_delete(ping_data->in_flight, (const char *)&k,
                        sizeof(k), free, NULL);
     }
   }
@@ -359,14 +362,14 @@ static int ping_icmp_init(noit_module_t *self) {
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {
-    noitL(noit_error, "Couldn't find 'icmp' protocol\n");
+    mtevL(noit_error, "Couldn't find 'icmp' protocol\n");
     free(data);
     return -1;
   }
 
   data->ipv4_fd = socket(AF_INET, NE_SOCK_CLOEXEC|SOCK_RAW, proto->p_proto);
   if(data->ipv4_fd < 0) {
-    noitL(noit_error, "ping_icmp: socket failed: %s\n",
+    mtevL(noit_error, "ping_icmp: socket failed: %s\n",
           strerror(errno));
   }
   else {
@@ -381,15 +384,15 @@ static int ping_icmp_init(noit_module_t *self) {
           break;
         }
       }
-      noitL(noit_debug, "ping_icmp: send buffer set to %d\n", on);
+      mtevL(noit_debug, "ping_icmp: send buffer set to %d\n", on);
     }
     else
-      noitL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
+      mtevL(noit_error, "Cannot get sndbuf size: %s\n", strerror(errno));
 
     if(eventer_set_fd_nonblocking(data->ipv4_fd)) {
       close(data->ipv4_fd);
       data->ipv4_fd = -1;
-      noitL(noit_error,
+      mtevL(noit_error,
             "ping_icmp: could not set socket non-blocking: %s\n",
             strerror(errno));
     }
@@ -407,14 +410,14 @@ static int ping_icmp_init(noit_module_t *self) {
   if ((proto = getprotobyname("ipv6-icmp")) != NULL) {
     data->ipv6_fd = socket(AF_INET6, NE_SOCK_CLOEXEC|SOCK_RAW, proto->p_proto);
     if(data->ipv6_fd < 0) {
-      noitL(noit_error, "ping_icmp: socket failed: %s\n",
+      mtevL(noit_error, "ping_icmp: socket failed: %s\n",
             strerror(errno));
     }
     else {
       if(eventer_set_fd_nonblocking(data->ipv6_fd)) {
         close(data->ipv6_fd);
         data->ipv6_fd = -1;
-        noitL(noit_error,
+        mtevL(noit_error,
               "ping_icmp: could not set socket non-blocking: %s\n",
                  strerror(errno));
       }
@@ -430,7 +433,7 @@ static int ping_icmp_init(noit_module_t *self) {
     }
   }
   else
-    noitL(noit_error, "Couldn't find 'ipv6-icmp' protocol\n");
+    mtevL(noit_error, "Couldn't find 'ipv6-icmp' protocol\n");
 
   noit_module_set_userdata(self, data);
   return 0;
@@ -453,13 +456,13 @@ static int ping_icmp_real_send(eventer_t e, int mask,
 
   if(pcl->check->target_ip[0] == '\0') goto cleanup;
 
-  if(!noit_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
+  if(!mtev_hash_retrieve(data->in_flight, (const char *)&k, sizeof(k),
                          &vcheck)) {
-    noitLT(nldeb, now, "ping check no longer active, bailing\n");
+    mtevLT(nldeb, now, "ping check no longer active, bailing\n");
     goto cleanup;
   }
 
-  noitLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target_ip);
+  mtevLT(nldeb, now, "ping_icmp_real_send(%s)\n", pcl->check->target_ip);
   gettimeofday(&whence, NULL); /* now isn't accurate enough */
   payload->tv_sec = whence.tv_sec;
   payload->tv_usec = whence.tv_usec;
@@ -488,7 +491,7 @@ static int ping_icmp_real_send(eventer_t e, int mask,
                (struct sockaddr *)&sin, sizeof(sin));
   }
   if(i != pcl->payload_len) {
-    noitLT(nlerr, now, "Error sending ICMP packet to %s(%s): %s\n",
+    mtevLT(nlerr, now, "Error sending ICMP packet to %s(%s): %s\n",
              pcl->check->target, pcl->check->target_ip, strerror(errno));
   }
  cleanup:
@@ -526,10 +529,10 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
 
   BAIL_ON_RUNNING_CHECK(check);
 
-  if(noit_hash_retr_str(check->config, "interval", strlen("interval"),
+  if(mtev_hash_retr_str(check->config, "interval", strlen("interval"),
                         &config_val))
     interval = atoi(config_val);
-  if(noit_hash_retr_str(check->config, "count", strlen("count"),
+  if(mtev_hash_retr_str(check->config, "count", strlen("count"),
                         &config_val))
     count = atoi(config_val);
 
@@ -538,11 +541,11 @@ static int ping_icmp_send(noit_module_t *self, noit_check_t *check,
   k = calloc(1, sizeof(*k));
   k->addr_of_check = (vpsized_uint)check ^ random_num;
   uuid_copy(k->checkid, check->checkid);
-  if(!noit_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
+  if(!mtev_hash_store(ping_data->in_flight, (const char *)k, sizeof(*k),
                       check)) {
     free(k);
   }
-  noitL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
+  mtevL(nldeb, "ping_icmp_send(%p,%s,%d,%d)\n",
         self, check->target_ip, interval, count);
 
   /* remove a timeout if we still have one -- we should unless someone
@@ -682,9 +685,9 @@ static int in_cksum(u_short *addr, int len)
   return (answer);
 }
 
-static int ping_icmp_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/ping_icmp");
-  nldeb = noit_log_stream_find("debug/ping_icmp");
+static int ping_icmp_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/ping_icmp");
+  nldeb = mtev_log_stream_find("debug/ping_icmp");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("ping_icmp/timeout", ping_icmp_timeout);

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -41,15 +42,16 @@
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
 
-#include "noit_conf.h"
-#include "noit_conf_private.h"
+#include <mtev_conf.h>
+#include <mtev_conf_private.h>
+#include <mtev_console.h>
+#include <mtev_hash.h>
+#include <mtev_log.h>
+
+#include "noit_filters.h"
 #include "noit_conf_checks.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "noit_filters.h"
-#include "noit_console.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_log.h"
 
 static void register_console_config_check_commands();
 
@@ -75,7 +77,7 @@ static struct _valid_attr_t {
 };
 
 void
-noit_console_state_add_check_attrs(noit_console_state_t *state,
+mtev_console_state_add_check_attrs(mtev_console_state_t *state,
                                    console_cmd_func_t f,
                                    const char *scope) {
   int i;
@@ -83,17 +85,17 @@ noit_console_state_add_check_attrs(noit_console_state_t *state,
       i < sizeof(valid_attrs)/sizeof(valid_attrs[0]);
       i++) {
     if(strcmp(valid_attrs[i].scope, scope)) continue;
-    noit_console_state_add_cmd(state,
+    mtev_console_state_add_cmd(state,
       NCSCMD(valid_attrs[i].name, f, NULL,
              NULL, &valid_attrs[i]));
   }
 }
-static noit_hash_table check_attrs = NOIT_HASH_EMPTY;
+static mtev_hash_table check_attrs = MTEV_HASH_EMPTY;
 
 void noit_console_conf_checks_init() {
   int i;
   for(i=0;i<sizeof(valid_attrs)/sizeof(*valid_attrs);i++) {
-    noit_hash_store(&check_attrs,
+    mtev_hash_store(&check_attrs,
                     valid_attrs[i].name, strlen(valid_attrs[i].name),
                     &valid_attrs[i]);
   }
@@ -102,7 +104,7 @@ void noit_console_conf_checks_init() {
 
 static int
 noit_console_mkcheck_xpath(char *xpath, int len,
-                           noit_conf_t_userdata_t *info,
+                           mtev_conf_t_userdata_t *info,
                            const char *arg) {
   int rv;
   rv = noit_check_xpath(xpath, len, "/", arg);
@@ -115,7 +117,7 @@ noit_console_mkcheck_xpath(char *xpath, int len,
   return 0;
 }
 static void
-nc_attr_show(noit_console_closure_t ncct, const char *name, xmlNodePtr cnode,
+nc_attr_show(mtev_console_closure_t ncct, const char *name, xmlNodePtr cnode,
              xmlNodePtr anode, const char *value) {
   char *cpath, *apath;
   cpath = cnode ? (char *)xmlGetNodePath(cnode) : strdup("");
@@ -137,8 +139,8 @@ nc_attr_show(noit_console_closure_t ncct, const char *name, xmlNodePtr cnode,
   if(apath) free(apath);
 }
 static void 
-refresh_subchecks(noit_console_closure_t ncct,
-                  noit_conf_t_userdata_t *info) {
+refresh_subchecks(mtev_console_closure_t ncct,
+                  mtev_conf_t_userdata_t *info) {
   char *path;
   char xpath[1024];
  
@@ -164,7 +166,7 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
     char *attr = argv[i], *val = NULL;
     if(!strcasecmp(argv[i], "no")) attr = argv[i+1];
     else val = argv[i+1];
-    if(!noit_hash_retrieve(&check_attrs, attr, strlen(attr),
+    if(!mtev_hash_retrieve(&check_attrs, attr, strlen(attr),
                            &vattrinfo)) {
       error = 1;
       break;
@@ -175,7 +177,7 @@ noit_config_check_update_attrs(xmlNodePtr node, int argc, char **argv) {
     if(val)
       xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)val);
     CONF_DIRTY(node);
-    noit_conf_mark_changed();
+    mtev_conf_mark_changed();
   }
   return error;
 }
@@ -192,7 +194,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
   /* attr val [or] no attr (sets of two) */
   if(argc % 2) goto out;
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   path = strcmp(ppath, "/") ? ppath : "";
   snprintf(xpath, sizeof(xpath), "/noit%s", path);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
@@ -200,7 +202,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
      xmlXPathNodeSetGetLength(pobj->nodesetval) != 1) {
     goto out;
   }
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if((newnode = xmlNewChild(node, NULL, (xmlChar *)"check", NULL)) != NULL) {
     char outstr[37];
     uuid_generate(out);
@@ -215,7 +217,7 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
     }
     else {
       CONF_DIRTY(newnode);
-      noit_conf_mark_changed();
+      mtev_conf_mark_changed();
       rv = 0;
     }
   }
@@ -225,26 +227,26 @@ noit_conf_mkcheck_under(const char *ppath, int argc, char **argv, uuid_t out) {
 }
 
 static int
-noit_console_check(noit_console_closure_t ncct,
+noit_console_check(mtev_console_closure_t ncct,
                    int argc, char **argv,
-                   noit_console_state_t *state, void *closure) {
+                   mtev_console_state_t *state, void *closure) {
   int cnt;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   char xpath[1024], newuuid_str[37];
   char *uuid_conf = NULL, *wanted;
   uuid_t checkid;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlXPathObjectPtr pobj = NULL;
   xmlNodePtr node = NULL;
-  noit_boolean creating_new = noit_false;
+  mtev_boolean creating_new = mtev_false;
 
   if(closure) {
     char *fake_argv[1] = { ".." };
-    noit_console_state_pop(ncct, 0, argv, NULL, NULL);
-    noit_console_config_cd(ncct, 1, fake_argv, NULL, NULL);
+    mtev_console_state_pop(ncct, 0, argv, NULL, NULL);
+    mtev_console_config_cd(ncct, 1, fake_argv, NULL, NULL);
   }
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1) {
     nc_printf(ncct, "requires at least one argument\n");
     return -1;
@@ -254,12 +256,12 @@ noit_console_check(noit_console_closure_t ncct,
     return -1;
   } 
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   wanted = strcmp(argv[0], "new") ? argv[0] : NULL;
   if(info && !wanted) {
     /* We are creating a new node */
     uuid_t out;
-    creating_new = noit_true;
+    creating_new = mtev_true;
     if(strncmp(info->path, "/checks/", strlen("/checks/")) &&
        strcmp(info->path, "/checks")) {
       nc_printf(ncct, "New checks must be under /checks/\n");
@@ -290,7 +292,7 @@ noit_console_check(noit_console_closure_t ncct,
     nc_printf(ncct, "Ambiguous check specified\n");
     goto out;
   }
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!node || !uuid_conf || uuid_parse(uuid_conf, checkid)) {
     nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -310,8 +312,8 @@ noit_console_check(noit_console_closure_t ncct,
     uuid_copy(info->current_check, checkid);
     if(argc > 1) refresh_subchecks(ncct, info);
     if(state) {
-      noit_console_state_push_state(ncct, state);
-      noit_console_state_init(ncct);
+      mtev_console_state_push_state(ncct, state);
+      mtev_console_state_init(ncct);
     }
     goto out;
   }
@@ -321,9 +323,9 @@ noit_console_check(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_console_watch_check(noit_console_closure_t ncct,
+noit_console_watch_check(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *state, void *closure) {
+                         mtev_console_state_t *state, void *closure) {
   int i, cnt;
   int adding = (int)(vpsized_int)closure;
   int period = 0;
@@ -331,7 +333,7 @@ noit_console_watch_check(noit_console_closure_t ncct,
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1 || argc > 2) {
     nc_printf(ncct, "requires one or two arguments\n");
     return -1;
@@ -357,7 +359,7 @@ noit_console_watch_check(noit_console_closure_t ncct,
     xmlNodePtr node;
     char *uuid_conf;
 
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -397,22 +399,22 @@ _qsort_string_compare(const void *i1, const void *i2) {
         return strcasecmp(s1, s2);
 }
 static void
-nc_print_stat_metrics(noit_console_closure_t ncct,
+nc_print_stat_metrics(mtev_console_closure_t ncct,
                       noit_check_t *check, stats_t *c) {
   int mcount=0, cnt=0;
   const char **sorted_keys;
   char buff[256];
-  noit_boolean filtered;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_boolean filtered;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
 
   memset(&iter, 0, sizeof(iter));
-  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) cnt++;
+  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) cnt++;
   sorted_keys = malloc(cnt * sizeof(*sorted_keys));
   memset(&iter, 0, sizeof(iter));
-  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
     if(sorted_keys && mcount < cnt) sorted_keys[mcount++] = k;
     else {
       noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
@@ -425,7 +427,7 @@ nc_print_stat_metrics(noit_console_closure_t ncct,
     qsort(sorted_keys, mcount, sizeof(*sorted_keys),
           _qsort_string_compare);
     for(j=0;j<mcount;j++) {
-      if(noit_hash_retrieve(&c->metrics,
+      if(mtev_hash_retrieve(&c->metrics,
                             sorted_keys[j], strlen(sorted_keys[j]),
                             &data)) {
         noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
@@ -437,22 +439,22 @@ nc_print_stat_metrics(noit_console_closure_t ncct,
   }
 }
 static int
-noit_console_show_check(noit_console_closure_t ncct,
+noit_console_show_check(mtev_console_closure_t ncct,
                         int argc, char **argv,
-                        noit_console_state_t *state, void *closure) {
+                        mtev_console_state_t *state, void *closure) {
   int i, cnt;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   char xpath[1024];
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc > 1) {
     nc_printf(ncct, "requires zero or one arguments\n");
     return -1;
   }
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   /* We many not be in conf-t mode -- that's fine */
   if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), info,
                                 argc ? argv[0] : NULL)) {
@@ -472,18 +474,18 @@ noit_console_show_check(noit_console_closure_t ncct,
     goto out;
   }
   for(i=0; i<cnt; i++) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *k;
     int klen;
     void *data;
     uuid_t checkid;
     noit_check_t *check;
-    noit_hash_table *config;
+    mtev_hash_table *config;
     xmlNodePtr node, anode, mnode = NULL;
     char *uuid_conf;
     char *module, *value;
 
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -493,9 +495,9 @@ noit_console_show_check(noit_console_closure_t ncct,
     nc_printf(ncct, "==== %s ====\n", uuid_conf);
     free(uuid_conf);
 
-#define MYATTR(a,n,b) _noit_conf_get_string(node, &(n), "@" #a, &(b))
+#define MYATTR(a,n,b) _mtev_conf_get_string(node, &(n), "@" #a, &(b))
 #define INHERIT(a,n,b) \
-  _noit_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
+  _mtev_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
 #define SHOW_ATTR(a) do { \
   anode = NULL; \
   value = NULL; \
@@ -521,11 +523,11 @@ noit_console_show_check(noit_console_closure_t ncct,
     SHOW_ATTR(filterset);
     SHOW_ATTR(disable);
     /* Print out all the config settings */
-    config = noit_conf_get_hash(node, "config");
-    while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+    config = mtev_conf_get_hash(node, "config");
+    while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       nc_printf(ncct, " config::%s: %s\n", k, (const char *)data);
     }
-    noit_hash_destroy(config, free, free);
+    mtev_hash_destroy(config, free, free);
     free(config);
 
     check = noit_poller_lookup(checkid);
@@ -570,14 +572,14 @@ noit_console_show_check(noit_console_closure_t ncct,
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
       }
 
-      if(noit_hash_size(&check->stats.inprogress.metrics) > 0) {
+      if(mtev_hash_size(&check->stats.inprogress.metrics) > 0) {
         nc_printf(ncct, " metrics (inprogress):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.inprogress);
       }
-      if(noit_hash_size(&check->stats.current.metrics)) {
+      if(mtev_hash_size(&check->stats.current.metrics)) {
         nc_printf(ncct, " metrics (current):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.current);
-      } else if(noit_hash_size(&check->stats.previous.metrics) > 0) {
+      } else if(mtev_hash_size(&check->stats.previous.metrics) > 0) {
         nc_printf(ncct, " metrics (previous):\n");
         nc_print_stat_metrics(ncct, check, &check->stats.previous);
       }
@@ -588,24 +590,24 @@ noit_console_show_check(noit_console_closure_t ncct,
   return 0;
 }
 static int
-noit_console_config_nocheck(noit_console_closure_t ncct,
+noit_console_config_nocheck(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *state, void *closure) {
+                            mtev_console_state_t *state, void *closure) {
   int i, cnt;
   const char *err = "internal error";
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   char xpath[1024];
   uuid_t checkid;
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(argc < 1) {
     nc_printf(ncct, "requires one argument\n");
     return -1;
   }
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(noit_console_mkcheck_xpath(xpath, sizeof(xpath), info, argv[0])) {
     nc_printf(ncct, "could not find check '%s'\n", argv[0]);
     return -1;
@@ -620,7 +622,7 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
   for(i=0; i<cnt; i++) {
     xmlNodePtr node;
     char *uuid_conf;
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || uuid_parse(uuid_conf, checkid)) {
       nc_printf(ncct, "%s has invalid or missing UUID!\n",
@@ -638,7 +640,7 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
         CONF_REMOVE(node);
         xmlUnlinkNode(node);
       }
-      noit_conf_mark_changed();
+      mtev_conf_mark_changed();
     }
   }
   if(argc > 1) {
@@ -655,30 +657,30 @@ noit_console_config_nocheck(noit_console_closure_t ncct,
   return -1;
 }
 static int
-noit_console_config_show(noit_console_closure_t ncct,
+noit_console_config_show(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *state, void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+                         mtev_console_state_t *state, void *closure) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
   int i, cnt, titled = 0, cliplen = 0;
   const char *path = "", *basepath = NULL;
   char xpath[1024];
-  noit_conf_t_userdata_t *info = NULL;
-  noit_hash_table *config;
+  mtev_conf_t_userdata_t *info = NULL;
+  mtev_hash_table *config;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL, current_ctxt;
   xmlDocPtr master_config = NULL;
   xmlNodePtr node = NULL;
 
-  noit_conf_xml_xpath(&master_config, &xpath_ctxt);
+  mtev_conf_xml_xpath(&master_config, &xpath_ctxt);
   if(argc > 1) {
     nc_printf(ncct, "too many arguments\n");
     return -1;
   }
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(info && info->path) path = basepath = info->path;
   if(!info && argc == 0) {
     nc_printf(ncct, "argument required when not in configuration mode\n");
@@ -722,7 +724,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   titled = 0;
   for(i=0; i<cnt; i++) {
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
     if(node->children && node->children == xmlGetLastChild(node) &&
       xmlNodeIsText(node->children)) {
@@ -749,14 +751,14 @@ noit_console_config_show(noit_console_closure_t ncct,
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt > 0) {
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
     titled = 0;
-    config = noit_conf_get_hash(node, "config");
-    while(noit_hash_next(config, &iter, &k, &klen, &data)) {
+    config = mtev_conf_get_hash(node, "config");
+    while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       if(!titled++) nc_printf(ncct, "== Section [Aggregated] Config ==\n");
       nc_printf(ncct, "config::%s: %s\n", k, (const char *)data);
     }
-    noit_hash_destroy(config, free, free);
+    mtev_hash_destroy(config, free, free);
     free(config);
   }
   xmlXPathFreeObject(pobj);
@@ -775,7 +777,7 @@ noit_console_config_show(noit_console_closure_t ncct,
   titled = 0;
   for(i=0; i<cnt; i++) {
     char *xmlpath;
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "check")) continue;
     if(!strcmp((char *)node->name, "filterset")) continue;
     xmlpath = (char *)xmlGetNodePath(node);
@@ -791,7 +793,7 @@ noit_console_config_show(noit_console_closure_t ncct,
 
   titled = 0;
   for(i=0; i<cnt; i++) {
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
     if(!strcmp((char *)node->name, "filterset")) {
       xmlAttr *attr;
       char *filter_name = NULL;
@@ -842,15 +844,15 @@ noit_console_config_show(noit_console_closure_t ncct,
 
 static char *
 conf_t_check_prompt(EditLine *el) {
-  noit_console_closure_t ncct;
-  noit_conf_t_userdata_t *info;
+  mtev_console_closure_t ncct;
+  mtev_conf_t_userdata_t *info;
   noit_check_t *check;
   static char *tl = "noit(conf)# ";
   static char *pfmt = "noit(conf:%s%s%s)# ";
 
   el_get(el, EL_USERDATA, (void *)&ncct);
   if(!ncct) return tl;
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info) return tl;
 
   check = noit_poller_lookup(info->current_check);
@@ -867,16 +869,16 @@ conf_t_check_prompt(EditLine *el) {
   return info->prompt;
 }
 static int
-noit_conf_checks_reload(noit_console_closure_t ncct,
+noit_conf_checks_reload(mtev_console_closure_t ncct,
                         int argc, char **argv,
-                        noit_console_state_t *state, void *closure) {
-  if(noit_conf_reload(ncct, argc, argv, state, closure)) return -1;
+                        mtev_console_state_t *state, void *closure) {
+  if(mtev_conf_reload(ncct, argc, argv, state, closure)) return -1;
   noit_poller_reload(NULL);
   return 0;
 }
 
 static int
-validate_attr_set_scope(noit_conf_t_userdata_t *info,
+validate_attr_set_scope(mtev_conf_t_userdata_t *info,
                         struct _valid_attr_t *attrinfo) {
   int len;
   len = strlen(attrinfo->scope);
@@ -887,8 +889,8 @@ validate_attr_set_scope(noit_conf_t_userdata_t *info,
   return 0;
 }
 static int
-replace_config(noit_console_closure_t ncct,
-               noit_conf_t_userdata_t *info, const char *name,
+replace_config(mtev_console_closure_t ncct,
+               mtev_conf_t_userdata_t *info, const char *name,
                const char *value) {
   int i, cnt, rv = -1, active = 0;
   xmlXPathObjectPtr pobj = NULL;
@@ -899,7 +901,7 @@ replace_config(noit_console_closure_t ncct,
   path = info->path;
   if(!strcmp(path, "/")) path = "";
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
 
   /* Only if checks will fixate this attribute shall we check for
    * child <check> nodes.
@@ -912,8 +914,8 @@ replace_config(noit_console_closure_t ncct,
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   for(i=0; i<cnt; i++) {
     uuid_t checkid;
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-    if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+    if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -930,14 +932,14 @@ replace_config(noit_console_closure_t ncct,
     nc_printf(ncct, "Internal error: context node disappeared\n");
     goto out;
   }
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if(strcmp((const char *)node->name, "check")) {
     uuid_t checkid;
     /* Detect if  we are actually a <check> node and attempting to
      * change something we shouldn't.
      * This is the counterpart noted above.
      */
-    if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+    if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(NOIT_CHECK_LIVE(check)) active++;
@@ -991,15 +993,15 @@ replace_config(noit_console_closure_t ncct,
     xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
     CONF_DIRTY(confignode);
   }
-  noit_conf_mark_changed();
+  mtev_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);
   return rv;
 }
 static int
-replace_attr(noit_console_closure_t ncct,
-             noit_conf_t_userdata_t *info, struct _valid_attr_t *attrinfo,
+replace_attr(mtev_console_closure_t ncct,
+             mtev_conf_t_userdata_t *info, struct _valid_attr_t *attrinfo,
              const char *value) {
   int i, cnt, rv = -1, active = 0;
   xmlXPathObjectPtr pobj = NULL;
@@ -1010,7 +1012,7 @@ replace_attr(noit_console_closure_t ncct,
   path = info->path;
   if(!strcmp(path, "/")) path = "";
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   if(attrinfo->checks_fixate) {
     /* Only if checks will fixate this attribute shall we check for
      * child <check> nodes.
@@ -1023,8 +1025,8 @@ replace_attr(noit_console_closure_t ncct,
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     for(i=0; i<cnt; i++) {
       uuid_t checkid;
-      node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
-      if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+      node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, i);
+      if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
         noit_check_t *check;
         check = noit_poller_lookup(checkid);
         if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -1040,7 +1042,7 @@ replace_attr(noit_console_closure_t ncct,
     nc_printf(ncct, "Internal error: context node disappeared\n");
     goto out;
   }
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   if(attrinfo->checks_fixate &&
      !strcmp((const char *)node->name, "check")) {
     uuid_t checkid;
@@ -1048,7 +1050,7 @@ replace_attr(noit_console_closure_t ncct,
      * change something we shouldn't.
      * This is the counterpart noted above.
      */
-    if(noit_conf_get_uuid(node, "@uuid", checkid)) {
+    if(mtev_conf_get_uuid(node, "@uuid", checkid)) {
       noit_check_t *check;
       check = noit_poller_lookup(checkid);
       if(check && NOIT_CHECK_LIVE(check)) active++;
@@ -1063,20 +1065,20 @@ replace_attr(noit_console_closure_t ncct,
   if(value)
     xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
   CONF_DIRTY(node);
-  noit_conf_mark_changed();
+  mtev_conf_mark_changed();
   rv = 0;
  out:
   if(pobj) xmlXPathFreeObject(pobj);
   return rv;
 }
 int
-noit_conf_check_set_attr(noit_console_closure_t ncct,
+noit_conf_check_set_attr(mtev_console_closure_t ncct,
                          int argc, char **argv,
-                         noit_console_state_t *state, void *closure) {
+                         mtev_console_state_t *state, void *closure) {
   struct _valid_attr_t *attrinfo = closure;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info || validate_attr_set_scope(info, attrinfo)) {
     nc_printf(ncct, "'%s' attribute only valid in %s scope\n",
               attrinfo->name, attrinfo->scope);
@@ -1105,13 +1107,13 @@ noit_conf_check_set_attr(noit_console_closure_t ncct,
 }
 
 int
-noit_conf_check_unset_attr(noit_console_closure_t ncct,
+noit_conf_check_unset_attr(mtev_console_closure_t ncct,
                            int argc, char **argv,
-                           noit_console_state_t *state, void *closure) {
+                           mtev_console_state_t *state, void *closure) {
   struct _valid_attr_t *attrinfo = closure;
-  noit_conf_t_userdata_t *info;
+  mtev_conf_t_userdata_t *info;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
   if(!info || validate_attr_set_scope(info, attrinfo)) {
     nc_printf(ncct, "'%s' attribute only valid in %s scope\n",
               attrinfo->name, attrinfo->scope);
@@ -1140,12 +1142,12 @@ noit_conf_check_unset_attr(noit_console_closure_t ncct,
 }
 
 int
-noit_console_config_setconfig(noit_console_closure_t ncct,
+noit_console_config_setconfig(mtev_console_closure_t ncct,
                                 int argc, char **argv,
-                                noit_console_state_t *state, void *closure) {
-  noit_conf_t_userdata_t *info;
+                                mtev_console_state_t *state, void *closure) {
+  mtev_conf_t_userdata_t *info;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
 
   if(argc != 2) {
     nc_printf(ncct, "two arguments required.\n");
@@ -1166,12 +1168,12 @@ noit_console_config_setconfig(noit_console_closure_t ncct,
 }
 
 int
-noit_console_config_unsetconfig(noit_console_closure_t ncct,
+noit_console_config_unsetconfig(mtev_console_closure_t ncct,
                                 int argc, char **argv,
-                                noit_console_state_t *state, void *closure) {
-  noit_conf_t_userdata_t *info;
+                                mtev_console_state_t *state, void *closure) {
+  mtev_conf_t_userdata_t *info;
 
-  info = noit_console_userdata_get(ncct, NOIT_CONF_T_USERDATA);
+  info = mtev_console_userdata_get(ncct, MTEV_CONF_T_USERDATA);
 
   if(argc != 1) {
     nc_printf(ncct, "one argument required.\n");
@@ -1192,45 +1194,45 @@ noit_console_config_unsetconfig(noit_console_closure_t ncct,
 }
 
 
-#define NEW_STATE(a) (a) = noit_console_state_alloc()
+#define NEW_STATE(a) (a) = mtev_console_state_alloc()
 #define ADD_CMD(a,cmd,func,ac,ss,c) \
-  noit_console_state_add_cmd((a), \
+  mtev_console_state_add_cmd((a), \
     NCSCMD(cmd, func, ac, ss, c))
 #define DELEGATE_CMD(a,cmd,ac,ss) \
-  noit_console_state_add_cmd((a), \
-    NCSCMD(cmd, noit_console_state_delegate, ac, ss, NULL))
+  mtev_console_state_add_cmd((a), \
+    NCSCMD(cmd, mtev_console_state_delegate, ac, ss, NULL))
 
 static
 void register_console_config_check_commands() {
   cmd_info_t *showcmd, *nocmd, *confcmd, *conftcmd, *conftnocmd, *lscmd;
-  noit_console_state_t *tl, *_conf_t_check_state, *_unset_state,
+  mtev_console_state_t *tl, *_conf_t_check_state, *_unset_state,
                        *_attr_state, *_uattr_state;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
-  nocmd = noit_console_state_get_cmd(tl, "no");
-  confcmd = noit_console_state_get_cmd(tl, "configure");
-  conftcmd = noit_console_state_get_cmd(confcmd->dstate, "terminal");
-  conftnocmd = noit_console_state_get_cmd(conftcmd->dstate, "no");
-  lscmd = noit_console_state_get_cmd(conftcmd->dstate, "ls");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
+  nocmd = mtev_console_state_get_cmd(tl, "no");
+  confcmd = mtev_console_state_get_cmd(tl, "configure");
+  conftcmd = mtev_console_state_get_cmd(confcmd->dstate, "terminal");
+  conftnocmd = mtev_console_state_get_cmd(conftcmd->dstate, "no");
+  lscmd = mtev_console_state_get_cmd(conftcmd->dstate, "ls");
   lscmd->func = noit_console_config_show;
   /* attribute <attrname> <value> */
   NEW_STATE(_attr_state);
-  noit_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr,
+  mtev_console_state_add_check_attrs(_attr_state, noit_conf_check_set_attr,
                                      "/checks");
  
   /* no attribute <attrname> <value> */
   NEW_STATE(_uattr_state);
-  noit_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr,
+  mtev_console_state_add_check_attrs(_uattr_state, noit_conf_check_unset_attr,
                                      "/checks");
   NEW_STATE(_unset_state);
   DELEGATE_CMD(_unset_state, "attribute",
-               noit_console_opt_delegate, _uattr_state);
+               mtev_console_opt_delegate, _uattr_state);
   ADD_CMD(_unset_state, "config",
           noit_console_config_unsetconfig, NULL, NULL, NULL);
 
   DELEGATE_CMD(conftnocmd->dstate, "attribute",
-               noit_console_opt_delegate, _uattr_state);
+               mtev_console_opt_delegate, _uattr_state);
   ADD_CMD(conftnocmd->dstate, "config",
           noit_console_config_unsetconfig, NULL, NULL, NULL);
   ADD_CMD(conftnocmd->dstate, "check",
@@ -1239,15 +1241,15 @@ void register_console_config_check_commands() {
   NEW_STATE(_conf_t_check_state);
   _conf_t_check_state->console_prompt_function = conf_t_check_prompt;
   DELEGATE_CMD(_conf_t_check_state, "attribute",
-               noit_console_opt_delegate, _attr_state);
+               mtev_console_opt_delegate, _attr_state);
   DELEGATE_CMD(_conf_t_check_state, "no",
-               noit_console_opt_delegate, _unset_state);
+               mtev_console_opt_delegate, _unset_state);
   ADD_CMD(_conf_t_check_state, "config",
           noit_console_config_setconfig, NULL, NULL, NULL);
   ADD_CMD(_conf_t_check_state, "status",
           noit_console_show_check, NULL, NULL, NULL);
   ADD_CMD(_conf_t_check_state, "exit",
-          noit_console_config_cd, NULL, NULL, "..");
+          mtev_console_config_cd, NULL, NULL, "..");
   ADD_CMD(_conf_t_check_state, "check",
           noit_console_check, noit_console_conf_check_opts,
           _conf_t_check_state, "..");
@@ -1268,7 +1270,7 @@ void register_console_config_check_commands() {
           noit_console_watch_check, noit_console_check_opts, NULL, (void *)0);
 
   DELEGATE_CMD(conftcmd->dstate, "attribute",
-               noit_console_opt_delegate, _attr_state);
+               mtev_console_opt_delegate, _attr_state);
 
   ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL, NULL);
 }

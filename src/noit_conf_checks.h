@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,21 +34,17 @@
 #ifndef _NOIT_CONF_CHECKS_H
 #define _NOIT_CONF_CHECKS_H
 
-#include "noit_defines.h"
-#include "utils/noit_hash.h"
-#include "noit_console.h"
+#include <mtev_defines.h>
+#include <mtev_hash.h>
+#include <mtev_console.h>
 
 API_EXPORT(void) noit_console_conf_checks_init();
 API_EXPORT(int)
-  noit_console_config_cd(noit_console_closure_t ncct,
-                         int argc, char **argv,
-                         noit_console_state_t *state, void *closure);
-API_EXPORT(int)
-  noit_conf_check_set_attr(noit_console_closure_t ncct,
+  noit_conf_check_set_attr(mtev_console_closure_t ncct,
                            int argc, char **argv,
-                           noit_console_state_t *state, void *closure);
+                           mtev_console_state_t *state, void *closure);
 API_EXPORT(void)
-  noit_console_state_add_check_attrs(noit_console_state_t *state,
+  noit_console_state_add_check_attrs(mtev_console_state_t *state,
                                      console_cmd_func_t f,
                                      const char *scope);
 

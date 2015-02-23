@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,18 +31,18 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_listener.h"
-#include "noit_http.h"
-#include "noit_check.h"
-#include "noit_check_tools.h"
-#include "noit_conf.h"
-
-#include <libxml/tree.h>
-#include "json-lib/json.h"
-
 #ifndef NOIT_CHECK_REST_H
 #define NOIT_CHECK_REST_H
+
+#include <mtev_defines.h>
+#include <mtev_listener.h>
+#include <mtev_http.h>
+#include <mtev_conf.h>
+#include "noit_check.h"
+#include "noit_check_tools.h"
+
+#include <libxml/tree.h>
+#include <mtev_json.h>
 
 API_EXPORT(void)
   noit_check_rest_init();

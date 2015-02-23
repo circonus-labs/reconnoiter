@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,21 +31,26 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
-#include "noit_listener.h"
-#include "noit_http.h"
-#include "noit_rest.h"
-#include "noit_check.h"
-#include "noit_check_tools.h"
-#include "noit_conf.h"
-#include "noit_conf_private.h"
+
+#include <mtev_listener.h>
+#include <mtev_http.h>
+#include <mtev_rest.h>
+#include <mtev_conf.h>
+#include <mtev_conf_private.h>
+#include <mtev_json.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_filters.h"
-#include "json-lib/json.h"
+#include "noit_check.h"
+#include "noit_check_resolver.h"
+#include "noit_check_tools.h"
 
 #define FAIL(a) do { error = (a); goto error; } while(0)
 
@@ -60,17 +66,17 @@
 #define NODE_CONTENT(parent, k, v) NS_NODE_CONTENT(parent, NULL, k, v, )
 
 static int
-rest_show_config(noit_http_rest_closure_t *, int, char **);
+rest_show_config(mtev_http_rest_closure_t *, int, char **);
 
 static void
 add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
   xmlNodePtr tmp;
-  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
     xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
@@ -149,11 +155,11 @@ static struct json_object *
 stats_to_json(stats_t *c) {
   struct json_object *doc;
   doc = json_object_new_object();
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
-  while(noit_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
     struct json_object *metric = json_object_new_object();
@@ -211,11 +217,11 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   }
 
   if(full) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *k;
     int klen;
     void *data;
-    noit_hash_table *configh;
+    mtev_hash_table *configh;
     struct timeval f;
     char timestr[20];
     struct json_object *status, *metrics, *config;
@@ -223,7 +229,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     /* config */
     config = json_object_new_object();
     configh = check->config;
-    while(noit_hash_next(configh, &iter, &k, &klen, &data))
+    while(mtev_hash_next(configh, &iter, &k, &klen, &data))
       json_object_object_add(config, k, json_object_new_string(data));
     json_object_object_add(doc, "config", config);
 
@@ -290,23 +296,23 @@ json_check_accum(noit_check_t *check, void *closure) {
   return 1;
 }
 static int
-rest_show_checks_json(noit_http_rest_closure_t *restc,
+rest_show_checks_json(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   const char *jsonstr;
   struct json_object *doc;
   doc = json_object_new_object();
   noit_poller_do(json_check_accum, doc);
 
-  noit_http_response_ok(restc->http_ctx, "application/json");
+  mtev_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
-  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
-  noit_http_response_append(restc->http_ctx, "\n", 1);
+  mtev_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  mtev_http_response_append(restc->http_ctx, "\n", 1);
   json_object_put(doc);
-  noit_http_response_end(restc->http_ctx);
+  mtev_http_response_end(restc->http_ctx);
   return 0;
 }
 static int
-rest_show_checks(noit_http_rest_closure_t *restc,
+rest_show_checks(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   char *cpath = "/checks";
 
@@ -317,32 +323,32 @@ rest_show_checks(noit_http_rest_closure_t *restc,
 }
 
 static int
-rest_show_check_json(noit_http_rest_closure_t *restc,
+rest_show_check_json(mtev_http_rest_closure_t *restc,
                      uuid_t checkid) {
   noit_check_t *check;
   struct json_object *doc;
   const char *jsonstr;
   check = noit_poller_lookup(checkid);
   if(!check) {
-    noit_http_response_not_found(restc->http_ctx, "application/json");
-    noit_http_response_end(restc->http_ctx);
+    mtev_http_response_not_found(restc->http_ctx, "application/json");
+    mtev_http_response_end(restc->http_ctx);
     return 0;
   }
 
   doc = noit_check_state_as_json(check, 1);
   
-  noit_http_response_ok(restc->http_ctx, "application/json");
+  mtev_http_response_ok(restc->http_ctx, "application/json");
   jsonstr = json_object_to_json_string(doc);
-  noit_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
-  noit_http_response_append(restc->http_ctx, "\n", 1);
+  mtev_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  mtev_http_response_append(restc->http_ctx, "\n", 1);
   json_object_put(doc);
-  noit_http_response_end(restc->http_ctx);
+  mtev_http_response_end(restc->http_ctx);
   return 0;
 }
 static int
-rest_show_check(noit_http_rest_closure_t *restc,
+rest_show_check(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlDocPtr doc = NULL;
@@ -351,11 +357,11 @@ rest_show_check(noit_http_rest_closure_t *restc,
   noit_check_t *check;
   char xpath[1024], *uuid_conf, *module = NULL, *value = NULL;
   int rv, mod, mod_cnt, cnt, error_code = 500;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
-  noit_hash_table *configh;
+  mtev_hash_table *configh;
 
   if(npats != 2 && npats != 3) goto error;
 
@@ -363,14 +369,14 @@ rest_show_check(noit_http_rest_closure_t *restc,
   if(rv == 0) goto not_found;
   if(rv < 0) goto error;
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) goto not_found;
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt != 1) goto error;
 
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!uuid_conf || uuid_parse(uuid_conf, checkid)) goto error;
 
@@ -382,9 +388,9 @@ rest_show_check(noit_http_rest_closure_t *restc,
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"check", NULL);
   xmlDocSetRootElement(doc, root);
 
-#define MYATTR(node,a,n,b) _noit_conf_get_string(node, &(n), "@" #a, &(b))
+#define MYATTR(node,a,n,b) _mtev_conf_get_string(node, &(n), "@" #a, &(b))
 #define INHERIT(node,a,n,b) \
-  _noit_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
+  _mtev_conf_get_string(node, &(n), "ancestor-or-self::node()/@" #a, &(b))
 #define SHOW_ATTR(parent, node, a) do { \
   char *_value = NULL; \
   INHERIT(node, a, anode, _value); \
@@ -436,10 +442,10 @@ rest_show_check(noit_http_rest_closure_t *restc,
 
   /* Add the config */
   config = xmlNewNode(NULL, (xmlChar *)"config");
-  configh = noit_conf_get_hash(node, "config");
-  while(noit_hash_next(configh, &iter, &k, &klen, &data))
+  configh = mtev_conf_get_hash(node, "config");
+  while(mtev_hash_next(configh, &iter, &k, &klen, &data))
     NODE_CONTENT(config, k, data);
-  noit_hash_destroy(configh, free, free);
+  mtev_hash_destroy(configh, free, free);
   free(configh);
 
   mod_cnt = noit_check_registered_module_cnt();
@@ -454,15 +460,15 @@ rest_show_check(noit_http_rest_closure_t *restc,
     ns = xmlSearchNs(root->doc, root, (xmlChar *)nsname);
     if(!ns) ns = xmlNewNs(root, (xmlChar *)buff, (xmlChar *)nsname);
     if(ns) {
-      configh = noit_conf_get_namespaced_hash(node, "config", nsname);
+      configh = mtev_conf_get_namespaced_hash(node, "config", nsname);
       if(configh) {
         memset(&iter, 0, sizeof(iter));
-        while(noit_hash_next(configh, &iter, &k, &klen, &data)) {
+        while(mtev_hash_next(configh, &iter, &k, &klen, &data)) {
           NS_NODE_CONTENT(config, ns, "value", data,
             xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)k);
           );
         }
-        noit_hash_destroy(configh, free, free);
+        mtev_hash_destroy(configh, free, free);
         free(configh);
       }
     }
@@ -478,19 +484,19 @@ rest_show_check(noit_http_rest_closure_t *restc,
   else
     state = noit_check_state_as_xml(check, 1);
   xmlAddChild(root, state);
-  noit_http_response_ok(ctx, "text/xml");
-  noit_http_response_xml(ctx, doc);
-  noit_http_response_end(ctx);
+  mtev_http_response_ok(ctx, "text/xml");
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
-  noit_http_response_not_found(ctx, "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -510,13 +516,13 @@ missing_namespaces(xmlNodePtr ctx, xmlNodePtr q) {
 int
 noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
                               const char **error) {
-  noit_conf_section_t toplevel;
+  mtev_conf_section_t toplevel;
   xmlNodePtr root, tl, an, master_config_root;
   int name=0, module=0, target=0, period=0, timeout=0, filterset=0;
   *a = *c = NULL;
   root = xmlDocGetRootElement(doc);
   /* Make sure any present namespaces are in the master document already */
-  toplevel = noit_conf_get_section(NULL, "/*");
+  toplevel = mtev_conf_get_section(NULL, "/*");
   master_config_root = (xmlNodePtr)toplevel; 
   if(!master_config_root) {
     *error = "no document";
@@ -535,7 +541,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
 #define CHECK_N_SET(a) if(!strcmp((char *)an->name, #a))
         CHECK_N_SET(name) {
           xmlChar *tmp;
-          pcre *valid_name = noit_conf_get_valid_name_checker();
+          pcre *valid_name = mtev_conf_get_valid_name_checker();
           int ovector[30], valid;
           tmp = xmlNodeGetContent(an);
           valid = (pcre_exec(valid_name, NULL,
@@ -547,14 +553,14 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
         }
         else CHECK_N_SET(module) module = 1; /* This is validated by called */
         else CHECK_N_SET(target) {
-          noit_boolean should_resolve;
+          mtev_boolean should_resolve;
           int valid;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
           valid = noit_check_is_valid_target((char *)tmp);
           xmlFree(tmp);
           if(noit_check_should_resolve_targets(&should_resolve) &&
-             should_resolve == noit_false &&
+             should_resolve == mtev_false &&
              !valid) {
             *error = "invalid target";
             return 0;
@@ -563,7 +569,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
         }
         else CHECK_N_SET(resolve_rtype) {
           xmlChar *tmp;
-          noit_boolean invalid;
+          mtev_boolean invalid;
           tmp = xmlNodeGetContent(an);
           invalid = strcmp((char *)tmp, PREFER_IPV4) &&
                     strcmp((char *)tmp, PREFER_IPV6) &&
@@ -579,7 +585,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           int pint;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
-          pint = noit_conf_string_to_int((char *)tmp);
+          pint = mtev_conf_string_to_int((char *)tmp);
           xmlFree(tmp);
           if(pint < 1000 || pint > 300000) {
             *error = "invalid period";
@@ -591,7 +597,7 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           int pint;
           xmlChar *tmp;
           tmp = xmlNodeGetContent(an);
-          pint = noit_conf_string_to_int((char *)tmp);
+          pint = mtev_conf_string_to_int((char *)tmp);
           xmlFree(tmp);
           if(pint < 0 || pint > 300000) {
             *error = "invalid timeout";
@@ -671,10 +677,10 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
         if(!targetns) {
           targetns = xmlSearchNs(config->doc, config, n->ns->prefix);
           if(!targetns) targetns = xmlNewNs(config, n->ns->href, n->ns->prefix);
-          noitL(noit_debug, "Setting a config value in a new namespace (%p)\n", targetns);
+          mtevL(noit_debug, "Setting a config value in a new namespace (%p)\n", targetns);
         }
         else {
-          noitL(noit_debug,"Setting a config value in a namespace (%p)\n", targetns);
+          mtevL(noit_debug,"Setting a config value in a namespace (%p)\n", targetns);
         }
       }
       xmlNodePtr co = xmlNewNode(targetns, n->name);
@@ -701,7 +707,7 @@ make_conf_path(char *path) {
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
   fullpath[strlen(fullpath)-1] = '\0';
-  start = noit_conf_get_section(NULL, "/noit/checks");
+  start = mtev_conf_get_section(NULL, "/noit/checks");
   if(!start) return NULL;
   for (tok = strtok_r(fullpath, "/", &brk);
        tok;
@@ -722,9 +728,9 @@ make_conf_path(char *path) {
   return start;
 }
 static int
-rest_delete_check(noit_http_rest_closure_t *restc,
+rest_delete_check(mtev_http_rest_closure_t *restc,
                   int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlNodePtr node;
@@ -733,20 +739,20 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   const char *error;
   char xpath[1024], *uuid_conf;
   int rv, cnt, error_code = 500;
-  noit_boolean exists = noit_false;
+  mtev_boolean exists = mtev_false;
 
   if(npats != 2) goto error;
 
   if(uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);
   if(check)
-    exists = noit_true;
+    exists = mtev_true;
 
   rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
   if(rv == 0) FAIL("uuid not valid");
   if(rv < 0) FAIL("Tricky McTrickster... No");
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -755,7 +761,7 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   }
   cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
   if(cnt != 1) FAIL("internal error, |checkid| > 1");
-  node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+  node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
   uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
   if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
     FAIL("internal error uuid");
@@ -765,21 +771,21 @@ rest_delete_check(noit_http_rest_closure_t *restc,
   CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
-  noit_conf_mark_changed();
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
-  noit_http_response_ok(ctx, "text/html");
-  noit_http_response_end(ctx);
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  mtev_http_response_ok(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  not_found:
-  noit_http_response_not_found(ctx, "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_not_found(ctx, "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/html");
-  noit_http_response_end(ctx);
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/html");
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -789,9 +795,9 @@ rest_delete_check(noit_http_rest_closure_t *restc,
 }
 
 static int
-rest_set_check(noit_http_rest_closure_t *restc,
+rest_set_check(mtev_http_rest_closure_t *restc,
                int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlXPathObjectPtr pobj = NULL;
   xmlXPathContextPtr xpath_ctxt = NULL;
   xmlDocPtr doc = NULL, indoc = NULL;
@@ -801,7 +807,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
   char xpath[1024], *uuid_conf;
   int rv, cnt, error_code = 500, complete = 0, mask = 0;
   const char *error = "internal error";
-  noit_boolean exists = noit_false;
+  mtev_boolean exists = mtev_false;
 
   if(npats != 2) goto error;
 
@@ -813,13 +819,13 @@ rest_set_check(noit_http_rest_closure_t *restc,
   if(uuid_parse(pats[1], checkid)) goto error;
   check = noit_poller_lookup(checkid);
   if(check)
-    exists = noit_true;
+    exists = mtev_true;
 
   rv = noit_check_xpath(xpath, sizeof(xpath), pats[0], pats[1]);
   if(rv == 0) FAIL("uuid not valid");
   if(rv < 0) FAIL("Tricky McTrickster... No");
 
-  noit_conf_xml_xpath(NULL, &xpath_ctxt);
+  mtev_conf_xml_xpath(NULL, &xpath_ctxt);
   pobj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
   if(!pobj || pobj->type != XPATH_NODESET ||
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
@@ -862,7 +868,7 @@ rest_set_check(noit_http_rest_closure_t *restc,
 
     cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
     if(cnt != 1) FAIL("internal error, |checkid| > 1");
-    node = (noit_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
+    node = (mtev_conf_section_t)xmlXPathNodeSetItem(pobj->nodesetval, 0);
     uuid_conf = (char *)xmlGetProp(node, (xmlChar *)"uuid");
     if(!uuid_conf || strcasecmp(uuid_conf, pats[1]))
       FAIL("internal error uuid");
@@ -891,9 +897,9 @@ rest_set_check(noit_http_rest_closure_t *restc,
     CONF_DIRTY(node);
   }
 
-  noit_conf_mark_changed();
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
+  mtev_conf_mark_changed();
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
   noit_poller_reload(xpath);
   if(restc->call_closure_free) restc->call_closure_free(restc->call_closure);
   restc->call_closure_free = NULL;
@@ -903,13 +909,13 @@ rest_set_check(noit_http_rest_closure_t *restc,
   return restc->fastpath(restc, restc->nparams, restc->params);
 
  error:
-  noit_http_response_standard(ctx, error_code, "ERROR", "text/xml");
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
   doc = xmlNewDoc((xmlChar *)"1.0");
   root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
   xmlDocSetRootElement(doc, root);
   xmlNodeAddContent(root, (xmlChar *)error);
-  noit_http_response_xml(ctx, doc);
-  noit_http_response_end(ctx);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
   goto cleanup;
 
  cleanup:
@@ -919,27 +925,27 @@ rest_set_check(noit_http_rest_closure_t *restc,
 }
 
 static int
-rest_show_config(noit_http_rest_closure_t *restc,
+rest_show_config(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   xmlDocPtr doc = NULL;
   xmlNodePtr node, root;
   char xpath[1024];
 
   snprintf(xpath, sizeof(xpath), "/noit%s", pats ? pats[0] : "");
-  node = noit_conf_get_section(NULL, xpath);
+  node = mtev_conf_get_section(NULL, xpath);
 
   if(!node) {
-    noit_http_response_not_found(ctx, "text/xml");
-    noit_http_response_end(ctx);
+    mtev_http_response_not_found(ctx, "text/xml");
+    mtev_http_response_end(ctx);
   }
   else {
     doc = xmlNewDoc((xmlChar *)"1.0");
     root = xmlCopyNode(node, 1);
     xmlDocSetRootElement(doc, root);
-    noit_http_response_ok(ctx, "text/xml");
-    noit_http_response_xml(ctx, doc);
-    noit_http_response_end(ctx);
+    mtev_http_response_ok(ctx, "text/xml");
+    mtev_http_response_xml(ctx, doc);
+    mtev_http_response_end(ctx);
   }
 
   if(doc) xmlFreeDoc(doc);
@@ -949,25 +955,25 @@ rest_show_config(noit_http_rest_closure_t *restc,
 
 void
 noit_check_rest_init() {
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
-    rest_show_config, noit_http_rest_client_cert_auth
+    rest_show_config, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(\\.json)?$",
-    rest_show_checks, noit_http_rest_client_cert_auth
+    rest_show_checks, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")(\\.json)?$",
-    rest_show_check, noit_http_rest_client_cert_auth
+    rest_show_check, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "PUT", "/checks/", "^set(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_set_check, noit_http_rest_client_cert_auth
+    rest_set_check, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
-    rest_delete_check, noit_http_rest_client_cert_auth
+    rest_delete_check, mtev_http_rest_client_cert_auth
   ) == 0);
 }
 

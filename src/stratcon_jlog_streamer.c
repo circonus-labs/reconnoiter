@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,18 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "dtrace_probes.h"
-#include "eventer/eventer.h"
-#include "noit_conf.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_log.h"
-#include "utils/noit_getip.h"
-#include "noit_jlog_listener.h"
-#include "noit_rest.h"
-#include "stratcon_datastore.h"
-#include "stratcon_jlog_streamer.h"
-#include "stratcon_iep.h"
+#include <mtev_defines.h>
 
 #include <unistd.h>
 #include <assert.h>
@@ -55,14 +45,28 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 
+#include <eventer/eventer.h>
+#include <mtev_conf.h>
+#include <mtev_hash.h>
+#include <mtev_log.h>
+#include <mtev_getip.h>
+#include <mtev_rest.h>
+
+#include "noit_mtev_bridge.h"
+#include "stratcon_dtrace_probes.h"
+#include "noit_jlog_listener.h"
+#include "stratcon_datastore.h"
+#include "stratcon_jlog_streamer.h"
+#include "stratcon_iep.h"
+
 pthread_mutex_t noits_lock;
-noit_hash_table noits = NOIT_HASH_EMPTY;
+mtev_hash_table noits = MTEV_HASH_EMPTY;
 pthread_mutex_t noit_ip_by_cn_lock;
-noit_hash_table noit_ip_by_cn = NOIT_HASH_EMPTY;
+mtev_hash_table noit_ip_by_cn = MTEV_HASH_EMPTY;
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
 static struct sockaddr_in self_stratcon_ip;
-static noit_boolean stratcon_selfcheck_extended_id = noit_true;
+static mtev_boolean stratcon_selfcheck_extended_id = mtev_true;
 
 static struct timeval DEFAULT_NOIT_PERIOD_TV = { 5UL, 0UL };
 
@@ -78,7 +82,7 @@ static const char *feed_type_to_str(int jlog_feed_cmd) {
   void *vcn; \
   cn = NULL; \
   if(nctx->config && \
-     noit_hash_retrieve(nctx->config, "cn", 2, &vcn)) { \
+     mtev_hash_retrieve(nctx->config, "cn", 2, &vcn)) { \
      cn = vcn; \
   } \
 } while(0)
@@ -94,8 +98,8 @@ static const char *feed_type_to_str(int jlog_feed_cmd) {
 static int
 remote_str_sort(const void *a, const void *b) {
   int rv;
-  noit_connection_ctx_t * const *actx = a;
-  noit_connection_ctx_t * const *bctx = b;
+  mtev_connection_ctx_t * const *actx = a;
+  mtev_connection_ctx_t * const *bctx = b;
   jlog_streamer_ctx_t *ajctx = (*actx)->consumer_ctx;
   jlog_streamer_ctx_t *bjctx = (*bctx)->consumer_ctx;
   rv = strcmp((*actx)->remote_str, (*bctx)->remote_str);
@@ -104,8 +108,8 @@ remote_str_sort(const void *a, const void *b) {
            ((ajctx->jlog_feed_cmd == bjctx->jlog_feed_cmd) ? 0 : 1);
 }
 static void
-nc_print_noit_conn_brief(noit_console_closure_t ncct,
-                          noit_connection_ctx_t *ctx) {
+nc_print_noit_conn_brief(mtev_console_closure_t ncct,
+                          mtev_connection_ctx_t *ctx) {
   jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
   struct timeval now, diff, session_duration;
   char cmdbuf[4096];
@@ -256,7 +260,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
     if(ctx->buffer) free(ctx->buffer); \
     ctx->buffer = malloc(size + 1); \
     if(ctx->buffer == NULL) { \
-      noitL(noit_error, "malloc(%lu) failed.\n", (long unsigned int)size + 1); \
+      mtevL(noit_error, "malloc(%lu) failed.\n", (long unsigned int)size + 1); \
       goto socket_error; \
     } \
     ctx->buffer[size] = '\0'; \
@@ -264,7 +268,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   len = __read_on_ctx(e, ctx, &mask); \
   if(len < 0) { \
     if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
-    noitL(noit_error, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
+    mtevL(noit_error, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
           nctx->remote_cn ? nctx->remote_cn : "(null)", \
           strerror(errno)); \
     goto socket_error; \
@@ -272,7 +276,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   ctx->bytes_read = 0; \
   ctx->bytes_expected = 0; \
   if(len != size) { \
-    noitL(noit_error, "[%s] [%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
+    mtevL(noit_error, "[%s] [%s] SSL short read [%d] (%d/%lu).  Reseting connection.\n", \
           nctx->remote_str ? nctx->remote_str : "(null)", \
           nctx->remote_cn ? nctx->remote_cn : "(null)", \
           ctx->state, len, (long unsigned int)size); \
@@ -283,7 +287,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
 int
 stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                            struct timeval *now) {
-  noit_connection_ctx_t *nctx = closure;
+  mtev_connection_ctx_t *nctx = closure;
   jlog_streamer_ctx_t *ctx = nctx->consumer_ctx;
   jlog_streamer_ctx_t dummy;
   int len;
@@ -294,7 +298,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
   if(mask & EVENTER_EXCEPTION || nctx->wants_shutdown) {
     if(write(e->fd, e, 0) == -1)
-      noitL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
+      mtevL(noit_error, "[%s] [%s] socket error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", 
             nctx->remote_cn ? nctx->remote_cn : "(null)", strerror(errno));
  socket_error:
     ctx->state = JLOG_STREAMER_WANT_INITIATE;
@@ -309,7 +313,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
     return 0;
   }
 
-  noit_connection_update_timeout(nctx);
+  mtev_connection_update_timeout(nctx);
   while(1) {
     switch(ctx->state) {
       case JLOG_STREAMER_WANT_INITIATE:
@@ -321,7 +325,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           goto socket_error;
         }
         if(len != sizeof(ctx->jlog_feed_cmd)) {
-          noitL(noit_error, "[%s] [%s] short write [%d/%d] on initiating stream.\n", 
+          mtevL(noit_error, "[%s] [%s] short write [%d/%d] on initiating stream.\n", 
                 nctx->remote_str ? nctx->remote_str : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)",
                 (int)len, (int)sizeof(ctx->jlog_feed_cmd));
           goto socket_error;
@@ -331,7 +335,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
 
       case JLOG_STREAMER_WANT_ERROR:
         FULLREAD(e, ctx, 0 - ctx->count);
-        noitL(noit_error, "[%s] [%s] %.*s\n", nctx->remote_str ? nctx->remote_str : "(null)",
+        mtevL(noit_error, "[%s] [%s] %.*s\n", nctx->remote_str ? nctx->remote_str : "(null)",
               nctx->remote_cn ? nctx->remote_cn : "(null)", 0 - ctx->count, ctx->buffer);
         free(ctx->buffer); ctx->buffer = NULL;
         goto socket_error;
@@ -401,12 +405,12 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           ctx->state = JLOG_STREAMER_IS_ASYNC;
           ctx->push(DS_OP_CHKPT, &nctx->r.remote, nctx->remote_cn,
                     NULL, completion_e);
-          noitL(noit_debug, "Pushing %s batch async [%s] [%s]: [%u/%u]\n",
+          mtevL(noit_debug, "Pushing %s batch async [%s] [%s]: [%u/%u]\n",
                 feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
                 nctx->remote_str ? nctx->remote_str : "(null)",
                 nctx->remote_cn ? nctx->remote_cn : "(null)",
                 ctx->header.chkpt.log, ctx->header.chkpt.marker);
-          noit_connection_disable_timeout(nctx);
+          mtev_connection_disable_timeout(nctx);
           return 0;
         }
         else if(ctx->count == 0)
@@ -418,7 +422,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
       case JLOG_STREAMER_IS_ASYNC:
         ctx->state = JLOG_STREAMER_WANT_CHKPT; /* falls through */
       case JLOG_STREAMER_WANT_CHKPT:
-        noitL(noit_debug, "Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
+        mtevL(noit_debug, "Pushing %s checkpoint [%s] [%s]: [%u/%u]\n",
               feed_type_to_str(ntohl(ctx->jlog_feed_cmd)),
               nctx->remote_str ? nctx->remote_str : "(null)",
               nctx->remote_cn ? nctx->remote_cn : "(null)",
@@ -434,7 +438,7 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
           goto socket_error;
         }
         if(len != sizeof(jlog_id)) {
-          noitL(noit_error, "[%s] [%s] short write on checkpointing stream.\n", 
+          mtevL(noit_error, "[%s] [%s] short write on checkpointing stream.\n", 
             nctx->remote_str ? nctx->remote_str : "(null)",
             nctx->remote_cn ? nctx->remote_cn : "(null)");
           goto socket_error;
@@ -455,7 +459,7 @@ stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
   int rv = -1;
   void *vip;
   pthread_mutex_lock(&noit_ip_by_cn_lock);
-  if(noit_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vip)) {
+  if(mtev_hash_retrieve(&noit_ip_by_cn, cn, strlen(cn), &vip)) {
     int new_len;
     char *new_ip = (char *)vip;
     new_len = strlen(new_ip);
@@ -469,18 +473,18 @@ stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len) {
 void
 stratcon_jlog_streamer_recache_noit() {
   int di, cnt;
-  noit_conf_section_t *noit_configs;
-  noit_configs = noit_conf_get_sections(NULL, "//noits//noit", &cnt);
+  mtev_conf_section_t *noit_configs;
+  noit_configs = mtev_conf_get_sections(NULL, "//noits//noit", &cnt);
   pthread_mutex_lock(&noit_ip_by_cn_lock);
-  noit_hash_delete_all(&noit_ip_by_cn, free, free);
+  mtev_hash_delete_all(&noit_ip_by_cn, free, free);
   for(di=0; di<cnt; di++) {
     char address[64];
-    if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
+    if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
                                  address, sizeof(address))) {
       char expected_cn[256];
-      if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
+      if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn, sizeof(expected_cn)))
-        noit_hash_store(&noit_ip_by_cn,
+        mtev_hash_store(&noit_ip_by_cn,
                         strdup(expected_cn), strlen(expected_cn),
                         strdup(address));
     }
@@ -501,39 +505,39 @@ stratcon_jlog_streamer_reload(const char *toplevel) {
 }
 
 char *
-stratcon_console_noit_opts(noit_console_closure_t ncct,
-                           noit_console_state_stack_t *stack,
-                           noit_console_state_t *dstate,
+stratcon_console_noit_opts(mtev_console_closure_t ncct,
+                           mtev_console_state_stack_t *stack,
+                           mtev_console_state_t *dstate,
                            int argc, char **argv, int idx) {
   if(argc == 1) {
-    noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
     const char *key_id;
     int klen, i = 0;
     void *vconn, *vcn;
-    noit_connection_ctx_t *ctx;
-    noit_hash_table dedup = NOIT_HASH_EMPTY;
+    mtev_connection_ctx_t *ctx;
+    mtev_hash_table dedup = MTEV_HASH_EMPTY;
 
     pthread_mutex_lock(&noits_lock);
-    while(noit_hash_next(&noits, &iter, &key_id, &klen, &vconn)) {
-      ctx = (noit_connection_ctx_t *)vconn;
+    while(mtev_hash_next(&noits, &iter, &key_id, &klen, &vconn)) {
+      ctx = (mtev_connection_ctx_t *)vconn;
       vcn = NULL;
-      if(ctx->config && noit_hash_retrieve(ctx->config, "cn", 2, &vcn) &&
-         !noit_hash_store(&dedup, vcn, strlen(vcn), NULL)) {
+      if(ctx->config && mtev_hash_retrieve(ctx->config, "cn", 2, &vcn) &&
+         !mtev_hash_store(&dedup, vcn, strlen(vcn), NULL)) {
         if(!strncmp(vcn, argv[0], strlen(argv[0]))) {
           if(idx == i) {
             pthread_mutex_unlock(&noits_lock);
-            noit_hash_destroy(&dedup, NULL, NULL);
+            mtev_hash_destroy(&dedup, NULL, NULL);
             return strdup(vcn);
           }
           i++;
         }
       }
       if(ctx->remote_str &&
-         !noit_hash_store(&dedup, ctx->remote_str, strlen(ctx->remote_str), NULL)) {
+         !mtev_hash_store(&dedup, ctx->remote_str, strlen(ctx->remote_str), NULL)) {
         if(!strncmp(ctx->remote_str, argv[0], strlen(argv[0]))) {
           if(idx == i) {
             pthread_mutex_unlock(&noits_lock);
-            noit_hash_destroy(&dedup, NULL, NULL);
+            mtev_hash_destroy(&dedup, NULL, NULL);
             return strdup(ctx->remote_str);
           }
           i++;
@@ -541,22 +545,22 @@ stratcon_console_noit_opts(noit_console_closure_t ncct,
       }
     }
     pthread_mutex_unlock(&noits_lock);
-    noit_hash_destroy(&dedup, NULL, NULL);
+    mtev_hash_destroy(&dedup, NULL, NULL);
   }
   if(argc == 2)
-    return noit_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
+    return mtev_console_opt_delegate(ncct, stack, dstate, argc-1, argv+1, idx);
   return NULL;
 }
 static int
-stratcon_console_show_noits(noit_console_closure_t ncct,
+stratcon_console_show_noits(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *dstate,
+                            mtev_console_state_t *dstate,
                             void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id, *ecn;
   int klen, n = 0, i;
   void *vconn;
-  noit_connection_ctx_t **ctx;
+  mtev_connection_ctx_t **ctx;
 
   if(closure != (void *)0 && argc == 0) {
     nc_printf(ncct, "takes an argument\n");
@@ -567,15 +571,15 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
     return 0;
   }
   pthread_mutex_lock(&noits_lock);
-  ctx = malloc(sizeof(*ctx) * noit_hash_size(&noits));
-  while(noit_hash_next(&noits, &iter, &key_id, &klen,
+  ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
+  while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    ctx[n] = (noit_connection_ctx_t *)vconn;
+    ctx[n] = (mtev_connection_ctx_t *)vconn;
     if(argc == 0 ||
        !strcmp(ctx[n]->remote_str, argv[0]) ||
-       (ctx[n]->config && noit_hash_retr_str(ctx[n]->config, "cn", 2, &ecn) &&
+       (ctx[n]->config && mtev_hash_retr_str(ctx[n]->config, "cn", 2, &ecn) &&
         !strcmp(ecn, argv[0]))) {
-      noit_connection_ctx_ref(ctx[n]);
+      mtev_connection_ctx_ref(ctx[n]);
       n++;
     }
   }
@@ -583,7 +587,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
   qsort(ctx, n, sizeof(*ctx), remote_str_sort);
   for(i=0; i<n; i++) {
     nc_print_noit_conn_brief(ncct, ctx[i]);
-    noit_connection_ctx_deref(ctx[i]);
+    mtev_connection_ctx_deref(ctx[i]);
   }
   free(ctx);
   return 0;
@@ -591,7 +595,7 @@ stratcon_console_show_noits(noit_console_closure_t ncct,
 
 static void
 emit_noit_info_metrics(struct timeval *now, const char *uuid_str,
-                       noit_connection_ctx_t *nctx) {
+                       mtev_connection_ctx_t *nctx) {
   struct timeval last, session_duration, diff;
   u_int64_t session_duration_ms, last_event_ms;
   jlog_streamer_ctx_t *jctx = nctx->consumer_ctx;
@@ -651,8 +655,8 @@ static int
 periodic_noit_metrics(eventer_t e, int mask, void *closure,
                       struct timeval *now) {
   struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
-  noit_connection_ctx_t **ctxs;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_connection_ctx_t **ctxs;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id;
   void *vconn;
   int klen, n = 0, i;
@@ -692,11 +696,11 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
   }
 
   pthread_mutex_lock(&noits_lock);
-  ctxs = malloc(sizeof(*ctxs) * noit_hash_size(&noits));
-  while(noit_hash_next(&noits, &iter, &key_id, &klen,
+  ctxs = malloc(sizeof(*ctxs) * mtev_hash_size(&noits));
+  while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    ctxs[n] = (noit_connection_ctx_t *)vconn;
-    noit_connection_ctx_ref(ctxs[n]);
+    ctxs[n] = (mtev_connection_ctx_t *)vconn;
+    mtev_connection_ctx_ref(ctxs[n]);
     n++;
   }
   pthread_mutex_unlock(&noits_lock);
@@ -718,7 +722,7 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
 
   for(i=0; i<n; i++) {
     emit_noit_info_metrics(now, uuid_str, ctxs[i]);
-    noit_connection_ctx_deref(ctxs[i]);
+    mtev_connection_ctx_deref(ctxs[i]);
   }
   free(ctxs);
   PUSH_BOTH(DS_OP_CHKPT, NULL);
@@ -729,35 +733,35 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
 }
 
 static int
-rest_show_noits(noit_http_rest_closure_t *restc,
+rest_show_noits(mtev_http_rest_closure_t *restc,
                 int npats, char **pats) {
   xmlDocPtr doc;
   xmlNodePtr root;
-  noit_hash_table seen = NOIT_HASH_EMPTY;
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_table seen = MTEV_HASH_EMPTY;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   char path[256];
   const char *key_id;
   const char *type = NULL, *want_cn = NULL;
   int klen, n = 0, i, di, cnt;
   void *vconn;
-  noit_connection_ctx_t **ctxs;
-  noit_conf_section_t *noit_configs;
+  mtev_connection_ctx_t **ctxs;
+  mtev_conf_section_t *noit_configs;
   struct timeval now, diff, last;
   xmlNodePtr node;
-  noit_http_request *req = noit_http_session_request(restc->http_ctx);
+  mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
 
-  noit_http_process_querystring(req);
-  type = noit_http_request_querystring(req, "type");
-  want_cn = noit_http_request_querystring(req, "cn");
+  mtev_http_process_querystring(req);
+  type = mtev_http_request_querystring(req, "type");
+  want_cn = mtev_http_request_querystring(req, "cn");
 
   gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
-  ctxs = malloc(sizeof(*ctxs) * noit_hash_size(&noits));
-  while(noit_hash_next(&noits, &iter, &key_id, &klen,
+  ctxs = malloc(sizeof(*ctxs) * mtev_hash_size(&noits));
+  while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    ctxs[n] = (noit_connection_ctx_t *)vconn;
-    noit_connection_ctx_ref(ctxs[n]);
+    ctxs[n] = (mtev_connection_ctx_t *)vconn;
+    mtev_connection_ctx_ref(ctxs[n]);
     n++;
   }
   pthread_mutex_unlock(&noits_lock);
@@ -770,19 +774,19 @@ rest_show_noits(noit_http_rest_closure_t *restc,
   for(i=0; i<n; i++) {
     char buff[256];
     const char *feedtype = "unknown", *state = "unknown";
-    noit_connection_ctx_t *ctx = ctxs[i];
+    mtev_connection_ctx_t *ctx = ctxs[i];
     jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
 
     feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
 
     /* If the user requested a specific type and we're not it, skip. */
     if(type && strcmp(feedtype, type)) {
-        noit_connection_ctx_deref(ctx);
+        mtev_connection_ctx_deref(ctx);
         continue;
     }
     /* If the user wants a specific CN... limit to that. */
     if(want_cn && (!ctx->remote_cn || strcmp(want_cn, ctx->remote_cn))) {
-        noit_connection_ctx_deref(ctx);
+        mtev_connection_ctx_deref(ctx);
         continue;
     }
 
@@ -821,7 +825,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
         }
       }
     }
-    noit_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
                       0, free, NULL);
     xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)ctx->remote_str);
     xmlSetProp(node, (xmlChar *)"type", (xmlChar *)feedtype);
@@ -874,24 +878,24 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     }
 
     xmlAddChild(root, node);
-    noit_connection_ctx_deref(ctx);
+    mtev_connection_ctx_deref(ctx);
   }
   free(ctxs);
 
   if(!type || !strcmp(type, "configured")) {
     snprintf(path, sizeof(path), "//noits//noit");
-    noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
     for(di=0; di<cnt; di++) {
       char address[64], port_str[32], remote_str[98];
       char expected_cn_buff[256], *expected_cn = NULL;
-      if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
+      if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
                                  expected_cn_buff, sizeof(expected_cn_buff)))
         expected_cn = expected_cn_buff;
       if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn))) continue;
-      if(noit_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
+      if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
                                  address, sizeof(address))) {
         void *v;
-        if(!noit_conf_get_stringbuf(noit_configs[di], "self::node()/@port",
+        if(!mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@port",
                                    port_str, sizeof(port_str)))
           strlcpy(port_str, "43191", sizeof(port_str));
 
@@ -900,7 +904,7 @@ rest_show_noits(noit_http_rest_closure_t *restc,
             continue;
 
         snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
-        if(!noit_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
           node = xmlNewNode(NULL, (xmlChar *)"noit");
           xmlSetProp(node, (xmlChar *)"remote", (xmlChar *)remote_str);
           xmlSetProp(node, (xmlChar *)"type", (xmlChar *)"configured");
@@ -912,11 +916,11 @@ rest_show_noits(noit_http_rest_closure_t *restc,
     }
     free(noit_configs);
   }
-  noit_hash_destroy(&seen, free, NULL);
+  mtev_hash_destroy(&seen, free, NULL);
 
-  noit_http_response_ok(restc->http_ctx, "text/xml");
-  noit_http_response_xml(restc->http_ctx, doc);
-  noit_http_response_end(restc->http_ctx);
+  mtev_http_response_ok(restc->http_ctx, "text/xml");
+  mtev_http_response_xml(restc->http_ctx, doc);
+  mtev_http_response_end(restc->http_ctx);
   xmlFreeDoc(doc);
   return 0;
 }
@@ -926,16 +930,16 @@ stratcon_add_noit(const char *target, unsigned short port,
   int cnt;
   char path[256];
   char port_str[6];
-  noit_conf_section_t *noit_configs, parent;
+  mtev_conf_section_t *noit_configs, parent;
   xmlNodePtr newnoit, config, cnnode;
 
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+  noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
   free(noit_configs);
   if(cnt != 0) return -1;
 
-  parent = noit_conf_get_section(NULL, "//noits");
+  parent = mtev_conf_get_section(NULL, "//noits");
   if(!parent) return -1;
   snprintf(port_str, sizeof(port_str), "%d", port);
   newnoit = xmlNewNode(NULL, (xmlChar *)"noit");
@@ -949,7 +953,7 @@ stratcon_add_noit(const char *target, unsigned short port,
     xmlAddChild(config, cnnode);
     xmlAddChild(newnoit, config);
     pthread_mutex_lock(&noit_ip_by_cn_lock);
-    noit_hash_replace(&noit_ip_by_cn, strdup(cn), strlen(cn),
+    mtev_hash_replace(&noit_ip_by_cn, strdup(cn), strlen(cn),
                       strdup(target), free, free);
     pthread_mutex_unlock(&noit_ip_by_cn_lock);
   }
@@ -969,12 +973,12 @@ stratcon_add_noit(const char *target, unsigned short port,
 }
 static int
 stratcon_remove_noit(const char *target, unsigned short port) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id;
   int klen, n = -1, i, cnt = 0;
   void *vconn;
-  noit_connection_ctx_t **ctx;
-  noit_conf_section_t *noit_configs;
+  mtev_connection_ctx_t **ctx;
+  mtev_conf_section_t *noit_configs;
   char path[256];
   char remote_str[256];
 
@@ -982,13 +986,13 @@ stratcon_remove_noit(const char *target, unsigned short port) {
 
   snprintf(path, sizeof(path),
            "//noits//noit[@address=\"%s\" and @port=\"%d\"]", target, port);
-  noit_configs = noit_conf_get_sections(NULL, path, &cnt);
+  noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
   for(i=0; i<cnt; i++) {
     char expected_cn[256];
-    if(noit_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
+    if(mtev_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
                                expected_cn, sizeof(expected_cn))) {
       pthread_mutex_lock(&noit_ip_by_cn_lock);
-      noit_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
+      mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
                        free, free);
       pthread_mutex_unlock(&noit_ip_by_cn_lock);
     }
@@ -1000,67 +1004,67 @@ stratcon_remove_noit(const char *target, unsigned short port) {
   free(noit_configs);
 
   pthread_mutex_lock(&noits_lock);
-  ctx = malloc(sizeof(*ctx) * noit_hash_size(&noits));
-  while(noit_hash_next(&noits, &iter, &key_id, &klen,
+  ctx = malloc(sizeof(*ctx) * mtev_hash_size(&noits));
+  while(mtev_hash_next(&noits, &iter, &key_id, &klen,
                        &vconn)) {
-    if(!strcmp(((noit_connection_ctx_t *)vconn)->remote_str, remote_str)) {
-      ctx[n] = (noit_connection_ctx_t *)vconn;
-      noit_connection_ctx_ref(ctx[n]);
+    if(!strcmp(((mtev_connection_ctx_t *)vconn)->remote_str, remote_str)) {
+      ctx[n] = (mtev_connection_ctx_t *)vconn;
+      mtev_connection_ctx_ref(ctx[n]);
       n++;
     }
   }
   pthread_mutex_unlock(&noits_lock);
   for(i=0; i<n; i++) {
-    noit_connection_ctx_dealloc(ctx[i]); /* once for the record */
-    noit_connection_ctx_deref(ctx[i]);   /* once for the aboce inc32 */
+    mtev_connection_ctx_dealloc(ctx[i]); /* once for the record */
+    mtev_connection_ctx_deref(ctx[i]);   /* once for the aboce inc32 */
   }
   free(ctx);
   return n;
 }
 static int
-rest_set_noit(noit_http_rest_closure_t *restc,
+rest_set_noit(mtev_http_rest_closure_t *restc,
               int npats, char **pats) {
   const char *cn = NULL;
-  noit_http_session_ctx *ctx = restc->http_ctx;
-  noit_http_request *req = noit_http_session_request(ctx);
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_request *req = mtev_http_session_request(ctx);
   unsigned short port = 43191;
   if(npats < 1 || npats > 2)
-    noit_http_response_server_error(ctx, "text/xml");
+    mtev_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  noit_http_process_querystring(req);
-  cn = noit_http_request_querystring(req, "cn");
+  mtev_http_process_querystring(req);
+  cn = mtev_http_request_querystring(req, "cn");
   if(stratcon_add_noit(pats[0], port, cn) >= 0)
-    noit_http_response_ok(ctx, "text/xml");
+    mtev_http_response_ok(ctx, "text/xml");
   else
-    noit_http_response_standard(ctx, 409, "EXISTS", "text/xml");
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
-  noit_http_response_end(ctx);
+    mtev_http_response_standard(ctx, 409, "EXISTS", "text/xml");
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  mtev_conf_mark_changed();
+  mtev_http_response_end(ctx);
   return 0;
 }
 static int
-rest_delete_noit(noit_http_rest_closure_t *restc,
+rest_delete_noit(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
-  noit_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_session_ctx *ctx = restc->http_ctx;
   unsigned short port = 43191;
   if(npats < 1 || npats > 2)
-    noit_http_response_server_error(ctx, "text/xml");
+    mtev_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
   if(stratcon_remove_noit(pats[0], port) >= 0)
-    noit_http_response_ok(ctx, "text/xml");
+    mtev_http_response_ok(ctx, "text/xml");
   else
-    noit_http_response_not_found(ctx, "text/xml");
-  if(noit_conf_write_file(NULL) != 0)
-    noitL(noit_error, "local config write failed\n");
-  noit_conf_mark_changed();
-  noit_http_response_end(ctx);
+    mtev_http_response_not_found(ctx, "text/xml");
+  if(mtev_conf_write_file(NULL) != 0)
+    mtevL(noit_error, "local config write failed\n");
+  mtev_conf_mark_changed();
+  mtev_http_response_end(ctx);
   return 0;
 }
 static int
-stratcon_console_conf_noits(noit_console_closure_t ncct,
+stratcon_console_conf_noits(mtev_console_closure_t ncct,
                             int argc, char **argv,
-                            noit_console_state_t *dstate,
+                            mtev_console_state_t *dstate,
                             void *closure) {
   char *cp, target[128];
   unsigned short port = 43191;
@@ -1095,25 +1099,25 @@ stratcon_console_conf_noits(noit_console_closure_t ncct,
 
 static void
 register_console_streamer_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd, *confcmd, *conftcmd, *conftnocmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
-  confcmd = noit_console_state_get_cmd(tl, "configure");
-  conftcmd = noit_console_state_get_cmd(confcmd->dstate, "terminal");
-  conftnocmd = noit_console_state_get_cmd(conftcmd->dstate, "no");
+  confcmd = mtev_console_state_get_cmd(tl, "configure");
+  conftcmd = mtev_console_state_get_cmd(confcmd->dstate, "terminal");
+  conftnocmd = mtev_console_state_get_cmd(conftcmd->dstate, "no");
 
-  noit_console_state_add_cmd(conftcmd->dstate,
+  mtev_console_state_add_cmd(conftcmd->dstate,
     NCSCMD("noit", stratcon_console_conf_noits, NULL, NULL, (void *)1));
-  noit_console_state_add_cmd(conftnocmd->dstate,
+  mtev_console_state_add_cmd(conftnocmd->dstate,
     NCSCMD("noit", stratcon_console_conf_noits, NULL, NULL, (void *)0));
 
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("noit", stratcon_console_show_noits,
            stratcon_console_noit_opts, NULL, (void *)1));
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("noits", stratcon_console_show_noits, NULL, NULL, NULL));
 }
 
@@ -1123,7 +1127,7 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
                              eventer_func_t handler,
                              void *(*handler_alloc)(void), void *handler_ctx,
                              void (*handler_free)(void *)) {
-  return noit_connections_from_config(&noits, &noits_lock,
+  return mtev_connections_from_config(&noits, &noits_lock,
                                       toplevel, destination, type,
                                       handler, handler_alloc, handler_ctx,
                                       handler_free);
@@ -1142,46 +1146,46 @@ stratcon_jlog_streamer_init(const char *toplevel) {
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
   stratcon_streamer_connection(toplevel, "", "noit", NULL, NULL, NULL, NULL);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "GET", "/noits/", "^show$", rest_show_noits,
-             noit_http_rest_client_cert_auth
+             mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "PUT", "/noits/", "^set/([^/:]+)$", rest_set_noit,
-             noit_http_rest_client_cert_auth
+             mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "PUT", "/noits/", "^set/([^/:]+):(\\d+)$", rest_set_noit,
-             noit_http_rest_client_cert_auth
+             mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "DELETE", "/noits/", "^delete/([^/:]+)$", rest_delete_noit,
-             noit_http_rest_client_cert_auth
+             mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(noit_http_rest_register_auth(
+  assert(mtev_http_rest_register_auth(
     "DELETE", "/noits/", "^delete/([^/:]+):(\\d+)$", rest_delete_noit,
-             noit_http_rest_client_cert_auth
+             mtev_http_rest_client_cert_auth
   ) == 0);
 
   uuid_clear(self_stratcon_id);
 
-  if(noit_conf_get_stringbuf(NULL, "/stratcon/@id",
+  if(mtev_conf_get_stringbuf(NULL, "/stratcon/@id",
                              uuid_str, sizeof(uuid_str)) &&
      uuid_parse(uuid_str, self_stratcon_id) == 0) {
     int period;
-    noit_conf_get_boolean(NULL, "/stratcon/@extended_id",
+    mtev_conf_get_boolean(NULL, "/stratcon/@extended_id",
                           &stratcon_selfcheck_extended_id);
     /* If a UUID was provided for stratcon itself, we will report metrics
      * on a large variety of things (including all noits).
      */
-    if(noit_conf_get_int(NULL, "/stratcon/@metric_period", &period) &&
+    if(mtev_conf_get_int(NULL, "/stratcon/@metric_period", &period) &&
        period > 0) {
       DEFAULT_NOIT_PERIOD_TV.tv_sec = period / 1000;
       DEFAULT_NOIT_PERIOD_TV.tv_usec = (period % 1000) * 1000;
     }
     self_stratcon_ip.sin_family = AF_INET;
     remote.s_addr = 0xffffffff;
-    noit_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
+    mtev_getip_ipv4(remote, &self_stratcon_ip.sin_addr);
     gethostname(self_stratcon_hostname, sizeof(self_stratcon_hostname));
     eventer_add_in(periodic_noit_metrics, NULL, whence);
   }

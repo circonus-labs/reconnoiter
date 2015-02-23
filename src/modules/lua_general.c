@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2013, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2013-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,19 +28,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_module.h"
-#include "noit_http.h"
-#include "noit_rest.h"
+#include <mtev_defines.h>
+
+#include <mtev_dso.h>
+#include <mtev_http.h>
+#include <mtev_rest.h>
+#include <mtev_reverse_socket.h>
+
 #include "noit_filters.h"
-#include "noit_reverse_socket.h"
 #define LUA_COMPAT_MODULE
 #include "lua_noit.h"
 #include "lua_http.h"
 #include <assert.h>
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
 #define lua_general_xml_description  ""
 static const char *script_dir = "";
@@ -54,11 +55,11 @@ typedef struct lua_general_conf {
   lua_State *L;
 } lua_general_conf_t;
 
-static lua_general_conf_t *get_config(noit_dso_generic_t *self) {
-  lua_general_conf_t *conf = noit_image_get_userdata(&self->hdr);
+static lua_general_conf_t *get_config(mtev_dso_generic_t *self) {
+  lua_general_conf_t *conf = mtev_image_get_userdata(&self->hdr);
   if(conf) return conf;
   conf = calloc(1, sizeof(*conf));
-  noit_image_set_userdata(&self->hdr, conf);
+  mtev_image_set_userdata(&self->hdr, conf);
   return conf;
 }
 
@@ -66,7 +67,7 @@ static void
 lua_general_ctx_free(void *cl) {
   noit_lua_resume_info_t *ri = cl;
   if(ri) {
-    noitL(nldeb, "lua_general(%p) -> stopping job (%p)\n",
+    mtevL(nldeb, "lua_general(%p) -> stopping job (%p)\n",
           ri->lmc->lua_state, ri->coro_state);
     noit_lua_cancel_coro(ri);
     noit_lua_resume_clean_events(ri);
@@ -97,7 +98,7 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
       if(base>=0) {
         if(lua_isstring(ri->coro_state, base-1)) {
           err = lua_tostring(ri->coro_state, base-1);
-          noitL(nlerr, "err -> %s\n", err);
+          mtevL(nlerr, "err -> %s\n", err);
         }
       }
       rv = -1;
@@ -120,13 +121,13 @@ lua_general_new_resume_info(lua_module_closure_t *lmc) {
   ri->coro_state_ref = luaL_ref(lmc->lua_state, -2);
   noit_lua_set_resume_info(lmc->lua_state, ri);
   lua_pop(lmc->lua_state, 1); /* pops noit_coros */
-  noitL(nldeb, "lua_general(%p) -> starting new job (%p)\n",
+  mtevL(nldeb, "lua_general(%p) -> starting new job (%p)\n",
         lmc->lua_state, ri->coro_state);
   return ri;
 }
 
 static int
-lua_general_handler(noit_dso_generic_t *self) {
+lua_general_handler(mtev_dso_generic_t *self) {
   int status, rv;
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
@@ -146,14 +147,14 @@ lua_general_handler(noit_dso_generic_t *self) {
   rv = lua_pcall(L, 1, 1, 0);
   if(rv) {
     int i;
-    noitL(nlerr, "lua: require %s failed\n", conf->module);
+    mtevL(nlerr, "lua: require %s failed\n", conf->module);
     i = lua_gettop(L);
     if(i>0) {
       if(lua_isstring(L, i)) {
         const char *err;
         size_t len;
         err = lua_tolstring(L, i, &len);
-        noitL(nlerr, "lua: %s\n", err);
+        mtevL(nlerr, "lua: %s\n", err);
       }
     }
     lua_pop(L,i);
@@ -181,11 +182,11 @@ lua_general_handler(noit_dso_generic_t *self) {
   status = lmc->resume(ri, 0);
   if(status == 0) return 0;
   /* If we've failed, resume has freed ri, so we should just return. */
-  noitL(nlerr, "lua dispatch error: %d\n", status);
+  mtevL(nlerr, "lua dispatch error: %d\n", status);
   return 0;
 
  boom:
-  if(err) noitL(nlerr, "lua dispatch error: %s\n", err);
+  if(err) mtevL(nlerr, "lua dispatch error: %s\n", err);
   if(ri) lua_general_ctx_free(ri);
   return 0;
 }
@@ -214,20 +215,20 @@ lua_general_coroutine_spawn(lua_State *Lp) {
 
 int
 dispatch_general(eventer_t e, int mask, void *cl, struct timeval *now) {
-  return lua_general_handler((noit_dso_generic_t *)cl);
+  return lua_general_handler((mtev_dso_generic_t *)cl);
 }
 
 static int
-noit_lua_general_config(noit_dso_generic_t *self, noit_hash_table *o) {
+noit_lua_general_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   lua_general_conf_t *conf = get_config(self);
   conf->script_dir = "";
   conf->module = NULL;
   conf->function = NULL;
-  (void)noit_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
+  (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
-  (void)noit_hash_retr_str(o, "lua_module", strlen("lua_module"), &conf->module);
+  (void)mtev_hash_retr_str(o, "lua_module", strlen("lua_module"), &conf->module);
   if(conf->module) conf->module = strdup(conf->module);
-  (void)noit_hash_retr_str(o, "lua_function", strlen("lua_function"), &conf->function);
+  (void)mtev_hash_retr_str(o, "lua_function", strlen("lua_function"), &conf->function);
   if(conf->function) conf->function = strdup(conf->function);
   return 0;
 }
@@ -236,7 +237,7 @@ static int
 lua_general_reverse_socket_initiate(lua_State *L) {
   const char *host;
   int port;
-  noit_hash_table *sslconfig = NULL, *config = NULL;
+  mtev_hash_table *sslconfig = NULL, *config = NULL;
   if(lua_gettop(L) < 2 ||
      !lua_isstring(L,1) ||
      !lua_isnumber(L,2) ||
@@ -249,14 +250,14 @@ lua_general_reverse_socket_initiate(lua_State *L) {
   if(lua_gettop(L)>=3) sslconfig = noit_lua_table_to_hash(L,3);
   if(lua_gettop(L)>=4) config = noit_lua_table_to_hash(L,4);
 
-  noit_lua_help_initiate_noit_connection(host, port, sslconfig, config);
+  mtev_lua_help_initiate_mtev_connection(host, port, sslconfig, config);
 
   if(sslconfig) {
-    noit_hash_destroy(sslconfig, NULL, NULL);
+    mtev_hash_destroy(sslconfig, NULL, NULL);
     free(sslconfig);
   }
   if(config) {
-    noit_hash_destroy(config, NULL, NULL);
+    mtev_hash_destroy(config, NULL, NULL);
     free(config);
   }
   return 0;
@@ -269,7 +270,7 @@ lua_general_reverse_socket_shutdown(lua_State *L) {
      !lua_isnumber(L,2))
     luaL_error(L, "reverse_stop(host,port)");
 
-  rv = noit_reverse_socket_connection_shutdown(lua_tostring(L,1), lua_tointeger(L,2));
+  rv = mtev_reverse_socket_connection_shutdown(lua_tostring(L,1), lua_tointeger(L,2));
   lua_pushboolean(L,rv);
   return 1;
 }
@@ -278,7 +279,7 @@ static int
 lua_general_filtersets_cull(lua_State *L) {
   int rv;
   rv = noit_filtersets_cull_unused();
-  if(rv > 0) noit_conf_mark_changed();
+  if(rv > 0) mtev_conf_mark_changed();
   lua_pushinteger(L, rv);
   return 1;
 }
@@ -286,7 +287,7 @@ lua_general_filtersets_cull(lua_State *L) {
 static int
 lua_general_conf_save(lua_State *L) {
   /* Invert the response to indicate a truthy success in lua */
-  lua_pushboolean(L, noit_conf_write_file(NULL) ? 0 : 1);
+  lua_pushboolean(L, mtev_conf_write_file(NULL) ? 0 : 1);
   return 1;
 }
 
@@ -302,21 +303,21 @@ static const luaL_Reg general_lua_funcs[] =
 
 
 static int
-noit_lua_general_init(noit_dso_generic_t *self) {
+noit_lua_general_init(mtev_dso_generic_t *self) {
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
 
   if(!conf->module || !conf->function) {
-    noitL(nlerr, "lua_general cannot be used without module and function config\n");
+    mtevL(nlerr, "lua_general cannot be used without module and function config\n");
     return -1;
   }
 
   lmc->resume = lua_general_resume;
   lmc->owner = pthread_self();
   lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
-  noitL(nldeb, "lua_general opening state -> %p\n", lmc->lua_state);
+  mtevL(nldeb, "lua_general opening state -> %p\n", lmc->lua_state);
   if(lmc->lua_state == NULL) {
-    noitL(noit_error, "lua_general could not add general functions\n");
+    mtevL(mtev_error, "lua_general could not add general functions\n");
     return -1;
   }
   luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
@@ -326,18 +327,18 @@ noit_lua_general_init(noit_dso_generic_t *self) {
 }
 
 static int
-noit_lua_general_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/lua");
-  nldeb = noit_log_stream_find("debug/lua");
-  if(!nlerr) nlerr = noit_stderr;
-  if(!nldeb) nldeb = noit_debug;
+noit_lua_general_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/lua");
+  nldeb = mtev_log_stream_find("debug/lua");
+  if(!nlerr) nlerr = mtev_stderr;
+  if(!nldeb) nldeb = mtev_debug;
   return 0;
 }
 
-noit_dso_generic_t lua_general = {
+mtev_dso_generic_t lua_general = {
   {
-    NOIT_GENERIC_MAGIC,
-    NOIT_GENERIC_ABI_VERSION,
+    MTEV_GENERIC_MAGIC,
+    MTEV_GENERIC_ABI_VERSION,
     "lua_general",
     "general services in lua",
     lua_general_xml_description,

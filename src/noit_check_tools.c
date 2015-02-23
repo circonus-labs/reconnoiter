@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,21 +31,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "dtrace_probes.h"
+#include <mtev_defines.h>
+#include <mtev_str.h>
+#include <mtev_json.h>
+
+#include "noit_mtev_bridge.h"
+#include "noit_dtrace_probes.h"
 #include "noit_check_tools.h"
 #include "noit_check_tools_shared.h"
-#include "utils/noit_str.h"
-#include "json-lib/json.h"
 
 #include <assert.h>
 
-NOIT_HOOK_IMPL(check_preflight,
+MTEV_HOOK_IMPL(check_preflight,
   (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   void *, closure,
   (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   (closure,self,check,cause))
-NOIT_HOOK_IMPL(check_postflight,
+MTEV_HOOK_IMPL(check_postflight,
   (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   void *, closure,
   (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause),
@@ -84,7 +87,7 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
   if(ms == 0)
     rcl->check->fire_event = NULL; /* This is us, we get free post-return */
   if(NOIT_CHECK_RESOLVED(rcl->check)) {
-    if(NOIT_HOOK_CONTINUE ==
+    if(MTEV_HOOK_CONTINUE ==
        check_preflight_hook_invoke(rcl->self, rcl->check, rcl->cause)) {
       if(NOIT_CHECK_DISPATCH_ENABLED()) {
         char id[UUID_STR_LEN+1];
@@ -93,14 +96,14 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
                             rcl->check->target);
       }
       if(ms < rcl->check->timeout && !(rcl->check->flags & NP_TRANSIENT))
-        noitL(noit_error, "%s might not finish in %dms (timeout %dms)\n",
+        mtevL(noit_error, "%s might not finish in %dms (timeout %dms)\n",
               rcl->check->name, ms, rcl->check->timeout);
       rcl->dispatch(rcl->self, rcl->check, rcl->cause);
     }
     check_postflight_hook_invoke(rcl->self, rcl->check, rcl->cause);
   }
   else
-    noitL(noit_debug, "skipping %s`%s`%s, unresolved\n",
+    mtevL(noit_debug, "skipping %s`%s`%s, unresolved\n",
           rcl->check->target, rcl->check->module, rcl->check->name);
   free(rcl);
   return 0;
@@ -163,7 +166,7 @@ noit_check_schedule_next(noit_module_t *self,
     diffms = (int64_t)diff.tv_sec * 1000 + diff.tv_usec / 1000;
   }
   else {
-    noitL(noit_error, "time is going backwards. abort.\n");
+    mtevL(noit_error, "time is going backwards. abort.\n");
     abort();
   }
   /* determine the offset from initial schedule time that would place
@@ -379,8 +382,8 @@ noit_check_stats_from_json_str(noit_check_t *check, stats_t *s,
 }
 
 void
-noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs) {
-#define CA_STORE(a,b) noit_hash_store(attrs, a, strlen(a), b)
+noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
+#define CA_STORE(a,b) mtev_hash_store(attrs, a, strlen(a), b)
   CA_STORE("target", check->target);
   CA_STORE("target_ip", check->target_ip);
   CA_STORE("name", check->name);

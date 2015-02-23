@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,12 +34,12 @@
 #ifndef _NOIT_CHECK_TOOLS_H
 #define _NOIT_CHECK_TOOLS_H
 
-#include "noit_defines.h"
-#include "eventer/eventer.h"
+#include <mtev_defines.h>
+#include <eventer/eventer.h>
+#include <mtev_hash.h>
+#include <mtev_hooks.h>
 #include "noit_module.h"
 #include "noit_check.h"
-#include "utils/noit_hash.h"
-#include "utils/noit_hooks.h"
 #include "noit_check_tools_shared.h"
 
 typedef int (*dispatch_func_t)(noit_module_t *, noit_check_t *,
@@ -64,7 +65,7 @@ API_EXPORT(int)
                                  const char *json_str, int len);
 
 API_EXPORT(void)
-  noit_check_make_attrs(noit_check_t *check, noit_hash_table *attrs);
+  noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs);
 
 #define CHOOSE_EVENTER_THREAD_FOR_CHECK(check) \
   eventer_choose_owner(((int)(((vpsized_int)(check))/sizeof(*(check))))*2654435761)
@@ -87,7 +88,7 @@ API_EXPORT(void)
  *   </programlisting>
  *   <para>the check_preflight hook is invoked immediately prior to every
  *   check being performed.  The actual invocation of the check can be
- *   avoided by returning NOIT_HOOK_DONE instead of NOIT_HOOK_CONTINUE.
+ *   avoided by returning MTEV_HOOK_DONE instead of MTEV_HOOK_CONTINUE.
  *   </para>
  *   <para>The arguments to this function are the module of the check
  *   the check itself and the causal check (NULL if this check was not
@@ -107,7 +108,7 @@ API_EXPORT(void)
  *   <para>The arguments to this function are the module of the check,
  *   the check itself and the causal check (NULL if this check was not
  *   induced by the completion of another check), respectively.</para>
- *   <para>Returning NOIT_HOOK_CONTINUE and NOIT_HOOK_DONE have the same
+ *   <para>Returning MTEV_HOOK_CONTINUE and MTEV_HOOK_DONE have the same
  *   effect for this instrumentation point.</para>
  *   </section>
  *   <section><title>check_log_stats</title>
@@ -116,7 +117,7 @@ API_EXPORT(void)
  *   </programlisting>
  *   <para>The check_log_stats is called when a check logs a metrics
  *   bundle.</para>
- *   <para>If NOIT_HOOK_DONE is returned, normal logging is averted.</para>
+ *   <para>If MTEV_HOOK_DONE is returned, normal logging is averted.</para>
  *   </section>
  *   <section><title>check_passive_log_stats</title>
  *   <programlisting>
@@ -124,29 +125,29 @@ API_EXPORT(void)
  *   </programlisting>
  *   <para>The check_passive_log_stats is called when a check logs a
  *   metric immediately.</para>
- *   <para>If NOIT_HOOK_DONE is returned, normal logging is averted.</para>
+ *   <para>If MTEV_HOOK_DONE is returned, normal logging is averted.</para>
  *   </section>
  * </section>
  */
-NOIT_HOOK_PROTO(check_preflight,
+MTEV_HOOK_PROTO(check_preflight,
                 (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
                 void *, closure,
                 (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
-NOIT_HOOK_PROTO(check_postflight,
+MTEV_HOOK_PROTO(check_postflight,
                 (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
                 void *, closure,
                 (void *closure, noit_module_t *self, noit_check_t *check, noit_check_t *cause))
 
 #define BAIL_ON_RUNNING_CHECK(check) do { \
   if(check->flags & NP_RUNNING) { \
-    noitL(noit_error, "Check %s is still running!\n", check->name); \
+    mtevL(noit_error, "Check %s is still running!\n", check->name); \
     return -1; \
   } \
 } while(0)
 
 #define INITIATE_CHECK(func, self, check, cause) do { \
   if(once) { \
-    if(NOIT_HOOK_CONTINUE == \
+    if(MTEV_HOOK_CONTINUE == \
        check_preflight_hook_invoke(self, check, cause)) \
       func(self, check, cause); \
     check_postflight_hook_invoke(self, check, cause); \

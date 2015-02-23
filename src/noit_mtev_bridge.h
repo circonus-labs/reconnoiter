@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -12,10 +11,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
- *       of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written
- *       permission.
+ *     * Neither the name Circonus, Inc. nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -30,13 +28,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "noit_listener.h"
-#include "noit_http.h"
+#ifndef _NOIT_MTEV_BRIDGE_H
+#define _NOIT_MTEV_BRIDGE_H
 
-#ifndef NOIT_EVENTS_REST_H
-#define NOIT_EVENTS_REST_H
+#include <mtev_log.h>
 
-API_EXPORT(void) noit_events_rest_init();
+#define noit_debug mtev_debug
+#define noit_error mtev_error
+#define noit_notice mtev_notice
+#define noit_stderr mtev_stderr
+
+API_EXPORT(void)
+  noit_mtev_bridge_init();
 
 #endif

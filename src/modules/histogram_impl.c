@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Circonus, Inc.
- * All rights reserved.
+ * Copyright (c) 2012-2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,8 +28,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
-#include "utils/noit_log.h"
+#include <mtev_defines.h>
+
+#include <mtev_log.h>
+
 #include <errno.h>
 #include <assert.h>
 #include <sys/socket.h>
@@ -300,7 +301,7 @@ double_to_hist_bucket(double d) {
          (hb.val <= -10 && hb.val > -100))) {
       u_int64_t double_pun = 0;
       memcpy(&double_pun, &d_copy, sizeof(d_copy));
-      noitL(noit_error, "double_to_hist_bucket(%f / %llx) -> %u.%u\n",
+      mtevL(mtev_error, "double_to_hist_bucket(%f / %llx) -> %u.%u\n",
             d_copy, (unsigned long long)double_pun, hb.val, hb.exp);
       hb.val = (int8_t)0xff;
       hb.exp = 0;

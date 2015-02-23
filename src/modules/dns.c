@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
  * All rights reserved.
+ * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,7 +31,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_defines.h"
+#include <mtev_defines.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -40,18 +41,20 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <mtev_log.h>
+#include <mtev_atomic.h>
+
+#include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "utils/noit_log.h"
-#include "utils/noit_atomic.h"
 #include "udns/udns.h"
 
 #define MAX_RR 256
 #define DEFAULT_MAX_CONTEXTS 1024
 
 typedef struct _mod_config {
-  noit_hash_table *options;
+  mtev_hash_table *options;
   int contexts;
 } dns_mod_config_t;
 
@@ -59,19 +62,19 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *, int, void *);
 static int dns_module_eventer_callback(eventer_t, int, void *, struct timeval *);
 static void register_console_dns_commands();
 
-static noit_log_stream_t nlerr = NULL;
-static noit_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlerr = NULL;
+static mtev_log_stream_t nldeb = NULL;
 
-static noit_hash_table dns_rtypes = NOIT_HASH_EMPTY;
-static noit_hash_table dns_ctypes = NOIT_HASH_EMPTY;
+static mtev_hash_table dns_rtypes = MTEV_HASH_EMPTY;
+static mtev_hash_table dns_ctypes = MTEV_HASH_EMPTY;
 
-static noit_hash_table dns_ctx_store = NOIT_HASH_EMPTY;
+static mtev_hash_table dns_ctx_store = MTEV_HASH_EMPTY;
 static pthread_mutex_t dns_ctx_store_lock;
 typedef struct dns_ctx_handle {
   char *ns; /* name server */
   char *hkey; /* hash key - ns plus the port number */
   struct dns_ctx *ctx;  
-  noit_atomic32_t refcnt;
+  mtev_atomic32_t refcnt;
   eventer_t e; /* evetner handling UDP traffic */
   eventer_t timeout; /* the timeout managed by libudns */
 } dns_ctx_handle_t;
@@ -91,13 +94,13 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   free(h);
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
-  noit_atomic_inc32(&h->refcnt);
+  mtev_atomic_inc32(&h->refcnt);
 }
 static void
 dns_debug_wrap(int code, const struct sockaddr *sa, unsigned salen,
                dnscc_t *pkt, int plen,
                const struct dns_query *q, void *data) {
-  noitL(nldeb, "dns code -> %d\n", code);
+  mtevL(nldeb, "dns code -> %d\n", code);
 }
 static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const char *ns, int port) {
   void *vh;
@@ -121,7 +124,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
   }
 
   if(ns &&
-     noit_hash_retrieve(&dns_ctx_store, hk, strlen(hk), &vh)) {
+     mtev_hash_retrieve(&dns_ctx_store, hk, strlen(hk), &vh)) {
     h = (dns_ctx_handle_t *)vh;
     dns_module_dns_ctx_acquire(h);
     free(hk);
@@ -132,17 +135,17 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
     h->ns = ns ? strdup(ns) : NULL;
     h->ctx = dns_new(NULL);
     if(dns_init(h->ctx, 0) != 0) {
-      noitL(nlerr, "dns_init failed\n");
+      mtevL(nlerr, "dns_init failed\n");
       failed++;
     }
     dns_set_dbgfn(h->ctx, dns_debug_wrap);
     if(ns) {
       if(dns_add_serv(h->ctx, NULL) < 0) {
-        noitL(nlerr, "dns_add_serv(NULL) failed\n");
+        mtevL(nlerr, "dns_add_serv(NULL) failed\n");
         failed++;
       }
       if(dns_add_serv(h->ctx, ns) < 0) {
-        noitL(nlerr, "dns_add_serv(%s) failed\n", ns);
+        mtevL(nlerr, "dns_add_serv(%s) failed\n", ns);
         failed++;
       }
     }
@@ -150,7 +153,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
       dns_set_opt(h->ctx, DNS_OPT_PORT, port);
     }
     if(dns_open(h->ctx) < 0) {
-      noitL(nlerr, "dns_open failed\n");
+      mtevL(nlerr, "dns_open failed\n");
       failed++;
     }
     if(failed) {
@@ -173,7 +176,7 @@ static dns_ctx_handle_t *dns_module_dns_ctx_alloc(noit_module_t *self, const cha
     if(!ns)
       default_ctx_handle = h;
     else
-      noit_hash_store(&dns_ctx_store, h->hkey, strlen(h->hkey), h);
+      mtev_hash_store(&dns_ctx_store, h->hkey, strlen(h->hkey), h);
   }
  bail:
   pthread_mutex_unlock(&dns_ctx_store_lock);
@@ -183,14 +186,14 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
   int rv = 0, last;
   if(h->ns == NULL) {
     /* Special case for the default */
-    noit_atomic_dec32(&h->refcnt);
+    mtev_atomic_dec32(&h->refcnt);
     return rv;
   }
   pthread_mutex_lock(&dns_ctx_store_lock);
-  last = noit_atomic_dec32(&h->refcnt);
+  last = mtev_atomic_dec32(&h->refcnt);
   if(last == 0) {
     /* I was the last one */
-    assert(noit_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
+    assert(mtev_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
                             NULL, dns_module_dns_ctx_handle_free));
     rv = 1;
   }
@@ -198,7 +201,7 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
   return rv;
 }
 
-static noit_hash_table active_events = NOIT_HASH_EMPTY;
+static mtev_hash_table active_events = MTEV_HASH_EMPTY;
 static pthread_mutex_t active_events_lock;
 
 typedef struct dns_check_info {
@@ -221,7 +224,7 @@ static int __isactive_ci(struct dns_check_info *ci) {
   void *u;
   int exists = 0;
   pthread_mutex_lock(&active_events_lock);
-  if(noit_hash_retrieve(&active_events, (void *)&ci, sizeof(ci), &u))
+  if(mtev_hash_retrieve(&active_events, (void *)&ci, sizeof(ci), &u))
     exists = 1;
   pthread_mutex_unlock(&active_events_lock);
   return exists;
@@ -231,12 +234,12 @@ static void __activate_ci(struct dns_check_info *ci) {
   holder = calloc(1, sizeof(*holder));
   *holder = ci;
   pthread_mutex_lock(&active_events_lock);
-  assert(noit_hash_store(&active_events, (void *)holder, sizeof(*holder), ci));
+  assert(mtev_hash_store(&active_events, (void *)holder, sizeof(*holder), ci));
   pthread_mutex_unlock(&active_events_lock);
 }
 static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
-  assert(noit_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
+  assert(mtev_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
   ci->check->flags &= ~NP_RUNNING;
   if(ci->h != NULL) {
@@ -342,7 +345,7 @@ static int dns_interpolate_reverse_ip(char *buff, int len, const char *key,
 }
 
 static void
-nc_printf_dns_handle_brief(noit_console_closure_t ncct,
+nc_printf_dns_handle_brief(mtev_console_closure_t ncct,
                            dns_ctx_handle_t *h) {
   nc_printf(ncct, "== %s ==\n", h->hkey);
   nc_printf(ncct, " ns: %s\n refcnt: %d\n", h->ns, h->refcnt);
@@ -356,17 +359,17 @@ nc_printf_dns_handle_brief(noit_console_closure_t ncct,
   }
 }
 static int
-noit_console_show_dns(noit_console_closure_t ncct,
+noit_console_show_dns(mtev_console_closure_t ncct,
                       int argc, char **argv,
-                      noit_console_state_t *dstate,
+                      mtev_console_state_t *dstate,
                       void *closure) {
-  noit_hash_iter iter = NOIT_HASH_ITER_ZERO;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   uuid_t key_id;
   int klen;
   void *vts;
 
   pthread_mutex_lock(&dns_ctx_store_lock);
-  while(noit_hash_next(&dns_ctx_store, &iter,
+  while(mtev_hash_next(&dns_ctx_store, &iter,
                        (const char **)key_id, &klen,
                        &vts)) {
     dns_ctx_handle_t *h = vts;
@@ -378,13 +381,13 @@ noit_console_show_dns(noit_console_closure_t ncct,
 
 static void
 register_console_dns_commands() {
-  noit_console_state_t *tl;
+  mtev_console_state_t *tl;
   cmd_info_t *showcmd;
 
-  tl = noit_console_state_initial();
-  showcmd = noit_console_state_get_cmd(tl, "show");
+  tl = mtev_console_state_initial();
+  showcmd = mtev_console_state_get_cmd(tl, "show");
   assert(showcmd && showcmd->dstate);
-  noit_console_state_add_cmd(showcmd->dstate,
+  mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("dns_module", noit_console_show_dns, NULL, NULL, NULL));
 }
 
@@ -401,7 +404,7 @@ static int dns_module_init(noit_module_t *self) {
   pthread_mutex_init(&active_events_lock, NULL);
 
   conf->contexts = DEFAULT_MAX_CONTEXTS;
-  if(noit_hash_retr_str(conf->options,
+  if(mtev_hash_retr_str(conf->options,
                          "contexts", strlen("contexts"),
                          (const char**)&config_val)) {
     conf->contexts = atoi(config_val);
@@ -410,12 +413,12 @@ static int dns_module_init(noit_module_t *self) {
   }
   /* HASH the rr types */
   for(i=0, nv = dns_type_index(i); nv->name; nv = dns_type_index(++i))
-    noit_hash_store(&dns_rtypes,
+    mtev_hash_store(&dns_rtypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);
   /* HASH the class types */
   for(i=0, nv = dns_class_index(i); nv->name; nv = dns_class_index(++i))
-    noit_hash_store(&dns_ctypes,
+    mtev_hash_store(&dns_ctypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);
 
@@ -425,12 +428,12 @@ static int dns_module_init(noit_module_t *self) {
                                           dns_interpolate_reverse_ip);
 
   if (dns_init(NULL, 0) < 0 || (pctx = dns_new(NULL)) == NULL) {
-    noitL(nlerr, "Unable to initialize dns subsystem\n");
+    mtevL(nlerr, "Unable to initialize dns subsystem\n");
     return -1;
   }
   dns_free(pctx);
   if(dns_module_dns_ctx_alloc(self, NULL, 0) == NULL) {
-    noitL(nlerr, "Error setting up default dns resolver context.\n");
+    mtevL(nlerr, "Error setting up default dns resolver context.\n");
     return -1;
   }
   register_console_dns_commands();
@@ -540,7 +543,7 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
     /* We don't handle EDNS0 OPT records */
     goto decode_err;
   }
-  noitL(nldeb, "%s. %u %s %s\n", dns_dntosp(dn), rr->dnsrr_ttl,
+  mtevL(nldeb, "%s. %u %s %s\n", dns_dntosp(dn), rr->dnsrr_ttl,
         dns_classname(rr->dnsrr_cls),
         dns_typename(rr->dnsrr_typ));
 
@@ -689,10 +692,10 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
         noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "cname", METRIC_INT32, &on);
 
         /* Now follow the leader */
-        noitL(nldeb, "%s. CNAME %s.\n", dns_dntosp(dn),
+        mtevL(nldeb, "%s. CNAME %s.\n", dns_dntosp(dn),
               dns_dntosp(p.dnsp_dnbuf));
         dns_dntodn(p.dnsp_dnbuf, dn, sizeof(dn));
-        noitL(nldeb, " ---> '%s'\n", dns_dntosp(dn));
+        mtevL(nldeb, " ---> '%s'\n", dns_dntosp(dn));
       }
     }
   }
@@ -753,7 +756,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   const char *query = NULL;
   char interpolated_nameserver[1024];
   char interpolated_query[1024];
-  noit_hash_table check_attrs_hash = NOIT_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
@@ -785,13 +788,13 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     query = "%[name]";
   }
 
-  if(noit_hash_retr_str(check->config, "port", strlen("port"),
+  if(mtev_hash_retr_str(check->config, "port", strlen("port"),
                         &port_str)) {
     port = atoi(port_str);
   }
 
 #define CONFIG_OVERRIDE(a) \
-  if(noit_hash_retr_str(check->config, #a, strlen(#a), \
+  if(mtev_hash_retr_str(check->config, #a, strlen(#a), \
                         &config_val) && \
      strlen(config_val) > 0) \
     a = config_val
@@ -820,8 +823,8 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
                            &check_attrs_hash, check->config);
     query = interpolated_query;
   }
-  noit_hash_destroy(&check_attrs_hash, NULL, NULL);
-  noitL(nldeb, "dns_check_send(%p,%s,%s,%s,%s,%s)\n",
+  mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
+  mtevL(nldeb, "dns_check_send(%p,%s,%s,%s,%s,%s)\n",
         self, check->target, nameserver ? nameserver : "default",
         query ? query : "null", ctype, rtype);
 
@@ -841,7 +844,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   if(!ci->h) ci->error = strdup("bad nameserver");
 
   /* Lookup out class */
-  if(!noit_hash_retrieve(&dns_ctypes, ctype, strlen(ctype),
+  if(!mtev_hash_retrieve(&dns_ctypes, ctype, strlen(ctype),
                          &vnv_pair)) {
     if(ci->error) free(ci->error);
     ci->error = strdup("bad class");
@@ -851,7 +854,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
     ci->query_ctype = (enum dns_class)nv_pair->val;
   }
   /* Lookup out rr type */
-  if(!noit_hash_retrieve(&dns_rtypes, rtype, strlen(rtype),
+  if(!mtev_hash_retrieve(&dns_rtypes, rtype, strlen(rtype),
                          &vnv_pair)) {
     if(ci->error) free(ci->error);
     ci->error = strdup("bad rr type");
@@ -911,12 +914,12 @@ static int dns_initiate_check(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
-static int dns_config(noit_module_t *self, noit_hash_table *options) {
+static int dns_config(noit_module_t *self, mtev_hash_table *options) {
   dns_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
     if(conf->options) {
-      noit_hash_destroy(conf->options, free, free);
+      mtev_hash_destroy(conf->options, free, free);
       free(conf->options);
     }
   }
@@ -927,9 +930,9 @@ static int dns_config(noit_module_t *self, noit_hash_table *options) {
   return 1;
 }
 
-static int dns_onload(noit_image_t *self) {
-  nlerr = noit_log_stream_find("error/dns");
-  nldeb = noit_log_stream_find("debug/dns");
+static int dns_onload(mtev_image_t *self) {
+  nlerr = mtev_log_stream_find("error/dns");
+  nldeb = mtev_log_stream_find("debug/dns");
   if(!nlerr) nlerr = noit_stderr;
   if(!nldeb) nldeb = noit_debug;
   eventer_name_callback("dns/dns_eventer_callback", dns_module_eventer_callback);
