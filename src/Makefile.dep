@@ -1,719 +1,163 @@
-bundle.pb-c.o: bundle.pb-c.c bundle.pb-c.h
-noit_check.o: noit_check.c noit_config.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_memory.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_watchdog.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_mtev_bridge.h \
-  noit_dtrace_probes.h noit_check.h /opt/circonus/include/mtev_hooks.h \
-  noit_metric.h noit_module.h /opt/circonus/include/mtev_dso.h \
+
+bundle.pb-c.o bundle.pb-c.lo: bundle.pb-c.c bundle.pb-c.h
+
+noit_check.o noit_check.lo: noit_check.c noit_config.h \
+  noit_mtev_bridge.h \
+  noit_dtrace_probes.h noit_check.h  \
+  noit_metric.h noit_module.h  \
   noit_check_tools.h noit_check_tools_shared.h noit_check_resolver.h
-noit_check_log.o: noit_check_log.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h noit_dtrace_probes.h \
-  noit_mtev_bridge.h /opt/circonus/include/mtev_log.h \
-  /opt/circonus/include/mtev_hash.h noit_check.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_metric.h \
+
+noit_check_log.o noit_check_log.lo: noit_check_log.c  \
+  noit_dtrace_probes.h \
+  noit_mtev_bridge.h  \
+  noit_check.h \
+  noit_metric.h \
   noit_filters.h bundle.pb-c.h noit_check_log_helpers.h
-noit_check_log_helpers.o: noit_check_log_helpers.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_b64.h /opt/circonus/include/mtev_str.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
+
+noit_check_log_helpers.o noit_check_log_helpers.lo: noit_check_log_helpers.c \
   noit_mtev_bridge.h bundle.pb-c.h noit_metric.h \
   noit_check_log_helpers.h
-noit_check_resolver.o: noit_check_resolver.c noit_config.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_mtev_bridge.h \
+
+noit_check_resolver.o noit_check_resolver.lo: noit_check_resolver.c noit_config.h \
+  noit_mtev_bridge.h \
   udns/udns.h
-noit_check_rest.o: noit_check_rest.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xpath.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_http.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_conf_private.h \
-  /opt/circonus/include/mtev_json.h /opt/circonus/include/mtev_bits.h \
-  /opt/circonus/include/mtev_debug.h \
-  /opt/circonus/include/mtev_linkhash.h \
-  /opt/circonus/include/mtev_arraylist.h \
-  /opt/circonus/include/mtev_json_util.h \
-  /opt/circonus/include/mtev_json_object.h \
-  /opt/circonus/include/mtev_json_tokener.h noit_mtev_bridge.h \
+
+noit_check_rest.o noit_check_rest.lo: noit_check_rest.c  \
+  noit_mtev_bridge.h \
   noit_filters.h noit_check.h noit_metric.h noit_check_resolver.h \
-  noit_check_tools.h noit_module.h /opt/circonus/include/mtev_dso.h \
+  noit_check_tools.h noit_module.h  \
   noit_check_tools_shared.h
-noit_check_tools.o: noit_check_tools.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_str.h /opt/circonus/include/mtev_json.h \
-  /opt/circonus/include/mtev_bits.h /opt/circonus/include/mtev_debug.h \
-  /opt/circonus/include/mtev_linkhash.h \
-  /opt/circonus/include/mtev_arraylist.h \
-  /opt/circonus/include/mtev_json_util.h \
-  /opt/circonus/include/mtev_json_object.h \
-  /opt/circonus/include/mtev_json_tokener.h noit_mtev_bridge.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
+
+noit_check_tools.o noit_check_tools.lo: noit_check_tools.c \
+  noit_mtev_bridge.h \
   noit_dtrace_probes.h noit_check_tools.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_hooks.h \
-  noit_module.h /opt/circonus/include/mtev_dso.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_check.h noit_metric.h \
+  noit_module.h  \
+  noit_check.h noit_metric.h \
   noit_check_tools_shared.h
-noit_check_tools_shared.o: noit_check_tools_shared.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_str.h noit_check_tools.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_hooks.h \
-  noit_module.h /opt/circonus/include/mtev_dso.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_check.h noit_metric.h \
+
+noit_check_tools_shared.o noit_check_tools_shared.lo: noit_check_tools_shared.c \
+  noit_check_tools.h \
+  noit_module.h  \
+  noit_check.h noit_metric.h \
   noit_check_tools_shared.h
-noit_conf_checks.o: noit_conf_checks.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xpath.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_conf_private.h noit_filters.h noit_check.h \
-  /opt/circonus/include/mtev_hooks.h noit_metric.h noit_conf_checks.h \
-  noit_check_tools.h noit_module.h /opt/circonus/include/mtev_dso.h \
+
+noit_conf_checks.o noit_conf_checks.lo: noit_conf_checks.c \
+  noit_filters.h noit_check.h \
+  noit_metric.h noit_conf_checks.h \
+  noit_check_tools.h noit_module.h  \
   noit_check_tools_shared.h
-noit_filters.o: noit_filters.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_hash.h /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/mtev_watchdog.h \
-  /opt/circonus/include/mtev_capabilities_listener.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_mtev_bridge.h \
-  noit_check.h /opt/circonus/include/mtev_hooks.h noit_metric.h \
+
+noit_filters.o noit_filters.lo: noit_filters.c  \
+  noit_mtev_bridge.h \
+  noit_check.h  noit_metric.h \
   noit_conf_checks.h noit_filters.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h
-noit_filters_rest.o: noit_filters_rest.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xpath.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_http.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_conf_private.h noit_mtev_bridge.h \
+
+noit_filters_rest.o noit_filters_rest.lo: noit_filters_rest.c \
+  noit_mtev_bridge.h \
   noit_filters.h noit_check.h noit_metric.h noit_check_tools.h \
-  noit_module.h /opt/circonus/include/mtev_dso.h \
+  noit_module.h  \
   noit_check_tools_shared.h
-noit_jlog_listener.o: noit_jlog_listener.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_memory.h /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h noit_mtev_bridge.h \
+
+noit_jlog_listener.o noit_jlog_listener.lo: noit_jlog_listener.c \
+  noit_mtev_bridge.h \
   noit_jlog_listener.h
-noit_livestream_listener.o: noit_livestream_listener.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_memory.h noit_mtev_bridge.h \
+
+noit_livestream_listener.o noit_livestream_listener.lo: noit_livestream_listener.c \
+  noit_mtev_bridge.h \
   noit_livestream_listener.h noit_check.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_metric.h
-noit_module.o: noit_module.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_module.h \
-  /opt/circonus/include/mtev_dso.h /opt/circonus/include/mtev_hooks.h \
+  noit_metric.h
+
+noit_module.o noit_module.lo: noit_module.c  \
+  noit_module.h \
   noit_check.h noit_metric.h noit_mtev_bridge.h module-online.h
-noit_mtev_bridge.o: noit_mtev_bridge.c \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h
-noitd.o: noitd.c noit_config.h /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/mtev_main.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_memory.h \
-  /opt/circonus/include/mtev_security.h \
-  /opt/circonus/include/mtev_watchdog.h \
-  /opt/circonus/include/mtev_lockfile.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_rest.h /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h \
-  /opt/circonus/include/mtev_reverse_socket.h \
-  /opt/circonus/include/mtev_capabilities_listener.h \
-  /opt/circonus/include/mtev_conf.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_events_rest.h noit_mtev_bridge.h \
+
+noit_mtev_bridge.o noit_mtev_bridge.lo: noit_mtev_bridge.c \
+
+noitd.o noitd.lo: noitd.c noit_config.h  \
+  noit_mtev_bridge.h \
   noit_jlog_listener.h noit_check_rest.h noit_check.h noit_metric.h \
-  noit_check_tools.h noit_module.h /opt/circonus/include/mtev_dso.h \
-  noit_check_tools_shared.h /opt/circonus/include/mtev_json.h \
-  /opt/circonus/include/mtev_bits.h /opt/circonus/include/mtev_debug.h \
-  /opt/circonus/include/mtev_linkhash.h \
-  /opt/circonus/include/mtev_arraylist.h \
-  /opt/circonus/include/mtev_json_util.h \
-  /opt/circonus/include/mtev_json_object.h \
-  /opt/circonus/include/mtev_json_tokener.h noit_livestream_listener.h \
+  noit_check_tools.h noit_module.h  \
+  noit_check_tools_shared.h  \
+  noit_livestream_listener.h \
   noit_conf_checks.h noit_filters.h man/noitd.usage.h
-stratcon_datastore.o: stratcon_datastore.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_b64.h \
-  /opt/circonus/include/mtev_str.h /opt/circonus/include/mtev_mkdir.h \
-  /opt/circonus/include/mtev_getip.h noit_mtev_bridge.h \
+
+stratcon_datastore.o stratcon_datastore.lo: stratcon_datastore.c \
+  noit_mtev_bridge.h \
   stratcon_datastore.h stratcon_realtime_http.h stratcon_ingest.h \
   stratcon_iep.h stratcon_jlog_streamer.h \
-  /opt/circonus/include/mtev_reverse_socket.h noit_check.h noit_metric.h
-stratcon_iep.o: stratcon_iep.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_b64.h \
-  /opt/circonus/include/mtev_conf.h /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h noit_mtev_bridge.h \
+  noit_check.h noit_metric.h
+
+stratcon_iep.o stratcon_iep.lo: stratcon_iep.c  \
+  noit_mtev_bridge.h \
   noit_jlog_listener.h stratcon_jlog_streamer.h \
-  /opt/circonus/include/mtev_reverse_socket.h stratcon_datastore.h \
+  stratcon_datastore.h \
   stratcon_realtime_http.h stratcon_iep.h noit_check.h \
-  /opt/circonus/include/mtev_hooks.h noit_metric.h
-stratcon_ingest.o: stratcon_ingest.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_b64.h \
-  /opt/circonus/include/mtev_str.h /opt/circonus/include/mtev_mkdir.h \
-  /opt/circonus/include/mtev_getip.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h noit_mtev_bridge.h \
+  noit_metric.h
+
+stratcon_ingest.o stratcon_ingest.lo: stratcon_ingest.c  \
+  noit_mtev_bridge.h \
   stratcon_datastore.h stratcon_realtime_http.h stratcon_ingest.h \
   stratcon_iep.h stratcon_jlog_streamer.h \
-  /opt/circonus/include/mtev_reverse_socket.h noit_check.h noit_metric.h
-stratcon_jlog_streamer.o: stratcon_jlog_streamer.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_getip.h /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h noit_mtev_bridge.h \
+  noit_check.h noit_metric.h
+
+stratcon_jlog_streamer.o stratcon_jlog_streamer.lo: stratcon_jlog_streamer.c \
+  noit_mtev_bridge.h \
   stratcon_dtrace_probes.h noit_jlog_listener.h stratcon_datastore.h \
   stratcon_realtime_http.h stratcon_jlog_streamer.h \
-  /opt/circonus/include/mtev_reverse_socket.h stratcon_iep.h
-stratcon_realtime_http.o: stratcon_realtime_http.c \
-  /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_conf.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h /opt/circonus/include/mtev_rest.h \
-  /opt/circonus/include/mtev_str.h noit_mtev_bridge.h \
+  stratcon_iep.h
+
+stratcon_realtime_http.o stratcon_realtime_http.lo: stratcon_realtime_http.c \
+  noit_mtev_bridge.h \
   noit_jlog_listener.h noit_check.h noit_metric.h \
   noit_check_log_helpers.h noit_livestream_listener.h \
   stratcon_realtime_http.h stratcon_jlog_streamer.h \
-  /opt/circonus/include/mtev_reverse_socket.h stratcon_datastore.h
-stratcond.o: stratcond.c /opt/circonus/include/mtev_defines.h \
-  /opt/circonus/include/mtev_config.h \
-  /opt/circonus/include/noitedit/strlcpy.h \
-  /opt/circonus/include/eventer/eventer.h \
-  /opt/circonus/include/mtev_log.h /opt/circonus/include/mtev_hash.h \
-  /opt/circonus/include/mtev_atomic.h \
-  /opt/circonus/include/eventer/eventer_POSIX_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_SSL_fd_opset.h \
-  /opt/circonus/include/eventer/eventer_jobq.h \
-  /opt/circonus/include/mtev_sem.h /opt/circonus/include/mtev_memory.h \
-  /opt/circonus/include/mtev_security.h \
-  /opt/circonus/include/mtev_watchdog.h \
-  /opt/circonus/include/mtev_lockfile.h \
-  /opt/circonus/include/mtev_main.h \
-  /opt/circonus/include/mtev_listener.h \
-  /opt/circonus/include/mtev_console.h \
-  /opt/circonus/include/noitedit/histedit.h \
-  /opt/circonus/include/mtev_console_telnet.h \
-  /opt/circonus/include/mtev_skiplist.h \
-  /opt/circonus/include/mtev_conf.h \
-  /usr/local/Cellar/pcre/8.33/include/pcre.h \
-  /opt/circonus/include/mtev_rest.h /opt/circonus/include/mtev_http.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/tree.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlversion.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlexports.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlstring.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlregexp.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/dict.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlmemory.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/threads.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/globals.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/parser.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/hash.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/valid.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlerror.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/list.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlautomata.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/entities.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/encoding.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xmlIO.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/xlink.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/usr/include/libxml2/libxml/SAX2.h \
-  /opt/circonus/include/mtev_hooks.h \
-  /opt/circonus/include/mtev_reverse_socket.h \
-  /opt/circonus/include/mtev_events_rest.h \
-  /opt/circonus/include/mtev_capabilities_listener.h noit_mtev_bridge.h \
-  noit_config.h noit_module.h /opt/circonus/include/mtev_dso.h \
+  stratcon_datastore.h
+
+stratcond.o stratcond.lo: stratcond.c  \
+  noit_mtev_bridge.h \
+  noit_config.h noit_module.h  \
   noit_check.h noit_metric.h stratcon_jlog_streamer.h \
   stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
   man/stratcond.usage.h
-udns/dnsget.o: udns/dnsget.c udns/udns.h udns/getopt.c
-udns/ex-rdns.o: udns/ex-rdns.c udns/udns.h
-udns/getopt.o: udns/getopt.c
-udns/inet_XtoX.o: udns/inet_XtoX.c
-udns/rblcheck.o: udns/rblcheck.c udns/udns.h udns/getopt.c
-udns/udns_XtoX.o: udns/udns_XtoX.c udns/udns.h udns/inet_XtoX.c
-udns/udns_bl.o: udns/udns_bl.c udns/udns.h
-udns/udns_codes.o: udns/udns_codes.c udns/udns.h
-udns/udns_dn.o: udns/udns_dn.c udns/udns.h
-udns/udns_dntosp.o: udns/udns_dntosp.c udns/udns.h
-udns/udns_init.o: udns/udns_init.c udns/udns.h
-udns/udns_jran.o: udns/udns_jran.c udns/udns.h
-udns/udns_misc.o: udns/udns_misc.c udns/udns.h
-udns/udns_parse.o: udns/udns_parse.c udns/udns.h
-udns/udns_resolver.o: udns/udns_resolver.c udns/udns.h
-udns/udns_rr_a.o: udns/udns_rr_a.c udns/udns.h
-udns/udns_rr_mx.o: udns/udns_rr_mx.c udns/udns.h
-udns/udns_rr_naptr.o: udns/udns_rr_naptr.c udns/udns.h
-udns/udns_rr_ptr.o: udns/udns_rr_ptr.c udns/udns.h
-udns/udns_rr_srv.o: udns/udns_rr_srv.c udns/udns.h
-udns/udns_rr_txt.o: udns/udns_rr_txt.c udns/udns.h
+
+udns/dnsget.o udns/dnsget.lo: udns/dnsget.c udns/udns.h udns/getopt.c
+
+udns/ex-rdns.o udns/ex-rdns.lo: udns/ex-rdns.c udns/udns.h
+
+udns/getopt.o udns/getopt.lo: udns/getopt.c
+
+udns/inet_XtoX.o udns/inet_XtoX.lo: udns/inet_XtoX.c
+
+udns/rblcheck.o udns/rblcheck.lo: udns/rblcheck.c udns/udns.h udns/getopt.c
+
+udns/udns_XtoX.o udns/udns_XtoX.lo: udns/udns_XtoX.c udns/udns.h udns/inet_XtoX.c
+
+udns/udns_bl.o udns/udns_bl.lo: udns/udns_bl.c udns/udns.h
+
+udns/udns_codes.o udns/udns_codes.lo: udns/udns_codes.c udns/udns.h
+
+udns/udns_dn.o udns/udns_dn.lo: udns/udns_dn.c udns/udns.h
+
+udns/udns_dntosp.o udns/udns_dntosp.lo: udns/udns_dntosp.c udns/udns.h
+
+udns/udns_init.o udns/udns_init.lo: udns/udns_init.c udns/udns.h
+
+udns/udns_jran.o udns/udns_jran.lo: udns/udns_jran.c udns/udns.h
+
+udns/udns_misc.o udns/udns_misc.lo: udns/udns_misc.c udns/udns.h
+
+udns/udns_parse.o udns/udns_parse.lo: udns/udns_parse.c udns/udns.h
+
+udns/udns_resolver.o udns/udns_resolver.lo: udns/udns_resolver.c udns/udns.h
+
+udns/udns_rr_a.o udns/udns_rr_a.lo: udns/udns_rr_a.c udns/udns.h
+
+udns/udns_rr_mx.o udns/udns_rr_mx.lo: udns/udns_rr_mx.c udns/udns.h
+
+udns/udns_rr_naptr.o udns/udns_rr_naptr.lo: udns/udns_rr_naptr.c udns/udns.h
+
+udns/udns_rr_ptr.o udns/udns_rr_ptr.lo: udns/udns_rr_ptr.c udns/udns.h
+
+udns/udns_rr_srv.o udns/udns_rr_srv.lo: udns/udns_rr_srv.c udns/udns.h
+
+udns/udns_rr_txt.o udns/udns_rr_txt.lo: udns/udns_rr_txt.c udns/udns.h

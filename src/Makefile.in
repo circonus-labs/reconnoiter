@@ -395,6 +395,7 @@ Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) udns/*.c | \
 		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#udns/$$1#;' >> \
 		Makefile.dep
+	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep
 include Makefile.noit.dep
