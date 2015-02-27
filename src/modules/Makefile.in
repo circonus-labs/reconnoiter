@@ -181,7 +181,7 @@ ssh2.@MODULEEXT@:	ssh2.lo
 	@echo "- linking $@"
 
 httptrap.@MODULEEXT@:	httptrap.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ httptrap.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ httptrap.lo @YAJLLIBS@
 	@echo "- linking $@"
 
 httptrap.lo:	httptrap.xmlh
@@ -193,7 +193,7 @@ statsd.@MODULEEXT@:	statsd.lo
 statsd.lo:	statsd.xmlh
 
 collectd.@MODULEEXT@:	collectd.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ collectd.lo -lssl 
+	@$(MODULELD) $(SHLDFLAGS) -o $@ collectd.lo -lssl @YAJLLIBS@
 	@echo "- linking $@"
 
 collectd.lo:	collectd.c collectd.xmlh

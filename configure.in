@@ -366,14 +366,13 @@ AC_CHECK_FUNC(TLSv1_2_server_method, [ AC_DEFINE(HAVE_TLSV1_2_SERVER) ])
 AC_CHECK_FUNC(TLSv1_2_client_method, [ AC_DEFINE(HAVE_TLSV1_2_CLIENT) ])
 
 old_LIBS="$LIBS"
-old_CFLAGS="$CFLAGS"
+LIBS=
 AC_CHECK_LIB(yajl, yajl_version,
 	[
-		YAJLLIBS="$LIBS"
+		YAJLLIBS="$LIBS -lyajl"
 	],
 	[ AC_MSG_ERROR([libyajl is required for collectd and httptrap modules]) ])
 LIBS=$old_LIBS
-CFLAGS=$old_CFLAGS
 AC_SUBST(YAJLLIBS)
 
 old_LIBS="$LIBS"
