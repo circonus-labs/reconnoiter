@@ -32,7 +32,7 @@
 #include <string.h>
 
 #define LUA_COMPAT_MODULE
-#include "lua_noit.h"
+#include "lua_mtev.h"
 
 static void badcode(lua_State *L, int c)
 {

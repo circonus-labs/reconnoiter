@@ -35,9 +35,8 @@
 #include <mtev_rest.h>
 #include <mtev_reverse_socket.h>
 
-#include "noit_filters.h"
 #define LUA_COMPAT_MODULE
-#include "lua_noit.h"
+#include "lua_mtev.h"
 #include "lua_http.h"
 #include <assert.h>
 
@@ -45,11 +44,11 @@ static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
 #define lua_general_xml_description  ""
-static const char *script_dir = "";
 
 typedef struct lua_general_conf {
   lua_module_closure_t lmc;
   const char *script_dir;
+  const char *cpath;
   const char *module;
   const char *function;
   lua_State *L;
@@ -65,18 +64,18 @@ static lua_general_conf_t *get_config(mtev_dso_generic_t *self) {
 
 static void
 lua_general_ctx_free(void *cl) {
-  noit_lua_resume_info_t *ri = cl;
+  mtev_lua_resume_info_t *ri = cl;
   if(ri) {
     mtevL(nldeb, "lua_general(%p) -> stopping job (%p)\n",
           ri->lmc->lua_state, ri->coro_state);
-    noit_lua_cancel_coro(ri);
-    noit_lua_resume_clean_events(ri);
+    mtev_lua_cancel_coro(ri);
+    mtev_lua_resume_clean_events(ri);
     free(ri);
   }
 }
 
 static int
-lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
+lua_general_resume(mtev_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
 
@@ -108,19 +107,19 @@ lua_general_resume(noit_lua_resume_info_t *ri, int nargs) {
   return rv;
 }
 
-static noit_lua_resume_info_t *
+static mtev_lua_resume_info_t *
 lua_general_new_resume_info(lua_module_closure_t *lmc) {
-  noit_lua_resume_info_t *ri;
+  mtev_lua_resume_info_t *ri;
   ri = calloc(1, sizeof(*ri));
   assert(pthread_equal(lmc->owner, pthread_self()));
   ri->bound_thread = lmc->owner;
   ri->context_magic = LUA_GENERAL_INFO_MAGIC;
   ri->lmc = lmc;
-  lua_getglobal(lmc->lua_state, "noit_coros");
+  lua_getglobal(lmc->lua_state, "mtev_coros");
   ri->coro_state = lua_newthread(lmc->lua_state);
   ri->coro_state_ref = luaL_ref(lmc->lua_state, -2);
-  noit_lua_set_resume_info(lmc->lua_state, ri);
-  lua_pop(lmc->lua_state, 1); /* pops noit_coros */
+  mtev_lua_set_resume_info(lmc->lua_state, ri);
+  lua_pop(lmc->lua_state, 1); /* pops mtev_coros */
   mtevL(nldeb, "lua_general(%p) -> starting new job (%p)\n",
         lmc->lua_state, ri->coro_state);
   return ri;
@@ -131,7 +130,7 @@ lua_general_handler(mtev_dso_generic_t *self) {
   int status, rv;
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
-  noit_lua_resume_info_t *ri = NULL;
+  mtev_lua_resume_info_t *ri = NULL;
   const char *err = NULL;
   char errbuf[128];
   lua_State *L;
@@ -162,7 +161,7 @@ lua_general_handler(mtev_dso_generic_t *self) {
   }
   lua_pop(L, lua_gettop(L));
 
-  noit_lua_pushmodule(L, conf->module);
+  mtev_lua_pushmodule(L, conf->module);
   if(lua_isnil(L, -1)) {
     lua_pop(L, 1);
     snprintf(errbuf, sizeof(errbuf), "no such module: '%s'", conf->module);
@@ -195,12 +194,12 @@ static int
 lua_general_coroutine_spawn(lua_State *Lp) {
   int nargs;
   lua_State *L;
-  noit_lua_resume_info_t *ri_parent = NULL, *ri = NULL;
+  mtev_lua_resume_info_t *ri_parent = NULL, *ri = NULL;
 
   nargs = lua_gettop(Lp);
   if(nargs < 1 || !lua_isfunction(Lp,1))
-    luaL_error(Lp, "noit.coroutine_spawn(func, ...): bad arguments");
-  ri_parent = noit_lua_get_resume_info(Lp);
+    luaL_error(Lp, "mtev.coroutine_spawn(func, ...): bad arguments");
+  ri_parent = mtev_lua_get_resume_info(Lp);
   assert(ri_parent);
 
   ri = lua_general_new_resume_info(ri_parent->lmc);
@@ -219,13 +218,16 @@ dispatch_general(eventer_t e, int mask, void *cl, struct timeval *now) {
 }
 
 static int
-noit_lua_general_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
+mtev_lua_general_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   lua_general_conf_t *conf = get_config(self);
   conf->script_dir = "";
+  conf->cpath = NULL;
   conf->module = NULL;
   conf->function = NULL;
   (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
+  (void)mtev_hash_retr_str(o, "cpath", strlen("cpath"), &conf->cpath);
+  if(conf->cpath) conf->cpath = strdup(conf->cpath);
   (void)mtev_hash_retr_str(o, "lua_module", strlen("lua_module"), &conf->module);
   if(conf->module) conf->module = strdup(conf->module);
   (void)mtev_hash_retr_str(o, "lua_function", strlen("lua_function"), &conf->function);
@@ -247,8 +249,8 @@ lua_general_reverse_socket_initiate(lua_State *L) {
 
   host = lua_tostring(L,1);
   port = lua_tointeger(L,2);
-  if(lua_gettop(L)>=3) sslconfig = noit_lua_table_to_hash(L,3);
-  if(lua_gettop(L)>=4) config = noit_lua_table_to_hash(L,4);
+  if(lua_gettop(L)>=3) sslconfig = mtev_lua_table_to_hash(L,3);
+  if(lua_gettop(L)>=4) config = mtev_lua_table_to_hash(L,4);
 
   mtev_lua_help_initiate_mtev_connection(host, port, sslconfig, config);
 
@@ -276,12 +278,10 @@ lua_general_reverse_socket_shutdown(lua_State *L) {
 }
 
 static int
-lua_general_filtersets_cull(lua_State *L) {
-  int rv;
-  rv = noit_filtersets_cull_unused();
-  if(rv > 0) mtev_conf_mark_changed();
-  lua_pushinteger(L, rv);
-  return 1;
+lua_general_conf_mark_changed(lua_State *L) {
+  (void)L;
+  mtev_conf_mark_changed();
+  return 0;
 }
 
 static int
@@ -296,14 +296,14 @@ static const luaL_Reg general_lua_funcs[] =
   {"coroutine_spawn", lua_general_coroutine_spawn },
   {"reverse_start", lua_general_reverse_socket_initiate },
   {"reverse_stop", lua_general_reverse_socket_shutdown },
-  {"filtersets_cull", lua_general_filtersets_cull },
   {"conf_save", lua_general_conf_save },
+  {"conf_mark_changed", lua_general_conf_mark_changed },
   {NULL,  NULL}
 };
 
 
 static int
-noit_lua_general_init(mtev_dso_generic_t *self) {
+mtev_lua_general_init(mtev_dso_generic_t *self) {
   lua_general_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
 
@@ -314,24 +314,33 @@ noit_lua_general_init(mtev_dso_generic_t *self) {
 
   lmc->resume = lua_general_resume;
   lmc->owner = pthread_self();
-  lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
+  lmc->lua_state = mtev_lua_open(self->hdr.name, lmc,
+                                 conf->script_dir, conf->cpath);
   mtevL(nldeb, "lua_general opening state -> %p\n", lmc->lua_state);
   if(lmc->lua_state == NULL) {
     mtevL(mtev_error, "lua_general could not add general functions\n");
     return -1;
   }
-  luaL_openlib(lmc->lua_state, "noit", general_lua_funcs, 0);
+  luaL_openlib(lmc->lua_state, "mtev", general_lua_funcs, 0);
   lmc->pending = calloc(1, sizeof(*lmc->pending));
   eventer_add_in_s_us(dispatch_general, self, 0, 0);
   return 0;
 }
 
+static void
+describe_lua_general_context(mtev_console_closure_t ncct,
+                             mtev_lua_resume_info_t *ri) {
+  nc_printf(ncct, "lua_general(state:%p, parent:%p)\n",
+            ri->coro_state, ri->lmc->lua_state);
+}
+
 static int
-noit_lua_general_onload(mtev_image_t *self) {
+mtev_lua_general_onload(mtev_image_t *self) {
   nlerr = mtev_log_stream_find("error/lua");
   nldeb = mtev_log_stream_find("debug/lua");
   if(!nlerr) nlerr = mtev_stderr;
   if(!nldeb) nldeb = mtev_debug;
+  mtev_lua_context_describe(LUA_GENERAL_INFO_MAGIC, describe_lua_general_context);
   return 0;
 }
 
@@ -342,8 +351,8 @@ mtev_dso_generic_t lua_general = {
     "lua_general",
     "general services in lua",
     lua_general_xml_description,
-    noit_lua_general_onload
+    mtev_lua_general_onload
   },
-  noit_lua_general_config,
-  noit_lua_general_init
+  mtev_lua_general_config,
+  mtev_lua_general_init
 };

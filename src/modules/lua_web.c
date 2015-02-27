@@ -36,16 +36,16 @@
 #include <mtev_http.h>
 #include <mtev_rest.h>
 
-#include "lua_noit.h"
+#include "lua_mtev.h"
 #include "lua_http.h"
 
 #define DEFAULT_MAX_POST_SIZE 1024*1024
 #define lua_web_driver_xml_description  ""
-static const char *script_dir = "";
 
 typedef struct lua_web_conf {
   lua_module_closure_t lmc;
   const char *script_dir;
+  const char *cpath;
   const char *dispatch;
   int max_post_size;
   lua_State *L;
@@ -63,12 +63,12 @@ static lua_web_conf_t *get_config(mtev_dso_generic_t *self) {
 
 static void
 rest_lua_ctx_free(void *cl) {
-  noit_lua_resume_info_t *ri = cl;
+  mtev_lua_resume_info_t *ri = cl;
   if(ri) {
-    noit_lua_cancel_coro(ri);
-    noit_lua_resume_clean_events(ri);
+    mtev_lua_cancel_coro(ri);
+    mtev_lua_resume_clean_events(ri);
     if(ri->context_data) {
-      noit_lua_resume_rest_info_t *ctx = ri->context_data;
+      mtev_lua_resume_rest_info_t *ctx = ri->context_data;
       if(ctx->err) free(ctx->err);
     }
     free(ri);
@@ -78,9 +78,9 @@ rest_lua_ctx_free(void *cl) {
 static int
 lua_web_restc_fastpath(mtev_http_rest_closure_t *restc,
                        int npats, char **pats) {
-  noit_lua_resume_info_t *ri = restc->call_closure;
+  mtev_lua_resume_info_t *ri = restc->call_closure;
   mtev_http_response *res = mtev_http_session_response(restc->http_ctx);
-  noit_lua_resume_rest_info_t *ctx = ri->context_data;
+  mtev_lua_resume_rest_info_t *ctx = ri->context_data;
 
   if(mtev_http_response_complete(res) != mtev_true) {
     mtev_http_response_standard(restc->http_ctx,
@@ -95,10 +95,10 @@ lua_web_restc_fastpath(mtev_http_rest_closure_t *restc,
 }
 
 static int
-lua_web_resume(noit_lua_resume_info_t *ri, int nargs) {
+lua_web_resume(mtev_lua_resume_info_t *ri, int nargs) {
   const char *err = NULL;
   int status, base, rv = 0;
-  noit_lua_resume_rest_info_t *ctx = ri->context_data;
+  mtev_lua_resume_rest_info_t *ctx = ri->context_data;
   mtev_http_rest_closure_t *restc = ctx->restc;
   eventer_t conne = mtev_http_connection_event(mtev_http_session_connection(restc->http_ctx));
 
@@ -145,8 +145,8 @@ lua_web_handler(mtev_http_rest_closure_t *restc,
   int complete = 0;
   lua_web_conf_t *conf = the_one_conf;
   lua_module_closure_t *lmc = &conf->lmc;
-  noit_lua_resume_info_t *ri;
-  noit_lua_resume_rest_info_t *ctx = NULL;
+  mtev_lua_resume_info_t *ri;
+  mtev_lua_resume_rest_info_t *ctx = NULL;
   lua_State *L;
   eventer_t conne;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
@@ -172,16 +172,16 @@ lua_web_handler(mtev_http_rest_closure_t *restc,
     ri = calloc(1, sizeof(*ri));
     ri->bound_thread = pthread_self();
     ri->context_magic = LUA_REST_INFO_MAGIC;
-    ctx = ri->context_data = calloc(1, sizeof(noit_lua_resume_rest_info_t));
+    ctx = ri->context_data = calloc(1, sizeof(mtev_lua_resume_rest_info_t));
     ctx->restc = restc;
     ri->lmc = lmc;
-    lua_getglobal(lmc->lua_state, "noit_coros");
+    lua_getglobal(lmc->lua_state, "mtev_coros");
     ri->coro_state = lua_newthread(lmc->lua_state);
     ri->coro_state_ref = luaL_ref(lmc->lua_state, -2);
 
-    noit_lua_set_resume_info(lmc->lua_state, ri);
+    mtev_lua_set_resume_info(lmc->lua_state, ri);
 
-    lua_pop(lmc->lua_state, 1); /* pops noit_coros */
+    lua_pop(lmc->lua_state, 1); /* pops mtev_coros */
 
     restc->call_closure = ri;
     restc->call_closure_free = rest_lua_ctx_free;
@@ -212,7 +212,7 @@ lua_web_handler(mtev_http_rest_closure_t *restc,
   }
   lua_pop(L, lua_gettop(L));
 
-  noit_lua_pushmodule(L, conf->dispatch);
+  mtev_lua_pushmodule(L, conf->dispatch);
   if(lua_isnil(L, -1)) {
     lua_pop(L, 1);
     ctx->err = strdup("no such module");
@@ -225,8 +225,8 @@ lua_web_handler(mtev_http_rest_closure_t *restc,
     ctx->err = strdup("no 'handler' function in module");
     goto boom;
   }
-  noit_lua_setup_restc(L, restc);
-  noit_lua_hash_to_table(L, restc->ac->config);
+  mtev_lua_setup_restc(L, restc);
+  mtev_lua_hash_to_table(L, restc->ac->config);
 
   conne = mtev_http_connection_event(mtev_http_session_connection(restc->http_ctx));
   eventer_remove(conne);
@@ -246,18 +246,29 @@ lua_web_handler(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
+static void
+describe_lua_rest_context(mtev_console_closure_t ncct,
+                          mtev_lua_resume_info_t *ri) {
+  nc_printf(ncct, "lua_rest(state:%p, parent:%p)\n",
+            ri->coro_state, ri->lmc->lua_state);
+}
+
 static int
-noit_lua_web_driver_onload(mtev_image_t *self) {
+mtev_lua_web_driver_onload(mtev_image_t *self) {
+  mtev_lua_context_describe(LUA_REST_INFO_MAGIC, describe_lua_rest_context);
   return 0;
 }
 
 static int
-noit_lua_web_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
+mtev_lua_web_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   lua_web_conf_t *conf = get_config(self);
   conf->script_dir = "";
+  conf->cpath = NULL;
   conf->dispatch = NULL;
   (void)mtev_hash_retr_str(o, "directory", strlen("directory"), &conf->script_dir);
   if(conf->script_dir) conf->script_dir = strdup(conf->script_dir);
+  (void)mtev_hash_retr_str(o, "cpath", strlen("cpath"), &conf->cpath);
+  if(conf->cpath) conf->cpath = strdup(conf->cpath);
   (void)mtev_hash_retr_str(o, "dispatch", strlen("dispatch"), &conf->dispatch);
   if(conf->dispatch) conf->dispatch = strdup(conf->dispatch);
   conf->max_post_size = DEFAULT_MAX_POST_SIZE;
@@ -270,12 +281,13 @@ static mtev_hook_return_t late_stage_rest_register(void *cl) {
   return MTEV_HOOK_CONTINUE;
 }
 static int
-noit_lua_web_driver_init(mtev_dso_generic_t *self) {
+mtev_lua_web_driver_init(mtev_dso_generic_t *self) {
   lua_web_conf_t *conf = get_config(self);
   lua_module_closure_t *lmc = &conf->lmc;
   lmc->resume = lua_web_resume;
   lmc->owner = pthread_self();
-  lmc->lua_state = noit_lua_open(self->hdr.name, lmc, conf->script_dir);
+  lmc->lua_state = mtev_lua_open(self->hdr.name, lmc,
+                                 conf->script_dir, conf->cpath);
   if(lmc->lua_state == NULL) return -1;
   lmc->pending = calloc(1, sizeof(*lmc->pending));
   dso_post_init_hook_register("web_lua", late_stage_rest_register, NULL);
@@ -289,8 +301,8 @@ mtev_dso_generic_t lua_web = {
     .name = "lua_web",
     .description = "web services in lua",
     .xml_description = lua_web_driver_xml_description,
-    .onload = noit_lua_web_driver_onload
+    .onload = mtev_lua_web_driver_onload
   },
-  noit_lua_web_driver_config,
-  noit_lua_web_driver_init
+  mtev_lua_web_driver_config,
+  mtev_lua_web_driver_init
 };

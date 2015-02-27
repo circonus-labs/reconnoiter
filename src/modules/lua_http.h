@@ -35,15 +35,14 @@
 #include <mtev_http.h>
 #include <mtev_rest.h>
 
-#include "noit_module.h"
 #include "lua.h"
 
 void
-noit_lua_setup_http_ctx(lua_State *L,
+mtev_lua_setup_http_ctx(lua_State *L,
                         mtev_http_session_ctx *http_ctx);
 
 void
-noit_lua_setup_restc(lua_State *L,
+mtev_lua_setup_restc(lua_State *L,
                      mtev_http_rest_closure_t *restc);
 
 #endif

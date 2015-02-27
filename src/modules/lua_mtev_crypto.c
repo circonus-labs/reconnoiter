@@ -38,9 +38,7 @@
 
 #include <mtev_conf.h>
 
-#include "noit_mtev_bridge.h"
-
-#include "lua_noit.h"
+#include "lua_mtev.h"
 #ifndef sk_OPENSSL_STRING_num
 #define sk_OPENSSL_STRING_num sk_num
 #endif
@@ -57,14 +55,14 @@
 } while(0)
 
 int
-noit_lua_crypto_newx509(lua_State *L, X509 *x509) {
+mtev_lua_crypto_newx509(lua_State *L, X509 *x509) {
   if(x509 == NULL) return 0;
   PUSH_OBJ(L, "crypto.x509", x509);
   return 1;
 }
 
 static int
-noit_lua_crypto_x509_index_func(lua_State *L) {
+mtev_lua_crypto_x509_index_func(lua_State *L) {
   const char *k;
   void *udata;
   X509 *cert;
@@ -145,7 +143,7 @@ noit_lua_crypto_x509_index_func(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_x509_gc(lua_State *L) {
+mtev_lua_crypto_x509_gc(lua_State *L) {
   void **udata;
   udata = lua_touserdata(L,1);
   X509_free((X509 *)*udata);
@@ -153,14 +151,14 @@ noit_lua_crypto_x509_gc(lua_State *L) {
 }
 
 int
-noit_lua_crypto_new_ssl_session(lua_State *L, SSL_SESSION *ssl_session) {
+mtev_lua_crypto_new_ssl_session(lua_State *L, SSL_SESSION *ssl_session) {
   if(ssl_session == NULL) return 0;
   PUSH_OBJ(L, "crypto.ssl_session", ssl_session);
   return 1;
 }
 
 static int
-noit_lua_crypto_ssl_session_index_func(lua_State *L) {
+mtev_lua_crypto_ssl_session_index_func(lua_State *L) {
   const char *k;
   void *udata;
   SSL_SESSION *ssl_session;
@@ -227,7 +225,7 @@ noit_lua_crypto_ssl_session_index_func(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_ssl_session_gc(lua_State *L) {
+mtev_lua_crypto_ssl_session_gc(lua_State *L) {
   void **udata;
   udata = lua_touserdata(L,1);
   SSL_SESSION_free((SSL_SESSION *)*udata);
@@ -235,7 +233,7 @@ noit_lua_crypto_ssl_session_gc(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_newrsa(lua_State *L) {
+mtev_lua_crypto_newrsa(lua_State *L) {
   int bits = 2048;
   int e = 65537;
   BIGNUM *bn = NULL;
@@ -279,7 +277,7 @@ noit_lua_crypto_newrsa(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_newreq(lua_State *L) {
+mtev_lua_crypto_newreq(lua_State *L) {
   X509_REQ *req = NULL;
   const char *pem;
   size_t len;
@@ -299,7 +297,7 @@ noit_lua_crypto_newreq(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_rsa_gencsr(lua_State *L) {
+mtev_lua_crypto_rsa_gencsr(lua_State *L) {
   RSA *rsa;
   X509_REQ *req = NULL;
   X509_NAME *subject = NULL;
@@ -353,10 +351,10 @@ noit_lua_crypto_rsa_gencsr(lua_State *L) {
     const char *subj_value = lua_tostring(L, -1);
 
     if((nid=OBJ_txt2nid(subj_part)) == NID_undef) {
-      mtevL(noit_error, "crypto.rsa:gencsr unknown subject part %s\n", subj_part);
+      mtevL(mtev_error, "crypto.rsa:gencsr unknown subject part %s\n", subj_part);
     }
     else if(subj_value == NULL || *subj_value == '\0') {
-      mtevL(noit_error, "crypto.rsa:gencsr subject part %s is blank\n", subj_part);
+      mtevL(mtev_error, "crypto.rsa:gencsr subject part %s is blank\n", subj_part);
     }
     else if(!X509_NAME_add_entry_by_NID(subject, nid, MBSTRING_ASC,
                                         (unsigned char*)subj_value,-1,-1,0)) {
@@ -392,7 +390,7 @@ noit_lua_crypto_rsa_gencsr(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_rsa_as_pem(lua_State *L) {
+mtev_lua_crypto_rsa_as_pem(lua_State *L) {
   BIO *bio;
   RSA *rsa;
   long len;
@@ -412,7 +410,7 @@ noit_lua_crypto_rsa_as_pem(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_rsa_index_func(lua_State *L) {
+mtev_lua_crypto_rsa_index_func(lua_State *L) {
   const char *k;
   void *udata;
   assert(lua_gettop(L) == 2);
@@ -423,12 +421,12 @@ noit_lua_crypto_rsa_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   if(!strcmp(k,"pem")) {
     lua_pushlightuserdata(L, udata);
-    lua_pushcclosure(L, noit_lua_crypto_rsa_as_pem, 1);
+    lua_pushcclosure(L, mtev_lua_crypto_rsa_as_pem, 1);
     return 1;
   }
   if(!strcmp(k,"gencsr")) {
     lua_pushlightuserdata(L, udata);
-    lua_pushcclosure(L, noit_lua_crypto_rsa_gencsr, 1);
+    lua_pushcclosure(L, mtev_lua_crypto_rsa_gencsr, 1);
     return 1;
   }
   luaL_error(L, "crypto.rsa no such element: %s", k);
@@ -436,7 +434,7 @@ noit_lua_crypto_rsa_index_func(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_rsa_gc(lua_State *L) {
+mtev_lua_crypto_rsa_gc(lua_State *L) {
   void **udata;
   udata = lua_touserdata(L,1);
   RSA_free((RSA *)*udata);
@@ -444,7 +442,7 @@ noit_lua_crypto_rsa_gc(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_req_as_pem(lua_State *L) {
+mtev_lua_crypto_req_as_pem(lua_State *L) {
   BIO *bio;
   X509_REQ *req;
   long len;
@@ -464,7 +462,7 @@ noit_lua_crypto_req_as_pem(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_req_index_func(lua_State *L) {
+mtev_lua_crypto_req_index_func(lua_State *L) {
   const char *k;
   void **udata;
   assert(lua_gettop(L) == 2);
@@ -475,7 +473,7 @@ noit_lua_crypto_req_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   if(!strcmp(k,"pem")) {
     lua_pushlightuserdata(L, udata);
-    lua_pushcclosure(L, noit_lua_crypto_req_as_pem, 1);
+    lua_pushcclosure(L, mtev_lua_crypto_req_as_pem, 1);
     return 1;
   }
   if(!strcmp(k,"subject")) {
@@ -492,7 +490,7 @@ noit_lua_crypto_req_index_func(lua_State *L) {
 }
 
 static int
-noit_lua_crypto_req_gc(lua_State *L) {
+mtev_lua_crypto_req_gc(lua_State *L) {
   void **udata;
   udata = lua_touserdata(L,1);
   X509_REQ_free((X509_REQ *)*udata);
@@ -500,36 +498,36 @@ noit_lua_crypto_req_gc(lua_State *L) {
 }
 
 static const struct luaL_Reg crupto_funcs[] = {
-  { "newrsa",  noit_lua_crypto_newrsa },
-  { "newreq",  noit_lua_crypto_newreq },
+  { "newrsa",  mtev_lua_crypto_newrsa },
+  { "newreq",  mtev_lua_crypto_newreq },
   { NULL, NULL }
 };
 
-int luaopen_crypto(lua_State *L) {
+int luaopen_mtev_crypto(lua_State *L) {
   luaL_newmetatable(L, "crypto.x509");
-  lua_pushcclosure(L, noit_lua_crypto_x509_index_func, 0);
+  lua_pushcclosure(L, mtev_lua_crypto_x509_index_func, 0);
   lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, noit_lua_crypto_x509_gc);
+  lua_pushcfunction(L, mtev_lua_crypto_x509_gc);
   lua_setfield(L, -2, "__gc");
 
   luaL_newmetatable(L, "crypto.ssl_session");
-  lua_pushcclosure(L, noit_lua_crypto_ssl_session_index_func, 0);
+  lua_pushcclosure(L, mtev_lua_crypto_ssl_session_index_func, 0);
   lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, noit_lua_crypto_ssl_session_gc);
+  lua_pushcfunction(L, mtev_lua_crypto_ssl_session_gc);
   lua_setfield(L, -2, "__gc");
 
   luaL_newmetatable(L, "crypto.rsa");
-  lua_pushcclosure(L, noit_lua_crypto_rsa_index_func, 0);
+  lua_pushcclosure(L, mtev_lua_crypto_rsa_index_func, 0);
   lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, noit_lua_crypto_rsa_gc);
+  lua_pushcfunction(L, mtev_lua_crypto_rsa_gc);
   lua_setfield(L, -2, "__gc");
 
   luaL_newmetatable(L, "crypto.req");
-  lua_pushcclosure(L, noit_lua_crypto_req_index_func, 0);
+  lua_pushcclosure(L, mtev_lua_crypto_req_index_func, 0);
   lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, noit_lua_crypto_req_gc);
+  lua_pushcfunction(L, mtev_lua_crypto_req_gc);
   lua_setfield(L, -2, "__gc");
 
-  luaL_openlib(L, "crypto", crupto_funcs, 0);
+  luaL_openlib(L, "mtev", crupto_funcs, 0);
   return 0;
 }

@@ -81,6 +81,8 @@ function onload(image)
   return 0
 end
 
+local snmp = require("noit_lua_snmp")
+
 function init(module)
   snmp.init_snmp()
   return 0

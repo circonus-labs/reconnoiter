@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2013, OmniTI Computer Consulting, Inc.
+ * Copyright (c) 2007-2010, OmniTI Computer Consulting, Inc.
  * All rights reserved.
  * Copyright (c) 2015, Circonus, Inc. All rights reserved.
  *
@@ -31,80 +31,34 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "noit_config.h"
-#include "mtev_defines.h"
+#ifndef LUA_NOIT_H
+#define LUA_NOIT_H
 
-#include <string.h>
-#define LUA_COMPAT_MODULE
-#include "lua_noit.h"
+#include <mtev_defines.h>
 
-#ifdef HAVE_NETSNMP
+#include <assert.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
+#include "noit_module.h"
+#include "noit_check.h"
+#include "noit_check_tools.h"
+#include "lua_mtev.h"
 
-static int
-nl_convert_mib(lua_State *L) {
-  const char *in;
-  size_t inlen = 0;
-  oid theoid[MAX_OID_LEN];
-  size_t theSize = MAX_OID_LEN;
-  int ret;
-  int i;
+typedef struct noit_lua_resume_check_info {
+  noit_module_t *self;
+  noit_check_t *check;
+  noit_check_t *cause;
+  int timed_out;
+  eventer_t timeout_event;
+  struct timeval finish_time;
+} noit_lua_resume_check_info_t;
+#define LUA_CHECK_INFO_MAGIC 0x22113322
 
-  memset(theoid, 0, sizeof(theoid));
-  if(lua_gettop(L) != 1) {
-    luaL_error(L, "convert_mib requires one argument"); 
-  }
-  in = lua_tolstring(L, 1, &inlen);
-  if (in[0] == '.') {
-    lua_pushstring(L, in);
-  }
-  else {
-    char outbuff[MAX_OID_LEN*8], *cp = outbuff;
-    memset(outbuff, 0, sizeof(outbuff));
-    ret = get_node(in, theoid, &theSize);
-    if (!ret) {
-      lua_pushstring(L, "error");
-      return 1;
-    }
-    for (i=0; i < theSize; i++) {
-      int len;
-      len = snprintf(cp, sizeof(outbuff) - (cp-outbuff), ".%d", (int)theoid[i]);
-      if(len >= 0) cp += len;
-      else {
-        lua_pushstring(L, "error");
-        return 1;
-      }
-    }
-    lua_pushstring(L, outbuff);
-  }
-  return 1;
-}
+int noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs);
+void noit_lua_init_dns();
+int luaopen_snmp(lua_State *L); /* from lua_snmp.c */
+void noit_lua_setup_check(lua_State *L, noit_check_t *check);
 
-static int 
-nl_init_mib(lua_State *L) {
-  register_mib_handlers();
-  read_premib_configs();
-  read_configs();
-  init_snmp("lua_snmp");
-  lua_pushnil(L);
-  return 1;
-}
-
-static const luaL_Reg snmp_funcs[] =
-{
-  { "convert_mib", nl_convert_mib },
-  { "init_snmp", nl_init_mib },
-  { NULL, NULL }
-};
 #endif
-
-int luaopen_snmp(lua_State *L)
-{
-#ifdef HAVE_NETSNMP
-  luaL_openlib(L, "snmp", snmp_funcs, 0);
-#endif
-  return 0;
-}
-

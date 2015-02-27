@@ -47,9 +47,7 @@
 
 #include <mtev_conf.h>
 
-#include "noit_mtev_bridge.h"
-
-#include "lua_noit.h"
+#include "lua_mtev.h"
 #include "udns/udns.h"
 
 static mtev_hash_table dns_rtypes = MTEV_HASH_EMPTY;
@@ -65,7 +63,7 @@ typedef struct dns_ctx_handle {
 } dns_ctx_handle_t;
 
 typedef struct dns_lookup_ctx {
-  noit_lua_resume_info_t *ci;
+  mtev_lua_resume_info_t *ci;
   dns_ctx_handle_t *h;
   char *error;
   char *results;
@@ -79,14 +77,14 @@ typedef struct dns_lookup_ctx {
 
 static __thread dns_ctx_handle_t *default_ctx_handle = NULL;
 
-static int noit_lua_dns_eventer(eventer_t e, int mask, void *closure,
+static int mtev_lua_dns_eventer(eventer_t e, int mask, void *closure,
                                 struct timeval *now) {
   dns_ctx_handle_t *h = closure;
   dns_ioevent(h->ctx, now->tv_sec);
   return EVENTER_READ | EVENTER_EXCEPTION;
 }
 
-static int noit_lua_dns_timeouts(eventer_t e, int mask, void *closure,
+static int mtev_lua_dns_timeouts(eventer_t e, int mask, void *closure,
                                  struct timeval *now) {
   dns_ctx_handle_t *h = closure;
   dns_timeouts(h->ctx, 0, now->tv_sec);
@@ -106,7 +104,7 @@ static void eventer_dns_utm_fn(struct dns_ctx *ctx, int timeout, void *data) {
     else {
       newe = eventer_alloc();
       newe->mask = EVENTER_TIMER;
-      newe->callback = noit_lua_dns_timeouts;
+      newe->callback = mtev_lua_dns_timeouts;
       newe->closure = h;
       gettimeofday(&newe->whence, NULL);
       newe->whence.tv_sec += timeout;
@@ -163,7 +161,7 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     }
     if(dns_open(h->ctx) < 0) failed++;
     if(failed) {
-      mtevL(noit_error, "dns_open failed\n");
+      mtevL(mtev_error, "dns_open failed\n");
       free(h->ns);
       free(h);
       h = NULL;
@@ -173,7 +171,7 @@ static dns_ctx_handle_t *dns_ctx_alloc(const char *ns) {
     h->e = eventer_alloc();
     h->e->mask = EVENTER_READ | EVENTER_EXCEPTION;
     h->e->closure = h;
-    h->e->callback = noit_lua_dns_eventer;
+    h->e->callback = mtev_lua_dns_eventer;
     h->e->fd = dns_sock(h->ctx);
     eventer_add(h->e);
     h->refcnt = 1;
@@ -215,9 +213,9 @@ void lookup_ctx_release(dns_lookup_ctx_t *v) {
 int nl_dns_lookup(lua_State *L) {
   dns_lookup_ctx_t *dlc, **holder;
   const char *nameserver = NULL;
-  noit_lua_resume_info_t *ci;
+  mtev_lua_resume_info_t *ci;
 
-  ci = noit_lua_get_resume_info(L);
+  ci = mtev_lua_get_resume_info(L);
   assert(ci);
   if(lua_gettop(L) > 0)
     nameserver = lua_tostring(L, 1);
@@ -227,7 +225,7 @@ int nl_dns_lookup(lua_State *L) {
   dlc->ci = ci;
   dlc->h = dns_ctx_alloc(nameserver);
   *holder = dlc;
-  luaL_getmetatable(L, "noit.dns");
+  luaL_getmetatable(L, "mtev.dns");
   lua_setmetatable(L, -2);
   return 1;
 }
@@ -399,14 +397,14 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
   eventer_add(e);
 }
 
-static int noit_lua_dns_lookup(lua_State *L) {
+static int mtev_lua_dns_lookup(lua_State *L) {
   dns_lookup_ctx_t *dlc, **holder;
   const char *c, *query = "", *ctype = "IN", *rtype = "A";
   char *ctype_up, *rtype_up, *d;
   void *vnv_pair;
-  noit_lua_resume_info_t *ci;
+  mtev_lua_resume_info_t *ci;
 
-  ci = noit_lua_get_resume_info(L);
+  ci = mtev_lua_get_resume_info(L);
   assert(ci);
 
   holder = (dns_lookup_ctx_t **)lua_touserdata(L, lua_upvalueindex(1));
@@ -460,10 +458,10 @@ static int noit_lua_dns_lookup(lua_State *L) {
     dlc->active = 0;
     luaL_error(L, "dns: %s\n", dlc->error);
   }
-  return noit_lua_yield(ci, 0);
+  return mtev_lua_yield(ci, 0);
 }
 
-int noit_lua_dns_gc(lua_State *L) {
+int mtev_lua_dns_gc(lua_State *L) {
   dns_lookup_ctx_t **holder;
   holder = (dns_lookup_ctx_t **)lua_touserdata(L,1);
   (*holder)->active = 0;
@@ -471,29 +469,29 @@ int noit_lua_dns_gc(lua_State *L) {
   return 0;
 }
 
-int noit_lua_dns_index_func(lua_State *L) {
+int mtev_lua_dns_index_func(lua_State *L) {
   int n;
   const char *k;
   dns_lookup_ctx_t **udata;
 
   n = lua_gettop(L);
   assert(n == 2);
-  if(!luaL_checkudata(L, 1, "noit.dns"))
-    luaL_error(L, "metatable error, arg1 is not a noit.dns");
+  if(!luaL_checkudata(L, 1, "mtev.dns"))
+    luaL_error(L, "metatable error, arg1 is not a mtev.dns");
   udata = lua_touserdata(L, 1);
   if(!lua_isstring(L, 2))
     luaL_error(L, "metatable error, arg2 is not a string");
   k = lua_tostring(L, 2);
   if(!strcmp(k, "lookup")) {
     lua_pushlightuserdata(L, udata);
-    lua_pushcclosure(L, noit_lua_dns_lookup, 1);
+    lua_pushcclosure(L, mtev_lua_dns_lookup, 1);
     return 1;
   }
-  luaL_error(L, "noit.dns no such element: %s", k);
+  luaL_error(L, "mtev.dns no such element: %s", k);
   return 0;
 }
 
-void noit_lua_init_dns() {
+void mtev_lua_init_dns() {
   int i;
   const struct dns_nameval *nv;
   struct dns_ctx *pctx;
@@ -509,11 +507,11 @@ void noit_lua_init_dns() {
                     nv->name, strlen(nv->name),
                     (void *)nv);
 
-  eventer_name_callback("lua/dns_eventer", noit_lua_dns_eventer);
-  eventer_name_callback("lua/dns_timeouts", noit_lua_dns_timeouts);
+  eventer_name_callback("lua/dns_eventer", mtev_lua_dns_eventer);
+  eventer_name_callback("lua/dns_timeouts", mtev_lua_dns_timeouts);
 
   if (dns_init(NULL, 0) < 0 || (pctx = dns_new(NULL)) == NULL) {
-    mtevL(noit_error, "Unable to initialize dns subsystem\n");
+    mtevL(mtev_error, "Unable to initialize dns subsystem\n");
   }
   else
     dns_free(pctx);
