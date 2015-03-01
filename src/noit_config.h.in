@@ -42,6 +42,7 @@
 #define DTRACE_PROBES_DISABLED 1
 #endif
 #undef MODULES_DIR
+#undef LIB_DIR
 #undef ETC_DIR
 
 #undef HAVE_FCNTL_H
