@@ -30,8 +30,6 @@ MODULES_DIR=@MODULES_DIR@
 
 LUA_FILES=\
 	json.lua \
-	mtev/extras.lua \
-	mtev/timeval.lua \
 	noit.lua \
 	noit/extras.lua \
 	noit/timeval.lua \
@@ -68,11 +66,10 @@ LUA_FILES=\
 all:
 
 install:
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/mtev
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/noit/module
-	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/noit/module/resmon
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/lua/noit/module
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)/lua/noit/module/resmon
 	for lua in $(LUA_FILES); do \
-		$(INSTALL) -m 0644 $$lua $(DESTDIR)$(MODULES_DIR)/$$lua ; \
+		$(INSTALL) -m 0644 $$lua $(DESTDIR)$(MODULES_DIR)/lua/$$lua ; \
 	done
 
 alldocs:	../../docs

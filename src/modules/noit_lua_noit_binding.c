@@ -84,7 +84,7 @@ lua_general_filtersets_cull(lua_State *L) {
   return 1;
 }
 
-static const luaL_Reg noit_lua[] = {
+static const luaL_Reg noit_binding[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "check", nl_check },
@@ -92,9 +92,9 @@ static const luaL_Reg noit_lua[] = {
   { NULL, NULL }
 };
 
-LUALIB_API int luaopen_noit_lua(lua_State *L)
+LUALIB_API int luaopen_noit_binding(lua_State *L)
 {
-  luaL_openlib(L, "noit_lua", noit_lua, 0);
+  luaL_openlib(L, "noit_binding", noit_binding, 0);
   return 1;
 }
 

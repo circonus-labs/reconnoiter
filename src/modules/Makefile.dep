@@ -77,47 +77,6 @@ ip_acl.lo: ip_acl.c  \
 libstomp.lo: libstomp.c  \
   libstomp.h \
 
-lua.lo: lua.c  \
-  lua_mtev.h  \
-
-lua_bit.lo: lua_bit.c  \
-
-lua_check.lo: lua_check.c  \
-  ../noit_config.h ../noit_module.h ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h \
-  ../noit_mtev_bridge.h lua_mtev.h  \
-  lua_check.h lua.xmlh
-
-lua_crypto.lo: lua_crypto.c  \
-  lua_mtev.h \
-
-lua_dns.lo: lua_dns.c  \
-  lua_mtev.h \
-  ../udns/udns.h
-
-lua_general.lo: lua_general.c  \
-  ../noit_filters.h \
-  ../noit_check.h ../noit_metric.h lua_mtev.h \
-  lua_http.h ../noit_module.h
-
-lua_http.lo: lua_http.c  \
-  lua_http.h \
-  ../noit_module.h ../noit_check.h \
-  ../noit_metric.h lua_mtev.h 
-
-lua_lpack.lo: lua_lpack.c lua_mtev.h  \
-
-lua_mtev.lo: lua_mtev.c  \
-  lua_mtev.h \
-
-lua_snmp.lo: lua_snmp.c ../noit_config.h \
-  lua_mtev.h \
-
-lua_web.lo: lua_web.c  \
-  lua_mtev.h \
-  lua_http.h ../noit_module.h \
-  ../noit_check.h ../noit_metric.h
-
 mysql.lo: mysql.c  \
   ../noit_config.h ../noit_module.h \
   ../noit_check.h ../noit_metric.h \

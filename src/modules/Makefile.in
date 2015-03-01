@@ -1,5 +1,9 @@
 .SUFFIXES: .lo .@MODULEEXT@ .xml .xmlh
 
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+
 CC=@CC@
 LD=@LD@
 CPPFLAGS=@CPPFLAGS@
@@ -22,7 +26,6 @@ MODULES_DIR=@MODULES_DIR@
 XSLTPROC=@XSLTPROC@
 XMLLINT=@XMLLINT@
 XML2H=@top_srcdir@/buildtools/xml2h
-LUADIR=LuaJIT
 LUALIBS=@LUALIBS@
 
 top_srcdir=@top_srcdir@
@@ -32,13 +35,14 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
-	noit_lua.so noit_lua_snmp.so mtev_lua.so \
 	@BUILD_MODULES@
+
+LUA_MODULES=noit_lua_noit_binding.so noit_lua_snmp.so
 
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
 
-all:	$(MODULES) $(SMODULES) test_abort.@MODULEEXT@
+all:	$(MODULES) $(SMODULES) $(LUA_MODULES) test_abort.@MODULEEXT@
 
 .xml.xmlh:
 	@$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
@@ -53,39 +57,29 @@ custom_config.lo:	custom_config.xmlh
 
 resolver_cache.lo:	resolver_cache.xmlh
 
-LUA_MODULE_OBJS=lua.lo lua_check.lo \
-	lua_lpack.lo lua_dns.lo lua_bit.lo \
-	lua_web.lo lua_http.lo lua_general.lo
+LUA_MODULE_OBJS=lua_check.lo
 
-lua.lo:	lua.xmlh
+lua_check.lo:	lua_check.xmlh
 
 lua.@MODULEEXT@:	$(LUA_MODULE_OBJS)
-	@$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS) -l@LIBNETSNMP@ $(LUALIBS)
+	@$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS) $(LUALIBS)
 	@echo "- linking $@"
 
 # luajit always uses .so
 
-noit_lua.so:	lua_noit_lua.lo
-	@$(MODULELD) $(SHLDFLAGS) -o noit_lua.@MODULEEXT@ lua_noit_lua.lo
-	@if [ "noit_lua.so" != "noit_lua.@MODULEEXT@" ]; then \
-		rm -f noit_lua.so; \
-		mv noit_lua.@MODULEEXT@ noit_lua.so; \
+noit_lua_noit_binding.so:	noit_lua_noit_binding.lo
+	@$(MODULELD) $(SHLDFLAGS) -o noit_lua_noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo
+	@if [ "noit_lua_noit_binding.so" != "noit_lua_noit_binding.@MODULEEXT@" ]; then \
+		rm -f noit_lua_noit_binding.so; \
+		mv noit_lua_noit_binding.@MODULEEXT@ noit_lua_noit_binding.so; \
 	fi
 	@echo "- linking $@"
 
-noit_lua_snmp.so:	lua_noit_lua_snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o noit_lua_snmp.@MODULEEXT@ lua_noit_lua_snmp.lo -l@LIBNETSNMP@
+noit_lua_snmp.so:	noit_lua_snmp.lo
+	@$(MODULELD) $(SHLDFLAGS) -o noit_lua_snmp.@MODULEEXT@ noit_lua_snmp.lo -l@LIBNETSNMP@
 	@if [ "noit_lua_snmp.so" != "noit_lua_snmp.@MODULEEXT@" ]; then \
 		rm -f noit_lua_snmp.so; \
 		mv noit_lua_snmp.@MODULEEXT@ noit_lua_snmp.so; \
-	fi
-	@echo "- linking $@"
-
-mtev_lua.so:	lua_mtev_crypto.lo lua_mtev.lo
-	@$(MODULELD) $(SHLDFLAGS) -o mtev_lua.@MODULEEXT@ lua_mtev_crypto.lo lua_mtev.lo -lcrypto
-	@if [ "mtev_lua.so" != "mtev_lua.@MODULEEXT@" ]; then \
-		rm -f mtev_lua.so; \
-		mv mtev_lua.@MODULEEXT@ mtev_lua.so; \
 	fi
 	@echo "- linking $@"
 
@@ -236,10 +230,14 @@ alldocs:
 
 install:	install-modules install-smodules
 
-install-modules:	$(MODULES)
+install-modules:	$(MODULES) $(LUA_MODULES)
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(MODULES_DIR)
 	for mod in $(MODULES); do \
 		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(MODULES_DIR)/$$mod ; \
+	done
+	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)/noit_lua
+	for mod in $(LUA_MODULES); do \
+		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(libdir)/noit_lua/`echo $$mod | sed -e 's/^noit_lua_//;'` ; \
 	done
 
 install-smodules:	$(SMODULES)
@@ -255,7 +253,7 @@ distclean:	clean
 	rm -f Makefile
 
 Makefile.dep:
-	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) -I$(top_srcdir)/src/$(LUADIR)/src @APRCFLAGS@ \
+	$(CC) -I.. $(CPPFLAGS) $(CFLAGS) @APRCFLAGS@ \
 		$(DEPFLAGS) -c *.c | sed -e 's/\.o:/\.lo:/' > Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 

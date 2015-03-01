@@ -100,10 +100,10 @@ static const luaL_Reg snmp_funcs[] =
 };
 #endif
 
-int luaopen_noit_lua_snmp(lua_State *L)
+int luaopen_snmp(lua_State *L)
 {
 #ifdef HAVE_NETSNMP
-  luaL_openlib(L, "noit_lua_snmp", snmp_funcs, 0);
+  luaL_openlib(L, "snmp", snmp_funcs, 0);
 #else
   luaL_pushnil(L);
 #endif

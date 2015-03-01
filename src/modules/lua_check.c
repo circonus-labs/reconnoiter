@@ -46,7 +46,7 @@
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
 
-#include "lua_mtev.h"
+#include <lua_mtev.h>
 #include "lua_check.h"
 
 static pthread_t loader_main_thread;
@@ -1033,6 +1033,31 @@ noit_lua_loader_config(mtev_dso_loader_t *self, mtev_hash_table *o) {
   dir = NULL; 
   (void)mtev_hash_retr_str(o, "cpath", strlen("cpath"), &dir);
   if(dir) c->cpath = strdup(dir);
+
+  if(!c->cpath) {
+    char *basepath = NULL;
+    char cpath_lua[PATH_MAX];
+    /* Set it to something reasonable.... we need the MTEV path and ours */
+    (void)mtev_conf_get_string(NULL, "//modules/@directory", &basepath);
+    if(basepath) {
+      char *base, *brk;
+      snprintf(cpath_lua, sizeof(cpath_lua),
+               "./?.so;%s/noit_lua/?.so;%s/mtev_lua/?.so",
+               LIB_DIR, MTEV_LIB_DIR);
+      for(base = strtok_r(basepath, ":;", &brk); base;
+          base = strtok_r(NULL, ":;", &brk)) {
+        strlcat(cpath_lua, ";", sizeof(cpath_lua));
+        strlcat(cpath_lua, base, sizeof(cpath_lua));
+        strlcat(cpath_lua, "/?.so", sizeof(cpath_lua));
+      }
+      free(basepath);
+    }
+    else
+      strlcpy(cpath_lua,
+              "./?.so;" LIB_DIR "/noit_lua/?.so;" MTEV_LIB_DIR "/mtev_lua/?.so",
+              sizeof(cpath_lua));
+    c->cpath = strdup(cpath_lua);
+  }
   return 0;
 }
 
@@ -1063,14 +1088,14 @@ noit_lua_loader_onload(mtev_image_t *self) {
   return 0;
 }
 
-#include "lua.xmlh"
+#include "lua_check.xmlh"
 mtev_dso_loader_t lua = {
   {
     .magic = MTEV_LOADER_MAGIC,
     .version = MTEV_LOADER_ABI_VERSION,
     .name = "lua",
     .description = "Lua check loader",
-    .xml_description = lua_xml_description,
+    .xml_description = lua_check_xml_description,
     .onload = noit_lua_loader_onload,
   },
   noit_lua_loader_config,

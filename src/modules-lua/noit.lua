@@ -1,6 +1,6 @@
 local pairs = _G.pairs
 local mtev = require("mtev")
-local noitClib = require("noit_lua");
+local noitClib = require("noit_binding");
 local _P = package.loaded
 
 module("noit")
