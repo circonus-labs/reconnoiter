@@ -79,11 +79,6 @@ NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
 	stratcon_realtime_http.h
 
-UDNS_LIB_OBJS=udns/udns_dn.o udns/udns_dntosp.o udns/udns_parse.o \
-        udns/udns_resolver.o udns/udns_init.o udns/udns_misc.o \
-        udns/udns_XtoX.o udns/udns_rr_a.o udns/udns_rr_ptr.o udns/udns_rr_mx.o \
-        udns/udns_rr_txt.o udns/udns_bl.o udns/udns_rr_srv.o \
-        udns/udns_rr_naptr.o udns/udns_codes.o udns/udns_jran.o
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
 
@@ -95,14 +90,12 @@ NOIT_OBJS=noitd.o noit_mtev_bridge.o \
 	noit_check.o noit_check_log.o noit_check_tools.o \
 	noit_module.o noit_conf_checks.o \
 	noit_jlog_listener.o noit_livestream_listener.o noit_filters.o \
-	noit_check_rest.o noit_filters_rest.o \
-	$(UDNS_LIB_OBJS)
+	noit_check_rest.o noit_filters_rest.o
 
 STRATCON_OBJS=stratcond.o noit_mtev_bridge.o \
 	stratcon_realtime_http.o \
 	stratcon_jlog_streamer.o stratcon_datastore.o \
-	stratcon_iep.o \
-	$(UDNS_LIB_OBJS)
+	stratcon_iep.o
 
 FINAL_STRATCON_OBJS=$(STRATCON_OBJS:%.o=stratcon-objs/%.o)
 FINAL_NOIT_OBJS=$(NOIT_OBJS:%.o=noit-objs/%.o)
@@ -262,9 +255,6 @@ stratcon_datastore.o:	stratcon_datastore.c
 		$(CC) $(CPPFLAGS) $(CFLAGS) -c $< ; \
 	fi
 
-udns/udns_codes.c:
-	@(cd udns && $(MAKE) udns_codes.c)
-
 noit_module.o:	module-online.h
 
 module-online.h:	modules/module-online.xsl
@@ -379,7 +369,6 @@ clean:
 	rm -f module-online.h noit.env
 	rm -rf noit-objs stratcon-objs libnoit-objs
 	rm -rf mdb-support/*.lo mdb-support/*.so
-	(cd udns && $(MAKE) clean)
 	(cd man && $(MAKE) clean)
 	(cd modules && $(MAKE) clean)
 	(cd java && $(MAKE) clean)
@@ -392,9 +381,6 @@ Makefile.stratcon.dep:
 
 Makefile.dep:
 	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) *.c > Makefile.dep
-	$(CC) -I. $(CPPFLAGS) $(CFLAGS) $(DEPFLAGS) udns/*.c | \
-		perl -pe 's#(\s)([^\s\\])#$$1$$2#g; s#^(\S)#udns/$$1#;' >> \
-		Makefile.dep
 	$(top_srcdir)/buildtools/culldeps.sh Makefile.dep
 
 include Makefile.dep
@@ -402,7 +388,7 @@ include Makefile.noit.dep
 include Makefile.stratcon.dep
 
 distclean-subdirs:
-	for dir in udns man modules modules-lua java ; do \
+	for dir in man modules modules-lua java ; do \
 		(cd $$dir && $(MAKE) distclean) ; \
 	done
 
