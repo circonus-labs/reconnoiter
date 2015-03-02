@@ -37,7 +37,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
 	@BUILD_MODULES@
 
-LUA_MODULES=noit_lua_noit_binding.so noit_lua_snmp.so
+LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so
 
 SMODULES=@BUILD_SMODULES@ \
 	rabbitmq_driver.@MODULEEXT@ handoff_ingestor.@MODULEEXT@
@@ -67,19 +67,21 @@ lua.@MODULEEXT@:	$(LUA_MODULE_OBJS)
 
 # luajit always uses .so
 
-noit_lua_noit_binding.so:	noit_lua_noit_binding.lo
-	@$(MODULELD) $(SHLDFLAGS) -o noit_lua_noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo
-	@if [ "noit_lua_noit_binding.so" != "noit_lua_noit_binding.@MODULEEXT@" ]; then \
-		rm -f noit_lua_noit_binding.so; \
-		mv noit_lua_noit_binding.@MODULEEXT@ noit_lua_noit_binding.so; \
+noit_lua/noit_binding.so:	noit_lua_noit_binding.lo
+	@mkdir -p noit_lua
+	@$(MODULELD) $(SHLDFLAGS) -o noit_lua/noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo
+	@if [ "noit_lua/noit_binding.so" != "noit_lua/noit_binding.@MODULEEXT@" ]; then \
+		rm -f noit_lua/noit_binding.so; \
+		mv noit_lua/noit_binding.@MODULEEXT@ noit_lua/noit_binding.so; \
 	fi
 	@echo "- linking $@"
 
-noit_lua_snmp.so:	noit_lua_snmp.lo
-	@$(MODULELD) $(SHLDFLAGS) -o noit_lua_snmp.@MODULEEXT@ noit_lua_snmp.lo -l@LIBNETSNMP@
-	@if [ "noit_lua_snmp.so" != "noit_lua_snmp.@MODULEEXT@" ]; then \
-		rm -f noit_lua_snmp.so; \
-		mv noit_lua_snmp.@MODULEEXT@ noit_lua_snmp.so; \
+noit_lua/snmp.so:	noit_lua_snmp.lo
+	@mkdir -p noit_lua
+	@$(MODULELD) $(SHLDFLAGS) -o noit_lua/snmp.@MODULEEXT@ noit_lua_snmp.lo -l@LIBNETSNMP@
+	@if [ "noit_lua/snmp.so" != "noit_lua/snmp.@MODULEEXT@" ]; then \
+		rm -f noit_lua/snmp.so; \
+		mv noit_lua/snmp.@MODULEEXT@ noit_lua/snmp.so; \
 	fi
 	@echo "- linking $@"
 
@@ -237,7 +239,7 @@ install-modules:	$(MODULES) $(LUA_MODULES)
 	done
 	$(top_srcdir)/buildtools/mkinstalldirs $(DESTDIR)$(libdir)/noit_lua
 	for mod in $(LUA_MODULES); do \
-		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(libdir)/noit_lua/`echo $$mod | sed -e 's/^noit_lua_//;'` ; \
+		$(INSTALL) -m 0755 $$mod $(DESTDIR)$(libdir)/noit_lua/`echo $$mod | sed -e 's/^noit_lua\///;'` ; \
 	done
 
 install-smodules:	$(SMODULES)
