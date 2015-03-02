@@ -17,7 +17,11 @@ var default_filterset = {
 var all_noit_loaders = {
   'lua': { 'image': 'lua',
            'name': 'lua',
-           'config': { 'directory': process.env['MTEV_MODULES_DIR'] + "/lua/?.lua;{CWD}/../../src/modules-lua/?.lua" } }
+           'config': {
+             'directory': process.env['MTEV_MODULES_DIR'] + "/lua/?.lua;{CWD}/../../src/modules-lua/?.lua",
+             'cpath': process.env['MTEV_LIB_DIR'] + "/mtev_lua/?.so;{CWD}/../../src/modules/noit_lua/?.so"
+           }
+         }
 };
 var all_noit_generics = {
   'lua_web': { 'image': 'lua_mtev' }

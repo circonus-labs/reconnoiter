@@ -82,4 +82,5 @@ fi
 export DYLD_LIBRARY_PATH=`pwd`/../../src
 export LD_LIBRARY_PATH=`pwd`/../../src
 export MTEV_MODULES_DIR=`mtev-config --modules-dir`
+export MTEV_LIB_DIR=`mtev-config --libdir`
 exec node ./runtests.js $ARGS
