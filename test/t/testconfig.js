@@ -14,6 +14,14 @@ var boot_timeout = 5000;
 var default_filterset = {
   "allowall": [ { "type": "allow" } ],
 };
+var all_noit_loaders = {
+  'lua': { 'image': 'lua',
+           'name': 'lua',
+           'config': { 'directory': process.env['MTEV_MODULES_DIR'] + "/lua/?.lua;{CWD}/../../src/modules-lua/?.lua" } }
+};
+var all_noit_generics = {
+  'lua_web': { 'image': 'lua_mtev' }
+};
 var all_noit_modules = {
   'selfcheck': { 'image': 'selfcheck' },
   'ping_icmp': { 'image': 'ping_icmp' },
@@ -169,15 +177,37 @@ testconfig.prototype.make_logs_config = function(fd, opts) {
 testconfig.prototype.make_modules_config = function(fd,opts) {
   var cwd = opts['cwd'];
   fs.writeSync(fd,"\n" +
-  "<modules directory=\"" + cwd + "/../../src/modules\">\n" +
-  " <loader image=\"lua\" name=\"lua\">\n" +
-  "   <config><directory>" + cwd + "/../../src/modules-lua/?.lua</directory></config>\n" +
-  " </loader>\n");
+  "<modules directory=\"" + cwd + "/../../src/modules\">\n");
+  for (var k in opts['loaders']) {
+    fs.writeSync(fd, "    <loader");
+    if(opts['loaders'][k].hasOwnProperty('image'))
+      fs.writeSync(fd, " image=\"" + opts['loaders'][k]['image'] + "\"");
+    fs.writeSync(fd, " name=\"" + k + "\">\n");
+    if(opts['loaders'][k].hasOwnProperty('config')) {
+      fs.writeSync(fd, "      <config>\n");
+      for (var name in opts['loaders'][k]['config']) {
+        var value = opts['loaders'][k]['config'][name];
+        value = value.replace(/\{CWD\}/, cwd);
+        fs.writeSync(fd, "        <" + name + ">" + value + "</" + name + ">\n");
+      }
+      fs.writeSync(fd, "      </config>\n");
+    }
+    fs.writeSync(fd, " </loader>\n");
+  }
   for (var k in opts['generics']) {
     fs.writeSync(fd, "    <generic");
     if(opts['generics'][k].hasOwnProperty('image'))
       fs.writeSync(fd, " image=\"" + opts['generics'][k]['image'] + "\"");
-    fs.writeSync(fd, " name=\"" + k + "\"/>\n");
+    fs.writeSync(fd, " name=\"" + k + "\">\n");
+    if(opts['generics'][k].hasOwnProperty('config')) {
+      fs.writeSync(fd, "      <config>\n");
+      for (var name in opts['generics'][k]['config']) {
+        fs.writeSync(fd, "        <" + name + ">" + opts['generics'][k]['config'][name] +
+                         "</" + name + ">\n");
+      }
+      fs.writeSync(fd, "      </config>\n");
+    }
+    fs.writeSync(fd, "</generic>\n");
   }
   for (var k in opts['modules']) {
     fs.writeSync(fd, "    <module");
@@ -265,6 +295,10 @@ testconfig.prototype.make_noit_config = function(name, opts) {
     opts['cwd'] = process.cwd();
   if(!opts.hasOwnProperty('modules'))
     opts['modules'] = all_noit_modules;
+  if(!opts.hasOwnProperty('generics'))
+    opts['generics'] = all_noit_generics;
+  if(!opts.hasOwnProperty('loaders'))
+    opts['loaders'] = all_noit_loaders;
   if(!opts.hasOwnProperty('filtersets'))
     opts['filtersets'] = default_filterset;
   if(!opts.hasOwnProperty('rest_acls'))

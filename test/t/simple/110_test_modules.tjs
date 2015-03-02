@@ -47,7 +47,8 @@ test = function() {
   var test = this;
   var noit = new tools.noit(test, "110",
     {
-      'generics': { 'check_test': { 'image': 'check_test' } },
+      'generics': { 'check_test': { 'image': 'check_test' },
+                    'lua_web': { 'image': 'lua_mtev' } },
       'modules': { 'dns': { 'image': 'dns' },
                    'interp': { 'loader': 'lua', 'object': 'noit.test.interp' } },
       'logs_debug': { '': 'false' }

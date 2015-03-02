@@ -81,4 +81,5 @@ fi
 # Finally, run the test suite.
 export DYLD_LIBRARY_PATH=`pwd`/../../src
 export LD_LIBRARY_PATH=`pwd`/../../src
+export MTEV_MODULES_DIR=`mtev-config --modules-dir`
 exec node ./runtests.js $ARGS
