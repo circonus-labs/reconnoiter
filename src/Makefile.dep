@@ -19,8 +19,7 @@ noit_check_log_helpers.o noit_check_log_helpers.lo: noit_check_log_helpers.c \
   noit_check_log_helpers.h
 
 noit_check_resolver.o noit_check_resolver.lo: noit_check_resolver.c noit_config.h \
-  noit_mtev_bridge.h \
-  udns/udns.h
+  noit_mtev_bridge.h
 
 noit_check_rest.o noit_check_rest.lo: noit_check_rest.c  \
   noit_mtev_bridge.h \
@@ -120,44 +119,4 @@ stratcond.o stratcond.lo: stratcond.c  \
   stratcon_datastore.h stratcon_realtime_http.h stratcon_iep.h \
   man/stratcond.usage.h
 
-udns/dnsget.o udns/dnsget.lo: udns/dnsget.c udns/udns.h udns/getopt.c
-
-udns/ex-rdns.o udns/ex-rdns.lo: udns/ex-rdns.c udns/udns.h
-
-udns/getopt.o udns/getopt.lo: udns/getopt.c
-
-udns/inet_XtoX.o udns/inet_XtoX.lo: udns/inet_XtoX.c
-
-udns/rblcheck.o udns/rblcheck.lo: udns/rblcheck.c udns/udns.h udns/getopt.c
-
-udns/udns_XtoX.o udns/udns_XtoX.lo: udns/udns_XtoX.c udns/udns.h udns/inet_XtoX.c
-
-udns/udns_bl.o udns/udns_bl.lo: udns/udns_bl.c udns/udns.h
-
-udns/udns_codes.o udns/udns_codes.lo: udns/udns_codes.c udns/udns.h
-
-udns/udns_dn.o udns/udns_dn.lo: udns/udns_dn.c udns/udns.h
-
-udns/udns_dntosp.o udns/udns_dntosp.lo: udns/udns_dntosp.c udns/udns.h
-
-udns/udns_init.o udns/udns_init.lo: udns/udns_init.c udns/udns.h
-
-udns/udns_jran.o udns/udns_jran.lo: udns/udns_jran.c udns/udns.h
-
-udns/udns_misc.o udns/udns_misc.lo: udns/udns_misc.c udns/udns.h
-
-udns/udns_parse.o udns/udns_parse.lo: udns/udns_parse.c udns/udns.h
-
-udns/udns_resolver.o udns/udns_resolver.lo: udns/udns_resolver.c udns/udns.h
-
-udns/udns_rr_a.o udns/udns_rr_a.lo: udns/udns_rr_a.c udns/udns.h
-
-udns/udns_rr_mx.o udns/udns_rr_mx.lo: udns/udns_rr_mx.c udns/udns.h
-
-udns/udns_rr_naptr.o udns/udns_rr_naptr.lo: udns/udns_rr_naptr.c udns/udns.h
-
-udns/udns_rr_ptr.o udns/udns_rr_ptr.lo: udns/udns_rr_ptr.c udns/udns.h
-
-udns/udns_rr_srv.o udns/udns_rr_srv.lo: udns/udns_rr_srv.c udns/udns.h
-
-udns/udns_rr_txt.o udns/udns_rr_txt.lo: udns/udns_rr_txt.c udns/udns.h
+udns/udns_codes.o udns/udns_codes.lo: udns/udns_codes.c

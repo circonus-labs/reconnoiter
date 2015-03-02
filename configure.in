@@ -279,6 +279,8 @@ AC_CHECK_HEADER(ck_pr.h, [], [AC_MSG_ERROR(*** libck (headers) required ***)])
 AC_CHECK_LIB(ck, ck_ht_init, , [AC_MSG_ERROR(*** concurrencyckit (libck) is required ***)])
 AC_CHECK_LIB(hwloc, hwloc_topology_init, , [AC_MSG_ERROR(*** libhwloc required ***)])
 AC_CHECK_LIB(jlog, jlog_new, , [AC_MSG_ERROR(*** libjlog required github.com/omniti-labs/jlog ***)])
+AC_CHECK_HEADER(udns.h, [], [AC_MSG_ERROR(*** udns.h required ***)])
+AC_CHECK_LIB(udns, dns_new, [], [AC_MSG_ERROR(*** libudns required ***)])
 AC_CHECK_LIB(umem, umem_cache_create, , )
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 AC_CHECK_LIB(rt, sem_init, , [
@@ -968,7 +970,6 @@ AC_DEFINE_UNQUOTED(UNAME_P, "$UNAME_P")
 AC_OUTPUT([
 Makefile
 src/Makefile
-src/udns/Makefile
 src/man/Makefile
 src/modules/Makefile
 src/modules-lua/Makefile

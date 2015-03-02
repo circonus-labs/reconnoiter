@@ -19,13 +19,6 @@ custom_config.lo: custom_config.c  \
   ../noit_check_tools.h ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h custom_config.xmlh
 
-dns.lo: dns.c  \
-  ../noit_mtev_bridge.h \
-  ../noit_module.h  \
-  ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h ../udns/udns.h \
-  dns.xmlh
-
 external.lo: external.c  \
   ../noit_module.h \
   ../noit_check.h ../noit_metric.h \
@@ -77,11 +70,26 @@ ip_acl.lo: ip_acl.c  \
 libstomp.lo: libstomp.c  \
   libstomp.h \
 
+lua_check.lo: lua_check.c  \
+  ../noit_config.h ../noit_module.h ../noit_check.h ../noit_metric.h \
+  ../noit_check_tools.h ../noit_check_tools_shared.h \
+  ../noit_mtev_bridge.h  \
+  lua_check.h lua_check.xmlh
+
 mysql.lo: mysql.c  \
   ../noit_config.h ../noit_module.h \
   ../noit_check.h ../noit_metric.h \
   ../noit_check_tools.h ../noit_check_tools_shared.h \
   ../noit_mtev_bridge.h mysql.xmlh
+
+noit_lua_noit_binding.lo: noit_lua_noit_binding.c \
+  ../noit_check.h \
+  ../noit_metric.h \
+  ../noit_filters.h  \
+  lua_check.h ../noit_module.h  \
+  ../noit_check_tools.h ../noit_check_tools_shared.h
+
+noit_lua_snmp.lo: noit_lua_snmp.c ../noit_config.h \
 
 ping_icmp.lo: ping_icmp.c  \
   ../noit_mtev_bridge.h \

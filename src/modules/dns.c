@@ -40,6 +40,7 @@
 #include <assert.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <udns.h>
 
 #include <mtev_log.h>
 #include <mtev_atomic.h>
@@ -48,7 +49,6 @@
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "udns/udns.h"
 
 #define MAX_RR 256
 #define DEFAULT_MAX_CONTEXTS 1024
@@ -412,12 +412,12 @@ static int dns_module_init(noit_module_t *self) {
       conf->contexts = DEFAULT_MAX_CONTEXTS;
   }
   /* HASH the rr types */
-  for(i=0, nv = dns_type_index(i); nv->name; nv = dns_type_index(++i))
+  for(i=0, nv = &dns_typetab[i]; nv->name; nv = &dns_typetab[++i])
     mtev_hash_store(&dns_rtypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);
   /* HASH the class types */
-  for(i=0, nv = dns_class_index(i); nv->name; nv = dns_class_index(++i))
+  for(i=0, nv = &dns_classtab[i]; nv->name; nv = &dns_classtab[++i])
     mtev_hash_store(&dns_ctypes,
                     nv->name, strlen(nv->name),
                     (void *)nv);

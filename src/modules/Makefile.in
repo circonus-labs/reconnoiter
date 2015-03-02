@@ -152,7 +152,7 @@ mysql.lo:	mysql.c mysql.xmlh
 	@echo "- compiling $<"
 
 dns.@MODULEEXT@:	dns.lo
-	@$(MODULELD) $(SHLDFLAGS) -o $@ dns.lo
+	@$(MODULELD) $(SHLDFLAGS) -o $@ dns.lo -ludns
 	@echo "- linking $@"
 
 dns.lo:	dns.c dns.xmlh

@@ -43,6 +43,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <udns.h>
 
 #include <eventer/eventer.h>
 #include <mtev_log.h>
@@ -52,7 +53,6 @@
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include "noit_mtev_bridge.h"
-#include "udns/udns.h"
 
 #define MAX_RR 256
 #define DEFAULT_FAILED_TTL 60
