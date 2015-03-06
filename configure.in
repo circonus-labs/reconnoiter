@@ -285,6 +285,8 @@ AC_CHECK_LIB(jlog, jlog_new, , [AC_MSG_ERROR(*** libjlog required github.com/omn
 AC_CHECK_HEADER(udns.h, [], [AC_MSG_ERROR(*** udns.h required ***)])
 AC_CHECK_LIB(udns, dns_new, [], [AC_MSG_ERROR(*** libudns required ***)])
 AC_CHECK_LIB(umem, umem_cache_create, , )
+AC_CHECK_LIB(protobuf-c, protobuf_c_message_get_packed_size, ,
+	[AC_MSG_ERROR(libprotobuf-c required)])
 AC_CHECK_LIB(z, compress2, , [AC_MSG_ERROR(*** zlib is required ***)])
 AC_CHECK_LIB(rt, sem_init, , [
   AC_CHECK_LIB(rt, clock_gettime, , )
