@@ -73,7 +73,7 @@
   </logs>
   <modules directory="%modulesdir%">
     <loader image="lua" name="lua">
-      <config><directory>%modulesluadir%/?.lua</directory></config>
+      <config><directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory></config>
     </loader>
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
@@ -98,9 +98,9 @@
     </jezebel>
     <generic image="resolver_cache" name="resolver_cache"/>
     <generic image="check_test" name="check_test"/>
-    <generic image="lua" name="lua_web">
+    <generic image="lua_mtev" name="lua_web">
       <config>
-        <directory>%modulesluadir%/?.lua</directory>
+        <directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory>
         <dispatch>web</dispatch>
       </config>
     </generic>

@@ -24,6 +24,7 @@ sysconfdir=@sysconfdir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 MODULES_DIR=@MODULES_DIR@
+MTEV_MODULES_DIR=@MTEV_MODULES_DIR@
 
 CC=@CC@
 SHLD=@SHLD@
@@ -265,6 +266,7 @@ test-noit.conf:	noit.conf.in Makefile
 	@mkdir -p scratch/var/log scratch/var/run
 	@sed -e "s^%sysconfdir%^`pwd`^g;" \
 		-e "s^%modulesdir%^`pwd`/modules^g;" \
+		-e "s^%mtevmodulesdir%^$(MTEV_MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^`pwd`/modules-lua^g;" \
 		-e "s^%datarootdir%^`pwd`^g;" \
 		-e "s^%PKIPREFIX%^../test/test-^g;" \
@@ -275,6 +277,7 @@ test-noit.conf:	noit.conf.in Makefile
 noit.conf:	noit.conf.in Makefile
 	@sed -e "s^%sysconfdir%^$(sysconfdir)^g;" \
 		-e "s^%modulesdir%^$(MODULES_DIR)^g;" \
+		-e "s^%mtevmodulesdir%^$(MTEV_MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
 		-e "s^%datarootdir%^$(datadir)^g;" \
 		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \

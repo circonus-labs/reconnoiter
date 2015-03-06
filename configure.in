@@ -76,6 +76,9 @@ DTRACEHDR=dtrace_probes.h
 DOTSO=.so
 LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
 
+MTEV_MODULES_DIR=`mtev-config --modules-dir 2>/dev/null`
+AC_SUBST(MTEV_MODULES_DIR)
+
 case $host in
 *-*-darwin*)
 	CAP_PLATFORM="darwin"
