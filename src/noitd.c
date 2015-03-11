@@ -32,6 +32,7 @@
  */
 
 #include "noit_config.h"
+#include "noit_version.h"
 #include <mtev_defines.h>
 
 #include <assert.h>
@@ -185,6 +186,7 @@ const char *reverse_prefix_cns[] = { "noit/", NULL };
 
 static int child_main() {
   eventer_t e;
+  char noit_version[80];
 
   /* Send out a birth notice. */
   mtev_watchdog_child_heartbeat();
@@ -235,6 +237,8 @@ static int child_main() {
   mtev_console_init(APPNAME);
   mtev_console_conf_init();
   mtev_capabilities_listener_init();
+  noit_build_version(noit_version, sizeof(noit_version));
+  mtev_capabilities_add_feature("noit", noit_version);
   mtev_http_rest_init();
   mtev_reverse_socket_init(reverse_prefix, reverse_prefix_cns);
   mtev_events_rest_init();

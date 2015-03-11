@@ -32,6 +32,7 @@
  */
 
 #include <mtev_defines.h>
+#include "noit_version.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -179,6 +180,7 @@ const char *reverse_prefix_cns[] = { "noit/", NULL };
 
 static int child_main() {
   char conf_str[1024];
+  char stratcon_version[80];
 
   mtev_watchdog_child_heartbeat();
 
@@ -223,6 +225,8 @@ static int child_main() {
   mtev_events_rest_init();
   stratcon_realtime_http_init(APPNAME);
   mtev_capabilities_listener_init();
+  noit_build_version(stratcon_version, sizeof(stratcon_version));
+  mtev_capabilities_add_feature("stratcon", stratcon_version);
   mtev_listener_init(APPNAME);
 
   mtev_dso_init();
