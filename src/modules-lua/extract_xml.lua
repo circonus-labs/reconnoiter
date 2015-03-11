@@ -31,6 +31,13 @@
 
 rc = 0
 bit = { }
+package.preload['noit'] = { }
+package.loaded.noit = {}
+package.preload['mtev'] = { }
+package.loaded.mtev = {}
+package.preload['snmp'] = { }
+package.loaded.snmp = {}
+
 function extract(file, outfile)
   local module = file:gsub('.lua$', ''):gsub('/', '.')
   local M = require(module)
