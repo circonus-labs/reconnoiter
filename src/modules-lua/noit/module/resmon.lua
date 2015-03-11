@@ -51,6 +51,39 @@ function onload(image)
     <parameter name="port"
                required="optional"
                allowed="\d+">The TCP port can be specified to overide the default of 81.</parameter>
+    <parameter name="method"
+               required="optional"
+               default="GET"
+               allowed=".+">The HTTP method to use.</parameter>
+    <parameter name="payload"
+               required="optional"
+               default=""
+               allowed=".*">The optional HTTP payload to send with the request.</parameter>
+    <parameter name="http_version"
+               required="optional"
+               default="1.1"
+               allowed="^(\d+\.\d+)?$">Sets the HTTP version for the check to use.</parameter>
+    <parameter name="auth_method"
+               required="optional"
+               allowed="^(?:Basic|Digest|Auto)$">HTTP Authentication method to use.</parameter>
+    <parameter name="auth_user"
+               required="optional"
+               allowed="[^:]*">The user to authenticate as.</parameter>
+    <parameter name="auth_password"
+               required="optional"
+               allowed=".*">The password to use during authentication.</parameter>
+    <parameter name="ca_chain"
+               required="optional"
+               allowed=".+">A path to a file containing all the certificate authorities that should be loaded to validate the remote certificate (for SSL checks).</parameter>
+    <parameter name="certificate_file"
+               required="optional"
+               allowed=".+">A path to a file containing the client certificate that will be presented to the remote server (for SSL checks).</parameter>
+    <parameter name="key_file"
+               required="optional"
+               allowed=".+">A path to a file containing key to be used in conjunction with the cilent certificate (for SSL checks).</parameter>
+    <parameter name="ciphers"
+               required="optional"
+               allowed=".+">A list of ciphers to be used in the SSL protocol (for SSL checks).</parameter>
     <parameter name="read_limit"
                required="optional"
                default="0"
@@ -212,6 +245,9 @@ function initiate(module, check)
     if helper and helper.fix_config then config = helper.fix_config(config) end
     local url = config.url or 'http:///'
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
+    local method = config.method or "GET"
+    local http_version = config.http_version
+    local payload = config.payload
     local port
     local use_ssl = false
     local codere = noit.pcre(config.code or '^200$')
@@ -247,6 +283,17 @@ function initiate(module, check)
     local hdrs_in = { }
     callbacks.consume = function (str) output = output .. str end
     callbacks.headers = function (t) hdrs_in = t end
+
+    -- setup SSL info
+    local default_ca_chain =
+        noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+    callbacks.certfile = function () return config.certificate_file end
+    callbacks.keyfile = function () return config.key_file end
+    callbacks.cachain = function ()
+        return config.ca_chain and config.ca_chain
+                                      or default_ca_chain
+    end
+    callbacks.ciphers = function () return config.ciphers end
    
     -- perform the request
     local rv, err
@@ -288,7 +335,7 @@ function initiate(module, check)
         for k,v in pairs(headers) do
             headers_firstpass[k] = v
         end
-        client:do_request("GET", uri, headers_firstpass)
+        client:do_request(method, uri, headers_firstpass, payload, http_version)
         client:get_response(read_limit)
 
         -- if we got a 200 here, we needed no auth
@@ -333,7 +380,7 @@ function initiate(module, check)
         return
     end
 
-    client:do_request("GET", uri, headers)
+    client:do_request(method, uri, headers, payload, http_version)
     client:get_response(read_limit)
 
 ::done_request::
