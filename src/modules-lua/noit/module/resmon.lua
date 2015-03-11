@@ -248,6 +248,7 @@ function initiate(module, check)
     local method = config.method or "GET"
     local http_version = config.http_version
     local payload = config.payload
+    if payload == "" then payload = nil end
     local port
     local use_ssl = false
     local codere = noit.pcre(config.code or '^200$')
