@@ -411,7 +411,7 @@ function initiate(module, check)
         for k,v in pairs(headers) do
             headers_firstpass[k] = v
         end
-        client:do_request(method, uri, headers_firstpass, http_version)
+        client:do_request(method, uri, headers_firstpass, nil, http_version)
         client:get_response(read_limit)
         if client.code ~= 401 or
            client.headers["www-authenticate"] == nil then
