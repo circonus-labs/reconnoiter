@@ -309,7 +309,7 @@ function initiate(module, check)
 
     if config.auth_method == "Basic" or
         (config.auth_method == nil and
-            config.auth_user ~= nil and
+            config.auth_user ~= nil and config.auth_user ~= "" and
             config.auth_password ~= nil) then
         local user = config.auth_user or nil
         local pass = config.auth_password or nil
