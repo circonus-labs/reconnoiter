@@ -67,9 +67,16 @@
 static mtev_log_stream_t check_log = NULL;
 static mtev_log_stream_t filterset_log = NULL;
 static mtev_log_stream_t status_log = NULL;
-static mtev_log_stream_t metrics_log = NULL;
 static mtev_log_stream_t delete_log = NULL;
 static mtev_log_stream_t bundle_log = NULL;
+#if defined(NOIT_CHECK_LOG_M)
+static mtev_log_stream_t metrics_log = NULL;
+#endif
+
+static int
+  noit_check_log_bundle_serialize(mtev_log_stream_t, noit_check_t *);
+static int
+  _noit_check_log_bundle_metric(mtev_log_stream_t, Metric *, metric_t *);
 
 #define SECPART(a) ((unsigned long)(a)->tv_sec)
 #define MSECPART(a) ((unsigned long)((a)->tv_usec / 1000))
@@ -206,10 +213,100 @@ noit_check_log_status(noit_check_t *check) {
     _noit_check_log_status(status_log, check);
   }
 }
+
+static int
+noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
+                                       noit_check_t *check,
+                                       struct timeval *whence,
+                                       metric_t *m) {
+  int size, rv = 0;
+  unsigned int out_size;
+  static char *ip_str = "ip";
+  noit_compression_type_t comp;
+  Bundle bundle = BUNDLE__INIT;
+  char uuid_str[256*3+37];
+  char *buf, *out_buf;
+  mtev_boolean use_compression = mtev_true;
+  const char *v_comp;
+
+  if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), ls, check);
+  v_comp = mtev_log_stream_get_property(ls, "compression");
+  if(v_comp && !strcmp(v_comp, "off")) use_compression = mtev_false;
+
+  bundle.status = NULL;
+  bundle.has_period = mtev_false;
+  bundle.has_timeout = mtev_false;
+
+  bundle.n_metadata = 1;
+  bundle.metadata = malloc(sizeof(Metadata*));
+  bundle.metadata[0] = malloc(sizeof(Metadata));
+  metadata__init(bundle.metadata[0]);
+  bundle.metadata[0]->key = ip_str;
+  bundle.metadata[0]->value = check->target_ip;
+
+  bundle.n_metrics = 1;
+  bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
+
+  bundle.metrics[0] = malloc(sizeof(Metric));
+  metric__init(bundle.metrics[0]);
+  _noit_check_log_bundle_metric(ls, bundle.metrics[0], m);
+
+  if(NOIT_CHECK_METRIC_ENABLED()) {
+    char buff[256];
+    noit_stats_snprint_metric(buff, sizeof(buff), m);
+    NOIT_CHECK_METRIC(uuid_str, check->module, check->name, check->target,
+                      m->metric_name, m->metric_type, buff);
+  }
+
+  size = bundle__get_packed_size(&bundle);
+  buf = malloc(size);
+  bundle__pack(&bundle, (uint8_t*)buf);
+
+  // Compress + B64
+  comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
+  noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
+  rv = mtev_log(ls, whence, __FILE__, __LINE__,
+                "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
+                use_compression ? '1' : '2',
+                SECPART(whence), MSECPART(whence),
+                uuid_str, check->target, check->module, check->name, size,
+                (unsigned int)out_size, out_buf);
+
+  free(buf);
+  free(out_buf);
+  free(bundle.metrics[0]);
+  free(bundle.metrics);
+  free(bundle.metadata[0]);
+  free(bundle.metadata);
+  return rv;
+}
+
+#if !defined(NOIT_CHECK_LOG_M)
 static int
 _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
                        const char *uuid_str,
                        struct timeval *whence, metric_t *m) {
+  return noit_check_log_bundle_metric_serialize(ls, check, whence, m);
+}
+static int
+_noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
+  return noit_check_log_bundle_serialize(ls, check);
+}
+void
+noit_check_log_metrics(noit_check_t *check) {
+  handle_extra_feeds(check, _noit_check_log_metrics);
+  if(!(check->flags & (NP_TRANSIENT | NP_SUPPRESS_METRICS))) {
+    SETUP_LOG(bundle, return);
+    _noit_check_log_metrics(bundle_log, check);
+  }
+}
+#else
+static int
+_noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
+                         const char *uuid_str,
+                         struct timeval *whence, metric_t *m) {
   char our_uuid_str[256*3+37];
   int srv = 0;
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
@@ -303,7 +400,7 @@ noit_check_log_metrics(noit_check_t *check) {
     _noit_check_log_metrics(metrics_log, check);
   }
 }
-
+#endif
 
 static int
 _noit_check_log_bundle_metric(mtev_log_stream_t ls, Metric *metric, metric_t *m) {
@@ -447,7 +544,11 @@ void
 noit_check_log_metric(noit_check_t *check, struct timeval *whence,
                       metric_t *m) {
   char uuid_str[256*3+37];
+#if defined(NOIT_CHECK_LOG_M)
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
+#else
+  MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), bundle_log, check);
+#endif
 
   /* handle feeds -- hust like handle_extra_feeds, but this
    * is with different arguments.
@@ -465,8 +566,13 @@ noit_check_log_metric(noit_check_t *check, struct timeval *whence,
     }
   }
   if(!(check->flags & NP_TRANSIENT)) {
+#if defined(NOIT_CHECK_LOG_M)
     SETUP_LOG(metrics, return);
     _noit_check_log_metric(metrics_log, check, uuid_str, whence, m);
+#else
+    SETUP_LOG(bundle, return);
+    _noit_check_log_metric(bundle_log, check, uuid_str, whence, m);
+#endif
     if(NOIT_CHECK_METRIC_ENABLED()) {
       char buff[256];
       noit_stats_snprint_metric(buff, sizeof(buff), m);
