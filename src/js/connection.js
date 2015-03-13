@@ -361,7 +361,7 @@ function frame_output(channel_id, command, buff) {
   buff.copy(frame, 6, 0, buff.length);
   frame.writeUInt16BE((channel_id & 0x7fff) | (command ? 0x8000 : 0), 0);
   frame.writeUInt32BE(buff.length, 2);
-console.log('send', channel_id, command ? "comm" : "data", buff.length, frame.slice(0,6));
+  if(debug >= 3) console.log('send', channel_id, command ? "comm" : "data", buff.length, frame.slice(0,6));
   return frame;
 }
 function isCmd(buf1, buf2) {
@@ -385,17 +385,23 @@ function handle_frame(parent, frame, host, port) {
         parent.socket.write(frame_output(chan.id, true, CMD_RESET));
       }
       chan.socket = net.connect( { host: host, port: port } );
-      console.log('connecting to ', host, ':', port, 'on channel', chan.id);
+      if(debug >= 2) console.log('connecting to ', host, ':', port, 'on channel', chan.id);
+      chan.socket.on('error', (function(parent, chan) {
+        return function() {
+          if(debug >= 3) console.log('close to remote on channel', chan.id);
+          parent.socket.write(frame_output(chan.id, true, CMD_RESET));
+        }
+      })(parent,chan));
       chan.socket.on('connect', (function(parent, chan) {
         return function() {
-          console.log('connect on channel', chan.id);
+          if(debug >= 3) console.log('connect on channel', chan.id);
           if(chan.socket) {
             chan.socket.on('data', function(buff) {
-              console.log('data to remote on channel', chan.id);
+              if(debug >= 3) console.log('data to remote on channel', chan.id);
               parent.socket.write(frame_output(chan.id, false, buff));
             });
             chan.socket.on('end', function(buff) {
-              console.log('close to remote on channel', chan.id);
+              if(debug >= 3) console.log('close to remote on channel', chan.id);
               parent.socket.write(frame_output(chan.id, true, CMD_CLOSE));
             });
           }
@@ -414,11 +420,11 @@ function handle_frame(parent, frame, host, port) {
   }
   else {
     if(chan.socket) {
-      console.log('data to local on channel', chan.id);
+      if(debug >= 3) console.log('data to local on channel', chan.id);
       chan.socket.write(frame.buff);
     }
     else {
-      console.log('reset to remote on channel', chan.id);
+      if(debug >= 2) console.log('reset to remote on channel', chan.id);
       parent.socket.write(frame_output(chan.id, true, CMD_RESET));
     }
   }
@@ -433,7 +439,6 @@ nc.prototype.reverse = function(name, host, port) {
       try {
         var frame;
         while(null !== (frame = decode_frame(parent.buflist))) {
-console.log('recv', frame.channel_id, frame.command ? "comm" : "data", frame.buff.length);
           handle_frame(parent, frame, host, port);
         }
       }
