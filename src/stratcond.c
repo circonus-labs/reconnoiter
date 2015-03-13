@@ -175,7 +175,7 @@ int configure_eventer() {
   return rv;
 }
 
-const char *reverse_prefix = "stratcon/";
+const char *reverse_prefix = "noit/"; /* namespace out connections */
 const char *reverse_prefix_cns[] = { "noit/", NULL };
 
 static int child_main() {

@@ -182,7 +182,7 @@ static int noit_console_stopword(const char *word) {
          !strcmp(word, "config"));
 }
 const char *reverse_prefix = "noit/";
-const char *reverse_prefix_cns[] = { "noit/", NULL };
+const char *reverse_prefix_cns[] = { NULL };
 
 static int child_main() {
   eventer_t e;
