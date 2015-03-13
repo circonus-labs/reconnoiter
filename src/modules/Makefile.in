@@ -40,6 +40,7 @@ MODULES=check_test.@MODULEEXT@ ping_icmp.@MODULEEXT@ \
 	external.@MODULEEXT@ collectd.@MODULEEXT@ httptrap.@MODULEEXT@ \
 	ip_acl.@MODULEEXT@ statsd.@MODULEEXT@ ganglia.@MODULEEXT@ \
 	resolver_cache.@MODULEEXT@ histogram.@MODULEEXT@ \
+	reverse_check.@MODULEEXT@ \
 	@BUILD_MODULES@
 
 LUA_MODULES=noit_lua/noit_binding.so noit_lua/snmp.so
@@ -59,6 +60,8 @@ check_test.lo:	check_test.xmlh
 ip_acl.lo:	ip_acl.xmlh
 
 custom_config.lo:	custom_config.xmlh
+
+reverse_check.lo:	reverse_check.xmlh
 
 resolver_cache.lo:	resolver_cache.xmlh
 

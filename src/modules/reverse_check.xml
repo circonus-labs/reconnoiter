@@ -1,0 +1,35 @@
+<module>
+    <name>reverse_check</name>
+    <description>
+        <para>
+          Allows a reverse:key config to dictate reverse tunnelling of checks.
+          Specification of the key will cause reverse connection attempts from
+          clients to "checks/&lt;id&gt;" to be denied, accepting only
+          "checks/&lt;id&gt;#&lt;key&gt;" instead.
+        </para></description>
+    <loader>C</loader>
+    <image>reverse_check.so</image>
+    <moduleconfig>
+    </moduleconfig>
+    <checkconfig />
+    <examples>
+        <example>
+            <title>Loading the reverse_check module.</title>
+            <para>This example loads the reverse_check module and creates a
+             key=boobooboo config setting.
+             </para>
+            <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <generic image="reverse_check" name="reverse_check" />
+        </modules>
+        <checks>
+          <config xmlns:reverse="noit://module/reverse">
+            <reverse:key>boobooboo</reverse:key>
+          </config>
+        </checks>
+      </noit>
+    ]]></programlisting>
+        </example>
+    </examples>
+</module>
