@@ -282,7 +282,8 @@ noit.conf:	noit.conf.in Makefile
 		-e "s^%mtevmodulesdir%^$(MTEV_MODULES_DIR)^g;" \
 		-e "s^%modulesluadir%^$(MODULES_DIR)^g;" \
 		-e "s^%datarootdir%^$(datadir)^g;" \
-		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" < \
+		-e "s^%PKIPREFIX%^$${PKIPREFIX}^g;" \
+		-e "s^/var/^`pwd`/scratch/var/^g;" < \
 		noit.conf.in > \
 		noit.conf
 
