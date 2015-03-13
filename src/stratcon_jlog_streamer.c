@@ -1133,12 +1133,19 @@ stratcon_streamer_connection(const char *toplevel, const char *destination,
                                       handler_free);
 }
 
+mtev_reverse_acl_decision_t
+mtev_reverse_socket_allow_noits(const char *id, acceptor_closure_t *ac) {
+  if(!strncmp(id, "noit/", 5)) return MTEV_ACL_ALLOW;
+  return MTEV_ACL_ABSTAIN;
+}
+
 void
 stratcon_jlog_streamer_init(const char *toplevel) {
   struct timeval whence = DEFAULT_NOIT_PERIOD_TV;
   struct in_addr remote;
   char uuid_str[UUID_STR_LEN + 1];
 
+  mtev_reverse_socket_acl(mtev_reverse_socket_allow_noits);
   pthread_mutex_init(&noits_lock, NULL);
   pthread_mutex_init(&noit_ip_by_cn_lock, NULL);
   eventer_name_callback("stratcon_jlog_recv_handler",
