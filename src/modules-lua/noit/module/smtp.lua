@@ -145,13 +145,18 @@ local function write_cmd(e, cmd)
 end
 
 local function mkaction(e, check)
-  return function (phase, tosend, expected_code)
+  return function (phase, tosend, expected_code, track)
     local start_time = noit.timeval.now()
     local success = true
     if tosend then
       write_cmd(e, tosend)
     end
     local actual_code, message = read_cmd(e)
+    if track then
+      check.metric_string("last_cmd", phase)
+      check.metric_string("last_code", actual_code)
+      check.metric_string("last_message", message and string.gsub(message, "[\r\n]+$", "") or nil)
+    end
     if expected_code ~= actual_code then
       check.status(string.format("%d/%d %s", expected_code, actual_code, message))
       check.bad()
@@ -260,22 +265,30 @@ function ex_actions(action, check, config, mailfrom, rcptto, payload)
   local status = ''
   -- Only proceed if from is present, empty or not
   if config.from == "" or config.from then
-    action("mailfrom", mailfrom, 250)
-  else
+   if not action("mailfrom", mailfrom, 250, true) then
      return status
+   end
+  else
+   return status
   end
 
   if config.to then
-     action("rcptto", rcptto, 250)
+    if not action("rcptto", rcptto, 250, true) then
+      return status
+    end
   else
-     return status
+    return status
   end
 
   -- Since the way the protocol works, the to address may be in the payload...
   if payload then
-     action("data", "DATA", 354)
-     action("body", payload .. "\r\n.", 250)
-     status = ',sent'
+    if action("data", "DATA", 354, true) then
+      if action("body", payload .. "\r\n.", 250, true) then
+        status = ',sent'
+      else
+        status = ',unsent'
+      end
+    end
   end
   return status
 end
@@ -314,11 +327,11 @@ function initiate(module, check)
   local cachain = config.ca_chain or default_ca_chain
   local ciphers = config.ciphers or ''
 
-  if     not action("banner", nil, 220)
-      or not action("ehlo", ehlo, 250) then return end
+  if     not action("banner", nil, 220, true)
+      or not action("ehlo", ehlo, 250, true) then return end
 
   if try_starttls then
-    local starttls  = action("starttls", "STARTTLS", 220)
+    local starttls  = action("starttls", "STARTTLS", 220, true)
     if not starttls then
       check.unavailable()
       check.status("Could not start TLS for this target")
@@ -343,7 +356,7 @@ function initiate(module, check)
       end
     end
 
-    if not action("ehlo", ehlo, 250) then return end
+    if not action("ehlo", ehlo, 250, true) then return end
   end
 
   if config.sasl_authentication ~= nil then
@@ -356,7 +369,7 @@ function initiate(module, check)
 
   action_result = ex_actions(action, check, config, mailfrom, rcptto, payload)
   -- Always issue quit
-  action("quit", "QUIT", 221)
+  action("quit", "QUIT", 221, false)
 
   status = status .. action_result
 
