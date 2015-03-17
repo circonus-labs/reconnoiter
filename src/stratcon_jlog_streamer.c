@@ -51,6 +51,7 @@
 #include <mtev_log.h>
 #include <mtev_getip.h>
 #include <mtev_rest.h>
+#include <mtev_json.h>
 
 #include "noit_mtev_bridge.h"
 #include "stratcon_dtrace_probes.h"
@@ -733,10 +734,10 @@ periodic_noit_metrics(eventer_t e, int mask, void *closure,
 }
 
 static int
-rest_show_noits(mtev_http_rest_closure_t *restc,
-                int npats, char **pats) {
-  xmlDocPtr doc;
-  xmlNodePtr root;
+rest_show_noits_json(mtev_http_rest_closure_t *restc,
+                     int npats, char **pats) {
+  const char *jsonstr;
+  struct json_object *doc, *nodes, *node;
   mtev_hash_table seen = MTEV_HASH_EMPTY;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   char path[256];
@@ -747,8 +748,218 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
   mtev_connection_ctx_t **ctxs;
   mtev_conf_section_t *noit_configs;
   struct timeval now, diff, last;
+  mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
+
+  mtev_http_process_querystring(req);
+  type = mtev_http_request_querystring(req, "type");
+  want_cn = mtev_http_request_querystring(req, "cn");
+
+  gettimeofday(&now, NULL);
+
+  pthread_mutex_lock(&noits_lock);
+  ctxs = malloc(sizeof(*ctxs) * mtev_hash_size(&noits));
+  while(mtev_hash_next(&noits, &iter, &key_id, &klen,
+                       &vconn)) {
+    ctxs[n] = (mtev_connection_ctx_t *)vconn;
+    mtev_connection_ctx_ref(ctxs[n]);
+    n++;
+  }
+  pthread_mutex_unlock(&noits_lock);
+  qsort(ctxs, n, sizeof(*ctxs), remote_str_sort);
+
+  doc = json_object_new_object(); 
+  nodes = json_object_new_array();
+  json_object_object_add(doc, "nodes", nodes);
+  
+  for(i=0; i<n; i++) {
+    char buff[256];
+    const char *feedtype = "unknown", *state = "unknown";
+    mtev_connection_ctx_t *ctx = ctxs[i];
+    jlog_streamer_ctx_t *jctx = ctx->consumer_ctx;
+
+    feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
+
+    /* If the user requested a specific type and we're not it, skip. */
+    if(type && strcmp(feedtype, type)) {
+        mtev_connection_ctx_deref(ctx);
+        continue;
+    }
+    /* If the user wants a specific CN... limit to that. */
+    if(want_cn && (!ctx->remote_cn || strcmp(want_cn, ctx->remote_cn))) {
+        mtev_connection_ctx_deref(ctx);
+        continue;
+    }
+
+    node = json_object_new_object();
+    snprintf(buff, sizeof(buff), "%llu.%06d",
+             (long long unsigned)ctx->last_connect.tv_sec,
+             (int)ctx->last_connect.tv_usec);
+    json_object_object_add(node, "last_connect", json_object_new_string(buff));
+    json_object_object_add(node, "state",
+         json_object_new_string(ctx->remote_cn ?
+                                  "connected" :
+                                  (ctx->retry_event ? "disconnected" :
+                                                      "connecting")));
+    if(ctx->e) {
+      char buff[128];
+      const char *addrstr = NULL;
+      struct sockaddr_in6 addr6;
+      socklen_t len = sizeof(addr6);
+      if(getsockname(ctx->e->fd, (struct sockaddr *)&addr6, &len) == 0) {
+        unsigned short port = 0;
+        if(addr6.sin6_family == AF_INET) {
+          addrstr = inet_ntop(addr6.sin6_family,
+                              &((struct sockaddr_in *)&addr6)->sin_addr,
+                              buff, sizeof(buff));
+          memcpy(&port, &(&addr6)->sin6_port, sizeof(port));
+          port = ntohs(port);
+        }
+        else if(addr6.sin6_family == AF_INET6) {
+          addrstr = inet_ntop(addr6.sin6_family, &addr6.sin6_addr,
+                              buff, sizeof(buff));
+          port = ntohs(addr6.sin6_port);
+        }
+        if(addrstr != NULL) {
+          snprintf(buff + strlen(buff), sizeof(buff) - strlen(buff),
+                   ":%u", port);
+          json_object_object_add(node, "local", json_object_new_string(buff));
+        }
+      }
+    }
+    mtev_hash_replace(&seen, strdup(ctx->remote_str), strlen(ctx->remote_str),
+                      0, free, NULL);
+    json_object_object_add(node, "remote", json_object_new_string(ctx->remote_str));
+    json_object_object_add(node, "type", json_object_new_string(feedtype));
+    if(ctx->retry_event) {
+      sub_timeval(ctx->retry_event->whence, now, &diff);
+      snprintf(buff, sizeof(buff), "%llu.%06d",
+               (long long unsigned)diff.tv_sec, (int)diff.tv_usec);
+      json_object_object_add(node, "next_attempt", json_object_new_string(buff));
+    }
+    else if(ctx->remote_cn) {
+      if(ctx->remote_cn)
+        json_object_object_add(node, "remote_cn", json_object_new_string(ctx->remote_cn));
+  
+      switch(jctx->state) {
+        case JLOG_STREAMER_WANT_INITIATE: state = "initiate"; break;
+        case JLOG_STREAMER_WANT_COUNT: state = "waiting for next batch"; break;
+        case JLOG_STREAMER_WANT_ERROR: state = "waiting for error"; break;
+        case JLOG_STREAMER_WANT_HEADER: state = "reading header"; break;
+        case JLOG_STREAMER_WANT_BODY: state = "reading body"; break;
+        case JLOG_STREAMER_IS_ASYNC: state = "asynchronously processing"; break;
+        case JLOG_STREAMER_WANT_CHKPT: state = "checkpointing"; break;
+      }
+      json_object_object_add(node, "state", json_object_new_string(state));
+      snprintf(buff, sizeof(buff), "%08x:%08x", 
+               jctx->header.chkpt.log, jctx->header.chkpt.marker);
+      json_object_object_add(node, "checkpoint", json_object_new_string(buff));
+      snprintf(buff, sizeof(buff), "%llu",
+               (unsigned long long)jctx->total_events);
+      json_object_object_add(node, "session_events", json_object_new_string(buff));
+      snprintf(buff, sizeof(buff), "%llu",
+               (unsigned long long)jctx->total_bytes_read);
+      json_object_object_add(node, "session_bytes", json_object_new_string(buff));
+  
+      sub_timeval(now, ctx->last_connect, &diff);
+      snprintf(buff, sizeof(buff), "%lld.%06d",
+               (long long)diff.tv_sec, (int)diff.tv_usec);
+      json_object_object_add(node, "session_duration", json_object_new_string(buff));
+  
+      if(jctx->header.tv_sec) {
+        last.tv_sec = jctx->header.tv_sec;
+        last.tv_usec = jctx->header.tv_usec;
+        snprintf(buff, sizeof(buff), "%llu.%06d",
+                 (unsigned long long)last.tv_sec, (int)last.tv_usec);
+        json_object_object_add(node, "last_event", json_object_new_string(buff));
+        sub_timeval(now, last, &diff);
+        snprintf(buff, sizeof(buff), "%lld.%06d",
+                 (long long)diff.tv_sec, (int)diff.tv_usec);
+        json_object_object_add(node, "last_event_age", json_object_new_string(buff));
+      }
+    }
+    json_object_array_add(nodes, node);
+    mtev_connection_ctx_deref(ctx);
+  }
+  free(ctxs);
+
+  if(!type || !strcmp(type, "configured")) {
+    snprintf(path, sizeof(path), "//noits//noit");
+    noit_configs = mtev_conf_get_sections(NULL, path, &cnt);
+    for(di=0; di<cnt; di++) {
+      char address[64], port_str[32], remote_str[98];
+      char expected_cn_buff[256], *expected_cn = NULL;
+      if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/config/cn",
+                                 expected_cn_buff, sizeof(expected_cn_buff)))
+        expected_cn = expected_cn_buff;
+      if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn))) continue;
+      if(mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@address",
+                                 address, sizeof(address))) {
+        void *v;
+        if(!mtev_conf_get_stringbuf(noit_configs[di], "self::node()/@port",
+                                   port_str, sizeof(port_str)))
+          strlcpy(port_str, "43191", sizeof(port_str));
+
+        /* If the user wants a specific CN... limit to that. */
+          if(want_cn && (!expected_cn || strcmp(want_cn, expected_cn)))
+            continue;
+
+        snprintf(remote_str, sizeof(remote_str), "%s:%s", address, port_str);
+        if(!mtev_hash_retrieve(&seen, remote_str, strlen(remote_str), &v)) {
+          node = json_object_new_object();
+          json_object_object_add(node, "remote", json_object_new_string(remote_str));
+          json_object_object_add(node, "type", json_object_new_string("configured"));
+          if(expected_cn)
+            json_object_object_add(node, "cn", json_object_new_string(expected_cn));
+          json_object_array_add(nodes, node);
+        }
+      }
+    }
+    free(noit_configs);
+  }
+  mtev_hash_destroy(&seen, free, NULL);
+
+  mtev_http_response_ok(restc->http_ctx, "application/json");
+  jsonstr = json_object_to_json_string(doc);
+  mtev_http_response_append(restc->http_ctx, jsonstr, strlen(jsonstr));
+  mtev_http_response_append(restc->http_ctx, "\n", 1);
+  json_object_put(doc);
+  mtev_http_response_end(restc->http_ctx);
+  return 0;
+}
+static int
+rest_show_noits(mtev_http_rest_closure_t *restc,
+                int npats, char **pats) {
+  xmlDocPtr doc;
+  xmlNodePtr root;
+  mtev_hash_table *hdrs, seen = MTEV_HASH_EMPTY;
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  char path[256];
+  const char *key_id, *accepthdr;
+  const char *type = NULL, *want_cn = NULL;
+  int klen, n = 0, i, di, cnt;
+  void *vconn;
+  mtev_connection_ctx_t **ctxs;
+  mtev_conf_section_t *noit_configs;
+  struct timeval now, diff, last;
   xmlNodePtr node;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
+
+  if(npats == 1 && !strcmp(pats[0], ".json"))
+    return rest_show_noits_json(restc, npats, pats);
+
+  hdrs = mtev_http_request_headers_table(req);
+  if(mtev_hash_retr_str(hdrs, "accept", strlen("accept"), &accepthdr)) {
+    char buf[256], *brkt, *part;
+    strlcpy(buf, accepthdr, sizeof(buf));
+    for(part = strtok_r(buf, ",", &brkt);
+        part;
+        part = strtok_r(NULL, ",", &brkt)) {
+      while(*part && isspace(*part)) part++;
+      if(!strcmp(part, "application/json")) {
+        return rest_show_noits_json(restc, npats, pats);
+      }
+    }
+  }
 
   mtev_http_process_querystring(req);
   type = mtev_http_request_querystring(req, "type");
@@ -1154,7 +1365,7 @@ stratcon_jlog_streamer_init(const char *toplevel) {
   stratcon_jlog_streamer_reload(toplevel);
   stratcon_streamer_connection(toplevel, "", "noit", NULL, NULL, NULL, NULL);
   assert(mtev_http_rest_register_auth(
-    "GET", "/noits/", "^show$", rest_show_noits,
+    "GET", "/noits/", "^show(.json)?$", rest_show_noits,
              mtev_http_rest_client_cert_auth
   ) == 0);
   assert(mtev_http_rest_register_auth(
