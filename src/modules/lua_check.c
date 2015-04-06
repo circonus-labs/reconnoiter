@@ -1088,14 +1088,14 @@ noit_lua_loader_onload(mtev_image_t *self) {
   return 0;
 }
 
-#include "lua_check.xmlh"
+#include "lua.xmlh"
 mtev_dso_loader_t lua = {
   {
     .magic = MTEV_LOADER_MAGIC,
     .version = MTEV_LOADER_ABI_VERSION,
     .name = "lua",
     .description = "Lua check loader",
-    .xml_description = lua_check_xml_description,
+    .xml_description = lua_xml_description,
     .onload = noit_lua_loader_onload,
   },
   noit_lua_loader_config,

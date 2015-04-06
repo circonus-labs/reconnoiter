@@ -67,7 +67,7 @@ resolver_cache.lo:	resolver_cache.xmlh
 
 LUA_MODULE_OBJS=lua_check.lo
 
-lua_check.lo:	lua_check.xmlh
+lua_check.lo:	lua.xmlh
 
 lua.@MODULEEXT@:	$(LUA_MODULE_OBJS)
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS) $(LUALIBS)
