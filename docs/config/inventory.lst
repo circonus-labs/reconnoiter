@@ -7,9 +7,14 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/httptrap.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ip_acl.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/lua.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/lua_check.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/mysql.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.cim.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.circonuswindowsagent.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.cloudwatch.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.dhcp.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ec_console.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.googleanalytics.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.haproxy.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.http.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.imap.xml"/>
@@ -19,6 +24,7 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.memcached.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.monit.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.munin.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.newrelic_rpm.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.nginx.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.nrpe.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ntp.xml"/>
@@ -27,10 +33,13 @@
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.elasticsearch.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.resmon.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.smtp.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.ssh2.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.tcp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/noit.module.varnish.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/ping_icmp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/postgres.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/resolver_cache.xml"/>
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/reverse_check.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/selfcheck.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmp.xml"/>
 <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="modules/snmptrap.xml"/>
