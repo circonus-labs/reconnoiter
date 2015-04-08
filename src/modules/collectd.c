@@ -2285,5 +2285,6 @@ noit_module_t collectd = {
   noit_collectd_config,
   noit_collectd_init,
   noit_collectd_initiate_check,
-  NULL /* noit_collectd_cleanup */
+  NULL, /* noit_collectd_cleanup */
+  .thread_unsafe = 1
 };
