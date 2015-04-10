@@ -180,23 +180,28 @@ static int refresh_idx_k(const void *akv, const void *bv) {
   return 1;
 }
 
-void noit_check_resolver_remind(const char *target) {
+static void
+noit_check_resolver_remind_internal(const char *target,
+                                    mtev_boolean needs_lock) {
   dns_cache_node *n;
   if(!target) return;
-  DCLOCK();
+  if(needs_lock) DCLOCK();
   n = mtev_skiplist_find(&nc_dns_cache, target, NULL);
   if(n != NULL) {
     n->last_needed = time(NULL);
-    DCUNLOCK();
+    if(needs_lock) DCUNLOCK();
     return; 
   }
   n = calloc(1, sizeof(*n));
   n->target = strdup(target);
   n->last_needed = time(NULL);
   mtev_skiplist_insert(&nc_dns_cache, n);
-  DCUNLOCK();
+  if(needs_lock) DCUNLOCK();
 }
 
+void noit_check_resolver_remind(const char *target) {
+  noit_check_resolver_remind_internal(target, mtev_true);
+}
 
 int noit_check_resolver_fetch(const char *target, char *buff, int len,
                               uint8_t prefer_family) {
@@ -595,7 +600,7 @@ noit_console_manip_dns_cache(mtev_console_closure_t ncct,
       }
       else {
         nc_printf(ncct, "%s submitted.\n", argv[i]);
-        noit_check_resolver_remind(argv[i]);
+        noit_check_resolver_remind_internal(argv[i], mtev_false);
       }
     }
   }
