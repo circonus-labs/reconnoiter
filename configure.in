@@ -77,6 +77,9 @@ DOTSO=.so
 LD_LIBNOIT_VERSION='-Wl,-soname,libnoit.so.$(LIBNOIT_VERSION)'
 
 MTEV_MODULES_DIR=`mtev-config --modules-dir 2>/dev/null`
+if test "$?" -ne "0" ; then
+    AC_MSG_ERROR([*** mtev-config not found ***])
+fi
 AC_SUBST(MTEV_MODULES_DIR)
 
 case $host in
