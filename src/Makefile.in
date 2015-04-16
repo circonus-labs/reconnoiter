@@ -52,6 +52,17 @@ MAPFLAGS=@MAPFLAGS@
 CTFCONVERT=@CTFCONVERT@
 CTFMERGE=@CTFMERGE@
 
+# Later versions of ctf* tools no longer have -g and by default do not strip,
+# so we get the same behavior as with -g on older versions.
+ifneq ($(wildcard $(CTFCONVERT)),)
+  HAS_G=$(shell $(CTFCONVERT) 2>&1 | grep -- -gis)
+  ifneq ($(HAS_G),)
+    CTFNOSTRIP=-g
+  else
+    CTFNOSTRIP=
+  endif
+endif
+
 WHOLE_ARCHIVE=@WHOLE_ARCHIVE@
 NOWHOLE_ARCHIVE=@NOWHOLE_ARCHIVE@
 
@@ -110,7 +121,7 @@ noit-objs/%.o:	%.o
 	@cp $(@:noit-objs/%.o=%.o) $@
 	@if test -x "$(CTFCONVERT)" ; then \
 		echo "- making CTF ($@)" ; \
-		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
+		$(CTFCONVERT) $(CTFNOSTRIP) -i -l @VERSION@ $@ ; \
 	fi
 
 libnoit-objs/%.lo:	%.lo
@@ -119,7 +130,7 @@ libnoit-objs/%.lo:	%.lo
 	@cp $(@:libnoit-objs/%.lo=%.lo) $@
 	@if test -x "$(CTFCONVERT)" ; then \
 		echo "- making CTF ($@)" ; \
-		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
+		$(CTFCONVERT) $(CTFNOSTRIP) -i -l @VERSION@ $@ ; \
 	fi
 
 stratcon-objs/%.o:	%.o
@@ -128,7 +139,7 @@ stratcon-objs/%.o:	%.o
 	@cp $(@:stratcon-objs/%.o=%.o) $@
 	@if test -x "$(CTFCONVERT)" ; then \
 		echo "- making CTF ($@)" ; \
-		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
+		$(CTFCONVERT) $(CTFNOSTRIP) -i -l @VERSION@ $@ ; \
 	fi
 
 make-man:
@@ -209,7 +220,7 @@ noitd:	$(FINAL_NOIT_OBJS) man/noitd.usage.h $(NOITD_DTRACEOBJ)
 		$(MAPFLAGS) \
 		$(LIBS) -L. -lmtev $(LUALIBS) -ljlog
 	@if test -x "$(CTFMERGE)" ; then \
-		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
+		$(CTFMERGE) $(CTFNOSTRIP) -l @VERSION@ -o $@ $(FINAL_NOIT_OBJS) $(NOITD_DTRACEOBJ) ; \
 	fi
 
 stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
@@ -220,7 +231,7 @@ stratcond:	$(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ)
 		$(MAPFLAGS) \
 		$(LIBS) -L. -lmtev
 	@if test -x "$(CTFMERGE)" ; then \
-		$(CTFMERGE) -g -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
+		$(CTFMERGE) $(CTFNOSTRIP) -l @VERSION@ -o $@ $(FINAL_STRATCON_OBJS) $(STRATCOND_DTRACEOBJ) ; \
 	fi
 
 mdb-support/mdb_help.lo:	mdb-support/mdb_help.c
