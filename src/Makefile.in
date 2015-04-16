@@ -122,15 +122,6 @@ libnoit-objs/%.lo:	%.lo
 		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
 	fi
 
-libnoit-objs/%.lo:	%.lo
-	@mkdir -p "`dirname $@`"
-	@echo "- making private $@"
-	@cp $(@:libnoit-objs/%.lo=%.lo) $@
-	@if test -x "$(CTFCONVERT)" ; then \
-		echo "- making CTF ($@)" ; \
-		$(CTFCONVERT) -g -i -l @VERSION@ $@ ; \
-	fi
-
 stratcon-objs/%.o:	%.o
 	@mkdir -p "`dirname $@`"
 	@echo "- making private $@"
