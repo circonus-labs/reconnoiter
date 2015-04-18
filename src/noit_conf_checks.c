@@ -1193,6 +1193,21 @@ noit_console_config_unsetconfig(mtev_console_closure_t ncct,
   return 0;
 }
 
+static mtev_hook_return_t
+noit_delete_section_impl(void *closure, const char *root, const char *path,
+                         const char *name, const char **err) {
+  mtev_hook_return_t rv = MTEV_HOOK_CONTINUE;
+  char xpath[1024];
+  mtev_conf_section_t exists = NULL;
+
+  snprintf(xpath, sizeof(xpath), "/%s%s/%s//check", root, path, name);
+  exists = mtev_conf_get_section(NULL, xpath);
+  if(exists) {
+    if(err) *err = "cannot delete section, has checks";
+    rv = MTEV_HOOK_ABORT;
+  }
+  return rv;
+}
 
 #define NEW_STATE(a) (a) = mtev_console_state_alloc()
 #define ADD_CMD(a,cmd,func,ac,ss,c) \
@@ -1207,6 +1222,9 @@ void register_console_config_check_commands() {
   cmd_info_t *showcmd, *nocmd, *confcmd, *conftcmd, *conftnocmd, *lscmd;
   mtev_console_state_t *tl, *_conf_t_check_state, *_unset_state,
                        *_attr_state, *_uattr_state;
+
+  mtev_conf_delete_section_hook_register("checks_protection",
+                                         noit_delete_section_impl, NULL);
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
