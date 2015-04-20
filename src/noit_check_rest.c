@@ -178,6 +178,7 @@ stats_to_json(stats_t *c) {
 
 struct json_object *
 noit_check_state_as_json(noit_check_t *check, int full) {
+  char seq_str[64];
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
   struct timeval *t;
@@ -192,6 +193,8 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   json_object_object_add(doc, "target", json_object_new_string(check->target));
   json_object_object_add(doc, "target_ip", json_object_new_string(check->target_ip));
   json_object_object_add(doc, "filterset", json_object_new_string(check->filterset));
+  snprintf(seq_str, sizeof(seq_str), "%lld", (long long)check->config_seq);
+  json_object_object_add(doc, "seq", json_object_new_string(seq_str));
   json_object_object_add(doc, "period", json_object_new_int(check->period));
   json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
   json_object_object_add(doc, "flags", json_object_new_int(check->flags));
@@ -420,6 +423,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   xmlAddChild(root, attr);
 
   SHOW_ATTR(attr,node,uuid);
+  SHOW_ATTR(attr,node,seq);
 
   /* Name is odd, it falls back transparently to module */
   if(!INHERIT(node, module, tmp, module)) module = NULL;
@@ -434,6 +438,7 @@ rest_show_check(mtev_http_rest_closure_t *restc,
   SHOW_ATTR(attr,node,module);
   SHOW_ATTR(attr,node,target);
   SHOW_ATTR(attr,node,resolve_rtype);
+  SHOW_ATTR(attr,node,seq);
   SHOW_ATTR(attr,node,period);
   SHOW_ATTR(attr,node,timeout);
   SHOW_ATTR(attr,node,oncheck);
@@ -626,7 +631,11 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
           if(!valid) { *error = "bad disable parameter"; return 0; }
           target = 1;
         }
-        else return 0;
+        else CHECK_N_SET(seq) {}
+        else {
+          *error = "unknown option specified";
+          return 0;
+        }
       }
     }
     else if(!strcmp((char *)tl->name, "config")) {
@@ -640,8 +649,9 @@ noit_validate_check_rest_post(xmlDocPtr doc, xmlNodePtr *a, xmlNodePtr *c,
   return 0;
 }
 static void
-configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePtr c) {
+configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePtr c, int64_t *seq) {
   xmlNodePtr n, config, oldconfig;
+  if(seq) *seq = 0;
   for(n = a->children; n; n = n->next) {
 #define ATTR2PROP(attr) do { \
   if(!strcmp((char *)n->name, #attr)) { \
@@ -659,6 +669,12 @@ configure_xml_check(xmlNodePtr parent, xmlNodePtr check, xmlNodePtr a, xmlNodePt
     ATTR2PROP(timeout);
     ATTR2PROP(disable);
     ATTR2PROP(filterset);
+    ATTR2PROP(seq);
+    if(seq && !strcmp((char *)n->name, "seq")) {
+      xmlChar *v = xmlNodeGetContent(n);
+      *seq = strtoll((const char *)v, NULL, 10);
+      xmlFree(v);
+    }
   }
   for(oldconfig = check->children; oldconfig; oldconfig = oldconfig->next)
     if(!strcmp((char *)oldconfig->name, "config")) break;
@@ -831,9 +847,11 @@ rest_set_check(mtev_http_rest_closure_t *restc,
      xmlXPathNodeSetIsEmpty(pobj->nodesetval)) {
     if(exists) { error_code = 403; FAIL("uuid not yours"); }
     else {
+      int64_t seq, old_seq = 0;
       char *target = NULL, *name = NULL, *module = NULL;
       noit_module_t *m = NULL;
-      xmlNodePtr newcheck, a;
+      noit_check_t *check = NULL;
+      xmlNodePtr a, newcheck = NULL;
       /* make sure this isn't a dup */
       for(a = attr->children; a; a = a->next) {
         if(!strcmp((char *)a->name, "target"))
@@ -843,7 +861,8 @@ rest_set_check(mtev_http_rest_closure_t *restc,
         if(!strcmp((char *)a->name, "module"))
           module = (char *)xmlNodeGetContent(a);
       }
-      exists = (!target || noit_poller_lookup_by_name(target, name) != NULL);
+      exists = (!target || (check = noit_poller_lookup_by_name(target, name)) != NULL);
+      if(check) old_seq = check->config_seq;
       if(module) m = noit_module_lookup(module);
       if(target) xmlFree(target);
       if(name) xmlFree(name);
@@ -855,12 +874,14 @@ rest_set_check(mtev_http_rest_closure_t *restc,
       xmlSetProp(newcheck, (xmlChar *)"uuid", (xmlChar *)pats[1]);
       parent = make_conf_path(pats[0]);
       if(!parent) FAIL("invalid path");
-      configure_xml_check(parent, newcheck, attr, config);
+      configure_xml_check(parent, newcheck, attr, config, &seq);
+      if(old_seq > seq) FAIL("invalid sequence");
       xmlAddChild(parent, newcheck);
       CONF_DIRTY(newcheck);
     }
   }
   if(exists) {
+    int64_t seq, old_seq = 0;
     int module_change;
     char *target = NULL, *name = NULL, *module = NULL;
     xmlNodePtr a;
@@ -891,7 +912,10 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(module_change) FAIL("cannot change module");
     parent = make_conf_path(pats[0]);
     if(!parent) FAIL("invalid path");
-    configure_xml_check(parent, node, attr, config);
+    configure_xml_check(parent, node, attr, config, &seq);
+    if(check) old_seq = check->config_seq;
+mtevL(mtev_error, "HERE: %lld > %lld\n", old_seq, seq);
+    if(old_seq > seq) FAIL("invalid sequence");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
     CONF_DIRTY(node);

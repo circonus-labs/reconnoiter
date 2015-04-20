@@ -398,9 +398,10 @@ noit_poller_process_checks(const char *xpath) {
     int period = 0, timeout = 0;
     mtev_boolean disabled = mtev_false, busted = mtev_false;
     uuid_t uuid, out_uuid;
+    int64_t config_seq = 0;
     mtev_hash_table *options;
     mtev_hash_table **moptions = NULL;
-    mtev_boolean moptions_used = mtev_false;
+    mtev_boolean moptions_used = mtev_false, backdated = mtev_false;
 
     /* We want to heartbeat here... otherwise, if a lot of checks are 
      * configured or if we're running on a slower system, we could 
@@ -423,6 +424,8 @@ noit_poller_process_checks(const char *xpath) {
       mtevL(noit_stderr, "check %d has no uuid\n", i+1);
       continue;
     }
+
+    MYATTR(int64, seq, &config_seq);
 
     if(uuid_parse(uuid_str, uuid)) {
       mtevL(noit_stderr, "check uuid: '%s' is invalid\n", uuid_str);
@@ -495,15 +498,27 @@ noit_poller_process_checks(const char *xpath) {
 
     pthread_mutex_lock(&polls_lock);
     found = mtev_hash_retrieve(&polls, (char *)uuid, UUID_SIZE, &vcheck);
+    if(found) {
+      noit_check_t *check = (noit_check_t *)vcheck;
+      /* Possibly reset the seq */
+      if(config_seq < 0) check->config_seq = 0;
+
+      /* Otherwise note a non-increasing sequence */
+      if(check->config_seq > config_seq) backdated = mtev_true;
+    }
     pthread_mutex_unlock(&polls_lock);
     if(found)
       noit_poller_deschedule(uuid);
-    noit_poller_schedule(target, module, name, filterset, options,
-                         moptions_used ? moptions : NULL,
-                         period, timeout, oncheck[0] ? oncheck : NULL,
-                         flags, uuid, out_uuid);
-    mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
-
+    if(backdated) {
+      mtevL(noit_error, "Check config seq backwards, ignored\n");
+    }
+    else {
+      noit_poller_schedule(target, module, name, filterset, options,
+                           moptions_used ? moptions : NULL,
+                           period, timeout, oncheck[0] ? oncheck : NULL,
+                           config_seq, flags, uuid, out_uuid);
+      mtevL(noit_debug, "loaded uuid: %s\n", uuid_str);
+    }
     for(ridx=0; ridx<reg_module_id; ridx++) {
       if(moptions[ridx]) {
         mtev_hash_destroy(moptions[ridx], free, free);
@@ -976,10 +991,18 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
+	  int64_t seq,
                   int flags) {
   int mask = NP_DISABLED | NP_UNCONFIG;
 
   assert(name);
+  if(seq < 0) new_check->config_seq = seq = 0;
+  if(new_check->config_seq > seq) {
+    char uuid_str[37];
+    uuid_unparse_lower(new_check->checkid, uuid_str);
+    mtevL(mtev_error, "noit_check_update[%s] skipped: seq backwards\n", uuid_str);
+    return -1;
+  }
 
   if(NOIT_CHECK_RUNNING(new_check)) {
     char module[256];
@@ -989,7 +1012,7 @@ noit_check_update(noit_check_t *new_check,
     noit_poller_deschedule(id);
     return noit_poller_schedule(target, module, name, filterset,
                                 config, mconfigs, period, timeout, oncheck,
-                                flags, id, dummy);
+                                seq, flags, id, dummy);
   }
 
   new_check->generation = __config_load_generation;
@@ -1069,6 +1092,7 @@ noit_check_update(noit_check_t *new_check,
   if(new_check->oncheck) system_needs_causality = mtev_true;
   new_check->period = period;
   new_check->timeout = timeout;
+  new_check->config_seq = seq;
 
   /* Unset what could be set.. then set what should be set */
   new_check->flags = (new_check->flags & ~mask) | flags;
@@ -1092,6 +1116,7 @@ noit_poller_schedule(const char *target,
                      u_int32_t period,
                      u_int32_t timeout,
                      const char *oncheck,
+                     int64_t seq,
                      int flags,
                      uuid_t in,
                      uuid_t out) {
@@ -1107,7 +1132,7 @@ noit_poller_schedule(const char *target,
     uuid_copy(new_check->checkid, in);
 
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
-                    period, timeout, oncheck, flags);
+                    period, timeout, oncheck, seq, flags);
   assert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));

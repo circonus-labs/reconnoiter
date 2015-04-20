@@ -150,6 +150,7 @@ typedef struct noit_check {
   void **module_metadata;
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
+  int64_t config_seq;          /* If non-zero, must increase */
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -188,6 +189,7 @@ API_EXPORT(int)
                        u_int32_t period,
                        u_int32_t timeout,
                        const char *oncheck,
+                       int64_t seq,
                        int flags,
                        uuid_t in,
                        uuid_t out);
@@ -205,6 +207,7 @@ API_EXPORT(int)
                     u_int32_t period,
                     u_int32_t timeout,
                     const char *oncheck,
+                    int64_t seq,
                     int flags);
 
 API_EXPORT(mtev_boolean)

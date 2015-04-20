@@ -63,6 +63,7 @@ static struct _valid_attr_t {
 } valid_attrs[] = {
   { "/checks", "name", "@name", 0 },
   { "/checks", "target", "@target", 0 },
+  { "/checks", "seq", "@seq", 0 },
   { "/checks", "period", "@period", 0 },
   { "/checks", "timeout", "@timeout", 0 },
   { "/checks", "oncheck", "@oncheck", 0 },
@@ -102,6 +103,23 @@ void noit_console_conf_checks_init() {
   register_console_config_check_commands();
 }
 
+static void
+noit_conf_check_bump_seq(xmlNodePtr node) {
+  int64_t seq;
+  xmlChar *seq_str;
+  seq_str = xmlGetProp(node, (xmlChar *)"seq");
+  if(!seq_str) return;
+  seq = strtoll((const char *)seq_str, NULL, 10);
+  if(seq != 0) {
+    char new_seq_str[64];
+    /* negatve -> 0, positive ++ */
+    seq = (seq < 0) ? 0 : (seq + 1);
+    snprintf(new_seq_str, sizeof(new_seq_str), "%lld", seq);
+    xmlUnsetProp(node, (xmlChar *)"seq");
+    xmlSetProp(node, (xmlChar *)"seq", (xmlChar *)new_seq_str);
+  }
+  xmlFree(seq_str);
+}
 static int
 noit_console_mkcheck_xpath(char *xpath, int len,
                            mtev_conf_t_userdata_t *info,
@@ -299,9 +317,11 @@ noit_console_check(mtev_console_closure_t ncct,
               (char *)xmlGetNodePath(node) + strlen("/noit"));
     goto out;
   }
-  if(argc > 1 && !creating_new)
+  if(argc > 1 && !creating_new) {
     if(noit_config_check_update_attrs(node, argc - 1, argv + 1))
       nc_printf(ncct, "Partially successful, error setting some attributes\n");
+    noit_conf_check_bump_seq(node);
+  }
 
   if(info) {
     char *xmlpath;
@@ -516,6 +536,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
     nc_attr_show(ncct, "module", node, mnode, module);
     if(module) free(module);
     SHOW_ATTR(target);
+    SHOW_ATTR(seq);
     SHOW_ATTR(resolve_rtype);
     SHOW_ATTR(period);
     SHOW_ATTR(timeout);
@@ -633,6 +654,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         int j;
         for(j=1;j<argc;j++)
           xmlUnsetProp(node, (xmlChar *)argv[j]);
+        noit_conf_check_bump_seq(node);
         CONF_DIRTY(node);
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
@@ -1064,6 +1086,8 @@ replace_attr(mtev_console_closure_t ncct,
   xmlUnsetProp(node, (xmlChar *)attrinfo->name);
   if(value)
     xmlSetProp(node, (xmlChar *)attrinfo->name, (xmlChar *)value);
+  if(!strcmp((const char *)node->name, "check"))
+    noit_conf_check_bump_seq(node);
   CONF_DIRTY(node);
   mtev_conf_mark_changed();
   rv = 0;
