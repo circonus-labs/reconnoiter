@@ -83,4 +83,8 @@ export DYLD_LIBRARY_PATH=`pwd`/../../src
 export LD_LIBRARY_PATH=`pwd`/../../src
 export MTEV_MODULES_DIR=`mtev-config --modules-dir`
 export MTEV_LIB_DIR=`mtev-config --libdir`
+if [ "$?" -ne "0" ]; then
+	echo "mtev-config error"
+	exit 3
+fi
 exec node ./runtests.js $ARGS
