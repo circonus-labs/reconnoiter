@@ -78,7 +78,6 @@
     <module image="selfcheck" name="selfcheck"/>
     <module image="ping_icmp" name="ping_icmp"/>
     <module image="dns" name="dns"/>
-    <module image="ssh2" name="ssh2"/>
     <module image="httptrap" name="httptrap"/>
     <module image="statsd" name="statsd"/>
     <module image="collectd" name="collectd"/>
@@ -87,6 +86,7 @@
     <module loader="lua" name="http" object="noit.module.http"/>
     <module loader="lua" name="resmon" object="noit.module.resmon"/>
     <module loader="lua" name="smtp" object="noit.module.smtp"/>
+    <module loader="lua" name="ssh2" object="noit.module.ssh2"/>
     <module loader="lua" name="ntp" object="noit.module.ntp"/>
     <module loader="lua" name="dhcp" object="noit.module.dhcp"/>
     <module loader="lua" name="pop3" object="noit.module.pop3"/>
