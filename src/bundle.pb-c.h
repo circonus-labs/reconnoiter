@@ -5,8 +5,32 @@
 
 #include <google/protobuf-c/protobuf-c.h>
 
+#ifdef PROTOBUF_C_BEGIN_DECLS
 PROTOBUF_C_BEGIN_DECLS
+#else
+#ifdef __cplusplus
+extern "C" {
+#endif
+#endif
 
+#if defined(PROTOBUF_C_VERSION_NUMBER)
+#define PROTOBUF_C_ASSERT assert
+#define PROTOBUF_C_OFFSETOF offsetof
+#define PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC
+#include <stdlib.h>
+static void *__c_allocator_alloc(void *d, size_t size) {
+  return malloc(size);
+}
+static void __c_allocator_free(void *d, void *p) {
+  free(p);
+}
+static ProtobufCAllocator __c_allocator = {
+  .alloc = __c_allocator_alloc,
+  .free = __c_allocator_free,
+  .allocator_data = NULL
+};
+#define protobuf_c_system_allocator __c_allocator
+#endif
 
 typedef struct _Metric Metric;
 typedef struct _Status Status;
@@ -184,7 +208,13 @@ extern const ProtobufCMessageDescriptor status__descriptor;
 extern const ProtobufCMessageDescriptor metadata__descriptor;
 extern const ProtobufCMessageDescriptor bundle__descriptor;
 
+#ifdef PROTOBUF_C_END_DECLS
 PROTOBUF_C_END_DECLS
+#else
+#ifdef __cplusplus
+}
+#endif
+#endif
 
 
 #endif  /* PROTOBUF_bundle_2eproto__INCLUDED */
