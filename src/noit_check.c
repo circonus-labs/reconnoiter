@@ -52,6 +52,7 @@
 #include <mtev_watchdog.h>
 #include <mtev_conf.h>
 #include <mtev_console.h>
+#include <mtev_cluster.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"
@@ -993,15 +994,25 @@ noit_check_update(noit_check_t *new_check,
                   const char *oncheck,
 	  int64_t seq,
                   int flags) {
+  char uuid_str[37];
   int mask = NP_DISABLED | NP_UNCONFIG;
 
   assert(name);
+  uuid_unparse_lower(new_check->checkid, uuid_str);
   if(seq < 0) new_check->config_seq = seq = 0;
   if(new_check->config_seq > seq) {
-    char uuid_str[37];
-    uuid_unparse_lower(new_check->checkid, uuid_str);
     mtevL(mtev_error, "noit_check_update[%s] skipped: seq backwards\n", uuid_str);
     return -1;
+  }
+
+  /* selfcheck will identify this node in a cluster */
+  if(mtev_cluster_enabled() && !strcmp(new_check->module, "selfcheck")) {
+    uuid_t cluster_id;
+    mtev_cluster_get_self(cluster_id);
+    if(uuid_compare(cluster_id, new_check->checkid)) {
+      mtevL(mtev_error, "Setting global cluster identity to '%s'\n", uuid_str);
+      mtev_cluster_set_self(new_check->checkid);
+    }
   }
 
   if(NOIT_CHECK_RUNNING(new_check)) {

@@ -62,6 +62,7 @@
 #include <mtev_capabilities_listener.h>
 #include <mtev_conf.h>
 #include <mtev_events_rest.h>
+#include <mtev_cluster.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
@@ -259,6 +260,7 @@ static int child_main() {
   }
 
   mtev_listener_init(APPNAME);
+  mtev_cluster_init();
 
   /* Drop privileges */
   mtev_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
