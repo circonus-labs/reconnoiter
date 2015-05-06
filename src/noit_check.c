@@ -96,6 +96,115 @@ MTEV_HOOK_IMPL(check_log_stats,
   (void *closure, noit_check_t *check),
   (closure,check))
 
+#define STATS_INPROGRESS 0
+#define STATS_CURRENT 1
+#define STATS_PREVIOUS 2
+
+void
+free_metric(metric_t *m) {
+  if(!m) return;
+  if(m->metric_name) mtev_memory_safe_free(m->metric_name);
+  if(m->metric_value.i) mtev_memory_safe_free(m->metric_value.i);
+  mtev_memory_safe_free(m);
+}
+
+#define stats_inprogress(c) ((stats_t **)(c->statistics))[STATS_INPROGRESS]
+#define stats_current(c) ((stats_t **)(c->statistics))[STATS_CURRENT]
+#define stats_previous(c) ((stats_t **)(c->statistics))[STATS_PREVIOUS]
+
+stats_t *
+noit_check_get_stats_inprogress(noit_check_t *c) {
+  return stats_inprogress(c);
+}
+stats_t *
+noit_check_get_stats_current(noit_check_t *c) {
+  return stats_current(c);
+}
+stats_t *
+noit_check_get_stats_previous(noit_check_t *c) {
+  return stats_previous(c);
+}
+
+struct stats_t {
+  struct timeval whence;
+  int8_t available;
+  int8_t state;
+  u_int32_t duration;
+  mtev_hash_table metrics;
+  char status[256];
+};
+
+struct timeval *
+noit_check_stats_whence(stats_t *s, struct timeval *n) {
+  if(n) memcpy(&s->whence, n, sizeof(*n));
+  return &s->whence;
+}
+int8_t
+noit_check_stats_available(stats_t *s, int8_t *n) {
+  if(n) s->available = *n;
+  return s->available;
+}
+int8_t
+noit_check_stats_state(stats_t *s, int8_t *n) {
+  if(n) s->state = *n;
+  return s->state;
+}
+u_int32_t
+noit_check_stats_duration(stats_t *s, u_int32_t *n) {
+  if(n) s->duration = *n;
+  return s->duration;
+}
+const char *
+noit_check_stats_status(stats_t *s, const char *n) {
+  if(n) strlcpy(s->status, n, sizeof(s->status));
+  return s->status;
+}
+mtev_hash_table *
+noit_check_stats_metrics(stats_t *s) {
+  return &s->metrics;
+}
+void
+noit_stats_set_whence(noit_check_t *c, struct timeval *t) {
+  (void)noit_check_stats_whence(noit_check_get_stats_inprogress(c), t);
+}
+void
+noit_stats_set_state(noit_check_t *c, int8_t t) {
+  (void)noit_check_stats_state(noit_check_get_stats_inprogress(c), &t);
+}
+void
+noit_stats_set_duration(noit_check_t *c, u_int32_t t) {
+  (void)noit_check_stats_duration(noit_check_get_stats_inprogress(c), &t);
+}
+void
+noit_stats_set_status(noit_check_t *c, const char *s) {
+  (void)noit_check_stats_status(noit_check_get_stats_inprogress(c), s);
+}
+void
+noit_stats_set_available(noit_check_t *c, int8_t t) {
+  (void)noit_check_stats_available(noit_check_get_stats_inprogress(c), &t);
+}
+static void
+noit_check_safe_free_stats(void *vs) {
+  stats_t *s = vs;
+  mtev_hash_destroy(&s->metrics, NULL, (void (*)(void *))free_metric);
+}
+static stats_t *
+noit_check_stats_alloc() {
+  stats_t *n;
+  n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
+  memset(n, 0, sizeof(*n));
+  mtev_hash_init(&n->metrics);
+  return n;
+}
+static void *
+noit_check_stats_set_calloc() {
+  int i;
+  stats_t **s;
+  s = calloc(sizeof(stats_t *), 3);
+  for(i=0;i<3;i++) s[i] = noit_check_stats_alloc();
+  return s;
+}
+
 /* 20 ms slots over 60 second for distribution */
 #define SCHEDULE_GRANULARITY 20
 #define SLOTS_PER_SECOND (1000/SCHEDULE_GRANULARITY)
@@ -766,7 +875,7 @@ noit_check_clone(uuid_t in) {
   new_check->flags = 0;
   new_check->fire_event = NULL;
   memset(&new_check->last_fire_time, 0, sizeof(new_check->last_fire_time));
-  memset(&new_check->stats, 0, sizeof(new_check->stats));
+  new_check->statistics = noit_check_stats_set_calloc();
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
   mtev_hash_merge_as_dict(new_check->config, checker->config);
@@ -1142,6 +1251,7 @@ noit_poller_schedule(const char *target,
   else
     uuid_copy(new_check->checkid, in);
 
+  new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, seq, flags);
   assert(mtev_hash_store(&polls,
@@ -1166,13 +1276,6 @@ static void recycle_check(noit_check_t *checker) {
   n->checker = checker;
   n->next = checker_rcb;
   checker_rcb = n;
-}
-void
-free_metric(metric_t *m) {
-  if(!m) return;
-  if(m->metric_name) mtev_memory_safe_free(m->metric_name);
-  if(m->metric_value.i) mtev_memory_safe_free(m->metric_value.i);
-  mtev_memory_safe_free(m);
 }
 void
 noit_poller_free_check(noit_check_t *checker) {
@@ -1222,15 +1325,9 @@ noit_poller_free_check(noit_check_t *checker) {
     }
     free(checker->module_configs);
   }
-  if(checker->stats.inprogress.status) free(checker->stats.inprogress.status);
-  mtev_hash_destroy(&checker->stats.inprogress.metrics, NULL,
-                    (void (*)(void *))free_metric);
-  if(checker->stats.current.status) free(checker->stats.current.status);
-  mtev_hash_destroy(&checker->stats.current.metrics, NULL,
-                    (void (*)(void *))free_metric);
-  if(checker->stats.previous.status) free(checker->stats.previous.status);
-  mtev_hash_destroy(&checker->stats.previous.metrics, NULL,
-                    (void (*)(void *))free_metric);
+  mtev_memory_safe_free(stats_inprogress(checker));
+  mtev_memory_safe_free(stats_current(checker));
+  mtev_memory_safe_free(stats_previous(checker));
   free(checker);
 }
 static int
@@ -1497,21 +1594,20 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
                    int once, noit_check_t *cause) {
   /* self is likely null here -- why it is bad, in fact */
   /* this is only suitable to call in one-offs */
-  stats_t current;
+  struct timeval now;
+  stats_t *inp;
   char buff[256];
   if(!once) return -1;
   if(!check) return -1;
   assert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
-  noit_check_stats_clear(check, &current);
-  gettimeofday(&current.whence, NULL);
-  current.duration = 0;
-  current.available = NP_UNKNOWN;
-  current.state = NP_UNKNOWN;
+  inp = noit_check_get_stats_inprogress(check);
+  gettimeofday(&now, NULL);
+  noit_check_stats_whence(inp, &now);
   snprintf(buff, sizeof(buff), "check[%s] implementation offline",
            check->module);
-  current.status = buff;
-  noit_check_set_stats(check, &current);
+  noit_check_stats_status(inp, buff);
+  noit_check_set_stats(check);
   check->flags &= ~NP_RUNNING;
   return 0;
 }
@@ -1708,6 +1804,8 @@ metric_t *
 noit_stats_get_metric(noit_check_t *check,
                       stats_t *newstate, const char *name) {
   void *v;
+  if(newstate == NULL)
+    newstate = stats_inprogress(check);
   if(mtev_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
     return (metric_t *)v;
   return NULL;
@@ -1715,38 +1813,42 @@ noit_stats_get_metric(noit_check_t *check,
 
 void
 noit_stats_set_metric(noit_check_t *check,
-                      stats_t *newstate, const char *name, metric_type_t type,
+                      const char *name, metric_type_t type,
                       const void *value) {
+  stats_t *c;
   metric_t *m = mtev_memory_safe_calloc(1, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     free_metric(m);
     return;
   }
   noit_check_metric_count_add(1);
-  check_stats_set_metric_hook_invoke(check, newstate, m);
-  __stats_add_metric(newstate, m);
+  c = noit_check_get_stats_inprogress(check);
+  check_stats_set_metric_hook_invoke(check, c, m);
+  __stats_add_metric(c, m);
 }
 void
 noit_stats_set_metric_coerce(noit_check_t *check,
-                             stats_t *stat, const char *name, metric_type_t t,
+                             const char *name, metric_type_t t,
                              const char *v) {
   char *endptr;
+  stats_t *c;
+  c = noit_check_get_stats_inprogress(check);
   if(v == NULL) {
    bogus:
-    check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, mtev_false);
-    noit_stats_set_metric(check, stat, name, t, NULL);
+    check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_false);
+    noit_stats_set_metric(check, name, t, NULL);
     return;
   }
   switch(t) {
     case METRIC_STRING:
-      noit_stats_set_metric(check, stat, name, t, v);
+      noit_stats_set_metric(check, name, t, v);
       break;
     case METRIC_INT32:
     {
       int32_t val;
       val = strtol(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, stat, name, t, &val);
+      noit_stats_set_metric(check, name, t, &val);
       break;
     }
     case METRIC_UINT32:
@@ -1754,7 +1856,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       u_int32_t val;
       val = strtoul(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, stat, name, t, &val);
+      noit_stats_set_metric(check, name, t, &val);
       break;
     }
     case METRIC_INT64:
@@ -1762,7 +1864,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       int64_t val;
       val = strtoll(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, stat, name, t, &val);
+      noit_stats_set_metric(check, name, t, &val);
       break;
     }
     case METRIC_UINT64:
@@ -1770,7 +1872,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       u_int64_t val;
       val = strtoull(v, &endptr, 10);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, stat, name, t, &val);
+      noit_stats_set_metric(check, name, t, &val);
       break;
     }
     case METRIC_DOUBLE:
@@ -1778,14 +1880,14 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       double val;
       val = strtod(v, &endptr);
       if(endptr == v) goto bogus;
-      noit_stats_set_metric(check, stat, name, t, &val);
+      noit_stats_set_metric(check, name, t, &val);
       break;
     }
     case METRIC_GUESS:
-      noit_stats_set_metric(check, stat, name, t, v);
+      noit_stats_set_metric(check, name, t, v);
       break;
   }
-  check_stats_set_metric_coerce_hook_invoke(check, stat, name, t, v, mtev_true);
+  check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
 }
 void
 noit_stats_log_immediate_metric(noit_check_t *check,
@@ -1803,7 +1905,7 @@ noit_stats_log_immediate_metric(noit_check_t *check,
 }
 
 void
-noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
+noit_check_passive_set_stats(noit_check_t *check) {
   int i, nwatches = 0;
   mtev_skiplist_node *next;
   noit_check_t n;
@@ -1812,7 +1914,7 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
   uuid_copy(n.checkid, check->checkid);
   n.period = 0;
 
-  noit_check_set_stats(check,newstate);
+  noit_check_set_stats(check);
 
   pthread_mutex_lock(&polls_lock);
   mtev_skiplist_find_neighbors(&watchlist, &n, NULL, NULL, &next);
@@ -1825,11 +1927,11 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
   pthread_mutex_unlock(&polls_lock);
 
   for(i=0;i<nwatches;i++) {
-    stats_t backup;
+    void *backup;
     noit_check_t *wcheck = watches[i];
     /* Swap the real check's stats into place */
-    memcpy(&backup, &wcheck->stats.current, sizeof(stats_t));
-    memcpy(&wcheck->stats.current, &check->stats.current, sizeof(stats_t));
+    backup = wcheck->statistics;
+    wcheck->statistics = check->statistics;
 
     if(check_passive_log_stats_hook_invoke(check) == MTEV_HOOK_CONTINUE) {
       /* Write out our status */
@@ -1838,52 +1940,55 @@ noit_check_passive_set_stats(noit_check_t *check, stats_t *newstate) {
       noit_check_log_metrics(wcheck);
     }
     /* Swap them back out */
-    memcpy(&wcheck->stats.current, &backup, sizeof(stats_t));
+    wcheck->statistics = backup;
   }
 }
 void
-noit_check_set_stats(noit_check_t *check, stats_t *newstate) {
+noit_check_set_stats(noit_check_t *check) {
   int report_change = 0;
   char *cp;
   dep_list_t *dep;
-  if(check->stats.previous.status)
-    free(check->stats.previous.status);
-  mtev_hash_destroy(&check->stats.previous.metrics, NULL,
-                    (void (*)(void *))free_metric);
-  memcpy(&check->stats.previous, &check->stats.current, sizeof(stats_t));
-  if(newstate)
-    memcpy(&check->stats.current, newstate, sizeof(stats_t));
-  if(check->stats.current.status)
-    check->stats.current.status = strdup(check->stats.current.status);
-  for(cp = check->stats.current.status; cp && *cp; cp++)
-    if(*cp == '\r' || *cp == '\n') *cp = ' ';
+  stats_t *old, *prev, *current;
+  old = stats_previous(check);
+  prev = stats_previous(check) = stats_current(check);
+  current = stats_current(check) = stats_inprogress(check);
+  stats_inprogress(check) = noit_check_stats_alloc();
+  
+  if(old) {
+    noit_check_safe_free_stats(old);
+  }
+
+  if(current) {
+    for(cp = current->status; cp && *cp; cp++)
+      if(*cp == '\r' || *cp == '\n') *cp = ' ';
+  }
 
   /* check for state changes */
-  if(check->stats.current.available != NP_UNKNOWN &&
-     check->stats.previous.available != NP_UNKNOWN &&
-     check->stats.current.available != check->stats.previous.available)
+  if((!current || (current->available != NP_UNKNOWN)) &&
+     (!prev || (prev->available != NP_UNKNOWN)) &&
+     (!current || !prev || (current->available != prev->available)))
     report_change = 1;
-  if(check->stats.current.state != NP_UNKNOWN &&
-     check->stats.previous.state != NP_UNKNOWN &&
-     check->stats.current.state != check->stats.previous.state)
+  if((!current || (current->state != NP_UNKNOWN)) &&
+     (!prev || (prev->state != NP_UNKNOWN)) &&
+     (!current || !prev || (current->state != prev->state)))
     report_change = 1;
 
   mtevL(noit_debug, "%s`%s <- [%s]\n", check->target, check->name,
-        check->stats.current.status);
+        current ? current->status : "null");
   if(report_change) {
     mtevL(noit_debug, "%s`%s -> [%s:%s]\n",
           check->target, check->name,
-          noit_check_available_string(check->stats.current.available),
-          noit_check_state_string(check->stats.current.state));
+          noit_check_available_string(current ? current->available : NP_UNKNOWN),
+          noit_check_state_string(current ? current->state : NP_UNKNOWN));
   }
 
   if(NOIT_CHECK_STATUS_ENABLED()) {
     char id[UUID_STR_LEN+1];
     uuid_unparse_lower(check->checkid, id);
     NOIT_CHECK_STATUS(id, check->module, check->name, check->target,
-                      check->stats.current.available,
-                      check->stats.current.state,
-                      check->stats.current.status);
+                      current ? current->available : NP_UNKNOWN,
+                      current ? current->state : NP_UNKNOWN,
+                      current ? current->status : "null");
   }
 
   if(check_log_stats_hook_invoke(check) == MTEV_HOOK_CONTINUE) {
@@ -1949,14 +2054,16 @@ noit_console_show_watchlist(mtev_console_closure_t ncct,
 static void
 nc_printf_check_brief(mtev_console_closure_t ncct,
                       noit_check_t *check) {
+  stats_t *current;
   char out[512];
   char uuid_str[37];
   snprintf(out, sizeof(out), "%s`%s (%s [%x])", check->target, check->name,
            check->target_ip, check->flags);
   uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
-  if(check->stats.current.status)
-    nc_printf(ncct, "\t%s\n", check->stats.current.status);
+  current = stats_current(check);
+  if(current && current->status)
+    nc_printf(ncct, "\t%s\n", current->status);
 }
 
 char *

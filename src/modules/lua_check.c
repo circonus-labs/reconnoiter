@@ -239,9 +239,11 @@ static int
 noit_lua_get_available(lua_State *L) {
   char av[2] = { '\0', '\0' };
   noit_check_t *check;
+  stats_t *current;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
-  av[0] = (char)check->stats.current.available;
+  current = noit_check_get_stats_current(check);
+  av[0] = (char)noit_check_stats_available(current, NULL);
   lua_pushstring(L, av);
   return 1;
 }
@@ -250,16 +252,18 @@ noit_lua_set_available(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
-  check->stats.inprogress.available = lua_tointeger(L, lua_upvalueindex(2));
+  noit_stats_set_available(check, lua_tointeger(L, lua_upvalueindex(2)));
   return 0;
 }
 static int
 noit_lua_get_state(lua_State *L) {
   char status[2] = { '\0', '\0' };
   noit_check_t *check;
+  stats_t *current;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
-  status[0] = (char)check->stats.current.state;
+  current = noit_check_get_stats_current(check);
+  status[0] = (char)noit_check_stats_state(current, NULL);
   lua_pushstring(L, status);
   return 1;
 }
@@ -300,7 +304,7 @@ noit_lua_set_state(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L)) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
-  check->stats.inprogress.state = lua_tointeger(L, lua_upvalueindex(2));
+  noit_stats_set_state(check, lua_tointeger(L, lua_upvalueindex(2)));
   return 0;
 }
 static int
@@ -309,10 +313,8 @@ noit_lua_set_status(lua_State *L) {
   noit_check_t *check;
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
-  /* strdup here... but free later */
-  if(check->stats.inprogress.status) free(check->stats.inprogress.status);
   ns = lua_tostring(L, 1);
-  check->stats.inprogress.status = ns ? strdup(ns) : NULL;
+  noit_stats_set_status(check, ns);
   return 0;
 }
 static int
@@ -326,7 +328,7 @@ noit_lua_set_metric_json(lua_State *L) {
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
   json = lua_tolstring(L, 1, &jsonlen);
-  rv = noit_check_stats_from_json_str(check, &check->stats.inprogress, json, (int)jsonlen);
+  rv = noit_check_stats_from_json_str(check, json, (int)jsonlen);
   lua_pushinteger(L, rv);
   return 1;
 }
@@ -349,7 +351,7 @@ noit_lua_set_metric(lua_State *L) {
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
   if(lua_isnil(L, 2)) {
-    noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, NULL);
+    noit_stats_set_metric(check, metric_name, metric_type, NULL);
     lua_pushboolean(L, 1);
     return 1;
   }
@@ -360,7 +362,7 @@ noit_lua_set_metric(lua_State *L) {
     case METRIC_UINT64:
     case METRIC_DOUBLE:
       if(!lua_isnumber(L, 2)) {
-        noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, NULL);
+        noit_stats_set_metric(check, metric_name, metric_type, NULL);
         lua_pushboolean(L, 0);
         return 1;
       }
@@ -370,28 +372,28 @@ noit_lua_set_metric(lua_State *L) {
   switch(metric_type) {
     case METRIC_GUESS:
     case METRIC_STRING:
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type,
+      noit_stats_set_metric(check, metric_name, metric_type,
                             (void *)lua_tostring(L, 2));
       break;
     case METRIC_INT32:
       __i = strtol(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, &__i);
+      noit_stats_set_metric(check, metric_name, metric_type, &__i);
       break;
     case METRIC_UINT32:
       __I = strtoul(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, &__I);
+      noit_stats_set_metric(check, metric_name, metric_type, &__I);
       break;
     case METRIC_INT64:
       __l = strtoll(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, &__l);
+      noit_stats_set_metric(check, metric_name, metric_type, &__l);
       break;
     case METRIC_UINT64:
       __L = strtoull(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, &__L);
+      noit_stats_set_metric(check, metric_name, metric_type, &__L);
       break;
     case METRIC_DOUBLE:
       __n = luaL_optnumber(L, 2, 0);
-      noit_stats_set_metric(check, &check->stats.inprogress, metric_name, metric_type, &__n);
+      noit_stats_set_metric(check, metric_name, metric_type, &__n);
       break;
   }
   lua_pushboolean(L, 1);
@@ -742,19 +744,19 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   mtev_lua_resume_info_t *ri = check->closure;
   noit_lua_resume_check_info_t *ci = ri->context_data;
   struct timeval duration;
+  stats_t *inprogress;
 
   gettimeofday(&ci->finish_time, NULL);
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
-  memcpy(&check->stats.inprogress.whence, &ci->finish_time, sizeof(check->stats.inprogress.whence));
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  noit_stats_set_whence(check, &ci->finish_time);
+  noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
   /* Only set out stats/log if someone has actually performed a check */
-  if(check->stats.inprogress.state != NP_UNKNOWN ||
-     check->stats.inprogress.available != NP_UNKNOWN)
-    noit_check_set_stats(check, &check->stats.inprogress);
-  free(check->stats.inprogress.status);
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  inprogress = noit_check_get_stats_inprogress(check);
+  if(noit_check_stats_state(inprogress,NULL) != NP_UNKNOWN ||
+     noit_check_stats_available(inprogress,NULL) != NP_UNKNOWN)
+    noit_check_set_stats(check);
 }
 
 int
@@ -792,11 +794,10 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
       goto done;
     default: /* Errors */
       mtevL(nldeb, "lua resume returned: %d\n", result);
-      if(check)  {
-        if(check->stats.inprogress.status) free(check->stats.inprogress.status);
-        check->stats.inprogress.status = strdup(ci->timed_out ? "timeout" : "unknown error from lua");
-        check->stats.inprogress.available = NP_UNAVAILABLE;
-        check->stats.inprogress.state = NP_BAD;
+      if(check) {
+        noit_stats_set_status(check, ci->timed_out ? "timeout" : "unknown error from lua");
+        noit_stats_set_available(check, NP_UNAVAILABLE);
+        noit_stats_set_state(check, NP_BAD);
       }
       base = lua_gettop(ri->coro_state);
       if(base>0) {
@@ -813,8 +814,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
           }
           if(nerr) {
             if(check) {
-              if(check->stats.inprogress.status) free(check->stats.inprogress.status);
-              check->stats.inprogress.status = strdup(nerr);
+              noit_stats_set_status(check, nerr);
             }
           }
         }
@@ -860,10 +860,9 @@ noit_lua_check_timeout(eventer_t e, int mask, void *closure,
     mtev_lua_cancel_coro(ri);
   }
   if(check) {
-    if(check->stats.inprogress.status) free(check->stats.inprogress.status);
-    check->stats.inprogress.status = strdup("timeout");
-    check->stats.inprogress.available = NP_UNAVAILABLE;
-    check->stats.inprogress.state = NP_BAD;
+    noit_stats_set_status(check, "timeout");
+    noit_stats_set_available(check, NP_UNAVAILABLE);
+    noit_stats_set_state(check, NP_BAD);
   }
 
   noit_lua_log_results(self, check);

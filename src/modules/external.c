@@ -131,9 +131,7 @@ static int external_config(noit_module_t *self, mtev_hash_table *options) {
 static void external_log_results(noit_module_t *self, noit_check_t *check) {
   external_data_t *data;
   struct check_info *ci;
-  struct timeval duration;
-
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  struct timeval duration, now;
 
   data = noit_module_get_userdata(self);
   ci = (struct check_info *)check->closure;
@@ -141,26 +139,27 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   mtevL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
         check->target, ci->errortype, ci->exit_code);
 
-  gettimeofday(&check->stats.inprogress.whence, NULL);
-  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  gettimeofday(&now, NULL);
+  sub_timeval(now, check->last_fire_time, &duration);
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
   if(ci->errortype == EXTERNAL_ERROR_TIMEOUT) {
-    check->stats.inprogress.available = NP_UNAVAILABLE;
-    check->stats.inprogress.state = NP_BAD;
-    check->stats.inprogress.status = "command timed out";
+    noit_stats_set_available(check, NP_UNAVAILABLE);
+    noit_stats_set_state(check, NP_BAD);
+    noit_stats_set_status(check, "command timed out");
   }
   else if(ci->errortype == EXTERNAL_ERROR_BADPATH) {
-    check->stats.inprogress.available = NP_UNAVAILABLE;
-    check->stats.inprogress.state = NP_BAD;
-    check->stats.inprogress.status = "command is not in module path";
+    noit_stats_set_available(check, NP_UNAVAILABLE);
+    noit_stats_set_state(check, NP_BAD);
+    noit_stats_set_status(check, "command is not in module path");
   }
   else if(WEXITSTATUS(ci->exit_code) == 3) {
-    check->stats.inprogress.available = NP_UNKNOWN;
-    check->stats.inprogress.state = NP_UNKNOWN;
+    noit_stats_set_available(check, NP_UNKNOWN);
+    noit_stats_set_state(check, NP_UNKNOWN);
   }
   else {
-    check->stats.inprogress.available = NP_AVAILABLE;
-    check->stats.inprogress.state = (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD;
+    noit_stats_set_available(check, NP_AVAILABLE);
+    noit_stats_set_state(check, (WEXITSTATUS(ci->exit_code) == 0) ? NP_GOOD : NP_BAD);
   }
 
   /* Hack the output into metrics */
@@ -188,14 +187,14 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
           char state[10];
           if(pcre_copy_named_substring(matcher, output, localovector, localrc,
                                        "state", state, sizeof(state)) > 0) {
-            noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, state);
+            noit_stats_set_metric(check, "state", METRIC_STRING, state);
             state_found=1;
           }
         }
         pcre_free(matcher);
       }
       if (!state_found) {
-        noit_stats_set_metric(check, &check->stats.inprogress, "state", METRIC_STRING, "NOT FOUND");
+        noit_stats_set_metric(check, "state", METRIC_STRING, "NOT FOUND");
       }
       /* Look for the pipe.... if it's there, report the preamble as the "message" metric,
        * then only parse metrics after it... if not, report the whole message as the "message"
@@ -206,12 +205,12 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
         char* message = calloc(1, size);
         memcpy(message, output, size);
         message[size-1] = 0;
-        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, message);
+        noit_stats_set_metric(check, "message", METRIC_STRING, message);
         output = pch+1;
         free(message);
       }
       else {
-        noit_stats_set_metric(check, &check->stats.inprogress, "message", METRIC_STRING, output);
+        noit_stats_set_metric(check, "message", METRIC_STRING, output);
       }
 
     }
@@ -238,10 +237,10 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
           else {
             snprintf(metric_name, 255, "%s", metric);
           }
-          noit_stats_set_metric(check, &check->stats.inprogress, metric_name, METRIC_GUESS, value);
+          noit_stats_set_metric(check, metric_name, METRIC_GUESS, value);
         }
         else {
-          noit_stats_set_metric(check, &check->stats.inprogress, metric, METRIC_GUESS, value);
+          noit_stats_set_metric(check, metric, METRIC_GUESS, value);
         }
       }
       mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
@@ -249,10 +248,9 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
     mtevL(data->nldeb, "match failed.... %d\n", rc);
   }
 
-  if (!check->stats.inprogress.status)
-    check->stats.inprogress.status = ci->output;
-  noit_check_set_stats(check, &check->stats.inprogress);
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  if (ci->output)
+    noit_stats_set_status(check, ci->output);
+  noit_check_set_stats(check);
 
   /* If we didn't exit normally, or we core, or we have stderr to report...
    * provide a full report.

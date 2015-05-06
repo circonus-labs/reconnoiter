@@ -103,14 +103,7 @@
 #define NP_BAD 'B'                 /* stats_t.state */
 #define NP_GOOD 'G'                /* stats_t.state */
 
-typedef struct {
-  struct timeval whence;
-  int8_t available;
-  int8_t state;
-  u_int32_t duration;
-  char *status;
-  mtev_hash_table metrics;
-} stats_t;
+typedef struct stats_t stats_t;
 
 typedef struct dep_list {
   struct noit_check *check;
@@ -137,11 +130,6 @@ typedef struct noit_check {
   dep_list_t *causal_checks;
   eventer_t fire_event;
   struct timeval last_fire_time;
-  struct {
-    stats_t inprogress;
-    stats_t current;
-    stats_t previous;
-  } stats;
   u_int32_t generation;        /* This can roll, we don't care */
   void *closure;
 
@@ -151,6 +139,8 @@ typedef struct noit_check {
   mtev_hash_table **module_configs;
   struct timeval initial_schedule_time;
   int64_t config_seq;          /* If non-zero, must increase */
+
+  void *statistics;
 } noit_check_t;
 
 #define NOIT_CHECK_LIVE(a) ((a)->fire_event != NULL)
@@ -247,29 +237,44 @@ API_EXPORT(int)
   noit_check_xpath(char *xpath, int len,
                    const char *base, const char *arg);
 
-API_EXPORT(void)
-  noit_check_stats_clear(noit_check_t *check, stats_t *s);
-
 struct _noit_module;
+
+stats_t *
+noit_check_get_stats_inprogress(noit_check_t *c);
+stats_t *
+noit_check_get_stats_current(noit_check_t *c);
+stats_t *
+noit_check_get_stats_previous(noit_check_t *c);
+
 /* This if for modules (passive) than cannot be watched... */
 API_EXPORT(void)
-  noit_check_passive_set_stats(noit_check_t *check,
-                               stats_t *newstate);
+  noit_check_passive_set_stats(noit_check_t *check);
+
 /* This is for normal (active) modules... */
 API_EXPORT(void)
-  noit_check_set_stats(noit_check_t *check,
-                        stats_t *newstate);
+  noit_check_set_stats(noit_check_t *check);
+
+API_EXPORT(void)
+  noit_stats_set_whence(noit_check_t *check, struct timeval *t);
+API_EXPORT(void)
+  noit_stats_set_duration(noit_check_t *check, u_int32_t t);
+API_EXPORT(void)
+  noit_stats_set_available(noit_check_t *check, int8_t t);
+API_EXPORT(void)
+  noit_stats_set_state(noit_check_t *check, int8_t t);
+API_EXPORT(void)
+  noit_stats_set_status(noit_check_t *check, const char *t);
 
 API_EXPORT(metric_t *)
   noit_stats_get_metric(noit_check_t *check, stats_t *, const char *);
 
 API_EXPORT(void)
   noit_stats_set_metric(noit_check_t *check,
-                        stats_t *, const char *, metric_type_t, const void *);
+                        const char *, metric_type_t, const void *);
 
 API_EXPORT(void)
   noit_stats_set_metric_coerce(noit_check_t *check,
-                               stats_t *, const char *, metric_type_t,
+                               const char *, metric_type_t,
                                const char *);
 
 API_EXPORT(void)
@@ -352,6 +357,19 @@ API_EXPORT(char *)
 
 API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
+
+API_EXPORT(struct timeval *)
+  noit_check_stats_whence(stats_t *s, struct timeval *n);
+API_EXPORT(int8_t)
+  noit_check_stats_available(stats_t *s, int8_t *n);
+API_EXPORT(int8_t)
+  noit_check_stats_state(stats_t *s, int8_t *n);
+API_EXPORT(u_int32_t)
+  noit_check_stats_duration(stats_t *s, u_int32_t *n);
+API_EXPORT(const char *)
+  noit_check_stats_status(stats_t *s, const char *n);
+API_EXPORT(mtev_hash_table *)
+  noit_check_stats_metrics(stats_t *s);
 
 MTEV_HOOK_PROTO(check_config_fixup,
                 (noit_check_t *check),

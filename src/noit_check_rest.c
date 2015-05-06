@@ -71,12 +71,15 @@ rest_show_config(mtev_http_rest_closure_t *, int, char **);
 static void
 add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
                     int include_time) {
+  mtev_hash_table *mets;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
   xmlNodePtr tmp;
-  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+
+  mets = noit_check_stats_metrics(c);
+  while(mtev_hash_next(mets, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
     xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
@@ -94,18 +97,18 @@ add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
   }
   xmlSetProp(metrics, (xmlChar *)"type", (const xmlChar *) type);
   if(include_time) {
-    struct timeval f = c->whence;
+    struct timeval *f = noit_check_stats_whence(c, NULL);
     char timestr[20];
     snprintf(timestr, sizeof(timestr), "%0.3f",
-             f.tv_sec + (f.tv_usec / 1000000.0));
+             f->tv_sec + (f->tv_usec / 1000000.0));
     xmlSetProp(metrics, (xmlChar *)"timestamp", (xmlChar *)timestr);
   }
 }
 xmlNodePtr
 noit_check_state_as_xml(noit_check_t *check, int full) {
   xmlNodePtr state, tmp, metrics;
-  struct timeval now;
-  stats_t *c = &check->stats.current;
+  struct timeval now, *whence;
+  stats_t *c = noit_check_get_stats_current(check);
 
   gettimeofday(&now, NULL);
   state = xmlNewNode(NULL, (xmlChar *)"state");
@@ -116,36 +119,44 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
   NODE_CONTENT(state, "disabled", NOIT_CHECK_DISABLED(check)?"true":"false");
   NODE_CONTENT(state, "target_ip", check->target_ip);
   xmlAddChild(state, (tmp = xmlNewNode(NULL, (xmlChar *)"last_run")));
-  if(check->stats.current.whence.tv_sec) {
-    struct timeval f = check->stats.current.whence;
+  whence = noit_check_stats_whence(c, NULL);
+  if(whence->tv_sec) {
     char timestr[20];
     snprintf(timestr, sizeof(timestr), "%0.3f",
              now.tv_sec + (now.tv_usec / 1000000.0));
     xmlSetProp(tmp, (xmlChar *)"now", (xmlChar *)timestr);
     snprintf(timestr, sizeof(timestr), "%0.3f",
-             f.tv_sec + (f.tv_usec / 1000000.0));
+             whence->tv_sec + (whence->tv_usec / 1000000.0));
     xmlNodeAddContent(tmp, (xmlChar *)timestr);
   }
   if(full) {
-    if(c->available) { /* truth here means the check has been run */
+    stats_t *previous;
+    struct timeval *whence;
+    uint8_t available = noit_check_stats_available(c, NULL);
+    if(available) { /* truth here means the check has been run */
       char buff[20], *compiler_warning;
-      snprintf(buff, sizeof(buff), "%0.3f", (float)c->duration/1000.0);
+      snprintf(buff, sizeof(buff), "%0.3f",
+               (float)noit_check_stats_duration(c, NULL)/1000.0);
       compiler_warning = buff;
       NODE_CONTENT(state, "runtime", compiler_warning);
     }
     NODE_CONTENT(state, "availability",
-                 noit_check_available_string(c->available));
-    NODE_CONTENT(state, "state", noit_check_state_string(c->state));
-    NODE_CONTENT(state, "status", c->status ? c->status : "");
+                 noit_check_available_string(available));
+    NODE_CONTENT(state, "state", noit_check_state_string(noit_check_stats_state(c, NULL)));
+    NODE_CONTENT(state, "status", noit_check_stats_status(c, NULL));
     xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-    add_metrics_to_node(&check->stats.inprogress, metrics, "inprogress", 0);
-    if(check->stats.current.whence.tv_sec) {
+
+    add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0);
+    whence = noit_check_stats_whence(c, NULL);
+    if(whence->tv_sec) {
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-      add_metrics_to_node(&check->stats.current, metrics, "current", 1);
+      add_metrics_to_node(c, metrics, "current", 1);
     }
-    if(check->stats.previous.whence.tv_sec) {
+    previous = noit_check_get_stats_previous(check);
+    whence = noit_check_stats_whence(previous, NULL);
+    if(whence->tv_sec) {
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-      add_metrics_to_node(&check->stats.previous, metrics, "previous", 1);
+      add_metrics_to_node(previous, metrics, "previous", 1);
     }
   }
   return state;
@@ -155,11 +166,14 @@ static struct json_object *
 stats_to_json(stats_t *c) {
   struct json_object *doc;
   doc = json_object_new_object();
+  mtev_hash_table *metrics;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
-  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+
+  metrics = noit_check_stats_metrics(c);
+  while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
     struct json_object *metric = json_object_new_object();
@@ -178,6 +192,7 @@ stats_to_json(stats_t *c) {
 
 struct json_object *
 noit_check_state_as_json(noit_check_t *check, int full) {
+  stats_t *c;
   char seq_str[64];
   char id_str[UUID_STR_LEN+1];
   struct json_object *j_last_run, *j_next_run;
@@ -199,7 +214,8 @@ noit_check_state_as_json(noit_check_t *check, int full) {
   json_object_object_add(doc, "timeout", json_object_new_int(check->timeout));
   json_object_object_add(doc, "flags", json_object_new_int(check->flags));
 
-  t = &check->stats.current.whence;
+  c = noit_check_get_stats_current(check);
+  t = noit_check_stats_whence(c, NULL);
   j_last_run = json_object_new_int(ms);
   json_object_set_int_overflow(j_last_run, json_overflow_uint64);
   ms = t->tv_sec;
@@ -225,7 +241,6 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     int klen;
     void *data;
     mtev_hash_table *configh;
-    struct timeval f;
     char timestr[20];
     struct json_object *status, *metrics, *config;
 
@@ -238,7 +253,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
 
     /* status */
     status = json_object_new_object();
-    switch(check->stats.current.available) {
+    switch(noit_check_stats_available(c, NULL)) {
       case NP_UNKNOWN: break;
       case NP_AVAILABLE:
         json_object_object_add(status, "available", json_object_new_boolean(1));
@@ -247,7 +262,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
         json_object_object_add(status, "available", json_object_new_boolean(0));
         break;
     }
-    switch(check->stats.current.state) {
+    switch(noit_check_stats_state(c, NULL)) {
       case NP_UNKNOWN: break;
       case NP_GOOD:
         json_object_object_add(status, "good", json_object_new_boolean(1));
@@ -259,27 +274,28 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     json_object_object_add(doc, "status", status);
     metrics = json_object_new_object();
 
-    f = check->stats.current.whence;
-    if(f.tv_sec) {
-      json_object_object_add(metrics, "current", stats_to_json(&check->stats.current));
+    if(t->tv_sec) {
+      json_object_object_add(metrics, "current", stats_to_json(c));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
+               (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "current_timestamp", json_object_new_string(timestr));
     }
 
-    f = check->stats.inprogress.whence;
-    if(f.tv_sec) {
-      json_object_object_add(metrics, "inprogress", stats_to_json(&check->stats.inprogress));
+    c = noit_check_get_stats_inprogress(check);
+    t = noit_check_stats_whence(c, NULL);
+    if(t->tv_sec) {
+      json_object_object_add(metrics, "inprogress", stats_to_json(c));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
+               (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "inprogress_timestamp", json_object_new_string(timestr));
     }
 
-    f = check->stats.previous.whence;
-    if(f.tv_sec) {
-      json_object_object_add(metrics, "previous", stats_to_json(&check->stats.previous));
+    c = noit_check_get_stats_previous(check);
+    t = noit_check_stats_whence(c, NULL);
+    if(t->tv_sec) {
+      json_object_object_add(metrics, "previous", stats_to_json(c));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
-               (unsigned long long int)f.tv_sec, (int)(f.tv_usec / 1000));
+               (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "previous_timestamp", json_object_new_string(timestr));
     }
 

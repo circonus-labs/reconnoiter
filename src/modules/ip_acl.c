@@ -124,6 +124,7 @@ static mtev_hook_return_t
 ip_acl_hook_impl(void *closure, noit_module_t *self,
                  noit_check_t *check, noit_check_t *cause) {
   char deny_msg[128];
+  struct timeval now;
   mtev_hash_table *config;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k = NULL;
@@ -153,14 +154,13 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   return MTEV_HOOK_CONTINUE;
 
  prevent:
-  noit_check_stats_clear(check, &check->stats.inprogress);
-  check->stats.inprogress.available = NP_UNAVAILABLE;
-  check->stats.inprogress.state = NP_BAD;
-  gettimeofday(&check->stats.inprogress.whence, NULL);
+  gettimeofday(&now, NULL);
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_available(check, NP_UNAVAILABLE);
+  noit_stats_set_state(check, NP_BAD);
   snprintf(deny_msg, sizeof(deny_msg), "prevented by ACL '%s'", k);
-  check->stats.inprogress.status = deny_msg;
-  noit_check_set_stats(check, &check->stats.inprogress);
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  noit_stats_set_status(check, deny_msg);
+  noit_check_set_stats(check);
   return MTEV_HOOK_DONE;
 }
 static int

@@ -282,12 +282,11 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
       info->noids_seen++;
     }
 
-#define SETM(a,b) noit_stats_set_metric(check, &check->stats.inprogress, \
-                                        info->oids[oid_idx].confname, a, b)
+#define SETM(a,b) noit_stats_set_metric(check, info->oids[oid_idx].confname, a, b)
     if(info->oids[oid_idx].type_should_override) {
       sp = strchr(varbuff, ' ');
       if(sp) sp++;
-      noit_stats_set_metric_coerce(check, &check->stats.inprogress, info->oids[oid_idx].confname,
+      noit_stats_set_metric_coerce(check, info->oids[oid_idx].confname,
                                    info->oids[oid_idx].type_override,
                                    sp);
     }
@@ -365,20 +364,20 @@ static int noit_snmp_accumulate_results(noit_check_t *check, struct snmp_pdu *pd
 /* Handling of results */
 static void noit_snmp_log_results(noit_module_t *self, noit_check_t *check, const char *err) {
   struct check_info *info = check->closure;
-  struct timeval duration;
+  struct timeval duration, now;
   char buff[128];
 
-  gettimeofday(&check->stats.inprogress.whence, NULL);
-  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  check->stats.inprogress.available = (info->nresults > 0) ? NP_AVAILABLE : NP_UNAVAILABLE;
-  check->stats.inprogress.state = (info->noids_seen == info->noids) ? NP_GOOD : NP_BAD;
+  gettimeofday(&now, NULL);
+  sub_timeval(now, check->last_fire_time, &duration);
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
+  noit_stats_set_available(check, (info->nresults > 0) ? NP_AVAILABLE : NP_UNAVAILABLE);
+  noit_stats_set_state(check, (info->noids_seen == info->noids) ? NP_GOOD : NP_BAD);
   if(err) snprintf(buff, sizeof(buff), "%s", err);
   else snprintf(buff, sizeof(buff), "%d/%d gets", info->noids_seen, info->noids);
-  check->stats.inprogress.status = buff;
+  noit_stats_set_status(check, buff);
 
-  noit_check_set_stats(check, &check->stats.inprogress);
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  noit_check_set_stats(check);
   return;
 }
 
@@ -623,11 +622,10 @@ static int noit_snmp_oid_to_checkid(oid *o, int l, uuid_t checkid, char *out) {
 #define isoid(a,b,c,d) (netsnmp_oid_equals(a,b,c,d) == 0)
 #define isoidprefix(a,b,c,d) (netsnmp_oid_equals(a,MIN(b,d),c,d) == 0)
 #define setstatus(st,soid,sv) \
-  if(isoid(o,l,soid,reconnoiter_check_state_val_len)) current->st = sv
+  if(isoid(o,l,soid,reconnoiter_check_state_val_len)) noit_stats_set_##st(check, sv)
 
 static int
 noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
-  stats_t *current = &check->stats.inprogress;
   if(isoidprefix(var->name, var->name_length, reconnoiter_check_status_oid,
                  reconnoiter_check_status_oid_len)) {
     if(var->type == ASN_OBJECT_ID) {
@@ -660,7 +658,7 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
       if(isoid(var->name, var->name_length,
                reconnoiter_check_duration_oid,
                reconnoiter_check_duration_oid_len)) {
-        current->duration = *(var->val.integer);
+        noit_stats_set_duration(check, *(var->val.integer));
       }
       else
         return -1;
@@ -670,9 +668,9 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
       if(isoid(var->name, var->name_length,
                reconnoiter_check_status_msg_oid,
                reconnoiter_check_status_msg_oid_len)) {
-        current->status = malloc(var->val_len + 1);
-        memcpy(current->status, var->val.string, var->val_len);
-        current->status[var->val_len] = '\0';
+        char buff[256];
+        strlcpy(buff, (char *)var->val.string, MIN(sizeof(buff), var->val_len+1));
+        noit_stats_set_status(check, buff);
       }
       else
         return -1;
@@ -711,22 +709,22 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
       case ASN_UINTEGER:
       case ASN_TIMETICKS:
       case ASN_INTEGER64:
-        noit_stats_set_metric(check, current, metric_name,
+        noit_stats_set_metric(check, metric_name,
                               METRIC_INT64, var->val.integer);
         break;
       case ASN_COUNTER64:
         u64 = ((u_int64_t)var->val.counter64->high) << 32;
         u64 |= var->val.counter64->low;
-        noit_stats_set_metric(check, current, metric_name,
+        noit_stats_set_metric(check, metric_name,
                               METRIC_UINT64, &u64);
         break;
       case ASN_OPAQUE_FLOAT:
         doubleVal = (double)*var->val.floatVal;
-        noit_stats_set_metric(check, current, metric_name,
+        noit_stats_set_metric(check, metric_name,
                               METRIC_DOUBLE, &doubleVal);
         break;
       case ASN_OPAQUE_DOUBLE:
-        noit_stats_set_metric(check, current, metric_name,
+        noit_stats_set_metric(check, metric_name,
                               METRIC_DOUBLE, var->val.doubleVal);
         break;
       case ASN_OCTET_STR:
@@ -745,7 +743,7 @@ noit_snmp_trapvars_to_stats(noit_check_t *check, netsnmp_variable_list *var) {
             }
           }
         }
-        noit_stats_set_metric(check, current, metric_name,
+        noit_stats_set_metric(check, metric_name,
                               METRIC_STRING, (cp && *cp) ? cp : NULL);
         break;
       default:
@@ -763,6 +761,7 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
                                     int reqid, struct snmp_pdu *pdu,
                                     void *magic) {
   /* the noit pieces */
+  struct timeval now;
   noit_check_t *check;
   struct target_session *ts = magic;
   snmp_mod_config_t *conf;
@@ -822,13 +821,13 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   }
 
   /* We have a check. The trap is authorized. Now, extract everything. */
-  memset(&check->stats.inprogress, 0, sizeof(check->stats.inprogress));
-  gettimeofday(&check->stats.inprogress.whence, NULL);
-  check->stats.inprogress.available = NP_AVAILABLE;
+  gettimeofday(&now, NULL);
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_available(check, NP_AVAILABLE);
 
   /* Rate limit */
-  if(((check->stats.inprogress.whence.tv_sec * 1000 +
-       check->stats.inprogress.whence.tv_usec / 1000) -
+  if(((now.tv_sec * 1000 +
+       now.tv_usec / 1000) -
       (check->last_fire_time.tv_sec * 1000 +
        check->last_fire_time.tv_usec / 1000)) < check->period) goto cleanup;
 
@@ -840,14 +839,14 @@ static int noit_snmp_trapd_response(int operation, struct snmp_session *sp,
   if(success) {
     char buff[24];
     snprintf(buff, sizeof(buff), "%d datum", success);
-    check->stats.inprogress.state = NP_GOOD;
-    check->stats.inprogress.status = strdup(buff);
+    noit_stats_set_state(check, NP_GOOD);
+    noit_stats_set_status(check, buff);
   }
   else {
-    check->stats.inprogress.state = NP_BAD;
-    check->stats.inprogress.status = strdup("no data");
+    noit_stats_set_state(check, NP_BAD);
+    noit_stats_set_status(check, "no data");
   }
-  noit_check_set_stats(check, &check->stats.inprogress);
+  noit_check_set_stats(check);
 
  cleanup:
   if(newpdu != pdu)

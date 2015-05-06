@@ -232,7 +232,7 @@ noit_check_tools_init() {
 
 static int
 populate_stats_from_resmon_formatted_json(noit_check_t *check,
-                                          stats_t *s, struct json_object *o,
+                                          struct json_object *o,
                                           const char *prefix) {
   int count = 0;
   char keybuff[256];
@@ -242,7 +242,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
 } while(0)
   if(o == NULL) {
     if(prefix) {
-      noit_stats_set_metric(check, s, prefix, METRIC_STRING, NULL);
+      noit_stats_set_metric(check, prefix, METRIC_STRING, NULL);
       count++;
     }
     return count;
@@ -255,7 +255,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
       for(i=0;i<alen;i++) {
         struct json_object *item = json_object_array_get_idx(o, i);
         MKKEY("%d", i);
-        count += populate_stats_from_resmon_formatted_json(check, s, item, keybuff);
+        count += populate_stats_from_resmon_formatted_json(check, item, keybuff);
       }
     }
     break;
@@ -271,7 +271,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
         else {
           struct json_object *item = (struct json_object *)el->v;
           MKKEY("%s", (const char *)el->k);
-          count += populate_stats_from_resmon_formatted_json(check, s, item, keybuff);
+          count += populate_stats_from_resmon_formatted_json(check, item, keybuff);
         }
       }
       if(prefix && has_type &&
@@ -287,7 +287,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
   switch(type) { \
     case METRIC_INT32: case METRIC_UINT32: case METRIC_INT64: \
     case METRIC_UINT64: case METRIC_DOUBLE: case METRIC_STRING: \
-      noit_stats_set_metric_coerce(check, s, prefix, \
+      noit_stats_set_metric_coerce(check, prefix, \
                                    (metric_type_t)type, value_str); \
       count++; \
     default: \
@@ -297,7 +297,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
 
 
         if (has_value == NULL) {
-          noit_stats_set_metric_coerce(check, s, prefix, (metric_type_t)*type_str, NULL);
+          noit_stats_set_metric_coerce(check, prefix, (metric_type_t)*type_str, NULL);
           count++;
         }
         else if(json_object_is_type(has_value, json_type_array)) {
@@ -317,7 +317,7 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
     /* directs */
     case json_type_string:
       if(prefix) {
-        noit_stats_set_metric(check, s, prefix, METRIC_GUESS,
+        noit_stats_set_metric(check, prefix, METRIC_GUESS,
                               (char *)json_object_get_string(o));
         count++;
       }
@@ -325,20 +325,20 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
     case json_type_boolean:
       if(prefix) {
         int val = json_object_get_boolean(o) ? 1 : 0;
-        noit_stats_set_metric(check, s, prefix, METRIC_INT32, &val);
+        noit_stats_set_metric(check, prefix, METRIC_INT32, &val);
         count++;
       }
       break;
     case json_type_null:
       if(prefix) {
-        noit_stats_set_metric(check, s, prefix, METRIC_STRING, NULL);
+        noit_stats_set_metric(check, prefix, METRIC_STRING, NULL);
         count++;
       }
       break;
     case json_type_double:
       if(prefix) {
         double val = json_object_get_double(o);
-        noit_stats_set_metric(check, s, prefix, METRIC_DOUBLE, &val);
+        noit_stats_set_metric(check, prefix, METRIC_DOUBLE, &val);
         count++;
       }
       break;
@@ -349,17 +349,17 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
         switch(json_object_get_int_overflow(o)) {
           case json_overflow_int:
             i64 = json_object_get_int(o);
-            noit_stats_set_metric(check, s, prefix, METRIC_INT64, &i64);
+            noit_stats_set_metric(check, prefix, METRIC_INT64, &i64);
             count++;
             break;
           case json_overflow_int64:
             i64 = json_object_get_int64(o);
-            noit_stats_set_metric(check, s, prefix, METRIC_INT64, &i64);
+            noit_stats_set_metric(check, prefix, METRIC_INT64, &i64);
             count++;
             break;
           case json_overflow_uint64:
             u64 = json_object_get_uint64(o);
-            noit_stats_set_metric(check, s, prefix, METRIC_UINT64, &u64);
+            noit_stats_set_metric(check, prefix, METRIC_UINT64, &u64);
             count++;
             break;
         }
@@ -368,14 +368,14 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
   return count;
 }
 int
-noit_check_stats_from_json_str(noit_check_t *check, stats_t *s,
+noit_check_stats_from_json_str(noit_check_t *check,
                                const char *json_str, int len) {
   int rv = -1;
   struct json_tokener *tok = NULL;
   struct json_object *root = NULL;
   tok = json_tokener_new();
   root = json_tokener_parse_ex(tok, json_str, len);
-  if(root) rv = populate_stats_from_resmon_formatted_json(check, s, root, NULL);
+  if(root) rv = populate_stats_from_resmon_formatted_json(check, root, NULL);
   if(tok) json_tokener_free(tok);
   if(root) json_object_put(root);
   return rv;

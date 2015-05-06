@@ -425,16 +425,18 @@ nc_print_stat_metrics(mtev_console_closure_t ncct,
   const char **sorted_keys;
   char buff[256];
   mtev_boolean filtered;
+  mtev_hash_table *metrics;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
   int klen;
   void *data;
 
+  metrics = noit_check_stats_metrics(c);
   memset(&iter, 0, sizeof(iter));
-  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) cnt++;
+  while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) cnt++;
   sorted_keys = malloc(cnt * sizeof(*sorted_keys));
   memset(&iter, 0, sizeof(iter));
-  while(mtev_hash_next(&c->metrics, &iter, &k, &klen, &data)) {
+  while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     if(sorted_keys && mcount < cnt) sorted_keys[mcount++] = k;
     else {
       noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
@@ -447,7 +449,7 @@ nc_print_stat_metrics(mtev_console_closure_t ncct,
     qsort(sorted_keys, mcount, sizeof(*sorted_keys),
           _qsort_string_compare);
     for(j=0;j<mcount;j++) {
-      if(mtev_hash_retrieve(&c->metrics,
+      if(mtev_hash_retrieve(metrics,
                             sorted_keys[j], strlen(sorted_keys[j]),
                             &data)) {
         noit_stats_snprint_metric(buff, sizeof(buff), (metric_t *)data);
@@ -557,6 +559,9 @@ noit_console_show_check(mtev_console_closure_t ncct,
     }
     else {
       int idx = 0;
+      stats_t *c;
+      struct timeval *whence;
+      mtev_hash_table *metrics;
       nc_printf(ncct, " target_ip: %s\n", check->target_ip);
       nc_printf(ncct, " currently: %08x ", check->flags);
       if(NOIT_CHECK_RUNNING(check)) { nc_printf(ncct, "running"); idx++; }
@@ -576,33 +581,45 @@ noit_console_show_check(mtev_console_closure_t ncct,
         nc_printf(ncct, " next run: unscheduled\n");
       }
 
-      if(check->stats.current.whence.tv_sec == 0) {
+      c = noit_check_get_stats_current(check);
+      whence = noit_check_stats_whence(c, NULL);
+      if(whence->tv_sec == 0) {
         nc_printf(ncct, " last run: never\n");
       }
       else {
-        stats_t *c = &check->stats.current;
-        struct timeval now, diff;
+        const char *status;
+        struct timeval now, *then, diff;
         gettimeofday(&now, NULL);
-        sub_timeval(now, c->whence, &diff);
+        then = noit_check_stats_whence(c, NULL);
+        sub_timeval(now, *then, &diff);
         nc_printf(ncct, " last run: %0.3f seconds ago\n",
                   diff.tv_sec + (diff.tv_usec / 1000000.0));
         nc_printf(ncct, " availability/state: %s/%s\n",
-                  noit_check_available_string(c->available),
-                  noit_check_state_string(c->state));
-        nc_printf(ncct, " status: %s\n", c->status ? c->status : "[[null]]");
+                  noit_check_available_string(noit_check_stats_available(c, NULL)),
+                  noit_check_state_string(noit_check_stats_state(c, NULL)));
+        status = noit_check_stats_status(c, NULL);
+        nc_printf(ncct, " status: %s\n", noit_check_stats_status(c, NULL));
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
       }
 
-      if(mtev_hash_size(&check->stats.inprogress.metrics) > 0) {
+      c = noit_check_get_stats_inprogress(check);
+      metrics = noit_check_stats_metrics(c);
+      if(mtev_hash_size(metrics) > 0) {
         nc_printf(ncct, " metrics (inprogress):\n");
-        nc_print_stat_metrics(ncct, check, &check->stats.inprogress);
+        nc_print_stat_metrics(ncct, check, c);
       }
-      if(mtev_hash_size(&check->stats.current.metrics)) {
+      c = noit_check_get_stats_current(check);
+      metrics = noit_check_stats_metrics(c);
+      if(mtev_hash_size(metrics)) {
         nc_printf(ncct, " metrics (current):\n");
-        nc_print_stat_metrics(ncct, check, &check->stats.current);
-      } else if(mtev_hash_size(&check->stats.previous.metrics) > 0) {
-        nc_printf(ncct, " metrics (previous):\n");
-        nc_print_stat_metrics(ncct, check, &check->stats.previous);
+        nc_print_stat_metrics(ncct, check, c);
+      } else {
+        c = noit_check_get_stats_previous(check);
+        metrics = noit_check_stats_metrics(c);
+        if(mtev_hash_size(metrics) > 0) {
+          nc_printf(ncct, " metrics (previous):\n");
+          nc_print_stat_metrics(ncct, check, c);
+        }
       }
     }
   }

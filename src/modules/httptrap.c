@@ -70,7 +70,6 @@ struct value_list {
 };
 struct rest_json_payload {
   noit_check_t *check;
-  stats_t *stats;
   yajl_handle parser;
   int len;
   int complete;
@@ -153,7 +152,7 @@ httptrap_yajl_cb_null(void *ctx) {
     return 1;
   }
   if(json->last_special_key) return 0;
-  noit_stats_set_metric(json->check, json->stats,
+  noit_stats_set_metric(json->check,
       json->keys[json->depth], METRIC_INT32, NULL);
   if(json->immediate)
     noit_stats_log_immediate_metric(json->check,
@@ -173,7 +172,7 @@ httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
   }
   if(json->last_special_key) return 0;
   ival = boolVal ? 1 : 0;
-  noit_stats_set_metric(json->check, json->stats,
+  noit_stats_set_metric(json->check,
       json->keys[json->depth], METRIC_INT32, &ival);
   if(json->immediate)
     noit_stats_log_immediate_metric(json->check,
@@ -200,7 +199,7 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
   if(numberLen > sizeof(val)-1) numberLen = sizeof(val)-1;
   memcpy(val, numberVal, numberLen);
   val[numberLen] = '\0';
-  noit_stats_set_metric(json->check, json->stats,
+  noit_stats_set_metric(json->check,
       json->keys[json->depth], METRIC_GUESS, val);
   if(json->immediate)
     noit_stats_log_immediate_metric(json->check,
@@ -238,7 +237,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
   if(stringLen > sizeof(val)-1) stringLen = sizeof(val)-1;
   memcpy(val, stringVal, stringLen);
   val[stringLen] = '\0';
-  noit_stats_set_metric(json->check, json->stats,
+  noit_stats_set_metric(json->check,
       json->keys[json->depth], METRIC_GUESS, val);
   if(json->immediate)
     noit_stats_log_immediate_metric(json->check,
@@ -263,7 +262,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
     long double total = 0, cnt = 0;
     mtev_boolean use_avg = mtev_false;
     for(p=json->last_value;p;p=p->next) {
-      noit_stats_set_metric_coerce(json->check, json->stats,
+      noit_stats_set_metric_coerce(json->check,
           json->keys[json->depth], json->last_type, p->v);
       last_p = p;
       if(p->v != NULL &&
@@ -437,30 +436,34 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     ccl->self = self;
   } else {
     // Don't count the first run
+    struct timeval now, *last;
+    stats_t *inprogress;
     char human_buffer[256];
     ccl = (httptrap_closure_t*)check->closure;
-    gettimeofday(&check->stats.inprogress.whence, NULL);
-    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-    check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+    gettimeofday(&now, NULL);
+    sub_timeval(now, check->last_fire_time, &duration);
+    noit_stats_set_whence(check, &now);
+    noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d", check->stats.inprogress.duration,
+             "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, ccl->stats_count);
     mtevL(nldeb, "httptrap(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
-    check->stats.inprogress.available = (ccl->stats_count > 0) ?
-        NP_AVAILABLE : NP_UNAVAILABLE;
-    check->stats.inprogress.state = (ccl->stats_count > 0) ?
-        NP_GOOD : NP_BAD;
-    check->stats.inprogress.status = human_buffer;
+    noit_stats_set_available(check, (ccl->stats_count > 0) ?
+        NP_AVAILABLE : NP_UNAVAILABLE);
+    noit_stats_set_state(check, (ccl->stats_count > 0) ?
+        NP_GOOD : NP_BAD);
+    noit_stats_set_status(check, human_buffer);
     if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(check, &check->stats.inprogress);
+      noit_check_passive_set_stats(check);
 
-    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
+    inprogress = noit_check_get_stats_inprogress(check);
+    last = noit_check_stats_whence(inprogress, NULL);
+    memcpy(&check->last_fire_time, last, sizeof(duration));
   }
   ccl->stats_count = 0;
-  noit_check_stats_clear(check, &check->stats.inprogress);
   return 0;
 }
 
@@ -524,7 +527,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       error = "noitd is booting, try again in a bit";
       goto error;
     }
-    rxc->stats = &rxc->check->stats.inprogress;
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);

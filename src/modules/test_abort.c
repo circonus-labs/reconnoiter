@@ -100,12 +100,10 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
     /* this case is impossible from the eventer.  It is called as
      * such on the synchronous completion of the event.
      */
-    noit_check_stats_clear(check, &check->stats.inprogress);
-    check->stats.inprogress.available = NP_AVAILABLE;
-    check->stats.inprogress.state = ci->timed_out ? NP_BAD : NP_GOOD;
+    noit_stats_set_available(check, NP_AVAILABLE);
+    noit_stats_set_state(check, ci->timed_out ? NP_BAD : NP_GOOD);
     mtevL(nlerr, "test_abort: EVENTER_READ | EVENTER_WRITE\n");
-    noit_check_set_stats(check, &check->stats.inprogress);
-    noit_check_stats_clear(check, &check->stats.inprogress);
+    noit_check_set_stats(check);
     check->flags &= ~NP_RUNNING;
     return 0;
   }

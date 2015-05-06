@@ -249,36 +249,32 @@ static void __deactivate_ci(struct dns_check_info *ci) {
 }
 
 static void dns_check_log_results(struct dns_check_info *ci) {
-  struct timeval duration;
+  struct timeval duration, now;
   double rtt;
   char buff[48];
 
-  gettimeofday(&ci->check->stats.inprogress.whence, NULL);
-  sub_timeval(ci->check->stats.inprogress.whence, ci->check->last_fire_time, &duration);
+  gettimeofday(&now, NULL);
+  sub_timeval(now, ci->check->last_fire_time, &duration);
   rtt = duration.tv_sec * 1000.0 + duration.tv_usec / 1000.0;
-  ci->check->stats.inprogress.duration = rtt;
 
-  ci->check->stats.inprogress.state = (ci->error || ci->nrr == 0) ? NP_BAD : NP_GOOD;
-  ci->check->stats.inprogress.available = ci->timed_out ? NP_UNAVAILABLE : NP_AVAILABLE;
-  if(ci->check->stats.inprogress.status) {
-    free(ci->check->stats.inprogress.status);
-    ci->check->stats.inprogress.status = NULL;
-  }
+  noit_stats_set_whence(ci->check, &now);
+  noit_stats_set_duration(ci->check, rtt);
+  noit_stats_set_state(ci->check, (ci->error || ci->nrr == 0) ? NP_BAD : NP_GOOD);
+  noit_stats_set_available(ci->check, ci->timed_out ? NP_UNAVAILABLE : NP_AVAILABLE);
   if(ci->error) {
-    ci->check->stats.inprogress.status = ci->error;
+    noit_stats_set_status(ci->check, ci->error);
   }
-  else if(!ci->check->stats.inprogress.status) {
+  else {
     snprintf(buff, sizeof(buff), "%d %s",
              ci->nrr, ci->nrr == 1 ? "record" : "records");
-    ci->check->stats.inprogress.status = buff;
+    noit_stats_set_status(ci->check, buff);
   }
-  noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "rtt", METRIC_DOUBLE,
+  noit_stats_set_metric(ci->check, "rtt", METRIC_DOUBLE,
                         ci->timed_out ? NULL : &rtt);
 
-  noit_check_set_stats(ci->check, &ci->check->stats.inprogress);
+  noit_check_set_stats(ci->check);
   if(ci->error) free(ci->error);
   ci->error = NULL;
-  noit_check_stats_clear(ci->check, &ci->check->stats.inprogress);
 }
 
 static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *key,
@@ -548,7 +544,7 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
         dns_typename(rr->dnsrr_typ));
 
   ttl = rr->dnsrr_ttl;
-  noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "ttl", METRIC_UINT32, &ttl);
+  noit_stats_set_metric(ci->check, "ttl", METRIC_UINT32, &ttl);
 
   switch(rr->dnsrr_typ) {
    case DNS_T_A:
@@ -585,26 +581,26 @@ static void decode_rr(struct dns_check_info *ci, struct dns_parse *p,
    case DNS_T_SOA:
      if(dns_getdn(pkt, &dptr, end, dn, DNS_MAXDN) <= 0) goto decode_err;
      dns_dntop(dn, buff, sizeof(buff));
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "name-server", METRIC_STRING, buff);
+     noit_stats_set_metric(ci->check, "name-server", METRIC_STRING, buff);
      if(dns_getdn(pkt, &dptr, end, dn, DNS_MAXDN) <= 0) goto decode_err;
      dns_dntop(dn, buff, sizeof(buff));
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "email-addr", METRIC_STRING, buff);
+     noit_stats_set_metric(ci->check, "email-addr", METRIC_STRING, buff);
      if(dptr + 5 * sizeof(u_int32_t) != dend) goto decode_err;
      vu = dns_get32(dptr); dptr += sizeof(u_int32_t);
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "serial", METRIC_UINT32, &vu);
+     noit_stats_set_metric(ci->check, "serial", METRIC_UINT32, &vu);
      /* the serial is what we elect to store as the "answer" as text...
       * because it rarely changes and that seems the most interesting thing
       * to track change-log-style.
       */
      snprintf(buff, sizeof(buff), "%u", vu);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "refresh", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, "refresh", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "retry", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, "retry", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "expiry", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, "expiry", METRIC_UINT32, &vs);
      vs = dns_get32(dptr); dptr += sizeof(int32_t);
-     noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "minimum", METRIC_UINT32, &vs);
+     noit_stats_set_metric(ci->check, "minimum", METRIC_UINT32, &vs);
      break;
 
    case DNS_T_CNAME:
@@ -689,7 +685,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
         int32_t on = 1;
         /* This actually updates what we're looking for */
         dns_dntodn(p.dnsp_dnbuf, ci->dn, sizeof(dn));
-        noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "cname", METRIC_INT32, &on);
+        noit_stats_set_metric(ci->check, "cname", METRIC_INT32, &on);
 
         /* Now follow the leader */
         mtevL(nldeb, "%s. CNAME %s.\n", dns_dntosp(dn),
@@ -726,7 +722,7 @@ static void dns_cb(struct dns_ctx *ctx, void *result, void *data) {
     result_combined[len] = '\0';
     free(result_str[i]); /* free as we go */
   }
-  noit_stats_set_metric(ci->check, &ci->check->stats.inprogress, "answer", METRIC_STRING, result_combined);
+  noit_stats_set_metric(ci->check, "answer", METRIC_STRING, result_combined);
 
  cleanup:
   if(result) free(result);
@@ -763,8 +759,8 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
 
   gettimeofday(&now, NULL);
   memcpy(&check->last_fire_time, &now, sizeof(now));
-  ci->check->stats.inprogress.state = NP_BAD;
-  ci->check->stats.inprogress.available = NP_UNAVAILABLE;
+  noit_stats_set_state(ci->check, NP_BAD);
+  noit_stats_set_available(ci->check, NP_UNAVAILABLE);
   ci->timed_out = 1;
   ci->nrr = 0;
   ci->sort = 1;

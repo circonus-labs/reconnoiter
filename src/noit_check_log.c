@@ -128,14 +128,16 @@ static int
 _noit_check_log_delete(mtev_log_stream_t ls,
                        noit_check_t *check) {
   stats_t *c;
+  struct timeval *whence;
   char uuid_str[256*3+37];
   SETUP_LOG(delete, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
 
-  c = &check->stats.current;
-  return mtev_log(ls, &c->whence, __FILE__, __LINE__,
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
+  return mtev_log(ls, whence, __FILE__, __LINE__,
                   "D\t%lu.%03lu\t%s\t%s\n",
-                  SECPART(&c->whence), MSECPART(&c->whence), uuid_str, check->name);
+                  SECPART(whence), MSECPART(whence), uuid_str, check->name);
 }
 void
 noit_check_log_delete(noit_check_t *check) {
@@ -195,15 +197,20 @@ static int
 _noit_check_log_status(mtev_log_stream_t ls,
                        noit_check_t *check) {
   stats_t *c;
+  struct timeval *whence;
   char uuid_str[256*3+37];
   SETUP_LOG(status, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), status_log, check);
 
-  c = &check->stats.current;
-  return mtev_log(ls, &c->whence, __FILE__, __LINE__,
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
+  return mtev_log(ls, whence, __FILE__, __LINE__,
                   "S\t%lu.%03lu\t%s\t%c\t%c\t%d\t%s\n",
-                  SECPART(&c->whence), MSECPART(&c->whence), uuid_str,
-                  (char)c->state, (char)c->available, c->duration, c->status);
+                  SECPART(whence), MSECPART(whence), uuid_str,
+                  (char)noit_check_stats_state(c, NULL),
+                  (char)noit_check_stats_available(c, NULL),
+                  noit_check_stats_duration(c, NULL),
+                  noit_check_stats_status(c, NULL));
 }
 void
 noit_check_log_status(noit_check_t *check) {
@@ -374,6 +381,7 @@ static int
 _noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
   int rv = 0;
   int srv;
+  struct timeval *whence;
   char uuid_str[256*3+37];
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
@@ -383,7 +391,8 @@ _noit_check_log_metrics(mtev_log_stream_t ls, noit_check_t *check) {
   SETUP_LOG(metrics, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), metrics_log, check);
 
-  c = &check->stats.current;
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
   while(mtev_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
     /* If we apply the filter set and it returns false, we don't log */
     metric_t *m = (metric_t *)vm;
@@ -445,7 +454,9 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   unsigned int out_size;
   stats_t *c;
   void *vm;
+  struct timeval *whence;
   char *buf, *out_buf;
+  mtev_hash_table *metrics;
   noit_compression_type_t comp;
   Bundle bundle = BUNDLE__INIT;
   SETUP_LOG(bundle, );
@@ -456,15 +467,16 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   if(v_comp && !strcmp(v_comp, "off")) use_compression = mtev_false;
 
   // Get a bundle
-  c = &check->stats.current;
+  c = noit_check_get_stats_current(check);
+  whence = noit_check_stats_whence(c, NULL);
 
   // Set attributes
   bundle.status = malloc(sizeof(Status));
   status__init(bundle.status);
-  bundle.status->available = c->available;
-  bundle.status->state = c->state;
-  bundle.status->duration = c->duration;
-  bundle.status->status = c->status;
+  bundle.status->available = noit_check_stats_available(c, NULL);
+  bundle.status->state = noit_check_stats_state(c, NULL);
+  bundle.status->duration = noit_check_stats_duration(c, NULL);
+  bundle.status->status = (char *)noit_check_stats_status(c, NULL);
   bundle.has_period = mtev_true;
   bundle.period = check->period;
   bundle.has_timeout = mtev_true;
@@ -478,7 +490,8 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   bundle.metadata[0]->value = check->target_ip;
 
   // Just count
-  while(mtev_hash_next(&c->metrics, &iter, &key, &klen, &vm)) {
+  metrics = noit_check_stats_metrics(c);
+  while(mtev_hash_next(metrics, &iter, &key, &klen, &vm)) {
     bundle.n_metrics++;
   }
 
@@ -486,7 +499,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
     bundle.metrics = malloc(bundle.n_metrics * sizeof(Metric*));
 
     // Now convert
-    while(mtev_hash_next(&c->metrics, &iter2, &key, &klen, &vm)) {
+    while(mtev_hash_next(metrics, &iter2, &key, &klen, &vm)) {
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
@@ -511,10 +524,10 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
   // Compress + B64
   comp = use_compression ? NOIT_COMPRESS_ZLIB : NOIT_COMPRESS_NONE;
   noit_check_log_bundle_compress_b64(comp, buf, size, &out_buf, &out_size);
-  rv = mtev_log(ls, &(c->whence), __FILE__, __LINE__,
+  rv = mtev_log(ls, whence, __FILE__, __LINE__,
                 "B%c\t%lu.%03lu\t%s\t%s\t%s\t%s\t%d\t%.*s\n",
                 use_compression ? '1' : '2',
-                SECPART(&(c->whence)), MSECPART(&(c->whence)),
+                SECPART(whence), MSECPART(whence),
                 uuid_str, check->target, check->module, check->name, size,
                 (unsigned int)out_size, out_buf);
 

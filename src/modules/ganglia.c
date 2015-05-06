@@ -140,7 +140,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
     case gmetric_int:{
       int *val = pkt->payload;
       *val = ntohl(*val);
-      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_INT32, val);
+      noit_stats_set_metric(check, pkt->name, METRIC_INT32, val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_INT32, val);
       break;
                      }
@@ -148,7 +148,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
     case gmetric_uint:{
       uint32_t *val = pkt->payload;
       *val = ntohl(*val);
-      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_UINT32, val);
+      noit_stats_set_metric(check, pkt->name, METRIC_UINT32, val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_UINT32, val);
       break;
                       }
@@ -157,7 +157,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       *len = ntohl(*len);
       pkt->payload += 4;
       char *str = pkt->payload;
-      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_STRING, str);
+      noit_stats_set_metric(check, pkt->name, METRIC_STRING, str);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_STRING, str);
       break;
                         }
@@ -166,7 +166,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       union ifd *ptr = pkt->payload;
       ptr->i = ntohl(ptr->i);
       val = (double) ptr->f;
-      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_DOUBLE, &val);
+      noit_stats_set_metric(check, pkt->name, METRIC_DOUBLE, &val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_DOUBLE, &val);
       break;    
                        }
@@ -176,7 +176,7 @@ ganglia_process_dgram(noit_check_t *check, void *closure) {
       ptr->i = ntohl(ptr->i);
       (ptr+4)->i = ntohl((ptr+4)->i);
       val = ptr->d;
-      noit_stats_set_metric(check, &check->stats.inprogress, pkt->name, METRIC_DOUBLE, &val);
+      noit_stats_set_metric(check, pkt->name, METRIC_DOUBLE, &val);
       if(immediate) noit_stats_log_immediate_metric(check, pkt->name, METRIC_DOUBLE, &val);
       break;
                         }
@@ -265,7 +265,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
                          noit_check_t *cause) {
   /* almost entirely pulled from collectd.c:collectd_submit_internal() */
   ganglia_closure_t *gcl;
-  struct timeval now, duration, age;
+  struct timeval now, duration, age, *last;
   mtev_boolean immediate;
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
@@ -276,38 +276,38 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
    * check's period... we've no reason to passively log now.
    */
   immediate = noit_collects_check_asynch(self, check);
-  sub_timeval(now, check->stats.current.whence, &age);
+  last = noit_check_stats_whence(noit_check_get_stats_current(check), NULL);
+  sub_timeval(now, *last, &age);
   if(immediate && (age.tv_sec * 1000 + age.tv_usec / 1000) < check->period)
     return 0;
 
   if(!check->closure) {
     gcl = check->closure = (void *)calloc(1, sizeof(ganglia_closure_t)); 
     memset(gcl, 0, sizeof(ganglia_closure_t));
-    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
+    noit_stats_set_whence(check, &now);
   } else {
     /*  Don't count the first run */
     char human_buffer[256];
     gcl = (ganglia_closure_t*)check->closure; 
-    memcpy(&check->stats.inprogress.whence, &now, sizeof(now));
-    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-    check->stats.inprogress.duration = duration.tv_sec; /*  + duration.tv_usec / (1000 * 1000); */
+    noit_stats_set_whence(check, &now);
+    sub_timeval(now, check->last_fire_time, &duration);
+    noit_stats_set_duration(check, duration.tv_sec);
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d,ntfy=%d", check->stats.inprogress.duration, 
+             "dur=%ld,run=%d,stats=%d,ntfy=%d", duration.tv_sec,
              check->generation, gcl->stats_count, gcl->ntfy_count);
     mtevL(noit_debug, "ganglia(%s) [%s]\n", check->target, human_buffer);
 
-    check->stats.inprogress.available = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
-        NP_AVAILABLE : NP_UNAVAILABLE;
-    check->stats.inprogress.state = (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
-        NP_GOOD : NP_BAD;
-    check->stats.inprogress.status = human_buffer;
+    noit_stats_set_available(check, (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
+        NP_AVAILABLE : NP_UNAVAILABLE);
+    noit_stats_set_state(check, (gcl->ntfy_count > 0 || gcl->stats_count > 0) ? 
+        NP_GOOD : NP_BAD);
+    noit_stats_set_status(check, human_buffer);
     if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(check, &check->stats.inprogress);
+      noit_check_passive_set_stats(check);
 
-    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
+    memcpy(&check->last_fire_time, &now, sizeof(duration));
   }
-  noit_check_stats_clear(check, &check->stats.inprogress);
   clear_closure(check, gcl);
   return 0;
 }

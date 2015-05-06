@@ -75,7 +75,7 @@ static int
 statsd_submit(noit_module_t *self, noit_check_t *check,
               noit_check_t *cause) {
   statsd_closure_t *ccl;
-  struct timeval duration;
+  struct timeval now, duration;
   statsd_mod_config_t *conf;
 
   conf = noit_module_get_userdata(self);
@@ -94,33 +94,32 @@ statsd_submit(noit_module_t *self, noit_check_t *check,
   if(!check->closure) {
     ccl = check->closure = calloc(1, sizeof(*ccl));
     ccl->self = self;
-    memset(&check->stats.inprogress, 0, sizeof(check->stats.inprogress));
   } else {
     // Don't count the first run
     char human_buffer[256];
     ccl = (statsd_closure_t*)check->closure;
-    gettimeofday(&check->stats.inprogress.whence, NULL);
-    sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-    check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+    gettimeofday(&now, NULL);
+    sub_timeval(now, check->last_fire_time, &duration);
+    noit_stats_set_whence(check, &now);
+    noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
 
     snprintf(human_buffer, sizeof(human_buffer),
-             "dur=%d,run=%d,stats=%d", check->stats.inprogress.duration,
+             "dur=%ld,run=%d,stats=%d", duration.tv_sec * 1000 + duration.tv_usec / 1000,
              check->generation, ccl->stats_count);
     mtevL(nldeb, "statsd(%s) [%s]\n", check->target, human_buffer);
 
     // Not sure what to do here
-    check->stats.inprogress.available = (ccl->stats_count > 0) ?
-        NP_AVAILABLE : NP_UNAVAILABLE;
-    check->stats.inprogress.state = (ccl->stats_count > 0) ?
-        NP_GOOD : NP_BAD;
-    check->stats.inprogress.status = human_buffer;
+    noit_stats_set_available(check, (ccl->stats_count > 0) ?
+        NP_AVAILABLE : NP_UNAVAILABLE);
+    noit_stats_set_state(check, (ccl->stats_count > 0) ?
+        NP_GOOD : NP_BAD);
+    noit_stats_set_status(check, human_buffer);
     if(check->last_fire_time.tv_sec)
-      noit_check_passive_set_stats(check, &check->stats.inprogress);
+      noit_check_passive_set_stats(check);
 
-    memcpy(&check->last_fire_time, &check->stats.inprogress.whence, sizeof(duration));
+    memcpy(&check->last_fire_time, &now, sizeof(duration));
   }
   ccl->stats_count = 0;
-  noit_check_stats_clear(check, &check->stats.inprogress);
   return 0;
 }
 
@@ -130,50 +129,52 @@ update_check(noit_check_t *check, const char *key, char type,
   u_int32_t one = 1, cnt = 1;
   char buff[256];
   statsd_closure_t *ccl;
+  stats_t *inprogress;
   metric_t *m;
 
   if (sample == 0.0) return; /* would be a div-by-zero */
   if (check->closure == NULL) return;
   ccl = check->closure;
 
+  inprogress = noit_check_get_stats_inprogress(check);
   /* First key counts */
   snprintf(buff, sizeof(buff), "%s`count", key);
-  m = noit_stats_get_metric(check, &check->stats.inprogress, buff);
+  m = noit_stats_get_metric(check, inprogress, buff);
   if(!m) ccl->stats_count++;
   if(m && m->metric_type == METRIC_UINT32 && m->metric_value.I != NULL) {
     (*m->metric_value.I)++;
     cnt = *m->metric_value.I;
-    check_stats_set_metric_hook_invoke(check, &check->stats.inprogress, m);
+    check_stats_set_metric_hook_invoke(check, inprogress, m);
   }
   else
-    noit_stats_set_metric(check, &check->stats.inprogress, buff, METRIC_UINT32, &one);
+    noit_stats_set_metric(check, buff, METRIC_UINT32, &one);
 
   /* Next the actual data */
   if(type == 'c') {
     double v = diff * (1.0 / sample) / (check->period / 1000.0);
     snprintf(buff, sizeof(buff), "%s`rate", key);
-    m = noit_stats_get_metric(check, &check->stats.inprogress, buff);
+    m = noit_stats_get_metric(check, inprogress, buff);
     if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
       (*m->metric_value.n) += v;
-      check_stats_set_metric_hook_invoke(check, &check->stats.inprogress, m);
+      check_stats_set_metric_hook_invoke(check, inprogress, m);
     }
     else
-      noit_stats_set_metric(check, &check->stats.inprogress, buff, METRIC_DOUBLE, &v);
+      noit_stats_set_metric(check, buff, METRIC_DOUBLE, &v);
   }
 
   snprintf(buff, sizeof(buff), "%s`%s", key,
            (type == 'c') ? "counter" : (type == 'g') ? "gauge" : "timing");
-  m = noit_stats_get_metric(check, &check->stats.inprogress, buff);
+  m = noit_stats_get_metric(check, inprogress, buff);
   if(m && m->metric_type == METRIC_DOUBLE && m->metric_value.n != NULL) {
     if(type == 'c') (*m->metric_value.n) += (diff * (1.0/sample));
     else {
       double new_avg = ((double)(cnt - 1) * (*m->metric_value.n) + diff) / (double)cnt;
       (*m->metric_value.n) = new_avg;
     }
-    check_stats_set_metric_hook_invoke(check, &check->stats.inprogress, m);
+    check_stats_set_metric_hook_invoke(check, inprogress, m);
   }
   else
-    noit_stats_set_metric(check, &check->stats.inprogress, buff, METRIC_DOUBLE, &diff);
+    noit_stats_set_metric(check, buff, METRIC_DOUBLE, &diff);
 }
 
 static void
