@@ -129,30 +129,29 @@ static int ssh2_config(noit_module_t *self, mtev_hash_table *options) {
   return 0;
 }
 static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
-  struct timeval duration;
+  struct timeval duration, now;
+  u_int32_t mduration;
   ssh2_check_info_t *ci = check->closure;
 
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  gettimeofday(&now, NULL);
+  sub_timeval(now, check->last_fire_time, &duration);
+  mduration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
+  noit_stats_set_whence(check, &now);
+  noit_stats_set_duration(check, mduration);
+  noit_stats_set_available(check, ci->available ? NP_AVAILABLE : NP_UNAVAILABLE);
+  noit_stats_set_state(check, ci->fingerprint[0] ? NP_GOOD : NP_BAD);
 
-  gettimeofday(&check->stats.inprogress.whence, NULL);
-  sub_timeval(check->stats.inprogress.whence, check->last_fire_time, &duration);
-  check->stats.inprogress.duration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
-  check->stats.inprogress.available = ci->available ? NP_AVAILABLE : NP_UNAVAILABLE;
-  check->stats.inprogress.state = ci->fingerprint[0] ? NP_GOOD : NP_BAD;
-
-  if(ci->error) check->stats.inprogress.status = ci->error;
-  else if(ci->timed_out) check->stats.inprogress.status = "timeout";
-  else if(ci->fingerprint[0]) check->stats.inprogress.status = ci->fingerprint;
-  else check->stats.inprogress.status = "internal error";
+  if(ci->error) noit_stats_set_status(check, ci->error);
+  else if(ci->timed_out) noit_stats_set_status(check, "timeout");
+  else if(ci->fingerprint[0]) noit_stats_set_status(check, ci->fingerprint);
+  else noit_stats_set_status(check, "internal error");
 
   if(ci->fingerprint[0]) {
-    u_int32_t mduration = check->stats.inprogress.duration;
-    noit_stats_set_metric(check, &check->stats.inprogress, "duration", METRIC_UINT32, &mduration);
-    noit_stats_set_metric(check, &check->stats.inprogress, "fingerprint", METRIC_STRING,
+    noit_stats_set_metric(check, "duration", METRIC_UINT32, &mduration);
+    noit_stats_set_metric(check, "fingerprint", METRIC_STRING,
                           ci->fingerprint);
   }
-  noit_check_set_stats(check, &check->stats.inprogress);
-  noit_check_stats_clear(check, &check->stats.inprogress);
+  noit_check_set_stats(check);
 }
 static int ssh2_drive_session(eventer_t e, int mask, void *closure,
                               struct timeval *now) {
