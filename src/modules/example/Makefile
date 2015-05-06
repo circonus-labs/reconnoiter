@@ -22,6 +22,9 @@ example.lo:	example.c example.xmlh
 example.$(MODULEEXT):	example.lo
 	$(MODULELD) $(SHLDFLAGS) -o $@ example.lo
 
+clean:
+	rm -f example.$(MODULEEXT) example.lo example.xmlh
+
 install:	$(MODULES)
 	for i in $(MODULES); do \
 		cp $$i $(DESTDIR)$(MODULESDIR)/$$i; \
