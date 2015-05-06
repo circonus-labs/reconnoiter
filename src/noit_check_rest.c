@@ -274,6 +274,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     json_object_object_add(doc, "status", status);
     metrics = json_object_new_object();
 
+    t = noit_check_stats_whence(c, NULL);
     if(t->tv_sec) {
       json_object_object_add(metrics, "current", stats_to_json(c));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
