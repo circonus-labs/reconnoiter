@@ -1108,6 +1108,7 @@ noit_check_update(noit_check_t *new_check,
 
   assert(name);
   uuid_unparse_lower(new_check->checkid, uuid_str);
+  if(!new_check->statistics) new_check->statistics = noit_check_stats_set_calloc();
   if(seq < 0) new_check->config_seq = seq = 0;
   if(new_check->config_seq > seq) {
     mtevL(mtev_error, "noit_check_update[%s] skipped: seq backwards\n", uuid_str);
