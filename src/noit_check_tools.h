@@ -140,7 +140,7 @@ MTEV_HOOK_PROTO(check_postflight,
 
 #define BAIL_ON_RUNNING_CHECK(check) do { \
   if(check->flags & NP_RUNNING) { \
-    mtevL(noit_error, "Check %s is still running!\n", check->name); \
+    mtevL(mtev_error, "Check %s is still running!\n", check->name); \
     return -1; \
   } \
 } while(0)
