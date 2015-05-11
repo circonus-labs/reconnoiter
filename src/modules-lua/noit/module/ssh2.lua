@@ -267,6 +267,9 @@ function initiate(module, check)
   local banner = e:read("\n")
   if banner == nil then return cerr("failed to read SSH banner") end
 
+  local trimmed_banner = banner:gsub("%s+$", "")
+  check.metric_string("banner", trimmed_banner)
+
   if e:write("SSH-2.0-Reconnoiter\r\n") < 0 then
     return cerr("failed to write SSH banner")
   end
