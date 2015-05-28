@@ -1956,7 +1956,7 @@ noit_check_set_stats(noit_check_t *check) {
   stats_inprogress(check) = noit_check_stats_alloc();
   
   if(old) {
-    noit_check_safe_free_stats(old);
+    mtev_memory_safe_free(old);
   }
 
   if(current) {
