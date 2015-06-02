@@ -102,10 +102,8 @@ MTEV_HOOK_IMPL(check_log_stats,
 
 void
 free_metric(metric_t *m) {
-  if(!m) return;
-  if(m->metric_name) mtev_memory_safe_free(m->metric_name);
-  if(m->metric_value.i) mtev_memory_safe_free(m->metric_value.i);
-  mtev_memory_safe_free(m);
+  if(m->metric_name) free(m->metric_name);
+  if(m->metric_value.i) free(m->metric_value.i);
 }
 
 #define stats_inprogress(c) ((stats_t **)(c->statistics))[STATS_INPROGRESS]
@@ -184,9 +182,16 @@ noit_stats_set_available(noit_check_t *c, int8_t t) {
   (void)noit_check_stats_available(noit_check_get_stats_inprogress(c), &t);
 }
 static void
+noit_check_safe_free_metric(void *vs) {
+  metric_t *m = vs;
+  if (m) {
+    free_metric(m);
+  }
+}
+static void
 noit_check_safe_free_stats(void *vs) {
   stats_t *s = vs;
-  mtev_hash_destroy(&s->metrics, NULL, (void (*)(void *))free_metric);
+  mtev_hash_destroy(&s->metrics, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 static stats_t *
 noit_check_stats_alloc() {
@@ -1622,7 +1627,7 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
 void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
   mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
-                    m, NULL, (void (*)(void *))free_metric);
+                    m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
 static size_t
@@ -1733,7 +1738,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scanint:
    if(negative) {
      int64_t *v;
-     v = mtev_memory_safe_malloc(sizeof(*v));
+     v = malloc(sizeof(*v));
      *v = strtoll(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_INT64;
@@ -1741,7 +1746,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
    }
    else {
      u_int64_t *v;
-     v = mtev_memory_safe_malloc(sizeof(*v));
+     v = malloc(sizeof(*v));
      *v = strtoull(rpl, NULL, 10);
      *replacement = v;
      type = METRIC_UINT64;
@@ -1750,7 +1755,7 @@ noit_metric_guess_type(const char *s, void **replacement) {
  scandouble:
    {
      double *v;
-     v = mtev_memory_safe_malloc(sizeof(*v));
+     v = malloc(sizeof(*v));
      *v = strtod(rpl, NULL);
      *replacement = v;
      type = METRIC_DOUBLE;
@@ -1777,7 +1782,7 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
 
-  m->metric_name = mtev_memory_safe_strdup(name);
+  m->metric_name = strdup(name);
   cleanse_metric_name(m->metric_name);
 
   if(type == METRIC_GUESS)
@@ -1791,7 +1796,7 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
   else if(value) {
     size_t len;
     len = noit_metric_sizes(type, value);
-    m->metric_value.vp = mtev_memory_safe_malloc(len);
+    m->metric_value.vp = malloc(len);
     memcpy(m->metric_value.vp, value, len);
     if (type == METRIC_STRING) {
       m->metric_value.s[len-1] = 0;
@@ -1817,9 +1822,10 @@ noit_stats_set_metric(noit_check_t *check,
                       const char *name, metric_type_t type,
                       const void *value) {
   stats_t *c;
-  metric_t *m = mtev_memory_safe_calloc(1, sizeof(*m));
+  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
+  memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
-    free_metric(m);
+    mtev_memory_safe_free(m);
     return;
   }
   noit_check_metric_count_add(1);
@@ -1895,14 +1901,15 @@ noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 void *value) {
   struct timeval now;
-  metric_t *m = mtev_memory_safe_malloc(sizeof(*m));
+  metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
+  memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
-    free_metric(m);
+    mtev_memory_safe_free(m);
     return;
   }
   gettimeofday(&now, NULL);
   noit_check_log_metric(check, &now, m);
-  free_metric(m);
+  mtev_memory_safe_free(m);
 }
 
 void
