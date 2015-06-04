@@ -931,7 +931,6 @@ rest_set_check(mtev_http_rest_closure_t *restc,
     if(!parent) FAIL("invalid path");
     configure_xml_check(parent, node, attr, config, &seq);
     if(check) old_seq = check->config_seq;
-mtevL(mtev_error, "HERE: %lld > %lld\n", old_seq, seq);
     if(old_seq > seq) FAIL("invalid sequence");
     xmlUnlinkNode(node);
     xmlAddChild(parent, node);
