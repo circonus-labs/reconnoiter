@@ -137,6 +137,13 @@
 #undef HAVE_VASPRINTF
 #undef HAVE_SETPPRIV
 
+#undef NOIT_UNAME_V
+#undef NOIT_UNAME_R
+#undef NOIT_UNAME_S
+#undef NOIT_UNAME_M
+#undef NOIT_UNAME_N
+#undef NOIT_UNAME_P
+
 #include <mtev_config.h>
 
 #endif
