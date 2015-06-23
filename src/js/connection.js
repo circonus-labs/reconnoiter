@@ -131,6 +131,7 @@ nc.prototype.start = function(conncb) {
       if(parent.cn && parent.remote_cert.subject.CN != parent.cn) {
         throw('invalid cert: CN mismatch');
       }
+      parent.socket.authorized = true;
       parent.conncb(parent);
     }
   );
@@ -387,8 +388,8 @@ function handle_frame(parent, frame, host, port) {
       chan.socket = net.connect( { host: host, port: port } );
       if(debug >= 2) console.log('connecting to ', host, ':', port, 'on channel', chan.id);
       chan.socket.on('error', (function(parent, chan) {
-        return function() {
-          if(debug >= 3) console.log('close to remote on channel', chan.id);
+        return function(err) {
+          if(debug >= 3) console.log('close to remote on channel', chan.id, err);
           parent.socket.write(frame_output(chan.id, true, CMD_RESET));
         }
       })(parent,chan));
@@ -433,7 +434,7 @@ nc.prototype.reverse = function(name, host, port) {
   this.start(function(parent) {
     parent.buflist = [];
     var b = new Buffer("REVERSE /" + name + " HTTP/1.1\r\n\r\n", 'utf8');
-    parent.socket.write(b);      // request livestream
+    parent.socket.write(b);
     parent.socket.addListener('data', function(buffer) {
       parent.buflist.push(buffer);
       try {
