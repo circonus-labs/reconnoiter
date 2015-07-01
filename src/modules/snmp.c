@@ -940,9 +940,12 @@ final String walk_base             = config.remove("walk");
     }
 	}
   if(CONF_GET("security_level", &cval)) {
-    if(!strcasecmp(cval, "nanp")) sess.securityLevel = SNMP_SEC_LEVEL_NOAUTH;
-    else if(!strcasecmp(cval, "anp")) sess.securityLevel = SNMP_SEC_LEVEL_AUTHNOPRIV;
-    else if(!strcasecmp(cval, "ap")) sess.securityLevel = SNMP_SEC_LEVEL_AUTHPRIV;
+    if ((!strcasecmp(cval, "nanp")) || (!strcasecmp(cval, "noAuthNoPriv"))) 
+      sess.securityLevel = SNMP_SEC_LEVEL_NOAUTH;
+    else if ((!strcasecmp(cval, "anp")) || (!strcasecmp(cval, "authNoPriv"))) 
+      sess.securityLevel = SNMP_SEC_LEVEL_AUTHNOPRIV;
+    else if ((!strcasecmp(cval, "ap")) || (!strcasecmp(cval, "authPriv")))
+      sess.securityLevel = SNMP_SEC_LEVEL_AUTHPRIV;
   }
   if(CONF_GET("auth_protocol", &cval)) {
     if (!strcasecmp(cval,"MD5")) {

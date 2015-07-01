@@ -35,7 +35,7 @@
     <parameter name="security_level"
                required="optional"
                default="nanp"
-               allowed="(?:nanp|anp|ap)">The SNMPv3 security level. nanp: noAuthNoPriv, anp: authNoPriv, ap, authPriv.</parameter>
+               allowed="(?:nanp|anp|ap|noAuthNoPriv|authNoPriv|authPriv)">The SNMPv3 security level. nanp: noAuthNoPriv, anp: authNoPriv, ap, authPriv.</parameter>
     <parameter name="security_name"
                required="optional"
                allowed=".*">The SNMPv3 security name (user).</parameter>

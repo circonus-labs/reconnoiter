@@ -225,7 +225,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>(?:nanp|anp|ap)</para>
+                <para>(?:nanp|anp|ap|noAuthNoPriv|authNoPriv|authPriv)</para>
               </listitem>
             </varlistentry>
           </variablelist>
