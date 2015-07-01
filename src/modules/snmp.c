@@ -981,15 +981,20 @@ final String walk_base             = config.remove("walk");
     }
   }
   if(CONF_GET("privacy_passphrase", &cval)) {
+    if(sess.securityAuthProto == NULL) {
+      sess.securityAuthProto = usmHMACMD5AuthProtocol;
+      sess.securityAuthProtoLen = USM_AUTH_PROTO_MD5_LEN;
+    }
     if(sess.securityPrivProto == NULL) {
       sess.securityPrivProto = usmDESPrivProtocol;
       sess.securityPrivProtoLen = USM_PRIV_PROTO_DES_LEN;
     }
     sess.securityPrivKeyLen = USM_PRIV_KU_LEN;
-    if(generate_Ku(sess.securityPrivProto, sess.securityPrivProtoLen,
+    if(generate_Ku(sess.securityAuthProto, sess.securityAuthProtoLen,
                    (u_char *)cval, strlen(cval),
                    sess.securityPrivKey, &sess.securityPrivKeyLen) != SNMPERR_SUCCESS) {
       /* What do we do? */
+      mtevL(nlerr, "priv_passphrase failed to gen master key\n");
     }
   }
   sess.callback = noit_snmp_asynch_response;
