@@ -48,6 +48,16 @@ public class NoitMetric extends NoitEvent
   private NoitMetricNumeric nmn;
  
   public NoitMetric() {}
+  public NoitMetric(String[] parts, NoitMetricText _nmt) throws Exception {
+    super(parts);
+    nmn = null;
+    nmt = _nmt;
+  }
+  public NoitMetric(String[] parts, NoitMetricNumeric _nmn) throws Exception {
+    super(parts);
+    nmn = _nmn;
+    nmt = null;
+  }
   public NoitMetric(String[] parts) throws Exception {
     super(parts);
     if (parts[5].equals(METRIC_STRING)) {

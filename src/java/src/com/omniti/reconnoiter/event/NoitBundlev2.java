@@ -42,6 +42,13 @@ import com.omniti.reconnoiter.CheckStatus;
 import org.apache.commons.codec.binary.Base64;
 
 public class NoitBundlev2 extends NoitEvent {
+  public final String M = "M";
+  public final String ts_i = "i";
+  public final String ts_I = "I";
+  public final String ts_l = "l";
+  public final String ts_L = "L";
+  public final String ts_n = "n";
+  public final String ts_s = "s";
   LinkedList<NoitEvent> items;
   private long time;
   private String noit;
@@ -87,6 +94,7 @@ public class NoitBundlev2 extends NoitEvent {
     String name = parts[6];
     int rawlen = Integer.parseInt(parts[7]);
     CheckStatus.Bundle bundle = decode(parts[8], rawlen);
+    String[] tmpline = new String[7];
     if(bundle != null) {
       CheckStatus.Status status = bundle.getStatus();
       if(status != null) {
@@ -101,36 +109,63 @@ public class NoitBundlev2 extends NoitEvent {
       }
       for(CheckStatus.Metric metric : bundle.getMetricsList()) {
         char metrictype[] = new char [] { (char)metric.getMetricType() };
-        String v_str = null;
+        String v_str = null, typestring = null;
+        Double val = null;
         switch(metrictype[0]) {
           case 'i':
-            if(metric.hasValueI32())
+            if(metric.hasValueI32()) {
+              val = (double)metric.getValueI32();
               v_str = Integer.toString(metric.getValueI32());
+            }
+            typestring = ts_i;
             break;
           case 'I':
-            if(metric.hasValueUI32())
+            if(metric.hasValueUI32()) {
+              val = (double)metric.getValueUI32();
               v_str = Long.toString(metric.getValueUI32());
+            }
+            typestring = ts_I;
             break;
           case 'l':
-            if(metric.hasValueI64())
+            if(metric.hasValueI64()) {
+              val = (double)metric.getValueI64();
               v_str = Long.toString(metric.getValueI64());
+            }
+            typestring = ts_l;
             break;
           case 'L':
-            if(metric.hasValueUI64())
+            if(metric.hasValueUI64()) {
+              val = (double)metric.getValueUI64();
               v_str = Double.toString(metric.getValueUI64());
+            }
+            typestring = ts_L;
             break;
           case 'n':
-            if(metric.hasValueDbl())
+            if(metric.hasValueDbl()) {
+              val = metric.getValueDbl();
               v_str = Double.toString(metric.getValueDbl());
+            }
+            typestring = ts_n;
             break;
-          case 's': v_str = metric.getValueStr();
+          case 's':
+            v_str = metric.getValueStr();
+            typestring = ts_s;
+            break;
           default:
             break;
         }
-        if(v_str == null) v_str = "[[null]]";
-        items.addLast(new NoitMetric(new java.lang.String[]
-                      { "M", noit, timestamp, parts[3], metric.getName(),
-                        new String(metrictype), v_str }));
+        tmpline[0] = M;
+        tmpline[1] = noit;
+        tmpline[2] = timestamp;
+        tmpline[3] = parts[3];
+        tmpline[4] = metric.getName();
+        tmpline[5] = typestring;
+        tmpline[6] = (v_str == null) ? "[[null]]" : v_str;
+        if(metrictype[0] == 's') {
+          items.addLast(new NoitMetric(tmpline, new NoitMetricText(tmpline, id, time, v_str)));
+        } else {
+          items.addLast(new NoitMetric(tmpline, new NoitMetricNumeric(tmpline, id, time, val)));
+        }
       }
     }
   }

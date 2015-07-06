@@ -54,6 +54,18 @@ public class NoitMetricNumeric extends NoitEvent
    'M' REMOTE TIMESTAMP UUID NAME TYPE VALUE
     */
    public NoitMetricNumeric() {}
+   public NoitMetricNumeric(String[] parts, String[] id, long _time, Double _value) throws Exception {
+      super(parts);
+      noit = parts[1];
+      time = _time;
+      check_target = id[0];
+      check_module = id[1];
+      check_name = id[2];
+      uuid = id[3];
+      name = parts[4];
+      value = _value;
+   }
+
    public NoitMetricNumeric(String[] parts) throws Exception {
       super(parts);
       String id[] = extended_id_split(parts[3]);
