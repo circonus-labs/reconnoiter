@@ -347,7 +347,7 @@
             <varlistentry>
               <term>allowed</term>
               <listitem>
-                <para>(?:DES|AES)</para>
+                <para>(?:DES|AES|AES128)</para>
               </listitem>
             </varlistentry>
           </variablelist>

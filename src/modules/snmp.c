@@ -975,7 +975,7 @@ final String walk_base             = config.remove("walk");
       sess.securityPrivProto = usmDESPrivProtocol;
       sess.securityPrivProtoLen = USM_PRIV_PROTO_DES_LEN;
     }
-    else if (!strcasecmp(cval,"AES")) {
+    else if ((!strcasecmp(cval,"AES"))||(!strcasecmp(cval,"AES128"))) {
       sess.securityPrivProto = usmAESPrivProtocol;
       sess.securityPrivProtoLen = USM_PRIV_PROTO_AES_LEN;
     }

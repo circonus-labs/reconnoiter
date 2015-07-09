@@ -52,7 +52,7 @@
                allowed=".*">The SNMPv3 security authorization passphrase</parameter>
     <parameter name="privacy_protocol"
                required="optional"
-               allowed="(?:DES|AES)">The SNMPv3 security encryption algorithm.</parameter>
+               allowed="(?:DES|AES|AES128)">The SNMPv3 security encryption algorithm.</parameter>
     <parameter name="privacy_passphrase"
                required="optional"
                allowed=".*">The SNMPv3 security privacy passphrase</parameter>
