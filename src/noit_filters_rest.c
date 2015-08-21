@@ -225,6 +225,7 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
   parent = make_conf_path(pats[0]);
   if(!parent) FAIL("invalid path");
   if(node) {
+    CONF_REMOVE(node);
     xmlUnlinkNode(node);
     xmlFreeNode(node);
   }
