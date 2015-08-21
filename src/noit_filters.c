@@ -593,6 +593,23 @@ noit_filtersets_cull_unused() {
         if(mtev_hash_store(&active, buffer, strlen(buffer), declares[i])) {
           buffer = NULL;
         }
+        else {
+          void *vnode = NULL;
+          /* We've just hit a duplicate.... check to see if there's an existing
+           * entry and if there is, load the latest one and delete the old
+           * one. */
+          mtev_hash_retrieve(&active, buffer, strlen(buffer), &vnode);
+          if (vnode) {
+            noit_filter_compile_add(declares[i]);
+            CONF_REMOVE(vnode);
+            xmlUnlinkNode(vnode);
+            xmlFreeNode(vnode);
+            removed++;
+            if(mtev_hash_replace(&active, buffer, strlen(buffer), declares[i], free, NULL)) {
+              buffer = NULL;
+            }
+          }
+        }
       }
     }
     if(buffer) free(buffer);
