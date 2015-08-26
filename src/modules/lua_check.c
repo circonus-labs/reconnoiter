@@ -404,7 +404,7 @@ static int
 noit_lua_interpolate(lua_State *L) {
   noit_check_t *check;
   mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
-  char buff[2048];
+  char buff[8192];
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
