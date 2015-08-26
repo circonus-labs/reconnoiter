@@ -80,7 +80,7 @@ noit_check_interpolate(char *buff, int len, const char *fmt,
   int iterations = 3;
 
   while(replaced_something && iterations > 0) {
-    char *cp = buff, * const end = buff + len;
+    char *cp = buff, * const end = (buff + len - 1);
     iterations--;
     replaced_something = 0;
     while(*fmt && cp < end) {
