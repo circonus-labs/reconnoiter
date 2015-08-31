@@ -394,11 +394,11 @@ stratcon_iep_submitter(eventer_t e, int mask, void *closure,
     return 0;
   }
 
-  /* If we're greater than 10 seconds old,
+  /* If we're greater than 30 seconds old,
      just quit. */
   sub_timeval(*now, job->start, &diff);
-  if (diff.tv_sec >= 10) {
-    mtevL(noit_debug, "Skipping event from %s - waiting in eventer for more than 10 seconds\n",
+  if (diff.tv_sec >= 30) {
+    mtevL(noit_debug, "Skipping event from %s - waiting in eventer for more than 30 seconds\n",
                         job->remote ? job->remote : "(null)");
     return 0;
   }
