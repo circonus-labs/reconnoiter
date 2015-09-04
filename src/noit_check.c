@@ -1782,6 +1782,12 @@ noit_stats_populate_metric(metric_t *m, const char *name, metric_type_t type,
                            const void *value) {
   void *replacement = NULL;
 
+  /* If we are passed a null name, we want to quit populating the metric...
+   * no reason we should ever have a null metric name */
+  if (!name) {
+    return -1;
+  }
+
   m->metric_name = strdup(name);
   cleanse_metric_name(m->metric_name);
 
