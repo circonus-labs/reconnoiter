@@ -77,7 +77,7 @@ struct rest_json_payload {
   char *error;
   int depth;
   char *keys[MAX_DEPTH];
-  char array_depth[MAX_DEPTH];
+  int array_depth[MAX_DEPTH];
   unsigned char last_special_key;
   unsigned char saw_complex_type;
   metric_type_t last_type;
@@ -116,7 +116,7 @@ mtev_httptrap_check_aynsch(noit_module_t *self,
   return is_asynch;
 }
 
-static void
+static int
 set_array_key(struct rest_json_payload *json) {
   if(json->array_depth[json->depth] > 0) {
     char str[256];
@@ -133,7 +133,10 @@ set_array_key(struct rest_json_payload *json) {
     }
     else {
       int uplen = strlen(json->keys[json->depth-1]);
-      if(uplen + 1 + strLen > 255) return;
+      /* This is too large.... return an error */
+      if(uplen + 1 + strLen > 255) {
+        return -1;
+      }
       json->keys[json->depth] = malloc(uplen + 1 + strLen + 1);
       memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
       json->keys[json->depth][uplen] = json->delimiter;
@@ -141,43 +144,52 @@ set_array_key(struct rest_json_payload *json) {
       json->keys[json->depth][uplen + 1 + strLen] = '\0';
     }
   }
+  return 0;
 }
 static int
 httptrap_yajl_cb_null(void *ctx) {
   struct rest_json_payload *json = ctx;
+  int rv;
   if(json->depth<0) return 0;
-  set_array_key(json);
+  rv = set_array_key(json);
   if(json->last_special_key == 0x2) {
     NEW_LV(json, NULL);
     return 1;
   }
   if(json->last_special_key) return 0;
-  noit_stats_set_metric(json->check,
-      json->keys[json->depth], METRIC_INT32, NULL);
-  if(json->immediate)
-    noit_stats_log_immediate_metric(json->check,
+  if(rv) return 1;
+  if(json->keys[json->depth]) {
+    noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, NULL);
-  json->cnt++;
+    if(json->immediate)
+      noit_stats_log_immediate_metric(json->check,
+          json->keys[json->depth], METRIC_INT32, NULL);
+    json->cnt++;
+  }
   return 1;
 }
 static int
 httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
-  int ival;
+  int ival, rv;
   struct rest_json_payload *json = ctx;
+  mtevL(mtev_error, "BOOL\n");
   if(json->depth<0) return 0;
-  set_array_key(json);
+  rv = set_array_key(json);
   if(json->last_special_key == 0x2) {
     NEW_LV(json, strdup(boolVal ? "1" : "0"));
     return 1;
   }
   if(json->last_special_key) return 0;
-  ival = boolVal ? 1 : 0;
-  noit_stats_set_metric(json->check,
-      json->keys[json->depth], METRIC_INT32, &ival);
-  if(json->immediate)
-    noit_stats_log_immediate_metric(json->check,
+  if(rv) return 1;
+  if(json->keys[json->depth]) {
+    ival = boolVal ? 1 : 0;
+    noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, &ival);
-  json->cnt++;
+    if(json->immediate)
+      noit_stats_log_immediate_metric(json->check,
+          json->keys[json->depth], METRIC_INT32, &ival);
+    json->cnt++;
+  }
   return 1;
 }
 static int
@@ -185,8 +197,9 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
                         size_t numberLen) {
   char val[128];
   struct rest_json_payload *json = ctx;
+  int rv;
   if(json->depth<0) return 0;
-  set_array_key(json);
+  rv = set_array_key(json);
   if(json->last_special_key == 0x2) {
     char *str;
     str = malloc(numberLen+1);
@@ -195,16 +208,19 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     NEW_LV(json, str);
     return 1;
   }
+  if(rv) return 1;
   if(json->last_special_key) return 0;
-  if(numberLen > sizeof(val)-1) numberLen = sizeof(val)-1;
-  memcpy(val, numberVal, numberLen);
-  val[numberLen] = '\0';
-  noit_stats_set_metric(json->check,
-      json->keys[json->depth], METRIC_GUESS, val);
-  if(json->immediate)
-    noit_stats_log_immediate_metric(json->check,
+  if(json->keys[json->depth]) {
+    if(numberLen > sizeof(val)-1) numberLen = sizeof(val)-1;
+    memcpy(val, numberVal, numberLen);
+    val[numberLen] = '\0';
+    noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
-  json->cnt++;
+    if(json->immediate)
+      noit_stats_log_immediate_metric(json->check,
+          json->keys[json->depth], METRIC_GUESS, val);
+    json->cnt++;
+  }
   return 1;
 }
 static int
@@ -212,8 +228,9 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
                         size_t stringLen) {
   struct rest_json_payload *json = ctx;
   char val[4096];
+  int rv;
   if(json->depth<0) return 0;
-  set_array_key(json);
+  rv = set_array_key(json);
   if(json->last_special_key == 0x1) {
     if(stringLen != 1) return 0;
     if(*stringVal == 'L' || *stringVal == 'l' ||
@@ -234,21 +251,24 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     json->saw_complex_type |= 0x2;
     return 1;
   }
-  if(stringLen > sizeof(val)-1) stringLen = sizeof(val)-1;
-  memcpy(val, stringVal, stringLen);
-  val[stringLen] = '\0';
-  noit_stats_set_metric(json->check,
-      json->keys[json->depth], METRIC_GUESS, val);
-  if(json->immediate)
-    noit_stats_log_immediate_metric(json->check,
+  if(rv) return 1;
+  if(json->keys[json->depth]) {
+    if(stringLen > sizeof(val)-1) stringLen = sizeof(val)-1;
+    memcpy(val, stringVal, stringLen);
+    val[stringLen] = '\0';
+    noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
-  json->cnt++;
+    if(json->immediate)
+      noit_stats_log_immediate_metric(json->check,
+          json->keys[json->depth], METRIC_GUESS, val);
+    json->cnt++;
+  }
   return 1;
 }
 static int
 httptrap_yajl_cb_start_map(void *ctx) {
   struct rest_json_payload *json = ctx;
-  set_array_key(json);
+  if(set_array_key(json)) return 1;
   json->depth++;
   if(json->depth >= MAX_DEPTH) return 0;
   return 1;
