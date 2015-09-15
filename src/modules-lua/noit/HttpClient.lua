@@ -227,7 +227,7 @@ end
 
 function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
-    if self.method == 'head' then return te_close(self, cefunc) end
+    if self.method == 'head' then return te_none(self) end
     local ce = self.headers["Content-Encoding"]
     if ce ~= nil then
       local deflater
