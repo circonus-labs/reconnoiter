@@ -229,6 +229,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
   if(*payload == 'M' ||
      *payload == 'S' ||
      *payload == 'C' ||
+     (*payload == 'H' && payload[1] == '1') ||
      (*payload == 'F' && payload[1] == '1') ||
      (*payload == 'B' && (payload[1] == '1' || payload[1] == '2'))) {
     char uuid_str[32 * 2 + 1];
