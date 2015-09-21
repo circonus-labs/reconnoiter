@@ -227,8 +227,10 @@ int hist_bucket_cmp(hist_bucket_t h1, hist_bucket_t h2) {
   if(h1.val == (int8_t)0xff) return 1;
   if(h2.val == (int8_t)0xff) return -1;
   if(h1.val < 0 && h2.val >= 0) return 1;
+  if(h1.val <= 0 && h2.val > 0) return 1;
   if(h1.val > 0 && h2.val <= 0) return -1;
-  /* here they are either both positive or both negative */
+  if(h1.val >= 0 && h2.val < 0) return -1;
+  /* here they are either both positive or both negative (or one is zero) */
   if(h1.exp == h2.exp) return (h1.val < h2.val) ? 1 : -1;
   if(h1.exp > h2.exp) return (h1.val < 0) ? 1 : -1;
   if(h1.exp < h2.exp) return (h1.val < 0) ? -1 : 1;
