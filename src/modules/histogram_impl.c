@@ -250,6 +250,121 @@ hist_bucket_to_double(hist_bucket_t hb) {
   return (((double)hb.val)/10.0) * power_of_ten[*pidx];
 }
 
+double
+hist_bucket_to_double_bin_width(hist_bucket_t hb) {
+  u_int8_t *pidx;
+  pidx = (u_int8_t *)&hb.exp;
+  return power_of_ten[*pidx]/10.0;
+}
+
+double
+hist_bucket_midpoint(hist_bucket_t in) {
+  double out, interval;
+  if(in.val > 99 || in.val < -99) return private_nan;
+  out = hist_bucket_to_double(in);
+  if(out == 0) return 0;
+  interval = hist_bucket_to_double_bin_width(in);
+  if(out < 0) interval *= -1.0;
+  return out + interval/2.0;
+}
+
+/* This is used for quantile calculation,
+ * where we want the side of the bucket closest to -inf */
+static double
+hist_bucket_left(hist_bucket_t in) {
+  double out, interval;
+  if(in.val > 99 || in.val < -99) return private_nan;
+  out = hist_bucket_to_double(in);
+  if(out == 0) return 0;
+  interval = hist_bucket_to_double_bin_width(in);
+  if(out < 0) return out - interval;
+  return out;
+}
+
+double
+hist_approx_mean(histogram_t *hist) {
+  int i;
+  double divisor = 0.0;
+  double sum = 0.0;
+  for(i=0; i<hist->used; i++) {
+    if(hist->bvs[i].bucket.val > 99 || hist->bvs[i].bucket.val < -99) continue;
+    double midpoint = hist_bucket_midpoint(hist->bvs[i].bucket);
+    double cardinality = (double)hist->bvs[i].count;
+    divisor += cardinality;
+    sum += midpoint * cardinality;
+  }
+  if(divisor == 0.0) return private_nan;
+  return sum/divisor;
+}
+
+/* 0 success,
+ * -1 (empty histogram),
+ * -2 (out of order quantile request)
+ * -3 (out of bound quantile)
+ */
+int
+hist_approx_quantile(histogram_t *hist, double *q_in, int nq, double *q_out) {
+  int i_q, i_b;
+  double total_cnt = 0.0, bucket_width = 0.0,
+         bucket_left = 0.0, lower_cnt = 0.0, upper_cnt = 0.0;
+  if(nq < 1) return 0; /* nothing requested, easy to satisfy successfully */
+
+  /* Sum up all samples from all the bins */
+  for (i_b=0;i_b<hist->used;i_b++) {
+    /* ignore NaN */
+    if(hist->bvs[i_b].bucket.val < -99 || hist->bvs[i_b].bucket.val > 99)
+      continue;
+    total_cnt += (double)hist->bvs[i_b].count;
+  }
+
+  /* Run through the quantiles and make sure they are in order */
+  for (i_q=1;i_q<nq;i_q++) if(q_in[i_q-1] > q_in[i_q]) return -2;
+  /* We use q_out as temporary space to hold the count-normailzed quantiles */
+  for (i_q=0;i_q<nq;i_q++) {
+    if(q_in[i_q] < 0.0 || q_in[i_q] > 1.0) return -3;
+    q_out[i_q] = total_cnt * q_in[i_q];
+  }
+
+
+  i_b = 0;
+#define TRACK_VARS(idx) do { \
+  bucket_width = hist_bucket_to_double_bin_width(hist->bvs[idx].bucket); \
+  bucket_left = hist_bucket_left(hist->bvs[idx].bucket); \
+  lower_cnt = upper_cnt; \
+  upper_cnt = lower_cnt + hist->bvs[idx].count; \
+} while(0)
+
+  /* Find the least bin (first) */
+  for(i_b=0;i_b<hist->used;i_b++) {
+    /* We don't include NaNs */
+    if(hist->bvs[i_b].bucket.val < -99 || hist->bvs[i_b].bucket.val > 99)
+      continue;
+    TRACK_VARS(i_b);
+    break;
+  }
+
+  /* Next walk the bins and the quantiles together */
+  for(i_q=0;i_q<nq;i_q++) {
+    /* And within that, advance the bins as needed */
+    while(i_b < (hist->used-1) && upper_cnt < q_out[i_q]) {
+      i_b++;
+      TRACK_VARS(i_b);
+    }
+    if(lower_cnt == q_out[i_q]) {
+      q_out[i_q] = bucket_left;
+    }
+    else if(upper_cnt == q_out[i_q]) {
+      q_out[i_q] = bucket_left + bucket_width;
+    }
+    else {
+      if(bucket_width == 0) q_out[i_q] = bucket_left;
+      else q_out[i_q] = bucket_left +
+             (q_out[i_q] - lower_cnt) / (upper_cnt - lower_cnt) * bucket_width;
+    }
+  }
+  return 0;
+}
+
 hist_bucket_t
 double_to_hist_bucket(double d) {
   double d_copy = d;
