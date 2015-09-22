@@ -90,6 +90,12 @@ MTEV_HOOK_IMPL(check_passive_log_stats,
   (void *closure, noit_check_t *check),
   (closure,check))
 
+MTEV_HOOK_IMPL(check_set_stats,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
 MTEV_HOOK_IMPL(check_log_stats,
   (noit_check_t *check),
   void *, closure,
@@ -1963,6 +1969,9 @@ noit_check_set_stats(noit_check_t *check) {
   char *cp;
   dep_list_t *dep;
   stats_t *old, *prev, *current;
+
+  if(check_set_stats_hook_invoke(check) == MTEV_HOOK_ABORT) return;
+
   old = stats_previous(check);
   prev = stats_previous(check) = stats_current(check);
   current = stats_current(check) = stats_inprogress(check);

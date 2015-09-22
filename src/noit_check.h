@@ -393,6 +393,11 @@ MTEV_HOOK_PROTO(check_passive_log_stats,
                 void *, closure,
                 (void *closure, noit_check_t *check))
 
+MTEV_HOOK_PROTO(check_set_stats,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check))
+
 MTEV_HOOK_PROTO(check_log_stats,
                 (noit_check_t *check),
                 void *, closure,
