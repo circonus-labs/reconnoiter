@@ -32,6 +32,7 @@
 #define BE_HIST_IMPL_H
 
 #define DEFAULT_HIST_SIZE 100
+#include <mtev_config.h>
 
 typedef struct histogram histogram_t;
 
@@ -53,7 +54,11 @@ typedef struct hist_bucket {
  */
 
 double hist_bucket_to_double(hist_bucket_t hb);
+double hist_bucket_to_double_bin_width(hist_bucket_t hb);
 hist_bucket_t double_to_hist_bucket(double d);
+double hist_bucket_midpoint(hist_bucket_t in);
+double hist_approx_mean(histogram_t *);
+int hist_approx_quantile(histogram_t *, double *q_in, int nq, double *q_out);
 
 histogram_t *hist_alloc();
 void hist_free(histogram_t *hist);
