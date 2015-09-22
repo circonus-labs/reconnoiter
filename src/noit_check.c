@@ -2076,7 +2076,7 @@ nc_printf_check_brief(mtev_console_closure_t ncct,
   uuid_unparse_lower(check->checkid, uuid_str);
   nc_printf(ncct, "%s %s\n", uuid_str, out);
   current = stats_current(check);
-  if(current && current->status)
+  if(current)
     nc_printf(ncct, "\t%s\n", current->status);
 }
 
