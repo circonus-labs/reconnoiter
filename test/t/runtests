@@ -100,7 +100,7 @@ else
 fi
 echo
 
-if [[ node ./runtests.js $ARGS && $FINAL ]]; then
-	exit 0
+if node ./runtests.js $ARGS ; then
+	exec $FINAL
 fi
 exit 1
