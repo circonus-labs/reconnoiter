@@ -78,7 +78,7 @@ TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.con
 all:	reversion $(TARGETS) java-bits make-modules make-man tests
 
 tests:
-	$(MAKE) -c modules tests
+	$(MAKE) -C modules tests
 
 MODDIR=modules
 
