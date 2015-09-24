@@ -20,6 +20,9 @@ static char *test_desc = "??";
   printf("not ok %d - %s\n", tcount++, test_desc); \
   failed++; \
 } while(0)
+static void is(int expr) { 
+  if(expr) { ok(); } else { notok(); }
+};
 #define T(a) do { \
   test_desc = #a; \
   a; \
@@ -35,7 +38,65 @@ bool double_equals(double a, double b) {
   if(fabs(r) < 0.0001) return true;
   return false;
 }
+void bucket_tests() {
+  hist_bucket_t b;
 
+  b = double_to_hist_bucket(0);
+  T(is(b.val == 0 && b.exp == 0));
+
+  b = double_to_hist_bucket(9.9999e-129);
+  T(is(b.val == 0 && b.exp == 0));
+
+  b = double_to_hist_bucket(1e-128);
+  T(is(b.val == 10 && b.exp == -128));
+
+  b = double_to_hist_bucket(1.00001e-128);
+  T(is(b.val == 10 && b.exp == -128));
+
+  b = double_to_hist_bucket(1.09999e-128);
+  T(is(b.val == 10 && b.exp == -128));
+
+  b = double_to_hist_bucket(1.1e-128);
+  T(is(b.val == 11 && b.exp == -128));
+
+  b = double_to_hist_bucket(1e127);
+  T(is(b.val == 10 && b.exp == 127));
+
+  b = double_to_hist_bucket(9.999e127);
+  T(is(b.val == 99 && b.exp == 127));
+
+  b = double_to_hist_bucket(1e128);
+  T(is(b.val == -1 && b.exp == 0));
+
+  // negative range
+
+  b = double_to_hist_bucket(-9.9999e-129);
+  T(is(b.val == 0 && b.exp == 0));
+
+  b = double_to_hist_bucket(-1e-128);
+  T(is(b.val == -10 && b.exp == -128));
+
+  b = double_to_hist_bucket(-1.00001e-128);
+  T(is(b.val == -10 && b.exp == -128));
+
+  b = double_to_hist_bucket(-1.09999e-128);
+  T(is(b.val == -10 && b.exp == -128));
+
+  b = double_to_hist_bucket(-1.1e-128);
+  T(is(b.val == -11 && b.exp == -128));
+
+  b = double_to_hist_bucket(-1e127);
+  T(is(b.val == -10 && b.exp == 127));
+
+  b = double_to_hist_bucket(-9.999e127);
+  T(is(b.val == -99 && b.exp == 127));
+
+  b = double_to_hist_bucket(-1e128);
+  T(is(b.val == -1 && b.exp == 0));
+
+  b = double_to_hist_bucket(9.999e127);
+  T(is(b.val == 99 && b.exp == 127));
+}
 void test1(double val, double b, double w) {
   double out, interval;
   hist_bucket_t in;
@@ -83,6 +144,8 @@ void q_test(double *vals, int nvals, double *in, int nin, double *expected) {
 }
 
 int main() {
+  bucket_tests();
+
   T(test1(43.3, 43, 1));
   T(test1(99.9, 99, 1));
   T(test1(10, 10, 1));
