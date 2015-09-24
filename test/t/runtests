@@ -87,4 +87,17 @@ if [ "$?" -ne "0" ]; then
 	echo "mtev-config error"
 	exit 3
 fi
-exec node ./runtests.js $ARGS
+
+# Run C tests first
+
+FINAL=true
+OUTPUT=`./C_tests.sh`
+if [[ $? -ne 0 ]]; then
+	FINAL=false
+	echo $OUTPUT
+else
+	echo "All C tests passed."
+fi
+echo
+
+node ./runtests.js $ARGS && $FINAL

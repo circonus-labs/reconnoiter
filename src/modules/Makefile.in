@@ -50,6 +50,9 @@ SMODULES=@BUILD_SMODULES@ \
 
 all:	$(MODULES) $(SMODULES) $(LUA_MODULES) test_abort.@MODULEEXT@
 
+tests:
+	histogram_test
+
 .xml.xmlh:
 	$(Q)$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 

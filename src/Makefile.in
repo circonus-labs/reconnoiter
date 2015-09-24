@@ -75,7 +75,10 @@ LIBNOIT=libnoit@DOTSO@@DOTDYLIB@
 TARGETS=noitd stratcond noit.conf test-noit.conf stratcon.conf test-stratcon.conf \
 	$(LIBNOIT) @MDB_MODS@
 
-all:	reversion $(TARGETS) java-bits make-modules make-man
+all:	reversion $(TARGETS) java-bits make-modules make-man tests
+
+tests:
+	$(MAKE) -c modules tests
 
 MODDIR=modules
 
