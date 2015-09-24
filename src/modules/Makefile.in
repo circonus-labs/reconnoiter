@@ -123,6 +123,9 @@ histogram.@MODULEEXT@:	histogram.lo histogram_impl.lo
 	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo histogram_impl.lo
 	@echo "- linking $@"
 
+histogram_test:	histogram_impl.c histogram_test.c
+	$(Q)$(CC) $(CPPFLAGS) -DSKIP_LIBMTEV -I.. -o $@ histogram_impl.c histogram_test.c
+
 stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
 	@echo "- compiling $<"
