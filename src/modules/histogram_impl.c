@@ -371,34 +371,21 @@ double_to_hist_bucket(double d) {
   hist_bucket_t hb = { (int8_t)0xff, 0 };
   assert(private_nan != 0);
   if(isnan(d) || isinf(d)) return hb;
-  if(d == 0) hb.val = 0;
+  else if(d==0) hb.val = 0;
   else {
-    double exp, esign;
     int big_exp;
     u_int8_t *pidx;
     int sign = (d < 0) ? -1 : 1;
     d = fabs(d);
-    exp = log10(d);
-    if(exp < -128) exp = -128;
-    else if(exp > 127) exp = 127;
-    esign = (exp < 0) ? -1 : 1;
-
-    /*
-     * This next line deserves a comment.
-     * in cases where we have values < 1, the exponentiation is
-     * off by one if we're looking for A.B (which we are).
-     * ... except in the case of 0.1 or 0.00001 which would result
-     * in A = 10, we want A = 1 in those cases and the originally
-     * calculated exp.
-     */
-    if(exp < 0 && exp != (int)exp) exp -= 1;
-    exp = esign * floor(fabs(exp));
-    hb.exp = (int8_t)exp;
-    big_exp = (int32_t)exp; /* redo the math, to see if we rolled the int8_t */
+    big_exp = (int32_t)floor(log10(d));
+    hb.exp = (int8_t)big_exp;
     if(hb.exp != big_exp) { /* we rolled */
-      if(big_exp < 0) { /* too small -> 0 */
-        hb.val = hb.exp = 0;
-      } else { /* too big -> NaN */
+      if(big_exp < 0) {
+        /* d is in [0 .. 1e-128). Return 0 */
+        hb.val = 0;
+        hb.exp = 0;
+      } else {
+        /* d is >= 1e128. Return NaN */
         hb.val = (int8_t)0xff;
         hb.exp = 0;
       }
@@ -409,8 +396,13 @@ double_to_hist_bucket(double d) {
     d *= 10;
     hb.val = sign * (int)floor(d);
     if(hb.val == 100 || hb.val == -100) {
-      hb.val /= 10;
-      hb.exp--;
+      if (hb.exp > -127) {
+        hb.val /= 10;
+        hb.exp--;
+      } else {
+        hb.val = 0;
+        hb.exp = 0;
+      }
     }
     if(hb.val == 0) {
       hb.exp = 0;
