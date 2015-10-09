@@ -76,6 +76,10 @@ struct fq_driver {
   int heartbeat;
   int backlog;
   int port;
+  int round_robin;
+  int round_robin_target;
+  int down_host[MAX_HOSTS];
+  time_t last_error[MAX_HOSTS];
 };
 
 struct fq_driver global_fq_ctx = { 0 };
@@ -155,16 +159,25 @@ static void fq_logger(fq_client c, const char *err) {
   for(i=0;i<global_fq_ctx.nhosts;i++) {
     if(c == global_fq_ctx.client[i]) {
       BUMPSTAT(i, error_messages);
+      /* We only care about this if we're using round robin processing */
+      if (global_fq_ctx.round_robin) {
+        if (!strncmp(err, "socket: Connection refused", strlen("socket: Connection refused"))) {
+          global_fq_ctx.down_host[i] = true;
+          global_fq_ctx.last_error[i] = time(NULL);
+        }
+      }
       break;
     }
   }
 }
 
 static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
-  char *hostname, *cp, *brk;
+  char *hostname, *cp, *brk, *round_robin;
   int i;
 
 #define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
+  memset(&global_fq_ctx.down_host, 0, sizeof(global_fq_ctx.down_host));
+  memset(&global_fq_ctx.last_error, 0, sizeof(global_fq_ctx.last_error));
   snprintf(global_fq_ctx.exchange, sizeof(global_fq_ctx.exchange), "%s",
            "noit.firehose");
   GETCONFSTR(exchange);
@@ -180,6 +193,19 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
     global_fq_ctx.backlog = 10000;
   if(!mtev_conf_get_int(conf, "port", &global_fq_ctx.port))
     global_fq_ctx.port = 8765;
+  (void)mtev_conf_get_string(conf, "round_robin", &round_robin);
+  if (!round_robin) {
+    global_fq_ctx.round_robin = 0;
+  }
+  else {
+    if (!(strncmp(round_robin, "true", 4))) {
+      global_fq_ctx.round_robin = 1;
+      global_fq_ctx.round_robin_target = 0;
+    }
+    else {
+      global_fq_ctx.round_robin = 0;
+    }
+  }
   (void)mtev_conf_get_string(conf, "hostname", &hostname);
   if(!hostname) hostname = strdup("127.0.0.1");
   for(cp = hostname; cp; cp = strchr(cp+1, ',')) global_fq_ctx.nhosts++;
@@ -260,11 +286,59 @@ noit_fq_submit(iep_thread_driver_t *dr,
   fq_msg_route(msg, routingkey, strlen(routingkey));
   fq_msg_id(msg, NULL);
 
-  for(i=0; i<driver->nhosts; i++) {
-    if(fq_client_publish(driver->client[i], msg) == 1)
-      BUMPSTAT(i, publications);
-    else
-      BUMPSTAT(i, client_tx_drop);
+  if (global_fq_ctx.round_robin) {
+    int checked = 0, good = 0;
+    time_t cur_time;
+    while (1) {
+      if (!global_fq_ctx.down_host[global_fq_ctx.round_robin_target]) {
+        good = 1;
+        break;
+      }
+      cur_time = time(NULL);
+      if (cur_time - global_fq_ctx.last_error[global_fq_ctx.round_robin_target] >= 5) {
+        global_fq_ctx.down_host[global_fq_ctx.round_robin_target] = false;
+        good = 1;
+        break;
+      } 
+      global_fq_ctx.round_robin_target = (global_fq_ctx.round_robin_target+1) % driver->nhosts;
+      checked++;
+      if (checked == driver->nhosts) {
+        /* This means everybody is down.... just try to send to whatever fq
+           we're pointing at */
+        break;
+      }
+    }
+    if (good) {
+      if(fq_client_publish(driver->client[global_fq_ctx.round_robin_target], msg) == 1) {
+        BUMPSTAT(global_fq_ctx.round_robin_target, publications);
+      }
+      else {
+        BUMPSTAT(global_fq_ctx.round_robin_target, client_tx_drop);
+      }
+    }
+    /* Go ahead and try to publish to the hosts that are down, just in
+       case they've come back up. This should help minimize lost messages */
+    for (i=0; i<driver->nhosts; i++) {
+      if (global_fq_ctx.down_host[i]) {
+        if(fq_client_publish(driver->client[i], msg) == 1) {
+          BUMPSTAT(i, publications);
+        }
+        else {
+          BUMPSTAT(i, client_tx_drop);
+        }
+      }
+    }
+    global_fq_ctx.round_robin_target = (global_fq_ctx.round_robin_target+1) % driver->nhosts;
+  }
+  else {
+    for(i=0; i<driver->nhosts; i++) {
+      if(fq_client_publish(driver->client[i], msg) == 1) {
+        BUMPSTAT(i, publications);
+      }
+      else {
+        BUMPSTAT(i, client_tx_drop);
+      }
+    }
   }
   fq_msg_deref(msg);
   return 0;
