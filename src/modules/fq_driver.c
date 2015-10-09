@@ -295,7 +295,7 @@ noit_fq_submit(iep_thread_driver_t *dr,
         break;
       }
       cur_time = time(NULL);
-      if (cur_time - global_fq_ctx.last_error[global_fq_ctx.round_robin_target] >= 5) {
+      if (cur_time - global_fq_ctx.last_error[global_fq_ctx.round_robin_target] >= 10) {
         global_fq_ctx.down_host[global_fq_ctx.round_robin_target] = false;
         good = 1;
         break;
