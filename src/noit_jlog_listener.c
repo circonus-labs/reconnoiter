@@ -37,6 +37,9 @@
 #include <mtev_hash.h>
 #include <mtev_memory.h>
 #include <mtev_rest.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
 
 #include <jlog.h>
 #include <jlog_private.h>
@@ -55,6 +58,8 @@ static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats);
 static int rest_delete_feed(mtev_http_rest_closure_t *restc,
                             int npats, char **pats);
+static int rest_add_feed(mtev_http_rest_closure_t *restc,
+                         int npats, char **pats);
 
 void
 noit_jlog_listener_init() {
@@ -72,6 +77,10 @@ noit_jlog_listener_init() {
   assert(mtev_http_rest_register_auth(
     "DELETE", "/feed/", "^(.+)$",
     rest_delete_feed, mtev_http_rest_client_cert_auth
+  ) == 0);
+  assert(mtev_http_rest_register_auth(
+    "PUT", "/", "^feed$",
+    rest_add_feed, mtev_http_rest_client_cert_auth
   ) == 0);
 }
 
@@ -530,6 +539,96 @@ static int rest_delete_feed(mtev_http_rest_closure_t *restc,
   mtev_http_response_server_error(ctx, "text/plain");
   mtev_http_response_append(ctx, err, strlen(err));
   mtev_http_response_end(ctx);
+  return 0;
+}
+
+static int rest_add_feed(mtev_http_rest_closure_t *restc,
+                         int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr node, root;
+  acceptor_closure_t *ac = restc->ac;
+  int error_code = 500, complete = 0, mask = 0, rv;
+  const char *error = "internal error", *logname;
+  char *name, *copy_from;
+  mtev_log_stream_t feed;
+  const char *jpath_with_sub;
+  char jlogpath[PATH_MAX], *cp;
+  jlog_ctx *jctx = NULL;
+  jlog_id chkpt;
+
+  if(npats != 0) goto error;
+
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) return mask;
+  if(indoc == NULL) {
+    error = "xml parse error";
+    goto error;
+  }
+  if(!mtev_hash_retr_str(ac->config,
+                         "log_transit_feed_name",
+                         strlen("log_transit_feed_name"),
+                         &logname)) {
+    goto error;
+
+  }
+  feed = mtev_log_stream_find("feed");
+  if(!feed) { 
+    error = "couldn't find feed";
+    goto error; 
+  }
+
+  jpath_with_sub = mtev_log_stream_get_path(feed);
+  strlcpy(jlogpath, jpath_with_sub, sizeof(jlogpath));
+  cp = strchr(jlogpath, '(');
+  if(cp) *cp = '\0';
+
+  node = xmlDocGetRootElement(indoc);
+  name = (char*)xmlGetProp(node, (xmlChar*)"name");
+  copy_from = (char*)xmlGetProp(node, (xmlChar*)"checkpoint_copy");
+
+  jctx = jlog_new(jlogpath);
+  if (!jctx) {
+    error = "couldn't open logpath";
+    goto error;
+  }
+
+  if (!jlog_get_checkpoint(jctx, name, &chkpt)) {
+    error = "subscriber already exists, can't add";
+    goto error;
+  }
+
+  if (copy_from) {
+    rv = jlog_ctx_add_subscriber_copy_checkpoint(jctx, name, copy_from);
+  }
+  else {
+    rv = jlog_ctx_add_subscriber(jctx, name, JLOG_END);
+  }
+  if (rv == -1) {
+    error = "couldn't add subscriber";
+    goto error;
+  }
+
+  mtev_http_response_ok(restc->http_ctx, "text/xml");
+  mtev_http_response_end(restc->http_ctx);
+  goto cleanup;
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+
+ cleanup:
+  if (jctx) {
+    jlog_ctx_close(jctx);
+  }
+  if(pobj) xmlXPathFreeObject(pobj);
+  if(doc) xmlFreeDoc(doc);
   return 0;
 }
 
