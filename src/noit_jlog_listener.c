@@ -31,15 +31,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
+
 #include <mtev_defines.h>
 #include <eventer/eventer.h>
 #include <mtev_listener.h>
 #include <mtev_hash.h>
 #include <mtev_memory.h>
 #include <mtev_rest.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
-#include <libxml/xpath.h>
+#include <mtev_conf.h>
 
 #include <jlog.h>
 #include <jlog_private.h>
@@ -49,11 +51,13 @@
 #include <unistd.h>
 #include <poll.h>
 #include <assert.h>
-#define MAX_ROWS_AT_ONCE 1000
-#define DEFAULT_MSECONDS_BETWEEN_BATCHES 10000
-#define DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES 500
+
+static int MAX_ROWS_AT_ONCE = 10000;
+static int DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
+static int DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
 
 static mtev_atomic32_t tmpfeedcounter = 0;
+
 static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats);
 static int rest_delete_feed(mtev_http_rest_closure_t *restc,
@@ -63,6 +67,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
 
 void
 noit_jlog_listener_init() {
+  xmlNodePtr node;
   eventer_name_callback("log_transit/1.0", noit_jlog_handler);
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
@@ -70,6 +75,12 @@ noit_jlog_listener_init() {
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_TEMP_FEED,
                                  noit_jlog_handler);
+  node = mtev_conf_get_section(NULL, "//logs");
+  if (node) {
+    mtev_conf_get_int(node, "//jlog/max_msg_batch_lines", &MAX_ROWS_AT_ONCE);
+    mtev_conf_get_int(node, "//jlog/default_mseconds_between_batches", &DEFAULT_MSECONDS_BETWEEN_BATCHES);
+    mtev_conf_get_int(node, "//jlog/default_transient_mseconds_between_batches", &DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES);
+  }
   assert(mtev_http_rest_register_auth(
     "GET", "/", "^feed$",
     rest_show_feed, mtev_http_rest_client_cert_auth
