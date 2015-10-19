@@ -47,6 +47,8 @@
 #include "fq_driver.xmlh"
 
 static mtev_log_stream_t nlerr = NULL;
+static mtev_hash_table filtered_checks_hash = MTEV_HASH_EMPTY;
+static bool filtered_metrics_exist = false;
 
 typedef struct {
   mtev_atomic64_t publications;
@@ -67,6 +69,7 @@ struct fq_driver {
   char hostname[MAX_HOSTS][128];
   int ports[MAX_HOSTS];
   char exchange[128];
+  char filtered_exchange[128];
   char routingkey[128];
   char username[128];
   char password[128];
@@ -94,9 +97,10 @@ struct fq_driver global_fq_ctx = { 0 };
  * For now, leave it and understand it is limited usefulness.
  */
 static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
-                                  int *account_id, int *check_id, char *dst) {
+                                  int *account_id, int *check_id, char *dst,
+                                  char *formatted, char **metric) {
   int i = 0;
-  const char *atab = payload, *u = NULL;
+  const char *atab = payload, *u = NULL, *metric_start, *metric_end;
 
   if(account_id) *account_id = 0;
   if(check_id) *check_id = 0;
@@ -139,6 +143,8 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
     }
   }
   u = atab - UUID_STR_LEN;
+  memcpy(formatted, u, UUID_STR_LEN);
+  formatted[UUID_STR_LEN] = 0;
   while(i<32 && u < atab) {
     if((*u >= 'a' && *u <= 'f') ||
        (*u >= '0' && *u <= '9')) {
@@ -150,6 +156,18 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
     u++;
   }
   dst[i*2] = '\0';
+
+  /* Only pull out the metric if we're fairly sure we care about it
+   * to avoid unnecessary mcopying */
+  if (global_fq_ctx.filtered_exchange[0] && filtered_metrics_exist && ((*payload == 'M') || (*payload == 'H'))) {
+    advance_past_tab;
+    metric_start = atab;
+    advance_past_tab;
+    metric_end = atab-1;
+    *metric = calloc(1, (metric_end - metric_start) + 1);
+    memcpy(*metric, metric_start, (metric_end - metric_start));
+  }
+
   return 1;
 }
 
@@ -178,9 +196,11 @@ static iep_thread_driver_t *noit_fq_allocate(mtev_conf_section_t conf) {
 #define GETCONFSTR(w) mtev_conf_get_stringbuf(conf, #w, global_fq_ctx.w, sizeof(global_fq_ctx.w))
   memset(&global_fq_ctx.down_host, 0, sizeof(global_fq_ctx.down_host));
   memset(&global_fq_ctx.last_error, 0, sizeof(global_fq_ctx.last_error));
+  memset(&global_fq_ctx.filtered_exchange, 0, sizeof(global_fq_ctx.filtered_exchange));
   snprintf(global_fq_ctx.exchange, sizeof(global_fq_ctx.exchange), "%s",
            "noit.firehose");
   GETCONFSTR(exchange);
+  GETCONFSTR(filtered_exchange);
   if(!GETCONFSTR(routingkey))
     snprintf(global_fq_ctx.routingkey, sizeof(global_fq_ctx.routingkey), "%s", "check");
   snprintf(global_fq_ctx.username, sizeof(global_fq_ctx.username), "%s", "guest");
@@ -250,7 +270,11 @@ noit_fq_submit(iep_thread_driver_t *dr,
   int i;
   struct fq_driver *driver = (struct fq_driver *)dr;
   const char *routingkey = driver->routingkey;
+  mtev_hash_table *filtered_metrics;
+  char uuid_formatted_str[UUID_STR_LEN+1];
+  bool is_bundle = false, is_metric = false, send = false;
   fq_msg *msg;
+  char *metric = NULL;
 
   if(*payload == 'M' ||
      *payload == 'S' ||
@@ -260,8 +284,15 @@ noit_fq_submit(iep_thread_driver_t *dr,
      (*payload == 'B' && (payload[1] == '1' || payload[1] == '2'))) {
     char uuid_str[32 * 2 + 1];
     int account_id, check_id;
+
+    if (*payload == 'B') is_bundle = true;
+    else if ((*payload == 'H') || (*payload == 'M')) {
+      is_metric = true;
+    }
+
     if(extract_uuid_from_jlog(payload, payloadlen,
-                              &account_id, &check_id, uuid_str)) {
+                              &account_id, &check_id, uuid_str,
+                              uuid_formatted_str, &metric)) {
       if(*routingkey) {
         char *replace;
         int newlen = strlen(driver->routingkey) + 1 + sizeof(uuid_str) + 2 * 32;
@@ -274,10 +305,16 @@ noit_fq_submit(iep_thread_driver_t *dr,
     }
   }
 
+  /* Let through any messages that aren't metrics or bundles */
+  if (!is_bundle && !is_metric) {
+    send = true;
+  }
+
   /* Setup our message */
   msg = fq_msg_alloc(payload, payloadlen);
   if(msg == NULL) {
     driver->allocation_failures++;
+    if (metric) free(metric);
     return -1;
   }
   driver->msg_cnt++;
@@ -340,7 +377,40 @@ noit_fq_submit(iep_thread_driver_t *dr,
       }
     }
   }
+
   fq_msg_deref(msg);
+  if (!send) {
+    if(mtev_hash_retrieve(&filtered_checks_hash, uuid_formatted_str, strlen(uuid_formatted_str), (void**)&filtered_metrics)) {
+      if (is_bundle || (is_metric && mtev_hash_size(filtered_metrics) == 0)) {
+        send = true;
+      }
+      else if (is_metric) {
+        void *tmp;
+        if (mtev_hash_retrieve(filtered_metrics, metric, strlen(metric), &tmp)) {
+          send = true;
+        }
+      }
+    }
+  }
+
+  if (global_fq_ctx.filtered_exchange[0] && send) {
+    fq_msg *msg2;
+    msg2 = fq_msg_alloc(payload, payloadlen);
+    fq_msg_exchange(msg2, driver->filtered_exchange, strlen(driver->filtered_exchange));
+    mtevL(mtev_debug, "route[%s] -> %s\n", driver->filtered_exchange, routingkey);
+    fq_msg_route(msg2, routingkey, strlen(routingkey));
+    fq_msg_id(msg2, NULL);
+    for(i=0; i<driver->nhosts; i++) {
+      if(fq_client_publish(driver->client[i], msg2) == 1) {
+        BUMPSTAT(i, publications);
+      }
+      else {
+        BUMPSTAT(i, client_tx_drop);
+      }
+    }
+    fq_msg_deref(msg2);
+  }
+  if (metric) free(metric);
   return 0;
 }
 
@@ -350,12 +420,72 @@ static void noit_fq_deallocate(iep_thread_driver_t *d) {
    */
 }
 
+static void noit_fq_free_metric_hash(void *d) {
+  mtev_hash_table *metrics_table = (mtev_hash_table *)d;
+  if (metrics_table) {
+    mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+    void *entry;
+    const char *key;
+    int klen;
+
+    while(mtev_hash_next(metrics_table, &iter, &key, &klen, &entry)) {
+      if (key) free((char *)key);
+      if (entry) free ((void *)entry);
+    }
+    
+  }
+  free(metrics_table);
+}
+
+static void noit_fq_set_filters(mq_command_t *commands, int count) {
+  int i, j;
+  if (!global_fq_ctx.filtered_exchange[0]) {
+    mtevL(mtev_error, "ERROR: trying to set check for filtered exchange when no such exchange exists\n");
+    return;
+  }
+  for (i=0; i<count; i++) {
+    if (commands[i].action == MQ_ACTION_SET) {
+      mtev_hash_table *metric_table = calloc(1, sizeof(mtev_hash_table));
+      mtev_hash_init(metric_table);
+      for (j=0; j<commands[i].check.metric_count; j++) {
+        mtev_hash_store(metric_table, strdup(commands[i].check.metrics[j]), strlen(commands[i].check.metrics[j]), NULL);
+        filtered_metrics_exist = true;
+      }
+      mtev_hash_replace(&filtered_checks_hash, strdup(commands[i].check.uuid), strlen(commands[i].check.uuid), metric_table, free, noit_fq_free_metric_hash);
+    }
+    else {
+      if (commands[i].check.metric_count == 0) {
+        /* Forget the whole check */
+        if (!mtev_hash_delete(&filtered_checks_hash, commands[i].check.uuid, strlen(commands[i].check.uuid), free, noit_fq_free_metric_hash)) {
+          mtevL(mtev_error, "failed forgetting check %s - check does not exist\n", commands[i].check.uuid);
+        }
+      }
+      else {
+        mtev_hash_table *filtered_metrics;
+        if(mtev_hash_retrieve(&filtered_checks_hash, commands[i].check.uuid, strlen(commands[i].check.uuid), (void**)&filtered_metrics)) {
+          for (j=0; j<commands[i].check.metric_count; j++) {
+            if (!mtev_hash_delete(filtered_metrics, commands[i].check.metrics[j], strlen(commands[i].check.metrics[j]), 
+                free, noit_fq_free_metric_hash)) {
+              mtevL(mtev_error, "failed forgetting metric '%s' for check %s - metric does not exist\n", 
+                    commands[i].check.metrics[j], commands[i].check.uuid);
+            }
+          }
+        }
+        else {
+          mtevL(mtev_error, "failed forgetting metrics for check %s - check does not exist\n", commands[i].check.uuid);
+        }
+      }
+    }
+  }
+}
+
 mq_driver_t mq_driver_fq = {
   noit_fq_allocate,
   noit_fq_connect,
   noit_fq_submit,
   noit_fq_disconnect,
-  noit_fq_deallocate
+  noit_fq_deallocate,
+  noit_fq_set_filters
 };
 
 static int noit_fq_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
@@ -440,6 +570,7 @@ fq_status_checker(eventer_t e, int mask, void *closure, struct timeval *now) {
 static int noit_fq_driver_init(mtev_dso_generic_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/fq_driver");
   if(!nlerr) nlerr = mtev_error;
+  mtev_hash_init(&filtered_checks_hash);
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
   register_console_fq_commands();
   eventer_add_in_s_us(fq_status_checker, NULL, 0, 0);

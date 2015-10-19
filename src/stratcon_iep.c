@@ -47,11 +47,15 @@
 #include <signal.h>
 #include <errno.h>
 #include <assert.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xpath.h>
 
 #include <eventer/eventer.h>
 #include <mtev_log.h>
 #include <mtev_b64.h>
 #include <mtev_conf.h>
+#include <mtev_rest.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_jlog_listener.h"
@@ -80,6 +84,8 @@ struct driver_list {
 static int iep_system_enabled = 1;
 int stratcon_iep_get_enabled() { return iep_system_enabled; }
 void stratcon_iep_set_enabled(int n) { iep_system_enabled = n; }
+static int rest_set_filters(mtev_http_rest_closure_t *restc,
+                            int npats, char **pats);
 
 
 struct iep_job_closure {
@@ -119,6 +125,21 @@ statement_node_free(void *vstmt) {
   if(stmt->statement) free(stmt->statement);
   if(stmt->provides) free(stmt->provides);
   if(stmt->requires) free(stmt->requires);
+}
+static void
+mq_command_free(void *command) {
+  mq_command_t *cmd = (mq_command_t*)command;
+  int i;
+  if (cmd->check.uuid) {
+    xmlFree(cmd->check.uuid);
+  }
+  if (cmd->check.metric_count > 0) {
+    for (i=0; i < cmd->check.metric_count; i++) {
+      if (!cmd->check.metrics[i]) break;
+      xmlFree(cmd->check.metrics[i]);
+    }
+    free(cmd->check.metrics);
+  }
 }
 static int
 stmt_mark_dag(struct statement_node *stmt, int mgen) {
@@ -638,6 +659,132 @@ stratcon_iep_mq_driver_register(const char *name, mq_driver_t *d) {
   mtev_hash_replace(&mq_drivers, strdup(name), strlen(name), d, free, NULL);
 }
 
+static int rest_set_filters(mtev_http_rest_closure_t *restc,
+                            int npats, char **pats) {
+  mtev_http_session_ctx *ctx = restc->http_ctx;
+  xmlXPathObjectPtr pobj = NULL;
+  xmlDocPtr doc = NULL, indoc = NULL;
+  xmlNodePtr node, root;
+  int error_code = 500, complete = 0, mask = 0, cnt = 0, i, j;
+  const char *error = "internal error";
+  xmlXPathContextPtr xpath_ctxt;
+  char *action = NULL, *uuid = NULL;
+  char xpath[1024];
+  mq_command_t *commands = NULL;
+  bool valid = true;
+
+  if (npats != 0) goto error;
+
+  indoc = rest_get_xml_upload(restc, &mask, &complete);
+  if(!complete) return mask;
+  if(indoc == NULL) {
+    error = "xml parse error";
+    goto error;
+  }
+
+  xpath_ctxt = xmlXPathNewContext(indoc);
+  pobj = xmlXPathEval((xmlChar *)"/mq_metrics/check", xpath_ctxt);
+
+  if(!pobj) {
+    error = "xml format incorrect";
+    goto error;
+  }
+  if(pobj->type != XPATH_NODESET) {
+    error = "couldn't find xml nodeset";
+    goto error;
+  }
+  cnt = xmlXPathNodeSetGetLength(pobj->nodesetval);
+  if (cnt <= 0) {
+    error = "no nodes given";
+    goto error;
+  }
+
+  commands = calloc(cnt, sizeof(mq_command_t));
+  if (!commands) goto error;
+
+  for(i=0; i<cnt; i++) {
+    xmlXPathObjectPtr metric_obj = NULL;
+
+    if (!valid) break;
+    node = xmlXPathNodeSetItem(pobj->nodesetval, i);
+    action = (char *)xmlGetProp(node, (xmlChar *)"action");
+    uuid = (char *)xmlGetProp(node, (xmlChar *)"uuid");
+    if ((action == NULL) || (uuid == NULL)) {
+      mtevL(mtev_error, "error parsing %d - need both action and uuid\n", i);
+      if (action) xmlFree(action);
+      if (uuid) xmlFree(uuid);
+      valid = false;
+      continue;
+    }
+    if (!strncmp(action, "set", 3)) {
+      commands[i].action = MQ_ACTION_SET;
+    }
+    else if (!strncmp(action, "forget", 6)) {
+      commands[i].action = MQ_ACTION_FORGET;
+    }
+    else {
+      mtevL(mtev_error, "error parsing %d - bad action (%s)\n", i, action);
+      if (action) xmlFree(action);
+      if (uuid) xmlFree(uuid);
+      valid = false;
+      continue;
+    }
+    commands[i].check.uuid = uuid;
+    snprintf(xpath, sizeof(xpath), "/mq_metrics/check[%d]/metrics/metric", i+1);
+    metric_obj = xmlXPathEval((xmlChar *)xpath, xpath_ctxt);
+    if (metric_obj && metric_obj->type == XPATH_NODESET) {
+      commands[i].check.metric_count = xmlXPathNodeSetGetLength(metric_obj->nodesetval);
+      if (commands[i].check.metric_count > 0) {
+        char *metric_name = NULL;
+        commands[i].check.metrics = calloc(commands[i].check.metric_count, sizeof(char*));
+        for (j=0; j < commands[i].check.metric_count; j++) {
+          xmlNodePtr metric_node = NULL;
+          if (!valid) break;
+          metric_node = xmlXPathNodeSetItem(metric_obj->nodesetval, j);
+          metric_name = (char *)xmlGetProp(metric_node, (xmlChar *)"name");
+          if (!metric_name) {
+            valid = false;
+            continue;
+          }
+          commands[i].check.metrics[j] = metric_name;
+        }
+      }
+    }
+  }
+
+  if (!valid) {
+    goto error;
+  }
+
+  for(struct driver_list *d = drivers; d; d = d->next) {
+    if (d->mq_driver) {
+      d->mq_driver->set_filters(commands, cnt);
+    }
+  }
+
+  mtev_http_response_ok(restc->http_ctx, "text/xml");
+  mtev_http_response_end(restc->http_ctx);
+  goto cleanup;
+
+ error:
+  mtev_http_response_standard(ctx, error_code, "ERROR", "text/xml");
+  doc = xmlNewDoc((xmlChar *)"1.0");
+  root = xmlNewDocNode(doc, NULL, (xmlChar *)"error", NULL);
+  xmlDocSetRootElement(doc, root);
+  xmlNodeAddContent(root, (xmlChar *)error);
+  mtev_http_response_xml(ctx, doc);
+  mtev_http_response_end(ctx);
+
+ cleanup:
+  if (commands) {
+    for (i=0; i<cnt; i++) {
+      mq_command_free(&commands[i]);
+    }
+    free(commands);
+  }
+  return 0;
+}
+
 void
 stratcon_iep_init() {
   mtev_conf_section_t *mqs;
@@ -688,6 +835,11 @@ stratcon_iep_init() {
   memset(&iep_jobq, 0, sizeof(iep_jobq));
   eventer_jobq_init(&iep_jobq, "iep_submitter");
   eventer_jobq_increase_concurrency(&iep_jobq);
+
+  assert(mtev_http_rest_register_auth(
+    "PUT", "/", "^mq_filters$",
+    rest_set_filters, mtev_http_rest_client_cert_auth
+  ) == 0);
 
   start_iep_daemon();
 

@@ -146,6 +146,9 @@ static void noit_rabbimq_deallocate(iep_thread_driver_t *d) {
   mtev_atomic_dec64(&stats.concurrency);
   free(dr);
 }
+static void noit_rabbitmq_set_filters(mq_command_t *command, int count) {
+  /* NOT CURRENTLY IMPLEMENTED */
+}
 static void noit_rabbitmq_read_frame(struct amqp_driver *dr) {
   struct pollfd p;
   if(!dr->connection) return;
@@ -400,7 +403,8 @@ mq_driver_t mq_driver_rabbitmq = {
   noit_rabbimq_connect,
   noit_rabbimq_submit,
   noit_rabbimq_disconnect,
-  noit_rabbimq_deallocate
+  noit_rabbimq_deallocate,
+  noit_rabbitmq_set_filters
 };
 
 static int noit_rabbimq_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {

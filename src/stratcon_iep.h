@@ -56,6 +56,19 @@ API_EXPORT(void)
 API_EXPORT(jlog_streamer_ctx_t *)
   stratcon_jlog_streamer_iep_ctx_alloc(void);
 
+typedef enum { MQ_ACTION_SET, MQ_ACTION_FORGET } mq_action_t;
+
+typedef struct mq_check {
+  char *uuid;
+  int metric_count;
+  char **metrics;
+} mq_check_t;
+
+typedef struct mq_command {
+  mq_action_t action;
+  mq_check_t check;
+} mq_command_t;
+
 typedef struct iep_thread_driver iep_thread_driver_t;
 
 typedef struct mq_driver {
@@ -78,6 +91,7 @@ typedef struct mq_driver {
    */
 
   void (*deallocate)(iep_thread_driver_t *driver);
+  void (*set_filters) (mq_command_t *command, int count);
 } mq_driver_t;
 
 API_EXPORT(void)
