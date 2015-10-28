@@ -34,14 +34,21 @@
 #define DEFAULT_HIST_SIZE 100
 #include <mtev_config.h>
 
-typedef struct histogram histogram_t;
-
 typedef struct hist_rollup_config hist_rollup_config_t;
 
 typedef struct hist_bucket {
   int8_t val; /* value * 10 */
   int8_t exp; /* -128 -> 127 */
 } hist_bucket_t;
+
+typedef struct histogram {
+  u_int16_t allocd;
+  u_int16_t used;
+  struct {
+    hist_bucket_t bucket;
+    u_int64_t count;
+  } *bvs;
+} histogram_t;
 
 /* These 16 bits give us:
  * Allows us to express exactly:
