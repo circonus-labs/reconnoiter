@@ -79,15 +79,6 @@ static double power_of_ten[256] = {
   1e-05, 0.0001, 0.001, 0.01, 0.1
 };
 
-struct histogram {
-  u_int16_t allocd;
-  u_int16_t used;
-  struct {
-    hist_bucket_t bucket;
-    u_int64_t count;
-  } *bvs;
-};
-
 u_int64_t bvl_limits[7] = {
   0x00000000000000ffULL, 0x0000000000000ffffULL,
   0x0000000000ffffffULL, 0x00000000fffffffffULL,
