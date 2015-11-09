@@ -55,7 +55,7 @@
     <dependency>
       <groupId>riemann</groupId>
       <artifactId>riemann</artifactId>
-      <version>0.2.6</version>
+      <version>0.2.9</version>
     </dependency>
     <dependency>
       <groupId>reconnoiter</groupId>
