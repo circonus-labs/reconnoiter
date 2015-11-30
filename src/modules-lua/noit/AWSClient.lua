@@ -194,9 +194,10 @@ function AWSClient:constructBaseQuery(baseTable)
   return toReturn
 end
 
-function AWSClient:getSignature(query, api_secret, host)
-  local base_string = "GET\n" .. host .. "\n/\n" .. query
-  return escape(noit.hmac_sha256_encode(base_string, api_secret))
+function AWSClient:convert_to_hex(str)
+   return ( str:gsub( '.', function ( c )
+               return string.format('%02x', string.byte( c ) )
+            end ) )
 end
 
 function AWSClient:perform(target, cache_table)
@@ -211,9 +212,13 @@ function AWSClient:perform(target, cache_table)
   local statistics  = self.statistics
   local metrics     = self.metrics
   local get_default = self.get_default
-
+  local region      = self.params.region
+  local service     = self.params.service
+  
   local time = os.time()
-  local timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time)
+  local datestamp=os.date("!%Y%m%d", time)
+  local timestamp = os.date("!%Y%m%dT%H%M%SZ", time)
+
   time = time - (time % 60)
   local start_time
   local end_time
@@ -233,11 +238,11 @@ function AWSClient:perform(target, cache_table)
 
   for index, metric in ipairs(metrics) do
     metric = string.gsub(metric, "^%s*(.-)%s*$", "%1")
-    local baseTable = { SignatureMethod = 'HmacSHA256',
-                        SignatureVersion = '2',
-                        Action = 'GetMetricStatistics',
+    
+    local algorithm="AWS4-HMAC-SHA256"
+    
+    local baseTable = { Action = 'GetMetricStatistics',
                         Period = period,
-                        AWSAccessKeyId = api_key,
                         Version = version,
                         Timestamp = timestamp,
                         StartTime = start_time,
@@ -264,23 +269,70 @@ function AWSClient:perform(target, cache_table)
       index = "Dimensions.member." .. dim_num .. "." .. "Value"
       baseTable[index] = dim_value["Value"]
     end
+    
+    --Begin AWS4 signature generation.
+    uri = ""
+    
+    --Set canonical URI for AWS4 signature.  
+    local canonical_uri = "/"
+    
+    --Set canonical querystring
+    local canonical_querystring = self:constructBaseQuery(baseTable)
+    
+    --Set canonical headers
+    local canonical_headers= "host:"..host.."\n".."x-amz-date:"..timestamp.."\n"
+    
+    --Set signed headers. This must match the variable names listed in the canonical headers.
+    local signed_headers="host;x-amz-date"
+    
+    --Set payload. For GET requests, this is simply an empty string.
+    local payload=""
+    
+    --Calculate payload hash
+    local payload_hash=noit.sha256_hash(payload)
+    
+    --Set canonical request.   
+    local canonical_request="GET".."\n"..canonical_uri.."\n"..canonical_querystring.."\n"..canonical_headers.."\n"..signed_headers.."\n"..payload_hash
+    
+    --Set credential scope.
+    local credential_scope=datestamp.."/"..region.."/"..service.."/".."aws4_request"
+    
+    --Set string to sign for signature generation
+    local string_to_sign=algorithm.."\n"..timestamp.."\n"..credential_scope.."\n"..noit.sha256_hash(canonical_request)
+    
+    --Set AWS4 secret key.
+    local kSecret="AWS4"..api_secret
 
-    uri = self:constructBaseQuery(baseTable)
-    local signature = self:getSignature(uri, api_secret, host)
-    uri = "/?" .. uri .. "&Signature=" .. signature
-
+    --Generate AWS4 signature
+    local dateStampDigest=noit.base64_decode(noit.hmac_sha256_encode(datestamp,kSecret))
+    local regionDigest=noit.base64_decode(noit.hmac_sha256_encode(region,dateStampDigest))
+    local serviceDigest=noit.base64_decode(noit.hmac_sha256_encode(service,regionDigest))
+    local awsRequestDigest=noit.base64_decode(noit.hmac_sha256_encode("aws4_request",serviceDigest))
+    local signatureDigest=noit.base64_decode(noit.hmac_sha256_encode(string_to_sign,awsRequestDigest))
+    local signature=self:convert_to_hex(signatureDigest)
+    
+    --Append canonical query string to URI.
+    uri = "/?"..canonical_querystring
+    --End AWS4 signature generation
+    
     -- callbacks from the HttpClient
     local callbacks = { }
     callbacks.consume = function (str) output = output .. str end
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(target, port, use_ssl)
-  
     if rv ~= 0 then return rv, err end
-
     local headers = {}
+    
+    --Set x-amz-date and Authorization headers for AWS4 request
+    local authorization_header = algorithm.." ".."Credential="..api_key.."/"..credential_scope..", ".."SignedHeaders=".. signed_headers..", ".."Signature="..signature
+    headers["x-amz-date"]=timestamp
+    headers["Authorization"]=authorization_header
     headers.Host = host
+    
+    --Make request
     client:do_request("GET", uri, headers)
     client:get_response()
+
     -- parse the xml doc
     local doc = noit.parsexml(output)
     if doc ~= nil then
