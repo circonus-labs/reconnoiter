@@ -71,6 +71,9 @@ function onload(image)
     <parameter name="dim_.+"
                required="optional"
                allowed=".+">The dimensions to query for each metric. dim_foo will set a metric with dimension "foo".</parameter>
+    <parameter name="region"
+               required="optional"
+               allowed=".+">The AWS region to pull Cloudwatch metrics for (ex: us-east-1). If not provided, this will be extracted from the URL.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -116,12 +119,30 @@ end
 function initiate(module, check)
   local config = check.interpolate(check.config)
   local get_default = 0
+    
+  --Determine AWS service type for V4 signature from config URL.
+  local extractedservice, extractedregion=string.match(config.url,"(%w+)%.(%w-%-%w-%-%w+)")
+  
+  if extractedservice == nil then
+    extractedservice = 'monitoring'
+  end
+  
+  if extractedregion == nil then
+    if config.region ~= nil and config.region ~= "" then
+      extractedregion = config.region
+    else
+      extractedregion = "us-east-1"
+    end
+  end
+  
   local params = {
     api_key            = config.api_key or "",
     api_secret         = config.api_secret or "",
     namespace          = config.namespace or "",
     version            = config.version or "2010-08-01",
-    granularity        = config.granularity or "5"
+    granularity        = config.granularity or "5",
+    region             = config.region or extractedregion,
+    service            = extractedservice
   }
   local use_ssl = false
   local statistics = "Average"
@@ -256,6 +277,7 @@ function initiate(module, check)
   end
 
   check.available()
+  
   if metric_count > 0 then check.good() else check.bad() end
   check.status("metrics=" .. metric_count)
 end

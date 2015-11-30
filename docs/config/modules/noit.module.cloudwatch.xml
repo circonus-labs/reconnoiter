@@ -239,6 +239,28 @@
         </listitem>
       </varlistentry>
     </variablelist>
+    <variablelist>
+      <varlistentry>
+        <term>region</term>
+        <listitem>
+          <variablelist>
+            <varlistentry>
+              <term>required</term>
+              <listitem>
+                <para>optional</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry>
+              <term>allowed</term>
+              <listitem>
+                <para>.+</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+          <para>The AWS region to pull Cloudwatch metrics for (ex: us-east-1). If not provided, this will be extracted from the URL.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </section>
   <section>
     <title>Examples</title>
