@@ -7,6 +7,8 @@ package com.omniti.reconnoiter.event;
  * Created by hartmann on 12/15/15.
  */
 public class NoitMetricTransformed extends NoitMetric {
+    static final String PREFIX = "MT";
+
     /*
     'MT' REMOTE TIMESTAMP UUID NAME TYPE VALUE ORDERING_ID
     */
@@ -23,7 +25,7 @@ public class NoitMetricTransformed extends NoitMetric {
     // public methods
     @Override
     public String getPrefix() {
-        return "MT"; // for M 'Transformed'
+        return PREFIX; // for M 'Transformed'
     }
     @Override
     public int numparts() { return 8; }

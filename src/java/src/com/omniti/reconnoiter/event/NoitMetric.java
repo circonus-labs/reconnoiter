@@ -62,7 +62,7 @@ public class NoitMetric extends NoitEvent
     super(parts);
 
     // Transform an MT-record back to a usual M-record for construction
-    if(parts[0].equals("MT")) {
+    if(parts[0].equals(NoitMetricTransformed.PREFIX)) {
        String m_record[] = new String[7];
        m_record[0] = "M";
        for(int i=1;i<7;i++) { m_record[i] = parts[i]; }
