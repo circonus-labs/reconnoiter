@@ -96,4 +96,8 @@ public class NoitMetricNumeric extends NoitEvent
     public String getCheck_name() { return check_name; }
 
     public int numparts() { return 7; }
+
+    @Override
+    public String toString() { return String.format("%s{uuid=%s,name=%s,value=%f,ordering=%d}",
+            getClass(),uuid, name, value, orderingId); }
 }

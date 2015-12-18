@@ -72,10 +72,12 @@ public class NoitMetric extends NoitEvent
     if (parts[5].equals(METRIC_STRING)) {
       nmn = null;
       nmt = new NoitMetricText(parts);
+      nmt.orderingId = orderingId;
     }
     else {
       nmn = new NoitMetricNumeric(parts);
       nmt = null;
+      nmn.orderingId = orderingId;
     }
   }
   public void handle(IEventHandler eh) {
@@ -99,4 +101,7 @@ public class NoitMetric extends NoitEvent
   public NoitMetricText getText() { return nmt; }
   public String getPrefix() { return "M"; }
   public int numparts() { return 7; }
+
+  @Override
+  public String toString() { return "NoitMetric:" + (isNumeric() ? nmn.toString() : nmt.toString()); }
 }

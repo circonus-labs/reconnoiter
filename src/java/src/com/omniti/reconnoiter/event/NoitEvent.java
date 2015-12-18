@@ -60,4 +60,9 @@ public abstract class NoitEvent extends StratconMessage {
   public void handle(IEventHandler eh) {
     eh.sendEvent(this);
   }
+
+  public Integer orderingId = null;
+  public Integer getOrderingId(){
+      return orderingId;
+  }
 }
