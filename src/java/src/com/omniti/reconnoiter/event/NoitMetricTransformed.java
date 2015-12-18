@@ -9,9 +9,6 @@ package com.omniti.reconnoiter.event;
 public class NoitMetricTransformed extends NoitMetric {
     public static final String PREFIX = "MT";
 
-    private static preprocess(parts) {
-
-    }
     /*
     'MT' REMOTE TIMESTAMP UUID NAME TYPE VALUE ORDERING_ID
     */
