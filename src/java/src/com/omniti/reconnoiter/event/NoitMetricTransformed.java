@@ -7,8 +7,11 @@ package com.omniti.reconnoiter.event;
  * Created by hartmann on 12/15/15.
  */
 public class NoitMetricTransformed extends NoitMetric {
-    static final String PREFIX = "MT";
+    public static final String PREFIX = "MT";
 
+    private static preprocess(parts) {
+
+    }
     /*
     'MT' REMOTE TIMESTAMP UUID NAME TYPE VALUE ORDERING_ID
     */
@@ -17,9 +20,12 @@ public class NoitMetricTransformed extends NoitMetric {
         super(parts);
         try {
             orderingId = Integer.valueOf(parts[7]);
+            if (nmn != null) { nmn.orderingId = orderingId; }
+            if (nmt != null) { nmt.orderingId = orderingId; }
         } catch (NumberFormatException nfe) {
             throw new Exception("Error parsing orderingId", nfe);
         }
+
     }
 
     // public methods

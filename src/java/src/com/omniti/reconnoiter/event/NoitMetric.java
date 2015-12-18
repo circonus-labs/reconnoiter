@@ -44,8 +44,8 @@ public class NoitMetric extends NoitEvent
   static Logger logger = Logger.getLogger(NoitMetric.class.getName());
   public final static String METRIC_STRING = "s";
 
-  private NoitMetricText nmt;
-  private NoitMetricNumeric nmn;
+  protected NoitMetricText nmt;
+  protected NoitMetricNumeric nmn;
  
   public NoitMetric() {}
   public NoitMetric(String[] parts, NoitMetricText _nmt) throws Exception {
@@ -72,12 +72,10 @@ public class NoitMetric extends NoitEvent
     if (parts[5].equals(METRIC_STRING)) {
       nmn = null;
       nmt = new NoitMetricText(parts);
-      nmt.orderingId = orderingId;
     }
     else {
       nmn = new NoitMetricNumeric(parts);
       nmt = null;
-      nmn.orderingId = orderingId;
     }
   }
   public void handle(IEventHandler eh) {
