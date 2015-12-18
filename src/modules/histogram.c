@@ -463,7 +463,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
       double mean_value;
       snprintf(mname, sizeof(mname), "%s:mean", metric_name);
       mean_value = hist_approx_mean(ht->last_aggr);
-      noit_stats_set_metric(check, metric_name, METRIC_DOUBLE, &mean_value);
+      noit_stats_set_metric(check, mname, METRIC_DOUBLE, &mean_value);
     }
     if(conf->n_quantiles) {
       if(hist_approx_quantile(ht->last_aggr,
@@ -471,7 +471,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
         int i;
         for(i=0;i<conf->n_quantiles;i++) {
           snprintf(mname, sizeof(mname), "%s:q(%0.5f)", metric_name, conf->quantiles[i]);
-          noit_stats_set_metric(check, metric_name, METRIC_DOUBLE, &out_q[i]);
+          noit_stats_set_metric(check, mname, METRIC_DOUBLE, &out_q[i]);
         }
       }
     }
