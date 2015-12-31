@@ -171,6 +171,7 @@ noit_livestream_thread_main(void *e_vptr) {
   eventer_t e = e_vptr;
   acceptor_closure_t *ac = e->closure;
   noit_livestream_closure_t *jcl = ac->service_ctx;
+  struct log_entry *le = NULL;
 
   mtev_memory_init_thread();
   /* Go into blocking mode */
@@ -182,8 +183,8 @@ noit_livestream_thread_main(void *e_vptr) {
 
   while(1) {
     u_int32_t netlen;
-    struct log_entry *le = NULL;
     int rv;
+    le = NULL;
    
     sem_wait(&jcl->lqueue_sem);
     pthread_mutex_lock(&jcl->lqueue_lock);
@@ -209,9 +210,15 @@ noit_livestream_thread_main(void *e_vptr) {
             rv, le->len);
       goto alldone;
     }
+    if (le->buff) free(le->buff);
+    free(le);
   }
 
  alldone:
+  if (le) {
+    if (le->buff) free(le->buff);
+    free(le);
+  }
   e->opset->close(e->fd, &mask, e);
   jcl->wants_shutdown = 1;
   acceptor_closure_free(ac);
