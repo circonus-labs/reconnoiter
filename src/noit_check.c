@@ -242,6 +242,8 @@ static mtev_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
 static unsigned short check_slots_count[60000 / SCHEDULE_GRANULARITY] = { 0 },
                       check_slots_seconds_count[60] = { 0 };
+static mtev_boolean priority_scheduling = mtev_false;
+static int priority_dead_zone_seconds = 3;
 
 static noit_check_t *
 noit_poller_lookup__nolock(uuid_t in) {
@@ -326,21 +328,42 @@ static int check_recycle_bin_processor(eventer_t, int, void *,
                                        struct timeval *);
 
 static int
-check_slots_find_smallest(int sec, struct timeval* period) {
+check_slots_find_smallest(int sec, struct timeval* period, int timeout) {
   int i, j, cyclic, random_offset, jbase = 0, mini = 0, minj = 0;
   unsigned short min_running_i = 0xffff, min_running_j = 0xffff;
   int period_seconds = period->tv_sec;
 
   /* If we're greater than sixty seconds, we should do our
    * initial scheduling as if the period was sixty seconds. */
-  if (period_seconds > 60)
+  if (period_seconds > 60) {
     period_seconds = 60;
+  }
 
-  for(i=0;i<period_seconds;i++) {
-    int adj_i = (i + sec) % 60;
-    if(check_slots_seconds_count[adj_i] < min_running_i) {
-      min_running_i = check_slots_seconds_count[adj_i];
-      mini = adj_i;
+  /* If a check is configured to run at times aligned with sixty seconds 
+   * and we're configured to use priority scheduling, schedule so that
+   * we're guaranteed to finish before the timeout */
+  if ((priority_scheduling == mtev_true) && 
+      (((period->tv_sec % 60) == 0) && (period->tv_usec == 0))) {
+    /* Don't allow a ton of stuff to schedule in the first second in the case
+     * of very long timeouts - use the first 10 seconds in this case */
+    int allowable_time = MAX(60 - (timeout/1000) - 1, 10);
+    int max_seconds = MIN(60-priority_dead_zone_seconds, allowable_time);
+    for(i=0;i<max_seconds;i++) {
+      int adj_i = (i + sec) % max_seconds;
+      if(check_slots_seconds_count[adj_i] < min_running_i) {
+        min_running_i = check_slots_seconds_count[adj_i];
+        mini = adj_i;
+      }
+    }
+  }
+  else {
+    /* Just schedule normally*/
+    for(i=0;i<period_seconds;i++) {
+      int adj_i = (i + sec) % 60;
+      if(check_slots_seconds_count[adj_i] < min_running_i) {
+        min_running_i = check_slots_seconds_count[adj_i];
+        mini = adj_i;
+      }
     }
   }
   jbase = mini * (1000/SCHEDULE_GRANULARITY);
@@ -473,7 +496,7 @@ noit_check_fake_last_check(noit_check_t *check,
    * time to properly increment the slots; otherwise, the slots will 
    * get all messed up */
   if(!(check->flags & NP_TRANSIENT) && check->period) {
-    balance_ms = check_slots_find_smallest(_now->tv_sec+1, &period);
+    balance_ms = check_slots_find_smallest(_now->tv_sec+1, &period, check->timeout);
     lc->tv_sec = (lc->tv_sec / 60) * 60 + balance_ms / 1000;
     lc->tv_usec = (balance_ms % 1000) * 1000;
     memcpy(&lc_copy, lc, sizeof(lc_copy));
@@ -826,9 +849,14 @@ noit_check_dns_ignore_list_init() {
     }
   }
 }
+static void
+noit_check_poller_scheduling_init() {
+  mtev_conf_get_boolean(NULL, "//checks/@priority_scheduling", &priority_scheduling);
+}
 void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
+  noit_check_poller_scheduling_init();
   noit_check_resolver_init();
   noit_check_tools_init();
   mtev_skiplist_init(&polls_by_name);
