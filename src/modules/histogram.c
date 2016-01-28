@@ -54,6 +54,7 @@ histogram_onload(mtev_image_t *self) {
 struct histogram_config {
   mtev_boolean histogram;
   mtev_boolean mean;
+  mtev_boolean sum;
   double *quantiles;
   int n_quantiles;
 };
@@ -88,6 +89,7 @@ histogram_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
       cp; cp = strtok_r(NULL, ",", &brk)) {
     if(!strcmp(cp,"histogram")) conf->histogram = mtev_true;
     else if(!strcmp(cp,"mean")) conf->mean = mtev_true;
+    else if(!strcmp(cp,"sum")) conf->sum = mtev_true;
     else {
       char *endptr;
       double q;
@@ -449,7 +451,7 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
 
   c = noit_check_get_stats_current(check);
   /* Only need to do work if it's asked for */
-  if(!conf->mean && conf->n_quantiles < 1) return;
+  if(!conf->mean && !conf->sum && conf->n_quantiles < 1) return;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) return;
   out_q = alloca(sizeof(double *) * conf->n_quantiles);
@@ -464,6 +466,12 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
       snprintf(mname, sizeof(mname), "%s:mean", metric_name);
       mean_value = hist_approx_mean(ht->last_aggr);
       noit_stats_set_metric(check, mname, METRIC_DOUBLE, &mean_value);
+    }
+    if(conf->sum) {
+      double sum;
+      snprintf(mname, sizeof(mname), "%s:sum", metric_name);
+      sum = hist_approx_sum(ht->last_aggr);
+      noit_stats_set_metric(check, mname, METRIC_DOUBLE, &sum);
     }
     if(conf->n_quantiles) {
       if(hist_approx_quantile(ht->last_aggr,

@@ -58,6 +58,7 @@ double hist_bucket_to_double_bin_width(hist_bucket_t hb);
 hist_bucket_t double_to_hist_bucket(double d);
 double hist_bucket_midpoint(hist_bucket_t in);
 double hist_approx_mean(histogram_t *);
+double hist_approx_sum(histogram_t *);
 int hist_approx_quantile(histogram_t *, double *q_in, int nq, double *q_out);
 
 histogram_t *hist_alloc();

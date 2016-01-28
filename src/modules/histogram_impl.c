@@ -297,6 +297,19 @@ hist_approx_mean(histogram_t *hist) {
   return sum/divisor;
 }
 
+double
+hist_approx_sum(histogram_t *hist) {
+  int i;
+  double sum = 0.0;
+  for(i=0; i<hist->used; i++) {
+    if(hist->bvs[i].bucket.val > 99 || hist->bvs[i].bucket.val < -99) continue;
+    double value = hist_bucket_to_double(hist->bvs[i].bucket);
+    double cardinality = (double)hist->bvs[i].count;
+    sum += value * cardinality;
+  }
+  return sum;
+}
+
 /* 0 success,
  * -1 (empty histogram),
  * -2 (out of order quantile request)
