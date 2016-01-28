@@ -303,7 +303,7 @@ hist_approx_sum(histogram_t *hist) {
   double sum = 0.0;
   for(i=0; i<hist->used; i++) {
     if(hist->bvs[i].bucket.val > 99 || hist->bvs[i].bucket.val < -99) continue;
-    double value = hist_bucket_to_double(hist->bvs[i].bucket);
+    double value = hist_bucket_midpoint(hist->bvs[i].bucket);
     double cardinality = (double)hist->bvs[i].count;
     sum += value * cardinality;
   }
