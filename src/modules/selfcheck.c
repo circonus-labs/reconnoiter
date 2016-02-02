@@ -47,6 +47,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_version.h"
+#include <sys/utsname.h>
 
 typedef struct {
   noit_module_t *self;
@@ -63,6 +64,23 @@ struct threadq_crutch {
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
+/*Function to return operating system information*/
+static int selfcheck_os_version(char *buff, int len) {
+  struct utsname unameData;
+  
+  /*If error returned, print that operating system information is not available.*/
+  if (uname(&unameData)<0)
+  {
+    return snprintf(buff, len, "%s", "N/A");
+    
+  }
+  
+  /*Else, print operating system information.*/
+  else
+  {
+    return snprintf(buff, len, "%s %s %s", unameData.sysname,unameData.release,unameData.version);
+  }
+}
 static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   selfcheck_info_t *ci = check->closure;
   if(ci) {
@@ -140,6 +158,12 @@ static void selfcheck_log_results(noit_module_t *self, noit_check_t *check) {
   eventer_jobq_process_each(jobq_thread_helper, &crutch);
   noit_build_version(buff, sizeof(buff));
   noit_stats_set_metric(check, "version", METRIC_STRING, buff);
+  
+  /*Clear buffer, store operating system in it*/
+  memset(buff,'\0',sizeof(buff));
+  selfcheck_os_version(buff, sizeof(buff));
+  noit_stats_set_metric(check, "OS version", METRIC_STRING, buff);
+  
   u64 = noit_check_completion_count();
   noit_stats_set_metric(check, "checks_run", METRIC_UINT64, &u64);
   u64 = noit_check_metric_count();
@@ -232,6 +256,7 @@ static int selfcheck_onload(mtev_image_t *self) {
   eventer_name_callback("selfcheck/selfcheck_log_size", selfcheck_log_size);
   return 0;
 }
+
 
 #include "selfcheck.xmlh"
 noit_module_t selfcheck = {

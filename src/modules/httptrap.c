@@ -80,6 +80,7 @@ struct rest_json_payload {
   int array_depth[MAX_DEPTH];
   unsigned char last_special_key;
   unsigned char saw_complex_type;
+  
   metric_type_t last_type;
   struct value_list *last_value;
   int cnt;
@@ -510,9 +511,16 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   struct rest_json_payload *rxc = NULL;
   const char *error = "internal error", *secret = NULL;
   mtev_http_session_ctx *ctx = restc->http_ctx;
-  char json_out[128];
+  const unsigned int DEBUGDATA_OUT_SIZE=4096;
+  const unsigned int JSON_OUT_SIZE=DEBUGDATA_OUT_SIZE+128;
+  char json_out[JSON_OUT_SIZE];
+  char debugdata_out[DEBUGDATA_OUT_SIZE];
+  int debugflag=0;
+  const char *debugchkflag;
   noit_check_t *check;
   uuid_t check_id;
+  mtev_http_request *req;
+  mtev_hash_table *hdrs;
 
   if(npats != 2) {
     error = "bad uri";
@@ -533,6 +541,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
       error = "no such httptrap check";
       goto error;
     }
+    
     (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
     if(!secret) secret = "";
     if(strcmp(pats[1], secret)) {
@@ -577,10 +586,75 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   if(rxc->error) goto error;
 
   cnt = push_payload_at_check(rxc);
-
+  
   mtev_http_response_ok(ctx, "application/json");
-  snprintf(json_out, sizeof(json_out),
-           "{ \"stats\": %d }", cnt);
+  
+  /*Examine headers for x-circonus-httptrap-debug flag*/
+  req = mtev_http_session_request(ctx);
+  hdrs = mtev_http_request_headers_table(req); 
+    
+  /*Check if debug header passed in. If present and set to true, set debugflag value to one.*/
+  if(mtev_hash_retr_str(hdrs, "x-circonus-httptrap-debug", strlen("x-circonus-httptrap-debug"), &debugchkflag))
+  {
+    if (strcmp(debugchkflag,"true")==0)
+    {
+      debugflag=1;
+    }
+  }
+   
+  /*If debugflag remains zero, simply output the number of metrics.*/
+  if (debugflag==0)
+  {
+    snprintf(json_out, sizeof(json_out),
+           "{ \"stats\": %d }", cnt);    
+  }
+  
+  /*Otherwise, if set to one, output current metrics in addition to number of current metrics.*/
+  else if (debugflag==1)
+  {        
+      stats_t *c;
+      mtev_hash_table *metrics;
+        
+      /*Retrieve check information.*/        
+      check = noit_poller_lookup(check_id);
+      c = noit_check_get_stats_current(check);
+      metrics = noit_check_stats_metrics(c);
+      mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+      const char *k;
+      int klen;
+      void *data;
+      int written=0;
+      int offset=0;
+      memset(debugdata_out,'\0',sizeof(debugdata_out));
+      
+      /*Extract metrics*/
+      while(mtev_hash_next(metrics, &iter, &k, &klen, &data))
+      {
+        char buff[256];
+        int toWrite = DEBUGDATA_OUT_SIZE-offset;
+        metric_t *tmp=(metric_t *)data;
+        char *metric_name=tmp->metric_name;
+        metric_type_t metric_type=tmp->metric_type;
+        noit_stats_snprint_metric_value(buff, sizeof(buff), tmp);
+        written = snprintf(debugdata_out + offset, toWrite, "\"%s\": {\"_type\":\"%c\",\"_value\":\"%s\"},", metric_name,metric_type,buff);
+        if(toWrite < written) 
+        {
+            break;
+        }
+        offset += written;
+      }
+        
+      /*Set last character to empty-don't want extra comma in output*/
+      if (offset>1)
+      {
+        snprintf(debugdata_out + (offset-1), 1, "%s"," ");
+      }
+      
+      /*Output stats and metrics.*/
+      snprintf(json_out, sizeof(json_out)+strlen(debugdata_out),
+             "{ \"stats\": %d, \"metrics\": {%s } }", cnt, debugdata_out);
+  }
+
   mtev_http_response_append(ctx, json_out, strlen(json_out));
   mtev_http_response_end(ctx);
   return 0;
