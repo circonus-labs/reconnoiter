@@ -224,15 +224,18 @@ hist_deserialize(histogram_t *h, const void *buff, ssize_t len) {
 
 static inline
 int hist_bucket_cmp(hist_bucket_t h1, hist_bucket_t h2) {
+  // checks if h1 < h2 on the real axis.
   if(h1.val == h2.val && h1.exp == h2.exp) return 0;
   /* place NaNs at the beginning always */
   if(h1.val == (int8_t)0xff) return 1;
   if(h2.val == (int8_t)0xff) return -1;
-  if(h1.val < 0 && h2.val >= 0) return 1;
-  if(h1.val <= 0 && h2.val > 0) return 1;
-  if(h1.val > 0 && h2.val <= 0) return -1;
-  if(h1.val >= 0 && h2.val < 0) return -1;
-  /* here they are either both positive or both negative (or one is zero) */
+  /* zero values need special treatment */
+  if(h1.val == 0) return (h2.val > 0) ? 1 : -1;
+  if(h2.val == 0) return (h1.val < 0) ? 1 : -1;
+  /* opposite signs? */
+  if(h1.val < 0 && h2.val > 0) return 1;
+  if(h1.val > 0 && h2.val < 0) return -1;
+  /* here they are either both positive or both negative */
   if(h1.exp == h2.exp) return (h1.val < h2.val) ? 1 : -1;
   if(h1.exp > h2.exp) return (h1.val < 0) ? 1 : -1;
   if(h1.exp < h2.exp) return (h1.val < 0) ? -1 : 1;
@@ -252,6 +255,8 @@ hist_bucket_to_double(hist_bucket_t hb) {
 
 double
 hist_bucket_to_double_bin_width(hist_bucket_t hb) {
+  if(hb.val > 99 || hb.val < -99) return private_nan;
+  if(hb.val < 10 && hb.val > -10) return 0.0;
   u_int8_t *pidx;
   pidx = (u_int8_t *)&hb.exp;
   return power_of_ten[*pidx]/10.0;
@@ -276,9 +281,10 @@ hist_bucket_left(hist_bucket_t in) {
   if(in.val > 99 || in.val < -99) return private_nan;
   out = hist_bucket_to_double(in);
   if(out == 0) return 0;
+  if(out > 0) return out;
+  /* out < 0 */
   interval = hist_bucket_to_double_bin_width(in);
-  if(out < 0) return out - interval;
-  return out;
+  return out - interval;
 }
 
 double
@@ -381,7 +387,7 @@ hist_approx_quantile(histogram_t *hist, double *q_in, int nq, double *q_out) {
 hist_bucket_t
 double_to_hist_bucket(double d) {
   double d_copy = d;
-  hist_bucket_t hb = { (int8_t)0xff, 0 };
+  hist_bucket_t hb = { (int8_t)0xff, 0 }; // NaN
   assert(private_nan != 0);
   if(isnan(d) || isinf(d)) return hb;
   else if(d==0) hb.val = 0;
@@ -407,7 +413,11 @@ double_to_hist_bucket(double d) {
     pidx = (u_int8_t *)&hb.exp;
     d /= power_of_ten[*pidx];
     d *= 10;
-    hb.val = sign * (int)floor(d);
+    // avoid rounding problem at the bucket boundary
+    // e.g. d=0.11 results in hb.val = 10 (shoud be 11)
+    // by allowing a error margin (in the order or magintude
+    // of the exected rounding errors of the above transformations)
+    hb.val = sign * (int)floor(d + 1e-13);
     if(hb.val == 100 || hb.val == -100) {
       if (hb.exp > -127) {
         hb.val /= 10;
@@ -452,7 +462,6 @@ hist_internal_find(histogram_t *hist, hist_bucket_t hb, int *idx) {
     if(rv == 0) l = r = check;
     else if(rv > 0) l = check + 1;
     else r = check - 1;
-
   }
   /* if rv == 0 we found a match, no need to compare again */
   if(rv != 0) rv = hist_bucket_cmp(hist->bvs[l].bucket, hb);
