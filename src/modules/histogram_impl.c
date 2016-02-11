@@ -43,7 +43,7 @@
 #include "histogram_impl.h"
 
 static union {
-   uint64_t private_nan_internal_rep;
+   u_int64_t private_nan_internal_rep;
    double    private_nan_double_rep;
 } private_nan_union = { .private_nan_internal_rep = 0x7fffffffffffffff };
 
@@ -80,15 +80,15 @@ static double power_of_ten[256] = {
 };
 
 struct histogram {
-  uint16_t allocd;
-  uint16_t used;
+  u_int16_t allocd;
+  u_int16_t used;
   struct {
     hist_bucket_t bucket;
-    uint64_t count;
+    u_int64_t count;
   } *bvs;
 };
 
-uint64_t bvl_limits[7] = {
+u_int64_t bvl_limits[7] = {
   0x00000000000000ffULL, 0x0000000000000ffffULL,
   0x0000000000ffffffULL, 0x00000000fffffffffULL,
   0x000000ffffffffffULL, 0x0000fffffffffffffULL,
@@ -116,7 +116,7 @@ bv_size(histogram_t *h, int idx) {
 static ssize_t
 bv_write(histogram_t *h, int idx, void *buff, ssize_t size) {
   int i;
-  uint8_t *cp;
+  u_int8_t *cp;
   ssize_t needed;
   bvdatum_t tgt_type = BVL8;
   for(i=0; i<BVL8; i++)
@@ -136,8 +136,8 @@ bv_write(histogram_t *h, int idx, void *buff, ssize_t size) {
 }
 static ssize_t
 bv_read(histogram_t *h, int idx, const void *buff, ssize_t len) {
-  const uint8_t *cp;
-  uint64_t count = 0;
+  const u_int8_t *cp;
+  u_int64_t count = 0;
   bvdatum_t tgt_type;
   int i;
 
@@ -151,7 +151,7 @@ bv_read(histogram_t *h, int idx, const void *buff, ssize_t len) {
   h->bvs[idx].bucket.exp = cp[1];
   h->used++;
   for(i=tgt_type;i>=0;i--)
-    count |= ((uint64_t)cp[i+3]) << (i * 8);
+    count |= ((u_int64_t)cp[i+3]) << (i * 8);
   h->bvs[idx].count = count;
   return 3 + tgt_type + 1;
 }
@@ -170,8 +170,8 @@ hist_serialize_estimate(histogram_t *h) {
 ssize_t
 hist_serialize(histogram_t *h, void *buff, ssize_t len) {
   ssize_t written = 0;
-  uint8_t *cp = buff;
-  uint16_t nlen;
+  u_int8_t *cp = buff;
+  u_int16_t nlen;
   int i;
 
   if(len < 2) return -1;
@@ -189,9 +189,9 @@ hist_serialize(histogram_t *h, void *buff, ssize_t len) {
 
 ssize_t
 hist_deserialize(histogram_t *h, const void *buff, ssize_t len) {
-  const uint8_t *cp = buff;
+  const u_int8_t *cp = buff;
   ssize_t bytes_read = 0;
-  uint16_t nlen, cnt;
+  u_int16_t nlen, cnt;
   if(len < 2) goto bad_read;
   if(h->bvs) free(h->bvs);
   h->bvs = NULL;
@@ -242,9 +242,9 @@ int hist_bucket_cmp(hist_bucket_t h1, hist_bucket_t h2) {
 
 double
 hist_bucket_to_double(hist_bucket_t hb) {
-  uint8_t *pidx;
+  u_int8_t *pidx;
   assert(private_nan != 0);
-  pidx = (uint8_t *)&hb.exp;
+  pidx = (u_int8_t *)&hb.exp;
   if(hb.val > 99 || hb.val < -99) return private_nan;
   if(hb.val < 10 && hb.val > -10) return 0.0;
   return (((double)hb.val)/10.0) * power_of_ten[*pidx];
@@ -252,8 +252,8 @@ hist_bucket_to_double(hist_bucket_t hb) {
 
 double
 hist_bucket_to_double_bin_width(hist_bucket_t hb) {
-  uint8_t *pidx;
-  pidx = (uint8_t *)&hb.exp;
+  u_int8_t *pidx;
+  pidx = (u_int8_t *)&hb.exp;
   return power_of_ten[*pidx]/10.0;
 }
 
@@ -387,7 +387,7 @@ double_to_hist_bucket(double d) {
   else if(d==0) hb.val = 0;
   else {
     int big_exp;
-    uint8_t *pidx;
+    u_int8_t *pidx;
     int sign = (d < 0) ? -1 : 1;
     d = fabs(d);
     big_exp = (int32_t)floor(log10(d));
@@ -404,7 +404,7 @@ double_to_hist_bucket(double d) {
       }
       return hb;
     }
-    pidx = (uint8_t *)&hb.exp;
+    pidx = (u_int8_t *)&hb.exp;
     d /= power_of_ten[*pidx];
     d *= 10;
     hb.val = sign * (int)floor(d);
@@ -423,7 +423,7 @@ double_to_hist_bucket(double d) {
     }
     if(!((hb.val >= 10 && hb.val < 100) ||
          (hb.val <= -10 && hb.val > -100))) {
-      uint64_t double_pun = 0;
+      u_int64_t double_pun = 0;
       memcpy(&double_pun, &d_copy, sizeof(d_copy));
 #ifndef SKIP_LIBMTEV
       mtevL(mtev_error, "double_to_hist_bucket(%f / %llx) -> %u.%u\n",
@@ -464,8 +464,8 @@ hist_internal_find(histogram_t *hist, hist_bucket_t hb, int *idx) {
   return 0;
 }
 
-uint64_t
-hist_insert_raw(histogram_t *hist, hist_bucket_t hb, uint64_t count) {
+u_int64_t
+hist_insert_raw(histogram_t *hist, hist_bucket_t hb, u_int64_t count) {
   int found, idx;
   if(count == 0) return 0;
   if(hist->bvs == NULL) {
@@ -501,28 +501,28 @@ hist_insert_raw(histogram_t *hist, hist_bucket_t hb, uint64_t count) {
   }
   else {
     /* Just need to update the counters */
-    uint64_t newval = hist->bvs[idx].count + count;
+    u_int64_t newval = hist->bvs[idx].count + count;
     if(newval < hist->bvs[idx].count) /* we rolled */
-      newval = ~(uint64_t)0;
+      newval = ~(u_int64_t)0;
     count = newval - hist->bvs[idx].count;
     hist->bvs[idx].count = newval;
   }
   return count;
 }
 
-uint64_t
-hist_insert(histogram_t *hist, double val, uint64_t count) {
+u_int64_t
+hist_insert(histogram_t *hist, double val, u_int64_t count) {
   if(count == 0) return 0;
   return hist_insert_raw(hist, double_to_hist_bucket(val), count);
 }
 
-uint64_t
-hist_remove(histogram_t *hist, double val, uint64_t count) {
+u_int64_t
+hist_remove(histogram_t *hist, double val, u_int64_t count) {
   hist_bucket_t hb;
   int idx;
   hb = double_to_hist_bucket(val);
   if(hist_internal_find(hist, hb, &idx)) {
-    uint64_t newval = hist->bvs[idx].count - count;
+    u_int64_t newval = hist->bvs[idx].count - count;
     if(newval > hist->bvs[idx].count) newval = 0; /* we rolled */
     count = hist->bvs[idx].count - newval;
     hist->bvs[idx].count = newval;
@@ -538,7 +538,7 @@ hist_bucket_count(histogram_t *hist) {
 
 int
 hist_bucket_idx(histogram_t *hist, int idx,
-                double *bucket, uint64_t *count) {
+                double *bucket, u_int64_t *count) {
   if(idx < 0 || idx >= hist->used) return 0;
   *bucket = hist_bucket_to_double(hist->bvs[idx].bucket);
   *count = hist->bvs[idx].count;
@@ -547,7 +547,7 @@ hist_bucket_idx(histogram_t *hist, int idx,
 
 int
 hist_bucket_idx_bucket(histogram_t *hist, int idx,
-                       hist_bucket_t *bucket, uint64_t *count) {
+                       hist_bucket_t *bucket, u_int64_t *count) {
   if(idx < 0 || idx >= hist->used) return 0;
   *bucket = hist->bvs[idx].bucket;
   *count = hist->bvs[idx].count;
@@ -592,7 +592,7 @@ hist_needed_merge_size_fc(histogram_t **hist, int cnt,
 static void
 internal_bucket_accum(histogram_t *tgt, int tgtidx,
                       histogram_t *src, int srcidx) {
-  uint64_t newval;
+  u_int64_t newval;
   assert(tgtidx < tgt->allocd);
   if(tgt->used == tgtidx) {
     tgt->bvs[tgtidx].bucket = src->bvs[srcidx].bucket;
@@ -601,7 +601,7 @@ internal_bucket_accum(histogram_t *tgt, int tgtidx,
   assert(hist_bucket_cmp(tgt->bvs[tgtidx].bucket,
                          src->bvs[srcidx].bucket) == 0);
   newval = tgt->bvs[tgtidx].count + src->bvs[srcidx].count;
-  if(newval < tgt->bvs[tgtidx].count) newval = ~(uint64_t)0;
+  if(newval < tgt->bvs[tgtidx].count) newval = ~(u_int64_t)0;
   tgt->bvs[tgtidx].count = newval;
 }
 
