@@ -905,7 +905,7 @@ noit_check_clone(uuid_t in) {
   if(checker->oncheck) {
     return NULL;
   }
-  new_check = calloc(1, sizeof(*new_check));
+  new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
   memcpy(new_check, checker, sizeof(*new_check));
   new_check->target = strdup(new_check->target);
   new_check->module = strdup(new_check->module);
@@ -1281,7 +1281,7 @@ noit_poller_schedule(const char *target,
                      uuid_t in,
                      uuid_t out) {
   noit_check_t *new_check;
-  new_check = calloc(1, sizeof(*new_check));
+  new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
   if(!new_check) return -1;
 
   /* The module and the UUID can never be changed */
@@ -1365,10 +1365,12 @@ noit_poller_free_check(noit_check_t *checker) {
     }
     free(checker->module_configs);
   }
+
   mtev_memory_safe_free(stats_inprogress(checker));
   mtev_memory_safe_free(stats_current(checker));
   mtev_memory_safe_free(stats_previous(checker));
-  free(checker);
+
+  mtev_memory_safe_free(checker);
 }
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,

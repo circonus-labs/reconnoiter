@@ -35,6 +35,7 @@
 
 #include <mtev_rest.h>
 #include <mtev_log.h>
+#include <mtev_memory.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_module.h"
@@ -166,7 +167,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     goto error;
   }
   flags |= noit_calc_rtype_flag(resolve_rtype);
-  c = calloc(1, sizeof(*c));
+  c = mtev_memory_safe_calloc(1, sizeof(*c));
   c->module = strdup(module);
   c->flags = NP_TRANSIENT;
   noit_check_update(c, target, name, filterset,
