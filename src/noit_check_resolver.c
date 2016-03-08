@@ -390,7 +390,11 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
         (dns_search_flag == 0 &&
          (idnlen > dnlen || memcmp(idn, rr.dnsrr_dn, idnlen-1)))) continue;
     if (p.dnsp_rrl && !rr.dnsrr_dn[0] && rr.dnsrr_typ == DNS_T_OPT) continue;
-    if (rtype == rr.dnsrr_typ) {
+    if (DNS_T_CNAME == rr.dnsrr_typ) {
+      if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
+        ttl = rr.dnsrr_ttl;
+    }
+    else if (rtype == rr.dnsrr_typ) {
       if(rr.dnsrr_ttl > 0 && (ttl == 0 || rr.dnsrr_ttl < ttl))
         ttl = rr.dnsrr_ttl;
       switch(rr.dnsrr_typ) {
