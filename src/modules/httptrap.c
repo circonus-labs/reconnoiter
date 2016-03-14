@@ -661,7 +661,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
 
  error:
   mtev_http_response_server_error(ctx, "application/json");
-  mtev_http_response_append(ctx, "{ error: \"", 10);
+  mtev_http_response_append(ctx, "{ \"error\": \"", 12);
   if(rxc && rxc->error) error = rxc->error;
   mtev_http_response_append(ctx, error, strlen(error));
   mtev_http_response_append(ctx, "\" }", 3);
