@@ -57,24 +57,27 @@ double hist_bucket_to_double(hist_bucket_t hb);
 double hist_bucket_to_double_bin_width(hist_bucket_t hb);
 hist_bucket_t double_to_hist_bucket(double d);
 double hist_bucket_midpoint(hist_bucket_t in);
-double hist_approx_mean(histogram_t *);
-double hist_approx_sum(histogram_t *);
-int hist_approx_quantile(histogram_t *, double *q_in, int nq, double *q_out);
+double hist_approx_mean(const histogram_t *);
+double hist_approx_sum(const histogram_t *);
+int hist_approx_quantile(const histogram_t *, double *q_in, int nq, double *q_out);
 
 histogram_t *hist_alloc();
 void hist_free(histogram_t *hist);
 u_int64_t hist_insert(histogram_t *hist, double val, u_int64_t count);
 u_int64_t hist_insert_raw(histogram_t *hist, hist_bucket_t hb, u_int64_t count);
 u_int64_t hist_remove(histogram_t *hist, double val, u_int64_t count);
-int hist_bucket_count(histogram_t *hist);
-int hist_bucket_idx(histogram_t *hist, int idx, double *v, u_int64_t *c);
-int hist_bucket_idx_bucket(histogram_t *hist, int idx, hist_bucket_t *b, u_int64_t *c);
-int hist_accumulate(histogram_t *tgt, histogram_t **src, int cnt);
-int hist_num_buckets(histogram_t *hist);
+int hist_bucket_count(const histogram_t *hist);
+int hist_bucket_idx(const histogram_t *hist, int idx, double *v, u_int64_t *c);
+int hist_bucket_idx_bucket(const histogram_t *hist, int idx, hist_bucket_t *b, u_int64_t *c);
+int hist_accumulate(histogram_t *tgt, const histogram_t * const *src, int cnt);
+int hist_num_buckets(const histogram_t *hist);
 void hist_clear(histogram_t *hist);
 
-ssize_t hist_serialize_estimate(histogram_t *h);
-ssize_t hist_serialize(histogram_t *h, void *buff, ssize_t len);
+ssize_t hist_serialize_estimate(const histogram_t *h);
+ssize_t hist_serialize(const histogram_t *h, void *buff, ssize_t len);
 ssize_t hist_deserialize(histogram_t *h, const void *buff, ssize_t len);
+
+ssize_t hist_serialize_b64_estimate(const histogram_t *h);
+ssize_t hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_t buff_len);
 
 #endif

@@ -106,7 +106,7 @@ typedef enum {
 } bvdatum_t;
 
 static ssize_t
-bv_size(histogram_t *h, int idx) {
+bv_size(const histogram_t *h, int idx) {
   int i;
   for(i=0; i<BVL8; i++)
     if(h->bvs[idx].count <= bvl_limits[i]) return 3 + i + 1;
@@ -114,7 +114,7 @@ bv_size(histogram_t *h, int idx) {
 }
 
 static ssize_t
-bv_write(histogram_t *h, int idx, void *buff, ssize_t size) {
+bv_write(const histogram_t *h, int idx, void *buff, ssize_t size) {
   int i;
   u_int8_t *cp;
   ssize_t needed;
@@ -157,7 +157,7 @@ bv_read(histogram_t *h, int idx, const void *buff, ssize_t len) {
 }
 
 ssize_t
-hist_serialize_estimate(histogram_t *h) {
+hist_serialize_estimate(const histogram_t *h) {
   /* worst case if 2 for the length + 3+8 * used */
   int i;
   ssize_t len = 2;
@@ -166,9 +166,16 @@ hist_serialize_estimate(histogram_t *h) {
   return len;
 }
 
+ssize_t
+hist_serialize_b64_estimate(const histogram_t *h) {
+  ssize_t len = hist_serialize_estimate(h);
+  // base 64 <=> 1 char == 6 bit <=> 4 chars = 3 Byte ==> n Bytpe = 4*ceil(len/3.) chars
+  return 4*(len/3+1);
+}
+
 #define ADVANCE(tracker, n) cp += (n), tracker += (n), len -= (n)
 ssize_t
-hist_serialize(histogram_t *h, void *buff, ssize_t len) {
+hist_serialize(const histogram_t *h, void *buff, ssize_t len) {
   ssize_t written = 0;
   u_int8_t *cp = buff;
   u_int16_t nlen;
@@ -185,6 +192,15 @@ hist_serialize(histogram_t *h, void *buff, ssize_t len) {
     ADVANCE(written, incr_written);
   }
   return written;
+}
+
+ssize_t
+hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_t buff_len) {
+  ssize_t serialize_buff_length = hist_serialize_estimate(h);
+  void *serialize_buff = alloca(serialize_buff_length);
+  ssize_t serialized_length = hist_serialize(h, serialize_buff, serialize_buff_length);
+
+  return mtev_b64_encode(serialize_buff, serialized_length, b64_serialized_histo_buff, buff_len);
 }
 
 ssize_t
@@ -288,7 +304,7 @@ hist_bucket_left(hist_bucket_t in) {
 }
 
 double
-hist_approx_mean(histogram_t *hist) {
+hist_approx_mean(const histogram_t *hist) {
   int i;
   double divisor = 0.0;
   double sum = 0.0;
@@ -304,7 +320,7 @@ hist_approx_mean(histogram_t *hist) {
 }
 
 double
-hist_approx_sum(histogram_t *hist) {
+hist_approx_sum(const histogram_t *hist) {
   int i;
   double sum = 0.0;
   for(i=0; i<hist->used; i++) {
@@ -322,7 +338,7 @@ hist_approx_sum(histogram_t *hist) {
  * -3 (out of bound quantile)
  */
 int
-hist_approx_quantile(histogram_t *hist, double *q_in, int nq, double *q_out) {
+hist_approx_quantile(const histogram_t *hist, double *q_in, int nq, double *q_out) {
   int i_q, i_b;
   double total_cnt = 0.0, bucket_width = 0.0,
          bucket_left = 0.0, lower_cnt = 0.0, upper_cnt = 0.0;
@@ -541,12 +557,12 @@ hist_remove(histogram_t *hist, double val, u_int64_t count) {
 }
 
 int
-hist_bucket_count(histogram_t *hist) {
+hist_bucket_count(const histogram_t *hist) {
   return hist ? hist->used : 0;
 }
 
 int
-hist_bucket_idx(histogram_t *hist, int idx,
+hist_bucket_idx(const histogram_t *hist, int idx,
                 double *bucket, u_int64_t *count) {
   if(idx < 0 || idx >= hist->used) return 0;
   *bucket = hist_bucket_to_double(hist->bvs[idx].bucket);
@@ -555,7 +571,7 @@ hist_bucket_idx(histogram_t *hist, int idx,
 }
 
 int
-hist_bucket_idx_bucket(histogram_t *hist, int idx,
+hist_bucket_idx_bucket(const histogram_t *hist, int idx,
                        hist_bucket_t *bucket, u_int64_t *count) {
   if(idx < 0 || idx >= hist->used) return 0;
   *bucket = hist->bvs[idx].bucket;
@@ -620,7 +636,7 @@ hist_needed_merge_size(histogram_t **hist, int cnt) {
 }
 
 int
-hist_accumulate(histogram_t *tgt, histogram_t **src, int cnt) {
+hist_accumulate(histogram_t *tgt, const histogram_t* const *src, int cnt) {
   int tgtneeds;
   void *oldtgtbuff = tgt->bvs;
   histogram_t tgt_copy;
@@ -638,7 +654,7 @@ hist_accumulate(histogram_t *tgt, histogram_t **src, int cnt) {
 }
 
 int
-hist_num_buckets(histogram_t *hist) {
+hist_num_buckets(const histogram_t *hist) {
   return hist->used;
 }
 
