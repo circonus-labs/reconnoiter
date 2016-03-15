@@ -166,12 +166,14 @@ hist_serialize_estimate(const histogram_t *h) {
   return len;
 }
 
+#if 0
 ssize_t
 hist_serialize_b64_estimate(const histogram_t *h) {
   ssize_t len = hist_serialize_estimate(h);
   // base 64 <=> 1 char == 6 bit <=> 4 chars = 3 Byte ==> n Bytpe = 4*ceil(len/3.) chars
   return 4*(len/3+1);
 }
+#endif
 
 #define ADVANCE(tracker, n) cp += (n), tracker += (n), len -= (n)
 ssize_t
@@ -194,6 +196,7 @@ hist_serialize(const histogram_t *h, void *buff, ssize_t len) {
   return written;
 }
 
+#if 0
 ssize_t
 hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_t buff_len) {
   ssize_t serialize_buff_length = hist_serialize_estimate(h);
@@ -202,6 +205,7 @@ hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_
 
   return mtev_b64_encode(serialize_buff, serialized_length, b64_serialized_histo_buff, buff_len);
 }
+#endif
 
 ssize_t
 hist_deserialize(histogram_t *h, const void *buff, ssize_t len) {
