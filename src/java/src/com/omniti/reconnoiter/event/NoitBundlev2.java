@@ -135,8 +135,8 @@ public class NoitBundlev2 extends NoitEvent {
             break;
           case 'L':
             if(metric.hasValueUI64()) {
-              val = (double)metric.getValueUI64();
-              v_str = Double.toString(metric.getValueUI64());
+              val = (double)Double.valueOf(Long.toUnsignedString(metric.getValueUI64()));
+              v_str = val.toString();
             }
             typestring = ts_L;
             break;
