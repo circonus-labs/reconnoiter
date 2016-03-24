@@ -234,8 +234,8 @@ sweep_roll_n_log(struct histogram_config *conf, noit_check_t *check, histotier *
   if(tgt != NULL) {
     /* aggregate all remaining tensecs */
     /* we can do all of them b/c we've removed the tgt */
-    if(cidx < 5) hist_accumulate(tgt, ht->tensecs, 6);
-    if(sidx < 9) hist_accumulate(tgt, ht->secs, 10);
+    if(cidx < 5) hist_accumulate(tgt, (const histogram_t * const *)ht->tensecs, 6);
+    if(sidx < 9) hist_accumulate(tgt, (const histogram_t * const *)ht->secs, 10);
     for(cidx=0;cidx<6;cidx++) {
       hist_free(ht->tensecs[cidx]);
       ht->tensecs[cidx] = NULL;
@@ -270,7 +270,7 @@ sweep_roll_tensec(histotier *ht) {
   }
   if(tgt == NULL) return; /* nothing to do */
   ht->tensecs[tgt_bucket] = tgt;
-  hist_accumulate(tgt, ht->secs, 10);
+  hist_accumulate(tgt, (const histogram_t * const *)ht->secs, 10);
   for(sidx=0;sidx<10;sidx++) {
     hist_free(ht->secs[sidx]);
     ht->secs[sidx] = NULL;
