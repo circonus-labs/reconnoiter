@@ -367,7 +367,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
         break;
       }
       else {
-        if(rr.dnsrr_ttl >= 0 && (ttl < 0 || rr.dnsrr_ttl < ttl))
+        if(ttl < 0 || (int)rr.dnsrr_ttl < ttl)
           ttl = rr.dnsrr_ttl;
         dns_dntodn(p.dnsp_dnbuf, idn, sizeof(idn));
         idnlen = dns_dnlen(idn);
@@ -391,7 +391,7 @@ static void dns_cache_resolve(struct dns_ctx *ctx, void *result, void *data,
          (idnlen > dnlen || memcmp(idn, rr.dnsrr_dn, idnlen-1)))) continue;
     if (p.dnsp_rrl && !rr.dnsrr_dn[0] && rr.dnsrr_typ == DNS_T_OPT) continue;
     if (rtype == rr.dnsrr_typ) {
-      if(rr.dnsrr_ttl >= 0 && (ttl < 0 || rr.dnsrr_ttl < ttl))
+      if(ttl < 0 || (int)rr.dnsrr_ttl < ttl)
         ttl = rr.dnsrr_ttl;
       switch(rr.dnsrr_typ) {
         case DNS_T_A:
