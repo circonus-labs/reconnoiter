@@ -39,6 +39,11 @@
 #include "lua_mtev.h"
 
 #ifdef HAVE_NETSNMP
+/* some ncurses implementations will #define clear which is a
+ * directly referenced struct element in some net-snmp headers.
+ * people can't code... so we are left to do stupid things like this.
+ */
+#undef clear
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
