@@ -57,6 +57,7 @@
 #include "noit_check.h"
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
+#include "mtev_json.h"
 #include "external_proc.h"
 
 typedef enum {
@@ -75,6 +76,7 @@ struct check_info {
   char **envs;
   noit_check_t *check;
   int exit_code;
+  external_special_t type;
 
   int errortype;
   int written;
@@ -163,13 +165,27 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   }
 
   /* Hack the output into metrics */
-  if(ci->output && ci->matcher) {
+  if(ci->output && ci->type == EXTERNAL_JSON_TYPE) {
+    int len, cnt;
+    len = strlen(ci->output);
+    cnt = noit_check_stats_from_json_str(check, ci->output, len);
+    if(cnt <= 0) {
+      noit_stats_set_state(check, NP_BAD);
+      noit_stats_set_status(check, "command produced invalid or empty JSON");
+    }
+    else {
+      char buf[64];
+      snprintf(buf, sizeof(buf), "%d stats", cnt);
+      noit_stats_set_status(check, buf);
+    }
+  }
+  else if(ci->output && ci->matcher) {
     int rc, len, startoffset = 0;
     int ovector[30];
     char* output = ci->output;
     len = strlen(output);
     mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
-    if (data->type == EXTERNAL_NAGIOS_TYPE) {
+    if (ci->type == EXTERNAL_NAGIOS_TYPE) {
       pcre *matcher;
       const char *error;
       char* pch;
@@ -225,7 +241,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
          pcre_copy_named_substring(ci->matcher, output, ovector, rc,
                                    "value", value, sizeof(value)) > 0) {
         /* We're able to extract something... */
-        if (data->type == EXTERNAL_NAGIOS_TYPE) {
+        if (ci->type == EXTERNAL_NAGIOS_TYPE) {
           /* We only care about metrics after the pipe - get check status from the
            * pre-pipe data, then only match on post-pipe data */
           char uom[128];
@@ -246,10 +262,10 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
       mtevL(data->nldeb, "going to match output at %d/%d\n", startoffset, len);
     }
     mtevL(data->nldeb, "match failed.... %d\n", rc);
+    if (ci->output)
+      noit_stats_set_status(check, ci->output);
   }
 
-  if (ci->output)
-    noit_stats_set_status(check, ci->output);
   noit_check_set_stats(check);
 
   /* If we didn't exit normally, or we core, or we have stderr to report...
@@ -688,15 +704,18 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
                         &value) != 0) {
     const char *error;
     int erroffset;
-    if (!strcmp(value, "NAGIOS")) {
-      data->type = EXTERNAL_NAGIOS_TYPE;
+    if (!strcmp(value, "JSON")) {
+      ci->type = EXTERNAL_JSON_TYPE;
+    }
+    else if (!strcmp(value, "NAGIOS")) {
+      ci->type = EXTERNAL_NAGIOS_TYPE;
       ci->matcher = pcre_compile(data->nagios_regex, 0, &error, &erroffset, NULL);
     }
     else {
-      data->type = EXTERNAL_DEFAULT_TYPE;
+      ci->type = EXTERNAL_DEFAULT_TYPE;
       ci->matcher = pcre_compile(value, 0, &error, &erroffset, NULL);
     }
-    if(!ci->matcher) {
+    if(ci->type != EXTERNAL_JSON_TYPE && !ci->matcher) {
       mtevL(data->nlerr, "external pcre /%s/ failed @ %d: %s\n",
             value, erroffset, error);
     }

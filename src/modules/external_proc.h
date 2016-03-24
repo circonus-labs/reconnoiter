@@ -41,7 +41,8 @@
 
 typedef enum {
   EXTERNAL_DEFAULT_TYPE = 0,
-  EXTERNAL_NAGIOS_TYPE = 1
+  EXTERNAL_NAGIOS_TYPE = 1,
+  EXTERNAL_JSON_TYPE = 2
 } external_special_t;
 
 struct external_response {
@@ -62,7 +63,6 @@ typedef struct {
   int pipe_e2n[2];
   char* path;
   char* nagios_regex;
-  external_special_t type;
   eventer_jobq_t *jobq;
   mtev_atomic64_t check_no_seq;
   mtev_hash_table external_checks;
