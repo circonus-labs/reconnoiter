@@ -95,7 +95,7 @@ struct rest_json_payload {
 } while(0)
 
 static mtev_boolean
-mtev_httptrap_check_aynsch(noit_module_t *self,
+noit_httptrap_check_asynch(noit_module_t *self,
                            noit_check_t *check) {
   const char *config_val;
   httptrap_mod_config_t *conf;
@@ -405,7 +405,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
   ccl = rxc->check->closure;
-  rxc->immediate = mtev_httptrap_check_aynsch(ccl->self, rxc->check);
+  rxc->immediate = noit_httptrap_check_asynch(ccl->self, rxc->check);
   while(!rxc->complete) {
     int len;
     len = mtev_http_session_req_consume(
@@ -450,7 +450,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  mtev_httptrap_check_aynsch(self, check);
+  noit_httptrap_check_asynch(self, check);
   if(!check->closure) {
     ccl = check->closure = (void *)calloc(1, sizeof(httptrap_closure_t)); 
     memset(ccl, 0, sizeof(httptrap_closure_t));
@@ -497,7 +497,7 @@ push_payload_at_check(struct rest_json_payload *rxc) {
   if (!rxc->check || strcmp(rxc->check->module, "httptrap")) return 0;
   if (rxc->check->closure == NULL) return 0;
   ccl = rxc->check->closure;
-  immediate = mtev_httptrap_check_aynsch(ccl->self,rxc->check);
+  immediate = noit_httptrap_check_asynch(ccl->self,rxc->check);
 
   /* do it here */
   ccl->stats_count = rxc->cnt;
@@ -669,7 +669,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   return 0;
 }
 
-static int mtev_httptrap_initiate_check(noit_module_t *self,
+static int noit_httptrap_initiate_check(noit_module_t *self,
                                         noit_check_t *check,
                                         int once, noit_check_t *cause) {
   check->flags |= NP_PASSIVE_COLLECTION;
@@ -682,7 +682,7 @@ static int mtev_httptrap_initiate_check(noit_module_t *self,
   return 0;
 }
 
-static int mtev_httptrap_config(noit_module_t *self, mtev_hash_table *options) {
+static int noit_httptrap_config(noit_module_t *self, mtev_hash_table *options) {
   httptrap_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
   if(conf) {
@@ -698,7 +698,7 @@ static int mtev_httptrap_config(noit_module_t *self, mtev_hash_table *options) {
   return 1;
 }
 
-static int mtev_httptrap_onload(mtev_image_t *self) {
+static int noit_httptrap_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/httptrap");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/httptrap");
   if(!nlerr) nlerr = noit_error;
@@ -706,7 +706,7 @@ static int mtev_httptrap_onload(mtev_image_t *self) {
   return 0;
 }
 
-static int mtev_httptrap_init(noit_module_t *self) {
+static int noit_httptrap_init(noit_module_t *self) {
   const char *config_val;
   httptrap_mod_config_t *conf;
   conf = noit_module_get_userdata(self);
@@ -739,10 +739,10 @@ noit_module_t httptrap = {
     .name = "httptrap",
     .description = "httptrap collection",
     .xml_description = httptrap_xml_description,
-    .onload = mtev_httptrap_onload
+    .onload = noit_httptrap_onload
   },
-  mtev_httptrap_config,
-  mtev_httptrap_init,
-  mtev_httptrap_initiate_check,
+  noit_httptrap_config,
+  noit_httptrap_init,
+  noit_httptrap_initiate_check,
   NULL
 };
