@@ -117,8 +117,8 @@ function read_protobuf(input, orig, next_step) {
           default: throw("unknown metric_type: " + metric_type);
         }
         if(bobj.metadata) {
-          info.metadata = {};
-          bobj.metadata.map(function(o) { info.metadata[o.key] = o.value; });
+          m.metadata = {};
+          bobj.metadata.map(function(o) { m.metadata[o.key] = o.value; });
         }
         infos.push(m);
       }
