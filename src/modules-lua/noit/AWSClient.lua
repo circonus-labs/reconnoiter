@@ -215,8 +215,7 @@ function AWSClient:perform(target, cache_table)
   local region      = self.params.region
   local service     = self.params.service
   local minutes_back = self.params.minutes_back or "10";
-
-  minutes_back = minutes_back * 60;
+  local seconds_back = minutes_back * 60;
   
   local time = os.time()
   local datestamp=os.date("!%Y%m%d", time)
@@ -231,7 +230,7 @@ function AWSClient:perform(target, cache_table)
     start_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time-(60*60*8))
     end_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time+300)
   else
-    start_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time-minutes_back)
+    start_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time-seconds_back)
     end_time = os.date("!%Y-%m-%dT%H:%M:%S.000Z", time+300)
   end
   local uri = ""
