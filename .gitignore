@@ -23,6 +23,7 @@ src/js/node_modules/
 test/t/node_modules/
 src/lua/src/lua
 src/modules/*.dSYM
+src/modules/histogram_test
 src/noit_version.h
 src/noitd
 src/noit.conf
