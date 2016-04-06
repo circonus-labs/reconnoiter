@@ -11,6 +11,9 @@ fi
 AC_CANONICAL_HOST
 AC_CONFIG_HEADER(src/noit_config.h)
 
+AC_ARG_WITH([module-stomp],
+	AS_HELP_STRING([--without-module-stomp], [Don't build stomp]))
+
 AC_ARG_ENABLE(strict,
 	[AC_HELP_STRING([--enable-strict],
 		[Compile with warnings treated as errors])],
@@ -547,24 +550,28 @@ AC_CHECK_LIB(ssh2, libssh2_session_init_ex,
 LIBS="$SAVELIBS"
 
 STOMP_DRIVER_MODULE="no"
-AC_MSG_CHECKING([apr-1-config for needed for stomp support])
-APRPREFIX=`apr-1-config --prefix`
-if test $? -eq "0"; then
-	BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
-	STOMP_DRIVER_MODULE="yes"
-fi
-AC_SUBST(APRPREFIX)
-AC_MSG_RESULT([$APRPREFIX])
-
-AC_MSG_CHECKING([libapr cflags])
-APRCFLAGS="`apr-1-config --cflags --cppflags --includes`"
-AC_SUBST(APRCFLAGS)
-AC_MSG_RESULT([$APRCFLAGS])
-
-AC_MSG_CHECKING([libapr libs])
-APRLIBS="`apr-1-config --link-ld --ldflags --libs`"
-AC_SUBST(APRLIBS)
-AC_MSG_RESULT([$APRLIBS])
+AS_IF([test "x$with_module_stomp" != "xno"],
+	[
+	AC_MSG_CHECKING([apr-1-config for needed for stomp support])
+	APRPREFIX=`apr-1-config --prefix`
+	if test $? -eq "0"; then
+		BUILD_SMODULES="$BUILD_SMODULES stomp_driver.$MODULEEXT"
+		STOMP_DRIVER_MODULE="yes"
+	fi
+	AC_SUBST(APRPREFIX)
+	AC_MSG_RESULT([$APRPREFIX])
+	
+	AC_MSG_CHECKING([libapr cflags])
+	APRCFLAGS="`apr-1-config --cflags --cppflags --includes`"
+	AC_SUBST(APRCFLAGS)
+	AC_MSG_RESULT([$APRCFLAGS])
+	
+	AC_MSG_CHECKING([libapr libs])
+	APRLIBS="`apr-1-config --link-ld --ldflags --libs`"
+	AC_SUBST(APRLIBS)
+	AC_MSG_RESULT([$APRLIBS])
+	],
+	[STOMP_DRIVER_MODULE=no])
 
 AC_TRY_LINK([],
 	[ issetugid(); ],
