@@ -74,6 +74,10 @@ function onload(image)
     <parameter name="region"
                required="optional"
                allowed=".+">The AWS region to pull Cloudwatch metrics for (ex: us-east-1). If not provided, this will be extracted from the URL.</parameter>
+    <parameter name="minutes_back"
+    	       required="optional"
+	       allowed="\d+"
+	       default="10">The maximum number of minutes back from the present time to read Cloudwatch metrics. The most recent value found in this range will be used as the metric value.</parameter>
   </checkconfig>
   <examples>
     <example>
@@ -142,6 +146,7 @@ function initiate(module, check)
     version            = config.version or "2010-08-01",
     granularity        = config.granularity or "5",
     region             = config.region or extractedregion,
+    minutes_back       = config.minutes_back or "10",
     service            = extractedservice
   }
   local use_ssl = false
