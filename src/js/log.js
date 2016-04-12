@@ -29,12 +29,11 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-var sys = require('sys'),
-    fs = require('fs'),
+var fs = require('fs'),
     Histogram = require('./histogram'),
     zlib = require('zlib'),
-    Schema = require('protobuf').Schema,
-    schema = new Schema(fs.readFileSync(__dirname + "/bundle.desc")),
+    protobuf = require('protocol-buffers'),
+    schema = protobuf(fs.readFileSync(__dirname + "/bundle.proto")),
     bundle_protobuf = schema['Bundle'];
 
 function make_b_parser(step1, step2, step3) {
@@ -65,7 +64,7 @@ function identity(input, orig, next_step) {
 function read_protobuf(input, orig, next_step) {
   var infos = [];
   try {
-    var bobj = bundle_protobuf.parse(input);
+    var bobj = bundle_protobuf.decode(input);
     if(bobj.status) {
       var info = {
         type: 'S',
@@ -169,6 +168,10 @@ function fixup_id(info) {
     }
   };
   exports.parse = function(str, cb) {
+      // B records contain no spaces, so we can just allow sloppiness
+      if(str.substring(0,1) == "B") {
+        str = str.replace(/\s+/g, "\t")
+      }
       var tidx = str.indexOf('\t');
       var t = tidx > 0 ? str.substring(0, tidx) : str;
       var arr = tidx > 0 ? str.substring(tidx+1) : null;
