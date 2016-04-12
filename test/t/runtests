@@ -63,7 +63,7 @@ if [ "x$SKIP_NPM_INSTALL" != "x1" ]; then
 	# modules requiringa compiler... so we'll start and end there.
 	mkdir -p node_modules
 	NPMROOT=`npm root -g`
-	for mod in protobuf fq; do
+	for mod in fq; do
 		if [ -d "$NPMROOT/$mod" ]; then
 			if [ ! -e node_modules/$mod ]; then
 				echo "Hacking a link from node_modules/$mod -> $NPMROOT/$mod"
