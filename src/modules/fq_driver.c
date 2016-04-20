@@ -85,7 +85,7 @@ struct fq_driver {
   time_t last_error[MAX_HOSTS];
 };
 
-struct fq_driver global_fq_ctx = { 0 };
+static struct fq_driver global_fq_ctx;
 
 #define BUMPSTAT(i,a) mtev_atomic_inc64(&global_fq_ctx.stats[i].a)
 
@@ -492,6 +492,7 @@ static int noit_fq_driver_config(mtev_dso_generic_t *self, mtev_hash_table *o) {
   return 0;
 }
 static int noit_fq_driver_onload(mtev_image_t *self) {
+  memset(&global_fq_ctx, 0, sizeof(struct fq_driver));
   return 0;
 }
 

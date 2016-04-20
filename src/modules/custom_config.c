@@ -46,8 +46,6 @@ static int custom_config_module_id = -1;
 
 static int
 custom_config_onload(mtev_image_t *self) {
-  int i, cnt;
-  mtev_conf_section_t *acl_c;
   custom_config_module_id = noit_check_register_module("custom");
   if(custom_config_module_id < 0) return -1;
   return 0;

@@ -189,7 +189,7 @@ static int wait_frame_inner(amqp_connection_state_t state,
 		  state->sock_inbound_buffer.bytes,
 		  state->sock_inbound_buffer.len);
     if (result < 0) {
-      mtevL(mtev_error, "Failed to read message in wait_frame_inner, size %d\n", state->sock_inbound_buffer.len);
+      mtevL(mtev_error, "Failed to read message in wait_frame_inner, size %zu\n", state->sock_inbound_buffer.len);
       return -errno;
     }
     if (result == 0) {

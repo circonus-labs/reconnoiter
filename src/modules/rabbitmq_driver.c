@@ -234,9 +234,9 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
       return -1;
     }
     if(setsockopt(driver->sockfd, SOL_SOCKET, SO_SNDBUF, &desired_sndbuf, sizeof(desired_sndbuf)) < 0)
-      mtevL(mtev_debug, "rabbitmq: setsockopt(SO_SNDBUF, %ld) -> %s\n", desired_sndbuf, strerror(errno));
+      mtevL(mtev_debug, "rabbitmq: setsockopt(SO_SNDBUF, %ld) -> %s\n", (long int)desired_sndbuf, strerror(errno));
     if(setsockopt(driver->sockfd, SOL_SOCKET, SO_RCVBUF, &desired_rcvbuf, sizeof(desired_rcvbuf)) < 0)
-      mtevL(mtev_debug, "rabbitmq: setsockopt(SO_RCVBUF, %ld) -> %s\n", desired_rcvbuf, strerror(errno));
+      mtevL(mtev_debug, "rabbitmq: setsockopt(SO_RCVBUF, %ld) -> %s\n", (long int)desired_rcvbuf, strerror(errno));
     driver->has_error = 0;
     driver->connection = amqp_new_connection();
     amqp_set_basic_return_cb(driver->connection, noit_rabbitmq_brcb, driver);

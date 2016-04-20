@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/int_fmtio.h>
 #include <mtev_defines.h>
 
 #include <assert.h>
@@ -119,7 +120,7 @@ debug_print_hist(histogram_t *ht) {
       u_int64_t cnt;
       double v;
       hist_bucket_idx(ht, i, &v, &cnt);
-      mtevL(noit_debug, "  %7.2g : %llu\n", v, cnt);
+      mtevL(noit_debug, "  %7.2g : %" PRIu64 "\n", v, cnt);
     }
   }
 }
@@ -446,17 +447,15 @@ histogram_sweep_calculations(struct histogram_config *conf, noit_check_t *check)
   int klen;
   void *data;
   mtev_hash_table *metrics;
-  stats_t *c;
   double *out_q;
 
-  c = noit_check_get_stats_current(check);
+  noit_check_get_stats_current(check);
   /* Only need to do work if it's asked for */
   if(!conf->mean && !conf->sum && conf->n_quantiles < 1) return;
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) return;
   out_q = alloca(sizeof(double *) * conf->n_quantiles);
 
-  u_int64_t s = time(NULL);
   while(mtev_hash_next(metrics, &iter, &metric_name, &klen, &data)) {
     char mname[1024];
     histotier *ht = data;

@@ -277,7 +277,6 @@ statsd_handler(eventer_t e, int mask, void *closure,
     } addr;
     socklen_t addrlen = sizeof(addr);
     ssize_t len;
-    uuid_t check_id;
     len = recvfrom(e->fd, conf->payload, conf->payload_len-1, 0,
                    (struct sockaddr *)&addr, &addrlen);
     if(len < 0) {

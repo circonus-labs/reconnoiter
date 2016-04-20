@@ -41,6 +41,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#include <sys/int_fmtio.h>
 
 #include <mtev_conf.h>
 #include <mtev_conf_private.h>
@@ -114,7 +115,7 @@ noit_conf_check_bump_seq(xmlNodePtr node) {
     char new_seq_str[64];
     /* negatve -> 0, positive ++ */
     seq = (seq < 0) ? 0 : (seq + 1);
-    snprintf(new_seq_str, sizeof(new_seq_str), "%lld", seq);
+    snprintf(new_seq_str, sizeof(new_seq_str), "%" PRIi64, seq);
     xmlUnsetProp(node, (xmlChar *)"seq");
     xmlSetProp(node, (xmlChar *)"seq", (xmlChar *)new_seq_str);
   }
@@ -598,7 +599,7 @@ noit_console_show_check(mtev_console_closure_t ncct,
                   noit_check_available_string(noit_check_stats_available(c, NULL)),
                   noit_check_state_string(noit_check_stats_state(c, NULL)));
         status = noit_check_stats_status(c, NULL);
-        nc_printf(ncct, " status: %s\n", noit_check_stats_status(c, NULL));
+        nc_printf(ncct, " status: %s\n", status);
         nc_printf(ncct, " feeds: %d\n", check->feeds ? check->feeds->size : 0);
       }
 

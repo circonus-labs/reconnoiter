@@ -75,7 +75,7 @@ ip_acl_onload(mtev_image_t *self) {
         if(rule_c) {
           btrie *acl = calloc(1, sizeof(*acl));
           for(j=0; j<rcnt; j++) {
-            int mask = -1, rv;
+            int mask = -1;
             char dirstr[16] = "unspecified";
             char *cp, target[256] = "";
             union {
