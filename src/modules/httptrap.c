@@ -491,13 +491,11 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
 static int
 push_payload_at_check(struct rest_json_payload *rxc) {
   httptrap_closure_t *ccl;
-  mtev_boolean immediate;
-  char key[256];
 
   if (!rxc->check || strcmp(rxc->check->module, "httptrap")) return 0;
   if (rxc->check->closure == NULL) return 0;
   ccl = rxc->check->closure;
-  immediate = noit_httptrap_check_asynch(ccl->self,rxc->check);
+  noit_httptrap_check_asynch(ccl->self,rxc->check);
 
   /* do it here */
   ccl->stats_count = rxc->cnt;

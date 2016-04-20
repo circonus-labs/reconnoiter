@@ -47,8 +47,6 @@ static int reverse_check_module_id = -1;
 
 static int
 reverse_check_onload(mtev_image_t *self) {
-  int i, cnt;
-  mtev_conf_section_t *acl_c;
   reverse_check_module_id = noit_check_register_module("reverse");
   if(reverse_check_module_id < 0) return -1;
   return 0;
@@ -75,7 +73,7 @@ reverse_check_allow(const char *id, acceptor_closure_t *ac) {
   noit_check_t *check;
   const char *key;
   uuid_t uuid;
-  char key_in[128], uuid_str[UUID_STR_LEN+1];
+  char uuid_str[UUID_STR_LEN+1];
   char expected_id[256];
 
   if(strncmp(id, "check/", 6)) return MTEV_ACL_ABSTAIN;

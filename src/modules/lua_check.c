@@ -271,8 +271,6 @@ noit_lua_get_state(lua_State *L) {
 static int
 noit_lua_get_flags(lua_State *L) {
   noit_check_t *check;
-  mtev_lua_resume_info_t *ri;
-  noit_lua_resume_check_info_t *ci;
   u_int32_t andset = ~0;
   int narg;
 
@@ -698,11 +696,9 @@ noit_lua_module_config(noit_module_t *mod,
 
 static int
 noit_lua_module_init(noit_module_t *mod) {
-  struct module_conf *mc;
   struct module_tls_conf *mtlsc;
   LMC_DECL(L, mod, object);
 
-  mc = noit_module_get_userdata(mod);
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(mtlsc->initialized) return mtlsc->initialized_return;
 
@@ -717,6 +713,7 @@ noit_lua_module_init(noit_module_t *mod) {
   mtlsc->initialized_return = -1;
   return -1;
 }
+
 static void
 noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
   mtev_lua_resume_info_t *ri = check->closure;
@@ -882,6 +879,9 @@ static int
 noit_lua_initiate(noit_module_t *self, noit_check_t *check,
                   noit_check_t *cause) {
   LMC_DECL(L, self, object);
+  /* deal with unused warning */
+  (void)L;
+
   struct nl_intcl *int_cl;
   mtev_lua_resume_info_t *ri;
   noit_lua_resume_check_info_t *ci;
@@ -966,7 +966,6 @@ static mtev_image_t *
 noit_lua_loader_load(mtev_dso_loader_t *loader,
                      char *module_name,
                      mtev_conf_section_t section) {
-  int rv;
   noit_module_t *m;
   lua_State *L = NULL;
   lua_module_closure_t *lmc;

@@ -449,12 +449,11 @@ static void _set_ts_timeout(struct target_session *ts, struct timeval *t) {
 
 static int noit_snmp_handler(eventer_t e, int mask, void *closure,
                              struct timeval *now) {
-  int block = 0, rv, liberr, snmperr;
+  int block = 0;
   struct timeval timeout = { 0, 0 };
   struct target_session *ts = closure;
-  char *errmsg;
 
-  rv = snmp_sess_read_C1(ts->slp, e->fd);
+  snmp_sess_read_C1(ts->slp, e->fd);
   if(noit_snmp_session_cleanse(ts, 0))
     return 0;
   snmp_sess_select_info2_flags(ts->slp, NULL, NULL,
@@ -1145,7 +1144,6 @@ ensure_usm_user(const char *username, u_char *engineID, size_t engineIDLen) {
 /* Shenanigans to work around snmp v3 probes blocking */
 static int
 snmpv3_build_probe_pdu(netsnmp_pdu **pdu) {
-    struct usmUser *user;
 
     /*
      * create the pdu
@@ -1172,7 +1170,6 @@ static int
 noit_snmpv3_probe_timeout(eventer_t e, int mask, void *closure,
                           struct timeval *now) {
   struct v3_probe_magic *magic = closure;
-  struct check_info *info = magic->check->closure;
   struct target_session *ts = magic->ts;
   if(ts && ts->slp) {
     ts->sess_handle->flags &= ~SNMP_FLAGS_DONT_PROBE;
@@ -1270,7 +1267,7 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   struct snmp_pdu *req = NULL;
   struct target_session *ts;
   struct check_info *info = check->closure;
-  int port = 161, i;
+  int port = 161;
   mtev_boolean separate_queries = mtev_false;
   const char *portstr, *versstr, *sepstr;
   const char *err = "unknown err";
@@ -1305,8 +1302,6 @@ static int noit_snmp_send(noit_module_t *self, noit_check_t *check,
   gettimeofday(&check->last_fire_time, NULL);
   if(!ts->refcnt) {
     eventer_t newe;
-    struct timeval timeout;
-    netsnmp_session *rsess;
     noit_snmp_sess_open(ts, check);
     newe = eventer_alloc();
     newe->fd = ts->fd;
@@ -1546,9 +1541,7 @@ static __thread char linebuf[1024] = "\0";
 static int
 _private_snmp_log(int majorID, int minorID, void *serverarg, void *clientarg) {
   struct snmp_log_message *slm;
-  snmp_mod_config_t *conf;
   size_t len;
-  conf = clientarg;
   slm = serverarg;
   len = strlcat(linebuf, slm->msg, sizeof(linebuf));
   if(len > sizeof(linebuf)-1) {

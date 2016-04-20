@@ -415,7 +415,7 @@ POSTGRES_INGESTOR_MODULE="no"
 AC_TRY_LINK([
 	#include <libpq-fe.h>
 	],
-	[ PGconn *dbh = PQconnectdb(""); ],
+	[ PGconn *dbh = PQconnectdb(""); (void)dbh; ],
 	[
 		BUILD_MODULES="$BUILD_MODULES postgres.$MODULEEXT"
 		BUILD_SMODULES="$BUILD_SMODULES postgres_ingestor.$MODULEEXT"
