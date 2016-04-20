@@ -699,7 +699,6 @@ noit_lua_module_init(noit_module_t *mod) {
   struct module_tls_conf *mtlsc;
   LMC_DECL(L, mod, object);
 
-  noit_module_get_userdata(mod);
   mtlsc = __get_module_tls_conf(&mod->hdr);
   if(mtlsc->initialized) return mtlsc->initialized_return;
 
@@ -714,6 +713,7 @@ noit_lua_module_init(noit_module_t *mod) {
   mtlsc->initialized_return = -1;
   return -1;
 }
+
 static void
 noit_lua_module_cleanup(noit_module_t *mod, noit_check_t *check) {
   mtev_lua_resume_info_t *ri = check->closure;
