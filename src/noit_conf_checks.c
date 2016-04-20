@@ -41,7 +41,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
-#include <sys/int_fmtio.h>
+#include <inttypes.h>
 
 #include <mtev_conf.h>
 #include <mtev_conf_private.h>

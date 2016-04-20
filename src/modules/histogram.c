@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/int_fmtio.h>
+#include <inttypes.h>
 #include <mtev_defines.h>
 
 #include <assert.h>
