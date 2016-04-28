@@ -79,7 +79,7 @@ public class jmx implements JezebelCheck {
         final String mbean_domains = config.remove("mbean_domains");
 	String uri = config.remove("uri");
 	if (uri == null) {
-	  uri = "jmxrmi";
+	  uri = "/jmxrmi";
 	}
 	else {
 	  if (!uri.substring(0, 1).equals("/")) {
@@ -87,7 +87,7 @@ public class jmx implements JezebelCheck {
 	  }
 	}
         final String jmxGlassFishConnectorString =
-            "service:jmx:rmi:///jndi/rmi://" + host + ":" + port + "/" + uri;
+            "service:jmx:rmi:///jndi/rmi://" + host + ":" + port + uri;
         try {
             final JMXServiceURL jmxUrl =
                 new JMXServiceURL(jmxGlassFishConnectorString);
