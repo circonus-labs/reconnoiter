@@ -186,6 +186,9 @@ stratcon_ingest_launch_file_ingestion(const char *path,
                                       const char *id_str,
                                       const mtev_boolean sweeping) {
   char msg[PATH_MAX + 7], hfile[PATH_MAX]; /*file:\r\n*/
+
+  (void)sweeping;
+
   if(strcmp(path + strlen(path) - 2, ".h")) {
     snprintf(hfile, sizeof(hfile), "%s.h", path);
     if(link(path, hfile) < 0 && errno != EEXIST) {

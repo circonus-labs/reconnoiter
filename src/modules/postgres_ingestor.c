@@ -1431,6 +1431,8 @@ stratcon_ingest_launch_file_ingestion(const char *path,
   char pgfile[PATH_MAX];
   eventer_t ingest;
 
+  (void)sweeping;
+
   if(strcmp(path + strlen(path) - 3, ".pg")) {
     snprintf(pgfile, sizeof(pgfile), "%s.pg", path);
     if(link(path, pgfile) < 0 && errno != EEXIST) {
