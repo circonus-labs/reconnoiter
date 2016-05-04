@@ -183,7 +183,8 @@ static int
 stratcon_ingest_launch_file_ingestion(const char *path,
                                       const char *remote_str,
                                       const char *remote_cn,
-                                      const char *id_str) {
+                                      const char *id_str,
+                                      const mtev_boolean sweeping) {
   char msg[PATH_MAX + 7], hfile[PATH_MAX]; /*file:\r\n*/
   if(strcmp(path + strlen(path) - 2, ".h")) {
     snprintf(hfile, sizeof(hfile), "%s.h", path);

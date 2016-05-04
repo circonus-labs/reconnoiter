@@ -1425,7 +1425,8 @@ static int
 stratcon_ingest_launch_file_ingestion(const char *path,
                                       const char *remote_str,
                                       const char *remote_cn,
-                                      const char *id_str) {
+                                      const char *id_str,
+                                      const mtev_boolean sweeping) {
   pg_interim_journal_t *ij;
   char pgfile[PATH_MAX];
   eventer_t ingest;

@@ -40,5 +40,6 @@ API_EXPORT(void)
                                  int (*ingest)(const char *fullpath,
                                                const char *remote_str,
                                                const char *remote_cn,
-                                               const char *id_str));
+                                               const char *id_str,
+                                               const mtev_boolean sweeping));
 #endif

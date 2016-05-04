@@ -46,7 +46,8 @@
 
 typedef struct {
   int (*launch_file_ingestion)(const char *file, const char *ip,
-                               const char *cn, const char *store);
+                               const char *cn, const char *store,
+                               const mtev_boolean sweeping);
   void (*iep_check_preload)();
   int (*storage_node_lookup)(const char *uuid_str, const char *remote_cn,
                              int *sid_out, int *storagenode_id_out,
