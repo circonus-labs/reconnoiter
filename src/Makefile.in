@@ -82,8 +82,7 @@ tests:
 
 MODDIR=modules
 
-HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h \
-	stratcon_ingest.h
+HEADERS=noit_metric.h noit_check_log_helpers.h noit_check_tools_shared.h
 
 NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_check_rest.h noit_check_tools.h \
@@ -91,8 +90,8 @@ NOIT_HEADERS=noit_check.h noit_check_resolver.h \
 	noit_filters.h noit_jlog_listener.h noit_livestream_listener.h \
 	noit_module.h
 
-STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_jlog_streamer.h \
-	stratcon_realtime_http.h
+STRATCON_HEADERS=stratcon_datastore.h stratcon_iep.h stratcon_ingest.h \
+	stratcon_jlog_streamer.h stratcon_realtime_http.h
 
 ENABLE_LUA=@ENABLE_LUA@
 LUALIBS=@LUALIBS@
