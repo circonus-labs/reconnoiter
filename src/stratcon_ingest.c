@@ -62,12 +62,14 @@
 
 static void
 stratcon_ingest_sweep_journals_int(const char *base,
-                                   char *first, char *second, char *third,
+                                   char *first, char *second, 
+                                   char *third, mtev_boolean sweeping,
                                    int (*test)(const char *),
                                    int (*ingest)(const char *fullpath,
                                                  const char *remote_str,
                                                  const char *remote_cn,
-                                                 const char *id_str)) {
+                                                 const char *id_str,
+                                                 const mtev_boolean sweeping)) {
   char path[PATH_MAX];
   DIR *root;
   struct dirent *de, *entry;
@@ -103,16 +105,16 @@ stratcon_ingest_sweep_journals_int(const char *base,
   for(i=0; i<cnt; i++) {
     if(!strcmp(entries[i], ".") || !strcmp(entries[i], "..")) continue;
     if(!first)
-      stratcon_ingest_sweep_journals_int(base, entries[i], NULL, NULL, test, ingest);
+      stratcon_ingest_sweep_journals_int(base, entries[i], NULL, NULL, sweeping, test, ingest);
     else if(!second)
-      stratcon_ingest_sweep_journals_int(base, first, entries[i], NULL, test, ingest);
+      stratcon_ingest_sweep_journals_int(base, first, entries[i], NULL, sweeping, test, ingest);
     else if(!third)
-      stratcon_ingest_sweep_journals_int(base, first, second, entries[i], test, ingest);
+      stratcon_ingest_sweep_journals_int(base, first, second, entries[i], sweeping, test, ingest);
     else if(test(entries[i])) {
       char fullpath[PATH_MAX];
       snprintf(fullpath, sizeof(fullpath), "%s/%s/%s/%s/%s", base,
                first,second,third,entries[i]);
-      ingest(fullpath,first,second,third);
+      ingest(fullpath,first,second,third,sweeping);
     }
   }
   for(i=0; i<cnt; i++)
@@ -124,7 +126,8 @@ stratcon_ingest_sweep_journals(const char *base, int (*test)(const char *),
                                int (*ingest)(const char *fullpath,
                                              const char *remote_str,
                                              const char *remote_cn,
-                                             const char *id_str)) {
-  stratcon_ingest_sweep_journals_int(base, NULL,NULL,NULL, test, ingest);
+                                             const char *id_str,
+                                             const mtev_boolean sweeping)) {
+  stratcon_ingest_sweep_journals_int(base, NULL,NULL,NULL, mtev_true, test, ingest);
 }
 

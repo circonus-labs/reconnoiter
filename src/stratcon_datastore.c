@@ -114,12 +114,14 @@ interim_journal_free(void *vij) {
 
 static int
 stratcon_ingest(const char *fullpath, const char *remote_str,
-                const char *remote_cn, const char *id_str) {
+                const char *remote_cn, const char *id_str,
+                const mtev_boolean sweeping) {
   ingest_chain_t *ic;
   int err = 0;
   for(ic = ingestor_chain; ic; ic = ic->next)
     if(ic->ingestor->launch_file_ingestion(fullpath, remote_str,
-                                           remote_cn, id_str))
+                                           remote_cn, id_str,
+                                           sweeping))
       err = -1;
   if(err == 0) {
     unlink(fullpath);
@@ -176,7 +178,8 @@ stratcon_datastore_journal_sync(eventer_t e, int mask, void *closure,
       ij->fd = -1;
       snprintf(id_str, sizeof(id_str), "%d", ij->storagenode_id);
       stratcon_ingest(ij->filename, ij->remote_str,
-                      ij->remote_cn, id_str);
+                      ij->remote_cn, id_str,
+                      mtev_false);
     }
     mtev_hash_destroy(syncset->ws, free, interim_journal_free);
     free(syncset->ws);
