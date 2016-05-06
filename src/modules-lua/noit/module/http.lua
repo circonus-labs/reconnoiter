@@ -258,7 +258,7 @@ function get_new_uri(old_uri, new_uri)
         local rindex = string.match(toReturn, '.*()'.."/")
         toReturn = string.sub(toReturn, 1, rindex-1)
         toReturn = toReturn .. new_uri
-    elseif string.sub(new_uri, 1, 1) ~= "." then 
+    elseif string.sub(new_uri, 1, 1) ~= "." then
         toReturn = new_uri
     else
         toReturn = string.gsub(toReturn, "%/%?", "?")
@@ -292,6 +292,8 @@ function get_absolute_path(uri)
         local rindex = string.match(back_substring, '.*()' .. "/")
         if rindex ~= nil then
             toReturn = string.sub(toReturn, 1, rindex) .. forward_substring
+        else
+            toReturn = "/" .. forward_substring
         end
         go_back = string.find(toReturn, "%.%./")
     end
@@ -655,4 +657,3 @@ function initiate(module, check)
     if good then check.good() else check.bad() end
     check.status(status)
 end
-
