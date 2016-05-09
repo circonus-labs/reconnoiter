@@ -51,8 +51,16 @@
 #define DEFAULT_HTTPTRAP_DELIMITER '`'
 #define MAX_DEPTH 32
 
+#define HT_EX_TYPE 0x1
+#define HT_EX_VALUE 0x2
+#define HT_EX_TS 0x4
+#define HT_EX_TAGS 0x8
+
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
+static mtev_log_stream_t nlyajl = NULL;
+
+#define _YD(fmt...) mtevL(nlyajl, fmt)
 
 typedef struct _mod_config {
   mtev_hash_table *options;
@@ -151,15 +159,20 @@ static int
 httptrap_yajl_cb_null(void *ctx) {
   struct rest_json_payload *json = ctx;
   int rv;
-  if(json->depth<0) return 0;
+  if(json->depth<0) {
+    _YD("[%3d] cb_null [BAD]\n", json->depth);
+    return 0;
+  }
   rv = set_array_key(json);
-  if(json->last_special_key == 0x2) {
+  if(json->last_special_key == HT_EX_VALUE) {
+    _YD("[%3d]*cb_null\n", json->depth);
     NEW_LV(json, NULL);
     return 1;
   }
   if(json->last_special_key) return 0;
   if(rv) return 1;
   if(json->keys[json->depth]) {
+    _YD("[%3d] cb_null\n", json->depth);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, NULL);
     if(json->immediate)
@@ -173,17 +186,21 @@ static int
 httptrap_yajl_cb_boolean(void *ctx, int boolVal) {
   int ival, rv;
   struct rest_json_payload *json = ctx;
-  mtevL(mtev_error, "BOOL\n");
-  if(json->depth<0) return 0;
+  if(json->depth<0) {
+    _YD("[%3d] cb_boolean [BAD]\n", json->depth);
+    return 0;
+  }
   rv = set_array_key(json);
-  if(json->last_special_key == 0x2) {
+  if(json->last_special_key == HT_EX_VALUE) {
     NEW_LV(json, strdup(boolVal ? "1" : "0"));
+    _YD("[%3d]*cb_boolean -> %s\n", json->depth, boolVal ? "true" : "false");
     return 1;
   }
   if(json->last_special_key) return 0;
   if(rv) return 1;
   if(json->keys[json->depth]) {
     ival = boolVal ? 1 : 0;
+    _YD("[%3d] cb_boolean -> %s\n", json->depth, boolVal ? "true" : "false");
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_INT32, &ival);
     if(json->immediate)
@@ -199,22 +216,31 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
   char val[128];
   struct rest_json_payload *json = ctx;
   int rv;
-  if(json->depth<0) return 0;
+  if(json->depth<0) {
+    _YD("[%3d] cb_number [BAD]\n", json->depth);
+    return 0;
+  }
   rv = set_array_key(json);
-  if(json->last_special_key == 0x2) {
+  if(json->last_special_key == HT_EX_VALUE) {
     char *str;
     str = malloc(numberLen+1);
     memcpy(str, numberVal, numberLen);
     str[numberLen] = '\0';
     NEW_LV(json, str);
+    _YD("[%3d] cb_number %s\n", json->depth, str);
     return 1;
   }
   if(rv) return 1;
-  if(json->last_special_key) return 0;
+  if(json->last_special_key == HT_EX_TS) return 1;
+  if(json->last_special_key) {
+    _YD("[%3d] cb_number [BAD]\n", json->depth);
+    return 0;
+  }
   if(json->keys[json->depth]) {
     if(numberLen > sizeof(val)-1) numberLen = sizeof(val)-1;
     memcpy(val, numberVal, numberLen);
     val[numberLen] = '\0';
+    _YD("[%3d] cb_number %s\n", json->depth, val);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate)
@@ -230,33 +256,47 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
   struct rest_json_payload *json = ctx;
   char val[4096];
   int rv;
-  if(json->depth<0) return 0;
+  if(json->depth<0) {
+    _YD("[%3d] cb_string [BAD]\n", json->depth);
+    return 0;
+  }
+  if(json->last_special_key == HT_EX_TS) /* handle ts */
+    return 1;
+  if(json->last_special_key == HT_EX_TAGS) /* handle tag */
+    return 1;
   rv = set_array_key(json);
-  if(json->last_special_key == 0x1) {
+  if(json->last_special_key == HT_EX_TYPE) {
     if(stringLen != 1) return 0;
     if(*stringVal == 'L' || *stringVal == 'l' ||
         *stringVal == 'I' || *stringVal == 'i' ||
         *stringVal == 'n' || *stringVal == 's') {
       json->last_type = *stringVal;
-      json->saw_complex_type |= 0x1;
+      json->saw_complex_type |= HT_EX_TYPE;
+      _YD("[%3d] cb_string { _type: %c }\n", json->depth, *stringVal);
       return 1;
     }
+    _YD("[%3d] cb_string { bad _type: %.*s }\n", json->depth,
+        (int)stringLen, stringVal);
     return 0;
   }
-  else if(json->last_special_key == 0x2) {
+  else if(json->last_special_key == HT_EX_VALUE) {
     char *str;
     str = malloc(stringLen+1);
     memcpy(str, stringVal, stringLen);
     str[stringLen] = '\0';
     NEW_LV(json, str);
-    json->saw_complex_type |= 0x2;
+    _YD("[%3d] cb_string { _value: %s }\n", json->depth, str);
+    json->saw_complex_type |= HT_EX_VALUE;
     return 1;
   }
+  else if(json->last_special_key == HT_EX_TS) return 1;
+  else if(json->last_special_key == HT_EX_TAGS) return 1;
   if(rv) return 1;
   if(json->keys[json->depth]) {
     if(stringLen > sizeof(val)-1) stringLen = sizeof(val)-1;
     memcpy(val, stringVal, stringLen);
     val[stringLen] = '\0';
+    _YD("[%3d] cb_string %s\n", json->depth, val);
     noit_stats_set_metric(json->check,
         json->keys[json->depth], METRIC_GUESS, val);
     if(json->immediate)
@@ -269,6 +309,7 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
 static int
 httptrap_yajl_cb_start_map(void *ctx) {
   struct rest_json_payload *json = ctx;
+  _YD("[%3d] cb_start_map\n", json->depth);
   if(set_array_key(json)) return 1;
   json->depth++;
   if(json->depth >= MAX_DEPTH) return 0;
@@ -278,6 +319,7 @@ static int
 httptrap_yajl_cb_end_map(void *ctx) {
   struct value_list *p, *last_p = NULL;
   struct rest_json_payload *json = ctx;
+  _YD("[%3d]%-.*s cb_end_map\n", json->depth, json->depth, "");
   json->depth--;
   if(json->saw_complex_type == 0x3) {
     long double total = 0, cnt = 0;
@@ -323,6 +365,7 @@ httptrap_yajl_cb_end_map(void *ctx) {
 static int
 httptrap_yajl_cb_start_array(void *ctx) {
   struct rest_json_payload *json = ctx;
+  set_array_key(json);
   json->depth++;
   json->array_depth[json->depth]++;
   return 1;
@@ -342,14 +385,22 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
   if(json->keys[json->depth]) free(json->keys[json->depth]);
   json->keys[json->depth] = NULL;
   if(stringLen == 5 && memcmp(key, "_type", 5) == 0) {
-    json->last_special_key = 0x1;
+    json->last_special_key = HT_EX_TYPE;
     if(json->depth > 0) json->keys[json->depth] = strdup(json->keys[json->depth-1]);
     return 1;
   }
   if(stringLen == 6 && memcmp(key, "_value", 6) == 0) {
     if(json->depth > 0) json->keys[json->depth] = strdup(json->keys[json->depth-1]);
-    json->last_special_key = 0x2;
-    json->saw_complex_type |= 0x2;
+    json->last_special_key = HT_EX_VALUE;
+    json->saw_complex_type |= HT_EX_VALUE;
+    return 1;
+  }
+  if(stringLen == 3 && memcmp(key, "_ts", 3) == 0) {
+    json->last_special_key = HT_EX_TS;
+    return 1;
+  }
+  if(stringLen == 5 && memcmp(key, "_tags", 5) == 0) {
+    json->last_special_key = HT_EX_TAGS;
     return 1;
   }
   json->last_special_key = 0;
@@ -415,6 +466,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
             mask);
     if(len > 0) {
       yajl_status status;
+      _YD("inbound payload chunk (%d bytes) continuing YAJL parse\n", len);
       status = yajl_parse(rxc->parser, (unsigned char *)buffer, len);
       if(status != yajl_status_ok) {
         unsigned char *err;
@@ -435,6 +487,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
     if((mtev_http_request_payload_chunked(req) && len == 0) ||
        (rxc->len == content_length)) {
       rxc->complete = 1;
+      _YD("no more data, finishing YAJL parse\n");
       yajl_complete_parse(rxc->parser);
     }
   }
@@ -584,8 +637,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   if(rxc->error) goto error;
 
   cnt = push_payload_at_check(rxc);
-  
-  mtev_http_response_ok(ctx, "application/json");
+
+  mtev_http_response_status_set(ctx, 200, "OK"); 
+  mtev_http_response_header_set(ctx, "Content-Type", "application/json");
+  mtev_http_response_option_set(ctx, MTEV_HTTP_CLOSE); 
   
   /*Examine headers for x-circonus-httptrap-debug flag*/
   req = mtev_http_session_request(ctx);
@@ -699,6 +754,7 @@ static int noit_httptrap_config(noit_module_t *self, mtev_hash_table *options) {
 static int noit_httptrap_onload(mtev_image_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/httptrap");
   if(!nldeb) nldeb = mtev_log_stream_find("debug/httptrap");
+  if(!nlyajl) nlyajl = mtev_log_stream_find("debug/httptrap_yajl");
   if(!nlerr) nlerr = noit_error;
   if(!nldeb) nldeb = noit_debug;
   return 0;
