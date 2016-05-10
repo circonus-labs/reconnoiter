@@ -54,8 +54,11 @@ static pcre *fallback_no_match = NULL;
 #define LOCKFS() pthread_mutex_lock(&filterset_lock)
 #define UNLOCKFS() pthread_mutex_unlock(&filterset_lock)
 
-typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY } noit_ruletype_t;
+typedef enum { NOIT_FILTER_ACCEPT, NOIT_FILTER_DENY, NOIT_FILTER_SKIPTO } noit_ruletype_t;
 typedef struct _filterrule {
+  char *ruleid;
+  char *skipto;
+  struct _filterrule *skipto_rule;
   noit_ruletype_t type;
   pcre *target_override;
   pcre *target;
@@ -102,6 +105,8 @@ filterrule_free(void *vp) {
   FRF(r,module);
   FRF(r,name);
   FRF(r,metric);
+  free(r->ruleid);
+  free(r->skipto);
   free(r);
 }
 static void
@@ -144,15 +149,25 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
     filterrule_t *rule;
     char buffer[256];
     if(!mtev_conf_get_stringbuf(rules[j], "@type", buffer, sizeof(buffer)) ||
-       (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny"))) {
-      mtevL(noit_error, "rule must have type 'accept' or 'allow' or 'deny'\n");
+       (strcmp(buffer, "accept") && strcmp(buffer, "allow") && strcmp(buffer, "deny") &&
+        strncmp(buffer, "skipto:", strlen("skipto:")))) {
+      mtevL(noit_error, "rule must have type 'accept' or 'allow' or 'deny' or 'skipto:'\n");
       continue;
     }
     mtevL(noit_debug, "Prepending %s into %s\n", buffer, set->name);
     rule = calloc(1, sizeof(*rule));
-    rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
-                   NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
+    if(!strncasecmp(buffer, "skipto:", strlen("skipto:"))) {
+      rule->type = NOIT_FILTER_SKIPTO;
+      rule->skipto = strdup(buffer+strlen("skipto:"));
+    }
+    else {
+      rule->type = (!strcmp(buffer, "accept") || !strcmp(buffer, "allow")) ?
+                     NOIT_FILTER_ACCEPT : NOIT_FILTER_DENY;
+    }
 
+    if(mtev_conf_get_stringbuf(rules[j], "@id", buffer, sizeof(buffer))) {
+      rule->ruleid = strdup(buffer);
+    }
     /* Compile any hash tables, should they exist */
 #define HT_COMPILE(rname) do { \
     mtev_conf_section_t *htentries; \
@@ -208,6 +223,22 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       RULE_COMPILE(metric);
     rule->next = set->rules;
     set->rules = rule;
+  }
+
+  filterrule_t *cursor;
+  for(cursor = set->rules; cursor->next; cursor = cursor->next) {
+    if(cursor->skipto) {
+      filterrule_t *target;
+      for(target = cursor->next; target; target = target->next) {
+        if(target->ruleid && !strcmp(cursor->skipto, target->ruleid)) {
+          cursor->skipto_rule = target;
+          break;
+        }
+      }
+      if(!cursor->skipto_rule)
+        mtevL(noit_error, "filterset %s skipto:%s not found\n",
+              set->name, cursor->skipto);
+    }
   }
   free(rules);
   LOCKFS();
@@ -299,18 +330,27 @@ noit_apply_filterset(const char *filterset,
   LOCKFS();
   if(mtev_hash_retrieve(filtersets, filterset, strlen(filterset), &vfs)) {
     filterset_t *fs = (filterset_t *)vfs;
-    filterrule_t *r;
-    int idx = 1;
+    filterrule_t *r, *skipto_rule = NULL;
+    int idx = 0;
     mtev_atomic_inc32(&fs->ref_cnt);
     UNLOCKFS();
 #define MATCHES(rname, value) noit_apply_filterrule(r->rname##_ht, r->rname ? r->rname : r->rname##_override, r->rname ? r->rname##_e : NULL, value)
     for(r = fs->rules; r; r = r->next) {
       int need_target, need_module, need_name, need_metric;
+      /* If we're targeting a skipto rule, match or continue */
+      idx++;
+      if(skipto_rule && skipto_rule != r) continue;
+      skipto_rule = NULL;
+
       need_target = !MATCHES(target, check->target);
       need_module = !MATCHES(module, check->module);
       need_name = !MATCHES(name, check->name);
       need_metric = !MATCHES(metric, metric->metric_name);
       if(!need_target && !need_module && !need_name && !need_metric) {
+        if(r->type == NOIT_FILTER_SKIPTO) {
+          skipto_rule = r->skipto_rule;
+          continue;
+        }
         return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
       }
       /* If we need some of these and we have an auto setting that isn't fulfilled for each of them, we can add and succeed */
@@ -327,9 +367,12 @@ noit_apply_filterset(const char *filterset,
         if(need_name) UPDATE_FILTER_RULE(idx, name, check->name);
         if(need_metric) UPDATE_FILTER_RULE(idx, metric, metric->metric_name);
         noit_filterset_log_auto_add(fs->name, check, metric, r->type == NOIT_FILTER_ACCEPT);
+        if(r->type == NOIT_FILTER_SKIPTO) {
+          skipto_rule = r->skipto_rule;
+          continue;
+        }
         return (r->type == NOIT_FILTER_ACCEPT) ? mtev_true : mtev_false;
       }
-      idx++;
     }
     filterset_free(fs);
     return mtev_false;
@@ -403,6 +446,8 @@ noit_console_filter_show(mtev_console_closure_t ncct,
     DUMP_ATTR(module);
     DUMP_ATTR(name);
     DUMP_ATTR(metric);
+    DUMP_ATTR(id);
+    DUMP_ATTR(skipto);
   }
   if(rules) free(rules);
   return 0;
@@ -471,7 +516,8 @@ noit_console_rule_configure(mtev_console_closure_t ncct,
     for(i=0;i<argc;i+=2) {
       if(!strcmp(argv[i], "type")) needs_type = 0;
       else if(strcmp(argv[i], "target") && strcmp(argv[i], "module") &&
-              strcmp(argv[i], "name") && strcmp(argv[i], "metric")) {
+              strcmp(argv[i], "name") && strcmp(argv[i], "metric") &&
+              strcmp(argv[i], "id")) {
         nc_printf(ncct, "unknown attribute '%s'\n", argv[i]);
         return -1;
       }
