@@ -323,6 +323,8 @@ stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
                               &mask, e);
         if(len < 0) {
           if(errno == EAGAIN) return mask | EVENTER_EXCEPTION;
+          mtevL(noit_error, "[%s] [%s] initiating stream failed -> %d/%s.\n", 
+                nctx->remote_str ? nctx->remote_str : "(null)", nctx->remote_cn ? nctx->remote_cn : "(null)", errno, strerror(errno));
           goto socket_error;
         }
         if(len != sizeof(ctx->jlog_feed_cmd)) {
