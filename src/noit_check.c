@@ -1666,6 +1666,15 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
+void
+__mark_metric_logged(stats_t *newstate, const char *metric_name) {
+  void *vm;
+  if(mtev_hash_retrieve(&newstate->metrics,
+                        metric_name, strlen(metric_name), &vm)) {
+    ((metric_t *)vm)->logged = mtev_true;
+  }
+}
+
 static size_t
 noit_metric_sizes(metric_type_t type, const void *value) {
   switch(type) {
@@ -1943,6 +1952,7 @@ noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 void *value) {
   struct timeval now;
+  stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
   memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
@@ -1952,6 +1962,8 @@ noit_stats_log_immediate_metric(noit_check_t *check,
   gettimeofday(&now, NULL);
   noit_check_log_metric(check, &now, m);
   mtev_memory_safe_free(m);
+  c = noit_check_get_stats_inprogress(check);
+  __mark_metric_logged(c, name);
 }
 
 void

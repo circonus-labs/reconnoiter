@@ -237,6 +237,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
   const char *v_comp;
 
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(m->logged) return 0;
 
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), ls, check);
   v_comp = mtev_log_stream_get_property(ls, "compression");
@@ -317,6 +318,7 @@ _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
   char our_uuid_str[256*3+37];
   int srv = 0;
   if(!noit_apply_filterset(check->filterset, check, m)) return 0;
+  if(m->logged) return 0;
   if(!N_L_S_ON(ls)) return 0;
 
   if(!uuid_str) {
@@ -503,6 +505,7 @@ noit_check_log_bundle_serialize(mtev_log_stream_t ls, noit_check_t *check) {
       /* If we apply the filter set and it returns false, we don't log */
       metric_t *m = (metric_t *)vm;
       if(!noit_apply_filterset(check->filterset, check, m)) continue;
+      if(m->logged) continue;
       bundle.metrics[i] = malloc(sizeof(Metric));
       metric__init(bundle.metrics[i]);
       _noit_check_log_bundle_metric(ls, bundle.metrics[i], m);
