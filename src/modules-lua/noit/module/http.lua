@@ -605,11 +605,11 @@ function initiate(module, check)
       local sess = ssl_ctx.ssl_session;
       check.metric_uint32("cert_serial", peer.serial)
       check.metric_string("cert_ocsp", peer.ocsp)
-      check.metric_string("cert_type", string.lower(peer.type))
-      check.metric_string("cert_bits", string.lower(peer.bits))
-      check.metric_string("cert_sig_alg", string.lower(peer.signature_algorithm))
-      check.metric_string("ssl_session_version", string.lower(sess.ssl_version))
-      check.metric_string("ssl_session_cipher", string.lower(sess.cipher))
+      check.metric_string("cert_type", string.lower(peer.type or "-"))
+      check.metric_string("cert_bits", string.lower(peer.bits or "-"))
+      check.metric_string("cert_sig_alg", string.lower(peer.signature_algorithm or "-"))
+      check.metric_string("ssl_session_version", string.lower(sess.ssl_version or "-"))
+      check.metric_string("ssl_session_cipher", string.lower(sess.cipher or "-"))
       check.metric_int32("ssl_session_key_bits", sess.master_key_bits)
       local purposes = {}
       for k,v in pairs(peer.purpose) do
