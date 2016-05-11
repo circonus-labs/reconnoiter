@@ -116,6 +116,8 @@ nc_print_noit_conn_brief(mtev_console_closure_t ncct,
   char cmdbuf[4096];
   const char *feedtype = "unknown";
   const char *lasttime = "never";
+  const char *config_cn = NULL;
+  void *vcn;
   if(ctx->last_connect.tv_sec != 0) {
     time_t r = ctx->last_connect.tv_sec;
     struct tm tbuf, *tm;
@@ -123,10 +125,16 @@ nc_print_noit_conn_brief(mtev_console_closure_t ncct,
     strftime(cmdbuf, sizeof(cmdbuf), "%Y-%m-%d %H:%M:%S UTC", tm);
     lasttime = cmdbuf;
   }
-  nc_printf(ncct, "%s [%s]:\n\tLast connect: %s\n", ctx->remote_str,
+  nc_printf(ncct, "%s [%s]:\n", ctx->remote_str,
             ctx->remote_cn ? "connected" :
                              (ctx->retry_event ? "disconnected" :
-                                                   "connecting"), lasttime);
+                                                   "connecting"));
+  if(ctx->config &&
+     mtev_hash_retrieve(ctx->config, "cn", strlen("cn"), &vcn)) {
+     config_cn = vcn;
+  }
+  if(config_cn) nc_printf(ncct, "\tcn: %s\n", config_cn);
+  nc_printf(ncct, "\tLast connect: %s\n", lasttime);
   if(ctx->e) {
     char buff[128];
     const char *addrstr = NULL;
