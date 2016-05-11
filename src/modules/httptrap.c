@@ -511,7 +511,6 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   } else {
     // Don't count the first run
     struct timeval now, *last;
-    stats_t *inprogress;
     char human_buffer[256];
     ccl = (httptrap_closure_t*)check->closure;
     gettimeofday(&now, NULL);
@@ -533,9 +532,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     if(check->last_fire_time.tv_sec)
       noit_check_passive_set_stats(check);
 
-    inprogress = noit_check_get_stats_inprogress(check);
-    last = noit_check_stats_whence(inprogress, NULL);
-    memcpy(&check->last_fire_time, last, sizeof(duration));
+    memcpy(&check->last_fire_time, &now, sizeof(now));
   }
   ccl->stats_count = 0;
   return 0;
