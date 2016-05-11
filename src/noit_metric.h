@@ -58,6 +58,7 @@ typedef struct {
     char *s;
     void *vp; /* used for clever assignments */
   } metric_value;
+  mtev_boolean logged;
 } metric_t;
 
 #endif
