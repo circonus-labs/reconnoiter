@@ -1660,13 +1660,13 @@ noit_check_stats_clear(noit_check_t *check, stats_t *s) {
   s->available = NP_UNKNOWN;
 }
 
-void
+static void
 __stats_add_metric(stats_t *newstate, metric_t *m) {
   mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
-void
+static void
 __mark_metric_logged(stats_t *newstate, const char *metric_name) {
   void *vm;
   if(mtev_hash_retrieve(&newstate->metrics,
