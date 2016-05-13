@@ -306,10 +306,16 @@ API_EXPORT(void)
 API_EXPORT(void)
   noit_check_transient_remove_feed(noit_check_t *check, const char *feed);
 
+/* Register your module */
 API_EXPORT(int)
   noit_check_register_module(const char *);
+/* Find a registered module's id */
+API_EXPORT(int)
+  noit_check_registered_module_by_name(const char *name);
+/* Get the count of registered modules */
 API_EXPORT(int)
   noit_check_registered_module_cnt();
+/* Get a registered module name by id */
 API_EXPORT(const char *)
   noit_check_registered_module(int);
 

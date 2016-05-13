@@ -2350,6 +2350,13 @@ noit_check_register_module(const char *name) {
   return i;
 }
 int
+noit_check_registered_module_by_name(const char *name) {
+  int i;
+  for(i=0; i<reg_module_id; i++)
+    if(!strcmp(reg_module_names[i], name)) return i;
+  return -1;
+}
+int
 noit_check_registered_module_cnt() {
   return reg_module_id;
 }

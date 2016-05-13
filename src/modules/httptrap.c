@@ -540,6 +540,25 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
   return 0;
 }
 
+static mtev_boolean
+cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
+  void *vstr;
+  mtev_hash_table *config;
+  static int reverse_check_module_id = -1;
+  if(reverse_check_module_id < 0) {
+    reverse_check_module_id = noit_check_registered_module_by_name("reverse");
+    if(reverse_check_module_id < 0) return mtev_false;
+  }
+mtevL(mtev_error, "reverse_check module found: %d\n", reverse_check_module_id);
+  config = noit_check_get_module_config(check, reverse_check_module_id);
+  if(!config) return mtev_false;
+  if(mtev_hash_retrieve(config, "key", strlen("key"), &vstr)) {
+mtevL(mtev_error, "reverse_check module key cmp: %s %s\n", vstr, secret);
+    if(!strcmp((const char *)vstr, secret)) return mtev_true;
+  }
+  return mtev_false;
+}
+
 static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
@@ -568,6 +587,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
 
   if(restc->call_closure == NULL) {
+    mtev_boolean allowed = mtev_false;
     httptrap_closure_t *ccl = NULL;
     const char *delimiter = NULL;
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
@@ -585,8 +605,10 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     /* check "secret" then "httptrap_secret" as a fallback */
     (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
     if(!secret) (void)mtev_hash_retr_str(check->config, "httptrap_secret", strlen("httptrap_secret"), &secret);
-    if(!secret) secret = "";
-    if(strcmp(pats[1], secret)) {
+    if(secret && !strcmp(pats[1], secret)) allowed = mtev_true;
+    if(!allowed && cross_module_reverse_allowed(check, pats[1])) allowed = mtev_true;
+
+    if(!allowed) {
       error = "secret mismatch";
       goto error;
     }

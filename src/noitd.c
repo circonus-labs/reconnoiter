@@ -269,6 +269,12 @@ static int child_main() {
   noit_filters_init();
   noit_poller_init();
 
+  /* Allow the noit web dashboard to be served (only if document_root is set) */
+  assert(mtev_http_rest_register_auth(
+    "GET", "/", "^(.*)$", mtev_rest_simple_file_handler,
+           mtev_http_rest_client_cert_auth
+  ) == 0);
+
   /* Write our log out, and setup a watchdog to write it out on change. */
   mtev_conf_write_log(NULL);
   mtev_conf_coalesce_changes(10); /* 10 seconds of no changes before we write */
