@@ -549,11 +549,9 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
     reverse_check_module_id = noit_check_registered_module_by_name("reverse");
     if(reverse_check_module_id < 0) return mtev_false;
   }
-mtevL(mtev_error, "reverse_check module found: %d\n", reverse_check_module_id);
   config = noit_check_get_module_config(check, reverse_check_module_id);
   if(!config) return mtev_false;
   if(mtev_hash_retrieve(config, "key", strlen("key"), &vstr)) {
-mtevL(mtev_error, "reverse_check module key cmp: %s %s\n", vstr, secret);
     if(!strcmp((const char *)vstr, secret)) return mtev_true;
   }
   return mtev_false;
