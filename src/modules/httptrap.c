@@ -62,6 +62,8 @@ static mtev_log_stream_t nlyajl = NULL;
 
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
+static mtev_boolean httptrap_surrogate;
+
 typedef struct _mod_config {
   mtev_hash_table *options;
   mtev_boolean asynch_metrics;
@@ -449,14 +451,14 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
                     int *mask, int *complete) {
   struct rest_json_payload *rxc;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
-  httptrap_closure_t *ccl;
+  httptrap_closure_t *ccl = NULL;
   int content_length;
   char buffer[32768];
 
   content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
-  ccl = rxc->check->closure;
-  rxc->immediate = noit_httptrap_check_asynch(ccl->self, rxc->check);
+  if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
+  rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : NULL, rxc->check);
   while(!rxc->complete) {
     int len;
     len = mtev_http_session_req_consume(
@@ -539,20 +541,6 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
 }
 
 static int
-push_payload_at_check(struct rest_json_payload *rxc) {
-  httptrap_closure_t *ccl;
-
-  if (!rxc->check || strcmp(rxc->check->module, "httptrap")) return 0;
-  if (rxc->check->closure == NULL) return 0;
-  ccl = rxc->check->closure;
-  noit_httptrap_check_asynch(ccl->self,rxc->check);
-
-  /* do it here */
-  ccl->stats_count = rxc->cnt;
-  return rxc->cnt;
-}
-
-static int
 rest_httptrap_handler(mtev_http_rest_closure_t *restc,
                       int npats, char **pats) {
   int mask, complete = 0, cnt;
@@ -580,30 +568,34 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   }
 
   if(restc->call_closure == NULL) {
-    httptrap_closure_t *ccl;
+    httptrap_closure_t *ccl = NULL;
     const char *delimiter = NULL;
     rxc = restc->call_closure = calloc(1, sizeof(*rxc));
     rxc->delimiter = DEFAULT_HTTPTRAP_DELIMITER;
     check = noit_poller_lookup(check_id);
-    if(!check || strcmp(check->module, "httptrap")) {
+    if(!check) {
+      error = "no such check";
+      goto error;
+    }
+    if(!httptrap_surrogate && strcmp(check->module, "httptrap")) {
       error = "no such httptrap check";
       goto error;
     }
-    
+ 
+    /* check "secret" then "httptrap_secret" as a fallback */
     (void)mtev_hash_retr_str(check->config, "secret", strlen("secret"), &secret);
+    if(!secret) (void)mtev_hash_retr_str(check->config, "httptrap_secret", strlen("httptrap_secret"), &secret);
     if(!secret) secret = "";
     if(strcmp(pats[1], secret)) {
       error = "secret mismatch";
       goto error;
     }
+
+    /* check "delimiter" then "httptrap_delimiter" as a fallback */
     (void)mtev_hash_retr_str(check->config, "delimiter", strlen("delimiter"), &delimiter);
+    if(!delimiter) (void)mtev_hash_retr_str(check->config, "httptrap_delimiter", strlen("httptrap_delimiter"), &delimiter);
     if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
-    ccl = check->closure;
-    if(!ccl) {
-      error = "noitd is booting, try again in a bit";
-      goto error;
-    }
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);
@@ -633,7 +625,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   if(!rxc) goto error;
   if(rxc->error) goto error;
 
-  cnt = push_payload_at_check(rxc);
+  cnt = rxc->cnt;
 
   mtev_http_response_status_set(ctx, 200, "OK"); 
   mtev_http_response_header_set(ctx, "Content-Type", "application/json");
@@ -768,6 +760,14 @@ static int noit_httptrap_init(noit_module_t *self) {
                         (const char **)&config_val)) {
     if(!strcasecmp(config_val, "false") || !strcasecmp(config_val, "off"))
       conf->asynch_metrics = mtev_false;
+  }
+
+  httptrap_surrogate = mtev_false;
+  if(mtev_hash_retr_str(conf->options,
+                        "surrogate", strlen("surrogate"),
+                        (const char **)&config_val)) {
+    if(!strcasecmp(config_val, "true") || !strcasecmp(config_val, "on"))
+      httptrap_surrogate = mtev_true;
   }
 
   noit_module_set_userdata(self, conf);
