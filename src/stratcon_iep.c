@@ -68,6 +68,7 @@ eventer_jobq_t iep_jobq;
 static mtev_log_stream_t noit_iep = NULL;
 static mtev_log_stream_t noit_iep_debug = NULL;
 static mtev_spinlock_t iep_conn_cnt = 0;
+static mtev_boolean inject_remote_cn = mtev_false;
 
 static mtev_hash_table mq_drivers = MTEV_HASH_EMPTY;
 struct driver_thread_data {
@@ -462,7 +463,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
                             struct sockaddr *remote, const char *remote_cn,
                             void *operand, eventer_t completion) {
   int len;
-  char remote_str[128];
+  char remote_str[256];
   struct iep_job_closure *jc;
   eventer_t newe;
   /* We only care about inserts */
@@ -473,22 +474,28 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   }
   if(op != DS_OP_INSERT) return;
 
-  snprintf(remote_str, sizeof(remote_str), "%s", "0.0.0.0");
-  if(remote) {
-    switch(remote->sa_family) {
-      case AF_INET:
-        len = sizeof(struct sockaddr_in);
-        inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
-                  remote_str, len);
-        break;
-      case AF_INET6:
-       len = sizeof(struct sockaddr_in6);
-        inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
-                  remote_str, len);
-       break;
-      case AF_UNIX:
-        snprintf(remote_str, sizeof(remote_str), "%s", ((struct sockaddr_un *)remote)->sun_path);
-        break;
+  if(inject_remote_cn) {
+    if(remote_cn == NULL) remote_cn = "default";
+    strlcpy(remote_str, remote_cn, sizeof(remote_str));
+  }
+  else {
+    snprintf(remote_str, sizeof(remote_str), "%s", "0.0.0.0");
+    if(remote) {
+      switch(remote->sa_family) {
+        case AF_INET:
+          len = sizeof(struct sockaddr_in);
+          inet_ntop(remote->sa_family, &((struct sockaddr_in *)remote)->sin_addr,
+                    remote_str, len);
+          break;
+        case AF_INET6:
+         len = sizeof(struct sockaddr_in6);
+          inet_ntop(remote->sa_family, &((struct sockaddr_in6 *)remote)->sin6_addr,
+                    remote_str, len);
+         break;
+        case AF_UNIX:
+          snprintf(remote_str, sizeof(remote_str), "%s", ((struct sockaddr_un *)remote)->sun_path);
+          break;
+      }
     }
   }
 
@@ -791,6 +798,8 @@ stratcon_iep_init() {
   int i, cnt;
   mtev_boolean disabled = mtev_false;
   char mq_type[128] = "stomp";
+  /* Only 32 so we can print out a reasonable length bad value */
+  char remote[32] = "ip";
   struct driver_list *newdriver;
   void *vdriver;
 
@@ -798,6 +807,15 @@ stratcon_iep_init() {
   noit_iep_debug = mtev_log_stream_find("debug/iep");
   if(!noit_iep) noit_iep = noit_error;
   if(!noit_iep_debug) noit_iep_debug = noit_debug;
+
+  if(mtev_conf_get_stringbuf(NULL, "/stratcon/iep/@inject_remote", remote, sizeof(remote))) {
+    if(strcmp(remote, "ip") && strcmp(remote, "cn")) {
+      mtevL(noit_iep, "Bad @remote_inject \"%s\", setting to \"cn\"\n", remote);
+      strlcpy(remote, "ip", sizeof(remote));
+    }
+  }
+  if(!strcmp(remote, "ip")) inject_remote_cn = mtev_false;
+  else if(!strcmp(remote, "cn")) inject_remote_cn = mtev_true;
 
   if(mtev_conf_get_boolean(NULL, "/stratcon/iep/@disabled", &disabled) &&
      disabled == mtev_true) {
