@@ -439,11 +439,11 @@ double_to_hist_bucket(double d) {
     // of the exected rounding errors of the above transformations)
     hb.val = sign * (int)floor(d + 1e-13);
     if(hb.val == 100 || hb.val == -100) {
-      if (hb.exp > -127) {
+      if (hb.exp < 127) {
         hb.val /= 10;
-        hb.exp--;
-      } else {
-        hb.val = 0;
+        hb.exp++;
+      } else { // can't increase exponent. Return NaN
+        hb.val = (int8_t)0xff;
         hb.exp = 0;
       }
     }
