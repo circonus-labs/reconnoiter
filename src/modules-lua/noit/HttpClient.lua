@@ -87,6 +87,7 @@ function HttpClient:do_request(method, uri, _headers, payload, http_version)
     local version = http_version or "1.1"
     local headers = Headers()
     for k,v in pairs(_headers) do headers[k] = v end
+    self.method = method:lower()
     self.raw_bytes = 0
     self.content_bytes = 0
     local sstr = method .. " " .. uri .. " " .. "HTTP/" ..  version .. "\r\n"
@@ -226,6 +227,7 @@ end
 
 function HttpClient:get_body(read_limit)
     local cefunc = ce_passthru
+    if self.method == 'head' then return te_none(self) end
     local ce = self.headers["Content-Encoding"]
     if ce ~= nil then
       local deflater
