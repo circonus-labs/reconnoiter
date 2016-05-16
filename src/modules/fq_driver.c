@@ -173,9 +173,13 @@ static int extract_uuid_from_jlog(const char *payload, size_t payloadlen,
 
 static void fq_logger(fq_client c, const char *err) {
   int i;
-  mtevL(nlerr, "fq: %s\n", err);
+  int len = strlen(err);
+  mtev_boolean need_lf = mtev_true;
+  if(len > 0 && err[len-1] == '\n') need_lf = mtev_false;
+
   for(i=0;i<global_fq_ctx.nhosts;i++) {
     if(c == global_fq_ctx.client[i]) {
+      mtevL(nlerr, "fq[%d]: %s%s", i, err, need_lf ? "\n" : "");
       BUMPSTAT(i, error_messages);
       /* We only care about this if we're using round robin processing */
       if (global_fq_ctx.round_robin) {
@@ -186,6 +190,10 @@ static void fq_logger(fq_client c, const char *err) {
       }
       break;
     }
+  }
+  if(i>=global_fq_ctx.nhosts) {
+    /* This isn't one we know about... very odd! */
+    mtevL(nlerr, "fq[???]: %s%s", err, need_lf ? "\n" : "");
   }
 }
 
