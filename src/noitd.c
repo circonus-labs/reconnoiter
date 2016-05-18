@@ -71,6 +71,7 @@
 #include "noit_module.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
+#include "noit_metric_director.h"
 
 #define APPNAME "noit"
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
@@ -268,6 +269,7 @@ static int child_main() {
   /* Prepare for launch... */
   noit_filters_init();
   noit_poller_init();
+  noit_metric_director_init();
 
   /* Allow the noit web dashboard to be served (only if document_root is set) */
   assert(mtev_http_rest_register_auth(

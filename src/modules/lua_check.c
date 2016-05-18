@@ -506,6 +506,16 @@ noit_check_index_func(lua_State *L) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_interpolate, 1);
       }
+      else if(!strcmp(k, "is_thread_local")) {
+        if(check->fire_event &&
+           pthread_equal(pthread_self(), check->fire_event->thr_owner)) {
+          lua_pushboolean(L, 1);
+        }
+        else {
+          lua_pushboolean(L, 0);
+        }
+        return 1;
+      }
       else break;
                        return 1;
     case 'm':
