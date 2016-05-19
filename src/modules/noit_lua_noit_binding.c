@@ -104,6 +104,22 @@ static int
 lua_noit_metric_unsubscribe(lua_State *L) {
   return lua_noit_metric_adjustsubscribe(L, -1);
 }
+
+static int
+lua_noit_checks_adjustsubscribe(lua_State *L, short bump) {
+  noit_adjust_checks_interest(bump);
+  return 0;
+}
+
+static int
+lua_noit_checks_subscribe(lua_State *L) {
+  return lua_noit_checks_adjustsubscribe(L, 1);
+}
+static int
+lua_noit_checks_unsubscribe(lua_State *L) {
+  return lua_noit_checks_adjustsubscribe(L, -1);
+}
+
 static int
 lua_noit_metric_next(lua_State *L) {
   char *line;
@@ -121,6 +137,8 @@ static const luaL_Reg noit_binding[] = {
   { "valid_ip", nl_valid_ip },
   { "check", nl_check },
   { "filtersets_cull", lua_general_filtersets_cull },
+  { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
+  { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
   { "metric_director_subscribe", lua_noit_metric_subscribe },
   { "metric_director_unsubscribe", lua_noit_metric_unsubscribe },
   { "metric_director_next", lua_noit_metric_next },

@@ -34,7 +34,17 @@
 #include <uuid/uuid.h>
 
 void noit_metric_director_init();
+
+/* Tells noit to funnel all observed lines matching this id-metric
+ * back to this thread */
 void noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
+
+/* Tells noit that this thread is interested in recieving "check" information.
+ * This includes C records and S records.
+ */
+void noit_adjust_checks_interest(short cnt);
+
+/* This gets the next line you've subscribed to, if avaialable. */
 char *noit_metric_director_lane_next();
 
 #endif

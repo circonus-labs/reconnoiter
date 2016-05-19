@@ -72,6 +72,7 @@ static int nthreads;
 static volatile void **thread_queues;
 static mtev_hash_table id_level;
 typedef unsigned short caql_cnt_t;
+static caql_cnt_t *check_interests;
 
 static int
 get_my_lane() {
@@ -87,6 +88,19 @@ get_my_lane() {
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", pthread_self(), my_lane.id);
   }
   return my_lane.id;
+}
+
+void
+noit_adjust_checks_interest(short cnt) {
+  int thread_id, icnt;
+
+  thread_id = get_my_lane();
+
+  icnt = check_interests[thread_id];
+  icnt += cnt;
+  if(icnt < 0) icnt = 0;
+  assert(icnt <= 0xffff);
+  check_interests[thread_id] = icnt;
 }
 
 void
@@ -135,9 +149,26 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 }
 
 static void
+distribute_line(caql_cnt_t *interests,
+                const char *line, int line_len) {
+  int i;
+  for(i=0;i<nthreads;i++) {
+    if(interests[i] > 0) {
+      char *copy = mtev__strndup(line, line_len);
+      ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *)thread_queues[i];
+      ck_fifo_spsc_entry_t *fifo_entry;
+      fifo_entry = ck_fifo_spsc_recycle(fifo);
+      if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
+      ck_fifo_spsc_enqueue_lock(fifo);
+      ck_fifo_spsc_enqueue(fifo, fifo_entry, copy);
+      ck_fifo_spsc_enqueue_unlock(fifo);
+    }
+  }
+}
+
+static void
 distribute_metric(struct metric *metric, 
                   const char *line, int line_len) {
-  int i;
   void *vhash, *vinterests;
   char uuid_str[UUID_STR_LEN+1];
   uuid_unparse_lower(metric->id, uuid_str);
@@ -146,20 +177,14 @@ distribute_metric(struct metric *metric,
                           metric->metric_name, metric->metric_name_len,
                           &vinterests)) {
       caql_cnt_t *interests = vinterests;
-      for(i=0;i<nthreads;i++) {
-        if(interests[i] > 0) {
-          char *copy = mtev__strndup(line, line_len);
-          ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *)thread_queues[i];
-          ck_fifo_spsc_entry_t *fifo_entry;
-          fifo_entry = ck_fifo_spsc_recycle(fifo);
-          if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
-          ck_fifo_spsc_enqueue_lock(fifo);
-          ck_fifo_spsc_enqueue(fifo, fifo_entry, copy);
-          ck_fifo_spsc_enqueue_unlock(fifo);
-        }
-      }
+      distribute_line(interests, line, line_len);
     }
   }
+}
+
+static void
+distribute_check(const char *line, int line_len) {
+  distribute_line(check_interests, line, line_len);
 }
 
 char *noit_metric_director_lane_next() {
@@ -175,12 +200,16 @@ char *noit_metric_director_lane_next() {
 static void
 handle_metric_buffer(const char *payload, int payload_len, int has_noit) {
   switch(payload[0]) {
+    case 'C':
+    case 'S':
+      distribute_check(payload, payload_len);
+      break;
     case 'H':
     case 'M':
       {
-        struct metric metric;
-        if(extract_metric((const char *)payload, payload_len, &metric, has_noit)) {
-          distribute_metric(&metric, (const char *)payload, payload_len);
+        struct metric m;
+        if(extract_metric((const char *)payload, payload_len, &m, has_noit)) {
+          distribute_metric(&m, (const char *)payload, payload_len);
         }
       }
       break;
@@ -190,10 +219,7 @@ handle_metric_buffer(const char *payload, int payload_len, int has_noit) {
         char **metrics = NULL;
         n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len, &metrics, has_noit);
         for(i=0;i<n_metrics;i++) {
-          struct metric metric;
-          if(extract_metric(metrics[i], strlen(metrics[i]), &metric, false)) {
-            distribute_metric(&metric, metrics[i], strlen(metrics[i]));
-          }
+          handle_metric_buffer(metrics[i], strlen(metrics[i]), false);
           free(metrics[i]);
         }
         free(metrics);
@@ -215,7 +241,9 @@ handle_log_line(void *closure, mtev_log_stream_t ls, struct timeval *whence,
                 const char *line, size_t len) {
   if(!ls) return MTEV_HOOK_CONTINUE;
   const char *name = mtev_log_stream_get_name(ls);
-  if(!name || (strcmp(name,"metrics") && strcmp(name,"bundle")))
+  if(!name ||
+     (strcmp(name,"metrics") && strcmp(name,"bundle") &&
+      strcmp(name,"check") && strcmp(name,"status")))
     return MTEV_HOOK_CONTINUE;
   handle_metric_buffer(line, len, 0);
   return MTEV_HOOK_CONTINUE;
@@ -225,6 +253,7 @@ void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
   assert(nthreads > 0);
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
+  check_interests = calloc(sizeof(*check_interests),nthreads);
   if(mtev_fq_handle_message_hook_register_available())
     mtev_fq_handle_message_hook_register("metric-director", handle_fq_message, NULL);
   mtev_log_line_hook_register("metric-director", handle_log_line, NULL);
