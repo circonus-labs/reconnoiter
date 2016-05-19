@@ -735,7 +735,7 @@ noit_poller_flush_epoch(int oldest_allowed) {
     }
     pthread_mutex_unlock(&polls_lock);
     if(i==0) break;
-    while(i>0) noit_poller_deschedule(tofree[--i]->checkid);
+    while(i>0) noit_poller_deschedule(tofree[--i]->checkid, mtev_true);
   }
 #undef TOFREE_PER_ITER
 }
