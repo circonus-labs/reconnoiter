@@ -800,7 +800,7 @@ rest_delete_check(mtev_http_rest_closure_t *restc,
     FAIL("internal error uuid");
 
   /* delete this here */
-  if(check) noit_poller_deschedule(check->checkid);
+  if(check) noit_poller_deschedule(check->checkid, mtev_true);
   CONF_REMOVE(node);
   xmlUnlinkNode(node);
   xmlFreeNode(node);
