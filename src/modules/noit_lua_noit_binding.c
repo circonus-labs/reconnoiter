@@ -34,6 +34,7 @@
 #include "noit_filters.h"
 #include "lua_mtev.h"
 #include "lua_check.h"
+#include "noit_metric_director.h"
 #include "lua.h"
 
 /* noit specific stuff */
@@ -85,11 +86,62 @@ lua_general_filtersets_cull(lua_State *L) {
   return 1;
 }
 
+static int
+lua_noit_metric_adjustsubscribe(lua_State *L, short bump) {
+  uuid_t id;
+  if(uuid_parse(lua_tostring(L,1), id)) {
+    luaL_error(L, "(un)subscribe expects a uuid as the first parameter");
+  }
+  noit_adjust_metric_interest(id, lua_tostring(L,2), bump);
+  return 0;
+}
+
+static int
+lua_noit_metric_subscribe(lua_State *L) {
+  return lua_noit_metric_adjustsubscribe(L, 1);
+}
+static int
+lua_noit_metric_unsubscribe(lua_State *L) {
+  return lua_noit_metric_adjustsubscribe(L, -1);
+}
+
+static int
+lua_noit_checks_adjustsubscribe(lua_State *L, short bump) {
+  noit_adjust_checks_interest(bump);
+  return 0;
+}
+
+static int
+lua_noit_checks_subscribe(lua_State *L) {
+  return lua_noit_checks_adjustsubscribe(L, 1);
+}
+static int
+lua_noit_checks_unsubscribe(lua_State *L) {
+  return lua_noit_checks_adjustsubscribe(L, -1);
+}
+
+static int
+lua_noit_metric_next(lua_State *L) {
+  char *line;
+  line = noit_metric_director_lane_next();
+  if(line) {
+    lua_pushstring(L, line);
+    free(line);
+    return 1;
+  }
+  return 0;
+}
+
 static const luaL_Reg noit_binding[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "check", nl_check },
   { "filtersets_cull", lua_general_filtersets_cull },
+  { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
+  { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },
+  { "metric_director_subscribe", lua_noit_metric_subscribe },
+  { "metric_director_unsubscribe", lua_noit_metric_unsubscribe },
+  { "metric_director_next", lua_noit_metric_next },
   { NULL, NULL }
 };
 
