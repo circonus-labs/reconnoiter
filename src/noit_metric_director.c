@@ -33,10 +33,15 @@
 #include <mtev_fq.h>
 #include <mtev_hash.h>
 #include <mtev_str.h>
+#include <mtev_log.h>
 #include <ck_fifo.h>
+#include <mtev_fq.h>
 
 #include <noit_metric_director.h>
 #include <noit_check_log_helpers.h>
+
+struct fq_conn_s;
+struct fq_msg;
 
 struct metric {
   uuid_t id;
@@ -230,8 +235,9 @@ handle_metric_buffer(const char *payload, int payload_len, int has_noit) {
   }
 }
 static mtev_hook_return_t
-handle_fq_message(void *closure, fq_client client, int idx, fq_msg *m) {
-  handle_metric_buffer((const char *)m->payload, m->payload_len, 1);
+handle_fq_message(void *closure, struct fq_conn_s *client, int idx, struct fq_msg *m,
+                  void *payload, size_t payload_len) {
+  handle_metric_buffer(payload, payload_len, 1);
   return MTEV_HOOK_CONTINUE;
 }
 static mtev_hook_return_t
