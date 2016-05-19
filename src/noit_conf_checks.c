@@ -676,7 +676,7 @@ noit_console_config_nocheck(mtev_console_closure_t ncct,
         CONF_DIRTY(node);
       } else {
         nc_printf(ncct, "descheduling %s\n", uuid_conf);
-        noit_poller_deschedule(checkid);
+        noit_poller_deschedule(checkid, mtev_true);
         CONF_REMOVE(node);
         xmlUnlinkNode(node);
       }

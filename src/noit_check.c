@@ -652,9 +652,10 @@ noit_poller_process_checks(const char *xpath) {
     }
     pthread_mutex_unlock(&polls_lock);
     if(found)
-      noit_poller_deschedule(uuid);
+      noit_poller_deschedule(uuid, mtev_false);
     if(backdated) {
       mtevL(noit_error, "Check config seq backwards, ignored\n");
+      if(found) noit_check_log_delete((noit_check_t *)vcheck);
     }
     else {
       noit_poller_schedule(target, module, name, filterset, options,
@@ -1169,7 +1170,7 @@ noit_check_update(noit_check_t *new_check,
     uuid_t id, dummy;
     uuid_copy(id, new_check->checkid);
     strlcpy(module, new_check->module, sizeof(module));
-    noit_poller_deschedule(id);
+    noit_poller_deschedule(id, mtev_false);
     return noit_poller_schedule(target, module, name, filterset,
                                 config, mconfigs, period, timeout, oncheck,
                                 seq, flags, id, dummy);
@@ -1397,7 +1398,7 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
 }
 
 int
-noit_poller_deschedule(uuid_t in) {
+noit_poller_deschedule(uuid_t in, mtev_boolean log) {
   void *vcheck;
   noit_check_t *checker;
   if(mtev_hash_retrieve(&polls,
@@ -1408,7 +1409,7 @@ noit_poller_deschedule(uuid_t in) {
   checker = (noit_check_t *)vcheck;
   checker->flags |= (NP_DISABLED|NP_KILLED);
 
-  noit_check_log_delete(checker);
+  if(log) noit_check_log_delete(checker);
 
   assert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
   assert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));

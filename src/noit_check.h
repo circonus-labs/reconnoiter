@@ -207,7 +207,7 @@ API_EXPORT(int)
   noit_check_activate(noit_check_t *check);
 
 API_EXPORT(int)
-  noit_poller_deschedule(uuid_t in);
+  noit_poller_deschedule(uuid_t in, mtev_boolean log);
 
 API_EXPORT(noit_check_t *)
   noit_poller_lookup(uuid_t in);
