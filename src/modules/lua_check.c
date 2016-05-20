@@ -808,15 +808,17 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
       }
       base = lua_gettop(ri->coro_state);
       if(base>0) {
-        if(lua_isstring(ri->coro_state, base)) {
+        int errbase;
+        mtev_lua_traceback(ri->coro_state);
+        errbase = lua_gettop(ri->coro_state);
+        if(lua_isstring(ri->coro_state, errbase)) {
           const char *err, *nerr;
-          err = lua_tostring(ri->coro_state, base);
-          nerr = lua_tostring(ri->coro_state, base - 2);
-          if(err) mtevL(nldeb, "err -> %s\n", err);
-          if(nerr) mtevL(nldeb, "nerr -> %s\n", nerr);
-          if(nerr && *nerr == 31) nerr = NULL; // 31? WTF lua?
-          if(err) {
-            nerr = strchr(err, ' '); /* advance past the file */
+          nerr = err = lua_tostring(ri->coro_state, errbase);
+          if(errbase != base)
+            nerr = lua_tostring(ri->coro_state, base);
+          if(err) mtevL(nldeb, "lua error: %s\n", err);
+          if(nerr) {
+            nerr = strchr(nerr, ' '); /* advance past the file */
             if(nerr) nerr += 1;
           }
           if(nerr) {
