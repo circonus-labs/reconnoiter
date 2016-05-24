@@ -1141,7 +1141,7 @@ noit_check_update(noit_check_t *new_check,
                   u_int32_t period,
                   u_int32_t timeout,
                   const char *oncheck,
-	  int64_t seq,
+                  int64_t seq,
                   int flags) {
   char uuid_str[37];
   int mask = NP_DISABLED | NP_UNCONFIG;
@@ -1264,7 +1264,6 @@ noit_check_update(noit_check_t *new_check,
     noit_check_activate(new_check);
 
   noit_check_add_to_list(new_check, NULL);
-  noit_check_log_check(new_check);
   return 0;
 }
 int
@@ -1299,6 +1298,7 @@ noit_poller_schedule(const char *target,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
   uuid_copy(out, new_check->checkid);
+  noit_check_log_check(new_check);
 
   return 0;
 }
