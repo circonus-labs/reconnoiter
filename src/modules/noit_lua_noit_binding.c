@@ -37,6 +37,11 @@
 #include "noit_metric_director.h"
 #include "lua.h"
 
+typedef struct lua_callback_ref{
+  lua_State *L;
+  int callback_reference;
+} lua_callback_ref;
+
 /* noit specific stuff */
 static int
 nl_valid_ip(lua_State *L) {
@@ -132,6 +137,34 @@ lua_noit_metric_next(lua_State *L) {
   return 0;
 }
 
+static int
+lua_noit_poller_cb(noit_check_t * check, void *closure) {
+  lua_callback_ref *cb_ref = closure;
+
+  lua_rawgeti( cb_ref->L, LUA_REGISTRYINDEX, cb_ref->callback_reference );
+
+  noit_lua_setup_check(cb_ref->L, check);
+  lua_pcall(cb_ref->L, 1, 0, 0);
+
+  return 1;
+}
+
+static int
+lua_noit_check_do(lua_State *L) {
+  if (lua_gettop(L) == 1 && // make sure exactly one argument is passed
+     lua_isfunction(L, -1)) // and that argument (which is on top of the stack) is a function
+  {
+    lua_callback_ref cb_ref;
+    cb_ref.L = L;
+    cb_ref.callback_reference = luaL_ref( L, LUA_REGISTRYINDEX );
+
+    noit_poller_do(lua_noit_poller_cb, &cb_ref);
+  } else {
+    luaL_error(L, "bad parameters to noit.metric_poller_do");
+  }
+  return 0;
+}
+
 static const luaL_Reg noit_binding[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
@@ -142,6 +175,7 @@ static const luaL_Reg noit_binding[] = {
   { "metric_director_subscribe", lua_noit_metric_subscribe },
   { "metric_director_unsubscribe", lua_noit_metric_unsubscribe },
   { "metric_director_next", lua_noit_metric_next },
+  { "checks_do", lua_noit_check_do },
   { NULL, NULL }
 };
 
