@@ -69,6 +69,22 @@ nl_check(lua_State *L) {
 }
 
 static int
+nl_check_ud(lua_State *L) {
+  uuid_t *uuid;
+  uuid = lua_touserdata(L, 1);
+
+  noit_check_t *check;
+
+  check = noit_poller_lookup(*uuid);
+  if(check) {
+    noit_lua_setup_check(L, check);
+    return 1;
+  }
+  lua_pushnil(L);
+  return 1;
+}
+
+static int
 nl_register_dns_ignore_domain(lua_State *L) {
   size_t extension_len, ignore_len;
   const char *extension, *ignore;
@@ -126,12 +142,202 @@ lua_noit_checks_unsubscribe(lua_State *L) {
 }
 
 static int
+noit_metric_value_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  metric_value_t **udata, *metric_id;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "metric_value_t")) {
+    luaL_error(L, "metatable error, arg1 not a metric_value_t!");
+  }
+  udata = lua_touserdata(L, 1);
+  metric_id = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+
+
+  uint64_t whence_ms; /* when this was recieved */
+  metric_type_t type; /* the type of the following data item */
+  union {
+    int32_t v_int32;
+    uint32_t v_uint32;
+    int64_t v_int64;
+    uint64_t v_uint64;
+    double v_double;
+    char *v_string;
+  } value; /* the data itself */
+
+  k = lua_tostring(L, 2);
+  switch (*k) {
+    case 'w':
+      lua_pushinteger(L, metric_id->whence_ms / 1000);
+      return 1;
+    case 't':
+      lua_pushinteger(L, metric_id->type);
+      return 1;
+    case 'v':
+      switch (metric_id->type) {
+        case METRIC_INT32:
+          lua_pushinteger(L, metric_id->value.v_int32);
+          return 1;
+        case METRIC_INT64:
+          lua_pushinteger(L, metric_id->value.v_int64);
+          return 1;
+        case METRIC_UINT32:
+        case METRIC_UINT64:
+          lua_pushinteger(L, metric_id->value.v_int64);
+          return 1;
+        case METRIC_DOUBLE:
+          lua_pushnumber(L, metric_id->value.v_double);
+          return 1;
+        case METRIC_STRING:
+          lua_pushstring(L, metric_id->value.v_string);
+          return 1;
+      }
+      break;
+    default:
+      break;
+  }
+  luaL_error(L, "metric_value_t no such element: %s", k);
+  return 0;
+}
+
+static void
+noit_lua_setup_metric_value(lua_State *L,
+    metric_value_t *value) {
+  metric_value_t **addr;
+  addr = (metric_value_t **)lua_newuserdata(L, sizeof(value));
+  *addr = value;
+  if(luaL_newmetatable(L, "metric_value_t") == 1) {
+    lua_pushcclosure(L, noit_metric_value_index_func, 0);
+    lua_setfield(L, -2, "__index");
+  }
+  lua_setmetatable(L, -2);
+}
+
+static int noit_metric_id_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  metric_id_t **udata, *metric_id;
+  n = lua_gettop(L); /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "metric_id_t")) {
+    luaL_error(L, "metatable error, arg1 not a metric_id_t!");
+  }
+  udata = lua_touserdata(L, 1);
+  metric_id = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+
+  k = lua_tostring(L, 2);
+  switch (*k) {
+    case 'i':
+      lua_pushlightuserdata(L, (void*)&metric_id->id);
+      return 1;
+    case 'm':
+      if(!strcmp(k, "metric_name")) {
+        lua_pushstring(L, metric_id->metric_name);
+      } else if(!strcmp(k, "metric_name_len")) {
+        lua_pushinteger(L, metric_id->metric_name_len);
+      } else {
+        break;
+      }
+      return 1;
+    default:
+      break;
+  }
+  luaL_error(L, "metric_id_t no such element: %s", k);
+  return 0;
+}
+
+static void
+noit_lua_setup_metric_id(lua_State *L,
+    metric_id_t *msg) {
+  metric_id_t **addr;
+  addr = (metric_id_t **)lua_newuserdata(L, sizeof(msg));
+  *addr = msg;
+  if(luaL_newmetatable(L, "metric_id_t") == 1) {
+    lua_pushcclosure(L, noit_metric_id_index_func, 0);
+    lua_setfield(L, -2, "__index");
+  }
+  lua_setmetatable(L, -2);
+}
+
+static int
+noit_message_index_func(lua_State *L) {
+  int n;
+  const char *k;
+  metric_message_t **udata, *msg;
+  n = lua_gettop(L);    /* number of arguments */
+  assert(n == 2);
+  if(!luaL_checkudata(L, 1, "metric_message_t")) {
+    luaL_error(L, "metatable error, arg1 not a metric_message_t!");
+  }
+  udata = lua_touserdata(L, 1);
+  msg = *udata;
+  if(!lua_isstring(L, 2)) {
+    luaL_error(L, "metatable error, arg2 not a string!");
+  }
+
+  k = lua_tostring(L, 2);
+  switch(*k) {
+    case 'i':
+      noit_lua_setup_metric_id(L, &msg->id);
+      return 1;
+    case 'v':
+      noit_lua_setup_metric_value(L, &msg->value);
+      return 1;
+    case 't':
+      lua_pushinteger(L, msg->type);
+      return 1;
+    case 'o':
+      lua_pushstring(L, msg->original_message);
+      return 1;
+    default:
+      break;
+  }
+  luaL_error(L, "noit_check_t no such element: %s", k);
+  return 0;
+}
+
+static int
+noit_lua_free_message(lua_State *L) {
+  const char *k;
+  metric_message_t **udata;
+  if(!luaL_checkudata(L, 1, "metric_message_t")) {
+    luaL_error(L, "metatable error, arg1 not a metric_message_t!");
+  }
+  udata = lua_touserdata(L, 1);
+
+  noit_metric_director_free_message(*udata);
+  return 0;
+}
+
+static void
+noit_lua_setup_message(lua_State *L,
+    metric_message_t *msg) {
+  metric_message_t **addr;
+  addr = (metric_message_t **)lua_newuserdata(L, sizeof(msg));
+  *addr = msg;
+  if(luaL_newmetatable(L, "metric_message_t") == 1) {
+    lua_pushcclosure(L, noit_message_index_func, 0);
+    lua_setfield(L, -2, "__index");
+
+    lua_pushcclosure(L, noit_lua_free_message, 0);
+    lua_setfield(L, -2, "__gc");
+  }
+  lua_setmetatable(L, -2);
+}
+
+static int
 lua_noit_metric_next(lua_State *L) {
-  char *line;
-  line = noit_metric_director_lane_next();
-  if(line) {
-    lua_pushstring(L, line);
-    free(line);
+  metric_message_t *msg;
+  msg = noit_metric_director_lane_next();
+  if(msg) {
+    noit_lua_setup_message(L, msg);
     return 1;
   }
   return 0;
@@ -144,7 +350,7 @@ lua_noit_poller_cb(noit_check_t * check, void *closure) {
   lua_rawgeti( cb_ref->L, LUA_REGISTRYINDEX, cb_ref->callback_reference );
 
   noit_lua_setup_check(cb_ref->L, check);
-  lua_pcall(cb_ref->L, 1, 0, 0);
+  lua_call(cb_ref->L, 1, 0);
 
   return 1;
 }
@@ -169,6 +375,7 @@ static const luaL_Reg noit_binding[] = {
   { "register_dns_ignore_domain", nl_register_dns_ignore_domain },
   { "valid_ip", nl_valid_ip },
   { "check", nl_check },
+  { "check_ud", nl_check_ud },
   { "filtersets_cull", lua_general_filtersets_cull },
   { "metric_director_subscribe_checks", lua_noit_checks_subscribe },
   { "metric_director_unsubscribe_checks", lua_noit_checks_unsubscribe },

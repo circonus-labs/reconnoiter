@@ -4,17 +4,18 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- *
+ * 
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name Circonus, Inc. nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- *
+ *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
+ *       of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written
+ *       permission.
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -28,47 +29,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NOIT_METRIC_DIRECTOR_H
-#define NOIT_METRIC_DIRECTOR_H
+#ifndef _NOIT_MESSAGE_DECODER_H
+#define _NOIT_MESSAGE_DECODER_H
 
+#include <mtev_defines.h>
+#include <stdint.h>
 #include <uuid/uuid.h>
-#include "noit_message_decoder.h"
 
-typedef enum {
-  MESSAGE_TYPE_C = 'C',
-  MESSAGE_TYPE_D = 'D',
-  MESSAGE_TYPE_S = 'S',
-  MESSAGE_TYPE_H = 'H',
-  MESSAGE_TYPE_M = 'M'
-} message_type;
+#include "noit_metric.h"
 
-typedef struct metric_id_t {
-  uuid_t id;
-  const char *metric_name;
-  int metric_name_len;
-} metric_id_t;
+typedef struct {
+  uint64_t whence_ms; /* when this was recieved */
+  metric_type_t type; /* the type of the following data item */
+  union {
+    int32_t v_int32;
+    uint32_t v_uint32;
+    int64_t v_int64;
+    uint64_t v_uint64;
+    double v_double;
+    char *v_string;
+  } value; /* the data itself */
+} metric_value_t;
 
-typedef struct metric_message_t {
-  metric_id_t id;
-  metric_value_t value;
-  message_type type;
-  char* original_message;
-} metric_message_t;
-
-void noit_metric_director_init();
-
-/* Tells noit to funnel all observed lines matching this id-metric
- * back to this thread */
-void noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
-
-/* Tells noit that this thread is interested in recieving "check" information.
- * This includes C records and S records.
- */
-void noit_adjust_checks_interest(short cnt);
-
-/* This gets the next line you've subscribed to, if avaialable. */
-metric_message_t *noit_metric_director_lane_next();
-
-void noit_metric_director_free_message(metric_message_t* message);
+API_EXPORT(int)
+noit_message_decoder_parse_M_OR_H_line(const char *payload, int payload_len,
+    uuid_t *id, const char **metric_name, int *metric_name_len,
+    metric_value_t *metric, mtev_boolean has_noit);
 
 #endif
