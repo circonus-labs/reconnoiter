@@ -38,7 +38,7 @@ function serve_file(mime_type, code)
   code = code or 200
   return function(rest, file, st)
     local http = rest:http()
-    local fd, errno = noit.open(file, bit.bor(O_RDONLY,O_NOFOLLOW))
+    local fd, errno = mtev.open(file, bit.bor(O_RDONLY,O_NOFOLLOW))
     if ( fd < 0 ) then
       http:status(404, "NOT FOUND")
       http:flush_end()
@@ -49,7 +49,7 @@ function serve_file(mime_type, code)
     if not http:option(http.CHUNKED) then http:option(http.CLOSE) end
     http:option(http.GZIP)
     http:write_fd(fd)
-    noit.close(fd)
+    mtev.close(fd)
     http:flush_end()
   end
 end
@@ -110,7 +110,7 @@ function file_not_found(rest)
 end
 
 function serve(rest, config, file, ext)
-  local st, errno, error = noit.stat(file)
+  local st, errno, error = mtev.stat(file)
   if(st == nil or bit.band(st.mode, S_IFREG) == 0) then
     local errfile = config.webroot .. '/404.lua'
     if file == errfile then
@@ -144,7 +144,7 @@ function handler(rest, config)
 
   if file:match("/$") then file = file .. "index.html" end
 
-  local extre = noit.pcre("\\.([^\\./]+)$")
+  local extre = mtev.pcre("\\.([^\\./]+)$")
   local rv, m, ext = extre(file)
 
   if not rv then
