@@ -85,6 +85,7 @@
     <module loader="lua" name="varnish" object="noit.module.varnish"/>
     <module loader="lua" name="http" object="noit.module.http"/>
     <module loader="lua" name="resmon" object="noit.module.resmon"/>
+    <module loader="lua" name="json" object="noit.module.resmon"/>
     <module loader="lua" name="smtp" object="noit.module.smtp"/>
     <module loader="lua" name="ssh2" object="noit.module.ssh2"/>
     <module loader="lua" name="ntp" object="noit.module.ntp"/>
@@ -98,6 +99,7 @@
     </jezebel>
     <generic image="resolver_cache" name="resolver_cache"/>
     <generic image="check_test" name="check_test"/>
+    <generic image="reverse_check" name="reverse_check"/>
     <generic image="lua_mtev" name="lua_web">
       <config>
         <directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory>
@@ -150,6 +152,11 @@
       <ip_acl:global/>
     </config>
     <check uuid="f7cea020-f19d-11dd-85a6-cb6d3a2207dc" module="selfcheck" target="127.0.0.1" period="5000" timeout="4000"/>
+    <check uuid="a7cea020-a19d-14dd-25a6-cf6d3a2207dc" module="json" target="172.16.244.200" period="5000" timeout="4000">
+      <config xmlns:reverse="noit://module/reverse">
+        <reverse:key>SoopErS3cr3T</reverse:key>
+      </config>
+    </check>
     <check uuid="1b4e28ba-2fa1-11d2-883f-b9b761bde3fb" module="ping_icmp" target="8.8.8.8" period="15000" timeout="14000"/>
     <check uuid="9bccffcf-fee8-4885-987a-faa10f16e724" module="ganglia" target="127.0.0.1" period="15000" timeout="14000"/>
     <dc1 timeout="30000" period="60000" transient_min_period="10000">
