@@ -101,7 +101,7 @@
     <generic image="lua_mtev" name="lua_web">
       <config>
         <directory>%mtevmodulesdir%/lua/?.lua;%modulesluadir%/?.lua</directory>
-        <dispatch>web</dispatch>
+        <mount_all>web:GET:/:^.*$</mount_all>
       </config>
     </generic>
     <generic image="ip_acl" name="ip_acl"/>
