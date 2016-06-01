@@ -36,37 +36,14 @@
 #include <mtev_log.h>
 #include <ck_fifo.h>
 #include <mtev_fq.h>
+#include <fq.h>
 
 #include <noit_metric_director.h>
 #include <noit_check_log_helpers.h>
+#include <noit_message_decoder.h>
 
 struct fq_conn_s;
 struct fq_msg;
-
-struct metric {
-  uuid_t id;
-  const char *metric_name;
-  int metric_name_len;
-};
-#define NEXT(in,c) memchr(in,c,line_len-(in-line))
-static bool extract_metric(const char *line, int line_len, struct metric *m, bool has_ip) {
-  const char *p = line;
-  char uuid_copy[UUID_STR_LEN+1];
-  if(line[0] != 'M' && line[0] != 'H') return false;
-  if(NULL == (p = NEXT(p+1,'\t'))) return false;
-  if(has_ip && NULL == (p = NEXT(p+1,'\t'))) return false;
-  if(NULL == (p = NEXT(p+1,'\t'))) return false;
-  if(NULL == (p = NEXT(p+1,'\t'))) return false;
-  if(p - UUID_STR_LEN < line) return false;
-  memcpy(uuid_copy,p-UUID_STR_LEN,UUID_STR_LEN);
-  uuid_copy[UUID_STR_LEN] = '\0';
-  if(uuid_parse(uuid_copy,m->id)) return false;
-  m->metric_name = ++p;
-  p = NEXT(p,'\t');
-  if(!p) p = line + line_len;
-  m->metric_name_len = p - m->metric_name;
-  return true;
-}
 
 static __thread struct {
   int id;
@@ -90,7 +67,7 @@ get_my_lane() {
     }
     assert(new_thread<nthreads);
     my_lane.id = new_thread;
-    mtevL(mtev_debug, "Assigning thread(%p) to %d\n", pthread_self(), my_lane.id);
+    mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)pthread_self(), my_lane.id);
   }
   return my_lane.id;
 }
@@ -154,67 +131,91 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
 }
 
 static void
-distribute_line(caql_cnt_t *interests,
-                const char *line, int line_len) {
+distribute_message_with_interests(caql_cnt_t *interests, metric_message_t *message) {
   int i;
-  for(i=0;i<nthreads;i++) {
+  for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
-      char *copy = mtev__strndup(line, line_len);
-      ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *)thread_queues[i];
+      ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
       ck_fifo_spsc_entry_t *fifo_entry;
+      ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
-      ck_fifo_spsc_enqueue_lock(fifo);
-      ck_fifo_spsc_enqueue(fifo, fifo_entry, copy);
+      ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
     }
   }
 }
 
 static void
-distribute_metric(struct metric *metric, 
-                  const char *line, int line_len) {
+distribute_metric(metric_message_t *message) {
   void *vhash, *vinterests;
-  char uuid_str[UUID_STR_LEN+1];
-  uuid_unparse_lower(metric->id, uuid_str);
-  if(mtev_hash_retrieve(&id_level, (const char *)&metric->id, UUID_SIZE, &vhash)) {
-    if(mtev_hash_retrieve((mtev_hash_table *)vhash,
-                          metric->metric_name, metric->metric_name_len,
-                          &vinterests)) {
+  char uuid_str[UUID_STR_LEN + 1];
+  uuid_unparse_lower(message->id.id, uuid_str);
+  if(mtev_hash_retrieve(&id_level, (const char *) &message->id.id, UUID_SIZE,
+      &vhash)) {
+    if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
+        message->id.name_len, &vinterests)) {
       caql_cnt_t *interests = vinterests;
-      distribute_line(interests, line, line_len);
+      distribute_message_with_interests(interests, message);
     }
   }
 }
 
 static void
-distribute_check(const char *line, int line_len) {
-  distribute_line(check_interests, line, line_len);
+distribute_check(metric_message_t *message) {
+  distribute_message_with_interests(check_interests, message);
 }
 
-char *noit_metric_director_lane_next() {
-  char *line = NULL;
-  if(my_lane.fifo == NULL) return NULL;
+static void
+distribute_message(metric_message_t *message) {
+  if(message->type == 'H' || message->type == 'M') {
+    distribute_metric(message);
+  } else {
+    distribute_check(message);
+  }
+}
+
+metric_message_t *noit_metric_director_lane_next() {
+  metric_message_t *msg = NULL;
+  if(my_lane.fifo == NULL)
+    return NULL;
   ck_fifo_spsc_dequeue_lock(my_lane.fifo);
-  if(ck_fifo_spsc_dequeue(my_lane.fifo, &line) == false) {
-    line = NULL;
+  if(ck_fifo_spsc_dequeue(my_lane.fifo, &msg) == false) {
+    msg = NULL;
   }
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
-  return line;
+  return msg;
+}
+void noit_metric_director_free_message(metric_message_t* message) {
+  if(message->original_message) {
+    free(message->original_message);
+    message->original_message = NULL;
+  }
+  free(message);
 }
 static void
-handle_metric_buffer(const char *payload, int payload_len, int has_noit) {
-  switch(payload[0]) {
+handle_metric_buffer(const char *payload, int payload_len,
+    int has_noit) {
+  // mtev_fq will free the fq_msg -> copy the payload
+  char *copy = mtev__strndup(payload, payload_len);
+
+  metric_message_t *message = calloc(1, sizeof(metric_message_t));
+  message->type = copy[0];
+  message->original_message = copy;
+
+  switch (copy[0]) {
     case 'C':
+    case 'D':
     case 'S':
-      distribute_check(payload, payload_len);
-      break;
     case 'H':
     case 'M':
       {
-        struct metric m;
-        if(extract_metric((const char *)payload, payload_len, &m, has_noit)) {
-          distribute_metric(&m, (const char *)payload, payload_len);
+        int rv = noit_message_decoder_parse_M_OR_H_line(copy, payload_len,
+            &message->id.id, &message->id.name,
+            &message->id.name_len, &message->value, has_noit);
+
+        if(rv == 1) {
+          distribute_message(message);
         }
       }
       break;
@@ -222,8 +223,9 @@ handle_metric_buffer(const char *payload, int payload_len, int has_noit) {
       {
         int n_metrics, i;
         char **metrics = NULL;
-        n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len, &metrics, has_noit);
-        for(i=0;i<n_metrics;i++) {
+        n_metrics = noit_check_log_b_to_sm((const char *) copy, payload_len,
+            &metrics, has_noit);
+        for(i = 0; i < n_metrics; i++) {
           handle_metric_buffer(metrics[i], strlen(metrics[i]), false);
           free(metrics[i]);
         }
