@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2010-2015 Circonus, Inc. All rights reserved.
+Copyright (c) 2016 Circonus, Inc. All rights reserved.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,9 @@ var sys = require('sys'),
     https = require('https'),
     crypto = require('crypto'),
     tls = require('tls'),
-    loginfo = require('./log'),
     EventEmitter = require('events').EventEmitter,
-    debug = global.debug,
-    stats = {};
+    stats = {},
+    debug = global.debug;
 
 var MAX_FRAME_LEN = 65530,
     CMD_BUFF_LEN = 4096;
@@ -49,9 +48,8 @@ var nc = function(port,host,creds,cn) {
   this.port = port;
   this.host = host;
   this.remote = host + ":" + port;
-  if(! (this.remote in stats)) stats[this.remote] = {
-    livestream_requests: 0, livestream_in: 0, livestream_out: 0,
-    data_temp_feed_requests: 0, data_temp_feed_in: 0, data_temp_feed_out: 0,
+  this.stats = stats;
+  if(! (this.remote in this.stats)) this.stats[this.remote] = {
     connects: 0, connections: 0, closes: 0
   };
   this.options = creds;
@@ -69,42 +67,6 @@ var nc = function(port,host,creds,cn) {
 
 sys.inherits(nc, EventEmitter);
 
-nc.prototype.request = function(ext, payload, cb) {
-  if(typeof(payload) == 'function') {
-    cb = payload;
-    payload = null;
-  }
-  var options = { };
-  for(var k in this.options) options[k] = this.options[k];
-  options.hostname = this.options.host;
-  options.path = ext.path;
-  options.method = ext.method || 'GET';
-  options.headers = ext.headers || {};
-  if(ext.rejectUnauthorized !== undefined)
-    options.rejectUnauthorized = ext.rejectUnauthorized;
-  if(payload && payload.length)
-    options.headers['Content-Length'] = payload.length;
-  var req = https.request(options, function(res) {
-    var data = '';
-    var cert = req.connection.getPeerCertificate();
-    res.on('data', function(d) { data = data + d; });
-    res.on('end', function() { cb(res.statusCode, data); });
-  });
-  req.on('error', function(err) { cb(500, err); });
-  if(payload && payload.length) req.write(payload);
-  req.end();
-}
-
-function htonl(buf,b) {
-  buf[0] = (b >> 24) & 0xff;
-  buf[1] = (b >> 16) & 0xff;
-  buf[2] = (b >> 8) & 0xff;
-  buf[3] = b & 0xff;
-}
-function ntohl(buf) {
-  return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-}
-
 nc.prototype.stop = function() {
   this.shutdown = true;
   if(this.socket) {
@@ -113,14 +75,15 @@ nc.prototype.stop = function() {
   }
   this.socket = null;
 }
+
 nc.prototype.start = function(conncb) {
   var parent = this;
   this.conncb = conncb;
-  stats.global.connects++;
-  stats[parent.remote].connects++;
-  stats.global.connections++;
-  stats[parent.remote].connections++;
-  this.socket = tls.connect(this.options,
+  parent.stats.global.connects++;
+  parent.stats[parent.remote].connects++;
+  parent.stats.global.connections++;
+  parent.stats[parent.remote].connections++;
+  parent.socket = tls.connect(this.options,
     function() {
       if(parent.socket.authorized == false &&
          parent.socket.authorizationError != 'SELF_SIGNED_CERT_IN_CHAIN') {
@@ -142,10 +105,10 @@ nc.prototype.start = function(conncb) {
   });
   this.socket.addListener('close',
     function() {
-      stats.global.closes++;
-      stats[parent.remote].closes++;
-      stats.global.connections--;
-      stats[parent.remote].connections--;
+      parent.stats.global.closes++;
+      parent.stats[parent.remote].closes++;
+      parent.stats.global.connections--;
+      parent.stats[parent.remote].connections--;
       if(!parent.socket) console.log('socket closed');
       else if (parent.socket.authorized == false) console.log('invalid cert ('+parent.host+')');
       parent.reverse_cleanup();
@@ -158,138 +121,6 @@ nc.prototype.start = function(conncb) {
   );
 };
 
-nc.prototype.data_temp_feed = function() {
-  stats.global.data_temp_feed_requests++;
-  stats[parent.remote].data_temp_feed_requests++;
-  this.start(function(parent) {
-    var b = new Buffer(4);
-    htonl(b,0x7e66feed);
-    parent.socket.write(b);
-
-    parent._buf = [];
-    parent._inprocess = { };
-    parent._want = 0;
-
-    parent.socket.addListener('data', function(buffer) {
-      if(parent.shutdown) return parent.stop();
-      var listeners = parent.listeners('jlog');
-      if(!listeners || listeners.length == 0) return parent.stop();
-      for(var i = 0; i<buffer.length; i++) parent._buf.push(buffer[i]);
-      var mlen = -1;
-      while(1) {
-        if(parent._last_seen && parent._want == 0) {
-          var log = new Buffer(4), marker = new Buffer(4);
-          htonl(log, parent._last_seen.chkpt_log);
-          htonl(marker, parent._last_seen.chkpt_marker);
-          parent.socket.write(log);
-          parent.socket.write(marker);
-          delete parent._last_seen;
-        }
-        if(parent._want == 0) {
-          if(parent._buf.length < 4) break;
-          parent._want = ntohl(parent._buf.splice(0,4));
-        }
-        if(!("len" in parent._inprocess)) {
-          if(parent._buf.length < (4*5)) break;
-          // We have enough, parse the header
-          parent._inprocess.chkpt_log = ntohl(parent._buf.splice(0,4));
-          parent._inprocess.chkpt_marker = ntohl(parent._buf.splice(0,4));
-          parent._inprocess.sec = ntohl(parent._buf.splice(0,4));
-          parent._inprocess.usec = ntohl(parent._buf.splice(0,4));
-          parent._inprocess.len = ntohl(parent._buf.splice(0,4));
-        }
-        if("len" in parent._inprocess) {
-          if(parent._buf.length < parent._inprocess.len) break;
-          var line_buf = parent._buf.splice(0, parent._inprocess.len);
-          parent._want--;
-          var m = parent._last_seen = parent._inprocess;
-          var buf = new Buffer(line_buf);
-          m.line = buf.toString('ascii').replace(/\n/g, " ");
-          var o = m.line.indexOf("\t");
-          if(o) m.line = m.line.replace(/\t/, "\t" + parent.host + "\t");
-          parent._inprocess = { };
-          stats.global.data_temp_feed_in++;
-          stats[parent.remote].data_temp_feed_in++;
-          loginfo.parse(m.line, function(infos) {
-            if(infos.constructor !== Array) infos = [infos];
-            var i=0; cnt=infos.length;
-            stats.global.data_temp_feed_out += cnt;
-            stats[parent.remote].data_temp_feed_out += cnt;
-            for(;i<cnt;i++) {
-              var info = infos[i];
-              if(!("data" in info)) info.data = m.line;
-              parent.emit('jlog', info);
-            }
-          });
-        }
-        else break;
-      }
-    });
-  });
-}
-nc.prototype.livestream = function(uuid,period,f) {
-  stats.global.livestream_requests++;
-  stats[this.remote].livestream_requests++;
-  this.start(function(parent) {
-    var b = new Buffer(4);
-    htonl(b,0xfa57feed);
-    parent.socket.write(b);      // request livestream
-    htonl(b,period);
-    parent.socket.write(b);      // at period milliseconds
-    b = new Buffer(36);
-    for(var i=0; i<36; i++) b[i] = uuid.charCodeAt(i);
-    parent.socket.write(b);      // for this check uuid
-
-    if(debug >= 3) console.log("livestream -> writing request");
-    parent._buf = [];
-    parent.body_need = 0;
-
-    parent.socket.addListener('data', function(buffer) {
-      if(debug >= 3) console.log("livestream <- [data]");
-      if(parent.shutdown) return parent.stop();
-      for(var i = 0; i<buffer.length; i++) parent._buf.push(buffer[i]);
-      while(1) {
-        if(parent.body_need == 0) {
-          if(parent._buf.length < 4) break;
-          parent.body_need = ntohl(parent._buf.splice(0,4));
-        }
-        if(parent.body_need > 0) {
-          if(parent._buf.length < parent.body_need) break;
-          var line_buf = parent._buf.splice(0, parent.body_need)
-          parent.body_need = 0;
-
-          var line = line_buf.map(function(a) { return String.fromCharCode(a) }).join('');
-          var tidx = line.indexOf('\t');
-          if(tidx > 0)
-            line = line.substring(0, tidx+1) + parent.host + line.substring(tidx);
-          if(debug >= 3) console.log("livestream <- " + (tidx > 0 ? line.substring(0, tidx) : "??"));
-          stats.global.livestream_in++;
-          stats[parent.remote].livestream_in++;
-          loginfo.parse(line, function(infos) {
-            if(infos.constructor !== Array) infos = [infos];
-            var i=0; cnt=infos.length;
-            stats.global.livestream_out += cnt;
-            stats[parent.remote].livestream_out += cnt;
-            for(;i<cnt;i++) {
-              var info = infos[i];
-              if('id' in info) {
-                if(debug >= 3) console.log("livestream -> "+info.type+":"+info.id);
-                // emulate a rouing key: check.uuid_nasty
-                var account_id = ('circonus_account_id' in info) ? info.circonus_account_id : 0;
-                var check_id = ('circonus_check_id' in info) ? info.circonus_check_id : 0;
-                var route = 'check.' + account_id + '.' + check_id + '.' + info.id.replace(/-/g, '').split('').join('.');
-                parent.emit('live', uuid, period, { routingKey: route }, info);
-                if(f && !f({ routingKey: route }, info)) {
-                  parent.stop();
-                }
-              }
-            }
-          });
-        }
-      }
-    });
-  });
-};
 
 function decode_frame(blist) {
   var frame = {}
@@ -338,6 +169,7 @@ function decode_frame(blist) {
   }
   return null;
 }
+
 nc.prototype.reverse_cleanup = function(conncb) {
   var parent = this;
   parent.buflist = [];
@@ -352,6 +184,7 @@ nc.prototype.reverse_cleanup = function(conncb) {
     parent.channels = {};
   }
 }
+
 var CMD_CONNECT = new Buffer('CONNECT', 'utf8'),
     CMD_SHUTDOWN = new Buffer('SHUTDOWN', 'utf8'),
     CMD_CLOSE = new Buffer('CLOSE', 'utf8'),
@@ -365,6 +198,7 @@ function frame_output(channel_id, command, buff) {
   if(debug >= 3) console.log('send', channel_id, command ? "comm" : "data", buff.length, frame.slice(0,6));
   return frame;
 }
+
 function isCmd(buf1, buf2) {
   if(buf1.length != buf2.length) return false;
   for(var i=0;i<buf1.length;i++) {
@@ -372,6 +206,7 @@ function isCmd(buf1, buf2) {
   }
   return true;
 }
+
 function handle_frame(parent, frame, host, port) {
   if(!parent.channels[frame.channel_id])
     parent.channels[frame.channel_id] = { id: frame.channel_id };
@@ -430,6 +265,7 @@ function handle_frame(parent, frame, host, port) {
     }
   }
 }
+
 nc.prototype.reverse = function(name, host, port) {
   this.start(function(parent) {
     parent.buflist = [];
@@ -457,14 +293,12 @@ nc.prototype.setCA = function(file) {
   https.globalAgent.options.ca = [ fs.readFileSync(file, {encoding:'utf8'}) ];
 }
 
-exports.connection = nc;
+exports.noit_connection = nc;
 exports.set_stats = function(external) {
   if(external === undefined || external == null) return stats;
   stats = external;
   if(! ("global" in stats)) {
     stats.global = {
-      livestream_requests: 0, livestream_in: 0, livestream_out: 0,
-      data_temp_feed_requests: 0, data_temp_feed_in: 0, data_temp_feed_out: 0,
       connects: 0, connections: 0, closes: 0
     };
   }

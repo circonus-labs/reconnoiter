@@ -1,6 +1,12 @@
+/* to run this test:
+ *
+ * npm install noit-connection
+ * npm install connection
+ * node test.js -keyfile ../../test/client.key -cafile ../../test/test-ca.crt -certfile ../../test/client.crt -cn noit-tes-id 1b4e28ba-2fa1-11d2-883f-b9b761bde3fb -d
+ */
 var sys = require('sys'),
     crypto = require('crypto'),
-    ls = require('./index'),
+    ls = require('noit'),
     cafile = 'dummy-ca.crt',
     keyfile = 'dummy.key',
     certfile = 'dummy.crt',
@@ -54,10 +60,16 @@ if(proxy_port) {
                                      ca: cafile }), cn || host);
   proxy.reverse("check/" + id, '127.0.0.1', proxy_port);
 }
+var stats = {};
+ls.connection_set_stats(stats);
+
 noit = new ls.connection(43191, host,
             ls.utils.hashToCreds({ key: keyfile, cert: certfile,
                                    ca: cafile }), cn || host);
 noit.livestream(id, period);
 noit.on('live', function(uuid,period,r,i) {
   console.log(this.r,i);
+  if (debug) {
+      console.log(stats);
+  }
 });

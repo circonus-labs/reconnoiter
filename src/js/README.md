@@ -1,4 +1,4 @@
-# Reconnoiter API library for node.js
+# Reconnoiter API library for node.js and a lightweight reconnoiter connection without livestream capabilities
 
     var noit = require('noit');
 
@@ -34,3 +34,11 @@
     });
     hose.listen();
     setInterval(function() { console.log(stats); }, 1000);
+
+## "lite" version which only contains the reverse tunnel
+
+    var noit = require('noit-connection');
+    var creds = noit.utils.hashToCreds({ ca: cafile });
+    var proxy = new noit.connection(43191, host, creds, cn || host);
+    var tgt_host = '127.0.0.1', tgt_port = 2609;
+    proxy.reverse('check/' + uuid, tgt_host, tgt_port);

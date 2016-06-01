@@ -1,0 +1,19 @@
+{
+  "name": "noit-connection",
+  "version": "0.0.1",
+  "description": "Noit Reverse Connection",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/circonus-labs/reconnoiter.git"
+  },
+  "scripts": {
+    "test": "echo \"no test specified\" && exit 0"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+  },
+  "readmeFilename": "README.md",
+  "readme": "## 'lite' version which only contains the reverse tunnel\n\n    var noit = require('noit-connection');\n    var creds = noit.utils.hashToCreds({ ca: cafile });\n    var proxy = new noit.connection(43191, host, creds, cn || host);\n    var tgt_host = '127.0.0.1', tgt_port = 2609;\n    proxy.reverse('check/' + uuid, tgt_host, tgt_port);"
+}
