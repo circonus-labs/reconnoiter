@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "noit-connection": "^0.0.1",
     "protocol-buffers": "^3.1.6",
     "fq": "0.3.0",
     "pg": "^4.1.1",
