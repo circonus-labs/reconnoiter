@@ -1,5 +1,5 @@
 var amqp = require('amqp'),
-    sys = require('sys'),
+    sys = require('util'),
     events = require('events');
 
 function mixin () {

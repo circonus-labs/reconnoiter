@@ -1,5 +1,5 @@
 var debug = false;
-var fh = require('./firehose');
+var fh = require('noit').firehose;
 
 var stats = {}
 var hose = new fh({ host: 'mq3.dev.circonus.net'

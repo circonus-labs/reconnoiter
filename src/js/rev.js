@@ -1,6 +1,6 @@
 var sys = require('sys'),
     crypto = require('crypto'),
-    ls = require('./index'),
+    ls = require('noit-connection'),
     cafile = 'dummy-ca.crt',
     keyfile = 'dummy.key',
     certfile = 'dummy.crt',

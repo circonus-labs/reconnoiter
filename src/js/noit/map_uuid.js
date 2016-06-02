@@ -1,4 +1,4 @@
-var sys = require('sys'),
+var sys = require('util'),
     Client = require('pg').Client;
 
 var mapper = function(config) {

@@ -1,6 +1,13 @@
+/* to run this test:
+ *
+ * npm install noit-connection
+ * npm install connection
+ * node firehose-test
+ */
+
 var sys = require('sys'),
-    fq = require('./fq'),
-    loginfo = require('./log'),
+    fq = require('noit/fq'),
+    loginfo = require('noit/log'),
     os = require('os'),
     fh = function(p, s) {
       fq.call(this, p, s);

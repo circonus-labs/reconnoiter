@@ -1,5 +1,5 @@
 var fs = require('fs'),
-    sys = require('sys'),
+    sys = require('util'),
     crypto = require('crypto');
 
 exports.hashToCreds = function(h, compiled) {
