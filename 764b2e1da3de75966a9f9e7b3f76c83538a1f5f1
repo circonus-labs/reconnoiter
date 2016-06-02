@@ -1,0 +1,123 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "baa041b7_cd29d5e7",
+        "filename": "src/js/connection/connection.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "util instead of sys",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_ed0db98f",
+        "filename": "src/js/connection/fq.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "util instead of sys",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_0d0b3d7e",
+        "filename": "src/js/connection/map_uuid.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "util instead of sys",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_8d486dcd",
+        "filename": "src/js/connection/mq.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "util instead of sys",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_0d345d47",
+        "filename": "src/js/connection/package.json",
+        "patchSetId": 1
+      },
+      "lineNbr": 17,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "This should stay up at 0.3.1 in my opinion.  0.3.0 won\u0027t build on any remotely modern version of nodejs.",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_ad3d712c",
+        "filename": "src/js/noit-connection/noit-connection.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "util instead of ays",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "baa041b7_cd42f5ad",
+        "filename": "src/js/noit-connection/utils.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 1008554
+      },
+      "writtenOn": "2016-06-02T00:05:54Z",
+      "side": 1,
+      "message": "sys is deprecated, we should be using util instead.  same functions are available.",
+      "revId": "764b2e1da3de75966a9f9e7b3f76c83538a1f5f1",
+      "serverId": "d5d70762-12d0-45a1-890d-524b12d3f735",
+      "unresolved": false
+    }
+  ]
+}
