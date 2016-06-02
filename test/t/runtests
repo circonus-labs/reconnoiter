@@ -71,12 +71,14 @@ if [ "x$SKIP_NPM_INSTALL" != "x1" ]; then
 			fi
 		fi
 	done
-	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install
+	cd noit-connection
+	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install .
+	cd ../noit
+	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install .
 	popd >/dev/null
 
 	# Install dependencies for the test suite itself
-	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install noit-connection
-	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install noit
+	env LDFLAGS="$LDF" CXXFLAGS="$INC" npm install 
 fi
 
 # Finally, run the test suite.

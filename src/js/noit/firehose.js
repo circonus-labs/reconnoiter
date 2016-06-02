@@ -5,9 +5,9 @@
  * node firehose-test
  */
 
-var sys = require('sys'),
-    fq = require('noit/fq'),
-    loginfo = require('noit/log'),
+var sys = require('util'),
+    fq = require('./fq'),
+    loginfo = require('./log'),
     os = require('os'),
     fh = function(p, s) {
       fq.call(this, p, s);
