@@ -36,7 +36,6 @@
 #include <mtev_log.h>
 #include <ck_fifo.h>
 #include <mtev_fq.h>
-#include <fq.h>
 
 #include <noit_metric_director.h>
 #include <noit_check_log_helpers.h>
