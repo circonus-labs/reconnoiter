@@ -159,7 +159,7 @@ noit_metric_value_index_func(lua_State *L) {
   k = lua_tostring(L, 2);
   switch (*k) {
     case 'w':
-      if(!strcmp(k, "whence_ms")) {
+      if(!strcmp(k, "whence")) {
         lua_pushinteger(L, metric_id->whence_ms / 1000);
       } else {
         break;
@@ -249,7 +249,7 @@ static int noit_metric_id_index_func(lua_State *L) {
       return 1;
     case 'n':
       if(!strcmp(k, "name")) {
-        lua_pushstring(L, metric_id->name);
+        lua_pushlstring(L, metric_id->name, metric_id->name_len);
       } else if(!strcmp(k, "name_len")) {
         lua_pushinteger(L, metric_id->name_len);
       } else {
