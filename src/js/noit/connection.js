@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 var sys = require('util'),
     noit_connection = require('noit-connection').connection,
+    https = require('https'),
     loginfo = require('./log'),
     debug = global.debug;
 

@@ -3,7 +3,7 @@ plan = 4
 
 'use strict';
 var tools = require('./testconfig'),
-    nc = require('../../src/js/index'),
+    nc = require('../../src/js/noit/index'),
     fs = require('fs'),
     async = require('async');
 
