@@ -4,7 +4,7 @@ requires = ['prereq']
 
 'use strict';
 var tools = require('./testconfig'),
-    nc = require('../../src/js/index'),
+    nc = require('../../src/js/noit/index'),
     async = require('async');
 
 var checkno = 0;

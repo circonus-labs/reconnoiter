@@ -4,7 +4,7 @@ requires = ['database']
 
 'use strict';
 var tools = require('./testconfig'),
-    nc = require('../../src/js/index'),
+    nc = require('../../src/js/noit/index'),
     xml2js = require('xml2js'),
     async = require('async');
 

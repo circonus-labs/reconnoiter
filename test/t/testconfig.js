@@ -4,7 +4,7 @@ var pg = require('pg'),
     fs = require('fs'),
     sys = require('sys'),
     async = require('async'),
-    nc = require('../../src/js/index'),
+    nc = require('../../src/js/noit/index'),
     spawn = require('child_process').spawn,
     events = require('events');
 
