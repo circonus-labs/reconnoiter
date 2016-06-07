@@ -79,5 +79,6 @@ ssize_t hist_deserialize(histogram_t *h, const void *buff, ssize_t len);
 
 ssize_t hist_serialize_b64_estimate(const histogram_t *h);
 ssize_t hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_t buff_len);
+ssize_t hist_deserialize_b64(histogram_t *h, const void *b64_string, ssize_t b64_string_len);
 
 #endif

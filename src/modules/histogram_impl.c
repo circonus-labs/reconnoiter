@@ -32,6 +32,7 @@
 
 #ifndef SKIP_LIBMTEV
 #include <mtev_log.h>
+#include <mtev_b64.h>
 #endif
 
 #include <errno.h>
@@ -166,7 +167,7 @@ hist_serialize_estimate(const histogram_t *h) {
   return len;
 }
 
-#if 0
+#ifndef SKIP_LIBMTEV
 ssize_t
 hist_serialize_b64_estimate(const histogram_t *h) {
   ssize_t len = hist_serialize_estimate(h);
@@ -196,7 +197,7 @@ hist_serialize(const histogram_t *h, void *buff, ssize_t len) {
   return written;
 }
 
-#if 0
+#ifndef SKIP_LIBMTEV
 ssize_t
 hist_serialize_b64(const histogram_t *h, char *b64_serialized_histo_buff, ssize_t buff_len) {
   ssize_t serialize_buff_length = hist_serialize_estimate(h);
@@ -241,6 +242,25 @@ hist_deserialize(histogram_t *h, const void *buff, ssize_t len) {
   h->used = h->allocd = 0;
   return -1;
 }
+
+#ifndef SKIP_LIBMTEV
+ssize_t hist_deserialize_b64(histogram_t *h, const void *b64_string, ssize_t b64_string_len) {
+    int decoded_hist_len;
+    unsigned char* decoded_hist = alloca(b64_string_len);
+
+    decoded_hist_len = mtev_b64_decode(b64_string, b64_string_len, decoded_hist, b64_string_len);
+
+    if (decoded_hist_len < 2) {
+      return -1;
+    }
+
+    ssize_t bytes_read = hist_deserialize(h, decoded_hist, decoded_hist_len);
+    if (bytes_read != decoded_hist_len) {
+      return -1;
+    }
+    return bytes_read;
+}
+#endif
 
 static inline
 int hist_bucket_cmp(hist_bucket_t h1, hist_bucket_t h2) {
