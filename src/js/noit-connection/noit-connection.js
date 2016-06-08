@@ -235,13 +235,17 @@ function handle_frame(parent, frame, host, port) {
             chan.socket.on('data', function(buff) {
               if(debug >= 3) console.log('data to remote on channel', chan.id);
               var bl = buff.length;
-              var os = 0;
-              while (os < bl) {
+              if (bl <= MAX_FRAME_LEN) {
+                parent.socket.write(frame_output(chan.id, false, buff));
+              } else {
+                var os = 0;
+                while (os < bl) {
                   var tb_size = Math.min(MAX_FRAME_LEN, bl - os);
                   var tempbuff = new Buffer(tb_size);
                   buff.copy(tempbuff, 0, os, os + tb_size);
                   parent.socket.write(frame_output(chan.id, false, tempbuff));
                   os += tempbuff.length;
+                }
               }
             });
             chan.socket.on('end', function(buff) {
