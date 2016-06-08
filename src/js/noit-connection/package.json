@@ -1,6 +1,6 @@
 {
   "name": "noit-connection",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Noit Reverse Connection",
   "main": "index.js",
   "repository": {
