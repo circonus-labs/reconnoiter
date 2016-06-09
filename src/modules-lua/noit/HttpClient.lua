@@ -27,6 +27,7 @@
 -- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+local noit = require("noit_binding")
 
 function Headers()
   local map = {}
@@ -62,7 +63,7 @@ end
 
 function HttpClient:connect(target, port, ssl, ssl_host, ssl_layer)
     if ssl == nil then ssl = false end
-    self.e = noit.socket(target)
+    self.e = mtev.socket(target)
     self.target = target
     self.port = port
     self.truncated = nil
