@@ -84,7 +84,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -100,7 +100,7 @@ end
 function parts2timeval(l32, r32)
   local sec = l32 - 2208988800
   local usec = (r32 - 0.5) / 4294.967296
-  return noit.timeval.new(sec, usec)
+  return mtev.timeval.new(sec, usec)
 end
 
 function ntp642timeval(s)
@@ -216,7 +216,7 @@ function ntp_control(s, req)
           done = not f.is_more
         end
         if lerr ~= nil then
-          noit.log("debug", "ntp error:%s\n", lerr)
+          mtev.log("debug", "ntp error:%s\n", lerr)
         end
         error = lerr
     until done
@@ -244,7 +244,7 @@ function make_ntp_request(fin)
         .. timeval2ntp64(0,0)
         .. timeval2ntp64(0,0)
         .. timeval2ntp64(0,0)
-        .. timeval2ntp64(noit.gettimeofday())
+        .. timeval2ntp64(mtev.gettimeofday())
 end
 
 function decode_ntp_message(b)
@@ -272,8 +272,8 @@ function decode_ntp_message(b)
 end
 
 function calculate_offset(response, now)
-    local there_and = noit.timeval.seconds(response.rxts - response.origts)
-    local back_again = noit.timeval.seconds(response.txts - now)
+    local there_and = mtev.timeval.seconds(response.rxts - response.origts)
+    local back_again = mtev.timeval.seconds(response.txts - now)
     return ( there_and + back_again ) / 2.0
 end
 
@@ -322,7 +322,7 @@ function initiate_control(module, check, s)
     local vars = {}
     for k, v in string.gmatch(result.data, "%s*([^,]+)=([^,]+)%s*,%s*") do
        vars[k] = v;
-       noit.log("debug", "ntp: %s = %s\n", k, v)
+       mtev.log("debug", "ntp: %s = %s\n", k, v)
     end
     check.metric_string('clock_name', vars.srcadr)
     check.metric_int32('stratum', tonumber(vars.stratum))
@@ -337,8 +337,8 @@ function initiate_control(module, check, s)
     local reftime = parts2timeval(reftime_l, reftime_h)
 
     local when = nil
-    if rec.sec ~= 0 then when = noit.timeval.seconds(noit.timeval.now() - rec)
-    elseif reftime.sec ~= 0 then when = noit.timeval.seconds(noit.timeval.now() - reftime)
+    if rec.sec ~= 0 then when = mtev.timeval.seconds(mtev.timeval.now() - rec)
+    elseif reftime.sec ~= 0 then when = mtev.timeval.seconds(mtev.timeval.now() - reftime)
     end
     check.metric_double('when', when)
     local poll = math.pow(2, math.max(math.min(vars.ppoll or 17, vars.hpoll or 17), 3))
@@ -356,7 +356,7 @@ function initiate_control(module, check, s)
 end
 
 function initiate(module, check)
-    local s = noit.socket(check.target_ip, 'udp')
+    local s = mtev.socket(check.target_ip, 'udp')
     local status = { }
     local cnt = check.config.count or 4
 
@@ -376,7 +376,7 @@ function initiate(module, check)
         local req = make_ntp_request()
         s:send(req)
         local rv, buf = s:recv(48)
-        local now = noit.timeval.now()
+        local now = mtev.timeval.now()
         local response = decode_ntp_message(buf)
         local offset = calculate_offset(response, now)
         if offset ~= nil then
@@ -389,7 +389,7 @@ function initiate(module, check)
             status.rtdelay = response.rtdelay
             status.responses = status.responses + 1
         end
-        noit.sleep(0.1)
+        mtev.sleep(0.1)
     end
 
     status.avg_offset = status.avg_offset / # status.offset

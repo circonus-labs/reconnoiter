@@ -182,8 +182,8 @@ function initiate(module, check)
   params["port"] = port
   params["host"] = host
   params["use_ssl"] = use_ssl
-  local metrics    = noit.extras.split(config.cloudwatch_metrics, ",")
-  local stats = noit.extras.split(statistics, ",")
+  local metrics    = mtev.extras.split(config.cloudwatch_metrics, ",")
+  local stats = mtev.extras.split(statistics, ",")
   local dimensions = { }
     
   local uuid         = check.checkid
@@ -259,7 +259,7 @@ function initiate(module, check)
       end
     end
     cache_table[uuid]['metrics'] = {}
-    local dns = noit.dns()
+    local dns = mtev.dns()
     local r = dns:lookup(host)
     if not r or r.a == nil then
       check.status("failed to resolve " .. host)

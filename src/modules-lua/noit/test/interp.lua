@@ -73,7 +73,7 @@ function initiate(modules, check)
     end
     if not success then
       check.status("failed")
-      noit.log("error", "'%s' ~= '%s'\n", output[k], expected[k])
+      mtev.log("error", "'%s' ~= '%s'\n", output[k], expected[k])
       check.metric_string(k, "FAILURE: " .. output[k])
       failed = true
     else

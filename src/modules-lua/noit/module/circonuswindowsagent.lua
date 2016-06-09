@@ -101,7 +101,7 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function json_metric(check, prefix, o)
     local cnt = 1
@@ -189,16 +189,16 @@ function initiate(module, check)
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
     local port = 80;
     local use_ssl = false
-    local codere = noit.pcre(check.config.code or '^200$')
+    local codere = mtev.pcre(check.config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
 
     local user = check.config.auth_user or nil
     local pass = check.config.auth_password or nil
     local calculated = check.config.calculated or "true"
     local encoded = nil
     if (user ~= nil and pass ~= nil) then
-        encoded = noit.base64_encode(user .. ':' .. pass)
+        encoded = mtev.base64_encode(user .. ':' .. pass)
     end
 
     -- assume the worst.
@@ -220,7 +220,7 @@ function initiate(module, check)
     end 
 
     if check.config.category ~= nil then
-      local b32 = noit.base32_encode(check.config.category)
+      local b32 = mtev.base32_encode(check.config.category)
       uri = uri .. b32
       if calculated == "false" then
         uri = uri .. '?raw=true'
@@ -256,9 +256,9 @@ function initiate(module, check)
     local jsondoc = nil
     if string.find(hdrs_in["content-type"] or '', 'json') ~= nil or
        string.find(hdrs_in["content-type"] or '', 'javascript') ~= nil then
-        jsondoc = noit.parsejson(output)
+        jsondoc = mtev.parsejson(output)
         if jsondoc == nil then
-            noit.log("debug", "bad json: %s\n", output)
+            mtev.log("debug", "bad json: %s\n", output)
             check.status("json parse error")
             return
         end
@@ -272,11 +272,11 @@ function initiate(module, check)
     -- try xml by "default" (assuming no json-specific content header)
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
-        jsondoc = noit.parsejson(output)
+        jsondoc = mtev.parsejson(output)
         if jsondoc == nil then
-            noit.log("debug", "bad xml: %s\n", output)
+            mtev.log("debug", "bad xml: %s\n", output)
             check.status("xml parse error")
             return
         end

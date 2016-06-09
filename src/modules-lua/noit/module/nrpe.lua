@@ -83,7 +83,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -91,13 +91,13 @@ end
 function v2_packet(cmd)
   local payload = string.pack(">h", 2324) .. cmd ..
                   string.rep(string.char(0), 1024-string.len(cmd)) .. "SR"
-  local crc = noit.crc32(string.char(0,2,0,1,0,0,0,0) .. payload)
+  local crc = mtev.crc32(string.char(0,2,0,1,0,0,0,0) .. payload)
   return string.char(0,2,0,1) .. string.pack(">I", crc) .. payload
 end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
+  local starttime = mtev.timeval.now()
   local max_len = 80
   check.bad()
   check.unavailable()
@@ -127,7 +127,7 @@ function initiate(module, check)
     append_uom = false
   end
 
-  local e = noit.socket(check.target_ip)
+  local e = mtev.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, port)
   if rv ~= 0 then
     check.status(err or "connect error")
@@ -142,7 +142,7 @@ function initiate(module, check)
     end
   end 
 
-  local connecttime = noit.timeval.now()
+  local connecttime = mtev.timeval.now()
   elapsed(check, "tt_connect", starttime, connecttime)
   if rv ~= 0 then
     check.status(err or "connection failed")
@@ -193,7 +193,7 @@ function initiate(module, check)
       end
 
       if lcnt == 0 or pdata == 1 then
-        local exre = noit.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
+        local exre = mtev.pcre('\'?([^\'=]+)\'?=([\\-0-9\\.]+)([a-zA-Z%]+)?(?=[;\\s])')
         rv, m, key, value, uom = exre(line)
         if rv and key ~= nil then
           if append_uom and uom ~= nil then
@@ -207,7 +207,7 @@ function initiate(module, check)
     end
   end
   -- turnaround time
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
   local seconds = elapsed(check, "duration", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end

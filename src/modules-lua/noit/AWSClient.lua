@@ -30,7 +30,7 @@
 local AWSClient = {};
 AWSClient.__index = AWSClient;
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 -- Certain Cloudwatch metrics have suggested values to pull. This table
 -- defined these on a per-metric basis for each namespace. If no value is
@@ -291,7 +291,7 @@ function AWSClient:perform(target, cache_table)
     local payload=""
     
     --Calculate payload hash
-    local payload_hash=noit.sha256_hash(payload)
+    local payload_hash=mtev.sha256_hash(payload)
     
     --Set canonical request.   
     local canonical_request="GET".."\n"..canonical_uri.."\n"..canonical_querystring.."\n"..canonical_headers.."\n"..signed_headers.."\n"..payload_hash
@@ -300,17 +300,17 @@ function AWSClient:perform(target, cache_table)
     local credential_scope=datestamp.."/"..region.."/"..service.."/".."aws4_request"
     
     --Set string to sign for signature generation
-    local string_to_sign=algorithm.."\n"..timestamp.."\n"..credential_scope.."\n"..noit.sha256_hash(canonical_request)
+    local string_to_sign=algorithm.."\n"..timestamp.."\n"..credential_scope.."\n"..mtev.sha256_hash(canonical_request)
     
     --Set AWS4 secret key.
     local kSecret="AWS4"..api_secret
 
     --Generate AWS4 signature
-    local dateStampDigest=noit.base64_decode(noit.hmac_sha256_encode(datestamp,kSecret))
-    local regionDigest=noit.base64_decode(noit.hmac_sha256_encode(region,dateStampDigest))
-    local serviceDigest=noit.base64_decode(noit.hmac_sha256_encode(service,regionDigest))
-    local awsRequestDigest=noit.base64_decode(noit.hmac_sha256_encode("aws4_request",serviceDigest))
-    local signatureDigest=noit.base64_decode(noit.hmac_sha256_encode(string_to_sign,awsRequestDigest))
+    local dateStampDigest=mtev.base64_decode(mtev.hmac_sha256_encode(datestamp,kSecret))
+    local regionDigest=mtev.base64_decode(mtev.hmac_sha256_encode(region,dateStampDigest))
+    local serviceDigest=mtev.base64_decode(mtev.hmac_sha256_encode(service,regionDigest))
+    local awsRequestDigest=mtev.base64_decode(mtev.hmac_sha256_encode("aws4_request",serviceDigest))
+    local signatureDigest=mtev.base64_decode(mtev.hmac_sha256_encode(string_to_sign,awsRequestDigest))
     local signature=self:convert_to_hex(signatureDigest)
     
     --Append canonical query string to URI.
@@ -336,7 +336,7 @@ function AWSClient:perform(target, cache_table)
     client:get_response()
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc ~= nil then
       local root = doc:root()
       if root:name() == "GetMetricStatisticsResponse" then

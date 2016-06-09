@@ -96,7 +96,7 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function xml_to_metrics(check, doc)
     local services = 0
@@ -143,7 +143,7 @@ end
 
 function initiate(module, check)
     if next_allowed_run[check.checkid] and
-       noit.timeval.seconds(noit.timeval.now()) < next_allowed_run[check.checkid] then
+       mtev.timeval.seconds(mtev.timeval.now()) < next_allowed_run[check.checkid] then
       check.bad()
       check.unavailable()
       check.status("internally rate limited")
@@ -156,7 +156,7 @@ function initiate(module, check)
     local use_ssl = false
     local ip = check.target_ip
 
-    local dns = noit:dns()
+    local dns = mtev.dns()
     local r = dns:lookup(host or 'datapulse.keynote.com')
     if r and r.a ~= nil then ip = r.a end 
 
@@ -201,7 +201,7 @@ function initiate(module, check)
     local headers = {}
     headers.Host = host
     headers.Accept = '*/*'
-    headers.Authorization = "Basic " .. noit.base64_encode(config.user .. ':' .. config.password)
+    headers.Authorization = "Basic " .. mtev.base64_encode(config.user .. ':' .. config.password)
 
     local client = HttpClient:new(callbacks)
     local rv, err = client:connect(ip, port, use_ssl, host, "TLSv1")
@@ -212,7 +212,7 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response()
-    next_allowed_run[check.checkid] = noit.timeval.seconds(noit.timeval.now()) + 60
-    xml_to_metrics(check, noit.parsexml(output))
+    next_allowed_run[check.checkid] = mtev.timeval.seconds(mtev.timeval.now()) + 60
+    xml_to_metrics(check, mtev.parsexml(output))
 end
 
