@@ -122,7 +122,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -155,7 +155,7 @@ end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
+  local starttime = mtev.timeval.now()
   local folder = config.folder or 'INBOX'
   check.bad()
   check.unavailable()
@@ -187,7 +187,7 @@ function initiate(module, check)
     if use_ssl then port = 993 else port = 143 end
   end
 
-  local e = noit.socket(check.target_ip)
+  local e = mtev.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, port)
 
   if rv ~= 0 then
@@ -196,7 +196,7 @@ function initiate(module, check)
   end
 
   local ca_chain = 
-     noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+     mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
 
   if config.ca_chain ~= nil and config.ca_chain ~= '' then
     ca_chain = config.ca_chain
@@ -209,7 +209,7 @@ function initiate(module, check)
                                         config.ciphers)
   end 
 
-  local connecttime = noit.timeval.now()
+  local connecttime = mtev.timeval.now()
   elapsed(check, "tt_connect", starttime, connecttime)
   if rv ~= 0 then
     check.status(err or "connection failed")
@@ -225,7 +225,7 @@ function initiate(module, check)
   if ssl_ctx ~= nil then
     local header_match_error = nil
     if host_header ~= '' then
-      header_match_error = noit.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
+      header_match_error = mtev.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
     end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
     if header_match_error == nil then
@@ -242,7 +242,7 @@ function initiate(module, check)
     end
     check.metric_uint32("cert_start", ssl_ctx.start_time)
     check.metric_uint32("cert_end", ssl_ctx.end_time)
-    if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+    if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
       good = false
       status = status .. ',ssl=expired'
     end
@@ -251,7 +251,7 @@ function initiate(module, check)
   -- match banner
   local ok, banner
   ok, banner = get_banner(e)
-  local firstbytetime = noit.timeval.now()
+  local firstbytetime = mtev.timeval.now()
   elapsed(check, "tt_firstbyte", starttime, firstbytetime)
   check.metric_string('banner', ok)
   if ok ~= "OK" then
@@ -261,18 +261,18 @@ function initiate(module, check)
   local state, lines, errors
 
   -- login
-  local lstart = noit.timeval.now()
+  local lstart = mtev.timeval.now()
   state, lines, errors = issue_cmd(e, tok(), "LOGIN " ..
                                              config.auth_user .. " " ..
                                              config.auth_password)
-  elapsed(check, "login`duration", lstart, noit.timeval.now())
+  elapsed(check, "login`duration", lstart, mtev.timeval.now())
   check.metric_string("login`status", lines[ # lines ])
   if state ~= "OK" then good = false
   else
     -- Examine the mailbox
-    local estart = noit.timeval.now()
+    local estart = mtev.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "EXAMINE " .. folder)
-    elapsed(check, 'examine`duration', estart, noit.timeval.now())
+    elapsed(check, 'examine`duration', estart, mtev.timeval.now())
     check.metric_string('examine`status', lines[ # lines ])
     if ok ~= "OK" then good = false
     else
@@ -292,9 +292,9 @@ function initiate(module, check)
   if config.search ~= nil then
     last_msg = nil
     local search = config.search:gsub("[\r\n]", "")
-    local sstart = noit.timeval.now()
+    local sstart = mtev.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "SEARCH " .. search)
-    elapsed(check, "search`duration", sstart, noit.timeval.now())
+    elapsed(check, "search`duration", sstart, mtev.timeval.now())
     if ok ~= "OK" then good = false
     else
       local matches = 0
@@ -315,9 +315,9 @@ function initiate(module, check)
      (config.fetch == "true" or config.fetch == "on") and
      last_msg ~= nil and
      last_msg > 0 then
-    local fstart = noit.timeval.now()
+    local fstart = mtev.timeval.now()
     state, lines, errors = issue_cmd(e, tok(), "FETCH " .. last_msg .. " RFC822")
-    elapsed(check, "fetch`duration", fstart, noit.timeval.now())
+    elapsed(check, "fetch`duration", fstart, mtev.timeval.now())
     check.metric_string('fetch`status', state)
   end
 
@@ -326,7 +326,7 @@ function initiate(module, check)
   check.metric_string('logout', state)
 
   -- turnaround time
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
   local seconds = elapsed(check, "duration", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end

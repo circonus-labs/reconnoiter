@@ -146,7 +146,7 @@ end
 
 local function mkaction(e, check)
   return function (phase, tosend, expected_code, track)
-    local start_time = noit.timeval.now()
+    local start_time = mtev.timeval.now()
     local success = true
     if tosend then
       write_cmd(e, tosend)
@@ -164,12 +164,12 @@ local function mkaction(e, check)
     else
       check.available()
     end
-    local elapsed = noit.timeval.now() - start_time
+    local elapsed = mtev.timeval.now() - start_time
     local elapsed_ms = math.floor(tostring(elapsed) * 1000)
     check.metric(phase .. "_time",  elapsed_ms)
 
     if phase == 'ehlo' and message ~= nil then
-      local fields = noit.extras.split(message, "\r\n")
+      local fields = mtev.extras.split(message, "\r\n")
       if fields ~= nil then
         local response = ""
         local extensions = ""
@@ -182,7 +182,7 @@ local function mkaction(e, check)
           for line, value in pairs(fields) do
             if value ~= nil and value ~= "" then
               value = value:gsub("^%s*(.-)%s*$", "%1")
-              local subfields = noit.extras.split(value, "%s+", 1)
+              local subfields = mtev.extras.split(value, "%s+", 1)
               if subfields ~= nil and subfields[1] ~= nil then
                 local header = subfields[1]
                 if subfields[2] ~= nil then
@@ -202,7 +202,7 @@ end
 
 local function mk_sasllogin(e, check)
   return function (username, password) 
-    local start_time = noit.timeval.now()
+    local start_time = mtev.timeval.now()
     local actual_code = 0
     local message = ""
     local success = "true"
@@ -225,7 +225,7 @@ local function mk_sasllogin(e, check)
         success = "false"
       end
     end
-    local elapsed = noit.timeval.now() - start_time
+    local elapsed = mtev.timeval.now() - start_time
     local elapsed_ms = math.floor(tostring(elapsed) * 1000)
     check.metric("sasl_login_time",  elapsed_ms)
     check.metric("sasl_login_success", success)
@@ -236,7 +236,7 @@ end
 
 local function mk_saslplain(e, check)
   return function (cmd_string)
-    local start_time = noit.timeval.now()
+    local start_time = mtev.timeval.now()
     local actual_code = 0
     local message = ""
     local success = "true"
@@ -252,7 +252,7 @@ local function mk_saslplain(e, check)
         success = "false"
       end
     end
-    local elapsed = noit.timeval.now() - start_time
+    local elapsed = mtev.timeval.now() - start_time
     local elapsed_ms = math.floor(tostring(elapsed) * 1000)
     check.metric("sasl_plain_time",  elapsed_ms)
     check.metric("sasl_plain_success", success)
@@ -295,8 +295,8 @@ end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
-  local e = noit.socket(check.target_ip)
+  local starttime = mtev.timeval.now()
+  local e = mtev.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, config.port or 25)
   local action_result
   check.unavailable()
@@ -321,7 +321,7 @@ function initiate(module, check)
 
   -- setup SSL info
   local default_ca_chain =
-      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+      mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
   local certfile = config.certificate_file or ''
   local keyfile = config.key_file or ''
   local cachain = config.ca_chain or default_ca_chain
@@ -350,7 +350,7 @@ function initiate(module, check)
       check.metric_uint32("cert_start", ssl_ctx.start_time)
       check.metric_uint32("cert_end", ssl_ctx.end_time)
       check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
-      if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+      if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
         good = false
         status = status .. ',ssl=expired'
       end
@@ -361,9 +361,9 @@ function initiate(module, check)
 
   if config.sasl_authentication ~= nil then
     if config.sasl_authentication == "login" then
-      sasl_login(noit.base64_encode(config.sasl_user or ""), noit.base64_encode(config.sasl_password or ""))
+      sasl_login(mtev.base64_encode(config.sasl_user or ""), mtev.base64_encode(config.sasl_password or ""))
     elseif config.sasl_authentication == "plain" then
-      sasl_plain(noit.base64_encode((config.sasl_auth_id or "") .. "\0" .. (config.sasl_user or "") .. "\0" .. (config.sasl_password or "")))
+      sasl_plain(mtev.base64_encode((config.sasl_auth_id or "") .. "\0" .. (config.sasl_user or "") .. "\0" .. (config.sasl_password or "")))
     end
   end
 
@@ -376,7 +376,7 @@ function initiate(module, check)
   check.status(status)
   if good then check.good() end
 
-  local elapsed = noit.timeval.now() - starttime
+  local elapsed = mtev.timeval.now() - starttime
   local elapsed_ms = math.floor(tostring(elapsed) * 1000)
   check.metric("duration",  elapsed_ms)
 end

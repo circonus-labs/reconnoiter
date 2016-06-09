@@ -107,7 +107,7 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 
 function initiate(module, check)
@@ -139,7 +139,7 @@ function initiate(module, check)
   if config.auth_user ~= nil then
     local user = config.auth_user;
     local password = config.auth_password or ''
-    local encoded = noit.base64_encode(user .. ':' .. password)
+    local encoded = mtev.base64_encode(user .. ':' .. password)
     headers["Authorization"] = "Basic " .. encoded
   end
 
@@ -156,7 +156,7 @@ function initiate(module, check)
 
   -- setup SSL info
   local default_ca_chain =
-      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+      mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
   callbacks.certfile = function () return config.certificate_file end
   callbacks.keyfile = function () return config.key_file end
   callbacks.cachain = function ()
@@ -202,7 +202,7 @@ function initiate(module, check)
       elseif state == 0 then -- collecting header line
         hdr[column] = field
       else
-        local selectre = noit.pcre(config.select or '.*')
+        local selectre = mtev.pcre(config.select or '.*')
         if selectre == nil or selectre(rowname) then
           local cname = rowname .. "`" .. hdr[column]
           if is_string[hdr[column]] then

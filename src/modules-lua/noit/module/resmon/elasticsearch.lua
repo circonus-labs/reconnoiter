@@ -107,7 +107,7 @@ function json_metric(check, prefix, o)
         check.metric_int32(prefix, o and 1 or 0)
         cnt = cnt + 1
     else
-        noit.log("debug", "got unknown type: " .. type(o) .. "\n")
+        mtev.log("debug", "got unknown type: " .. type(o) .. "\n")
         cnt = 0
     end
     return cnt
@@ -125,6 +125,6 @@ function json_to_metrics(check, doc)
 end
 
 function process(check, output)
-  local jsondoc = noit.parsejson(output)
+  local jsondoc = mtev.parsejson(output)
   json_to_metrics(check, jsondoc)
 end

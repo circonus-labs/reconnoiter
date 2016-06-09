@@ -111,7 +111,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end 

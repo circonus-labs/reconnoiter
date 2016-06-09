@@ -207,7 +207,7 @@ function initiate(module, check)
     if current_time - cache_table[uuid]['timestamp'] >= 890 then
       -- We've gone over the cache timeout... get new values
       cache_table[uuid]['metrics'] = {}
-      local dns = noit.dns()
+      local dns = mtev.dns()
       local r = dns:lookup('www.googleapis.com')
       if not r or r.a == nil then
           check.status("failed to resolve www.googleapis.com")

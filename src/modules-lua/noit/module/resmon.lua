@@ -30,7 +30,7 @@
 
 module(..., package.seeall)
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 local helpers = {}
 
 function onload(image)
@@ -125,7 +125,7 @@ function onload(image)
   local helper = {} 
   local status, err = pcall(function () helper = require ('noit.module.resmon.' .. image.name()) end)
   if not status and (err == nil or string.find(err, "not found") == nil) then
-    noit.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err or "unknown error")
+    mtev.log("error", "lua require('noit.module.resmon.%s') -> %s\n", image.name(), err or "unknown error")
     return 0
   end
   helpers[image.name()] = helper
@@ -181,7 +181,7 @@ function json_metric(check, prefix, o)
         check.metric_int32(prefix, o and 1 or 0)
         cnt = cnt + 1
     else
-        noit.log("debug", "got unknown type: " .. type(o) .. "\n")
+        mtev.log("debug", "got unknown type: " .. type(o) .. "\n")
         cnt = 0
     end
     return cnt
@@ -251,9 +251,9 @@ function initiate(module, check)
     if payload == "" then payload = nil end
     local port
     local use_ssl = false
-    local codere = noit.pcre(config.code or '^200$')
+    local codere = mtev.pcre(config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
     local read_limit = tonumber(config.read_limit) or nil
     local client
 
@@ -287,7 +287,7 @@ function initiate(module, check)
 
     -- setup SSL info
     local default_ca_chain =
-        noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+        mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
     callbacks.certfile = function () return config.certificate_file end
     callbacks.keyfile = function () return config.key_file end
     callbacks.cachain = function ()
@@ -316,7 +316,7 @@ function initiate(module, check)
         local pass = config.auth_password or nil
         local encoded = nil
         if (user ~= nil and pass ~= nil) then
-            encoded = noit.base64_encode(user .. ':' .. pass)
+            encoded = mtev.base64_encode(user .. ':' .. pass)
             headers["Authorization"] = "Basic " .. encoded
         end
     elseif config.auth_method == "Digest" or
@@ -356,7 +356,7 @@ function initiate(module, check)
         local ameth, challenge =
             string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
         if config.auth_method == "Auto" and ameth == "Basic" then
-            local encoded = noit.base64_encode(user .. ':' .. password)
+            local encoded = mtev.base64_encode(user .. ':' .. password)
             headers["Authorization"] = "Basic " .. encoded
         elseif ameth == "Digest" then
             headers["Authorization"] =
@@ -402,7 +402,7 @@ function initiate(module, check)
         if services > 0 then check.good() else check.bad() end
         check.status("services=" .. services)
       else
-        noit.log("debug", "bad json: %s", output)
+        mtev.log("debug", "bad json: %s", output)
         check.status("json parse error")
       end
       return
@@ -411,12 +411,12 @@ function initiate(module, check)
     -- try xml by "default" (assuming no json-specific content header)
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
-        jsondoc = noit.parsejson(output)
+        jsondoc = mtev.parsejson(output)
         if jsondoc == nil then
             if output ~= "" then
-                noit.log("debug", "bad xml: %s\n", output)
+                mtev.log("debug", "bad xml: %s\n", output)
             end
             check.status("xml parse error")
             return

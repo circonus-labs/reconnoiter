@@ -107,7 +107,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -138,7 +138,7 @@ end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
+  local starttime = mtev.timeval.now()
   check.bad()
   check.unavailable()
   check.status("unknown error")
@@ -162,7 +162,7 @@ function initiate(module, check)
     if use_ssl then port = 995 else port = 110 end
   end
 
-  local e = noit.socket(check.target_ip)
+  local e = mtev.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, port)
 
   if rv ~= 0 then
@@ -171,7 +171,7 @@ function initiate(module, check)
   end
 
   local ca_chain = 
-     noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+     mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
 
   if config.ca_chain ~= nil and config.ca_chain ~= '' then
     ca_chain = config.ca_chain
@@ -189,7 +189,7 @@ function initiate(module, check)
     return
   end
 
-  local connecttime = noit.timeval.now()
+  local connecttime = mtev.timeval.now()
   elapsed(check, "tt_connect", starttime, connecttime)
 
   status = "connected"
@@ -201,7 +201,7 @@ function initiate(module, check)
   if ssl_ctx ~= nil then
     local header_match_error = nil
     if expected_certificate_name ~= '' then
-      header_match_error = noit.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
+      header_match_error = mtev.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
     end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
     if header_match_error == nil then
@@ -218,7 +218,7 @@ function initiate(module, check)
     end
     check.metric_uint32("cert_start", ssl_ctx.start_time)
     check.metric_uint32("cert_end", ssl_ctx.end_time)
-    if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+    if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
       good = false
       status = status .. ',ssl=expired'
     end
@@ -227,7 +227,7 @@ function initiate(module, check)
   -- match banner
   local ok, banner
   ok, banner = get_banner(e)
-  local firstbytetime = noit.timeval.now()
+  local firstbytetime = mtev.timeval.now()
   elapsed(check, "tt_firstbyte", starttime, firstbytetime)
   check.metric_string('banner', ok)
   if ok ~= "OK" then
@@ -237,26 +237,26 @@ function initiate(module, check)
   local state, line
 
   -- login
-  local lstart = noit.timeval.now()
+  local lstart = mtev.timeval.now()
   state, line = issue_cmd(e, "USER " .. config.auth_user)
   if state ~= "OK" then 
     good = false
     check.metric_string("login`status", line)
   else
     state, line = issue_cmd(e, "PASS " .. config.auth_password)
-    elapsed(check, "login`duration", lstart, noit.timeval.now())
+    elapsed(check, "login`duration", lstart, mtev.timeval.now())
     check.metric_string("login`status", line)
   end
   if state ~= "OK" then good = false
   else
     -- Run a STAT command and parse it into metrics
-    local estart = noit.timeval.now()
+    local estart = mtev.timeval.now()
     state, line = issue_cmd(e, "STAT")
-    elapsed(check, 'stat`duration', estart, noit.timeval.now())
+    elapsed(check, 'stat`duration', estart, mtev.timeval.now())
     check.metric_string('stat`status', line)
     if state ~= "OK" then good = false
     else
-      local subfields = noit.extras.split(line, "%s+")
+      local subfields = mtev.extras.split(line, "%s+")
       if subfields ~= nil then 
         if subfields[2] ~= nil then
           check.metric_uint32("stat`message_count", subfields[2])
@@ -274,7 +274,7 @@ function initiate(module, check)
     check.metric_string('quit', state)
   end
   -- turnaround time
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
   local seconds = elapsed(check, "duration", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end

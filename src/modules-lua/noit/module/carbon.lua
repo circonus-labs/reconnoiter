@@ -79,7 +79,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -118,7 +118,7 @@ function carbon_client(client, co, l)
         -- split out the data on the line
         local metric, value, whence = string.match(line, "([^%s]+)%s+(%d+%.?%d*)%s+(%d+)")
         if metric ~= nil then
-          local now = noit.timeval.now()
+          local now = mtev.timeval.now()
           local age = now.sec - whence
           local nchecks = 0
 
@@ -146,15 +146,15 @@ function carbon_client(client, co, l)
     until line == nil
   end)
   if not success then
-    noit.log("error", "carbon client errored: " .. msg .. "\n")
+    mtev.log("error", "carbon client errored: " .. msg .. "\n")
   end
   client:close()
   l.clients[connid] = nil
 end
 
 function carbon_acceptor(l)
-  noit.log("error", "carbon_acceptor() starting.\n")
-  local e = noit.socket('inet', 'tcp')
+  mtev.log("error", "carbon_acceptor() starting.\n")
+  local e = mtev.socket('inet', 'tcp')
   local success, msg = pcall(function() 
     -- bind
     local err, errno = e:bind('255.255.255.255', l.port)
@@ -164,7 +164,7 @@ function carbon_acceptor(l)
     if err ~= 0 then error("listen error -> " .. msg .. "\n") end
 
     -- listen loop
-    noit.log("error", "new carbon listener in port " .. l.port .. "\n")
+    mtev.log("error", "new carbon listener in port " .. l.port .. "\n")
     while count_checks(l) > 0 do
       local client = e:accept()
       local co = coroutine.create(carbon_client)
@@ -173,9 +173,9 @@ function carbon_acceptor(l)
   end
   )
   if not success then
-    noit.log("error", "accept() <- " .. msg .. "\n")
+    mtev.log("error", "accept() <- " .. msg .. "\n")
   end
-  noit.log("error", "listener on port " .. l.port .. " shutting down\n");
+  mtev.log("error", "listener on port " .. l.port .. " shutting down\n");
   e:close()
   l.listener = nil
 end

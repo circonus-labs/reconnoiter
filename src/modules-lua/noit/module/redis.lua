@@ -96,7 +96,7 @@ function initiate(module, check)
 
   local redis_comm = build_redis_command(config.command or "info")
 
-  local conn = noit.socket(host)
+  local conn = mtev.socket(host)
   local rv, err = conn:connect(host, port)
   if ( rv ~= 0 ) then
     check.status(err or "connect error")

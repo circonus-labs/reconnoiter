@@ -91,20 +91,20 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function initiate(module, check)
     local acct_id = check.config.acct_id or "DUMMY"
     local application_id = check.config.application_id or "DUMMY"
     local license_key = check.config.license_key or "DUMMY"
     local api_key = check.config.api_key or "DUMMY"
-    local d = noit.dns()
+    local d = mtev.dns()
     local port = 443
     local use_ssl = true
     local uri = '/accounts/' .. acct_id .. '/applications/' .. application_id .. '/threshold_values.xml'
-    local codere = noit.pcre(check.config.code or '^200$')
+    local codere = mtev.pcre(check.config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
 
     local host = ""
     local target = ""
@@ -147,9 +147,9 @@ function initiate(module, check)
     client:get_response()
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
-        noit.log("debug", "bad xml: %s\n", output)
+        mtev.log("debug", "bad xml: %s\n", output)
     end
     check.available()
 

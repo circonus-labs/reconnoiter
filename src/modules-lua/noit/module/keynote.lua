@@ -100,7 +100,7 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 local component = { U="User Time", N="Cached Measurement Time", Y="Bytes Downloaded",
   M="Objects Count", H="Throughput", A="Connection Count", D="DNS", I="Initial Connection",
@@ -193,6 +193,6 @@ function initiate(module, check)
 
     client:do_request("GET", uri, headers)
     client:get_response()
-    json_to_metrics(check, noit.parsejson(output))
+    json_to_metrics(check, mtev.parsejson(output))
 end
 

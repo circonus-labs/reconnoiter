@@ -150,8 +150,8 @@ end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
-  local e = noit.socket(config.target_ip)
+  local starttime = mtev.timeval.now()
+  local e = mtev.socket(config.target_ip)
   local port = config.port or 2025
   local rv, err = e:connect(check.target_ip, config.port or 2025)
   local action_result
@@ -168,7 +168,7 @@ function initiate(module, check)
   if string.match(version, "Authorization required") and
      config.sasl_authentication == "digest-md5" then
     local challenge = run_command(e, "auth DIGEST-MD5")
-    challenge = noit.base64_decode(challenge)
+    challenge = mtev.base64_decode(challenge)
     local nc = '00000001'
     local function rand_string(t, l)
         local n = #t
@@ -192,14 +192,14 @@ function initiate(module, check)
         if q == "auth" then p.qop = "auth" end
     end
     local uri = "ec_console/" .. check.target_ip .. ":" .. port
-    local huri = noit.md5_hex("AUTHENTICATE:" .. uri)
-    local secret = noit.md5(config.sasl_user .. ":" .. p.realm .. ":" .. config.sasl_password)
-    local hexha1 = noit.md5_hex(secret .. ":" .. p.nonce .. ":" .. cnonce)
+    local huri = mtev.md5_hex("AUTHENTICATE:" .. uri)
+    local secret = mtev.md5(config.sasl_user .. ":" .. p.realm .. ":" .. config.sasl_password)
+    local hexha1 = mtev.md5_hex(secret .. ":" .. p.nonce .. ":" .. cnonce)
 
-    local crypt_response = noit.md5_hex(hexha1 .. ":" .. p.nonce .. ":" .. nc .. ":" .. cnonce .. ":" .. p.qop .. ":" .. huri)
+    local crypt_response = mtev.md5_hex(hexha1 .. ":" .. p.nonce .. ":" .. nc .. ":" .. cnonce .. ":" .. p.qop .. ":" .. huri)
     local response = string.format("charset=%s,username=\"%s\",realm=\"%s\",nonce=\"%s\",nc=\"%08x\",cnonce=\"%s\",digest-uri=\"%s\",response=%s,qop=%s", p.charset, config.sasl_user, p.realm, p.nonce, 1, cnonce, uri, crypt_response, p.qop)
 
-    local response = run_command(e, "auth response " .. noit.base64_encode(response))
+    local response = run_command(e, "auth response " .. mtev.base64_encode(response))
     if not string.match(response, "authorized") then
       check.bad()
       check.status(response or "authorization failed")
@@ -213,7 +213,7 @@ function initiate(module, check)
   local status = 'connected'
 
   local response = run_command(e, command)
-  local doc = noit.parsexml(response)
+  local doc = mtev.parsexml(response)
   if doc then
     check.available();
     local nodes = doc:xpath(xpath_str)
@@ -242,7 +242,7 @@ function initiate(module, check)
   end 
   if good then check.good() end
 
-  local elapsed = noit.timeval.now() - starttime
+  local elapsed = mtev.timeval.now() - starttime
   local elapsed_ms = math.floor(tostring(elapsed) * 1000)
   check.metric("duration",  elapsed_ms)
 end
