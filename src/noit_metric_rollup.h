@@ -28,8 +28,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _NOIT_MESSAGE_DECODER_H
-#define _NOIT_MESSAGE_DECODER_H
+#ifndef _NOIT_METRIC_ROLLUP_H
+#define _NOIT_METRIC_ROLLUP_H
 
 #include <mtev_defines.h>
 #include <stdint.h>
@@ -37,9 +37,33 @@
 
 #include "noit_metric.h"
 
-API_EXPORT(int)
-noit_message_decoder_parse_line(const char *payload, int payload_len,
-    uuid_t *id, const char **metric_name, int *metric_name_len,
-    noit_metric_value_t *metric, mtev_boolean has_noit);
+typedef struct {
+  metric_type_t type;
+  uint16_t count;
+  uint8_t stddev_present;
+  float stddev;
+  union {
+    int32_t v_int32;
+    uint32_t v_uint32;
+    int64_t v_int64;
+    uint64_t v_uint64;
+    double v_double;
+  } value;
+  float derivative;
+  float derivative_stddev;
+  float counter;
+  float counter_stddev;
+} nnt_multitype;
+
+typedef struct {
+  noit_metric_value_t last_value;
+  nnt_multitype accumulated;
+  int drun;
+  int crun;
+  uint64_t first_value_time_ms;
+} noit_numeric_rollup_accu;
+
+API_EXPORT(void)
+noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accumulator, noit_metric_value_t* value);
 
 #endif
