@@ -80,6 +80,7 @@ struct value_list {
 };
 struct rest_json_payload {
   noit_check_t *check;
+  uuid_t check_id;
   yajl_handle parser;
   int len;
   int complete;
@@ -457,6 +458,12 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
 
   content_length = mtev_http_request_content_length(req);
   rxc = restc->call_closure;
+  rxc->check = noit_poller_lookup(rxc->check_id);
+  if (!rxc->check) {
+    *complete = 1;
+    return NULL;
+  }
+
   if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
   rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : NULL, rxc->check);
   while(!rxc->complete) {
@@ -616,6 +623,7 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     if(!delimiter) (void)mtev_hash_retr_str(check->config, "httptrap_delimiter", strlen("httptrap_delimiter"), &delimiter);
     if(delimiter && *delimiter) rxc->delimiter = *delimiter;
     rxc->check = check;
+    uuid_copy(rxc->check_id, check_id);
     rxc->parser = yajl_alloc(&httptrap_yajl_callbacks, NULL, rxc);
     rxc->depth = -1;
     yajl_config(rxc->parser, yajl_allow_comments, 1);
