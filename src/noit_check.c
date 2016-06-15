@@ -1691,6 +1691,8 @@ noit_metric_sizes(metric_type_t type, const void *value) {
       int len = strlen((char*)value) + 1;
       return ((len >= text_size_limit) ? text_size_limit+1 : len);
     }
+    case METRIC_ABSENT:
+    case METRIC_NULL:
     case METRIC_GUESS:
       break;
   }
@@ -1945,6 +1947,9 @@ noit_stats_set_metric_coerce(noit_check_t *check,
     case METRIC_GUESS:
       noit_stats_set_metric(check, name, t, v);
       break;
+    case METRIC_ABSENT:
+    case METRIC_NULL:
+      assert(0 && "ABSENT and NULL metrics may not be passed to noit_stats_set_metric_coerce");
   }
   check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
 }
