@@ -31,7 +31,10 @@
 #include "noit_metric_rollup.h"
 #include <assert.h>
 #define private_nan 0
-
+#if defined(__APPLE__) && defined(__MACH__)
+#define isnanf(a) __inline_isnanf((float)(a))
+#endif
+#include <math.h>
 
 static double
 metric_value_double(noit_metric_value_t *v) {
