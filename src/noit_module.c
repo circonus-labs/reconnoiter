@@ -198,7 +198,6 @@ noit_module_options(mtev_console_closure_t ncct,
 
     while(mtev_hash_next(&modules, &iter, (const char **)&name, &klen,
                          &vhdr)) {
-      mtev_image_t *hdr = (mtev_image_t *)vhdr;
       if(!strncmp(name, argv[0], strlen(argv[0]))) {
         if(idx == i) return strdup(name);
         i++;
@@ -226,8 +225,7 @@ noit_module_help(mtev_console_closure_t ncct,
     nc_printf(ncct, "= Modules =\n");
     while(mtev_hash_next(&modules, &iter, (const char **)&name, &klen,
                          &vhdr)) {
-      mtev_image_t *hdr = (mtev_image_t *)vhdr;;
-      nc_printf(ncct, "  %s\n", hdr->name);
+      nc_printf(ncct, "  %s\n", name);
     }
     return 0;
   } 
