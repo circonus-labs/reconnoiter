@@ -199,8 +199,8 @@ noit_module_options(mtev_console_closure_t ncct,
     while(mtev_hash_next(&modules, &iter, (const char **)&name, &klen,
                          &vhdr)) {
       mtev_image_t *hdr = (mtev_image_t *)vhdr;
-      if(!strncmp(hdr->name, argv[0], strlen(argv[0]))) {
-        if(idx == i) return strdup(hdr->name);
+      if(!strncmp(name, argv[0], strlen(argv[0]))) {
+        if(idx == i) return strdup(name);
         i++;
       }
     }
