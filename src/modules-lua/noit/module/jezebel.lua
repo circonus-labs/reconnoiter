@@ -101,7 +101,7 @@ function config(module, options)
   current_url[name] = 0
   urls[name][0] = "test"
   if (options.url) then
-    local url_split = noit.extras.split(options.url, ",")
+    local url_split = mtev.extras.split(options.url, ",")
     for index, url in ipairs(url_split) do
       urls[name][count[name]] = url
       count[name]=count[name]+1
@@ -113,10 +113,10 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function constructXml(check)
-  local doc = noit.parsexml("<check/>")
+  local doc = mtev.parsexml("<check/>")
   local root = doc:root()
   root:attr("target", check.target)
   if(check.target_ip ~= nil) then
@@ -203,9 +203,9 @@ function initiate(module, check)
     client:get_response()
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
-        noit.log("debug", "bad xml: %s\n", output)
+        mtev.log("debug", "bad xml: %s\n", output)
         check.status("bad xml from jezebel")
         return
     end

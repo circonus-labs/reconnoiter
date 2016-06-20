@@ -146,13 +146,13 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 local BODY_MATCHES_PREFIX = 'body_match_'
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -164,10 +164,10 @@ function populate_cookie_jar(cookies, host, hdr)
             string.match(hdr, "([^=]+)=([^;]+);?%s*(.*)")
         if name ~= nil then
             local jar = { }
-            local fields = noit.extras.split(trailer, ";")
+            local fields = mtev.extras.split(trailer, ";")
             if fields ~= nil then
                 for k, v in pairs(fields) do
-                    local pair = noit.extras.split(v, "=", 1);
+                    local pair = mtev.extras.split(v, "=", 1);
                     if pair ~= nil and pair[1] ~= nil and pair[2] ~= nil then
                         local name = (string.gsub(pair[1], "^%s*(.-)%s*$", "%1"));
                         local setting = (string.gsub(pair[2], "^%s*(.-)%s*$", "%1"));
@@ -205,7 +205,7 @@ function apply_cookies(headers, cookies, host, uri)
     local use_cookies = { }
     for h, paths in pairs(cookies) do
         if has_host(h, host) then
-            local split_uri = noit.extras.split(uri, "/")
+            local split_uri = mtev.extras.split(uri, "/")
             if split_uri ~= nil then
                 local path = ""
                 for i, val in pairs(split_uri) do
@@ -306,9 +306,9 @@ function initiate(module, check)
     local url = config.url or 'http:///'
     local schema, host, sep, port, uri = string.match(url, "^(https?)://([^:/]*)(:?)([0-9]*)(/?.*)$");
     local use_ssl = false
-    local codere = noit.pcre(config.code or '^200$')
+    local codere = mtev.pcre(config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
     local method = config.method or "GET"
     local max_len = 80
     local pcre_match_limit = config.pcre_match_limit or 10000
@@ -361,7 +361,7 @@ function initiate(module, check)
     local callbacks = { }
     callbacks.consume = function (str)
         if setfirstbyte == 1 then
-            firstbytetime = noit.timeval.now()
+            firstbytetime = mtev.timeval.now()
             setfirstbyte = 0
         end
         output = output .. (str or '')
@@ -373,11 +373,11 @@ function initiate(module, check)
         end
     end
 
-    callbacks.connected = function () connecttime = noit.timeval.now() end
+    callbacks.connected = function () connecttime = mtev.timeval.now() end
 
     -- setup SSL info
     local default_ca_chain =
-        noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+        mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
     callbacks.certfile = function () return config.certificate_file end
     callbacks.keyfile = function () return config.key_file end
     callbacks.cachain = function ()
@@ -398,7 +398,7 @@ function initiate(module, check)
     if config.auth_method == "Basic" then
         local user = config.auth_user or ''
         local password = config.auth_password or ''
-        local encoded = noit.base64_encode(user .. ':' .. password)
+        local encoded = mtev.base64_encode(user .. ':' .. password)
         headers["Authorization"] = "Basic " .. encoded
     elseif config.auth_method == "Digest" or
            config.auth_method == "Auto" then
@@ -425,7 +425,7 @@ function initiate(module, check)
         local ameth, challenge =
             string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
         if config.auth_method == "Auto" and ameth == "Basic" then
-            local encoded = noit.base64_encode(user .. ':' .. password)
+            local encoded = mtev.base64_encode(user .. ':' .. password)
             headers["Authorization"] = "Basic " .. encoded
         elseif ameth == "Digest" then
             headers["Authorization"] =
@@ -446,12 +446,12 @@ function initiate(module, check)
 
     -- perform the request
     local client
-    local dns = noit.dns()
+    local dns = mtev.dns()
     local target = check.target_ip
     local payload = config.payload
     -- artificially increase redirects as the initial request counts
     redirects = redirects + 1
-    starttime = noit.timeval.now()
+    starttime = mtev.timeval.now()
     repeat
         local optclient = HttpClient:new(callbacks)
         local rv, err = optclient:connect(target, port, use_ssl, host_header, config.ssl_layer)
@@ -506,7 +506,7 @@ function initiate(module, check)
         end
     until redirects <= 0 or next_location == nil
 
-    local endtime = noit.timeval.now()
+    local endtime = mtev.timeval.now()
     check.available()
 
     local status = ''
@@ -534,7 +534,7 @@ function initiate(module, check)
     check.metric_int32("bytes", client.content_bytes)
 
     if config.extract ~= nil then
-      local exre = noit.pcre(config.extract)
+      local exre = mtev.pcre(config.extract)
       local rv = true
       local m = nil
       while rv and m ~= '' do
@@ -547,7 +547,7 @@ function initiate(module, check)
 
     -- check body
     if config.body ~= nil then
-      local bodyre = noit.pcre(config.body)
+      local bodyre = mtev.pcre(config.body)
       local rv, m, m1 = bodyre(output or '')
       if rv then
         m = m1 or m or output
@@ -573,7 +573,7 @@ function initiate(module, check)
         has_body_matches = true
         key = string.gsub(key, BODY_MATCHES_PREFIX, '')
 
-        local bodyre = noit.pcre(value)
+        local bodyre = mtev.pcre(value)
         local rv, m, m1 = bodyre(output or '')
 
         if rv then
@@ -630,7 +630,7 @@ function initiate(module, check)
       end
       local header_match_error = nil
       if host_header ~= '' then
-        header_match_error = noit.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
+        header_match_error = mtev.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
       end
       if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
       if header_match_error == nil then
@@ -648,7 +648,7 @@ function initiate(module, check)
       check.metric_uint32("cert_start", ssl_ctx.start_time)
       check.metric_uint32("cert_end", ssl_ctx.end_time)
       check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
-      if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+      if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
         good = false
         status = status .. ',ssl=expired'
       end

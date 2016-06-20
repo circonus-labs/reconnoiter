@@ -34,27 +34,6 @@
 #include <uuid/uuid.h>
 #include "noit_message_decoder.h"
 
-typedef enum {
-  MESSAGE_TYPE_C = 'C',
-  MESSAGE_TYPE_D = 'D',
-  MESSAGE_TYPE_S = 'S',
-  MESSAGE_TYPE_H = 'H',
-  MESSAGE_TYPE_M = 'M'
-} message_type;
-
-typedef struct metric_id_t {
-  uuid_t id;
-  const char *name;
-  int name_len;
-} metric_id_t;
-
-typedef struct metric_message_t {
-  metric_id_t id;
-  metric_value_t value;
-  message_type type;
-  char* original_message;
-} metric_message_t;
-
 void noit_metric_director_init();
 
 /* Tells noit to funnel all observed lines matching this id-metric
@@ -67,8 +46,8 @@ void noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt);
 void noit_adjust_checks_interest(short cnt);
 
 /* This gets the next line you've subscribed to, if avaialable. */
-metric_message_t *noit_metric_director_lane_next();
+noit_metric_message_t *noit_metric_director_lane_next();
 
-void noit_metric_director_free_message(metric_message_t* message);
+void noit_metric_director_free_message(noit_metric_message_t* message);
 
 #endif

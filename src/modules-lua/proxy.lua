@@ -29,7 +29,7 @@
 
 module(..., package.seeall)
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function error(rest)
   local http = rest:http()
@@ -73,11 +73,11 @@ function handler(rest, config)
     end
   end
   headers_send.host = config.host
-noit.log("error", " (proxying : " .. req:uri() .. ")\n");
+mtev.log("error", " (proxying : " .. req:uri() .. ")\n");
   client:do_request("GET", req:uri(), headers_send)
-noit.log("error", " (reading : " .. req:uri() .. ")\n");
+mtev.log("error", " (reading : " .. req:uri() .. ")\n");
   client:get_response()
-noit.log("error", " (done : " .. req:uri() .. ")\n");
+mtev.log("error", " (done : " .. req:uri() .. ")\n");
 
   if not coded then return error(rest) end
 

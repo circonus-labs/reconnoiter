@@ -166,7 +166,7 @@ function config(module, options)
     return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function set_string(check, doc, path, result, name)
     local obj = (doc:xpath(path, result))()
@@ -731,9 +731,9 @@ function initiate(module, check)
     local schema, host, uri = string.match(url, "^(https?)://([^/]*)(.*)$");
     local port
     local use_ssl = false
-    local codere = noit.pcre(config.code or '^200$')
+    local codere = mtev.pcre(config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
     local read_limit = tonumber(config.read_limit) or nil
 
     -- assume the worst.
@@ -767,7 +767,7 @@ function initiate(module, check)
     
     -- setup SSL info
     local default_ca_chain =
-        noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+        mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
     callbacks.certfile = function () return config.certificate_file end
     callbacks.keyfile = function () return config.key_file end
     callbacks.cachain = function ()
@@ -794,7 +794,7 @@ function initiate(module, check)
         local pass = config.auth_password or nil
         local encoded = nil
         if (user ~= nil and pass ~= nil) then
-            encoded = noit.base64_encode(user .. ':' .. pass)
+            encoded = mtev.base64_encode(user .. ':' .. pass)
             headers["Authorization"] = "Basic " .. encoded
         end
     elseif config.auth_method == "Digest" or
@@ -823,7 +823,7 @@ function initiate(module, check)
         local ameth, challenge =
             string.match(client.headers["www-authenticate"], '^(%S+)%s+(.+)$')
         if config.auth_method == "Auto" and ameth == "Basic" then
-            local encoded = noit.base64_encode(user .. ':' .. password)
+            local encoded = mtev.base64_encode(user .. ':' .. password)
             headers["Authorization"] = "Basic " .. encoded
         elseif ameth == "Digest" then
             headers["Authorization"] =
@@ -849,7 +849,7 @@ function initiate(module, check)
     client:get_response(read_limit)
 
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
         check.status("xml parse error")
         return
@@ -862,7 +862,7 @@ function initiate(module, check)
     if ssl_ctx ~= nil then
         local header_match_error = nil
         if expected_certificate_name ~= '' then
-            header_match_error = noit.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
+            header_match_error = mtev.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
         end
         if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
         if header_match_error == nil then
@@ -880,7 +880,7 @@ function initiate(module, check)
         check.metric_uint32("cert_start", ssl_ctx.start_time)
         check.metric_uint32("cert_end", ssl_ctx.end_time)
         check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
-        if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+        if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
             good = false
             status = status .. ',ssl=expired'
         end

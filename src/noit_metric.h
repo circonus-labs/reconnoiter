@@ -37,6 +37,8 @@
 #include <mtev_defines.h>
 
 typedef enum {
+  METRIC_ABSENT = 0,
+  METRIC_NULL = 1,
   METRIC_GUESS = '0',
   METRIC_INT32 = 'i',
   METRIC_UINT32 = 'I',
@@ -60,5 +62,39 @@ typedef struct {
   } metric_value;
   mtev_boolean logged;
 } metric_t;
+
+typedef enum {
+  MESSAGE_TYPE_C = 'C',
+  MESSAGE_TYPE_D = 'D',
+  MESSAGE_TYPE_S = 'S',
+  MESSAGE_TYPE_H = 'H',
+  MESSAGE_TYPE_M = 'M'
+} noit_message_type;
+
+typedef struct {
+  uuid_t id;
+  const char *name;
+  int name_len;
+} noit_metric_id_t;
+
+typedef struct {
+  uint64_t whence_ms; /* when this was recieved */
+  metric_type_t type; /* the type of the following data item */
+  union {
+    int32_t v_int32;
+    uint32_t v_uint32;
+    int64_t v_int64;
+    uint64_t v_uint64;
+    double v_double;
+    char *v_string;
+  } value; /* the data itself */
+} noit_metric_value_t;
+
+typedef struct {
+  noit_metric_id_t id;
+  noit_metric_value_t value;
+  noit_message_type type;
+  char* original_message;
+} noit_metric_message_t;
 
 #endif

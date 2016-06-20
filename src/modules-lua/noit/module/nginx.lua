@@ -95,12 +95,12 @@ end
 
 function elapsed(check, name, starttime, endtime)
   local e = endtime - starttime
-  local seconds = string.format("%.3f", noit.timeval.seconds(e))
+  local seconds = string.format("%.3f", mtev.timeval.seconds(e))
   check.metric_uint32(name, math.floor(seconds * 1000 +0.5))
   return seconds
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
@@ -120,7 +120,7 @@ function initiate(module, check)
   end
 
   local expected_certificate_name = host or ''
-  local starttime = noit.timeval.now()
+  local starttime = mtev.timeval.now()
 
   check.bad()
   check.unavailable()
@@ -160,7 +160,7 @@ function initiate(module, check)
 
   -- setup SSL info
   local default_ca_chain =
-      noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+      mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
   callbacks.certfile = function () return config.certificate_file end
   callbacks.keyfile = function () return config.key_file end
   callbacks.cachain = function ()
@@ -187,7 +187,7 @@ function initiate(module, check)
     return
   end
 
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
 
   local active, accepted, handled, requests, reading, writing, waiting = string.match(output, "^Active connections: (%d*) %D*(%d*)%s-(%d*)%s-(%d*)%s-Reading: (%d*) Writing: (%d*) Waiting: (%d*)")
   check.metric("active", active)
@@ -206,7 +206,7 @@ function initiate(module, check)
   if ssl_ctx ~= nil then
     local header_match_error = nil
     if expected_certificate_name ~= '' then
-      header_match_error = noit.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
+      header_match_error = mtev.extras.check_host_header_against_certificate(expected_certificate_name, ssl_ctx.subject, ssl_ctx.san_list)
     end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
     if header_match_error == nil then
@@ -224,7 +224,7 @@ function initiate(module, check)
     check.metric_uint32("cert_start", ssl_ctx.start_time)
     check.metric_uint32("cert_end", ssl_ctx.end_time)
     check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
-    if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+    if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
       good = false
       status = status .. ',ssl=expired'
     end

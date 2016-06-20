@@ -30,7 +30,7 @@
 local GoogleAnalytics = { }
 GoogleAnalytics.__index = GoogleAnalytics
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function __genOrderedIndex( t )
     local orderedIndex = {}
@@ -229,7 +229,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
                 grant_type    = 'refresh_token' }
         client:do_request("POST", "/o/oauth2/token", headers, urlencode(auth_post_data))
         client:get_response()
-        jsondoc = noit.parsejson(output)
+        jsondoc = mtev.parsejson(output)
         local data = jsondoc:document()
         for k, v in pairs(data) do
             if k == "access_token" then new_auth_token = v end
@@ -238,7 +238,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
         url = url .. "&access_token=" .. new_auth_token
     elseif oauth_version == "1.0" then
         local oauth_timestamp = os.time()
-        local oauth_nonce = noit.base64_encode(math.random(1000000000))
+        local oauth_nonce = mtev.base64_encode(math.random(1000000000))
         local base_string = ''
         local signature = ''
         local hmac_key = 'anonymous&' .. oauth_token_secret
@@ -252,7 +252,7 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
         }
 
         base_string = constructOAuthBaseString(baseTable)
-        signature = escape(noit.hmac_sha1_encode(base_string, hmac_key))
+        signature = escape(mtev.hmac_sha1_encode(base_string, hmac_key))
 
         if signature == nil then
             signature = 'false'
@@ -272,9 +272,9 @@ function GoogleAnalytics:perform(target, cache_table, api_key, client_id, client
     client:do_request("GET", uri, headers)
     client:get_response()
     -- parse the xml doc
-    local doc = noit.parsexml(output)
+    local doc = mtev.parsexml(output)
     if doc == nil then
-        noit.log("debug", "bad xml: %s\n\n", output)
+        mtev.log("debug", "bad xml: %s\n\n", output)
     end
 
     local result

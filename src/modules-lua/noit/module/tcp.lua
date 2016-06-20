@@ -116,14 +116,14 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
 
 function initiate(module, check)
   local config = check.interpolate(check.config)
-  local starttime = noit.timeval.now()
+  local starttime = mtev.timeval.now()
   local max_len = 80
   check.bad()
   check.unavailable()
@@ -143,7 +143,7 @@ function initiate(module, check)
     use_ssl = true
   end
 
-  local e = noit.socket(check.target_ip)
+  local e = mtev.socket(check.target_ip)
   local rv, err = e:connect(check.target_ip, config.port)
 
   if rv ~= 0 then
@@ -152,7 +152,7 @@ function initiate(module, check)
   end
 
   local ca_chain = 
-     noit.conf_get_string("/noit/eventer/config/default_ca_chain")
+     mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
 
   if config.ca_chain ~= nil and config.ca_chain ~= '' then
     ca_chain = config.ca_chain
@@ -165,7 +165,7 @@ function initiate(module, check)
                                         config.ciphers)
   end 
 
-  local connecttime = noit.timeval.now()
+  local connecttime = mtev.timeval.now()
   elapsed(check, "tt_connect", starttime, connecttime)
   if rv ~= 0 then
     check.status(err or "connection failed")
@@ -181,7 +181,7 @@ function initiate(module, check)
   if ssl_ctx ~= nil then
     local header_match_error = nil
     if host_header ~= '' then
-      header_match_error = noit.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
+      header_match_error = mtev.extras.check_host_header_against_certificate(host_header, ssl_ctx.subject, ssl_ctx.san_list)
     end
     if ssl_ctx.error ~= nil then status = status .. ',sslerror' end
     if header_match_error == nil then
@@ -199,7 +199,7 @@ function initiate(module, check)
     check.metric_uint32("cert_start", ssl_ctx.start_time)
     check.metric_uint32("cert_end", ssl_ctx.end_time)
     check.metric_int32("cert_end_in", ssl_ctx.end_time - os.time())
-    if noit.timeval.seconds(starttime) > ssl_ctx.end_time then
+    if mtev.timeval.seconds(starttime) > ssl_ctx.end_time then
       good = false
       status = status .. ',ssl=expired'
     end
@@ -220,10 +220,10 @@ function initiate(module, check)
       check.status("could not read banner")
       return
     end
-    local firstbytetime = noit.timeval.now()
+    local firstbytetime = mtev.timeval.now()
     elapsed(check, "tt_firstbyte", starttime, firstbytetime)
 
-    local bannerre = noit.pcre(config.banner_match)
+    local bannerre = mtev.pcre(config.banner_match)
     if bannerre ~= nil then
       local rv, m, m1 = bannerre(str)
       if rv then
@@ -252,10 +252,10 @@ function initiate(module, check)
       check.status("bad body length " .. (str and str:len() or "0"))
       return
     end
-    local bodybytetime = noit.timeval.now()
+    local bodybytetime = mtev.timeval.now()
     elapsed(check, "tt_body", starttime, bodybytetime)
 
-    local exre = noit.pcre(config.body_match)
+    local exre = mtev.pcre(config.body_match)
     local rv = true
     local found = false
     local m = nil
@@ -280,7 +280,7 @@ function initiate(module, check)
   end
 
   -- turnaround time
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
   local seconds = elapsed(check, "duration", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end

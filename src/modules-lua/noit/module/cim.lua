@@ -114,7 +114,7 @@ function config(module, options)
   return 0
 end
 
-local HttpClient = require 'noit.HttpClient'
+local HttpClient = require 'mtev.HttpClient'
 
 function set_check_metric(check, name, type, value)
     if string.find(value, ",") ~= nil then
@@ -506,9 +506,9 @@ function initiate(module, check)
       schema, host, ignore_port, uri = string.match(url, "^(https?)://([^/]*)(.+)$");
     end
     
-    local codere = noit.pcre(check.config.code or '^200$')
+    local codere = mtev.pcre(check.config.code or '^200$')
     local good = false
-    local starttime = noit.timeval.now()
+    local starttime = mtev.timeval.now()
     local encoded = nil
     local class_string = check.config.classes or 'OMC_SMASHFirmwareIdentity,CIM_Chassis,CIM_Card,CIM_ComputerSystem,CIM_NumericSensor,CIM_Memory,CIM_Processor,CIM_RecordLog,OMC_DiscreteSensor,OMC_Fan,OMC_PowerSupply,VMware_StorageExtent,VMware_Controller,VMware_StorageVolume,VMware_Battery,VMware_SASSATAPort'
     local fields_string = check.config.fields or 'ALL'
@@ -543,9 +543,9 @@ function initiate(module, check)
         error(schema .. " not supported")
     end 
 
-    local classes = noit.extras.split(class_string, ",")
-    local fields_to_check = noit.extras.split(fields_string, ",")
-    local namespace_array = noit.extras.split(namespace, "/")
+    local classes = mtev.extras.split(class_string, ",")
+    local fields_to_check = mtev.extras.split(fields_string, ",")
+    local namespace_array = mtev.extras.split(namespace, "/")
 
     for ind, val in ipairs(fields_to_check) do
         fields_to_check[ind] = val:gsub("^%s*(.-)%s*$", "%1")
@@ -567,7 +567,7 @@ function initiate(module, check)
         local user = check.config.auth_user or nil
         local pass = check.config.auth_password or nil
         if (user ~= nil and pass ~= nil) then
-            encoded = noit.base64_encode(user .. ':' .. pass)
+            encoded = mtev.base64_encode(user .. ':' .. pass)
         end
     elseif check.config.auth_method ~= nil then
         check.status("Unknown auth method: " .. check.config.auth_method)
@@ -603,7 +603,7 @@ function initiate(module, check)
           client:get_response(1024000)
 
           -- parse the xml doc
-          local doc = noit.parsexml(output)
+          local doc = mtev.parsexml(output)
           if doc ~= nil then
             if classname == 'PullClassList' then
               metrics = metrics + classname_xml_to_metrics(check, doc)

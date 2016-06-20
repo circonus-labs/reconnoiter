@@ -85,20 +85,20 @@ function get_id_out_of_buffer(buf)
 end
 
 function create_dhcp_socket(port)
-  local e = noit.socket('inet', 'udp')
+  local e = mtev.socket('inet', 'udp')
   local err, errno = e:setsockopt("SO_REUSEADDR", 1)
   if err ~= 0 then
-    noit.log("error", "cannot set socket to reusable -> " .. errno)
+    mtev.log("error", "cannot set socket to reusable -> " .. errno)
     return nil
   end 
   err, errno = e:setsockopt("SO_BROADCAST", 1)
   if err ~= 0 then
-    noit.log("error", "cannot set socket to broadcast -> " .. errno)
+    mtev.log("error", "cannot set socket to broadcast -> " .. errno)
     return nil
   end 
   err, errno = e:bind('0.0.0.0', port)
   if err ~= 0 then
-    noit.log("error", "binding error -> " .. errno .. "\n")
+    mtev.log("error", "binding error -> " .. errno .. "\n")
     return nil
   end 
   return e
@@ -112,7 +112,7 @@ function dhcp_reader(internal_port)
     while true do
       local len, pkt = dhcp_read_sock:recv(2048)
       local id = get_id_out_of_buffer(pkt)
-      noit.notify(id, len, pkt)
+      mtev.notify(id, len, pkt)
     end
   end
 end
@@ -144,7 +144,7 @@ end
 
 function elapsed(check, name, starttime, endtime)
     local elapsedtime = endtime - starttime
-    local seconds = string.format('%.3f', noit.timeval.seconds(elapsedtime))
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
     check.metric_uint32(name, math.floor(seconds * 1000 + 0.5))
     return seconds
 end
@@ -213,8 +213,8 @@ end
 
 function pack_dhcp_info(host_ip, hardware_addr, request_type, target_ip, send_port)
   local packet = ''
-  local host_ip_number = noit.extras.iptonumber(host_ip)
-  local target_ip_number = noit.extras.iptonumber(target_ip)
+  local host_ip_number = mtev.extras.iptonumber(host_ip)
+  local target_ip_number = mtev.extras.iptonumber(target_ip)
   local id = math.random(0, 99999999)
   packet = packet .. string.pack(">IIbII", id, send_port, request_type, host_ip_number, target_ip_number)
   packet = packet .. pack_hardware_address(hardware_addr) -- Client MAC address
@@ -368,13 +368,13 @@ function initiate(module, check)
     return
   end
 
-  local starttime = noit.timeval.now()
-  local s = noit.socket('inet', 'udp')
+  local starttime = mtev.timeval.now()
+  local s = mtev.socket('inet', 'udp')
   local req, id = pack_dhcp_info(host_ip, hardware_addr, request_type, check.target_ip, send_port)
   local sent = s:sendto(req, '127.0.0.1', internal_port)
 
   while done == 0 do
-    local ret, len, buf = noit.waitfor(id, check.timeout / 1000)
+    local ret, len, buf = mtev.waitfor(id, check.timeout / 1000)
     if ret ~= nil then
       done = 1
       if len < 240 then
@@ -389,7 +389,7 @@ function initiate(module, check)
   end
 
   -- turnaround time
-  local endtime = noit.timeval.now()
+  local endtime = mtev.timeval.now()
   local seconds = elapsed(check, "duration_ms", starttime, endtime)
   status = status .. ',rt=' .. seconds .. 's'
   if good then check.good() else check.bad() end

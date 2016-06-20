@@ -31,9 +31,6 @@ MODULES_DIR=@MODULES_DIR@
 LUA_FILES=\
 	json.lua \
 	noit.lua \
-	noit/extras.lua \
-	noit/timeval.lua \
-	noit/HttpClient.lua \
 	noit/GoogleAnalytics.lua \
 	noit/AWSClient.lua \
 	noit/module/ec_console.lua \

@@ -31,6 +31,7 @@
 
 #include <mtev_defines.h>
 #include "noit_check.h"
+#include "noit_metric_rollup.h"
 #include "noit_filters.h"
 #include "lua_mtev.h"
 #include "lua_check.h"
@@ -138,89 +139,10 @@ lua_noit_checks_unsubscribe(lua_State *L) {
   return lua_noit_checks_adjustsubscribe(L, -1);
 }
 
-static int
-noit_metric_value_index_func(lua_State *L) {
-  int n;
-  const char *k;
-  metric_value_t **udata, *metric_id;
-  n = lua_gettop(L); /* number of arguments */
-  assert(n == 2);
-  if(!luaL_checkudata(L, 1, "metric_value_t")) {
-    luaL_error(L, "metatable error, arg1 not a metric_value_t!");
-    return 1;
-  }
-  udata = lua_touserdata(L, 1);
-  metric_id = *udata;
-  if(!lua_isstring(L, 2)) {
-    luaL_error(L, "metatable error, arg2 not a string!");
-    return 1;
-  }
-
-  k = lua_tostring(L, 2);
-  switch (*k) {
-    case 'w':
-      if(!strcmp(k, "whence")) {
-        lua_pushinteger(L, metric_id->whence_ms / 1000);
-      } else {
-        break;
-      }
-      return 1;
-    case 't':
-      if(!strcmp(k, "type")) {
-        lua_pushinteger(L, metric_id->type);
-      } else {
-        break;
-      }
-      return 1;
-    case 'v':
-      if(!strcmp(k, "value")) {
-        switch (metric_id->type) {
-          case METRIC_INT32:
-            lua_pushinteger(L, metric_id->value.v_int32);
-            break;
-          case METRIC_INT64:
-            lua_pushinteger(L, metric_id->value.v_int64);
-            break;
-          case METRIC_UINT32:
-            lua_pushinteger(L, metric_id->value.v_int32);
-            break;
-          case METRIC_UINT64:
-            lua_pushinteger(L, metric_id->value.v_int64);
-            break;
-          case METRIC_DOUBLE:
-            lua_pushnumber(L, metric_id->value.v_double);
-            break;
-          case METRIC_STRING:
-            lua_pushstring(L, metric_id->value.v_string);
-            break;
-        }
-        return 1;
-      }
-      break;
-    default:
-      break;
-  }
-  luaL_error(L, "metric_value_t no such element: %s", k);
-  return 0;
-}
-
-static void
-noit_lua_setup_metric_value(lua_State *L,
-    metric_value_t *value) {
-  metric_value_t **addr;
-  addr = (metric_value_t **)lua_newuserdata(L, sizeof(value));
-  *addr = value;
-  if(luaL_newmetatable(L, "metric_value_t") == 1) {
-    lua_pushcclosure(L, noit_metric_value_index_func, 0);
-    lua_setfield(L, -2, "__index");
-  }
-  lua_setmetatable(L, -2);
-}
-
 static int noit_metric_id_index_func(lua_State *L) {
   int n;
   const char *k;
-  metric_id_t **udata, *metric_id;
+  noit_metric_id_t **udata, *metric_id;
   n = lua_gettop(L); /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "metric_id_t")) {
@@ -265,9 +187,9 @@ static int noit_metric_id_index_func(lua_State *L) {
 
 static void
 noit_lua_setup_metric_id(lua_State *L,
-    metric_id_t *msg) {
-  metric_id_t **addr;
-  addr = (metric_id_t **)lua_newuserdata(L, sizeof(msg));
+    noit_metric_id_t *msg) {
+  noit_metric_id_t **addr;
+  addr = (noit_metric_id_t **)lua_newuserdata(L, sizeof(msg));
   *addr = msg;
   if(luaL_newmetatable(L, "metric_id_t") == 1) {
     lua_pushcclosure(L, noit_metric_id_index_func, 0);
@@ -280,7 +202,7 @@ static int
 noit_message_index_func(lua_State *L) {
   int n;
   const char *k;
-  metric_message_t **udata, *msg;
+  noit_metric_message_t **udata, *msg;
   n = lua_gettop(L);    /* number of arguments */
   assert(n == 2);
   if(!luaL_checkudata(L, 1, "metric_message_t")) {
@@ -303,9 +225,16 @@ noit_message_index_func(lua_State *L) {
         break;
       }
       return 1;
+    case 'w':
+      if(!strcmp(k, "whence_ms")) {
+        lua_pushinteger(L, msg->value.whence_ms);
+      } else {
+        break;
+      }
+      return 1;
     case 'v':
       if(!strcmp(k, "value")) {
-        noit_lua_setup_metric_value(L, &msg->value);
+        lua_pushlightuserdata(L, (void*)&msg->value);
       } else {
         break;
       }
@@ -334,7 +263,7 @@ noit_message_index_func(lua_State *L) {
 static int
 noit_lua_free_message(lua_State *L) {
   const char *k;
-  metric_message_t **udata;
+  noit_metric_message_t **udata;
   if(!luaL_checkudata(L, 1, "metric_message_t")) {
     luaL_error(L, "metatable error, arg1 not a metric_message_t!");
     return 1;
@@ -347,9 +276,9 @@ noit_lua_free_message(lua_State *L) {
 
 static void
 noit_lua_setup_message(lua_State *L,
-    metric_message_t *msg) {
-  metric_message_t **addr;
-  addr = (metric_message_t **)lua_newuserdata(L, sizeof(msg));
+    noit_metric_message_t *msg) {
+  noit_metric_message_t **addr;
+  addr = (noit_metric_message_t **)lua_newuserdata(L, sizeof(msg));
   *addr = msg;
   if(luaL_newmetatable(L, "metric_message_t") == 1) {
     lua_pushcclosure(L, noit_message_index_func, 0);
@@ -363,7 +292,7 @@ noit_lua_setup_message(lua_State *L,
 
 static int
 lua_noit_metric_next(lua_State *L) {
-  metric_message_t *msg;
+  noit_metric_message_t *msg;
   msg = noit_metric_director_lane_next();
   if(msg) {
     noit_lua_setup_message(L, msg);

@@ -46,9 +46,9 @@
     } \
 } while(0)
 
-int noit_message_decoder_parse_M_OR_H_line(const char *payload, int payload_len,
+int noit_message_decoder_parse_line(const char *payload, int payload_len,
     uuid_t *id, const char **metric_name, int *metric_name_len,
-    metric_value_t *metric, mtev_boolean has_noit) {
+    noit_metric_value_t *metric, mtev_boolean has_noit) {
   const char *cp, *metric_type_str, *time_str, *check_id_str;
   char *value_str;
   char *dp, id_str_copy[UUID_PRINTABLE_STRING_LENGTH];
