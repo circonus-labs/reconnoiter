@@ -1194,7 +1194,7 @@ stratcon_add_noit(const char *target, unsigned short port,
   return 1;
 }
 static int
-stratcon_remove_noit(const char *target, unsigned short port) {
+stratcon_remove_noit(const char *target, unsigned short port, const char *cn) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key_id;
   int klen, n = -1, i, cnt = 0;
@@ -1213,11 +1213,14 @@ stratcon_remove_noit(const char *target, unsigned short port) {
     char expected_cn[256];
     if(mtev_conf_get_stringbuf(noit_configs[i], "self::node()/config/cn",
                                expected_cn, sizeof(expected_cn))) {
-      pthread_mutex_lock(&noit_ip_by_cn_lock);
-      mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
-                       free, free);
-      pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      if(!cn || !strcmp(cn, expected_cn)) {
+        pthread_mutex_lock(&noit_ip_by_cn_lock);
+        mtev_hash_delete(&noit_ip_by_cn, expected_cn, strlen(expected_cn),
+                         free, free);
+        pthread_mutex_unlock(&noit_ip_by_cn_lock);
+      }
     }
+    else if(cn) continue;
     CONF_REMOVE(noit_configs[i]);
     xmlUnlinkNode(noit_configs[i]);
     xmlFreeNode(noit_configs[i]);
@@ -1269,11 +1272,14 @@ static int
 rest_delete_noit(mtev_http_rest_closure_t *restc,
                  int npats, char **pats) {
   mtev_http_session_ctx *ctx = restc->http_ctx;
+  mtev_http_request *req = mtev_http_session_request(ctx);
   unsigned short port = 43191;
   if(npats < 1 || npats > 2)
     mtev_http_response_server_error(ctx, "text/xml");
   if(npats == 2) port = atoi(pats[1]);
-  if(stratcon_remove_noit(pats[0], port) >= 0)
+
+  const char *want_cn = mtev_http_request_querystring(req, "cn");
+  if(stratcon_remove_noit(pats[0], port, want_cn) >= 0)
     mtev_http_response_ok(ctx, "text/xml");
   else
     mtev_http_response_not_found(ctx, "text/xml");
@@ -1291,8 +1297,11 @@ stratcon_console_conf_noits(mtev_console_closure_t ncct,
   char *cp, target[128];
   unsigned short port = 43191;
   int adding = (int)(vpsized_int)closure;
-  if(argc != 1)
+  char *cn = NULL;
+  if(argc != 1 && argc != 2)
     return -1;
+
+  if(argc == 2) cn = argv[1];
 
   cp = strchr(argv[0], ':');
   if(cp) {
@@ -1301,7 +1310,7 @@ stratcon_console_conf_noits(mtev_console_closure_t ncct,
   }
   else strlcpy(target, argv[0], sizeof(target));
   if(adding) {
-    if(stratcon_add_noit(target, port, NULL) >= 0) {
+    if(stratcon_add_noit(target, port, cn) >= 0) {
       nc_printf(ncct, "Added noit at %s:%d\n", target, port);
     }
     else {
@@ -1309,7 +1318,7 @@ stratcon_console_conf_noits(mtev_console_closure_t ncct,
     }
   }
   else {
-    if(stratcon_remove_noit(target, port) >= 0) {
+    if(stratcon_remove_noit(target, port, cn) >= 0) {
       nc_printf(ncct, "Removed noit at %s:%d\n", target, port);
     }
     else {
@@ -1384,7 +1393,7 @@ stratcon_jlog_streamer_init(const char *toplevel) {
              mtev_http_rest_client_cert_auth
   ) == 0);
   assert(mtev_http_rest_register_auth(
-    "PUT", "/noits/", "^set/([^/:]+):(\\d+)$", rest_set_noit,
+    "PUT", "/noits/", "^set/([^/:]*):(\\d+)$", rest_set_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);
   assert(mtev_http_rest_register_auth(
@@ -1392,7 +1401,7 @@ stratcon_jlog_streamer_init(const char *toplevel) {
              mtev_http_rest_client_cert_auth
   ) == 0);
   assert(mtev_http_rest_register_auth(
-    "DELETE", "/noits/", "^delete/([^/:]+):(\\d+)$", rest_delete_noit,
+    "DELETE", "/noits/", "^delete/([^/:]*):(\\d+)$", rest_delete_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);
 
@@ -1419,4 +1428,3 @@ stratcon_jlog_streamer_init(const char *toplevel) {
     eventer_add_in(periodic_noit_metrics, NULL, whence);
   }
 }
-
