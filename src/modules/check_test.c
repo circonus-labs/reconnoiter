@@ -345,6 +345,10 @@ rest_test_check(mtev_http_rest_closure_t *restc,
     restc->call_closure_free = NULL;
     restc->call_closure = NULL;
     restc->fastpath = rest_test_check_err;
+    eventer_t conne = mtev_http_connection_event_float(mtev_http_session_connection(ctx));
+    if(conne) {
+      eventer_remove_fd(conne->fd);
+    }
     goto cleanup;
   }
 
