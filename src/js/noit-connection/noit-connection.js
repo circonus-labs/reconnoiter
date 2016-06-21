@@ -451,8 +451,21 @@ function handle_frame(parent, frame, host, port) {
                             if (debug >= 3) {
                                 console.log(logTS(), "Sending 'data' from local to", parent.host, "for channel", chan.id);
                             }
-                            parent.socket.write(frame_output(chan.id, false, buff));
-                            parent.commTracker.lastTx = Date.now(); // update lastTx AFTER successful socket.write
+                            var bl = buff.length;
+                            if (bl <= MAX_FRAME_LEN) {
+                                parent.socket.write(frame_output(chan.id, false, buff));
+                                parent.commTracker.lastTx = Date.now(); // update lastTx AFTER successful socket.write
+                            } else {
+                                var os = 0;
+                                while (os < bl) {
+                                    var tb_size = Math.min(MAX_FRAME_LEN, bl - os);
+                                    var tempbuff = new Buffer(tb_size);
+                                    buff.copy(tempbuff, 0, os, os + tb_size);
+                                    parent.socket.write(frame_output(chan.id, false, tempbuff));
+                                    parent.commTracker.lastTx = Date.now(); // update lastTx AFTER successful socket.write
+                                    os += tempbuff.length;
+                                }
+                            }
                             if (debug >= 3) {
                                 console.log(logTS(), "Sent 'data' from local to", parent.host, "for channel", chan.id);
                             }
