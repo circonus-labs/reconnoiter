@@ -288,13 +288,73 @@ noit_lua_get_flags(lua_State *L) {
     else NP_F(NP_RESOLVE)
     else NP_F(NP_RESOLVED)
     else NP_F(NP_SUPPRESS_STATUS)
+    else NP_F(NP_SUPPRESS_METRICS)
     else NP_F(NP_PREFER_IPV6)
     else NP_F(NP_SINGLE_RESOLVE)
     else NP_F(NP_PASSIVE_COLLECTION)
+#undef NP_F
     else luaL_error(L, "unknown flag specified");
   }
   check = lua_touserdata(L, lua_upvalueindex(1));
   lua_pushinteger(L, (check->flags & andset));
+  return 1;
+}
+static int
+noit_lua_unset_flags(lua_State *L) {
+  noit_check_t *check;
+  int narg;
+
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  for(narg = 0; narg < lua_gettop(L); narg++) {
+    const char *freq;
+    freq = lua_tostring(L, narg+1);
+    if(!freq) luaL_error(L, "argument must be a string");
+#define NP_F(flag) if(!strcmp(freq, #flag)) { check->flags &= ~(flag); }
+    NP_F(NP_RUNNING)
+    else NP_F(NP_KILLED)
+    else NP_F(NP_DISABLED)
+    else NP_F(NP_UNCONFIG)
+    else NP_F(NP_TRANSIENT)
+    else NP_F(NP_RESOLVE)
+    else NP_F(NP_RESOLVED)
+    else NP_F(NP_SUPPRESS_STATUS)
+    else NP_F(NP_SUPPRESS_METRICS)
+    else NP_F(NP_PREFER_IPV6)
+    else NP_F(NP_SINGLE_RESOLVE)
+    else NP_F(NP_PASSIVE_COLLECTION)
+#undef NP_F
+    else luaL_error(L, "unknown flag specified");
+  }
+  lua_pushinteger(L, check->flags);
+  return 1;
+}
+static int
+noit_lua_set_flags(lua_State *L) {
+  noit_check_t *check;
+  int narg;
+
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  for(narg = 0; narg < lua_gettop(L); narg++) {
+    const char *freq;
+    freq = lua_tostring(L, narg+1);
+    if(!freq) luaL_error(L, "argument must be a string");
+#define NP_F(flag) if(!strcmp(freq, #flag)) { check->flags |= flag; }
+    NP_F(NP_RUNNING)
+    else NP_F(NP_KILLED)
+    else NP_F(NP_DISABLED)
+    else NP_F(NP_UNCONFIG)
+    else NP_F(NP_TRANSIENT)
+    else NP_F(NP_RESOLVE)
+    else NP_F(NP_RESOLVED)
+    else NP_F(NP_SUPPRESS_STATUS)
+    else NP_F(NP_SUPPRESS_METRICS)
+    else NP_F(NP_PREFER_IPV6)
+    else NP_F(NP_SINGLE_RESOLVE)
+    else NP_F(NP_PASSIVE_COLLECTION)
+#undef NP_F
+    else luaL_error(L, "unknown flag specified");
+  }
+  lua_pushinteger(L, check->flags);
   return 1;
 }
 static int
@@ -332,7 +392,10 @@ noit_lua_set_metric_json(lua_State *L) {
 }
 
 static int
-noit_lua_set_metric(lua_State *L) {
+noit_lua_set_metric_f(lua_State *L,
+                      void(*set)(noit_check_t *,
+                                 const char *, metric_type_t,
+                                 const void *)) {
   noit_check_t *check;
   const char *metric_name;
   metric_type_t metric_type;
@@ -349,7 +412,7 @@ noit_lua_set_metric(lua_State *L) {
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
   if(lua_isnil(L, 2)) {
-    noit_stats_set_metric(check, metric_name, metric_type, NULL);
+    set(check, metric_name, metric_type, NULL);
     lua_pushboolean(L, 1);
     return 1;
   }
@@ -360,7 +423,7 @@ noit_lua_set_metric(lua_State *L) {
     case METRIC_UINT64:
     case METRIC_DOUBLE:
       if(!lua_isnumber(L, 2)) {
-        noit_stats_set_metric(check, metric_name, metric_type, NULL);
+        set(check, metric_name, metric_type, NULL);
         lua_pushboolean(L, 0);
         return 1;
       }
@@ -370,32 +433,42 @@ noit_lua_set_metric(lua_State *L) {
   switch(metric_type) {
     case METRIC_GUESS:
     case METRIC_STRING:
-      noit_stats_set_metric(check, metric_name, metric_type,
+      set(check, metric_name, metric_type,
                             (void *)lua_tostring(L, 2));
       break;
     case METRIC_INT32:
       __i = strtol(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, metric_name, metric_type, &__i);
+      set(check, metric_name, metric_type, &__i);
       break;
     case METRIC_UINT32:
       __I = strtoul(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, metric_name, metric_type, &__I);
+      set(check, metric_name, metric_type, &__I);
       break;
     case METRIC_INT64:
       __l = strtoll(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, metric_name, metric_type, &__l);
+      set(check, metric_name, metric_type, &__l);
       break;
     case METRIC_UINT64:
       __L = strtoull(lua_tostring(L, 2), NULL, 10);
-      noit_stats_set_metric(check, metric_name, metric_type, &__L);
+      set(check, metric_name, metric_type, &__L);
       break;
     case METRIC_DOUBLE:
       __n = luaL_optnumber(L, 2, 0);
-      noit_stats_set_metric(check, metric_name, metric_type, &__n);
+      set(check, metric_name, metric_type, &__n);
       break;
   }
   lua_pushboolean(L, 1);
   return 1;
+}
+
+static int
+noit_lua_set_metric(lua_State *L) {
+  return noit_lua_set_metric_f(L, noit_stats_set_metric);
+}
+
+static int
+noit_lua_log_immediate_metric(lua_State *L) {
+  return noit_lua_set_metric_f(L, noit_stats_log_immediate_metric);
 }
 
 static int
@@ -539,6 +612,21 @@ noit_check_index_func(lua_State *L) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_set_metric_json, 1);
       }
+
+#define IF_METRIC_IMMEDIATE_BLOCK(name,type) \
+      if(!strcmp(k, "immediate_" name)) { \
+        lua_pushlightuserdata(L, check); \
+        lua_pushinteger(L, type); \
+        lua_pushcclosure(L, noit_lua_log_immediate_metric, 2); \
+      }
+      else IF_METRIC_IMMEDIATE_BLOCK("metric", METRIC_GUESS)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_string", METRIC_STRING)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_int32", METRIC_INT32)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint32", METRIC_UINT32)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_int64", METRIC_INT64)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint64", METRIC_UINT64)
+      else IF_METRIC_BLOCK("metric_double", METRIC_DOUBLE)
+
       else break;
       return 1;
     case 'n':
@@ -550,7 +638,11 @@ noit_check_index_func(lua_State *L) {
       else break;
       return 1;
     case 's':
-      if(!strcmp(k, "state")) {
+      if(!strcmp(k, "set_flags")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_set_flags, 1);
+      }
+      else if(!strcmp(k, "state")) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_get_state, 1);
       }
@@ -574,6 +666,10 @@ noit_check_index_func(lua_State *L) {
         lua_pushlightuserdata(L, check);
         lua_pushinteger(L, NP_UNAVAILABLE);
         lua_pushcclosure(L, noit_lua_set_available, 2);
+      }
+      else if(!strcmp(k, "unset_flags")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_unset_flags, 1);
       }
       else if(!strcmp(k, "uuid")) {
         char uuid_str[UUID_STR_LEN+1];
