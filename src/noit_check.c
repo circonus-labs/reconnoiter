@@ -1956,7 +1956,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
 void
 noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
-                                void *value) {
+                                const void *value) {
   struct timeval now;
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
