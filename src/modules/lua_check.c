@@ -589,8 +589,23 @@ noit_check_index_func(lua_State *L) {
         }
         return 1;
       }
+
+#define IF_METRIC_IMMEDIATE_BLOCK(name,type) \
+      if(!strcmp(k, "immediate_" name)) { \
+        lua_pushlightuserdata(L, check); \
+        lua_pushinteger(L, type); \
+        lua_pushcclosure(L, noit_lua_log_immediate_metric, 2); \
+      }
+      else IF_METRIC_IMMEDIATE_BLOCK("metric", METRIC_GUESS)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_string", METRIC_STRING)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_int32", METRIC_INT32)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint32", METRIC_UINT32)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_int64", METRIC_INT64)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint64", METRIC_UINT64)
+      else IF_METRIC_IMMEDIATE_BLOCK("metric_double", METRIC_DOUBLE)
       else break;
-                       return 1;
+
+      return 1;
     case 'm':
       if(!strcmp(k, "module")) lua_pushstring(L, check->module);
 
@@ -612,20 +627,6 @@ noit_check_index_func(lua_State *L) {
         lua_pushlightuserdata(L, check);
         lua_pushcclosure(L, noit_lua_set_metric_json, 1);
       }
-
-#define IF_METRIC_IMMEDIATE_BLOCK(name,type) \
-      if(!strcmp(k, "immediate_" name)) { \
-        lua_pushlightuserdata(L, check); \
-        lua_pushinteger(L, type); \
-        lua_pushcclosure(L, noit_lua_log_immediate_metric, 2); \
-      }
-      else IF_METRIC_IMMEDIATE_BLOCK("metric", METRIC_GUESS)
-      else IF_METRIC_IMMEDIATE_BLOCK("metric_string", METRIC_STRING)
-      else IF_METRIC_IMMEDIATE_BLOCK("metric_int32", METRIC_INT32)
-      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint32", METRIC_UINT32)
-      else IF_METRIC_IMMEDIATE_BLOCK("metric_int64", METRIC_INT64)
-      else IF_METRIC_IMMEDIATE_BLOCK("metric_uint64", METRIC_UINT64)
-      else IF_METRIC_BLOCK("metric_double", METRIC_DOUBLE)
 
       else break;
       return 1;
