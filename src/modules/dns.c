@@ -90,7 +90,9 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   free(h->hkey);
   dns_close(h->ctx);
   dns_free(h->ctx);
-  assert(h->timeout == NULL);
+  if (h->timeout != NULL) {
+    mtevFatal(mtev_error, "dns_module_dns_ctx_handle_free: h->timeout not null\n");
+  }
   free(h);
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
@@ -322,7 +324,9 @@ static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *key,
     if(e >= ip) *o++ = '.'; /* we must be at . */
   }
   *o = '\0';
-  assert((o - buff) == il);
+  if ((o - buff) != il) {
+    mtevFatal(mtev_error, "dns_interpolate_inaddr_arpa: (o - buff) != il\n");
+  }
   return o - buff;
 }
 static int dns_interpolate_reverse_ip(char *buff, int len, const char *key,
@@ -382,7 +386,9 @@ register_console_dns_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  if (!showcmd || !showcmd->dstate) {
+    mtevFatal(mtev_error, "register_console_dns_commands: loading commands failed\n");
+  }
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("dns_module", noit_console_show_dns, NULL, NULL, NULL));
 }
@@ -476,7 +482,10 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
     if(h && h->timeout) e = eventer_remove(h->timeout);
   }
   else {
-    assert(h->ctx == ctx);
+    if (h->ctx != ctx) {
+      mtevFatal(mtev_error, "dns_module_eventer_dns_utm_fn: h->ctx != ctx (0x%08x != 0x%08x)\n",
+              h->ctx, ctx);
+    }
     if(h->timeout) e = eventer_remove(h->timeout);
     if(timeout > 0) {
       newe = eventer_alloc();

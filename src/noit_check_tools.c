@@ -166,8 +166,7 @@ noit_check_schedule_next(noit_module_t *self,
     diffms = (int64_t)diff.tv_sec * 1000 + diff.tv_usec / 1000;
   }
   else {
-    mtevL(noit_error, "time is going backwards. abort.\n");
-    abort();
+    mtevFatal(mtev_error, "noit_check_schedule_next: time is going backwards. abort.\n");
   }
   /* determine the offset from initial schedule time that would place
    * us at the next period-aligned point past "now" */

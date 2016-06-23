@@ -30,9 +30,6 @@
  */
 
 #include <mtev_defines.h>
-
-#include <assert.h>
-
 #include <mtev_hash.h>
 
 #include "noit_module.h"

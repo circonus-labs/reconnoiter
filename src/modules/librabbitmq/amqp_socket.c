@@ -122,7 +122,8 @@ static amqp_bytes_t sasl_method_name(amqp_sasl_method_enum method) {
     default:
       amqp_assert(0, "Invalid SASL method: %d", (int) method);
   }
-  abort(); /* unreachable */
+  /* should be unreachable */
+  mtevFatal(mtev_error, "sasl_method_name: got unknown method - 0x%04x\n", method);
 }
 
 static amqp_bytes_t sasl_response(amqp_pool_t *pool,

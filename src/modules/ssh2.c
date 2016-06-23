@@ -225,7 +225,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       ci->state = WANT_CLOSE;
       break;
     default:
-      abort();
+      mtevFatal(mtev_error, "ssh2_drive_session: got unknown mask (0x%04x)\n", mask);
   }
   return 0;
 }

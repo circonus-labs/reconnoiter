@@ -29,6 +29,7 @@
  */
 
 #include "noit_metric_rollup.h"
+#include "mtev_log.h"
 #include <assert.h>
 #define private_nan 0
 #if defined(__APPLE__) && defined(__MACH__)
@@ -57,7 +58,7 @@ metric_value_int64(noit_metric_value_t *v) {
     case METRIC_INT64: return v->value.v_int64;
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "metric_value_int64: got unknown v->type (0x%04x)\n", v->type);
 }
 static uint64_t
 metric_value_uint64(noit_metric_value_t *v) {
@@ -72,7 +73,7 @@ metric_value_uint64(noit_metric_value_t *v) {
     case METRIC_UINT64: return v->value.v_uint64;
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "metric_value_uint64: got unknown v->type (0x%04x)\n", v->type);
 }
 static int
 metric_value_is_negative(noit_metric_value_t *v) {
@@ -87,7 +88,7 @@ metric_value_is_negative(noit_metric_value_t *v) {
       return (v->value.v_double < 0);
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "metric_value_is_negative: got unknown v->type (0x%04x)\n", v->type);
 }
 
 static void
