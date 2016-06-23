@@ -146,7 +146,7 @@ static int test_abort_drive_session(eventer_t e, int mask, void *closure,
       e->mask = EVENTER_READ | EVENTER_WRITE;
       break;
     default:
-      abort();
+      mtevFatal(mtev_error, "test_abort_drive_session: got unknown mask (0x%04x)\n", mask);
   }
   return 0;
 }

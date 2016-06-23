@@ -36,7 +36,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <assert.h>
 #include <sys/mman.h>
 #include <poll.h>
 #include <errno.h>
@@ -163,7 +162,9 @@ static void fetch_and_kill_by_check(int64_t check_no) {
       if (read_bytes >= l) break; \
     } \
   } \
-  assert(read_bytes == l); \
+  if (read_bytes != l) { \
+    mtevFatal(mtev_error, "assert_read: read_bytes != l (%d != %d)\n", read_bytes, l); \
+  }\
 } while (0)
 
 #define assert_write(fd, s, l) do { \
@@ -186,7 +187,9 @@ static void fetch_and_kill_by_check(int64_t check_no) {
       if (written_bytes >= l) break; \
     } \
   } \
-  assert(written_bytes == l); \
+  if (written_bytes != l) { \
+    mtevFatal(mtev_error, "assert_write: written_bytes != l (%d != %d)\n", written_bytes, l); \
+  }\
 } while (0)
 
 int write_out_backing_fd(int ofd, int bfd) {
@@ -327,7 +330,9 @@ int external_child(external_data_t *data) {
       fetch_and_kill_by_check(check_no);
       continue;
     }
-    assert(argcnt > 1);
+    if (!(argcnt > 1)) {
+      mtevFatal(mtev_error, "external_child: argcnt is not greater than 1 (%d)\n", argcnt);
+    }
     proc_state = calloc(1, sizeof(*proc_state));
     proc_state->stdout_fd = -1;
     proc_state->stderr_fd = -1;
