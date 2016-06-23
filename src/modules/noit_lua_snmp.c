@@ -48,6 +48,9 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+static mtev_boolean snmp_initialized = mtev_false;
+static pthread_mutex_t snmp_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static int
 nl_convert_mib(lua_State *L) {
   const char *in;
@@ -89,10 +92,15 @@ nl_convert_mib(lua_State *L) {
 
 static int 
 nl_init_mib(lua_State *L) {
-  register_mib_handlers();
-  read_premib_configs();
-  read_configs();
-  init_snmp("lua_snmp");
+  pthread_mutex_lock(&snmp_lock);
+  if (snmp_initialized == mtev_false) {
+    register_mib_handlers();
+    read_premib_configs();
+    read_configs();
+    init_snmp("lua_snmp");
+    snmp_initialized = mtev_true;
+  }
+  pthread_mutex_unlock(&snmp_lock);
   lua_pushnil(L);
   return 1;
 }

@@ -84,7 +84,9 @@ end
 local snmp = require("snmp")
 
 function init(module)
-  snmp.init_snmp()
+  if (module.name() == "snmp") then
+    snmp.init_snmp()
+  end
   return 0
 end
 
