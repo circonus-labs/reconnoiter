@@ -34,7 +34,6 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#include <assert.h>
 
 #include <mtev_conf.h>
 #include <mtev_dso.h>
@@ -196,7 +195,7 @@ noit_module_index_func(lua_State *L) {
   const char *k;
   int n;
   n = lua_gettop(L);    /* number of arguments */
-  assert(n == 2);
+  mtevAssert(n == 2);
   if(!luaL_checkudata(L, 1, "noit_module_t")) {
     luaL_error(L, "metatable error, arg1 not a noit_module_t!");
   }
@@ -519,7 +518,7 @@ noit_check_index_func(lua_State *L) {
   const char *k;
   noit_check_t **udata, *check;
   n = lua_gettop(L);    /* number of arguments */
-  assert(n == 2);
+  mtevAssert(n == 2);
   if(!luaL_checkudata(L, 1, "noit_check_t")) {
     luaL_error(L, "metatable error, arg1 not a noit_check_t!");
   }
@@ -777,7 +776,7 @@ noit_lua_module_config(noit_module_t *mod,
 
   mc = noit_module_get_userdata(mod);
   if(options) {
-    assert(mc->options == NULL);
+    mtevAssert(mc->options == NULL);
     mc->options = calloc(1, sizeof(*mc->options));
     mtev_hash_init(mc->options);
     mtev_hash_merge_as_dict(mc->options, options);
@@ -870,7 +869,7 @@ noit_lua_check_resume(mtev_lua_resume_info_t *ri, int nargs) {
   noit_check_t *check = NULL;
   noit_lua_resume_check_info_t *ci = ri->context_data;
 
-  assert(pthread_equal(pthread_self(), ri->bound_thread));
+  mtevAssert(pthread_equal(pthread_self(), ri->bound_thread));
 
   mtevL(nldeb, "lua: %p resuming(%d)\n", ri->coro_state, nargs);
 #if LUA_VERSION_NUM >= 502

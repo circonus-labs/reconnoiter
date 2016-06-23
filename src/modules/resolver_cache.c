@@ -31,7 +31,6 @@
 
 #include <mtev_defines.h>
 
-#include <assert.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <fcntl.h>

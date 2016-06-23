@@ -33,10 +33,12 @@
 #ifndef SKIP_LIBMTEV
 #include <mtev_log.h>
 #include <mtev_b64.h>
+#else
+#include <assert.h>
+#define mtevAssert assert
 #endif
 
 #include <errno.h>
-#include <assert.h>
 #include <sys/socket.h>
 #include <math.h>
 #include <arpa/inet.h>
@@ -142,7 +144,7 @@ bv_read(histogram_t *h, int idx, const void *buff, ssize_t len) {
   bvdatum_t tgt_type;
   int i;
 
-  assert(idx == h->used);
+  mtevAssert(idx == h->used);
   if(len < 3) return -1;
   cp = buff;
   tgt_type = cp[2];
@@ -286,7 +288,7 @@ int hist_bucket_cmp(hist_bucket_t h1, hist_bucket_t h2) {
 double
 hist_bucket_to_double(hist_bucket_t hb) {
   u_int8_t *pidx;
-  assert(private_nan != 0);
+  mtevAssert(private_nan != 0);
   pidx = (u_int8_t *)&hb.exp;
   if(hb.val > 99 || hb.val < -99) return private_nan;
   if(hb.val < 10 && hb.val > -10) return 0.0;
@@ -428,7 +430,7 @@ hist_bucket_t
 double_to_hist_bucket(double d) {
   double d_copy = d;
   hist_bucket_t hb = { (int8_t)0xff, 0 }; // NaN
-  assert(private_nan != 0);
+  mtevAssert(private_nan != 0);
   if(isnan(d) || isinf(d)) return hb;
   else if(d==0) hb.val = 0;
   else {
@@ -509,7 +511,7 @@ hist_internal_find(histogram_t *hist, hist_bucket_t hb, int *idx) {
   if(rv == 0) return 1;   /* this is it */
   if(rv < 0) return 0;    /* it goes here (before) */
   (*idx)++;               /* it goes after here */
-  assert(*idx >= 0 && *idx <= hist->used);
+  mtevAssert(*idx >= 0 && *idx <= hist->used);
   return 0;
 }
 
@@ -642,12 +644,12 @@ static void
 internal_bucket_accum(histogram_t *tgt, int tgtidx,
                       histogram_t *src, int srcidx) {
   u_int64_t newval;
-  assert(tgtidx < tgt->allocd);
+  mtevAssert(tgtidx < tgt->allocd);
   if(tgt->used == tgtidx) {
     tgt->bvs[tgtidx].bucket = src->bvs[srcidx].bucket;
     tgt->used++;
   }
-  assert(hist_bucket_cmp(tgt->bvs[tgtidx].bucket,
+  mtevAssert(hist_bucket_cmp(tgt->bvs[tgtidx].bucket,
                          src->bvs[srcidx].bucket) == 0);
   newval = tgt->bvs[tgtidx].count + src->bvs[srcidx].count;
   if(newval < tgt->bvs[tgtidx].count) newval = ~(u_int64_t)0;

@@ -31,8 +31,6 @@
 #include <inttypes.h>
 #include <mtev_defines.h>
 
-#include <assert.h>
-
 #include <mtev_log.h>
 #include <mtev_b64.h>
 
@@ -262,7 +260,7 @@ sweep_roll_tensec(histotier *ht) {
   int tgt_bucket = ht->last_second / 10;
   int sidx;
   /* We can't very well rollup the same bucket twice */
-  assert(tgt_bucket >= 0 && tgt_bucket < 6 && ht->tensecs[tgt_bucket] == NULL);
+  mtevAssert(tgt_bucket >= 0 && tgt_bucket < 6 && ht->tensecs[tgt_bucket] == NULL);
   for(sidx=0;sidx<10;sidx++) {
     if(NULL != (tgt = ht->secs[sidx])) {
       ht->secs[sidx] = NULL;

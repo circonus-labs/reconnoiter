@@ -50,7 +50,6 @@
 
 #include <unistd.h>
 #include <poll.h>
-#include <assert.h>
 
 static int MAX_ROWS_AT_ONCE = 10000;
 static int DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
@@ -81,15 +80,15 @@ noit_jlog_listener_init() {
     mtev_conf_get_int(node, "//jlog/default_mseconds_between_batches", &DEFAULT_MSECONDS_BETWEEN_BATCHES);
     mtev_conf_get_int(node, "//jlog/default_transient_mseconds_between_batches", &DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES);
   }
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^feed$",
     rest_show_feed, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "DELETE", "/feed/", "^(.+)$",
     rest_delete_feed, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/", "^feed$",
     rest_add_feed, mtev_http_rest_client_cert_auth
   ) == 0);

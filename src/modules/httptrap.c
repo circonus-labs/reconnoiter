@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #include <math.h>
 #include <ctype.h>
 #include <yajl/yajl_parse.h>

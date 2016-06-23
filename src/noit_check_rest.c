@@ -33,7 +33,6 @@
 
 #include <mtev_defines.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -995,23 +994,23 @@ rest_show_config(mtev_http_rest_closure_t *restc,
 
 void
 noit_check_rest_init() {
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^config(/.*)?$",
     rest_show_config, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(\\.json)?$",
     rest_show_checks, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/checks/", "^show(/.*)(?<=/)(" UUID_REGEX ")(\\.json)?$",
     rest_show_check, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/checks/", "^set(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_set_check, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "DELETE", "/checks/", "^delete(/.*)(?<=/)(" UUID_REGEX ")$",
     rest_delete_check, mtev_http_rest_client_cert_auth
   ) == 0);

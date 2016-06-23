@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <errno.h>
-#include <assert.h>
 #include <math.h>
 #include <ctype.h>
 #include <arpa/inet.h>
@@ -1098,7 +1097,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
       i++;
     }
   }
-  assert(info->noids == i);
+  mtevAssert(info->noids == i);
   mtev_hash_destroy(&check_attrs_hash, NULL, NULL);
   return info->noids;
 }
@@ -1112,7 +1111,7 @@ static int noit_snmp_fill_req(struct snmp_pdu *req, noit_check_t *check, int idx
     return info->noids;
   }
 
-  assert(idx >= 0 && idx <info->noids);
+  mtevAssert(idx >= 0 && idx <info->noids);
   snmp_add_null_var(req, info->oids[idx].oid, info->oids[idx].oidlen);
   return 1;
 }
@@ -1532,7 +1531,7 @@ register_console_snmp_commands(snmp_mod_config_t *conf) {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("snmp", noit_console_show_snmp, NULL, NULL, conf));
 }
@@ -1624,7 +1623,7 @@ static int noit_snmp_init(noit_module_t *self) {
 
     FD_ZERO(&fdset);
     snmp_sess_select_info(ts->slp, &fds, &fdset, &timeout, &block);
-    assert(fds > 0);
+    mtevAssert(fds > 0);
     for(i=0; i<fds; i++) {
       if(FD_ISSET(i, &fdset)) {
         ts->refcnt++;

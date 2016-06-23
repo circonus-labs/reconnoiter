@@ -162,7 +162,7 @@ int amqp_handle_input(amqp_connection_state_t state,
   state->inbound_offset += bytes_consumed;
   total_bytes_consumed += bytes_consumed;
 
-  assert(state->inbound_offset <= state->target_size);
+  mtevAssert(state->inbound_offset <= state->target_size);
 
   if (state->inbound_offset < state->target_size) {
     return total_bytes_consumed;

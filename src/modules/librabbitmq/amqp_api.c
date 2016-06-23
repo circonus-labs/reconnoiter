@@ -13,8 +13,7 @@
 #include "amqp.h"
 #include "amqp_framing.h"
 #include "amqp_private.h"
-
-#include <assert.h>
+#include "mtev_log.h"
 
 #define RPC_REPLY(replytype)					\
   (amqp_rpc_reply->reply_type == AMQP_RESPONSE_NORMAL		\
@@ -73,7 +72,7 @@ int amqp_basic_publish(amqp_connection_state_t state,
   body_offset = 0;
   while (1) {
     int remaining = body.len - body_offset;
-    assert(remaining >= 0);
+    mtevAssert(remaining >= 0);
 
     if (remaining == 0)
       break;

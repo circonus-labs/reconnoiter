@@ -41,7 +41,6 @@
 #include <arpa/inet.h>
 #include <sys/mman.h>
 #include <zlib.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <eventer/eventer.h>
@@ -456,7 +455,7 @@ stratcon_datastore_init() {
                                  is_raw_ingestion_file,
                                  stratcon_ingest);
 
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/noits/", "^config$", rest_get_noit_config,
              mtev_http_rest_client_cert_auth
   ) == 0);

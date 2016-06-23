@@ -38,7 +38,6 @@
 #include <netdb.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <assert.h>
 #include <sys/uio.h>
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -358,7 +357,7 @@ static int external_handler(eventer_t e, int mask,
         }
       }
 
-      assert(inlen == expectlen);
+      mtevAssert(inlen == expectlen);
       r.check_no = h.check_no;
       r.exit_code = h.exit_code;
       r.stdoutlen = h.stdoutlen;
@@ -382,7 +381,7 @@ static int external_handler(eventer_t e, int mask,
         goto widowed; /* overflow */
       data->cr->stdoutlen_sofar += inlen;
     }
-    assert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
+    mtevAssert(data->cr->stdoutbuff[data->cr->stdoutlen-1] == '\0');
     if(!data->cr->stderrbuff) {
       while((inlen = read(e->fd, &data->cr->stderrlen,
                           sizeof(data->cr->stderrlen))) == -1 &&
@@ -390,7 +389,7 @@ static int external_handler(eventer_t e, int mask,
       if(inlen == -1 && errno == EAGAIN)
         return EVENTER_READ | EVENTER_EXCEPTION;
       if(inlen == 0) goto widowed;
-      assert(inlen == sizeof(data->cr->stderrlen));
+      mtevAssert(inlen == sizeof(data->cr->stderrlen));
       /* We know that the strderrlen we read is taintet, but it comes
        * from our parent process and is well controlled, so we can
        * forgive that transgression.
@@ -415,8 +414,8 @@ static int external_handler(eventer_t e, int mask,
         goto widowed; /* overflow */
       data->cr->stderrlen_sofar += inlen;
     }
-    assert(data->cr && data->cr->stdoutbuff && data->cr->stderrbuff);
-    assert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
+    mtevAssert(data->cr && data->cr->stdoutbuff && data->cr->stderrbuff);
+    mtevAssert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
 
     gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
@@ -598,8 +597,7 @@ static void external_cleanup(noit_module_t *self, noit_check_t *check) {
     } \
   } \
   if (written_bytes != l) { \
-    mtevL(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
-    abort(); \
+    mtevFatal(noit_error, "written_bytes not equal to write length in external.c assert_write, aborting...\n"); \
   } \
 } while (0)
 static int external_enqueue(eventer_t e, int mask, void *closure,

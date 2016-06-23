@@ -31,8 +31,6 @@
 
 #include <mtev_defines.h>
 
-#include <assert.h>
-
 #include <mtev_rest.h>
 #include <mtev_log.h>
 #include <mtev_memory.h>
@@ -369,7 +367,7 @@ rest_test_check(mtev_http_rest_closure_t *restc,
 
 static int
 check_test_init(mtev_dso_generic_t *self) {
-  assert(mtev_http_rest_register(
+  mtevAssert(mtev_http_rest_register(
     "POST", "/checks/", "^test(\\.xml|\\.json)?$",
     rest_test_check
   ) == 0);

@@ -34,8 +34,6 @@
 #endif
 
 #include <mtev_defines.h>
-
-#include <assert.h>
 #include <fq.h>
 
 #include <mtev_dso.h>
@@ -539,7 +537,7 @@ register_console_fq_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("fq", noit_console_show_fq, NULL, NULL, NULL));
 }

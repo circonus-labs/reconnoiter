@@ -144,7 +144,7 @@ static int noit_metric_id_index_func(lua_State *L) {
   const char *k;
   noit_metric_id_t **udata, *metric_id;
   n = lua_gettop(L); /* number of arguments */
-  assert(n == 2);
+  mtevAssert(n == 2);
   if(!luaL_checkudata(L, 1, "metric_id_t")) {
     luaL_error(L, "metatable error, arg1 not a metric_id_t!");
     return 1;
@@ -204,7 +204,7 @@ noit_message_index_func(lua_State *L) {
   const char *k;
   noit_metric_message_t **udata, *msg;
   n = lua_gettop(L);    /* number of arguments */
-  assert(n == 2);
+  mtevAssert(n == 2);
   if(!luaL_checkudata(L, 1, "metric_message_t")) {
     luaL_error(L, "metatable error, arg1 not a metric_message_t!");
     return 1;

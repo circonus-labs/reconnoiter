@@ -33,6 +33,7 @@
 
 #include <mtev_defines.h>
 
+#include <mtev_log.h>
 #include <mtev_hash.h>
 #include <mtev_atomic.h>
 #include <mtev_watchdog.h>
@@ -45,7 +46,6 @@
 #include "noit_filters.h"
 
 #include <pcre.h>
-#include <assert.h>
 #include <libxml/tree.h>
 
 static mtev_hash_table *filtersets = NULL;
@@ -714,10 +714,10 @@ register_console_filter_commands() {
 
   tl = mtev_console_state_initial();
   confcmd = mtev_console_state_get_cmd(tl, "configure");
-  assert(confcmd && confcmd->dstate);
+  mtevAssert(confcmd && confcmd->dstate);
 
   conf_t_cmd = mtev_console_state_get_cmd(confcmd->dstate, "terminal");
-  assert(conf_t_cmd && conf_t_cmd->dstate);
+  mtevAssert(conf_t_cmd && conf_t_cmd->dstate);
 
   nostate = mtev_console_state_alloc();
   mtev_console_state_add_cmd(nostate,
@@ -745,7 +745,7 @@ register_console_filter_commands() {
            NULL, NULL, NULL));
 
   no_cmd = mtev_console_state_get_cmd(conf_t_cmd->dstate, "no");
-  assert(no_cmd && no_cmd->dstate);
+  mtevAssert(no_cmd && no_cmd->dstate);
   mtev_console_state_add_cmd(no_cmd->dstate,
     NCSCMD("filterset", noit_console_filter_configure, NULL, NULL, (void *)1));
 }

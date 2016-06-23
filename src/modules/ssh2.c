@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #include <math.h>
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
@@ -225,7 +224,7 @@ static int ssh2_drive_session(eventer_t e, int mask, void *closure,
       ci->state = WANT_CLOSE;
       break;
     default:
-      abort();
+      mtevFatal(mtev_error, "Unknown mask: 0x%04x\n", mask);
   }
   return 0;
 }
@@ -247,9 +246,9 @@ static int ssh2_needs_bytes_as_libssh2_is_impatient(eventer_t e, int mask, void 
   }
 
   /* We steal the timeout_event as it has the exact timeout we want. */
-  assert(ci->timeout_event);
+  mtevAssert(ci->timeout_event);
   asynch_e = eventer_remove(ci->timeout_event);
-  assert(asynch_e);
+  mtevAssert(asynch_e);
   ci->timeout_event = NULL;
 
   ci->synch_fd_event = NULL;

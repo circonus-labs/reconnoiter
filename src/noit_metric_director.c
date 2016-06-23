@@ -64,7 +64,7 @@ get_my_lane() {
     for(new_thread=0;new_thread<nthreads;new_thread++) {
       if(mtev_atomic_casptr(&thread_queues[new_thread], my_lane.fifo, NULL) == NULL) break;
     }
-    assert(new_thread<nthreads);
+    mtevAssert(new_thread<nthreads);
     my_lane.id = new_thread;
     mtevL(mtev_debug, "Assigning thread(%p) to %d\n", (void*)pthread_self(), my_lane.id);
   }
@@ -80,7 +80,7 @@ noit_adjust_checks_interest(short cnt) {
   icnt = check_interests[thread_id];
   icnt += cnt;
   if(icnt < 0) icnt = 0;
-  assert(icnt <= 0xffff);
+  mtevAssert(icnt <= 0xffff);
   check_interests[thread_id] = icnt;
 }
 
@@ -104,7 +104,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
       free(level2);
     }
     found = mtev_hash_retrieve(&id_level, (const char *)id, UUID_SIZE, &vhash);
-    assert(found);
+    mtevAssert(found);
   }
   level2 = vhash;
 
@@ -118,14 +118,14 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
       free(vinterests);
     }
     found = mtev_hash_retrieve(level2, metric, strlen(metric), &vinterests);
-    assert(found);
+    mtevAssert(found);
   }
   interests = vinterests;
   /* This is fine because thread_id is only ours */
   icnt = interests[thread_id];
   icnt += cnt;
   if(icnt < 0) icnt = 0;
-  assert(icnt <= 0xffff);
+  mtevAssert(icnt <= 0xffff);
   interests[thread_id] = icnt;
 }
 
@@ -258,7 +258,7 @@ handle_log_line(void *closure, mtev_log_stream_t ls, struct timeval *whence,
 
 void noit_metric_director_init() {
   nthreads = eventer_loop_concurrency();
-  assert(nthreads > 0);
+  mtevAssert(nthreads > 0);
   thread_queues = calloc(sizeof(*thread_queues),nthreads);
   check_interests = calloc(sizeof(*check_interests),nthreads);
   if(mtev_fq_handle_message_hook_register_available())

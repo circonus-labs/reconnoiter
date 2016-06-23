@@ -33,7 +33,6 @@
 
 #include <mtev_defines.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -260,19 +259,19 @@ rest_set_filter(mtev_http_rest_closure_t *restc,
 
 void
 noit_filters_rest_init() {
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/filters/", "^show(/.*)(?<=/)([^/]+)$",
     rest_show_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/filters/", "^set(/.*)(?<=/)([^/]+)$",
     rest_set_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "DELETE", "/filters/", "^delete(/.*)(?<=/)([^/]+)$",
     rest_delete_filter, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "POST", "/filters/", "^cull$",
     rest_cull_filter, mtev_http_rest_client_cert_auth
   ) == 0);

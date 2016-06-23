@@ -29,7 +29,7 @@
  */
 
 #include "noit_metric_rollup.h"
-#include <assert.h>
+#include "mtev_log.h"
 #define private_nan 0
 #if defined(__APPLE__) && defined(__MACH__)
 #define isnanf(a) __inline_isnanf((float)(a))
@@ -57,22 +57,22 @@ metric_value_int64(noit_metric_value_t *v) {
     case METRIC_INT64: return v->value.v_int64;
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
 }
 static uint64_t
 metric_value_uint64(noit_metric_value_t *v) {
   switch(v->type) {
     case METRIC_INT32:
-      assert(v->value.v_int32 >= 0);
+      mtevAssert(v->value.v_int32 >= 0);
       return (uint64_t)v->value.v_int32;
     case METRIC_UINT32: return (uint64_t)v->value.v_uint32;
     case METRIC_INT64:
-      assert(v->value.v_int64 >= 0);
+      mtevAssert(v->value.v_int64 >= 0);
       return (uint64_t)v->value.v_int64;
     case METRIC_UINT64: return v->value.v_uint64;
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "Unknown int type: %d\n", v->type);
 }
 static int
 metric_value_is_negative(noit_metric_value_t *v) {
@@ -87,7 +87,7 @@ metric_value_is_negative(noit_metric_value_t *v) {
       return (v->value.v_double < 0);
     default: ;
   }
-  abort();
+  mtevFatal(mtev_error, "Unknown metric type: %d\n", v->type);
 }
 
 static void

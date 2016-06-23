@@ -38,7 +38,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <assert.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -290,7 +289,7 @@ noit_check_add_to_list(noit_check_t *new_check, const char *newname) {
   }
   pthread_mutex_lock(&polls_lock);
   if(!(new_check->flags & NP_TRANSIENT)) {
-    assert(new_check->name || newname);
+    mtevAssert(new_check->name || newname);
     /* This remove could fail -- no big deal */
     if(new_check->name != NULL)
       mtev_skiplist_remove(&polls_by_name, new_check, NULL);
@@ -1110,7 +1109,7 @@ noit_check_set_ip(noit_check_t *new_check,
   }
 
   if(new_check->name == NULL && newname != NULL) {
-    assert(new_check->flags & NP_TRANSIENT);
+    mtevAssert(new_check->flags & NP_TRANSIENT);
     new_check->name = strdup(newname);
   }
 
@@ -1146,7 +1145,7 @@ noit_check_update(noit_check_t *new_check,
   char uuid_str[37];
   int mask = NP_DISABLED | NP_UNCONFIG;
 
-  assert(name);
+  mtevAssert(name);
   uuid_unparse_lower(new_check->checkid, uuid_str);
   if(!new_check->statistics) new_check->statistics = noit_check_stats_set_calloc();
   if(seq < 0) new_check->config_seq = seq = 0;
@@ -1294,7 +1293,7 @@ noit_poller_schedule(const char *target,
   new_check->statistics = noit_check_stats_set_calloc();
   noit_check_update(new_check, target, name, filterset, config, mconfigs,
                     period, timeout, oncheck, seq, flags);
-  assert(mtev_hash_store(&polls,
+  mtevAssert(mtev_hash_store(&polls,
                          (char *)new_check->checkid, UUID_SIZE,
                          new_check));
   uuid_copy(out, new_check->checkid);
@@ -1411,8 +1410,8 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
 
   if(log) noit_check_log_delete(checker);
 
-  assert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
-  assert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+  mtevAssert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
+  mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
 
   noit_poller_free_check(checker);
   return 0;
@@ -1642,7 +1641,7 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   char buff[256];
   if(!once) return -1;
   if(!check) return -1;
-  assert(!(check->flags & NP_RUNNING));
+  mtevAssert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
   inp = noit_check_get_stats_inprogress(check);
   gettimeofday(&now, NULL);
@@ -1696,7 +1695,7 @@ noit_metric_sizes(metric_type_t type, const void *value) {
     case METRIC_GUESS:
       break;
   }
-  assert(type != type);
+  mtevAssert(type != type);
   return 0;
 }
 static metric_type_t
@@ -1949,7 +1948,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
       break;
     case METRIC_ABSENT:
     case METRIC_NULL:
-      assert(0 && "ABSENT and NULL metrics may not be passed to noit_stats_set_metric_coerce");
+      mtevAssert(0 && "ABSENT and NULL metrics may not be passed to noit_stats_set_metric_coerce");
   }
   check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
 }
@@ -2319,7 +2318,7 @@ register_console_check_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
 
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("timing_slots", noit_console_show_timing_slots, NULL, NULL, NULL));
@@ -2369,7 +2368,7 @@ noit_check_registered_module_cnt() {
 const char *
 noit_check_registered_module(int idx) {
   if(reg_module_used < 0) reg_module_used = reg_module_id;
-  assert(reg_module_used == reg_module_id);
+  mtevAssert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0) return NULL;
   return reg_module_names[idx];
 }
@@ -2378,7 +2377,7 @@ void
 noit_check_set_module_metadata(noit_check_t *c, int idx, void *md, void (*freefunc)(void *)) {
   struct vp_w_free *tuple;
   if(reg_module_used < 0) reg_module_used = reg_module_id;
-  assert(reg_module_used == reg_module_id);
+  mtevAssert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0) return;
   if(!c->module_metadata) c->module_metadata = calloc(reg_module_id, sizeof(void *));
   c->module_metadata[idx] = calloc(1, sizeof(struct vp_w_free));
@@ -2389,7 +2388,7 @@ noit_check_set_module_metadata(noit_check_t *c, int idx, void *md, void (*freefu
 void
 noit_check_set_module_config(noit_check_t *c, int idx, mtev_hash_table *config) {
   if(reg_module_used < 0) reg_module_used = reg_module_id;
-  assert(reg_module_used == reg_module_id);
+  mtevAssert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0) return;
   if(!c->module_configs) c->module_configs = calloc(reg_module_id, sizeof(mtev_hash_table *));
   c->module_configs[idx] = config;
@@ -2398,7 +2397,7 @@ void *
 noit_check_get_module_metadata(noit_check_t *c, int idx) {
   struct vp_w_free *tuple;
   if(reg_module_used < 0) reg_module_used = reg_module_id;
-  assert(reg_module_used == reg_module_id);
+  mtevAssert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0 || !c->module_metadata) return NULL;
   tuple = c->module_metadata[idx];
   return tuple ? tuple->ptr : NULL;
@@ -2406,7 +2405,7 @@ noit_check_get_module_metadata(noit_check_t *c, int idx) {
 mtev_hash_table *
 noit_check_get_module_config(noit_check_t *c, int idx) {
   if(reg_module_used < 0) reg_module_used = reg_module_id;
-  assert(reg_module_used == reg_module_id);
+  mtevAssert(reg_module_used == reg_module_id);
   if(idx >= reg_module_id || idx < 0 || !c->module_configs) return NULL;
   return c->module_configs[idx];
 }

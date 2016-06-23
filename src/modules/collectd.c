@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #include <math.h>
 #include <ctype.h>
 #ifdef HAVE_SYS_FILIO_H
@@ -450,7 +449,7 @@ static EVP_CIPHER_CTX* network_get_aes256_cypher (collectd_closure_t *ccl, /* {{
     EVP_DigestFinal(&ctx_md, password_hash, &length); 
     EVP_MD_CTX_cleanup(&ctx_md);
 
-    assert(length <= 32);
+    mtevAssert(length <= 32);
 
     success = EVP_DecryptInit(ctx_ptr, EVP_aes_256_ofb(), password_hash, iv);
     if (success != 1)
@@ -499,7 +498,7 @@ static int parse_part_values (void **ret_buffer, size_t *ret_buffer_len,
   buffer += sizeof (tmp16);
   pkg_numval = ntohs (tmp16);
 
-  assert (pkg_type == TYPE_VALUES);
+  mtevAssert (pkg_type == TYPE_VALUES);
 
   exp_size = 3 * sizeof (uint16_t)
     + pkg_numval * (sizeof (uint8_t) + sizeof (value_t));
@@ -776,7 +775,7 @@ static int parse_part_sign_sha256 (collectd_closure_t *ccl, noit_module_t *self,
   BUFFER_READ (pss.username, username_len);
   pss.username[username_len] = 0;
 
-  assert (buffer_offset == pss_head_length);
+  mtevAssert (buffer_offset == pss_head_length);
 
   /* Match up the username with the expected username */
   if (strcmp(ccl->username, pss.username) != 0)
@@ -875,7 +874,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
     return (-1);
   }
 
-  assert (username_len > 0);
+  mtevAssert (username_len > 0);
   pea.username = malloc (username_len + 1);
   if (pea.username == NULL)
     return (-ENOMEM);
@@ -886,7 +885,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   BUFFER_READ (pea.iv, sizeof (pea.iv));
 
   /* Make sure we are at the right position */
-  assert (buffer_offset == (username_len +
+  mtevAssert (buffer_offset == (username_len +
         PART_ENCRYPTION_AES256_SIZE - sizeof (pea.hash)));
 
   /* Match up the username with the expected username */
@@ -903,7 +902,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
     return (-1);
 
   payload_len = part_size - (PART_ENCRYPTION_AES256_SIZE + username_len);
-  assert (payload_len > 0);
+  mtevAssert (payload_len > 0);
   tmpbuf = malloc(part_size - buffer_offset);
 
   /* Decrypt the packet */
@@ -917,7 +916,7 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
     return (-1);
   }
 
-  assert(part_size - buffer_offset == tmpbufsize);
+  mtevAssert(part_size - buffer_offset == tmpbufsize);
   /* Make it appear to be in place */
   memcpy(buffer + buffer_offset, tmpbuf, part_size - buffer_offset);
   sfree(tmpbuf);
@@ -926,8 +925,8 @@ static int parse_part_encr_aes256 (collectd_closure_t *ccl, noit_module_t *self,
   BUFFER_READ (pea.hash, sizeof (pea.hash));
 
   /* Make sure we're at the right position - again */
-  assert (buffer_offset == (username_len + PART_ENCRYPTION_AES256_SIZE));
-  assert (buffer_offset == (part_size - payload_len));
+  mtevAssert (buffer_offset == (username_len + PART_ENCRYPTION_AES256_SIZE));
+  mtevAssert (buffer_offset == (part_size - payload_len));
 
   /* Check hash sum */
   memset (hash, 0, sizeof (hash));
@@ -1210,7 +1209,7 @@ static int infer_type(char *buffer, int buffer_len, value_list_t *vl, int index)
   int len = strlen(buffer);
   strcat(buffer, "`");
   if (cmp_type(vl, "load", "load")) {
-    assert(vl->values_len == 3);
+    mtevAssert(vl->values_len == 3);
     switch (index) {
       case 0:
         strcat(buffer, "1min"); break;
@@ -1220,7 +1219,7 @@ static int infer_type(char *buffer, int buffer_len, value_list_t *vl, int index)
         strcat(buffer, "15min"); break;
     }
   } else if (cmp_plugin(vl, "interface")) {
-    assert(vl->values_len == 2);
+    mtevAssert(vl->values_len == 2);
     switch (index) {
       case 0:
         strcat(buffer, "rx"); break;
