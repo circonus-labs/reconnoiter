@@ -35,7 +35,6 @@
 #include "noit_version.h"
 #include <mtev_defines.h>
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -90,7 +89,7 @@ static char *glider = NULL;
 static void usage(const char *progname) {
   printf("Usage for %s:\n", progname);
 #ifdef NOITD_USAGE
-  assert(write(STDOUT_FILENO,
+  mtevAssert(write(STDOUT_FILENO,
                NOITD_USAGE,
                sizeof(NOITD_USAGE)-1) == sizeof(NOITD_USAGE)-1);
 #else
@@ -272,7 +271,7 @@ static int child_main() {
   noit_metric_director_init();
 
   /* Allow the noit web dashboard to be served (only if document_root is set) */
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^(.*)$", mtev_rest_simple_file_handler,
            mtev_http_rest_client_cert_auth
   ) == 0);

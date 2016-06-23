@@ -39,7 +39,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <ctype.h>
-#include <assert.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -462,9 +461,9 @@ void noit_check_resolver_maintain() {
 
   now = time(NULL);
   sn = mtev_skiplist_getlist(nc_dns_cache.index);
-  assert(sn);
+  mtevAssert(sn);
   tlist = sn->data;
-  assert(tlist);
+  mtevAssert(tlist);
   sn = mtev_skiplist_getlist(tlist);
   while(sn) {
     dns_cache_node *n = sn->data;
@@ -632,10 +631,10 @@ register_console_dns_cache_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
 
   nocmd = mtev_console_state_get_cmd(tl, "no");
-  assert(nocmd && nocmd->dstate);
+  mtevAssert(nocmd && nocmd->dstate);
 
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("dns_cache", noit_console_show_dns_cache, NULL, NULL, NULL));

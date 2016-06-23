@@ -34,7 +34,6 @@
 #include <mtev_defines.h>
 #include "noit_version.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -80,7 +79,7 @@ static char *glider = NULL;
 static void usage(const char *progname) {
   printf("Usage for %s:\n", progname);
 #ifdef STRATCOND_USAGE
-  assert(write(STDOUT_FILENO,
+  mtevAssert(write(STDOUT_FILENO,
               STRATCOND_USAGE,
               sizeof(STRATCOND_USAGE)-1) == sizeof(STRATCOND_USAGE)-1);
 #else

@@ -33,7 +33,6 @@
 
 #include <poll.h>
 #include <unistd.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <mtev_dso.h>
@@ -456,7 +455,7 @@ register_console_rabbitmq_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("rabbitmq", noit_console_show_rabbitmq, NULL, NULL, NULL));
 }

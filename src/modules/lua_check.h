@@ -36,7 +36,6 @@
 
 #include <mtev_defines.h>
 
-#include <assert.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>

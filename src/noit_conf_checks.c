@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <assert.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
@@ -1028,7 +1027,7 @@ replace_config(mtev_console_closure_t ncct,
     }
     else confignode = xmlXPathNodeSetItem(pobj->nodesetval, 0);
 
-    assert(confignode);
+    mtevAssert(confignode);
     /* Now we create a child */
     xmlNewChild(confignode, NULL, (xmlChar *)name, (xmlChar *)value);
     CONF_DIRTY(confignode);

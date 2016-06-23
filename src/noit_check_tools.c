@@ -40,8 +40,6 @@
 #include "noit_check_tools.h"
 #include "noit_check_tools_shared.h"
 
-#include <assert.h>
-
 MTEV_HOOK_IMPL(check_preflight,
   (noit_module_t *self, noit_check_t *check, noit_check_t *cause),
   void *, closure,
@@ -120,7 +118,7 @@ noit_check_schedule_next(noit_module_t *self,
   recur_closure_t *rcl;
   int initial = last_check ? 1 : 0;
 
-  assert(cause == NULL);
+  mtevAssert(cause == NULL);
   if(check->period == 0) return 0;
 
   /* if last_check is not passed, we use the initial_schedule_time
@@ -166,8 +164,7 @@ noit_check_schedule_next(noit_module_t *self,
     diffms = (int64_t)diff.tv_sec * 1000 + diff.tv_usec / 1000;
   }
   else {
-    mtevL(noit_error, "time is going backwards. abort.\n");
-    abort();
+    mtevFatal(noit_error, "time is going backwards. abort.\n");
   }
   /* determine the offset from initial schedule time that would place
    * us at the next period-aligned point past "now" */
@@ -180,7 +177,7 @@ noit_check_schedule_next(noit_module_t *self,
 
   sub_timeval(newe->whence, earliest, &diff);
   diffms = (int64_t)diff.tv_sec * 1000 + (int)diff.tv_usec / 1000;
-  assert(compare_timeval(newe->whence, earliest) > 0);
+  mtevAssert(compare_timeval(newe->whence, earliest) > 0);
   newe->mask = EVENTER_TIMER;
   newe->callback = noit_check_recur_handler;
   rcl = calloc(1, sizeof(*rcl));

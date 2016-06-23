@@ -40,7 +40,6 @@
 #include <dirent.h>
 #include <arpa/inet.h>
 #include <sys/mman.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <mtev_dso.h>
@@ -296,7 +295,7 @@ static int handoff_ingestor_init(mtev_dso_generic_t *self) {
     exit(-1);
   }
   mtevL(mtev_error, "registering /handoff/journals REST endpoint\n");
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/handoff/", "^journals$", handoff_stream,
     mtev_http_rest_client_cert_auth
   ) == 0);

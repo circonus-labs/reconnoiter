@@ -8,8 +8,6 @@
 #include "amqp.h"
 #include "amqp_private.h"
 
-#include <assert.h>
-
 #define INITIAL_TABLE_SIZE 16
 
 int amqp_decode_table(amqp_bytes_t encoded,

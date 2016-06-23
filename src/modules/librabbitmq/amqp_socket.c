@@ -182,7 +182,7 @@ static int wait_frame_inner(amqp_connection_state_t state,
       }
 
       /* Incomplete or ignored frame. Keep processing input. */
-      assert(result != 0);
+      mtevAssert(result != 0);
     }	
 
     result = eintr_safe_read(state->sockfd,

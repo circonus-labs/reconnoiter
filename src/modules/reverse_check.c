@@ -30,9 +30,6 @@
  */
 
 #include <mtev_defines.h>
-
-#include <assert.h>
-
 #include <mtev_hash.h>
 #include <mtev_reverse_socket.h>
 

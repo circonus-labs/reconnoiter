@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <errno.h>
-#include <assert.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <udns.h>
@@ -90,7 +89,7 @@ static void dns_module_dns_ctx_handle_free(void *vh) {
   free(h->hkey);
   dns_close(h->ctx);
   dns_free(h->ctx);
-  assert(h->timeout == NULL);
+  mtevAssert(h->timeout == NULL);
   free(h);
 }
 static void dns_module_dns_ctx_acquire(dns_ctx_handle_t *h) {
@@ -193,7 +192,7 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
   last = mtev_atomic_dec32(&h->refcnt);
   if(last == 0) {
     /* I was the last one */
-    assert(mtev_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
+    mtevAssert(mtev_hash_delete(&dns_ctx_store, h->hkey, strlen(h->hkey),
                             NULL, dns_module_dns_ctx_handle_free));
     rv = 1;
   }
@@ -234,12 +233,12 @@ static void __activate_ci(struct dns_check_info *ci) {
   holder = calloc(1, sizeof(*holder));
   *holder = ci;
   pthread_mutex_lock(&active_events_lock);
-  assert(mtev_hash_store(&active_events, (void *)holder, sizeof(*holder), ci));
+  mtevAssert(mtev_hash_store(&active_events, (void *)holder, sizeof(*holder), ci));
   pthread_mutex_unlock(&active_events_lock);
 }
 static void __deactivate_ci(struct dns_check_info *ci) {
   pthread_mutex_lock(&active_events_lock);
-  assert(mtev_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
+  mtevAssert(mtev_hash_delete(&active_events, (void *)&ci, sizeof(ci), free, NULL));
   pthread_mutex_unlock(&active_events_lock);
   ci->check->flags &= ~NP_RUNNING;
   if(ci->h != NULL) {
@@ -322,7 +321,7 @@ static int dns_interpolate_inaddr_arpa(char *buff, int len, const char *key,
     if(e >= ip) *o++ = '.'; /* we must be at . */
   }
   *o = '\0';
-  assert((o - buff) == il);
+  mtevAssert((o - buff) == il);
   return o - buff;
 }
 static int dns_interpolate_reverse_ip(char *buff, int len, const char *key,
@@ -382,7 +381,7 @@ register_console_dns_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
   mtev_console_state_add_cmd(showcmd->dstate,
     NCSCMD("dns_module", noit_console_show_dns, NULL, NULL, NULL));
 }
@@ -476,7 +475,7 @@ static void dns_module_eventer_dns_utm_fn(struct dns_ctx *ctx,
     if(h && h->timeout) e = eventer_remove(h->timeout);
   }
   else {
-    assert(h->ctx == ctx);
+    mtevAssert(h->ctx == ctx);
     if(h->timeout) e = eventer_remove(h->timeout);
     if(timeout > 0) {
       newe = eventer_alloc();

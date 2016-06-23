@@ -55,7 +55,6 @@
 
 #include <ctype.h>
 #include <unistd.h>
-#include <assert.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -368,7 +367,7 @@ __read_on_ctx(eventer_t e, realtime_recv_ctx_t *ctx, int *newmask) {
      */
     ctx->bytes_read += len;
   }
-  assert(ctx->bytes_read == ctx->bytes_expected);
+  mtevAssert(ctx->bytes_read == ctx->bytes_expected);
   return ctx->bytes_read;
 }
 #define FULLREAD(e,ctx,size) do { \
@@ -631,12 +630,12 @@ stratcon_realtime_http_init(const char *toplevel) {
                         stratcon_realtime_http_handler);
   eventer_name_callback("stratcon_realtime_recv",
                         stratcon_realtime_recv_handler);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/data/",
            "^((?:" UUID_REGEX "(?:@\\d+)?)(?:/" UUID_REGEX "(?:@\\d+)?)*)$",
     rest_stream_data, mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/", "^(.*)$", mtev_rest_simple_file_handler,
            mtev_http_rest_client_cert_auth
   ) == 0);

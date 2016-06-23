@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #include <math.h>
 
 #include <mtev_hash.h>
@@ -352,7 +351,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
       e->mask = EVENTER_READ | EVENTER_WRITE;
       break;
     default:
-      abort();
+      mtevFatal(mtev_error, "Unknown mask: 0x%04x\n", mask);
   }
   return 0;
 }

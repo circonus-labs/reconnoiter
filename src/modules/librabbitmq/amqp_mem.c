@@ -5,10 +5,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "amqp.h"
 #include "amqp_config.h"
+#include "mtev_log.h"
 
 char const *amqp_version(void) {
   return VERSION; /* defined in config.h */
@@ -93,7 +93,7 @@ void *amqp_pool_alloc(amqp_pool_t *pool, size_t amount) {
   }
 
   if (pool->alloc_block != NULL) {
-    assert(pool->alloc_used <= pool->pagesize);
+    mtevAssert(pool->alloc_used <= pool->pagesize);
 
     if (pool->alloc_used + amount <= pool->pagesize) {
       void *result = pool->alloc_block + pool->alloc_used;

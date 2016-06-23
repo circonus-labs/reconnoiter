@@ -42,7 +42,6 @@
 #include <sys/mman.h>
 #include <libpq-fe.h>
 #include <zlib.h>
-#include <assert.h>
 #include <errno.h>
 
 #include <eventer/eventer.h>
@@ -336,7 +335,7 @@ get_conn_q_for_remote(const char *remote_str,
   pthread_mutex_lock(&cpool->lock);
  again:
   if(cpool->head) {
-    assert(cpool->in_pool > 0);
+    mtevAssert(cpool->in_pool > 0);
     cq = cpool->head;
     cpool->head = cq->next;
     cpool->in_pool--;
@@ -967,7 +966,7 @@ stratcon_ingest_asynch_lookup(eventer_t e, int mask, void *closure,
   if(!(mask & EVENTER_ASYNCH_WORK)) return 0;
   if(mask & EVENTER_ASYNCH_CLEANUP) return 0;
 
-  assert(dsjd->rt);
+  mtevAssert(dsjd->rt);
   stratcon_ingest_find(dsjd);
   if(dsjd->completion_event)
     eventer_add(dsjd->completion_event);
@@ -1078,14 +1077,14 @@ build_insert_batch(pg_interim_journal_t *ij) {
     if(ij->fd < 0) {
       mtevL(noit_error, "Cannot open interim journal '%s': %s\n",
             ij->filename, strerror(errno));
-      assert(ij->fd >= 0);
+      mtevAssert(ij->fd >= 0);
     }
   }
   while((rv = fstat(ij->fd, &st)) == -1 && errno == EINTR);
   if(rv == -1) {
       mtevL(noit_error, "Cannot stat interim journal '%s': %s\n",
             ij->filename, strerror(errno));
-    assert(rv != -1);
+    mtevAssert(rv != -1);
   }
   len = st.st_size;
   if(len > 0) {
@@ -1093,7 +1092,7 @@ build_insert_batch(pg_interim_journal_t *ij) {
     if(buff == (void *)-1) {
       mtevL(noit_error, "mmap(%d, %d)(%s) => %s\n", (int)len, ij->fd,
             ij->filename, strerror(errno));
-      assert(buff != (void *)-1);
+      mtevAssert(buff != (void *)-1);
     }
     lcp = buff;
     while(lcp < (buff + len) &&
@@ -1359,7 +1358,7 @@ storage_node_quick_lookup(const char *uuid_str, const char *remote_cn,
 
   if(fqdn_out) *fqdn_out = info ? info->fqdn : NULL;
   if(dsn_out) *dsn_out = info ? info->dsn : NULL;
-  assert(uuidinfo);
+  mtevAssert(uuidinfo);
   if(remote_cn_out) *remote_cn_out = uuidinfo->remote_cn;
   if(storagenode_id_out) *storagenode_id_out = uuidinfo->storagenode_id;
   if(sid_out) *sid_out = uuidinfo->sid;

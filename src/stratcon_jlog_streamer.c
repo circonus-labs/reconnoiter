@@ -34,7 +34,6 @@
 #include <mtev_defines.h>
 
 #include <unistd.h>
-#include <assert.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -259,7 +258,7 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
     ctx->total_bytes_read += len;
     ctx->bytes_read += len;
   }
-  assert(ctx->bytes_read == ctx->bytes_expected);
+  mtevAssert(ctx->bytes_read == ctx->bytes_expected);
   return ctx->bytes_read;
 }
 #define FULLREAD(e,ctx,size) do { \
@@ -1335,7 +1334,7 @@ register_console_streamer_commands() {
 
   tl = mtev_console_state_initial();
   showcmd = mtev_console_state_get_cmd(tl, "show");
-  assert(showcmd && showcmd->dstate);
+  mtevAssert(showcmd && showcmd->dstate);
   confcmd = mtev_console_state_get_cmd(tl, "configure");
   conftcmd = mtev_console_state_get_cmd(confcmd->dstate, "terminal");
   conftnocmd = mtev_console_state_get_cmd(conftcmd->dstate, "no");
@@ -1384,23 +1383,23 @@ stratcon_jlog_streamer_init(const char *toplevel) {
   register_console_streamer_commands();
   stratcon_jlog_streamer_reload(toplevel);
   stratcon_streamer_connection(toplevel, "", "noit", NULL, NULL, NULL, NULL);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "GET", "/noits/", "^show(.json)?$", rest_show_noits,
              mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/noits/", "^set/([^/:]+)$", rest_set_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/noits/", "^set/([^/:]*):(\\d+)$", rest_set_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "DELETE", "/noits/", "^delete/([^/:]+)$", rest_delete_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "DELETE", "/noits/", "^delete/([^/:]*):(\\d+)$", rest_delete_noit,
              mtev_http_rest_client_cert_auth
   ) == 0);

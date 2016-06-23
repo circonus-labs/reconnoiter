@@ -46,7 +46,6 @@
 #endif
 #include <signal.h>
 #include <errno.h>
-#include <assert.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
@@ -145,7 +144,7 @@ mq_command_free(void *command) {
 static int
 stmt_mark_dag(struct statement_node *stmt, int mgen) {
   int i;
-  assert(stmt->marked <= mgen);
+  mtevAssert(stmt->marked <= mgen);
   if(stmt->marked == mgen) return -1;
   if(stmt->marked > 0) return 0; /* validated in a previous sweep */
   stmt->marked = mgen;
@@ -575,7 +574,7 @@ stratcon_iep_err_handler(eventer_t e, int mask, void *closure,
     if(len == -1 && (errno == EAGAIN || errno == EINTR))
       return newmask | EVENTER_EXCEPTION;
     if(len <= 0) goto read_error;
-    assert(len < sizeof(buff));
+    mtevAssert(len < sizeof(buff));
     buff[len] = '\0';
     mtevL(noit_iep_debug, "%s", buff);
   }
@@ -854,7 +853,7 @@ stratcon_iep_init() {
   eventer_jobq_init(&iep_jobq, "iep_submitter");
   eventer_jobq_increase_concurrency(&iep_jobq);
 
-  assert(mtev_http_rest_register_auth(
+  mtevAssert(mtev_http_rest_register_auth(
     "PUT", "/", "^mq_filters$",
     rest_set_filters, mtev_http_rest_client_cert_auth
   ) == 0);
