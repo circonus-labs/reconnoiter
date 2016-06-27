@@ -129,9 +129,9 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
   interests[thread_id] = icnt;
 }
 
-static void
+static int
 distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *message) {
-  int i;
+  int i, sent = 0;
   for(i = 0; i < nthreads; i++) {
     if(interests[i] > 0) {
       ck_fifo_spsc_t *fifo = (ck_fifo_spsc_t *) thread_queues[i];
@@ -141,8 +141,10 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
       ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
+      sent++;
     }
   }
+  return sent;
 }
 
 static void
@@ -155,14 +157,24 @@ distribute_metric(noit_metric_message_t *message) {
     if(mtev_hash_retrieve((mtev_hash_table *) vhash, message->id.name,
         message->id.name_len, &vinterests)) {
       caql_cnt_t *interests = vinterests;
-      distribute_message_with_interests(interests, message);
+      if (!distribute_message_with_interests(interests, message)) {
+        noit_metric_director_free_message(message);
+      }
     }
+    else {
+      noit_metric_director_free_message(message);
+    }
+  }
+  else {
+    noit_metric_director_free_message(message);
   }
 }
 
 static void
 distribute_check(noit_metric_message_t *message) {
-  distribute_message_with_interests(check_interests, message);
+  if (!distribute_message_with_interests(check_interests, message)) {
+    noit_metric_director_free_message(message);
+  }
 }
 
 static void
@@ -196,19 +208,22 @@ static void
 handle_metric_buffer(const char *payload, int payload_len,
     int has_noit) {
   // mtev_fq will free the fq_msg -> copy the payload
-  char *copy = mtev__strndup(payload, payload_len);
+  if (!payload_len) {
+    return;
+  }
 
-  noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
-  message->type = copy[0];
-  message->original_message = copy;
-
-  switch (copy[0]) {
+  switch (payload[0]) {
     case 'C':
     case 'D':
     case 'S':
     case 'H':
     case 'M':
       {
+        char *copy = mtev__strndup(payload, payload_len);
+        noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
+        message->type = payload[0];
+        message->original_message = copy;
+
         int rv = noit_message_decoder_parse_line(copy, payload_len,
             &message->id.id, &message->id.name,
             &message->id.name_len, &message->value, has_noit);
@@ -216,13 +231,16 @@ handle_metric_buffer(const char *payload, int payload_len,
         if(rv == 1) {
           distribute_message(message);
         }
+        else {
+          noit_metric_director_free_message(message);
+        }
       }
       break;
     case 'B':
       {
         int n_metrics, i;
         char **metrics = NULL;
-        n_metrics = noit_check_log_b_to_sm((const char *) copy, payload_len,
+        n_metrics = noit_check_log_b_to_sm((const char *) payload, payload_len,
             &metrics, has_noit);
         for(i = 0; i < n_metrics; i++) {
           handle_metric_buffer(metrics[i], strlen(metrics[i]), false);
