@@ -738,7 +738,7 @@ make_conf_path(char *path) {
   char fullpath[1024], *tok, *brk;
   if(!path || strlen(path) < 1) return NULL;
   snprintf(fullpath, sizeof(fullpath), "%s", path+1);
-  fullpath[strlen(fullpath)-1] = '\0';
+  fullpath[sizeof(fullpath)-1] = '\0';
   start = mtev_conf_get_section(NULL, "/noit/checks");
   if(!start) return NULL;
   for (tok = strtok_r(fullpath, "/", &brk);
