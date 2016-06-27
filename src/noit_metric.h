@@ -35,6 +35,7 @@
 #define _NOIT_METRIC_H
 
 #include <mtev_defines.h>
+#include <mtev_atomic.h>
 
 typedef enum {
   METRIC_ABSENT = 0,
@@ -95,6 +96,7 @@ typedef struct {
   noit_metric_value_t value;
   noit_message_type type;
   char* original_message;
+  mtev_atomic32_t refcnt;
 } noit_metric_message_t;
 
 #endif
