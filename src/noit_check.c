@@ -234,6 +234,7 @@ static int reg_module_used = -1;
 static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
 static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
 static mtev_hash_table polls = MTEV_HASH_EMPTY;
 static mtev_hash_table dns_ignore_list = MTEV_HASH_EMPTY;
 static mtev_skiplist watchlist = { 0 };
@@ -1311,14 +1312,16 @@ struct _checker_rcb {
   struct _checker_rcb *next;
 };
 static struct _checker_rcb *checker_rcb = NULL;
-static void recycle_check(noit_check_t *checker) {
+static void recycle_check(noit_check_t *checker, mtev_boolean has_lock) {
   struct _checker_rcb *n = malloc(sizeof(*n));
+  if(!has_lock) pthread_mutex_lock(&recycling_lock);
   n->checker = checker;
   n->next = checker_rcb;
   checker_rcb = n;
+  if(!has_lock) pthread_mutex_unlock(&recycling_lock);
 }
 void
-noit_poller_free_check(noit_check_t *checker) {
+noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
   noit_module_t *mod;
 
   if (checker->flags & NP_PASSIVE_COLLECTION) {
@@ -1331,12 +1334,12 @@ noit_poller_free_check(noit_check_t *checker) {
      * the check.... we don't want to free it */
     if ((checker->flags & NP_RUNNING) ||
         (sub_timeval_ms(current_time,checker->last_fire_time) < (checker->period*2))) {
-      recycle_check(checker);
+      recycle_check(checker, has_lock);
     }
   }
   else if(checker->flags & NP_RUNNING) {
     /* If the check is running, don't free it - will clean it up later */
-    recycle_check(checker);
+    recycle_check(checker, has_lock);
     return;
   }
 
@@ -1386,16 +1389,22 @@ noit_poller_free_check(noit_check_t *checker) {
 
   mtev_memory_safe_free(checker);
 }
+void
+noit_poller_free_check(noit_check_t *checker) {
+  noit_poller_free_check_internal(checker, mtev_false);
+}
 static int
 check_recycle_bin_processor(eventer_t e, int mask, void *closure,
                             struct timeval *now) {
   static struct timeval one_minute = { RECYCLE_INTERVAL, 0L };
-  struct _checker_rcb *prev = NULL, *curr = checker_rcb;
+  struct _checker_rcb *prev = NULL, *curr = NULL;
   mtevL(noit_debug, "Scanning check recycle bin\n");
+  pthread_mutex_lock(&recycling_lock);
+  curr = checker_rcb;
   while(curr) {
     if(!(curr->checker->flags & NP_RUNNING)) {
       mtevL(noit_debug, "Check is ready to free.\n");
-      noit_poller_free_check(curr->checker);
+      noit_poller_free_check_internal(curr->checker, mtev_true);
       if(prev) prev->next = curr->next;
       else checker_rcb = curr->next;
       free(curr);
@@ -1406,6 +1415,7 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
       curr = curr->next;
     }
   }
+  pthread_mutex_unlock(&recycling_lock);
   add_timeval(*now, one_minute, &e->whence);
   return EVENTER_TIMER;
 }
