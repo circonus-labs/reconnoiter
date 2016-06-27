@@ -55,6 +55,28 @@ static mtev_hash_table id_level;
 typedef unsigned short caql_cnt_t;
 static caql_cnt_t *check_interests;
 
+static void noit_metric_director_free_message(noit_metric_message_t* message) {
+  if(message->original_message) {
+    free(message->original_message);
+    message->original_message = NULL;
+  }
+  free(message);
+}
+
+void
+noit_metric_director_message_ref(void *m) {
+  noit_metric_message_t *message = (noit_metric_message_t *)m;
+  mtev_atomic_inc32(&message->refcnt);
+}
+
+void
+noit_metric_director_message_deref(void *m) {
+  noit_metric_message_t *message = (noit_metric_message_t *)m;
+  if (mtev_atomic_dec32(&message->refcnt) == 0) {
+    noit_metric_director_free_message(message);
+  }
+}
+
 static int
 get_my_lane() {
   if(my_lane.fifo == NULL) {
@@ -139,6 +161,7 @@ distribute_message_with_interests(caql_cnt_t *interests, noit_metric_message_t *
       ck_fifo_spsc_enqueue_lock(fifo);
       fifo_entry = ck_fifo_spsc_recycle(fifo);
       if(!fifo_entry) fifo_entry = malloc(sizeof(ck_fifo_spsc_entry_t));
+      noit_metric_director_message_ref(message);
       ck_fifo_spsc_enqueue(fifo, fifo_entry, message);
       ck_fifo_spsc_enqueue_unlock(fifo);
     }
@@ -185,30 +208,29 @@ noit_metric_message_t *noit_metric_director_lane_next() {
   ck_fifo_spsc_dequeue_unlock(my_lane.fifo);
   return msg;
 }
-void noit_metric_director_free_message(noit_metric_message_t* message) {
-  if(message->original_message) {
-    free(message->original_message);
-    message->original_message = NULL;
-  }
-  free(message);
-}
 static void
 handle_metric_buffer(const char *payload, int payload_len,
     int has_noit) {
-  // mtev_fq will free the fq_msg -> copy the payload
-  char *copy = mtev__strndup(payload, payload_len);
 
-  noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
-  message->type = copy[0];
-  message->original_message = copy;
+  if (payload_len <= 0) {
+    return;
+  }
 
-  switch (copy[0]) {
+  switch (payload[0]) {
     case 'C':
     case 'D':
     case 'S':
     case 'H':
     case 'M':
       {
+        // mtev_fq will free the fq_msg -> copy the payload
+        char *copy = mtev__strndup(payload, payload_len);
+        noit_metric_message_t *message = calloc(1, sizeof(noit_metric_message_t));
+
+        message->type = copy[0];
+        message->original_message = copy;
+        noit_metric_director_message_ref(message);
+
         int rv = noit_message_decoder_parse_line(copy, payload_len,
             &message->id.id, &message->id.name,
             &message->id.name_len, &message->value, has_noit);
@@ -216,13 +238,15 @@ handle_metric_buffer(const char *payload, int payload_len,
         if(rv == 1) {
           distribute_message(message);
         }
+
+        noit_metric_director_message_deref(message);
       }
       break;
     case 'B':
       {
         int n_metrics, i;
         char **metrics = NULL;
-        n_metrics = noit_check_log_b_to_sm((const char *) copy, payload_len,
+        n_metrics = noit_check_log_b_to_sm((const char *)payload, payload_len,
             &metrics, has_noit);
         for(i = 0; i < n_metrics; i++) {
           handle_metric_buffer(metrics[i], strlen(metrics[i]), false);
