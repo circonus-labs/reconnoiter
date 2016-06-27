@@ -1324,10 +1324,13 @@ noit_poller_free_check(noit_check_t *checker) {
   if (checker->flags & NP_PASSIVE_COLLECTION) {
     struct timeval current_time;
     gettimeofday(&current_time, NULL);
+    if (checker->last_fire_time.tv_sec == 0) {
+      gettimeofday(&checker->last_fire_time, NULL);
+    }
     /* If NP_RUNNING is set for some reason or we've fired recently, recycle
      * the check.... we don't want to free it */
     if ((checker->flags & NP_RUNNING) ||
-        ((current_time.tv_sec - checker->last_fire_time.tv_sec) < (checker->period*2))) {
+        (sub_timeval_ms(current_time,checker->last_fire_time) < (checker->period*2))) {
       recycle_check(checker);
     }
   }
