@@ -1325,7 +1325,7 @@ noit_poller_free_check(noit_check_t *checker) {
     struct timeval current_time;
     gettimeofday(&current_time, NULL);
     if (checker->last_fire_time.tv_sec == 0) {
-      gettimeofday(&checker->last_fire_time, NULL);
+      memcpy(&checker->last_fire_time, &current_time, sizeof(struct timeval));
     }
     /* If NP_RUNNING is set for some reason or we've fired recently, recycle
      * the check.... we don't want to free it */
