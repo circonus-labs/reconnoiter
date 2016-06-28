@@ -270,7 +270,7 @@ noit_lua_free_message(lua_State *L) {
   }
   udata = lua_touserdata(L, 1);
 
-  noit_metric_director_free_message(*udata);
+  noit_metric_director_message_deref(*udata);
   return 0;
 }
 

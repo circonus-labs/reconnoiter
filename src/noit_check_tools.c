@@ -94,7 +94,8 @@ noit_check_recur_handler(eventer_t e, int mask, void *closure,
                             rcl->check->target);
       }
       if(ms < rcl->check->timeout && !(rcl->check->flags & NP_TRANSIENT))
-        mtevL(noit_error, "%s might not finish in %dms (timeout %dms)\n",
+        mtevL(((ms == 0) ? noit_debug : noit_error), 
+              "%s might not finish in %dms (timeout %dms)\n",
               rcl->check->name, ms, rcl->check->timeout);
       rcl->dispatch(rcl->self, rcl->check, rcl->cause);
     }

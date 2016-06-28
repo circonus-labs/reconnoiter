@@ -48,6 +48,7 @@ void noit_adjust_checks_interest(short cnt);
 /* This gets the next line you've subscribed to, if avaialable. */
 noit_metric_message_t *noit_metric_director_lane_next();
 
-void noit_metric_director_free_message(noit_metric_message_t* message);
+void noit_metric_director_message_ref(void *message);
+void noit_metric_director_message_deref(void *message);
 
 #endif
