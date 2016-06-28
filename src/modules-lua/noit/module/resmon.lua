@@ -256,6 +256,7 @@ function initiate(module, check)
     local starttime = mtev.timeval.now()
     local read_limit = tonumber(config.read_limit) or nil
     local client
+    local starttime = mtev.timeval.now()
 
     -- assume the worst.
     check.bad()
@@ -385,6 +386,10 @@ function initiate(module, check)
     client:get_response(read_limit)
 
 ::done_request::
+    local elapsedtime = mtev.timeval.now() - starttime
+    local seconds = string.format('%.3f', mtev.timeval.seconds(elapsedtime))
+    check.metric_uint32("duration", math.floor(seconds * 1000 + 0.5))
+
     if helper and helper.fix_output then output = helper.fix_output(output) end
 
     if helper and helper.process then
