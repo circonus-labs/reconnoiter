@@ -907,6 +907,7 @@ noit_check_clone(uuid_t in) {
     return NULL;
   }
   new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
+  mtevAssert(new_check != NULL);
   memcpy(new_check, checker, sizeof(*new_check));
   new_check->target = strdup(new_check->target);
   new_check->module = strdup(new_check->module);
@@ -1282,7 +1283,7 @@ noit_poller_schedule(const char *target,
                      uuid_t out) {
   noit_check_t *new_check;
   new_check = mtev_memory_safe_calloc(1, sizeof(*new_check));
-  if(!new_check) return -1;
+  mtevAssert(new_check != NULL);
 
   /* The module and the UUID can never be changed */
   new_check->module = strdup(module);
@@ -1335,6 +1336,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
     if ((checker->flags & NP_RUNNING) ||
         (sub_timeval_ms(current_time,checker->last_fire_time) < (checker->period*2))) {
       recycle_check(checker, has_lock);
+      return;
     }
   }
   else if(checker->flags & NP_RUNNING) {
@@ -1402,8 +1404,22 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
   pthread_mutex_lock(&recycling_lock);
   curr = checker_rcb;
   while(curr) {
-    if(!(curr->checker->flags & NP_RUNNING)) {
-      mtevL(noit_debug, "Check is ready to free.\n");
+    noit_check_t *check = curr->checker;
+    mtev_boolean free_check = mtev_false;
+    if (check->flags & NP_PASSIVE_COLLECTION) {
+      struct timeval current_time;
+      gettimeofday(&current_time, NULL);
+      if ((!(check->flags & NP_RUNNING)) &&
+          (sub_timeval_ms(current_time,check->last_fire_time) >= (check->period*2))) {
+        free_check = mtev_true;
+      }
+    }
+    else if(!(curr->checker->flags & NP_RUNNING)) {
+      free_check = mtev_true;
+    }
+
+    if (free_check == mtev_true) {
+      mtevL(noit_debug, "0x%p: Check is ready to free.\n", check);
       noit_poller_free_check_internal(curr->checker, mtev_true);
       if(prev) prev->next = curr->next;
       else checker_rcb = curr->next;
