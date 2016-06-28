@@ -67,6 +67,7 @@
 #include "noit_jlog_listener.h"
 #include "noit_check_rest.h"
 #include "noit_livestream_listener.h"
+#include "noit_websocket_handler.h"
 #include "noit_module.h"
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
@@ -249,6 +250,7 @@ static int child_main() {
   noit_check_rest_init();
   noit_filters_rest_init();
   noit_livestream_listener_init();
+  noit_websocket_handler_init();
 
   mtev_dso_init();
   noit_module_init();

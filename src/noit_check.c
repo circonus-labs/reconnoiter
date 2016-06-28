@@ -1338,6 +1338,7 @@ noit_poller_free_check(noit_check_t *checker) {
   if(checker->target) free(checker->target);
   if(checker->module) free(checker->module);
   if(checker->name) free(checker->name);
+  if(checker->filterset) free(checker->filterset);
   if(checker->config) {
     mtev_hash_destroy(checker->config, free, free);
     free(checker->config);
@@ -1369,6 +1370,8 @@ noit_poller_free_check(noit_check_t *checker) {
   mtev_memory_safe_free(stats_inprogress(checker));
   mtev_memory_safe_free(stats_current(checker));
   mtev_memory_safe_free(stats_previous(checker));
+
+  free(checker->statistics);
 
   mtev_memory_safe_free(checker);
 }

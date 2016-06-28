@@ -97,4 +97,6 @@ typedef struct {
   char* original_message;
 } noit_metric_message_t;
 
+void noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mtev_boolean include_original);
+
 #endif
