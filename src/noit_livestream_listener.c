@@ -65,6 +65,7 @@ typedef struct {
   uuid_t uuid;
   noit_check_t *check;
   int wants_shutdown;
+  mtev_log_stream_t log_stream;
 } noit_livestream_closure_t;
 
 noit_livestream_closure_t *
@@ -243,15 +244,18 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(jcl) noit_livestream_closure_free(jcl);
+    mtev_log_stream_t ls = jcl->log_stream;
+    /* will free the noit_livestream_closure_t */
+    mtev_log_stream_close(ls);
+    mtev_log_stream_free(ls);
+    ac->service_ctx = NULL;
     acceptor_closure_free(ac);
     return 0;
   }
 
   if(!ac->service_ctx || !jcl->feed) {
     int len;
-    if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
-    jcl = ac->service_ctx;
+    if(!ac->service_ctx) ac->service_ctx = jcl = noit_livestream_closure_alloc();
     /* Setup logger to this channel */
     mtevL(noit_debug, "livestream initializing on fd %d\n", e->fd);
     if(!jcl->period_read) {
@@ -280,8 +284,8 @@ socket_error:
 
     jcl->feed = malloc(32);
     snprintf(jcl->feed, 32, "livestream/%d", mtev_atomic_inc32(&ls_counter));
-    mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
-                        jcl, NULL);
+    jcl->log_stream = mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
+                                          jcl, NULL);
 
 
     jcl->check = noit_check_watch(jcl->uuid, jcl->period);
@@ -307,7 +311,10 @@ socket_error:
   }
 
   noit_check_transient_remove_feed(jcl->check, jcl->feed);
-  noit_livestream_closure_free(jcl);
+  mtev_log_stream_t ls = jcl->log_stream;
+  mtev_log_stream_close(ls);
+  mtev_log_stream_free(ls);
+  ac->service_ctx = NULL;
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
