@@ -286,6 +286,7 @@ LIBS=$OLD_LIBS
 
 AC_CHECK_HEADER(mtev_config.h, [], [AC_MSG_ERROR(*** libmtev (headers) required ***)])
 AC_CHECK_LIB(mtev, mtev_main, , [AC_MSG_ERROR(*** libmtev is required ***)])
+AC_CHECK_LIB(circllhist, hist_alloc, , [AC_MSG_ERROR(*** libcircllhist is required ***)])
 AC_CHECK_HEADER(ck_pr.h, [], [AC_MSG_ERROR(*** libck (headers) required ***)])
 AC_CHECK_LIB(ck, ck_ht_init, , [AC_MSG_ERROR(*** concurrencyckit (libck) is required ***)])
 AC_CHECK_LIB(hwloc, hwloc_topology_init, , [AC_MSG_ERROR(*** libhwloc required ***)])

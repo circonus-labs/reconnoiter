@@ -12,7 +12,8 @@
     "pg": "^4.2.0",
     "trial": "^0.0.7",
     "xml2js": "^0.4.4",
-    "stomp": "^0.1.1"
+    "stomp": "^0.1.1",
+    "websocket": "^1.0.23"
   },
   "devDependencies": {},
   "scripts": {

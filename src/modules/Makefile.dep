@@ -56,10 +56,7 @@ histogram.lo: histogram.c  \
   ../noit_mtev_bridge.h \
   ../noit_module.h  \
   ../noit_check.h ../noit_metric.h \
-  ../noit_check_tools.h ../noit_check_tools_shared.h histogram_impl.h
-
-histogram_impl.lo: histogram_impl.c  \
-  histogram_impl.h
+  ../noit_check_tools.h ../noit_check_tools_shared.h
 
 httptrap.lo: httptrap.c  \
   ../noit_module.h \

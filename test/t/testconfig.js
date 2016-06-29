@@ -606,6 +606,7 @@ testconfig.prototype.logsize = function() {
 }
 testconfig.prototype.start = function(cb, ntests) {
   var self = this;
+  process.setMaxListeners(0);
 
   self.on('exit', function(code, signal) {
     self.test.ok(code == 0, self._program + ' exited cleanly: ' + code + "/" + signal);

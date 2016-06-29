@@ -53,8 +53,6 @@ LUA_MODULE_LINKS=noit_binding.so snmp.so
 
 all:	$(MODULES) $(SMODULES) $(LUA_MODULES) $(LUA_MODULE_LINKS) test_abort.@MODULEEXT@
 
-tests:	histogram_test
-
 .xml.xmlh:
 	$(Q)$(XML2H) `echo $< | sed -e 's/\.xml$$//;'`_xml_description < $< > $@
 
@@ -130,12 +128,9 @@ handoff_ingestor.lo: handoff_ingestor.c
 	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) $(PGCFLAGS) -c $< -o $@
 	@echo "- compiling $<"
 
-histogram.@MODULEEXT@:	histogram.lo histogram_impl.lo
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo histogram_impl.lo
+histogram.@MODULEEXT@:	histogram.lo
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ histogram.lo -lcircllhist
 	@echo "- linking $@"
-
-histogram_test:	histogram_impl.c histogram_test.c
-	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -DSKIP_LIBMTEV -I.. -o $@ histogram_impl.c histogram_test.c -lm
 
 stomp_driver.lo:	stomp_driver.c stomp_driver.xmlh
 	$(Q)$(CC) $(CPPFLAGS) $(SHCFLAGS) @APRCFLAGS@ -c $< -o $@
