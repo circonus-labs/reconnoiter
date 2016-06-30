@@ -36,6 +36,7 @@
 #include <mtev_sem.h>
 #include <mtev_rest.h>
 #include <mtev_json_tokener.h>
+#include <mtev_json_object.h>
 #include <mtev_arraylist.h>
 
 #include "noit_check.h"
@@ -232,7 +233,6 @@ int
 noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
                            const unsigned char *msg, size_t msg_len)
 {
-  const char *json_error = NULL;
   const char *error = NULL;
   noit_websocket_closure_t *handler_data = restc->call_closure;
 
@@ -308,9 +308,20 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   return 0;
 
  websocket_handler_error:
-  json_error = error;
-  mtev_http_websocket_queue_msg(restc->http_ctx,
-                                WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
-                                (const unsigned char *)json_error, strlen(json_error));
+  {
+    struct mtev_json_object *e = mtev_json_object_new_object();
+    mtev_json_object_object_add(e, "success", mtev_json_object_new_int(0));
+    struct mtev_json_object *errors = mtev_json_object_new_array();
+    struct mtev_json_object *error_o = mtev_json_object_new_object();
+    mtev_json_object_object_add(error_o, "error", mtev_json_object_new_string(error));
+    mtev_json_object_array_add(errors, error_o);
+    mtev_json_object_object_add(e, "errors", errors);
+
+    const char *json_error = mtev_json_object_to_json_string(e);
+    mtev_http_websocket_queue_msg(restc->http_ctx,
+                                  WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
+                                  (const unsigned char *)json_error, strlen(json_error));
+    mtev_json_object_put(e);
+  }
   return -1;
 }
