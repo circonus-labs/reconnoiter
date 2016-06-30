@@ -331,6 +331,7 @@ static void free_histotier(void *vht) {
   for(i=0;i<6;i++)
     if(ht->tensecs[i]) hist_free(ht->tensecs[i]);
   if(ht->last_aggr) hist_free(ht->last_aggr);
+  free(ht);
 }
 static void free_hash_o_histotier(void *vh) {
   mtev_hash_table *h = vh;
