@@ -4,7 +4,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -15,7 +15,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -41,8 +41,7 @@ API_EXPORT(void)
   noit_websocket_handler_init(void);
 
 API_EXPORT(int)
-  noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode, 
+  noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
                              const unsigned char *msg, size_t msg_len);
 
 #endif
-

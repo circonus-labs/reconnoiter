@@ -30,7 +30,7 @@ function put_check(uuid, cb) {
 test = function() {
   var test = this;
   noit = new tools.noit(test, "113",
-    { 'noit_ssl_on': 'on', 
+    { 'noit_ssl_on': 'on',
       'logs_debug': { '': 'false' },
       'rest_acls': [ { 'type': 'deny',
                        'rules': [
@@ -80,7 +80,7 @@ test = function() {
                           };
                           var string = JSON.stringify(check);
                           connection.sendUTF(string);
-                      }          
+                      }
                   }
                   register();
               });
@@ -88,6 +88,6 @@ test = function() {
               client.connect('wss://127.0.0.1:' + port + '/livestream/', 'noit_livestream');
           },
           function(callback) { noit.stop(); callback(); }
-      ]);          
+      ]);
   });
 }

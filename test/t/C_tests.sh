@@ -9,6 +9,4 @@ run() {
 	fi
 }
 
-run ../../src/modules/histogram_test
-
 exit $RV

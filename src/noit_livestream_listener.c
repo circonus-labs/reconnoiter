@@ -6,7 +6,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -186,7 +186,7 @@ noit_livestream_thread_main(void *e_vptr) {
     u_int32_t netlen;
     int rv;
     le = NULL;
-   
+
     sem_wait(&jcl->lqueue_sem);
     pthread_mutex_lock(&jcl->lqueue_lock);
     if(jcl->lqueue) {
@@ -255,7 +255,8 @@ socket_error:
 
   if(!ac->service_ctx || !jcl->feed) {
     int len;
-    if(!ac->service_ctx) ac->service_ctx = jcl = noit_livestream_closure_alloc();
+    if(!ac->service_ctx) ac->service_ctx = noit_livestream_closure_alloc();
+    jcl = ac->service_ctx;
     /* Setup logger to this channel */
     mtevL(noit_debug, "livestream initializing on fd %d\n", e->fd);
     if(!jcl->period_read) {

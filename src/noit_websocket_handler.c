@@ -1,23 +1,21 @@
 /*
- * Copyright (c) 2007, OmniTI Computer Consulting, Inc.
- * All rights reserved.
- * Copyright (c) 2015, Circonus, Inc. All rights reserved.
+ * Copyright (c) 2016, Circonus, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- *     * Neither the name OmniTI Computer Consulting, Inc. nor the names
+ *     * Neither the name Circonus, Inc. nor the names
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -100,7 +98,7 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
   char *json = NULL;
   size_t json_len = 0;
 
-  int rval = noit_message_decoder_parse_line(metric_string, len, &message.id.id, &message.id.name, 
+  int rval = noit_message_decoder_parse_line(metric_string, len, &message.id.id, &message.id.name,
                                              &message.id.name_len, &message.value, mtev_false);
   if (rval < 0) {
     return;
@@ -110,20 +108,20 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
 
   if (wcl->use_filter == mtev_true) {
     for (int i = 0; i < wcl->filter_count; i++) {
-      if (message.id.name_len > 0 && 
+      if (message.id.name_len > 0 &&
         strncmp(wcl->filters[i], message.id.name, message.id.name_len) == 0) {
         noit_metric_to_json(&message, &json, &json_len, mtev_false);
-        mtev_http_websocket_queue_msg(wcl->restc->http_ctx, 
-                                      WSLAY_TEXT_FRAME, 
+        mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                                      WSLAY_TEXT_FRAME,
                                       (const unsigned char *)json, json_len);
         free(json);
         break;
-      }      
+      }
     }
   } else {
         noit_metric_to_json(&message, &json, &json_len, mtev_false);
-        mtev_http_websocket_queue_msg(wcl->restc->http_ctx, 
-                                      WSLAY_TEXT_FRAME, 
+        mtev_http_websocket_queue_msg(wcl->restc->http_ctx,
+                                      WSLAY_TEXT_FRAME,
                                       (const unsigned char *)json, json_len);
         free(json);
   }
@@ -139,7 +137,7 @@ filter_and_send(noit_websocket_closure_t *wcl, const char *buf, size_t len)
   if (buf == NULL || len == 0) {
     return;
   }
-  
+
   if (buf[0] == 'B') {
     count = noit_check_log_b_to_sm(buf, len, &out, 0);
     for (int i = 0; i < count; i++) {
@@ -149,8 +147,8 @@ filter_and_send(noit_websocket_closure_t *wcl, const char *buf, size_t len)
     free(out);
   } else {
     send_individual_metric(wcl, buf, len);
-  }      
-} 
+  }
+}
 
 static int
 noit_websocket_logio_open(mtev_log_stream_t ls) {
@@ -177,7 +175,9 @@ noit_websocket_logio_write(mtev_log_stream_t ls, const struct timeval *whence,
     return 0;
   }
 
-
+  /* the send side of the websocket is already handled via queueing
+   * so there is no need to spawn a thread to deal with IO
+   */
   filter_and_send(jcl, buf, len);
 
   return len;
@@ -213,31 +213,31 @@ noit_websocket_handler_init() {
 /**
  * The "noit_livestream" protocol requires a well formed request to come
  * in via websocket that resembles:
- * 
+ *
  * {
  *   "period": <seconds>,
  *   "check_uuid": "<uuid_string>",
  *   "metrics" : ["<metric_name1>", "<metric_name2>"]
  * }
- * 
+ *
  * There can be only one active livestream request for a single websocket at one time.
  * However, you can send down a new livestream request at any time to alter the
  * stream based on new requirements.
- * 
+ *
  * If the "metrics" member exists in the incoming request, then the metrics that are sent will be
  * filtered to those that match the strings in the array by exact match.  If you want to get
  * all metrics in the check, omit the "metrics" member from the request object.
  */
 int
-noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode, 
-                           const unsigned char *msg, size_t msg_len) 
+noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
+                           const unsigned char *msg, size_t msg_len)
 {
   const char *json_error = NULL;
   const char *error = NULL;
   noit_websocket_closure_t *handler_data = restc->call_closure;
-  
+
   /* for now this message is JSON, that might change in the future */
-  
+
   struct mtev_json_tokener *tok = mtev_json_tokener_new();
   struct mtev_json_object *request = mtev_json_tokener_parse_ex(tok, (const char *)msg, msg_len);
   enum mtev_json_tokener_error err = tok->err;
@@ -271,8 +271,8 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
       if (o != NULL) {
         handler_data->filters[i] = strdup(mtev_json_object_get_string(o));
       }
-    }    
-  } 
+    }
+  }
 
   handler_data->restc = restc;
 
@@ -289,7 +289,6 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
   asprintf(&handler_data->feed, "websocket_livestream/%d", mtev_atomic_inc32(&ls_counter));
   handler_data->log_stream = mtev_log_stream_new(handler_data->feed, "noit_websocket_livestream", handler_data->feed,
                                                  handler_data, NULL);
-
 
   handler_data->check = noit_check_watch(handler_data->uuid, handler_data->period);
   if(!handler_data->check) {
@@ -310,8 +309,8 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
 
  websocket_handler_error:
   json_error = error;
-  mtev_http_websocket_queue_msg(restc->http_ctx, 
-                                WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE, 
+  mtev_http_websocket_queue_msg(restc->http_ctx,
+                                WSLAY_TEXT_FRAME | WSLAY_CONNECTION_CLOSE,
                                 (const unsigned char *)json_error, strlen(json_error));
   return -1;
 }

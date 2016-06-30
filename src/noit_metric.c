@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-void 
+void
 noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mtev_boolean include_original)
 {
   if (json == NULL) {
@@ -30,12 +30,12 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
 
   if (metric->value.type == METRIC_NULL || metric->value.type == METRIC_ABSENT) {
     mtev_json_object_object_add(o, "value_type", NULL);
-  } else {  
+  } else {
     char value_type[2] = {0};
     sprintf(value_type, "%c", metric->value.type);
     mtev_json_object_object_add(o, "value_type", mtev_json_object_new_string(value_type));
   }
-  
+
   if (metric->type == MESSAGE_TYPE_M) {
     char name[metric->id.name_len + 1];
     strncpy(name, metric->id.name, metric->id.name_len);
@@ -46,7 +46,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     case METRIC_GUESS:
     case METRIC_INT32:
       mtev_json_object_object_add(o, name, int_value);
-      break;    
+      break;
 
     case METRIC_UINT32:
       mtev_json_object_set_int_overflow(int_value, mtev_json_overflow_uint64);
@@ -70,7 +70,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
       {
         mtev_json_object_object_add(o, name, mtev_json_object_new_double(metric->value.value.v_double));
         break;
-      
+
       }
     case METRIC_STRING:
       mtev_json_object_object_add(o, name, mtev_json_object_new_string(metric->value.value.v_string));
@@ -78,7 +78,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
     default:
       mtev_json_object_object_add(o, name, NULL);
       break;
-    } 
+    }
   } else if (metric->type == MESSAGE_TYPE_S) {
     char *status = strdup(metric->id.name);
     const char *field = strtok(status, "\t");
@@ -108,14 +108,14 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
         double b = 0.0;
         uint64_t bc = 0;
         hist_bucket_idx(histo, i, &b, &bc);
-        mtev_json_object_object_add(bucket, "bucket", 
+        mtev_json_object_object_add(bucket, "bucket",
                                     mtev_json_object_new_double(b));
         struct mtev_json_object *count_o = mtev_json_object_new_int(0);
         mtev_json_object_set_int_overflow(count_o, mtev_json_overflow_uint64);
         mtev_json_object_set_int64(count_o, bc);
-        
+
         mtev_json_object_object_add(bucket, "count", count_o);
-        mtev_json_object_array_add(histogram, bucket);        
+        mtev_json_object_array_add(histogram, bucket);
       }
       hist_free(histo);
       char name[metric->id.name_len + 1];
@@ -124,7 +124,7 @@ noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mte
       mtev_json_object_object_add(o, name, histogram);
     }
   }
-    
+
   const char *j = mtev_json_object_to_json_string(o);
   *json = strdup(j);
   *len = strlen(j);
