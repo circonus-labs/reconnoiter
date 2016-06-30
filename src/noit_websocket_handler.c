@@ -215,7 +215,7 @@ noit_websocket_handler_init() {
  * in via websocket that resembles:
  *
  * {
- *   "period": <seconds>,
+ *   "period_ms": <milliseconds>,
  *   "check_uuid": "<uuid_string>",
  *   "metrics" : ["<metric_name1>", "<metric_name2>"]
  * }
