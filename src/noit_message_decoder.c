@@ -98,37 +98,33 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
 
     *metric_name_len = metric_type_str - *metric_name - 1;
 
-    switch (*metric_type_str) {
-    case METRIC_INT32:
-      metric->type = METRIC_INT32;
-      metric->value.v_int32 = strtol(value_str, NULL, 10);
-      break;
-    case METRIC_UINT32:
-      metric->type = METRIC_UINT32;
-      metric->value.v_uint32 = strtoul(value_str, NULL, 10);
-      break;
-    case METRIC_INT64:
-      metric->type = METRIC_INT64;
-      metric->value.v_int64 = strtoll(value_str, NULL, 10);
-      break;
-    case METRIC_UINT64:
-      metric->type = METRIC_UINT64;
-      metric->value.v_uint64 = strtoull(value_str, NULL, 10);
-      break;
-    case METRIC_DOUBLE:
-      metric->type = METRIC_DOUBLE;
-      metric->value.v_double = strtod(value_str, NULL);
-      break;
-    case METRIC_STRING:
-      metric->type = METRIC_STRING;
-      if(!strcmp(value_str, "[[null]]"))
-        metric->value.v_string = NULL;
-      else {
+    metric->type = *metric_type_str;
+    if(!strcmp(value_str, "[[null]]")) {
+      metric->type = METRIC_ABSENT;
+      metric->value.v_string = NULL;
+    } else {
+      switch (*metric_type_str) {
+      case METRIC_INT32:
+        metric->value.v_int32 = strtol(value_str, NULL, 10);
+        break;
+      case METRIC_UINT32:
+        metric->value.v_uint32 = strtoul(value_str, NULL, 10);
+        break;
+      case METRIC_INT64:
+        metric->value.v_int64 = strtoll(value_str, NULL, 10);
+        break;
+      case METRIC_UINT64:
+        metric->value.v_uint64 = strtoull(value_str, NULL, 10);
+        break;
+      case METRIC_DOUBLE:
+        metric->value.v_double = strtod(value_str, NULL);
+        break;
+      case METRIC_STRING:
         metric->value.v_string = value_str;
+        break;
+      default:
+        return -9;
       }
-      break;
-    default:
-      return -9;
     }
     return 1;
   }
