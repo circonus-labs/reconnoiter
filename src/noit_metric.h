@@ -88,6 +88,7 @@ typedef struct {
     uint64_t v_uint64;
     double v_double;
     char *v_string;
+    metric_type_t v_type_if_absent;
   } value; /* the data itself */
 } noit_metric_value_t;
 

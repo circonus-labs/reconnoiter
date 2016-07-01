@@ -101,7 +101,7 @@ int noit_message_decoder_parse_line(const char *payload, int payload_len,
     metric->type = *metric_type_str;
     if(!strcmp(value_str, "[[null]]")) {
       metric->type = METRIC_ABSENT;
-      metric->value.v_string = NULL;
+      metric->value.v_type_if_absent = *metric_type_str;
     } else {
       switch (*metric_type_str) {
       case METRIC_INT32:
