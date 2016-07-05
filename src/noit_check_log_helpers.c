@@ -265,34 +265,27 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
     scratch[0] = '\0';
     value_str = scratch;
     switch(m.metric_type) {
-      case METRIC_INT32:
-        m.metric_value.i = &metric->valuei32;
-        noit_stats_snprint_metric_value(scratch, 64, &m);
-        value_size = strlen(scratch);
-        break;
-      case METRIC_UINT32:
-        m.metric_value.I = &metric->valueui32;
-        noit_stats_snprint_metric_value(scratch, 64, &m);
-        value_size = strlen(scratch);
-        break;
-      case METRIC_INT64:
-        m.metric_value.l = &metric->valuei64;
-        noit_stats_snprint_metric_value(scratch, 64, &m);
-        value_size = strlen(scratch);
-        break;
-      case METRIC_UINT64:
-        m.metric_value.L = &metric->valueui64;
-        noit_stats_snprint_metric_value(scratch, 64, &m);
-        value_size = strlen(scratch);
-        break;
-      case METRIC_DOUBLE:
-        m.metric_value.n = &metric->valuedbl;
-        noit_stats_snprint_metric_value(scratch, 64, &m);
-        value_size = strlen(scratch);
-        break;
+#define CHECK_VALUE_TYPE(metric_type, src, dst) \
+    case metric_type: \
+      if(metric->has_##src == 0) { \
+        value_str = "[[null]]"; \
+        m.metric_value.s = value_str; \
+        value_size = strlen(value_str); \
+      } else { \
+        dst = &metric->src;\
+        noit_stats_snprint_metric_value(scratch, 64, &m);\
+        value_size = strlen(scratch);\
+      } \
+      break;
+
+      CHECK_VALUE_TYPE(METRIC_INT32, valuei32, m.metric_value.i)
+      CHECK_VALUE_TYPE(METRIC_INT64, valueui32, m.metric_value.I)
+      CHECK_VALUE_TYPE(METRIC_UINT32, valuei64, m.metric_value.l)
+      CHECK_VALUE_TYPE(METRIC_UINT64, valueui64, m.metric_value.L)
+      CHECK_VALUE_TYPE(METRIC_DOUBLE, valuedbl, m.metric_value.n);
       case METRIC_STRING:
-        m.metric_value.s = metric->valuestr ? metric->valuestr : "[[null]]";
         value_str = metric->valuestr ? metric->valuestr : "[[null]]";
+        m.metric_value.s = value_str;
         value_size = strlen(value_str);
         break;
       default:
