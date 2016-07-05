@@ -41,6 +41,7 @@
 
 #include <mtev_rest.h>
 #include <mtev_hash.h>
+#include <mtev_json.h>
 
 #include "noit_module.h"
 #include "noit_check.h"
@@ -62,6 +63,7 @@ static mtev_log_stream_t nlyajl = NULL;
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
 static mtev_boolean httptrap_surrogate;
+static const char *TRUNCATE_ERROR = "at least one metric truncated to 255 characters";
 
 typedef struct _mod_config {
   mtev_hash_table *options;
@@ -85,6 +87,7 @@ struct rest_json_payload {
   int complete;
   char delimiter;
   char *error;
+  char *supp_err;
   int depth;
   char *keys[MAX_DEPTH];
   int array_depth[MAX_DEPTH];
@@ -146,7 +149,10 @@ set_array_key(struct rest_json_payload *json) {
       int uplen = strlen(json->keys[json->depth-1]);
       /* This is too large.... return an error */
       if(uplen + 1 + strLen > 255) {
-        return -1;
+	   strLen = 255 - uplen - 1;
+	   if(strLen < 0) strLen = 0;
+        if(!json->supp_err)
+	     json->supp_err = strdup(TRUNCATE_ERROR);
       }
       json->keys[json->depth] = malloc(uplen + 1 + strLen + 1);
       memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
@@ -383,7 +389,11 @@ static int
 httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
                          size_t stringLen) {
   struct rest_json_payload *json = ctx;
-  if(stringLen > 255) return 0;
+  if(stringLen > 255) {
+    if(!json->supp_err)
+      json->supp_err = strdup(TRUNCATE_ERROR);
+    stringLen = 255;
+  }
   if(json->keys[json->depth]) free(json->keys[json->depth]);
   json->keys[json->depth] = NULL;
   if(stringLen == 5 && memcmp(key, "_type", 5) == 0) {
@@ -413,7 +423,12 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
   }
   else {
     int uplen = strlen(json->keys[json->depth-1]);
-    if(uplen + 1 + stringLen > 255) return 0;
+    if(uplen + 1 + stringLen > 255) {
+      if(255 - uplen - 1 < 0) stringLen = 0;
+      else stringLen = 255 - uplen - 1;
+      if(!json->supp_err)
+	   json->supp_err = strdup(TRUNCATE_ERROR);
+    }
     json->keys[json->depth] = malloc(uplen + 1 + stringLen + 1);
     memcpy(json->keys[json->depth], json->keys[json->depth-1], uplen);
     json->keys[json->depth][uplen] = json->delimiter;
@@ -440,6 +455,7 @@ rest_json_payload_free(void *f) {
   struct rest_json_payload *json = f;
   if(json->parser) yajl_free(json->parser);
   if(json->error) free(json->error);
+  if(json->supp_err) free(json->supp_err);
   for(i=0;i<MAX_DEPTH;i++)
     if(json->keys[i]) free(json->keys[i]);
   if(json->last_value) free(json->last_value);
@@ -479,7 +495,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
       if(status != yajl_status_ok) {
         unsigned char *err;
         *complete = 1;
-        err = yajl_get_error(rxc->parser, 0, (unsigned char *)buffer, len);
+        err = yajl_get_error(rxc->parser, 1, (unsigned char *)buffer, len);
         rxc->error = strdup((char *)err);
         yajl_free_error(rxc->parser, err);
         return rxc;
@@ -572,7 +588,6 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   mtev_http_session_ctx *ctx = restc->http_ctx;
   const unsigned int DEBUGDATA_OUT_SIZE=4096;
   const unsigned int JSON_OUT_SIZE=DEBUGDATA_OUT_SIZE+128;
-  char json_out[JSON_OUT_SIZE];
   char debugdata_out[DEBUGDATA_OUT_SIZE];
   int debugflag=0;
   const char *debugchkflag;
@@ -671,11 +686,14 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
     }
   }
    
+  json_object *obj =  NULL;
+  obj = json_object_new_object();
   /*If debugflag remains zero, simply output the number of metrics.*/
   if (debugflag==0)
   {
-    snprintf(json_out, sizeof(json_out),
-           "{ \"stats\": %d }", cnt);    
+    json_object_object_add(obj, "stats", json_object_new_int(cnt));
+    if (rxc->supp_err)
+      json_object_object_add(obj, "error", json_object_new_string(rxc->supp_err));
   }
   
   /*Otherwise, if set to one, output current metrics in addition to number of current metrics.*/
@@ -683,48 +701,42 @@ rest_httptrap_handler(mtev_http_rest_closure_t *restc,
   {        
       stats_t *c;
       mtev_hash_table *metrics;
+      json_object *metrics_obj;
+      metrics_obj = json_object_new_object();
         
       /*Retrieve check information.*/        
       check = noit_poller_lookup(check_id);
-      c = noit_check_get_stats_current(check);
+      c = noit_check_get_stats_inprogress(check);
       metrics = noit_check_stats_metrics(c);
       mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
       const char *k;
       int klen;
       void *data;
-      int written=0;
-      int offset=0;
       memset(debugdata_out,'\0',sizeof(debugdata_out));
       
       /*Extract metrics*/
       while(mtev_hash_next(metrics, &iter, &k, &klen, &data))
       {
-        char buff[256];
-        int toWrite = DEBUGDATA_OUT_SIZE-offset;
+        char buff[256], type_str[2];
         metric_t *tmp=(metric_t *)data;
         char *metric_name=tmp->metric_name;
         metric_type_t metric_type=tmp->metric_type;
         noit_stats_snprint_metric_value(buff, sizeof(buff), tmp);
-        written = snprintf(debugdata_out + offset, toWrite, "\"%s\": {\"_type\":\"%c\",\"_value\":\"%s\"},", metric_name,metric_type,buff);
-        if(toWrite < written) 
-        {
-            break;
-        }
-        offset += written;
+        json_object *value_obj = json_object_new_object();
+	   snprintf(type_str, sizeof(type_str), "%c", metric_type);
+	   json_object_object_add(value_obj, "_type", json_object_new_string(type_str));
+	   json_object_object_add(value_obj, "_value", json_object_new_string(buff));
+	   json_object_object_add(metrics_obj, metric_name, value_obj);
       }
         
-      /*Set last character to empty-don't want extra comma in output*/
-      if (offset>1)
-      {
-        snprintf(debugdata_out + (offset-1), 1, "%s"," ");
-      }
-      
       /*Output stats and metrics.*/
-      snprintf(json_out, sizeof(json_out)+strlen(debugdata_out),
-             "{ \"stats\": %d, \"metrics\": {%s } }", cnt, debugdata_out);
+      json_object_object_add(obj, "stats", json_object_new_int(cnt));
+      json_object_object_add(obj, "metrics", metrics_obj);
   }
 
+  const char *json_out = json_object_to_json_string(obj);
   mtev_http_response_append(ctx, json_out, strlen(json_out));
+  json_object_put(obj);
   mtev_http_response_end(ctx);
   return 0;
 
