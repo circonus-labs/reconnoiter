@@ -235,8 +235,8 @@ static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
 static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
-static mtev_hash_table polls = MTEV_HASH_EMPTY;
-static mtev_hash_table dns_ignore_list = MTEV_HASH_EMPTY;
+static mtev_hash_table polls;
+static mtev_hash_table dns_ignore_list;
 static mtev_skiplist watchlist = { 0 };
 static mtev_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
@@ -857,6 +857,8 @@ noit_check_poller_scheduling_init() {
 void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
+  mtev_hash_init(&polls);
+  mtev_hash_init(&dns_ignore_list);
   noit_check_poller_scheduling_init();
   noit_check_resolver_init();
   noit_check_tools_init();

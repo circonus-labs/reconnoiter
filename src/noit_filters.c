@@ -624,11 +624,13 @@ filterset_accum(noit_check_t *check, void *closure) {
 
 int
 noit_filtersets_cull_unused() {
-  mtev_hash_table active = MTEV_HASH_EMPTY;
+  mtev_hash_table active;
   char *buffer = NULL;
   mtev_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
   const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
+
+  mtev_hash_init(&active);
 
   declares = mtev_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {

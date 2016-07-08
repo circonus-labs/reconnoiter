@@ -45,7 +45,7 @@
 #include "fq_driver.xmlh"
 
 static mtev_log_stream_t nlerr = NULL;
-static mtev_hash_table filtered_checks_hash = MTEV_HASH_EMPTY;
+static mtev_hash_table filtered_checks_hash;
 static bool filtered_metrics_exist = false;
 
 typedef struct {
