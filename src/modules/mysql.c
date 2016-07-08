@@ -255,7 +255,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   unsigned long client_flag = CLIENT_IGNORE_SIGPIPE;
   unsigned int timeout;
 
-  mtev_hash_init(&dsn_h);
+  mtev_hash_init_locks(&dsn_h, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
     /* this case is impossible from the eventer.  It is called as

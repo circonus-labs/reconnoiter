@@ -395,10 +395,10 @@ static int dns_module_init(noit_module_t *self) {
 
   conf = noit_module_get_userdata(self);
 
-  mtev_hash_init(&dns_rtypes);
-  mtev_hash_init(&dns_ctypes);
-  mtev_hash_init(&dns_ctx_store);
-  mtev_hash_init(&active_events);
+  mtev_hash_init_locks(&dns_rtypes, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&dns_ctypes, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&dns_ctx_store, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&active_events, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   pthread_mutex_init(&dns_ctx_store_lock, NULL);
   pthread_mutex_init(&active_events_lock, NULL);
@@ -758,7 +758,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   char interpolated_query[1024];
   mtev_hash_table check_attrs_hash;
 
-  mtev_hash_init(&check_attrs_hash);
+  mtev_hash_init_locks(&check_attrs_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;

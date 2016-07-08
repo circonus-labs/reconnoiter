@@ -246,7 +246,7 @@ void noit_module_init() {
   mtev_conf_section_t *sections;
   int i, cnt = 0;
 
-  mtev_hash_init(&modules);
+  mtev_hash_init_locks(&modules, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   mtev_dso_add_type("module", noit_module_list_modules);
   mtev_console_add_help("module", noit_module_help, noit_module_options);

@@ -217,7 +217,7 @@ interpolate_oper_random(char *buff, int len, const char *key,
 
 void
 noit_check_tools_shared_init() {
-  mtev_hash_init(&interpolation_operators);
+  mtev_hash_init_locks(&interpolation_operators, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
   noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
   noit_check_interpolate_register_oper_fn("random", interpolate_oper_random);

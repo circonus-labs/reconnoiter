@@ -187,8 +187,8 @@ void stratcon_iep_submit_statements() {
   const char *key;
   int klen, mgen = 0;
 
-  mtev_hash_init(&stmt_by_id);
-  mtev_hash_init(&stmt_by_provider);
+  mtev_hash_init_locks(&stmt_by_id, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&stmt_by_provider, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
   statement_configs = mtev_conf_get_sections(NULL, path, &cnt);
@@ -805,7 +805,7 @@ stratcon_iep_init() {
   struct driver_list *newdriver;
   void *vdriver;
 
-  mtev_hash_init(&mq_drivers);
+  mtev_hash_init_locks(&mq_drivers, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   noit_iep = mtev_log_stream_find("error/iep");
   noit_iep_debug = mtev_log_stream_find("debug/iep");

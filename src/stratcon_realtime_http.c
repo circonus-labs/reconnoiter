@@ -134,7 +134,7 @@ stratcon_line_to_javascript(mtev_http_session_ctx *ctx, char *in_buff,
   char s_inc_id[42];
   char **outrows = NULL;
 
-  mtev_hash_init(&json);
+  mtev_hash_init_locks(&json, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   cb = mtev_http_request_querystring(req, "cb"); 
   for(v = cb; v && *v; v++)

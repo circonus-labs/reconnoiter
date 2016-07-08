@@ -476,7 +476,7 @@ noit_lua_interpolate(lua_State *L) {
   mtev_hash_table check_attrs_hash;
   char buff[8192];
 
-  mtev_hash_init(&check_attrs_hash);
+  mtev_hash_init_locks(&check_attrs_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -780,7 +780,7 @@ noit_lua_module_config(noit_module_t *mod,
   if(options) {
     mtevAssert(mc->options == NULL);
     mc->options = calloc(1, sizeof(*mc->options));
-    mtev_hash_init(mc->options);
+    mtev_hash_init_locks(mc->options, 256, MTEV_HASH_LOCK_MODE_MUTEX);
     mtev_hash_merge_as_dict(mc->options, options);
   }
   else options = mc->options;

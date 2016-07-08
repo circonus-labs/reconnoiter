@@ -203,7 +203,7 @@ noit_check_stats_alloc() {
   stats_t *n;
   n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
   memset(n, 0, sizeof(*n));
-  mtev_hash_init(&n->metrics);
+  mtev_hash_init_locks(&n->metrics, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   return n;
 }
 static void *
@@ -857,8 +857,8 @@ noit_check_poller_scheduling_init() {
 void
 noit_poller_init() {
   srand48((getpid() << 16) ^ time(NULL));
-  mtev_hash_init(&polls);
-  mtev_hash_init(&dns_ignore_list);
+  mtev_hash_init_locks(&polls, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init_locks(&dns_ignore_list, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   noit_check_poller_scheduling_init();
   noit_check_resolver_init();
   noit_check_tools_init();

@@ -68,7 +68,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
 void
 noit_jlog_listener_init() {
   xmlNodePtr node;
-  mtev_hash_init(&feed_stats);
+  mtev_hash_init_locks(&feed_stats, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("log_transit/1.0", noit_jlog_handler);
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,

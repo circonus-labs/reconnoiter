@@ -287,7 +287,7 @@ static int handoff_ingestor_init(mtev_dso_generic_t *self) {
   ds_err = mtev_log_stream_find("error/datastore");
   ds_deb = mtev_log_stream_find("debug/datastore");
   ingest_err = mtev_log_stream_find("error/ingest");
-  mtev_hash_init(&uuid_map);
+  mtev_hash_init_locks(&uuid_map, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   if(!ds_err) ds_err = mtev_error;
   if(!ingest_err) ingest_err = mtev_error;
   if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",

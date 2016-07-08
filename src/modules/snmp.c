@@ -1011,7 +1011,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   struct check_info *info = check->closure;
   mtev_hash_table check_attrs_hash;
 
-  mtev_hash_init(&check_attrs_hash);
+  mtev_hash_init_locks(&check_attrs_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   /* Toss the old set and bail if we have zero */
   if(info->oids) {
@@ -1564,7 +1564,7 @@ static int noit_snmp_init(noit_module_t *self) {
   const char *opt;
   snmp_mod_config_t *conf;
 
-  mtev_hash_init(&active_checks);
+  mtev_hash_init_locks(&active_checks, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   conf = noit_module_get_userdata(self);
   if(mtev_hash_retr_str(conf->options, "debugging", strlen("debugging"), &opt)) {
     snmp_set_do_debugging(atoi(opt));

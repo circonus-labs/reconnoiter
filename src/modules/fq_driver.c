@@ -452,7 +452,7 @@ static void noit_fq_set_filters(mq_command_t *commands, int count) {
   for (i=0; i<count; i++) {
     if (commands[i].action == MQ_ACTION_SET) {
       mtev_hash_table *metric_table = calloc(1, sizeof(mtev_hash_table));
-      mtev_hash_init(metric_table);
+      mtev_hash_init_locks(metric_table, 256, MTEV_HASH_LOCK_MODE_MUTEX);
       for (j=0; j<commands[i].check.metric_count; j++) {
         mtev_hash_store(metric_table, strdup(commands[i].check.metrics[j]), strlen(commands[i].check.metrics[j]), NULL);
         filtered_metrics_exist = true;
@@ -577,7 +577,7 @@ fq_status_checker(eventer_t e, int mask, void *closure, struct timeval *now) {
 static int noit_fq_driver_init(mtev_dso_generic_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/fq_driver");
   if(!nlerr) nlerr = mtev_error;
-  mtev_hash_init(&filtered_checks_hash);
+  mtev_hash_init_locks(&filtered_checks_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
   register_console_fq_commands();
   eventer_add_in_s_us(fq_status_checker, NULL, 0, 0);
