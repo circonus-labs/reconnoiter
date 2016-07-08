@@ -59,10 +59,10 @@
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_iep.h"
 
-pthread_mutex_t noits_lock;
-mtev_hash_table noits;
-pthread_mutex_t noit_ip_by_cn_lock;
-mtev_hash_table noit_ip_by_cn;
+static pthread_mutex_t noits_lock;
+static mtev_hash_table noits;
+static pthread_mutex_t noit_ip_by_cn_lock;
+static mtev_hash_table noit_ip_by_cn;
 static uuid_t self_stratcon_id;
 static char self_stratcon_hostname[256] = "\0";
 static struct sockaddr_in self_stratcon_ip;
@@ -526,7 +526,7 @@ stratcon_console_noit_opts(mtev_console_closure_t ncct,
     void *vconn, *vcn;
     mtev_connection_ctx_t *ctx;
     mtev_hash_table dedup;
-    mtev_hash_init_locks(&dedup, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+    mtev_hash_init(&dedup);
 
     pthread_mutex_lock(&noits_lock);
     while(mtev_hash_next(&noits, &iter, &key_id, &klen, &vconn)) {
@@ -760,7 +760,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
   struct timeval now, diff, last;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
 
-  mtev_hash_init_locks(&seen, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&seen);
 
   mtev_http_process_querystring(req);
   type = mtev_http_request_querystring(req, "type");
@@ -956,7 +956,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
   xmlNodePtr node;
   mtev_http_request *req = mtev_http_session_request(restc->http_ctx);
 
-  mtev_hash_init_locks(&seen, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&seen);
 
   if(npats == 1 && !strcmp(pats[0], ".json"))
     return rest_show_noits_json(restc, npats, pats);

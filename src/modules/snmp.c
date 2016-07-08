@@ -1011,7 +1011,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   struct check_info *info = check->closure;
   mtev_hash_table check_attrs_hash;
 
-  mtev_hash_init_locks(&check_attrs_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&check_attrs_hash);
 
   /* Toss the old set and bail if we have zero */
   if(info->oids) {

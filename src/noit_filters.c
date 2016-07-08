@@ -630,7 +630,7 @@ noit_filtersets_cull_unused() {
   int i, n_uses = 0, n_declares = 0, removed = 0;
   const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
 
-  mtev_hash_init_locks(&active, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&active);
 
   declares = mtev_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {

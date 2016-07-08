@@ -758,7 +758,7 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   char interpolated_query[1024];
   mtev_hash_table check_attrs_hash;
 
-  mtev_hash_init_locks(&check_attrs_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&check_attrs_hash);
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;
