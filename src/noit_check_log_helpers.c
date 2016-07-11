@@ -256,7 +256,7 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
   for(i=0; i<cnt; i++) {
     Metric *metric = bundle->metrics[i];
     metric_t m;
-    char scratch[64], *value_str;;
+    char scratch[64], *value_str;
     int value_size = 0;
 
     m.metric_name = metric->name;
@@ -279,8 +279,8 @@ noit_check_log_b_to_sm(const char *line, int len, char ***out, int noit_ip) {
       break;
 
       CHECK_VALUE_TYPE(METRIC_INT32, valuei32, m.metric_value.i)
-      CHECK_VALUE_TYPE(METRIC_INT64, valueui32, m.metric_value.I)
-      CHECK_VALUE_TYPE(METRIC_UINT32, valuei64, m.metric_value.l)
+      CHECK_VALUE_TYPE(METRIC_UINT32, valueui32, m.metric_value.I)
+      CHECK_VALUE_TYPE(METRIC_INT64, valuei64, m.metric_value.l)
       CHECK_VALUE_TYPE(METRIC_UINT64, valueui64, m.metric_value.L)
       CHECK_VALUE_TYPE(METRIC_DOUBLE, valuedbl, m.metric_value.n);
       case METRIC_STRING:
