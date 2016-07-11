@@ -56,6 +56,7 @@ static int DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
 static int DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
 
 static mtev_atomic32_t tmpfeedcounter = 0;
+static mtev_hash_table feed_stats;
 
 static int rest_show_feed(mtev_http_rest_closure_t *restc,
                           int npats, char **pats);
@@ -67,6 +68,7 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
 void
 noit_jlog_listener_init() {
   xmlNodePtr node;
+  mtev_hash_init_locks(&feed_stats, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   eventer_name_callback("log_transit/1.0", noit_jlog_handler);
   mtev_control_dispatch_delegate(mtev_control_dispatch,
                                  NOIT_JLOG_DATA_FEED,
@@ -124,8 +126,6 @@ noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
   }
   free(jcl);
 }
-
-static mtev_hash_table feed_stats = MTEV_HASH_EMPTY;
 
 jlog_feed_stats_t *
 noit_jlog_feed_stats(const char *sub) {

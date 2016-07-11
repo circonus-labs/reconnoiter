@@ -809,7 +809,7 @@ void noit_check_resolver_init() {
   noit_check_resolver_loop(NULL, 0, NULL, NULL);
   register_console_dns_cache_commands();
 
-  mtev_hash_init(&etc_hosts_cache);
+  mtev_hash_init_locks(&etc_hosts_cache, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   noit_check_etc_hosts_cache_refresh(NULL, 0, NULL, NULL);
 }
 

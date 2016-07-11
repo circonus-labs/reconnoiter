@@ -69,7 +69,7 @@ static mtev_log_stream_t noit_iep_debug = NULL;
 static mtev_spinlock_t iep_conn_cnt = 0;
 static mtev_boolean inject_remote_cn = mtev_false;
 
-static mtev_hash_table mq_drivers = MTEV_HASH_EMPTY;
+static mtev_hash_table mq_drivers;
 struct driver_thread_data {
   mq_driver_t *mq_driver;
   struct iep_thread_driver *driver_data;
@@ -181,11 +181,14 @@ void stratcon_iep_submit_statements() {
   char path[256];
   struct statement_node *stmt;
   void *vstmt;
-  mtev_hash_table stmt_by_id = MTEV_HASH_EMPTY;
-  mtev_hash_table stmt_by_provider = MTEV_HASH_EMPTY;
+  mtev_hash_table stmt_by_id;
+  mtev_hash_table stmt_by_provider;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *key;
   int klen, mgen = 0;
+
+  mtev_hash_init(&stmt_by_id);
+  mtev_hash_init(&stmt_by_provider);
 
   snprintf(path, sizeof(path), "/stratcon/iep/queries[@master=\"stratcond\"]//statement");
   statement_configs = mtev_conf_get_sections(NULL, path, &cnt);
@@ -801,6 +804,8 @@ stratcon_iep_init() {
   char remote[32] = "ip";
   struct driver_list *newdriver;
   void *vdriver;
+
+  mtev_hash_init_locks(&mq_drivers, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   noit_iep = mtev_log_stream_find("error/iep");
   noit_iep_debug = mtev_log_stream_find("debug/iep");

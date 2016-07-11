@@ -473,8 +473,10 @@ noit_lua_log_immediate_metric(lua_State *L) {
 static int
 noit_lua_interpolate(lua_State *L) {
   noit_check_t *check;
-  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash;
   char buff[8192];
+
+  mtev_hash_init(&check_attrs_hash);
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
@@ -778,7 +780,7 @@ noit_lua_module_config(noit_module_t *mod,
   if(options) {
     mtevAssert(mc->options == NULL);
     mc->options = calloc(1, sizeof(*mc->options));
-    mtev_hash_init(mc->options);
+    mtev_hash_init_locks(mc->options, 256, MTEV_HASH_LOCK_MODE_MUTEX);
     mtev_hash_merge_as_dict(mc->options, options);
   }
   else options = mc->options;

@@ -645,13 +645,15 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   struct check_info *ci = (struct check_info *)check->closure;
   eventer_t newe;
   external_data_t *data;
-  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash;
   int i, klen;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *name, *value, *command;
   char resolved_path[PATH_MAX];
   char interp_fmt[4096], interp_buff[4096];
   char* rp;
+
+  mtev_hash_init(&check_attrs_hash);
 
   data = noit_module_get_userdata(self);
 
