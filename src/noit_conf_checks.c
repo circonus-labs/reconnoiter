@@ -91,11 +91,10 @@ mtev_console_state_add_check_attrs(mtev_console_state_t *state,
              NULL, &valid_attrs[i]));
   }
 }
-static mtev_hash_table check_attrs;
+static mtev_hash_table check_attrs = MTEV_HASH_EMPTY;
 
 void noit_console_conf_checks_init() {
   int i;
-  mtev_hash_init_locks(&check_attrs, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   for(i=0;i<sizeof(valid_attrs)/sizeof(*valid_attrs);i++) {
     mtev_hash_store(&check_attrs,
                     valid_attrs[i].name, strlen(valid_attrs[i].name),

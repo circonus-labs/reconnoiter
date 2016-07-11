@@ -182,7 +182,7 @@ struct check_info {
  *   then we know we can remove the timeout and  complete the check. 
  *   If we don't find them, the timeout fired and removed the check.
  */
-mtev_hash_table active_checks;
+mtev_hash_table active_checks = MTEV_HASH_EMPTY;
 static void add_check(struct check_info *c) {
   int i;
   for(i=0; i<c->noids; i++)
@@ -1009,9 +1009,7 @@ static int noit_snmp_fill_oidinfo(noit_check_t *check) {
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *name, *value;
   struct check_info *info = check->closure;
-  mtev_hash_table check_attrs_hash;
-
-  mtev_hash_init(&check_attrs_hash);
+  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
 
   /* Toss the old set and bail if we have zero */
   if(info->oids) {
@@ -1564,7 +1562,6 @@ static int noit_snmp_init(noit_module_t *self) {
   const char *opt;
   snmp_mod_config_t *conf;
 
-  mtev_hash_init_locks(&active_checks, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   conf = noit_module_get_userdata(self);
   if(mtev_hash_retr_str(conf->options, "debugging", strlen("debugging"), &opt)) {
     snmp_set_do_debugging(atoi(opt));

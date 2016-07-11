@@ -45,7 +45,7 @@
 #include "fq_driver.xmlh"
 
 static mtev_log_stream_t nlerr = NULL;
-static mtev_hash_table filtered_checks_hash;
+static mtev_hash_table filtered_checks_hash = MTEV_HASH_EMPTY;
 static bool filtered_metrics_exist = false;
 
 typedef struct {
@@ -577,7 +577,7 @@ fq_status_checker(eventer_t e, int mask, void *closure, struct timeval *now) {
 static int noit_fq_driver_init(mtev_dso_generic_t *self) {
   if(!nlerr) nlerr = mtev_log_stream_find("error/fq_driver");
   if(!nlerr) nlerr = mtev_error;
-  mtev_hash_init_locks(&filtered_checks_hash, 256, MTEV_HASH_LOCK_MODE_MUTEX);
+  mtev_hash_init(&filtered_checks_hash);
   stratcon_iep_mq_driver_register("fq", &mq_driver_fq);
   register_console_fq_commands();
   eventer_add_in_s_us(fq_status_checker, NULL, 0, 0);

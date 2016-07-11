@@ -179,7 +179,7 @@ noit_filter_compile_add(mtev_conf_section_t setinfo) {
       rule->rname##_auto_hash_max = auto_max; \
       rule->rname##_ht = calloc(1, sizeof(*(rule->rname##_ht))); \
       while(tablesize < hte_cnt) tablesize <<= 1; \
-      mtev_hash_init_locks(rule->rname##_ht, tablesize, MTEV_HASH_LOCK_MODE_MUTEX); \
+      mtev_hash_init_size(rule->rname##_ht, tablesize); \
       for(hti=0; hti<hte_cnt; hti++) { \
         if(!mtev_conf_get_string(htentries[hti], "self::node()", &htstr)) \
           mtevL(noit_error, "Error fetching text content from filter match.\n"); \
@@ -624,13 +624,11 @@ filterset_accum(noit_check_t *check, void *closure) {
 
 int
 noit_filtersets_cull_unused() {
-  mtev_hash_table active;
+  mtev_hash_table active = MTEV_HASH_EMPTY;
   char *buffer = NULL;
   mtev_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
   const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
-
-  mtev_hash_init(&active);
 
   declares = mtev_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {

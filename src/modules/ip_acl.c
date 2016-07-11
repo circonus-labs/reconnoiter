@@ -47,7 +47,7 @@
 
 static int ip_acl_module_id = -1;
 
-static mtev_hash_table acls;
+static mtev_hash_table acls = MTEV_HASH_EMPTY;
 
 static void
 free_btrie(void *vb) {
@@ -165,7 +165,6 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
 }
 static int
 ip_acl_init(mtev_dso_generic_t *self) {
-  mtev_hash_init_locks(&acls, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   check_preflight_hook_register("ip_acl", ip_acl_hook_impl, NULL);
   return 0;
 }

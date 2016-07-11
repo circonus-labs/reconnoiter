@@ -72,7 +72,7 @@ static int storage_node_quick_lookup(const char *uuid_str,
                                      const char **dsn_out);
 
 static char *basejpath = NULL;
-static mtev_hash_table uuid_map;
+static mtev_hash_table uuid_map = MTEV_HASH_EMPTY;
 
 static void
 stratcon_ingest_iep_check_preload() {
@@ -287,7 +287,6 @@ static int handoff_ingestor_init(mtev_dso_generic_t *self) {
   ds_err = mtev_log_stream_find("error/datastore");
   ds_deb = mtev_log_stream_find("debug/datastore");
   ingest_err = mtev_log_stream_find("error/ingest");
-  mtev_hash_init_locks(&uuid_map, 256, MTEV_HASH_LOCK_MODE_MUTEX);
   if(!ds_err) ds_err = mtev_error;
   if(!ingest_err) ingest_err = mtev_error;
   if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",

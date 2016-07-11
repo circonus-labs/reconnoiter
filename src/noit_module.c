@@ -66,7 +66,7 @@ mtev_dso_loader_t __noit_module_loader = {
   noit_load_module_image
 };
 
-static mtev_hash_table modules;
+static mtev_hash_table modules = MTEV_HASH_EMPTY;
 static int noit_module_load_failure_count = 0;
 
 int noit_module_load_failures() {
@@ -245,8 +245,6 @@ noit_module_help(mtev_console_closure_t ncct,
 void noit_module_init() {
   mtev_conf_section_t *sections;
   int i, cnt = 0;
-
-  mtev_hash_init_locks(&modules, 256, MTEV_HASH_LOCK_MODE_MUTEX);
 
   mtev_dso_add_type("module", noit_module_list_modules);
   mtev_console_add_help("module", noit_module_help, noit_module_options);
