@@ -71,6 +71,7 @@
 #include "noit_conf_checks.h"
 #include "noit_filters.h"
 #include "noit_metric_director.h"
+#include "noit_check_tools_shared.h"
 
 #define APPNAME "noit"
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
@@ -233,6 +234,9 @@ static int child_main() {
   e->mask = EVENTER_RECURRENT;
   e->callback = notice_hup;
   eventer_add_recurrent(e);
+
+  /* Initialized shared tools */
+  noit_check_tools_shared_init();
 
   /* Initialize all of our listeners */
   mtev_console_init(APPNAME);

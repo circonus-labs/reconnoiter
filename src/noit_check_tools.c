@@ -222,7 +222,6 @@ noit_check_run_full_asynch(noit_check_t *check, eventer_func_t callback) {
 
 void
 noit_check_tools_init() {
-  noit_check_tools_shared_init();
   eventer_name_callback_ext("noit_check_recur_handler",
                             noit_check_recur_handler,
                             noit_check_recur_name_details, NULL);
