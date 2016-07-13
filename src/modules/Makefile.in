@@ -74,8 +74,8 @@ LUA_MODULE_OBJS=lua_check.lo
 
 lua_check.lo:	lua.xmlh
 
-lua.@MODULEEXT@:	$(LUA_MODULE_OBJS)
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS) $(LUALIBS)
+lua.@MODULEEXT@:  $(LUA_MODULE_OBJS)
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o $@ $(LUA_MODULE_OBJS)	$(LUALIBS)
 	@echo "- linking $@"
 
 # luajit always uses .so
@@ -86,9 +86,9 @@ noit_binding.so:	noit_lua/noit_binding.so
 snmp.so:	noit_lua/snmp.so
 	$(Q)$(LN_S) $< $@
 
-noit_lua/noit_binding.so:	noit_lua_noit_binding.lo
+noit_lua/noit_binding.so:	noit_lua_noit_binding.lo $(LUA_MODULE_OBJS)
 	$(Q)mkdir -p noit_lua
-	$(Q)$(MODULELD) $(SHLDFLAGS) -o noit_lua/noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo
+	$(Q)$(MODULELD) $(SHLDFLAGS) -o noit_lua/noit_binding.@MODULEEXT@ noit_lua_noit_binding.lo $(LUA_MODULE_OBJS)
 	$(Q)if [ "noit_lua/noit_binding.so" != "noit_lua/noit_binding.@MODULEEXT@" ]; then \
 		rm -f noit_lua/noit_binding.so; \
 		mv noit_lua/noit_binding.@MODULEEXT@ noit_lua/noit_binding.so; \
