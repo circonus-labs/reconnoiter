@@ -192,6 +192,8 @@ static int child_main() {
 
   /* Send out a birth notice. */
   mtev_watchdog_child_heartbeat();
+
+  noit_mtev_bridge_init();
   mtev_override_console_stopword(noit_console_stopword);
 
   /* Load our config...
@@ -291,7 +293,6 @@ static int child_main() {
 
 int main(int argc, char **argv) {
   int lock = MTEV_LOCK_OP_LOCK;
-  noit_mtev_bridge_init();
   mtev_memory_init();
   parse_clargs(argc, argv);
   if (xpath) lock = MTEV_LOCK_OP_NONE;
