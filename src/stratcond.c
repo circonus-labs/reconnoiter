@@ -263,6 +263,7 @@ static int child_main() {
 
 void
 stratcond_init_globals(void) {
+  stratcon_datastore_init_globals();
   stratcon_iep_init_globals();
   stratcon_jlog_streamer_init_globals();
 }
