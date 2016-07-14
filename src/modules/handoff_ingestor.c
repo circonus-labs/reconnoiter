@@ -72,7 +72,7 @@ static int storage_node_quick_lookup(const char *uuid_str,
                                      const char **dsn_out);
 
 static char *basejpath = NULL;
-static mtev_hash_table uuid_map = MTEV_HASH_EMPTY;
+static mtev_hash_table uuid_map;
 
 static void
 stratcon_ingest_iep_check_preload() {
@@ -289,6 +289,7 @@ static int handoff_ingestor_init(mtev_dso_generic_t *self) {
   ingest_err = mtev_log_stream_find("error/ingest");
   if(!ds_err) ds_err = mtev_error;
   if(!ingest_err) ingest_err = mtev_error;
+  mtev_hash_init(&uuid_map);
   if(!mtev_conf_get_string(NULL, "/stratcon/database/journal/path",
                            &basejpath)) {
     mtevL(mtev_error, "/stratcon/database/journal/path is unspecified\n");

@@ -624,11 +624,13 @@ filterset_accum(noit_check_t *check, void *closure) {
 
 int
 noit_filtersets_cull_unused() {
-  mtev_hash_table active = MTEV_HASH_EMPTY;
+  mtev_hash_table active;
   char *buffer = NULL;
   mtev_conf_section_t *declares;
   int i, n_uses = 0, n_declares = 0, removed = 0;
   const char *declare_xpath = "//filterset[@name and not (@cull='false')]";
+
+  mtev_hash_init(&active);
 
   declares = mtev_conf_get_sections(NULL, declare_xpath, &n_declares);
   if(declares) {
@@ -755,7 +757,6 @@ noit_filters_init() {
   const char *error;
   int erroffset;
   pthread_mutex_init(&filterset_lock, NULL);
-  filtersets = calloc(1, sizeof(mtev_hash_table));
   fallback_no_match = pcre_compile("^(?=a)b", 0, &error, &erroffset, NULL);
   if(!fallback_no_match) {
     mtevL(noit_error, "Filter initialization failed (nomatch filter)\n");
@@ -765,3 +766,10 @@ noit_filters_init() {
   register_console_filter_commands();
   noit_filters_from_conf();
 }
+
+void
+noit_filters_init_globals(void) {
+  filtersets = calloc(1, sizeof(mtev_hash_table));
+  mtev_hash_init(filtersets);
+}
+

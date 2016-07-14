@@ -74,5 +74,7 @@ API_EXPORT(void *)
   noit_module_get_userdata(noit_module_t *mod);
 API_EXPORT(void)
   noit_module_set_userdata(noit_module_t *mod, void *);
+API_EXPORT(void)
+  noit_module_init_globals(void);
 
 #endif

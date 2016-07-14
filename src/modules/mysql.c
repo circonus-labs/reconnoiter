@@ -82,6 +82,7 @@ static void mysql_cleanup(noit_module_t *self, noit_check_t *check) {
     noit_check_release_attrs(&ci->attrs);
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
+    mtev_hash_init(&ci->attrs);
   }
 }
 static void mysql_ingest_stats(mysql_check_info_t *ci) {
@@ -243,7 +244,7 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   mysql_check_info_t *ci = closure;
   noit_check_t *check = ci->check;
   struct timeval t1, t2, diff;
-  mtev_hash_table dsn_h = MTEV_HASH_EMPTY;
+  mtev_hash_table dsn_h;
   const char *host=NULL;
   const char *user=NULL;
   const char *password=NULL;
@@ -254,6 +255,8 @@ static int mysql_drive_session(eventer_t e, int mask, void *closure,
   u_int32_t port;
   unsigned long client_flag = CLIENT_IGNORE_SIGPIPE;
   unsigned int timeout;
+
+  mtev_hash_init(&dsn_h);
 
   if(mask & (EVENTER_READ | EVENTER_WRITE)) {
     /* this case is impossible from the eventer.  It is called as
@@ -381,7 +384,11 @@ static int mysql_initiate(noit_module_t *self, noit_check_t *check,
 
 static int mysql_initiate_check(noit_module_t *self, noit_check_t *check,
                                    int once, noit_check_t *cause) {
-  if(!check->closure) check->closure = calloc(1, sizeof(mysql_check_info_t));
+  if(!check->closure) {
+    mysql_check_info_t *check_info = calloc(1, sizeof(mysql_check_info_t));
+    mtev_hash_init(&check_info->attrs);
+    check->closure = (void*)check_info;
+  }
   INITIATE_CHECK(mysql_initiate, self, check, cause);
   return 0;
 }

@@ -61,5 +61,7 @@ API_EXPORT(jlog_feed_stats_t *)
 API_EXPORT(int)
   noit_jlog_foreach_feed_stats(int (*f)(jlog_feed_stats_t *, void *),
                                void *);
+API_EXPORT(void)
+  noit_jlog_listener_init_globals(void);
 
 #endif

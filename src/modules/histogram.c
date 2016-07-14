@@ -356,6 +356,7 @@ histogram_hook_impl(void *closure, noit_check_t *check, stats_t *stats,
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
     metrics = calloc(1, sizeof(*metrics));
+    mtev_hash_init(metrics);
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }
@@ -409,6 +410,7 @@ histogram_hook_special_impl(void *closure, noit_check_t *check, stats_t *stats,
   metrics = noit_check_get_module_metadata(check, histogram_module_id);
   if(!metrics) {
     metrics = calloc(1, sizeof(*metrics));
+    mtev_hash_init(metrics);
     noit_check_set_module_metadata(check, histogram_module_id,
                                    metrics, free_hash_o_histotier);
   }

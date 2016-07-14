@@ -64,10 +64,10 @@ static void register_console_dns_commands();
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 
-static mtev_hash_table dns_rtypes = MTEV_HASH_EMPTY;
-static mtev_hash_table dns_ctypes = MTEV_HASH_EMPTY;
-
-static mtev_hash_table dns_ctx_store = MTEV_HASH_EMPTY;
+static mtev_hash_table active_events;
+static mtev_hash_table dns_rtypes;
+static mtev_hash_table dns_ctypes;
+static mtev_hash_table dns_ctx_store;
 static pthread_mutex_t dns_ctx_store_lock;
 typedef struct dns_ctx_handle {
   char *ns; /* name server */
@@ -200,7 +200,6 @@ static int dns_module_dns_ctx_release(dns_ctx_handle_t *h) {
   return rv;
 }
 
-static mtev_hash_table active_events = MTEV_HASH_EMPTY;
 static pthread_mutex_t active_events_lock;
 
 typedef struct dns_check_info {
@@ -395,6 +394,10 @@ static int dns_module_init(noit_module_t *self) {
 
   conf = noit_module_get_userdata(self);
 
+  mtev_hash_init(&active_events);
+  mtev_hash_init(&dns_rtypes);
+  mtev_hash_init(&dns_ctypes);
+  mtev_hash_init(&dns_ctx_store);
   pthread_mutex_init(&dns_ctx_store_lock, NULL);
   pthread_mutex_init(&active_events_lock, NULL);
 
@@ -751,7 +754,9 @@ static int dns_check_send(noit_module_t *self, noit_check_t *check,
   const char *query = NULL;
   char interpolated_nameserver[1024];
   char interpolated_query[1024];
-  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash;
+
+  mtev_hash_init(&check_attrs_hash);
 
   BAIL_ON_RUNNING_CHECK(check);
   check->flags |= NP_RUNNING;

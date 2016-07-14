@@ -261,9 +261,16 @@ static int child_main() {
   return 0;
 }
 
+void
+stratcond_init_globals(void) {
+  stratcon_iep_init_globals();
+  stratcon_jlog_streamer_init_globals();
+}
+
 int main(int argc, char **argv) {
   mtev_memory_init();
   parse_clargs(argc, argv);
+  stratcond_init_globals();
   return mtev_main(APPNAME, config_file, debug, foreground,
                    MTEV_LOCK_OP_LOCK, glider, droptouser, droptogroup,
                    child_main);

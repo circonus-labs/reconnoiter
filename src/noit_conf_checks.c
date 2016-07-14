@@ -54,6 +54,7 @@
 #include "noit_check_tools.h"
 
 static void register_console_config_check_commands();
+static mtev_hash_table check_attrs;
 
 static struct _valid_attr_t {
   const char *scope;
@@ -91,7 +92,6 @@ mtev_console_state_add_check_attrs(mtev_console_state_t *state,
              NULL, &valid_attrs[i]));
   }
 }
-static mtev_hash_table check_attrs = MTEV_HASH_EMPTY;
 
 void noit_console_conf_checks_init() {
   int i;
@@ -1332,5 +1332,10 @@ void register_console_config_check_commands() {
                mtev_console_opt_delegate, _attr_state);
 
   ADD_CMD(tl, "reload", noit_conf_checks_reload, NULL, NULL, NULL);
+}
+
+void
+noit_conf_checks_init_globals(void) {
+  mtev_hash_init(&check_attrs);
 }
 

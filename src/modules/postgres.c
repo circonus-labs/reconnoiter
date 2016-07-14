@@ -95,6 +95,7 @@ static void postgres_cleanup(noit_module_t *self, noit_check_t *check) {
     noit_check_release_attrs(&ci->attrs);
     if(ci->error) free(ci->error);
     memset(ci, 0, sizeof(*ci));
+    mtev_hash_init(&ci->attrs);
   }
 }
 static void postgres_ingest_stats(postgres_check_info_t *ci) {
@@ -313,7 +314,11 @@ static int postgres_initiate(noit_module_t *self, noit_check_t *check,
 
 static int postgres_initiate_check(noit_module_t *self, noit_check_t *check,
                                    int once, noit_check_t *cause) {
-  if(!check->closure) check->closure = calloc(1, sizeof(postgres_check_info_t));
+  if(!check->closure) {
+    postgres_check_info_t *check_info = calloc(1, sizeof(postgres_check_info_t));
+    mtev_hash_init(&check_info->attrs);
+    check->closure = (void*)check_info;
+  }
   INITIATE_CHECK(postgres_initiate, self, check, cause);
   return 0;
 }
