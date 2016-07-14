@@ -182,6 +182,7 @@ static int child_main() {
   char stratcon_version[80];
 
   mtev_watchdog_child_heartbeat();
+  noit_mtev_bridge_init();
 
   /* Next (re)load the configs */
   if(mtev_conf_load(config_file) == -1) {
@@ -261,7 +262,6 @@ static int child_main() {
 }
 
 int main(int argc, char **argv) {
-  noit_mtev_bridge_init();
   mtev_memory_init();
   parse_clargs(argc, argv);
   return mtev_main(APPNAME, config_file, debug, foreground,
