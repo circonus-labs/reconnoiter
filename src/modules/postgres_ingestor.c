@@ -183,6 +183,9 @@ free_params(ds_single_detail *d) {
 static char *basejpath = NULL;
 static pthread_mutex_t ds_conns_lock;
 static mtev_hash_table ds_conns;
+static mtev_hash_table uuid_to_info_cache;
+static pthread_mutex_t storagenode_to_info_cache_lock;
+static mtev_hash_table storagenode_to_info_cache;
 
 /* the fqdn cache needs to be thread safe */
 typedef struct {
@@ -196,9 +199,6 @@ typedef struct {
   char *fqdn;
   char *dsn;
 } storagenode_info;
-mtev_hash_table uuid_to_info_cache;
-pthread_mutex_t storagenode_to_info_cache_lock;
-mtev_hash_table storagenode_to_info_cache;
 
 /* Thread-safe connection pools */
 
@@ -1630,6 +1630,9 @@ static int is_postgres_ingestor_file(const char *file) {
 }
 static int postgres_ingestor_init(mtev_dso_generic_t *self) {
   stratcon_datastore_core_init();
+  mtev_hash_init(&ds_conns);
+  mtev_hash_init(&uuid_to_info_cache);
+  mtev_hash_init(&storagenode_to_info_cache);
   pthread_mutex_init(&ds_conns_lock, NULL);
   pthread_mutex_init(&storagenode_to_info_cache_lock, NULL);
   ds_err = mtev_log_stream_find("error/datastore");

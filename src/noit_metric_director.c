@@ -120,6 +120,7 @@ noit_adjust_metric_interest(uuid_t id, const char *metric, short cnt) {
     int found;
     uuid_t *copy = malloc(UUID_SIZE);
     level2 = calloc(1,sizeof(*level2));
+    mtev_hash_init(level2);
     uuid_copy(*copy, id);
     if(!mtev_hash_store(&id_level, (const char *)copy, UUID_SIZE, level2)) {
       free(copy);

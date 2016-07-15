@@ -60,6 +60,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_config.h"
 #include "noit_module.h"
+#include "noit_check_tools.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
 #include "stratcon_iep.h"
@@ -263,6 +264,7 @@ static int child_main() {
 
 void
 stratcond_init_globals(void) {
+  noit_check_tools_shared_init_globals();
   stratcon_datastore_init_globals();
   stratcon_iep_init_globals();
   stratcon_jlog_streamer_init_globals();

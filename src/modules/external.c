@@ -121,10 +121,15 @@ static int external_config(noit_module_t *self, mtev_hash_table *options) {
       free(data->options);
     }
   }
-  else
+  else {
     data = calloc(1, sizeof(*data));
+    mtev_hash_init(&data->external_checks);
+  }
   data->options = options;
-  if(!data->options) data->options = calloc(1, sizeof(*data->options));
+  if(!data->options) {
+    data->options = calloc(1, sizeof(*data->options));
+    mtev_hash_init(data->options);
+  }
   noit_module_set_userdata(self, data);
   return 1;
 }
@@ -471,7 +476,10 @@ static int external_init(noit_module_t *self) {
   const char* path = NULL, *nagios_regex = NULL;
 
   data = noit_module_get_userdata(self);
-  if(!data) data = calloc(1, sizeof(*data));
+  if(!data) {
+    data = calloc(1, sizeof(*data));
+    mtev_hash_init(&data->external_checks);
+  }
   data->nlerr = mtev_log_stream_find("error/external");
   data->nldeb = mtev_log_stream_find("debug/external");
 

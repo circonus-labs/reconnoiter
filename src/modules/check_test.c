@@ -137,6 +137,7 @@ noit_fire_check(xmlNodePtr attr, xmlNodePtr config, const char **error) {
     goto error;
   }
   conf_hash = calloc(1, sizeof(*conf_hash));
+  mtev_hash_init(conf_hash);
   if(config) {
     for(co = config->children; co; co = co->next) {
       char *name, *val;
