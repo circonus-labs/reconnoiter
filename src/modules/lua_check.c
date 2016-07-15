@@ -479,8 +479,6 @@ noit_lua_interpolate(lua_State *L) {
   mtev_hash_table check_attrs_hash;
   char buff[8192];
 
-  mtev_hash_init(&check_attrs_hash);
-
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
   check = lua_touserdata(L, lua_upvalueindex(1));
   if(!lua_isstring(L,1) && !lua_istable(L,1)) {

@@ -661,8 +661,6 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   char interp_fmt[4096], interp_buff[4096];
   char* rp;
 
-  mtev_hash_init(&check_attrs_hash);
-
   data = noit_module_get_userdata(self);
 
   BAIL_ON_RUNNING_CHECK(check);

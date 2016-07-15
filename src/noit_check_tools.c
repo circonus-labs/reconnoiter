@@ -381,6 +381,7 @@ noit_check_stats_from_json_str(noit_check_t *check,
 void
 noit_check_make_attrs(noit_check_t *check, mtev_hash_table *attrs) {
 #define CA_STORE(a,b) mtev_hash_store(attrs, a, strlen(a), b)
+  mtev_hash_init(attrs);
   CA_STORE("target", check->target);
   CA_STORE("target_ip", check->target_ip);
   CA_STORE("name", check->name);

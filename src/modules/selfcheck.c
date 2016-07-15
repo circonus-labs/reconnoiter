@@ -85,7 +85,6 @@ static void selfcheck_cleanup(noit_module_t *self, noit_check_t *check) {
   if(ci) {
     noit_check_release_attrs(&ci->attrs);
     memset(ci, 0, sizeof(*ci));
-    mtev_hash_init(&ci->attrs);
   }
 }
 static void jobq_thread_helper(eventer_jobq_t *jobq, void *closure) {
@@ -244,7 +243,6 @@ static int selfcheck_initiate_check(noit_module_t *self, noit_check_t *check,
                                    int once, noit_check_t *cause) {
   if(!check->closure) {
     selfcheck_info_t *check_info = calloc(1, sizeof(selfcheck_info_t));
-    mtev_hash_init(&check_info->attrs);
     check->closure = (void*)check_info;
   }
   INITIATE_CHECK(selfcheck_initiate, self, check, cause);
