@@ -60,6 +60,7 @@
 #include "noit_mtev_bridge.h"
 #include "noit_config.h"
 #include "noit_module.h"
+#include "noit_check_tools.h"
 #include "stratcon_jlog_streamer.h"
 #include "stratcon_datastore.h"
 #include "stratcon_iep.h"
@@ -261,9 +262,18 @@ static int child_main() {
   return 0;
 }
 
+void
+stratcond_init_globals(void) {
+  noit_check_tools_shared_init_globals();
+  stratcon_datastore_init_globals();
+  stratcon_iep_init_globals();
+  stratcon_jlog_streamer_init_globals();
+}
+
 int main(int argc, char **argv) {
   mtev_memory_init();
   parse_clargs(argc, argv);
+  stratcond_init_globals();
   return mtev_main(APPNAME, config_file, debug, foreground,
                    MTEV_LOCK_OP_LOCK, glider, droptouser, droptogroup,
                    child_main);

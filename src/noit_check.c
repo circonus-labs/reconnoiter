@@ -235,8 +235,8 @@ static u_int64_t check_completion_count = 0ULL;
 static u_int64_t check_metrics_seen = 0ULL;
 static pthread_mutex_t polls_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t recycling_lock = PTHREAD_MUTEX_INITIALIZER;
-static mtev_hash_table polls = MTEV_HASH_EMPTY;
-static mtev_hash_table dns_ignore_list = MTEV_HASH_EMPTY;
+static mtev_hash_table polls;
+static mtev_hash_table dns_ignore_list;
 static mtev_skiplist watchlist = { 0 };
 static mtev_skiplist polls_by_name = { 0 };
 static u_int32_t __config_load_generation = 0;
@@ -919,6 +919,7 @@ noit_check_clone(uuid_t in) {
   new_check->statistics = noit_check_stats_set_calloc();
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
+  mtev_hash_init(new_check->config);
   mtev_hash_merge_as_dict(new_check->config, checker->config);
   new_check->module_configs = NULL;
   new_check->module_metadata = NULL;
@@ -929,6 +930,7 @@ noit_check_clone(uuid_t in) {
     src_mconfig = noit_check_get_module_config(checker, i);
     if(src_mconfig) {
       mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
+      mtev_hash_init(t);
       mtev_hash_merge_as_dict(t, src_mconfig);
       noit_check_set_module_config(new_check, i, t);
     }
@@ -1228,7 +1230,10 @@ noit_check_update(noit_check_t *new_check,
     int klen;
     void *data;
     if(new_check->config) mtev_hash_delete_all(new_check->config, free, free);
-    else new_check->config = calloc(1, sizeof(*new_check->config));
+    else {
+      new_check->config = calloc(1, sizeof(*new_check->config));
+      mtev_hash_init(new_check->config);
+    }
     while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       mtev_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
     }
@@ -1244,6 +1249,7 @@ noit_check_update(noit_check_t *new_check,
       }
       if(mconfigs[i]) {
         mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
+        mtev_hash_init(t);
         mtev_hash_merge_as_dict(t, mconfigs[i]);
         noit_check_set_module_config(new_check, i, t);
       }
@@ -2449,3 +2455,9 @@ noit_check_get_module_config(noit_check_t *c, int idx) {
   if(idx >= reg_module_id || idx < 0 || !c->module_configs) return NULL;
   return c->module_configs[idx];
 }
+void
+noit_check_init_globals(void) {
+  mtev_hash_init(&polls);
+  mtev_hash_init(&dns_ignore_list);
+}
+

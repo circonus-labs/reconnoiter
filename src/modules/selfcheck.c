@@ -241,7 +241,10 @@ static int selfcheck_initiate(noit_module_t *self, noit_check_t *check,
 
 static int selfcheck_initiate_check(noit_module_t *self, noit_check_t *check,
                                    int once, noit_check_t *cause) {
-  if(!check->closure) check->closure = calloc(1, sizeof(selfcheck_info_t));
+  if(!check->closure) {
+    selfcheck_info_t *check_info = calloc(1, sizeof(selfcheck_info_t));
+    check->closure = (void*)check_info;
+  }
   INITIATE_CHECK(selfcheck_initiate, self, check, cause);
   return 0;
 }

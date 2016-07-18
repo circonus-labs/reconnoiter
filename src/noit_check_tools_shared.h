@@ -64,5 +64,8 @@ API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
 API_EXPORT(void)
   noit_check_tools_shared_init();
 
+API_EXPORT(void)
+  noit_check_tools_shared_init_globals();
+
 #endif
 

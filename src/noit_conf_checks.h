@@ -47,5 +47,7 @@ API_EXPORT(void)
   noit_console_state_add_check_attrs(mtev_console_state_t *state,
                                      console_cmd_func_t f,
                                      const char *scope);
+API_EXPORT(void)
+  noit_conf_checks_init_globals(void);
 
 #endif

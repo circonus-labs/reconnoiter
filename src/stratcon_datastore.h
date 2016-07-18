@@ -90,6 +90,8 @@ API_EXPORT(void)
 
 API_EXPORT(void)
   stratcon_datastore_init();
+API_EXPORT(void)
+  stratcon_datastore_init_globals(void);
 
 API_EXPORT(int)
   stratcon_datastore_saveconfig(void *unused);

@@ -103,4 +103,7 @@ API_EXPORT(int)
 API_EXPORT(void)
   stratcon_iep_set_enabled(int);
 
+API_EXPORT(void)
+  stratcon_iep_init_globals(void);
+
 #endif

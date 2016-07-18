@@ -55,6 +55,8 @@ static int MAX_ROWS_AT_ONCE = 10000;
 static int DEFAULT_MSECONDS_BETWEEN_BATCHES = 10000;
 static int DEFAULT_TRANSIENT_MSECONDS_BETWEEN_BATCHES = 500;
 
+static mtev_hash_table feed_stats;
+
 static mtev_atomic32_t tmpfeedcounter = 0;
 
 static int rest_show_feed(mtev_http_rest_closure_t *restc,
@@ -124,8 +126,6 @@ noit_jlog_closure_free(noit_jlog_closure_t *jcl) {
   }
   free(jcl);
 }
-
-static mtev_hash_table feed_stats = MTEV_HASH_EMPTY;
 
 jlog_feed_stats_t *
 noit_jlog_feed_stats(const char *sub) {
@@ -640,5 +640,10 @@ static int rest_add_feed(mtev_http_rest_closure_t *restc,
   if(pobj) xmlXPathFreeObject(pobj);
   if(doc) xmlFreeDoc(doc);
   return 0;
+}
+
+void
+noit_jlog_listener_init_globals(void) {
+  mtev_hash_init(&feed_stats);
 }
 

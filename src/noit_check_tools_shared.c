@@ -39,7 +39,7 @@
 
 #include "noit_check_tools.h"
 
-static mtev_hash_table interpolation_operators = MTEV_HASH_EMPTY;
+static mtev_hash_table interpolation_operators;
 
 static int
 interpolate_oper_copy(char *buff, int len, const char *key,
@@ -220,5 +220,10 @@ noit_check_tools_shared_init() {
   noit_check_interpolate_register_oper_fn("copy", interpolate_oper_copy);
   noit_check_interpolate_register_oper_fn("ccns", interpolate_oper_ccns);
   noit_check_interpolate_register_oper_fn("random", interpolate_oper_random);
+}
+
+void
+noit_check_tools_shared_init_globals(void) {
+  mtev_hash_init(&interpolation_operators);
 }
 

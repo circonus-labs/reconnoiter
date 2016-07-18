@@ -66,7 +66,7 @@ mtev_dso_loader_t __noit_module_loader = {
   noit_load_module_image
 };
 
-static mtev_hash_table modules = MTEV_HASH_EMPTY;
+static mtev_hash_table modules;
 static int noit_module_load_failure_count = 0;
 
 int noit_module_load_failures() {
@@ -319,6 +319,10 @@ void noit_module_init() {
     mtevL(noit_debug, "Module %s successfully loaded.\n", module_name);
   }
   if(cnt) free(sections);
+}
+
+void noit_module_init_globals(void) {
+  mtev_hash_init(&modules);
 }
 
 #define userdata_accessors(type, field) \

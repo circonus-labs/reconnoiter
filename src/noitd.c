@@ -72,6 +72,7 @@
 #include "noit_filters.h"
 #include "noit_metric_director.h"
 #include "noit_check_tools_shared.h"
+#include "noit_check.h"
 
 #define APPNAME "noit"
 #define CHILD_WATCHDOG_TIMEOUT 5 /*seconds*/
@@ -291,11 +292,23 @@ static int child_main() {
   return 0;
 }
 
+void
+noitd_init_globals(void) {
+  noit_check_init_globals();
+  noit_check_tools_shared_init_globals();
+  noit_conf_checks_init_globals();
+  noit_filters_init_globals();
+  noit_jlog_listener_init_globals();
+  noit_metric_director_init_globals();
+  noit_module_init_globals();
+}
+
 int main(int argc, char **argv) {
   int lock = MTEV_LOCK_OP_LOCK;
   mtev_memory_init();
   parse_clargs(argc, argv);
   if (xpath) lock = MTEV_LOCK_OP_NONE;
+  noitd_init_globals();
   return mtev_main(APPNAME, config_file, debug, foreground,
                    lock, glider, droptouser, droptogroup, 
                    child_main);

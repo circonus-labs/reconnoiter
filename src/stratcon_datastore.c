@@ -99,7 +99,7 @@ typedef struct {
   eventer_t completion;
 } syncset_t;
 
-mtev_hash_table working_sets;
+static mtev_hash_table working_sets;
 
 static void
 interim_journal_free(void *vij) {
@@ -207,6 +207,7 @@ interim_journal_get(struct sockaddr *remote, const char *remote_cn_in,
   /* Lookup the working set */
   if(!mtev_hash_retrieve(&working_sets, remote_cn, strlen(remote_cn), &vhash)) {
     working_set = calloc(1, sizeof(*working_set));
+    mtev_hash_init(working_set);
     mtev_hash_store(&working_sets, strdup(remote_cn), strlen(remote_cn),
                     working_set);
   }
@@ -459,5 +460,9 @@ stratcon_datastore_init() {
     "GET", "/noits/", "^config$", rest_get_noit_config,
              mtev_http_rest_client_cert_auth
   ) == 0);
+}
+void 
+stratcon_datastore_init_globals(void) {
+  mtev_hash_init(&working_sets);
 }
 

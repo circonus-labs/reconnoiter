@@ -357,6 +357,7 @@ static int ping_icmp_init(noit_module_t *self) {
 
   data = malloc(sizeof(*data));
   data->in_flight = calloc(1, sizeof(*data->in_flight));
+  mtev_hash_init(data->in_flight);
   data->ipv4_fd = data->ipv6_fd = -1;
 
   if ((proto = getprotobyname("icmp")) == NULL) {

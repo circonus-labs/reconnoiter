@@ -78,6 +78,8 @@ typedef struct jlog_streamer_ctx_t {
 API_EXPORT(void)
   stratcon_jlog_streamer_init(const char *toplevel);
 API_EXPORT(void)
+  stratcon_jlog_streamer_init_globals(void);
+API_EXPORT(void)
   stratcon_jlog_streamer_reload(const char *toplevel);
 API_EXPORT(int)
   stratcon_jlog_recv_handler(eventer_t e, int mask, void *closure,
@@ -103,6 +105,5 @@ API_EXPORT(int)
 
 API_EXPORT(int)
   stratcon_find_noit_ip_by_cn(const char *cn, char *ip, int len);
-
 
 #endif

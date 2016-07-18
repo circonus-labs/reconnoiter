@@ -57,7 +57,6 @@ static noit_module_t *global_collectd = NULL;
 
 typedef struct _mod_config {
   mtev_hash_table *options;
-  mtev_hash_table target_sessions;
   mtev_boolean support_notifications;
   mtev_boolean asynch_metrics;
   int ipv4_fd;

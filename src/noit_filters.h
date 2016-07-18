@@ -66,4 +66,7 @@ API_EXPORT(void)
 API_EXPORT(int)
   noit_filtersets_cull_unused();
 
+API_EXPORT(void)
+  noit_filters_init_globals(void);
+
 #endif

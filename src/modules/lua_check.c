@@ -476,7 +476,7 @@ noit_lua_log_immediate_metric(lua_State *L) {
 static int
 noit_lua_interpolate(lua_State *L) {
   noit_check_t *check;
-  mtev_hash_table check_attrs_hash = MTEV_HASH_EMPTY;
+  mtev_hash_table check_attrs_hash;
   char buff[8192];
 
   if(lua_gettop(L) != 1) luaL_error(L, "wrong number of arguments");
