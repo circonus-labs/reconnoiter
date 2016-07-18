@@ -257,6 +257,8 @@ static int child_main() {
   noit_filters_rest_init();
   noit_livestream_listener_init();
 
+  noit_metric_director_init();
+
   mtev_dso_init();
   noit_module_init();
   mtev_dso_post_init();
@@ -275,7 +277,6 @@ static int child_main() {
   /* Prepare for launch... */
   noit_filters_init();
   noit_poller_init();
-  noit_metric_director_init();
 
   /* Allow the noit web dashboard to be served (only if document_root is set) */
   mtevAssert(mtev_http_rest_register_auth(
