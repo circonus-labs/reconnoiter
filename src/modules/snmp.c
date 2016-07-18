@@ -1455,8 +1455,10 @@ static int noit_snmp_config(noit_module_t *self, mtev_hash_table *options) {
       free(conf->options);
     }
   }
-  else
+  else {
     conf = calloc(1, sizeof(*conf));
+    mtev_hash_init(&conf->target_sessions);
+  }
   conf->options = options;
   noit_module_set_userdata(self, conf);
   return 1;
