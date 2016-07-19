@@ -125,6 +125,7 @@ static lua_module_closure_t *noit_lua_setup_lmc(noit_module_t *mod, const char *
     int rv;
     lmc = calloc(1, sizeof(*lmc));
     lmc->pending = calloc(1, sizeof(*lmc->pending));
+    mtev_hash_init(lmc->pending);
     lmc->owner = pthread_self();
     lmc->resume = noit_lua_check_resume;
     pthread_setspecific(mc->c->key, lmc);
