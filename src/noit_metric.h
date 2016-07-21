@@ -79,13 +79,13 @@ typedef struct {
 } noit_metric_id_t;
 
 typedef struct {
-  uint64_t whence_ms; /* when this was recieved */
+  u_int64_t whence_ms; /* when this was recieved */
   metric_type_t type; /* the type of the following data item */
   union {
     int32_t v_int32;
-    uint32_t v_uint32;
+    u_int32_t v_uint32;
     int64_t v_int64;
-    uint64_t v_uint64;
+    u_int64_t v_uint64;
     double v_double;
     char *v_string;
   } value; /* the data itself */
