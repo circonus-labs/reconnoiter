@@ -203,7 +203,7 @@ noit_check_stats_alloc() {
   stats_t *n;
   n = mtev_memory_safe_malloc_cleanup(sizeof(*n), noit_check_safe_free_stats);
   memset(n, 0, sizeof(*n));
-  mtev_hash_init(&n->metrics);
+  mtev_hash_init_locks(&n->metrics, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   return n;
 }
 static void *
@@ -919,7 +919,7 @@ noit_check_clone(uuid_t in) {
   new_check->statistics = noit_check_stats_set_calloc();
   new_check->closure = NULL;
   new_check->config = calloc(1, sizeof(*new_check->config));
-  mtev_hash_init(new_check->config);
+  mtev_hash_init_locks(new_check->config, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
   mtev_hash_merge_as_dict(new_check->config, checker->config);
   new_check->module_configs = NULL;
   new_check->module_metadata = NULL;
@@ -930,7 +930,7 @@ noit_check_clone(uuid_t in) {
     src_mconfig = noit_check_get_module_config(checker, i);
     if(src_mconfig) {
       mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
-      mtev_hash_init(t);
+      mtev_hash_init_locks(t, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
       mtev_hash_merge_as_dict(t, src_mconfig);
       noit_check_set_module_config(new_check, i, t);
     }
@@ -1232,7 +1232,7 @@ noit_check_update(noit_check_t *new_check,
     if(new_check->config) mtev_hash_delete_all(new_check->config, free, free);
     else {
       new_check->config = calloc(1, sizeof(*new_check->config));
-      mtev_hash_init(new_check->config);
+      mtev_hash_init_locks(new_check->config, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
     }
     while(mtev_hash_next(config, &iter, &k, &klen, &data)) {
       mtev_hash_store(new_check->config, strdup(k), klen, strdup((char *)data));
@@ -1249,7 +1249,7 @@ noit_check_update(noit_check_t *new_check,
       }
       if(mconfigs[i]) {
         mtev_hash_table *t = calloc(1, sizeof(*new_check->config));
-        mtev_hash_init(t);
+        mtev_hash_init_locks(t, MTEV_HASH_DEFAULT_SIZE, MTEV_HASH_LOCK_MODE_MUTEX);
         mtev_hash_merge_as_dict(t, mconfigs[i]);
         noit_check_set_module_config(new_check, i, t);
       }
