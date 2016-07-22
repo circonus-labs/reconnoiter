@@ -34,11 +34,12 @@
 #include <mtev_log.h>
 #include <mtev_b64.h>
 
+#include <circllhist.h>
+
 #include "noit_mtev_bridge.h"
 #include "noit_module.h"
 #include "noit_check.h"
 #include "noit_check_tools.h"
-#include "histogram_impl.h"
 
 static mtev_log_stream_t metrics_log = NULL;
 static int histogram_module_id = -1;

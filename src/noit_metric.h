@@ -79,13 +79,13 @@ typedef struct {
 } noit_metric_id_t;
 
 typedef struct {
-  uint64_t whence_ms; /* when this was recieved */
+  u_int64_t whence_ms; /* when this was recieved */
   metric_type_t type; /* the type of the following data item */
   union {
     int32_t v_int32;
-    uint32_t v_uint32;
+    u_int32_t v_uint32;
     int64_t v_int64;
-    uint64_t v_uint64;
+    u_int64_t v_uint64;
     double v_double;
     char *v_string;
     metric_type_t v_type_if_absent;
@@ -99,5 +99,7 @@ typedef struct {
   char* original_message;
   mtev_atomic32_t refcnt;
 } noit_metric_message_t;
+
+void noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mtev_boolean include_original);
 
 #endif

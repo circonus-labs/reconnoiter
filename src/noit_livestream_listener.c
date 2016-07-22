@@ -6,7 +6,7 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  *       of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written
  *       permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -65,6 +65,7 @@ typedef struct {
   uuid_t uuid;
   noit_check_t *check;
   int wants_shutdown;
+  mtev_log_stream_t log_stream;
 } noit_livestream_closure_t;
 
 noit_livestream_closure_t *
@@ -185,7 +186,7 @@ noit_livestream_thread_main(void *e_vptr) {
     u_int32_t netlen;
     int rv;
     le = NULL;
-   
+
     sem_wait(&jcl->lqueue_sem);
     pthread_mutex_lock(&jcl->lqueue_lock);
     if(jcl->lqueue) {
@@ -243,7 +244,11 @@ socket_error:
     /* Exceptions cause us to simply snip the connection */
     eventer_remove_fd(e->fd);
     e->opset->close(e->fd, &newmask, e);
-    if(jcl) noit_livestream_closure_free(jcl);
+    mtev_log_stream_t ls = jcl->log_stream;
+    /* will free the noit_livestream_closure_t */
+    mtev_log_stream_close(ls);
+    mtev_log_stream_free(ls);
+    ac->service_ctx = NULL;
     acceptor_closure_free(ac);
     return 0;
   }
@@ -280,8 +285,8 @@ socket_error:
 
     jcl->feed = malloc(32);
     snprintf(jcl->feed, 32, "livestream/%d", mtev_atomic_inc32(&ls_counter));
-    mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
-                        jcl, NULL);
+    jcl->log_stream = mtev_log_stream_new(jcl->feed, "noit_livestream", jcl->feed,
+                                          jcl, NULL);
 
 
     jcl->check = noit_check_watch(jcl->uuid, jcl->period);
@@ -307,7 +312,10 @@ socket_error:
   }
 
   noit_check_transient_remove_feed(jcl->check, jcl->feed);
-  noit_livestream_closure_free(jcl);
+  mtev_log_stream_t ls = jcl->log_stream;
+  mtev_log_stream_close(ls);
+  mtev_log_stream_free(ls);
+  ac->service_ctx = NULL;
   /* Undo our dup */
   eventer_free(newe);
   /* Creating the thread failed, close it down and deschedule. */
