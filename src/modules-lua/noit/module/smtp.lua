@@ -322,10 +322,10 @@ function initiate(module, check)
   -- setup SSL info
   local default_ca_chain =
       mtev.conf_get_string("/noit/eventer/config/default_ca_chain")
-  local certfile = config.certificate_file or ''
-  local keyfile = config.key_file or ''
+  local certfile = config.certificate_file or nil
+  local keyfile = config.key_file or nil
   local cachain = config.ca_chain or default_ca_chain
-  local ciphers = config.ciphers or ''
+  local ciphers = config.ciphers or nil
 
   if     not action("banner", nil, 220, true)
       or not action("ehlo", ehlo, 250, true) then return end
