@@ -336,6 +336,12 @@ AC_CHECK_LIB(ssl, SSL_library_init, ,
 		AC_MSG_ERROR([libssl not found, but required])
 	]
 )
+LIBS="$LIBS -lcircllhist"
+AC_CHECK_LIB(circllhist, hist_alloc, ,
+  [
+    AC_MSG_ERROR([libcircllhist not found, but required])
+  ]
+)
 
 AC_MSG_CHECKING([libxml2 cflags])
 XML2CFLAGS=`xml2-config --cflags`
