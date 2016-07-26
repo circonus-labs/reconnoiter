@@ -95,6 +95,7 @@ noit_websocket_closure_free(void *jcl) {
 static void
 send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string, size_t len)
 {
+#ifdef HAVE_WSLAY
   noit_metric_message_t message;
   char *json = NULL;
   size_t json_len = 0;
@@ -126,6 +127,7 @@ send_individual_metric(noit_websocket_closure_t *wcl, const char *metric_string,
                                       (const unsigned char *)json, json_len);
         free(json);
   }
+#endif
 }
 
 
@@ -233,6 +235,7 @@ int
 noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
                            const unsigned char *msg, size_t msg_len)
 {
+#ifdef HAVE_WSLAY
   const char *error = NULL;
   noit_websocket_closure_t *handler_data = restc->call_closure;
 
@@ -323,5 +326,6 @@ noit_websocket_msg_handler(mtev_http_rest_closure_t *restc, int opcode,
                                   (const unsigned char *)json_error, strlen(json_error));
     mtev_json_object_put(e);
   }
+#endif
   return -1;
 }
