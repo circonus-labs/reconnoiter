@@ -323,6 +323,7 @@ lua_noit_check_do(lua_State *L) {
     cb_ref.callback_reference = luaL_ref( L, LUA_REGISTRYINDEX );
 
     noit_poller_do(lua_noit_poller_cb, &cb_ref);
+    luaL_unref(L, LUA_REGISTRYINDEX, cb_ref.callback_reference);
   } else {
     luaL_error(L, "bad parameters to noit.metric_poller_do");
   }
