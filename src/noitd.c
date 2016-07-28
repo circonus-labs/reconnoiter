@@ -259,8 +259,6 @@ static int child_main() {
   noit_livestream_listener_init();
   noit_websocket_handler_init();
 
-  noit_metric_director_init();
-
   mtev_dso_init();
   noit_module_init();
   mtev_dso_post_init();
@@ -272,6 +270,7 @@ static int child_main() {
 
   mtev_listener_init(APPNAME);
   mtev_cluster_init();
+  noit_metric_director_init();
 
   /* Drop privileges */
   mtev_conf_security_init(APPNAME, droptouser, droptogroup, chrootpath);
