@@ -101,6 +101,18 @@ MTEV_HOOK_IMPL(check_log_stats,
   (void *closure, noit_check_t *check),
   (closure,check))
 
+MTEV_HOOK_IMPL(check_updated,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
+MTEV_HOOK_IMPL(check_deleted,
+  (noit_check_t *check),
+  void *, closure,
+  (void *closure, noit_check_t *check),
+  (closure,check))
+
 #define STATS_INPROGRESS 0
 #define STATS_CURRENT 1
 #define STATS_PREVIOUS 2
@@ -1134,6 +1146,7 @@ noit_check_resolve(noit_check_t *check) {
   check->flags &= ~NP_RESOLVED;
   return -1;
 }
+
 int
 noit_check_update(noit_check_t *new_check,
                   const char *target,
@@ -1271,6 +1284,7 @@ noit_check_update(noit_check_t *new_check,
     noit_check_activate(new_check);
 
   noit_check_add_to_list(new_check, NULL);
+  check_updated_hook_invoke(new_check);
   return 0;
 }
 int
@@ -1461,6 +1475,8 @@ noit_poller_deschedule(uuid_t in, mtev_boolean log) {
 
   mtevAssert(mtev_skiplist_remove(&polls_by_name, checker, NULL));
   mtevAssert(mtev_hash_delete(&polls, (char *)in, UUID_SIZE, NULL, NULL));
+
+  check_deleted_hook_invoke(checker);
 
   noit_poller_free_check(checker);
   return 0;
