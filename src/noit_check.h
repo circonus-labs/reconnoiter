@@ -411,4 +411,14 @@ MTEV_HOOK_PROTO(check_log_stats,
                 void *, closure,
                 (void *closure, noit_check_t *check))
 
+MTEV_HOOK_PROTO(check_updated,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check));
+
+MTEV_HOOK_PROTO(check_deleted,
+                (noit_check_t *check),
+                void *, closure,
+                (void *closure, noit_check_t *check));
+
 #endif
