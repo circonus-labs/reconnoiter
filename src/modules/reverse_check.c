@@ -83,13 +83,13 @@ reverse_check_allow(const char *id, acceptor_closure_t *ac) {
   if(!check) return MTEV_ACL_DENY;
 
   config = noit_check_get_module_config(check, reverse_check_module_id);
-  if(config && mtev_hash_retr_str(config, "key", strlen("key"), &key)) {
+  if(config && mtev_hash_retr_str(config, "secret_key", strlen("secret_key"), &key)) {
     snprintf(expected_id, sizeof(expected_id), "check/%s#%s", uuid_str, key);
   }
   else {
     snprintf(expected_id, sizeof(expected_id), "check/%s", uuid_str);
   }
-  if(!strcmp(id, expected_id)) return MTEV_ACL_ALLOW;
+  if(!strncmp(id, expected_id, strlen(id))) return MTEV_ACL_ALLOW;
   return MTEV_ACL_DENY;
 }
 

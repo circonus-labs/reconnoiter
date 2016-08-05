@@ -2,10 +2,10 @@
     <name>reverse_check</name>
     <description>
         <para>
-          Allows a reverse:key config to dictate reverse tunnelling of checks.
+          Allows a reverse:secret_key config to dictate reverse tunnelling of checks.
           Specification of the key will cause reverse connection attempts from
           clients to "checks/&lt;id&gt;" to be denied, accepting only
-          "checks/&lt;id&gt;#&lt;key&gt;" instead.
+          "checks/&lt;id&gt;#&lt;secret_key&gt;" instead.
         </para></description>
     <loader>C</loader>
     <image>reverse_check.so</image>
@@ -16,7 +16,7 @@
         <example>
             <title>Loading the reverse_check module.</title>
             <para>This example loads the reverse_check module and creates a
-             key=boobooboo config setting.
+             secret_key=boobooboo config setting.
              </para>
             <programlisting><![CDATA[
       <noit>
@@ -25,7 +25,7 @@
         </modules>
         <checks>
           <config xmlns:reverse="noit://module/reverse">
-            <reverse:key>boobooboo</reverse:key>
+            <reverse:secret_key>boobooboo</reverse:secret_key>
           </config>
         </checks>
       </noit>
