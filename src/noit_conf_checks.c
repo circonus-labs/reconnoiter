@@ -613,13 +613,12 @@ noit_console_show_check(mtev_console_closure_t ncct,
       if(mtev_hash_size(metrics)) {
         nc_printf(ncct, " metrics (current):\n");
         nc_print_stat_metrics(ncct, check, c);
-      } else {
-        c = noit_check_get_stats_previous(check);
-        metrics = noit_check_stats_metrics(c);
-        if(mtev_hash_size(metrics) > 0) {
-          nc_printf(ncct, " metrics (previous):\n");
-          nc_print_stat_metrics(ncct, check, c);
-        }
+      }
+      c = noit_check_get_stats_previous(check);
+      metrics = noit_check_stats_metrics(c);
+      if(mtev_hash_size(metrics) > 0) {
+        nc_printf(ncct, " metrics (previous):\n");
+        nc_print_stat_metrics(ncct, check, c);
       }
     }
   }

@@ -2075,24 +2075,47 @@ noit_check_passive_set_stats(noit_check_t *check) {
     wcheck->statistics = backup;
   }
 }
+static void
+stats_merge(stats_t *tgt, stats_t *src) {
+  mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
+  const char *name;
+  int namelen;
+  void *vm;
+
+  if(!src) return;
+
+  memcpy(&tgt->whence, &src->whence, sizeof(struct timeval));
+  memcpy(tgt->status, src->status, sizeof(tgt->status));
+  tgt->available = src->available;
+  tgt->state = src->state;
+  tgt->duration = src->duration;
+
+  while(mtev_hash_next(&src->metrics, &iter, &name, &namelen, &vm)) {
+    __stats_add_metric(tgt, (metric_t *)vm);
+  }
+  mtev_hash_delete_all(&src->metrics, NULL, NULL);
+}
 void
 noit_check_set_stats(noit_check_t *check) {
   int report_change = 0;
   char *cp;
   dep_list_t *dep;
-  stats_t *old, *prev, *current;
+  stats_t *all, *prev, *current;
 
   if(check_set_stats_hook_invoke(check) == MTEV_HOOK_ABORT) return;
 
-  old = stats_previous(check);
-  prev = stats_previous(check) = stats_current(check);
+  if(!stats_previous(check)) {
+    stats_previous(check) = noit_check_stats_alloc();
+  }
+  all = stats_previous(check);
+  prev = stats_current(check);
+  if(prev) {
+    stats_merge(all,prev);
+    mtev_memory_safe_free(prev);
+  }
   current = stats_current(check) = stats_inprogress(check);
   stats_inprogress(check) = noit_check_stats_alloc();
   
-  if(old) {
-    mtev_memory_safe_free(old);
-  }
-
   if(current) {
     for(cp = current->status; cp && *cp; cp++)
       if(*cp == '\r' || *cp == '\n') *cp = ' ';
