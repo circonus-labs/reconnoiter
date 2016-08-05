@@ -49,6 +49,10 @@ typedef enum {
   METRIC_STRING = 's'
 } metric_type_t;
 
+#define IS_METRIC_TYPE_NUMERIC(t) \
+  ((t) == METRIC_INT32 || (t) == METRIC_UINT32 || \
+   (t) == METRIC_INT64 || (t) == METRIC_UINT64 || (t) == METRIC_DOUBLE)
+
 typedef struct {
   char *metric_name;
   metric_type_t metric_type;
@@ -62,6 +66,7 @@ typedef struct {
     void *vp; /* used for clever assignments */
   } metric_value;
   mtev_boolean logged;
+  unsigned long accumulator; /* used to track divisor of averages */
 } metric_t;
 
 typedef enum {
@@ -101,5 +106,9 @@ typedef struct {
 } noit_metric_message_t;
 
 void noit_metric_to_json(noit_metric_message_t *metric, char **json, size_t *len, mtev_boolean include_original);
+
+
+/* If possible coerce the metric to a double, return success */
+API_EXPORT(mtev_boolean) noit_metric_as_double(metric_t *m, double *);
 
 #endif

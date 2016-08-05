@@ -55,10 +55,12 @@
 #define HT_EX_VALUE 0x2
 #define HT_EX_TS 0x4
 #define HT_EX_TAGS 0x8
+#define HT_EX_FLAGS 0x10
 
 static mtev_log_stream_t nlerr = NULL;
 static mtev_log_stream_t nldeb = NULL;
 static mtev_log_stream_t nlyajl = NULL;
+static noit_module_t *global_self = NULL; /* used for cross traps */
 
 #define _YD(fmt...) mtevL(nlyajl, fmt)
 
@@ -74,6 +76,12 @@ typedef struct httptrap_closure_s {
   noit_module_t *self;
   int stats_count;
 } httptrap_closure_t;
+
+typedef enum {
+  HTTPTRAP_VOP_REPLACE,
+  HTTPTRAP_VOP_AVERAGE,
+  HTTPTRAP_VOP_ACCUMULATE
+} httptrap_vop_t;
 
 struct value_list {
   char *v;
@@ -93,6 +101,7 @@ struct rest_json_payload {
   int array_depth[MAX_DEPTH];
   unsigned char last_special_key;
   unsigned char saw_complex_type;
+  httptrap_vop_t vop_flag;
   
   metric_type_t last_type;
   struct value_list *last_value;
@@ -239,6 +248,10 @@ httptrap_yajl_cb_number(void *ctx, const char * numberVal,
     return 1;
   }
   if(rv) return 1;
+  /* If we get a number for _flags, it simply doesn't
+   * match any flags, so... no op
+   */
+  if(json->last_special_key == HT_EX_FLAGS) return 1;
   if(json->last_special_key == HT_EX_TS) return 1;
   if(json->last_special_key) {
     _YD("[%3d] cb_number [BAD]\n", json->depth);
@@ -297,6 +310,20 @@ httptrap_yajl_cb_string(void *ctx, const unsigned char * stringVal,
     json->saw_complex_type |= HT_EX_VALUE;
     return 1;
   }
+  else if(json->last_special_key == HT_EX_FLAGS) {
+    int i;
+    for(i=0;i<stringLen;i++) {
+      switch(stringVal[i]) {
+        case '+':
+          json->vop_flag = HTTPTRAP_VOP_ACCUMULATE; break;
+        case '~':
+          json->vop_flag = HTTPTRAP_VOP_AVERAGE; break;
+	default: break;
+      }
+    }
+    _YD("[%3d] cb_string { _fl: %.*s }\n", json->depth, (int)stringLen, stringVal);
+    return 1;
+  }
   else if(json->last_special_key == HT_EX_TS) return 1;
   else if(json->last_special_key == HT_EX_TAGS) return 1;
   if(rv) return 1;
@@ -327,38 +354,102 @@ static int
 httptrap_yajl_cb_end_map(void *ctx) {
   struct value_list *p, *last_p = NULL;
   struct rest_json_payload *json = ctx;
+  const char *metric_name;
+
   _YD("[%3d]%-.*s cb_end_map\n", json->depth, json->depth, "");
   json->depth--;
+  metric_name = json->keys[json->depth];
   if(json->saw_complex_type == 0x3) {
-    long double total = 0, cnt = 0;
-    mtev_boolean use_avg = mtev_false;
+    long double total = 0, cnt = 0, accum = 1;
+    double newval;
+    mtev_boolean use_computed_value = mtev_false;
+    metric_t *m;
+
+    /* Purpose statement...
+     * for extended types, users can request that values be accumulated
+     * or averaged.. or replaced..
+     * note that replacement will still average a single submission.
+     *
+     * Here we make an attempt to find the last known metric value
+     * and if we're in avging mode, the last inprogress metric value,
+     * but we also need a cnt to make the weight right for the avg.
+     *
+     * If we are immediate mode, averaging over the "period" makes
+     * no sense whatsoever... so if the user has requested averaging
+     * and we're in immediate mode, we revert to replacement.
+     */
+    if(json->immediate && json->vop_flag == HTTPTRAP_VOP_AVERAGE)
+      json->vop_flag = HTTPTRAP_VOP_REPLACE;
+
+    switch(json->vop_flag) {
+    case HTTPTRAP_VOP_REPLACE: break;
+    case HTTPTRAP_VOP_AVERAGE:
+      /* We are asked to compute an average, presumably only within
+       * out time window (check period) so we restrict our pull to
+       * in progress metrics only (get_metric) not (get_last_metric)
+       * and we also much fetch a count...
+       */
+      m = noit_stats_get_metric(json->check, NULL, metric_name);
+      double old_value;
+      if(noit_metric_as_double(m, &old_value)) {
+        cnt = m->accumulator;
+        total = (long double)old_value * (long double)cnt;
+      }
+      break;
+    case HTTPTRAP_VOP_ACCUMULATE:
+      /* We have one value, if not found that value is zero.
+       * we also want the count to remain zero as we add, so
+       * we ultimately divide by one and not the set size, so
+       * set accum = 0 so we will not accumulate a divisor.
+       */
+      cnt = 1;
+      accum = 0;
+      m = noit_stats_get_last_metric(json->check, metric_name);
+      double old_total = 0.0;
+      noit_metric_as_double(m, &old_total);
+      total = old_total;
+      break;
+    }
+          
     for(p=json->last_value;p;p=p->next) {
-      noit_stats_set_metric_coerce(json->check,
-          json->keys[json->depth], json->last_type, p->v);
+      noit_stats_set_metric_coerce(json->check, metric_name,
+                                   json->last_type, p->v);
       last_p = p;
-      if(p->v != NULL &&
-         (json->last_type == 'L' || json->last_type == 'l' ||
-          json->last_type == 'I' || json->last_type == 'i' ||
-          json->last_type == 'n')) {
+      if(p->v != NULL && IS_METRIC_TYPE_NUMERIC(json->last_type)) {
         total += strtold(p->v, NULL);
-        cnt = cnt + 1;
-        use_avg = mtev_true;
+        cnt = cnt + accum;
+        use_computed_value = mtev_true;
       }
       json->cnt++;
     }
+    if(use_computed_value) {
+      newval = (double)(total / (long double)cnt);
+      /* Perform and in-place update of the metric value correcting it */
+      m = noit_stats_get_metric(json->check, NULL, metric_name);
+      if(m && IS_METRIC_TYPE_NUMERIC(m->metric_type)) {
+        if(m->metric_value.vp == NULL) {
+          double *dp = malloc(sizeof(double));
+          *dp = newval;
+          m->metric_value.vp = (void *)dp;
+        }
+        else {
+          *(m->metric_value.n) = newval;
+        }
+        m->metric_type = METRIC_DOUBLE;
+        m->accumulator = cnt;
+      }
+    }
     if(json->immediate && last_p != NULL) {
-      if(use_avg) {
-        double avg = total / cnt;
-        noit_stats_log_immediate_metric(json->check,
-            json->keys[json->depth], 'n', &avg);
+      if(use_computed_value) {
+        noit_stats_log_immediate_metric(json->check, metric_name, 'n', &newval);
       }
       else {
-        noit_stats_log_immediate_metric(json->check,
-            json->keys[json->depth], json->last_type, last_p->v);
+        noit_stats_log_immediate_metric(json->check, metric_name, json->last_type, last_p->v);
       }
     }
   }
   json->saw_complex_type = 0;
+  json->vop_flag = HTTPTRAP_VOP_REPLACE;
   for(p=json->last_value;p;) {
     struct value_list *savenext;
     savenext = p->next;
@@ -409,6 +500,10 @@ httptrap_yajl_cb_map_key(void *ctx, const unsigned char * key,
   }
   if(stringLen == 3 && memcmp(key, "_ts", 3) == 0) {
     json->last_special_key = HT_EX_TS;
+    return 1;
+  }
+  if(stringLen == 3 && memcmp(key, "_fl", 3) == 0) {
+    json->last_special_key = HT_EX_FLAGS;
     return 1;
   }
   if(stringLen == 5 && memcmp(key, "_tags", 5) == 0) {
@@ -480,7 +575,7 @@ rest_get_json_upload(mtev_http_rest_closure_t *restc,
   }
 
   if(!strcmp(rxc->check->module, "httptrap")) ccl = rxc->check->closure;
-  rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : NULL, rxc->check);
+  rxc->immediate = noit_httptrap_check_asynch(ccl ? ccl->self : global_self, rxc->check);
   while(!rxc->complete) {
     int len;
     len = mtev_http_session_req_consume(
@@ -791,6 +886,7 @@ static int noit_httptrap_onload(mtev_image_t *self) {
 static int noit_httptrap_init(noit_module_t *self) {
   const char *config_val;
   httptrap_mod_config_t *conf;
+  global_self = self;
   conf = noit_module_get_userdata(self);
 
   conf->asynch_metrics = mtev_true;

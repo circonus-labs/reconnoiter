@@ -268,6 +268,9 @@ API_EXPORT(void)
 API_EXPORT(metric_t *)
   noit_stats_get_metric(noit_check_t *check, stats_t *, const char *);
 
+API_EXPORT(metric_t *)
+  noit_stats_get_last_metric(noit_check_t *check, const char *);
+
 API_EXPORT(void)
   noit_stats_set_metric(noit_check_t *check,
                         const char *, metric_type_t, const void *);
