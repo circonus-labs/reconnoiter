@@ -573,7 +573,7 @@ cross_module_reverse_allowed(noit_check_t *check, const char *secret) {
   }
   config = noit_check_get_module_config(check, reverse_check_module_id);
   if(!config) return mtev_false;
-  if(mtev_hash_retrieve(config, "key", strlen("key"), &vstr)) {
+  if(mtev_hash_retrieve(config, "secret_key", strlen("secret_key"), &vstr)) {
     if(!strcmp((const char *)vstr, secret)) return mtev_true;
   }
   return mtev_false;
