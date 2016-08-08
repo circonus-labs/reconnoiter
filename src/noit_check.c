@@ -1742,15 +1742,20 @@ __mark_metric_logged(stats_t *newstate, const char *metric_name) {
 
 static size_t
 noit_metric_sizes(metric_type_t type, const void *value) {
+  union {
+    int32_t i;
+    int64_t l;
+    double n;
+  } sizer;
   switch(type) {
     case METRIC_INT32:
     case METRIC_UINT32:
-      return sizeof(int32_t);
+      return sizeof(sizer);
     case METRIC_INT64:
     case METRIC_UINT64:
-      return sizeof(int64_t);
+      return sizeof(sizer);
     case METRIC_DOUBLE:
-      return sizeof(double);
+      return sizeof(sizer);
     case METRIC_STRING: {
       int len = strlen((char*)value) + 1;
       return ((len >= text_size_limit) ? text_size_limit+1 : len);
@@ -1933,6 +1938,17 @@ noit_stats_get_metric(noit_check_t *check,
   if(mtev_hash_retrieve(&newstate->metrics, name, strlen(name), &v))
     return (metric_t *)v;
   return NULL;
+}
+
+metric_t *
+noit_stats_get_last_metric(noit_check_t *check, const char *name) {
+  metric_t *m;
+  m = noit_stats_get_metric(check, NULL, name);
+  if(m) return m;
+  m = noit_stats_get_metric(check, noit_check_get_stats_current(check), name);
+  if(m) return m;
+  m = noit_stats_get_metric(check, noit_check_get_stats_previous(check), name);
+  return m;
 }
 
 void
