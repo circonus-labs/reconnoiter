@@ -276,11 +276,13 @@ __read_on_ctx(eventer_t e, jlog_streamer_ctx_t *ctx, int *newmask) {
   len = __read_on_ctx(e, ctx, &mask); \
   if(len < 0) { \
     if(errno == EAGAIN) return mask | EVENTER_EXCEPTION; \
-    const char *error = strerror(errno); \
+    const char *error = NULL; \
+    /* libmtev's SSL layer uses EIO to indicate SSL-related errors. */ \
     if(errno == EIO) { \
       eventer_ssl_ctx_t *sslctx = eventer_get_eventer_ssl_ctx(e); \
       if(sslctx) error = eventer_ssl_get_last_error(sslctx); \
     } \
+    if(! error) error = strerror(errno); \
     mtevL(noit_error, "[%s] [%s] SSL read error: %s\n", nctx->remote_str ? nctx->remote_str : "(null)", \
           nctx->remote_cn ? nctx->remote_cn : "(null)", \
           error); \
