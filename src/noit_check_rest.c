@@ -69,7 +69,7 @@ rest_show_config(mtev_http_rest_closure_t *, int, char **);
 
 static void
 add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
-                    int include_time) {
+                    int include_time, mtev_hash_table *supp) {
   mtev_hash_table *mets;
   mtev_hash_iter iter = MTEV_HASH_ITER_ZERO;
   const char *k;
@@ -81,6 +81,11 @@ add_metrics_to_node(stats_t *c, xmlNodePtr metrics, const char *type,
   while(mtev_hash_next(mets, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
+    if(supp) {
+      void *unused;
+      if(mtev_hash_retrieve(supp, k, klen, &unused)) continue;
+      mtev_hash_store(supp, k, klen, NULL);
+    }
     xmlAddChild(metrics, (tmp = xmlNewNode(NULL, (xmlChar *)"metric")));
     xmlSetProp(tmp, (xmlChar *)"name", (xmlChar *)m->metric_name);
     buff[0] = m->metric_type; buff[1] = '\0';
@@ -129,8 +134,13 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
     xmlNodeAddContent(tmp, (xmlChar *)timestr);
   }
   if(full) {
+    mtev_hash_table suppression, *supp = NULL;
     stats_t *previous;
     struct timeval *whence;
+    if(full == 1) {
+      mtev_hash_init(&suppression);
+      supp = &suppression;
+    }
     uint8_t available = noit_check_stats_available(c, NULL);
     if(available) { /* truth here means the check has been run */
       char buff[20], *compiler_warning;
@@ -145,24 +155,25 @@ noit_check_state_as_xml(noit_check_t *check, int full) {
     NODE_CONTENT(state, "status", noit_check_stats_status(c, NULL));
     xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
 
-    add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0);
+    add_metrics_to_node(noit_check_get_stats_inprogress(check), metrics, "inprogress", 0, supp);
     whence = noit_check_stats_whence(c, NULL);
     if(whence->tv_sec) {
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-      add_metrics_to_node(c, metrics, "current", 1);
+      add_metrics_to_node(c, metrics, "current", 1, supp);
     }
     previous = noit_check_get_stats_previous(check);
     whence = noit_check_stats_whence(previous, NULL);
     if(whence->tv_sec) {
       xmlAddChild(state, (metrics = xmlNewNode(NULL, (xmlChar *)"metrics")));
-      add_metrics_to_node(previous, metrics, "previous", 1);
+      add_metrics_to_node(previous, metrics, "previous", 1, supp);
     }
+    if(supp) mtev_hash_destroy(supp, NULL, NULL);
   }
   return state;
 }
 
 static struct json_object *
-stats_to_json(stats_t *c) {
+stats_to_json(stats_t *c, mtev_hash_table *supp) {
   struct json_object *doc;
   doc = json_object_new_object();
   mtev_hash_table *metrics;
@@ -175,6 +186,11 @@ stats_to_json(stats_t *c) {
   while(mtev_hash_next(metrics, &iter, &k, &klen, &data)) {
     char buff[256];
     metric_t *m = (metric_t *)data;
+    if(supp) {
+      void *unused;
+      if(mtev_hash_retrieve(supp, k, klen, &unused)) continue;
+      mtev_hash_store(supp, k, klen, NULL);
+    }
     struct json_object *metric = json_object_new_object();
     buff[0] = m->metric_type; buff[1] = '\0';
     json_object_object_add(metric, "_type", json_object_new_string(buff));
@@ -242,6 +258,11 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     mtev_hash_table *configh;
     char timestr[20];
     struct json_object *status, *metrics, *config;
+    mtev_hash_table suppression, *supp = NULL;
+    if(full == 1) {
+      mtev_hash_init(&suppression);
+      supp = &suppression;
+    }
 
     /* config */
     config = json_object_new_object();
@@ -275,7 +296,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
 
     t = noit_check_stats_whence(c, NULL);
     if(t->tv_sec) {
-      json_object_object_add(metrics, "current", stats_to_json(c));
+      json_object_object_add(metrics, "current", stats_to_json(c, supp));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
                (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "current_timestamp", json_object_new_string(timestr));
@@ -284,7 +305,7 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     c = noit_check_get_stats_inprogress(check);
     t = noit_check_stats_whence(c, NULL);
     if(t->tv_sec) {
-      json_object_object_add(metrics, "inprogress", stats_to_json(c));
+      json_object_object_add(metrics, "inprogress", stats_to_json(c, supp));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
                (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "inprogress_timestamp", json_object_new_string(timestr));
@@ -293,13 +314,14 @@ noit_check_state_as_json(noit_check_t *check, int full) {
     c = noit_check_get_stats_previous(check);
     t = noit_check_stats_whence(c, NULL);
     if(t->tv_sec) {
-      json_object_object_add(metrics, "previous", stats_to_json(c));
+      json_object_object_add(metrics, "previous", stats_to_json(c, supp));
       snprintf(timestr, sizeof(timestr), "%llu%03d",
                (unsigned long long int)t->tv_sec, (int)(t->tv_usec / 1000));
       json_object_object_add(metrics, "previous_timestamp", json_object_new_string(timestr));
     }
 
     json_object_object_add(doc, "metrics", metrics);
+    if(supp) mtev_hash_destroy(supp, NULL, NULL);
   }
   return doc;
 }
