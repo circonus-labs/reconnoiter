@@ -61,6 +61,7 @@ static int
 ip_acl_onload(mtev_image_t *self) {
   int i, cnt;
   mtev_conf_section_t *acl_c;
+  mtev_hash_init(&acls);
   ip_acl_module_id = noit_check_register_module("ip_acl");
   if(ip_acl_module_id < 0) return -1;
 
@@ -165,7 +166,6 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
 }
 static int
 ip_acl_init(mtev_dso_generic_t *self) {
-  mtev_hash_init(&acls);
   check_preflight_hook_register("ip_acl", ip_acl_hook_impl, NULL);
   return 0;
 }
