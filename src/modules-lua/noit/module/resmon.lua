@@ -325,9 +325,9 @@ function initiate(module, check)
 
         -- this is handled later as we need our challenge.
         client = HttpClient:new(callbacks)
-        rv, err = client:connect(reverse_str, port, use_ssl)
+        rv, err = client:connect(reverse_str, port, use_ssl, headers.Host)
         if rv ~= 0 then
-            rv, err = client:connect(check.target_ip, port, use_ssl)
+            rv, err = client:connect(check.target_ip, port, use_ssl, headers.Host)
         end
         if rv ~= 0 then
             check.status(str or "unknown error")
@@ -373,9 +373,9 @@ function initiate(module, check)
     end
 
     client = HttpClient:new(callbacks)
-    rv, err = client:connect(reverse_str, port, use_ssl)
+    rv, err = client:connect(reverse_str, port, use_ssl, headers.Host)
     if rv ~= 0 then
-        rv, err = client:connect(check.target_ip, port, use_ssl)
+        rv, err = client:connect(check.target_ip, port, use_ssl, headers.Host)
     end
     if rv ~= 0 then
         check.status(err or "unknown error")
