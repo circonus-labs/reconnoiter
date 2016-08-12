@@ -65,7 +65,7 @@ recon_realtime_hostname = '<?php echo $db->realtime_config('hostname'); ?>';
 		<li><a href="https://labs.omniti.com/docs/reconnoiter/">Documentation</a></li>
 		<li><a href="https://labs.omniti.com/trac/reconnoiter/">Support</a></li>
 		<li><a href="#">Username</a></li>
-		<li class="xx"><a href="#">Logout</a></li>
+		<li><a href="http://localhost/logout.php">Logout</a></li>
 	</ul>
 </div><!-- end header -->
 <div id="left">
