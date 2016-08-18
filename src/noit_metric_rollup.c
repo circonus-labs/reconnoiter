@@ -297,11 +297,10 @@ noit_metric_rollup_accumulate_numeric(noit_numeric_rollup_accu* accu, noit_metri
     w1_drun = &accu->drun;
     w1_crun = &accu->crun;
 
-    if (accu->accumulated.type != METRIC_NULL
-        && accu->first_value_time_ms >= value->whence_ms) {
+    if (accu->first_value_time_ms >= value->whence_ms) {
       /* It's older! */
       return;
-    } else if (accu->accumulated.type != METRIC_NULL) {
+    } else if (last_value.type != METRIC_ABSENT && last_value.type != METRIC_NULL) {
       /* here we have last_value and value */
       /* Handle the numeric case */
       int drun = 0;
