@@ -346,6 +346,8 @@ API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
                                        struct timeval *whence, metric_t *m);
+API_EXPORT(void) noit_check_log_histo(noit_check_t *check, u_int64_t whence_s,
+          const char *metric_name, const char *b64_histo, ssize_t b64_histo_len);
 API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *target, int target_len,
                                               char *module, int module_len,
