@@ -47,8 +47,6 @@
 #include "noit_check_tools.h"
 #include "noit_mtev_bridge.h"
 
-#include "modules/histogram.h"
-
 #include <lua_mtev.h>
 #include "lua_check.h"
 
@@ -490,10 +488,10 @@ noit_lua_set_histo_metric(lua_State *L) {
   hist_encoded = lua_tolstring(L, 2, &hist_encoded_len);
   whence_s = lua_tointeger(L, 3);
 
-  if (noit_log_histo_encoded_available()) {
-    noit_log_histo_encoded(check, whence_s, metric_name, hist_encoded, hist_encoded_len, mtev_false);
-  } else {
-    return luaL_error(L, "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
+  if(noit_stats_log_immediate_histo(check, metric_name, hist_encoded,
+      hist_encoded_len, whence_s) == mtev_false) {
+    return luaL_error(L,
+        "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
   }
 
   lua_pushboolean(L, 1);
