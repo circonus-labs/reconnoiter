@@ -1731,12 +1731,18 @@ __stats_add_metric(stats_t *newstate, metric_t *m) {
                     m, NULL, (void (*)(void *))mtev_memory_safe_free);
 }
 
-static void
-__mark_metric_logged(stats_t *newstate, const char *metric_name) {
+static mtev_boolean
+__mark_metric_logged(stats_t *newstate, metric_t *m) {
   void *vm;
   if(mtev_hash_retrieve(&newstate->metrics,
-                        metric_name, strlen(metric_name), &vm)) {
+      m->metric_name, strlen(m->metric_name), &vm)) {
     ((metric_t *)vm)->logged = mtev_true;
+    return mtev_false;
+  } else {
+    m->logged = mtev_true;
+    mtev_hash_replace(&newstate->metrics, m->metric_name, strlen(m->metric_name),
+                        m, NULL, (void (*)(void *))mtev_memory_safe_free);
+    return mtev_true;
   }
 }
 
@@ -2047,9 +2053,10 @@ noit_stats_log_immediate_metric(noit_check_t *check,
   }
   gettimeofday(&now, NULL);
   noit_check_log_metric(check, &now, m);
-  mtev_memory_safe_free(m);
   c = noit_check_get_stats_inprogress(check);
-  __mark_metric_logged(c, name);
+  if(__mark_metric_logged(c, m) == mtev_false) {
+    mtev_memory_safe_free(m);
+  }
 }
 
 void
