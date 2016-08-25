@@ -59,6 +59,7 @@
 #include "noit_module.h"
 #include "noit_check_tools.h"
 #include "noit_check_resolver.h"
+#include "modules/histogram.h"
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
 #define RECYCLE_INTERVAL 60
@@ -2039,10 +2040,10 @@ noit_stats_set_metric_coerce(noit_check_t *check,
   }
   check_stats_set_metric_coerce_hook_invoke(check, c, name, t, v, mtev_true);
 }
-void
-noit_stats_log_immediate_metric(noit_check_t *check,
+static void
+record_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
-                                const void *value) {
+                                const void *value, mtev_boolean do_log) {
   struct timeval now;
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
@@ -2052,11 +2053,31 @@ noit_stats_log_immediate_metric(noit_check_t *check,
     return;
   }
   gettimeofday(&now, NULL);
-  noit_check_log_metric(check, &now, m);
+  if(do_log == mtev_true) {
+    noit_check_log_metric(check, &now, m);
+  }
   c = noit_check_get_stats_inprogress(check);
   if(__mark_metric_logged(c, m) == mtev_false) {
     mtev_memory_safe_free(m);
   }
+}
+void
+noit_stats_log_immediate_metric(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                const void *value) {
+  record_immediate_metric(check, name, type, value, mtev_true);
+}
+mtev_boolean
+noit_stats_log_immediate_histo(noit_check_t *check,
+                                const char *name, const char *hist_encoded, size_t hist_encoded_len,
+                                u_int64_t whence_s) {
+  if (noit_log_histo_encoded_available()) {
+    noit_log_histo_encoded(check, whence_s, name, hist_encoded, hist_encoded_len, mtev_false);
+  } else {
+    return mtev_false;
+  }
+  record_immediate_metric(check, name, METRIC_INT32, NULL, mtev_false);
+  return mtev_true;
 }
 
 void

@@ -39,6 +39,8 @@
 #include <mtev_dso.h>
 #include <mtev_log.h>
 
+#include <circllhist.h>
+
 #include "noit_config.h"
 #include "noit_module.h"
 #include "noit_check.h"
@@ -465,6 +467,38 @@ noit_lua_set_metric_f(lua_State *L,
 }
 
 static int
+noit_lua_set_histo_metric(lua_State *L) {
+  noit_check_t *check;
+  const char *metric_name;
+  size_t hist_encoded_len;
+  const char *hist_encoded;
+  u_int64_t whence_s;
+
+  if(lua_gettop(L) != 3) luaL_error(L, "need 3 arguments: <metric_name> <encoded_histo> <whence_s>");
+  check = lua_touserdata(L, lua_upvalueindex(1));
+  if(!lua_isstring(L, 1)) luaL_error(L, "argument #1 must be a string");
+  if(!lua_isstring(L, 2)) luaL_error(L, "argument #2 must be a string");
+  if(!lua_isnumber(L, 3)) luaL_error(L, "argument #3 must be a number");
+
+  metric_name = lua_tostring(L, 1);
+  if(lua_isnil(L, 2)) {
+    return luaL_error(L, "argument #2 must not be nil");
+  }
+
+  hist_encoded = lua_tolstring(L, 2, &hist_encoded_len);
+  whence_s = lua_tointeger(L, 3);
+
+  if(noit_stats_log_immediate_histo(check, metric_name, hist_encoded,
+      hist_encoded_len, whence_s) == mtev_false) {
+    return luaL_error(L,
+        "Unable to invoke noit_log_histo_encoded! Did you load the histogram module?!");
+  }
+
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+static int
 noit_lua_set_metric(lua_State *L) {
   return noit_lua_set_metric_f(L, noit_stats_set_metric);
 }
@@ -606,6 +640,10 @@ noit_check_index_func(lua_State *L) {
       else IF_METRIC_IMMEDIATE_BLOCK("metric_int64", METRIC_INT64)
       else IF_METRIC_IMMEDIATE_BLOCK("metric_uint64", METRIC_UINT64)
       else IF_METRIC_IMMEDIATE_BLOCK("metric_double", METRIC_DOUBLE)
+      else if(!strcmp(k, "immediate_histogram")) {
+        lua_pushlightuserdata(L, check);
+        lua_pushcclosure(L, noit_lua_set_histo_metric, 1);
+      }
       else break;
 
       return 1;

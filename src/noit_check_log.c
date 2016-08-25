@@ -608,4 +608,3 @@ noit_stats_snprint_metric(char *b, int l, metric_t *m) {
     rv = snprintf(b+nl, l-nl, "[[unknown type]]");
   return rv + nl;
 }
-
