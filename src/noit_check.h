@@ -284,6 +284,11 @@ API_EXPORT(void)
   noit_stats_log_immediate_metric(noit_check_t *check,
                                   const char *name, metric_type_t type,
                                   const void *value);
+API_EXPORT(mtev_boolean)
+  noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
+                                  const char *hist_encoded,
+                                  size_t hist_encoded_len,
+                                  u_int64_t whence_s);
 
 API_EXPORT(const char *)
   noit_check_available_string(int16_t available);
