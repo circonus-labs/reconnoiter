@@ -542,3 +542,18 @@ function refresh_stats(cb) {
 refresh_stats(startInternals)
 setInterval(refresh_stats, 5000);
 
+
+$(document).ready(function() {
+  $('.navbar-nav a.nav-link').click(function (e) {
+    $(this).tab('show');
+    var scrollmem = $('body').scrollTop();
+    window.location.hash = this.hash;
+    $('html,body').scrollTop(scrollmem);
+  });
+
+  var hash = window.location.hash.substring(1);
+  if(!hash) return;
+  var nav = hash.split(/:/);
+
+  if(nav[0]) $('ul.nav a[href="#' + nav[0] + '"]').tab('show');
+});
