@@ -61,6 +61,7 @@
 #include <mtev_capabilities_listener.h>
 #include <mtev_conf.h>
 #include <mtev_events_rest.h>
+#include <mtev_stats.h>
 #include <mtev_cluster.h>
 
 #include "noit_mtev_bridge.h"
@@ -252,6 +253,7 @@ static int child_main() {
   mtev_reverse_socket_init(reverse_prefix, reverse_prefix_cns);
   mtev_reverse_socket_acl(mtev_reverse_socket_denier);
   mtev_events_rest_init();
+  mtev_stats_rest_init();
   noit_console_conf_checks_init();
   noit_jlog_listener_init();
   noit_check_rest_init();

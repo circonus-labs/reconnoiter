@@ -3,11 +3,27 @@ body {
   padding-bottom: 30px;
 }
 
-.container > div.navbar-header {
+.table td, .table th {
+  padding: 0.3rem;
+}
+
+.card-title {
+  margin-bottom:0;
+}
+
+a.navbar-brand {
+  margin-top: 5px;
+  margin-left: 55px;
+}
+a.nav-link {
+  margin-top: 5px;
+}
+nav.navbar {
   background: transparent url(../i/product-logo-rev2.png) no-repeat scroll left top;
   background-size: 50px 50px;
-  background-position: 0 2px;
-  padding-left: 55px;
+  background-position: 15px 3px;
+  background-color: white;
+  border-bottom: 1px solid #999;
 }
 
 .theme-dropdown .dropdown-menu {
@@ -20,15 +36,45 @@ body {
   margin: 5px 0;
 }
 
+.check-details dl {
+overflow: hidden;
+}
+.check-details dd,
+.check-details dt {
+  float:left;
+  width:50%;
+  padding:0;
+  margin:0;
+}
+.check-details-main dt {
+  width:20%;
+}
+.check-details-main dd {
+  width:80%;
+}
+
+#check-table tr.check td,
+#eventer table td {
+  font-size: 0.9em;
+}
+.text-left {
+  text-align:left;
+}
+.text-right {
+  text-align:right;
+}
+.text-center {
+  text-align:center;
+}
+table td:first-child {
+  padding-left: 1em;
+}
 .destinations div.progress {
   margin-bottom: 4px;
 }
 
-.check-details-main dt {
-  width: 100px;
-}
-.check-details-main dd {
-  margin-left: 120px;
+tr.check-details.collapse.in {
+  display: table-row;
 }
 .label-none {
   background-color: #fff;
@@ -38,11 +84,17 @@ div#main-log-window {
   height: 10em;
   overflow-y: scroll;
 }
-
-div#stateview div.row div.panel-body > div {
-  margin-left: 1em;
+div#main-log-window div.row{
+  font-family: monospace, serif;
+  font-size: 0.8em;
 }
 
+div#stateview div.row div.card-block > div {
+  margin-left: 1em;
+}
+div#stateview p {
+  font-size: 0.9em;
+}
 ul.noit-proto > li {
   clear:both;
 }
@@ -57,4 +109,71 @@ ul.noit-proto-cmd > li:after {
 }
 ul.noit-proto-cmd > li:last-child:after {
   content: ""
+}
+
+#eventer table tbody button.tag {
+  margin-right:0.5em;
+}
+
+/* histogram stuff */
+
+div#modal-histogram {
+  width:600px;
+  position:relative;
+}
+
+svg {
+  font: 10px sans-serif;
+}
+
+.hidden {
+  display:none;
+}
+rect.bin {
+  fill: steelblue;
+}
+rect.bin-less {
+  fill: green;
+}
+rect.bin-select {
+  fill: grey;
+  fill-opacity: 0.8;
+}
+rect.bin-select {
+  fill: grey;
+  fill-opacity: 0.8;
+}
+rect.qbar {
+  fill: url(#lightstripeflip);
+  fill-opacity: 0.7;
+}
+rect.iqr0-25, rect.iqr25-50 {
+  fill: url(#lightstripe);
+}
+rect.iqr0-25, rect.iqr75-100 {
+  fill-opacity: 0.4;
+}
+line.qbar {
+  stroke: green;
+  stroke-width: 0.5px;
+}
+line.iqr50 {
+  stroke: green;
+  stroke-width: 1px;
+}
+div.tooltip {
+  position: absolute;
+  text-align: center;
+  padding: 2px 8px;
+  font: 11px sans-serif;
+  background: lightsteelblue;
+  border: 0px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
 }
