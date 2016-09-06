@@ -270,7 +270,7 @@ ganglia_submit(noit_module_t *self, noit_check_t *check,
   /* We are passive, so we don't do anything for transient checks */
   if(check->flags & NP_TRANSIENT) return 0;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
 
   /* If we're immediately logging things and we've done so within the
    * check's period... we've no reason to passively log now.

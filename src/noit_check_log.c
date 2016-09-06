@@ -156,7 +156,7 @@ _noit_check_log_check(mtev_log_stream_t ls,
   SETUP_LOG(check, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   return mtev_log(ls, &__now, __FILE__, __LINE__,
                   "C\t%lu.%03lu\t%s\t%s\t%s\t%s\n",
                   SECPART(&__now), MSECPART(&__now),
@@ -180,7 +180,7 @@ _noit_filterset_log_auto_add(mtev_log_stream_t ls,
   SETUP_LOG(check, );
   MAKE_CHECK_UUID_STR(uuid_str, sizeof(uuid_str), check_log, check);
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   return mtev_log(ls, &__now, __FILE__, __LINE__,
                   "F1\t%lu.%03lu\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
                   SECPART(&__now), MSECPART(&__now),

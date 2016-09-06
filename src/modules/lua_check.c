@@ -891,7 +891,7 @@ noit_lua_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration;
   stats_t *inprogress;
 
-  gettimeofday(&ci->finish_time, NULL);
+  mtev_gettimeofday(&ci->finish_time, NULL);
   sub_timeval(ci->finish_time, check->last_fire_time, &duration);
 
   noit_stats_set_whence(check, &ci->finish_time);
@@ -1065,7 +1065,7 @@ noit_lua_initiate(noit_module_t *self, noit_check_t *check,
   ci->check = check;
   ci->cause = cause;
 
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   e = eventer_alloc();

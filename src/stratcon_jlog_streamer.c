@@ -165,7 +165,7 @@ nc_print_noit_conn_brief(mtev_console_closure_t ncct,
   }
   feedtype = feed_type_to_str(ntohl(jctx->jlog_feed_cmd));
   nc_printf(ncct, "\tJLog event streamer [%s]\n", feedtype);
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   if(ctx->timeout_event) {
     sub_timeval(ctx->timeout_event->whence, now, &diff);
     nc_printf(ncct, "\tTimeout scheduled for %lld.%06us\n",
@@ -774,7 +774,7 @@ rest_show_noits_json(mtev_http_rest_closure_t *restc,
   type = mtev_http_request_querystring(req, "type");
   want_cn = mtev_http_request_querystring(req, "cn");
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
   ctxs = malloc(sizeof(*ctxs) * mtev_hash_size(&noits));
@@ -987,7 +987,7 @@ rest_show_noits(mtev_http_rest_closure_t *restc,
   type = mtev_http_request_querystring(req, "type");
   want_cn = mtev_http_request_querystring(req, "cn");
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
 
   pthread_mutex_lock(&noits_lock);
   ctxs = malloc(sizeof(*ctxs) * mtev_hash_size(&noits));

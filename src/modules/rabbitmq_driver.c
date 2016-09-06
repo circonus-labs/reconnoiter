@@ -195,7 +195,7 @@ static void noit_rabbitmq_read_frame(struct amqp_driver *dr) {
 static void noit_rabbitmq_heartbeat(struct amqp_driver *dr) {
   struct timeval n, d;
   if(!dr->connection) return;
-  gettimeofday(&n, NULL);
+  mtev_gettimeofday(&n, NULL);
   sub_timeval(n, dr->last_hb, &d);
   if(d.tv_sec >= dr->heartbeat) {
     amqp_frame_t f;
@@ -265,7 +265,7 @@ static int noit_rabbimq_connect(iep_thread_driver_t *dr) {
       driver->connection = NULL;
       return -1;
     }
-    gettimeofday(&driver->last_hb, NULL);
+    mtev_gettimeofday(&driver->last_hb, NULL);
     return 0;
   }
   /* 1 means already connected */

@@ -497,7 +497,7 @@ noit_check_fake_last_check(noit_check_t *check,
   int balance_ms;
 
   if(!_now) {
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     _now = &now;
   }
   period.tv_sec = check->period / 1000;
@@ -1348,7 +1348,7 @@ noit_poller_free_check_internal(noit_check_t *checker, mtev_boolean has_lock) {
 
   if (checker->flags & NP_PASSIVE_COLLECTION) {
     struct timeval current_time;
-    gettimeofday(&current_time, NULL);
+    mtev_gettimeofday(&current_time, NULL);
     if (checker->last_fire_time.tv_sec == 0) {
       memcpy(&checker->last_fire_time, &current_time, sizeof(struct timeval));
     }
@@ -1432,7 +1432,7 @@ check_recycle_bin_processor(eventer_t e, int mask, void *closure,
     mtev_boolean free_check = mtev_false;
     if (check->flags & NP_PASSIVE_COLLECTION) {
       struct timeval current_time;
-      gettimeofday(&current_time, NULL);
+      mtev_gettimeofday(&current_time, NULL);
       if ((!(check->flags & NP_RUNNING)) &&
           (sub_timeval_ms(current_time,check->last_fire_time) >= (check->period*2))) {
         free_check = mtev_true;
@@ -1710,7 +1710,7 @@ bad_check_initiate(noit_module_t *self, noit_check_t *check,
   mtevAssert(!(check->flags & NP_RUNNING));
   check->flags |= NP_RUNNING;
   inp = noit_check_get_stats_inprogress(check);
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   noit_check_stats_whence(inp, &now);
   snprintf(buff, sizeof(buff), "check[%s] implementation offline",
            check->module);
@@ -2052,7 +2052,7 @@ record_immediate_metric(noit_check_t *check,
     mtev_memory_safe_free(m);
     return;
   }
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   if(do_log == mtev_true) {
     noit_check_log_metric(check, &now, m);
   }

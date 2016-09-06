@@ -140,7 +140,7 @@ noit_check_schedule_next(noit_module_t *self,
   if(now)
     memcpy(&earliest, now, sizeof(earliest));
   else
-    gettimeofday(&earliest, NULL);
+    mtev_gettimeofday(&earliest, NULL);
 
   /* If the check is unconfigured and needs resolving, we'll set the
    * period down a bit lower so we can pick up the resolution quickly.
@@ -205,7 +205,7 @@ noit_check_run_full_asynch_opts(noit_check_t *check, eventer_func_t callback,
   e = eventer_alloc();
   e->fd = -1;
   e->mask = EVENTER_ASYNCH | mask;
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&e->whence, &__now, sizeof(__now));
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
