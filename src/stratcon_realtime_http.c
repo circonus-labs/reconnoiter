@@ -578,7 +578,7 @@ stratcon_request_dispatcher(mtev_http_session_ctx *ctx) {
     completion->mask = EVENTER_TIMER;
     completion->callback = stratcon_realtime_http_postresolve;
     completion->closure = ctx;
-    gettimeofday(&completion->whence, NULL);
+    mtev_gettimeofday(&completion->whence, NULL);
     stratcon_datastore_push(DS_OP_FIND_COMPLETE, NULL, NULL,
                             rc->checklist, completion);
   }

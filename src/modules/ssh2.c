@@ -132,7 +132,7 @@ static void ssh2_log_results(noit_module_t *self, noit_check_t *check) {
   u_int32_t mduration;
   ssh2_check_info_t *ci = check->closure;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   mduration = duration.tv_sec * 1000 + duration.tv_usec / 1000;
   noit_stats_set_whence(check, &now);
@@ -330,7 +330,7 @@ static int ssh2_initiate(noit_module_t *self, noit_check_t *check,
     eventer_free(ci->timeout_event);
     ci->timeout_event = NULL;
   }
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   if(check->target_ip[0] == '\0') {

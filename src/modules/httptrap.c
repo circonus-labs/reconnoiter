@@ -632,7 +632,7 @@ static int httptrap_submit(noit_module_t *self, noit_check_t *check,
     struct timeval now, *last;
     char human_buffer[256];
     ccl = (httptrap_closure_t*)check->closure;
-    gettimeofday(&now, NULL);
+    mtev_gettimeofday(&now, NULL);
     sub_timeval(now, check->last_fire_time, &duration);
     noit_stats_set_whence(check, &now);
     noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);

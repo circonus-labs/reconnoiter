@@ -41,7 +41,7 @@ static int example_initiate(noit_module_t *self, noit_check_t *check,
   mtev_hash_retrieve(check->config, "limit", strlen("limit"), (void **)&limit);
   ci->limit = atoi(limit);
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &diff);
   noit_stats_set_whence(check, &now);
   noit_stats_set_duration(check, diff.tv_sec * 1000 + diff.tv_usec / 1000);

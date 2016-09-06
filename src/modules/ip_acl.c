@@ -155,7 +155,7 @@ ip_acl_hook_impl(void *closure, noit_module_t *self,
   return MTEV_HOOK_CONTINUE;
 
  prevent:
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   noit_stats_set_whence(check, &now);
   noit_stats_set_available(check, NP_UNAVAILABLE);
   noit_stats_set_state(check, NP_BAD);

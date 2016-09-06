@@ -145,7 +145,7 @@ static void external_log_results(noit_module_t *self, noit_check_t *check) {
   mtevL(data->nldeb, "external(%s) (error: %d, exit: %x)\n",
         check->target, ci->errortype, ci->exit_code);
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(check, &now);
   noit_stats_set_duration(check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -422,7 +422,7 @@ static int external_handler(eventer_t e, int mask,
     mtevAssert(data->cr && data->cr->stdoutbuff && data->cr->stderrbuff);
     mtevAssert(data->cr->stderrbuff[data->cr->stderrlen-1] == '\0');
 
-    gettimeofday(now, NULL); /* set it, as we care about accuracy */
+    mtev_gettimeofday(now, NULL); /* set it, as we care about accuracy */
 
     /* Lookup data in check_no hash */
     if(mtev_hash_retrieve(&data->external_checks,
@@ -680,7 +680,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
 
   check_info_clean(ci);
 
-  gettimeofday(&when, NULL);
+  mtev_gettimeofday(&when, NULL);
   memcpy(&check->last_fire_time, &when, sizeof(when));
 
   /* Setup all our check bits */
@@ -796,7 +796,7 @@ static int external_invoke(noit_module_t *self, noit_check_t *check,
   /* Setup a timeout */
   newe = eventer_alloc();
   newe->mask = EVENTER_TIMER;
-  gettimeofday(&when, NULL);
+  mtev_gettimeofday(&when, NULL);
   p_int.tv_sec = check->timeout / 1000;
   p_int.tv_usec = (check->timeout % 1000) * 1000;
   add_timeval(when, p_int, &newe->whence);

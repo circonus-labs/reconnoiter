@@ -389,7 +389,7 @@ setup_iep_connection_later(int seconds) {
   eventer_t newe;
   if(!mtev_spinlock_trylock(&iep_conn_cnt)) return;
   newe = eventer_alloc();
-  gettimeofday(&newe->whence, NULL);
+  mtev_gettimeofday(&newe->whence, NULL);
   newe->whence.tv_sec += seconds;
   newe->mask = EVENTER_TIMER;
   newe->callback = setup_iep_connection_callback;
@@ -509,7 +509,7 @@ stratcon_iep_line_processor(stratcon_datastore_op_t op,
   jc = calloc(1, sizeof(*jc));
   jc->line = operand;
   jc->remote = strdup(remote_str);
-  gettimeofday(&jc->start, NULL);
+  mtev_gettimeofday(&jc->start, NULL);
   newe->closure = jc;
 
   eventer_add_asynch(&iep_jobq, newe);

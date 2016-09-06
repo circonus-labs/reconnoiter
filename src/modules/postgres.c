@@ -164,7 +164,7 @@ static void postgres_log_results(noit_module_t *self, noit_check_t *check) {
   struct timeval duration, now;
   postgres_check_info_t *ci = check->closure;
 
-  gettimeofday(&now, NULL);
+  mtev_gettimeofday(&now, NULL);
   sub_timeval(now, check->last_fire_time, &duration);
   noit_stats_set_whence(ci->check, &now);
   noit_stats_set_duration(ci->check, duration.tv_sec * 1000 + duration.tv_usec / 1000);
@@ -243,14 +243,14 @@ static int postgres_drive_session(eventer_t e, int mask, void *closure,
       FETCH_CONFIG_OR(sql, "");
       noit_check_interpolate(sql_buff, sizeof(sql_buff), sql,
                              &ci->attrs, check->config);
-      gettimeofday(&t1, NULL);
+      mtev_gettimeofday(&t1, NULL);
       sub_timeval(t1, check->last_fire_time, &diff);
       ci->connect_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
       ci->connect_duration = &ci->connect_duration_d;
 
       ci->result = PQexec(ci->conn, sql_buff);
 
-      gettimeofday(&t2, NULL);
+      mtev_gettimeofday(&t2, NULL);
       sub_timeval(t2, t1, &diff);
       ci->query_duration_d = diff.tv_sec * 1000.0 + diff.tv_usec / 1000.0;
       ci->query_duration = &ci->query_duration_d;
@@ -303,7 +303,7 @@ static int postgres_initiate(noit_module_t *self, noit_check_t *check,
   ci->timed_out = 1;
   ci->rv = -1;
   noit_check_make_attrs(check, &ci->attrs);
-  gettimeofday(&__now, NULL);
+  mtev_gettimeofday(&__now, NULL);
   memcpy(&check->last_fire_time, &__now, sizeof(__now));
 
   /* Register a handler for the worker */
