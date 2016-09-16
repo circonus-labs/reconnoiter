@@ -301,7 +301,12 @@ populate_stats_from_resmon_formatted_json(noit_check_t *check,
           int i, alen = json_object_array_length(has_value);
           for(i=0;i<alen;i++) {
             struct json_object *item = json_object_array_get_idx(has_value, i);
-            COERCE_JSON_OBJECT(*type_str, item);
+            if (item) {
+              COERCE_JSON_OBJECT(*type_str, item);
+            }
+            else {
+              mtevL(mtev_error, "WARNING: Got NULL item in JSON array: %s\n", check->name);
+            }
           }
         }
         else {
