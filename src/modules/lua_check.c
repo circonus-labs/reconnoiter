@@ -394,7 +394,7 @@ noit_lua_set_metric_json(lua_State *L) {
 }
 
 static int
-noit_lua_set_metric_f(lua_State *L,
+noit_lua_set_metric_f(lua_State *L, mtev_boolean allow_whence,
                       void(*set)(noit_check_t *,
                                  const char *, metric_type_t,
                                  const void *, const struct timeval *)) {
@@ -415,10 +415,10 @@ noit_lua_set_metric_f(lua_State *L,
   metric_name = lua_tostring(L, 1);
   metric_type = lua_tointeger(L, lua_upvalueindex(2));
 
-  if(lua_gettop(L) >= 3) {
+  if(allow_whence == mtev_true && lua_gettop(L) >= 3) {
     whence.tv_sec = lua_tointeger(L, 3);
     if(lua_gettop(L) == 4) {
-      whence.tv_sec = lua_tointeger(L, 4);
+      whence.tv_usec = lua_tointeger(L, 4);
     }
   } else {
     gettimeofday(&whence, NULL);
@@ -509,14 +509,21 @@ noit_lua_set_histo_metric(lua_State *L) {
   return 1;
 }
 
+static void
+noit_stats_set_metric_ignore_whence(noit_check_t *check,
+                      const char *name, metric_type_t type,
+                      const void *value, const struct timeval *ignored) {
+  noit_stats_set_metric(check, name, type, value);
+}
+
 static int
 noit_lua_set_metric(lua_State *L) {
-  return noit_lua_set_metric_f(L, noit_stats_set_metric_timed);
+  return noit_lua_set_metric_f(L, mtev_false, noit_stats_set_metric_ignore_whence);
 }
 
 static int
 noit_lua_log_immediate_metric(lua_State *L) {
-  return noit_lua_set_metric_f(L, noit_stats_log_immediate_metric_timed);
+  return noit_lua_set_metric_f(L, mtev_true, noit_stats_log_immediate_metric_timed);
 }
 
 static int

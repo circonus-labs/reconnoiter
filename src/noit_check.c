@@ -1958,7 +1958,7 @@ noit_stats_get_last_metric(noit_check_t *check, const char *name) {
   return m;
 }
 
-stats_t*
+void
 noit_stats_set_metric(noit_check_t *check,
                       const char *name, metric_type_t type,
                       const void *value) {
@@ -1973,18 +1973,8 @@ noit_stats_set_metric(noit_check_t *check,
   c = noit_check_get_stats_inprogress(check);
   check_stats_set_metric_hook_invoke(check, c, m);
   __stats_add_metric(c, m);
-  return c;
 }
-void
-noit_stats_set_metric_timed(noit_check_t *check,
-                      const char *name, metric_type_t type,
-                      const void *value, const struct timeval *time) {
-  stats_t *c;
-  c = noit_stats_set_metric(check, name, type, value);
-  if(c) {
-    noit_check_stats_whence(c, time);
-  }
-}
+
 void
 noit_stats_set_metric_coerce(noit_check_t *check,
                              const char *name, metric_type_t t,
