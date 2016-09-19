@@ -224,7 +224,7 @@ noit_check_log_status(noit_check_t *check) {
 static int
 noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
                                        noit_check_t *check,
-                                       struct timeval *whence,
+                                       const struct timeval *whence,
                                        metric_t *m) {
   int size, rv = 0;
   unsigned int out_size;
@@ -295,7 +295,7 @@ noit_check_log_bundle_metric_serialize(mtev_log_stream_t ls,
 static int
 _noit_check_log_metric(mtev_log_stream_t ls, noit_check_t *check,
                        const char *uuid_str,
-                       struct timeval *whence, metric_t *m) {
+                       const struct timeval *whence, metric_t *m) {
   return noit_check_log_bundle_metric_serialize(ls, check, whence, m);
 }
 static int
@@ -557,7 +557,7 @@ noit_check_log_bundle(noit_check_t *check) {
 }
 
 void
-noit_check_log_metric(noit_check_t *check, struct timeval *whence,
+noit_check_log_metric(noit_check_t *check, const struct timeval *whence,
                       metric_t *m) {
   char uuid_str[256*3+37];
 #if defined(NOIT_CHECK_LOG_M)

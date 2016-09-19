@@ -151,7 +151,7 @@ struct stats_t {
 };
 
 struct timeval *
-noit_check_stats_whence(stats_t *s, struct timeval *n) {
+noit_check_stats_whence(stats_t *s, const struct timeval *n) {
   if(n) memcpy(&s->whence, n, sizeof(*n));
   return &s->whence;
 }
@@ -604,7 +604,7 @@ noit_poller_process_checks(const char *xpath) {
 
     if(!INHERIT(stringbuf, filterset, filterset, sizeof(filterset)))
       filterset[0] = '\0';
-    
+
     if (!INHERIT(stringbuf, resolve_rtype, resolve_rtype, sizeof(resolve_rtype)))
       strlcpy(resolve_rtype, PREFER_IPV4, sizeof(resolve_rtype));
 
@@ -1967,13 +1967,14 @@ noit_stats_set_metric(noit_check_t *check,
   memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     mtev_memory_safe_free(m);
-    return;
+    return NULL;
   }
   noit_check_metric_count_add(1);
   c = noit_check_get_stats_inprogress(check);
   check_stats_set_metric_hook_invoke(check, c, m);
   __stats_add_metric(c, m);
 }
+
 void
 noit_stats_set_metric_coerce(noit_check_t *check,
                              const char *name, metric_type_t t,
@@ -2043,7 +2044,7 @@ noit_stats_set_metric_coerce(noit_check_t *check,
 static void
 record_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
-                                const void *value, mtev_boolean do_log) {
+                                const void *value, mtev_boolean do_log, const struct timeval *time) {
   struct timeval now;
   stats_t *c;
   metric_t *m = mtev_memory_safe_malloc_cleanup(sizeof(*m), noit_check_safe_free_metric);
@@ -2052,9 +2053,12 @@ record_immediate_metric(noit_check_t *check,
     mtev_memory_safe_free(m);
     return;
   }
-  mtev_gettimeofday(&now, NULL);
+  if(time == NULL) {
+    gettimeofday(&now, NULL);
+    time = &now;
+  }
   if(do_log == mtev_true) {
-    noit_check_log_metric(check, &now, m);
+    noit_check_log_metric(check, time, m);
   }
   c = noit_check_get_stats_inprogress(check);
   if(__mark_metric_logged(c, m) == mtev_false) {
@@ -2065,19 +2069,31 @@ void
 noit_stats_log_immediate_metric(noit_check_t *check,
                                 const char *name, metric_type_t type,
                                 const void *value) {
-  record_immediate_metric(check, name, type, value, mtev_true);
+  record_immediate_metric(check, name, type, value, mtev_true, NULL);
+}
+
+void
+noit_stats_log_immediate_metric_timed(noit_check_t *check,
+                                const char *name, metric_type_t type,
+                                const void *value, const struct timeval *whence) {
+  record_immediate_metric(check, name, type, value, mtev_true, whence);
 }
 
 mtev_boolean
 noit_stats_log_immediate_histo(noit_check_t *check,
                                 const char *name, const char *hist_encoded, size_t hist_encoded_len,
                                 u_int64_t whence_s) {
+  struct timeval whence;
+  whence.tv_sec = whence_s;
+  whence.tv_usec = 0;
+
   if (noit_log_histo_encoded_available()) {
-    noit_log_histo_encoded(check, whence_s, name, hist_encoded, hist_encoded_len, mtev_false);
+    noit_log_histo_encoded(check, &whence, name, hist_encoded, hist_encoded_len, mtev_false);
   } else {
     return mtev_false;
   }
-  record_immediate_metric(check, name, METRIC_INT32, NULL, mtev_false);
+
+  record_immediate_metric(check, name, METRIC_INT32, NULL, mtev_false, &whence);
   return mtev_true;
 }
 

@@ -125,15 +125,12 @@ debug_print_hist(histogram_t *ht) {
 }
 
 void
-noit_log_histo_encoded_function(noit_check_t *check, u_int64_t whence_s,
+noit_log_histo_encoded_function(noit_check_t *check, struct timeval *whence,
           const char *metric_name, const char *hist_encode, ssize_t hist_encode_len,
           mtev_boolean live_feed) {
   mtev_boolean extended_id = mtev_false;
   char uuid_str[256*3+37];
   const char *v;
-  struct timeval whence;
-  whence.tv_sec = whence_s;
-  whence.tv_usec = 0;
 
   SETUP_LOG(metrics, );
   if(metrics_log) {
@@ -162,9 +159,9 @@ noit_log_histo_encoded_function(noit_check_t *check, u_int64_t whence_s,
       mtev_log_stream_t ls = mtev_log_stream_find(feed_name);
       mtev_skiplist_next(check->feeds, &next);
       if(!ls ||
-         mtev_log(ls, &whence, __FILE__, __LINE__,
+         mtev_log(ls, whence, __FILE__, __LINE__,
            "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
-           SECPART(&whence), MSECPART(&whence),
+           SECPART(whence), MSECPART(whence),
            uuid_str, metric_name, (int)hist_encode_len, hist_encode))
         noit_check_transient_remove_feed(check, feed_name);
       curr = next;
@@ -173,9 +170,9 @@ noit_log_histo_encoded_function(noit_check_t *check, u_int64_t whence_s,
 
   if(!live_feed) {
     SETUP_LOG(metrics, return);
-    mtev_log(metrics_log, &whence, __FILE__, __LINE__,
+    mtev_log(metrics_log, whence, __FILE__, __LINE__,
              "H1\t%lu.%03lu\t%s\t%s\t%.*s\n",
-             SECPART(&whence), MSECPART(&whence),
+             SECPART(whence), MSECPART(whence),
              uuid_str, metric_name, (int)hist_encode_len, hist_encode);
   }
 }
@@ -187,6 +184,9 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
   char *hist_serial = NULL;
   char *hist_encode = NULL;
   ssize_t est, enc_est;
+  struct timeval whence;
+  whence.tv_sec = whence_s;
+  whence.tv_usec = 0;
 
   est = hist_serialize_estimate(h);
   hist_serial = malloc(est);
@@ -211,7 +211,9 @@ log_histo(noit_check_t *check, u_int64_t whence_s,
     goto cleanup;
   }
 
-  noit_log_histo_encoded_function(check, whence_s, metric_name, hist_encode, enc_est, live_feed);
+
+
+  noit_log_histo_encoded_function(check, &whence, metric_name, hist_encode, enc_est, live_feed);
 
  cleanup:
   if(hist_serial) free(hist_serial);

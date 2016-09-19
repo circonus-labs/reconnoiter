@@ -284,6 +284,10 @@ API_EXPORT(void)
   noit_stats_log_immediate_metric(noit_check_t *check,
                                   const char *name, metric_type_t type,
                                   const void *value);
+API_EXPORT(void)
+  noit_stats_log_immediate_metric_timed(noit_check_t *check,
+                                  const char *name, metric_type_t type,
+                                  const void *value, const struct timeval *whence);
 API_EXPORT(mtev_boolean)
   noit_stats_log_immediate_histo(noit_check_t *check, const char *name,
                                   const char *hist_encoded,
@@ -350,7 +354,7 @@ API_EXPORT(void) noit_check_log_delete(noit_check_t *check);
 API_EXPORT(void) noit_check_log_bundle(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metrics(noit_check_t *check);
 API_EXPORT(void) noit_check_log_metric(noit_check_t *check,
-                                       struct timeval *whence, metric_t *m);
+                                       const struct timeval *whence, metric_t *m);
 API_EXPORT(void) noit_check_log_histo(noit_check_t *check, u_int64_t whence_s,
           const char *metric_name, const char *b64_histo, ssize_t b64_histo_len);
 API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
@@ -358,7 +362,6 @@ API_EXPORT(void) noit_check_extended_id_split(const char *in, int len,
                                               char *module, int module_len,
                                               char *name, int name_len,
                                               char *uuid, int uuid_len);
-
 
 API_EXPORT(char *)
   noit_console_check_opts(mtev_console_closure_t ncct,
@@ -375,7 +378,7 @@ API_EXPORT(void) check_slots_inc_tv(struct timeval *tv);
 API_EXPORT(void) check_slots_dec_tv(struct timeval *tv);
 
 API_EXPORT(struct timeval *)
-  noit_check_stats_whence(stats_t *s, struct timeval *n);
+  noit_check_stats_whence(stats_t *s, const struct timeval *n);
 API_EXPORT(int8_t)
   noit_check_stats_available(stats_t *s, int8_t *n);
 API_EXPORT(int8_t)
