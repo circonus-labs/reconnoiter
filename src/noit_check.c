@@ -1967,7 +1967,7 @@ noit_stats_set_metric(noit_check_t *check,
   memset(m, 0, sizeof(*m));
   if(noit_stats_populate_metric(m, name, type, value)) {
     mtev_memory_safe_free(m);
-    return NULL;
+    return;
   }
   noit_check_metric_count_add(1);
   c = noit_check_get_stats_inprogress(check);
