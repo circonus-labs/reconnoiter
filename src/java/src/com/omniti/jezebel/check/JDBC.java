@@ -44,7 +44,7 @@ import com.omniti.jezebel.JezebelTools;
 
 public abstract class JDBC implements JezebelCheck {
   public JDBC() { }
-  protected abstract String jdbcConnectUrl(String host, String port, String db);
+  protected abstract String jdbcConnectUrl(String host, String port, String db, Properties props);
   protected abstract Connection jdbcConnection(String url, Properties props) throws SQLException;
   protected abstract String defaultPort();
   protected abstract Map<String,String> setupBasicSSL();
@@ -72,7 +72,6 @@ public abstract class JDBC implements JezebelCheck {
     if(port == null) port = defaultPort();
 
     String sql = config.remove("sql");
-    String url = jdbcConnectUrl(check.get("target_ip"), port, database);
 
     Properties props = new Properties();
     props.setProperty("user", username == null ? "" : username);
@@ -127,22 +126,33 @@ public abstract class JDBC implements JezebelCheck {
       }
     }
 
-    sql = JezebelTools.interpolate(sql, check, config);
+    // Now that we have all the properties and what not setup, we can do this
+    String url = jdbcConnectUrl(check.get("target_ip"), port, database, props);
 
-    Connection conn = null;
-    try {
-      Date t1 = new Date();
-      conn = jdbcConnection(url, props);
-      Date t2 = new Date();
-      rr.set("connect_duration", t2.getTime() - t1.getTime());
-      queryToResmon(conn, config, sql, rr);
-      Date t3 = new Date();
-      rr.set("query_duration", t3.getTime() - t2.getTime());
+    if ( check.get("module").equals("mongodb") ) {
+      try {
+        mongodb.queryToResmon(url, config, sql, rr);
+      }
+      catch (Exception e) { rr.set("jezebel_status", e.getMessage()); }
     }
-    catch (SQLException e) { rr.set("jezebel_status", e.getMessage()); }
-    finally {
-      try { if(conn != null) conn.close(); }
-      catch (SQLException e) { }
+    else {
+      sql = JezebelTools.interpolate(sql, check, config);
+
+      Connection conn = null;
+      try {
+        Date t1 = new Date();
+        conn = jdbcConnection(url, props);
+        Date t2 = new Date();
+        rr.set("connect_duration", t2.getTime() - t1.getTime());
+        queryToResmon(conn, config, sql, rr);
+        Date t3 = new Date();
+        rr.set("query_duration", t3.getTime() - t2.getTime());
+      }
+      catch (SQLException e) { rr.set("jezebel_status", e.getMessage()); }
+      finally {
+        try { if(conn != null) conn.close(); }
+        catch (SQLException e) { }
+      }
     }
   }
   protected void queryToResmon(Connection conn, Map<String,String> config,
