@@ -1,0 +1,50 @@
+<module>
+  <name>mongodb</name>
+  <description><para>The mongodb module allows running commands against your mongo server and parses the results</para></description>
+  <loader>lua</loader>
+  <object>noit.module.jezebel</object>
+  <checkconfig>
+    <parameter name="username"
+               required="optional"
+               allowed=".+">Username needed to authenticate with</parameter>
+    <parameter name="password"
+               required="optional"
+               allowed=".+">Password needed to authenticate with</parameter>
+    <parameter name="port"
+               required="required"
+               allowed="\d+">The TCP port MongoDB is listening on</parameter>
+    <parameter name="dbname"
+               required="required"
+               allowed=".+">The name of the database to connext to</parameter>
+    <parameter name="command"
+               required="required"
+               allowed=".+">The command that will be executed</parameter>
+  </checkconfig>
+  <examples>
+    <example>
+      <title>MongoDB Server Status</title>
+      <para>This will run the serverStatus command every 5 minutes against the mongodb server at 10.225.209.36 with the database mydb logging in as user / pass</para>
+      <programlisting><![CDATA[
+      <noit>
+        <modules>
+          <module image="mongodb" name="mongodb"/>
+        </modules>
+        <checks>
+          <databases>
+            <mongodb module="mongodb" period="300000">
+              <config>
+                <username>user</username>
+                <password>pass</password>
+                <port>27017</port>
+                <dbname>mydb</dbname>
+                <command>serverStatus</command>
+              </config>
+              <check uuid="8c5ca46c-77d7-11dd-ab5b-53bc659517d6" target="10.225.209.35"/>
+            </postgres>
+          </databases>
+        </checks>
+      </noit>
+    ]]></programlisting>
+    </example>
+  </examples>
+</module>
