@@ -2,57 +2,63 @@ package com.omniti.jezebel.check;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
-import java.sql.*;
 import java.util.Properties;
 import java.util.Date;
-import com.omniti.jezebel.check.JDBC;
 import com.omniti.jezebel.JezebelCheck;
 import com.omniti.jezebel.ResmonResult;
 import com.omniti.jezebel.Jezebel;
 import com.mongodb.*;
 import org.bson.*;
-public class mongodb extends JDBC implements JezebelCheck {
-//  static { try { Class.forName("mongodb.jdbc.MongoDriver"); }
-//           catch (Exception e) { throw new RuntimeException(e); } }
+public class mongodb implements JezebelCheck {
+  public mongodb() {}
 
-  protected String defaultPort() { return "27017"; }
+  public void perform(Map<String,String> check,
+                        Map<String,String> config,
+                        ResmonResult rr)
+  {
+    final String user   = config.remove("username");
+    final String pass   = config.remove("password");
+    final String host   = check.remove("target_ip");
+    final String port   = config.remove("port");
+    final String dbname = config.remove("dbname");
+    String url          = "mongodb://" + host + ":" + port + "/" + dbname;
 
-  protected String jdbcConnectUrl(String host, String port, String db, Properties props) {
-    if (props.getProperty("user") != null && props.getProperty("password") != null) {
-      return "mongodb://" + props.getProperty("user") + ":" + props.getProperty("password") + "@" + host + ":" + port + "/" + db;
+    if (user != null && pass != null) {
+      url = "mongodb://" + user + ":" + pass + "@" + host + ":" + port + "/" + dbname;
     }
 
-    return "mongodb://" + host + ":" + port + "/" + db;
-  }
+    try {
+      Date t1 = new Date();
+      MongoClientURI uri  = new MongoClientURI(url);
+      MongoClient client = new MongoClient(uri);
+      DB db = client.getDB(uri.getDatabase());
+      Date t2 = new Date();
+      rr.set("connect_duration", t2.getTime() - t1.getTime());
 
-  // This is all taken care of internally by the driver (i think?)
-  protected Map<String,String> setupBasicSSL() {
-    HashMap<String,String> props = new HashMap<String,String>();
-    return props;
-  }
+      if (config.containsKey("command")) {
+        CommandResult cr = db.command(config.remove("command"));
+        Date t3 = new Date();
+        rr.set("query_duration", t3.getTime() - t2.getTime());
 
-  protected Connection jdbcConnection(String url, Properties props) throws SQLException {
-    return DriverManager.getConnection(url, props);
-  }
-
-  static protected void queryToResmon(String url, Map<String,String> config, String query, ResmonResult rr) {
-    MongoClientURI uri  = new MongoClientURI(url);
-    MongoClient client = new MongoClient(uri);
-    DB db = client.getDB(uri.getDatabase());
-    CommandResult cr = db.command(query);
-
-    if (!cr.ok()) {
-      rr.set("_query_status", "notok");
-      rr.set("_query_error", cr.getErrorMessage());
+        if (!cr.ok()) {
+          rr.set("query_status", "notok");
+          rr.set("query_error", cr.getErrorMessage());
+        }
+        else {
+          rr.set("query_status", "ok");
+          entrySetToResmon(cr.entrySet(), rr, "");
+        }
+      }
+      else {
+        rr.set("jezebel_status", "no command provided in check");
+      }
     }
-    else {
-      rr.set("_query_status", "ok");
-
-      translateEntrySet(cr.entrySet(), rr, "");
+    catch (Exception e) {
+      rr.set("jezebel_status", e.getMessage());
     }
   }
 
-  static void translateEntrySet(Set<Map.Entry<String, Object>> set, ResmonResult rr, String prefix) {
+  static void entrySetToResmon(Set<Map.Entry<String, Object>> set, ResmonResult rr, String prefix) {
     for (Map.Entry<String, Object> entry : set) {
       String name = prefix + entry.getKey();
 
@@ -73,7 +79,7 @@ public class mongodb extends JDBC implements JezebelCheck {
         rr.set(name, entry.getValue().toString());
       }
       else if (entry.getValue() instanceof com.mongodb.BasicDBObject) {
-        translateEntrySet(((BasicDBObject)entry.getValue()).entrySet(), rr, name+"`");
+        entrySetToResmon(((BasicDBObject)entry.getValue()).entrySet(), rr, name+"`");
       }
       else if (entry.getValue() instanceof com.mongodb.BasicDBList) {
         int size = ((BasicDBList)entry.getValue()).size();
