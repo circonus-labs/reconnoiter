@@ -69,7 +69,7 @@ J_FILE = src/com/omniti/jezebel/Jezebel.java \
 	src/com/omniti/jezebel/check/oracle.java \
 	src/com/omniti/jezebel/check/sqlserver.java \
 	src/com/omniti/jezebel/check/postgres.java \
-        src/com/omniti/jezebel/check/mongodb.java \
+	src/com/omniti/jezebel/check/mongodb.java \
 	src/com/omniti/jezebel/check/jmx.java \
 	src/com/omniti/jezebel/check/ldap.java \
 	src/com/omniti/jezebel/check/snmp.java
