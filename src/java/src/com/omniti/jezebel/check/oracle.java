@@ -42,7 +42,7 @@ public class oracle extends JDBC implements JezebelCheck {
   static { try { Class.forName("oracle.jdbc.driver.OracleDriver"); }
            catch (Exception e) { throw new RuntimeException(e); } }
   protected String defaultPort() { return "1521"; }
-  protected String jdbcConnectUrl(String host, String port, String db, Properties props) {
+  protected String jdbcConnectUrl(String host, String port, String db) {
     if(db.startsWith("/"))
       return "jdbc:oracle:thin:@//" + host + ":" + port + db;
     if(db.startsWith(":"))
