@@ -460,7 +460,15 @@ function initiate(module, check)
             return
         end
         optclient:do_request(method, uri, headers, payload, http_version)
-        optclient:get_response(read_limit)
+        local status, err = pcall(function() optclient:get_response(read_limit) end)
+        if not status then
+            if err ~= nil then
+                local i,j = string.find(err, "^/[^:]+:%s*")
+                if j then err = string.sub(err, j+1) end
+            end
+            check.metric_string("client_error", err or "unknown error")
+            optclient.truncated = true
+        end
         setfirstbyte = 1
 
         redirects = redirects - 1
