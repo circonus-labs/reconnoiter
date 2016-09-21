@@ -27,7 +27,7 @@
       <programlisting><![CDATA[
       <noit>
         <modules>
-          <module image="mongodb" name="mongodb"/>
+          <module loader="lua" name="mongodb" object="noit.module.jezebel"/>
         </modules>
         <checks>
           <databases>
