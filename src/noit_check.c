@@ -52,6 +52,7 @@
 #include <mtev_conf.h>
 #include <mtev_console.h>
 #include <mtev_cluster.h>
+#include <mtev_str.h>
 
 #include "noit_mtev_bridge.h"
 #include "noit_dtrace_probes.h"
@@ -63,6 +64,10 @@
 
 #define DEFAULT_TEXT_METRIC_SIZE_LIMIT  512
 #define RECYCLE_INTERVAL 60
+
+#define CHECKS_XPATH_ROOT "/noit"
+#define CHECKS_XPATH_PARENT "checks"
+#define CHECKS_XPATH_BASE CHECKS_XPATH_ROOT "/" CHECKS_XPATH_PARENT
 
 MTEV_HOOK_IMPL(check_config_fixup,
   (noit_check_t *check),
@@ -1659,6 +1664,22 @@ noit_poller_lookup_by_module(const char *ip, const char *mod,
   return noit_poller_target_do(ip, ip_module_collector, &crutch);
 }
 
+xmlNodePtr
+noit_get_check_xml_node(noit_check_t *check) {
+  char xpath[1024];
+  xmlNodePtr node;
+  noit_check_xpath_check(xpath, sizeof(xpath), check);
+  node = mtev_conf_get_section(NULL, xpath);
+  return node;
+}
+
+int
+noit_check_xpath_check(char *xpath, int len,
+                  noit_check_t *check) {
+  char uuid_str[UUID_PRINTABLE_STRING_LENGTH];
+  uuid_unparse_lower(check->checkid, uuid_str);
+  return noit_check_xpath(xpath, len, "/", uuid_str);
+}
 
 int
 noit_check_xpath(char *xpath, int len,
@@ -1695,6 +1716,36 @@ noit_check_xpath(char *xpath, int len,
              base, base_trailing_slash ? "" : "/", uuid_str);
   }
   return strlen(xpath);
+}
+
+char*
+noit_check_path(noit_check_t *check) {
+  xmlNodePtr node, parent;
+  mtev_prependable_str_buff_t *path;
+  char *path_str;
+  int path_str_len;
+
+  path = mtev_prepend_str_alloc();
+
+  node = noit_get_check_xml_node(check);
+  if(node == NULL) {
+    return NULL;
+  }
+
+  mtev_prepend_str(path, "/", 1);
+  parent = node->parent;
+  while(parent && strcmp((char*)parent->name, CHECKS_XPATH_PARENT)) {
+    mtev_prepend_str(path, (char*)parent->name, strlen((char*)parent->name));
+    mtev_prepend_str(path, "/", 1);
+    parent = parent->parent;
+  }
+
+  path_str_len = mtev_prepend_strlen(path);
+  path_str = malloc(path_str_len+1);
+  memcpy(path_str, path->string, path_str_len);
+  mtev_prepend_str_free(path);
+  path_str[path_str_len] = '\0';
+  return path_str;
 }
 
 static int
